@@ -1,6 +1,6 @@
 {
  "esquema": "pit_mapeo_formatos_v1",
- "nota": "107-T19b. Mapeo campo → celda de los formatos de la Norma Tarifas (RCD 217-2013), por formato y bloque. Cada columna cita la fila y la letra de su rótulo en la plantilla transcrita (config/normativa/rcd_217_2013_formatos.json); pit/plantillas.py comprueba que el rótulo sigue ahí antes de llenar y, si la norma cambia la plantilla, lo dice. Los rótulos que abarcan varias columnas (centrados en la selección, sin celdas combinadas) se cotejaron con la hoja exportada a PDF en solo lectura y sin macros por el COM «Excel.Application», que en esta máquina atiende WPS Spreadsheets (et.exe 12.1.0.296), no Microsoft Excel; (D:/csg/NORMATIVA_OSINERGMIN/PIT_NORMA/rcd_217-2013_formatos/pdf, 2026-11-14).",
+ "nota": "107-T19b. Mapeo campo → celda de los formatos de la Norma Tarifas (RCD 217-2013), por formato y bloque. Cada columna cita la fila y la letra de su rótulo en la plantilla transcrita (config/normativa/rcd_217_2013_formatos.json); pit/plantillas.py comprueba que el rótulo sigue ahí antes de llenar y, si la norma cambia la plantilla, lo dice. Los rótulos que abarcan varias columnas (centrados en la selección, sin celdas combinadas) se cotejaron con la hoja exportada a PDF en solo lectura y sin macros por el COM «Excel.Application», que en esta máquina atiende WPS Spreadsheets (et.exe 12.1.0.296), no Microsoft Excel; (<fuentes>/PIT_NORMA/rcd_217-2013_formatos/pdf, 2026-11-14).",
  "formatos": {
   "F-001": {
    "cabecera": [
@@ -9,7 +9,7 @@
      "rotulo": [
       4,
       "A",
-      "Área de Demanda (1):"
+      "Área de Demanda :"
      ],
      "campo": "area"
     }
@@ -27,7 +27,7 @@
        "rotulo": [
         7,
         "A",
-        "TITULARES(2)"
+        "TITULARES"
        ],
        "campo": "titular"
       },
@@ -103,7 +103,7 @@
        "rotulo": [
         8,
         "B",
-        "CÓDIGO (2)"
+        "CÓDIGO"
        ],
        "campo": "codigo"
       },
@@ -202,7 +202,7 @@
        "rotulo": [
         9,
         "M",
-        "(kA)3"
+        "(kA)"
        ],
        "campo": "max_i_ka"
       },
@@ -745,6 +745,371 @@
         "(MVAR)"
        ],
        "campo": "q_capacitor_mvar"
+      }
+     ]
+    }
+   ]
+  },
+  "F-102": {
+   "bloques": [
+    {
+     "bloque": "devanados",
+     "fila_marca": 8,
+     "marca": "Sistema 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        6,
+        "A",
+        "Nombre Sistema Eléctrico"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        6,
+        "B",
+        "SET"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        6,
+        "C",
+        "Barra (2)"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        6,
+        "D",
+        "Tensión (kV)"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        6,
+        "E",
+        "Fecha"
+       ],
+       "campo": "sistema_electrico_fecha"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        6,
+        "F",
+        "Hora"
+       ],
+       "campo": "sistema_electrico_hora"
+      },
+      {
+       "letra": "G",
+       "rotulo": [
+        6,
+        "G",
+        "Potencia Activa"
+       ],
+       "campo": "sistema_electrico_kw"
+      },
+      {
+       "letra": "H",
+       "rotulo": [
+        6,
+        "H",
+        "Potencia Reactiva"
+       ],
+       "campo": "sistema_electrico_kvar"
+      },
+      {
+       "letra": "I",
+       "rotulo": [
+        6,
+        "I",
+        "Fecha"
+       ],
+       "campo": "set_maxima_fecha"
+      },
+      {
+       "letra": "J",
+       "rotulo": [
+        6,
+        "J",
+        "Hora"
+       ],
+       "campo": "set_maxima_hora"
+      },
+      {
+       "letra": "K",
+       "rotulo": [
+        6,
+        "K",
+        "Potencia Activa"
+       ],
+       "campo": "set_maxima_kw"
+      },
+      {
+       "letra": "L",
+       "rotulo": [
+        6,
+        "L",
+        "Potencia Reactiva"
+       ],
+       "campo": "set_maxima_kvar"
+      },
+      {
+       "letra": "M",
+       "rotulo": [
+        6,
+        "M",
+        "Fecha"
+       ],
+       "campo": "sein_fecha"
+      },
+      {
+       "letra": "N",
+       "rotulo": [
+        6,
+        "N",
+        "Hora"
+       ],
+       "campo": "sein_hora"
+      },
+      {
+       "letra": "O",
+       "rotulo": [
+        6,
+        "O",
+        "Potencia Activa"
+       ],
+       "campo": "sein_kw"
+      },
+      {
+       "letra": "P",
+       "rotulo": [
+        6,
+        "P",
+        "Potencia Reactiva"
+       ],
+       "campo": "sein_kvar"
+      },
+      {
+       "letra": "Q",
+       "rotulo": [
+        6,
+        "Q",
+        "Fecha"
+       ],
+       "campo": "no_coincidente_fecha"
+      },
+      {
+       "letra": "R",
+       "rotulo": [
+        6,
+        "R",
+        "Hora"
+       ],
+       "campo": "no_coincidente_hora"
+      },
+      {
+       "letra": "S",
+       "rotulo": [
+        6,
+        "S",
+        "Potencia Activa"
+       ],
+       "campo": "no_coincidente_kw"
+      },
+      {
+       "letra": "T",
+       "rotulo": [
+        6,
+        "T",
+        "Potencia Reactiva"
+       ],
+       "campo": "no_coincidente_kvar"
+      }
+     ]
+    }
+   ]
+  },
+  "F-103": {
+   "bloques": [
+    {
+     "bloque": "devanados",
+     "fila_marca": 9,
+     "marca": "Sistema 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        6,
+        "A",
+        "Sistema Eléctrico"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        6,
+        "B",
+        "SET"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        6,
+        "C",
+        "Barra"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        6,
+        "D",
+        "Tensión (kV)"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        6,
+        "E",
+        "Max Dem. del Sistema"
+       ],
+       "campo": "pmax_sistema_kw"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        6,
+        "F",
+        "FPHMS"
+       ],
+       "campo": "fphms"
+      },
+      {
+       "letra": "G",
+       "rotulo": [
+        5,
+        "G",
+        "Energía del Año Representativo"
+       ],
+       "campo": "energia_mwh"
+      },
+      {
+       "letra": "H",
+       "rotulo": [
+        6,
+        "H",
+        "FPMWHS"
+       ],
+       "campo": "fpmwhs"
+      }
+     ]
+    }
+   ]
+  },
+  "F-101": {
+   "bloques": [],
+   "grupos": [
+    {
+     "grupo": "sistemas",
+     "marca_cabecera": "SISTEMA ELÉCTRICO",
+     "marca_total": "Total Sistema",
+     "filas_cabecera": [
+      5,
+      12,
+      19
+     ],
+     "filas_total": [
+      8,
+      15,
+      22
+     ],
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        5,
+        "A",
+        "SISTEMA ELÉCTRICO 1"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        5,
+        "B",
+        "SET"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        5,
+        "C",
+        "Barra"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        5,
+        "D",
+        "Tensión (kV)"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        5,
+        "E",
+        "FC"
+       ],
+       "campo": "fc"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        5,
+        "F",
+        "FCP"
+       ],
+       "campo": "fcp"
+      },
+      {
+       "letra": "G",
+       "rotulo": [
+        5,
+        "G",
+        "FS"
+       ],
+       "campo": "fs"
+      }
+     ],
+     "total": [
+      {
+       "letra": "E",
+       "campo": "fc"
       }
      ]
     }

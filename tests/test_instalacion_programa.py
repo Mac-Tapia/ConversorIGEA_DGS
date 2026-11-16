@@ -1464,8 +1464,10 @@ def test_086_rf89_el_candidato_lleva_los_manuales_y_las_notas_de_su_version(tmp_
     assert set(CC.DOCUMENTOS) <= pedidos
     raiz = _raiz_de_mentira(tmp_path, '1.0.0rc6')
     destino = tmp_path / 'documentos'
+    # LIC-MIT: la MIT (LICENSE, sin extensión) queda en «documentos/» como LICENSE.txt.
+    assert hasattr(CC, 'nombre_en_documentos'), 'falta construir_candidato.nombre_en_documentos (LIC-MIT)'
     CC.copiar_documentos(raiz, destino, '1.0.0rc6')
-    assert {p.name for p in destino.iterdir()} == {Path(r).name for r in pedidos}
+    assert {p.name for p in destino.iterdir()} == {CC.nombre_en_documentos(r) for r in pedidos}
     assert (destino / 'NOTAS_VERSION_1.0.0.md').read_text(encoding='utf-8') == 'De mentira: docs/NOTAS_VERSION_1.0.0.md\n'
 
 
@@ -2059,37 +2061,56 @@ def test_086_rf105_documentos_anterior_que_no_se_borra_se_avisa(tmp_path, instal
 
 
 # --------------------------------------------------------------------------- lanzamiento: U1 a U8, L5 a L7 (086:RF-39, RF-44, RF-89)
-def test_086_rf44_la_licencia_de_la_entrega_es_la_comercial_y_la_mit_no_va(rueda, manifiesto):
-    """086:RF-44 — U1 (2026-11-14): la entrega lleva la licencia por puesto; la MIT del repositorio no va, ni en la rueda."""
+def test_086_rf44_la_licencia_de_la_entrega_es_la_mit_y_la_comercial_es_opcional(manifiesto):
+    """086:RF-44 — LIC-MIT (usuario, 2026-11-15, «MIT + comercial opcional»): la licencia del programa que se entrega es la MIT
+    del repositorio; el acuerdo comercial, si va, es un documento OPCIONAL de soporte y garantía, no una condición de uso."""
     pedidos = set(CC.documentos_del_candidato(__version__))
-    assert CC.LICENCIA_DE_LA_ENTREGA in pedidos and 'LICENSE' in manifiesto['documentos']['no_se_entregan']
+    assert CC.LICENCIA_DE_LA_ENTREGA == 'LICENSE' and 'LICENSE' in pedidos
+    assert 'LICENSE' not in manifiesto['documentos']['no_se_entregan']
     assert not (pedidos & set(manifiesto['documentos']['no_se_entregan']))
-    texto = (RAIZ / CC.LICENCIA_DE_LA_ENTREGA).read_text(encoding='utf-8')
-    for clausula in ('UN (1) equipo', 'redistribuir', 'Garantía limitada', 'Limitación de responsabilidad', 'lo revisa un abogado'):
+    assert 'Permission is hereby granted, free of charge' in (RAIZ / 'LICENSE').read_text(encoding='utf-8')
+    CC.comprobar_documentos_de_la_entrega(['LICENSE'], manifiesto)  # ya no está vedada
+    # El acuerdo comercial no es obligatorio: no está entre los pedidos, sí entre los opcionales.
+    assert CC.ACUERDO_COMERCIAL_OPCIONAL not in pedidos
+    assert manifiesto['documentos']['opcionales'] == [CC.ACUERDO_COMERCIAL_OPCIONAL]
+    texto = (RAIZ / CC.ACUERDO_COMERCIAL_OPCIONAL).read_text(encoding='utf-8')
+    assert texto.splitlines()[0].startswith('OPCIONAL'), texto.splitlines()[0]
+    assert 'licencia MIT' in texto and 'LICENSE.txt' in texto
+    for clausula in ('Garantía limitada', 'Limitación de responsabilidad'):
         assert clausula in texto, clausula
-    with zipfile.ZipFile(rueda) as z:
-        mit = [n for n in z.namelist() if 'leaflet' not in n and n.rsplit('/', 1)[-1].upper().startswith('LICEN')
-               and 'Permission is hereby granted' in z.read(n).decode('utf-8', 'replace')]
-    assert not mit, mit
-    with pytest.raises(CE.EntregaError, match='LICENSE'):
-        CC.comprobar_documentos_de_la_entrega(['LICENSE'], manifiesto)
+    # Nada que contradiga la MIT ni que quede fuera de la 1.0 (abogado, cláusula de jurisdicción a decidir).
+    for vedado in ('UN (1) equipo', 'redistribuir, vender', 'abogado', '[DECISIÓN'):
+        assert vedado not in texto, vedado
 
 
-def test_086_rf44_el_iss_muestra_la_licencia_y_el_editor_es_el_de_la_rueda(rueda):
-    """086:RF-44 — U1: LicenseFile= la pide aceptar; AppPublisher coincide con «authors» de los metadatos de la rueda."""
+def test_086_rf44_el_iss_muestra_la_mit_y_el_editor_es_el_de_la_rueda(rueda):
+    """086:RF-44 — LIC-MIT: LicenseFile= muestra la MIT; AppPublisher coincide con «authors» de los metadatos de la rueda."""
     iss = (RAIZ / 'instalador' / 'ConverterSmartGrid.iss').read_text(encoding='utf-8')
     editor = re.search(r'#define Editor "([^"]+)"', iss).group(1)
-    assert 'LicenseFile={#Candidato}\\documentos\\LICENCIA_COMERCIAL.txt' in iss and 'AppPublisher={#Editor}' in iss
+    assert 'LicenseFile={#Candidato}\\documentos\\LICENSE.txt' in iss and 'AppPublisher={#Editor}' in iss
+    assert 'LICENCIA_COMERCIAL.txt") == 0' not in iss, 'el acuerdo comercial no puede ser condición para armar el instalador'
     with zipfile.ZipFile(rueda) as z:
         meta = z.read(next(n for n in z.namelist() if n.endswith('.dist-info/METADATA'))).decode('utf-8')
     assert f'Author: {editor}' in meta
 
 
 def test_086_rf44_la_licencia_lleva_bom_para_inno_y_el_manual_sin_la_parte_de_construir(tmp_path, manifiesto):
-    """086:RF-44 — U1, L6: Inno lee como UTF-8 solo un .txt con BOM; «Para quien prepara una versión» no llega al cliente."""
+    """086:RF-44 — LIC-MIT, L6: la MIT va como LICENSE.txt con BOM (Inno lee como UTF-8 solo un .txt con BOM); el acuerdo
+    comercial opcional se copia solo si existe; «Para quien prepara una versión» no llega al cliente."""
     destino = tmp_path / 'documentos'
-    CC.copiar_documentos(RAIZ, destino, __version__, manifiesto)
-    assert (destino / 'LICENCIA_COMERCIAL.txt').read_bytes().startswith(b'\xef\xbb\xbf')
+    copiados = CC.copiar_documentos(RAIZ, destino, __version__, manifiesto)
+    assert 'LICENSE.txt' in copiados and (destino / 'LICENSE.txt').read_bytes().startswith(b'\xef\xbb\xbf')
+    assert 'Permission is hereby granted' in (destino / 'LICENSE.txt').read_text(encoding='utf-8-sig')
+    assert (destino / 'LICENCIA_COMERCIAL.txt').is_file()  # opcional, y en el repositorio sí está
+    sin_acuerdo = tmp_path / 'raiz_sin_acuerdo'
+    shutil.copytree(RAIZ / 'docs', sin_acuerdo / 'docs', ignore=shutil.ignore_patterns('LICENCIA_COMERCIAL.txt'))
+    for rel in CC.documentos_del_candidato(__version__):
+        if not (sin_acuerdo / rel).exists():
+            (sin_acuerdo / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(RAIZ / rel, sin_acuerdo / rel)
+    otro = tmp_path / 'documentos_sin_acuerdo'
+    assert 'LICENCIA_COMERCIAL.txt' not in CC.copiar_documentos(sin_acuerdo, otro, __version__, manifiesto)
+    assert (otro / 'LICENSE.txt').is_file()
     manual = (destino / 'MANUAL_INSTALACION.md').read_text(encoding='utf-8')
     assert 'Para quien prepara una versión' not in manual and 'construir_candidato' not in manual
     assert '## Instalación silenciosa' in manual and '## Entrega y actualizaciones' in manual

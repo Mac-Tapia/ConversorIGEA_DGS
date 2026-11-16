@@ -1,0 +1,727 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Generado por tools/normativa/generar_coes.py desde las fuentes descargadas (107 T28). Registro de datos del COES (máxima demanda anual del SEIN por año, reemplazable por año) y horas punta del MINEM.",
+ "normas": [
+  {
+   "acto": "RM 153-2021-MINEM/DM",
+   "titulo": "Fijan Horas de Punta del Sistema Eléctrico Interconectado Nacional",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://busquedas.elperuano.pe/dispositivo/NL/1956880-1",
+   "fecha_publicacion": "2021-05-27",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "8af7a357c8399100d6cd5ce1f7da711e52eb060b765350d5fd1a5c8d0b9f735b",
+   "sha256_texto": "2d382b41446afb2def294ff38f10f77f9e053d79e06e049e48c644aa4fad15a1",
+   "fichero_local": "COES_SEIN/procedimientos/rm_153_2021_minem/dispositivo_1956880-1.html",
+   "vigencia_desde": "2021-06-01",
+   "vigencia_hasta": "2025-05-31",
+   "nota": "Art. 2: vigente desde el 1 de junio de 2021 para 2021-2025. La sustituye desde el 2025-06-01 la RM 189-2025-MINEM/DM (su considerando la cita como «vigente a la fecha» el 31-05-2025), así que rige hasta el 2025-05-31. Fecha de publicación (27/05/2021): la de la página de El Peruano, línea 9 de texto.txt.",
+   "reglas": [
+    {
+     "clave": "sein.horas_punta",
+     "valor": {
+      "desde": "17:00",
+      "hasta": "23:00"
+     },
+     "articulo_o_anexo": "Artículo 1",
+     "pagina": "única (edición web de El Peruano, dispositivo 1956880-1)",
+     "lineas": "24-25",
+     "cita_literal": "Artículo 1.- Fijar las Horas de Punta del Sistema Eléctrico Interconectado Nacional en el período comprendido entre las 17:00 y las 23:00 horas, para efectos de la evaluación de la indisponibilidad de las unidades generadoras a que se refiere el inciso e) del artículo 110 del Reglamento de la Ley de Concesiones Eléctricas."
+    },
+    {
+     "clave": "sein.horas_punta.periodo",
+     "valor": {
+      "desde": "2021-06-01",
+      "anios": [
+       2021,
+       2025
+      ]
+     },
+     "articulo_o_anexo": "Artículo 2",
+     "pagina": "única (edición web de El Peruano, dispositivo 1956880-1)",
+     "lineas": "26-27",
+     "cita_literal": "Artículo 2.- La presente Resolución Ministerial entrará en vigencia el 1 de junio de 2021 para el periodo comprendido entre los años 2021 al 2025."
+    }
+   ]
+  },
+  {
+   "acto": "RM 189-2025-MINEM/DM",
+   "titulo": "Definen Horas de Punta del Sistema Eléctrico Interconectado Nacional",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://busquedas.elperuano.pe/dispositivo/EX/2405081-1",
+   "fecha_publicacion": "2025-05-31",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "6d9e388ab20c6201a33ad713bfc05031e2e61931cd21e7dd0095183ee898cb10",
+   "sha256_texto": "da2c2642a7f8d3cade2ed91c16efda97d124c7d36b9890cb6e161416b751712f",
+   "fichero_local": "COES_SEIN/procedimientos/rm_189_2025_minem/dispositivo_EX_2405081-1.html",
+   "vigencia_desde": "2025-06-01",
+   "vigencia_hasta": "2029-05-31",
+   "nota": "Edición extraordinaria de El Peruano (la ruta NL da 404). La localizó cc (apoyo de f4) el 2026-11-15, en apoyo (cc), frente «a_horas_punta_y_convencion;» f4 comprobó las líneas 17-18 y las huellas.",
+   "reglas": [
+    {
+     "clave": "sein.horas_punta",
+     "valor": {
+      "desde": "18:00",
+      "hasta": "23:00"
+     },
+     "articulo_o_anexo": "Artículo 1",
+     "pagina": "única (edición web de El Peruano, dispositivo EX 2405081-1)",
+     "lineas": "17-17",
+     "cita_literal": "Artículo 1.- Definir las Horas de Punta del Sistema Eléctrico Interconectado Nacional en el período comprendido entre las 18:00 y las 23:00 horas, para efectos de la evaluación de la indisponibilidad de las unidades generadoras a que se refiere el literal e) del artículo 110 del Reglamento de la Ley de Concesiones Eléctricas; aprobado por Decreto Supremo Nº 009-93-EM."
+    },
+    {
+     "clave": "sein.horas_punta.periodo",
+     "valor": {
+      "desde": "2025-06-01",
+      "hasta": "2029-05-31"
+     },
+     "articulo_o_anexo": "Artículo 2",
+     "pagina": "única (edición web de El Peruano, dispositivo EX 2405081-1)",
+     "lineas": "18-18",
+     "cita_literal": "Artículo 2.- La presente Resolución Ministerial entrará en vigencia el 1 de junio de 2025 hasta el 31 de mayo de 2029."
+    }
+   ]
+  },
+  {
+   "acto": "COES Glosario de los Procedimientos Técnicos",
+   "titulo": "Glosario de abreviaturas y definiciones utilizadas en los procedimientos técnicos del COES SINAC",
+   "estado_juridico": "vigente_comprobada",
+   "sha256": "f603c30bcc8bf7027bc0d2354f78eca5c880ec2882463917dfeec41a45734649",
+   "url": "https://www.coes.org.pe/Portal/browser/download?url=Marco+Normativo%2FProcedimientos%2FGlosario+de+Terminos%2FGlosario+de+T%C3%A9rminos.pdf",
+   "fecha_consulta": "2026-11-14",
+   "sha256_texto": "f0f0fc3dcabd3d832f6b14b800f6256ff87f3da804c7914958ab6026c7824da6",
+   "fichero_local": "COES_SEIN/procedimientos/glosario.pdf",
+   "reglas": [
+    {
+     "clave": "coes.sein.intervalo_maxima",
+     "valor": {
+      "minutos": 15,
+      "magnitud": "potencia_media"
+     },
+     "articulo_o_anexo": "Definiciones: «Máxima demanda mensual a nivel de generación»",
+     "pagina": "19",
+     "lineas": "991-993",
+     "cita_literal": "Máxima demanda mensual a nivel de generación: Potencia media de la energía integrada del Sistema Eléctrico a Nivel de Generación en el intervalo de 15 minutos de mayor demanda en el mes. Este intervalo es el Intervalo de Punta del mes. Adicionalmente, para aquellas"
+    },
+    {
+     "clave": "coes.sein.intervalo_punta",
+     "valor": "intervalo de 15 minutos de la máxima mensual en horas punta",
+     "articulo_o_anexo": "Definiciones: «Intervalo de Punta del mes»",
+     "pagina": "17",
+     "lineas": "896-899",
+     "cita_literal": "Intervalo de Punta del mes: Intervalo de 15 minutos en que se produce en la Máxima Demanda Mensual registrada a nivel de generación en Horas de Punta definidas por el Ministerio de Energía y Minas, en aplicación del literal e) del Artículo 110° del Reglamento de la Ley de Concesiones Eléctricas.69"
+    },
+    {
+     "clave": "coes.sein.convencion_marca_tiempo",
+     "valor": "no_declarada",
+     "articulo_o_anexo": "Definiciones: «Máxima demanda mensual a nivel de generación»",
+     "pagina": "19",
+     "lineas": "991-993",
+     "cita_literal": "Máxima demanda mensual a nivel de generación: Potencia media de la energía integrada del Sistema Eléctrico a Nivel de Generación en el intervalo de 15 minutos de mayor demanda en el mes. Este intervalo es el Intervalo de Punta del mes. Adicionalmente, para aquellas",
+     "interpretacion": "El glosario define el intervalo de 15 minutos, pero no dice si la hora publicada rotula su inicio o su fin. Decisión de ca (05:40), confirmada por 28 (23:31): se calculan las dos alineaciones, [h, h+15) y [h−15, h); si dan lo mismo dentro de la tolerancia, se usa con la marca «convención no declarada; resultado igual en las dos»; si difieren, hueco con las dos cifras."
+    }
+   ]
+  },
+  {
+   "acto": "COES Estadística Anual 2022, cap. 05",
+   "titulo": "Estadística Anual 2022 del COES, capítulo 05 «Demanda de energía eléctrica» (máxima demanda del SEIN)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.coes.org.pe/Portal/browser/download?url=Publicaciones/Estadisticas Anuales/2022/Excel/Capítulo 05_DEMANDA DE ENERGÍA ELÉCTRICA.xlsx",
+   "fecha_consulta": "2026-11-14",
+   "sha256": "f86d09e590d79c4356ccfb69f605ad49dc788c513cd5787fdf81b9e475bda170",
+   "fichero_local": "COES_SEIN/2022/Capítulo 05_DEMANDA DE ENERGÍA ELÉCTRICA.xlsx",
+   "vigencia_desde": "2022-01-01",
+   "nota": "Publicación oficial de datos del COES, no una norma: dato común a todas las empresas. Contraste: Capítulo 05_DEMANDA DE ENERGÍA ELÉCTRICA.xlsx (sha256 f86d09e590d79c4356ccfb69f605ad49dc788c513cd5787fdf81b9e475bda170), Capítulo 05_DEMANDA DE ENERGÍA ELÉCTRICA.xlsx, hoja C9, fila 12 «TOTAL MÁXIMA DEMANDA MENSUAL», F12:Q12.",
+   "reglas": [
+    {
+     "clave": "coes.sein.maxima_anual.2022",
+     "valor": {
+      "anio": 2022,
+      "potencia_mw": 7467.449739999998,
+      "fecha": "2022-12-06",
+      "hora": "19:30",
+      "intervalo_min": 15,
+      "fuente": "estadistica_anual",
+      "contraste_mensual": {
+       "mes_de_la_mayor": "DIC",
+       "potencia_mw": 7467.449739999998,
+       "coincide_potencia": true
+      }
+     },
+     "unidad": "MW",
+     "pagina": "hoja C2, título en la fila 5, cabecera D7, cifras D8 y D9",
+     "articulo_o_anexo": "Capítulo 05, «COMPARATIVO DE MÁXIMA DEMANDA»",
+     "cita_literal": "COMPARATIVO DE MÁXIMA DEMANDA · DICIEMBRE (*) 2022 · Potencia (MW) 7467.449739999998 · Fecha / hora 2022-12-06 19:30 · (*) Día de Máxima Demanda calculado durante el periodos de horas punta acorde al PR-30 y PR-43.",
+     "interpretacion": "Se toma tal como la publica el COES."
+    },
+    {
+     "clave": "coes.sein.maximas_mensuales.2022",
+     "valor": {
+      "ENE": 7070.2817499999965,
+      "FEB": 7146.764579999999,
+      "MAR": 7065.422789999999,
+      "ABR": 7024.304229999999,
+      "MAY": 6961.367699999999,
+      "JUN": 7069.90812,
+      "JUL": 7113.757990000001,
+      "AGO": 7073.7192,
+      "SET": 7315.801399999999,
+      "OCT": 7309.358440000001,
+      "NOV": 7426.574770000001,
+      "DIC": 7467.449739999998
+     },
+     "unidad": "MW",
+     "articulo_o_anexo": "Máxima demanda ejecutada por mes",
+     "pagina": "Capítulo 05_DEMANDA DE ENERGÍA ELÉCTRICA.xlsx, hoja C9, fila 12 «TOTAL MÁXIMA DEMANDA MENSUAL», F12:Q12",
+     "cita_literal": "ENE 7070.2817499999965 · FEB 7146.764579999999 · MAR 7065.422789999999 · ABR 7024.304229999999 · MAY 6961.367699999999 · JUN 7069.90812 · JUL 7113.757990000001 · AGO 7073.7192 · SET 7315.801399999999 · OCT 7309.358440000001 · NOV 7426.574770000001 · DIC 7467.449739999998",
+     "interpretacion": "Contraste de la anual: la mayor de las 12 tiene que coincidir con la anual; si no, se nombra la diferencia."
+    }
+   ]
+  },
+  {
+   "acto": "COES Estadística Anual 2024, cap. 05",
+   "titulo": "Estadística Anual 2024 del COES, capítulo 05 «Demanda de energía eléctrica» (máxima demanda del SEIN)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.coes.org.pe/Portal/browser/download?url=Publicaciones/Estadisticas Anuales/2024/Excel/Capítulo 05_DEMANDA DE ENERGÍA ELÉCTRICA.xlsx",
+   "fecha_consulta": "2026-11-14",
+   "sha256": "c7702e923b22a3ca183a4aacc9eabae1eb0ea05a97046ffb32bbfe7c15aeae61",
+   "fichero_local": "COES_SEIN/2024/Capítulo 05_DEMANDA DE ENERGÍA ELÉCTRICA.xlsx",
+   "vigencia_desde": "2024-01-01",
+   "nota": "Publicación oficial de datos del COES, no una norma: dato común a todas las empresas. Contraste: Capítulo 01_PRINCIPALES INDICADORES DE OPERACIÓN DEL SEIN.xlsx (sha256 cc2f04c798d060a84f71c84a45efd321343297d17392ea4688c9903c8ae3a529), Capítulo 01_PRINCIPALES INDICADORES DE OPERACIÓN DEL SEIN.xlsx, hoja BD, filas 18-29 (columna E, lo ejecutado).",
+   "reglas": [
+    {
+     "clave": "coes.sein.maxima_anual.2024",
+     "valor": {
+      "anio": 2024,
+      "potencia_mw": 7794.007999999997,
+      "fecha": "2024-11-19",
+      "hora": "20:00",
+      "intervalo_min": 15,
+      "fuente": "estadistica_anual",
+      "contraste_mensual": {
+       "mes_de_la_mayor": "NOV",
+       "potencia_mw": 7794.007999999997,
+       "coincide_potencia": true
+      },
+      "publicado": {
+       "fecha": "2023-11-19",
+       "hora": "20:00"
+      },
+      "marca": "corregido por el contraste mensual"
+     },
+     "unidad": "MW",
+     "pagina": "hoja BD, título en la fila 45, cabecera D47, cifras D48 y D49",
+     "articulo_o_anexo": "Capítulo 05, «COMPARATIVO DE MÁXIMA DEMANDA»",
+     "cita_literal": "COMPARATIVO DE MÁXIMA DEMANDA · DICIEMBRE (*) 2024 · Potencia (MW) 7794.007999999997 · Fecha / hora 2023-11-19 20:00 · (*) Día de Máxima Demanda calculado durante el periodos de horas punta acorde al PR-30 y PR-43.",
+     "interpretacion": "La estadística de 2024 publica la máxima anual con fecha 2023-11-19, fuera de su año. El contraste mensual de la misma estadística da la mayor de 2024 en NOV de 2024 con la misma potencia (7794.008 MW), así que se usa 2024-11-19 20:00 con la marca «corregido por el contraste mensual» y se conserva lo publicado. Decisión del auditor ca (2026-11-14 05:25)."
+    },
+    {
+     "clave": "coes.sein.maximas_mensuales.2024",
+     "valor": {
+      "ENE": 7632.531239999998,
+      "FEB": 7761.988599999993,
+      "MAR": 7550.306930000002,
+      "ABR": 7548.01572,
+      "MAY": 7431.310680000004,
+      "JUN": 7347.19681,
+      "JUL": 7416.906300000002,
+      "AGO": 7447.275309999999,
+      "SET": 7581.449240000003,
+      "OCT": 7583.627569999997,
+      "NOV": 7794.007999999997,
+      "DIC": 7698.940339999999
+     },
+     "unidad": "MW",
+     "articulo_o_anexo": "Máxima demanda ejecutada por mes",
+     "pagina": "Capítulo 01_PRINCIPALES INDICADORES DE OPERACIÓN DEL SEIN.xlsx, hoja BD, filas 18-29 (columna E, lo ejecutado)",
+     "cita_literal": "ENE 7632.531239999998 · FEB 7761.988599999993 · MAR 7550.306930000002 · ABR 7548.01572 · MAY 7431.310680000004 · JUN 7347.19681 · JUL 7416.906300000002 · AGO 7447.275309999999 · SET 7581.449240000003 · OCT 7583.627569999997 · NOV 7794.007999999997 · DIC 7698.940339999999",
+     "interpretacion": "Contraste de la anual: la mayor de las 12 tiene que coincidir con la anual; si no, se nombra la diferencia."
+    }
+   ]
+  },
+  {
+   "acto": "COES Estadística Anual 2025, cap. 05",
+   "titulo": "Estadística Anual 2025 del COES, capítulo 05 «Demanda de energía eléctrica» (máxima demanda del SEIN)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.coes.org.pe/Portal/browser/download?url=Publicaciones/Estadisticas Anuales/2025/Excel/Capítulo 05_DEMANDA DE ENERGÍA ELÉCTRICA.xlsx",
+   "fecha_consulta": "2026-11-14",
+   "sha256": "b2cce817418fa1c755dce37bbbc617670ec4d526347c5fe634fbdd1116f8798d",
+   "fichero_local": "COES_SEIN/2025/Capítulo 05_DEMANDA DE ENERGÍA ELÉCTRICA.xlsx",
+   "vigencia_desde": "2025-01-01",
+   "nota": "Publicación oficial de datos del COES, no una norma: dato común a todas las empresas. Contraste: Capítulo 01_PRINCIPALES INDICADORES DE OPERACIÓN DEL SEIN.xlsx (sha256 40cd1ae8a086dbb98a9e23b225328110413376afd8b16f1fd8861c3279e13708), Capítulo 01_PRINCIPALES INDICADORES DE OPERACIÓN DEL SEIN.xlsx, hoja BD, filas 18-29 (columna E, lo ejecutado).",
+   "reglas": [
+    {
+     "clave": "coes.sein.maxima_anual.2025",
+     "valor": {
+      "anio": 2025,
+      "potencia_mw": 7941.778970000002,
+      "fecha": "2025-03-26",
+      "hora": "19:00",
+      "intervalo_min": 15,
+      "fuente": "estadistica_anual",
+      "contraste_mensual": {
+       "mes_de_la_mayor": "MAR",
+       "potencia_mw": 7941.77897,
+       "coincide_potencia": true
+      }
+     },
+     "unidad": "MW",
+     "pagina": "hoja BD, título en la fila 45, cabecera D47, cifras D48 y D49",
+     "articulo_o_anexo": "Capítulo 05, «COMPARATIVO DE MÁXIMA DEMANDA»",
+     "cita_literal": "COMPARATIVO DE MÁXIMA DEMANDA · 2025 (*) · Potencia (MW) 7941.778970000002 · Fecha / hora 2025-03-26 19:00 · (*) Día de Máxima Demanda calculado durante el periodos de horas punta acorde al PR-30 y PR-43.",
+     "interpretacion": "Se toma tal como la publica el COES."
+    },
+    {
+     "clave": "coes.sein.maximas_mensuales.2025",
+     "valor": {
+      "ENE": 7745.872259999998,
+      "FEB": 7899.507810000001,
+      "MAR": 7941.77897,
+      "ABR": 7827.738499999999,
+      "MAY": 7588.006649999998,
+      "JUN": 7575.506810000001,
+      "JUL": 7544.216710000002,
+      "AGO": 7604.6358900000005,
+      "SET": 7777.751179999999,
+      "OCT": 7826.688289999999,
+      "NOV": 7875.32097,
+      "DIC": 7908.992440000002
+     },
+     "unidad": "MW",
+     "articulo_o_anexo": "Máxima demanda ejecutada por mes",
+     "pagina": "Capítulo 01_PRINCIPALES INDICADORES DE OPERACIÓN DEL SEIN.xlsx, hoja BD, filas 18-29 (columna E, lo ejecutado)",
+     "cita_literal": "ENE 7745.872259999998 · FEB 7899.507810000001 · MAR 7941.77897 · ABR 7827.738499999999 · MAY 7588.006649999998 · JUN 7575.506810000001 · JUL 7544.216710000002 · AGO 7604.6358900000005 · SET 7777.751179999999 · OCT 7826.688289999999 · NOV 7875.32097 · DIC 7908.992440000002",
+     "interpretacion": "Contraste de la anual: la mayor de las 12 tiene que coincidir con la anual; si no, se nombra la diferencia."
+    }
+   ]
+  },
+  {
+   "acto": "COES Reporte de Máxima Demanda 2022",
+   "titulo": "Reporte público de máxima demanda del SEIN, por mes, 2022 (COES, Portal de medidores)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.coes.org.pe/Portal/Medidores/maximademanda/ReporteMaximaDemanda",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "0dd52e87a32486f76665d66ffe8c0eed59e8582bd6731eed915c7503cfaa108f",
+   "fichero_local": "COES_SEIN/reporte_maxima_demanda",
+   "vigencia_desde": "2022-01-01",
+   "nota": "POST con tipoCentral=0&tipoGeneracion=-1&idEmpresa=-1&mes=AAAA-MM; 12 HTML. El sha256 de la norma es el del manifiesto «sha256  fichero» de los 12, en orden de mes. Localizado por cc (apoyo (cc), frente «b_maximas_mensuales_2024»).",
+   "reglas": [
+    {
+     "clave": "coes.sein.reporte_mensual.2022",
+     "valor": {
+      "ENE": {
+       "fecha": "2022-01-11",
+       "hora": "20:45",
+       "potencia_mw": 7061.073,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "9702e8e8bb8c7a78ce5f7091edea974f2f2ad3141101e207588f0adc0217f9e6",
+       "fichero": "md_2022-01_central0.html"
+      },
+      "FEB": {
+       "fecha": "2022-02-22",
+       "hora": "19:45",
+       "potencia_mw": 7140.882,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "1605a7bf3af8648d2bfb14ae9a4674afb324009c49c8c8316899c301dae3cf0f",
+       "fichero": "md_2022-02_central0.html"
+      },
+      "MAR": {
+       "fecha": "2022-03-10",
+       "hora": "19:30",
+       "potencia_mw": 7064.127,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "09670f188b0cedc613771f7424f26e73f064d0bf4c5f1124c572a492a4f136fc",
+       "fichero": "md_2022-03_central0.html"
+      },
+      "ABR": {
+       "fecha": "2022-04-19",
+       "hora": "19:00",
+       "potencia_mw": 7023.285,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "a4d91bca2c0a5c6b962c75dab6d7cc497394f69ae53581827ca15078de7b15b9",
+       "fichero": "md_2022-04_central0.html"
+      },
+      "MAY": {
+       "fecha": "2022-05-31",
+       "hora": "18:45",
+       "potencia_mw": 6992.54,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "95f33409e339796e0ef24fbb85641a34e50ddf57235e09d27e299d1a519737d5",
+       "fichero": "md_2022-05_central0.html"
+      },
+      "JUN": {
+       "fecha": "2022-06-15",
+       "hora": "19:15",
+       "potencia_mw": 7091.084,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "34932ae247a5d002d776467942cb7a97c6fb0211d33d7c3831f05a256784d0a1",
+       "fichero": "md_2022-06_central0.html"
+      },
+      "JUL": {
+       "fecha": "2022-07-19",
+       "hora": "19:15",
+       "potencia_mw": 7100.137,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "a9497a13f6f67c8801a3d5570d5632f4acc32b3fe03b6981184546326095b6e3",
+       "fichero": "md_2022-07_central0.html"
+      },
+      "AGO": {
+       "fecha": "2022-08-18",
+       "hora": "19:30",
+       "potencia_mw": 7060.187,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "b1a4c04b973b313f6814a036a3233b0d850184702e3114a788d5e8cb9a316b0b",
+       "fichero": "md_2022-08_central0.html"
+      },
+      "SET": {
+       "fecha": "2022-09-27",
+       "hora": "19:00",
+       "potencia_mw": 7314.432,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "fd0eca5d21dd10af2ccd4d32e788abc82c958dfa2a6388b8f1532dead5194330",
+       "fichero": "md_2022-09_central0.html"
+      },
+      "OCT": {
+       "fecha": "2022-10-24",
+       "hora": "20:00",
+       "potencia_mw": 7307.998,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "b8ed354d28ad962600d3d2a1d24f68eaaeda6c2d4d2b6d6b0a3e5b125c62a066",
+       "fichero": "md_2022-10_central0.html"
+      },
+      "NOV": {
+       "fecha": "2022-11-26",
+       "hora": "19:45",
+       "potencia_mw": 7451.782,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "a0cb2a07c66a6a24a518f01db2070a5c27eca0d31896aa57bf829db17633f7d6",
+       "fichero": "md_2022-11_central0.html"
+      },
+      "DIC": {
+       "fecha": "2022-12-06",
+       "hora": "19:30",
+       "potencia_mw": 7490.155,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "4a7215b9e97f93ef1a8fa4b2cdfb51d9489f059ae37d457e5616fd6f649ecc86",
+       "fichero": "md_2022-12_central0.html"
+      }
+     },
+     "unidad": "MW",
+     "articulo_o_anexo": "Máxima demanda en hora punta, fila «SEIN MW»",
+     "pagina": "una por mes (HTML)",
+     "cita_literal": "ENE: «SEIN MW 11/01/2022 20:45 … 7 061,073» · FEB: «SEIN MW 22/02/2022 19:45 … 7 140,882» · MAR: «SEIN MW 10/03/2022 19:30 … 7 064,127» · ABR: «SEIN MW 19/04/2022 19:00 … 7 023,285» · MAY: «SEIN MW 31/05/2022 18:45 … 6 992,540» · JUN: «SEIN MW 15/06/2022 19:15 … 7 091,084» · JUL: «SEIN MW 19/07/2022 19:15 … 7 100,137» · AGO: «SEIN MW 18/08/2022 19:30 … 7 060,187» · SET: «SEIN MW 27/09/2022 19:00 … 7 314,432» · OCT: «SEIN MW 24/10/2022 20:00 … 7 307,998» · NOV: «SEIN MW 26/11/2022 19:45 … 7 451,782» · DIC: «SEIN MW 06/12/2022 19:30 … 7 490,155»",
+     "interpretacion": "Contraste de fecha y hora de la máxima anual. Sus MW salen de medidores y no coinciden con la estadística; si su mayor mes no es el de la anual, se nombra."
+    }
+   ]
+  },
+  {
+   "acto": "COES Reporte de Máxima Demanda 2024",
+   "titulo": "Reporte público de máxima demanda del SEIN, por mes, 2024 (COES, Portal de medidores)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.coes.org.pe/Portal/Medidores/maximademanda/ReporteMaximaDemanda",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "1fb8704499f708f49a36ca585a2e21c67424e98e240600dcb7a1a1d569ad7343",
+   "fichero_local": "COES_SEIN/reporte_maxima_demanda",
+   "vigencia_desde": "2024-01-01",
+   "nota": "POST con tipoCentral=0&tipoGeneracion=-1&idEmpresa=-1&mes=AAAA-MM; 12 HTML. El sha256 de la norma es el del manifiesto «sha256  fichero» de los 12, en orden de mes. Localizado por cc (apoyo (cc), frente «b_maximas_mensuales_2024»).",
+   "reglas": [
+    {
+     "clave": "coes.sein.reporte_mensual.2024",
+     "valor": {
+      "ENE": {
+       "fecha": "2024-01-26",
+       "hora": "19:45",
+       "potencia_mw": 7661.105,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "4615f10baed5e3ef952340aeb496c917019793d4c7d31d8fb39192a272284ec0",
+       "fichero": "md_2024-01_central0.html"
+      },
+      "FEB": {
+       "fecha": "2024-02-07",
+       "hora": "20:30",
+       "potencia_mw": 7796.0,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "3b8e4c4df4a3d77224c854839080771fd0a2726a8fc7af2f5a8f9ef713204a67",
+       "fichero": "md_2024-02_central0.html"
+      },
+      "MAR": {
+       "fecha": "2024-03-26",
+       "hora": "19:30",
+       "potencia_mw": 7593.027,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "1e867c5591014ad4dcf926ce156a93f04eac48d90205291763b9e859c1b24a4a",
+       "fichero": "md_2024-03_central0.html"
+      },
+      "ABR": {
+       "fecha": "2024-04-08",
+       "hora": "19:00",
+       "potencia_mw": 7617.754,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "362f50e699ad8c7607dcf327c9adc880a0d1ec103dace0c7c4c138afdf5cebb0",
+       "fichero": "md_2024-04_central0.html"
+      },
+      "MAY": {
+       "fecha": "2024-05-16",
+       "hora": "18:45",
+       "potencia_mw": 7458.908,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "95853d6cd1dd02660fbe286537d6f43c51e0bf57b70e435b0433892825262089",
+       "fichero": "md_2024-05_central0.html"
+      },
+      "JUN": {
+       "fecha": "2024-06-21",
+       "hora": "19:00",
+       "potencia_mw": 7372.908,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "b592bf3c68dd4e8e0646c3da33634be4e66cdd6b66d6342f29d1e2e8dac9a6b4",
+       "fichero": "md_2024-06_central0.html"
+      },
+      "JUL": {
+       "fecha": "2024-07-23",
+       "hora": "20:45",
+       "potencia_mw": 7413.209,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "b2773c7fd5010be744460bf2939bbd7f8a180d7fd45fc022c5b6c49c1d3d96a6",
+       "fichero": "md_2024-07_central0.html"
+      },
+      "AGO": {
+       "fecha": "2024-08-20",
+       "hora": "18:45",
+       "potencia_mw": 7444.832,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "c4a57c995f42082f8fd70ec086278fdde30552e77a31c1fcbe1663acf6c92ffe",
+       "fichero": "md_2024-08_central0.html"
+      },
+      "SET": {
+       "fecha": "2024-09-10",
+       "hora": "18:45",
+       "potencia_mw": 7577.739,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "8a5dc8f475dc55ca7d8df19d56b7fb1177e337ef73dcf0e6c19b906f4fc9c5c2",
+       "fichero": "md_2024-09_central0.html"
+      },
+      "OCT": {
+       "fecha": "2024-10-24",
+       "hora": "19:00",
+       "potencia_mw": 7561.523,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "b4a2df1ccad759e8652505b824042f28dddfe4f70f1052df95115073c57f7181",
+       "fichero": "md_2024-10_central0.html"
+      },
+      "NOV": {
+       "fecha": "2024-11-19",
+       "hora": "20:00",
+       "potencia_mw": 7777.377,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "81104bfb70fa0382e025987c66cd858a8c9e089b46d15f1b639ecf527a3b6629",
+       "fichero": "md_2024-11_central0.html"
+      },
+      "DIC": {
+       "fecha": "2024-12-03",
+       "hora": "19:30",
+       "potencia_mw": 7685.527,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "676866487805167f8e43043546ecd12f0e6e369f3d9343d8fd85de1ed869ae69",
+       "fichero": "md_2024-12_central0.html"
+      }
+     },
+     "unidad": "MW",
+     "articulo_o_anexo": "Máxima demanda en hora punta, fila «SEIN MW»",
+     "pagina": "una por mes (HTML)",
+     "cita_literal": "ENE: «SEIN MW 26/01/2024 19:45 … 7 661,105» · FEB: «SEIN MW 07/02/2024 20:30 … 7 796,000» · MAR: «SEIN MW 26/03/2024 19:30 … 7 593,027» · ABR: «SEIN MW 08/04/2024 19:00 … 7 617,754» · MAY: «SEIN MW 16/05/2024 18:45 … 7 458,908» · JUN: «SEIN MW 21/06/2024 19:00 … 7 372,908» · JUL: «SEIN MW 23/07/2024 20:45 … 7 413,209» · AGO: «SEIN MW 20/08/2024 18:45 … 7 444,832» · SET: «SEIN MW 10/09/2024 18:45 … 7 577,739» · OCT: «SEIN MW 24/10/2024 19:00 … 7 561,523» · NOV: «SEIN MW 19/11/2024 20:00 … 7 777,377» · DIC: «SEIN MW 03/12/2024 19:30 … 7 685,527»",
+     "interpretacion": "Contraste de fecha y hora de la máxima anual. Sus MW salen de medidores y no coinciden con la estadística; si su mayor mes no es el de la anual, se nombra."
+    }
+   ]
+  },
+  {
+   "acto": "COES Reporte de Máxima Demanda 2025",
+   "titulo": "Reporte público de máxima demanda del SEIN, por mes, 2025 (COES, Portal de medidores)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.coes.org.pe/Portal/Medidores/maximademanda/ReporteMaximaDemanda",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "8abc61a7875bb7918d8d35bcaba7ec3dcf307d49c636894989700d9036be2d0a",
+   "fichero_local": "COES_SEIN/reporte_maxima_demanda",
+   "vigencia_desde": "2025-01-01",
+   "nota": "POST con tipoCentral=0&tipoGeneracion=-1&idEmpresa=-1&mes=AAAA-MM; 12 HTML. El sha256 de la norma es el del manifiesto «sha256  fichero» de los 12, en orden de mes. Localizado por cc (apoyo (cc), frente «b_maximas_mensuales_2024»).",
+   "reglas": [
+    {
+     "clave": "coes.sein.reporte_mensual.2025",
+     "valor": {
+      "ENE": {
+       "fecha": "2025-01-27",
+       "hora": "19:45",
+       "potencia_mw": 7743.477,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "625e4d4b2196ef4a2a597384e55a835d812ce20cc413253eec69282baa027d84",
+       "fichero": "md_2025-01_central0.html"
+      },
+      "FEB": {
+       "fecha": "2025-02-25",
+       "hora": "19:30",
+       "potencia_mw": 7893.947,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "ce9804968d6e4ef1a4f15f6c4dd55c6a7266155782c71c51c929b9706569d897",
+       "fichero": "md_2025-02_central0.html"
+      },
+      "MAR": {
+       "fecha": "2025-03-26",
+       "hora": "19:00",
+       "potencia_mw": 7934.987,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "cc8530e49581a03b033a75fcb94cacf80c7b625eb9f5f34097921c3c60193eb7",
+       "fichero": "md_2025-03_central0.html"
+      },
+      "ABR": {
+       "fecha": "2025-04-01",
+       "hora": "19:45",
+       "potencia_mw": 7821.805,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "fe73d3a7be6442db3d50b58b7e740f8218080196bab5b2e2fb7c2d7ed5001425",
+       "fichero": "md_2025-04_central0.html"
+      },
+      "MAY": {
+       "fecha": "2025-05-02",
+       "hora": "19:00",
+       "potencia_mw": 7614.965,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 17:00 h a 23:00 h.",
+       "sha256": "2f74b860f749106ce2ca25b900c8fd6e3fd9c0b96fe37445b18eda42e6812d6a",
+       "fichero": "md_2025-05_central0.html"
+      },
+      "JUN": {
+       "fecha": "2025-06-03",
+       "hora": "18:45",
+       "potencia_mw": 7601.503,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 18:00 h a 23:00 h.",
+       "sha256": "c5b9d05f44b788be0571c2360072c64d1bd62584aa68544f782071a0af3a873b",
+       "fichero": "md_2025-06_central0.html"
+      },
+      "JUL": {
+       "fecha": "2025-07-25",
+       "hora": "19:30",
+       "potencia_mw": 7569.302,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 18:00 h a 23:00 h.",
+       "sha256": "15d6c40209332c8db3ebcef448c2317022d4ccebd04bcd666700acf3421a295d",
+       "fichero": "md_2025-07_central0.html"
+      },
+      "AGO": {
+       "fecha": "2025-08-19",
+       "hora": "19:30",
+       "potencia_mw": 7631.39,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 18:00 h a 23:00 h.",
+       "sha256": "0133bd8763d62e16963b1551bdd1e3fa729c52193681285651eb1ed61a294d2a",
+       "fichero": "md_2025-08_central0.html"
+      },
+      "SET": {
+       "fecha": "2025-09-09",
+       "hora": "18:45",
+       "potencia_mw": 7803.891,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 18:00 h a 23:00 h.",
+       "sha256": "83a8807655618af106f33d942aecf035275b1c3ef7a2361504ab35254399cb00",
+       "fichero": "md_2025-09_central0.html"
+      },
+      "OCT": {
+       "fecha": "2025-10-10",
+       "hora": "18:45",
+       "potencia_mw": 7853.289,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 18:00 h a 23:00 h.",
+       "sha256": "f41b1cf75da2ea3aa0eafaf9611056fd6751f6e3431ea1e5e9b07fc26ddf0092",
+       "fichero": "md_2025-10_central0.html"
+      },
+      "NOV": {
+       "fecha": "2025-11-26",
+       "hora": "20:00",
+       "potencia_mw": 7894.55,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 18:00 h a 23:00 h.",
+       "sha256": "8afff0817301870daf018f3142e59552d2a15a9fabd1d330d67e6aa1fc01f7f3",
+       "fichero": "md_2025-11_central0.html"
+      },
+      "DIC": {
+       "fecha": "2025-12-16",
+       "hora": "19:45",
+       "potencia_mw": 7935.132,
+       "nota_horas_punta": "Se considera el periodo de Horas Punta desde las 18:00 h a 23:00 h.",
+       "sha256": "1a47edb375aacdb6380c269d737b408e02a8cd717e7370bc8fbff93e4aa9b7dd",
+       "fichero": "md_2025-12_central0.html"
+      }
+     },
+     "unidad": "MW",
+     "articulo_o_anexo": "Máxima demanda en hora punta, fila «SEIN MW»",
+     "pagina": "una por mes (HTML)",
+     "cita_literal": "ENE: «SEIN MW 27/01/2025 19:45 … 7 743,477» · FEB: «SEIN MW 25/02/2025 19:30 … 7 893,947» · MAR: «SEIN MW 26/03/2025 19:00 … 7 934,987» · ABR: «SEIN MW 01/04/2025 19:45 … 7 821,805» · MAY: «SEIN MW 02/05/2025 19:00 … 7 614,965» · JUN: «SEIN MW 03/06/2025 18:45 … 7 601,503» · JUL: «SEIN MW 25/07/2025 19:30 … 7 569,302» · AGO: «SEIN MW 19/08/2025 19:30 … 7 631,390» · SET: «SEIN MW 09/09/2025 18:45 … 7 803,891» · OCT: «SEIN MW 10/10/2025 18:45 … 7 853,289» · NOV: «SEIN MW 26/11/2025 20:00 … 7 894,550» · DIC: «SEIN MW 16/12/2025 19:45 … 7 935,132»",
+     "interpretacion": "Contraste de fecha y hora de la máxima anual. Sus MW salen de medidores y no coinciden con la estadística; si su mayor mes no es el de la anual, se nombra."
+    }
+   ]
+  },
+  {
+   "acto": "COES Portal, serie pública de demanda (30 min)",
+   "titulo": "Serie de demanda ejecutada del SEIN del 2025-03-26, portal de información del COES",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.coes.org.pe/Portal/portalinformacion/Demanda",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "c315bebaf268e26b879c231a2574d850f3591b04451d6b0dbd73f43ad0620cee",
+   "fichero_local": "COES_SEIN/procedimientos/serie_demanda_30min/demanda_2025-03-26.json",
+   "nota": "POST público con fechaInicial=fechaFinal=26/03/2025 (frente i de cc, apoyo (cc), frente «i_convencion_datos_coes»). Es práctica observada, no norma.",
+   "reglas": [
+    {
+     "clave": "coes.sein.convencion_por_defecto",
+     "valor": {
+      "alineacion": "fin",
+      "marca": "práctica observada del COES (serie de 30 min, sha c315beba), no norma"
+     },
+     "articulo_o_anexo": "Chart.Series «Ejecutado», 48 registros",
+     "pagina": "JSON (única)",
+     "cita_literal": "«2025/03/26 00:30:00» … «2025/03/27 00:00:00» (48 registros; ninguno a las 00:00 del día)",
+     "interpretacion": "La serie pública rotula el FIN de su intervalo. Si se muestra una sola alineación del instante del SEIN es [h-15, h), con esta marca; las dos se siguen calculando y si difieren más que la tolerancia hay hueco (28)."
+    }
+   ]
+  },
+  {
+   "acto": "PR-30 (RCD 200-2017-OS/CD)",
+   "titulo": "Procedimiento Técnico del COES N° 30, vigente",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.coes.org.pe/Portal/browser/download?url=Marco%20Normativo%2FProcedimientos%2FTecnicos%2F30%20Valorizaci%C3%B3n%20de%20Transferencias%20de%20Potencia%20y%20Compensaciones%20al%20Sistema%20Principal%20y%20Sistema%20Garantizado%20de%20Transmisi%C3%B3n.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "dd8999e6256923e5721333e6589a18596c4cc2782dbd94dbe0d8e78049bce718",
+   "sha256_texto": "055f8dba56690c89a5c88025afae71b9f75b0afbdc56e3720fd9284b68c4449f",
+   "fichero_local": "COES_SEIN/procedimientos/pr30_vigente/PR-30_vigente.pdf",
+   "vigencia_hasta": "2026-12-31",
+   "reglas": [
+    {
+     "clave": "coes.procedimiento.pr30",
+     "valor": {
+      "aprobado_por": "RCD 200-2017-OS/CD",
+      "hasta": "2026-12-31"
+     },
+     "articulo_o_anexo": "Nota de vigencia",
+     "pagina": "2",
+     "lineas": "26-28",
+     "cita_literal": "El presente Procedimiento Técnico estará vigente hasta el 31 de diciembre de 2026. De acuerdo con la Resolución OSINERGMIN N° 173-2026-OS/CD, a partir del 01 de enero de 2027 entrará en vigencia el nuevo PR-30, aprobado mediante la Resolución OSINERGMIN N° 95-2026-OS/CD, publicada el 29 de mayo"
+    }
+   ]
+  },
+  {
+   "acto": "RCD 173-2026-OS/CD",
+   "titulo": "Modifica la entrada en vigencia del PR-10 y del PR-30 aprobados por la RCD 95-2026-OS/CD",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2026/Osinergmin-173-2026-OS-CD.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "f5ef989903db8cdb00c0cf7942d6fef443485822d1765898ba25ca1c65dab2fe",
+   "sha256_texto": "7357a8b6127d8989de40ea51791f65a18373e33f33ae246c9b58e3eab7965af8",
+   "fichero_local": "COES_SEIN/procedimientos/rcd_173_2026/Osinergmin-173-2026-OS-CD.pdf",
+   "vigencia_desde": "2027-01-01",
+   "nota": "Lima, 29 de setiembre de 2026; El Peruano NL/2559474-1 (frente h de cc). La integra el IT 577-2026-GRT, sin descargar.",
+   "reglas": [
+    {
+     "clave": "coes.procedimiento.pr30",
+     "valor": {
+      "aprobado_por": "RCD 95-2026-OS/CD",
+      "desde": "2027-01-01"
+     },
+     "articulo_o_anexo": "Artículo 1 (nueva redacción del art. 2 de la RCD 95-2026-OS/CD)",
+     "pagina": "3",
+     "lineas": "138-142",
+     "cita_literal": "Artículo 2.- Aprobar el Procedimiento Técnico del COES N° 30 “Liquidación de la Valorización de las Transferencias de Potencia y Compensaciones al Sistema Principal y Sistema Garantizado de Transmisión” (PR-30), contenido en el Anexo 2, el mismo que será vigente a partir del 1 de enero de 2027, dejando sin efecto en dicha oportunidad el aprobado con Resolución N° 200-2017-OS/CD.”"
+    }
+   ]
+  }
+ ]
+}

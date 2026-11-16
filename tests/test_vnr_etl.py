@@ -649,7 +649,11 @@ def test_arcgis_pagination_can_take_a_bounded_audit_sample(monkeypatch):
         def json(self):
             return self.payload
 
-    def get(url, params, timeout):
+    redirecciones = []
+
+    def get(url, params, timeout, allow_redirects=True):
+        # 086:RF-22 (SSRF-ARCGIS v4): se apunta si la capa dejó seguir redirecciones; se comprueba al final.
+        redirecciones.append(allow_redirects)
         if not url.endswith('/query'):
             return Response({'objectIdField': 'OBJECTID', 'maxRecordCount': 2})
         offsets.append(params['resultOffset'])
@@ -669,6 +673,8 @@ def test_arcgis_pagination_can_take_a_bounded_audit_sample(monkeypatch):
     assert len(features) == 5
     assert offsets == [0, 2, 4]
     assert crs == 4326
+    assert redirecciones and all(r is False for r in redirecciones), (
+        f'la capa ArcGIS debe pedir cada GET sin seguir redirecciones (086:RF-22): {redirecciones}')
 
 
 def test_official_discovery_keeps_only_official_vnr_links(tmp_path):
@@ -712,6 +718,7 @@ def test_official_fetch_retries_transient_failures(monkeypatch):
     from convertersmartgrid.adaptadores.entrada.vnr.discovery import official
 
     calls = []
+    redirecciones = []
 
     class Response:
         url = 'https://www.osinergmin.gob.pe/Resoluciones/Resoluciones-GRT-2026.aspx'
@@ -722,8 +729,10 @@ def test_official_fetch_retries_transient_failures(monkeypatch):
         def raise_for_status(self):
             return None
 
-    def get(url, timeout):
+    def get(url, timeout, allow_redirects=True):
+        # 086:RF-22 (SSRF-ARCGIS v4): se apunta si la descarga dejó seguir redirecciones; se comprueba al final.
         calls.append((url, timeout))
+        redirecciones.append(allow_redirects)
         if len(calls) == 1:
             raise RuntimeError('timeout transitorio')
         return Response()
@@ -733,6 +742,7 @@ def test_official_fetch_retries_transient_failures(monkeypatch):
 
     assert official._fetch_html(Response.url) == '<html>ok</html>'
     assert len(calls) == 2
+    assert redirecciones == [False, False], f'la descarga oficial debe pedir sin seguir redirecciones (086:RF-22): {redirecciones}'
 
 
 # --------------------------------------------------------------------------- archivos
@@ -1660,3 +1670,133 @@ def test_web_topologia_acepta_una_capa_sin_crs(tmp_path, monkeypatch):
     datos = respuesta.json()
     assert datos['source_crs'] == 'EPSG:4326'
     assert any('grados' in aviso for aviso in datos['warnings'])
+
+
+# --------------------------------------------------------------------------- 086:RF-22, SSRF-ARCGIS (BP-29, P0)
+class _RedFalsa:
+    """Un «requests» de mentira: cada URL tiene su respuesta; una redirección se sigue SOLO si allow_redirects no es
+    False (como requests), y cada URL pedida queda anotada. Así se ve si el conector llegó a pedir la máquina interna."""
+
+    def __init__(self, rutas):
+        self.rutas, self.pedidas = rutas, []
+
+    def get(self, url, params=None, allow_redirects=True, **kw):
+        base = url.split('?', 1)[0]
+        self.pedidas.append(base)
+        estado, cabeceras, cuerpo = self.rutas.get(base, (404, {}, {}))
+        if 300 <= estado < 400 and allow_redirects is not False:
+            from urllib.parse import urljoin
+            return self.get(urljoin(base, cabeceras['Location']), params=params, **kw)
+        return _RespuestaFalsa(base, estado, cabeceras, cuerpo)
+
+
+class _RespuestaFalsa:
+    def __init__(self, url, estado, cabeceras, cuerpo):
+        self.url, self.status_code, self.headers, self._cuerpo = url, estado, cabeceras, cuerpo
+        self.content = json.dumps(cuerpo).encode('utf-8') if isinstance(cuerpo, dict) else cuerpo
+        self.encoding = self.apparent_encoding = 'utf-8'
+
+    def json(self):
+        return self._cuerpo
+
+    @property
+    def text(self):
+        return self.content.decode('utf-8')
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f'HTTP {self.status_code}')
+
+    def iter_content(self, chunk_size=1):
+        yield self.content
+
+    def close(self):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+_SERVIDOR = 'https://vnr.example/arcgis/rest/services/R/MapServer/0'
+_INTERNAS = ['http://127.0.0.1:8080/admin', 'http://169.254.169.254/latest/meta-data', 'https://otra.example/capa']
+
+
+def _arcgis_con_red(monkeypatch, red):
+    import convertersmartgrid.adaptadores.entrada.vnr.connectors.arcgis as A
+    monkeypatch.setattr(A, '_require_requests', lambda: red)
+    monkeypatch.setattr(A.time, 'sleep', lambda s: None)
+    return A
+
+
+@pytest.mark.parametrize('destino', _INTERNAS)
+@pytest.mark.parametrize('llamada', ['metadata', 'count', 'distinct_values', 'query_geojson'])
+def test_086_rf22_arcgis_no_sigue_una_redireccion_a_otra_maquina(monkeypatch, llamada, destino):
+    """086:RF-22 (SSRF-ARCGIS, BP-29) — una respuesta 302 del servidor ArcGIS hacia 127.0.0.1, el servicio de metadatos
+    de la nube u otro host se rechaza ANTES de pedirlo: el conector no sigue redirecciones a otra máquina, y una
+    redirección rechazada no se reintenta."""
+    meta = {'fields': [{'name': 'OBJECTID'}], 'objectIdField': 'OBJECTID', 'maxRecordCount': 10}
+    rutas = {destino: (200, {}, {'count': 7, 'features': [], 'fields': [], 'objectIdField': 'OBJECTID'})}
+    if llamada == 'metadata':
+        rutas[_SERVIDOR] = (302, {'Location': destino}, {})
+    else:
+        rutas[_SERVIDOR] = (200, {}, meta)
+        rutas[_SERVIDOR + '/query'] = (302, {'Location': destino}, {})
+    red = _RedFalsa(rutas)
+    A = _arcgis_con_red(monkeypatch, red)
+    capa = A.ArcGISLayer(_SERVIDOR, retries=2)
+    argumentos = ('CODEMP',) if llamada == 'distinct_values' else ()
+    with pytest.raises(A.ArcGISError, match='[Rr]edirección rechazada'):
+        getattr(capa, llamada)(*argumentos)
+    assert destino not in red.pedidas, red.pedidas
+    redirige = _SERVIDOR if llamada == 'metadata' else _SERVIDOR + '/query'
+    assert red.pedidas.count(redirige) == 1, red.pedidas
+
+
+def test_086_rf22_arcgis_sigue_una_redireccion_al_mismo_servidor(monkeypatch):
+    """086:RF-22 — una redirección dentro del mismo servidor (otra ruta, mismo host y esquema) sí se sigue."""
+    nueva = 'https://vnr.example/arcgis/rest/services/R2/MapServer/0'
+    red = _RedFalsa({_SERVIDOR: (301, {'Location': nueva}, {}), nueva: (200, {}, {'objectIdField': 'FID'})})
+    A = _arcgis_con_red(monkeypatch, red)
+    assert A.ArcGISLayer(_SERVIDOR).object_id_field() == 'FID'
+    assert red.pedidas == [_SERVIDOR, nueva]
+
+
+def test_086_rf22_arcgis_no_baja_de_https_a_http(monkeypatch):
+    """086:RF-22 — tampoco se acepta pasar del https del servidor a http, aunque sea el mismo host."""
+    red = _RedFalsa({_SERVIDOR: (302, {'Location': 'http://vnr.example/arcgis/x'}, {}),
+                     'http://vnr.example/arcgis/x': (200, {}, {'objectIdField': 'X'})})
+    A = _arcgis_con_red(monkeypatch, red)
+    with pytest.raises(A.ArcGISError, match='[Rr]edirección rechazada'):
+        A.ArcGISLayer(_SERVIDOR).metadata()
+    assert red.pedidas == [_SERVIDOR]
+
+
+@pytest.mark.parametrize('destino', _INTERNAS)
+def test_086_rf22_el_descubrimiento_oficial_no_pide_la_maquina_de_la_redireccion(monkeypatch, destino):
+    """086:RF-22 — el portal oficial que redirige a otra máquina: antes se pedía y DESPUÉS se miraba la URL final."""
+    import sys
+    import convertersmartgrid.adaptadores.entrada.vnr.discovery.official as O
+    portal = 'https://www.osinergmin.gob.pe/vnr'
+    red = _RedFalsa({portal: (302, {'Location': destino}, {}), destino: (200, {}, b'<html>interna</html>')})
+    monkeypatch.setitem(sys.modules, 'requests', red)
+    monkeypatch.setattr(O, 'salida_permitida', lambda nombre: True)
+    monkeypatch.setattr(O.time, 'sleep', lambda s: None)
+    with pytest.raises(O.OfficialDiscoveryError, match='[Rr]edirección'):
+        O._fetch_html(portal)
+    assert destino not in red.pedidas, red.pedidas
+
+
+@pytest.mark.parametrize('permitidos', [(), ('osinergmin.gob.pe',)], ids=['sin_lista', 'con_lista'])
+def test_086_rf22_la_descarga_no_pide_la_maquina_de_la_redireccion(tmp_path, permitidos):
+    """086:RF-22 — la descarga de un paquete que redirige a 127.0.0.1: antes se pedía y después se validaba la URL."""
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import DownloadError, DownloadManager
+    origen, interna = 'https://www.osinergmin.gob.pe/vnr/paquete.zip', 'http://127.0.0.1:8080/secreto.zip'
+    red = _RedFalsa({origen: (302, {'Location': interna}, {}),
+                     interna: (200, {'Content-Type': 'application/zip'}, b'PK')})
+    gestor = DownloadManager(tmp_path / 'cache', allowed_hosts=permitidos)
+    with pytest.raises(DownloadError, match='[Rr]edirección'):
+        gestor._stream(red, origen, tmp_path / 'p.part', on_progress=None)
+    assert interna not in red.pedidas, red.pedidas

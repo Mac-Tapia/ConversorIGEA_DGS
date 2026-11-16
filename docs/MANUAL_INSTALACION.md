@@ -30,8 +30,9 @@ habitual, o indicando el ejecutable con la variable de usuario `CSG_TESSERACT`. 
 para añadir el idioma `spa`, ponga `spa.traineddata`, con una copia de `eng.traineddata` al lado, en
 `%USERPROFILE%\.convertersmartgrid\tessdata`, o en la carpeta que diga la variable `CSG_TESSDATA`.
 
-**Licencias.** El programa se usa con su licencia comercial por puesto (`LICENCIA_COMERCIAL.txt`, en `documentos`): un equipo por
-licencia y sin redistribuir. El instalador la muestra y no sigue sin aceptarla. El programa no incluye ni concede licencias de terceros:
+**Licencias.** El programa se distribuye bajo la licencia MIT (`LICENSE.txt`, en `documentos`). El instalador la muestra y no
+sigue sin aceptarla. El acuerdo comercial de soporte y garantía (`LICENCIA_COMERCIAL.txt`) es opcional: solo lo necesita quien
+contrate soporte. El programa no incluye ni concede licencias de terceros:
 cada usuario necesita las suyas, la de DIgSILENT y el permiso de la distribuidora para usar sus datos.
 
 ## Instalar

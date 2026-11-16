@@ -1,7 +1,7 @@
 {
  "amplia": "RCD 217-2013-OS/CD",
  "esquema": "registro_normativo_v1",
- "nota": "107 T19 y T26. Formatos de la Norma Tarifas en sus libros oficiales: https://www.osinergmin.gob.pe/seccion/centro_documental/gart/procesosregulatorios/electricidad/Infotec/NormaTarifas2013.rar (enlazado en https://prie.osinergmin.gob.pe/propuesta-tarifaria, «Formularios de norma Tarifas y Compensaciones de Sistemas Secundarios y Complementarios»), sha256 del rar 911c3712b0d44da1bdcd3ffef3019a9bcc5232c5aebb8d32a2a4f00c236f3448, descargado el 2026-11-14. Seis libros con fecha 06-11-2013 y 69 hojas, una por formato, como la tabla 1 del art. 30.1. Las modificatorias leídas (018-2018 y 242-2021) no cambian formatos; la 177-2021 no está leída.",
+ "nota": "107 T19 y T26. Formatos de la Norma Tarifas en sus libros oficiales: https://www.osinergmin.gob.pe/seccion/centro_documental/gart/procesosregulatorios/electricidad/Infotec/NormaTarifas2013.rar (enlazado en https://prie.osinergmin.gob.pe/propuesta-tarifaria, «Formularios de norma Tarifas y Compensaciones de Sistemas Secundarios y Complementarios»), sha256 del rar 911c3712b0d44da1bdcd3ffef3019a9bcc5232c5aebb8d32a2a4f00c236f3448, descargado el 2026-11-14. Seis libros con fecha 06-11-2013 y 69 hojas, una por formato, como la tabla 1 del art. 30.1. Las modificatorias leídas (018-2018 y 242-2021) no cambian formatos; la 177-2021 no está leída. Superíndices: las llamadas a nota van aparte del rótulo («llamadas»), según el análisis de formato del libro (xlrd); libros sin revisar: ninguno.",
  "reglas": [
   {
    "articulo_o_anexo": "art. 30 (Título IV) y art. 4 de la resolución: archivos Excel de los formatos",
@@ -32,7 +32,13 @@
        "A": "Área de Demanda (1):",
        "D": "Fecha :"
       },
-      "fila": 4
+      "fila": 4,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "Área de Demanda :"
+       }
+      }
      },
      {
       "celdas": {
@@ -49,7 +55,13 @@
        "D": "MAT/AT",
        "E": "AT/MT"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "TITULARES"
+       }
+      }
      },
      {
       "celdas": {
@@ -171,7 +183,13 @@
        "S": "Tipo",
        "T": "Sección"
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "B": {
+        "llamada": "(2)",
+        "rotulo": "CÓDIGO"
+       }
+      }
      },
      {
       "celdas": {
@@ -193,7 +211,21 @@
        "R": "(1 o 2)",
        "T": "(mm2)"
       },
-      "fila": 9
+      "exponentes": {
+       "J": "unidad mm² (sección del conductor)",
+       "T": "unidad mm² (sección del conductor)"
+      },
+      "fila": 9,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "Recepción)"
+       },
+       "M": {
+        "llamada": "(3)",
+        "rotulo": "(kA)"
+       }
+      }
      },
      {
       "celdas": {
@@ -580,7 +612,13 @@
       "celdas": {
        "A": "FACTOR DE CARGA, CONTRIBUCIÓN A LA PUNTA y SIMULTANEIDAD (1)"
       },
-      "fila": 2
+      "fila": 2,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "FACTOR DE CARGA, CONTRIBUCIÓN A LA PUNTA y SIMULTANEIDAD"
+       }
+      }
      },
      {
       "celdas": {
@@ -604,7 +642,13 @@
       "celdas": {
        "A": "Total Sistema 12"
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Total Sistema 1"
+       }
+      }
      },
      {
       "celdas": {
@@ -702,7 +746,13 @@
       "celdas": {
        "A": "INFORMACIÓN DE LA CARGA - USUARIOS REGULADOS (1)"
       },
-      "fila": 2
+      "fila": 2,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "INFORMACIÓN DE LA CARGA - USUARIOS REGULADOS"
+       }
+      }
      },
      {
       "celdas": {
@@ -842,7 +892,13 @@
        "E": "Potencia a la Hora de",
        "G": "Energía del Año Representativo(3)"
       },
-      "fila": 5
+      "fila": 5,
+      "llamadas": {
+       "G": {
+        "llamada": "(3)",
+        "rotulo": "Energía del Año Representativo"
+       }
+      }
      },
      {
       "celdas": {
@@ -854,7 +910,17 @@
        "F": "FPHMS (2)",
        "H": "FPMWHS (4)"
       },
-      "fila": 6
+      "fila": 6,
+      "llamadas": {
+       "F": {
+        "llamada": "(2)",
+        "rotulo": "FPHMS"
+       },
+       "H": {
+        "llamada": "(4)",
+        "rotulo": "FPMWHS"
+       }
+      }
      },
      {
       "celdas": {
@@ -862,7 +928,13 @@
        "E": "Electrico - Pmax (1)",
        "G": "MWh"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "E": {
+        "llamada": "(1)",
+        "rotulo": "Electrico - Pmax"
+       }
+      }
      },
      {
       "celdas": {
@@ -987,7 +1059,13 @@
        "F": "POBLACIÓN",
        "H": "OTRAS (1)"
       },
-      "fila": 6
+      "fila": 6,
+      "llamadas": {
+       "H": {
+        "llamada": "(1)",
+        "rotulo": "OTRAS"
+       }
+      }
      },
      {
       "celdas": {
@@ -1392,7 +1470,13 @@
       "celdas": {
        "A": "PROYECCIÓN DE VENTAS GLOBALES(1) DE ENERGÍA (MWh) DE USUARIOS REGULADOS"
       },
-      "fila": 2
+      "fila": 2,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "PROYECCIÓN DE VENTAS GLOBALES DE ENERGÍA (MWh) DE USUARIOS REGULADOS"
+       }
+      }
      },
      {
       "celdas": {
@@ -1624,6 +1708,9 @@
      {
       "celdas": {
        "A": "DETERMINACION (r2)"
+      },
+      "exponentes": {
+       "A": "superíndice «2» tras «r» = coeficiente de determinación r²; la nota (3) de la hoja habla de «R²»"
       },
       "fila": 45
      },
@@ -1968,6 +2055,9 @@
       "celdas": {
        "A": "DETERMINACION (r2)"
       },
+      "exponentes": {
+       "A": "superíndice «2» tras «r» = coeficiente de determinación r²; la nota (3) de la hoja habla de «R²»"
+      },
       "fila": 45
      },
      {
@@ -2139,7 +2229,13 @@
        "D": "NIVEL DE TENSIÓN (1)",
        "F": "TOTAL"
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "NIVEL DE TENSIÓN"
+       }
+      }
      },
      {
       "celdas": {
@@ -2424,7 +2520,13 @@
        "D": "TENSIÓN",
        "E": "Energía (MWh) (1)"
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "E": {
+        "llamada": "(1)",
+        "rotulo": "Energía (MWh)"
+       }
+      }
      },
      {
       "celdas": {
@@ -2558,7 +2660,13 @@
       "celdas": {
        "A": "TOTAL AREA(1)"
       },
-      "fila": 40
+      "fila": 40,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "TOTAL AREA"
+       }
+      }
      },
      {
       "celdas": {
@@ -2614,7 +2722,13 @@
       "celdas": {
        "A": "USUARIOS REGULADOS (2)"
       },
-      "fila": 3
+      "fila": 3,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "USUARIOS REGULADOS"
+       }
+      }
      },
      {
       "celdas": {
@@ -2636,7 +2750,13 @@
        "D": "TENSIÓN",
        "E": "Potencia (MW) (1)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "E": {
+        "llamada": "(1)",
+        "rotulo": "Potencia (MW)"
+       }
+      }
      },
      {
       "celdas": {
@@ -2770,7 +2890,13 @@
       "celdas": {
        "A": "TOTAL AREA(1)"
       },
-      "fila": 39
+      "fila": 39,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "TOTAL AREA"
+       }
+      }
      },
      {
       "celdas": {
@@ -2826,7 +2952,13 @@
       "celdas": {
        "A": "USUARIOS REGULADOS (2)"
       },
-      "fila": 3
+      "fila": 3,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "USUARIOS REGULADOS"
+       }
+      }
      },
      {
       "celdas": {
@@ -2848,7 +2980,13 @@
        "D": "TENSIÓN",
        "E": "Potencia (MW) (1)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "E": {
+        "llamada": "(1)",
+        "rotulo": "Potencia (MW)"
+       }
+      }
      },
      {
       "celdas": {
@@ -2982,7 +3120,13 @@
       "celdas": {
        "A": "TOTAL AREA(1)"
       },
-      "fila": 39
+      "fila": 39,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "TOTAL AREA"
+       }
+      }
      },
      {
       "celdas": {
@@ -3060,7 +3204,13 @@
        "D": "TENSIÓN",
        "E": "Potencia Coincidente (1)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "E": {
+        "llamada": "(1)",
+        "rotulo": "Potencia Coincidente"
+       }
+      }
      },
      {
       "celdas": {
@@ -3194,7 +3344,13 @@
       "celdas": {
        "A": "TOTAL AREA(1)"
       },
-      "fila": 39
+      "fila": 39,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "TOTAL AREA"
+       }
+      }
      },
      {
       "celdas": {
@@ -3238,7 +3394,13 @@
       "celdas": {
        "A": "INFORMACIÓN BÁSICA DE USUARIOS LIBRES Y DEMANDAS INCORPORADAS (1)"
       },
-      "fila": 2
+      "fila": 2,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "INFORMACIÓN BÁSICA DE USUARIOS LIBRES Y DEMANDAS INCORPORADAS"
+       }
+      }
      },
      {
       "celdas": {
@@ -3269,7 +3431,29 @@
        "K": "FCP(4)",
        "L": "FS(4)"
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "E": {
+        "llamada": "(2)",
+        "rotulo": "TENSIÓN"
+       },
+       "I": {
+        "llamada": "(3)",
+        "rotulo": "Energía"
+       },
+       "J": {
+        "llamada": "(4)",
+        "rotulo": "FPHMS"
+       },
+       "K": {
+        "llamada": "(4)",
+        "rotulo": "FCP"
+       },
+       "L": {
+        "llamada": "(4)",
+        "rotulo": "FS"
+       }
+      }
      },
      {
       "celdas": {
@@ -3820,7 +4004,13 @@
       "celdas": {
        "A": "PROYECCIÓN DE LAS MÁXIMAS DEMANDAS DE POTENCIA NO COINCIDENTE (MW) (1)"
       },
-      "fila": 2
+      "fila": 2,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "PROYECCIÓN DE LAS MÁXIMAS DEMANDAS DE POTENCIA NO COINCIDENTE (MW)"
+       }
+      }
      },
      {
       "celdas": {
@@ -3843,7 +4033,13 @@
        "E": "NOMBRE",
        "F": "POTENCIA (MW) (2)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "F": {
+        "llamada": "(2)",
+        "rotulo": "POTENCIA (MW)"
+       }
+      }
      },
      {
       "celdas": {
@@ -4057,7 +4253,13 @@
        "E": "NOMBRE",
        "F": "POTENCIA (MW) (1)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "F": {
+        "llamada": "(1)",
+        "rotulo": "POTENCIA (MW)"
+       }
+      }
      },
      {
       "celdas": {
@@ -4472,7 +4674,21 @@
        "D": "MT (1)",
        "E": "TOTAL"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "B": {
+        "llamada": "(1)",
+        "rotulo": "MAT"
+       },
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "AT"
+       },
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "MT"
+       }
+      }
      },
      {
       "celdas": {
@@ -5317,14 +5533,26 @@
       "celdas": {
        "A": "MAPA DE DENSIDAD DE CARGA (1)"
       },
-      "fila": 2
+      "fila": 2,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "MAPA DE DENSIDAD DE CARGA"
+       }
+      }
      },
      {
       "celdas": {
        "A": "AREA DE DEMANDA:",
        "G": "AÑO (2) :"
       },
-      "fila": 4
+      "fila": 4,
+      "llamadas": {
+       "G": {
+        "llamada": "(2)",
+        "rotulo": "AÑO :"
+       }
+      }
      },
      {
       "celdas": {
@@ -5375,7 +5603,13 @@
        "A": "ÁREA DE DEMANDA:",
        "F": "TIPO DE SISTEMA (1) :"
       },
-      "fila": 4
+      "fila": 4,
+      "llamadas": {
+       "F": {
+        "llamada": "(1)",
+        "rotulo": "TIPO DE SISTEMA :"
+       }
+      }
      },
      {
       "celdas": {
@@ -5396,7 +5630,13 @@
        "E": "EFECTIVA",
        "F": "SUSTENTO DE LA CAPACIDAD (2)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "F": {
+        "llamada": "(2)",
+        "rotulo": "SUSTENTO DE LA CAPACIDAD"
+       }
+      }
      },
      {
       "celdas": {
@@ -5532,7 +5772,13 @@
        "A": "Potencia MVA",
        "B": "Costo total US$(1)"
       },
-      "fila": 13
+      "fila": 13,
+      "llamadas": {
+       "B": {
+        "llamada": "(1)",
+        "rotulo": "Costo total US$"
+       }
+      }
      },
      {
       "celdas": {
@@ -5562,7 +5808,13 @@
       "celdas": {
        "A": "3. Capacidad Óptima (MVA)(2)"
       },
-      "fila": 18
+      "fila": 18,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "3. Capacidad Óptima (MVA)"
+       }
+      }
      },
      {
       "celdas": {
@@ -5605,7 +5857,13 @@
        "A": "Potencia MVA",
        "B": "Costo total US$(1)"
       },
-      "fila": 25
+      "fila": 25,
+      "llamadas": {
+       "B": {
+        "llamada": "(1)",
+        "rotulo": "Costo total US$"
+       }
+      }
      },
      {
       "celdas": {
@@ -5635,7 +5893,13 @@
       "celdas": {
        "A": "3. Capacidad Óptima (MVA)(2)"
       },
-      "fila": 30
+      "fila": 30,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "3. Capacidad Óptima (MVA)"
+       }
+      }
      },
      {
       "celdas": {
@@ -5742,7 +6006,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 10
+      "fila": 10,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -5767,7 +6037,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 14
+      "fila": 14,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -5779,7 +6055,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 16
+      "fila": 16,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -5804,7 +6086,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 20
+      "fila": 20,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -5822,7 +6110,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 24
+      "fila": 24,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -5847,7 +6141,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 28
+      "fila": 28,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -5859,7 +6159,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 30
+      "fila": 30,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -5884,7 +6190,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 34
+      "fila": 34,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -5896,7 +6208,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 36
+      "fila": 36,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -5921,7 +6239,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 40
+      "fila": 40,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -5939,7 +6263,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 44
+      "fila": 44,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -5964,7 +6294,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 48
+      "fila": 48,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -6102,7 +6438,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 10
+      "fila": 10,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -6127,7 +6469,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 14
+      "fila": 14,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -6139,7 +6487,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 16
+      "fila": 16,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -6164,7 +6518,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 20
+      "fila": 20,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -6182,7 +6542,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 24
+      "fila": 24,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -6207,7 +6573,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 28
+      "fila": 28,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -6219,7 +6591,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 30
+      "fila": 30,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -6244,7 +6622,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 34
+      "fila": 34,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -6256,7 +6640,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 36
+      "fila": 36,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -6281,7 +6671,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 40
+      "fila": 40,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -6299,7 +6695,13 @@
       "celdas": {
        "C": "MAX. DEM. (1)"
       },
-      "fila": 44
+      "fila": 44,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "MAX. DEM."
+       }
+      }
      },
      {
       "celdas": {
@@ -6324,7 +6726,13 @@
       "celdas": {
        "C": "P. INST. (2)"
       },
-      "fila": 48
+      "fila": 48,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "P. INST."
+       }
+      }
      },
      {
       "celdas": {
@@ -6590,14 +6998,30 @@
       "celdas": {
        "A": "SISTEMA ELÉCTRICO(1)"
       },
-      "fila": 5
+      "fila": 5,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "SISTEMA ELÉCTRICO"
+       }
+      }
      },
      {
       "celdas": {
        "C": "Costos de Inversión(4)",
        "H": "Costos de Explotación(4)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "C": {
+        "llamada": "(4)",
+        "rotulo": "Costos de Inversión"
+       },
+       "H": {
+        "llamada": "(4)",
+        "rotulo": "Costos de Explotación"
+       }
+      }
      },
      {
       "celdas": {
@@ -6610,7 +7034,13 @@
        "I": "PÉRDIDAS",
        "J": "Costo Total"
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "E": {
+        "llamada": "(3)",
+        "rotulo": "Transformación"
+       }
+      }
      },
      {
       "celdas": {
@@ -6622,7 +7052,13 @@
        "G": "Inversión",
        "J": "US$"
       },
-      "fila": 9
+      "fila": 9,
+      "llamadas": {
+       "B": {
+        "llamada": "(2)",
+        "rotulo": "Alternativa"
+       }
+      }
      },
      {
       "celdas": {
@@ -6777,7 +7213,13 @@
        "O": "Tipo",
        "P": "Sección"
       },
-      "fila": 9
+      "fila": 9,
+      "llamadas": {
+       "B": {
+        "llamada": "(2)",
+        "rotulo": "CÓDIGO"
+       }
+      }
      },
      {
       "celdas": {
@@ -6795,7 +7237,17 @@
        "M": "(Mho/km)",
        "P": "(mm2)"
       },
-      "fila": 10
+      "exponentes": {
+       "F": "unidad mm²",
+       "P": "unidad mm²"
+      },
+      "fila": 10,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "Recepción)"
+       }
+      }
      },
      {
       "celdas": {
@@ -6852,7 +7304,13 @@
        "M": "Peso",
        "N": "Peso"
       },
-      "fila": 20
+      "fila": 20,
+      "llamadas": {
+       "B": {
+        "llamada": "(2)",
+        "rotulo": "CÓDIGO"
+       }
+      }
      },
      {
       "celdas": {
@@ -6935,7 +7393,13 @@
        "T": "Peso Total",
        "U": "Peso del"
       },
-      "fila": 31
+      "fila": 31,
+      "llamadas": {
+       "B": {
+        "llamada": "(2)",
+        "rotulo": "CÓDIGO"
+       }
+      }
      },
      {
       "celdas": {
@@ -7117,7 +7581,13 @@
       "celdas": {
        "A": "PROYECTO(1)"
       },
-      "fila": 5
+      "fila": 5,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "PROYECTO"
+       }
+      }
      },
      {
       "celdas": {
@@ -7125,7 +7595,13 @@
        "C": "Costos(2)",
        "F": "TOTAL"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "C": {
+        "llamada": "(2)",
+        "rotulo": "Costos"
+       }
+      }
      },
      {
       "celdas": {
@@ -7329,7 +7805,13 @@
        "D": "Tolerencias",
        "F": "Cumple(1)"
       },
-      "fila": 20
+      "fila": 20,
+      "llamadas": {
+       "F": {
+        "llamada": "(1)",
+        "rotulo": "Cumple"
+       }
+      }
      },
      {
       "celdas": {
@@ -7389,7 +7871,13 @@
        "D": "Tolerancias",
        "F": "Cumple(1)"
       },
-      "fila": 31
+      "fila": 31,
+      "llamadas": {
+       "F": {
+        "llamada": "(1)",
+        "rotulo": "Cumple"
+       }
+      }
      },
      {
       "celdas": {
@@ -7486,7 +7974,13 @@
        "G": "Código",
        "H": "AÑOS (1)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "H": {
+        "llamada": "(1)",
+        "rotulo": "AÑOS"
+       }
+      }
      },
      {
       "celdas": {
@@ -7948,7 +8442,13 @@
        "E": "Tensión",
        "G": "AÑO (1)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "G": {
+        "llamada": "(1)",
+        "rotulo": "AÑO"
+       }
+      }
      },
      {
       "celdas": {
@@ -8124,7 +8624,17 @@
        "F": "Líneas(1)",
        "H": "Subestaciones"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "B": {
+        "llamada": "(1)",
+        "rotulo": "Líneas"
+       },
+       "F": {
+        "llamada": "(1)",
+        "rotulo": "Líneas"
+       }
+      }
      },
      {
       "celdas": {
@@ -8421,7 +8931,13 @@
        "S": "(1)",
        "T": "US$"
       },
-      "fila": 9
+      "fila": 9,
+      "llamadas": {
+       "S": {
+        "llamada": "(1)",
+        "rotulo": ""
+       }
+      }
      },
      {
       "celdas": {
@@ -8478,7 +8994,13 @@
        "A": "TITULAR :",
        "I": "AÑO(5):"
       },
-      "fila": 6
+      "fila": 6,
+      "llamadas": {
+       "I": {
+        "llamada": "(5)",
+        "rotulo": "AÑO:"
+       }
+      }
      },
      {
       "celdas": {
@@ -8518,7 +9040,13 @@
        "X": "Total",
        "Y": "TITULAR(4)"
       },
-      "fila": 9
+      "fila": 9,
+      "llamadas": {
+       "Y": {
+        "llamada": "(4)",
+        "rotulo": "TITULAR"
+       }
+      }
      },
      {
       "celdas": {
@@ -8561,7 +9089,13 @@
       "celdas": {
        "A": "Elementos(1)"
       },
-      "fila": 13
+      "fila": 13,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "Elementos"
+       }
+      }
      },
      {
       "celdas": {
@@ -8615,13 +9149,25 @@
       "celdas": {
        "A": "Servicios Auxiliares(2)"
       },
-      "fila": 22
+      "fila": 22,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Servicios Auxiliares"
+       }
+      }
      },
      {
       "celdas": {
        "A": "Costos Comunes (total) (2)"
       },
-      "fila": 23
+      "fila": 23,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Costos Comunes (total)"
+       }
+      }
      },
      {
       "celdas": {
@@ -8657,7 +9203,13 @@
       "celdas": {
        "A": "Costos Indirectos (total) (2)"
       },
-      "fila": 29
+      "fila": 29,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Costos Indirectos (total)"
+       }
+      }
      },
      {
       "celdas": {
@@ -8710,7 +9262,13 @@
       "celdas": {
        "A": "Elementos(1)"
       },
-      "fila": 37
+      "fila": 37,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "Elementos"
+       }
+      }
      },
      {
       "celdas": {
@@ -8764,13 +9322,25 @@
       "celdas": {
        "A": "Servicios Auxiliares(2)"
       },
-      "fila": 46
+      "fila": 46,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Servicios Auxiliares"
+       }
+      }
      },
      {
       "celdas": {
        "A": "Costos Comunes (total) (2)"
       },
-      "fila": 47
+      "fila": 47,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Costos Comunes (total)"
+       }
+      }
      },
      {
       "celdas": {
@@ -8806,7 +9376,13 @@
       "celdas": {
        "A": "Costos Indirectos (total) (2)"
       },
-      "fila": 53
+      "fila": 53,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Costos Indirectos (total)"
+       }
+      }
      },
      {
       "celdas": {
@@ -8859,7 +9435,13 @@
       "celdas": {
        "A": "Elementos(1)"
       },
-      "fila": 62
+      "fila": 62,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "Elementos"
+       }
+      }
      },
      {
       "celdas": {
@@ -8913,13 +9495,25 @@
       "celdas": {
        "A": "Servicios Auxiliares(2)"
       },
-      "fila": 71
+      "fila": 71,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Servicios Auxiliares"
+       }
+      }
      },
      {
       "celdas": {
        "A": "Costos Comunes (total) (2)"
       },
-      "fila": 72
+      "fila": 72,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Costos Comunes (total)"
+       }
+      }
      },
      {
       "celdas": {
@@ -8955,7 +9549,13 @@
       "celdas": {
        "A": "Costos Indirectos (total) (2)"
       },
-      "fila": 78
+      "fila": 78,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Costos Indirectos (total)"
+       }
+      }
      },
      {
       "celdas": {
@@ -9014,7 +9614,13 @@
       "celdas": {
        "A": "Elementos(1)"
       },
-      "fila": 87
+      "fila": 87,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "Elementos"
+       }
+      }
      },
      {
       "celdas": {
@@ -9068,13 +9674,25 @@
       "celdas": {
        "A": "Servicios Auxiliares(2)"
       },
-      "fila": 96
+      "fila": 96,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Servicios Auxiliares"
+       }
+      }
      },
      {
       "celdas": {
        "A": "Costos Comunes (total) (2)"
       },
-      "fila": 97
+      "fila": 97,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Costos Comunes (total)"
+       }
+      }
      },
      {
       "celdas": {
@@ -9110,7 +9728,13 @@
       "celdas": {
        "A": "Costos Indirectos (total) (2)"
       },
-      "fila": 103
+      "fila": 103,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "Costos Indirectos (total)"
+       }
+      }
      },
      {
       "celdas": {
@@ -9229,7 +9853,17 @@
        "G": "COSTO ELEMENTO(4)",
        "H": "ALÍCUOTAS INCREMENTALES (US$) (5)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "G": {
+        "llamada": "(4)",
+        "rotulo": "COSTO ELEMENTO"
+       },
+       "H": {
+        "llamada": "(5)",
+        "rotulo": "ALÍCUOTAS INCREMENTALES (US$)"
+       }
+      }
      },
      {
       "celdas": {
@@ -9243,7 +9877,21 @@
        "H": "M.N.",
        "I": "M.E."
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "B": {
+        "llamada": "(1)",
+        "rotulo": "MÓDULO INCREMENTAL"
+       },
+       "E": {
+        "llamada": "(2)",
+        "rotulo": "SUBESTACIÓN"
+       },
+       "F": {
+        "llamada": "(3)",
+        "rotulo": "CÓDIGO ELEMENTO"
+       }
+      }
      },
      {
       "celdas": {
@@ -9397,7 +10045,17 @@
        "G": "COSTO ELEMENTO(4)",
        "H": "ALÍCUOTAS INCREMENTALES (US$) (5)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "G": {
+        "llamada": "(4)",
+        "rotulo": "COSTO ELEMENTO"
+       },
+       "H": {
+        "llamada": "(5)",
+        "rotulo": "ALÍCUOTAS INCREMENTALES (US$)"
+       }
+      }
      },
      {
       "celdas": {
@@ -9411,7 +10069,21 @@
        "H": "M.N.",
        "I": "M.E."
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "B": {
+        "llamada": "(1)",
+        "rotulo": "MÓDULO INCREMENTAL"
+       },
+       "E": {
+        "llamada": "(2)",
+        "rotulo": "SUBESTACIÓN"
+       },
+       "F": {
+        "llamada": "(3)",
+        "rotulo": "CÓDIGO ELEMENTO"
+       }
+      }
      },
      {
       "celdas": {
@@ -9606,7 +10278,13 @@
        "S": "de  Telecomunicaciones (US$)",
        "Z": "Código"
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "Año"
+       }
+      }
      },
      {
       "celdas": {
@@ -9640,7 +10318,33 @@
        "Y": "(US$)",
        "Z": "COyM"
       },
-      "fila": 9
+      "fila": 9,
+      "llamadas": {
+       "E": {
+        "llamada": "(2)",
+        "rotulo": ""
+       },
+       "F": {
+        "llamada": "(3)",
+        "rotulo": ""
+       },
+       "H": {
+        "llamada": "(4)",
+        "rotulo": ""
+       },
+       "I": {
+        "llamada": "(5)",
+        "rotulo": "Tensión"
+       },
+       "J": {
+        "llamada": "(6)",
+        "rotulo": "Sistema"
+       },
+       "K": {
+        "llamada": "(7)",
+        "rotulo": ""
+       }
+      }
      },
      {
       "celdas": {
@@ -10995,7 +11699,13 @@
        "M": "Dic",
        "N": "TOTAL ANUAL (1)"
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "N": {
+        "llamada": "(1)",
+        "rotulo": "TOTAL ANUAL"
+       }
+      }
      },
      {
       "celdas": {
@@ -11252,7 +11962,41 @@
        "I": "(1)",
        "J": "(2)"
       },
-      "fila": 10
+      "fila": 10,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": ""
+       },
+       "D": {
+        "llamada": "(2)",
+        "rotulo": ""
+       },
+       "E": {
+        "llamada": "(1)",
+        "rotulo": ""
+       },
+       "F": {
+        "llamada": "(2)",
+        "rotulo": ""
+       },
+       "G": {
+        "llamada": "(1)",
+        "rotulo": ""
+       },
+       "H": {
+        "llamada": "(2)",
+        "rotulo": ""
+       },
+       "I": {
+        "llamada": "(1)",
+        "rotulo": ""
+       },
+       "J": {
+        "llamada": "(2)",
+        "rotulo": ""
+       }
+      }
      },
      {
       "celdas": {
@@ -11796,25 +12540,49 @@
       "celdas": {
        "A": "De Transmisión MAT (4)"
       },
-      "fila": 9
+      "fila": 9,
+      "llamadas": {
+       "A": {
+        "llamada": "(4)",
+        "rotulo": "De Transmisión MAT"
+       }
+      }
      },
      {
       "celdas": {
        "A": "De Transformación MAT/AT (3)"
       },
-      "fila": 10
+      "fila": 10,
+      "llamadas": {
+       "A": {
+        "llamada": "(3)",
+        "rotulo": "De Transformación MAT/AT"
+       }
+      }
      },
      {
       "celdas": {
        "A": "De Transmisión AT (2)"
       },
-      "fila": 11
+      "fila": 11,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "De Transmisión AT"
+       }
+      }
      },
      {
       "celdas": {
        "A": "De Transformación AT/MT(1)"
       },
-      "fila": 12
+      "fila": 12,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "De Transformación AT/MT"
+       }
+      }
      },
      {
       "celdas": {
@@ -12168,25 +12936,49 @@
       "celdas": {
        "A": "De Transmisión MAT (4)"
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "A": {
+        "llamada": "(4)",
+        "rotulo": "De Transmisión MAT"
+       }
+      }
      },
      {
       "celdas": {
        "A": "De Transformación MAT/AT (3)"
       },
-      "fila": 9
+      "fila": 9,
+      "llamadas": {
+       "A": {
+        "llamada": "(3)",
+        "rotulo": "De Transformación MAT/AT"
+       }
+      }
      },
      {
       "celdas": {
        "A": "De Transmisión AT (2)"
       },
-      "fila": 10
+      "fila": 10,
+      "llamadas": {
+       "A": {
+        "llamada": "(2)",
+        "rotulo": "De Transmisión AT"
+       }
+      }
      },
      {
       "celdas": {
        "A": "De Transformación AT/MT (1)"
       },
-      "fila": 11
+      "fila": 11,
+      "llamadas": {
+       "A": {
+        "llamada": "(1)",
+        "rotulo": "De Transformación AT/MT"
+       }
+      }
      },
      {
       "celdas": {
@@ -12518,7 +13310,13 @@
       "celdas": {
        "C": "Individuales (1)"
       },
-      "fila": 6
+      "fila": 6,
+      "llamadas": {
+       "C": {
+        "llamada": "(1)",
+        "rotulo": "Individuales"
+       }
+      }
      },
      {
       "celdas": {
@@ -12674,14 +13472,34 @@
        "P": "Dic",
        "Q": "TOTAL ANUALIZADO(2)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "A": {
+        "llamada": "(4)",
+        "rotulo": "ELEMENTOS"
+       },
+       "C": {
+        "llamada": "(3)",
+        "rotulo": "Nivel de Tension"
+       },
+       "Q": {
+        "llamada": "(2)",
+        "rotulo": "TOTAL ANUALIZADO"
+       }
+      }
      },
      {
       "celdas": {
        "A": "ELEMENTO 1",
        "D": "Precio1(1)"
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio1"
+       }
+      }
      },
      {
       "celdas": {
@@ -12693,7 +13511,13 @@
       "celdas": {
        "D": "Precio2(1)"
       },
-      "fila": 10
+      "fila": 10,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio2"
+       }
+      }
      },
      {
       "celdas": {
@@ -12712,7 +13536,13 @@
        "A": "ELEMENTO 2",
        "D": "Precio1(1)"
       },
-      "fila": 13
+      "fila": 13,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio1"
+       }
+      }
      },
      {
       "celdas": {
@@ -12724,7 +13554,13 @@
       "celdas": {
        "D": "Precio2(1)"
       },
-      "fila": 15
+      "fila": 15,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio2"
+       }
+      }
      },
      {
       "celdas": {
@@ -12749,7 +13585,13 @@
        "A": "ELEMENTO n",
        "D": "Precio1(1)"
       },
-      "fila": 19
+      "fila": 19,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio1"
+       }
+      }
      },
      {
       "celdas": {
@@ -12761,7 +13603,13 @@
       "celdas": {
        "D": "Precio2(1)"
       },
-      "fila": 21
+      "fila": 21,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio2"
+       }
+      }
      },
      {
       "celdas": {
@@ -12970,14 +13818,34 @@
        "P": "Dic",
        "Q": "TOTAL ANUALIZADO(2)"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "A": {
+        "llamada": "(4)",
+        "rotulo": "ELEMENTOS"
+       },
+       "C": {
+        "llamada": "(3)",
+        "rotulo": "Nivel de Tension"
+       },
+       "Q": {
+        "llamada": "(2)",
+        "rotulo": "TOTAL ANUALIZADO"
+       }
+      }
      },
      {
       "celdas": {
        "A": "ELEMENTO 1",
        "D": "Precio1(1)"
       },
-      "fila": 8
+      "fila": 8,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio1"
+       }
+      }
      },
      {
       "celdas": {
@@ -12989,7 +13857,13 @@
       "celdas": {
        "D": "Precio2(1)"
       },
-      "fila": 10
+      "fila": 10,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio2"
+       }
+      }
      },
      {
       "celdas": {
@@ -13008,7 +13882,13 @@
        "A": "ELEMENTO 2",
        "D": "Precio1(1)"
       },
-      "fila": 13
+      "fila": 13,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio1"
+       }
+      }
      },
      {
       "celdas": {
@@ -13020,7 +13900,13 @@
       "celdas": {
        "D": "Precio2(1)"
       },
-      "fila": 15
+      "fila": 15,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio2"
+       }
+      }
      },
      {
       "celdas": {
@@ -13039,7 +13925,13 @@
        "A": "ELEMENTO n",
        "D": "Precio1(1)"
       },
-      "fila": 19
+      "fila": 19,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio1"
+       }
+      }
      },
      {
       "celdas": {
@@ -13051,7 +13943,13 @@
       "celdas": {
        "D": "Precio2(1)"
       },
-      "fila": 21
+      "fila": 21,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "Precio2"
+       }
+      }
      },
      {
       "celdas": {
@@ -13242,7 +14140,13 @@
        "G": "3",
        "H": "4"
       },
-      "fila": 7
+      "fila": 7,
+      "llamadas": {
+       "D": {
+        "llamada": "(1)",
+        "rotulo": "VP"
+       }
+      }
      },
      {
       "celdas": {

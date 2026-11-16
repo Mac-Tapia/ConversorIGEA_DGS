@@ -1,0 +1,54 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Generado por tools/normativa/generar_coes.py (107 T28). Fuentes localizadas por cc (apoyo de f4), apoyo (cc), frente «f_clase_precision_mt» ninguna norma peruana abierta asigna la clase por nivel de tensión.",
+ "normas": [
+  {
+   "acto": "RM 496-2005-MEM/DM",
+   "titulo": "Norma DGE «Contraste del Sistema de Medición de Energía Eléctrica»",
+   "estado_juridico": "no_verificada",
+   "url": "http://www.osinerg.gob.pe/newweb/uploads/Publico/rm496-2005.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "cb4ec643cfb2e2d2f68772543146c46cab7f2ee782b1ca4b10a10fb6493990f2",
+   "sha256_texto": "3d1c023486c9f40191d16a7e67a157f1d62e89a91c462cdb1ffa271bb95e405e",
+   "fichero_local": "MEDICION/rm_496_2005/rm496-2005.pdf",
+   "nota": "Texto de noviembre de 2005. Su vigencia y sus modificatorias no se han comprobado: por eso «no_verificada». Copia de El Peruano en CC_APOYO (sha 41104942, pág. 3).",
+   "reglas": [
+    {
+     "clave": "medida.error_admisible_por_clase",
+     "valor": {
+      "0.2S": 0.3,
+      "0.5S": 0.7
+     },
+     "unidad": "%",
+     "articulo_o_anexo": "Tabla N° 01 «Contador: Error Admisible (%) según la clase de precisión»",
+     "pagina": "7",
+     "lineas": "274-291",
+     "cita_literal": "Tabla N° 01: Contador Error Admisible (%) según la clase de precisión  Clase de Precisión  Valor de la     Factor            Contadores Estáticos       Contadores de Inducción Corriente          de Condición Potencia 0,2S 0,5S     1                2    0,5   1  2  Error Admisible (%)           Error Admisible (%)  1          0,05 ln (*)       1      ± 0,3 ± 0,7 ± 2,5 ± 3,5 ± 1,5 ± 2,5 ± 3,5  2          In                1      ± 0,3 ± 0,7 ± 1,5 ± 2,5 ± 1 ± 1,5 ± 2,5  3          Imáx              1      ± 0,3 ± 0,7 ± 1,5 ± 2,5 ± 1 ± 1,5 ± 2,5",
+     "interpretacion": "Contadores estáticos, cos φ = 1, igual en 0,05 In, In e Imáx. Es la tolerancia por defecto de las dos alineaciones del instante del SEIN cuando el perfil no da la resolución del medidor (decisión del auditor 28, 2026-11-15)."
+    }
+   ]
+  },
+  {
+   "acto": "INACAL Guía TUPA de Metrología Legal",
+   "titulo": "Guía para la atención de los procedimientos TUPA de metrología legal (INACAL)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://cdn.www.gob.pe/uploads/document/file/1119004/Guia_TUPA.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "6855ac9c4db432a43cfae64d6089310c04304d9ed1dbf693f034b10f043e5e50",
+   "sha256_texto": "5f83e82457c88f9bbd18b3ffb214a6a6920fab7bb00e34a77498740a500c088f",
+   "fichero_local": "MEDICION/inacal_guia_tupa_2019/Guia_TUPA.pdf",
+   "nota": "Guía de homologación, no una obligación: se usa como práctica para la clase por defecto en MT.",
+   "reglas": [
+    {
+     "clave": "medida.clase_por_defecto_mt",
+     "valor": "0.5S",
+     "articulo_o_anexo": "Tabla de ítems de la NMP, columna de medidores de media tensión",
+     "pagina": "4",
+     "lineas": "205-207",
+     "cita_literal": "Ítem de la NMP                                            Medidor Clase 1                               Medidor Clase 0,2 S y 0,5 S  (Baja Tensión)                              (Media Tensión, Alta Tensión y Muy Alta Tensión)",
+     "interpretacion": "La guía asocia las clases 0,2S y 0,5S a la MT, la AT y la MAT. Sin la clase en el perfil se toma 0,5S, la de mayor error admisible (decisión del auditor 28)."
+    }
+   ]
+  }
+ ]
+}

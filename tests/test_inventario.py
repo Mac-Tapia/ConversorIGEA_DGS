@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 from collections import Counter
+import json
 import os
 import re
 import subprocess
@@ -233,6 +234,28 @@ def test_documentacion_del_readme():
         assert pieza in readme, pieza
 
 
+#: 009:RF-14 (FIX-108a): ficheros de config/ que transcriben una norma de Osinergmin igual para toda
+#: distribuidora y viven fuera de config/normativa/. Cada uno va con su nombre exacto y su razón, nunca
+#: con un comodín: un fichero al lado, o el mismo con el nombre de una empresa, sigue rechazado.
+GENERICOS_CON_RAZON = {
+    'config/vad/anexo2_formatos.json':
+        '108 (S3pp): Anexo N° 2 de los TdR del VAD 2026-2030 y 2027-2031 de Osinergmin (texto de la '
+        'RCD 033-2026-OS/CD): los formatos que presenta toda distribuidora, sin cifras de ninguna.',
+    'config/vad/tdr_vad_2026.json':
+        '108 (S3pp): registro de los TdR del VAD de Osinergmin (RCD 174-2025-OS/CD y RCD 033-2026-OS/CD) '
+        'con sus reglas citadas; la relación de empresas no se copia: el grupo lo declara cada perfil.',
+    'config/vad/tdr_vad_2026_resultados.json':
+        '108 (S3pp): conceptos, fórmulas y listas de los numerales 6.11, 7.5, 8 y 9 y del anexo 3 de los '
+        'mismos TdR de Osinergmin, con su cita literal; ninguna regla de una empresa.',
+}
+_COMODIN = re.compile(r'[*?\[\]]')
+
+
+def _admitido_por_razon(fichero: str) -> bool:
+    """009:RF-14 — solo el nombre exacto, y solo si lleva su razón escrita."""
+    return bool(GENERICOS_CON_RAZON.get(fichero, '').strip())
+
+
 def test_config_sin_datos_de_una_empresa():
     """009:RF-14 — en config/ solo se versionan ejemplos, perfiles genéricos y perfiles de
     empresa con convenciones (los de config/perfiles, que comprueba 002:RF-35)."""
@@ -251,8 +274,55 @@ def test_config_sin_datos_de_una_empresa():
              # 020:RF-63: las fichas NTP 370.400 son del conversor (norma técnica nacional), no de una empresa.
              and not (f.startswith('config/fichas/') and f.endswith('.json'))
              # 107:RF-11: el registro normativo transcribe normas públicas del regulador, no datos de una empresa.
-             and not (f.startswith('config/normativa/') and f.endswith('.json'))]
+             and not (f.startswith('config/normativa/') and f.endswith('.json'))
+             # 108 (FIX-108a): el Anexo 2 y los TdR del VAD, por su nombre exacto y con su razón.
+             and not _admitido_por_razon(f)]
     assert not malos, f'config/ con datos de una empresa en git: {malos}'
+
+
+def _transcribe_una_norma(datos) -> bool:
+    """Un JSON con esquema propio que cita su acto, sus normas o la norma que amplía."""
+    if not isinstance(datos, dict) or not datos.get('esquema'):
+        return False
+    fuente = datos.get('fuente')
+    return bool(datos.get('normas') or datos.get('amplia') or (isinstance(fuente, dict) and fuente.get('acto')))
+
+
+def test_config_genericos_con_razon():
+    """009:RF-14 (FIX-108a) — una norma transcrita en config/ fuera de config/normativa/ se admite por su
+    nombre exacto y con su razón; el fichero está en git y no lleva ningún término de una empresa según el
+    detector de la entrega (086:RF-33: perfiles excluidos y huellas en git)."""
+    en_git = subprocess.run(['git', 'ls-files', 'config'], cwd=RAIZ, capture_output=True,
+                            text=True, encoding='utf-8', check=True).stdout.split()
+    normas = sorted(f for f in en_git if f.endswith('.json') and not f.startswith('config/normativa/')
+                    and _transcribe_una_norma(json.loads((RAIZ / f).read_text(encoding='utf-8'))))
+    sin_razon = [f for f in normas if not _admitido_por_razon(f)]
+    assert not sin_razon, f'norma transcrita en config/ sin su nombre y su razón: {sin_razon}'
+    ce = cargar_herramienta('comprobar_entrega.py')
+    terminos = ce.cargar_terminos(RAIZ)
+    for f, razon in GENERICOS_CON_RAZON.items():
+        assert not _COMODIN.search(f), f'comodín en la lista blanca: {f}'
+        assert f in en_git, f'genérico que no está en git: {f}'
+        assert 'Osinergmin' in razon and len(razon.split()) >= 12, f'razón insuficiente: {f}'
+        texto = (RAIZ / f).read_text(encoding='utf-8')
+        hallazgos = ce.buscar_en_texto(f, texto, terminos)
+        assert not hallazgos, f'{f}: términos de empresa ({sorted({h.categoria for h in hallazgos})})'
+        # El detector sí ve un nombre de empresa escrito en ese mismo texto.
+        con_nombre = ce.Terminos()
+        con_nombre.anadir('Compania Ejemplo Distribuidora', 'empresa')
+        assert ce.buscar_en_texto(f, texto + '\n"empresa": "Compañía Ejemplo Distribuidora"\n', con_nombre), f
+
+
+def test_config_generico_con_nombre_de_empresa_rechazado():
+    """009:RF-14 (FIX-108a) — la lista blanca no es un comodín: el nombre exacto entra; el mismo fichero
+    con el nombre de una empresa, otro de la misma carpeta o un patrón, no."""
+    for f in ('config/vad/anexo2_formatos.json', 'config/vad/tdr_vad_2026.json',
+              'config/vad/tdr_vad_2026_resultados.json'):
+        assert _admitido_por_razon(f), f'el Anexo 2 o el TdR del VAD no está admitido: {f}'
+        raiz, extension = f.rsplit('.', 1)
+        for otro in (f'{raiz}_compania_ejemplo.{extension}', f'{raiz}.{extension}.bak',
+                     f.rsplit('/', 1)[0] + '/otro.json', f.rsplit('/', 1)[0] + '/*.json'):
+            assert not _admitido_por_razon(otro), f'admitido sin nombre exacto: {otro}'
 
 
 _RUTAS = {'get', 'post', 'put', 'delete', 'patch', 'websocket', 'on_event', 'exception_handler', 'middleware'}

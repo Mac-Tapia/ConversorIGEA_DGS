@@ -43,9 +43,28 @@ empresa modelo**: esta spec crea ese cálculo separado.
   el estudio como conforme.
 - RF-11: CUANDO se emitan los entregables, EL SISTEMA generará las tablas A y B en Excel con sus fórmulas, los mapas
   de densidad (anexo 9) y el manifiesto de fuentes con sus huellas.
+- Aclaración de RF-11 (2026-11-14): entre los entregables están las Tablas de Resultados que liste el TdR registrado
+  (numeral 9), una hoja por tabla, en el orden y con el título del registro y con las filas por sistema eléctrico. El
+  número de tablas no está fijado: lo da el registro (el TdR del periodo 2026-2030 lista 16). Una tabla sin datos se
+  entrega como hueco nombrado, nunca vacía en silencio. Absorbe el RF-16 propuesto en el inventario de entregables de
+  Osinergmin (veredicto 7e del 2026-11-14).
 - RF-12: EL SISTEMA registrará las observaciones del regulador con su respuesta y la tabla o el cálculo al que
   afectan.
+- Aclaración de RF-12 (2026-11-14): con las observaciones respondidas, EL SISTEMA generará el Informe Definitivo con
+  los documentos que liste el TdR registrado (numeral 9.2), y en el informe de respuestas cada respuesta llevará su
+  sustento y la tabla o el cálculo que cambió. Absorbe el RF-20 propuesto en el inventario (veredicto 7e).
 - RF-13: EL SISTEMA no tendrá valores de una empresa, de un sistema típico ni de un periodo en el código (P13).
+- RF-14: EL SISTEMA generará el Informe de Resultados Relevantes con los apartados del anexo 3 del TdR registrado.
+- RF-15: EL SISTEMA generará el Informe del Estudio con la estructura del numeral 9 del TdR registrado, en Word y en
+  un PDF integrado.
+- RF-16: EL SISTEMA calculará el cargo fijo y el VAD de cada nivel de tensión, con las variantes, las fórmulas y los
+  coeficientes del numeral 8 del TdR registrado, y también el factor de economía de escala y la fórmula de reajuste.
+- RF-17: DONDE el estudio declare la empresa dentro del ámbito del FONAFE, EL SISTEMA incorporará al VAD la inversión,
+  el COyM y la demanda del PIDE aprobado que le entregue la spec 072, con la fórmula del TdR registrado.
+- RF-18: EL SISTEMA verificará la calidad de servicio de la empresa modelo con los indicadores y los límites del
+  registro normativo, y dirá qué indicador no cumple.
+- RF-19: EL SISTEMA dimensionará el VNR no eléctrico y los costos comerciales, indirectos y adicionales de la empresa
+  modelo por los rubros del TdR registrado, y el costo real solo entrará como referencia rotulada.
 
 ## Requisitos no funcionales
 - Fidelidad geométrica: el hash de los vértices de cada tramo del modelo rural coincide con el del VNR.
@@ -63,6 +82,7 @@ empresa modelo**: esta spec crea ese cálculo separado.
 - El plan SMI (anexo 8) y los cargos adicionales de innovación, que se tratan en una iteración posterior.
 - Copiar resultados de estudios anteriores: solo se aprende su estructura.
 - Declarar el estudio «aprobado».
+- Escribir en la spec 072: el contrato 072 → 108 de RF-17 lo redacta la tarjeta que lleva la 072.
 
 ## Criterios de finalización
 Cada RF citado por una prueba (`grep "108:RF-"`). El modelo rural conserva el hash de los vértices del VNR. Un libro
@@ -72,9 +92,32 @@ celdas.
 ## Decisiones (2026-11-14)
 Tomadas por delegación del usuario («debes hacer lo recomendado, piensa como un humano»), en
 `D:/csg/G0_PLAN_MAESTRO/G1_DECISIONES_RECOMENDADAS.md`, punto 3.
-- Primer caso: Electro Dunas, del grupo 1 (2026–2030), **solo como caso de prueba**. Su nombre y su sistema típico
-  van en el perfil local, nunca en el código ni en las pruebas (P13). Que pertenezca al grupo 1 se dedujo de los
-  considerandos de la RCD 174-2025 y se comprobará en su anexo 1.
+- Primer caso: una empresa del grupo de fijación vigente, **solo como caso de prueba**. Su nombre, su grupo y su
+  sistema típico van en el perfil local, nunca en la spec, el código ni las pruebas (P13; usuario, 2026-11-14: «VAD,
+  PIT y PIDE siguen siendo universales; los archivos reales son de prueba»). Su grupo se deduce de la resolución
+  vigente que publica la agrupación y se comprueba en su anexo.
 - Primera iteración: el anexo 6 rural, que reutiliza las trazas reales. El anexo 5 urbano (RF-6) viene después, en
   una tarea propia.
 - Costos estándar: los del catálogo SICODI con `valorar_obra`, con la fuente anotada en cada elemento.
+
+## Enmienda del 2026-11-14 (inventario de entregables de Osinergmin)
+Origen: `D:/csg/PM_IMPL/OSINERGMIN_ENTREGABLES/INVENTARIO.md`, sección 4, y el veredicto de 7e
+(`D:/csg/AUDITORIA/VEREDICTO_INVENTARIO_OSINERGMIN_7e.md`, con su corrección de las 20:20). La numeración vigente no
+se toca: los RF aceptados toman los siguientes números libres y los que se absorbieron como aclaración nunca se
+definieron.
+
+| Propuesto en el inventario | Aquí |
+| --- | --- |
+| RF-14, Resultados Relevantes (anexo 3) | RF-14 |
+| RF-15, Informe del Estudio (numeral 9) | RF-15 |
+| RF-16, las Tablas de Resultados | Aclaración de RF-11 |
+| RF-17, CF, VAD, variantes, FEE y reajuste (numeral 8) | RF-16 |
+| RF-18, incorporación del PIDE (numeral 7.5) | RF-17 |
+| RF-19, calidad de servicio (numeral 6.11) | RF-18 |
+| RF-20, Informe Definitivo (numeral 9.2) | Aclaración de RF-12 |
+| RF-21, VNR no eléctrico y costos de explotación (6.8.3, 6.13 a 6.15) | RF-19 |
+
+Las listas (tablas, apartados, estructura, conceptos, variantes, indicadores y rubros), las fórmulas y los
+coeficientes salen del registro normativo (RF-9, RF-13): un periodo nuevo cambia el registro, no el código. Lo que el
+TdR no da en forma cerrada (la fórmula de reajuste) o remite a otra norma sin transcribir (los límites de la NTCSE y
+la NTCSER) queda como hueco nombrado con su cita.

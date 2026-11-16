@@ -414,7 +414,7 @@ _MAPEO_SERIES = {'esquema': 'pit_mapeo_formatos_v1', 'formatos': {
                            'serie_columnas': {'fila_rotulo': 8, 'desde': 'E', 'rotulo_cero': 'AÑO / 0',
                                               'campo': 'potencia_mw'}}]},
     'F-119': {'bloques': [{'bloque': 'anios', 'fila_marca': 8, 'marca': '0', 'serie_filas': {'columna': 'A'},
-                           'columnas': [{'letra': 'B', 'rotulo': [7, 'B', 'MAT (1)'], 'campo': 'mat_gwh'}]}]}}}
+                           'columnas': [{'letra': 'B', 'rotulo': [7, 'B', 'MAT'], 'campo': 'mat_gwh'}]}]}}}  # rótulo sin la llamada (1) (delta17)
 
 
 def _registro_con_horizonte(tmp_path, anios):

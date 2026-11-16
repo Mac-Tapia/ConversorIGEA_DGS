@@ -19,7 +19,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
 
-from convertersmartgrid.salidas_red import motivo_apagada, salida_permitida
+from convertersmartgrid.salidas_red import (RedireccionRechazada, get_sin_redireccion_ajena, mismo_servidor, motivo_apagada,
+                                            salida_permitida)
 from convertersmartgrid.util import importar_opcional, sha256_file, write_json_atomic
 from convertersmartgrid.runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
 
@@ -34,6 +35,10 @@ class DownloadCancelled(DownloadError):
 
 class DownloadQuotaExceeded(DownloadError):
     """Un recurso fuera de presupuesto no debe descargarse otra vez."""
+
+
+class DownloadRedirectRejected(DownloadError):
+    """086:RF-22 (SSRF, BP-29): el recurso redirige a otra máquina; no se pide ni se reintenta."""
 
 
 class ArchiveSecurityError(DownloadError):
@@ -194,7 +199,7 @@ class DownloadManager:
                     )
                     self._write_manifest(destination, manifest)
                     return manifest
-                except (DownloadCancelled, DownloadQuotaExceeded):
+                except (DownloadCancelled, DownloadQuotaExceeded, DownloadRedirectRejected):
                     raise
                 except Exception as exc:  # noqa: BLE001 - reintentos con backoff
                     last_error = exc
@@ -213,10 +218,16 @@ class DownloadManager:
         resume_at = part.stat().st_size if part.is_file() else 0
         if resume_at:
             headers['Range'] = f'bytes={resume_at}-'
-        with requests.get(
-            url, stream=True, timeout=(self.connect_timeout_s, self.read_timeout_s),
-            headers=headers,
-        ) as response:
+        # 086:RF-22 (SSRF, BP-29): cada salto de una redirección se mira ANTES de pedirlo (antes se seguía y después se
+        # validaba la URL final, cuando la máquina de la redirección ya había recibido la petición).
+        try:
+            response = get_sin_redireccion_ajena(
+                requests, url, admitir=self._redireccion_admitida(url), stream=True,
+                timeout=(self.connect_timeout_s, self.read_timeout_s), headers=headers,
+            )
+        except RedireccionRechazada as exc:
+            raise DownloadRedirectRejected(str(exc)) from exc
+        with response:
             self._validate_url(getattr(response, 'url', url))
             if response.status_code in (200, 206):
                 content_type = str(response.headers.get('Content-Type') or '').split(';', 1)[0].lower()
@@ -312,6 +323,20 @@ class DownloadManager:
     def verify(self, path: Path | str, expected_sha256: str | None = None) -> bool:
         digest = sha256_file(Path(path))
         return expected_sha256 is None or digest == expected_sha256
+
+    def _redireccion_admitida(self, origen: str):
+        """Con hosts permitidos, los mismos que valida ``_validate_url``; sin ellos, solo el servidor de partida."""
+        if not self.allowed_hosts:
+            return mismo_servidor(origen)
+
+        def admitir(destino: str) -> bool:
+            try:
+                self._validate_url(destino)
+            except DownloadError:
+                return False
+            return True
+
+        return admitir
 
     def _validate_url(self, url: str) -> None:
         if not self.allowed_hosts:

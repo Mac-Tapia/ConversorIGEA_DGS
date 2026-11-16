@@ -224,6 +224,7 @@
     "pit/reserva.py",
     "pit/llenado.py",
     "pit/plantillas.py",
+    "pit/demanda_regulatoria.py",
     "pit/formatos_red.py",
     "pit/expediente.py",
     "pit/informe.py",

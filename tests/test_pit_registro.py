@@ -157,3 +157,56 @@ def test_factores_vigentes_del_vad_2023_2027_y_su_comprobacion_cruzada():
     cambiaron = {e for e in actual if actual[e]['fe'] != previa[e]['fe']}
     assert {e for e in actual} - cambiaron == {'Electrosur', 'Seal'}
     assert all(f >= 1 for e in actual.values() for f in e['fe'].values())
+
+
+def test_cada_empresa_cuyo_factor_cambio_lleva_su_causa_o_su_hueco():
+    """107:RF-7, 107:RF-8 (delta13) — toda empresa cuyos FE cambian entre el IT 716 y la RCD 223-2023 lleva la causa
+    citada en el informe técnico de su reconsideración o, si ese informe no acepta nada de pérdidas técnicas, un «sin
+    causa localizada» citado; las que no cambian no llevan ninguna."""
+    registro = cargar_registro(NORMATIVA)
+    previa = registro.regla('vad.perdidas.factores_expansion_it716').regla.valor['empresas']
+    actual = registro.regla('vad.perdidas.factores_expansion').regla.valor['empresas']
+    cambiaron = {e for e in actual if actual[e]['fe'] != previa[e]['fe']}
+    claves = {r.clave for n in registro.normas.values() for r in n.reglas}
+    for empresa in sorted(actual):
+        con = f'vad.perdidas.causa_del_cambio.{empresa}' in claves
+        sin = f'vad.perdidas.sin_causa_localizada.{empresa}' in claves
+        if empresa in cambiaron:
+            assert con != sin, (empresa, 'una y solo una: causa citada o hueco citado')
+        else:
+            assert not (con or sin), (empresa, 'no cambia y no debe llevar causa')
+    causa = registro.regla('vad.perdidas.causa_del_cambio.Electrocentro')
+    assert causa.norma.acto == 'IT 815-2023-GRT' and 'aisladores_mt' in causa.regla.valor['componentes']
+
+
+def test_rotulo_y_llamada_a_nota_separados_en_todos_los_formatos():
+    """107:RF-9 (delta17, frentes w0 y w1 de cc) — en la transcripción de los formatos de la 217-2013, cada celda con una
+    llamada a nota en superíndice guarda su texto literal y, aparte, el rótulo sin la llamada; rótulo y llamada
+    rehacen el literal (la llamada puede ir en medio o antes de «:», con o sin paréntesis). Los exponentes (r², mm²)
+    quedan literales y la plantilla de F-101 dice «Total Sistema 1», no «Total Sistema 12»."""
+    from convertersmartgrid.pit.plantillas import _plantilla
+    registro = cargar_registro(NORMATIVA)
+    llamadas, exponentes = {}, {}
+    for norma in registro.normas.values():
+        for regla in norma.reglas:
+            if not regla.clave.startswith('pit.formato.'):
+                continue
+            codigo = regla.clave.split('.')[-1]
+            for fila in regla.valor['filas']:
+                for letra, ll in (fila.get('llamadas') or {}).items():
+                    literal = fila['celdas'][letra].replace(' ', '')
+                    rotulo = ll['rotulo'].replace(' ', '')
+                    llamada = ll['llamada']
+                    rehechos = {rotulo[:i] + x + rotulo[i:] for x in (llamada, llamada.strip('()'))
+                                for i in range(len(rotulo) + 1)}
+                    assert literal in rehechos, (codigo, fila['fila'], letra, fila['celdas'][letra], ll)
+                    llamadas[(codigo, f'{letra}{fila["fila"]}')] = ll
+                for letra in fila.get('exponentes') or {}:
+                    exponentes[(codigo, f'{letra}{fila["fila"]}')] = fila['celdas'][letra]
+    assert {('F-101', 'A8'), ('F-002', 'M9')} <= set(llamadas), 'la transcripción no separa las llamadas a nota'
+    assert llamadas[('F-101', 'A8')] == {'rotulo': 'Total Sistema 1', 'llamada': '(2)'}
+    assert llamadas[('F-002', 'M9')]['llamada'] == '(3)'
+    assert set(exponentes) == {('F-106', 'A45'), ('F-107', 'A45'), ('F-002', 'J9'), ('F-002', 'T9'),
+                               ('F-206', 'F10'), ('F-206', 'P10')}
+    celdas, _ = _plantilla(registro, 'F-101', None)
+    assert celdas[(8, 'A')] == 'Total Sistema 1'

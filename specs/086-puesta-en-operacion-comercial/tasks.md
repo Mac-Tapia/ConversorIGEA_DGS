@@ -290,3 +290,14 @@ Pruebas permanentes en `tests/test_complemento_integral.py`: traslado entre dos
 raíces privadas con entorno/cwd distintos y rechazo de mutaciones del recibo.
 No se cambian estados de aceptación ni se da por reconstruido/instalado el
 complemento de 238 ruedas o el programa final con este correctivo CPU.
+- [x] T76 LIC-MIT (usuario, 2026-11-15, «MIT + comercial opcional»): la entrega lleva la MIT como licencia del programa
+  (`LICENSE` → `documentos/LICENSE.txt`, la que muestra `LicenseFile=` del `.iss`); `LICENCIA_COMERCIAL.txt` pasa a acuerdo
+  opcional de soporte y garantía (`config/entrega.json` → `documentos.opcionales`), sin abogado ni cláusula de jurisdicción;
+  manuales y notas al día. (RF-44)
+  Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-44: la licencia de la entrega es la MIT y la comercial es
+  opcional; el .iss muestra la MIT; LICENSE.txt con BOM) en verde, con rojo previo. Evidencia: `D:/csg/PM_IMPL/LIC-MIT/`.
+- [x] T77 SSRF-ARCGIS (BP-29, P0): `salidas_red.get_sin_redireccion_ajena` y su uso en `connectors/arcgis.py`,
+  `discovery/official.py` y `discovery/download.py`: ninguna redirección a otra máquina se pide; la rechazada no se reintenta.
+  Pruebas en `tests/test_vnr_etl.py` (127.0.0.1, 169.254.169.254, otro host; mismo servidor sí; https→http no). (RF-22)
+  Hecho cuando: `tests/test_vnr_etl.py` (086:RF-22: ninguna redirección a otra máquina se pide, en ArcGIS, el
+  descubrimiento y la descarga) y `tests/test_seguridad_web.py` en verde, con rojo previo. Evidencia: `D:/csg/PM_IMPL/SSRF-ARCGIS/v2/`.

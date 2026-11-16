@@ -177,3 +177,58 @@ def preparar_entorno_sin_red(environ: MutableMapping[str, str] | None = None) ->
         # 086:RF-22: una variable heredada con valor 0 no reabre la salida apagada.
         env['HF_HUB_OFFLINE'] = '1'
         env['TRANSFORMERS_OFFLINE'] = '1'
+
+
+class RedireccionRechazada(RuntimeError):
+    """086:RF-22 (SSRF, BP-29): una respuesta 3xx que lleva a otra máquina no se sigue."""
+
+
+def mismo_servidor(origen: str):
+    """La regla por defecto de las redirecciones: el mismo host y puerto, http o https, y nunca de https a http."""
+    from urllib.parse import urlsplit
+
+    o = urlsplit(origen)
+
+    def admitir(destino: str) -> bool:
+        d = urlsplit(destino)
+        if d.scheme not in ('http', 'https') or (o.scheme == 'https' and d.scheme != 'https'):
+            return False
+        return ((d.hostname or '').lower().strip('.') == (o.hostname or '').lower().strip('.')
+                and (d.port or _PUERTO[d.scheme]) == (o.port or _PUERTO.get(o.scheme, 0)))
+
+    return admitir
+
+
+_PUERTO = {'http': 80, 'https': 443}
+
+
+def get_sin_redireccion_ajena(http, url: str, *, admitir=None, max_saltos: int = 5, **kw):
+    """086:RF-22 (SSRF-ARCGIS, BP-29): un GET que NO deja que la biblioteca siga las redirecciones.
+
+    ``requests`` las sigue por defecto, y una respuesta 302 del servidor (o de quien se haga pasar por él) hacia 127.0.0.1,
+    el servicio de metadatos de la nube u otra máquina de la red interna hacía que el programa la pidiera. Aquí cada salto
+    se mira ANTES de pedirlo con ``admitir`` (por defecto, :func:`mismo_servidor` de la URL de partida); el que no pasa se
+    rechaza con :class:`RedireccionRechazada`. ``http`` es el módulo ``requests`` (o una sesión) del módulo que declara su
+    salida en :data:`SALIDAS`; este no abre la red por su cuenta. ``params`` solo va en la primera petición: la
+    dirección de una redirección ya lleva su consulta.
+    """
+    from urllib.parse import urljoin
+
+    admitir = admitir or mismo_servidor(url)
+    actual = url
+    for _ in range(max_saltos + 1):
+        respuesta = http.get(actual, allow_redirects=False, **kw)
+        codigo = int(getattr(respuesta, 'status_code', 200) or 200)
+        destino = (getattr(respuesta, 'headers', None) or {}).get('Location')
+        if not (300 <= codigo < 400 and destino):
+            return respuesta
+        siguiente = urljoin(actual, destino)
+        cerrar = getattr(respuesta, 'close', None)
+        if callable(cerrar):
+            cerrar()
+        if not admitir(siguiente):
+            raise RedireccionRechazada(f'Redirección rechazada de {actual} a {siguiente}: el programa no sigue una '
+                                       'redirección a otra máquina (086:RF-22).')
+        actual = siguiente
+        kw.pop('params', None)
+    raise RedireccionRechazada(f'Redirección rechazada desde {url}: más de {max_saltos} saltos (086:RF-22).')

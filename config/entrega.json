@@ -95,10 +95,11 @@
       "3.11": {"zip": "python-3.11.9-embed-amd64.zip", "sha256": "009d6bf7e3b2ddca3d784fa09f90fe54336d5b60f0e0f305c37f400bf83cfd3b", "numpy": "numpy-2.2.6-cp311-cp311-win_amd64.whl", "numpy_sha256": "e8213002e427c69c45a52bbd94163084025f533a55a59d6f9c5b820774ef3303"}
     }
   },
-  "_comentario_documentos": "U1, L6 (2026-11-14): lo que no va al cliente aunque esté en docs/: la MIT del repositorio (la entrega lleva la licencia comercial por puesto), el manual de comandos de desarrollo, la guía de la aceptación interna (T41) y el libro de uso, que no cubre la 1.0 instalada (U8). Los apartados de quien construye se quitan del manual al copiarlo.",
+  "_comentario_documentos": "L6 (2026-11-14) y LIC-MIT (usuario, 2026-11-15, «MIT + comercial opcional»): la licencia del programa que se entrega es la MIT del repositorio (LICENSE, que va como LICENSE.txt); el acuerdo comercial de soporte y garantía es opcional: se copia si está y no es condición de la entrega. Lo que no va al cliente aunque esté en docs/: el manual de comandos de desarrollo, la guía de la aceptación interna (T41) y el libro de uso, que no cubre la 1.0 instalada (U8). Los apartados de quien construye se quitan del manual al copiarlo.",
   "documentos": {
-    "no_se_entregan": ["LICENSE", "docs/MANUAL_COMANDOS.md", "docs/GUIA_PRUEBA_PERSONA_AJENA.md", "docs/MANUAL_DE_USO.md"],
-    "secciones_de_desarrollo": {"docs/MANUAL_INSTALACION.md": ["Para quien prepara una versión"]}
+    "no_se_entregan": ["docs/MANUAL_COMANDOS.md", "docs/GUIA_PRUEBA_PERSONA_AJENA.md", "docs/MANUAL_DE_USO.md"],
+    "secciones_de_desarrollo": {"docs/MANUAL_INSTALACION.md": ["Para quien prepara una versión"]},
+    "opcionales": ["docs/LICENCIA_COMERCIAL.txt"]
   },
   "_comentario_python_programa": "U3 (2026-11-14): el Python del programa es el 3.12 oficial de python.org, el último 3.12 con binarios de Windows y el que carga la API de PowerFactory 2024 (103:RF-1), firmado por la PSF; su firma se comprueba al armar. Un candidato final no se arma con otro.",
   "python_programa": {"zip": "python-3.12.10-embed-amd64.zip", "sha256": "4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3", "origen": "https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip", "firmante": "Python Software Foundation", "firmados": ["python.exe", "pythonw.exe", "python312.dll"]},

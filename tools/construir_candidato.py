@@ -53,12 +53,15 @@ COMPLEMENTO_IA = RAIZ / 'requirements-complemento-ia.txt'
 PROGRAMA_EN_PAQUETE = Path('src', 'convertersmartgrid', '_programa')
 #: Lo que se copia a «documentos/» del candidato. Pasa por la misma lista de términos que el código.
 DOCUMENTOS = ('docs/MANUAL_INSTALACION.md', 'docs/MANUAL_OPERADOR.md', 'docs/SEGURIDAD_Y_PRIVACIDAD.md', 'docs/PERFIL_EMPRESA.md',
-              'src/convertersmartgrid/recursos/NOTAS_VERSION.md', 'requirements-complemento-ia.txt', 'docs/LICENCIA_COMERCIAL.txt')
+              'src/convertersmartgrid/recursos/NOTAS_VERSION.md', 'requirements-complemento-ia.txt', 'LICENSE')
 #: U8 (2026-11-14): MANUAL_DE_USO no se entrega: es del 2026-10-31, remite a specs/, a MANUAL_COMANDOS y a tools/ del
 #: repositorio, y no cubre la 1.0 instalada (instalador, todo activo, perfil desde la web, copia de datos, asistente).
 #: Lo que falta está en specs/086-puesta-en-operacion-comercial/tasks.md, T23.
-#: U1 (usuario, 2026-11-14): la licencia comercial por puesto es la de la entrega; el .iss la muestra y pide aceptarla.
-LICENCIA_DE_LA_ENTREGA = 'docs/LICENCIA_COMERCIAL.txt'
+#: LIC-MIT (usuario, 2026-11-15, «MIT + comercial opcional»; sustituye a U1): la licencia del programa que se entrega es la
+#: MIT del repositorio. Va a «documentos/» como LICENSE.txt y el .iss la muestra.
+LICENCIA_DE_LA_ENTREGA = 'LICENSE'
+#: El acuerdo comercial de soporte y garantía es OPCIONAL: se copia si está y no es condición de la entrega ni del uso.
+ACUERDO_COMERCIAL_OPCIONAL = 'docs/LICENCIA_COMERCIAL.txt'
 #: 086:RF-89: además, lo que el operador encuentra instalado, porque el .iss copia «documentos/» a «{app}\\documentos». El rc5
 #: dejaba el candidato en «{app}\\_entrega» y lo borraba al terminar: los manuales se iban con él. Las notas de la
 #: publicación no van aquí: su nombre sale de la versión, en ``documentos_del_candidato``.
@@ -110,6 +113,11 @@ def documentos_del_candidato(version: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(pedidos))
 
 
+def nombre_en_documentos(rel: str) -> str:
+    """El nombre con que ``rel`` queda en «documentos/»: la MIT (``LICENSE``, sin extensión) va como LICENSE.txt."""
+    return 'LICENSE.txt' if rel == LICENCIA_DE_LA_ENTREGA else Path(rel).name
+
+
 def sin_secciones_de_desarrollo(texto: str, titulos: Iterable[str]) -> str:
     """Quita de un manual los apartados ``## <título>`` que son de quien construye, hasta el siguiente ``## `` (L6).
 
@@ -126,7 +134,7 @@ def sin_secciones_de_desarrollo(texto: str, titulos: Iterable[str]) -> str:
 
 
 def comprobar_documentos_de_la_entrega(pedidos: Iterable[str], manifiesto: dict) -> None:
-    """U1 y L6: lo que ``config/entrega.json`` dice que no va al cliente no entra en «documentos/» (la MIT del repositorio)."""
+    """L6: lo que ``config/entrega.json`` dice que no va al cliente no entra en «documentos/» (manuales de desarrollo)."""
     vedados = set((manifiesto.get('documentos') or {}).get('no_se_entregan') or ())
     dentro = sorted(vedados & set(pedidos))
     if dentro:
@@ -148,12 +156,20 @@ def copiar_documentos(raiz: Path, destino: Path, version: str, manifiesto: dict 
             texto = sin_secciones_de_desarrollo((raiz / rel).read_text(encoding='utf-8'), secciones)
             (destino / Path(rel).name).write_text(texto, encoding='utf-8', newline='')
         elif rel == LICENCIA_DE_LA_ENTREGA:
-            # Inno Setup solo lee como UTF-8 un .txt de LicenseFile con su BOM; sin él, las tildes salen rotas.
+            # LIC-MIT: la MIT va como LICENSE.txt, que es lo que muestra LicenseFile=; Inno Setup solo lee como UTF-8 un
+            # .txt con su BOM.
             texto = (raiz / rel).read_text(encoding='utf-8').lstrip(chr(0xFEFF))
-            (destino / Path(rel).name).write_text(texto, encoding='utf-8-sig', newline='')
+            (destino / nombre_en_documentos(rel)).write_text(texto, encoding='utf-8-sig', newline='')
         else:
             shutil.copyfile(raiz / rel, destino / Path(rel).name)
-    return [Path(rel).name for rel in pedidos]
+    copiados = [nombre_en_documentos(rel) for rel in pedidos]
+    # El acuerdo comercial opcional de soporte y garantía: si está, se copia (con BOM, como la MIT); si no, la entrega vale.
+    for rel in (documentos.get('opcionales') or ()):
+        if (raiz / rel).is_file():
+            texto = (raiz / rel).read_text(encoding='utf-8').lstrip(chr(0xFEFF))
+            (destino / Path(rel).name).write_text(texto, encoding='utf-8-sig', newline='')
+            copiados.append(Path(rel).name)
+    return copiados
 
 
 def comprobar_notas(texto: str, version: str) -> None:

@@ -145,9 +145,8 @@ calibración por año con bancos y tramos de dos conductores (025 T27); el asist
 
 ## Licencias
 
-- La entrega se usa con la licencia comercial por puesto (`LICENCIA_COMERCIAL.txt`): un equipo por licencia, sin redistribuir, con
-  garantía y limitación de responsabilidad. El instalador la muestra y pide aceptarla. Es un borrador: **el texto final lo revisa un
-  abogado** antes de la primera venta.
+- El programa se distribuye bajo la licencia MIT (`LICENSE.txt`). El instalador la muestra y pide aceptarla.
+- El acuerdo comercial de soporte y garantía (`LICENCIA_COMERCIAL.txt`) es **opcional**: no es condición de la entrega ni del uso.
 - El código fuente del repositorio sigue con licencia MIT (`LICENSE`, `50cb9307`); esa licencia no va en la entrega.
 - Las librerías de terceros que viajan en el instalador, con su licencia y su texto, están en `THIRD_PARTY_NOTICES.txt`, y su lista
   con huella en `sbom.cdx.json`, los dos en los documentos del candidato.

@@ -1,0 +1,138 @@
+{
+  "esquema": "registro_normativo_v1",
+  "nota": "Spec 108 T2 (2026-11-14). Transcrito de la copia local del anexo de los TdR (texto modificado por la RCD 033-2026-OS/CD); las líneas se cuentan en la copia de texto de huella sha256_texto. Ninguna regla sin cita. La relación de empresas de cada grupo (Cuadro N° 1 y anexo 1) no se copia aquí: el grupo de una empresa lo declara su perfil y se comprueba contra esas líneas (P13).",
+  "normas": [
+    {
+      "acto": "rcd-174-2025-os-cd",
+      "titulo": "RCD 174-2025-OS/CD: Términos de Referencia del Estudio de Costos del VAD 2026-2030 y 2027-2031",
+      "estado_juridico": "no_verificada",
+      "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2025/Osinergmin-174-2025-OS-CD.pdf",
+      "fecha_publicacion": "2025-12-18",
+      "modificada_por": [
+        "rcd-033-2026-os-cd"
+      ],
+      "nota": "G0 la leyó en línea el 2026-11-14 (D_REFERENCIAS_NORMATIVAS, fila 5), pero en este equipo no hay copia local ni huella del texto: queda no_verificada hasta descargarla y registrar su SHA-256. El texto aplicable de los TdR es el anexo modificado (tdr-vad-2026-anexo-r033).",
+      "reglas": []
+    },
+    {
+      "acto": "rcd-033-2026-os-cd",
+      "titulo": "RCD 033-2026-OS/CD: modifica los TdR de la RCD 174-2025-OS/CD tras las reconsideraciones",
+      "estado_juridico": "no_verificada",
+      "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2026/Osinergmin-033-2026-OS-CD.pdf",
+      "fecha_publicacion": "2026-02-26",
+      "modifica": [
+        "rcd-174-2025-os-cd"
+      ],
+      "nota": "G0 la leyó en línea el 2026-11-14 (fila 6); sin copia local ni huella en este equipo. Su anexo es el texto registrado en tdr-vad-2026-anexo-r033.",
+      "reglas": []
+    },
+    {
+      "acto": "tdr-vad-2026-anexo-r033",
+      "titulo": "Anexo de los TdR de los Estudios de Costos del VAD 2026-2030 y 2027-2031 (texto modificado por la RCD 033-2026-OS/CD; Informe N° 113-2026-GRT/OS)",
+      "estado_juridico": "vigente_comprobada",
+      "url": "https://www2.osinergmin.gob.pe/GRT/Procesos-Regulatorios/VAD-2026-2030_2027-2031/Anexo-T%C3%A9rminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+      "fecha_publicacion": "2026-02-26",
+      "fecha_consulta": "2026-10-25",
+      "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+      "sha256_texto": "48ea8cf4fcb0917eaacccd59fa59ff6177db4413374e08bfddedc1d1e28558d9",
+      "fichero_local": "normativa_pide_20261025/textos/fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76.txt",
+      "version": "R033-2026",
+      "vigencia_desde": "2026-02-26",
+      "nota": "Copia del 2026-10-25 (manifest del corpus normativo: vigente). Texto leído el 2026-11-14 para la spec 108.",
+      "reglas": [
+        {
+          "clave": "vad.grupo.1.periodo",
+          "valor": "2026-2030",
+          "unidad": "periodo",
+          "articulo_o_anexo": "Cuadro N° 1. Grupos de Fijación VAD",
+          "pagina": "7",
+          "lineas": "258-268",
+          "cita_literal": "Cuadro N° 1. Grupos de Fijación VAD [...] 1 [...] Del 01 de noviembre de 2026 hasta el 31 de octubre de 2030"
+        },
+        {
+          "clave": "vad.grupo.2.periodo",
+          "valor": "2027-2031",
+          "unidad": "periodo",
+          "articulo_o_anexo": "Cuadro N° 1. Grupos de Fijación VAD",
+          "pagina": "7",
+          "lineas": "269-276",
+          "cita_literal": "2 [...] Del 01 de noviembre de 2027 hasta el 31 de octubre de 2031"
+        },
+        {
+          "clave": "vad.empresas_por_grupo",
+          "valor": "anexo 1",
+          "articulo_o_anexo": "Anexo N° 1.- Relación de Empresas de Distribución Eléctrica",
+          "pagina": "7; Anexo 1-1",
+          "lineas": "276-277; 3530-3560",
+          "cita_literal": "Nota: En el Anexo Nº 1, se muestra el listado de empresas de distribución eléctrica consideradas para la fijación VAD.",
+          "interpretacion": "La pertenencia de una empresa a un grupo se comprueba contra las líneas 258-276 y 3530-3560 de la copia local; el nombre de la empresa solo va en su perfil (P13)."
+        },
+        {
+          "clave": "vad.anexos.indice",
+          "valor": [
+            "Anexo Nº 1: Relación de Empresas de Distribución Eléctrica",
+            "Anexo Nº 2: Formatos de Información Técnica, Comercial y Económica",
+            "Anexo Nº 3: Informe de Resultados relevantes",
+            "Anexo Nº 4: Estudio de Caracterización de la Carga",
+            "Anexo Nº 5: Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+            "Anexo Nº 6: Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+            "Anexo Nº 7: Metodología de Costo de Operación y Mantenimiento Técnico",
+            "Anexo Nº 8: Plan de Despliegue a Sistemas de Medición Inteligente (SMI)",
+            "Anexo Nº 9: Estructura de Archivos de Sustento de Mapas de Densidad"
+          ],
+          "articulo_o_anexo": "Índice, Anexos",
+          "pagina": "4",
+          "lineas": "141-150",
+          "cita_literal": "Anexos: Anexo Nº 1: Relación de Empresas de Distribución Eléctrica [...] Anexo Nº 9: Estructura de Archivos de Sustento de Mapas de Densidad"
+        },
+        {
+          "clave": "vad.igv_costos",
+          "valor": "sin IGV",
+          "articulo_o_anexo": "5 Criterios a considerar en los reportes; Anexo N° 2",
+          "pagina": "26; Anexo 2-1",
+          "lineas": "1317-1319; 3563-3564",
+          "cita_literal": "Las cifras monetarias de las inversiones y costos no deberán incluir IGV. [...] La información sobre costos e ingresos a presentar, no debe incluir el IGV.",
+          "moneda": "USD",
+          "igv": "excluido"
+        },
+        {
+          "clave": "vad.moneda_formatos_vnr",
+          "valor": "Miles US$",
+          "unidad": "moneda",
+          "articulo_o_anexo": "Anexo N° 2, A - Formato I-1",
+          "pagina": "Anexo 2-2",
+          "lineas": "3572-3574",
+          "cita_literal": "A - Formato I-1 Resumen del Valor Nuevo de Reemplazo de las Instalaciones de Distribución Eléctrica Metrados VNR (Miles US$) Anualidad del VNR (Miles US$)",
+          "moneda": "USD",
+          "igv": "excluido"
+        },
+        {
+          "clave": "vad.frc",
+          "valor": 0.124144,
+          "unidad": "adimensional (anual)",
+          "articulo_o_anexo": "5 Criterios a considerar en los reportes (art. 79 de la LCE)",
+          "pagina": "27",
+          "lineas": "1347-1350",
+          "cita_literal": "Las cifras de aVNR que se mencionan más adelante corresponden a la anualidad del VNR, calculado con la tasa de actualización establecida en el artículo 79 de la LCE y para un periodo de vida útil de 30 años, es decir, se aplicará el factor igual a 0,124144 considerando la tasa de 12% del mencionado artículo."
+        },
+        {
+          "clave": "vad.factor_mensual_avnr",
+          "valor": 0.079073,
+          "unidad": "adimensional (mensual)",
+          "articulo_o_anexo": "5 Criterios a considerar en los reportes",
+          "pagina": "27",
+          "lineas": "1350-1353",
+          "cita_literal": "La cifra relevante para fines tarifarios es la mensual, es decir, debe calcularse la mensualidad de la aVNR multiplicando la anualidad de la inversión por un factor que considere flujos mensuales equivalentes a la anualidad. Así para una tasa de actualización de 12%, el factor es igual a 0,079073."
+        },
+        {
+          "clave": "vad.anexo6.trazas",
+          "valor": "se respetan las trazas existentes",
+          "articulo_o_anexo": "6.8.2 Optimización de redes rurales",
+          "pagina": "41",
+          "lineas": "1980-1986",
+          "cita_literal": "Se respetarán las trazas de las líneas de acuerdo a la situación existente."
+        }
+      ]
+    }
+  ]
+}

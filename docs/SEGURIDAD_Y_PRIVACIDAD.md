@@ -67,8 +67,8 @@ huella de cada fichero de la entrega: compruebe las dos antes de instalar. No ej
 ## Lo que va con el paquete
 
 `THIRD_PARTY_NOTICES.txt` lista cada componente de terceros y sus licencias, y `sbom.cdx.json` es el inventario en CycloneDX. Son inventarios técnicos
-generados de los metadatos de cada librería. El programa se usa con su licencia comercial por puesto, `LICENCIA_COMERCIAL.txt`.
-[DECISIÓN DEL USUARIO: el texto de esa licencia es un borrador; el final lo revisa un abogado antes de la primera venta.]
+generados de los metadatos de cada librería. El programa se distribuye bajo la licencia MIT, `LICENSE.txt`; el acuerdo comercial de soporte y garantía,
+`LICENCIA_COMERCIAL.txt`, es opcional.
 
 ## Vulnerabilidades conocidas
 

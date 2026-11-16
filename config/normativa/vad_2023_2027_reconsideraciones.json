@@ -1,0 +1,243 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Generado por tools/normativa/generar_reconsideraciones.py (107, delta13). Causa del cambio de los FE de pérdidas entre la fijación y las reconsideraciones del VAD 2023-2027, por empresa. Electrosur y Seal no cambian (comprobado en la imagen por cc, frente k).",
+ "normas": [
+  {
+   "acto": "IT 815-2023-GRT",
+   "titulo": "Informe técnico del recurso de reconsideración de Electrocentro contra la RCD 187-2023-OS/CD (resuelto por la RCD 216-2023-OS/CD)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Informe-Tecnico-815-2023-GRT.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "4663b135949cfea0773303776dbb5abb022afb1b3e18ce9c6edbc4fce1061e50",
+   "sha256_texto": "6c43afaacf30b66d42041e82f578cd2b6c810e7170e6a84de3d1d40271f39cb7",
+   "fichero_local": "PIT_NORMA/vad_2023_2027_perdidas/informes_reconsideracion/it_815-2023-grt/Informe-Tecnico-815-2023-GRT.pdf",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.causa_del_cambio.Electrocentro",
+     "valor": {
+      "resolucion": "RCD 216-2023-OS/CD",
+      "componentes": [
+       "aisladores_mt",
+       "cable_enlace_bt_transformador_tablero",
+       "circuito_amperimetrico_medidores"
+      ],
+      "veredicto": "fundado en parte"
+     },
+     "articulo_o_anexo": "Análisis de las pérdidas técnicas de MT y BT",
+     "pagina": "27, 28",
+     "lineas": "1353, 1378, 1409",
+     "cita_literal": "1. OSINERGMIN acepta la incorporación de las pérdidas en aisladores en las pérdidas de Media Tensión acorde a lo que se indica en el siguiente cuadro: · 2. OSINERGMIN acepta la incorporación de las pérdidas en aisladores en los cables de comunicación acorde a lo que se indica en el siguiente cuadro: · 3. OSINERGMIN acepta la corrección de las pérdidas en medidores y se incrementan las perdidas dadas en el balance adaptado con las pérdidas correspondientes al circuito amperimétrico",
+     "interpretacion": "Causa citada del cambio de sus FE entre el IT 716 y la RCD 223-2023: se incorporaron las pérdidas en aisladores de MT, el cable de enlace BT transformador-tablero y el circuito amperimétrico de los medidores. El informe no trae la tabla final de FE: los vigentes son los de la 223-2023, art. 4."
+    }
+   ]
+  },
+  {
+   "acto": "IT 816-2023-GRT",
+   "titulo": "Informe técnico del recurso de reconsideración de Electronoroeste contra la RCD 187-2023-OS/CD (resuelto por la RCD 218-2023-OS/CD)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Informe-Tecnico-816-2023-GRT.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "9d7b809b329611b2290fe17af35c1e4f331cf9aecdb4934c9eb71c77c69d2885",
+   "sha256_texto": "19b69ec8c7076434d3085fd691598a4e3aa61c84a4632a4aecd51ac18d009a97",
+   "fichero_local": "PIT_NORMA/vad_2023_2027_perdidas/informes_reconsideracion/it_816-2023-grt/Informe-Tecnico-816-2023-GRT.pdf",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.causa_del_cambio.Electronoroeste",
+     "valor": {
+      "resolucion": "RCD 218-2023-OS/CD",
+      "componentes": [
+       "aisladores_mt",
+       "cable_enlace_bt_transformador_tablero",
+       "circuito_amperimetrico_medidores"
+      ],
+      "veredicto": "fundado en parte"
+     },
+     "articulo_o_anexo": "Análisis de las pérdidas técnicas de MT y BT",
+     "pagina": "53",
+     "lineas": "2380, 2404, 2435",
+     "cita_literal": "OSINERGMIN acepta la incorporación de las pérdidas en aisladores en las pérdidas de Media Tensión acorde a lo que se indica en el siguiente cuadro: · OSINERGMIN acepta la incorporación de las pérdidas en aisladores en los cables de comunicación acorde a lo que se indica en el siguiente cuadro: · OSINERGMIN acepta la corrección de las pérdidas en medidores y se incrementan las perdidas dadas",
+     "interpretacion": "Causa citada del cambio de sus FE entre el IT 716 y la RCD 223-2023: se incorporaron las pérdidas en aisladores de MT, el cable de enlace BT transformador-tablero y el circuito amperimétrico de los medidores. El informe no trae la tabla final de FE: los vigentes son los de la 223-2023, art. 4."
+    }
+   ]
+  },
+  {
+   "acto": "IT 817-2023-GRT",
+   "titulo": "Informe técnico del recurso de reconsideración de Electronorte contra la RCD 187-2023-OS/CD (resuelto por la RCD 217-2023-OS/CD)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Informe-Tecnico-817-2023-GRT.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "ac27ef0eeafd86db7d3b430feec03f6ea8a8857c405089df5c9681a1e509c4c8",
+   "sha256_texto": "c9370eac269e7b44420b9f83d9dd9e7a69021fa8226e62594d9243f89696c9ef",
+   "fichero_local": "PIT_NORMA/vad_2023_2027_perdidas/informes_reconsideracion/it_817-2023-grt/Informe-Tecnico-817-2023-GRT.pdf",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.causa_del_cambio.Electronorte",
+     "valor": {
+      "resolucion": "RCD 217-2023-OS/CD",
+      "componentes": [
+       "aisladores_mt",
+       "cable_enlace_bt_transformador_tablero",
+       "circuito_amperimetrico_medidores"
+      ],
+      "veredicto": "fundado en parte"
+     },
+     "articulo_o_anexo": "Análisis de las pérdidas técnicas de MT y BT",
+     "pagina": "31",
+     "lineas": "1392, 1395, 1398",
+     "cita_literal": "Aceptar la incorporación de las pérdidas en aisladores en las pérdidas de Media Tensión acorde a lo que se indica en el siguiente cuadro: · Aceptar la incorporación de las pérdidas en los cables de comunicación acorde a lo que se indica en el siguiente cuadro: · Aceptar la corrección de las pérdidas en medidores y se incrementan las perdidas dadas en el balance adaptado con las pérdidas correspondientes al circuito amperimétrico, acorde a lo que se",
+     "interpretacion": "Causa citada del cambio de sus FE entre el IT 716 y la RCD 223-2023: se incorporaron las pérdidas en aisladores de MT, el cable de enlace BT transformador-tablero y el circuito amperimétrico de los medidores. El informe no trae la tabla final de FE: los vigentes son los de la 223-2023, art. 4."
+    }
+   ]
+  },
+  {
+   "acto": "IT 798-2023-GRT",
+   "titulo": "Informe técnico del recurso de reconsideración de Electro Puno contra la RCD 187-2023-OS/CD (resuelto por la RCD 209-2023-OS/CD)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Informe-Tecnico-798-2023-GRT.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "3c2c4d040e2a9b5c1d3a96c8a2bfef57a87ef9fe6f681ea6112242594e155898",
+   "sha256_texto": "8e48031d3cc13eabb3226995a4020c487694f72c9c0fe52e9c80387109407050",
+   "fichero_local": "PIT_NORMA/vad_2023_2027_perdidas/informes_reconsideracion/rcd_209-it_798/Informe-Tecnico-798-2023-GRT.pdf",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.sin_causa_localizada.Electro Puno",
+     "valor": {
+      "resolucion": "RCD 209-2023-OS/CD",
+      "acepta_perdidas_tecnicas": false,
+      "leido": "solo «pérdidas» de luminarias de alumbrado público (líneas 284 y 345)"
+     },
+     "articulo_o_anexo": "Portada y objeto del informe",
+     "pagina": "1",
+     "lineas": "13",
+     "cita_literal": "Resolución del Recurso de Reconsideración interpuesto por Electro Puno contra la Resolución Osinergmin N° 187-2023-OS/CD",
+     "interpretacion": "Sus FE cambian entre el IT 716 y la RCD 223-2023, pero su informe no acepta nada de pérdidas técnicas: la causa NO está localizada y no se supone. La RCD 223 remite el detalle al IT 819-2023-GRT, que solo tabula los FE finales (nota j de cc)."
+    }
+   ]
+  },
+  {
+   "acto": "IT 813-2023-GRT",
+   "titulo": "Informe técnico del recurso de reconsideración de Adinelsa contra la RCD 187-2023-OS/CD (resuelto por la RCD 213-2023-OS/CD)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Informe-Tecnico-813-2023-GRT.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "fa2b5bee001c193e91c401fe354bd513ac3e67b0688a7260fee655c799f91f7a",
+   "sha256_texto": "975c11ca3bdfe46fa852cd730d46df834629711347da655c00f958204cdd21b5",
+   "fichero_local": "PIT_NORMA/vad_2023_2027_perdidas/informes_reconsideracion/rcd_213-it_813/Informe-Tecnico-813-2023-GRT.pdf",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.sin_causa_localizada.Adinelsa",
+     "valor": {
+      "resolucion": "RCD 213-2023-OS/CD",
+      "acepta_perdidas_tecnicas": false,
+      "leido": "«pérdidas activas» como límite de distancias (línea 445); aisladores solo como mantenimiento (568, 694-696)"
+     },
+     "articulo_o_anexo": "Portada y objeto del informe",
+     "pagina": "1",
+     "lineas": "13",
+     "cita_literal": "Resolución del Recurso de Reconsideración interpuesto por Adinelsa contra la Resolución Osinergmin N° 187-2023-OS/CD",
+     "interpretacion": "Sus FE cambian entre el IT 716 y la RCD 223-2023, pero su informe no acepta nada de pérdidas técnicas: la causa NO está localizada y no se supone. La RCD 223 remite el detalle al IT 819-2023-GRT, que solo tabula los FE finales (nota j de cc)."
+    }
+   ]
+  },
+  {
+   "acto": "IT 807-2023-GRT",
+   "titulo": "Informe técnico del recurso de reconsideración de Electro Oriente contra la RCD 187-2023-OS/CD (resuelto por la RCD 214-2023-OS/CD)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Informe-Tecnico-807-2023-GRT.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "086c45eeb3707b111ab6cf560ca89393272ae3572396cf7735b012d89c0c8a3b",
+   "sha256_texto": "b893e4d276eda3f59f8758aa929c0571e82213e3a677455f0f252ad024f89ce8",
+   "fichero_local": "PIT_NORMA/vad_2023_2027_perdidas/informes_reconsideracion/rcd_214-it_807/Informe-Tecnico-807-2023-GRT.pdf",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.sin_causa_localizada.Electro Oriente",
+     "valor": {
+      "resolucion": "RCD 214-2023-OS/CD",
+      "acepta_perdidas_tecnicas": false,
+      "leido": "pérdidas de lámparas de AP (línea 317) y ajuste de pérdidas reconocidas de AP rural (339)"
+     },
+     "articulo_o_anexo": "Portada y objeto del informe",
+     "pagina": "1",
+     "lineas": "13",
+     "cita_literal": "Resolución del Recurso de Reconsideración interpuesto por Electro Oriente contra la Resolución Osinergmin N° 187-2023-OS/CD",
+     "interpretacion": "Sus FE cambian entre el IT 716 y la RCD 223-2023, pero su informe no acepta nada de pérdidas técnicas: la causa NO está localizada y no se supone. La RCD 223 remite el detalle al IT 819-2023-GRT, que solo tabula los FE finales (nota j de cc)."
+    }
+   ]
+  },
+  {
+   "acto": "IT 818-2023-GRT",
+   "titulo": "Informe técnico del recurso de reconsideración de Hidrandina contra la RCD 187-2023-OS/CD (resuelto por la RCD 215-2023-OS/CD)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Informe-Tecnico-818-2023-GRT.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "fa044e9dd25e53ee4fed813f000b48cb3cb1f59928d7715c9ba91aa9949393a3",
+   "sha256_texto": "86f89565ec8fc7795453874d4ab169181c8deb2cc39744c1ad864b95e311e451",
+   "fichero_local": "PIT_NORMA/vad_2023_2027_perdidas/informes_reconsideracion/rcd_215-it_818/Informe-Tecnico-818-2023-GRT.pdf",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.sin_causa_localizada.Hidrandina",
+     "valor": {
+      "resolucion": "RCD 215-2023-OS/CD",
+      "acepta_perdidas_tecnicas": false,
+      "leido": "«aisladores» es lavado y mantenimiento (línea 156, págs. 24-29); «pérdidas técnicas» solo en definiciones (675, 800)"
+     },
+     "articulo_o_anexo": "Portada y objeto del informe",
+     "pagina": "1",
+     "lineas": "13",
+     "cita_literal": "Resolución del Recurso de Reconsideración interpuesto por Hidrandina contra la Resolución Osinergmin N° 187‐2023‐OS/CD",
+     "interpretacion": "Sus FE cambian entre el IT 716 y la RCD 223-2023, pero su informe no acepta nada de pérdidas técnicas: la causa NO está localizada y no se supone. La RCD 223 remite el detalle al IT 819-2023-GRT, que solo tabula los FE finales (nota j de cc)."
+    }
+   ]
+  },
+  {
+   "acto": "IT 811-2023-GRT",
+   "titulo": "Informe técnico del recurso de reconsideración de Electro Sur Este contra la RCD 187-2023-OS/CD (resuelto por la RCD 219-2023-OS/CD)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Informe-Tecnico-811-2023-GRT.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "05d89bc5c32086cfb604ba9ddbc8b21c696e2bbb6847f787338dc608861caf32",
+   "sha256_texto": "e6a82f215d11dfe88a20668812e1befad7daa2c3aece6f8f758d238e818e1068",
+   "fichero_local": "PIT_NORMA/vad_2023_2027_perdidas/informes_reconsideracion/rcd_219-it_811/Informe-Tecnico-811-2023-GRT.pdf",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.sin_causa_localizada.Electro Sur Este",
+     "valor": {
+      "resolucion": "RCD 219-2023-OS/CD",
+      "acepta_perdidas_tecnicas": false,
+      "leido": "ninguna línea con «pérdida», «expansi», «aislador» ni «amperom»"
+     },
+     "articulo_o_anexo": "Portada y objeto del informe",
+     "pagina": "1",
+     "lineas": "12",
+     "cita_literal": "Resolución del Recurso de Reconsideración interpuesto por Electro Sur Este contra la Resolución Osinergmin N° 187-2023-OS/CD",
+     "interpretacion": "Sus FE cambian entre el IT 716 y la RCD 223-2023, pero su informe no acepta nada de pérdidas técnicas: la causa NO está localizada y no se supone. La RCD 223 remite el detalle al IT 819-2023-GRT, que solo tabula los FE finales (nota j de cc)."
+    }
+   ]
+  },
+  {
+   "acto": "IT 812-2023-GRT",
+   "titulo": "Informe técnico del recurso de reconsideración de Electro Ucayali contra la RCD 187-2023-OS/CD (resuelto por la RCD 220-2023-OS/CD)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Informe-Tecnico-812-2023-GRT.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "9413482fdad74c3d7c32f0ea7a8303d6820e1b95e131c365cd324ac02de52e8f",
+   "sha256_texto": "8dd845bb2d9efc82d28a5e1d08af6cc74a07d2163c76f5a7ecb5eddacff2386b",
+   "fichero_local": "PIT_NORMA/vad_2023_2027_perdidas/informes_reconsideracion/rcd_220-it_812/Informe-Tecnico-812-2023-GRT.pdf",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.sin_causa_localizada.Electro Ucayali",
+     "valor": {
+      "resolucion": "RCD 220-2023-OS/CD",
+      "acepta_perdidas_tecnicas": false,
+      "leido": "«pérdidas totales de energía» como dato del balance para el NHUBT (líneas 368, 381 y 420)"
+     },
+     "articulo_o_anexo": "Portada y objeto del informe",
+     "pagina": "1",
+     "lineas": "13",
+     "cita_literal": "Resolución del Recurso de Reconsideración interpuesto por Electro Ucayali contra la Resolución Osinergmin N° 187-2023-OS/CD",
+     "interpretacion": "Sus FE cambian entre el IT 716 y la RCD 223-2023, pero su informe no acepta nada de pérdidas técnicas: la causa NO está localizada y no se supone. La RCD 223 remite el detalle al IT 819-2023-GRT, que solo tabula los FE finales (nota j de cc)."
+    }
+   ]
+  }
+ ]
+}

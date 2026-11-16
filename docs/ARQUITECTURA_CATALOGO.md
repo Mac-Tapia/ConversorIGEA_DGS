@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 355 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 366 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 110 |
 | Interfaz | `frontend/src/` | 71 |
 | Pruebas de la interfaz | `frontend/test/` | 27 |
-| Pruebas | `tests/` | 476 |
+| Pruebas | `tests/` | 487 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -28,19 +28,19 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-112 specs con 3733 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3739 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 139 |
-| aplicacion | Apl | 106 |
+| adaptadores | Ada | 142 |
+| aplicacion | Apl | 114 |
 | dominio | Dom | 55 |
 | presentacion | Pre | 41 |
 | puertos | Pue | 3 |
 
-344 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+355 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -431,6 +431,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `pit/reserva.py` | Dom | 107 | Transformadores de reserva compartida: horizonte, costo de la ENS, umbral de beneficio/costo y exclusión por tensión desde el registro. |
 | `pit/llenado.py` | Ada | 107 | Llenado de los formatos que exige el estudio del plan (regla del num. |
 | `pit/plantillas.py` | Ada | 107 | Motor de llenado de un formato desde su plantilla transcrita y su mapeo declarado (config/pit_mapeo_formatos.json): comprueba rótulos y marcas, llena… |
+| `pit/demanda_regulatoria.py` | Ada | 107 | Demanda regulatoria (paso 3b): curvas por devanado, SET y sistema sumadas instante a instante (los instantes incompletos se excluyen y se cuentan),… |
 | `pit/formatos_red.py` | Ada | 107 | Datos de F-001, F-002 y F-003 desde la red del área, con los niveles de la regla 12.1.1 y sus cálculos declarados (Pcu%, Pfe%, B con la frecuencia… |
 | `pit/expediente.py` | Ada | 107 | Expediente aparte del PIDE: instantánea del registro, aviso de modificatoria sin recalcular, reglas aplicadas, determinismo, memoria de cada sección,… |
 | `pit/informe.py` | Ada | 107 | Resumen ejecutivo del PIT: demanda, alternativa elegida y programa, con cada cifra tomada de los ficheros del expediente y su huella. |
@@ -916,6 +917,16 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/puertos_muestras.py` | Pue | 050, 002 | Puerto de productores inyectado en la preparación del ciclo. |
 | `src/convertersmartgrid/schemas/registro_normativo_v1.schema.json` | — | 108, 107 | Esquema del registro normativo común: cada norma con su estado jurídico, huella y vigencia, y cada regla con su cita literal y su página o líneas. |
 | `src/convertersmartgrid/seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |
+| `src/convertersmartgrid/vad/__init__.py` | Apl | 108 | Paquete del estudio de costos del VAD (empresa modelo eficiente), aparte del PIDE y del PIT. |
+| `src/convertersmartgrid/vad/anexo2.py` | Apl | 108 | Validación de las tablas del estudio contra los formatos del anexo 2 transcritos (tabla, fila, columna, unidad, periodo), sin rellenar nada: huecos… |
+| `src/convertersmartgrid/vad/calidad.py` | Apl | 108 | Verificación de la calidad de servicio de la empresa modelo con los indicadores y límites del registro. |
+| `src/convertersmartgrid/vad/costos_explotacion.py` | Apl | 108 | VNR no eléctrico y costos de explotación por rubro del registro: total estándar solo con partidas dimensionadas y su fuente. |
+| `src/convertersmartgrid/vad/estudio.py` | Apl | 108 | Registro del estudio VAD (empresa del perfil, grupo, periodo, versión del TdR, estado) en `<espacio>/vad/<id>/estudio.json`, sin tocar las carpetas… |
+| `src/convertersmartgrid/vad/formulas.py` | Apl | 108 | Intérprete cerrado de las fórmulas del registro normativo del VAD (sin eval): números, variables, + - * / **, paréntesis y suma(n, …) sobre series… |
+| `src/convertersmartgrid/vad/informes.py` | Ada | 108 | Informe de Resultados Relevantes (anexo 3) e Informe del Estudio (numeral 9) en Word con los apartados del registro, cifras con origen o huecos… |
+| `src/convertersmartgrid/vad/pide_vad.py` | Apl | 108 | Contrato 072 → 108 (pide_vad_v1): lee el PIDE aprobado que entrega la 072 y calcula el VAD ajustado con el factor, la tasa, los años y la fórmula… |
+| `src/convertersmartgrid/vad/resultados_vad.py` | Apl | 108 | Cargo fijo y VAD de cada nivel por sistema y ponderado a nivel empresa, con los conceptos, variantes, fórmulas y ponderación del TdR registrado. |
+| `src/convertersmartgrid/vad/tablas_resultados.py` | Ada | 108 | Las Tablas de Resultados que lista el TdR registrado, en Excel: una hoja por tabla con su título, fuente, filas por sistema y total con =SUM, más el… |
 | `src/vnr_etl.py` | Pre | 002 | Fachada de CLI para python -m vnr_etl y el launcher anterior. |
 | `tools/asistente_informes_reales.py` | — | 026 | Anota informes reales etiquetados (Word, PDF con OCR o texto del maestro) para el clasificador, por grupo y sin repetir. |
 | `tools/entrenar_alimentadores_gpu.py` | — | 089 | Una red de pronóstico por alimentador, uno tras otro en la GPU, con los libros por argumento. |
@@ -942,7 +953,9 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/fichas/transformadores_sed.json` |
 | `config/line_type_aliases.example.json` |
 | `config/modulos_permitidos.example.json` |
+| `config/normativa/coes_maxima_demanda_sein.json` |
 | `config/normativa/it_565_2024_cuadros.json` |
+| `config/normativa/medida_clase_precision.json` |
 | `config/normativa/rcd_018_2018.json` |
 | `config/normativa/rcd_094_2022.json` |
 | `config/normativa/rcd_112_2024.json` |
@@ -953,6 +966,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/normativa/rcd_217_2013_plan.json` |
 | `config/normativa/rcd_242_2021.json` |
 | `config/normativa/vad_2023_2027_perdidas.json` |
+| `config/normativa/vad_2023_2027_reconsideraciones.json` |
 | `config/perfil_empresa.example.json` |
 | `config/perfiles/electro_dunas.estructura.json` |
 | `config/perfiles/electro_dunas.json` |
@@ -962,6 +976,9 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/pit_mapeo_formatos.json` |
 | `config/suite_completa.example.json` |
 | `config/terminos_huellas.json` |
+| `config/vad/anexo2_formatos.json` |
+| `config/vad/tdr_vad_2026.json` |
+| `config/vad/tdr_vad_2026_resultados.json` |
 | `config/vnr_dgs_profile.json` |
 | `config/vnr_settings.example.yaml` |
 | `config/vulnerabilidades_justificadas.json` |

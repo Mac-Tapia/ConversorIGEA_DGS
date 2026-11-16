@@ -12,7 +12,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from convertersmartgrid.salidas_red import motivo_apagada, salida_permitida
+from convertersmartgrid.salidas_red import (RedireccionRechazada, get_sin_redireccion_ajena, motivo_apagada,
+                                            salida_permitida)
 from convertersmartgrid.util import importar_opcional
 
 from .base import LayerInfo, SourceProbe, VNRSourceAdapter
@@ -20,6 +21,10 @@ from .base import LayerInfo, SourceProbe, VNRSourceAdapter
 
 class ArcGISError(RuntimeError):
     pass
+
+
+class ArcGISRedireccion(ArcGISError):
+    """086:RF-22: el servidor redirigió a otra máquina; no es un fallo de red que se reintente."""
 
 
 def _require_requests():
@@ -35,17 +40,26 @@ class ArcGISLayer:
     timeout: int = 60
     retries: int = 3
 
+    def _get(self, requests, url: str, params: dict):
+        """086:RF-22 (SSRF-ARCGIS, BP-29): sin seguir redirecciones a otra máquina; una rechazada no se reintenta."""
+        try:
+            return get_sin_redireccion_ajena(requests, url, params=params, timeout=self.timeout)
+        except RedireccionRechazada as exc:
+            raise ArcGISRedireccion(str(exc)) from exc
+
     def metadata(self) -> dict:
         requests = _require_requests()
         last: Exception | None = None
         for attempt in range(1, self.retries + 1):
             try:
-                response = requests.get(self.url, params={'f': 'json'}, timeout=self.timeout)
+                response = self._get(requests, self.url, {'f': 'json'})
                 response.raise_for_status()
                 data = response.json()
                 if 'error' in data:
                     raise ArcGISError(data['error'])
                 return data
+            except ArcGISRedireccion:
+                raise
             except Exception as exc:  # noqa: BLE001
                 last = exc
                 time.sleep(2 ** attempt)
@@ -64,7 +78,7 @@ class ArcGISLayer:
     def count(self, where: str = '1=1') -> int:
         requests = _require_requests()
         params = {'f': 'json', 'where': where, 'returnCountOnly': 'true'}
-        response = requests.get(f'{self.url}/query', params=params, timeout=self.timeout)
+        response = self._get(requests, f'{self.url}/query', params)
         response.raise_for_status()
         data = response.json()
         if 'error' in data:
@@ -82,7 +96,7 @@ class ArcGISLayer:
             'returnGeometry': 'false',
             'orderByFields': f'{field} ASC',
         }
-        response = requests.get(f'{self.url}/query', params=params, timeout=self.timeout)
+        response = self._get(requests, f'{self.url}/query', params)
         response.raise_for_status()
         data = response.json()
         if 'error' in data:
@@ -121,7 +135,7 @@ class ArcGISLayer:
                 'resultRecordCount': request_count,
                 'orderByFields': f'{oid} ASC',
             }
-            response = requests.get(f'{self.url}/query', params=params, timeout=self.timeout)
+            response = self._get(requests, f'{self.url}/query', params)
             response.raise_for_status()
             page = response.json()
             if 'error' in page:

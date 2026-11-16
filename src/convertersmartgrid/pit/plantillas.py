@@ -48,7 +48,14 @@ def _plantilla(registro: RegistroNormativo, codigo: str, fecha: str | None) -> t
     filas = rv.regla.valor.get('filas') if isinstance(rv.regla.valor, Mapping) else None
     if not filas:
         raise PitError(f'{codigo}: la regla pit.formato.{codigo} no trae las filas de su plantilla')
-    return {(f['fila'], letra): str(t) for f in filas for letra, t in f['celdas'].items()}, rv
+    # Una celda cuyo texto lleva una llamada a nota en superíndice («Total Sistema 1» + «(2)», F-101 A8) se compara por
+    # su rótulo, sin la llamada (``llamadas`` de la transcripción, delta17); los exponentes (r², mm²) quedan literales.
+    celdas = {}
+    for f in filas:
+        llamadas = f.get('llamadas') or {}
+        for letra, t in f['celdas'].items():
+            celdas[(f['fila'], letra)] = str(llamadas[letra]['rotulo']) if letra in llamadas else str(t)
+    return celdas, rv
 
 
 def _comprobar(codigo: str, celdas: Mapping[tuple[int, str], str], fila: int, letra: str, texto: str) -> None:
@@ -172,7 +179,7 @@ def celdas_de_formato(registro: RegistroNormativo, codigo: str, datos: Mapping[s
                        'traza': traza})
     desplazamiento = 0
     horizonte = None
-    for definido in definicion['bloques']:
+    for definido in definicion.get('bloques', ()):
         if ('serie_columnas' in definido or 'serie_filas' in definido) and horizonte is None:
             horizonte = horizonte_de_la_norma(registro, fecha)
         b: dict[str, Any] = {**definido, 'columnas': _columnas_del_bloque(codigo, plantilla, definido, horizonte)}
@@ -225,4 +232,78 @@ def celdas_de_formato(registro: RegistroNormativo, codigo: str, datos: Mapping[s
                                'columna': col['rotulo'][2], 'celda': f'{codigo}!{col["letra"]}{fila_total}',
                                'valor': valor, 'traza': traza})
         desplazamiento += extra
-    return {'codigo': codigo, 'celdas': celdas, 'huecos': huecos, 'filas_a_insertar': insertar, 'regla': regla}
+    grupos_a_insertar: dict[str, int] = {}
+    for g in definicion.get('grupos', ()):
+        desplazamiento = _llenar_grupo(codigo, plantilla, g, datos, base, celdas, huecos, insertar, grupos_a_insertar,
+                                       desplazamiento)
+    return {'codigo': codigo, 'celdas': celdas, 'huecos': huecos, 'filas_a_insertar': insertar,
+            'grupos_a_insertar': grupos_a_insertar, 'regla': regla}
+
+
+def _empieza(codigo: str, plantilla: Mapping[tuple[int, str], str], fila: int, letra: str, prefijo: str) -> None:
+    hallado = plantilla.get((fila, letra))
+    if not str(hallado or '').startswith(prefijo):
+        raise PitError(f'{codigo}: la plantilla no tiene «{prefijo}…» en {letra}{fila} (tiene {hallado!r}); la plantilla '
+                       'cambió y hay que revisar config/pit_mapeo_formatos.json')
+
+
+def _llenar_grupo(codigo, plantilla, g, datos, base, celdas, huecos, insertar, grupos_a_insertar, desplazamiento):
+    """Un grupo repetido de la plantilla (F-101: un bloque por sistema eléctrico). Cada miembro tiene su fila de
+    cabecera (``marca_cabecera`` k), sus filas de datos y su fila de total (``marca_total`` k, solo con las columnas de
+    ``total``). La plantilla trae unos huecos de ejemplo (``filas_cabecera`` y ``filas_total``); los miembros que
+    sobran van después del último con el mismo periodo y se dice cuántos insertar, y las filas que no caben en un
+    miembro también se dicen (``filas_a_insertar``) y desplazan lo que sigue."""
+    cabeceras, totales = [int(x) for x in g['filas_cabecera']], [int(x) for x in g['filas_total']]
+    for f in cabeceras:
+        _empieza(codigo, plantilla, f, 'A', g['marca_cabecera'])
+    for f in totales:
+        _empieza(codigo, plantilla, f, 'A', g['marca_total'])
+    for col in g['columnas']:
+        _comprobar(codigo, plantilla, *col['rotulo'])
+    periodo = cabeceras[1] - cabeceras[0] if len(cabeceras) > 1 else totales[0] - cabeceras[0] + 1
+    capacidad = totales[0] - cabeceras[0] - 1
+    miembros = list((datos.get('grupos') or {}).get(g['grupo']) or ())
+    if not miembros:
+        huecos.append({'bloque': g['grupo'], 'causa': f'sin {g["grupo"]} en la fuente {base["fuente"]["nombre"]}',
+                       'fila_plantilla': cabeceras[0] + desplazamiento})
+        return desplazamiento
+    if len(miembros) > len(cabeceras):
+        grupos_a_insertar[g['grupo']] = len(miembros) - len(cabeceras)
+    for k, m in enumerate(miembros, start=1):
+        cab = (cabeceras[k - 1] if k <= len(cabeceras) else cabeceras[-1] + periodo * (k - len(cabeceras))) + desplazamiento
+        filas = list(m.get('filas') or ())
+        nombre = f'{g["grupo"]}:{k}'
+        extra = max(0, len(filas) - capacidad)
+        if extra:
+            insertar[nombre] = extra
+        traza0 = {**base, 'grupo': g['grupo'], 'miembro': m.get('nombre')}
+        celdas.append({'id': f'{codigo}!{nombre}:cabecera', 'cuadro': codigo, 'bloque': nombre, 'fila': 'cabecera',
+                       'campo': 'cabecera', 'columna': g['marca_cabecera'], 'celda': f'{codigo}!A{cab}',
+                       'valor': f'{g["marca_cabecera"]} {k}', 'traza': {**traza0, 'calculo': 'numeración del grupo'}})
+        if not filas:
+            huecos.append({'bloque': nombre, 'causa': f'{m.get("nombre")}: sin filas en la fuente', 'fila_plantilla': cab + 1})
+        for i, fila in enumerate(filas, start=1):
+            motivos = fila.get('_motivos') or {}
+            for col in g['columnas']:
+                valor = fila.get(col['campo'])
+                traza = {**traza0, 'campo': col['campo'], 'calculo': motivos.get(f'_calculo:{col["campo"]}') or 'dato de la fuente'}
+                if valor is None:
+                    traza['motivo'] = motivos.get(col['campo']) or f'la fuente no trae «{col["campo"]}»'
+                celdas.append({'id': f'{codigo}!{nombre}:{i}:{col["campo"]}', 'cuadro': codigo, 'bloque': nombre,
+                               'fila': i, 'campo': col['campo'], 'columna': col['rotulo'][2],
+                               'celda': f'{codigo}!{col["letra"]}{cab + i}', 'valor': valor, 'traza': traza})
+        fila_total = cab + capacidad + 1 + extra
+        celdas.append({'id': f'{codigo}!{nombre}:total:rotulo', 'cuadro': codigo, 'bloque': nombre, 'fila': 'total',
+                       'campo': 'rotulo_total', 'columna': g['marca_total'], 'celda': f'{codigo}!A{fila_total}',
+                       'valor': f'{g["marca_total"]} {k}', 'traza': {**traza0, 'calculo': 'numeración del grupo'}})
+        tot = m.get('total') or {}
+        for col in g.get('total', ()):
+            valor = tot.get(col['campo'])
+            traza = {**traza0, 'campo': col['campo'], 'calculo': tot.get(f'_calculo:{col["campo"]}') or 'dato de la fuente'}
+            if valor is None:
+                traza['motivo'] = tot.get(f'_motivo:{col["campo"]}') or f'la fuente no trae el total «{col["campo"]}»'
+            celdas.append({'id': f'{codigo}!{nombre}:total:{col["campo"]}', 'cuadro': codigo, 'bloque': nombre,
+                           'fila': 'total', 'campo': col['campo'], 'columna': col['campo'],
+                           'celda': f'{codigo}!{col["letra"]}{fila_total}', 'valor': valor, 'traza': traza})
+        desplazamiento += extra
+    return desplazamiento

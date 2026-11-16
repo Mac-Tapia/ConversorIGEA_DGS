@@ -202,6 +202,9 @@ adaptador VNR (integrador f9).
        por la 223-2023 para las 11 empresas de esa fijación), con la comprobación permanente del cargador (FE ≥ 1 y
        FE = 1/(1−p)) y la cruzada contra el informe técnico de la fijación; y el motor de plantillas con series anuales
        cuyo horizonte sale de la norma. (Aclaración de RF-9; RF-7, RF-11)
+       Avance (2026-11-15, f4): la causa del cambio de los FE entre el IT 716 y la 223-2023, por empresa
+       (`config/normativa/vad_2023_2027_reconsideraciones.json`): citada en los IT 815, 816 y 817 para 3 empresas, y
+       «sin causa localizada» citado para 6 cuyos informes no aceptan nada de pérdidas técnicas (delta13).
        Avance (2026-11-14, b3): pérdidas y comprobaciones escritas (delta8); reglas de la cadena registradas
        (`pit.demanda.potencia_desde_energia`, art. 8.1; `pit.demanda.definiciones_factores`, 3.10-3.12;
        `pit.demanda.definiciones_participacion`, F-103) y motor de series (`serie_columnas` y `serie_filas`, horizonte de
@@ -212,6 +215,25 @@ adaptador VNR (integrador f9).
        horizontes de norma distintos.
 - [ ] T28. Demanda regulatoria, 3b: F-102 desde la medida del año representativo (días de máxima del sistema, de la
        SET y del SEIN, y máxima no coincidente) y, de él, F-101 (FC, FCP y FS) y F-103 (FPHMS y FPMWHS). (Aclaración de RF-9)
+       Avance (2026-11-15, f4): registro del COES en `config/normativa/coes_maxima_demanda_sein.json` (máxima anual del
+       SEIN 2024 y 2025 de la Estadística Anual, contraste mensual, intervalo del glosario y horas punta de las RM
+       153-2021-MINEM/DM, hasta el 2025-05-31, y 189-2025-MINEM/DM, del 2025-06-01 al 2029-05-31) y
+       `pit/demanda_regulatoria.py` (F-102, F-101 y F-103 con traza, instantes
+       incompletos excluidos y contados, dos alineaciones del instante del SEIN con su tolerancia por procedencia: la
+       resolución del perfil, la clase del perfil o la clase por defecto, con el error admisible de la RM 496-2005-MEM/DM
+       en `config/normativa/medida_clase_precision.json`); y `topologia_desde` (perfil `pit.areas[].sistemas_electricos`
+       y `barra_de_alimentador` con la red del área: devanado de cada alimentador, sin suponer barras ni repartos en
+       paralelo); y el contraste con el reporte mensual de máxima demanda del COES 2024-2025 (confirma la fecha de 2024 y
+       nombra que su mayor mes no es el de la Estadística Anual); y `curvas_de_la_medida` y `demanda_regulatoria`
+       (libros de cabecera del perfil → curvas por alimentador con su fuente, y de punta a punta hasta F-101 a F-103,
+       cada hueco con su causa); los mapeos de F-102 y F-103 en `config/pit_mapeo_formatos.json` (rótulos leídos de la
+       plantilla oficial) con `celdas_f102_f103`; la alineación por defecto del instante del SEIN (fin de intervalo,
+       práctica observada del COES) y el PR-30 por vigencia (RCD 173-2026); el COES 2022 (año representativo de la
+       empresa de prueba) y las citas con la fila real de Excel; las llamadas a nota en superíndice separadas del rótulo
+       en la transcripción de los 69 formatos (desde los originales del rar, con la comprobación de su sha); F-101 por sistema eléctrico (grupos repetidos en
+       el motor de plantillas, total con solo el FC). Falta correrlo
+       con la medida real del año representativo
+       a la topología y a las curvas, y los mapeos de F-101 a F-103 cotejados con la página renderizada.
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_demanda.py -k factores` en verde con curvas
        sintéticas de factores conocidos, y sin medida cada formato queda como plantilla con su causa.
 - [ ] T29. Demanda regulatoria, 3c: F-108 (ventas proyectadas por nivel), F-109 (energía por barra con el factor de

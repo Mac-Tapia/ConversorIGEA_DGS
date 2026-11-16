@@ -21,7 +21,8 @@ from pathlib import PurePosixPath
 from unicodedata import combining, normalize
 from urllib.parse import unquote, urljoin, urlparse
 
-from convertersmartgrid.salidas_red import motivo_apagada, salida_permitida
+from convertersmartgrid.salidas_red import (RedireccionRechazada, get_sin_redireccion_ajena, motivo_apagada,
+                                            salida_permitida)
 
 from .catalog import Publication, PublicationCatalog
 
@@ -354,7 +355,11 @@ def _fetch_html(url: str) -> str:
     last_error: Exception | None = None
     for attempt in range(1, 4):
         try:
-            response = requests.get(url, timeout=(20, 90))
+            # 086:RF-22 (SSRF, BP-29): cada salto se mira ANTES de pedirlo; antes se seguía y se miraba la URL final.
+            try:
+                response = get_sin_redireccion_ajena(requests, url, admitir=is_allowed_official_url, timeout=(20, 90))
+            except RedireccionRechazada as exc:
+                raise OfficialDiscoveryError(str(exc)) from exc
             response.raise_for_status()
             final_url = getattr(response, 'url', url)
             if not is_allowed_official_url(final_url):

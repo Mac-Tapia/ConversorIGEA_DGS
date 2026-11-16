@@ -1,0 +1,562 @@
+{
+  "esquema": "registro_normativo_v1",
+  "amplia": "tdr-vad-2026-anexo-r033",
+  "nota": "Spec 108 T16 a T21 (2026-11-14, S3 de e6). Amplía el TdR registrado con los conceptos, las variantes, las fórmulas y las listas de los numerales 6.11, 7.5, 8 y 9 y del anexo 3. Líneas de la copia de texto de huella sha256_texto de la norma ampliada; las fórmulas, que son imágenes en el PDF, se leyeron también en la hoja del PDF. No hay ninguna regla de una empresa (P13). La fórmula de reajuste no se registra: el TdR solo da sus factores y parámetros (líneas 3279-3303) y la propone la empresa.",
+  "reglas": [
+    {
+      "clave": "vad.conceptos.lce",
+      "valor": [
+        "CF",
+        "VADMT",
+        "VADSED",
+        "VADBT"
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 8",
+      "pagina": "63",
+      "lineas": "2946-2950",
+      "cita_literal": "En el caso de los sectores de distribución típicos en el ámbito de la LCE: [...] CF [...] VADMT [...] VADSED [...] VADBT"
+    },
+    {
+      "clave": "vad.conceptos.lger",
+      "valor": [
+        "CF",
+        "VADMT_SER",
+        "VADSED_SER",
+        "VADBT_SER"
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 8",
+      "pagina": "63",
+      "lineas": "2951-2955",
+      "cita_literal": "En el caso de los sectores de distribución típicos en el ámbito de la LGER: [...] CF [...] VADMT_SER [...] VADSED_SER [...] VADBT_SER"
+    },
+    {
+      "clave": "vad.ponderacion",
+      "valor": {
+        "CF": "NCL",
+        "VADMT": "MWMT",
+        "VADSED": "MWBT",
+        "VADBT": "MWBT",
+        "VADMT_SER": "MWMT",
+        "VADSED_SER": "MWBT",
+        "VADBT_SER": "MWBT"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 8",
+      "pagina": "63",
+      "lineas": "2966-2970",
+      "cita_literal": "Para la ponderación a nivel empresa del VAD [...] se utilizará la demanda máxima simultánea y para los cargos fijos la cantidad de clientes por opción tarifaria.",
+      "interpretacion": "El peso de cada concepto es la demanda máxima del nivel que divide su fórmula (MWMT o MWBT) y, para el cargo fijo, el número de clientes (NCL)."
+    },
+    {
+      "clave": "vad.formula.CF",
+      "valor": "CCCL / NCL",
+      "unidad": "por cliente.año",
+      "articulo_o_anexo": "Numeral 8.1, Cargos Fijos",
+      "pagina": "63",
+      "lineas": "2972-2985",
+      "cita_literal": "Los cargos fijos de atención al cliente se calcularán de acuerdo a la siguiente relación: [...] CCCL = Costo comercial de atención al cliente [...] NCL = Número total de usuarios servidos por opción tarifaria.",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py."
+    },
+    {
+      "clave": "vad.formula.VADMT",
+      "valor": "(aVNRMT + OyMMT) / MWMT",
+      "unidad": "por kW.año",
+      "articulo_o_anexo": "Numeral 8.2.1",
+      "pagina": "65",
+      "lineas": "3022-3032; 3051-3053",
+      "cita_literal": "La expresión a aplicar para obtener el VAD anual es: [...] aVNRMT = Anualidad [...] OyMMT = Costos de operación y mantenimiento anual [...] MWMT = Potencia máxima demandada a nivel de MT",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py."
+    },
+    {
+      "clave": "vad.variantes.VADMT_SER",
+      "valor": [
+        "estado",
+        "concesionaria"
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 8.2.2",
+      "pagina": "65",
+      "lineas": "3045-3047",
+      "cita_literal": "Para inversiones 100% de propiedad del Estado: [...] Para inversiones 100% de propiedad de la Concesionaria y Otras Entidades:"
+    },
+    {
+      "clave": "vad.formula.VADMT_SER.estado",
+      "valor": "(aVNRMT * FFR + OyMMT) / MWMT",
+      "unidad": "por kW.año",
+      "articulo_o_anexo": "Numeral 8.2.2",
+      "pagina": "65",
+      "lineas": "3045; 3054-3056; 3069-3072",
+      "cita_literal": "Para inversiones 100% de propiedad del Estado: [...] FFR = Factor del Fondo de Reposición.",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py."
+    },
+    {
+      "clave": "vad.formula.VADMT_SER.concesionaria",
+      "valor": "(aVNRMT + OyMMT) / MWMT",
+      "unidad": "por kW.año",
+      "articulo_o_anexo": "Numeral 8.2.2",
+      "pagina": "65",
+      "lineas": "3047; 3058-3060",
+      "cita_literal": "Para inversiones 100% de propiedad de la Concesionaria y Otras Entidades:",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py."
+    },
+    {
+      "clave": "vad.formula.VADSED",
+      "valor": "(aVNRSED + OyMSED) / MWBT",
+      "unidad": "por kW.año",
+      "articulo_o_anexo": "Numeral 8.3.1",
+      "pagina": "66",
+      "lineas": "3081-3099",
+      "cita_literal": "La expresión a aplicar para obtener el VAD anual es: [...] aVNRSED [...] OyMSED [...] MWBT = Potencia máxima demandada a nivel de BT (lado primario de la subestación MT/BT)",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py."
+    },
+    {
+      "clave": "vad.variantes.VADSED_SER",
+      "valor": [
+        "estado",
+        "concesionaria"
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 8.3.2",
+      "pagina": "67",
+      "lineas": "3112-3114",
+      "cita_literal": "Para inversiones 100% de propiedad del Estado: [...] Para inversiones 100% de propiedad de la Concesionaria y Otras Entidades:"
+    },
+    {
+      "clave": "vad.formula.VADSED_SER.estado",
+      "valor": "(aVNRSED * FFR + OyMSED) / MWBT",
+      "unidad": "por kW.año",
+      "articulo_o_anexo": "Numeral 8.3.2",
+      "pagina": "67",
+      "lineas": "3112; 3133-3135",
+      "cita_literal": "Para inversiones 100% de propiedad del Estado: [...] FFR = Factor del Fondo de Reposición.",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py."
+    },
+    {
+      "clave": "vad.formula.VADSED_SER.concesionaria",
+      "valor": "(aVNRSED + OyMSED) / MWBT",
+      "unidad": "por kW.año",
+      "articulo_o_anexo": "Numeral 8.3.2",
+      "pagina": "67",
+      "lineas": "3114; 3137-3139",
+      "cita_literal": "Para inversiones 100% de propiedad de la Concesionaria y Otras Entidades:",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py."
+    },
+    {
+      "clave": "vad.formula.VADBT",
+      "valor": "(aVNRBT + OyMBT) / MWBT",
+      "unidad": "por kW.año",
+      "articulo_o_anexo": "Numeral 8.4.1",
+      "pagina": "68",
+      "lineas": "3142-3156; 3177-3178",
+      "cita_literal": "La expresión a aplicar para obtener el VAD anual de todo el sector típico (SED más Redes) es:",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py."
+    },
+    {
+      "clave": "vad.variantes.VADBT_SER",
+      "valor": [
+        "estado",
+        "concesionaria"
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 8.4.2",
+      "pagina": "68-69",
+      "lineas": "3175; 3182",
+      "cita_literal": "Para inversiones 100% de propiedad del Estado: [...] Para inversiones 100% de propiedad de la Concesionaria y Otras Entidades:"
+    },
+    {
+      "clave": "vad.formula.VADBT_SER.estado",
+      "valor": "(aVNRBT * FFR + OyMBT) / MWBT",
+      "unidad": "por kW.año",
+      "articulo_o_anexo": "Numeral 8.4.2",
+      "pagina": "68",
+      "lineas": "3175; 3214-3217",
+      "cita_literal": "Para inversiones 100% de propiedad del Estado: [...] FFR = Factor del Fondo de Reposición.",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py."
+    },
+    {
+      "clave": "vad.formula.VADBT_SER.concesionaria",
+      "valor": "(aVNRBT + OyMBT) / MWBT",
+      "unidad": "por kW.año",
+      "articulo_o_anexo": "Numeral 8.4.2",
+      "pagina": "69",
+      "lineas": "3182; 3219-3223",
+      "cita_literal": "Para inversiones 100% de propiedad de la Concesionaria y Otras Entidades:",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py."
+    },
+    {
+      "clave": "vad.formula.FEE",
+      "valor": "(Pfc + (1 + tc) * Pvc) / (1 + tc)",
+      "unidad": "adimensional",
+      "articulo_o_anexo": "Numeral 8.6, Factores de economía de escala",
+      "pagina": "70",
+      "lineas": "3238-3265",
+      "cita_literal": "La fórmula de cálculo del factor de economía de escala (FEE) es: [...] Pfc = proporción fija del costo. [...] Pvc= proporción variable del costo. [...] tc = tasa de crecimiento anual de clientes y/o demanda.",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py. El PDF da también la forma equivalente (1 + tc·Pvc)/(1 + tc), igual cuando Pfc + Pvc = 1."
+    },
+    {
+      "clave": "vad.reajuste.factores",
+      "valor": {
+        "lce": [
+          "FAVADMT",
+          "FAVADSED",
+          "FAVADBT",
+          "FACF"
+        ],
+        "lger": [
+          "FAVADMT_SER",
+          "FAVADSED_SER",
+          "FAVADBT_SER",
+          "FACF"
+        ]
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 8.7, Fórmula de reajuste",
+      "pagina": "71",
+      "lineas": "3279-3292",
+      "cita_literal": "Así, deben calcularse los siguientes factores de actualización según corresponda: Sectores Típicos LCE [...] FAVADMT [...] FAVADSED [...] FAVADBT [...] FACF Sectores Típicos LGER [...] FAVADMT_SER [...] FAVADSED_SER [...] FAVADBT_SER [...] FACF"
+    },
+    {
+      "clave": "vad.reajuste.parametros",
+      "valor": [
+        "mano_de_obra",
+        "productos_nacionales",
+        "productos_importados",
+        "cobre_y_aluminio"
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 8.7, Fórmula de reajuste",
+      "pagina": "71",
+      "lineas": "3293-3300",
+      "cita_literal": "la empresa tomará en cuenta la incidencia de la estructura de costos de los siguientes parámetros: a) Mano de Obra; b) Productos Nacionales; c) Productos Importados; y d) Precio del Cobre y Aluminio."
+    },
+    {
+      "clave": "vad.tasa_actualizacion",
+      "valor": 0.12,
+      "unidad": "por año",
+      "articulo_o_anexo": "Numeral 7.5 (cargos adicionales, 3. PIDE)",
+      "pagina": "73",
+      "lineas": "3377-3378; 3382",
+      "cita_literal": "an : anualidad calculada para la tasa de actualización establecida en el artículo 79 de la LCE (12% real anual) y la vida útil de 30 años"
+    },
+    {
+      "clave": "vad.pide.anios",
+      "valor": 4,
+      "unidad": "años",
+      "articulo_o_anexo": "Numeral 7.5 (cargos adicionales, 3. PIDE)",
+      "pagina": "73",
+      "lineas": "3383",
+      "cita_literal": "n : Número de años a considerar, igual a 4."
+    },
+    {
+      "clave": "vad.formula.pide_ajustado",
+      "valor": "(aVNR0 + OyM0 + suma(n, aDVNR / (1 + i) ** (n - 1) + DOyM / 4)) / (POT0 + suma(n, DPOT / (1 + i) ** (n - 1)))",
+      "unidad": "por kW.año",
+      "articulo_o_anexo": "Numeral 7.5 (cargos adicionales, 3. PIDE)",
+      "pagina": "73",
+      "lineas": "3355-3383",
+      "cita_literal": "Por lo que el valor ajustado del VAD será: [...] aVNRNT-0: es la anualidad del VNR [...] OyMNT-0 [...] POTNT-0 [...] aΔVNRNT (n): anualidad del VNR adicional aprobada del año n [...] ΔOyMNT (n) [...] ΔPOTNT (n): demanda adicional del año n [...] i : Tasa de interés anual",
+      "interpretacion": "La fórmula es una imagen en el PDF; la copia de texto la da desordenada en las líneas citadas. Se leyó en la hoja del PDF (pdftotext -layout y la página dibujada) el 2026-11-14 y se escribe en la sintaxis del intérprete de vad/formulas.py. En la hoja: VAD_NT = (aVNR_NT-0 + OyM_NT-0 + Σ_{n=1..4}(aΔVNR_NT(n)/(1+i)^(n-1) + ΔOyM_NT(n)/4)) / (POT_NT-0 + Σ_{n=1..4} ΔPOT_NT(n)/(1+i)^(n-1))."
+    },
+    {
+      "clave": "vad.informe_estudio.documentos",
+      "valor": [
+        "Informe de resultados Relevantes",
+        "Informe del Estudio de Costos del VAD",
+        "Tablas de Informe de los Resultados (Excel)"
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 9.1",
+      "pagina": "75",
+      "lineas": "3416-3421",
+      "cita_literal": "El informe contendrá los siguientes documentos: 1. Informe de resultados Relevantes 2. Informe del Estudio de Costos del VAD 3. Tablas de Informe de los Resultados (Excel)"
+    },
+    {
+      "clave": "vad.informe_definitivo.documentos",
+      "valor": [
+        "Informe de los Resultados Relevantes",
+        "Informe del Estudio de Costos del VAD",
+        "Informe de las Respuestas de Osinergmin a las Observaciones de las empresas",
+        "Tablas de informe de resultados en formato Excel"
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 9.2",
+      "pagina": "77",
+      "lineas": "3499-3510",
+      "cita_literal": "El informe contendrá los siguientes documentos: 1. Informe de los Resultados Relevantes 2. Informe del Estudio de Costos del VAD 3. Informe de las Respuestas de Osinergmin a las Observaciones de las empresas 4. Tablas de informe de resultados en formato Excel"
+    },
+    {
+      "clave": "vad.informe_estudio.estructura",
+      "valor": [
+        {
+          "numero": "1",
+          "titulo": "OBJETIVO"
+        },
+        {
+          "numero": "2",
+          "titulo": "ANTECEDENTES"
+        },
+        {
+          "numero": "3",
+          "titulo": "REQUERIMIENTO DE INFORMACIÓN",
+          "subapartados": [
+            "Requerimiento de Información",
+            "Formatos A"
+          ]
+        },
+        {
+          "numero": "4",
+          "titulo": "CREACIÓN DE LA EMPRESA MODELO",
+          "subapartados": [
+            "Caracterización del Mercado Eléctrico",
+            "Definición del Tipo de Sistema y de la Tecnología Adaptada",
+            "Costos Estándar de Inversión (Instalaciones Eléctricas y No Eléctricas)",
+            "Optimización Técnico Económica de las Instalaciones Eléctricas",
+            "Optimización Técnico Económica de las Instalaciones No Eléctricas",
+            "Valor Nuevo de Reemplazo",
+            "Balance de Potencia y energía",
+            "Costos Estándar de Operación y Mantenimiento",
+            "Pérdidas Estándar de Energía y Potencia Técnicas y No Técnicas",
+            "Verificación de cumplimiento de Calidad de Servicio Eléctrico (Producto y Suministro)",
+            "Formatos B"
+          ]
+        },
+        {
+          "numero": "5",
+          "titulo": "FACTOR DE REAJUSTE PARA LA MEJORA DE LA CALIDAD DE SUMINISTRO"
+        },
+        {
+          "numero": "6",
+          "titulo": "PROYECTOS DE INNOVACIÓN TECNOLÓGICA Y/O EFICIENCIA ENERGÉTICA"
+        },
+        {
+          "numero": "7",
+          "titulo": "PLAN GRADUAL DE REEMPLAZO A SISTEMAS DE MEDICIÓN INTELIGENTE"
+        },
+        {
+          "numero": "8",
+          "titulo": "INCORPORACIÓN DE PLANES DE INVERSIÓN EN DISTRIBUCIÓN ELÉCTRICA (solo empresas bajo el ámbito del FONAFE)"
+        },
+        {
+          "numero": "9",
+          "titulo": "RESULTADOS",
+          "subapartados": [
+            "Cargo Fijo",
+            "Valor Agregado de Distribución en MT (VADMT)",
+            "Valor Agregado de Distribución en SED (VADSED)",
+            "Valor Agregado de Distribución en BT (VADBT)",
+            "Factor de Pérdidas Estándar de Energía y Potencia",
+            "Factor de Economía de Escala",
+            "Fórmula de Reajuste"
+          ]
+        }
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 9.1",
+      "pagina": "76",
+      "lineas": "3433-3471",
+      "cita_literal": "Informe del Estudio de Costos del VAD 1. OBJETIVO 2. ANTECEDENTES 3. REQUERIMIENTO DE INFORMACIÓN [...] 9. RESULTADOS [...] g. Fórmula de Reajuste",
+      "interpretacion": "Los subapartados i a iv del literal h (estructura organizacional, explotación técnica, comercial e indirectos) van dentro de «Costos Estándar de Operación y Mantenimiento»; la copia de texto repite la letra «i» para el de pérdidas."
+    },
+    {
+      "clave": "vad.tablas_resultados",
+      "valor": [
+        {
+          "numero": "1",
+          "titulo": "Resumen de Instalaciones Adaptadas por Sistema Eléctrico"
+        },
+        {
+          "numero": "2",
+          "titulo": "Resumen VNR Eléctrico por Sistema Eléctrico"
+        },
+        {
+          "numero": "3",
+          "titulo": "Resumen de INE por Unidad Operativa"
+        },
+        {
+          "numero": "4",
+          "titulo": "Parque adoptado de Alumbrado Público"
+        },
+        {
+          "numero": "5",
+          "titulo": "Estructura de Personal Modelado, sus Costos y Asignación"
+        },
+        {
+          "numero": "6",
+          "titulo": "Costos Totales Asignados de Operación y Mantenimiento por Sistema Eléctrico"
+        },
+        {
+          "numero": "7",
+          "titulo": "Dimensionamiento y Valorización de Cuadrillas de Operación MT y BT y TCT"
+        },
+        {
+          "numero": "8",
+          "titulo": "Dimensionamiento y Valorización de Equipos de Medición de Calidad"
+        },
+        {
+          "numero": "9",
+          "titulo": "Dimensionamiento de Gastos Generales Indirectos de Empresas"
+        },
+        {
+          "numero": "10",
+          "titulo": "Dimensionamiento y Valorización de Actividades de Gestión Comercial (Atención Clientes y Reducción de Pérdidas No Técnicas)"
+        },
+        {
+          "numero": "11",
+          "titulo": "Valorización de Conexiones Eléctricas Rurales"
+        },
+        {
+          "numero": "12",
+          "titulo": "Resumen de Demanda de Potencia, Energía y Pérdidas por Sistema Eléctrico. Resumen de Factores de Carga y de Coincidencia"
+        },
+        {
+          "numero": "13",
+          "titulo": "Cálculo del VAD MT, MT, SED y BT por Sistema Eléctrico"
+        },
+        {
+          "numero": "14",
+          "titulo": "Cálculo de Gastos de Operación Comercial por tipo de Cliente"
+        },
+        {
+          "numero": "15",
+          "titulo": "Cálculo de FEE (Factor de Economía de Escala)"
+        },
+        {
+          "numero": "16",
+          "titulo": "Determinación de Formulas de Actualización"
+        }
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 9.1, Tablas de Informe de los Resultados",
+      "pagina": "76-77",
+      "lineas": "3473-3494",
+      "cita_literal": "Se presentarán las tablas resumen en formato Excel de acuerdo al listado siguiente: 1. Resumen de Instalaciones Adaptadas por Sistema Eléctrico. [...] 16. Determinación de Formulas de Actualización.",
+      "interpretacion": "El título de la 13 se copia tal como está en el TdR («VAD MT, MT, SED y BT»)."
+    },
+    {
+      "clave": "vad.anexo3.apartados",
+      "valor": [
+        {
+          "numero": "1",
+          "titulo": "Introducción"
+        },
+        {
+          "numero": "2",
+          "titulo": "Caracterización de la Concesionaria"
+        },
+        {
+          "numero": "3",
+          "titulo": "Balance de Energía y Potencia"
+        },
+        {
+          "numero": "4",
+          "titulo": "Valor Nuevo de Reemplazo"
+        },
+        {
+          "numero": "5",
+          "titulo": "Costos Estándar de Operación y Mantenimiento"
+        },
+        {
+          "numero": "6",
+          "titulo": "Pérdidas Estándar de Energía y Potencia"
+        },
+        {
+          "numero": "7",
+          "titulo": "Calidad del Servicio Eléctrico"
+        },
+        {
+          "numero": "8",
+          "titulo": "Proyectos Adicionales"
+        },
+        {
+          "numero": "9",
+          "titulo": "Resultados tarifarios"
+        },
+        {
+          "numero": "10",
+          "titulo": "Factores de Economía de Escala (para el VAD básico)"
+        },
+        {
+          "numero": "11",
+          "titulo": "Fórmulas de Actualización"
+        },
+        {
+          "numero": "12",
+          "titulo": "VAD Adicional por Proyectos"
+        }
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Anexo N° 3",
+      "pagina": "Anexo 3-1 a 3-14",
+      "lineas": "4040-4559 (4042, 4044, 4133, 4202, 4285, 4364, 4376, 4415, 4443, 4476, 4484, 4559)",
+      "cita_literal": "Informe de los Resultados Relevantes del Estudio de Costos del VAD [...] 1. Introducción [...] 12. VAD Adicional por Proyectos"
+    },
+    {
+      "clave": "vad.calidad.indicadores",
+      "valor": [
+        {
+          "clave": "interrupciones",
+          "nombre": "Número de Interrupciones",
+          "unidad": "interrupciones/semestre",
+          "sentido": "maximo"
+        },
+        {
+          "clave": "duracion",
+          "nombre": "Duración de las interrupciones",
+          "unidad": "horas/semestre",
+          "sentido": "maximo"
+        },
+        {
+          "clave": "caida_tension_mt",
+          "nombre": "Caída de Tensión en MT",
+          "unidad": "% de la tensión nominal",
+          "sentido": "maximo"
+        },
+        {
+          "clave": "caida_tension_bt",
+          "nombre": "Caída de Tensión en BT",
+          "unidad": "% de la tensión nominal",
+          "sentido": "maximo"
+        }
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.11 y Anexo N° 3, apartado 7",
+      "pagina": "49; Anexo 3-9",
+      "lineas": "2344-2352; 4376-4384",
+      "cita_literal": "Índices de Calidad [...] Número de Interrupciones Interrupciones / semestre [...] Duración de las interrupciones Horas / semestre [...] Caída de Tensión en MT % de la tensión nominal [...] Caída de Tensión en BT % de la tensión nominal",
+      "interpretacion": "Los límites de cada indicador están en la NTCSE o la NTCSER (6.11), que no están transcritas: no hay ninguna regla vad.calidad.limite.* y la verificación los da como hueco."
+    },
+    {
+      "clave": "vad.explotacion.rubros",
+      "valor": [
+        {
+          "clave": "vnr_no_electrico",
+          "nombre": "VNR No Eléctrico óptimo de la empresa",
+          "numeral": "6.8.3"
+        },
+        {
+          "clave": "explotacion_comercial",
+          "nombre": "Costos de operación comercial y de gestión de la reducción de pérdidas comerciales",
+          "numeral": "6.13"
+        },
+        {
+          "clave": "indirectos",
+          "nombre": "Costos indirectos",
+          "numeral": "6.14"
+        },
+        {
+          "clave": "adicionales",
+          "nombre": "Costos adicionales de explotación",
+          "numeral": "6.15"
+        }
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Índice, numerales 6.8.3 y 6.13 a 6.15",
+      "pagina": "3",
+      "lineas": "100; 108-111",
+      "cita_literal": "6.8.3 Determinación del VNR No Eléctrico óptimo de la empresa [...] Optimización de los costos de operación comercial y de gestión de la reducción de pérdidas comerciales [...] Optimización de los costos indirectos [...] Optimización de los costos adicionales de explotación",
+      "interpretacion": "Los numerales 6.13 a 6.15 se cuentan en el índice tras el 6.12 (COyM técnico, que cubre el RF-8); la copia de texto no imprime su número."
+    }
+  ]
+}

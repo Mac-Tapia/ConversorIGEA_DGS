@@ -59,6 +59,7 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
   - U1 La entrega se usa con una **licencia comercial por puesto** (uso por equipo, sin redistribución, con garantía y limitación de
     responsabilidad), en español; el instalador la muestra y pide aceptarla; el texto final lo revisa un abogado. La MIT del
     repositorio (D3) no va en la entrega. Cambia D7 solo en esto: el producto da su propia licencia de uso, no las de terceros.
+    **Sustituida el 2026-11-15 por LIC-MIT** (véase la aclaración de RF-44 de esa fecha).
   - U2 **Firma de código** con un certificado OV o un servicio de firma en la nube; el certificado nunca va en git y su trámite es del
     usuario. Un candidato final sin firmar no se entrega; uno de prueba lo avisa. Sustituye a «firma de código si D2 no la exige» de
     «Fuera de alcance».
@@ -120,6 +121,12 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - RF-20: SI se pide escuchar fuera de `127.0.0.1` sin usuarios ni TLS, ENTONCES EL SISTEMA se negará y dirá por qué.
 - RF-21: EL SISTEMA servirá sus páginas con su propio Leaflet y con una política de contenido.
 - RF-22: EL SISTEMA no saldrá a la red por defecto en la edición de producto, y cada salida se activará de forma explícita.
+- Aclaración de RF-22 (2026-11-15, SSRF-ARCGIS; hallazgo BP-29 del Plan Maestro, seguridad P0): una salida encendida no sigue una
+  redirección a otra máquina. El conector ArcGIS y el descubrimiento y la descarga del VNR-GIS oficial piden con
+  `salidas_red.get_sin_redireccion_ajena`, que mira cada salto ANTES de pedirlo: ArcGIS, solo el mismo servidor (host, puerto y
+  esquema, sin bajar de https a http); el portal oficial, solo sus hosts. Antes se seguía la redirección y se miraba la URL final,
+  cuando 127.0.0.1, el servicio de metadatos de la nube u otra máquina ya habían recibido la petición. Una redirección rechazada
+  no se reintenta.
 - RF-23: EL SISTEMA clasificará cada tarea del asistente por su efecto: lee, usa licencia, sale a la red o escribe.
 - RF-24: CUANDO una tarea usa licencia o sale a la red, EL SISTEMA pedirá confirmación.
 - RF-25: EL SISTEMA pedirá confirmación antes de ejecutar un guion guardado en un proyecto.
@@ -158,6 +165,12 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
   documentos de desarrollo o de la aceptación interna. Los requisitos del manual dicen lo probado: Windows 11 probado y 10 sin
   probar, PowerFactory 2024 real y 2021 a 2023 y 2025 con simulación, Excel o WPS por COM, memoria, GPU, VRAM, controlador y disco
   del complemento, y la instalación silenciosa por usuario.
+- Aclaración de RF-44 (2026-11-15, LIC-MIT; decisión del usuario «MIT + comercial opcional»; sustituye a U1): la licencia del
+  programa que se entrega es la MIT del repositorio (D3): va a «documentos/» como `LICENSE.txt` y el instalador la muestra y pide
+  aceptarla. El acuerdo comercial (`LICENCIA_COMERCIAL.txt`) pasa a ser un documento OPCIONAL de soporte y garantía: se copia si
+  está, no es condición de la entrega ni del uso y no restringe la MIT. Quedan fuera de la 1.0, por orden del usuario (open source
+  con datos publicados): la revisión del texto por un abogado, la cláusula de ley y jurisdicción y el certificado de firma de
+  código.
 - Aclaración de RF-39 (2026-11-14, L5 y U3): el candidato final se arma con el Python oficial fijado, con su SHA-256 y la firma de la
   PSF comprobadas, y con `pip-audit` del lock sin vulnerabilidades sin justificar, desde un entorno aparte del de desarrollo.
 

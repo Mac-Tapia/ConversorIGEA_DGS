@@ -8,12 +8,12 @@ empieza hasta que la T13 esté cerrada. Ninguna tarea modifica `web/services.py`
 leído: las tareas que la necesitan empiezan por leer el anexo y transcribirlo con su cita (fichero y líneas de la
 copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la página del PDF oficial).
 
-- [ ] T1. Paquete `src/convertersmartgrid/vad/` y registro del estudio: `vad/estudio.py` con `EstudioVad` (empresa
+- [x] T1. Paquete `src/convertersmartgrid/vad/` y registro del estudio: `vad/estudio.py` con `EstudioVad` (empresa
       del perfil, grupo, periodo, versión del TdR y estado), guardado en `<espacio>/vad/<id>/estudio.json`, aparte del
       PIDE y del PIT. Un estudio no lee ni escribe en las carpetas del PIDE. (RF-1)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_estudio.py` en verde, con dos empresas
       sintéticas y una prueba de que crear un estudio VAD no cambia ningún fichero del PIDE.
-- [ ] T2. Registro normativo. Leer y transcribir en `config/vad/tdr_vad_2026.json` la RCD 174-2025-OS/CD, la
+- [x] T2. Registro normativo. Leer y transcribir en `config/vad/tdr_vad_2026.json` la RCD 174-2025-OS/CD, la
       RCD 033-2026-OS/CD y el índice de anexos del texto modificado (copia local, líneas 142-150), cada entrada con
       acto, anexo, versión, `estado_juridico` (vocabulario del registro común `registro_normativo.py`, 107 T1: vigente_comprobada, modificada, prepublicada, no_verificada…), URL, fichero local, líneas, SHA-256,
       fecha de lectura, moneda e IGV. Leer el anexo 1 y comprobar a qué grupo pertenece cada empresa del caso, porque
@@ -22,7 +22,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_normativa.py` en verde. Las pruebas cubren
       un TdR `proyecto` o `pendiente`, un `igv: sin_leer` y una entrada sin cita, y en los tres casos el estudio queda
       `no_conforme`. Un cambio de versión a mitad del estudio lo deja `desactualizado` y nombra lo afectado.
-- [ ] T3. Anexo 2. Leer y transcribir en `config/vad/anexo2_formatos.json` los formatos de información técnica,
+- [x] T3. Anexo 2. Leer y transcribir en `config/vad/anexo2_formatos.json` los formatos de información técnica,
       comercial y económica, con cada tabla, campo, unidad y periodo, y su cita. `vad/anexo2.py` con `validar_tablas`
       para el inventario VNR, las tablas técnicas, comerciales y contables y los costos. (RF-2, RF-3)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_anexo2.py` en verde. Una tabla obligatoria
@@ -96,11 +96,66 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       rural contra el VNR. Sin DIgSILENT. (RF-5, RF-7, RF-11)
       Hecho cuando: el manifiesto del estudio dice OK en cada sistema, el hash de vértices coincide en todos los
       tramos con geometría y el cotejo del revisor queda anotado en esta tarea, con la ruta de la evidencia.
+      BLOQUEADO_POR_DATOS (2026-11-14): no hay caso en `CSG_VAD_CASO`, ni SICODI de la 184-2026 en zip, ni la hoja de
+      corriente económica ni los costos unitarios de la empresa, y el cotejo lo hace un revisor. Evidencia y siguiente
+      acción: `D:/csg/PM_IMPL/108/T13/BLOQUEO.md`.
 - [ ] T14. Anexo 5, modelo geométrico urbano (**posterior a la iteración 1**; empieza cuando la T13 esté cerrada).
       Leer y transcribir en `config/vad/anexo5_urbano.json` el modelo geométrico, con su cita. `vad/modelo_urbano.py`
       elige la red adaptada por densidad de carga según el anexo 5, y la parte urbana de un sistema mixto deja de
       quedar «sin modelar». (RF-6)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_modelo_urbano.py` en verde, con dos
       empresas sintéticas, densidades sorteadas y un sistema mixto rural y urbano.
+- [ ] T16. Registro de resultados y cálculo del VAD. Transcribir en `config/vad/tdr_vad_2026_resultados.json`
+      (amplía el TdR registrado), con su cita, los conceptos de cada ámbito (LCE y LGER), las variantes de cada
+      concepto, las fórmulas del cargo fijo y del VAD de cada nivel, la ponderación a nivel empresa, la tasa de
+      actualización, la fórmula del FEE y los parámetros de la fórmula de reajuste. `vad/formulas.py` evalúa una
+      fórmula del registro con un intérprete cerrado (solo aritmética, variables y `suma`), y `vad/resultados_vad.py`
+      calcula, por sistema y ponderado a nivel empresa, el cargo fijo, el VAD de cada nivel y su variante, el FEE y
+      los factores de reajuste, cada valor con la regla que lo dio. Lo que el TdR no da en forma cerrada (la fórmula de
+      reajuste) queda como hueco con su cita. (RF-16, RF-9, RF-13)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_resultados.py` en verde. Un caso sintético
+      calculado a mano coincide con dos empresas sintéticas; un registro sintético con otras variantes (no `_SER`) da
+      sus propias variantes; una variable que falta, una división entre cero y una fórmula fuera del intérprete son
+      huecos o errores nombrados, nunca 0; y una regla no obligatoria deja el resultado `no_conforme`.
+- [ ] T17. Incorporación del PIDE (contrato 072 → 108, versión `pide_vad_v1`): `vad/pide_vad.py` lee el PIDE aprobado
+      que entrega la 072 (acto de aprobación, periodo, moneda y, por nivel de tensión y año, la inversión, el COyM y la
+      demanda adicionales), calcula la anualidad con el factor registrado y el VAD ajustado con la fórmula registrada
+      del numeral 7.5. El estudio guarda si la empresa está en el ámbito del FONAFE (`EstudioVad.ambito_fonafe`;
+      sin declarar, `None`). La spec 072 no se toca aquí: lo que debe decir va en la entrega de esta tarea. (RF-17,
+      RF-16)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_pide.py` en verde. Sin PIDE aprobado (o con
+      el ámbito sin declarar, otro periodo u otra moneda) hay aviso y no se incorpora nada; con el PIDE de prueba el
+      VAD ajustado coincide con el cálculo a mano.
+- [ ] T18. Calidad de servicio: `vad/calidad.py` compara los indicadores calculados de la empresa modelo con los
+      límites del registro normativo, por sistema, y nombra el que no cumple. Un indicador sin límite registrado o sin
+      valor calculado es un hueco nombrado, no un «cumple». (RF-18)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_calidad.py` en verde, con un caso que no
+      cumple, uno que cumple y uno con el límite sin registrar. Los límites reales de la NTCSE y la NTCSER quedan
+      BLOQUEADOS hasta transcribirlos (`D:/csg/PM_IMPL/108/S3_ENTREGA.md`, bloqueo B2).
+- [ ] T19. Costos de explotación: `vad/costos_explotacion.py` suma por rubro del registro (VNR no eléctrico,
+      explotación técnica, comercial, indirectos y adicionales) solo las partidas dimensionadas con su fuente, y lleva
+      el costo real en una columna rotulada como referencia. (RF-19)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_costos_explotacion.py` en verde. Un rubro con
+      solo el costo real queda «sin dimensionar» y fuera del total; una partida sin fuente se rechaza; dos monedas no se
+      suman.
+- [ ] T20. Tablas de Resultados: `vad/tablas_resultados.py` escribe en Excel una hoja por tabla que liste el registro
+      (numeral 9), con su título, sus filas por sistema eléctrico y el total con fórmulas, más un índice. (Aclaración de
+      RF-11; RF-11)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_tablas_resultados.py` en verde. Con el
+      registro sintético de 16 tablas salen 16 hojas y con uno de 3, tres; una tabla sin datos es un hueco nombrado en
+      el índice; ninguna celda da un error de `libro_informe.ERRORES_DE_FORMULA`; un dato de una tabla que el registro
+      no lista se rechaza.
+- [ ] T21. Informes en Word: `vad/informes.py` escribe el Informe de Resultados Relevantes con los apartados del
+      anexo 3 registrado y el Informe del Estudio con la estructura del numeral 9 registrada; cada cifra sale del
+      estudio con su origen o queda como hueco nombrado; el PDF integrado se pide a `informe_docx.exportar_pdf` y, si
+      no sale, se dice el motivo y el Word queda hecho. (RF-14, RF-15)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_informes.py` en verde. El índice del Word
+      coincide con la estructura del registro sintético; un apartado sin contenido es un hueco nombrado; una cifra sin
+      origen se rechaza; el PDF sale con un exportador de prueba y su fallo se informa.
+- [ ] T22. Informe Definitivo (numeral 9.2): con las observaciones de la T11, `vad/informes.py` arma los documentos
+      que liste el registro para el definitivo y el informe de respuestas, cada una con su sustento y la tabla o el
+      cálculo que cambió. Empieza cuando la T11 esté integrada. (Aclaración de RF-12; RF-12)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_informe_definitivo.py` en verde; una respuesta
+      sin sustento o sin la tabla o el cálculo que cambió se rechaza.
 - [ ] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
-      Hecho cuando: `grep -rnoE "108:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-13 y la suite está en verde.
+      Hecho cuando: `grep -rnoE "108:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-19 y la suite está en verde.
