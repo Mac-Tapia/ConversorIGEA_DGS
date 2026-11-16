@@ -10,10 +10,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 373 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
-| Herramientas y guiones | `tools/` | 110 |
+| Herramientas y guiones | `tools/` | 111 |
 | Interfaz | `frontend/src/` | 74 |
 | Pruebas de la interfaz | `frontend/test/` | 37 |
-| Pruebas | `tests/` | 497 |
+| Pruebas | `tests/` | 498 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -23,12 +23,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 81 |
-| aprobada | 27 |
+| cumplida | 80 |
+| aprobada | 28 |
 | implementada | 3 |
 | retirada | 1 |
 
-112 specs con 3752 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3779 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -953,6 +953,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `tools/evaluar_harness.py` | — | 043, 044, 047 | Entrada de consola para el arnés integral de evaluación. |
 | `tools/lanzar_pronostico_pide_gpu.py` | — | 031 | El pronóstico del PIDE en la GPU en un paso: comprueba CUDA y memoria y pasa a `proyeccion_anual.py` las redes como candidatos y el quinquenio y… |
 | `tools/medir_mejora.py` | — | 087 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
+| `tools/pfd_diagnostico.py` | — | 004, 102 | Importa un `.pfd` con `ComPfdimport` en un proyecto nuevo de la carpeta del conversor, identificado por su huella (reutilizar, versión nueva,… |
 | `tools/pronostico_demanda.py` | — | 089 | Dataset y backtest de demanda desde las carpetas que haya. |
 | `tools/verificar_entrega_integral.py` | — | 065, 086 | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. |
 

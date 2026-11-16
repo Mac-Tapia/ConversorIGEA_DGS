@@ -570,6 +570,34 @@ rem 2) Solo si el anterior falla, con correcciones, y como resultado aparte
 
 ---
 
+### 5.6 Importar y diagnosticar un `.pfd` (spec 004)
+
+`tools/pfd_diagnostico.py` importa un fichero `.pfd` (un PIT, un PIDE u otro estudio) en un proyecto nuevo de la
+carpeta de proyectos del conversor y dice, en solo lectura y sin calcular, cómo está hecho:
+
+- las redes con sus alimentadores;
+- cada caso de estudio con su escenario, sus variaciones activas y su hora de estudio, y cuál estaba activo;
+- cada escenario de operación con los casos que lo usan;
+- cada variación con sus etapas, su fecha, lo que cada etapa da de alta, de baja o cambia, y en qué caso se estudia;
+- las cargas de cada caso (P, Q, escala, característica y alimentador), con sus totales y sus diferencias;
+- el recuento de elementos de red y de tipos por clase, con el aviso de una exportación reducida.
+
+Cada `.pfd` se reconoce por su huella (sha256), no por su nombre. Con la misma huella se reutiliza el proyecto ya
+importado, y se avisa si cambió en DIgSILENT después. Con el mismo nombre y otra huella es una versión nueva: va a un
+proyecto nuevo y dice qué cambió frente a la anterior, cuyo proyecto se renombra con
+`_anterior_<sha10>_<AAAAMMDD-HHMMSS>` y se conserva (nunca se borra). `--reimportar` crea siempre otro proyecto.
+
+```
+> python tools\pfd_diagnostico.py --pfd ESTUDIO.pfd --output-json diagnostico.json [--informe diagnostico.txt] [--carpeta NOMBRE] [--reimportar]
+```
+
+Se ejecuta con el Python que exige la API de PowerFactory. Al terminar quedan activos el proyecto y el caso que lo
+estaban antes. El JSON y el informe se reescriben tras cada sección, también si algo falla.
+
+Códigos de salida: 0 bien (puede haber avisos); 1 error al leer el proyecto o al restaurar el activo; 2 uso (el
+fichero no existe, no es `.pfd` o la carpeta no vale); 3 la API de PowerFactory no está disponible; 4 la importación
+falló.
+
 ## 6. Cadena completa en un solo guion
 
 Pruebas → conversión → importación, parando en el primer fallo. Guarde como

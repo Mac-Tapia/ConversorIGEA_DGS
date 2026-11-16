@@ -133,3 +133,26 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
 - [x] T26. La web: el error con su propuesta junto a la fila y la distancia y la línea tras simular o aplicar. (RF-80)
       Hecho cuando: `npm test`, `npx tsc --noEmit -p .` y `npm run build` en `frontend/` en verde, y
       `pytest -q tests/test_cargas_pf_ubicacion.py -k web` en verde.
+- [ ] T27. `tools/pfd_diagnostico.py`: importa un `.pfd` con `ComPfdimport` en un proyecto nuevo de la carpeta, por su
+      huella (reutilizar, avisar si cambió, reimportar con sufijo, versión nueva y qué cambió), y lo diagnostica en solo
+      lectura: redes y alimentadores, casos con escenario, variaciones y hora, escenarios, variaciones y etapas con lo
+      que dan de alta, de baja o cambian y dónde se estudian, cargas por caso con totales y diferencias, recuento por
+      clase y tipos, aviso de exportación reducida, JSON e informe aunque reviente y restauración del proyecto y el
+      caso activos; con el doble `tests/fake_pf.py`. (RF-81, RF-82, RF-83, RF-84, RF-85, RF-86, RF-87, RF-88,
+      RF-89, RF-90, RF-91, RF-92, RF-93, RF-94, RF-95, RF-96, RF-97, RF-98, RF-99, RF-100, RF-101, RF-102)
+      Hecho cuando: `pytest -q tests/test_pfd_diagnostico.py tests/test_pf_servidor.py tests/test_compat_python39.py`
+      en verde.
+- [ ] T28. Vínculo del proyecto con los ficheros de su expediente por su contenido, con la evidencia de cada vínculo,
+      reutilizando `pide_dataset.py` y el lector común de libros; sus RF entran con la tarea (texto acordado en
+      `plan.md`).
+      Hecho cuando: las pruebas sintéticas de vínculos están en verde.
+- [ ] T29. La web: subir el `.pfd`, el trabajo en el carril `powerfactory` y el informe del diagnóstico; sus RF entran
+      con la tarea (texto acordado en `plan.md`).
+      Hecho cuando: `pytest -q tests/test_web_api.py`, `npx tsc --noEmit -p .` y `npm run build` en verde.
+- [ ] T30. [DIgSILENT] Prueba real con el usuario: importar desde la web dos `.pfd` reales de prueba y revisar el
+      diagnóstico de sus casos, escenarios, cargas, proyectos nuevos y vínculos. (RF-81 a RF-107)
+      Hecho cuando: el usuario lo acepta en DIgSILENT.
+- [ ] T31. El proyecto de la versión anterior de un `.pfd` se renombra con «_anterior_<sha10>_<AAAAMMDD-HHMMSS>» y se
+      conserva; el nuevo toma el nombre base; si el anterior está activo se desactiva antes y se dice; el informe nombra
+      los dos; con el doble `tests/fake_pf.py`. (RF-101, RF-103, RF-104, RF-105, RF-106, RF-107)
+      Hecho cuando: `pytest -q tests/test_pfd_diagnostico.py -k "version or anterior"` en verde.

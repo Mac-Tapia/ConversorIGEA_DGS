@@ -50,6 +50,10 @@ dispara despeja la falla y la traza termina, como en DIgSILENT. Los atributos co
 la falla (``shcobj``, ``iopt_shc``, ``Rf``, ``Xf``, ``iopt_allbus``) no están en la referencia:
 el doble los tiene para que la prueba del guion siga el mismo camino que la sonda real (T4).
 
+Para la spec 004 (RF-81 a RF-102, importar un ``.pfd``) imita ``ComPfdimport`` (:class:`ImportacionPfd`), el
+«Delete Object» de una etapa (``IntSdel``, :func:`baja_en_etapa`), el ``root_id`` de sus copias y, en un proyecto con
+``_ultimo_caso``, que activarlo reactive el último caso, como DIgSILENT.
+
 Para el escenario de operación (spec 006, RF-27): con ``app.escenario_manda``, la
 potencia de una carga es dato de operación, como en DIgSILENT. Con un escenario activo
 se escribe en él y, si la guarda, se lee de él, no de la carga ni de su variación. SI213
@@ -205,7 +209,13 @@ class Obj:
 
     def Activate(self, *_a):
         if self._clase == 'IntPrj' and self._app is not None:
+            previo = self._app.activo
+            if previo is not None and previo is not self and '_ultimo_caso' in vars(previo):
+                object.__setattr__(previo, '_ultimo_caso', self._app.caso)
             self._app.activo = self
+            if '_ultimo_caso' in vars(self):
+                # 004:RF-88: un proyecto que recuerda su caso lo reactiva al activarse, como DIgSILENT.
+                self._app.caso = self._ultimo_caso
         # Como ``IntSstage.Activate(1)`` en DIgSILENT: la etapa pasa a ser la que graba
         # (spec 011, T15c: la transferencia devuelve la que grababa antes de su cálculo).
         if self._clase == 'IntSstage' and self._app is not None and not self._empatada():
@@ -227,6 +237,9 @@ class Obj:
 
     def Deactivate(self, *_a):
         if self._clase == 'IntPrj' and self._app is not None and self._app.activo is self:
+            if '_ultimo_caso' in vars(self):
+                object.__setattr__(self, '_ultimo_caso', self._app.caso)
+                self._app.caso = None
             self._app.activo = None
         return 0
 
@@ -269,6 +282,36 @@ class Importacion(Obj):
         app.importados.append(nuevo_proyecto(app, app.usuario, nombre,
                                              alimentadores=app.alimentadores_al_importar))
         return 0
+
+
+class ImportacionPfd(Obj):
+    """``ComPfdimport`` (spec 004, RF-81): importa en ``g_target`` lo que ``app.pfd_contenidos[g_file]`` construye.
+
+    ``app.pfd_contenidos`` asocia la ruta de un fichero a ``f(app, carpeta) -> [IntPrj]``, que crea los proyectos
+    como los traería el ``.pfd``. ``GetImportedObjects`` devuelve lo de la última ejecución, como la API.
+    """
+
+    def Execute(self):
+        app = self._app
+        crear = app.pfd_contenidos.get(str(getattr(self, 'g_file', '')))
+        destino = getattr(self, 'g_target', None)
+        if app.fallar_pfd or crear is None or destino is None:
+            object.__setattr__(self, '_importados', [])
+            return 1
+        object.__setattr__(self, '_importados', list(crear(app, destino)))
+        app.importados_pfd.append(self)
+        return 0
+
+    def GetImportedObjects(self):
+        return list(vars(self).get('_importados', []))
+
+
+def baja_en_etapa(etapa, obj, nombre=None):
+    """Un «Delete Object» (``IntSdel``) de ``obj`` dentro de ``etapa`` (004:RF-91), sin anotarlo como escritura."""
+    baja = Obj(etapa._app, 'IntSdel', nombre or obj.loc_name, etapa)
+    object.__setattr__(baja, 'root_id', obj)
+    etapa._hijos.append(baja)
+    return baja
 
 
 #: Lo que de una carga guarda el escenario de operación con ``app.escenario_manda``.
@@ -402,6 +445,9 @@ class Delta:
         if nombre in attrs:
             return attrs[nombre]
         obj = self.__dict__['_obj']
+        if nombre == 'root_id':
+            # 004:RF-91: como en DIgSILENT, la copia de etapa («Delta Object») apunta al objeto que cambia.
+            return obj
         if nombre == 'qlini' and isinstance(obj, Carga) and obj.mode_inp != 'PQ' and (
                 'plini' in attrs or 'coslini' in attrs):
             # En modo PC la Q de la copia sale de su P y su cos φ, no de la carga de ahora.
@@ -1347,6 +1393,7 @@ class TrazaCortocircuito(Orden):
 
 
 _CLASES = {'ElmLod': Carga, 'IntScheme': Variacion, 'IntSstage': Etapa, 'ComImport': Importacion,
+           'ComPfdimport': ImportacionPfd,
            'IntCase': Caso, 'IntScenario': Escenario,
            'StaSwitch': Interruptor, 'ElmCoup': Interruptor,
            'ComSimoutage': Contingencias, 'ComOutage': Contingencia,
@@ -1400,6 +1447,10 @@ class App:
         self.fallar_mover = False
         self.fallar_importacion = False
         self.alimentadores_al_importar = ('F1',)
+        # spec 004, RF-81: ``ComPfdimport``
+        self.pfd_contenidos = {}
+        self.importados_pfd = []
+        self.fallar_pfd = False
 
     # ----------------------------------------------------------- spec 011
     @property
@@ -1504,7 +1555,9 @@ class App:
         return self.ldf_valido
 
     def GetCalcRelevantObjects(self, patron):
-        return self.proyecto.GetContents(patron, 1) if self.proyecto else []
+        # Sin ``proyecto`` fijado, el proyecto activo (004:RF-93: un proyecto importado de un .pfd).
+        prj = self.proyecto if self.proyecto is not None else self.activo
+        return prj.GetContents(patron, 1) if prj is not None else []
 
     # ----------------------------------------------------------- spec 016
     def SplitLine(self, linea, percent=50, createSwitchSide0=0, createSwitchSide1=0,

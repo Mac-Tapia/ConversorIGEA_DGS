@@ -496,7 +496,10 @@ BORRADOS = {
         'tools/obras_pf.py::_borrar_creadas',
         'tools/powerfactory_acceptance.py::import_dgs_file', 'tools/run_one_study.py::main',
         'tools/set_nueva_operacion_pf.py::ejecutar', 'tools/transferencia_pf.py::_con_comtransfer',
-        'tools/transferencia_pf.py::_en_un_caso'},
+        'tools/transferencia_pf.py::_en_un_caso',
+        # 004:RF-81, RF-84: el ComPfdimport que crea la importación y su carpeta provisional del usuario (solo si queda
+        # vacía): los dos los creó esta misma ejecución; los proyectos importados se mueven y nunca se borran (RF-103).
+        'tools/pfd_diagnostico.py::importar'},
     # Objetos con nombre propio del conversor, en el proyecto activado por la orden, que se renuevan sin duplicar.
     'renovado': {
         'src/convertersmartgrid/carpeta_pf.py::eliminar_versiones_anteriores',

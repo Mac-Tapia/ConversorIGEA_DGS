@@ -125,3 +125,47 @@ módulo de cargas del 2026-10-08 (resumida en el contexto de la spec).
 - Pruebas: `tests/test_cargas_pf_ubicacion.py`, sintéticas (un dígito de menos en Y, X/Y y Lat/Lon intercambiadas, un
   punto bueno, el tope del perfil, la reutilización con y sin cambios con `tests/fake_pf.py`). La fila real de SE0001 se
   comprueba en solo lectura con la geografía de PA217 del espacio del usuario; sus cifras no van a git.
+
+## Importar y diagnosticar un `.pfd` (RF-81 a RF-107, 2026-11-14)
+
+- `tools/pfd_diagnostico.py` (T27), guion de DIgSILENT que corre en su propio proceso (`pf_arnes.GUIONES_EN_SU_PROCESO`,
+  porque crea proyectos, como la aceptación). Reutiliza `carpeta_pf` (`asegurar_carpeta`, `nombre_libre`,
+  `proyectos_de`, `alimentadores_de`, `validar_nombre`, `nombre_de_perfil`).
+- Importación (RF-81, RF-84, RF-101): `ComPfdimport` creado en el usuario, con las propiedades que da la ayuda de PF 2024
+  (Python Reference §5.4.31 para `GetImportedObjects`; User Manual §8.1.4.3 y los textos de atributos de
+  `localisation/en-GB/data.db` para `g_file` «PFD file», `g_target` «New Path» y `activatePrj` «Activate project after
+  import»). Se importa en una `IntFolder` provisional dentro de la carpeta del conversor, el proyecto se renombra con
+  `<fichero>_<huella[:10]>` y el sufijo libre (`nombre_libre`), se mueve a la carpeta y la provisional se borra. Así un
+  proyecto del `.pfd` con el nombre de otro existente no choca nunca.
+- Huella (RF-82, RF-83, RF-101, RF-102): la marca `CSG_PFD:` en `desc` del proyecto guarda el sha256 del fichero, su
+  nombre, la huella del diagnóstico (redes, casos, escenarios, variaciones, cargas por caso y recuento, sin el caso
+  activo ni los avisos) y un resumen para comparar versiones. Reutilizar compara la huella del diagnóstico de ahora con
+  la guardada; si difiere, avisa y diagnostica lo que hay. Una versión nueva (mismo nombre, otra huella) compara su
+  resumen con el guardado en la marca de la anterior, sin activarla ni tocarla. Descartado comparar con la huella del
+  inventario nativo (`native_inventory_evidence`): no ve P, Q, casos ni escenarios.
+- Diagnóstico (RF-85 a RF-97): solo `GetContents` dentro del proyecto y de sus carpetas (`iopt_typ` `netdat`, `study`,
+  `scen`, `scheme`, `lib`), `GetCalcRelevantObjects('*.ElmLod')` por caso y `ElmFeeder.GetObjs('ElmLod')`. Cada caso se
+  activa uno a uno para leerlo y al final se vuelve al que estaba (RF-88, RF-100); nunca se desactiva un escenario.
+  Lo que da una etapa (RF-91): un `IntSdel` («Delete Object» en `data.db`) es una baja de su `root_id`; un objeto con
+  `root_id` («Original Location») es un cambio de ese objeto; uno sin `root_id`, un alta. Vigente en un caso (RF-92): su
+  variación está activa en el caso, su `tAcTime` no pasa de la `iStudyTime` del caso y `IsExcluded()` no es 1; con tres
+  o más vigentes de la misma fecha se avisa (regla medida en DIgSILENT: no aplica ninguna). Caso de referencia (RF-95):
+  el activo al empezar o, sin él, el primero por nombre, y se dice cuál.
+- Reducida (RF-97): un caso, ningún escenario y ninguna variación es lo que deja la exportación de una instantánea
+  (User Manual §8.1.4.2).
+- Salida (RF-98, RF-99): el JSON y el informe `.txt` se reescriben con `os.replace` tras cada sección, y en el `finally`
+  con el error y la traza, para que un fallo a mitad deje lo leído.
+- Pruebas: `tests/test_pfd_diagnostico.py` con `tests/fake_pf.py` ampliado (`ComPfdimport`, `IntSdel`, `root_id` de las
+  copias de etapa, el caso que recuerda cada proyecto al activarlo), con nombres, cargas, casos y fechas sorteados.
+- RF de T28 (a numerar con la tarea): EL SISTEMA vinculará el proyecto con los ficheros de su expediente cuando su
+  contenido nombre sus casos, escenarios, alimentadores, SET o proyectos; y, por separado, cada vínculo llevará su
+  evidencia (fichero, hoja o página y texto), sin que un nombre de fichero parecido baste.
+- RF de T29 (a numerar con la tarea): CUANDO el operador suba un `.pfd` en la web, EL SISTEMA lanzará el diagnóstico en
+  el carril `powerfactory`; y EL SISTEMA mostrará en la web el informe sacado del JSON de la corrida.
+- Versión anterior (RF-103 a RF-107, T31): solo cuando `ComPfdimport` ya dejó el proyecto nuevo en la provisional,
+  `ejecutar` renombra los proyectos vigentes de la versión anterior (los de la marca con el mismo fichero, otra huella
+  y sin `anterior`). Si uno está activo, lo desactiva antes y lo avisa. Les pone `<fichero>…_anterior_<sha10>_<sello>`
+  en 40 caracteres: se recorta el nombre del fichero, nunca el sufijo. A su marca le añade `anterior` (nombre previo,
+  sello y huella de la versión nueva), para no renombrarlo otra vez con la versión siguiente. Después, el nuevo toma
+  el nombre base. Si ese nombre lo ocupa otro proyecto, se usa el sufijo libre y se avisa (nunca se pisa). Si la
+  importación falla, la versión anterior se queda con su nombre.

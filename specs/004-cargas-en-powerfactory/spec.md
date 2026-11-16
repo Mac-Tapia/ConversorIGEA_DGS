@@ -1,6 +1,6 @@
 # Spec 004 — Cargas en un proyecto existente de DIgSILENT
 
-Estado: cumplida (2026-11-12: RF-72 a RF-80, la ubicación de la carga nueva antes de conectarla; 2026-11-08: T20 en DIgSILENT, PE102 con CH_13 y CH_22, TR_CH_22 al 81 % aceptado por el usuario; 2026-11-06: faltaba T20, RF-68 y RF-69 del transformador de ficha; antes cumplida el 2026-10-14, verificación RF por RF; RF-58 a RF-61 el 2026-10-21); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
+Estado: aprobada (2026-11-14: RF-81 a RF-107, importar y diagnosticar un .pfd, T27 a T31; cumplida el 2026-11-12: RF-72 a RF-80, la ubicación de la carga nueva antes de conectarla; 2026-11-08: T20 en DIgSILENT, PE102 con CH_13 y CH_22, TR_CH_22 al 81 % aceptado por el usuario; 2026-11-06: faltaba T20, RF-68 y RF-69 del transformador de ficha; antes cumplida el 2026-10-14, verificación RF por RF; RF-58 a RF-61 el 2026-10-21); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
 
 ## Contexto y objetivo
 
@@ -340,6 +340,64 @@ al volver a aplicar, la carga mal puesta se reutilizó por su nombre (014:RF-24)
   con un botón para usarla, y en el plan del libro de cargas nuevas— y, tras simular o aplicar, la distancia al nodo de
   conexión y la longitud de la línea de cada carga.
 
+Importar y diagnosticar un `.pfd` (usuario, 2026-11-14): «para importar a DIgSILENT los PIT u otro estudio con la
+extensión PFD, y diagnosticar ese archivo: cómo está hecho, sus casos de estudio, sus escenarios de operación, sus
+cargas»; y «en ese mismo .pfd se hacen los estudios y los nuevos proyectos del PIT según sus escenarios de estudio». El
+diagnóstico muestra, de cada variación o etapa, qué da de alta, de baja o cambia, con su año, y en qué escenario y caso
+se estudia. Vale para cualquier distribuidora y cualquier proyecto de DIgSILENT, convertido o no por el conversor: los
+casos, escenarios, variaciones y clases se leen de lo que traiga el proyecto, sin listas fijas. Los `.pfd` se
+reemplazan cada cierto periodo: cada uno se identifica por su huella (sha256), no por su nombre.
+
+- RF-81: CUANDO se pida importar un fichero `.pfd`, EL SISTEMA lo importará con `ComPfdimport` en un proyecto nuevo de
+  la carpeta de proyectos del conversor, con un nombre que lleve la huella del fichero.
+- RF-82: SI en la carpeta ya hay un proyecto importado con la misma huella y sin cambios desde que se importó, ENTONCES
+  EL SISTEMA lo reutilizará y no importará el fichero otra vez.
+- RF-83: SI el proyecto importado con la misma huella cambió en DIgSILENT después de importarlo, ENTONCES EL SISTEMA lo
+  avisará y no importará encima de él.
+- RF-84: CUANDO el operador pida reimportar un `.pfd`, EL SISTEMA lo importará siempre en un proyecto nuevo, con el
+  sufijo libre de la carpeta, sin tocar los anteriores.
+- RF-85: EL SISTEMA diagnosticará el proyecto en solo lectura, sin escribir en él ni ejecutar cálculos.
+- RF-86: EL SISTEMA dará las redes (`ElmNet`) del proyecto con sus alimentadores (`ElmFeeder`).
+- RF-87: EL SISTEMA dará cada caso de estudio con su escenario de operación, sus variaciones activas y su hora de estudio.
+- RF-88: EL SISTEMA dirá qué caso de estudio estaba activo en el proyecto al empezar el diagnóstico.
+- RF-89: EL SISTEMA dará cada escenario de operación con los casos de estudio que lo tienen activo.
+- RF-90: EL SISTEMA dará cada variación con sus etapas y la fecha de activación de cada etapa.
+- RF-91: EL SISTEMA dirá de cada etapa lo que da de alta, de baja o cambia, con la clase y el nombre de cada elemento y
+  el año de la etapa.
+- RF-92: EL SISTEMA dirá de cada etapa en qué casos de estudio está vigente y con qué escenario de operación se estudia
+  en cada uno.
+- RF-93: EL SISTEMA dará, para cada caso de estudio, sus cargas con su P, su Q, su escala, su característica y su
+  alimentador.
+- RF-94: EL SISTEMA dará los totales de P y Q de las cargas de cada caso de estudio, por alimentador y del proyecto.
+- RF-95: EL SISTEMA dará las cargas cuya P, Q o presencia difieren entre cada caso de estudio y el caso de referencia.
+- RF-96: EL SISTEMA dará el recuento de los elementos de red y de los tipos (`Typ*`) del proyecto, por clase.
+- RF-97: SI el proyecto trae un solo caso de estudio, ningún escenario de operación y ninguna variación, ENTONCES EL
+  SISTEMA avisará de que puede venir de una exportación reducida y de lo que no trae, sin inventarlo.
+- RF-98: EL SISTEMA entregará el diagnóstico como un JSON de la corrida y un informe de texto legible, sacados de lo que
+  leyó la corrida.
+- RF-99: SI una llamada a DIgSILENT falla o el proceso revienta, ENTONCES EL SISTEMA guardará el JSON y el informe con lo
+  leído hasta ese punto y el mensaje del error (008:RF-17).
+- RF-100: CUANDO termine el diagnóstico, también tras un error, EL SISTEMA dejará activos el proyecto y el caso de
+  estudio que lo estaban antes.
+- RF-101: SI llega un `.pfd` con el mismo nombre de fichero que uno ya importado y otra huella, ENTONCES EL SISTEMA lo
+  importará como versión nueva en un proyecto nuevo, sin importar encima del de la versión anterior.
+- RF-102: CUANDO importe una versión nueva de un `.pfd`, EL SISTEMA dirá qué cambió frente a la versión anterior en los
+  casos de estudio, los escenarios, las variaciones, los totales de cargas por alimentador y el recuento por clase.
+
+El proyecto de la versión anterior se renombra (usuario, 2026-11-14, por 3e: «el proyecto anterior, al reimportar un
+.pfd, se RENOMBRA»). 005:RF-22, eliminar los duplicados obsoletos, sigue valiendo para los proyectos que la web importa
+desde un DGS; los `.pfd` versionados se renombran y se conservan.
+
+- RF-103: CUANDO se importe una versión nueva de un `.pfd` ya importado, EL SISTEMA renombrará el proyecto de la versión
+  anterior con el sufijo «_anterior_<sha10>_<AAAAMMDD-HHMMSS>», con la huella de esa versión, y lo conservará.
+- RF-104: CUANDO se importe una versión nueva de un `.pfd`, EL SISTEMA dará al proyecto nuevo el nombre base de RF-81,
+  sin sufijo.
+- RF-105: EL SISTEMA nunca borrará ni sobrescribirá el proyecto de una versión anterior de un `.pfd`.
+- RF-106: SI el proyecto de la versión anterior está activo, ENTONCES EL SISTEMA lo desactivará antes de renombrarlo y lo
+  dirá en el informe.
+- RF-107: EL SISTEMA nombrará en el informe el proyecto de la versión nueva y el de la anterior, con el nombre que tenía
+  y el que tiene ahora.
+
 ## Requisitos no funcionales
 
 - Universal (P13): ninguna tensión, frecuencia ni CRS de una empresa como valor fijo.
@@ -351,6 +409,9 @@ al volver a aplicar, la carga mal puesta se reutilizó por su nombre (014:RF-24)
 - Demanda medida (P9): los libros son datos de la distribuidora; las pruebas usan libros
   sintéticos y, con datos reales, una variable de entorno que apunta a ellos.
 - Escala: cualquier número de alimentadores y de filas; nada fijo en código ni pruebas.
+- `.pfd`: cualquier versión de DIgSILENT de la spec 103; el guion se importa en el Python 3.9 (103:RF-5).
+- `.pfd`: nunca `GetContents(…, 1)` sobre el usuario; nunca se activa el primer caso a ciegas; nunca se desactiva un
+  escenario (sin argumento, `Deactivate` descarta).
 - Idioma y estilo del proyecto (P10). Nada largo en una petición HTTP (P7).
 
 ## Casos límite
@@ -381,6 +442,12 @@ al volver a aplicar, la carga mal puesta se reutilizó por su nombre (014:RF-24)
 - Borrar o mover cargas existentes.
 - Cambios en la evaluación técnico-económica (`ComTececo`): se conserva tal cual, ahora
   sobre la variación del lote.
+- `.pfd` (RF-81 a RF-107): el diagnóstico solo lee. Los estudios y los proyectos nuevos del PIT que se hagan en ese
+  mismo `.pfd` usan, sobre el proyecto importado, los flujos que ya existen: la calibración (specs 006, 014 y 025), las
+  obras y los estudios (spec 011) y la factibilidad de una carga nueva (specs 017 y 063). El diagnóstico no crea
+  casos, escenarios ni variaciones, no ejecuta flujos y, de la versión anterior, solo cambia el nombre (RF-103).
+- `.pfd`: el vínculo con los ficheros del expediente (libros, Word, PDF, planos y cronogramas), que se hará por su
+  contenido, y la subida del `.pfd` y el informe en la web van en las tareas T28 y T29, con sus RF.
 
 ## Criterios de finalización
 
