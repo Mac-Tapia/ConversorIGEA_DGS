@@ -91,6 +91,9 @@ const DINAMICOS = {
   'web/app.py': { llamadas: 3, kinds: ['aprendizaje'] },
   // vnr/web/app.py: el submit(kind, title, fn) del adaptador, con 'download' y f'vnr_export_{target}' (cymdist o dgs).
   'adaptadores/entrada/vnr/web/app.py': { llamadas: 2, kinds: ['download', 'vnr_export_cymdist', 'vnr_export_dgs'] },
+  // web/nube_selector.py (109): `formulario.submit()` es JavaScript de la página del selector, dentro de una cadena de
+  // Python; envía un formulario del navegador, no encola ningún trabajo.
+  'web/nube_selector.py': { llamadas: 1, kinds: [] },
 };
 
 /** Kinds que el servidor ya no encola pero que siguen en el historial de los espacios: sus avisos se muestran igual.
@@ -208,7 +211,7 @@ test('086:RF-74 086:RF-71 arriba: la copia en una línea, y de trabajos solo los
   const jobs = porId(trabajo('load', 'interrumpido', { title: 'Cargar / listar alimentadores' }),
     trabajo('libros_nuevos', 'failed', { title: 'Reconocer libros nuevos de demanda' }));
   const html = arriba(jobs, ['results', 'cargas'], { health: { copia_datos: { vencida: true, edad_dias: null } } });
-  assert.match(html, /<details class="alert alert-warn aviso-linea"[^>]*><summary>Aún no hay ninguna copia de sus datos\./);
+  assert.match(html, /<details class="alert alert-warn aviso-linea"[^>]*><summary>No consta ninguna copia de sus datos\./);
   assert.ok(html.includes('<span class="mas">más</span>'));
   assert.ok(!html.includes('Cargar / listar alimentadores'), 'el de «Cargar / listar» va a su paso, no arriba');
   assert.ok(html.includes('Trabajo fallido: Reconocer libros nuevos de demanda'));

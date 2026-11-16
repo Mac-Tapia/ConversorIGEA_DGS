@@ -1,7 +1,7 @@
 """Perfil de empresa: las convenciones de una distribuidora, fuera del código (spec 002).
 
 El conversor es universal (constitución P13). Hasta la spec 002, tres convenciones de
-Electro Dunas iban como valores por defecto: el CRS de Ica (UTM 18S), la exclusión
+una distribuidora real iban como valores por defecto: el CRS de Ica (UTM 18S), la exclusión
 de las SED cuyo código empieza por ``M`` (sus «trafomix») y la escala del diagrama de
 NA205. En otra empresa la primera desplazaba la red cientos de kilómetros sin aviso, y la
 segunda borraba SED reales que se llamaran ``M…``.
@@ -237,7 +237,7 @@ def factor_potencia_cargas(datos: dict[str, Any],
     """Un factor de potencia de la sección ``calibracion`` del perfil (015:RF-57), o None.
 
     ``factor_potencia_cargas``: el de las SED escaladas (RF-54); ``factor_potencia_minimo_fijas``:
-    el mínimo de los clientes fijos, compensados por su banco propio (RF-62). Electro Dunas
+    el mínimo de los clientes fijos, compensados por su banco propio (RF-62). una distribuidora real
     pide 0,98 en los dos (2026-10-15). Sin la clave no se supone nada (RF-55).
     """
     valor = (datos.get('calibracion') or {}).get(clave)
@@ -294,7 +294,7 @@ def completar_planeamiento(datos: dict[str, Any] | None, tipo_cambio: float | No
 def bancos_kvar_por_tension(datos: dict[str, Any]) -> dict[float, float] | None:
     """El tamaño de banco por tensión de ``calibracion.bancos_kvar_por_tension`` (021:RF-65).
 
-    Electro Dunas: 300 kvar en 10 kV y 450 kvar en 22,9 kV, los mismos de los bancos nuevos
+    una distribuidora real: 300 kvar en 10 kV y 450 kvar en 22,9 kV, los mismos de los bancos nuevos
     del informe de estudio. Sin la clave, ``None``: no se supone ninguno (P13).
     """
     valor = (datos.get('calibracion') or {}).get('bancos_kvar_por_tension')
@@ -410,7 +410,7 @@ def datos_perfil(ruta: Path | None = None, *, carpeta: Path | None = None) -> di
 
     :func:`cargar_perfil` solo valida las convenciones de la conversión; las secciones de
     otros módulos (``informes`` de la spec 017) también se heredan del perfil con nombre,
-    para que las bandas de Electro Dunas no haya que copiarlas al perfil local. Una clave
+    para que las bandas de una distribuidora real no haya que copiarlas al perfil local. Una clave
     del perfil activo pisa la heredada entera.
     """
     ruta = ruta_perfil_activo() if ruta is None else Path(ruta)
@@ -425,7 +425,7 @@ def datos_perfil(ruta: Path | None = None, *, carpeta: Path | None = None) -> di
     heredados = _leer_json(carpeta / f'{base}.json')
     combinado = {**heredados, **datos}
     # 063:RF-41: ``informes`` es una sección: el perfil local que cambia un rótulo no pierde lo demás
-    # (el local de Electro Dunas tapaba ``libro_perdidas`` y el botón del informe fallaba).
+    # (el local de una distribuidora real tapaba ``libro_perdidas`` y el botón del informe fallaba).
     if isinstance(heredados.get('informes'), dict) and isinstance(datos.get('informes'), dict):
         combinado['informes'] = {**heredados['informes'], **datos['informes']}
     return combinado
@@ -435,7 +435,7 @@ def estructura_empresa(ruta: Path | None = None, *, carpeta: Path | None = None)
     """La estructura zonal → SET → alimentadores del perfil activo, o ``None`` (022:RF-1, RF-6).
 
     El JSON aparte que nombra ``estructura`` se busca junto al perfil activo y, si no está,
-    junto a los perfiles con nombre: el local de Electro Dunas solo dice
+    junto a los perfiles con nombre: el local de una distribuidora real solo dice
     ``{"perfil": "electro_dunas"}`` y la tabla va en ``config/perfiles``.
     """
     from .estructura import EstructuraError, estructura_de_perfil

@@ -79,7 +79,7 @@ def exportar_pdf(docx: Path, *, ejecutar=None) -> tuple[Path | None, str]:
     """El PDF del informe, junto al Word, con Microsoft Word (063:RF-42).
 
     Devuelve la ruta o ``None`` con el motivo: sin Word el informe editable ya está hecho y el
-    fallo se dice, no se oculta. Es el mismo guardado de Word que dio el PDF de INKA a mano.
+    fallo se dice, no se oculta. Es el mismo guardado de Word que dio el PDF de <sitio> a mano.
     """
     import subprocess
     import time
@@ -88,7 +88,7 @@ def exportar_pdf(docx: Path, *, ejecutar=None) -> tuple[Path | None, str]:
     inicio = time.time() - 2
 
     def literal(ruta: Path) -> str:
-        # En PowerShell, dentro de comillas simples el apóstrofo se dobla: una carpeta «INKA'S» rompía la orden.
+        # En PowerShell, dentro de comillas simples el apóstrofo se dobla: una carpeta «<sitio>'S» rompía la orden.
         return "'" + str(ruta.resolve()).replace("'", "''") + "'"
 
     orden = ("$w = New-Object -ComObject Word.Application; $w.Visible = $false; "
@@ -175,7 +175,7 @@ class DatosFactibilidad:
 def abrir_modelo(ruta: Path):
     """El modelo como documento de ``python-docx``, aunque Word lo haya dejado dañado.
 
-    El modelo de Casa Blanca, reparado con Word, trae imágenes de la cabecera y del pie
+    El modelo de <sitio>, reparado con Word, trae imágenes de la cabecera y del pie
     que apuntan a «../NULL», una parte que no existe, y ``python-docx`` no lo abre. Esas
     relaciones se quitan en memoria; el fichero de la empresa no se toca.
     """
@@ -226,7 +226,7 @@ def _sin_relaciones_rotas(rels: str, datos: bytes, nombres: set[str]) -> bytes:
 def _vaciar_cuerpo(documento) -> None:
     """Quita el cuerpo del modelo y deja una sola sección: la primera del modelo.
 
-    Los dos modelos de Electro Dunas tienen dos secciones y la tabla de la cabecera (n.º
+    Los dos modelos de una distribuidora real tienen dos secciones y la tabla de la cabecera (n.º
     de informe y referencia) es de la primera; la segunda, la de los anexos, tiene otra
     cabecera sin ella. El informe nuevo empieza donde empieza el modelo, así que se queda
     con la primera: su cabecera, su pie, su tamaño de página y sus márgenes. Las
@@ -264,7 +264,7 @@ def _rellenar_cabecera(documento, rotulos: Mapping[str, str] | None, valores: Ma
     """Deja en las celdas de la cabecera solo su rótulo y, debajo, el dato de este informe.
 
     El n.º y la referencia del modelo («GT-019-PRN-2024», «CAIDA DE TENSIÓN EN
-    CASABLANCA…») no pueden pasar al informe nuevo: sin dato, la celda queda con el rótulo
+    <sitio>…») no pueden pasar al informe nuevo: sin dato, la celda queda con el rótulo
     y el hueco. Los rótulos son del perfil de empresa.
     """
     if not rotulos:
@@ -459,7 +459,7 @@ class _Escritor:
         self.huecos.append(motivo)
 
     def vinieta(self, texto: str) -> None:
-        # El modelo de Casa Blanca no trae «List Bullet»: sin él, las obras salían como
+        # El modelo de <sitio> no trae «List Bullet»: sin él, las obras salían como
         # párrafos sueltos, sin marca de lista (revisión de CA101, 2026-10-16).
         if self.estilo_lista:
             self.d.add_paragraph(texto, style=self.estilo_lista)
@@ -610,7 +610,7 @@ def _conclusiones(datos: DatosEstudio, rec, config: ConfigInforme) -> list[str]:
 def escribir_informe_estudio(config: ConfigInforme, destino: Path, datos: DatosEstudio) -> list[str]:
     """Escribe el informe de estudio en ``destino`` y su JSON al lado; devuelve los huecos.
 
-    El orden es el del modelo de Casa Blanca (RF-3), sin el recibo de luz (RF-9).
+    El orden es el del modelo de <sitio> (RF-3), sin el recibo de luz (RF-9).
     """
     _limites(config, 'estudio')
     config = config.con_bandas()

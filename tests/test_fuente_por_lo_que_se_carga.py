@@ -1,7 +1,7 @@
 """Spec 059: la fuente es la del fichero que se carga, nunca una por defecto.
 
 El 2026-11-01 la web abrió un espacio vacío como «Tres TXT de CYMDIST» cuando el operador
-trabajaba con el VNR-GIS de Electro Oriente. Estas pruebas fijan que ningún espacio nace con
+trabajaba con el VNR-GIS de una distribuidora real. Estas pruebas fijan que ningún espacio nace con
 fuente, que la fuente sale de lo cargado y que cada fichero va a su casilla por su contenido.
 """
 
@@ -80,6 +80,14 @@ def test_espacio_nuevo_sin_fuente(client):
     assert 'TXT' in pendiente and 'Access' in pendiente and 'VNR-GIS' in pendiente
 
 
+def test_lo_pendiente_sin_fuente_no_encadena_dos_puntos(client):
+    """086:RF-110: «Pendientes: …» y «Faltan entradas: …» con un solo «:»; con la cuenta local, la web decía
+    «Pendientes: la fuente: los tres TXT…» (2026-11-16)."""
+    pendiente = ', '.join(_nuevo(client)['missing_inputs'])
+    for prefijo in ('Pendientes: ', 'Faltan entradas: '):
+        assert (prefijo + pendiente).count(':') == 1, prefijo + pendiente
+
+
 def test_al_abrir_la_fuente_sale_de_las_entradas(tmp_path):
     """059:RF-2: guardado como «txt» con solo un paquete VNR-GIS abre como VNR-GIS; sin
     entradas, sin fuente."""
@@ -126,7 +134,7 @@ def test_la_zona_txt_no_mezcla_fuentes(client, tmp_path):
 def test_casilla_vnr_fija_la_fuente(client, tmp_path):
     """059:RF-3: un paquete en la casilla de VNR-GIS deja la fuente en VNR-GIS."""
     wid = _nuevo(client)['id']
-    paquete = _zip_vnr(tmp_path / 'ELOR.zip')
+    paquete = _zip_vnr(tmp_path / 'EMPB.zip')
     r = client.post(f'/api/workspaces/{wid}/inputs/vnr_package/path', json={'path': str(paquete)})
     assert r.status_code == 200, r.text
     assert r.json()['workspace']['options']['input_mode'] == 'vnr'

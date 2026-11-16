@@ -1,5 +1,5 @@
 {
-  "_nota": "Precios públicos de la web, solo como referencia (spec 017, RF-39d). Sustitúyalos por las cotizaciones de la empresa y ponga referencial en false. El precio de la energía se toma del libro de pérdidas de la empresa; el mantenimiento anual no tiene fuente pública y queda en null.",
+  "_nota": "Precios públicos de la web, solo como referencia. Sustitúyalos por las cotizaciones de la empresa y ponga referencial en false. El precio de la energía se toma del libro de pérdidas de la empresa; el mantenimiento anual no tiene fuente pública y queda en null.",
   "precio_energia": null,
   "bancos": [
     {

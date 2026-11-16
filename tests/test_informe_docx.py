@@ -146,7 +146,7 @@ def _filas(ruta: Path) -> list[list[str]]:
 
 # --------------------------------------------------------------------------- RF-2, RF-3
 def test_estudio_con_las_secciones_del_modelo_en_orden(tmp_path):
-    """017:RF-2, 017:RF-3 — un .docx con las secciones de Casa Blanca en su orden."""
+    """017:RF-2, 017:RF-3 — un .docx con las secciones de <sitio> en su orden."""
     destino = tmp_path / 'salida' / 'informe.docx'
     escribir_informe_estudio(_config(tmp_path), destino, _estudio(tmp_path))
     texto = _texto(destino)
@@ -413,7 +413,7 @@ def test_las_imagenes_son_las_de_digsilent(tmp_path):
     with zipfile.ZipFile(destino) as z:
         cuerpo = z.read('word/document.xml').decode('utf-8')
     # Ubicación, tensión y cargabilidad de los dos estados, y otra vez la ubicación actual
-    # junto a la proyectada en el escenario actual y proyectado, como en Casa Blanca.
+    # junto a la proyectada en el escenario actual y proyectado, como en <sitio>.
     assert cuerpo.count('<pic:pic') == 7
 
 

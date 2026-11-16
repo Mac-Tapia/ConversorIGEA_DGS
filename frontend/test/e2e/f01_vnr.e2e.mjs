@@ -2,7 +2,7 @@
  * F01 VNR universal (Plan Maestro V1, §31.6; F-12): elegir la entrada VNR-GIS con el teclado, subir un paquete,
  * cargarlo y ver sus alimentadores, sin suponer el CRS ni la empresa y sin salir a la red. axe en cada estado.
  */
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test, expect, captura, revisarAxe, sinRedNiErrores } from './comun.mjs';
 import { ALIMENTADORES, escribirPaquete } from './vnr_sintetico.mjs';
@@ -19,7 +19,12 @@ test('F01 VNR: paquete sintético cargado por teclado, con sus alimentadores y s
     await expect(opciones).toHaveCount(3);
     const vnr = grupo.getByRole('radio', { name: 'VNR-GIS' });
     await opciones.first().focus();
-    for (let i = 0; i < 3 && (await vnr.getAttribute('aria-checked')) !== 'true'; i++) await page.keyboard.press('ArrowRight');
+    for (let i = 0; i < 3 && (await vnr.getAttribute('aria-checked')) !== 'true'; i++) {
+      await page.keyboard.press('ArrowRight');
+      // Cada flecha cambia la opción en el servidor: se espera a que el grupo vuelva a estar activo antes de la siguiente.
+      await page.waitForTimeout(300);
+      await expect(grupo.getByRole('radio', { disabled: true })).toHaveCount(0);
+    }
     await expect(vnr).toHaveAttribute('aria-checked', 'true');
     await expect(vnr).toBeFocused();
     await expect(page.getByText('Paquete oficial VNR-GIS')).toBeVisible();
@@ -45,7 +50,8 @@ test('F01 VNR: paquete sintético cargado por teclado, con sus alimentadores y s
     await expect(resumen).toBeHidden();
 
     // 4. Los alimentadores del paquete, todos y solo ellos, en la tabla.
-    for (const a of ALIMENTADORES) await expect(page.getByRole('cell', { name: a, exact: true })).toBeVisible();
+    // En el paquete sintético el nombre y el código del alimentador coinciden: dos celdas de la misma fila.
+    for (const a of ALIMENTADORES) await expect(page.getByRole('cell', { name: a, exact: true }).first()).toBeVisible();
     // Con la entrega cargada aparecen las pestañas que la necesitan; siguen siendo pestañas de teclado.
     await expect(page.getByRole('tab', { name: 'Resultados' })).toBeVisible();
     await captura(page, FLUJO, '4_alimentadores');
@@ -57,6 +63,7 @@ test('F01 VNR: un fichero que no es un paquete se rechaza con un mensaje claro, 
   async ({ web: page, externas, errores }, testInfo) => {
     await page.getByRole('radio', { name: 'VNR-GIS' }).click();
     const roto = join(testInfo.outputDir, 'no_es_un_paquete.zip');
+    mkdirSync(testInfo.outputDir, { recursive: true }); // Playwright la crea solo al adjuntar; aquí se escribe antes
     writeFileSync(roto, 'esto no es un zip');
     const casilla = page.locator('.slot').filter({ hasText: 'Paquete o base VNR-GIS' });
     await casilla.locator('input[type="file"]').setInputFiles(roto);

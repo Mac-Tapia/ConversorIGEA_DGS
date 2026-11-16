@@ -1,0 +1,16 @@
+{
+  "_nota": "Copie este fichero como config/nube.json y ponga los datos de SU registro de prueba (docs/NUBE_REGISTRO_OAUTH.md: Google Cloud en modo Testing o Azure con cuentas personales). config/nube.json no entra en el repositorio. Quite el bloque del proveedor que no use.",
+  "google": {
+    "id_cliente": "<identificador del cliente de escritorio>.apps.googleusercontent.com",
+    "secreto": "<el secreto que da Google al cliente de escritorio; no es confidencial, pero no se sube al repositorio>",
+    "uri_retorno": "http://127.0.0.1:8765/nube/retorno",
+    "clave_api": "<clave de API del proyecto, para Google Picker (es pública por diseño)>",
+    "id_aplicacion": "<número del proyecto de Google Cloud>"
+  },
+  "microsoft": {
+    "id_cliente": "<identificador de la aplicación (cliente) de Azure>",
+    "inquilino": "consumers",
+    "uri_retorno": "http://localhost:8765/nube/retorno",
+    "url_selector": ""
+  }
+}

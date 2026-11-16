@@ -15,7 +15,8 @@
     "salidas_red.py",
     "sesion_web.py",
     "registro_rotativo.py",
-    "cli.py"
+    "cli.py",
+    "privacidad.py"
    ]
   },
   {
@@ -173,7 +174,11 @@
     "entradas_estudios.py",
     "historico_interrupciones.py",
     "protecciones.py",
-    "transferencia_pf.py"
+    "transferencia_pf.py",
+    "plano_red.py",
+    "pagina_plano.py",
+    "variacion_plano.py",
+    "resultados_plano.py"
    ]
   },
   {
@@ -192,7 +197,8 @@
     "correo/borrador.py",
     "correo/envios.py",
     "correo/mensaje.py",
-    "correo/proveedores.py"
+    "correo/proveedores.py",
+    "correo/de_la_109.py"
    ]
   },
   {
@@ -234,6 +240,7 @@
     "pit/formatos_red.py",
     "pit/expediente.py",
     "pit/informe.py",
+    "pit/unifilar.py",
     "web/rutas_pit.py"
    ]
   },
@@ -251,6 +258,26 @@
     "upstream_ia.py",
     "evaluacion_harness/estadistica.py",
     "evaluacion_harness/informe_final.py"
+   ]
+  },
+  {
+   "titulo": "Motor: benchmarks anonimizados",
+   "base": "src/convertersmartgrid/benchmarks/",
+   "ficheros": [
+    "__init__.py",
+    "seudonimos.py",
+    "manifiesto.py",
+    "geometria.py",
+    "geometria_publica.py",
+    "publicable.py",
+    "sintetico.py",
+    "evaluacion.py",
+    "cohortes.py",
+    "redes.py",
+    "reproduccion.py",
+    "series.py",
+    "reidentificacion.py",
+    "semilla.py"
    ]
   },
   {
@@ -396,6 +423,7 @@
     "copia_datos_api.py",
     "correo_api.py",
     "mapa_cargas_api.py",
+    "plano_api.py",
     "entradas_estudios_api.py",
     "retencion.py",
     "libros_nuevos.py",
@@ -405,7 +433,27 @@
     "sources/__init__.py",
     "sources/vnr.py",
     "evolucion_fijas.py",
-    "evolucion_fijas_api.py"
+    "evolucion_fijas_api.py",
+    "nube_api.py",
+    "nube.py",
+    "nube_selector.py"
+   ]
+  },
+  {
+   "titulo": "Nube: Google Drive y OneDrive (spec 109)",
+   "base": "src/convertersmartgrid/",
+   "ficheros": [
+    "adaptadores/nube/__init__.py",
+    "adaptadores/nube/proveedor.py",
+    "adaptadores/nube/http.py",
+    "adaptadores/nube/oauth.py",
+    "adaptadores/nube/cuentas.py",
+    "nube_cofre.py",
+    "adaptadores/nube/google_drive.py",
+    "adaptadores/nube/onedrive.py",
+    "adaptadores/entrada/nube.py",
+    "adaptadores/salida/__init__.py",
+    "adaptadores/salida/nube.py"
    ]
   },
   {
@@ -481,6 +529,7 @@
     "transferencia_pf.py",
     "transformador_set_pf.py",
     "pit_pf.py",
+    "variacion_plano_pf.py",
     "set_nueva_operacion_pf.py",
     "pide_pf.py",
     "escenarios_pf.py",
@@ -510,6 +559,11 @@
    "titulo": "Herramientas: operación, datos y aceptación",
    "base": "tools/",
    "ficheros": [
+    "normativa/fuentes.py",
+    "normativa/generar_formatos_217.py",
+    "normativa/sombreadas_217.py",
+    "normativa/generar_coes.py",
+    "normativa/generar_reconsideraciones.py",
     "sistema_web.py",
     "informe_web.py",
     "informe_casos_guardados.py",
@@ -660,6 +714,16 @@
     "src/api/correo.ts",
     "src/features/powerfactory/MapaCargas.tsx",
     "src/features/powerfactory/puntosDeDiseno.ts",
+    "src/api/plano.ts",
+    "src/features/plano/PlanoRed.tsx",
+    "src/features/plano/InspectorElemento.tsx",
+    "src/features/plano/EdicionesPlano.tsx",
+    "src/features/plano/TablaElementos.tsx",
+    "src/features/plano/CapasResultados.tsx",
+    "src/features/plano/mensajesPlano.ts",
+    "src/features/plano/textosPlano.ts",
+    "src/features/plano/logicaPlano.ts",
+    "test/plano.test.mjs",
     "test/puntosDeDiseno.test.mjs",
     "src/app/ArchivoInformes.tsx",
     "src/shared/graficos.ts",

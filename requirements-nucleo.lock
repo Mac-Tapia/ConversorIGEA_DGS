@@ -22,8 +22,12 @@ deepdiff==9.1.0 \
     --hash=sha256:80c0460e1993b04f6f0ca79abf25548b129fd218478c4ebb08f80560f5d10610
 et-xmlfile==2.0.0 \
     --hash=sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa
+ezdxf==1.4.5 \
+    --hash=sha256:ff7e9fe0e7367e6f07c99b894d03e362c5e3b94dea0760f1f1ecb5bfd8cccb5d
 fastapi==0.141.1 \
     --hash=sha256:bfb91aa2d334c61cb35ba9a116fc123b3d3df31640b801cf57a7a78ec3f603b3
+fonttools==4.67.0 \
+    --hash=sha256:2bfab2f5d1d255dec82f4bd082a1c10e77df808e42210890f50a9c30bf91570e
 geojson==3.3.0 \
     --hash=sha256:a2d885187eeaa8b357600b3fcc9d963cb4300d1694196636dbd7eddc82fd0825
 geopandas==1.2.0 \
@@ -68,6 +72,8 @@ pyodbc==5.3.0 \
     --hash=sha256:fe77eb9dcca5fc1300c9121f81040cc9011d28cff383e2c35416e9ec06d4bc95
 pyogrio==0.13.0 \
     --hash=sha256:1b91f6d6e6757a6ea84b9459d24f479dcb52bbf4ebcdb16baf39e49d2836a1cf
+pyparsing==3.3.3 \
+    --hash=sha256:ece8c00a69cf01b45d0b1dedabb469c90d8caf996d4fda40f147627a122849a4
 pypdf==6.21.4 \
     --hash=sha256:33e4fb41ca352810eb4e9838aa0d82d6888a5f8bf682f43e99cce5faa666255c
 pyproj==3.8.0 \

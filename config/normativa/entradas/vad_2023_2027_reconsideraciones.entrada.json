@@ -1,0 +1,83 @@
+{
+ "nota": "Entrada de tools/normativa/generar_reconsideraciones.py (107, delta13; sacada del código en FIX-PUNTA, orden del auditor c3): las reconsideraciones del VAD 2023-2027 de cada empresa, con su RCD, su informe técnico, su carpeta en las fuentes y lo que se lee de él. No es una norma: el registro está en ../vad_2023_2027_reconsideraciones.json, que genera el guion.",
+ "con_causa": [
+  {
+   "empresa": "Electrocentro",
+   "rcd": "216",
+   "informe": "815",
+   "carpeta": "it_815-2023-grt",
+   "trozos": [
+    "1. OSINERGMIN acepta la incorporación",
+    "2. OSINERGMIN acepta la incorporación",
+    "3. OSINERGMIN acepta la corrección"
+   ]
+  },
+  {
+   "empresa": "Electronoroeste",
+   "rcd": "218",
+   "informe": "816",
+   "carpeta": "it_816-2023-grt",
+   "trozos": [
+    2380,
+    2404,
+    2435
+   ]
+  },
+  {
+   "empresa": "Electronorte",
+   "rcd": "217",
+   "informe": "817",
+   "carpeta": "it_817-2023-grt",
+   "trozos": [
+    "Aceptar la incorporación de las pérdidas en aisladores",
+    "Aceptar la incorporación de las pérdidas en los cables",
+    "Aceptar la corrección de las pérdidas en medidores"
+   ]
+  }
+ ],
+ "sin_causa": [
+  {
+   "empresa": "Electro Puno",
+   "rcd": "209",
+   "informe": "798",
+   "carpeta": "rcd_209-it_798",
+   "leido": "solo «pérdidas» de luminarias de alumbrado público (líneas 284 y 345)"
+  },
+  {
+   "empresa": "Adinelsa",
+   "rcd": "213",
+   "informe": "813",
+   "carpeta": "rcd_213-it_813",
+   "leido": "«pérdidas activas» como límite de distancias (línea 445); aisladores solo como mantenimiento (568, 694-696)"
+  },
+  {
+   "empresa": "Electro Oriente",
+   "rcd": "214",
+   "informe": "807",
+   "carpeta": "rcd_214-it_807",
+   "leido": "pérdidas de lámparas de AP (línea 317) y ajuste de pérdidas reconocidas de AP rural (339)"
+  },
+  {
+   "empresa": "Hidrandina",
+   "rcd": "215",
+   "informe": "818",
+   "carpeta": "rcd_215-it_818",
+   "leido": "«aisladores» es lavado y mantenimiento (línea 156, págs. 24-29); «pérdidas técnicas» solo en definiciones (675, 800)"
+  },
+  {
+   "empresa": "Electro Sur Este",
+   "rcd": "219",
+   "informe": "811",
+   "carpeta": "rcd_219-it_811",
+   "leido": "ninguna línea con «pérdida», «expansi», «aislador» ni «amperom»"
+  },
+  {
+   "empresa": "Electro Ucayali",
+   "rcd": "220",
+   "informe": "812",
+   "carpeta": "rcd_220-it_812",
+   "leido": "«pérdidas totales de energía» como dato del balance para el NHUBT (líneas 368, 381 y 420)"
+  }
+ ],
+ "nota_registro": "Generado por tools/normativa/generar_reconsideraciones.py (107, delta13). Causa del cambio de los FE de pérdidas entre la fijación y las reconsideraciones del VAD 2023-2027, por empresa. Electrosur y Seal no cambian (comprobado en la imagen por cc, frente k)."
+}

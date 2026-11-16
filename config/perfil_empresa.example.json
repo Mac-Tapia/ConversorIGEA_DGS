@@ -1,5 +1,5 @@
 {
-  "_comentario": "Copie este fichero como perfil_empresa.json (local, fuera de git) y ponga las convenciones de su empresa. Sin perfil no se supone ninguna: el CRS se pide y no se excluye ninguna SED por su nombre (spec 002).",
+  "_comentario": "Copie este fichero como perfil_empresa.json (local, fuera de git) y ponga las convenciones de su empresa. Sin perfil no se supone ninguna: el CRS se pide y no se excluye ninguna SED por su nombre.",
   "_comentario_perfil": "Opcional: heredar las convenciones de un perfil de config/perfiles/ (p. ej. \"ficticia\", el de ejemplo). Las claves de este fichero pisan las heredadas; una clave a null anula la heredada.",
   "perfil": null,
   "_comentario_crs": "CRS de CoordX/CoordY de su exportación: un EPSG proyectado en metros (el UTM de su zona). Sin él, la web y el CLI lo piden antes de georreferenciar.",
@@ -10,12 +10,12 @@
   "escala_diagrama": null,
   "_comentario_forma": "Expresión regular que deben cumplir los nombres cortos de alimentador; solo avisa de los que no la cumplen.",
   "forma_alimentador": null,
-  "_comentario_raices_llm": "Carpetas locales que puede leer bajo demanda el LLM local (spec 077), además de CSG_LLM_RAICES; no se indexan.",
+  "_comentario_raices_llm": "Carpetas locales que puede leer bajo demanda el LLM local, además de CSG_LLM_RAICES; no se indexan.",
   "raices_llm": [],
-  "_comentario_carpeta": "Carpeta de DIgSILENT de los proyectos importados (spec 005). Sin ella, «ConverterSmartGrid».",
+  "_comentario_carpeta": "Carpeta de DIgSILENT de los proyectos importados. Sin ella, «ConverterSmartGrid».",
   "carpeta_proyectos_pf": "ConverterSmartGrid",
   "_comentario_084": "Spec 084, dentro de planificacion: sitio_set {retiro_min_m, calles_geojson (GeoJSON local)} y ternas_subterraneas {configuracion: ducto|triangular|rectangular, capacidad_a: {<tipo>: {<configuracion>: amperios del fabricante}}}. Sin ellos no se supone nada y se avisa.",
-  "_comentario_estudios": "Límites con que los estudios juzgan tensiones y cargabilidad (spec 011, RF-35). Sin esta clave se usan 0,95 – 1,05 p.u. y 100 %; el operador los puede cambiar antes de ejecutar.",
+  "_comentario_estudios": "Límites con que los estudios juzgan tensiones y cargabilidad. Sin esta clave se usan 0,95 – 1,05 p.u. y 100 %; el operador los puede cambiar antes de ejecutar.",
   "estudios": {
     "tension_min_pu": 0.95,
     "tension_max_pu": 1.05,

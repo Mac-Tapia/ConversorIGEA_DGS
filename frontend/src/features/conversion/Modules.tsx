@@ -5,7 +5,7 @@ import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
 import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import { DescargaZip } from './DescargaZip';
-import { FileDrop, Pill, useConfirm, useToast } from '../../shared/ui';
+import { FileDrop, GuardarSalida, Pill, useConfirm, useToast } from '../../shared/ui';
 
 // ------------------------------------------------------------------ utilidades
 
@@ -76,6 +76,7 @@ export function ResultsTab() {
                       <a className="link" href={api.fileUrl(ws.id, f.path)} target="_blank" rel="noreferrer">Abrir</a>
                     )}
                     <a className="link" href={api.fileUrl(ws.id, f.path, true)}>Descargar</a>
+                    <GuardarSalida url={api.fileUrl(ws.id, f.path, true)} nombre={f.path.split('/').pop() ?? f.path} rel={f.path} />
                   </td>
                 </tr>
               ))}
@@ -120,7 +121,7 @@ export function CatalogTab() {
         </div>
         <div className="step-box">
           <h3>2 · Subir catálogo corregido</h3>
-          <FileDrop compact accept=".xlsx" onFiles={async ([f]) => {
+          <FileDrop entrada="catalogo" compact accept=".xlsx" onFiles={async ([f]) => {
             const r = await run(() => api.catalogApply(ws.id, f, selected.length === 1 ? selected[0] : undefined));
             if (!r) return;
             setWs(r.workspace);

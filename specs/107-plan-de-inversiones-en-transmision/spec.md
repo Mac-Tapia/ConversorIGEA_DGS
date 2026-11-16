@@ -42,14 +42,74 @@ común.
     ENTONCES el flujo no se calcula y el error nombra el área y las redes externas, en vez del error del motor.
 - RF-4: SI un elemento necesario para el diagnóstico no tiene sus parámetros, ENTONCES EL SISTEMA lo listará con el
   dato que falta y no dará el diagnóstico de ese elemento como completo.
+- Aclaración de RF-3 y RF-4 (2026-11-15, f4/PIT-TEN; condiciones del auditor 28): la tensión se diagnostica por
+  barra, con el criterio que da la norma, no con un único par de límites:
+  - la barra con entrega de suministro cumple la tolerancia de la NTCSE (5.1.2: ±5,0 %; ±7,5 % solo en la red
+    secundaria, BT, de los servicios urbano-rurales o rurales) o, en un SER, la de la NTCSER (4.1.2: ±6 % en MT y
+    ±7,5 % en BT), por la remisión de la RCD 217-2013, 12.2.1.a;
+  - la barra de AT sin entrega no tiene límite propio: se comprueba que el rango de tomas de cada transformador AT/MT
+    lleve su barra de MT a esa tolerancia (12.2.1.a);
+  - en el Área de Demanda 15, la MAT y la AT sin entrega cumplen la RM 129-2009-MEM/DM (art. 10 y Primera), por la
+    remisión del 12.3.2 en la redacción de la RCD 018-2018-OS/CD, sobre la tensión de operación del COES. El caso
+    base y el N-1 van con el rango normal; el de emergencia solo si el estudio sustenta su importancia (nota 2 del
+    art. 10) en `pit.emergencia_rm129` (`{"aplica": true, "sustento": "…"}`; true sin sustento es un error), con un
+    aviso que cita el sustento y la nota. El «≥220 kV» y el «≤138 kV» son una decisión de interpretación con sus dos
+    citas en el registro; entre 138 y 220 kV no hay rango de emergencia;
+  - la MAT sin entrega de las demás áreas lleva la RM 129-2009 solo como referencia: un aviso visible por barra, con
+    su tensión, su rango y su fuente, en el diagnóstico, el expediente y la web, que no cuenta como violación;
+  - el nivel sale de la definición «Nivel de Tensión» de la 217-2013; la entrega, el tipo de red, la tensión de
+    operación y las tomas, de la red del área o de `pit.barras` del perfil. Lo que falta es un hueco nombrado por
+    barra o por transformador, que deja el diagnóstico incompleto y va a los pendientes del expediente, nunca un valor
+    supuesto ni la nominal en lugar de la de operación;
+  - una regla cuenta como violación si su norma obliga en el registro; si no, avisa. Cambiar el estado jurídico de la
+    norma basta para pasar de una cosa a la otra;
+  - `pit.limites` del perfil sigue valiendo como respaldo explícito de la barra a la que le falta un dato, con su
+    origen y un aviso.
+- Aclaración de RF-3 y RF-4 (2026-11-15, f4/FIX-PUNTA; condiciones del auditor c3): la referencia del flujo es
+  la barra de suministro que da la propia red, su red externa: la red equivalente de la SET de cabecera o el
+  punto de entrega del COES. Nunca se elige una barra por su orden:
+  - la red externa y la compensación que exporta DIgSILENT llevan la tensión nominal de su barra, para que el
+    ámbito por tensión no las deje fuera de la red del área;
+  - con una sola red externa, esa es la referencia; con varias, las que la red declara de referencia (tipo de
+    barra SL, el `bustp` de DIgSILENT, o la columna `tipo_barra` del libro de la red);
+  - SI la red no trae ninguna red externa, o trae varias sin declarar su tipo de barra, o una se declara PV o PQ,
+    ENTONCES el flujo no se calcula y el error nombra el área y las redes externas, en vez del error del motor.
 - RF-5: CUANDO el operador defina alternativas, EL SISTEMA evaluará cada una por inversión, COyM, pérdidas y
   confiabilidad, con la misma demanda y el mismo motor.
+- Aclaración de RF-5 (2026-11-15, f4/P10c; diseño conforme del auditor 28): las alternativas llegan en un JSON del
+  espacio de trabajo, `{"alternativas": [{"nombre", "cambios": [...]}]}`. Cada cambio lleva:
+  - `accion` (`alta` o `baja`);
+  - `elemento`: en un alta, el elemento nuevo con su `id` y su `tipo`; en una baja, el `id` del que sale;
+  - `costo` en un alta: `codigo`, `cantidad` mayor que cero y `unidad` del módulo estándar;
+  - `anio` entero, `titular`, `instalacion` y `descripcion`.
+  Del mismo JSON sale el programa de la elegida. Un JSON mal formado es un error que nombra el campo (422 en la web).
+  Los costos salen de `pit.costos` del perfil, por ámbito y por vigencia (ficheros reemplazables por periodo). Cada
+  fuente lleva su fichero, sus metadatos y su sha256, que se comprueba antes de leerla. Sin una fuente vigente, no hay
+  comparación y se dice. Un expediente sin comparación o sin una alternativa elegida completa sale «DE DIAGNÓSTICO, no
+  presentable a Osinergmin», en su resumen y en el resultado, con el pendiente que lo dice, y nunca como completo,
+  aunque no le falte nada más.
+- Aclaración de RF-5 (2026-11-15, f4/P-REG; condiciones del auditor 28): el COyM se calcula por elemento, como su
+  costo de inversión por el porcentaje de la regla `pit.coym_pct` vigente en cada año del flujo:
+  - si la regla da un cuadro (la RCD 163-2021-OS/CD, del 01-05-2021 al 30-04-2027), el porcentaje sale de la
+    ubicación (costa, sierra o selva) y del nivel de tensión del elemento;
+  - la ubicación es la del elemento (`ubicacion`) o, si no la trae, la del área en el perfil (`pit.areas[].ubicacion`),
+    sin valor por defecto;
+  - el nivel MT del cuadro vale solo para las celdas de alimentadores de MT dentro de las SET;
+  - un transformador toma el nivel de su mayor tensión (Norma Tarifas, 17.3); si es elevador (`funcion`: `elevador`),
+    donde la nota de la 163-2021 («lado primario») no coincide, se avisa de la discrepancia entre las dos normas;
+  - un año sin porcentaje publicado durante todo el año (los posteriores a abril de 2027, y el propio 2027), un
+    elemento sin ubicación o un nivel que el cuadro no da son huecos nombrados: la alternativa queda incompleta, y el
+    expediente sale «DE DIAGNÓSTICO» con cada hueco en sus pendientes. No se supone ningún porcentaje.
 - RF-6: EL SISTEMA programará cada elemento por año de puesta en servicio, titular y área, con las bajas y los
   reemplazos.
 - RF-7: EL SISTEMA guardará en el expediente, por cada regla aplicada, la norma, el artículo o anexo, su estado
   jurídico (vigente comprobada, modificada, prepublicada o no verificada) y su fecha de vigencia.
 - RF-8: SI una regla está prepublicada o no verificada, ENTONCES EL SISTEMA no la usará como obligatoria y lo dirá
   en el expediente.
+- Aclaración de RF-8 (2026-11-15, f4/P-REG): una regla del registro puede llevar, como dato y no en una nota, sus
+  `pendientes` (lo que falta comprobar) y su `verificacion` (fecha, resultado y fuentes con su URL y su sha256). Una
+  regla con pendientes se usa con un aviso que los nombra; la verificación va con la regla en la comparación y en
+  `reglas_aplicadas.json`.
 - RF-9: CUANDO se emita el expediente, EL SISTEMA generará los cuadros del periodo y del área aplicables, con la
   traza de cada celda a su fuente y a su cálculo.
 - Aclaración de RF-9 (2026-11-14): los cuadros y formatos aplicables son los que lista la norma vigente del registro
@@ -82,6 +142,19 @@ común.
 - RF-14: CUANDO se emita el expediente, EL SISTEMA acompañará cada sección del estudio con su memoria (criterios,
   metodología, entradas y resultados) y con la relación de los documentos de sustento, cada uno con su descripción, su
   uso y su huella.
+- Aclaración de RF-14 (2026-11-15, f4/P10; aceptada por el auditor 28): la relación sigue el num. 5.3 de la Norma
+  Tarifas. Cada documento lleva su n.º, su fichero, su tipo, la descripción de su contenido, su aplicación y su volumen
+  con sus folios, agrupada por volúmenes y con el foliado consecutivo del num. 5.5; la relación no tiene plantilla.
+  La acompaña el «F-000», que no es una plantilla: es el nombre que el regulador da al grupo «Formatos de Información
+  General», que la RCD 217-2013 (art. 30.1, Tabla 1 y art. 31) forma con F-001, F-002 y F-003. Se da por cumplido
+  cuando el expediente trae los tres, y si falta alguno lleva el hueco «F-000 incompleto: falta F-00x». Se entrega
+  como libro aparte, con el nombre que declara su alias en el mapeo de formatos, escrito sobre una copia de la
+  plantilla oficial comprobada por su sha256. Si falta un formato, el libro sale con lo que hay y sigue el hueco: el
+  regulador observa como incompleto un F-000 a medias, y uno no remitido deja la observación parcialmente subsanada.
+  Lo que falta
+  en un documento declarado (la descripción, el uso o aplicación, el volumen o los folios) es un hueco nombrado: no
+  detiene la emisión, y el expediente sale «incompleto», con cada hueco en los pendientes de su resumen. Un documento
+  que nadie declara sigue deteniendo la emisión.
 - RF-15: CUANDO se emita el expediente, EL SISTEMA generará el diagrama unifilar de cada alternativa y de cada año, con
   el flujo de potencia de cada línea (F-212), en DXF, y además en DWG si está disponible el convertidor que declare la
   configuración, avisando de cómo obtener el DWG cuando no lo está.
@@ -93,7 +166,10 @@ común.
   diagramas son imágenes de `mapa_informe`), así que el unifilar no duplica ninguno. Condiciones de 7e (2026-11-14): el
   convertidor se detecta y nunca se distribuye (su ruta sale del perfil o del PATH, nunca del código); el aviso de que
   falta dice cómo obtener el DWG y queda en el manifiesto del expediente; sin convertidor, o si falla, la entrega queda
-  completa con el DXF y nunca sale un DWG vacío.
+  completa con el DXF y nunca sale un DWG vacío. Implementación (2026-11-15, f4): el convertidor se declara en el perfil
+  como `pit.convertidor_dwg` o se busca en el PATH como `ODAFileConverter`. El contenido de cada hoja es el del F-212
+  (217-2013, art. 37, pdf pág. 64), y el año de ingreso de cada elemento nuevo se marca con la convención de colores
+  que esa norma pide «de preferencia», con su leyenda en la hoja; la norma no fija qué color corresponde a cada año.
 - RF-16: CUANDO el área tenga transformadores de potencia, EL SISTEMA hará el análisis de los transformadores de
   reserva con el procedimiento vigente del registro normativo, y SI el registro no trae su regla, ENTONCES lo dirá
   nombrando la regla que falta, sin suponerla.

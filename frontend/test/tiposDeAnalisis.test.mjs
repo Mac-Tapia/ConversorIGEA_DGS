@@ -69,7 +69,7 @@ test('072:RF-30, 072:RF-31, 072:RF-32, 072:RF-37 la ficha dice horizonte, obras,
   const { tipo } = await cargar();
   const corto = tipo({ tipo: 'corto_plazo', anio: '', tipos: TIPOS, estado: NADA });
   for (const t of ['00 (2030)', '04 (2034)', 'Bancos de condensadores', 'No entran', 'SET nueva', 'Informe de estudio eléctrico',
-    'se aplican', 'RM 428-2017-MEM/DM', 'no se presenta como norma vigente']) assert.ok(corto.includes(t), t);
+    'se aplican', 'RM 428-2017-MEM/DM', 'no es norma vigente']) assert.ok(corto.includes(t), t);
   assert.ok(!corto.includes('Año de presentación'), 'el corto plazo no pide año de presentación');
   const largo = tipo({ tipo: 'largo_plazo', anio: '2031', tipos: TIPOS, estado: NADA });
   for (const t of ['20 (2050)', 'Plan de largo plazo: Diagnóstico (F01)', 'se plantean, no se aplican', 'Año de presentación (se presenta cada 4 años)']) {

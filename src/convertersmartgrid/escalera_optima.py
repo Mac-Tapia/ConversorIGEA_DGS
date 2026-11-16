@@ -326,7 +326,7 @@ def _unidad_de(alternativa: str) -> str:
 
 def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros) -> dict[str, dict[str, Any]]:
     """Los del libro CAPEX, y los que el perfil da para las alternativas que el libro no tiene
-    (bancos y reguladores en Electro Dunas); el libro manda si tiene la alternativa.
+    (bancos y reguladores en una distribuidora real); el libro manda si tiene la alternativa.
 
     RF-77: el libro se pasa a la moneda de trabajo con ``escalera.escala_capex``. El de Electro
     Dunas está en miles de dólares y la escalera lo tomaba en dólares: la terna salía a 60,9 por
@@ -535,7 +535,7 @@ def camino_electrico(tramos: Sequence[Mapping[str, Any]], origen: str, destino: 
     """Los tramos de ``origen`` a ``destino`` por la red (``desde``, ``hasta``), en orden (063:RF-32).
 
     El camino más corto en número de tramos, sin pasar dos veces por una barra; vacío si no hay.
-    SM218 (2026-11-01): INKA cuelga de un ramal a 17,08 km de la cabecera, no de la troncal más
+    <código> (2026-11-01): <sitio> cuelga de un ramal a 17,08 km de la cabecera, no de la troncal más
     larga a 10,32 km donde la ponía la cercanía GPS; las obras se probaban donde no hacía falta.
     """
     from collections import defaultdict, deque
@@ -734,7 +734,7 @@ def _escalon_terna(alim, troncal, cargas, p: Parametros, de_terna=None, avisos=N
 def secciones_aptas(tipos, kv: float, corriente_a: float | None, p: Parametros) -> list[Mapping[str, Any]]:
     """042:RF-97: los conductores de un solo circuito que se prueban: los normalizados del perfil, hasta el mayor.
 
-    PE102 (2026-11-07): el escalón de sección llega hasta 240 mm² en Electro Dunas porque es el mayor de su lista;
+    <código> (2026-11-07): el escalón de sección llega hasta 240 mm² en una distribuidora real porque es el mayor de su lista;
     la búsqueda del oráculo (087) tomaba todos los de la tensión y podía proponer uno que la empresa no instala.
     """
     return conductores_aptos(normalizados(tipos, p.secciones), kv, corriente_a)

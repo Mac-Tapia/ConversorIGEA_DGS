@@ -1,10 +1,11 @@
 import { fmtNum } from '../../shared/formato';
 import { MapaCargas } from './MapaCargas';
+import { EnviarInforme } from './EnviarInforme';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
 import { acumularLeidos, alimentadoresDistintos, clienteAjeno, esOtraCarga, esPotenciaPropuesta, incrementoNoCuadra, propuestaDeCarga } from './solicitudLeida';
-import { Ayuda, FileDrop } from '../../shared/ui';
+import { Ayuda, FileDrop, GuardarSalida } from '../../shared/ui';
 import type {
   DocumentosResultado, InformeEstudioForm, InformeFactibilidadForm, InformeResultado, InformesContexto, Limites, MaximaCabecera,
   TrafoCargas, TrafoResultado,
@@ -101,7 +102,7 @@ function DocumentosSolicitante({ tipo, varios, titulo, onLeido }: {
   return (
     <div className="field span-2">
       <span>{titulo}</span>
-      <FileDrop compact multiple={varios} accept=".pdf,application/pdf,.txt,.jpg,.jpeg,.png,.tif,.tiff,.bmp,.webp"
+      <FileDrop entrada="informe_anexos" compact multiple={varios} accept=".pdf,application/pdf,.txt,.jpg,.jpeg,.png,.tif,.tiff,.bmp,.webp"
         onFiles={(fs) => setFiles(varios ? fs : fs.slice(0, 1))}>
         <span>{files.length
           ? <><strong>{files.map((f) => f.name).join(', ')}</strong> · reemplazar: soltar o <u>elegir</u></>
@@ -191,7 +192,7 @@ function ResumenCasos({ json }: { json: string }) {
 }
 
 /** Huecos, veredicto y descarga del último informe generado de un tipo (RF-100, RF-102, RF-103). */
-function Resultado({ r, cancelado }: { r: InformeResultado | null; cancelado: boolean }) {
+function Resultado({ r, cancelado, project }: { r: InformeResultado | null; cancelado: boolean; project: string }) {
   const { ws } = useApp();
   if (cancelado) return <p className="alert alert-warn">Cancelado: no se escribió ningún informe.</p>;
   if (!r) return null;
@@ -200,12 +201,17 @@ function Resultado({ r, cancelado }: { r: InformeResultado | null; cancelado: bo
       <p>
         <strong>{r.informe}</strong>{' '}
         <a className="btn btn-sm" href={api.fileUrl(ws.id, r.informe, true)}>Descargar Word</a>{' '}
+        <GuardarSalida url={api.fileUrl(ws.id, r.informe, true)} nombre={r.informe.split('/').pop() ?? r.informe} rel={r.informe} />{' '}
         {/* 063:RF-42: el PDF, o por qué no se generó. */}
-        {r.pdf && <><a className="btn btn-sm" href={api.fileUrl(ws.id, r.pdf, true)}>Descargar PDF</a>{' '}</>}
+        {r.pdf && <><a className="btn btn-sm" href={api.fileUrl(ws.id, r.pdf, true)}>Descargar PDF</a>{' '}
+          <GuardarSalida url={api.fileUrl(ws.id, r.pdf, true)} nombre={r.pdf.split('/').pop() ?? r.pdf} rel={r.pdf} />{' '}</>}
         {r.sin_pdf && <small className="alert alert-warn">Sin PDF: {r.sin_pdf}</small>}{' '}
         {/* 066:RF-11: el libro de la empresa, o por qué no se generó. */}
-        {r.libro_xlsx && <><a className="btn btn-sm" href={api.fileUrl(ws.id, r.libro_xlsx, true)}>Descargar libro</a>{' '}</>}
+        {r.libro_xlsx && <><a className="btn btn-sm" href={api.fileUrl(ws.id, r.libro_xlsx, true)}>Descargar libro</a>{' '}
+          <GuardarSalida url={api.fileUrl(ws.id, r.libro_xlsx, true)} nombre={r.libro_xlsx.split('/').pop() ?? r.libro_xlsx} rel={r.libro_xlsx} />{' '}</>}
         {r.sin_libro && <small className="alert alert-warn">Sin libro: {r.sin_libro}</small>}{' '}
+        {/* 110:RF-1: junto a las descargas; sin cuenta conectada, el botón dice por qué. */}
+        <EnviarInforme informe={r.informe} proyecto={project} />{' '}
         <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws.id, r.json, true)}>JSON</a>{' '}
         {/* 017:RF-105: el plan repite el informe con tools/informe_web.py. */}
         {r.plan && <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws.id, r.plan, true)}
@@ -469,7 +475,7 @@ function InformeEstudio({ project, feeders, ctx, busy, limites, limitesOk, limit
         {!motivo && busy && <small className="muted">Espere a que termine el trabajo en curso.</small>}
       </div>
       <Resultado r={(ultimo?.status === 'done' ? ultimo.result : null) as InformeResultado | null}
-        cancelado={ultimo?.status === 'cancelled'} />
+        cancelado={ultimo?.status === 'cancelled'} project={project} />
     </div>
   );
 }
@@ -794,7 +800,7 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
                   Se usa si deja en blanco los campos de abajo.</small>}
             </>}
             {/* Spec 025, RF-39: otro libro se sube o se indica sin quitar antes el actual. */}
-            <FileDrop compact accept=".xlsx,.xlsm" onFiles={subirLibro}>
+            <FileDrop entrada="libro_informe" compact accept=".xlsx,.xlsm" onFiles={subirLibro}>
               <span>{libro ? 'Reemplazar: soltar' : 'Soltar'} o <u>elegir</u></span></FileDrop>
             {health.server_paths && <div className="row">
               <input className="search" placeholder={`o ruta en el servidor${libro ? ' (reemplaza la actual)' : ''}`} value={ruta}
@@ -856,7 +862,7 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
         {!motivo && busy && <small className="muted">Espere a que termine el trabajo en curso.</small>}
       </div>
       <Resultado r={(ultimo?.status === 'done' ? ultimo.result : null) as InformeResultado | null}
-        cancelado={ultimo?.status === 'cancelled'} />
+        cancelado={ultimo?.status === 'cancelled'} project={project} />
     </div>
   );
 }

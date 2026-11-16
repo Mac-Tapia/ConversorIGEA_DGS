@@ -489,6 +489,9 @@ BORRADOS = {
         # creadas por la misma ejecución y retiradas al terminar, con el estado comprobado.
         'tools/estudios_entradas_pf.py::cortocircuito', 'tools/estudios_entradas_pf.py::cuasi_dinamica',
         'tools/estudios_entradas_pf.py::_deshacer',
+        # 111:RF-15: la variación del plano, su escenario y su caso de copia, creados por la misma ejecución y retirados
+        # al terminar, con el estado del operador restituido y comprobado por sus fotos (pf_estado).
+        'tools/variacion_plano_pf.py::_retirar',
         # 011:RF-136: las ElmBbone que esta corrida creó (su marca y no estar antes), las que la variación no grabó.
         'tools/estudios_pf.py::retirar_troncales_de_la_corrida',
         'tools/obras_pf.py::crear_tipos_regulador', 'tools/obras_pf.py::evaluar.con_variante',

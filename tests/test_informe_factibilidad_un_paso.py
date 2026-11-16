@@ -1,6 +1,6 @@
 """Spec 063: informe de factibilidad en un paso, para cualquier alimentador.
 
-El caso real es la ampliación de INKA'S BERRIES S.A.C. en SM218 (2026-11-01): el estado actual
+El caso real es la ampliación de <sitio>'S BERRIES S.A.C. en <código> (2026-11-01): el estado actual
 ya violaba límites (un cuello de botella al 131 %) y con la carga el punto de diseño bajaba a
 0,934 p.u. Aquí las medidas se sortean (``CSG_SCALE_SEED``): ningún alimentador ni valor fijo.
 """
@@ -381,8 +381,8 @@ def test_conclusion_usa_los_limites_que_recibe():
 
 
 def test_optimiza_solo_con_las_cargas_pedidas(monkeypatch, tmp_path):
-    """063:RF-23, 063:RF-24 — SM218 (2026-11-01): con INKA y tres cargas del bloque aplicadas, la
-    optimización de «Con proyecto» para INKA cuenta solo INKA; un nombre que no está se rechaza."""
+    """063:RF-23, 063:RF-24 — <código> (2026-11-01): con <sitio> y tres cargas del bloque aplicadas, la
+    optimización de «Con proyecto» para <sitio> cuenta solo <sitio>; un nombre que no está se rechaza."""
     from convertersmartgrid.web import services
     from convertersmartgrid.web.services import UserError
 
@@ -406,7 +406,7 @@ def test_optimiza_solo_con_las_cargas_pedidas(monkeypatch, tmp_path):
 
 
 def test_banco_en_la_barra_existente_de_la_troncal():
-    """063:RF-25 — INKA en SM218 (2026-11-01): su barra NODE_T_ la crea su variación; el banco va
+    """063:RF-25 — <sitio> en <código> (2026-11-01): su barra NODE_T_ la crea su variación; el banco va
     en la barra existente del tramo que partió, y la carga sigue con su tramo de la troncal. Una
     barra que existe sin la carga se queda; una sin barra existente cercana no da banco."""
     from convertersmartgrid.web.services import _carga_para_escalera
@@ -425,7 +425,7 @@ def test_banco_en_la_barra_existente_de_la_troncal():
 @pytest.mark.parametrize('encima', [True, False])
 def test_umbral_de_carga_nueva_lleva_a_set_nueva(monkeypatch, encima):
     """063:RF-34 — NA203 + NA205 (2026-11-01): con cargas nuevas que suman más que el umbral del
-    perfil (10 MW en Electro Dunas) la solución es una SET nueva directa; por debajo, la escalera."""
+    perfil (10 MW en una distribuidora real) la solución es una SET nueva directa; por debajo, la escalera."""
     from convertersmartgrid.web import services
 
     rng = random.Random(SEMILLA + 7 + int(encima))

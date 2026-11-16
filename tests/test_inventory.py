@@ -20,7 +20,7 @@ def test_inventory_on_referencia_dataset(ds):
     # solo traen cabecera, que se dibujan igualmente con su barra de cabecera.
     assert inv['conversion']['expected_dgs_files'] == totals['feeders']
     assert len(inv['feeders']) == totals['feeders']
-    # Referencia ElectroDunas lote: 96 feeders, 3 solo-cabecera, 38657 sections
+    # Referencia una distribuidora real lote: 96 feeders, 3 solo-cabecera, 38657 sections
     if totals['feeders'] == 96:
         assert totals['convertible_feeders'] == 93
         assert totals['stub_feeders'] == 3

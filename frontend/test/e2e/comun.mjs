@@ -67,6 +67,15 @@ export { expect };
 
 /** Crea un espacio de trabajo vacío con el botón de la cabecera y su confirmación, como lo haría el operador. */
 export async function espacioNuevo(page) {
+  // El resumen de un trabajo largo que acabó hace menos de 2 s (el del recorrido anterior) se abre al cargar la web:
+  // el operador lo cierra antes de seguir, y el recorrido también (Escape cierra el Modal de shared/ui.tsx).
+  const abierto = page.locator('dialog[open]');
+  // Llega por el WebSocket del espacio, un instante después de pintar la cabecera.
+  await abierto.first().waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined);
+  if (await abierto.count()) {
+    await page.keyboard.press('Escape');
+    await expect(abierto).toHaveCount(0);
+  }
   const antes = await page.locator('.ws-id span[title]').getAttribute('title');
   await page.getByRole('button', { name: 'Nuevo espacio' }).click();
   // Por el texto y no por el nombre: el Modal de shared/ui.tsx aún no enlaza su título (pendiente anotado en T0c).

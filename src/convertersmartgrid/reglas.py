@@ -17,7 +17,7 @@ Sobre cada **modelo** (por alimentador):
 1. Tramos puente ``DEFAULT`` fundidos; sus seccionadores pasan a ``ElmCoup``
    (:mod:`convertersmartgrid.puentes`).
 2. Trafomix —medición MT registrada como SED— excluidos (:mod:`convertersmartgrid.trafomix`), solo
-   si el perfil de empresa da su patrón (``M…`` en Electro Dunas).
+   si el perfil de empresa da su patrón (``M…`` en una distribuidora real).
 3. Diagrama en hoja a medida, a escala geográfica real (la del perfil, si la da), con
    símbolos de tamaño NA205.
     A0–A4 solo se usan si el operador selecciona explícitamente un formato fijo.

@@ -1,6 +1,6 @@
 """Medición de cabecera entregada «a lo ancho»: una columna por alimentador (spec 051).
 
-La calibración (specs 006, 025 y 035) lee la cabecera como la entrega Electro Dunas: una hoja
+La calibración (specs 006, 025 y 035) lee la cabecera como la entrega una distribuidora real: una hoja
 por medidor con fecha, kW y kVAR, y un libro de medidores. Otra distribuidora la entrega en los
 perfiles de carga del PIDE 2026: una hoja por sistema y magnitud («<SISTEMA>_ACTIVA»), la fecha y la
 hora en dos columnas y una columna por alimentador; y en un sistema aislado, solo una tabla de máximas

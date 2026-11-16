@@ -16,6 +16,47 @@
         "title": "ASuMaximaIn",
         "type": "object"
       },
+      "AbrirVariacionPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "alimentador": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Alimentador",
+            "type": "string"
+          },
+          "caso": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Caso",
+            "type": "string"
+          },
+          "revision": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alimentador",
+          "caso",
+          "revision"
+        ],
+        "title": "AbrirVariacionPeticion",
+        "type": "object"
+      },
+      "AceptarPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmar": {
+            "default": false,
+            "title": "Confirmar",
+            "type": "boolean"
+          }
+        },
+        "title": "AceptarPeticion",
+        "type": "object"
+      },
       "AgenteProyectoIn": {
         "description": "067:RF-38: la orden trae la huella de la lista que el operador vio.",
         "properties": {
@@ -277,6 +318,25 @@
           "job_id"
         ],
         "title": "AjusteIn",
+        "type": "object"
+      },
+      "AjustePlanoPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "punto": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Punto",
+            "type": "array"
+          }
+        },
+        "required": [
+          "punto"
+        ],
+        "title": "AjustePlanoPeticion",
         "type": "object"
       },
       "AlimentadorAuditoriaRespuesta": {
@@ -801,6 +861,84 @@
         "title": "AvisoLibroRespuesta",
         "type": "object"
       },
+      "BarraPlanoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "calidad": {
+            "enum": [
+              "ok",
+              "aviso",
+              "error",
+              "sin_coordenadas"
+            ],
+            "title": "Calidad",
+            "type": "string"
+          },
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "deducido": {
+            "items": {
+              "$ref": "#/components/schemas/DeducidoPlanoRespuesta"
+            },
+            "title": "Deducido",
+            "type": "array"
+          },
+          "errores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Errores",
+            "type": "array"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lon"
+          },
+          "nombre_pf": {
+            "title": "Nombre Pf",
+            "type": "string"
+          }
+        },
+        "required": [
+          "codigo",
+          "nombre_pf",
+          "lat",
+          "lon",
+          "deducido",
+          "calidad",
+          "avisos",
+          "errores"
+        ],
+        "title": "BarraPlanoRespuesta",
+        "type": "object"
+      },
       "BetaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -1316,6 +1454,27 @@
         "title": "CancelacionAprendizajeRespuesta",
         "type": "object"
       },
+      "CapaPlanoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoCapaRespuesta"
+            },
+            "title": "Elementos",
+            "type": "array"
+          },
+          "leyenda": {
+            "$ref": "#/components/schemas/LeyendaCapaRespuesta"
+          }
+        },
+        "required": [
+          "leyenda",
+          "elementos"
+        ],
+        "title": "CapaPlanoRespuesta",
+        "type": "object"
+      },
       "CapacidadesRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -1343,6 +1502,105 @@
           "pandapower"
         ],
         "title": "CapacidadesRespuesta",
+        "type": "object"
+      },
+      "CapasPlanoRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-10, RF-11, RF-13, RF-18: lo que se pinta, o por qué no.",
+        "properties": {
+          "capas": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CapaPlanoRespuesta"
+            },
+            "title": "Capas",
+            "type": "object"
+          },
+          "caso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caso"
+          },
+          "mensajes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mensajes",
+            "type": "array"
+          },
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          },
+          "motor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motor"
+          },
+          "motor_texto": {
+            "title": "Motor Texto",
+            "type": "string"
+          },
+          "origen_umbral": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen Umbral"
+          },
+          "pintable": {
+            "title": "Pintable",
+            "type": "boolean"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "variacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variacion"
+          }
+        },
+        "required": [
+          "pintable",
+          "motivo",
+          "mensajes",
+          "capas",
+          "motor",
+          "motor_texto",
+          "caso",
+          "revision"
+        ],
+        "title": "CapasPlanoRespuesta",
         "type": "object"
       },
       "CargaElegida": {
@@ -1420,6 +1678,51 @@
           "obligatorio"
         ],
         "title": "CasillaRespuesta",
+        "type": "object"
+      },
+      "CasoComparadoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "caso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caso"
+          },
+          "motor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motor"
+          },
+          "variacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variacion"
+          }
+        },
+        "required": [
+          "caso",
+          "variacion",
+          "motor"
+        ],
+        "title": "CasoComparadoRespuesta",
         "type": "object"
       },
       "CatalogoRespuesta": {
@@ -1584,6 +1887,86 @@
         "title": "ClienteEvolucionRespuesta",
         "type": "object"
       },
+      "ColisionPlanoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "codigos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Codigos",
+            "type": "array"
+          },
+          "nombre_pf": {
+            "title": "Nombre Pf",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "nombre_pf",
+          "codigos"
+        ],
+        "title": "ColisionPlanoRespuesta",
+        "type": "object"
+      },
+      "ComparacionPlanoRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-12, RF-19: dos casos por elemento; si los motores son distintos, se dice junto a la diferencia.",
+        "properties": {
+          "aviso_motores": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso Motores"
+          },
+          "casos": {
+            "items": {
+              "$ref": "#/components/schemas/CasoComparadoRespuesta"
+            },
+            "title": "Casos",
+            "type": "array"
+          },
+          "comparable": {
+            "title": "Comparable",
+            "type": "boolean"
+          },
+          "elementos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoComparadoRespuesta"
+            },
+            "title": "Elementos",
+            "type": "array"
+          },
+          "mismo_motor": {
+            "title": "Mismo Motor",
+            "type": "boolean"
+          },
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "casos",
+          "mismo_motor",
+          "aviso_motores",
+          "comparable",
+          "motivo",
+          "elementos"
+        ],
+        "title": "ComparacionPlanoRespuesta",
+        "type": "object"
+      },
       "CompararFijasIn": {
         "description": "039:RF-5: los alimentadores de la máxima buscada y el proyecto de su última calibración.",
         "properties": {
@@ -1622,6 +2005,70 @@
           }
         },
         "title": "CompararFijasIn",
+        "type": "object"
+      },
+      "CompartirPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "autorizo_enlace_publico": {
+            "default": false,
+            "title": "Autorizo Enlace Publico",
+            "type": "boolean"
+          },
+          "confirmacion": {
+            "title": "Confirmacion",
+            "type": "string"
+          },
+          "destinatarios": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Destinatarios",
+            "type": "array"
+          },
+          "publicacion": {
+            "title": "Publicacion",
+            "type": "string"
+          },
+          "publico": {
+            "default": false,
+            "title": "Publico",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "publicacion",
+          "confirmacion"
+        ],
+        "title": "CompartirPeticion",
+        "type": "object"
+      },
+      "CompartirPrevia": {
+        "additionalProperties": false,
+        "properties": {
+          "destinatarios": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Destinatarios",
+            "type": "array"
+          },
+          "publicacion": {
+            "title": "Publicacion",
+            "type": "string"
+          },
+          "publico": {
+            "default": false,
+            "title": "Publico",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "publicacion"
+        ],
+        "title": "CompartirPrevia",
         "type": "object"
       },
       "CompletitudRespuesta": {
@@ -1739,6 +2186,34 @@
         "title": "ConciliacionRespuesta",
         "type": "object"
       },
+      "ConectarPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "alcance": {
+            "anyOf": [
+              {
+                "enum": [
+                  "leer",
+                  "publicar",
+                  "enviar"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alcance"
+          },
+          "publicar": {
+            "default": false,
+            "title": "Publicar",
+            "type": "boolean"
+          }
+        },
+        "title": "ConectarPeticion",
+        "type": "object"
+      },
       "ConfirmarPuntoPeticion": {
         "additionalProperties": false,
         "description": "017:RF-124: las cargas cuyo punto leído en DIgSILENT pasa a ser su punto de diseño.",
@@ -1848,6 +2323,11 @@
             "title": "Carpeta",
             "type": "string"
           },
+          "confirmada": {
+            "default": false,
+            "title": "Confirmada",
+            "type": "boolean"
+          },
           "sin_modelos": {
             "default": false,
             "title": "Sin Modelos",
@@ -1858,6 +2338,173 @@
           "carpeta"
         ],
         "title": "CopiaDatosPeticion",
+        "type": "object"
+      },
+      "CopiaDatosPreviaRespuesta": {
+        "additionalProperties": false,
+        "description": "086:RF-82, RF-83, RF-108: lo que ocupará la copia, el libre del destino y lo que ya hay, sin escribir nada.",
+        "properties": {
+          "bytes_fisicos": {
+            "title": "Bytes Fisicos",
+            "type": "integer"
+          },
+          "bytes_logicos": {
+            "title": "Bytes Logicos",
+            "type": "integer"
+          },
+          "cabe": {
+            "title": "Cabe",
+            "type": "boolean"
+          },
+          "copias": {
+            "items": {
+              "$ref": "#/components/schemas/CopiaExistente"
+            },
+            "title": "Copias",
+            "type": "array"
+          },
+          "destino": {
+            "title": "Destino",
+            "type": "string"
+          },
+          "ficheros_fisicos": {
+            "title": "Ficheros Fisicos",
+            "type": "integer"
+          },
+          "libre": {
+            "title": "Libre",
+            "type": "integer"
+          },
+          "margen": {
+            "title": "Margen",
+            "type": "integer"
+          },
+          "nombres": {
+            "title": "Nombres",
+            "type": "integer"
+          },
+          "raices": {
+            "items": {
+              "$ref": "#/components/schemas/RaizPreviaCopia"
+            },
+            "title": "Raices",
+            "type": "array"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "destino",
+          "ficheros_fisicos",
+          "nombres",
+          "bytes_fisicos",
+          "bytes_logicos",
+          "libre",
+          "margen",
+          "cabe",
+          "texto",
+          "raices",
+          "copias"
+        ],
+        "title": "CopiaDatosPreviaRespuesta",
+        "type": "object"
+      },
+      "CopiaExistente": {
+        "additionalProperties": false,
+        "description": "086:RF-108: una copia que ya está en la carpeta destino, leída de su manifiesto sin tocarla.",
+        "properties": {
+          "bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes"
+          },
+          "creada": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creada"
+          },
+          "errores": {
+            "title": "Errores",
+            "type": "integer"
+          },
+          "estado": {
+            "enum": [
+              "buena",
+              "con_errores",
+              "no_valida",
+              "a_medias"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "ficheros": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ficheros"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "nombres": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombres"
+          },
+          "ruta": {
+            "title": "Ruta",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "ruta",
+          "estado",
+          "motivo",
+          "creada",
+          "bytes",
+          "ficheros",
+          "nombres",
+          "errores"
+        ],
+        "title": "CopiaExistente",
         "type": "object"
       },
       "CorreoAdjuntoRespuesta": {
@@ -2614,6 +3261,59 @@
         "title": "DatosEmpresaAplicarIn",
         "type": "object"
       },
+      "DeducidoPlanoRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-3: lo que se dedujo de un elemento, con su regla y su motivo.",
+        "properties": {
+          "campo": {
+            "title": "Campo",
+            "type": "string"
+          },
+          "confianza": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confianza"
+          },
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          },
+          "nivel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel"
+          },
+          "original": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "regla": {
+            "title": "Regla",
+            "type": "string"
+          },
+          "valor": {
+            "$ref": "#/components/schemas/JsonValue"
+          }
+        },
+        "required": [
+          "campo",
+          "regla",
+          "motivo"
+        ],
+        "title": "DeducidoPlanoRespuesta",
+        "type": "object"
+      },
       "DemandaClientesIn": {
         "description": "Alimentadores de la máxima buscada: el cruce se queda con sus clientes (RF-43).",
         "properties": {
@@ -2928,7 +3628,8 @@
           "origin": {
             "enum": [
               "upload",
-              "server"
+              "server",
+              "nube"
             ],
             "title": "Origin",
             "type": "string"
@@ -3106,6 +3807,29 @@
         "title": "EdicionRespuesta",
         "type": "object"
       },
+      "EditarVariacionPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "edicion": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Edicion",
+            "type": "object"
+          },
+          "version": {
+            "minimum": 0.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "edicion"
+        ],
+        "title": "EditarVariacionPeticion",
+        "type": "object"
+      },
       "ElegirPowerFactoryPeticion": {
         "additionalProperties": false,
         "properties": {
@@ -3124,6 +3848,124 @@
         "title": "ElegirPowerFactoryPeticion",
         "type": "object"
       },
+      "ElementoCapaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "banda": {
+            "title": "Banda",
+            "type": "string"
+          },
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "incumple": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncumplePlanoRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kv": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kv"
+          },
+          "motor": {
+            "title": "Motor",
+            "type": "string"
+          },
+          "valor": {
+            "$ref": "#/components/schemas/JsonValue"
+          }
+        },
+        "required": [
+          "codigo",
+          "banda",
+          "incumple",
+          "motor"
+        ],
+        "title": "ElementoCapaRespuesta",
+        "type": "object"
+      },
+      "ElementoComparadoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "a": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "b": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "banda_a": {
+            "title": "Banda A",
+            "type": "string"
+          },
+          "banda_b": {
+            "title": "Banda B",
+            "type": "string"
+          },
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "diferencia": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia"
+          },
+          "magnitud": {
+            "enum": [
+              "tension",
+              "corriente",
+              "cargabilidad",
+              "estado"
+            ],
+            "title": "Magnitud",
+            "type": "string"
+          },
+          "solo_en": {
+            "anyOf": [
+              {
+                "enum": [
+                  "a",
+                  "b"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solo En"
+          }
+        },
+        "required": [
+          "codigo",
+          "magnitud",
+          "diferencia",
+          "banda_a",
+          "banda_b",
+          "solo_en"
+        ],
+        "title": "ElementoComparadoRespuesta",
+        "type": "object"
+      },
       "EntradaAsignadaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -3134,7 +3976,8 @@
           "origin": {
             "enum": [
               "upload",
-              "server"
+              "server",
+              "nube"
             ],
             "title": "Origin",
             "type": "string"
@@ -3205,7 +4048,8 @@
           "origin": {
             "enum": [
               "upload",
-              "server"
+              "server",
+              "nube"
             ],
             "title": "Origin",
             "type": "string"
@@ -3801,6 +4645,25 @@
         "title": "EstadoPowerFactoryRespuesta",
         "type": "object"
       },
+      "EstudiarPlanoPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
+          }
+        },
+        "title": "EstudiarPlanoPeticion",
+        "type": "object"
+      },
       "EstudiosIn": {
         "description": "Plan de los estudios sobre la base del último ajuste aplicado (spec 011, RF-12, RF-25).",
         "properties": {
@@ -4217,6 +5080,26 @@
           }
         },
         "title": "FeedersIn",
+        "type": "object"
+      },
+      "FondoPlanoRespuesta": {
+        "additionalProperties": false,
+        "description": "086:RF-22, RF-65: el mapa base solo con la salida «teselas» encendida.",
+        "properties": {
+          "encendido": {
+            "title": "Encendido",
+            "type": "boolean"
+          },
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "encendido",
+          "motivo"
+        ],
+        "title": "FondoPlanoRespuesta",
         "type": "object"
       },
       "FormatoPeticion": {
@@ -4682,6 +5565,104 @@
           "cuadricula_mm"
         ],
         "title": "HojaRespuesta",
+        "type": "object"
+      },
+      "ImportarPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "casilla": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Casilla"
+          },
+          "entrada": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entrada"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          },
+          "libro": {
+            "anyOf": [
+              {
+                "enum": [
+                  "cabecera",
+                  "suministros",
+                  "clientes",
+                  "perdidas",
+                  "coincidente"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Libro"
+          },
+          "proveedor": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Proveedor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proveedor",
+          "ids"
+        ],
+        "title": "ImportarPeticion",
+        "type": "object"
+      },
+      "IncumplePlanoRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-13: un incumplimiento con texto, icono, valor y umbral, no solo color.",
+        "properties": {
+          "icono": {
+            "title": "Icono",
+            "type": "string"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          },
+          "umbral": {
+            "title": "Umbral",
+            "type": "number"
+          },
+          "valor": {
+            "title": "Valor",
+            "type": "number"
+          }
+        },
+        "required": [
+          "texto",
+          "icono",
+          "valor",
+          "umbral"
+        ],
+        "title": "IncumplePlanoRespuesta",
         "type": "object"
       },
       "InformeEstudioIn": {
@@ -5242,6 +6223,65 @@
         "title": "LecturaMapaPeticion",
         "type": "object"
       },
+      "LeyendaCapaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "caso": {
+            "title": "Caso",
+            "type": "string"
+          },
+          "magnitud": {
+            "title": "Magnitud",
+            "type": "string"
+          },
+          "motor": {
+            "title": "Motor",
+            "type": "string"
+          },
+          "motor_texto": {
+            "title": "Motor Texto",
+            "type": "string"
+          },
+          "origen_umbral": {
+            "title": "Origen Umbral",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "umbral": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Umbral"
+          },
+          "unidad": {
+            "title": "Unidad",
+            "type": "string"
+          }
+        },
+        "required": [
+          "magnitud",
+          "unidad",
+          "umbral",
+          "caso",
+          "revision",
+          "motor",
+          "motor_texto",
+          "origen_umbral"
+        ],
+        "title": "LeyendaCapaRespuesta",
+        "type": "object"
+      },
       "LibroCabeceraRespuesta": {
         "additionalProperties": false,
         "description": "Una fila del índice tal como la guarda ``services`` (025:RF-28): el tamaño y la fecha deciden si se reabre.",
@@ -5466,6 +6506,63 @@
           "fondo"
         ],
         "title": "LibrosNuevosRespuesta",
+        "type": "object"
+      },
+      "ManiobraPlanoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "barra": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barra"
+          },
+          "clase": {
+            "title": "Clase",
+            "type": "string"
+          },
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "estado": {
+            "enum": [
+              "abierto",
+              "cerrado"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "nombre_pf": {
+            "title": "Nombre Pf",
+            "type": "string"
+          },
+          "tramo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tramo"
+          }
+        },
+        "required": [
+          "codigo",
+          "nombre_pf",
+          "clase",
+          "tramo",
+          "barra",
+          "estado"
+        ],
+        "title": "ManiobraPlanoRespuesta",
         "type": "object"
       },
       "MesClienteFijoRespuesta": {
@@ -5740,6 +6837,35 @@
         "title": "MesTotalFijosRespuesta",
         "type": "object"
       },
+      "MotorPlanoRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-17, RF-18: con qué motor se estudiaría ahora y por qué.",
+        "properties": {
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          },
+          "motor": {
+            "enum": [
+              "DIgSILENT",
+              "abierto"
+            ],
+            "title": "Motor",
+            "type": "string"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "motor",
+          "texto",
+          "motivo"
+        ],
+        "title": "MotorPlanoRespuesta",
+        "type": "object"
+      },
       "NoDisponibleRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -5767,6 +6893,620 @@
           "ruta"
         ],
         "title": "NoDisponibleRespuesta",
+        "type": "object"
+      },
+      "NubeAccesoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "destinatario": {
+            "title": "Destinatario",
+            "type": "string"
+          },
+          "rol": {
+            "const": "lectura",
+            "title": "Rol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "destinatario",
+          "rol"
+        ],
+        "title": "NubeAccesoRespuesta",
+        "type": "object"
+      },
+      "NubeCompartirPreviaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "acceso": {
+            "items": {
+              "$ref": "#/components/schemas/NubeAccesoRespuesta"
+            },
+            "title": "Acceso",
+            "type": "array"
+          },
+          "aviso_publico": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso Publico"
+          },
+          "bloqueo": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Bloqueo",
+            "type": "array"
+          },
+          "confirmacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmacion"
+          },
+          "destinatarios": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Destinatarios",
+            "type": "array"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "paquete": {
+            "title": "Paquete",
+            "type": "string"
+          },
+          "proveedor": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Proveedor",
+            "type": "string"
+          },
+          "publicacion": {
+            "title": "Publicacion",
+            "type": "string"
+          },
+          "publico": {
+            "title": "Publico",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "paquete",
+          "publicacion",
+          "nombre",
+          "proveedor",
+          "acceso",
+          "destinatarios",
+          "publico",
+          "aviso_publico",
+          "bloqueo",
+          "confirmacion"
+        ],
+        "title": "NubeCompartirPreviaRespuesta",
+        "type": "object"
+      },
+      "NubeConectarRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "proveedor": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Proveedor",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "proveedor"
+        ],
+        "title": "NubeConectarRespuesta",
+        "type": "object"
+      },
+      "NubeCuentaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "conectada": {
+            "title": "Conectada",
+            "type": "boolean"
+          },
+          "cuenta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuenta"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          },
+          "nombre": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Nombre",
+            "type": "string"
+          },
+          "permisos": {
+            "title": "Permisos",
+            "type": "string"
+          },
+          "permisos_concedidos": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permisos Concedidos"
+          },
+          "puede_enviar": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Puede Enviar"
+          },
+          "puede_publicar": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Puede Publicar"
+          },
+          "registrado": {
+            "title": "Registrado",
+            "type": "boolean"
+          },
+          "se_puede_conectar": {
+            "title": "Se Puede Conectar",
+            "type": "boolean"
+          },
+          "visible": {
+            "title": "Visible",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "visible",
+          "registrado",
+          "se_puede_conectar",
+          "motivo",
+          "permisos",
+          "conectada",
+          "cuenta",
+          "permisos_concedidos",
+          "puede_publicar",
+          "puede_enviar"
+        ],
+        "title": "NubeCuentaRespuesta",
+        "type": "object"
+      },
+      "NubeCuentasRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "cuentas": {
+            "items": {
+              "$ref": "#/components/schemas/NubeCuentaRespuesta"
+            },
+            "title": "Cuentas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cuentas"
+        ],
+        "title": "NubeCuentasRespuesta",
+        "type": "object"
+      },
+      "NubeDesconectarRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
+          "desconectada": {
+            "title": "Desconectada",
+            "type": "boolean"
+          },
+          "proveedor": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Proveedor",
+            "type": "string"
+          },
+          "revocado": {
+            "title": "Revocado",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "proveedor",
+          "desconectada",
+          "revocado",
+          "aviso"
+        ],
+        "title": "NubeDesconectarRespuesta",
+        "type": "object"
+      },
+      "NubeProveedorRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          },
+          "nombre": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Nombre",
+            "type": "string"
+          },
+          "permisos": {
+            "title": "Permisos",
+            "type": "string"
+          },
+          "registrado": {
+            "title": "Registrado",
+            "type": "boolean"
+          },
+          "se_puede_conectar": {
+            "title": "Se Puede Conectar",
+            "type": "boolean"
+          },
+          "visible": {
+            "title": "Visible",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "visible",
+          "registrado",
+          "se_puede_conectar",
+          "motivo",
+          "permisos"
+        ],
+        "title": "NubeProveedorRespuesta",
+        "type": "object"
+      },
+      "NubeProveedoresRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "proveedores": {
+            "items": {
+              "$ref": "#/components/schemas/NubeProveedorRespuesta"
+            },
+            "title": "Proveedores",
+            "type": "array"
+          }
+        },
+        "required": [
+          "proveedores"
+        ],
+        "title": "NubeProveedoresRespuesta",
+        "type": "object"
+      },
+      "NubePublicarPreviaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "carpeta_destino": {
+            "title": "Carpeta Destino",
+            "type": "string"
+          },
+          "confirmacion": {
+            "title": "Confirmacion",
+            "type": "string"
+          },
+          "ficheros": {
+            "title": "Ficheros",
+            "type": "integer"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "proveedor": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Proveedor",
+            "type": "string"
+          },
+          "sobrescribe": {
+            "title": "Sobrescribe",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "proveedor",
+          "carpeta_destino",
+          "nombre",
+          "ficheros",
+          "sobrescribe",
+          "confirmacion"
+        ],
+        "title": "NubePublicarPreviaRespuesta",
+        "type": "object"
+      },
+      "NubeRecibosRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "recibos": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Recibos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "recibos"
+        ],
+        "title": "NubeRecibosRespuesta",
+        "type": "object"
+      },
+      "NubeTokenSelectorRespuesta": {
+        "additionalProperties": false,
+        "description": "109:RF-2 (aclaración): lo único que recibe el selector; nunca el token de refresco ni el secreto.",
+        "properties": {
+          "alcance": {
+            "title": "Alcance",
+            "type": "string"
+          },
+          "caduca_en_s": {
+            "title": "Caduca En S",
+            "type": "integer"
+          },
+          "clave_api": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave Api"
+          },
+          "id_aplicacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Aplicacion"
+          },
+          "id_cliente": {
+            "title": "Id Cliente",
+            "type": "string"
+          },
+          "proveedor": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Proveedor",
+            "type": "string"
+          },
+          "token_acceso": {
+            "title": "Token Acceso",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proveedor",
+          "token_acceso",
+          "caduca_en_s",
+          "alcance",
+          "id_cliente",
+          "clave_api",
+          "id_aplicacion"
+        ],
+        "title": "NubeTokenSelectorRespuesta",
+        "type": "object"
+      },
+      "NubeVinculoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "candidata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidata"
+          },
+          "comprobado": {
+            "title": "Comprobado",
+            "type": "string"
+          },
+          "destino": {
+            "additionalProperties": true,
+            "title": "Destino",
+            "type": "object"
+          },
+          "estado": {
+            "enum": [
+              "al_dia",
+              "nueva",
+              "sin_comprobar"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "historial": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Historial",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          },
+          "nombre_remoto": {
+            "title": "Nombre Remoto",
+            "type": "string"
+          },
+          "nueva": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nueva"
+          },
+          "proveedor": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Proveedor",
+            "type": "string"
+          },
+          "vigente": {
+            "additionalProperties": true,
+            "title": "Vigente",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "destino",
+          "proveedor",
+          "item_id",
+          "nombre_remoto",
+          "vigente",
+          "historial",
+          "estado",
+          "comprobado",
+          "motivo",
+          "nueva",
+          "candidata"
+        ],
+        "title": "NubeVinculoRespuesta",
+        "type": "object"
+      },
+      "NubeVinculosRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "vinculos": {
+            "items": {
+              "$ref": "#/components/schemas/NubeVinculoRespuesta"
+            },
+            "title": "Vinculos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "vinculos"
+        ],
+        "title": "NubeVinculosRespuesta",
         "type": "object"
       },
       "ObraAplicadaRespuesta": {
@@ -6506,6 +8246,166 @@
         "title": "ParalelismoRespuesta",
         "type": "object"
       },
+      "PedidoDiagnostico": {
+        "properties": {
+          "anios": {
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Anios",
+            "type": "array"
+          },
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "libro_red": {
+            "title": "Libro Red",
+            "type": "string"
+          },
+          "motor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motor"
+          },
+          "proyeccion": {
+            "title": "Proyeccion",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "area",
+          "anios",
+          "libro_red",
+          "proyeccion"
+        ],
+        "title": "PedidoDiagnostico",
+        "type": "object"
+      },
+      "PedidoExpediente": {
+        "properties": {
+          "alternativa_elegida": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alternativa Elegida"
+          },
+          "alternativas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alternativas"
+          },
+          "anios": {
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Anios",
+            "type": "array"
+          },
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "libro_red": {
+            "title": "Libro Red",
+            "type": "string"
+          },
+          "motor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motor"
+          },
+          "periodo": {
+            "minLength": 1,
+            "title": "Periodo",
+            "type": "string"
+          },
+          "proyeccion": {
+            "title": "Proyeccion",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "area",
+          "periodo",
+          "anios",
+          "libro_red",
+          "proyeccion"
+        ],
+        "title": "PedidoExpediente",
+        "type": "object"
+      },
+      "PedidoObservaciones": {
+        "properties": {
+          "expediente": {
+            "title": "Expediente",
+            "type": "string"
+          },
+          "observaciones": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Observaciones",
+            "type": "array"
+          },
+          "referencias": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Referencias",
+            "type": "object"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "expediente",
+          "observaciones",
+          "referencias"
+        ],
+        "title": "PedidoObservaciones",
+        "type": "object"
+      },
       "PerdidasReconocidasIn": {
         "description": "Lo que daría el libro de pérdidas de la empresa (RF-62), escrito a mano.",
         "properties": {
@@ -6894,6 +8794,47 @@
         "title": "PideObraAnualIn",
         "type": "object"
       },
+      "PlanoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "alimentadores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alimentadores",
+            "type": "array"
+          },
+          "fondo": {
+            "$ref": "#/components/schemas/FondoPlanoRespuesta"
+          },
+          "motor": {
+            "$ref": "#/components/schemas/MotorPlanoRespuesta"
+          },
+          "sin_coordenadas": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sin Coordenadas",
+            "type": "array"
+          },
+          "vistas": {
+            "items": {
+              "$ref": "#/components/schemas/VistaPlanoRespuesta"
+            },
+            "title": "Vistas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "alimentadores",
+          "sin_coordenadas",
+          "vistas",
+          "motor",
+          "fondo"
+        ],
+        "title": "PlanoRespuesta",
+        "type": "object"
+      },
       "ProblemaAuditoriaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -7022,6 +8963,82 @@
         "title": "ProgresoRespuesta",
         "type": "object"
       },
+      "PropuestaAjusteRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-7: el nodo cercano como propuesta, con la distancia; no cambia nada.",
+        "properties": {
+          "distancia_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancia M"
+          },
+          "distancia_mas_cercano_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancia Mas Cercano M"
+          },
+          "mas_cercano": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mas Cercano"
+          },
+          "nodo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nodo"
+          },
+          "punto": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Punto",
+            "type": "array"
+          },
+          "radio_m": {
+            "title": "Radio M",
+            "type": "number"
+          },
+          "radio_origen": {
+            "title": "Radio Origen",
+            "type": "string"
+          }
+        },
+        "required": [
+          "punto",
+          "nodo",
+          "distancia_m",
+          "mas_cercano",
+          "distancia_mas_cercano_m",
+          "radio_m",
+          "radio_origen"
+        ],
+        "title": "PropuestaAjusteRespuesta",
+        "type": "object"
+      },
       "PropuestaRenumeracionRespuesta": {
         "additionalProperties": false,
         "description": "105:RF-36: una renumeración posible, que no se aplica.",
@@ -7132,6 +9149,99 @@
         "title": "ProteccionesFallasIn",
         "type": "object"
       },
+      "PublicarPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "carpeta_destino": {
+            "minLength": 1,
+            "title": "Carpeta Destino",
+            "type": "string"
+          },
+          "confirmacion": {
+            "title": "Confirmacion",
+            "type": "string"
+          },
+          "nombre": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Nombre",
+            "type": "string"
+          },
+          "proveedor": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Proveedor",
+            "type": "string"
+          },
+          "salida": {
+            "default": "",
+            "title": "Salida",
+            "type": "string"
+          },
+          "seleccion": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Seleccion",
+            "type": "array"
+          }
+        },
+        "required": [
+          "proveedor",
+          "carpeta_destino",
+          "nombre",
+          "confirmacion"
+        ],
+        "title": "PublicarPeticion",
+        "type": "object"
+      },
+      "PublicarPrevia": {
+        "additionalProperties": false,
+        "properties": {
+          "carpeta_destino": {
+            "minLength": 1,
+            "title": "Carpeta Destino",
+            "type": "string"
+          },
+          "nombre": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Nombre",
+            "type": "string"
+          },
+          "proveedor": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Proveedor",
+            "type": "string"
+          },
+          "salida": {
+            "default": "",
+            "title": "Salida",
+            "type": "string"
+          },
+          "seleccion": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Seleccion",
+            "type": "array"
+          }
+        },
+        "required": [
+          "proveedor",
+          "carpeta_destino",
+          "nombre"
+        ],
+        "title": "PublicarPrevia",
+        "type": "object"
+      },
       "PublicationIn": {
         "properties": {
           "publication_id": {
@@ -7184,6 +9294,41 @@
           }
         },
         "title": "PuntoFichaIn",
+        "type": "object"
+      },
+      "RaizPreviaCopia": {
+        "additionalProperties": false,
+        "description": "086:RF-108: una de las cosas que se copian, con lo que ocupa (cada fichero físico una vez).",
+        "properties": {
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "etiqueta": {
+            "title": "Etiqueta",
+            "type": "string"
+          },
+          "ficheros": {
+            "title": "Ficheros",
+            "type": "integer"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "ruta": {
+            "title": "Ruta",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "etiqueta",
+          "ruta",
+          "ficheros",
+          "bytes"
+        ],
+        "title": "RaizPreviaCopia",
         "type": "object"
       },
       "RecalibrarIn": {
@@ -7661,6 +9806,61 @@
           "salidas"
         ],
         "title": "SalidasRedRespuesta",
+        "type": "object"
+      },
+      "SedPlanoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "barra": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barra"
+          },
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "kva": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kva"
+          },
+          "nombre_pf": {
+            "title": "Nombre Pf",
+            "type": "string"
+          },
+          "tramo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tramo"
+          }
+        },
+        "required": [
+          "codigo",
+          "nombre_pf",
+          "barra",
+          "tramo",
+          "kva"
+        ],
+        "title": "SedPlanoRespuesta",
         "type": "object"
       },
       "SelectionIn": {
@@ -8209,6 +10409,117 @@
         "title": "TotalesRespuesta",
         "type": "object"
       },
+      "TramoPlanoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "aereo": {
+            "title": "Aereo",
+            "type": "boolean"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "calidad": {
+            "enum": [
+              "ok",
+              "aviso",
+              "error",
+              "sin_coordenadas"
+            ],
+            "title": "Calidad",
+            "type": "string"
+          },
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "deducido": {
+            "items": {
+              "$ref": "#/components/schemas/DeducidoPlanoRespuesta"
+            },
+            "title": "Deducido",
+            "type": "array"
+          },
+          "desde": {
+            "title": "Desde",
+            "type": "string"
+          },
+          "errores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Errores",
+            "type": "array"
+          },
+          "fases": {
+            "title": "Fases",
+            "type": "string"
+          },
+          "hasta": {
+            "title": "Hasta",
+            "type": "string"
+          },
+          "longitud_m": {
+            "title": "Longitud M",
+            "type": "number"
+          },
+          "nombre_pf": {
+            "title": "Nombre Pf",
+            "type": "string"
+          },
+          "original": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Original",
+            "type": "object"
+          },
+          "paralelo_con": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Paralelo Con",
+            "type": "array"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          },
+          "vertices": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Vertices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "codigo",
+          "nombre_pf",
+          "desde",
+          "hasta",
+          "fases",
+          "tipo",
+          "aereo",
+          "longitud_m",
+          "vertices",
+          "paralelo_con",
+          "original",
+          "deducido",
+          "calidad",
+          "avisos",
+          "errores"
+        ],
+        "title": "TramoPlanoRespuesta",
+        "type": "object"
+      },
       "TransferenciaIn": {
         "description": "Transferencia de carga entre dos alimentadores (spec 011, RF-104).",
         "properties": {
@@ -8383,6 +10694,22 @@
         "title": "TransformadoresIn",
         "type": "object"
       },
+      "TurnoVariacionPeticion": {
+        "additionalProperties": false,
+        "description": "111:RF-4, RF-9: la versión que el navegador leyó; si ya cambió, 409.",
+        "properties": {
+          "version": {
+            "minimum": 0.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "TurnoVariacionPeticion",
+        "type": "object"
+      },
       "ValidateIn": {
         "properties": {
           "canonical": {
@@ -8458,6 +10785,108 @@
           "respecto"
         ],
         "title": "VariacionMesRespuesta",
+        "type": "object"
+      },
+      "VariacionPlanoRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-4, RF-5, RF-9: la variación guardada en el espacio, con su versión y su diario.",
+        "properties": {
+          "alimentador": {
+            "title": "Alimentador",
+            "type": "string"
+          },
+          "caso": {
+            "title": "Caso",
+            "type": "string"
+          },
+          "deshechas": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Deshechas",
+            "type": "array"
+          },
+          "ediciones": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Ediciones",
+            "type": "array"
+          },
+          "estado": {
+            "enum": [
+              "abierta",
+              "confirmada"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "formato": {
+            "title": "Formato",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "revision_cambiada": {
+            "title": "Revision Cambiada",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "formato",
+          "id",
+          "alimentador",
+          "caso",
+          "revision",
+          "revision_cambiada",
+          "version",
+          "estado",
+          "ediciones",
+          "deshechas"
+        ],
+        "title": "VariacionPlanoRespuesta",
+        "type": "object"
+      },
+      "VariacionesPlanoRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-4, RF-12: las variaciones guardadas en el servidor y las que ya tienen estudio, para comparar.",
+        "properties": {
+          "estudiadas": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Estudiadas",
+            "type": "array"
+          },
+          "variaciones": {
+            "items": {
+              "$ref": "#/components/schemas/VariacionPlanoRespuesta"
+            },
+            "title": "Variaciones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "variaciones",
+          "estudiadas"
+        ],
+        "title": "VariacionesPlanoRespuesta",
         "type": "object"
       },
       "VeredictoClienteRespuesta": {
@@ -8620,6 +11049,116 @@
           "binding_sha256"
         ],
         "title": "VinculoProyectoRespuesta",
+        "type": "object"
+      },
+      "VistaPlanoRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-1 a RF-3, RF-11: un alimentador con todos los vértices de su fuente y su revisión de la red.",
+        "properties": {
+          "alimentador": {
+            "title": "Alimentador",
+            "type": "string"
+          },
+          "avisos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Avisos",
+            "type": "array"
+          },
+          "barras": {
+            "items": {
+              "$ref": "#/components/schemas/BarraPlanoRespuesta"
+            },
+            "title": "Barras",
+            "type": "array"
+          },
+          "colisiones": {
+            "items": {
+              "$ref": "#/components/schemas/ColisionPlanoRespuesta"
+            },
+            "title": "Colisiones",
+            "type": "array"
+          },
+          "kv": {
+            "title": "Kv",
+            "type": "number"
+          },
+          "maniobras": {
+            "items": {
+              "$ref": "#/components/schemas/ManiobraPlanoRespuesta"
+            },
+            "title": "Maniobras",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "sed": {
+            "items": {
+              "$ref": "#/components/schemas/SedPlanoRespuesta"
+            },
+            "title": "Sed",
+            "type": "array"
+          },
+          "sin_coordenadas": {
+            "title": "Sin Coordenadas",
+            "type": "boolean"
+          },
+          "source_crs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Crs"
+          },
+          "target_crs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Crs"
+          },
+          "tipos_de_linea": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tipos De Linea",
+            "type": "array"
+          },
+          "tramos": {
+            "items": {
+              "$ref": "#/components/schemas/TramoPlanoRespuesta"
+            },
+            "title": "Tramos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "alimentador",
+          "kv",
+          "source_crs",
+          "target_crs",
+          "sin_coordenadas",
+          "tramos",
+          "barras",
+          "sed",
+          "maniobras",
+          "tipos_de_linea",
+          "colisiones",
+          "avisos",
+          "revision"
+        ],
+        "title": "VistaPlanoRespuesta",
         "type": "object"
       },
       "VistaUbicacionIn": {
@@ -8961,6 +11500,58 @@
         "summary": "Copia Carpeta"
       }
     },
+    "/api/copia-datos/previa": {
+      "get": {
+        "description": "086:RF-82, RF-83, RF-108: lo que ocupará, lo libre, lo que se copia y las copias que ya hay; no escribe.\n\nNi recuerda la carpeta: eso lo hace la copia, cuando el operador pulsa «Copiar».",
+        "operationId": "copia_previa_api_copia_datos_previa_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "carpeta",
+            "required": true,
+            "schema": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "title": "Carpeta",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sin_modelos",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Sin Modelos",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopiaDatosPreviaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Copia Previa"
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "health_api_health_get",
@@ -9153,6 +11744,25 @@
         "summary": "Volver Al Modelo Anterior"
       }
     },
+    "/api/nube/proveedores": {
+      "get": {
+        "description": "109:RF-19: qué proveedores están registrados en este equipo y si se pueden conectar.",
+        "operationId": "nube_proveedores_api_nube_proveedores_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NubeProveedoresRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Nube Proveedores"
+      }
+    },
     "/api/perfil": {
       "get": {
         "description": "086:RF-56: el perfil activo de la empresa, validado.",
@@ -9231,6 +11841,181 @@
           }
         },
         "summary": "Estudios Catalogo"
+      }
+    },
+    "/api/pit/areas": {
+      "get": {
+        "operationId": "areas_api_pit_areas_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Areas Api Pit Areas Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Areas",
+        "tags": [
+          "pit"
+        ]
+      }
+    },
+    "/api/pit/capacidades": {
+      "get": {
+        "operationId": "capacidades_api_pit_capacidades_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Capacidades Api Pit Capacidades Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Capacidades",
+        "tags": [
+          "pit"
+        ]
+      }
+    },
+    "/api/pit/diagnostico": {
+      "post": {
+        "operationId": "diagnostico_api_pit_diagnostico_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PedidoDiagnostico"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Diagnostico Api Pit Diagnostico Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Diagnostico",
+        "tags": [
+          "pit"
+        ]
+      }
+    },
+    "/api/pit/expediente": {
+      "post": {
+        "operationId": "expediente_api_pit_expediente_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PedidoExpediente"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Expediente Api Pit Expediente Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Expediente",
+        "tags": [
+          "pit"
+        ]
+      }
+    },
+    "/api/pit/observaciones": {
+      "post": {
+        "operationId": "observaciones_api_pit_observaciones_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PedidoObservaciones"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Observaciones Api Pit Observaciones Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Observaciones",
+        "tags": [
+          "pit"
+        ]
       }
     },
     "/api/planeamiento/tipos": {
@@ -15245,6 +18030,728 @@
         "summary": "Descartar No Disponible"
       }
     },
+    "/api/workspaces/{wid}/nube/compartir": {
+      "post": {
+        "description": "109:RF-10 a RF-12, RF-20: solo lectura a los nombrados, con la confirmación de la previa; un recibo cada uno.",
+        "operationId": "nube_compartir_api_workspaces__wid__nube_compartir_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompartirPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Compartir"
+      }
+    },
+    "/api/workspaces/{wid}/nube/compartir/previa": {
+      "post": {
+        "description": "109:RF-10, RF-11, RF-20: quién tendrá acceso y qué lo impide, antes de confirmar.",
+        "operationId": "nube_compartir_previa_api_workspaces__wid__nube_compartir_previa_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompartirPrevia"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NubeCompartirPreviaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Compartir Previa"
+      }
+    },
+    "/api/workspaces/{wid}/nube/copias/{huella}": {
+      "get": {
+        "description": "109:RF-22: la copia fija ya importada, tal cual, para que el navegador la cargue en su entrada.",
+        "operationId": "nube_copia_api_workspaces__wid__nube_copias__huella__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "huella",
+            "required": true,
+            "schema": {
+              "title": "Huella",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Copia"
+      }
+    },
+    "/api/workspaces/{wid}/nube/cuentas": {
+      "get": {
+        "operationId": "nube_cuentas_api_workspaces__wid__nube_cuentas_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NubeCuentasRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Cuentas"
+      }
+    },
+    "/api/workspaces/{wid}/nube/importar": {
+      "post": {
+        "description": "109:RF-3, RF-4: descarga la copia fija y la asigna por la misma vía que una subida.",
+        "operationId": "nube_importar_api_workspaces__wid__nube_importar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportarPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Importar"
+      }
+    },
+    "/api/workspaces/{wid}/nube/publicar": {
+      "post": {
+        "description": "109:RF-9, RF-12, RF-13: ZIP cerrado con su manifiesto, sin pisar nada, y su recibo.",
+        "operationId": "nube_publicar_api_workspaces__wid__nube_publicar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Publicar"
+      }
+    },
+    "/api/workspaces/{wid}/nube/publicar/previa": {
+      "post": {
+        "description": "109:RF-9: qué se va a subir y adónde, con la confirmación de un solo uso que exige publicar.",
+        "operationId": "nube_publicar_previa_api_workspaces__wid__nube_publicar_previa_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarPrevia"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NubePublicarPreviaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Publicar Previa"
+      }
+    },
+    "/api/workspaces/{wid}/nube/recibos": {
+      "get": {
+        "description": "109:RF-12: los recibos de este espacio; nunca los de otro.",
+        "operationId": "nube_recibos_api_workspaces__wid__nube_recibos_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NubeRecibosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Recibos"
+      }
+    },
+    "/api/workspaces/{wid}/nube/versiones": {
+      "post": {
+        "description": "109:RF-7, RF-17: comprueba las revisiones; sin conexión dice que no pudo comprobar.",
+        "operationId": "nube_versiones_api_workspaces__wid__nube_versiones_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Versiones"
+      }
+    },
+    "/api/workspaces/{wid}/nube/vinculos": {
+      "get": {
+        "operationId": "nube_vinculos_api_workspaces__wid__nube_vinculos_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NubeVinculosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Vinculos"
+      }
+    },
+    "/api/workspaces/{wid}/nube/vinculos/{vid}/aceptar": {
+      "post": {
+        "description": "109:RF-8: la versión nueva entra solo con la confirmación del operador; la anterior se conserva.",
+        "operationId": "nube_aceptar_api_workspaces__wid__nube_vinculos__vid__aceptar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "vid",
+            "required": true,
+            "schema": {
+              "title": "Vid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AceptarPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NubeVinculoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Aceptar"
+      }
+    },
+    "/api/workspaces/{wid}/nube/vinculos/{vid}/traer": {
+      "post": {
+        "description": "109:RF-7: trae la versión nueva como otra copia, sin asignarla, y la compara con la vigente.",
+        "operationId": "nube_traer_api_workspaces__wid__nube_vinculos__vid__traer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "vid",
+            "required": true,
+            "schema": {
+              "title": "Vid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Traer"
+      }
+    },
+    "/api/workspaces/{wid}/nube/{proveedor}": {
+      "delete": {
+        "description": "109:RF-14: revoca y borra la credencial; las copias importadas y los recibos se quedan.",
+        "operationId": "nube_desconectar_api_workspaces__wid__nube__proveedor__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proveedor",
+            "required": true,
+            "schema": {
+              "title": "Proveedor",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NubeDesconectarRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Desconectar"
+      }
+    },
+    "/api/workspaces/{wid}/nube/{proveedor}/conectar": {
+      "post": {
+        "description": "109:RF-1: la URL del proveedor con los permisos mínimos; la contraseña la escribe el operador allí.",
+        "operationId": "nube_conectar_api_workspaces__wid__nube__proveedor__conectar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proveedor",
+            "required": true,
+            "schema": {
+              "title": "Proveedor",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ConectarPeticion"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NubeConectarRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Conectar"
+      }
+    },
+    "/api/workspaces/{wid}/nube/{proveedor}/selector/token": {
+      "post": {
+        "description": "109:RF-1, RF-3 y aclaración de RF-2: el token de ACCESO de corta duración para abrir el selector.\n\nSolo el de acceso, con el alcance de leer (``drive.file`` o ``Files.Read``); nunca el de refresco ni el\nsecreto del cliente. ``no-store``: ni el navegador ni un proxy lo guardan; el selector lo pide cada vez.",
+        "operationId": "nube_selector_token_api_workspaces__wid__nube__proveedor__selector_token_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proveedor",
+            "required": true,
+            "schema": {
+              "title": "Proveedor",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NubeTokenSelectorRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Nube Selector Token"
+      }
+    },
     "/api/workspaces/{wid}/obras": {
       "get": {
         "operationId": "obras_listar_api_workspaces__wid__obras_get",
@@ -17140,6 +20647,755 @@
           }
         },
         "summary": "Pide Fuentes"
+      }
+    },
+    "/api/workspaces/{wid}/plano": {
+      "get": {
+        "description": "111:RF-1 a RF-3, RF-11, RF-17: la vista de cada alimentador pedido (o de todos los convertidos).",
+        "operationId": "plano_api_workspaces__wid__plano_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "alimentador",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Alimentador",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Plano"
+      }
+    },
+    "/api/workspaces/{wid}/plano/comparar": {
+      "get": {
+        "description": "111:RF-12, RF-19: dos casos por elemento sobre el mismo plano, con aviso si los motores son distintos.",
+        "operationId": "comparar_api_workspaces__wid__plano_comparar_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "A",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "B",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparacionPlanoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Comparar"
+      }
+    },
+    "/api/workspaces/{wid}/plano/pagina": {
+      "get": {
+        "description": "111:RF-1, RF-10, RF-14; 086:RF-21: la página del plano, aislada como toda página generada; con\n``variacion``, sus capas si se pueden pintar en esta revisión de la red.",
+        "operationId": "pagina_api_workspaces__wid__plano_pagina_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "alimentador",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Alimentador",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "variacion",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Variacion"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pagina"
+      }
+    },
+    "/api/workspaces/{wid}/plano/resultados": {
+      "get": {
+        "description": "111:RF-10, RF-11, RF-13, RF-18: las capas del resultado, solo si es de esta revisión de la red y de su caso.",
+        "operationId": "resultados_api_workspaces__wid__plano_resultados_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "variacion",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Variacion",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapasPlanoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resultados"
+      }
+    },
+    "/api/workspaces/{wid}/plano/variaciones": {
+      "get": {
+        "description": "111:RF-4, RF-12: lo guardado de verdad, en el servidor: las variaciones del alimentador y cuáles tienen\nestudio.",
+        "operationId": "listar_api_workspaces__wid__plano_variaciones_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "alimentador",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Alimentador"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariacionesPlanoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Listar"
+      },
+      "post": {
+        "description": "111:RF-4: abre una variación sobre la revisión de la red que vio el navegador; si cambió, 409.",
+        "operationId": "abrir_api_workspaces__wid__plano_variaciones_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AbrirVariacionPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariacionPlanoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Abrir"
+      }
+    },
+    "/api/workspaces/{wid}/plano/variaciones/{vid}": {
+      "get": {
+        "operationId": "leer_api_workspaces__wid__plano_variaciones__vid__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "vid",
+            "required": true,
+            "schema": {
+              "title": "Vid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariacionPlanoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leer"
+      },
+      "patch": {
+        "description": "111:RF-4 a RF-8, RF-15: valida y versiona una edición; 422 con el motivo, 409 si cambió la versión o la red.",
+        "operationId": "editar_api_workspaces__wid__plano_variaciones__vid__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "vid",
+            "required": true,
+            "schema": {
+              "title": "Vid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditarVariacionPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariacionPlanoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Editar"
+      }
+    },
+    "/api/workspaces/{wid}/plano/variaciones/{vid}/ajuste": {
+      "post": {
+        "description": "111:RF-7: el nodo más cercano como propuesta, con su distancia; no cambia la variación.",
+        "operationId": "ajuste_api_workspaces__wid__plano_variaciones__vid__ajuste_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "vid",
+            "required": true,
+            "schema": {
+              "title": "Vid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AjustePlanoPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropuestaAjusteRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ajuste"
+      }
+    },
+    "/api/workspaces/{wid}/plano/variaciones/{vid}/confirmar": {
+      "post": {
+        "operationId": "plano_confirmar_api_workspaces__wid__plano_variaciones__vid__confirmar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "vid",
+            "required": true,
+            "schema": {
+              "title": "Vid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TurnoVariacionPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariacionPlanoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "111:RF-9: confirmar"
+      }
+    },
+    "/api/workspaces/{wid}/plano/variaciones/{vid}/deshacer": {
+      "post": {
+        "operationId": "plano_deshacer_api_workspaces__wid__plano_variaciones__vid__deshacer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "vid",
+            "required": true,
+            "schema": {
+              "title": "Vid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TurnoVariacionPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariacionPlanoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "111:RF-9: deshacer"
+      }
+    },
+    "/api/workspaces/{wid}/plano/variaciones/{vid}/estudiar": {
+      "post": {
+        "description": "111:RF-17: estudiar es un trabajo en su carril; la red cambiada o la variación marcada es 409.",
+        "operationId": "estudiar_ruta_api_workspaces__wid__plano_variaciones__vid__estudiar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "vid",
+            "required": true,
+            "schema": {
+              "title": "Vid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstudiarPlanoPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Estudiar Ruta"
+      }
+    },
+    "/api/workspaces/{wid}/plano/variaciones/{vid}/rehacer": {
+      "post": {
+        "operationId": "plano_rehacer_api_workspaces__wid__plano_variaciones__vid__rehacer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "vid",
+            "required": true,
+            "schema": {
+              "title": "Vid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TurnoVariacionPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariacionPlanoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "111:RF-9: rehacer"
       }
     },
     "/api/workspaces/{wid}/powerfactory/adoptar-fuente": {

@@ -414,12 +414,31 @@ def _preparar(destino: Path, raices: dict[str, Path] | None, sin_modelos: bool, 
     return destino, origenes, tipos, grupos, omitidos, errores
 
 
+#: Cómo se llama en la web cada raíz de la copia (086:RF-108); una raíz nueva sale con su nombre.
+ETIQUETAS_RAIZ = {
+    'datos': 'Espacios de trabajo', 'heredada': 'Datos de la versión anterior', 'config': 'Configuración',
+    'input': 'Fichas del operador', 'asistente': 'Asistente', 'gemelo': 'Gemelo digital',
+    'perfil_empresa': 'Perfil de la empresa',
+}
+
+
 def planificar_copia(destino: Path, *, raices: dict[str, Path] | None = None, sin_modelos: bool = False,
                      ahora: float | None = None) -> dict[str, Any]:
-    """086:RF-82: cuánto ocupará la copia (bytes físicos únicos) y cuánto hay libre, sin escribir nada."""
+    """086:RF-82: cuánto ocupará la copia (bytes físicos únicos) y cuánto hay libre, sin escribir nada.
+
+    Aclaración de RF-82 (2026-11-16): también lo que se copia, raíz por raíz, para la previa de la web.
+    """
     momento = time.time() if ahora is None else ahora
-    destino, _, _, grupos, _, _ = _preparar(destino, raices, sin_modelos, momento)
-    return _resumen_plan(grupos, destino)
+    destino, origenes, _, grupos, _, _ = _preparar(destino, raices, sin_modelos, momento)
+    plan = _resumen_plan(grupos, destino)
+    por_raiz = {n: {'nombre': n, 'etiqueta': ETIQUETAS_RAIZ.get(n, n), 'ruta': str(r), 'ficheros': 0, 'bytes': 0}
+                for n, r in origenes.items()}
+    for grupo in grupos:
+        fila = por_raiz[grupo['nombres'][0][0]]
+        fila['ficheros'] += 1
+        fila['bytes'] += grupo['bytes']
+    plan['raices'] = [f for f in por_raiz.values() if f['ficheros']]
+    return plan
 
 
 def _retirar(carpeta: Path, *, reintentos: int = REINTENTOS, espera: float = ESPERA_S) -> None:
@@ -552,12 +571,18 @@ def carpeta_recordada() -> Path | None:
     return Path(ruta) if ruta else None
 
 
-def recordar_carpeta(ruta: str) -> Path:
-    """086:RF-85: valida y recuerda la carpeta de las copias; una que no es una carpeta de esta máquina se rechaza."""
+def validar_carpeta(ruta: str) -> Path:
+    """086:RF-85, RF-108: la carpeta de las copias, si es una carpeta de esta máquina; no escribe nada."""
     texto = (ruta or '').strip().strip('"')
     carpeta = Path(texto)
     if not texto or not carpeta.is_absolute() or not carpeta.is_dir():
         raise ValueError(f'{texto or "(vacía)"}: no es una carpeta de esta máquina.')
+    return carpeta
+
+
+def recordar_carpeta(ruta: str) -> Path:
+    """086:RF-85: valida y recuerda la carpeta de las copias; una que no es una carpeta de esta máquina se rechaza."""
+    carpeta = validar_carpeta(ruta)
     write_json_atomic(ruta_carpeta_recordada(), {'ruta': carpeta.as_posix()})
     return carpeta
 
@@ -786,6 +811,72 @@ def restaurar_copia(copia: Path, *, raices: dict[str, Path] | None = None) -> di
             'rutas_externas_sin_copiar': manifiesto.get('rutas_externas_sin_copiar') or []}
 
 
+PREFIJO_COPIA = 'csg-copia-'
+#: El resumen de cada manifiesto leído, por su ruta, tamaño y fecha: el aviso se lee en cada /api/health, y el
+#: manifiesto de una copia real en Drive pesa unos 3 MB (086:RF-109).
+_RESUMENES: dict[tuple[str, int, int], dict[str, Any]] = {}
+
+
+def _resumen_manifiesto(copia: Path) -> dict[str, Any]:
+    """Fecha, tamaño, ficheros y errores de una copia, desde su manifiesto; sin releer huellas (eso es verificar)."""
+    fichero = Path(copia) / MANIFIESTO
+    try:
+        datos = fichero.stat()
+    except OSError as exc:
+        return {'estado': 'no_valida', 'motivo': f'Sin un manifiesto legible no hay copia: {exc}'}
+    clave = (str(fichero), datos.st_size, datos.st_mtime_ns)
+    if clave not in _RESUMENES:
+        try:
+            m = _leer_manifiesto(copia)
+        except CopiaNoValida as exc:
+            resumen: dict[str, Any] = {'estado': 'no_valida', 'motivo': str(exc)}
+        else:
+            errores = m.get('errores') if isinstance(m.get('errores'), list) else []
+            creada = m.get('creada')
+            resumen = {
+                'estado': 'con_errores' if errores else 'buena', 'motivo': None,
+                'creada': float(creada) if isinstance(creada, (int, float)) and not isinstance(creada, bool) else None,
+                'bytes': sum(i['bytes'] for i in m['ficheros']), 'ficheros': len(m['ficheros']),
+                'nombres': sum(len(_nombres(i)) for i in m['ficheros']), 'errores': len(errores),
+            }
+        if len(_RESUMENES) > 64:
+            _RESUMENES.clear()
+        _RESUMENES[clave] = resumen
+    return _RESUMENES[clave]
+
+
+def listar_copias(destino: Path) -> list[dict[str, Any]]:
+    """086:RF-108: las copias que hay en la carpeta destino, de la más nueva a la más vieja, en solo lectura.
+
+    Cada una con su fecha, tamaño, ficheros, errores y estado del manifiesto: ``buena`` (manifiesto correcto y sin
+    errores; las huellas las relee ``verificar_copia``), ``con_errores``, ``no_valida`` o ``a_medias`` (una
+    ``.parcial`` que quedó de una copia que no terminó). Una carpeta que no existe o no se puede leer no tiene copias.
+    """
+    try:
+        # Resuelta, como la escribe ``crear_copia``: una ruta corta (8.3) o con otra forma da la misma copia.
+        entradas = list(os.scandir(Path(destino).resolve()))
+    except OSError:
+        return []
+    filas = []
+    for entrada in entradas:
+        a_medias = entrada.name.startswith('.parcial-' + PREFIJO_COPIA)
+        try:
+            es_carpeta = entrada.is_dir(follow_symlinks=False)
+        except OSError:
+            continue
+        if not es_carpeta or not (a_medias or entrada.name.startswith(PREFIJO_COPIA)):
+            continue
+        fila: dict[str, Any] = {'nombre': entrada.name, 'ruta': entrada.path, 'creada': None, 'bytes': None,
+                                'ficheros': None, 'nombres': None, 'errores': 0}
+        if a_medias:
+            fila.update(estado='a_medias', motivo='No terminó: no sirve para restaurar.')
+        else:
+            fila.update(_resumen_manifiesto(Path(entrada.path)))
+        filas.append(fila)
+    filas.sort(key=lambda f: (f['creada'] or 0, f['nombre']), reverse=True)
+    return filas
+
+
 def _registro_ultima(raiz: Path) -> Path:
     return Path(raiz) / '_mantenimiento' / 'ultima_copia.json'
 
@@ -797,17 +888,29 @@ def dias_maximos() -> float:
         return DIAS_MAXIMOS
 
 
-def estado_copia(raiz: Path, *, ahora: float | None = None) -> dict[str, Any]:
-    """Cuándo fue la última copia y si toca avisar (086:RF-47); sin copias también avisa."""
+def estado_copia(raiz: Path, *, ahora: float | None = None, destino: Path | None = None) -> dict[str, Any]:
+    """Cuándo fue la última copia y si toca avisar (086:RF-47); sin copias también avisa.
+
+    086:RF-109: con la carpeta destino, cuenta también la copia buena más nueva que hay en ella. El registro de
+    ``_mantenimiento`` es de los datos de este servidor: un espacio nuevo o una reinstalación no lo tienen, y el aviso
+    decía «Aún no hay ninguna copia» con una de 19,8 GB en la carpeta (prueba con la cuenta local, 2026-11-16).
+    """
     momento = time.time() if ahora is None else ahora
     maxima = dias_maximos()
     try:
         ultima = json.loads(_registro_ultima(raiz).read_text(encoding='utf-8'))
-        creada = float(ultima['creada'])
+        creada: float | None = float(ultima['creada'])
         ruta = str(ultima.get('ruta') or '') or None
     except (OSError, ValueError, KeyError, TypeError):
+        creada, ruta = None, None
+    if destino is not None:
+        buena = next((c for c in listar_copias(destino) if c['estado'] == 'buena' and c['creada'] is not None), None)
+        if buena is not None and (creada is None or buena['creada'] > creada):
+            creada, ruta = buena['creada'], buena['ruta']
+    if creada is None:
+        # «No consta»: sin la carpeta destino, el servidor no puede saber que no hay ninguna (RF-109).
         return {'ultima': None, 'ruta': None, 'edad_dias': None, 'maxima_dias': maxima, 'vencida': True,
-                'aviso': 'No hay ninguna copia de los datos: hágala desde la web o con tools/copia_datos.py crear.'}
+                'aviso': 'No consta ninguna copia de los datos: hágala desde la web o con tools/copia_datos.py crear.'}
     edad = (momento - creada) / 86400
     vencida = edad > maxima
     return {'ultima': creada, 'ruta': ruta, 'edad_dias': round(edad, 2), 'maxima_dias': maxima, 'vencida': vencida,

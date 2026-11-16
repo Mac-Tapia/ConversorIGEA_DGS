@@ -36,7 +36,7 @@ def _job_publico(i, ws, kind, title, lane, resultado, status='done'):
 
 
 class Montaje:
-    def __init__(self, tmp_path, modo='acepta', diferido=False, cola_rechaza=0):
+    def __init__(self, tmp_path, modo='acepta', diferido=False, cola_rechaza=0, credenciales=None):
         out, self.destino = _informe_cerrado(tmp_path, {})
         self.ws = SimpleNamespace(id='a' * 12, root=tmp_path / 'ws', out_dir=out)
         self.ws.root.mkdir(exist_ok=True)
@@ -69,7 +69,7 @@ class Montaje:
             return job
 
         correo_api.registrar_rutas_correo(app, ws_or_404=ws_or_404, submit=submit,
-                                          credenciales_de=lambda ws: CredencialesSimuladas(),
+                                          credenciales_de=lambda ws: credenciales or CredencialesSimuladas(),
                                           compartidor_de=lambda ws: CompartidorSimulado(),
                                           informes_en_curso=lambda ws: self.en_curso,
                                           proveedor=lambda nombre: self.proveedor)
@@ -306,6 +306,20 @@ def test_create_app_sirve_el_correo_y_sin_cuentas_de_la_109_no_envia(tmp_path, m
         hist = c.get(f'/api/workspaces/{wid}/correo/historial', params={'informe': destino.name}).json()
         assert [e['clave'] for e in hist['envios']] == [r.json()['clave']]
         assert 'cliente@otra.test' not in r.json()['trabajo']['title']
+
+
+def test_sin_cuenta_conectada_la_web_dice_que_configure_la_nube_y_no_falla(tmp_path):
+    """110:RF-2, RF-8 — sin la cuenta de la 109 (versión de prueba sin registro): la vista previa sale, el envío queda
+    rechazado con «Sin cuenta conectada: configure config/nube.json», con su recibo, y no llama al proveedor."""
+    m = Montaje(tmp_path, credenciales=correo_api.SinCuentas())
+    v = m.vista()
+    assert v.status_code == 200, v.text
+    r = m.confirmar(v.json())
+    assert r.status_code == 200, r.text
+    recibo = m.cliente.get(f'{m.base()}/envios/{r.json()["clave"]}').json()
+    assert recibo['estado'] == 'rechazado', recibo
+    assert 'Sin cuenta conectada: configure config/nube.json' in (recibo.get('motivo') or ''), recibo
+    assert m.proveedor.llamadas == []
 
 
 def test_el_registro_no_escribe_el_token_bearer_dado_como_argumento():

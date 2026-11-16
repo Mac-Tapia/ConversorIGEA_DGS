@@ -66,7 +66,7 @@ públicas (`ultimo_estudio`, `guion_pf`), o que las mueva a un módulo de aplica
 | API: `GET …/plano` (vista), `GET …/plano/pagina` (HTML), `GET/POST/PATCH …/plano/variaciones[/{id}]` con versión (`409` si la versión o la revisión de la red cambiaron), `POST …/deshacer`, `…/rehacer`, `…/confirmar`, `POST …/estudiar` (trabajo en `engine` o en `powerfactory`), `GET …/plano/resultados` y `…/comparar`. Toda regla eléctrica vive aquí, no en el navegador | nuevo `src/convertersmartgrid/web/plano_api.py` (`registrar_rutas_plano`); contratos en `web/api_contract.py`; **cableado mínimo, pactado con el integrador**: dos líneas en `web/app.py`, como `mapa_cargas_api` | RF-4, RF-9, RF-15, RF-17 |
 | Página del plano generada por el servidor: Leaflet propio con lienzo (`preferCanvas`), capas por vista (tramos, SED, maniobras, cargas, resultados), nivel de detalle solo gráfico y reversible (`smoothFactor` al alejar; los datos siguen enteros), leyenda, tokens claro/oscuro con `prefers-color-scheme`, sin fondo si la salida de teselas está apagada; mensajes `postMessage` validados con el padre (seleccionar, resaltar, capa, propuesta) | nuevo `src/convertersmartgrid/pagina_plano.py` (reutiliza `preview._recurso_leaflet`, `politica_pagina_generada`, `guion_de_fondos`) | RF-1, RF-2, RF-10, RF-13, RF-14 |
 | Pestaña «Plano de la red» en la web: plano en `iframe sandbox`, buscador por código, inspector, ediciones pendientes con deshacer y rehacer, tabla enlazada y virtualizada, capas, caso y comparación; anuncios `aria-live`; todo con teclado (trazar un tramo eligiendo nodo de origen y de destino y pegando los vértices; mover un extremo editando sus coordenadas o eligiendo la propuesta en una lista) | nuevos `frontend/src/api/plano.ts`, `frontend/src/features/plano/{PlanoRed,InspectorElemento,EdicionesPlano,TablaElementos,CapasResultados}.tsx`, `mensajesPlano.ts`, `textosPlano.ts`; `frontend/src/app/App.tsx` (una pestaña más en `TABS`) | RF-2, RF-3, RF-9, RF-13, RF-14, RF-15, RF-16 |
-| Arnés e2e en navegador real | nuevos `frontend/playwright.config.ts`, `frontend/e2e/{preparar.mjs,linea_base.spec.ts,medicion_plano.spec.ts,plano.spec.ts}`; devDependencies `@playwright/test` y `@axe-core/playwright` en `frontend/package.json` | RF-1, RF-10, RF-12, RF-13, RF-14, RF-16 |
+| Arnés e2e en navegador real | recorridos en `frontend/e2e/` con la dependencia de desarrollo de T0c, sin paquete aparte (`playwright.config.ts`, `preparar.mjs`, `web_de_prueba.py`, `sin_red.ts`, `linea_base.spec.ts`, `medicion_plano.spec.ts`, `plano.spec.ts`); ver «Aclaración T1» | RF-1, RF-10, RF-12, RF-13, RF-14, RF-16 |
 
 Cada fichero nuevo entra en `CODIGO_FUENTE.md` con la spec 111 y su subsistema en `docs/architecture/subsistemas.json`
 en la misma tarea que lo crea (`tests/test_inventario.py`, spec 009 y 090); el guion responde a `--help` sin DIgSILENT.
@@ -110,6 +110,18 @@ en la misma tarea que lo crea (`tests/test_inventario.py`, spec 009 y 090); el g
   que viven fuera del repositorio y no se repiten en CI.
 - **Tablas virtualizadas sin librería**: ventana de filas propia en `TablaElementos.tsx`, como el buscador propio de la
   105. Descartado: `react-window`, una dependencia más para una sola tabla.
+
+- **Aclaración T1 (2026-11-15; modificada el 2026-11-16 por decisión del auditor): el arnés usa la dependencia de
+  desarrollo de T0c, sin paquete aparte.** `@playwright/test` 1.62.1 y `@axe-core/playwright` 4.10.2 ya son
+  `devDependencies` exactas de `frontend/package.json` (arnés `frontend/test/e2e` de T0c), con su lock: una sola versión de
+  Playwright en el repositorio y solo de desarrollo, fuera de la entrega del cliente (el inventario del front de
+  `tools/construir_candidato.py` salta lo que el lock marca `dev`). `frontend/e2e/` deja de ser un paquete propio (sin
+  `package.json`); sus recorridos se corren desde `frontend/` con `npx playwright test -c e2e/playwright.config.ts`
+  (`npx playwright install chromium` la primera vez, con red de desarrollo), con la web compilada en `frontend/dist`.
+  `preparar.mjs` arranca `web_de_prueba.py` (seguridad real, carpeta temporal propia, sin GPU, semilla en el registro)
+  y `sin_red.ts` sirve las teselas en local y aborta cualquier otra salida, que hace fallar la prueba. La línea base
+  lee las pestañas de `TABS` y compara las acciones con `linea_base_acciones.json`, que fija la primera corrida con
+  `CSG_E2E_FIJAR_LINEA_BASE=1`.
 
 ## Comprobación contra la constitución
 

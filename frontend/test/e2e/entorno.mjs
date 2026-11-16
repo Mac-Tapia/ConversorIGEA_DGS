@@ -1,5 +1,6 @@
 /** Lo común a la configuración y a los recorridos E2E: el puerto aislado y la carpeta de evidencia por SHA. */
 import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 /** El puerto del operador: los recorridos nunca lo usan, para no tocar su web ni sus espacios. */
@@ -15,6 +16,18 @@ export function puertoE2E() {
     throw new Error(`El ${PUERTO_OPERADOR} es la web del operador: los recorridos usan otro puerto.`);
   }
   return puerto;
+}
+
+/** 109 T19: la web con la nube simulada va en el puerto siguiente, nunca en el del operador. */
+export function puertoNubeE2E() {
+  const puerto = puertoE2E() + 1;
+  if (puerto === PUERTO_OPERADOR || puerto > 65535) throw new Error(`No hay un puerto libre junto al ${puertoE2E()}.`);
+  return puerto;
+}
+
+/** Sus espacios y sesiones, aparte de los de la web de los demás recorridos. */
+export function carpetaNubeE2E() {
+  return process.env.CSG_E2E_DIR ? `${process.env.CSG_E2E_DIR}-nube` : join(tmpdir(), `csg-e2e-nube-${puertoNubeE2E()}`);
 }
 
 /**

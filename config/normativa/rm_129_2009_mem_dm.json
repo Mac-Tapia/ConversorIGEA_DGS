@@ -1,0 +1,111 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "107 T7, tarjeta PIT-TEN (2026-11-15, f4). Texto primario consolidado del SPIJ (ficha H982706, acceso libre), hallado por cc (carpeta z21_rm129_2009_criterios de su apoyo) (REGLAS_RM129_2009.json, sha a0807721…). La huella es la del innerText completo de la ficha. El art. 10 y la Primera Disposición Final no tienen marca de modificación. Para el PIT solo rige por la remisión del num. 12.3.2 de la RCD 217-2013 (texto de la RCD 018-2018-OS/CD): en el Área de Demanda 15 y en confiabilidad. En las demás áreas el diagnóstico la muestra solo como referencia, sin contar violaciones.",
+ "normas": [
+  {
+   "acto": "RM 129-2009-MEM/DM",
+   "titulo": "Criterios y Metodología para la elaboración del Plan de Transmisión",
+   "estado_juridico": "modificada",
+   "url": "https://spij.minjus.gob.pe/spij-ext-web/#/detallenorma/H982706",
+   "fecha_publicacion": "2009-03-07",
+   "fecha_consulta": "2026-11-15",
+   "vigencia_desde": "2009-03-07",
+   "sha256": "6558e5e9821135760189ff0f8b333e8101952c78b6396af6eba874d884839e5a",
+   "version": "texto consolidado del SPIJ (ficha H982706)",
+   "modificada_por": [
+    "RM 051-2018-MEM/DM",
+    "RM 144-2024-MINEM/DM"
+   ],
+   "nota": "Según las notas del SPIJ, la RM 051-2018-MEM/DM (09-02-2018) modifica los arts. 4, 8, 11, 14, 16, 19, 20 y 21, y la RM 144-2024-MINEM/DM (11-04-2024) incorpora el art. 24 (refuerzos). El art. 10 y la Primera Disposición Final quedan sin modificar.",
+   "reglas": [
+    {
+     "clave": "pit.area15.criterios_desempeno",
+     "valor": {
+      "normal_pu": [
+       0.95,
+       1.05
+      ],
+      "emergencia_pu": [
+       {
+        "desde_kv": 220,
+        "rango": [
+         0.9,
+         1.1
+        ]
+       },
+       {
+        "hasta_kv": 138,
+        "rango": [
+         0.9,
+         1.05
+        ]
+       }
+      ],
+      "base_pu": "tension_operacion_coes",
+      "emergencia_solo_si": "se demuestra su importancia en el comportamiento del sistema (nota 2 del art. 10)",
+      "sobrecargas": {
+       "normal": "No permitidas",
+       "emergencia": "No permitidas",
+       "referencia": "Capacidad Efectiva de Transporte del Reglamento de Transmisión (nota 3 del art. 10)"
+      },
+      "area_de_demanda": 15,
+      "fuente": "RM 129-2009-MEM/DM, art. 10 y Primera Disposición Final (SPIJ H982706)",
+      "decision_interpretacion": {
+       "asunto": "signo de comparación delante de «220 kV» y «138 kV» en la tensión de emergencia",
+       "decision": "«220 kV» se lee «desde 220 kV» (≥220 kV) y «138 kV» se lee «hasta 138 kV» (≤138 kV); entre 138 y 220 kV no hay valor y la barra queda con un hueco nombrado",
+       "responsable": "f4 (PIT-TEN), con la condición del auditor 28",
+       "fecha": "2026-11-15",
+       "citas": [
+        {
+         "documento": "RM 129-2009-MEM/DM, Primera Disposición Final (SPIJ H982706)",
+         "cita": "Tensión - Emergencia 0,90 - 1,10 p.u. para tensión 220 kV 0,90 - 1,05 p.u. para tensión 138 kV",
+         "observacion": "el SPIJ pierde el signo de comparación delante de las dos tensiones (texto e imagen)"
+        },
+        {
+         "documento": "IT 341-2018-GRT, pág. 44 (pdf 48), cuadro en imagen",
+         "url": "https://cdn.www.gob.pe/uploads/document/file/5303869/4760139-d-n-exp-2836281-inf-tec-341-2018-grt.pdf",
+         "sha256": "2a4a759f135df67b28e46b7dd7055146f2f59c9633cb54f1e49e123d0d1288e2",
+         "cita": "≥220 kV: 0,90 - 1,10 p.u.; ≤138 kV: 0,90 - 1,05 p.u. (leído en la imagen del cuadro que cita la RM)"
+        }
+       ]
+      }
+     },
+     "unidad": "p.u. de la tensión de operación establecida por el COES",
+     "articulo_o_anexo": "art. 10 (Criterios Técnicos de Desempeño) y Disposiciones Finales, PRIMERA",
+     "pagina": "única (ficha SPIJ H982706)",
+     "cita_literal": "PRIMERA.- Fíjese los primeros valores para los Criterios Técnicos de Desempeño definidos en el Artículo 10 conforme el siguiente cuadro: Criterio Valor Adoptado Tensión - Normal 0,95 - 1,05 p.u. Tensión - Emergencia 0,90 - 1,10 p.u. para tensión 220 kV 0,90 - 1,05 p.u. para tensión 138 kV Sobrecargas - Normal No permitidas Sobrecargas - Emergencia No permitidas",
+     "interpretacion": "Tensión normal 0,95-1,05 p.u. en el caso base; de emergencia en el N-1: 0,90-1,10 p.u. desde 220 kV y 0,90-1,05 p.u. hasta 138 kV (decisión de interpretación con sus dos citas en «decision_interpretacion»). La base del p.u. es la tensión de operación del COES, no la nominal (nota 1 del art. 10): una barra sin ese dato queda con un hueco nombrado y no se compara.",
+     "verificacion": {
+      "fecha": "2026-11-15",
+      "resultado": "texto primario consolidado del SPIJ; el art. 10 y la Primera Disposición Final sin marca de modificación; valores iguales a los que cita el IT 341-2018-GRT",
+      "responsable": "cc (apoyo de f4)",
+      "fuentes": [
+       {
+        "documento": "RM 129-2009-MEM/DM, ficha SPIJ H982706",
+        "url": "https://spij.minjus.gob.pe/spij-ext-web/#/detallenorma/H982706",
+        "sha256": "6558e5e9821135760189ff0f8b333e8101952c78b6396af6eba874d884839e5a"
+       },
+       {
+        "documento": "IT 341-2018-GRT, pág. 44 (pdf 48)",
+        "url": "https://cdn.www.gob.pe/uploads/document/file/5303869/4760139-d-n-exp-2836281-inf-tec-341-2018-grt.pdf",
+        "sha256": "2a4a759f135df67b28e46b7dd7055146f2f59c9633cb54f1e49e123d0d1288e2"
+       }
+      ]
+     }
+    },
+    {
+     "clave": "pit.area15.criterios_desempeno_notas",
+     "valor": [
+      "(1) Sobre las tensiones de operación establecidas por el COES",
+      "(2) La condición de tensión en régimen de emergencia se utilizará sólo para los casos en que se demuestre su importancia en el comportamiento del sistema.",
+      "(3) Sobre la Capacidad Efectiva de Transporte conforme está definida en el Reglamento de Transmisión. Para lo cual se tomará en cuenta los criterios contenidos en los procedimientos del COES que resulten aplicables."
+     ],
+     "unidad": "",
+     "articulo_o_anexo": "art. 10, notas del cuadro",
+     "pagina": "única (ficha SPIJ H982706)",
+     "cita_literal": "Artículo 10 Criterios Técnicos de Desempeño Se deberán tener en cuenta los siguientes criterios técnicos determinísticos de comportamiento del SEIN, también denominados criterios de desempeño mínimo:"
+    }
+   ]
+  }
+ ]
+}

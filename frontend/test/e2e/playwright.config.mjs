@@ -17,13 +17,16 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { evidenciaDe, puertoE2E } from './entorno.mjs';
+import { carpetaNubeE2E, evidenciaDe, puertoE2E, puertoNubeE2E } from './entorno.mjs';
 
 const FRONT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RAIZ = resolve(FRONT, '..');
 const puerto = puertoE2E();
 const carpeta = process.env.CSG_E2E_DIR || join(tmpdir(), `csg-e2e-${puerto}`);
 mkdirSync(join(carpeta, 'sesiones'), { recursive: true });
+const puertoNube = puertoNubeE2E();
+const carpetaNube = carpetaNubeE2E();
+mkdirSync(join(carpetaNube, 'sesiones'), { recursive: true });
 
 /** El python del servidor: el del checkout o, en un worktree sin .venv, el del checkout primario. */
 function python() {
@@ -68,10 +71,17 @@ export default defineConfig({
     trace: 'retain-on-failure',
     serviceWorkers: 'block',
   },
-  webServer: {
-    command: `"${python()}" -m convertersmartgrid.web --host 127.0.0.1 --port ${puerto} --no-browser`,
+  webServer: [servidor(`-m convertersmartgrid.web`, puerto, carpeta),
+    // 109 T19: la misma web con la nube simulada (tests/e2e_web_nube_simulada.py), en el puerto siguiente y con sus
+    // propias carpetas, para el recorrido del selector único (f05). Los demás recorridos no la usan.
+    servidor(`"${join(RAIZ, 'tests', 'e2e_web_nube_simulada.py')}"`, puertoNube, carpetaNube)],
+});
+
+function servidor(programa, puertoDe, carpetaDe) {
+  return {
+    command: `"${python()}" ${programa} --host 127.0.0.1 --port ${puertoDe} --no-browser`,
     cwd: RAIZ,
-    url: `http://127.0.0.1:${puerto}/`,
+    url: `http://127.0.0.1:${puertoDe}/`,
     reuseExistingServer: false,
     timeout: 120_000,
     stdout: 'pipe',
@@ -81,14 +91,14 @@ export default defineConfig({
       PYTHONPATH: join(RAIZ, 'src'),
       PYTHONUTF8: '1',
       CSG_WEB_FRONTEND: join(FRONT, 'dist'),
-      CSG_WEB_SESIONES: join(carpeta, 'sesiones'),
+      CSG_WEB_SESIONES: join(carpetaDe, 'sesiones'),
       // Espacios, registro y trabajos en el temporal: nada del operador se toca.
-      LOCALAPPDATA: carpeta,
+      LOCALAPPDATA: carpetaDe,
       // Sin vigilancias de fondo: el recorrido ve solo lo que pide.
       CSG_ASISTENTE_VIGILANCIA: '0',
       CSG_WEB_RELANZAR: '0',
       CSG_LIBROS_NUEVOS: '0',
       CSG_ASISTENTE_VECTORES: '0',
     },
-  },
-});
+  };
+}

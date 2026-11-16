@@ -238,7 +238,7 @@ function Slot({ slot }: { slot: string }) {
           <button className="btn btn-sm btn-ghost" onClick={() => setPathMode(false)}>Cancelar</button>
         </div>
       ) : (
-        <FileDrop onFiles={upload} accept={spec.extensiones?.join(',') ?? ACCEPT[slot]}
+        <FileDrop entrada={`casilla_${slot}`.toLowerCase().replace(/[^a-z0-9_]/g, '_')} onFiles={upload} accept={spec.extensiones?.join(',') ?? ACCEPT[slot]}
           disabled={locked || uploading !== null} compact>
           {uploading !== null
             ? <span>Subiendo {fmtBytes(uploading)}…</span>
@@ -256,6 +256,22 @@ function Slot({ slot }: { slot: string }) {
       {locked && <p className="muted small">Mientras corre la conversión o la carga, las entradas no se cambian.</p>}
     </div>
   );
+}
+
+/**
+ * 086:RF-110: el aviso de la casilla automática, sin «(s)» ni jerga. Con la cuenta local salía «0 fichero(s) asignados
+ * por contenido» al subir un TXT que no era de la exportación de la red (prueba del 2026-11-16; 056:RF-5: el nombre del
+ * programa de origen solo sale en la opción de entrada de los TXT).
+ */
+export function resumenAuto(r: { assigned: { slot: string; name: string }[]; unassigned: { name: string; reason: string }[] },
+  casilla: (slot: string) => string): { tono: 'ok' | 'warn'; titulo: string; detalle: string } {
+  const n = r.assigned.length;
+  const titulo = n === 0
+    ? (r.unassigned.length === 1 ? `${r.unassigned[0].name} no se reconoce` : 'Ningún fichero reconocido')
+    : n === 1 ? '1 fichero asignado' : `${n} ficheros asignados`;
+  const detalle = [...r.assigned.map((a) => `${a.name} → ${casilla(a.slot)}`),
+    ...r.unassigned.map((u) => `${u.name}: ${u.reason}`)].join('\n');
+  return { tono: r.unassigned.length ? 'warn' : 'ok', titulo, detalle };
 }
 
 export function InputsPanel() {
@@ -292,10 +308,8 @@ export function InputsPanel() {
     const r = await run(() => api.autoInputs(ws.id, files));
     if (!r) return;
     setWs(r.workspace);
-    const ok = r.assigned.map((a) => `${a.name} → ${health.slots[a.slot].etiqueta.split(' —')[0]}`).join('\n');
-    const bad = r.unassigned.map((u) => `${u.name}: ${u.reason}`).join('\n');
-    toast(r.unassigned.length ? 'warn' : 'ok', `${r.assigned.length} fichero(s) asignados por contenido`,
-      [ok, bad].filter(Boolean).join('\n'));
+    const aviso = resumenAuto(r, (slot) => health.slots[slot].etiqueta.split(' —')[0]);
+    toast(aviso.tono, aviso.titulo, aviso.detalle);
   };
 
   const ready = ws.missing_inputs.length === 0;
@@ -304,13 +318,14 @@ export function InputsPanel() {
     <section className="card">
       <header className="card-head">
         <h2><span className="step">1</span> Entrada de datos</h2>
+        {/* 086 F-12, WCAG 2.1.1: aria-disabled y no disabled, para que el foco siga en la opción elegida mientras el motor trabaja. */}
         <div className="segmented" role="radiogroup" aria-label="Alternativa de entrada">
           <button role="radio" aria-checked={mode === 'txt'} className={mode === 'txt' ? 'on' : ''}
-            disabled={Boolean(active.engine)} onClick={() => setMode('txt')}>Tres TXT de CYMDIST</button>
+            aria-disabled={Boolean(active.engine) || undefined} onClick={() => !active.engine && setMode('txt')}>Tres TXT de CYMDIST</button>
           <button role="radio" aria-checked={mode === 'mdb'} className={mode === 'mdb' ? 'on' : ''}
-            disabled={Boolean(active.engine)} onClick={() => setMode('mdb')}>Base Access (.mdb)</button>
+            aria-disabled={Boolean(active.engine) || undefined} onClick={() => !active.engine && setMode('mdb')}>Base Access (.mdb)</button>
           <button role="radio" aria-checked={mode === 'vnr'} className={mode === 'vnr' ? 'on' : ''}
-            disabled={Boolean(active.engine)} onClick={() => setMode('vnr')}>VNR-GIS</button>
+            aria-disabled={Boolean(active.engine) || undefined} onClick={() => !active.engine && setMode('vnr')}>VNR-GIS</button>
         </div>
       </header>
       {/* 086:RF-70: lo de las publicaciones de VNR-GIS, en este paso. */}
@@ -319,7 +334,7 @@ export function InputsPanel() {
       <EmpresaEspacio key={ws.id} />
 
       {mode === 'txt' && (
-        <FileDrop onFiles={auto} multiple accept=".txt" disabled={Boolean(active.engine)}>
+        <FileDrop entrada="txt_lote" onFiles={auto} multiple accept=".txt" disabled={Boolean(active.engine)}>
           <div className="auto-drop">
             <strong>Suelte aquí los TXT de la entrega</strong>
             <span className="muted">Cada uno va a su casilla por las tablas que trae dentro, no por el nombre.</span>

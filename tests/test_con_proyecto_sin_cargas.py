@@ -1,6 +1,6 @@
 """086:RF-76 — «Con proyecto» sin cargas nuevas: obras solo donde el estado actual viola límites.
 
-Electro Oriente NJA202 (T32, 2026-11-12): calibrado a 0,568 p.u. en la fase A, sin cargas nuevas, y la web respondía
+una distribuidora real <código> (T32, 2026-11-12): calibrado a 0,568 p.u. en la fase A, sin cargas nuevas, y la web respondía
 «Ningún alimentador marcado tiene cargas nuevas aplicadas: no hay nada que optimizar». Las obras solo si hay problemas:
 aquí los había.
 """

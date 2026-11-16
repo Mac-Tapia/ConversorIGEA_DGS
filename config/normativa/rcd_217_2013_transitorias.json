@@ -1,0 +1,33 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Modificatorias transitorias de la Norma de la RCD 217-2013-OS/CD, comprobadas en el SPIJ por cc (z19, RN-VIG2, 2026-11-15). Ninguna trae reglas: sus ventanas de modificación del PIT están agotadas.",
+ "normas": [
+  {
+   "acto": "RCD 147-2017-OS/CD",
+   "titulo": "Incorpora la Tercera Disposición Transitoria a la Norma de la RCD 217-2013-OS/CD",
+   "estado_juridico": "no_verificada",
+   "fecha_publicacion": "2017-06-29",
+   "fecha_consulta": "2026-11-15",
+   "version": "conocida por la nota del SPIJ en la ficha H1089476 (sha256 del innerText 1626ca89b95fbae851f33247e8ec7bed5430f4a938cb41bb8a8077c4e3984cf0) de la 217-2013",
+   "modifica": [
+    "RCD 217-2013-OS/CD"
+   ],
+   "nota": "Incorpora la Tercera transitoria (ventana de modificación del PIT 2017-2021): agotada, sin efecto en el PIT 2025-2029. Su ficha propia no se ha localizado en el SPIJ libre: lo que se sabe de ella es la nota del SPIJ en la 217-2013, y sin la huella de su texto no puede ser «vigente_comprobada». Sin reglas."
+  },
+  {
+   "acto": "RCD 177-2021-OS/CD",
+   "titulo": "Incorpora la Cuarta Disposición Transitoria a la Norma de la RCD 217-2013-OS/CD",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://spij.minjus.gob.pe/spij-ext-web/#/detallenorma/H1287522",
+   "fecha_publicacion": "2021-07-15",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "5e15b4fb51ccd0b0f2986ee3aae5648558fbb270612b98504a7d661c9b891849",
+   "version": "ficha del SPIJ H1287522; «sha256» es el de su innerText, calculado en la página; sin notas de modificación ni derogación",
+   "vigencia_desde": "2021-07-16",
+   "modifica": [
+    "RCD 217-2013-OS/CD"
+   ],
+   "nota": "Incorpora la Cuarta transitoria (ventanas de modificación del PIT 2021-2025, en 2022): agotada, sin efecto en el PIT 2025-2029. Su art. 1 fija mayo, junio y julio de 2022, según el área, como única oportunidad para pedir la modificación del PIT 2021-2025. Sin reglas. Rige desde el día siguiente a su publicación: Constitución, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte»."
+  }
+ ]
+}

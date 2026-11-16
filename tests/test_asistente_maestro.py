@@ -1383,8 +1383,14 @@ def test_curriculo_sin_nombres_de_empresa_ni_numeros_fijos():
     from convertersmartgrid.asistente.prueba_sellada import FRASES, VOCABULARIO
 
     texto = normalizar_todo(PARAFRASIS_070, FRASES, VOCABULARIO)
-    for prohibida in ('dunas', 'pisco', 'chincha', 'nasca', 'copara', 'electro', 'na205', 'in111', '101 alimentadores'):
+    from test_entrega_universal import _codigos_de_alimentador, _hallar_sitios, _sitios_de_casos  # de config
+
+    raiz = Path(__file__).resolve().parents[1]
+    for prohibida in ('dunas', 'pisco', 'chincha', 'nasca', 'electro', '101 alimentadores',
+                      *sorted(_codigos_de_alimentador(raiz))):
         assert prohibida not in texto, prohibida
+    # Los sitios de los casos, por su huella (FIX-NOMBRES-HUELLAS): config no lleva sus nombres.
+    assert not _hallar_sitios(_sitios_de_casos(raiz), texto)
 
 
 def normalizar_todo(*dicts):

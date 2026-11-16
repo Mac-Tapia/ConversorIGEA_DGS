@@ -10,6 +10,7 @@ from html import escape
 from pathlib import Path
 
 import pytest
+from test_entrega_universal import _hallar_nombres, _nombres_de_config  # noqa: E402
 
 from convertersmartgrid.adaptadores.entrada.vnr.discovery import download as descarga
 from convertersmartgrid.adaptadores.entrada.vnr.discovery.catalog import Publication, PublicationCatalog
@@ -28,6 +29,8 @@ from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import (
     vigentes_por_empresa,
 )
 
+RAIZ_REPO = Path(__file__).resolve().parents[1]
+
 BASE = 'https://www.osinergmin.gob.pe/seccion/institucional/regulacion-tarifaria/procesos-regulatorios/'
 PAGINA_2025 = BASE + 'actividades-relacionadas/resolucion-fijacion-vnr-adaptado-2025'
 WWW2 = 'https://www2.osinergmin.gob.pe/GRT/Procesos-Regulatorios/VNR/2026/F/'
@@ -38,11 +41,11 @@ TABLA = f'''<div class="reutilizable"><table><tr><td>
   <a href="/Resoluciones/pdf/2026/Osinergmin-184-2026-OS-CD.pdf">Resolución N° 184-2026-OS/CD</a>
   <a href="/Resoluciones/pdf/2017/OSINERGMIN%20No.232-2017-OS-CD.pdf">Resolución N° 232-2017-OS/CD</a>
   </td></tr>
-  <tr><td><a href="{WWW2}01%20VNRGIS/Luz%20del%20Sur.zip"> ​ Luz del Sur </a></td>
-      <td><a href="{WWW2}01%20VNRGIS/Pluz%20Energia.zip"> Pluz Energía Perú </a></td></tr>
-  <tr><td><a href="{WWW2}01%20VNRGIS/CVC%20Energia.zip">CVS Energía</a></td></tr>
+  <tr><td><a href="{WWW2}01%20VNRGIS/Empresa%20Gamma.zip"> ​ Empresa Gamma </a></td>
+      <td><a href="{WWW2}01%20VNRGIS/Empresa%20Delta.zip"> Empresa Delta Perú </a></td></tr>
+  <tr><td><a href="{WWW2}01%20VNRGIS/Empresa%20Epsilon.zip">Empresa Ypsilon</a></td></tr>
   <tr><td><a href="{WWW2}02%20SICODI/Archivos_TXT_SICODI.zip">Archivos TXT de Costos</a></td></tr>
-  <tr><td><a href="{WWW2}03%20MAPA_DENSIDAD/Mapa%20-%20Luz%20del%20Sur.zip">Luz del Sur</a></td></tr>
+  <tr><td><a href="{WWW2}03%20MAPA_DENSIDAD/Mapa%20-%20Empresa%20Gamma.zip">Empresa Gamma</a></td></tr>
   <tr><td><a href="/Resoluciones/pdf/2026/Informe%20795%20Recurso%20VNR%20-%20Anexos.rar">Anexos digitales</a></td></tr>
   </table></div>
   <a href="{BASE}actividades-relacionadas/publicacion-proyecto-resolucion-vnr-adaptado-2025">Proyecto VNR</a>'''
@@ -72,7 +75,7 @@ def test_la_busqueda_recorre_los_ciclos_que_encuentra(tmp_path):
     catalogo, informe = refresh_official_catalog(tmp_path, fetcher=leer)
 
     assert PAGINA_2025 in informe['pages'] and not informe['errors']
-    assert 'Luz del Sur' in {p.company for p in catalogo.publications()}
+    assert 'Empresa Gamma' in {p.company for p in catalogo.publications()}
 
 
 def test_un_fallo_de_la_pagina_oficial_se_informa_y_no_oculta_las_demas(tmp_path):
@@ -94,40 +97,40 @@ def test_lee_la_tabla_normal_y_la_escapada(html):
     """080:RF-2 — la tabla escapada del portal da los mismos paquetes."""
     paquetes = [p for p in parse_official_publications(PAGINA_2025, html)
                 if p.publication_type == 'REGULATORY_VNRGIS_PACKAGE']
-    assert {p.file_name for p in paquetes} == {'Luz del Sur.zip', 'Pluz Energia.zip', 'CVC Energia.zip'}
+    assert {p.file_name for p in paquetes} == {'Empresa Gamma.zip', 'Empresa Delta.zip', 'Empresa Epsilon.zip'}
 
 
 def test_solo_la_seccion_vnrgis_es_paquete():
     """080:RF-3, 080:RF-4 — costos, mapas y anexos no se ofrecen como red."""
     filas = _por_nombre(parse_official_publications(PAGINA_2025, TABLA))
-    assert filas['Luz del Sur.zip'].publication_type == 'REGULATORY_VNRGIS_PACKAGE'
+    assert filas['Empresa Gamma.zip'].publication_type == 'REGULATORY_VNRGIS_PACKAGE'
     assert filas['Archivos_TXT_SICODI.zip'].publication_type == 'SICODI'
-    assert filas['Mapa - Luz del Sur.zip'].publication_type == 'MAP_DENSITY'
+    assert filas['Mapa - Empresa Gamma.zip'].publication_type == 'MAP_DENSITY'
     assert filas['Informe 795 Recurso VNR - Anexos.rar'].publication_type == 'REGULATORY_VNR_PUBLICATION'
 
 
 def test_cada_paquete_con_su_empresa_aunque_compartan_fila():
     """080:RF-5 — dos empresas en una fila no se mezclan."""
     filas = _por_nombre(parse_official_publications(PAGINA_2025, TABLA))
-    assert filas['Luz del Sur.zip'].company == 'Luz del Sur'
-    assert filas['Pluz Energia.zip'].company == 'Pluz Energía Perú'
+    assert filas['Empresa Gamma.zip'].company == 'Empresa Gamma'
+    assert filas['Empresa Delta.zip'].company == 'Empresa Delta Perú'
 
 
 def test_un_rotulo_que_no_corresponde_cede_al_nombre_del_archivo():
-    """080:RF-6 — el portal rotula «CVS Energía» el fichero de CVC Energia."""
-    assert _por_nombre(parse_official_publications(PAGINA_2025, TABLA))['CVC Energia.zip'].company == 'CVC Energia'
+    """080:RF-6 — el portal rotula «Empresa Ypsilon» el fichero de Empresa Epsilon."""
+    assert _por_nombre(parse_official_publications(PAGINA_2025, TABLA))['Empresa Epsilon.zip'].company == 'Empresa Epsilon'
 
 
 def test_ciclo_y_resolucion_salen_de_la_pagina():
     """080:RF-7 — el año del VNR y la resolución más reciente que cita la página."""
-    paquete = _por_nombre(parse_official_publications(PAGINA_2025, TABLA))['Luz del Sur.zip']
+    paquete = _por_nombre(parse_official_publications(PAGINA_2025, TABLA))['Empresa Gamma.zip']
     assert paquete.period_label == '2025'
     assert paquete.regulatory_reference == '184-2026-OS/CD'
 
 
 def test_el_nombre_del_archivo_va_sin_codigos_de_url():
-    """080:RF-8 — «Luz del Sur.zip», no «Luz%20del%20Sur.zip»."""
-    assert 'Luz del Sur.zip' in _por_nombre(parse_official_publications(PAGINA_2025, TABLA))
+    """080:RF-8 — «Empresa Gamma.zip», no «Empresa%20Gamma.zip»."""
+    assert 'Empresa Gamma.zip' in _por_nombre(parse_official_publications(PAGINA_2025, TABLA))
 
 
 def _paquete(pid, empresa, periodo, resolucion):
@@ -139,22 +142,22 @@ def _paquete(pid, empresa, periodo, resolucion):
 def test_vigente_el_vnr_mas_reciente_y_su_ultima_resolucion():
     """080:RF-9 — manda la resolución, no el orden ni el título de la página."""
     grupos = vigentes_por_empresa([
-        _paquete('a', 'Hidrandina', '2022', '186-2023-OS/CD'),
-        _paquete('b', 'Hidrandina', '2022', '208-2023-OS/CD'),
-        _paquete('c', 'Hidrandina', '2021', '999-2022-OS/CD'),
-        _paquete('d', 'Seal', '2022', '186-2023-OS/CD'),
+        _paquete('a', 'Empresa Alfa', '2022', '186-2023-OS/CD'),
+        _paquete('b', 'Empresa Alfa', '2022', '208-2023-OS/CD'),
+        _paquete('c', 'Empresa Alfa', '2021', '999-2022-OS/CD'),
+        _paquete('d', 'Empresa Beta', '2022', '186-2023-OS/CD'),
     ])
     assert {pid for pid, g in grupos.items() if g['vigente']} == {'b', 'd'}
-    assert grupos['a']['empresa'] == grupos['c']['empresa'] == 'Hidrandina'
+    assert grupos['a']['empresa'] == grupos['c']['empresa'] == 'Empresa Alfa'
 
 
 def test_dos_nombres_de_un_mismo_ciclo_son_una_empresa():
     """080:RF-10 — sin juntar empresas distintas que empiezan parecido en otro ciclo."""
     grupos = vigentes_por_empresa([
-        _paquete('a', 'Pluz Energia Peru', '2025', '154-2026-OS/CD'),
-        _paquete('b', 'Pluz Energia', '2025', '184-2026-OS/CD'),
-        _paquete('c', 'Electro Sur', '2018', '100-2019-OS/CD'),
-        _paquete('d', 'Electro Sur Este', '2022', '208-2023-OS/CD'),
+        _paquete('a', 'Empresa Delta Peru', '2025', '154-2026-OS/CD'),
+        _paquete('b', 'Empresa Delta', '2025', '184-2026-OS/CD'),
+        _paquete('c', 'Empresa Sur', '2018', '100-2019-OS/CD'),
+        _paquete('d', 'Empresa Sur Este', '2022', '208-2023-OS/CD'),
     ])
     assert {pid for pid, g in grupos.items() if g['vigente']} == {'b', 'c', 'd'}
     assert grupos['a']['empresa'] == grupos['b']['empresa']
@@ -328,7 +331,7 @@ def test_sin_poder_dar_permiso_dice_fichero_y_cuenta(tmp_path, monkeypatch):
 
 # ------------------------------------------------------------------ carga completa
 def test_una_salida_de_tramo_nulo_se_carga_con_su_sed():
-    """080:RF-27 — 47 salidas de Electro Sur Este desaparecían con su SED."""
+    """080:RF-27 — 47 salidas de una empresa (caso real) desaparecían con su SED."""
     from test_vnr_sqlserver import Motor, _tablas
 
     from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
@@ -357,7 +360,7 @@ def test_una_salida_de_tramo_nulo_se_carga_con_su_sed():
 
 
 def test_una_salida_con_sed_y_sin_tramos_se_carga():
-    """080:RF-32 — 748055397 de Luz del Sur: su demanda no se pierde."""
+    """080:RF-32 — 748055397 de la empresa del caso: su demanda no se pierde."""
     from test_vnr_sqlserver import Motor, _tablas
 
     from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
@@ -393,7 +396,7 @@ def test_una_salida_sin_tramos_ni_sed_sigue_sin_cargarse():
 
 
 def test_dos_raices_en_un_mismo_punto_no_rompen_la_carga():
-    """080:RF-33 — 11953196 de Luz del Sur, con sus dos tramos raíz en un punto."""
+    """080:RF-33 — 11953196 de la empresa del caso, con sus dos tramos raíz en un punto."""
     from test_vnr_sqlserver import Motor, _tablas
 
     from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
@@ -429,7 +432,7 @@ def _con_equipo(tipo: str, norma: str, descripcion: str):
 
 @pytest.mark.parametrize('tipo', ['CE', 'DB', 'DP'])
 def test_celdas_y_derivaciones_son_maniobras(tipo):
-    """080:RF-35 — 190 equipos de Luz del Sur se perdían."""
+    """080:RF-35 — 190 equipos de la empresa del caso se perdían."""
     modelo, avisos = _con_equipo(tipo, f'{tipo}1', 'CELDA O DERIVACION 10 kV')
 
     assert tipo in {s.kind for s in modelo.switches if s.switch_id == 'X1'}
@@ -522,7 +525,7 @@ def test_el_regulador_llega_al_dgs_como_elmvoltreg(tmp_path):
 
     (acoplador,) = [c for c in modelo.couplers if c.kind == 'BR']
     assert acoplador.regulador.corriente_a == 200.0
-    # El modelo se guarda para la verificación previa: C+æ02 de Luz del Sur fallaba aquí.
+    # El modelo se guarda para la verificación previa: C+æ02 de la empresa del caso fallaba aquí.
     from convertersmartgrid.preflight_contract import _restaurar, snapshot_model
 
     copia = _restaurar(json.loads(json.dumps(snapshot_model(modelo))))
@@ -532,7 +535,7 @@ def test_el_regulador_llega_al_dgs_como_elmvoltreg(tmp_path):
     write_dgs(modelo, destino)
     texto = destino.read_text(encoding='utf-8', errors='replace')
     assert '$$ElmVoltreg' in texto and '$$TypVoltreg' in texto
-    # Los validadores reales: C+æ02 de Luz del Sur se paraba en estos dos, no en la escritura.
+    # Los validadores reales: C+æ02 de la empresa del caso se paraba en estos dos, no en la escritura.
     from convertersmartgrid.reglas import auditar_completitud
     from convertersmartgrid.validate import parse_dgs, validate_dgs
 
@@ -552,7 +555,7 @@ def _modelo_de_sed(pares):
 
 
 def test_una_demanda_proporcional_es_relleno(monkeypatch):
-    """080:RF-42 — Electro Sur Este: 0,87, 0,88, 0,90 y 0,80 de la potencia instalada."""
+    """080:RF-42 — una empresa (caso real): 0,87, 0,88, 0,90 y 0,80 de la potencia instalada."""
     from convertersmartgrid import sed_potencia as sp
 
     pares = [(k, k * r) for k, r in zip((100, 160, 250, 400, 630, 50, 75, 25) * 3, (.87, .88, .9, .8) * 6)]
@@ -563,7 +566,7 @@ def test_una_demanda_proporcional_es_relleno(monkeypatch):
 
 
 def test_una_demanda_medida_no_es_relleno(monkeypatch):
-    """080:RF-42 — Luz del Sur: razones repartidas y dentro de su potencia, sin tocar."""
+    """080:RF-42 — otra empresa (caso real): razones repartidas y dentro de su potencia, sin tocar."""
     from convertersmartgrid import sed_potencia as sp
 
     pares = [(100 + i, (100 + i) * (.30 + i * .05)) for i in range(12)]
@@ -747,7 +750,8 @@ def test_la_semilla_no_lleva_datos_de_ninguna_empresa(tmp_path):
         assert fila['estado'] == 'ficha' and fila['R1_ficha_ohm_km'] and fila['ampacidad_ficha_A']
         assert not any(fila.get(c) for c in ('R1_modelo_ohm_km', 'X1_modelo_ohm_km', 'tramos', 'km', 'alimentadores'))
         texto = str(fila.get('fuente')) + str(fila.get('observaciones'))
-        assert not any(e in texto for e in ('Electro', 'ELOR', 'ELDU', 'ELSE', 'LDS', 'Luz del Sur'))
+        assert not any(e in texto for e in ('Electro',))
+        assert not _hallar_nombres(_nombres_de_config(RAIZ_REPO), texto), 'la semilla nombra una empresa real de config'
 
 
 def test_la_x_aerea_sale_de_la_geometria():
@@ -764,10 +768,10 @@ def test_cada_empresa_amplia_solo_su_catalogo(tmp_path, monkeypatch):
     from convertersmartgrid.catalog import ampliar_catalogo
 
     monkeypatch.setattr(reglas, 'project_root', lambda: tmp_path)
-    uno, otro = reglas.catalogo_de_empresa('ELSE'), reglas.catalogo_de_empresa('LDS')
-    assert uno != otro and 'ELSE' in str(uno) and 'LDS' in str(otro)
+    uno, otro = reglas.catalogo_de_empresa('EMPC'), reglas.catalogo_de_empresa('EMPD')
+    assert uno != otro and 'EMPC' in str(uno) and 'EMPD' in str(otro)
 
-    ampliar_catalogo(uno, ['AA08501G'], origen='ELSE')
+    ampliar_catalogo(uno, ['AA08501G'], origen='EMPC')
 
     assert 'AA08501G' in {f['codigo'] for f in _filas_del_catalogo(uno)}
     assert 'AA08501G' not in {f['codigo'] for f in _filas_del_catalogo(otro)}
@@ -799,7 +803,7 @@ def test_el_catalogo_de_la_fuente(tmp_path, monkeypatch):
     proyecto = tmp_path / 'proyecto.xlsx'
     monkeypatch.setattr(reglas, 'catalogo_del_proyecto', lambda: proyecto)
 
-    assert 'LDS' in str(reglas.catalogo_de_fuente({'sqlserver': {'company': 'LDS'}}))
+    assert 'EMPD' in str(reglas.catalogo_de_fuente({'sqlserver': {'company': 'EMPD'}}))
     assert reglas.catalogo_de_fuente({}) == proyecto
     assert reglas.catalogo_de_fuente(None) == proyecto
 
@@ -880,7 +884,7 @@ def test_el_cruce_da_ok_si_esta_todo():
     (None, None, None, None),                           # sin nada no se supone ninguno
 ])
 def test_el_crs_de_la_fuente(monkeypatch, elegido, fuente, perfil, esperado):
-    """080:RF-34 — Luz del Sur es PSAD56 y Electro Sur Este WGS84: ninguno se supone."""
+    """080:RF-34 — una empresa es PSAD56 y otra WGS84 (casos reales): ninguno se supone."""
     from types import SimpleNamespace
 
     from convertersmartgrid.web import services
@@ -907,7 +911,7 @@ def test_la_copia_dice_su_crs_en_el_alcance():
 
 
 def test_el_cruce_reconoce_la_etiqueta_operativa():
-    """080:RF-29 — Luz del Sur: la web lista «A01» y la base dice 100683102."""
+    """080:RF-29 — una empresa (caso real): la web lista «A01» y la base dice 100683102."""
     base = {**_BASE, 'etiquetas': {'F1': 'A01', 'F2': 'A02', 'VACIA': ''}}
     web = [{'network_id': 'A01', 'sections': 2, 'loads': 1}, {'network_id': 'A02', 'sections': 1, 'loads': 1}]
 

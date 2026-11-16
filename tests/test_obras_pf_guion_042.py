@@ -1,6 +1,6 @@
 """Spec 042, T4: la obra «SET nueva» en DIgSILENT (doble ``fake_pf``).
 
-El caso real es la SET Copara para NA203 + NA205 (2026-10-31): transformador del módulo PIT,
+El caso real es la SET <sitio> para <código> + <código> (2026-10-31): transformador del módulo PIT,
 red externa con los datos de la de cabecera, y las ramas que pasan a ella, cada una con su
 alimentador nuevo y su tramo de entrada abierto, solo en «Con proyecto».
 """

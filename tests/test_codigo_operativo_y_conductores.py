@@ -1,6 +1,6 @@
 """Código operativo del alimentador (056:RF-7) y conductores reconstruidos al cargar (053:RF-9).
 
-El 2026-11-01, con la copia VNR-GIS de Electro Oriente, la web listaba W12882 y L14243 (códigos
+El 2026-11-01, con la copia VNR-GIS de una distribuidora real, la web listaba <código> y <código> (códigos
 internos de VNR-GIS) en lugar de NJA202 y 0205, y dejaba 22 alimentadores «incompletos» porque
 sus conductores venían sin impedancia y la reconstrucción esperaba a convertir.
 """

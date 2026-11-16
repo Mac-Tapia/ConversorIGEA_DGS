@@ -181,7 +181,7 @@ class EntradaRespuesta(Respuesta):
     path: str
     name: str
     size: int
-    origin: Literal['upload', 'server']
+    origin: Literal['upload', 'server', 'nube']
     warning: str
     set_at: float
 
@@ -421,7 +421,7 @@ class LibroCabeceraRespuesta(Respuesta):
 
 class DemandaRespuesta(Respuesta):
     name: str
-    origin: Literal['upload', 'server']
+    origin: Literal['upload', 'server', 'nube']
     source_kind: Literal['file', 'folder'] | None = None
     libros: list[str] | None = None
     seleccion: str | None = None
@@ -826,11 +826,50 @@ class CopiaDatosPeticion(BaseModel):
     model_config = ConfigDict(extra='forbid')
     carpeta: str = Field(min_length=1, max_length=1024)
     sin_modelos: bool = False
+    #: Aclaración de 086:RF-82 (2026-11-16): la copia solo empieza tras ver la previa y pulsar «Copiar».
+    confirmada: bool = False
 
 
 class CopiaDatosCarpetaRespuesta(Respuesta):
     """086:RF-85: la carpeta de las copias que recuerda este equipo, si hay."""
     carpeta: str | None
+
+
+class RaizPreviaCopia(Respuesta):
+    """086:RF-108: una de las cosas que se copian, con lo que ocupa (cada fichero físico una vez)."""
+    nombre: str
+    etiqueta: str
+    ruta: str
+    ficheros: int
+    bytes: int
+
+
+class CopiaExistente(Respuesta):
+    """086:RF-108: una copia que ya está en la carpeta destino, leída de su manifiesto sin tocarla."""
+    nombre: str
+    ruta: str
+    estado: Literal['buena', 'con_errores', 'no_valida', 'a_medias']
+    motivo: str | None
+    creada: float | None
+    bytes: int | None
+    ficheros: int | None
+    nombres: int | None
+    errores: int
+
+
+class CopiaDatosPreviaRespuesta(Respuesta):
+    """086:RF-82, RF-83, RF-108: lo que ocupará la copia, el libre del destino y lo que ya hay, sin escribir nada."""
+    destino: str
+    ficheros_fisicos: int
+    nombres: int
+    bytes_fisicos: int
+    bytes_logicos: int
+    libre: int
+    margen: int
+    cabe: bool
+    texto: str
+    raices: list[RaizPreviaCopia]
+    copias: list[CopiaExistente]
 
 
 # ------------------------------------------------------------------ spec 110: envío de informes por correo
@@ -943,3 +982,237 @@ class CorreoHistorial(Respuesta):
     """110:RF-13: los envíos de un informe, del más antiguo al más reciente."""
     informe: str
     envios: list[CorreoEnvio]
+
+
+# ------------------------------------------------------------------ 111: el plano de la red (web/plano_api.py)
+class DeducidoPlanoRespuesta(Respuesta):
+    """111:RF-3: lo que se dedujo de un elemento, con su regla y su motivo."""
+    campo: str
+    original: JsonValue = None
+    valor: JsonValue = None
+    regla: str
+    motivo: str
+    confianza: float | None = None
+    nivel: str | None = None
+
+
+class TramoPlanoRespuesta(Respuesta):
+    codigo: str
+    nombre_pf: str
+    desde: str
+    hasta: str
+    fases: str
+    tipo: str
+    aereo: bool
+    longitud_m: float
+    vertices: list[list[float]]
+    paralelo_con: list[str]
+    original: dict[str, JsonValue]
+    deducido: list[DeducidoPlanoRespuesta]
+    calidad: Literal['ok', 'aviso', 'error', 'sin_coordenadas']
+    avisos: list[str]
+    errores: list[str]
+
+
+class BarraPlanoRespuesta(Respuesta):
+    codigo: str
+    nombre_pf: str
+    lat: float | None
+    lon: float | None
+    deducido: list[DeducidoPlanoRespuesta]
+    calidad: Literal['ok', 'aviso', 'error', 'sin_coordenadas']
+    avisos: list[str]
+    errores: list[str]
+
+
+class SedPlanoRespuesta(Respuesta):
+    codigo: str
+    nombre_pf: str
+    barra: str | None
+    tramo: str | None
+    kva: float | None
+
+
+class ManiobraPlanoRespuesta(Respuesta):
+    codigo: str
+    nombre_pf: str
+    clase: str
+    tramo: str | None
+    barra: str | None
+    estado: Literal['abierto', 'cerrado']
+
+
+class ColisionPlanoRespuesta(Respuesta):
+    tipo: str
+    nombre_pf: str
+    codigos: list[str]
+
+
+class VistaPlanoRespuesta(Respuesta):
+    """111:RF-1 a RF-3, RF-11: un alimentador con todos los vértices de su fuente y su revisión de la red."""
+    alimentador: str
+    kv: float
+    source_crs: str | None
+    target_crs: str | None
+    sin_coordenadas: bool
+    tramos: list[TramoPlanoRespuesta]
+    barras: list[BarraPlanoRespuesta]
+    sed: list[SedPlanoRespuesta]
+    maniobras: list[ManiobraPlanoRespuesta]
+    tipos_de_linea: list[str]
+    colisiones: list[ColisionPlanoRespuesta]
+    avisos: list[str]
+    revision: str
+
+
+class MotorPlanoRespuesta(Respuesta):
+    """111:RF-17, RF-18: con qué motor se estudiaría ahora y por qué."""
+    motor: Literal['DIgSILENT', 'abierto']
+    texto: str
+    motivo: str
+
+
+class FondoPlanoRespuesta(Respuesta):
+    """086:RF-22, RF-65: el mapa base solo con la salida «teselas» encendida."""
+    encendido: bool
+    motivo: str
+
+
+class PlanoRespuesta(Respuesta):
+    alimentadores: list[str]
+    sin_coordenadas: list[str]
+    vistas: list[VistaPlanoRespuesta]
+    motor: MotorPlanoRespuesta
+    fondo: FondoPlanoRespuesta
+
+
+class VariacionPlanoRespuesta(Respuesta):
+    """111:RF-4, RF-5, RF-9: la variación guardada en el espacio, con su versión y su diario."""
+    formato: str
+    id: str
+    alimentador: str
+    caso: str
+    revision: str
+    revision_cambiada: bool
+    version: int
+    estado: Literal['abierta', 'confirmada']
+    ediciones: list[dict[str, JsonValue]]
+    deshechas: list[dict[str, JsonValue]]
+
+
+class VariacionesPlanoRespuesta(Respuesta):
+    """111:RF-4, RF-12: las variaciones guardadas en el servidor y las que ya tienen estudio, para comparar."""
+    variaciones: list[VariacionPlanoRespuesta]
+    estudiadas: list[str]
+
+
+class AbrirVariacionPeticion(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    alimentador: str = Field(min_length=1, max_length=255)
+    caso: str = Field(min_length=1, max_length=255)
+    revision: str = Field(pattern=r'^[0-9a-f]{64}$')
+
+
+class TurnoVariacionPeticion(BaseModel):
+    """111:RF-4, RF-9: la versión que el navegador leyó; si ya cambió, 409."""
+    model_config = ConfigDict(extra='forbid')
+    version: int = Field(ge=0)
+
+
+class EditarVariacionPeticion(TurnoVariacionPeticion):
+    edicion: dict[str, JsonValue]
+
+
+class AjustePlanoPeticion(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    punto: list[float] = Field(min_length=2, max_length=2)
+
+
+class PropuestaAjusteRespuesta(Respuesta):
+    """111:RF-7: el nodo cercano como propuesta, con la distancia; no cambia nada."""
+    punto: list[float]
+    nodo: str | None
+    distancia_m: float | None
+    mas_cercano: str | None
+    distancia_mas_cercano_m: float | None
+    radio_m: float
+    radio_origen: str
+
+
+class EstudiarPlanoPeticion(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    project: str | None = Field(default=None, max_length=255)
+
+
+class IncumplePlanoRespuesta(Respuesta):
+    """111:RF-13: un incumplimiento con texto, icono, valor y umbral, no solo color."""
+    texto: str
+    icono: str
+    valor: float
+    umbral: float
+
+
+class ElementoCapaRespuesta(Respuesta):
+    codigo: str
+    valor: JsonValue = None
+    kv: float | None = None
+    banda: str
+    incumple: IncumplePlanoRespuesta | None
+    motor: str
+
+
+class LeyendaCapaRespuesta(Respuesta):
+    magnitud: str
+    unidad: str
+    umbral: dict[str, float] | None
+    caso: str
+    revision: str
+    motor: str
+    motor_texto: str
+    origen_umbral: str
+
+
+class CapaPlanoRespuesta(Respuesta):
+    leyenda: LeyendaCapaRespuesta
+    elementos: list[ElementoCapaRespuesta]
+
+
+class CapasPlanoRespuesta(Respuesta):
+    """111:RF-10, RF-11, RF-13, RF-18: lo que se pinta, o por qué no."""
+    pintable: bool
+    motivo: str
+    mensajes: list[str]
+    capas: dict[str, CapaPlanoRespuesta]
+    motor: str | None
+    motor_texto: str
+    caso: str | None
+    revision: str | None
+    origen_umbral: str | None = None
+    variacion: str | None = None
+
+
+class CasoComparadoRespuesta(Respuesta):
+    caso: str | None
+    variacion: str | None
+    motor: str | None
+
+
+class ElementoComparadoRespuesta(Respuesta):
+    codigo: str
+    magnitud: Literal['tension', 'corriente', 'cargabilidad', 'estado']
+    a: JsonValue = None
+    b: JsonValue = None
+    diferencia: float | None
+    banda_a: str
+    banda_b: str
+    solo_en: Literal['a', 'b'] | None
+
+
+class ComparacionPlanoRespuesta(Respuesta):
+    """111:RF-12, RF-19: dos casos por elemento; si los motores son distintos, se dice junto a la diferencia."""
+    casos: list[CasoComparadoRespuesta]
+    mismo_motor: bool
+    aviso_motores: str | None
+    comparable: bool
+    motivo: str
+    elementos: list[ElementoComparadoRespuesta]

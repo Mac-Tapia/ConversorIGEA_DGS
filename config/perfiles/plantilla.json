@@ -1,5 +1,5 @@
 {
-  "_comentario": "086:RF-32: la plantilla del perfil de una empresa nueva. Copie este fichero como config/perfil_empresa.json y rellene lo suyo; docs/PERFIL_EMPRESA.md explica cada clave y la orden `convertersmartgrid validar-perfil` dice qué falta. Una clave en null es «no se supone nada».",
+  "_comentario": "La plantilla del perfil de una empresa nueva. Copie este fichero como config/perfil_empresa.json y rellene lo suyo; docs/PERFIL_EMPRESA.md explica cada clave y la orden `convertersmartgrid validar-perfil` dice qué falta. Una clave en null es «no se supone nada».",
   "empresa": null,
   "codigo_empresa": null,
   "crs_origen": null,

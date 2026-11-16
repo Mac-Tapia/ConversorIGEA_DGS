@@ -63,7 +63,8 @@ def test_cada_ruta_del_cliente_existe_en_la_api():
     rutas = _rutas_api()
     llamadas = [ll for ll in re.findall(r'`\$\{ws\(id\)\}(/[^`?]*)', api_ts)
                 if ll.startswith(('/lote', '/cargas', '/powerfactory/projects'))]
-    assert len(llamadas) == 6, llamadas
+    # 7 desde WEB-RUTAS: el cliente también deshace un lote aplicado (007:RF-38, POST lote/{token}/deshacer).
+    assert len(llamadas) == 7, llamadas
     for llamada in llamadas:
         ruta = '/api/workspaces/{}' + re.sub(r'\$\{[^}]+\}', '{}', llamada)
         assert ruta in rutas, f'{ruta} no existe en la API'

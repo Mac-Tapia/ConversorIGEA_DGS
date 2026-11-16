@@ -45,7 +45,9 @@ def preparar_zip(ws_id: str, root: Path, seleccion: tuple[str, ...], ctx) -> dic
                 if path.is_symlink() or not path.resolve().is_relative_to(source_root):
                     raise ValueError('La salida contiene una redirección; no se incorpora al ZIP.')
                 relative = path.relative_to(source_root).as_posix()
-                if seleccion and not any(relative == f'{f}.dgs' or relative.startswith((f'{f}_', f'{f}/'))
+                # Por alimentador (``F.dgs``, ``F_…``, ``F/…``) o, para publicar una salida suelta (109:RF-24), por su
+                # ruta exacta en la salida.
+                if seleccion and not any(relative in (f, f'{f}.dgs') or relative.startswith((f'{f}_', f'{f}/'))
                                          for f in seleccion):
                     continue
                 files.append((path, relative))
@@ -74,7 +76,7 @@ def preparar_zip(ws_id: str, root: Path, seleccion: tuple[str, ...], ctx) -> dic
         marker.write_text(json.dumps(owner), encoding='utf-8')
         # Ruta interna, no parte del JSON público del trabajo.
         ctx.job._archivo_zip = final
-        name = f'convertersmartgrid_{"_".join(seleccion[:3]) if seleccion else "salida"}.zip'
+        name = f'convertersmartgrid_{"_".join(Path(f).name for f in seleccion[:3]) if seleccion else "salida"}.zip'
         return {'download': f'/api/workspaces/{ws_id}/outputs.zip?job={ctx.job.id}',
                 'nombre': name, 'archivos': len(files), 'bytes': final.stat().st_size}
     except BaseException:

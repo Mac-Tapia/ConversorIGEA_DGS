@@ -4,15 +4,21 @@ Usuario (2026-11-14, aclaración de 070:RF-51): «en la web, ninguna cita de RF 
 «… conviértalos e impórtelos antes (028:RF-23).». Se recorre lo que llega a la pantalla:
 - en ``src/``, los mensajes de ``UserError`` (y de sus subclases) y el ``detail`` de ``HTTPException``, con ``ast``;
 - en ``frontend/src/**/*.tsx``, los textos que se pintan (texto de JSX, atributos y cadenas), sin los comentarios ni los
-  docstrings, que sí pueden citar requisitos.
+  docstrings, que sí pueden citar requisitos;
+- en los datos que van en la entrega (los ``config/**/*.json`` que deja entrar ``config/entrega.json`` y los que copia
+  ``tools/construir_candidato.py``), todas sus cadenas: el cliente abre esos ficheros.
 Lo que cuenta como cita: «RF-n», «NNN:RF», el código de una spec entre paréntesis («(028:…)», «(099)») y una tarea con su
 spec o con la palabra («086 T40», «tarea T7»). «(T1, T2, T3)», transformadores de una SET, no es una tarea.
 """
 from __future__ import annotations
 
 import ast
+import json
 import re
+import subprocess
 from pathlib import Path
+
+from apoyo import cargar_herramienta
 
 RAIZ = Path(__file__).resolve().parents[1]
 CITA = re.compile(r'RF-\d|\b\d{3}:RF|\(\d{3}(?::[^)]*)?\)|\(spec \d{3}\b|(?:\b\d{3}[ :]|\btarea\s)T\d+\b')
@@ -166,7 +172,30 @@ def _ambitos(arbol: ast.AST):
 CLAVES_V3 = CLAVES_PARA_EL_OPERADOR | {'error', 'origen', 'fuente'}
 
 
-def _valores_para_el_operador(n: ast.AST, *, salida: bool) -> list[ast.AST]:
+def envolturas_de_salida(arbol: ast.AST) -> frozenset[str]:
+    """Las funciones del módulo que imprimen su primer argumento (`_decir(texto)` → `print(f'{hora} {texto}')`), también
+    a través de otra envoltura, y los métodos que lo hacen (sin contar `self`)."""
+    funciones = [n for n in ast.walk(arbol) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    envolturas: set[str] = set()
+    while True:
+        antes = len(envolturas)
+        for f in funciones:
+            params = [a.arg for a in f.args.args if a.arg not in ('self', 'cls')]
+            if not params or f.name in envolturas:
+                continue
+            for c in ast.walk(f):
+                if not isinstance(c, ast.Call) or not c.args:
+                    continue
+                nombre = c.func.id if isinstance(c.func, ast.Name) else c.func.attr if isinstance(c.func, ast.Attribute) else ''
+                argumentos = c.args if nombre == 'print' else c.args[:1] if nombre in envolturas else []
+                if any(isinstance(x, ast.Name) and x.id == params[0] for arg in argumentos for x in ast.walk(arg)):
+                    envolturas.add(f.name)
+                    break
+        if len(envolturas) == antes:
+            return frozenset(envolturas)
+
+
+def _valores_para_el_operador(n: ast.AST, *, salida: bool, envolturas: frozenset[str] = frozenset()) -> list[ast.AST]:
     """Los valores que llegan al operador desde un nodo: excepciones, avisos, campos de respuesta, el texto que devuelve
     una función (`return`) y, en tools/, print."""
     if isinstance(n, ast.Return) and n.value is not None:
@@ -180,6 +209,10 @@ def _valores_para_el_operador(n: ast.AST, *, salida: bool) -> list[ast.AST]:
         return list(n.args[:1])
     if salida and isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == 'print':
         return list(n.args)
+    if salida and isinstance(n, ast.Call) and n.args and envolturas and (
+            (isinstance(n.func, ast.Name) and n.func.id in envolturas)
+            or (isinstance(n.func, ast.Attribute) and n.func.attr in envolturas)):
+        return list(n.args[:1])                         # 070:RF-78: lo que pasa por `_decir` y similares se imprime
     if isinstance(n, ast.Dict):
         return [v for k, v in zip(n.keys, n.values) if isinstance(k, ast.Constant) and k.value in CLAVES_V3]
     if isinstance(n, ast.Call):
@@ -192,9 +225,11 @@ def _valores_para_el_operador(n: ast.AST, *, salida: bool) -> list[ast.AST]:
 def citas_para_el_operador(codigo: str, ruta: str, *, salida: bool = False) -> list[str]:
     """070:RF-78 (v3): todo lo de `_valores_para_el_operador`, siguiendo las variables de su función."""
     vistas: dict[tuple[int, str], str] = {}
-    for ambito, nombres in _ambitos(ast.parse(codigo)):
+    arbol = ast.parse(codigo)
+    envolturas = envolturas_de_salida(arbol) if salida else frozenset()
+    for ambito, nombres in _ambitos(arbol):
         for n in ast.walk(ambito):
-            for v in _valores_para_el_operador(n, salida=salida):
+            for v in _valores_para_el_operador(n, salida=salida, envolturas=envolturas):
                 for texto in _textos_con_variables(v, nombres):
                     if CITA.search(texto):
                         vistas.setdefault((v.lineno, texto), f'{ruta}:{v.lineno}: {texto[:100]!r}')
@@ -402,6 +437,38 @@ def i():
     assert con_salida == [3, 8, 12, 13]
 
 
+def test_el_detector_ve_la_salida_de_las_envolturas_de_print():
+    """070:RF-78 — en tools/, lo que pasa por una función propia que lo imprime (como `_decir` del servidor de PF, que se
+    le escapó al detector hasta la puerta E del 16-11) es salida del guion: la envoltura, la que llama a otra envoltura y
+    el método; no una función que imprime otra cosa, ni lo que no es su primer argumento."""
+    py = '''
+def _decir(texto):
+    print(f'{hora()} {texto}', flush=True)
+
+def _avisar(texto, nivel=1):
+    _decir('AVISO: ' + texto)
+
+def _contar(n, etiqueta):
+    print(f'{n} hechas')
+
+class Servidor:
+    def decir(self, texto):
+        print(texto)
+
+    def servir(self, orden):
+        self.decir(f'Orden {orden}: vuelve a la cola (019:RF-27).')
+
+def servir(orden):
+    _decir(f'Orden {orden} descartada (019:RF-17).')
+    _avisar('Sin órdenes: se cierra (019:RF-8).')
+    _contar(3, 'etiqueta interna 019:RF-14')
+'''
+    sin_salida = sorted(int(c.split(':')[1]) for c in citas_para_el_operador(py, 'x.py'))
+    con_salida = sorted(int(c.split(':')[1]) for c in citas_para_el_operador(py, 'x.py', salida=True))
+    assert sin_salida == [], f'fuera de tools/ las envolturas de print no cuentan: {sin_salida}'
+    assert con_salida == [16, 19, 20], f'el detector no ve la salida de las envolturas de print: {con_salida}'
+
+
 def decisiones_por_cita(codigo: str, ruta: str) -> list[str]:
     """070:RF-78 (v3): un `in`, un `startswith` o un `re` que busca una cita dentro de un texto. Al quitar las citas de los
     mensajes, esa condición deja de cumplirse en silencio: pasó con «051:RF-9» en tools/cabecera_ancha.py desde v2a."""
@@ -466,3 +533,98 @@ def h(p):
 '''
     lineas = sorted(int(c.split(':')[1]) for c in citas_para_el_operador(py, 'x.py'))
     assert lineas == [4, 8, 11, 12, 13], lineas
+
+
+# ------------------------------------------------------------------ datos que van en la entrega
+#: 070:RF-78 (datos): ficheros de datos entregados que pueden citar, cada uno con su motivo. Hoy ninguno: todos se limpiaron.
+#: `test_la_lista_de_datos_declarados_no_esconde_nada` obliga a quitar una entrada en cuanto su fichero quede limpio.
+DATOS_DECLARADOS: dict[str, str] = {}
+
+#: Las funciones con que tools/construir_candidato.py copia un fichero del repositorio dentro del candidato.
+COPIAS = {'copyfile', 'copy', 'copy2', '_copiar_fijado'}
+
+
+def copiados_por_el_candidato(codigo: str) -> set[str]:
+    """Los ``config/…`` que el constructor copia al candidato: las constantes ``X = Path('config', …)`` del módulo que
+    aparecen en el origen de una copia (``shutil.copyfile(raiz / X, …)``)."""
+    arbol = ast.parse(codigo)
+    constantes = {}
+    for n in arbol.body:
+        if (isinstance(n, ast.Assign) and isinstance(n.value, ast.Call) and _nombre(n.value.func) == 'Path'
+                and n.value.args and all(isinstance(a, ast.Constant) and isinstance(a.value, str) for a in n.value.args)
+                and n.value.args[0].value == 'config'):
+            for t in n.targets:
+                if isinstance(t, ast.Name):
+                    constantes[t.id] = '/'.join(a.value for a in n.value.args)
+    return {constantes[m.id] for n in ast.walk(arbol) if isinstance(n, ast.Call) and _nombre(n.func) in COPIAS and n.args
+            for m in ast.walk(n.args[0]) if isinstance(m, ast.Name) and m.id in constantes}
+
+
+def citas_en_datos(datos, ruta: str, camino: str = '') -> list[str]:
+    """Cada cadena de un JSON con una cita, también las claves: «ruta:/camino: 'texto'»."""
+    salida = []
+    if isinstance(datos, str):
+        if CITA.search(datos):
+            salida.append(f'{ruta}:{camino or "/"}: {datos[:100]!r}')
+    elif isinstance(datos, dict):
+        for k, v in datos.items():
+            salida += citas_en_datos(k, ruta, f'{camino}/{k}') if isinstance(k, str) and CITA.search(k) else []
+            salida += citas_en_datos(v, ruta, f'{camino}/{k}')
+    elif isinstance(datos, list):
+        for i, v in enumerate(datos):
+            salida += citas_en_datos(v, ruta, f'{camino}[{i}]')
+    return salida
+
+
+def datos_entregados() -> list[str]:
+    """Los ``config/**/*.json`` del repositorio que entran en la entrega según ``config/entrega.json``, y los que copia el
+    constructor del candidato."""
+    ce = cargar_herramienta('comprobar_entrega.py')
+    manifiesto = ce.leer_manifiesto(RAIZ / 'config' / 'entrega.json')
+    copiados = copiados_por_el_candidato((RAIZ / 'tools' / 'construir_candidato.py').read_text(encoding='utf-8'))
+    del_repositorio = subprocess.run(['git', 'ls-files', '--', 'config'], cwd=RAIZ, capture_output=True, text=True,
+                                     check=True).stdout.split()
+    return sorted(r for r in del_repositorio if r.endswith('.json') and (ce.entra(r, manifiesto) or r in copiados))
+
+
+def _citas_de_datos(declarados: bool) -> list[str]:
+    citas = []
+    for rel in datos_entregados():
+        if (rel in DATOS_DECLARADOS) == declarados:
+            citas += citas_en_datos(json.loads((RAIZ / rel).read_text(encoding='utf-8')), rel)
+    return citas
+
+
+def test_ningun_dato_que_va_en_la_entrega_cita_requisitos():
+    """070:RF-78 (datos) — un dato entregado también lo ve el cliente: ni sus valores, ni sus claves, ni sus «_comentario»
+    citan requisitos, specs ni tareas."""
+    citas = _citas_de_datos(False)
+    assert citas == [], f'{len(citas)} texto(s) de datos entregados con citas internas:\n' + '\n'.join(citas)
+
+
+def test_la_lista_de_datos_declarados_no_esconde_nada():
+    """070:RF-78 (datos) — un fichero sigue en DATOS_DECLARADOS solo mientras se entregue y tenga citas."""
+    entregados = set(datos_entregados())
+    for rel in DATOS_DECLARADOS:
+        assert rel in entregados, f'{rel} ya no se entrega: quítelo de DATOS_DECLARADOS'
+        assert citas_en_datos(json.loads((RAIZ / rel).read_text(encoding='utf-8')), rel), \
+            f'{rel} ya no tiene citas: quítelo de DATOS_DECLARADOS'
+
+
+def test_el_detector_de_datos_ve_cada_forma_sembrada():
+    """070:RF-78 (datos) — caso sembrado: un «_comentario», una lista, una clave y un valor anidado con su cita se ven; un
+    número, «(T1, T2)» de una SET y un texto sin cita, no. Y la selección: lo que deja entrar la lista de la entrega y lo
+    que copia el constructor, no lo que la lista excluye."""
+    datos = {'_comentario': '086:RF-32: la plantilla', 'n': 3, 'lista': ['sin cita', 'las rutas (spec 102)'],
+             'clave (097:RF-19)': 1, 'perfil': {'nota': 'Transformadores (T1, T2) en alta', 'origen': 'la 086 T40'}}
+    assert [c.split(': ', 1)[0] for c in citas_en_datos(datos, 'x.json')] == [
+        'x.json:/_comentario', 'x.json:/lista[1]', 'x.json:/clave (097:RF-19)', 'x.json:/perfil/origen']
+    codigo = ("from pathlib import Path\nimport shutil\nCONJUNTO = Path('config', 'a', 'b.json')\n"
+              "OTRO = Path('config', 'c.json')\nNO_CONFIG = Path('docs', 'd.json')\n"
+              "def f(raiz, destino):\n    shutil.copyfile(raiz / CONJUNTO, destino)\n    leer(raiz / OTRO)\n"
+              "    shutil.copyfile(raiz / NO_CONFIG, destino)\n")
+    assert copiados_por_el_candidato(codigo) == {'config/a/b.json'}
+    entregados = set(datos_entregados())
+    assert {'config/perfiles/plantilla.json', 'config/entrega.json',
+            'config/pregunta_entregada/CONJUNTO_ABSTENCION_ENTREGA.json'} <= entregados
+    assert not {'config/perfil_empresa.json', 'config/licencias_terceros/manifest.json'} & entregados

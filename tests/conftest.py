@@ -336,7 +336,7 @@ def turno_sin_marca(lock: Path, *, marcada: bool) -> str | None:
 def _sin_perfil_de_la_maquina(monkeypatch, tmp_path_factory):
     """Sin perfil de empresa salvo que la prueba lo pida (spec 002, RF-32 y RF-33).
 
-    ``config/perfil_empresa.json`` es local: con el de Electro Dunas, las pruebas
+    ``config/perfil_empresa.json`` es local: con el de una distribuidora real, las pruebas
     pasaban en su equipo y fallaban en otro sin él. Una prueba que necesite un perfil lo
     escribe ella o usa uno de ``config/perfiles``.
     """
@@ -473,7 +473,7 @@ def _sin_gemelo_de_la_maquina(monkeypatch, tmp_path):
 def perfil_real():
     """Perfil de empresa de los datos reales de las variables ``CSG_*``.
 
-    Los de ``referencia/`` son de Electro Dunas, así que por defecto es su perfil: es
+    Los de ``referencia/`` son de una distribuidora real, así que por defecto es su perfil: es
     el de los datos de prueba, no un valor por defecto del código (spec 002, RF-35).
     La entrega de otra empresa lo dice con ``CSG_PERFIL=<nombre de config/perfiles>``.
     """

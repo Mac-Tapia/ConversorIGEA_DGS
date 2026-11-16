@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
 import type { Options, SalidaRed, SalidasRed } from '../../api/types';
-import { Toggle } from '../../shared/ui';
+import { Ayuda, Toggle } from '../../shared/ui';
 
 export const ETIQUETA_FONDO_MAPA = 'Fondo de mapa (calles y satélite; pide las teselas a internet)';
 
@@ -79,10 +79,11 @@ export function OptionsPanel() {
           <datalist id="crs-presets">
             {health.crs_presets.map((p) => <option key={p.code} value={p.code}>{p.label}</option>)}
           </datalist>
-          <small className="muted">
+          {/* 086:RF-110: la explicación, plegada; a la vista era densa para la vista inicial (prueba del 2026-11-16). */}
+          <Ayuda titulo="Qué CRS vale">
             Cualquier EPSG <b>proyectado en metros</b>. Uno en grados (p. ej. EPSG:4326) falsearía las
             longitudes unas 100.000 veces y se rechaza al convertir.
-          </small>
+          </Ayuda>
           {crsWarning && <small className="alert alert-error">{crsWarning}</small>}
           {perfil.error && <small className="alert alert-error">Perfil de empresa: {perfil.error}</small>}
           {sinCrs && (

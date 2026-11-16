@@ -1,4 +1,5 @@
 from pathlib import Path
+from test_entrega_universal import _codigos_de_alimentador, _hallar_nombres, _nombres_de_config  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,7 +20,8 @@ def test_reconstruction_panel_has_generic_actions_and_evidence_fields():
     ):
         assert field in panel
     assert 'original_value' in panel and 'applied_value' in panel
-    assert 'ELDU' not in panel and 'IN111' not in panel and 'Electro Dunas' not in panel
+    assert not _hallar_nombres(_codigos_de_alimentador(ROOT), panel)  # ningún alimentador real, leído de config
+    assert not _hallar_nombres(_nombres_de_config(Path(__file__).resolve().parents[1]), panel)
 
 
 def test_incomplete_feeders_remain_selectable_and_conversion_is_not_disabled_by_readiness():

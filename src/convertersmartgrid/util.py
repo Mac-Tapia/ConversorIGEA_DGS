@@ -125,6 +125,22 @@ def finite_or_none(value: Any) -> float | None:
     return result if math.isfinite(result) else None
 
 
+def frc(tasa: float, anios: float) -> float:
+    """Factor de recuperación del capital: la anualidad de 1 en ``anios`` a ``tasa``, i·(1+i)^n / ((1+i)^n − 1).
+
+    Es la ÚNICA fórmula del FRC del conversor (UNA-TASA, 107:RF-11, 108:RF-13): la usan el PIT
+    (``pit.alternativas``), el PIDE (``pide_economia``, que la reexporta), el VAD (``vad.pide_vad``) y el libro de la
+    empresa (``datos_empresa.anualidad``). Con 12 % y 30 años da 0,124144, el factor que publica el TdR del VAD. Con
+    tasa cero, 1/n: la fórmula daría 0/0. La tasa y la vida útil las da quien llama, desde el registro o el perfil.
+    """
+    if anios <= 0:
+        raise ValueError('la vida útil tiene que ser mayor que cero')
+    if tasa == 0:
+        return 1 / anios
+    f = (1 + tasa) ** anios
+    return tasa * f / (f - 1)
+
+
 def importar_opcional(modulo: str, error: Exception) -> ModuleType:
     """Importa una dependencia opcional o lanza ``error``, que elige quien llama.
 

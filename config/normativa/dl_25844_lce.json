@@ -1,0 +1,67 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Ley de Concesiones Eléctricas: solo el art. 79 (tasa de actualización), al que remite el art. 24.2 de la Norma Tarifas (regla pit.tasa_actualizacion_fuente de rcd_217_2013.json). Fichero propio porque la LCE no estaba en el registro. Fuentes investigadas por cc (z11 y z11b, P-REG, 2026-11-15).",
+ "normas": [
+  {
+   "acto": "DL 25844",
+   "titulo": "Ley de Concesiones Eléctricas (texto consolidado del SPIJ, con notas de modificación hasta el 22-03-2026)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://spij.minjus.gob.pe/spij-ext-web/#/detallenorma/H756722",
+   "fecha_publicacion": "1992-11-19",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "d1a8bbaf74f457bd939d0cf5765e1f0f043e2d70d920d5bef0f526ac77b13beb",
+   "sha256_texto": "fb872ca9c2b7eecb60c578188e996696a45b26d80338c61c209136c14c3e039d",
+   "fichero_local": "spij_H756722_art79_transcrito.txt",
+   "version": "SPIJ (MINJUSDH), H756722, consolidado hasta la Ley 32560 (22-03-2026); sha256 del texto de la página calculado en el navegador; la copia local es la transcripción del tramo del art. 79",
+   "vigencia_desde": "1992-11-19",
+   "modificada_por": [
+    "DL 1221",
+    "DL 1451",
+    "Ley 31937",
+    "Ley 32416",
+    "DL 1740",
+    "Ley 32560"
+   ],
+   "nota": "Las modificatorias posteriores a 2009 tocan otros artículos (DL 1221: arts. 6 a 90 sin el 79; Ley 31937: art. 82; DL 1740: art. 94; Ley 32560: art. 5); el art. 79 conserva el texto original de 1992, sin marca de modificación en el SPIJ.",
+   "reglas": [
+    {
+     "clave": "pit.tasa_actualizacion",
+     "valor": 0.12,
+     "unidad": "real anual (fracción)",
+     "articulo_o_anexo": "art. 79",
+     "pagina": "SPIJ H756722, art. 79 (sin paginación); pág. 35 de la compilación del MINEM de 2009",
+     "lineas": "10-14",
+     "cita_literal": "Artículo 79.- La Tasa de Actualización a utilizar en la presente Ley será de 12% real anual. Esta tasa sólo podrá ser modificada por el Ministerio de Energía y Minas, previo estudio que encargue la Comisión de Tarifas Eléctricas a consultores especializados, en el que se determine que la tasa fijada es diferente a la Tasa Libre de Riesgo más el premio por riesgo en el país. En cualquier caso, la nueva Tasa de Actualización fijada por el Ministerio de Energía y Minas, no podrá diferir en más de dos puntos porcentuales de la tasa vigente.",
+     "interpretacion": "12 % real anual, como fracción (0,12) para pide_economia.frc y van; la Norma Tarifas (RCD 217-2013-OS/CD, art. 24.2) remite a la «Tasa de Actualización vigente según el Artículo 79º de la LCE».",
+     "verificacion": {
+      "fecha": "2026-11-15",
+      "resultado": "sin modificaciones posteriores a 2009: ninguna norma posterior a marzo de 2009 modificó el art. 79, ni el MINEM fijó otra tasa al amparo de su 2.º párrafo; Osinergmin aplica el 12 % en octubre de 2026",
+      "responsable": "cc (apoyo de f4), z11b",
+      "fuentes": [
+       {
+        "documento": "SPIJ (MINJUSDH), DL 25844 consolidado hasta el 22-03-2026 (Ley 32560), H756722: art. 79 sin marca de modificación; sha256 del tramo del art. 79 calculado en el navegador",
+        "url": "https://spij.minjus.gob.pe/spij-ext-web/#/detallenorma/H756722",
+        "sha256": "fd5fa63adbf6b13259dccd941be043e811a16e64d77f16b4c18981b4c071f23e",
+        "consolidado_hasta": "2026-03-22",
+        "cita": "Artículo 79.- La Tasa de Actualización a utilizar en la presente Ley será de 12% real anual."
+       },
+       {
+        "documento": "MINEM, compilación de la LCE «Actualizado a Marzo 2009» (gob.pe/minem), pág. 35",
+        "url": "https://cdn.www.gob.pe/uploads/document/file/5316802/4768546-ley.pdf",
+        "sha256": "03c022060d76b6d6b4333c1af391b5f79d4752ba6c5a8acfeaf28ecc909cc108",
+        "consolidado_hasta": "2009-03",
+        "cita": "Artículo 79°.- La Tasa de Actualización a utilizar en la presente Ley será de 12% real anual."
+       },
+       {
+        "documento": "RCD 184-2026-OS/CD (VNR al 31-12-2025), El Peruano, edición extraordinaria del 16-10-2026: aplicación actual por Osinergmin; sha256 del texto de la página calculado en el navegador",
+        "url": "https://busquedas.elperuano.pe/dispositivo/EX/2565587-1",
+        "sha256": "f5ff143ddf4650b7245900c857a38182e819612b5e333600d3b282aa3956f27f",
+        "cita": "no difiere en más de 4 puntos porcentuales de la Tasa de Actualización de la LCE (12%)"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

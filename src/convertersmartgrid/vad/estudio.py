@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from ..perfil_empresa import PerfilEmpresa
-from ..registro_normativo import RegistroError, RegistroNormativo
+from ..registro_normativo import RegistroError, RegistroNormativo, ReglaVigente
 from ..util import publicar_duradero
 from . import VadError
 
@@ -42,6 +42,9 @@ class EstudioVad:
     usos: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     #: Si la empresa está en el ámbito del FONAFE (108:RF-17); None es «no declarado» y no se supone.
     ambito_fonafe: bool | None = None
+    #: Recursos de reconsideración pendientes contra lo que usa el estudio, solo en los conceptos impugnados (RN-IMP).
+    #: No cambian el estado: la norma recurrida sigue obligatoria (art. 216.1 del TUO de la LPAG).
+    avisos: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.estado not in ESTADOS:
@@ -49,6 +52,7 @@ class EstudioVad:
         if self.ambito_fonafe is not None and not isinstance(self.ambito_fonafe, bool):
             raise VadError(f'ambito_fonafe tiene que ser verdadero, falso o sin declarar, no {self.ambito_fonafe!r}')
         object.__setattr__(self, 'motivos', tuple(self.motivos))
+        object.__setattr__(self, 'avisos', tuple(self.avisos))
         object.__setattr__(self, 'dependencias', dict(self.dependencias))
         object.__setattr__(self, 'usos', {k: tuple(v) for k, v in self.usos.items()})
 
@@ -84,11 +88,27 @@ def _validar(perfil: PerfilEmpresa, grupo: Any, periodo: Any, version_tdr: Any) 
         raise VadError('el estudio necesita la versión del TdR con la que se arma')
 
 
-def _huella(registro: RegistroNormativo, clave: str) -> str:
+def _regla(registro: RegistroNormativo, clave: str, empresa: str, fecha: str | None = None) -> ReglaVigente:
+    """La regla que usa el estudio: si la clave va por empresa, la de la fijación que trae a la empresa del estudio
+    (VAD-FE26; el grupo de cada empresa sale del registro, 108:RF-13)."""
+    if registro.empresas_de(clave):
+        return registro.regla_de_empresa(clave, empresa, fecha)
+    return registro.regla(clave, fecha)
+
+
+def _huella(registro: RegistroNormativo, clave: str, empresa: str) -> str:
     try:
-        return registro.regla(clave).huella()
+        return _regla(registro, clave, empresa).huella()
     except RegistroError:
         return ''
+
+
+def avisos_de_recurso(registro: RegistroNormativo, empresa: str, usos: Mapping[str, Sequence[str]],
+                      fecha: str | None = None) -> tuple[str, ...]:
+    """Los avisos de los recursos que impugnan lo que usa el estudio: las reglas de ``usos`` y las tablas o cálculos
+    que las usan (RN-IMP, 108:RF-9). Lo que el recurso no impugna no se avisa."""
+    usados = [*usos, *(t for tablas in usos.values() for t in tablas)]
+    return tuple(a.texto() for a in registro.avisos_de_recurso(empresa, usados, fecha))
 
 
 def crear_estudio(espacio: Path | str, perfil: PerfilEmpresa, *, grupo: int, periodo: str, version_tdr: str,
@@ -105,8 +125,11 @@ def crear_estudio(espacio: Path | str, perfil: PerfilEmpresa, *, grupo: int, per
     estudio = EstudioVad(id=_slug(f'{perfil.nombre} g{grupo} {periodo}'), empresa=perfil.nombre.strip(),
                          grupo=grupo, periodo=periodo, version_tdr=str(version_tdr).strip(),
                          instantanea_registro=registro.instantanea() if registro is not None else '',
-                         dependencias={k: _huella(registro, k) for k in usos} if registro is not None else {},
-                         usos=usos, ambito_fonafe=ambito_fonafe)
+                         dependencias=({k: _huella(registro, k, perfil.nombre.strip()) for k in usos}
+                                       if registro is not None else {}),
+                         usos=usos, ambito_fonafe=ambito_fonafe,
+                         avisos=(avisos_de_recurso(registro, perfil.nombre.strip(), usos)
+                                 if registro is not None else ()))
     ruta = carpeta_estudio(espacio, estudio.id) / 'estudio.json'
     if ruta.exists():
         raise VadError(f'el estudio {estudio.id} ya existe en este espacio; no se sobrescribe')
@@ -150,9 +173,9 @@ def exigir_vigente(estudio: EstudioVad, registro: RegistroNormativo, fecha: str 
                        f'{estudio.periodo} ({clave_grupo})')
     for clave in sorted(estudio.usos):
         try:
-            rv = registro.regla(clave, fecha)
-        except RegistroError:
-            motivos.append(f'la regla {clave} no está en el registro')
+            rv = _regla(registro, clave, estudio.empresa, fecha)
+        except RegistroError as exc:
+            motivos.append(f'la regla {clave} no está en el registro ({exc})')
             continue
         if not rv.regla.citada:
             motivos.append(f'la regla {clave} no tiene cita (literal y página o líneas)')
@@ -168,14 +191,17 @@ def comprobar_estudio(espacio: Path | str, id_estudio: str, registro: RegistroNo
     """Fija el estado del estudio con el registro de hoy y lo guarda (108:RF-9, RF-10).
 
     El estudio conserva la instantánea con la que se creó. Si una regla que usa cambió desde entonces, queda
-    ``desactualizado`` y se nombran la regla y las tablas o cálculos que la usan; no se recalcula solo.
+    ``desactualizado`` y se nombran la regla y las tablas o cálculos que la usan; no se recalcula solo. Los avisos de
+    recurso del registro de hoy se guardan con él en ``estudio.json``, sin cambiar su estado (RN-IMP).
     """
     estudio = cargar_estudio(espacio, id_estudio)
     motivos = exigir_vigente(estudio, registro, fecha)
     cambiadas = [f'la regla {clave} cambió en el registro desde que se creó el estudio (afecta a: '
                  f'{", ".join(estudio.usos.get(clave, ())) or "sin uso declarado"})'
-                 for clave, huella in sorted(estudio.dependencias.items()) if _huella(registro, clave) != huella]
+                 for clave, huella in sorted(estudio.dependencias.items())
+                 if _huella(registro, clave, estudio.empresa) != huella]
     estado = 'desactualizado' if cambiadas else ('no_conforme' if motivos else 'conforme')
-    nuevo = replace(estudio, estado=estado, motivos=tuple(cambiadas + motivos))
+    nuevo = replace(estudio, estado=estado, motivos=tuple(cambiadas + motivos),
+                    avisos=avisos_de_recurso(registro, estudio.empresa, estudio.usos, fecha))
     guardar_estudio(espacio, nuevo)
     return nuevo

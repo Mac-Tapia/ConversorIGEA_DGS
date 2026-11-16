@@ -1,7 +1,7 @@
 """Spec 042: diseño, módulo PIT y ubicación de la SET nueva, sin DIgSILENT.
 
 El caso real es NA203 + NA205 (2026-10-31): 37 cargas nuevas sobre 11 MW calibrados; la SET nueva
-es la Copara que Electro Dunas planifica en Nasca, con los módulos de su libro CAPEX (`PyOTx27`).
+es la <sitio> que una distribuidora real planifica en Nasca, con los módulos de su libro CAPEX (`PyOTx27`).
 Las redes y las cargas se sortean (``CSG_SCALE_SEED``).
 """
 from __future__ import annotations
@@ -28,11 +28,11 @@ def _libro(tmp_path):
     ws.title = 'PyOTx27'
     ws.append([])
     ws.append(['', 'CONSECUTIVO', 'OBJETO \nCONTRACTUAL', 'MONEDA DE ORIGEN', 'VALOR TOTAL DEL CONTRATO EN MONEDA ORIGEN'])
-    ws.append(['', 1, 'Transformador de reserva compartida de 60/22,9/10 de 25/25/25 MVA - SET Copara', 'Dólar', 571957.91])
+    ws.append(['', 1, 'Transformador de reserva compartida de 60/22,9/10 de 25/25/25 MVA - SET Norte', 'Dólar', 571957.91])
     ws.append(['', 1, 'Transformador de Potencia 60/22,9/10 kV de 15/15/15 MVA - SET Palpa', 'Dólar', 766307.3])
     ws.append(['', 1, 'Segunda terna de la Línea de Transmisión 220 kV Independencia - El Ángel', 'Dólar', 1030000])
     ws.append(['', 1, 'Transformador de Potencia 60/22,9/10 kV de 40/40/40 MVA, SET Chincha Nueva', 'Dólar', 927250])
-    ws.append(['', 1, 'Nueva SET Copara 60/22,9/10 kV de 25/25/25 MVA y LT 60 kV Cahuachi – Copara de 14,1 km', 'Dólar', 5748960.51])
+    ws.append(['', 1, 'Nueva SET Norte 60/22,9/10 kV de 25/25/25 MVA y LT 60 kV Sur – Norte de 14,1 km', 'Dólar', 5748960.51])
     ruta = tmp_path / 'capex.xlsx'
     wb.save(ruta)
     return ruta
@@ -113,11 +113,12 @@ def test_transformadores_en_paralelo_si_ninguno_cubre_solo(tmp_path):
     transformadores; sin el dato del perfil, uno solo. NA203 + NA205 (2026-10-31): 45,5 MVA y el
     mayor módulo de 22,9 kV era de 40."""
     mods = sn.leer_modulos_pit(_libro(tmp_path), CFG_PIT)
-    copara = next(m for m in mods if m['tipo'] == 'set')
-    trafo25 = next(m for m in mods if m['tipo'] == 'transformador' and m['mva'] == 25.0)
+    set_mod = next((m for m in mods if m['tipo'] == 'set'), None)
+    trafo25 = next((m for m in mods if m['tipo'] == 'transformador' and m['mva'] == 25.0), None)
+    assert set_mod is not None and trafo25 is not None, f'faltan módulos en el libro de la prueba: semilla={SEMILLA}'
     par = sn.elegir_modulo(mods, 45_500.0, 22.9, max_unidades=2)['modulo']
     assert (par['tipo'], par['mva'], par['unidades'], par['mva_total']) == ('set', 25.0, 2, 50.0)
-    assert par['costo_total'] == pytest.approx(copara['costo'] + trafo25['costo'])
+    assert par['costo_total'] == pytest.approx(set_mod['costo'] + trafo25['costo'])
     dos40 = sn.elegir_modulo(mods, 60_000.0, 22.9, max_unidades=2)['modulo']
     assert (dos40['tipo'], dos40['mva'], dos40['unidades']) == ('transformador', 40.0, 2)
     assert sn.elegir_modulo(mods, 90_000.0, 22.9, max_unidades=2)['modulo'] is None

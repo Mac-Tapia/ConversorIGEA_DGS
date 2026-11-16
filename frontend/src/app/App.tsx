@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { api, ApiError } from '../api/client';
 import { AcercaDe } from './AcercaDe';
 import { ArchivoInformes } from './ArchivoInformes';
+import { CuentasNube } from './CuentasNube';
+import { NubeEnEntradas } from './NubeEnEntradas';
 import { Ctx, type AppCtx } from '../shared/context';
 import { betaActiva } from '../shared/edicion';
 import { Asistente } from '../features/asistente/Asistente';
@@ -10,13 +12,14 @@ import { CargasTab } from '../features/powerfactory/CargasTab';
 import { EvolucionFijas } from '../features/clientesfijos/EvolucionFijas';
 import { FeedersPanel } from '../features/conversion/FeedersPanel';
 import { InputsPanel } from '../features/conversion/InputsPanel';
-import { InstalacionesPowerFactoryModal } from './InstalacionesPowerFactory';
+import { InstalacionesPowerFactoryModal, textoPildoraPf } from './InstalacionesPowerFactory';
 import { JobBar } from './JobBar';
 import { LogPanel } from './LogPanel';
 import { MarcaBeta } from '../shared/MarcaBeta';
 import { CatalogTab, ResultsTab, SystemTab } from '../features/conversion/Modules';
 import { OptionsPanel } from '../features/conversion/OptionsPanel';
 import { PerfilEmpresa } from '../features/conversion/PerfilEmpresa';
+import { PlanoRed } from '../features/plano/PlanoRed';
 import { Modal, Pill, useConfirm, useToast } from '../shared/ui';
 import type { Health, Job, PowerFactoryStatus } from '../api/types';
 import { useWorkspace } from '../shared/useWorkspace';
@@ -29,6 +32,8 @@ import { useVistos } from '../shared/AvisosTrabajo';
 // sobre un proyecto que ya está en DIgSILENT y se ve siempre (spec 008, RF-1).
 const TABS = [
   { id: 'results', label: 'Resultados', el: <ResultsTab />, entradas: true },
+  // Spec 111: el plano de la red con la entrega cargada; se añade junto a «Resultados» sin quitar ninguna.
+  { id: 'plano', label: 'Plano de la red', el: <PlanoRed />, entradas: true },
   { id: 'cargas', label: 'Cargas en DIgSILENT', el: <CargasTab />, entradas: false },
   // Spec 105: con los libros de medición del espacio; no necesita la red cargada.
   { id: 'clientes_fijos', label: 'Evolución de clientes fijos', el: <EvolucionFijas />, entradas: false },
@@ -246,6 +251,7 @@ export default function App() {
 
   return (
     <Ctx.Provider value={ctx}>
+      <NubeEnEntradas>
       <a className="saltar" href="#contenido">Ir al contenido</a>
       <div className="app" style={{ gridTemplateRows: `auto 1fr 6px ${logHeight}px` }}>
         <header className="topbar">
@@ -262,9 +268,9 @@ export default function App() {
             <Capacidad ok={Boolean(caps.access)} etiqueta="Access" detalle="pyodbc" />
             {/* 103:RF-3: la instalación en uso; al pulsarla, las encontradas y la elección del operador. */}
             <button type="button" className="pill-boton" onClick={() => setVerPf(true)}
-              title={pf ? `${pf.api_dir ?? 'sin API'} · ${pf.interpreter_reason} · pulse para elegir otra` : 'comprobando…'}>
+              title={pf ? `${pf.api_dir ?? 'sin API'}${pf.api_version ? ` · Python ${pf.api_version}` : ''} · ${pf.interpreter_reason} · pulse para elegir otra` : 'comprobando…'}>
               <Pill tone={pf?.available ? 'ok' : 'muted'}>
-                <span aria-hidden="true">{pf?.available ? '✓' : '–'}</span> {pf?.instalacion ?? 'PowerFactory'}{pf?.api_version ? ` · Python ${pf.api_version}` : ''}
+                <span aria-hidden="true">{pf?.available ? '✓' : '–'}</span> {textoPildoraPf(pf)}
                 <span className="sr-only">{pf ? (pf.available ? ': disponible' : ': no disponible') : ': comprobando'}</span>
               </Pill>
             </button>
@@ -289,6 +295,7 @@ export default function App() {
               <InputsPanel />
               <OptionsPanel />
               <ArchivoInformes />
+              <CuentasNube />
               <PerfilEmpresa />
             </div>
             <div className="col-main">
@@ -350,6 +357,7 @@ export default function App() {
       {summary && <JobSummary job={summary} onClose={() => setSummary(null)} />}
       {verPf && <InstalacionesPowerFactoryModal onClose={() => setVerPf(false)}
         onCambio={() => { api.powerfactory(true).then(setPf).catch(() => undefined); }} />}
+      </NubeEnEntradas>
     </Ctx.Provider>
   );
 }

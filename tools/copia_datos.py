@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
             salida(copia.restaurar_copia(args.copia, raices=raices))
             return 0
         if args.orden == 'estado':
-            salida(copia.estado_copia(data_root()))
+            salida(copia.estado_copia(data_root(), destino=copia.carpeta_recordada()))  # 086:RF-109
             return 0
         if args.fijar:
             fijar_identidad(rutas_runtime())

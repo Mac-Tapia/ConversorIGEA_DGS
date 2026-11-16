@@ -2,8 +2,8 @@
 
 Por qué. En NA203 + NA205 (2026-10-31) las 37 cargas nuevas del libro suman unos 30 MW sobre 11 MW
 calibrados: juntas dejan la red a 0,63 pu y ninguna variante de la escalera de la 025 cumple. Las
-que no caben pasan, con los tramos de NA203 y NA205 donde se conectan, a una SET nueva (la Copara
-que Electro Dunas ya planifica en Nasca). Aquí, sin DIgSILENT: su potencia de diseño a la vida
+que no caben pasan, con los tramos de <código> y <código> donde se conectan, a una SET nueva (la <sitio>
+que una distribuidora real ya planifica en Nasca). Aquí, sin DIgSILENT: su potencia de diseño a la vida
 útil, el módulo del Plan de Inversiones en Transmisión que la cubre y el punto donde menos
 potencia por distancia hay que llevar.
 """
@@ -330,7 +330,7 @@ def ramas_a_trasladar(red, cabecera: str, destino: set[str], kw_por_barra: Mappi
     ``existentes``: las barras de la red sin las cargas nuevas. La obra se lee y se graba con
     ellas apartadas, así que cada rama empieza en una de esas barras: la más cercana aguas
     arriba. NODE_T_SU_Predio_Lote_B-6A__CIMAS_MINERA lo crea la variación de su carga al partir
-    SEC_1091_1046727, y la SET COPARA no se creaba (NA203 + NA205, 2026-11-01).
+    SEC_1091_1046727, y la SET <sitio> no se creaba (<código> + <código>, 2026-11-01).
     """
     from .troncal import arbol
 

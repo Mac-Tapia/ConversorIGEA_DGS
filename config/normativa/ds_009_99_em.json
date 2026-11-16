@@ -1,0 +1,52 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Tarjeta VAD-CAL v2 (108 T18, 2026-11-15, f4). El texto del art. 4 se lee en el DS 040-2001-EM oficial de gob.pe (pdf 14), que lo modifica; el DS 009-99-EM suelto no se descargó. VIGENCIA: la versión citada rige desde que rige el DS 040-2001-EM. Ese decreto no tiene cláusula de vigencia propia: sus Disposiciones Complementarias (pdf 16) solo dicen «Primera.- Disponer que el OSINERG adecue las Bases Metodológicas para la aplicación de la NTCSE al presente Decreto Supremo, en un plazo máximo de treinta (30) días contados a partir de la fecha de su publicación.» y «Segunda.- El presente Decreto Supremo será refrendado por el Ministro de Energía y Minas.». Se aplica por eso el art. 109 de la Constitución («La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte»): publicado el 17-07-2001 (cabecera del texto oficial, «Modifican la Norma Técnica de Calidad de los Servicios Eléctricos (2001-07-17)»; nota de la línea 1634 de ntcse_gobpe.txt), rige desde el 18-07-2001. El consolidado de la NTCSE de gob.pe no transcribe el art. 4 porque no es texto de la NTCSE.",
+ "normas": [
+  {
+   "acto": "DS 009-99-EM",
+   "titulo": "Decreto Supremo 009-99-EM (art. 4: tolerancias de la NTCSE en el Sector de Distribución Típico 2)",
+   "estado_juridico": "modificada",
+   "url": "https://cdn.www.gob.pe/uploads/document/file/5332263/4778812-d-s-nro-040-2001-em.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "0b284390171f859730da7b216850a43bff39e9056a041a569ed4009840e25561",
+   "fichero_local": "DS-040-2001-EM.pdf",
+   "version": "art. 4 en el texto que le da el art. 4 del DS 040-2001-EM (gob.pe)",
+   "modifica": [
+    "DS 020-97-EM"
+   ],
+   "modificada_por": [
+    "DS 040-2001-EM"
+   ],
+   "fecha_publicacion": "2001-07-17",
+   "vigencia_desde": "2001-07-18",
+   "nota": "Tarjeta VAD-CAL v2 (108 T18, 2026-11-15, f4). El texto del art. 4 se lee en el DS 040-2001-EM oficial de gob.pe (pdf 14), que lo modifica; el DS 009-99-EM suelto no se descargó. VIGENCIA: la versión citada rige desde que rige el DS 040-2001-EM. Ese decreto no tiene cláusula de vigencia propia: sus Disposiciones Complementarias (pdf 16) solo dicen «Primera.- Disponer que el OSINERG adecue las Bases Metodológicas para la aplicación de la NTCSE al presente Decreto Supremo, en un plazo máximo de treinta (30) días contados a partir de la fecha de su publicación.» y «Segunda.- El presente Decreto Supremo será refrendado por el Ministro de Energía y Minas.». Se aplica por eso el art. 109 de la Constitución («La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte»): publicado el 17-07-2001 (cabecera del texto oficial, «Modifican la Norma Técnica de Calidad de los Servicios Eléctricos (2001-07-17)»; nota de la línea 1634 de ntcse_gobpe.txt), rige desde el 18-07-2001. El consolidado de la NTCSE de gob.pe no transcribe el art. 4 porque no es texto de la NTCSE.",
+   "reglas": [
+    {
+     "clave": "vad.calidad.limite.incremento_sector_tipico_2",
+     "valor": {
+      "sector_tipico": "2",
+      "factor": 0.3,
+      "redondeo": "entero_superior",
+      "indicadores": [
+       "N",
+       "D"
+      ]
+     },
+     "unidad": "fracción de la tolerancia N' y D' de la NTCSE",
+     "articulo_o_anexo": "art. 4 (texto del art. 4 del DS 040-2001-EM)",
+     "pagina": "pdf 14",
+     "cita_literal": "\"Artículo 4º.- Incrementar en un factor de treinta por ciento (30%) las tolerancias de los indicadores siguientes: Número de Interrupciones por Cliente (N') y Duración Total Ponderada de Interrupciones por Cliente (D') establecidos en la Norma Técnica de Calidad de los Servicios Eléctricos para el Sector de Distribución Típico 2. [...] Tales incrementos se redondean al entero superior y son aplicables única y exclusivamente a la actividad eléctrica de distribución del mercado regulado.",
+     "interpretacion": "El redondeo lo dice la norma, en la frase citada del tercer párrafo del art. 4 (pdf 14): «Tales incrementos se redondean al entero superior». N' y D' del Sector Típico 2 = tolerancia + el 30 % redondeado al entero superior (4 → 6, 6 → 8, 7 → 10 y 10 → 13). Los factores transitorios de la Tercera Etapa (70 % y 50 %) ya vencieron: rige el 30 %. Si a un cliente del ST 2 le tocara además el 6.1.5 (BT urbano-rural o rural), la norma no dice cómo se combinan: hueco nombrado en vad/calidad.py.",
+     "pendientes": [
+      {
+       "id": "ds_009_99_posteriores",
+       "responsable": "f4",
+       "fecha": "2026-11-15",
+       "descripcion": "Comprobar en el SPIJ que ningún decreto posterior al DS 040-2001-EM cambió el art. 4 del DS 009-99-EM (cc no lo comprobó, z9b)."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

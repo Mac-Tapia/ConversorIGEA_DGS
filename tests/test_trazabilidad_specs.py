@@ -202,3 +202,45 @@ def test_skill_con_las_reglas_del_flujo():
     skill = (RAIZ / '.claude' / 'skills' / 'convertersmartgrid-spec' / 'SKILL.md').read_text(encoding='utf-8')
     for regla in ('cumplida no crece', 'con su tarea', '[DIgSILENT]', 'implementada', 'reservada'):
         assert regla in skill, regla
+
+
+# ----------------------------------------------------------------- tipos provisionales del frontend
+
+#: Auditor 0d, 2026-11-15: mientras el cliente de la API lleve tipos escritos a mano y marcados PROVISIONAL (el OpenAPI
+#: aún no trae sus rutas), la tarea del frontend que lo usa no se cierra: falta el contrato generado.
+PROVISIONALES = (('109', 'T14', 'frontend/src/api/nube.ts'), ('110', 'T10', 'frontend/src/api/correo.ts'))
+
+
+def tareas_cerradas_con_tipos_provisionales(raiz=RAIZ) -> list[str]:
+    """Las tareas de ``PROVISIONALES`` marcadas ``[x]`` cuyo cliente aún dice PROVISIONAL."""
+    malos = []
+    for spec, tarea, fichero in PROVISIONALES:
+        cliente = raiz / fichero
+        if not cliente.is_file() or 'PROVISIONAL' not in cliente.read_text(encoding='utf-8'):
+            continue
+        for tasks in sorted((raiz / 'specs').glob(f'{spec}-*/tasks.md')):
+            if re.search(rf'^- \[[xX]\] {tarea}\.', tasks.read_text(encoding='utf-8'), re.M):
+                malos.append(f'{spec} {tarea}: {fichero} aún tiene tipos PROVISIONAL')
+    return malos
+
+
+def test_frontend_con_tipos_provisionales_no_cierra_su_tarea():
+    """109:RF-19, 110:RF-1 — T14 de la 109 y T10 de la 110 siguen abiertas mientras su cliente tenga tipos PROVISIONAL."""
+    malos = tareas_cerradas_con_tipos_provisionales()
+    assert not malos, f'Tarea cerrada con tipos provisionales: {malos}'
+
+
+def test_la_comprobacion_de_tipos_provisionales_caza_la_casilla_cerrada(tmp_path):
+    """109:RF-19, 110:RF-1 — con la marca y la casilla [x] falla; sin la marca, o con [ ], no."""
+    for spec, tarea, fichero in PROVISIONALES:
+        carpeta = tmp_path / 'specs' / f'{spec}-prueba'
+        carpeta.mkdir(parents=True)
+        (carpeta / 'tasks.md').write_text(f'- [x] {tarea}. Frontend.\n      Hecho cuando: prueba.\n', encoding='utf-8')
+        (tmp_path / fichero).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / fichero).write_text('/** PROVISIONAL. */\n', encoding='utf-8')
+    assert len(tareas_cerradas_con_tipos_provisionales(tmp_path)) == len(PROVISIONALES)
+    (tmp_path / PROVISIONALES[0][2]).write_text("type X = S['X'];\n", encoding='utf-8')
+    assert len(tareas_cerradas_con_tipos_provisionales(tmp_path)) == len(PROVISIONALES) - 1
+    for spec, tarea, _f in PROVISIONALES:
+        (tmp_path / 'specs' / f'{spec}-prueba' / 'tasks.md').write_text(f'- [ ] {tarea}. Frontend.\n', encoding='utf-8')
+    assert tareas_cerradas_con_tipos_provisionales(tmp_path) == []

@@ -325,15 +325,15 @@ def test_la_sigla_de_la_carga_nombra_la_carga_nueva():
     la fila sin sigla sigue con su descripción. AL209 (2026-11-06): PI_11 y PI_15 eran dos clientes de cemento."""
     header = ['N°', 'EXP', 'SIGLAS DE CARGA', 'UNIDAD DE NEGOCIO', 'DESCRIPCION', 'DEM PROY \n(KW)', 'TRONCAL', 'BARRA']
     filas, errores = leer_hoja_nuevas(header, [
-        [None, None, 'PI_15', 'Pisco', 'SU_CementoINKA-Pisco', 5000, 'F1', 'B1'],
+        [None, None, 'PI_15', 'Pisco', 'SU_CementoANDES-Pisco', 5000, 'F1', 'B1'],
         [32, 'EXP-1', 'PI_11', 'Pisco', 'EMPRESA INVERSIONES DE CEMENTO S.A.', 2100, 'F1', 'B2'],
         [33, 'EXP-2', None, 'Pisco', 'Habilitación sin sigla', 300, 'F1', 'B3'],
     ], 'ClientesNuevos')
     assert errores == []
     assert [f.sed for f in filas] == ['PI_15', 'PI_11', 'Habilitación sin sigla']
-    assert [f.descripcion for f in filas] == ['SU_CementoINKA-Pisco', 'EMPRESA INVERSIONES DE CEMENTO S.A.',
+    assert [f.descripcion for f in filas] == ['SU_CementoANDES-Pisco', 'EMPRESA INVERSIONES DE CEMENTO S.A.',
                                               'Habilitación sin sigla']
-    assert filas[0].para_pf()['descripcion'] == 'SU_CementoINKA-Pisco'
+    assert filas[0].para_pf()['descripcion'] == 'SU_CementoANDES-Pisco'
 
 
 def test_con_sigla_la_ampliacion_se_reconoce_por_la_descripcion():

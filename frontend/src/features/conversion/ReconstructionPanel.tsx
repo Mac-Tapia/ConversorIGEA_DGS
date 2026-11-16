@@ -4,7 +4,7 @@ import { useApp } from '../../shared/context';
 import type {
   DiagnosisResponse, ReconstructionDecision, ReconstructionReport, ReconstructionResponse,
 } from '../../api/types';
-import { Pill } from '../../shared/ui';
+import { GuardarSalida, Pill } from '../../shared/ui';
 
 type EvidenceFilter = 'all' | 'catalog_match' | 'engineering_assumption';
 
@@ -122,6 +122,7 @@ export function ReconstructionPanel() {
               </button>
             ))}
             <a className="link" href={api.fileUrl(ws.id, 'reconstruction_report.json', true)}>Descargar JSON</a>
+            <GuardarSalida url={api.fileUrl(ws.id, 'reconstruction_report.json', true)} nombre="reconstruction_report.json" rel="reconstruction_report.json" />
           </div>
           <div className="table-wrap table-short">
             <table className="table">

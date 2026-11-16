@@ -70,11 +70,12 @@ def llenar_formatos(registro: RegistroNormativo, fuentes: Mapping[str, Mapping[s
     """Cada formato exigido, llenado o como plantilla con su causa, y las celdas de los llenados.
 
     ``fuentes``: clave de fuente (``red``, ``F-208``…) → la entrada de su mapeador, con su ``fuente`` y su huella.
-    ``mapeadores`` sustituye a ``MAPEADORES`` (pruebas).
+    ``mapeadores`` sustituye a ``MAPEADORES`` (pruebas). ``resultados`` da el de cada formato llenado (con sus huecos
+    y sus filas que insertar), que es lo que escribe el libro de la entrega (107-P10c).
     """
     tabla: Mapping[str, tuple[str, Mapeador]] = MAPEADORES if mapeadores is None else mapeadores
     aplicables = {f['codigo']: f for f in formatos_aplicables(registro, fecha)['formatos']}
-    salida, celdas, pendientes = [], [], []
+    salida, celdas, pendientes, resultados = [], [], [], {}
     for codigo in formatos_exigidos(registro, fecha):
         f = aplicables.get(codigo)
         fila: dict[str, Any] = {'codigo': codigo, 'titulo': (f or {}).get('titulo') or codigo, 'huecos': []}
@@ -92,6 +93,8 @@ def llenar_formatos(registro: RegistroNormativo, fuentes: Mapping[str, Mapping[s
             clave, funcion = tabla[codigo]
             resultado = funcion(registro, fuentes[clave], fecha)
             fila.update(estado='llenado', causa='', huecos=resultado.get('huecos', []))
+            fila['avisos'] = resultado.get('avisos', [])  # valores de la fuente en celdas sombreadas (delta20)
             celdas += resultado['celdas']
+            resultados[codigo] = resultado
         salida.append(fila)
-    return {'formatos': salida, 'celdas': celdas, 'pendientes_de_mapeo': pendientes}
+    return {'formatos': salida, 'celdas': celdas, 'pendientes_de_mapeo': pendientes, 'resultados': resultados}

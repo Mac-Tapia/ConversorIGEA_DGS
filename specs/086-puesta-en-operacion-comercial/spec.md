@@ -387,6 +387,30 @@ enlaces duros y que bloquea un fichero mientras lo sincroniza. Amplía RF-10 y R
   entre «no hay trabajos» y el borrado, y el borrado le quitaba la carpeta en marcha.
 - Aclaración de RF-74 (2026-11-12): la copia ya tiene botón en la web (RF-85); la orden del manual sigue sirviendo.
 
+### La copia de la web, con previa y con las copias del destino (2026-11-16)
+
+Prueba en el navegador real con la cuenta local del usuario (`D:/csg/PM_IMPL/PRUEBA-CUENTA-LOCAL/INFORME.md`):
+«Hacer una copia ahora» escribía unos 20 GB en Google Drive con un clic, sin decir antes lo que ocuparía ni ofrecer
+«Cancelar»; las cifras de RF-82 solo salían en el Registro del trabajo ya lanzado. Y el aviso decía «Aún no hay ninguna
+copia de sus datos» con una copia de 19,8 GB y manifiesto válido en la carpeta, porque solo miraba el registro de los
+datos del servidor. Sobraban además seis textos de la vista inicial.
+
+- Aclaración de RF-82 y RF-83 (2026-11-16): en la web, «Hacer una copia ahora» abre una previa que no escribe nada (ni
+  recuerda la carpeta) con lo que ocupará, el espacio libre del destino y lo que se copia; la copia solo empieza al
+  pulsar «Copiar», y «Cancelar» la descarta. Si no cabe, la previa lo dice con las dos cifras y no ofrece «Copiar». La
+  API no encola una copia que no llegue confirmada.
+- RF-108: CUANDO se pide la previa de la copia, EL SISTEMA listará en solo lectura las copias que ya hay en la carpeta
+  destino, de la más nueva a la más vieja, con su fecha, su tamaño, el estado de su manifiesto y sus errores.
+- RF-109: SI los datos del servidor no registran ninguna copia pero la carpeta recordada tiene una buena, ENTONCES EL
+  SISTEMA contará esa copia en el aviso; sin ninguna, dirá que no consta ninguna copia, nunca que no hay.
+- RF-110: EL SISTEMA no enseñará en la vista inicial contadores con «(s)», versiones técnicas, dos «:» seguidos,
+  paréntesis que contradigan lo que dicen ni explicaciones largas a la vista, y sus marcadores valdrán para cualquier
+  carpeta.
+- Aclaración de RF-110 (2026-11-16): los seis textos de la prueba con la cuenta local: «0 fichero(s) asignados por
+  contenido»; «PowerFactory 2024 · Python 3.12» en la cabecera (Python pasa a la ayuda); «Pendientes: la fuente: …»;
+  «(proyecto: no se presenta como norma vigente)» de la RM 428-2017, ahora en una frase y solo con un tipo elegido
+  (072:RF-37 sigue); la ayuda del CRS, plegada; y el marcador «G:/Mi unidad/…» del campo de la copia.
+
 ### Variaciones y casos del conversor por su marca, también en una copia del proyecto (2026-11-12)
 
 En la copia PRUEBA064_184942 de PA217, la calibración buscaba `Fichas_PRUEBA064_184942` y, al no hallarla, creaba otra

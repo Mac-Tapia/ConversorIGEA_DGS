@@ -1,0 +1,111 @@
+{
+  "esquema": "registro_normativo_v1",
+  "amplia": "tdr-vad-2026-anexo-r033",
+  "nota": "Spec 108 T18, tarjeta VAD-CAL (2026-11-15, f4): el criterio del num. 6.11 y los Cuadros 21, 22 y 23. Líneas de la copia de texto de huella sha256_texto de la norma ampliada (48ea8cf4…); el Cuadro 21 se cotejó con la imagen de la pág. 50 (cc, z3 y z9). Sin ninguna regla de una empresa (P13).",
+  "reglas": [
+    {
+      "clave": "vad.calidad.criterio_6_11",
+      "valor": {
+        "saifi_saidi": "esperables por sistema",
+        "regla_saifi_saidi": "vad.calidad.saifi_saidi.anual_mt",
+        "curvas_distribucion": "sin método normado",
+        "porcentaje": "clientes que no exceden N y D por semestre (NTCSE o NTCSER)"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "49",
+      "lineas": "2372-2380",
+      "cita_literal": "se procederá a calcular los índices esperables de frecuencia media de interrupción por sistema (SAIFI), duración media de interrupción por sistema (SAIDI). A partir de los valores medios de estos índices se procederá a determinar las curvas de distribución de frecuencia y duración, utilizando como elemento de base las curvas de distribución reales de la distribuidora para el sistema en estudio. [...] deberá determinarse que porcentaje de clientes no excede los valores de los índices (N) número de int errupciones por cliente por semestre y (D) duración total de interrupciones por cliente por semestre, dispuestos por la NTCSE o NTCSER, según corresponda.",
+      "interpretacion": "El TdR no define SAIFI, SAIDI, N ni D ni sus límites: remite a la NTCSE o la NTCSER y, para SAIFI y SAIDI, a la RM 163-2011-MEM/DM y al DL 1221 (pág. 61, líneas 2847-2851), que el registro lee en la RCD 074-2004-OS/CD consolidada. Las «curvas de distribución» no las regula ninguna norma: el conversor recibe el N y el D de cada cliente que da el método de la empresa y no inventa ninguno.",
+      "pendientes": [
+        {
+          "id": "curvas_distribucion",
+          "responsable": "f4",
+          "fecha": "2026-11-15",
+          "descripcion": "Las curvas de distribución de frecuencia y duración del 6.11 no tienen método en ninguna norma (NTCSE, NTCSER, RCD 074-2004, TdR): la empresa lo propone y sustenta; el % de clientes se calcula sobre el N y el D por cliente que entrega ese método."
+        }
+      ]
+    },
+    {
+      "clave": "vad.calidad.cuadro_21",
+      "valor": {
+        "titulo": "Interrupciones medias por semestre",
+        "filas": [
+          "Urbano Muy Alta Densidad",
+          "Urbano Alta Densidad",
+          "Urbano Densidad Media",
+          "Urbano Densidad Baja",
+          "Urbano Rural",
+          "Rural"
+        ],
+        "total": "Total Empresa Modelo",
+        "niveles": [
+          "MT",
+          "BT"
+        ],
+        "columnas": [
+          "Frecuencia (Cantidad)",
+          "Duración (Horas)",
+          "% excedido de límite"
+        ]
+      },
+      "unidad": "frecuencia: interrupciones por cliente y semestre; duración: horas por cliente y semestre; %",
+      "articulo_o_anexo": "Numeral 6.11, Cuadro N° 21",
+      "pagina": "50",
+      "lineas": "2388-2424",
+      "cita_literal": "Cuadro N° 21. Interrupciones medias por semestre [...] Interrupciones medias por Semestre Cliente MT Cliente BT [...] Urbano Alta Densidad [...] Urbano Densidad Media [...] Urbano Densidad Baja [...] Urbano Rural [...] R u r a l [...] Total Empresa Modelo",
+      "interpretacion": "Por fila (zona característica) y nivel (cliente MT y BT): la media del N y del D de sus clientes y el % de los que exceden N' o D'. La capa de texto parte «Urbano Muy Alta Densidad» en dos líneas y espacia «R u r a l»: las filas se leyeron en la imagen."
+    },
+    {
+      "clave": "vad.calidad.cuadro_22",
+      "valor": {
+        "titulo": "Costos de Inversión",
+        "columnas": [
+          "Inversión",
+          "US$"
+        ],
+        "filas": [
+          "Sistemas de cómputo calidad de suministro (Software, hardware.)",
+          "Equipos de medición y registro de calidad de producto y suministro",
+          "Equipamiento de protección, seccionamiento y maniobra MT.",
+          "Equipamiento para trabajos con tensión en MT.",
+          "Enlaces y cierres asociados a la calidad del servicio eléctrico."
+        ],
+        "otros": "Otros (especificar)",
+        "total": "Total"
+      },
+      "unidad": "US$",
+      "moneda": "USD",
+      "articulo_o_anexo": "Numeral 6.11, Cuadro N° 22",
+      "pagina": "50",
+      "lineas": "2433-2442",
+      "cita_literal": "Cuadro N° 22. Costos de Inversión Inversión US$ [...] Sistemas de cómputo calidad de suministro (Software, hardware.) [...] Equipos de medición y registro de calidad de producto y suministro [...] Equipamiento de protección, seccionamiento y maniobra MT. [...] Equipamiento para trabajos con tensión en MT. [...] Enlaces y cierres asociados a la calidad del servicio eléctrico. [...] Otros (especificar)"
+    },
+    {
+      "clave": "vad.calidad.cuadro_23",
+      "valor": {
+        "titulo": "Costos de Operación y Mantenimiento Anual",
+        "columnas": [
+          "Operación y mantenimiento",
+          "US$"
+        ],
+        "filas": [
+          "Mantenimiento de la documentación técnica AT, MT, BT y la vinculación cliente red.",
+          "Procesamiento y reporte de las interrupciones y mediciones de calidad de suministro.",
+          "Medición y procesamiento de la calidad de producto.",
+          "Mantenimiento de equipamiento de protección, seccionamiento y maniobra MT.",
+          "Operación de equipamiento de protección, seccionamiento y maniobra MT.",
+          "Mantenimiento de enlaces y cierres asociados a la calidad del servicio eléctrico."
+        ],
+        "otros": "Otros (especificar)",
+        "total": "Total"
+      },
+      "unidad": "US$ por año",
+      "moneda": "USD",
+      "articulo_o_anexo": "Numeral 6.11, Cuadro N° 23",
+      "pagina": "50-51",
+      "lineas": "2444-2458",
+      "cita_literal": "Cuadro N° 23. Costos de Operación y Mantenimiento Anual [...] Operación y mantenimiento US$ [...] Mantenimiento de la documentación técnica AT, MT, BT y la vinculación cliente red. [...] Procesamiento y reporte de las interrupciones y mediciones de calidad de suministro. [...] Medición y procesamiento de la calidad de producto. [...] Mantenimiento de equipamiento de protección, seccionamiento y maniobra MT. [...] Operación de equipamiento de protección, seccionamiento y maniobra MT. [...] Mantenimiento de enlaces y cierres asociados a la calidad del servicio eléctrico. [...] Otros (especificar)"
+    }
+  ]
+}

@@ -632,7 +632,7 @@ def test_indice_de_clientes_no_activa_un_libro_sin_resumen(tmp_path):
 
 def test_mes_del_nombre_sale_del_patron_del_perfil():
     """013:RF-3 — el código interpreta los grupos del patrón recibido, no un nombre de
-    Electro Dunas incrustado."""
+    una distribuidora real incrustado."""
     patron = r'^(?P<mes>0[1-9]|1[0-2])(?P<anio>\d{2})clientesImportantes\.(xlsb|xlsx)$'
     assert dm.mes_de_nombre('0126clientesImportantes.xlsb', patron) == '2026-01'
     assert dm.mes_de_nombre('0726clientesImportantes.xlsx', patron) == '2026-07'
@@ -897,7 +897,7 @@ def test_medidores_de_barra_pegados_con_y():
 def test_real_barras_de_60_kv_casan_con_su_set_y_llevan_toda_la_set():
     """022:RF-84, 022:RF-85, 022:RF-86 — el libro real de medidores trae filas de barra de
     60 kV (ALIMENTADOR «Barra…», MEDIDOR, nivel y SET); cada una casa con una SET de la
-    estructura de Electro Dunas, y todo alimentador de esa SET queda en una barra con el
+    estructura de una distribuidora real, y todo alimentador de esa SET queda en una barra con el
     instante de la de 60 kV. Si falla, solo se dicen recuentos y siglas, no medidas."""
     import json
 

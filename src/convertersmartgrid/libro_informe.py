@@ -221,6 +221,11 @@ try {{
     $s = $w.Worksheets.Item($h)
     foreach ($f in @($s.Shapes)) {{ if ($f.Type -eq 13) {{ $f.Delete() | Out-Null }} }}
   }}
+  # Antes de vaciar y escribir, porque sus celdas ya cuentan con estas filas (107-P10b). Sin la clave no da ninguna
+  # vuelta: el plan de siempre se aplica igual.
+  foreach ($e in $p.insertar_filas) {{
+    $w.Worksheets.Item($e.hoja).Rows("$([int]$e.fila):$([int]$e.fila + [int]$e.filas - 1)").Insert() | Out-Null
+  }}
   foreach ($ref in $p.vaciar) {{ foreach ($c in @(Celda $w $ref)) {{ foreach ($u in @($c.Cells)) {{ $u.MergeArea.ClearContents() | Out-Null }} }} }}
   # ConvertFrom-Json da Decimal y Excel no lo acepta: un número va como double.
   foreach ($e in $p.escribir) {{

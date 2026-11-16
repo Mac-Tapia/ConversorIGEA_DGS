@@ -1,0 +1,155 @@
+{
+  "esquema": "registro_normativo_v1",
+  "nota": "Spec 108 T8 (2026-11-15, f4/VAD-A7). El Manual de Costos basado en actividades vigente (RCD 218-2020-OS/CD y sus modificatorias RCD 245-2021-OS/CD y 249-2022-OS/CD), transcrito por 6c (b3) de las copias oficiales (portal de Osinergmin y El Peruano), con la vigencia sacada del texto de cada norma. Sirve de contraste del «numeral 5.1 del Manual» que transcribe el Anexo 7 del TdR (vad.anexo7.costos_compartidos): para el VAD manda el TdR, con aviso (decisión de 28). La RM 197-94-EM/VME, que el TdR también cita, no entra: su texto no se ha hallado (hueco A7-4). Las copias están en PM_IMPL/APOYO_6C/b3_manual_costos/descarga, con su SHA256SUMS.txt; pendiente: copiarlas a NORMATIVA_OSINERGMIN.",
+  "normas": [
+    {
+      "acto": "RCD 218-2020-OS/CD",
+      "titulo": "Norma «Manual de Costos basado en actividades aplicable a las empresas de distribución eléctrica»",
+      "estado_juridico": "modificada",
+      "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2020/Osinergmin-218-2020-OS-CD.pdf",
+      "fecha_publicacion": "2020-12-24",
+      "fecha_consulta": "2026-11-15",
+      "sha256": "0ab96a943dddaa31dfcbcc2ee03d0a7db1b5ebcfac6536dd0f51a5c4a8f9cc2b",
+      "sha256_texto": "d520574d2aee3e068ad42ae26d949df61b534bb6134bb5963aff24c702607d6b",
+      "fichero_local": "PM_IMPL/APOYO_6C/b3_manual_costos/descarga/Osinergmin-218-2020-OS-CD.txt",
+      "version": "texto original del portal (Lima, 22 de diciembre de 2020), con el Manual como Anexo",
+      "vigencia_desde": "2020-12-25",
+      "modificada_por": [
+        "RCD 245-2021-OS/CD",
+        "RCD 249-2022-OS/CD"
+      ],
+      "nota": "Sin cláusula de vigencia propia (arts. 1-3 y DCT leídos): rige desde el día siguiente de su publicación en El Peruano (24-12-2020, edición de NORMAS LEGALES pág. 52-53, copia -EP con sha en SHA256SUMS) por el art. 109 de la Constitución; lo CONFIRMA la RCD 245-2021 en su considerando. El Manual (Anexo) solo está en el portal de Osinergmin (art. 3). Las reglas del 2.2 y del Formato 3.2 no las toca ninguna modificatoria leída (245 cambia la DCT; 249 cambia el 2.1 y añade la cuenta 948). Índice GRT-2020 dice «e. 21/12/2020»; el PDF dice «Lima, 22 de diciembre de 2020»: manda el texto.",
+      "reglas": [
+        {
+          "clave": "manual_costos.costos_indirectos.imputacion",
+          "valor": {
+            "gastos": [
+              "Suministros Diversos",
+              "Servicios Prestados por Terceros",
+              "Tributos",
+              "Cargas de Gestión"
+            ],
+            "de": "cada Actividad (clasificador de Actividades)",
+            "al_costo_del_servicio": 0.75,
+            "prorrateo_servicio": "según los costos directos del Servicio",
+            "al_costo_de_inversion": 0.25,
+            "tope_inversion": 0.075,
+            "base_del_tope": "inversión efectuada en el ejercicio"
+          },
+          "articulo_o_anexo": "Anexo (Manual), Capítulo Segundo, Artículo 4.- Instrucciones Generales, num. 2.2 Costos Indirectos, ítem 1)",
+          "pagina": "pdf 9",
+          "lineas": "339-344",
+          "cita_literal": "Los gastos de Suministros Diversos, Servicios Prestados por Terceros, Tributos, y Cargas de Gestión de cada Actividad (según el clasificador de Actividades) se cargan un 75% al Costo del Servicio (prorrateado según los Costos directos del Servicio) y 25% al Costo de Inversión, siempre que éste último monto resultante, no exceda el 7,5% de la inversión efectuada en el ejercicio.",
+          "unidad": "fracción",
+          "interpretacion": "El 7,5 % topa la parte imputada a INVERSIÓN; lo que exceda va al servicio (Formato 3.2, Nota 2: «75% o la diferencia»)."
+        },
+        {
+          "clave": "manual_costos.costos_indirectos.organos_de_gobierno",
+          "valor": {
+            "gastos": "órganos de gobierno comunes a más de una Actividad, registrados en A.11 Gestión Gerencial y Administrativa (cuenta 94)",
+            "reparto": "primero proporcional al monto obtenido en el ítem 1) de las otras actividades; después a los Centros de Costos de cada Actividad",
+            "porcentaje_fijo": null
+          },
+          "articulo_o_anexo": "Anexo (Manual), Artículo 4, num. 2.2, ítem 2)",
+          "pagina": "pdf 9",
+          "lineas": "346-351",
+          "cita_literal": "Los gastos de los órganos de gobierno de cada empresa cuyos gastos son comunes a más de una Actividad (según el clasificador de Actividades), y que se registran en la actividad A.11 Gestión Gerencial y Administrativa, y registrados en la cuenta 94 Gastos Administrativos serán distribuidos primero proporcionalmente entre el total del monto obtenido en el apartado anterior",
+          "interpretacion": "Los órganos de gobierno NO llevan un 75/25 propio en el Manual vigente: se reparten en proporción al resultado del ítem 1). Contrasta con lo que el Anexo 7 del TdR transcribe como «numeral 5.1» (ver COTEJO_TDR.json)."
+        },
+        {
+          "clave": "manual_costos.formato_3_2.nota_2",
+          "valor": {
+            "inversion": "25 % a los Costos de Inversión, sin exceder el 7,5 % de la inversión efectuada en el ejercicio",
+            "servicio": "75 % o la diferencia, prorrateado por los costos directos del Formato 3 sin los de Inversión"
+          },
+          "articulo_o_anexo": "Anexo (Manual), Capítulo Cuarto, Formato 3.2 Asignación de los Costos Indirectos por Centro de Costos, Nota 2",
+          "pagina": "pdf 221",
+          "lineas": "12160; 12161",
+          "cita_literal": "1) Se aplicará un 25% a los Costos de Inversión, siempre que este monto resultante no exceda el 7.5% de la inversión efectuada en el ejercicio. [...] 2) Se aplicará un 75% o la diferencia, según lo que se aplique en el item anterior, en un prorrateo de los costos directos del Formato 3 sin considerar los costos de Inversión.",
+          "interpretacion": "Algoritmo: inv = min(0,25·I, 0,075·Inversión del ejercicio); serv = I − inv. Escribe «7.5%» con punto (el art. 4 usa «7,5%»)."
+        },
+        {
+          "clave": "manual_costos.formato_3_2.instruccion",
+          "valor": {
+            "gastos": [
+              "Suministros Diversos",
+              "Carga de Personal",
+              "Servicios Prestados por Terceros",
+              "Tributos",
+              "Cargas de Gestión"
+            ]
+          },
+          "articulo_o_anexo": "Anexo (Manual), Artículo 8, num. 1.3.2.3 Formato 3.2 Asignación de Costos Indirectos a los Centros de Costos",
+          "pagina": "pdf 199",
+          "lineas": "10808-10811",
+          "cita_literal": "Los gastos de Suministros Diversos, Carga de Personal, Servicios Prestados por Terceros, Tributos, y Cargas de Gestión de cada Actividad (según el clasificador de Actividades) se cargan un 75% al Costo del Servicio",
+          "interpretacion": "INCOHERENCIA INTERNA del Manual: el art. 8 (1.3.2.3) añade «Carga de Personal» a la lista del art. 4 (2.2, ítem 1). No se decide aquí."
+        },
+        {
+          "clave": "manual_costos.registro_desde",
+          "valor": "2022-01",
+          "articulo_o_anexo": "Única Disposición Complementaria Transitoria (texto original)",
+          "pagina": "pdf 2; pdf 3",
+          "lineas": "98-99; 106",
+          "cita_literal": "deberán iniciar el registro de la información de acuerdo a lo establecido en el “Manual de Costos basado en actividades aplicable a las empresas [...] de distribución eléctrica”, a partir del mes de enero del año 2022.",
+          "interpretacion": "Texto ORIGINAL (la frase cruza el salto de página 2/3, con pie y encabezado entre los dos tramos): modificado por la RCD 245-2021-OS/CD (enero de 2023), que es la que rige."
+        }
+      ]
+    },
+    {
+      "acto": "RCD 245-2021-OS/CD",
+      "titulo": "Modifican la Única Disposición Complementaria Transitoria de la Resolución N° 218-2020-OS/CD",
+      "estado_juridico": "vigente_comprobada",
+      "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2021/Osinergmin-245-2021-OS-CD-EP.pdf",
+      "fecha_publicacion": "2021-12-18",
+      "fecha_consulta": "2026-11-15",
+      "sha256": "e66d89ccc47e74e6e74b108a7eba664670cb0829a49a684e6b66a05f7a05bcf4",
+      "sha256_texto": "ce09afb180c06662631d2eead8dcceeb8d39856ce44aa875d4ba0caf06044085",
+      "fichero_local": "PM_IMPL/APOYO_6C/b3_manual_costos/descarga/Osinergmin-245-2021-OS-CD-EP_raw.txt",
+      "version": "El Peruano, sábado 18 de diciembre de 2021 (Lima, 16 de diciembre de 2021)",
+      "vigencia_desde": "2021-12-19",
+      "modifica": [
+        "RCD 218-2020-OS/CD"
+      ],
+      "nota": "Vigencia por su art. 2 («a partir del día siguiente de su publicación»; líneas 228-230, pdf 2). Copia de El Peruano: el -raw conserva el orden de las columnas.",
+      "reglas": [
+        {
+          "clave": "manual_costos.registro_desde",
+          "valor": "2023-01",
+          "articulo_o_anexo": "Artículo 1 (nueva Única Disposición Complementaria Transitoria de la RCD 218-2020-OS/CD)",
+          "pagina": "pdf 2",
+          "lineas": "224-227",
+          "cita_literal": "a partir del mes de enero del año 2023. La adecuación y/o implementación de sus sistemas a fin de cumplir con dicho registro, se debe realizar durante el año 2022”."
+        }
+      ]
+    },
+    {
+      "acto": "RCD 249-2022-OS/CD",
+      "titulo": "Aprueban modificación de la Norma «Manual de Costos basado en actividades aplicable a las empresas de distribución eléctrica»",
+      "estado_juridico": "vigente_comprobada",
+      "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2022/Osinergmin-249-2022-OS-CD-EP.pdf",
+      "fecha_publicacion": "2022-12-24",
+      "fecha_consulta": "2026-11-15",
+      "sha256": "aaeb136cb944a42c309a260edb7d404663a3d138fed9ce60795926e0659bb225",
+      "sha256_texto": "b2f6ead0b824b33330f891393b049d69489f25be3dd307c0696dc15217920a96",
+      "fichero_local": "PM_IMPL/APOYO_6C/b3_manual_costos/descarga/Osinergmin-249-2022-OS-CD-EP_raw.txt",
+      "version": "El Peruano, sábado 24 de diciembre de 2022 (Lima, 23 de diciembre de 2022)",
+      "vigencia_desde": "2022-12-25",
+      "modifica": [
+        "RCD 218-2020-OS/CD"
+      ],
+      "nota": "Vigencia por su art. 3 («a partir del día siguiente de su publicación en el diario oficial El Peruano»; líneas 713-715, pdf 6). DISCREPANCIAS: el PDF del portal (sha 9105dea6de20…) dice «Lima, 22 de diciembre de 2022» y la edición de El Peruano «Lima, 23 de diciembre de 2022»; el índice GRT-2022 dice «e. 16/12/2022 - p. 19/12/2022», contradicho por la edición (24-12-2022). Manda El Peruano.",
+      "reglas": [
+        {
+          "clave": "manual_costos.supervision_directa",
+          "valor": "gastos de personal de Profesionales y demás gastos asociados a la supervisión de las áreas de desarrollo de inversiones, operación, mantenimiento y comercialización; se asignan según los Inductores de Recursos",
+          "articulo_o_anexo": "Artículo 1 (modifica el Artículo 4, num. 2.1, del Manual)",
+          "pagina": "pdf 1",
+          "lineas": "108-111",
+          "cita_literal": "La supervisión directa está conformada por los gastos de personal de Profesionales y demás gastos asociados a la supervisión de las áreas de desarrollo de inversiones, operación, mantenimiento y comercialización",
+          "interpretacion": "La 249 modifica el 2.1 del art. 4, NO el 2.2 (75/25 y 7,5 %), que sigue con el texto de la 218-2020; en los Formatos 3.1-3.3 solo añade la cuenta 948 (NIIF-16)."
+        }
+      ]
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import type { AvanceDisco, DiagnosticoCargas, Diagnostico, Escaneo, AsistenteRes
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, EstudiosResumen, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
-  ObraGuardada, Options, OutputFile, LibrosNuevos, RevisarLibros, PfInventario, PowerFactoryStatus, InstalacionesPowerFactory, ReconstructionReport, SalidasRed, WorkspaceState, EpisodioResumen } from './types';
+  ObraGuardada, Options, OutputFile, LibrosNuevos, RevisarLibros, PfInventario, PowerFactoryStatus, PreviaCopiaDatos, InstalacionesPowerFactory, ReconstructionReport, SalidasRed, WorkspaceState, EpisodioResumen } from './types';
 
 export class ApiError extends Error {
   status: number;
@@ -34,6 +34,13 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) throw await apiError(res);
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
+}
+
+/** 109:RF-22, RF-24: los bytes de un fichero del servidor (una copia de la nube o una salida), con el mismo error. */
+export async function descargarBlob(path: string): Promise<Blob> {
+  const res = await fetch(path);
+  if (!res.ok) throw await apiError(res);
+  return res.blob();
 }
 
 export const json = (method: string, body: unknown): RequestInit => ({
@@ -83,7 +90,11 @@ export const api = {
   restaurarCopia: (id: string) => request<WorkspaceState>(`${ws(id)}/restaurar-copia`, { method: 'POST' }),
   // 086:RF-85, RF-86: la copia de los datos desde el aviso general, con la carpeta que recuerda el equipo.
   carpetaCopia: () => request<{ carpeta: string | null }>('/api/copia-datos/carpeta'),
-  copiarDatos: (id: string, carpeta: string) => request<Job>(`${ws(id)}/copia-datos`, json('POST', { carpeta })),
+  // 086:RF-82, RF-83, RF-108: lo que ocupará la copia, lo libre y las copias que ya hay; no escribe nada.
+  previaCopia: (carpeta: string) => request<PreviaCopiaDatos>(`/api/copia-datos/previa?carpeta=${enc(carpeta)}`),
+  // Aclaración de 086:RF-82: la copia pide la previa vista; solo «Copiar» la confirma.
+  copiarDatos: (id: string, previa: PreviaCopiaDatos) =>
+    request<Job>(`${ws(id)}/copia-datos`, json('POST', { carpeta: previa.destino, confirmada: true })),
   descartarNoDisponible: (id: string, campo: string, clave: string) =>
     request<WorkspaceState>(`${ws(id)}/no-disponibles/descartar`, json('POST', { campo, clave })),
   registroTrabajo: (jobId: string) => request<{ job: string; lineas: string[] }>(`/api/jobs/${enc(jobId)}/registro`),
@@ -197,6 +208,9 @@ export const api = {
     request<Job>(`${ws(id)}/lote/${token}/simular`, { method: 'POST' }),
   cargasAplicar: (id: string, token: string) =>
     request<Job>(`${ws(id)}/lote/${token}/apply`, { method: 'POST' }),
+  // 007:RF-38 (WEB-RUTAS): deshace lo que creó la aplicación de ese lote, como trabajo de DIgSILENT.
+  cargasDeshacer: (id: string, token: string) =>
+    request<Job>(`${ws(id)}/lote/${token}/deshacer`, { method: 'POST' }),
 
   catalogBuild: (id: string, feeders: string[]) =>
     request<Job>(`${ws(id)}/catalog/build`, json('POST', { feeders })),
@@ -463,6 +477,10 @@ export const api = {
     request<AsistenteRespuesta>(`${ws(id)}/asistente/${enc(planId)}/corregir`, json('POST', body)),
   asistenteEntrenar: (id: string) => request<Job>(`${ws(id)}/asistente/entrenar`, { method: 'POST' }),
   asistenteRegistro: () => request<Record<string, unknown[]>>('/api/asistente/registro'),
+  // 026:RF-28 (WEB-RUTAS): lo que el operador decide de una mejora propuesta por el asistente.
+  asistenteDecision: (propuestaId: string, decision: 'aceptada' | 'rechazada' | 'modificada', comentario = '') =>
+    request<Record<string, unknown>>(`/api/asistente/mejoras/${enc(propuestaId)}/decision`,
+      json('POST', { decision, comentario })),
   asistenteModelos: () => request<import('./types').EstadoModelos>('/api/asistente/modelos'),
   asistenteAprendizaje: () => request<import('./types').EstadoAprendizaje>('/api/asistente/aprendizaje'),
   cancelarAprendizaje: (clave: string) => request<import('./types').CancelacionAprendizaje>(

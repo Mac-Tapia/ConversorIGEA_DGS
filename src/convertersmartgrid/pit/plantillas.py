@@ -7,7 +7,15 @@ registro: si la norma cambia la plantilla, el error lo dice en lugar de llenar l
 
 Nada queda vacío en silencio: una celda sin dato lleva su motivo; un bloque sin filas, su hueco con la causa; y una
 columna de la plantilla que el mapeo no cubre se nombra como hueco. Si un bloque trae más filas que las de ejemplo
-de la plantilla, se dice cuántas hay que insertar (``filas_a_insertar``) y las posiciones ya cuentan con ellas.
+de la plantilla, se dice cuántas hay que insertar (``filas_a_insertar``) y las posiciones ya cuentan con ellas; para
+los bloques se dice además dónde (``insertar_en``: hoja, fila y cuántas, en orden de arriba abajo), que es lo que usa
+el libro de la entrega para insertarlas antes de escribir (107-P10b).
+
+Celdas sombreadas (delta20): las que la plantilla manda dejar vacías (``no_llenar`` de la transcripción; en el F-302,
+«(3) Las celdas sombreadas no deben ser llenadas») salen vacías a propósito, sin motivo de hueco, con ``no_llenar`` y
+su causa en la traza. Si la fuente trae un valor para una de ellas, no se escribe y va a ``avisos`` con el formato y
+la celda. Se reconocen por su posición en la plantilla, antes de insertar filas: una fila insertada repite la última
+fila de ejemplo de su bloque, y un miembro de grupo añadido repite el último de la plantilla.
 """
 from __future__ import annotations
 
@@ -167,6 +175,7 @@ def celdas_de_formato(registro: RegistroNormativo, codigo: str, datos: Mapping[s
     celdas: list[dict[str, Any]] = []
     huecos: list[dict[str, Any]] = []
     insertar: dict[str, int] = {}
+    insertar_en: list[dict[str, Any]] = []
     for c in definicion.get('cabecera', ()):
         fila, letra, texto = c['rotulo']
         _comprobar(codigo, plantilla, fila, letra, texto)
@@ -177,6 +186,7 @@ def celdas_de_formato(registro: RegistroNormativo, codigo: str, datos: Mapping[s
         celdas.append({'id': f'{codigo}!cabecera:{c["campo"]}', 'cuadro': codigo, 'bloque': 'cabecera', 'fila': 0,
                        'campo': c['campo'], 'columna': texto, 'celda': f'{codigo}!{c["celda"]}', 'valor': valor,
                        'traza': traza})
+        celdas[-1]['_plantilla'] = _posicion(str(c['celda']))
     desplazamiento = 0
     horizonte = None
     for definido in definicion.get('bloques', ()):
@@ -199,6 +209,9 @@ def celdas_de_formato(registro: RegistroNormativo, codigo: str, datos: Mapping[s
         primera = int(b['fila_marca']) + desplazamiento
         if len(filas) > capacidad:
             insertar[b['bloque']] = len(filas) - capacidad
+            # Tras la última fila de ejemplo, ya desplazada por los bloques de arriba: así se insertan en ese orden.
+            insertar_en.append({'hoja': codigo, 'bloque': b['bloque'], 'fila': primera + capacidad,
+                                'filas': len(filas) - capacidad})
         causa = f'sin {b["bloque"]} en la fuente {fuente["nombre"]}'
         if not filas:
             huecos.append({'bloque': b['bloque'], 'causa': causa, 'fila_plantilla': primera})
@@ -217,6 +230,7 @@ def celdas_de_formato(registro: RegistroNormativo, codigo: str, datos: Mapping[s
                                'bloque': b['bloque'], 'fila': i, 'campo': col['campo'],
                                'columna': col['rotulo'][2], 'celda': f'{codigo}!{col["letra"]}{primera + i - 1}',
                                'valor': valor, 'traza': traza})
+                celdas[-1]['_plantilla'] = (int(b['fila_marca']) + min(i, capacidad) - 1, col['letra'])
         extra = insertar.get(b['bloque'], 0)
         if b.get('fila_total'):
             _comprobar(codigo, plantilla, int(b['fila_total']), 'A', str(b['marca_total']))
@@ -231,13 +245,48 @@ def celdas_de_formato(registro: RegistroNormativo, codigo: str, datos: Mapping[s
                                'bloque': b['bloque'], 'fila': 'total', 'campo': col['campo'],
                                'columna': col['rotulo'][2], 'celda': f'{codigo}!{col["letra"]}{fila_total}',
                                'valor': valor, 'traza': traza})
+                celdas[-1]['_plantilla'] = (int(b['fila_total']), col['letra'])
         desplazamiento += extra
     grupos_a_insertar: dict[str, int] = {}
     for g in definicion.get('grupos', ()):
         desplazamiento = _llenar_grupo(codigo, plantilla, g, datos, base, celdas, huecos, insertar, grupos_a_insertar,
                                        desplazamiento)
+    avisos = _aplicar_no_llenar(codigo, rv, celdas)
     return {'codigo': codigo, 'celdas': celdas, 'huecos': huecos, 'filas_a_insertar': insertar,
-            'grupos_a_insertar': grupos_a_insertar, 'regla': regla}
+            'insertar_en': insertar_en, 'grupos_a_insertar': grupos_a_insertar, 'regla': regla,
+            'avisos': avisos}
+
+
+def _posicion(celda: str) -> tuple[int, str]:
+    """«B4» → (4, 'B'): la posición de una celda en la plantilla."""
+    letra = ''.join(ch for ch in celda if ch.isalpha())
+    return int(''.join(ch for ch in celda if ch.isdigit())), letra
+
+
+def _aplicar_no_llenar(codigo: str, rv: Any, celdas: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Las celdas en una posición sombreada de la plantilla quedan vacías a propósito: sin valor, sin motivo de
+    hueco y con ``no_llenar``; un valor que traía la fuente para ellas no se escribe y se devuelve como aviso. Quita
+    la posición en la plantilla (``_plantilla``) que anotó el llenado."""
+    valor = rv.regla.valor if isinstance(rv.regla.valor, Mapping) else {}
+    nl = valor.get('no_llenar') or {}
+    sombreadas = {(int(f), letra) for f, letras in (nl.get('filas') or {}).items() for letra in letras}
+    motivo = str(nl.get('motivo') or 'celda sombreada en el libro oficial')
+    avisos: list[dict[str, Any]] = []
+    for c in celdas:
+        posicion = c.pop('_plantilla', None)
+        if posicion is None or posicion not in sombreadas:
+            continue
+        en_plantilla = f'{posicion[1]}{posicion[0]}'
+        if c['valor'] is not None:
+            avisos.append({'formato': codigo, 'celda': c['celda'], 'celda_plantilla': en_plantilla,
+                           'campo': c['campo'], 'valor': c['valor'],
+                           'aviso': f'{codigo}!{en_plantilla} es una celda sombreada ({motivo}): el valor de la '
+                                    'fuente no se escribe'})
+        c['valor'] = None
+        c['no_llenar'] = True
+        c['traza'].pop('motivo', None)
+        c['traza']['no_llenar'] = motivo
+    return avisos
 
 
 def _empieza(codigo: str, plantilla: Mapping[tuple[int, str], str], fila: int, letra: str, prefijo: str) -> None:
@@ -280,6 +329,9 @@ def _llenar_grupo(codigo, plantilla, g, datos, base, celdas, huecos, insertar, g
         celdas.append({'id': f'{codigo}!{nombre}:cabecera', 'cuadro': codigo, 'bloque': nombre, 'fila': 'cabecera',
                        'campo': 'cabecera', 'columna': g['marca_cabecera'], 'celda': f'{codigo}!A{cab}',
                        'valor': f'{g["marca_cabecera"]} {k}', 'traza': {**traza0, 'calculo': 'numeración del grupo'}})
+        cab_plantilla = cabeceras[min(k, len(cabeceras)) - 1]
+        total_plantilla = totales[min(k, len(totales)) - 1]
+        celdas[-1]['_plantilla'] = (cab_plantilla, 'A')
         if not filas:
             huecos.append({'bloque': nombre, 'causa': f'{m.get("nombre")}: sin filas en la fuente', 'fila_plantilla': cab + 1})
         for i, fila in enumerate(filas, start=1):
@@ -292,10 +344,12 @@ def _llenar_grupo(codigo, plantilla, g, datos, base, celdas, huecos, insertar, g
                 celdas.append({'id': f'{codigo}!{nombre}:{i}:{col["campo"]}', 'cuadro': codigo, 'bloque': nombre,
                                'fila': i, 'campo': col['campo'], 'columna': col['rotulo'][2],
                                'celda': f'{codigo}!{col["letra"]}{cab + i}', 'valor': valor, 'traza': traza})
+                celdas[-1]['_plantilla'] = (cab_plantilla + min(i, capacidad), col['letra'])
         fila_total = cab + capacidad + 1 + extra
         celdas.append({'id': f'{codigo}!{nombre}:total:rotulo', 'cuadro': codigo, 'bloque': nombre, 'fila': 'total',
                        'campo': 'rotulo_total', 'columna': g['marca_total'], 'celda': f'{codigo}!A{fila_total}',
                        'valor': f'{g["marca_total"]} {k}', 'traza': {**traza0, 'calculo': 'numeración del grupo'}})
+        celdas[-1]['_plantilla'] = (total_plantilla, 'A')
         tot = m.get('total') or {}
         for col in g.get('total', ()):
             valor = tot.get(col['campo'])
@@ -305,5 +359,6 @@ def _llenar_grupo(codigo, plantilla, g, datos, base, celdas, huecos, insertar, g
             celdas.append({'id': f'{codigo}!{nombre}:total:{col["campo"]}', 'cuadro': codigo, 'bloque': nombre,
                            'fila': 'total', 'campo': col['campo'], 'columna': col['campo'],
                            'celda': f'{codigo}!{col["letra"]}{fila_total}', 'valor': valor, 'traza': traza})
+            celdas[-1]['_plantilla'] = (total_plantilla, col['letra'])
         desplazamiento += extra
     return desplazamiento

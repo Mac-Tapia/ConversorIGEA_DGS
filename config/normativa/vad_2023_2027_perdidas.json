@@ -9,10 +9,12 @@
    "titulo": "Fija el Valor Agregado de Distribución del período 01 de noviembre 2023 al 31 de octubre 2027",
    "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Osinergmin-187-2023-OS-CD.pdf",
    "sha256": "52e3443c7404a428fc774508e4010815db24f654afe672d182020434ed45aca4",
+   "vigencia_desde": "2023-11-01",
+   "vigencia_hasta": "2027-10-31",
    "modificada_por": [
     "RCD 223-2023-OS/CD"
    ],
-   "nota": "Su num. 2.5 (factores de expansión de pérdidas) lo sustituye el art. 4 de la 223-2023, la resolución complementaria de los recursos de reconsideración (209 y 213 a 222-2023, cuyo art. 3 manda consignar las modificaciones en resolución complementaria). Sustento: IT 716-2023-GRT, tabla 3.5.",
+   "nota": "Su num. 2.5 (factores de expansión de pérdidas) lo sustituye el art. 4 de la 223-2023, la resolución complementaria de los recursos de reconsideración (209 y 213 a 222-2023, cuyo art. 3 manda consignar las modificaciones en resolución complementaria). Sustento: IT 716-2023-GRT, tabla 3.5. Vigencia (VAD-FE26, cita de cc en z17b): art. 8, pág. 18 de 19, líneas 995-997 del texto local sha256 a5a395a2648185b3d65831aa96a0f1aa66ecd9dd233d4945e4cf23fc004b483a: «Artículo 8.- Vigencia Disponer que la presente resolución será vigente del 01 de noviembre de 2023 al 31 de octubre de 2027.»; y art. 1, pág. 3, líneas 129-132: «… para el periodo del 01 de noviembre de 2023 al 31 de octubre de 2027».",
    "reglas": [
     {
      "clave": "vad.perdidas.factores_expansion_it716",
@@ -282,7 +284,8 @@
      "cita_literal": "3.5 Porcentajes y Factores de Expansión de Pérdidas. Los porcentajes de pérdidas a nivel empresa, referidos al ingreso en cada nivel de tensión, son: … A partir de los porcentajes señalados, los factores de expansión de pérdidas a aplicar son los siguientes:",
      "interpretacion": "valores de la fijación ANTES de las reconsideraciones; se conservan como sustento y para la comprobación cruzada. Leídos por columnas de la capa de texto (pdftotext desplaza las etiquetas una fila) y cotejados con la página renderizada; cada fila cumple FE = 1/(1−p)"
     }
-   ]
+   ],
+   "solo_referencia": "referencia: tabla previa a la reconsideración RCD 223-2023-OS/CD, solo para comparar; los factores vigentes son los de la 223-2023 (orden del auditor 28, VAD-FE26)"
   },
   {
    "acto": "RCD 223-2023-OS/CD",
@@ -292,10 +295,13 @@
    "titulo": "Resolución Complementaria VAD de los Recursos de Reconsideración interpuestos contra la Resolución N° 187-2023-OS/CD",
    "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2023/Osinergmin-223-2023-OS-CD.pdf",
    "sha256": "afb9b46db5d7c382bb73ff327584eefb64b40826f485382f1c20d957da4dbfe0",
+   "vigencia_desde": "2023-11-01",
+   "vigencia_hasta": "2027-10-31",
+   "vigencia_hasta_motivo": "fin deducido: modifica numerales de la RCD 187-2023-OS/CD y hereda su art. 8 (vigencia del 01-11-2023 al 31-10-2027); la 223-2023 no tiene artículo de vigencia. Cita del art. 8 de la 187-2023 (pág. 18 de 19, líneas 995-997 de su texto local sha256 a5a395a2648185b3d65831aa96a0f1aa66ecd9dd233d4945e4cf23fc004b483a): «Disponer que la presente resolución será vigente del 01 de noviembre de 2023 al 31 de octubre de 2027.» (apoyo (cc), frente «z17b_vigencia_2023_2027»)",
    "modifica": [
     "RCD 187-2023-OS/CD"
    ],
-   "nota": "Emitida el 28/11/2023 y publicada el 06/12/2023 (Resoluciones-GRT-2023.aspx). No se halló modificatoria ni fe de erratas posterior en las páginas GRT 2023 y 2024 (consulta del 2026-11-14).",
+   "nota": "Emitida el 28/11/2023 y publicada el 06/12/2023 (Resoluciones-GRT-2023.aspx). No se halló modificatoria ni fe de erratas posterior en las páginas GRT 2023 y 2024 (consulta del 2026-11-14). Vigencia desde el 2023-11-01: DEDUCCIÓN (VAD-FE26, decisión de f4), heredada de la 187-2023 que modifica; la 223-2023 no dice si sus valores rigen desde el 01-11-2023 o desde su publicación, el 06-12-2023.",
    "reglas": [
     {
      "clave": "vad.perdidas.factores_expansion",

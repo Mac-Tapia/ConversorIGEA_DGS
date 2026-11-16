@@ -65,6 +65,10 @@ pillow>=10.0
 # Tablas de las exportaciones analíticas.
 pandas>=2.0
 
+# Unifilar del expediente del PIT en DXF (107:RF-15): el DXF es la entrega garantizada, por eso es obligatoria.
+# Licencia MIT; trae fonttools y pyparsing (MIT). El DWG, aparte, con el ODA File Converter si el perfil o el PATH lo dan.
+ezdxf==1.4.5
+
 # Validación independiente del modelo: flujo de potencia y detección de islas con un
 # motor distinto de PowerFactory, sin licencia y en segundos.
 pandapower>=3.0

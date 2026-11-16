@@ -171,7 +171,7 @@ def test_elige_la_de_menor_costo_entre_las_que_cumplen():
 
 @pytest.mark.parametrize('semilla', SEMILLAS)
 def test_primero_bancos_luego_seccion_luego_terna(semilla):
-    """063:RF-21, 063:RF-22 — INKA en SM218 (2026-11-01): 128 m de conductor salen más baratos que
+    """063:RF-21, 063:RF-22 — <sitio> en <código> (2026-11-01): 128 m de conductor salen más baratos que
     los bancos, pero si los bancos ya dejan la red en norma, se quedan los bancos; solo se sube de
     escalón si el anterior no cumple, y dentro del escalón gana la más barata."""
     rng = random.Random(semilla)
@@ -308,7 +308,7 @@ def test_la_seccion_solo_cambia_los_tramos_mas_delgados(semilla):
 
 @pytest.mark.parametrize('semilla', SEMILLAS)
 def test_obras_sobre_el_camino_electrico_de_la_carga(semilla):
-    """063:RF-32 — INKA en SM218 (2026-11-01) colgaba de un ramal a 17 km, no de la troncal más
+    """063:RF-32 — <sitio> en <código> (2026-11-01) colgaba de un ramal a 17 km, no de la troncal más
     larga: el camino se busca por la red, y sección y terna van sobre él; la sección solo cambia
     sus tramos más delgados y que pueda llevar."""
     rng = random.Random(semilla)

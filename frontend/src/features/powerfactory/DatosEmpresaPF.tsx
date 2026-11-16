@@ -32,7 +32,7 @@ export function DatosEmpresaPF({ project, feeders, libro, onCambio }: {
       <p className="muted small">La confiabilidad, los reconectadores y los condensadores solo se ejecutan con las cifras de
         la empresa; no se rellenan con valores típicos. <a href={api.datosEmpresaPlantillaUrl(ws.id)}>Descargar la
         plantilla</a>.</p>
-      <FileDrop compact accept=".xlsx" disabled={!project} onFiles={([f]) => void subir(f)}>
+      <FileDrop entrada="datos_empresa" compact accept=".xlsx" disabled={!project} onFiles={([f]) => void subir(f)}>
         <span>{libro
           ? <><strong>{libro.nombre}</strong> · cargado el {libro.cargado.replace('T', ' ')} · reemplazar: soltar otro o <u>elegir</u></>
           : <>Libro de la empresa (.xlsx): soltar o <u>elegir</u></>}</span>

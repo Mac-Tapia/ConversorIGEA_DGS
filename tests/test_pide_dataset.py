@@ -1,5 +1,6 @@
 """Dataset PIDE universal: contrato, custodia, extracción y publicación para LLM."""
 from __future__ import annotations
+from test_entrega_universal import _hallar_nombres, _nombres_de_config  # noqa: E402
 
 from pathlib import Path
 import json
@@ -21,7 +22,7 @@ def test_contrato_cubre_articulos_formatos_y_etapas_sin_empresa():
     }
     assert contrato.validar() == []
     serializado = contrato.as_dict()
-    assert 'ELOR' not in str(serializado).upper()
+    assert not _hallar_nombres(_nombres_de_config(Path(__file__).parents[1]), str(serializado))
     assert all(a.entradas and a.procedimiento and a.evidencias and a.entregables
                for a in contrato.articulos)
     assert {'reconfiguracion', 'cambio_conductor', 'nuevo_alimentador',

@@ -1,5 +1,5 @@
 {
-  "_comentario": "086:RF-32 a RF-34. «documentos/» solo existe dentro del paquete: la rellena tools/construir_candidato.py con los manuales y notas que lee «pregunta» en el instalado, y su calibración. Único fichero que dice qué entra en el paquete: lo lee tools/comprobar_entrega.py y lo consumirá el instalador (T21). Rutas relativas a la raíz, con «/»; «*» cruza carpetas. Primero se aplica excluir.",
+  "_comentario": "«documentos/» solo existe dentro del paquete: la rellena tools/construir_candidato.py con los manuales y notas que lee «pregunta» en el instalado, y su calibración. Único fichero que dice qué entra en el paquete: lo lee tools/comprobar_entrega.py y lo consumirá el instalador (T21). Rutas relativas a la raíz, con «/»; «*» cruza carpetas. Primero se aplica excluir.",
   "version": 1,
   "incluir": [
     "src/convertersmartgrid/*",
@@ -21,7 +21,7 @@
     "documentos/CONJUNTO_ABSTENCION_ENTREGA.json",
     "documentos/CALIBRACION_ABSTENCION_ENTREGA.json"
   ],
-  "_comentario_excluir": "D4: sin pruebas, specs, instrucciones de agentes ni .git. Las herramientas de desarrollo no se entregan; las de entrenar sí, porque entrenar está activo en la 1.0 (086:RF-15, usuario 2026-11-13), y los pesos se generan en el cliente (RF-34). De los perfiles con nombre solo entran la plantilla y la ficticia: los de una empresa concreta siguen en el repositorio y no se listan (RF-32).",
+  "_comentario_excluir": "D4: sin pruebas, specs, instrucciones de agentes ni .git. Las herramientas de desarrollo no se entregan; las de entrenar sí, porque entrenar está activo en la 1.0 (usuario, 2026-11-13), y los pesos se generan en el cliente. De los perfiles con nombre solo entran la plantilla y la ficticia: los de una empresa concreta siguen en el repositorio y no se listan.",
   "excluir": [
     "*/__pycache__/*",
     "*.pyc",
@@ -83,7 +83,7 @@
     "tools/verificar_entrega_integral.py",
     "tools/verify_architecture_links.py"
   ],
-  "_comentario_candidato": "086:RF-36 a RF-39. La forma del paquete armado por tools/construir_candidato.py. Lo de «terceros» no lleva términos que buscar, pero cada fichero va con su huella en el manifiesto; dentro de la rueda propia, cada fichero se comprueba por la lista de arriba.",
+  "_comentario_candidato": "La forma del paquete armado por tools/construir_candidato.py. Lo de «terceros» no lleva términos que buscar, pero cada fichero va con su huella en el manifiesto; dentro de la rueda propia, cada fichero se comprueba por la lista de arriba.",
   "candidato": {
     "raices": ["manifiesto_candidato.json", "programa/*.whl", "instalador/*", "documentos/*", "terceros/*"],
     "terceros": ["terceros/*"],
@@ -91,7 +91,7 @@
     "_comentario_seguridad": "Mínimos de seguridad por pip-audit del 2026-11-04. El lock y constraints ya incluyen las correcciones de Pillow, pypdf y certifi. fijar_entorno impide volver a congelar versiones inferiores; la auditoría actual sigue siendo una puerta independiente de cada candidato.",
     "versiones_de_seguridad": {"pillow": "13.0.0", "pypdf": "6.21.4", "certifi": "2026.10.18"},
     "fuera_del_nucleo": ["torch", "torchvision", "torchaudio", "transformers", "sentence-transformers", "tokenizers", "accelerate", "peft", "bitsandbytes", "safetensors", "huggingface-hub", "torch-geometric", "neuralforecast", "optuna", "pytest", "httpx2", "httpcore2", "pluggy", "iniconfig"],
-    "_comentario_python_pf": "103:RF-6: los Python de las PowerFactory que no cargan su API con el 3.12 del programa (2021 con 3.9, 2022 con 3.10, 2023 con 3.11), embebidos de python.org con la firma de sus binarios de Windows verificada, y su numpy de PyPI.",
+    "_comentario_python_pf": "Los Python de las PowerFactory que no cargan su API con el 3.12 del programa (2021 con 3.9, 2022 con 3.10, 2023 con 3.11), embebidos de python.org con la firma de sus binarios de Windows verificada, y su numpy de PyPI.",
     "python_pf": {
       "3.9": {"zip": "python-3.9.13-embed-amd64.zip", "sha256": "938a1f3b80d580320836260612084d74ce094a261e36f9ff3ac7b9463df5f5e4", "numpy": "numpy-2.0.2-cp39-cp39-win_amd64.whl", "numpy_sha256": "a3f4ab0caa7f053f6797fcd4e1e25caee367db3112ef2b6ef82d749530768c73"},
       "3.10": {"zip": "python-3.10.11-embed-amd64.zip", "sha256": "608619f8619075629c9c69f361352a0da6ed7e62f83a0e19c63e0ea32eb7629d", "numpy": "numpy-2.2.6-cp310-cp310-win_amd64.whl", "numpy_sha256": "f0fd6321b839904e15c46e0d257fdd101dd7f530fe03fd6359c1ea63738703f3"},
@@ -104,15 +104,15 @@
     "secciones_de_desarrollo": {"docs/MANUAL_INSTALACION.md": ["Para quien prepara una versión"]},
     "opcionales": ["docs/LICENCIA_COMERCIAL.txt"]
   },
-  "_comentario_python_programa": "U3 (2026-11-14): el Python del programa es el 3.12 oficial de python.org, el último 3.12 con binarios de Windows y el que carga la API de PowerFactory 2024 (103:RF-1), firmado por la PSF; su firma se comprueba al armar. Un candidato final no se arma con otro.",
+  "_comentario_python_programa": "U3 (2026-11-14): el Python del programa es el 3.12 oficial de python.org, el último 3.12 con binarios de Windows y el que carga la API de PowerFactory 2024, firmado por la PSF; su firma se comprueba al armar. Un candidato final no se arma con otro.",
   "python_programa": {"zip": "python-3.12.10-embed-amd64.zip", "sha256": "4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3", "origen": "https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip", "firmante": "Python Software Foundation", "firmados": ["python.exe", "pythonw.exe", "python312.dll"]},
   "_comentario_auditoria": "L5 (2026-11-14): pip-audit sobre el lock final, en un entorno aparte (CSG_PIP_AUDIT, nunca el .venv). Una vulnerabilidad solo pasa justificada en el fichero declarado, con su motivo y su fecha.",
   "auditoria_dependencias": {"justificadas": "config/vulnerabilidades_justificadas.json", "variable": "CSG_PIP_AUDIT"},
   "_comentario_compilado": "Lo que se entrega compilado se comprueba en el repositorio por su fuente: el paquete ya lleva dist/, y el árbol de trabajo puede no tenerlo.",
   "fuente_de_lo_compilado": {"frontend/dist/*": ["frontend/src/*", "frontend/index.html"]},
-  "_comentario_pesos": "RF-34: ningún peso entra si no está aquí, con su huella y con qué datos se entrenó. La 1.0 no entrega ninguno: lo vedado por empresa no se puede demostrar sin esta lista.",
+  "_comentario_pesos": "Ningún peso entra si no está aquí, con su huella y con qué datos se entrenó. La 1.0 no entrega ninguno: lo vedado por empresa no se puede demostrar sin esta lista.",
   "extensiones_pesos": [".safetensors", ".pt", ".pth", ".ckpt", ".gguf", ".onnx", ".h5", ".keras", ".joblib", ".pkl", ".pickle", ".npz", ".msgpack", ".tflite"],
-  "_comentario_pesos_complemento": "086:RF-34, decisión del usuario del 2026-11-13: el complemento de IA trae dos modelos públicos para usarlos sin internet, e5-base para el intérprete y qwen3:8b en Ollama. Ninguno está entrenado con datos de una empresa; sus rutas son las del complemento armado.",
+  "_comentario_pesos_complemento": "Decisión del usuario del 2026-11-13: el complemento de IA trae dos modelos públicos para usarlos sin internet, e5-base para el intérprete y qwen3:8b en Ollama. Ninguno está entrenado con datos de una empresa; sus rutas son las del complemento armado.",
   "pesos_permitidos": [
     {"ruta": "modelos/huggingface/hub/models--intfloat--multilingual-e5-base/snapshots/d128750597153bb5987e10b1c3493a34e5a4502a/model.safetensors",
      "sha256": "a18a44fad1d0b46ded15928144138cff1135d5cc8233bdd90be5f18822de09a7", "entrenado_con": "publico",
@@ -121,7 +121,7 @@
      "sha256": "a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f", "entrenado_con": "publico",
      "modelo": "qwen3:8b", "licencia": "Apache-2.0"}
   ],
-  "_comentario_complemento_ia": "086:RF-37: lo que el complemento de IA trae además de sus ruedas, cada modelo con su revisión del catálogo (docs/MODELOS_IA_LOCK.json) y Ollama con la huella que publica su página de versiones. Las licencias, por su id en config/licencias_terceros/manifest.json.",
+  "_comentario_complemento_ia": "Lo que el complemento de IA trae además de sus ruedas, cada modelo con su revisión del catálogo (docs/MODELOS_IA_LOCK.json) y Ollama con la huella que publica su página de versiones. Las licencias, por su id en config/licencias_terceros/manifest.json.",
   "complemento_ia": {
     "modelos": [
       {"backend": "huggingface", "id": "intfloat/multilingual-e5-base", "licencia": "multilingual-e5-base"},

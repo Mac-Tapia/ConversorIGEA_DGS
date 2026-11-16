@@ -1,0 +1,61 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Porcentajes del COyM de las instalaciones de transmisión del periodo mayo 2021 - abril 2027. La Norma Tarifas (RCD 217-2013-OS/CD, art. 17.2 y 17.3: regla pit.coym_metodo) no fija el porcentaje: remite a los «aprobados por el OSINERGMIN». Los aprobó la RCD 080-2021-OS/CD y, resueltos los recursos (RCD 159-2021-OS/CD a RCD 162-2021-OS/CD), la 163-2021 sustituyó su cuadro entero: los valores de la 080-2021 ya no rigen y no se registran. Fichero propio porque es una norma nueva en el registro. Fuente investigada por cc (z11, P-REG, 2026-11-15).",
+ "normas": [
+  {
+   "acto": "RCD 163-2021-OS/CD",
+   "titulo": "Sustituye el cuadro del art. 1 de la RCD 080-2021-OS/CD: Porcentajes para Determinar el Costo Anual Estándar de Operación y Mantenimiento de Instalaciones de Transmisión, periodo 01-05-2021 a 30-04-2027",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2021/Osinergmin-163-2021-OS-CD.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "3e5e8ee938510d5a06cad862195c3007e2ce9d0c5718b916768375f5529ad130",
+   "sha256_texto": "8bf5567de0f59c2b0759161ac40e72648f722b906e67e33ffbc205537f2c7005",
+   "fichero_local": "rcd_163-2021.txt",
+   "version": "Lima, 01 de julio de 2021",
+   "vigencia_desde": "2021-05-01",
+   "vigencia_hasta": "2027-04-30",
+   "modifica": [
+    "RCD 080-2021-OS/CD"
+   ],
+   "nota": "Vigencia del cuadro: del 01-05-2021 al 30-04-2027 (art. 1 de la 080-2021 y de la 163-2021); se fija cada seis años. Los años posteriores no tienen porcentaje publicado: quedan como hueco nombrado, nunca con este cuadro.",
+   "reglas": [
+    {
+     "clave": "pit.coym_pct",
+     "valor": {
+      "porcentajes": {
+       "costa": {"MAT": 3.36, "AT": 2.83, "MT": 4.49},
+       "sierra": {"MAT": 3.40, "AT": 3.51, "MT": 4.86},
+       "selva": {"MAT": 3.49, "AT": 3.54, "MT": 4.65}
+      },
+      "codigos": {
+       "costa": {"MAT": "COMAT", "AT": "COAT", "MT": "COMT"},
+       "sierra": {"MAT": "SIMAT", "AT": "SIAT", "MT": "SIMT"},
+       "selva": {"MAT": "SEMAT", "AT": "SEAT", "MT": "SEMT"}
+      },
+      "niveles": [
+       {"nivel": "MAT", "kv_desde": 138, "desde_incluido": true},
+       {"nivel": "AT", "kv_desde": 30, "desde_incluido": false, "kv_hasta": 138, "hasta_incluido": false},
+       {"nivel": "MT", "kv_desde": 1, "desde_incluido": false, "kv_hasta": 30, "hasta_incluido": true,
+        "solo": "celda_alimentador_mt_en_set"}
+      ],
+      "transformadores": "lado_primario"
+     },
+     "unidad": "% del costo de inversión, anual",
+     "articulo_o_anexo": "art. 1 (cuadro y notas (*) y (**))",
+     "pagina": "1-2",
+     "lineas": "40-80",
+     "cita_literal": "Artículo 1.- Sustituir el cuadro consignado en al artículo 1 de la Resolución N° 080-2021-OS/CD, que aprobó los “Porcentajes para Determinar el Costo Anual Estándar de Operación y Mantenimiento de Instalaciones de Transmisión”, aplicables al período comprendido entre el 01 de mayo de 2021 y el 30 de abril de 2027, por el siguiente cuadro: COMAT Igual o mayor que 138 kV 3,36% COAT Costa Mayor que 30 kV y menor que 138 kV 2,83% COMT 4,49% Mayor que 1 kV y menor o igual que 30 kV (*) SIMAT Igual o mayor que 138 kV 3,40% SIAT Sierra Mayor que 30 kV y menor que 138 kV 3,51% SIMT 4,86% Mayor que 1 kV y menor o igual que 30 kV (*) SEMAT Igual o mayor que 138 kV 3,49% SEAT Selva Mayor que 30 kV y menor que 138 kV 3,54% SEMT Mayor que 1 kV y menor o igual que 30 kV 4,65% (*) (*) Aplicable solo para celdas de Alimentadores de Media Tensión, ubicadas dentro de las subestaciones del sistema de transmisión. (**) Para el caso de transformadores se debe aplicar el factor correspondiente al nivel de tensión del lado primario.",
+     "interpretacion": "Porcentaje anual del costo de inversión de cada elemento, por su ubicación (costa, sierra o selva) y su nivel de tensión. El nivel MT vale solo para las celdas de alimentadores de MT dentro de las SET. En transformadores, la nota (**) dice «lado primario» y la Norma Tarifas (17.3, regla pit.coym_metodo) «nivel de mayor tensión»: se toma la mayor tensión y, en un transformador elevador, donde no coinciden, se avisa de la discrepancia (decisión de f4 aceptada por el auditor 28, P-REG).",
+     "pendientes": [
+      {
+       "id": "rcd-163-2021-modificatorias",
+       "descripcion": "no se buscó si una resolución posterior a 2021 volvió a modificar el cuadro de la 163-2021",
+       "responsable": "cc (apoyo de f4)",
+       "fecha": "2026-11-15"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

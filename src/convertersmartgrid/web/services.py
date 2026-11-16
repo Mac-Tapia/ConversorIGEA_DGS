@@ -2613,8 +2613,9 @@ def cargas_ejecutar(ws: Workspace, ctx: JobContext, token: str, *, simular: bool
             ficha['utm'] = _utm((ficha['lat'], ficha['lon']))
     if rc == 2:
         ctx.log('Hubo cargas que no se pudieron escribir o crear: vea «fallos» en el informe.')
+    # WEB-RUTAS (007:RF-38): el token del lote viaja en el resultado, para ofrecer deshacerlo desde la web.
     resultado = {'returncode': rc, 'modo': informe.get('modo'), 'report': report.name,
-                 'project': plan['project'], 'informe': informe}
+                 'project': plan['project'], 'informe': informe, 'token': token}
     if not simular:
         # 024:RF-1: las cargas nuevas se crean en «Con proyecto» (spec 007).
         plan_json = json.loads(Path(plan['path']).read_text(encoding='utf-8'))
@@ -2673,7 +2674,7 @@ def cargas_deshacer(ws: Workspace, ctx: JobContext, token: str) -> dict:
         raise UserError(f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.')
     if informe.get('error'):
         raise UserError(informe['error'])
-    return {'returncode': rc, 'report': report.name, 'project': plan['project'], 'informe': informe}
+    return {'returncode': rc, 'report': report.name, 'project': plan['project'], 'informe': informe, 'token': token}
 
 
 # ---------------------------------------------------------------------------
@@ -3502,7 +3503,7 @@ def demanda_medidores_externos(ws: Workspace, red: list[str]) -> dict:
     que guarda el perfil (021:RF-27).
 
     La red son los alimentadores del proyecto (``red``) y, si hay una entrada cargada, los
-    de la entrada. En el libro de Electro Dunas la central de Nasca sale como CTBarra,
+    de la entrada. En el libro de una distribuidora real la central de Nasca sale como CTBarra,
     CTLADOSET y CTLADOCARGA: no se reconoce por el nombre, sino porque no es ninguno de
     los alimentadores de la red.
     """
@@ -4795,7 +4796,7 @@ def anio_de_los_casos(ws: Workspace, project: str) -> tuple[int | None, str | No
 
     Se registra en la primera calibración que lo sabe. Un proyecto calibrado antes de esta
     spec no lo guardó: sus casos se toman como del año más reciente de la medición de
-    cabecera (en Electro Dunas, los proyectos de 2026 calibrados con la de 2026), y se dice.
+    cabecera (en una distribuidora real, los proyectos de 2026 calibrados con la de 2026), y se dice.
     """
     p = project.strip()
     if p in ws.anios_casos:
@@ -8892,7 +8893,7 @@ def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders
               if clave_codigo(c.get('alimentador')) in marcados and c.get('variacion')]
     if pedidas:
         # 063:RF-23, RF-24: la evaluación de la conexión de una carga cuenta solo esa; las demás se
-        # apartan. SM218 (2026-11-01): la de INKA contaba 4, con su copia del bloque mal ubicada.
+        # apartan. <código> (2026-11-01): la de <sitio> contaba 4, con su copia del bloque mal ubicada.
         claves = {clave_codigo(n) for n in pedidas}
         cargas = [c for c in cargas if clave_codigo(c.get('sed')) in claves]
         if not cargas:
@@ -10644,7 +10645,7 @@ def set_nueva_operacion(ws: Workspace, ctx: JobContext, project: str, feeders: l
                         reabrir: bool = True) -> dict:
     """Diagnóstico y refuerzos sobre una SET existente, por el arnés y con fuente vinculada.
 
-    063:RF-36 a RF-38. COPARA ya estaba situada y dimensionada: recrearla duplicaría
+    063:RF-36 a RF-38. <sitio> ya estaba situada y dimensionada: recrearla duplicaría
     activos y borraría la evidencia de sus conexiones. Cada cambio se valida por ruta
     nativa y se evalúa conservando las cargas y el escenario original.
     """
@@ -11511,7 +11512,7 @@ def _guardar_plan(destino: Path, tipo: str, plan: dict) -> str:
 
 
 def _utm(lat_lon) -> list[float] | None:
-    """Coordenadas en el CRS del perfil (UTM en Electro Dunas), para la cuadrilla; sin
+    """Coordenadas en el CRS del perfil (UTM en una distribuidora real), para la cuadrilla; sin
     perfil o sin pyproj, nada (P13: no se supone un CRS)."""
     from ..perfil_empresa import datos_perfil
 

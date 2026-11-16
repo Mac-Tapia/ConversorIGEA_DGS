@@ -222,7 +222,9 @@ def test_una_prueba_sin_marca_que_usa_cuda_falla_diciendolo():
     marca, o sin reservar nada, pasa."""
     torch = pytest.importorskip('torch')
     if not torch.cuda.is_available():
-        pytest.fail('esta prueba necesita CUDA, como el resto de pruebas de GPU de la suite (102:RF-17)')
+        # En GitHub Actions (sin GPU) el conftest la omite con su motivo; en local, SinGPU es un fallo (102:RF-17).
+        from convertersmartgrid.training_coordinator import SinGPU
+        raise SinGPU('esta prueba necesita CUDA, como el resto de pruebas de GPU de la suite')
 
     class Item:
         nodeid = 'tests/test_x.py::test_entrena_por_src'
@@ -393,3 +395,30 @@ def test_un_trabajador_hereda_la_carpeta_de_datos_y_no_crea_otra():
     assert salida.returncode == 0, salida.stderr
     propia, carpeta = salida.stdout.strip().splitlines()[-1].split(' ', 1)
     assert propia == 'False' and Path(carpeta) == conftest._SESION_DE_DATOS
+
+
+def test_sin_gpu_la_prueba_de_cuda_se_omite_en_github_y_falla_en_local():
+    """102:RF-17 — en GitHub Actions no hay GPU: la prueba que necesita CUDA queda omitida con su motivo, como el resto de
+    pruebas de GPU; en local, sin la variable de CI, sigue siendo un fallo. Actions, run 43815847560 (15-11)."""
+    import subprocess
+    import sys
+
+    raiz = Path(__file__).resolve().parents[1]
+    nodo = 'tests/test_turno_gpu_de_la_suite.py::test_una_prueba_sin_marca_que_usa_cuda_falla_diciendolo'
+
+    def correr(con_ci: bool) -> str:
+        entorno = {k: v for k, v in os.environ.items() if k != conftest.VARIABLE_CI_SIN_GPU}
+        # En Windows una variable vacía no llega al proceso hijo, que vería la GPU: «-1» la oculta en todos los
+        # sistemas (como corrida_e6 en el carril sin GPU).
+        entorno['CUDA_VISIBLE_DEVICES'] = '-1'
+        if con_ci:
+            entorno[conftest.VARIABLE_CI_SIN_GPU] = '1'
+        r = subprocess.run([sys.executable, '-m', 'pytest', '-p', 'no:cacheprovider', '-q', '-rs', nodo], cwd=raiz,
+                           env=entorno, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=600)
+        return r.stdout + r.stderr
+
+    en_github = correr(con_ci=True)
+    assert '1 skipped' in en_github and 'GitHub Actions no la tiene' in en_github, \
+        f'en GitHub sin GPU tiene que quedar omitida con su motivo:\n{en_github[-1500:]}'
+    en_local = correr(con_ci=False)
+    assert '1 failed' in en_local, f'en local sin GPU tiene que fallar, nunca omitirse:\n{en_local[-1500:]}'

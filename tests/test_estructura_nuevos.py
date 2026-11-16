@@ -1,6 +1,6 @@
 """Spec 022, T15: SET y alimentadores nuevos de la entrega (RF-71 a RF-78).
 
-La entrega RED_231026 de Electro Dunas trajo la SET Chincha Nueva (CN101 a CN201), PA219,
+La entrega RED_231026 de una distribuidora real trajo la SET Chincha Nueva (CN101 a CN201), PA219,
 COH101 y SC215, que la tabla de la empresa aún no tenía: quedaban «Sin SET» y la
 conversión por zonal los dejaba fuera. Las estructuras y las entregas se sortean.
 """

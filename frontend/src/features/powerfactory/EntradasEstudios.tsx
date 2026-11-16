@@ -105,7 +105,7 @@ function Entrada({ esquema, estudios, guardada, borrador, ocupado, onLeer, onGua
       </summary>
       <p className="muted small">{esquema.ayuda}</p>
       {guardada && guardada.faltan.length > 0 && <p className="alert alert-warn small">Le falta: {guardada.faltan.join('; ')}.</p>}
-      <FileDrop compact multiple accept={ACEPTA} disabled={ocupado} onFiles={onLeer}>
+      <FileDrop entrada="estudios" compact multiple accept={ACEPTA} disabled={ocupado} onFiles={onLeer}>
         <span>{ocupado ? 'Leyendo…' : <>TXT, CSV, PDF o imagen de «{esquema.titulo}»: soltar o <u>elegir</u> (varias fotos de la misma
           tabla, juntas)</>}</span>
       </FileDrop>

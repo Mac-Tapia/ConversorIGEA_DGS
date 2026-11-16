@@ -1,0 +1,123 @@
+{
+  "esquema": "codigos_empresa_vnr_v2",
+  "_comentario": "Los códigos de empresa de los paquetes VNR-GIS públicos de Osinergmin, de los dos grupos vigentes, POR SU HUELLA (sha256 del código en minúsculas, 16 hexadecimales): el repositorio es público y no lleva los códigos, ni los nombres de los paquetes, sus direcciones o sus bases, que los escriben. Los códigos están solo en la lista local de términos, fuera de git. El escáner de tests/test_entrega_universal.py busca estas huellas en src/ y tests/, en las palabras en MAYÚSCULAS (un código puede ser también una palabra corriente en minúsculas).",
+  "metodo": "directorio central del zip o cabeceras del rar de cada paquete público, leídos por HTTP Range",
+  "grupos": [
+    {
+      "norma": "RCD 184-2026-OS/CD",
+      "vnr_al": "2025-12-31",
+      "descripcion": "fijación definitiva del VNR al 31-12-2025",
+      "leido": "2026-11-15T15:20:30",
+      "paquetes": [
+        {
+          "huella": "624246e6ba72fadd",
+          "bytes_paquete": 1036879955
+        },
+        {
+          "huella": "05de6188f762f84d",
+          "bytes_paquete": 618677896
+        },
+        {
+          "huella": "805e8d7fa83d918c",
+          "bytes_paquete": 162425169
+        },
+        {
+          "huella": "3df084194ac02446",
+          "bytes_paquete": 59121139
+        },
+        {
+          "huella": "b457af290db2c1bc",
+          "bytes_paquete": 58896379
+        },
+        {
+          "huella": "16ee4702f8ac7dd5",
+          "bytes_paquete": 50667905
+        },
+        {
+          "huella": "5b119598a417b358",
+          "bytes_paquete": 53504560
+        },
+        {
+          "huella": "9771d5d58d636859",
+          "bytes_paquete": 54461625
+        },
+        {
+          "huella": "e5dcbc72e6aa9f4f",
+          "bytes_paquete": 53100730
+        },
+        {
+          "huella": "baa9e34d21c779e7",
+          "bytes_paquete": 52072735
+        },
+        {
+          "huella": "bf9c699809cec48e",
+          "bytes_paquete": 50859390
+        },
+        {
+          "huella": "bf7aa2fd8e73cbab",
+          "bytes_paquete": 51439974
+        },
+        {
+          "huella": "fc90cbae66d243ff",
+          "bytes_paquete": 51367693
+        },
+        {
+          "huella": "cfeb3318ec519add",
+          "bytes_paquete": 51337346
+        }
+      ]
+    },
+    {
+      "norma": "RCD 208-2023-OS/CD",
+      "vnr_al": "2022-12-31",
+      "descripcion": "VNR al 31-12-2022 tras la reconsideración",
+      "leido": "2026-11-15T15:24:40",
+      "paquetes": [
+        {
+          "huella": "2765aea3b3aaad31",
+          "bytes_paquete": 64601760
+        },
+        {
+          "huella": "d9ead1a2f46fe93f",
+          "bytes_paquete": 236285293
+        },
+        {
+          "huella": "95b1f367e0669f03",
+          "bytes_paquete": 123592605
+        },
+        {
+          "huella": "be6e6bbb5ed98c40",
+          "bytes_paquete": 110511162
+        },
+        {
+          "huella": "7dd530c4d36da47c",
+          "bytes_paquete": 191651926
+        },
+        {
+          "huella": "02f11e7c66dcee2d",
+          "bytes_paquete": 79949435
+        },
+        {
+          "huella": "b5cef039ed574d1d",
+          "bytes_paquete": 565568202
+        },
+        {
+          "huella": "0af85e3e1d4e5564",
+          "bytes_paquete": 251720931
+        },
+        {
+          "huella": "81e31e2555868ca1",
+          "bytes_paquete": 189341589
+        },
+        {
+          "huella": "ffe722919b6a729d",
+          "bytes_paquete": 419284519
+        },
+        {
+          "huella": "f0f668bf610e5cf9",
+          "bytes_paquete": 127626075
+        }
+      ]
+    }
+  ]
+}

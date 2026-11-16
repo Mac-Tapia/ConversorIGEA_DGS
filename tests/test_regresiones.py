@@ -1,5 +1,6 @@
 """Spec 081: cada fallo real deja una entrada con su comprobación permanente y una prueba que exista."""
 from __future__ import annotations
+from test_entrega_universal import _nombres_de_config  # noqa: E402
 
 import ast
 import json
@@ -73,7 +74,7 @@ def test_estan_los_fallos_de_hoy():
 
 def _nombres_prohibidos() -> set[str]:
     """Códigos y empresas que no se escriben aquí: de los perfiles y de la estructura de cada empresa."""
-    prohibidos = {'electro dunas', 'electro oriente', 'elor', 'eldu'}
+    prohibidos = set(_nombres_de_config(RAIZ))  # los nombres y siglas reales, leídos de config
     for ruta in (RAIZ / 'config/perfiles').glob('*.json'):
         try:
             datos = json.loads(ruta.read_text(encoding='utf-8'))

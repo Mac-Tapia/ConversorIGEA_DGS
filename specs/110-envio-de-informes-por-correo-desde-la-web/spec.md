@@ -66,7 +66,8 @@ vista previa y confirmación, y queda un recibo.
 
 ## Criterios de finalización
 Cada RF citado por una prueba (`grep "110:RF-"`), con un proveedor simulado y con las pruebas negativas (timeout, doble
-envío, cambio del adjunto, orden del asistente). Un envío real controlado a una dirección del usuario, con su recibo.
+envío, cambio del adjunto, orden del asistente). La prueba real controlada, un envío a una dirección del usuario con su
+recibo, es opcional: la hace el operador cuando registre su aplicación de prueba (decisión del 2026-11-15).
 
 ## Decisiones (2026-11-14)
 Tomadas por delegación del usuario (`D:/csg/G0_PLAN_MAESTRO/G1_DECISIONES_RECOMENDADAS.md`, decisiones 1 y 2).
@@ -76,3 +77,6 @@ Tomadas por delegación del usuario (`D:/csg/G0_PLAN_MAESTRO/G1_DECISIONES_RECOM
   el repositorio), el mismo de la spec 109. Las pruebas usan un proveedor simulado. La integración real queda
   bloqueada solo por el registro de la aplicación en Google Cloud y en Azure, que hace el usuario con su cuenta,
   con un instructivo paso a paso.
+- Versión de prueba (orden del usuario del 2026-11-15): Google Cloud en modo «Testing» (hasta 100 usuarios de prueba,
+  sin verificación) y Azure con cuentas personales. La 1.0 se valida con el simulado; la prueba real con una cuenta es
+  opcional. Sin cuenta conectada, la web dice «Sin cuenta conectada: configure config/nube.json» y no falla.

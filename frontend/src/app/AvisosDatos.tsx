@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useApp } from '../shared/context';
-import type { ResumenEspacio } from '../api/types';
+import type { CopiaExistente, Health, PreviaCopiaDatos, ResumenEspacio } from '../api/types';
 import { avisosDeTrabajos, esGeneral } from '../shared/pasoDeTrabajo';
 import { AvisoTrabajo, useVistos } from '../shared/AvisosTrabajo';
 import { abrirEspacio } from '../shared/useWorkspace';
-import { useToast } from '../shared/ui';
+import { Modal, useToast } from '../shared/ui';
+import { fmtBytes } from '../shared/formato';
 
 const QUE_ES: Record<string, string> = {
   inputs: 'Entrada', demanda: 'Libro de demanda', datos_empresa: 'Libro de la empresa',
@@ -32,18 +33,17 @@ export function AvisosDatos({ pestanas }: { pestanas: readonly string[] }) {
   useEffect(() => { void leerEspacios(); }, [leerEspacios, ws.id, health]);
 
   const copia = health.copia_datos;
+  // 086:RF-109: la copia más nueva que la previa encontró en la carpeta escrita, aunque el servidor no la recuerde.
+  const [vista, setVista] = useState<number | null>(null);
   const generales = avisosDeTrabajos(jobs, ws.id, vistos).filter((a) => esGeneral(a, pestanas));
   return (
     <>
       {copia.vencida && (
         // 086:RF-74: una línea; el «cómo» al desplegarla, con el botón de la copia (RF-85).
         <details className="alert alert-warn aviso-linea" role="status">
-          <summary>{copia.edad_dias == null
-            ? 'Aún no hay ninguna copia de sus datos.'
-            : `La última copia de sus datos tiene ${Math.round(copia.edad_dias)} días (el máximo es ${copia.maxima_dias}).`}
-            {' '}<span className="mas">más</span></summary>
-          <p>Haga una copia para no perder trabajo si falla el equipo, en otro disco o en una carpeta de Google Drive.</p>
-          <CopiaAhora />
+          <summary>{resumenCopia(copia, vista)}{' '}<span className="mas">más</span></summary>
+          <p>Haga una copia en otro disco o en una carpeta en la nube, por si falla el equipo.</p>
+          <CopiaAhora onCopias={(copias) => setVista(ultimaBuena(copias))} />
         </details>
       )}
       {danados.map((d) => (
@@ -82,14 +82,84 @@ export function AvisosDatos({ pestanas }: { pestanas: readonly string[] }) {
   );
 }
 
+/** 086:RF-110: vale para cualquier carpeta (otro disco, Drive, OneDrive…); antes suponía «G:/Mi unidad». */
+export const MARCADOR_CARPETA_COPIA = 'Una carpeta de otro disco, de Drive o de OneDrive';
+
+/** 086:RF-109: la fecha de la copia buena más nueva de la lista, o ninguna. */
+export function ultimaBuena(copias: readonly CopiaExistente[]): number | null {
+  const fechas = copias.filter((c) => c.estado === 'buena' && c.creada != null).map((c) => c.creada as number);
+  return fechas.length ? Math.max(...fechas) : null;
+}
+
 /**
- * 086:RF-85, RF-86: la carpeta de la copia, recordada en el equipo, y el botón que la lanza como trabajo. El progreso y
- * «Cancelar» salen en la barra de trabajos, como los de cualquier otro; antes de copiar, su registro dice cuánto ocupará
- * (cada fichero una vez, RF-78) y cuánto hay libre, y si no cabe no empieza (RF-82, RF-83).
+ * 086:RF-109: la línea del aviso. Nunca dice que no hay copias: el servidor solo sabe de su registro y de la carpeta
+ * que recuerda; sin ellas, «no consta». La copia que la previa vio en la carpeta escrita también cuenta.
  */
-function CopiaAhora() {
+export function resumenCopia(copia: Health['copia_datos'], vista: number | null = null,
+  ahora: number = Date.now() / 1000): string {
+  const masNueva = vista != null && (copia.ultima == null || vista > copia.ultima);
+  const edad = masNueva ? (ahora - (vista as number)) / 86400 : copia.edad_dias;
+  if (edad == null) return 'No consta ninguna copia de sus datos.';
+  const dias = Math.max(0, Math.round(edad));
+  if (dias === 0) return 'La última copia de sus datos es de hoy.';
+  const texto = `La última copia de sus datos tiene ${dias} ${dias === 1 ? 'día' : 'días'}`;
+  return edad > copia.maxima_dias ? `${texto} (el máximo es ${copia.maxima_dias}).` : `${texto}.`;
+}
+
+const ESTADO_COPIA: Record<CopiaExistente['estado'], string> = {
+  buena: 'Completa', con_errores: 'Con errores', no_valida: 'No válida', a_medias: 'A medias',
+};
+
+function fechaCopia(creada: number | null): string {
+  return creada == null ? 'Sin fecha'
+    : new Date(creada * 1000).toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+/**
+ * Aclaración de 086:RF-82 y RF-83, RF-108: antes de escribir nada, lo que ocupará, lo libre, lo que se copia y las
+ * copias que ya hay en la carpeta. Solo «Copiar» la empieza; si no cabe, no se ofrece y se dicen las dos cifras.
+ */
+export function PreviaCopia({ previa, onCopiar, onCancelar }: {
+  previa: PreviaCopiaDatos; onCopiar: () => void; onCancelar: () => void;
+}) {
+  return (
+    <Modal title="Copia de sus datos" onClose={onCancelar} actions={<>
+      <button className="btn" onClick={onCancelar}>Cancelar</button>
+      {previa.cabe && <button className="btn btn-primary" autoFocus onClick={onCopiar}>Copiar</button>}
+    </>}>
+      <p className="small">En <span className="mono">{previa.destino}</span></p>
+      <p>Ocupará <strong>{fmtBytes(previa.bytes_fisicos)}</strong>. Libre: <strong>{fmtBytes(previa.libre)}</strong>.</p>
+      {!previa.cabe && (
+        <p className="alert alert-error" role="alert">No cabe: ocupará {fmtBytes(previa.bytes_fisicos)} y hay
+          {' '}{fmtBytes(previa.libre)} libres. No se copia nada.</p>)}
+      <h3>Qué se copia</h3>
+      <ul className="small">
+        {previa.raices.map((r) => <li key={r.nombre}>{r.etiqueta}: {fmtBytes(r.bytes)}</li>)}
+      </ul>
+      <h3>Copias en esta carpeta</h3>
+      {previa.copias.length === 0 ? <p className="small muted">Ninguna.</p> : (
+        <ul className="small lista-copias">
+          {previa.copias.map((c) => (
+            <li key={c.nombre} title={c.motivo ?? undefined}>
+              {fechaCopia(c.creada)} · {c.bytes == null ? '—' : fmtBytes(c.bytes)} · <strong>{ESTADO_COPIA[c.estado]}</strong>
+              {c.errores > 0 && ` · ${c.errores} ${c.errores === 1 ? 'error' : 'errores'}`}
+            </li>))}
+        </ul>)}
+    </Modal>
+  );
+}
+
+/**
+ * 086:RF-85, RF-86: la carpeta de la copia, recordada en el equipo, y el botón que abre su previa. Aclaración de RF-82
+ * (prueba con la cuenta local, 2026-11-16): el botón escribía unos 20 GB en Drive en un clic. Ahora pide la previa y la
+ * copia solo se encola con «Copiar»; el progreso y su «Cancelar» salen en la barra de trabajos, como los de cualquier
+ * otro.
+ */
+function CopiaAhora({ onCopias }: { onCopias: (copias: CopiaExistente[]) => void }) {
   const { ws, health, jobs, run, startJob, refreshHealth } = useApp();
   const [carpeta, setCarpeta] = useState('');
+  const [previa, setPrevia] = useState<PreviaCopiaDatos | null>(null);
+  const [mirando, setMirando] = useState(false);
   useEffect(() => {
     void run(api.carpetaCopia).then((r) => { if (r?.carpeta) setCarpeta((actual) => actual || (r.carpeta ?? '')); });
   }, [run]);
@@ -100,14 +170,31 @@ function CopiaAhora() {
   useEffect(() => { if (hecha) refreshHealth(); }, [hecha, refreshHealth]);
   const rutasLocales = health.server_paths;
   const texto = carpeta.trim();
+  const ver = async () => {
+    setMirando(true);
+    try {
+      const r = await run(() => api.previaCopia(texto));
+      if (r) {
+        setPrevia(r);
+        onCopias(r.copias);
+      }
+    } finally {
+      setMirando(false);
+    }
+  };
+  const copiar = (vista: PreviaCopiaDatos) => {
+    setPrevia(null);
+    void startJob(() => api.copiarDatos(ws.id, vista));
+  };
   return (
     <div className="row">
-      <input className="search" value={carpeta} placeholder="G:/Mi unidad/…/copias_de_datos" disabled={!rutasLocales || copiando}
+      <input className="search" value={carpeta} placeholder={MARCADOR_CARPETA_COPIA} disabled={!rutasLocales || copiando}
         aria-label="Carpeta de la copia" onChange={(e) => setCarpeta(e.target.value)} />
-      <button className="btn btn-sm btn-primary" disabled={!rutasLocales || copiando || !texto}
-        onClick={() => void startJob(() => api.copiarDatos(ws.id, texto))}>
-        {copiando ? 'Copiando…' : 'Hacer una copia ahora'}</button>
+      <button className="btn btn-sm btn-primary" disabled={!rutasLocales || copiando || mirando || !texto}
+        onClick={() => void ver()}>
+        {copiando ? 'Copiando…' : mirando ? 'Calculando…' : 'Hacer una copia ahora'}</button>
       {!rutasLocales && <small className="muted">Este servidor no admite rutas locales: use la orden del manual.</small>}
+      {previa && <PreviaCopia previa={previa} onCancelar={() => setPrevia(null)} onCopiar={() => copiar(previa)} />}
     </div>
   );
 }

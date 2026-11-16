@@ -305,6 +305,36 @@ def _hoja_de_calculo(registrada: Callable[[str], bool] = _clase_com_registrada) 
                         '' if hay else 'Es opcional: instale Microsoft Excel o WPS Office, que responden a Excel.Application.')
 
 
+def _fuentes_normativas(entorno: Mapping[str, str] | None = None,
+                         mapeo: Mapping[str, Any] | None = None) -> Comprobacion:
+    """107-P10c: la carpeta de fuentes normativas (``CSG_FUENTES_NORMATIVAS``) y el sha256 del libro oficial de
+    Información General que declara el alias F-000 del mapeo de formatos. Solo lee: el original no se abre."""
+    import hashlib
+
+    from ..pit.armado import VARIABLE_FUENTES_NORMATIVAS, carpeta_de_fuentes
+    from ..pit.plantillas import cargar_mapeo
+
+    nombre, afecta = 'Fuentes normativas', 'El libro F-000 (Información General) del expediente del PIT.'
+    carpeta = carpeta_de_fuentes(entorno)
+    if carpeta is None:
+        return Comprobacion('fuentes_normativas', nombre, False, False, f'Falta la variable {VARIABLE_FUENTES_NORMATIVAS}.',
+                            afecta, f'Ponga en {VARIABLE_FUENTES_NORMATIVAS} la carpeta de las fuentes oficiales, la que '
+                                    'trae los libros de la Norma Tarifas con su SHA256SUMS.txt.')
+    oficial = ((((cargar_mapeo() if mapeo is None else mapeo).get('alias') or {}).get('F-000') or {})
+               .get('plantilla_oficial') or {})
+    ruta = carpeta / str(oficial.get('ruta_relativa') or '')
+    if not oficial.get('ruta_relativa') or not ruta.is_file():
+        return Comprobacion('fuentes_normativas', nombre, False, False, f'No está el libro oficial en {ruta}.', afecta,
+                            'Copie el libro oficial del comprimido de la Norma Tarifas a esa carpeta.')
+    real, esperado = hashlib.sha256(ruta.read_bytes()).hexdigest(), str(oficial.get('sha256') or '').lower()
+    if real != esperado:
+        return Comprobacion('fuentes_normativas', nombre, False, False,
+                            f'El libro oficial {ruta.name} tiene sha256 {real} y el registrado es {esperado}.', afecta,
+                            'Recupere el original del comprimido oficial: un programa de hojas de cálculo lo reescribió.')
+    return Comprobacion('fuentes_normativas', nombre, True, False, f'El libro oficial de {carpeta} cuadra con su sha256.',
+                        afecta, '')
+
+
 def _python_propio() -> Comprobacion:
     """Sin PYTHONHOME, el Python del programa añade a su ruta las carpetas de otro del registro de Windows."""
     propias = [Path(sys.prefix).resolve(), *(Path(p).resolve() for p in os.environ.get('PYTHONPATH', '').split(os.pathsep) if p)]
@@ -330,6 +360,7 @@ def diagnosticar(
     consultar_gpu: Callable[[], Mapping[str, Any] | None] | None = None,
     adaptadores_nvidia: Callable[[], list] | None = None,
     clase_com: Callable[[str], bool] = _clase_com_registrada,
+    entorno: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """El informe del doctor. Las dependencias se inyectan para poder quitar cada requisito en una prueba."""
     raiz = project_root() if programa is None else programa
@@ -342,7 +373,7 @@ def diagnosticar(
         *_capacidades(capacidades), _interfaz(raiz), *_carpeta_datos(raiz, espacio_minimo_mb),
         _digsilent(carpeta_pf), _perfil(), _calibracion_del_perfil(), _ia(buscar_modulo),
         _gpu(consultar_gpu or (lambda: _gpu_del_equipo(buscar_programa))), _controlador_nvidia(adaptadores_nvidia),
-        _tesseract(buscar_programa), _hoja_de_calculo(clase_com), _edicion(),
+        _tesseract(buscar_programa), _hoja_de_calculo(clase_com), _fuentes_normativas(entorno), _edicion(),
         *([_python_propio()] if es_programa_instalado(raiz) else []),
     ]
     filas = [asdict(c) for c in comprobaciones]

@@ -245,6 +245,9 @@ export interface PerfilEmpresa {
 export type Health = components['schemas']['HealthRespuesta'];
 export type Diagnostico = components['schemas']['DiagnosticoRespuesta'];
 export type ResumenEspacio = components['schemas']['ResumenEspacioRespuesta'];
+// 086:RF-82, RF-108: la previa de la copia de los datos y las copias que ya hay en la carpeta.
+export type PreviaCopiaDatos = components['schemas']['CopiaDatosPreviaRespuesta'];
+export type CopiaExistente = components['schemas']['CopiaExistente'];
 // Spec 104: los libros nuevos de demanda que la web reconoce sola.
 export type LibrosNuevos = components['schemas']['LibrosNuevosRespuesta'];
 export type RevisarLibros = components['schemas']['RevisarLibrosRespuesta'];

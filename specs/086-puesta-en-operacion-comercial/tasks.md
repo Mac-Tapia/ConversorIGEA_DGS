@@ -310,6 +310,15 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       en `package.json` y `package-lock.json` (T0c v3); falta instalar los navegadores de Playwright.
       Hecho cuando: `npx playwright test -c test/e2e/playwright.config.mjs` da F01, F03 y F04 en verde, y F02 en verde
       tras la 111, con `output/e2e/<sha>/` sellado.
+- [ ] T80 COPIA-PREVIA: previa de la copia en la web (`GET /api/copia-datos/previa` sobre `planificar_copia`, ventana
+      `PreviaCopia` con «Copiar» y «Cancelar», la API exige `confirmada`), listado de las copias del destino desde su
+      manifiesto (`listar_copias`), el aviso que mira la carpeta recordada (`estado_copia(destino=…)`) y los seis textos.
+      (RF-82, RF-83, RF-108, RF-109, RF-110)
+      Hecho cuando: `tests/test_copia_datos.py` (086:RF-82, RF-83, RF-108, RF-109), `tests/test_fuente_por_lo_que_se_carga.py`
+      (086:RF-110) y `frontend/test/copiaPrevia.test.mjs` (086:RF-82, RF-83, RF-108 a RF-110) en verde, con rojo previo; y el
+      recorrido real repetido en el navegador con las carpetas sincronizadas del usuario (`D:/csg/PM_IMPL/COPIA-PREVIA/recorrido/`):
+      lectura de la previa y del listado sobre la carpeta de copias, «Cancelar» sin escribir, y una copia pequeña escrita solo
+      en `pruebas_1_0` tras «Copiar», con el diff de los listados vacío fuera de esa carpeta.
 - [x] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
   Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`). Las líneas base y el determinismo (`workers` 1 y >1) están dentro de esa suite.

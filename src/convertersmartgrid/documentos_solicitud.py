@@ -213,14 +213,14 @@ def _numero(s: str) -> float | None:
 
 def _limpio(s: str) -> str:
     s = re.sub(r'\s+', ' ', s).strip(' ,;:-')
-    # «Minera Santa María S.A.C.» conserva el punto de su sigla; «Ica.» lo pierde.
+    # «Minera <sitio> S.A.C.» conserva el punto de su sigla; «Ica.» lo pierde.
     if s.endswith('.') and not re.search(r'(?:\b[A-Z]\.){2,}$', s):
         s = s[:-1]
     return s
 
 
 def _cliente(plano: str) -> str | None:
-    """El propietario del suministro. En la ficha, «Estructura N° propiedad de Electro Dunas»
+    """El propietario del suministro. En la ficha, «Estructura N° propiedad de una distribuidora real»
     es la dueña del poste del punto de diseño, no el cliente: se salta lo que sigue a
     «estructura», y lo que no termina en una frase corta."""
     for m in re.finditer(r'propiedad de\s+(?:la empresa\s+|la\s+|el\s+)?(.+?)'
@@ -308,7 +308,7 @@ def datos_de_texto(texto: str) -> dict[str, object]:
         if alim:
             d['alimentador'] = alim
     # 063:RF-15: el EXP es el expediente de la distribuidora; el «código del expediente» de la
-    # ficha es un código interno y va aparte. INKA (2026-11-01): la ficha traía su código
+    # ficha es un código interno y va aparte. <sitio> (2026-11-01): la ficha traía su código
     # interno, la carta el EXP, y el informe citaba el interno como expediente.
     exp = _buscar(r'\b(EXP-\s*\d{4}-\d+)', plano)
     if exp:

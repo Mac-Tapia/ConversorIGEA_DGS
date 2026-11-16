@@ -2,17 +2,21 @@
 
 Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
 Orden por dependencia: T1–T7 no necesitan la web ni la 109 real (proveedor, credenciales y compartidor simulados);
-T8–T10 montan la web; T11–T12 dependen del registro OAuth del usuario. Ninguna toca `web/services.py`,
+T8–T10 montan la web; T11–T12 se validan con el simulado (la prueba real con una cuenta es opcional). Ninguna toca `web/services.py`,
 `pide_economia.py` ni el adaptador VNR.
 
 - [x] T1. Proveedor simulado y contratos con la 109: `tests/correo_simulado.py` (acepta, 400, 401, 403, 413, 429, 5xx,
       `ConnectTimeout`, acepta y no responde) y los `Protocol` `FuenteDeCredenciales` y `Compartidor` en
       `src/convertersmartgrid/correo/__init__.py`; borrador con su firma en `correo/borrador.py`: la firma cubre
       cuenta, para, cc, cco, asunto, cuerpo, enlace y la ruta, el tamaño y el SHA-256 de cada adjunto; comprobar la
-      firma vuelve a leer los adjuntos del disco. (RF-1, RF-4, RF-5)
-      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_correo_borrador.py` en verde, con una prueba que
-      cambia un byte de un adjunto tras la vista previa y obtiene «revise otra vez» sin ninguna llamada al simulado, y
-      otra que cambia un destinatario con la misma firma y es rechazada.
+      firma vuelve a leer los adjuntos del disco. El adaptador sobre las cuentas de la 109 (`Cuentas.cuenta`,
+      `Cuentas.acceso` y `PERMISOS[p]['enviar']`), en `correo/de_la_109.py`: sin cuenta, otra cuenta, sin permiso o
+      revocada, ningún token; un enlace sin el compartir de la 109 queda rechazado antes del correo. (RF-1, RF-2, RF-4,
+      RF-5, RF-10)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_correo_borrador.py tests/test_correo_de_la_109.py`
+      en verde, con una prueba que cambia un byte de un adjunto tras la vista previa y obtiene «revise otra vez» sin
+      ninguna llamada al simulado, otra que cambia un destinatario con la misma firma y es rechazada, y otra con la
+      `Cuentas` real de la 109 conectada contra su nube simulada.
 - [ ] T2. Adjuntos admitidos y prohibidos: solo los ficheros que nombra el resumen `.json` de un informe publicado en
       `ws.out_dir`, con el proyecto y el escenario de la ventana y sin un trabajo de informes en curso; extensiones
       `.docx`, `.pdf` y `.xlsx`; rechazo por contenido de TXT, MDB y VNR (`identify.identificar`, `es_base_access`,
@@ -67,28 +71,46 @@ T8–T10 montan la web; T11–T12 dependen del registro OAuth del usuario. Ningu
       solo trabajo), orden del asistente (sin envío) y una captura del registro y de los eventos sin ninguna dirección
       completa ni token.
 - [ ] T9. Cableado mínimo en `web/app.py`, **pactado con el integrador f9**: las dos líneas de `registrar_rutas_correo`
-      junto a `registrar_rutas_copia`; `docs/asistente/openapi.json`, `CODIGO_FUENTE.md` y el catálogo de la 090 al día.
-      (RF-1)
-      Hecho cuando: f9 da el visto bueno al diff de `web/app.py`, y `.venv/Scripts/python.exe -m pytest -q
-      tests/test_web_api.py tests/test_correo_web.py tests/test_contrato_api.py tests/test_inventario.py
-      tests/test_arquitectura_generada.py` en verde, con las rutas servidas por `create_app`.
-- [ ] T10. Web: `frontend/src/api/correo.ts` y `frontend/src/features/powerfactory/EnviarInforme.tsx` (cuenta, para,
-      cc, cco, asunto, cuerpo editable, adjuntos o enlace, avisos de validez y de contactos habituales, «Confirmar y
-      enviar» desactivado mientras el trabajo corre, historial de envíos); «Enviar por correo» junto a «Descargar Word»
-      en `InformesPF.tsx` y en `ArchivoInformes.tsx`, sin quitar nada; sin cuenta conectada, el botón dice por qué.
-      (RF-1, RF-12, RF-13, RF-14)
-      Hecho cuando: `npx tsc --noEmit -p frontend` sin errores, `npm run build` correcto, y revisión en un navegador
-      real con el proveedor simulado (modo claro y oscuro, sin `localStorage`, sin «RF» ni jerga visibles), con
-      captura guardada en la evidencia de la tarea.
+      junto a `registrar_rutas_copia`, con UNA sola `Cuentas` de la 109 para el correo y la nube (la misma que recibe
+      `registrar_rutas_nube`: una cuenta por proveedor); `docs/asistente/openapi.json`, `CODIGO_FUENTE.md` y el
+      catálogo de la 090 al día. (RF-1, RF-2)
+      Hecho cuando: el integrador da el visto bueno al diff de `web/app.py`, y `.venv/Scripts/python.exe -m pytest -q
+      tests/test_web_api.py tests/test_correo_web.py tests/test_correo_app.py tests/test_contrato_api.py
+      tests/test_inventario.py tests/test_arquitectura_generada.py` en verde, con las rutas servidas por `create_app`
+      y la misma `Cuentas` en la nube y en el correo.
+- [x] T10. Web: `frontend/src/api/correo.ts` y `frontend/src/features/powerfactory/EnviarInforme.tsx` («Enviar
+      desde», para, cc, cco, asunto, cuerpo editable, adjuntos o enlace, avisos de validez y de contactos habituales,
+      «Confirmar y enviar» desactivado mientras el trabajo corre, historial de envíos); «Enviar por correo» junto a
+      «Descargar Word» en `InformesPF.tsx`, sin quitar nada (`ArchivoInformes.tsx` solo guarda la carpeta del archivo y
+      no lista informes: no hay junto a qué ponerlo); sin cuenta conectada, el botón dice por qué y remite a «Cuentas
+      en la nube», sin un segundo «Conectar». «Enviar desde» lista las cuentas conectadas de la 109; la que aún no
+      envía ofrece «Dar permiso para enviar», que pide el permiso con la misma cuenta. El destinatario es libre y se
+      valida; ninguna dirección queda fijada en la web. Los tipos son los del contrato generado. (RF-1, RF-12, RF-13,
+      RF-14)
+      Hecho cuando: `cd frontend && npx tsc --noEmit -p . && npm run lint && npm test && npm run build` sin errores
+      (`test/enviarInforme.test.mjs` cita `110:RF-`; `test/contratoNubeCorreo.test.mjs` exige el contrato generado), y
+      `tests/test_trazabilidad_specs.py::test_frontend_con_tipos_provisionales_no_cierra_su_tarea` en verde. La
+      revisión en el navegador real con el proveedor simulado (modo claro y oscuro, sin `localStorage`, sin «RF» ni
+      jerga visibles, con capturas) recorre la nube y el correo juntos y se anota en la 109 T16.
 - [ ] T11. Instructivo `docs/CORREO_OAUTH.md`: registrar la aplicación en Google Cloud (`gmail.send`) y en Azure
-      (`Mail.Send`), con la URI de retorno local y dónde va la configuración, fuera del repositorio. (RF-2)
-      Hecho cuando: el instructivo existe, lo enlaza `docs/MANUAL_COMANDOS.md`, y una prueba comprueba que no contiene
-      identificadores ni secretos reales.
-- [ ] T12. Prueba real controlada, tras el registro OAuth del usuario (decisión 1): un envío desde la web, con su cuenta,
-      a una dirección del propio usuario, con su recibo; uno con Gmail y uno con Outlook si tiene las dos cuentas.
-      (RF-2, RF-7, RF-8)
-      Hecho cuando: el recibo real (clave, identificador del proveedor o `Message-ID`, estado `aceptado`, hora,
-      destinatario y huella) queda en la evidencia de la tarea, y el correo aparece en «Enviados» de esa cuenta.
-- [ ] T13. Validación: cada RF citado por al menos una prueba y en verde; la prueba con el simulado no acredita la
-      integración real, que acredita T12. (Todos)
-      Hecho cuando: `grep -rnoE "110:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-14.
+      (`Mail.Send`), con la URI de retorno local y dónde va la configuración, fuera del repositorio. Versión de prueba,
+      por decisión del usuario: Google Cloud en modo «Testing» (hasta 100 usuarios de prueba, sin verificación) y Azure
+      con cuentas personales. Sin cuenta conectada, la web dice «Sin cuenta conectada: configure config/nube.json» y no
+      falla. (RF-2)
+      Hecho cuando: el instructivo existe, lo enlaza `docs/MANUAL_COMANDOS.md`, y `.venv/Scripts/python.exe -m pytest
+      -q tests/test_correo_oauth_doc.py tests/test_correo_web.py tests/test_correo_de_la_109.py` en verde: sin
+      identificadores ni secretos reales, con la versión de prueba descrita y con el envío sin cuenta rechazado con ese
+      mensaje y sin llamar al proveedor.
+- [ ] T12. Validación con el simulado (`tests/correo_simulado.py`): acepta, rechaza (400, 401, 403, 413, 429, 5xx),
+      `ConnectTimeout` y acepta sin responder, con su recibo y sin abrir la red. La prueba real con una cuenta es
+      opcional: la hace el operador cuando registre su aplicación de prueba (`docs/CORREO_OAUTH.md`), con un envío a una
+      dirección suya y el recibo en `envios/` del espacio. (RF-2, RF-7, RF-8)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_correo_proveedores.py tests/test_correo_envios.py
+      tests/test_correo_web.py` en verde con el simulado; la prueba real, si el operador la hace, deja su recibo
+      (clave, identificador del proveedor o `Message-ID`, estado `aceptado`, hora, destinatario y huella) en la
+      evidencia de esta tarea.
+- [ ] T13. Validación: cada RF citado por al menos una prueba y en verde, con la tabla RF → pruebas en `plan.md`
+      («Trazabilidad (T13)»); la prueba con el simulado no acredita la integración real, que acredita la prueba
+      opcional de T12. (Todos)
+      Hecho cuando: `grep -rnoE "110:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-14 y
+      `.venv/Scripts/python.exe -m pytest -q tests/test_correo_trazabilidad.py` en verde.

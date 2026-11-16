@@ -1,17 +1,23 @@
 {
  "esquema": "registro_normativo_v1",
- "nota": "Generado por tools/normativa/generar_coes.py (107 T28). Fuentes localizadas por cc (apoyo de f4), apoyo (cc), frente «f_clase_precision_mt» ninguna norma peruana abierta asigna la clase por nivel de tensión.",
+ "nota": "Generado por tools/normativa/generar_coes.py. Fuentes localizadas por cc (apoyo de f4), apoyo (cc), frente «f_clase_precision_mt» ninguna norma peruana abierta asigna la clase por nivel de tensión.",
  "normas": [
   {
    "acto": "RM 496-2005-MEM/DM",
    "titulo": "Norma DGE «Contraste del Sistema de Medición de Energía Eléctrica»",
-   "estado_juridico": "no_verificada",
+   "estado_juridico": "modificada",
    "url": "http://www.osinerg.gob.pe/newweb/uploads/Publico/rm496-2005.pdf",
+   "fecha_publicacion": "2005-12-14",
    "fecha_consulta": "2026-11-15",
    "sha256": "cb4ec643cfb2e2d2f68772543146c46cab7f2ee782b1ca4b10a10fb6493990f2",
    "sha256_texto": "3d1c023486c9f40191d16a7e67a157f1d62e89a91c462cdb1ffa271bb95e405e",
    "fichero_local": "MEDICION/rm_496_2005/rm496-2005.pdf",
-   "nota": "Texto de noviembre de 2005. Su vigencia y sus modificatorias no se han comprobado: por eso «no_verificada». Copia de El Peruano en CC_APOYO (sha 41104942, pág. 3).",
+   "version": "texto de 2005; ficha del SPIJ H905941 (sha256 del innerText 73ee1c5b7b6b0abc1b948a8a4bce1e23cc83fc7c671fffca082da36174e28493)",
+   "vigencia_desde": "2006-01-01",
+   "modificada_por": [
+    "RM 102-2010-MEM-DM"
+   ],
+   "nota": "Texto de noviembre de 2005, publicado el 14-12-2005. Vigencia comprobada en el SPIJ por cc (RN-VIG2, 2026-11-15): su única modificatoria es la RM 102-2010-MEM-DM, que no toca la Tabla N° 01; el «(*)» de esa tabla es la nota original sobre los contadores de inducción. Vigencia por SU propia cláusula (orden de 28): «Artículo 3º.- La presente Resolución Ministerial entrará en vigencia a partir del 1 de enero de 2006.» (El Peruano, pág. 3; copia del apoyo (cc), frente «f_clase_precision_mt», PDF sha 41104942, texto sha bdc9f648); no se aplica la regla general del art. 109 de la Constitución porque la norma fija su propia fecha.",
    "reglas": [
     {
      "clave": "medida.error_admisible_por_clase",
@@ -27,6 +33,18 @@
      "interpretacion": "Contadores estáticos, cos φ = 1, igual en 0,05 In, In e Imáx. Es la tolerancia por defecto de las dos alineaciones del instante del SEIN cuando el perfil no da la resolución del medidor (decisión del auditor 28, 2026-11-15)."
     }
    ]
+  },
+  {
+   "acto": "RM 102-2010-MEM-DM",
+   "titulo": "Modifica la Norma DGE «Contraste del Sistema de Medición de Energía Eléctrica» (RM 496-2005-MEM/DM)",
+   "estado_juridico": "no_verificada",
+   "fecha_publicacion": "2010-03-05",
+   "fecha_consulta": "2026-11-15",
+   "version": "conocida por la nota del SPIJ en la ficha H905941 de la RM 496-2005-MEM/DM",
+   "modifica": [
+    "RM 496-2005-MEM/DM"
+   ],
+   "nota": "Modificatoria que NO toca la Tabla 01 (error del contador por clase): su art. 2 cambia el num. 6.5.3 y su art. 1 precisa un párrafo junto a la Tabla 02 (el párrafo cuarto del literal ii), transformadores de corriente). Su texto propio no se ha leído: lo que se sabe de ella es la nota del SPIJ en la 496-2005 (RN-VIG2, 2026-11-15); por eso «no_verificada» y sin reglas."
   },
   {
    "acto": "INACAL Guía TUPA de Metrología Legal",

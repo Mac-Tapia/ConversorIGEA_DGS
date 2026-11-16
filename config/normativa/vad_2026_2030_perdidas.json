@@ -1,0 +1,1569 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "z17 (cc, apoyo de f4), 2026-11-15. Pérdidas estándar y fórmulas de actualización del VAD 2026-2030 (grupo 1, RCD 185-2026). Fichero reemplazable por periodo, como vad_2023_2027_perdidas.json: una empresa que no esté aquí no toma los valores de otra. «afecta» de cada concepto impugnado: claves del registro o conceptos del estudio (vnr, sicodi, coym, coym técnico, coym comercial, coym de gestión, vad, cargo fijo, tir, personal, remuneraciones, costos unitarios, …); el estudio los casa con sus «usos» sin distinguir mayúsculas. «<clave>.<fila>» es una fila de una regla (vad.perdidas.factores_expansion.PPMT): la avisa quien usa esa fila o la regla entera. «pedido» es dato del recurso, nunca valor aplicable.",
+ "normas": [
+  {
+   "acto": "RCD 185-2026-OS/CD",
+   "estado_juridico": "vigente_comprobada",
+   "fecha_consulta": "2026-11-15",
+   "fecha_publicacion": "2026-10-16",
+   "titulo": "Resolución de Consejo Directivo con la que se dispone la publicación de la resolución que fija el VAD aplicable al período comprendido entre el 01 de noviembre de 2026 al 31 de octubre de 2030 para diversas empresas",
+   "url": "https://busquedas.elperuano.pe/dispositivo/EX/2565592-1",
+   "sha256": "788fd17dce214bc1c6bc30c349f87704ac62b34cea586260bf755c9395d2a1a4",
+   "vigencia_desde": "2026-11-01",
+   "vigencia_hasta": "2030-10-31",
+   "nota": "El Peruano, edición extraordinaria del 16-10-2026, págs. 12-22 (PDF del botón «PDF», idéntico al «-EP» de Osinergmin). Versión de Osinergmin (22 págs.) sha256 3064546df1f1b3be0bc0e95648d16e046f37430a8dbf33dd307b4bd14b74d45b. Art. 7: incorpora los IT 606, 607 y 614-2026-GRT. Art. 8: vigente del 01-11-2026 al 31-10-2030. 15 empresas: Pluz Energía, Luz del Sur, Electro Dunas, CVC Energía, Emseusa, Electro Tocache, Eilhicha, Chavimochic, Edelsa, Egepsa, Electro Pangoa, Emsemsa (administrada por Adinelsa), Esempat, Sersa y Acciona.org. A la fecha de consulta, la página Resoluciones-GRT-2026 no lista ninguna resolución de recursos contra la 185-2026 (llega a la 196-2026, del 29-10-2026); si los hay y se declaran fundados en parte, una «resolución complementaria» puede cambiar estos valores: vigilarla. Recursos (RN-IMP, z24 de cc): seis recurrentes según la hoja informativa de Osinergmin (sha d21fd09f…; audiencia del 27-11-2026), en «impugnada», todos pendientes de resolución. Solo CVC Energía impugna FE: los de MT (PPMT y PEMT) de su SDT2 (Anexo C de su recurso; z24b de cc). Egepsa los excluye expresamente. Nadie impugna los coeficientes de reajuste. La norma sigue obligatoria: el recurso no suspende su ejecución (DS 006-2026-JUS, art. 216.1) y no consta suspensión.",
+   "impugnada": [
+    {
+     "recurrente": "Luz del Sur",
+     "ruc": "20331898008",
+     "condicion": "empresa_norma",
+     "empresa": "Luz del Sur",
+     "conceptos": [
+      {
+       "concepto": "subestaciones seccionadoras de la empresa modelo",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 1 (IT, pág. 3)",
+       "afecta": [
+        "empresa modelo",
+        "subestaciones de distribución",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "factores de diversidad",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 2 (IT, pág. 9)",
+       "afecta": [
+        "factores de diversidad",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "subestaciones compactas de la empresa modelo",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 3 (IT, pág. 16)",
+       "afecta": [
+        "empresa modelo",
+        "subestaciones de distribución",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "precio técnico-económico de agregados",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 4 (IT, pág. 22)",
+       "afecta": [
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "retiro en subestaciones seccionadoras",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 5 (IT, pág. 31)",
+       "afecta": [
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "exigencias municipales",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 6 (IT, pág. 37)",
+       "afecta": [
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "metrados de zanjas compartidas",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 7 (IT, pág. 40)",
+       "afecta": [
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "errores materiales e inconsistencias",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 8 (IT, pág. 44)",
+       "afecta": [
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "otras observaciones del VNR",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 9 (IT, pág. 112)",
+       "afecta": [
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "otras observaciones del SICODI",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 10 (IT, pág. 128)",
+       "afecta": [
+        "sicodi",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "COyM técnico",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 11 (IT, pág. 183)",
+       "afecta": [
+        "coym",
+        "coym técnico",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "COyM comercial",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 12 (IT, pág. 210)",
+       "afecta": [
+        "coym",
+        "coym comercial",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "COyM de gestión y otros",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 13 (IT, pág. 222)",
+       "afecta": [
+        "coym",
+        "coym de gestión",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "mejora de calidad de suministro",
+       "cita": "escrito de Luz del Sur (RR_FijacionVAD_Firmado, 06-11-2026) e Informe Técnico adjunto, petitorio 14 (IT, pág. 237)",
+       "afecta": [
+        "calidad de suministro",
+        "vad"
+       ]
+      }
+     ],
+     "fuente": {
+      "documento": "VAD2026_HojaInformativa_AudienciaPública_Recursos_de_Reconsideración_27-11-2026.pdf",
+      "sha256": "d21fd09fdbd71b0aab07b1a792753030f2664fd6495e568a57892cabec3f059b",
+      "url": "https://www2.osinergmin.gob.pe/GRT/Procesos-Regulatorios/VAD-2026-2030_2027-2031/",
+      "aviso": "Diario La República, 13-11-2026, pág. 19: convocatoria a audiencia pública de Osinergmin (aviso en PDF, sha256 712fa97cc5380144f277a33d9c7c8173267d4f74f8c9ca5de5127d4ed94bc099)",
+      "audiencia": "2026-11-27"
+     },
+     "estado": "pendiente de resolución"
+    },
+    {
+     "recurrente": "Electro Dunas",
+     "ruc": "20106156400",
+     "condicion": "empresa_norma",
+     "empresa": "Electro Dunas",
+     "conceptos": [
+      {
+       "concepto": "verificación de rentabilidad (TIR; corrección de Duan en las regresiones de costos estándar)",
+       "cita": "escrito de Electro Dunas (RecursodeReconsideraciAnVAD-Res.185-2026-OS-CDVF, 06-11-2026), sección IV.A, pág. 6",
+       "afecta": [
+        "tir",
+        "coym",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "factor de cubrimiento BT y factor «redes por ambas veredas» del modelo geométrico ST2",
+       "cita": "escrito de Electro Dunas (RecursodeReconsideraciAnVAD-Res.185-2026-OS-CDVF, 06-11-2026), sección IV.B, pág. 28",
+       "afecta": [
+        "modelo geométrico st2",
+        "factor de cubrimiento bt",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "errores en el cálculo de los costos de operación y mantenimiento",
+       "cita": "escrito de Electro Dunas (RecursodeReconsideraciAnVAD-Res.185-2026-OS-CDVF, 06-11-2026), sección IV.C, pág. 38",
+       "afecta": [
+        "coym",
+        "vad"
+       ]
+      }
+     ],
+     "fuente": {
+      "documento": "VAD2026_HojaInformativa_AudienciaPública_Recursos_de_Reconsideración_27-11-2026.pdf",
+      "sha256": "d21fd09fdbd71b0aab07b1a792753030f2664fd6495e568a57892cabec3f059b",
+      "url": "https://www2.osinergmin.gob.pe/GRT/Procesos-Regulatorios/VAD-2026-2030_2027-2031/",
+      "aviso": "Diario La República, 13-11-2026, pág. 19: convocatoria a audiencia pública de Osinergmin (aviso en PDF, sha256 712fa97cc5380144f277a33d9c7c8173267d4f74f8c9ca5de5127d4ed94bc099)",
+      "audiencia": "2026-11-27"
+     },
+     "estado": "pendiente de resolución",
+     "nota": "La sección IV.D (vicios de la LPAG, pág. 42) no impugna un concepto propio: sostiene los anteriores."
+    },
+    {
+     "recurrente": "CVC Energía",
+     "ruc": "20178344952",
+     "condicion": "empresa_norma",
+     "empresa": "CVC Energía",
+     "conceptos": [
+      {
+       "concepto": "índices e indicadores de mantenimiento preventivo y correctivo",
+       "cita": "escrito de CVC Energía S-LIM-PLA-26-00112 (ST3, 06-11-2026), petitorio 1 (2.1.1, pág. 3)",
+       "afecta": [
+        "coym",
+        "coym técnico",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "dotación de personal del SEM",
+       "cita": "escrito de CVC Energía S-LIM-PLA-26-00112 (ST3, 06-11-2026), petitorio 2 (2.1.2, pág. 7)",
+       "afecta": [
+        "personal",
+        "coym",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "costos directos de comercialización",
+       "cita": "escrito de CVC Energía S-LIM-PLA-26-00112 (ST3, 06-11-2026), petitorio 3 (2.1.3, pág. 10)",
+       "afecta": [
+        "comercialización",
+        "coym comercial",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "armado CAMT02-A3",
+       "cita": "escrito de CVC Energía S-LIM-PLA-26-00112 (ST3, 06-11-2026), petitorio 4 (2.1.4, pág. 13)",
+       "afecta": [
+        "costos unitarios",
+        "sicodi",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "costo unitario del aislador PIN ANSI 56-2",
+       "cita": "escrito de CVC Energía S-LIM-PLA-26-00112 (ST3, 06-11-2026), petitorio 5 (2.1.5, pág. 15)",
+       "afecta": [
+        "costos unitarios",
+        "sicodi",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "costos unitarios de los postes de concreto",
+       "cita": "escrito de CVC Energía S-LIM-PLA-26-00112 (ST3, 06-11-2026), petitorio 6 (2.1.6, pág. 19)",
+       "afecta": [
+        "costos unitarios",
+        "sicodi",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "recálculo del VAD del sector típico 3",
+       "cita": "escrito de CVC Energía S-LIM-PLA-26-00112 (ST3, 06-11-2026), petitorio 7 (pág. 2)",
+       "afecta": [
+        "vad"
+       ]
+      },
+      {
+       "concepto": "factores de expansión de pérdidas de potencia (PPMT) y de energía (PEMT) en media tensión del SDT2 Villacurí, por las pérdidas en aisladores",
+       "cita": "Anexo C del recurso de CVC Energía, SDT2 Villacurí (AnexoCRecursodeReconsideraciAn_06112026143410.pdf, 140 págs., sha256 67845acf40bd960cc0987d69592df27e8ab0f66be0b7126893d1aff6c32c1f65), pág. 2, petitorio 3.c; pág. 47, párr. 175 (2.2.3.4); pág. 51, párr. 192 (2.2.3.5); pág. 52, párr. 196",
+       "afecta": [
+        "vad.perdidas.factores_expansion.PPMT",
+        "vad.perdidas.factores_expansion.PEMT",
+        "pérdidas estándar mt",
+        "vad"
+       ],
+       "pedido": {
+        "nota": "DATO DEL RECURSO, nunca valor aplicable: lo que pide CVC Energía (pág. 52, párr. 196); según el recurso, la 185 publicó PPMT 1,0209 y PEMT 1,0149 (su Tabla 18)",
+        "minimo": {
+         "PPMT": 1.0359,
+         "PEMT": 1.0392
+        },
+        "con_tres_limpiezas_al_anio": {
+         "PPMT": 1.0251,
+         "PEMT": 1.0218
+        }
+       }
+      }
+     ],
+     "fuente": {
+      "documento": "VAD2026_HojaInformativa_AudienciaPública_Recursos_de_Reconsideración_27-11-2026.pdf",
+      "sha256": "d21fd09fdbd71b0aab07b1a792753030f2664fd6495e568a57892cabec3f059b",
+      "url": "https://www2.osinergmin.gob.pe/GRT/Procesos-Regulatorios/VAD-2026-2030_2027-2031/",
+      "aviso": "Diario La República, 13-11-2026, pág. 19: convocatoria a audiencia pública de Osinergmin (aviso en PDF, sha256 712fa97cc5380144f277a33d9c7c8173267d4f74f8c9ca5de5127d4ed94bc099)",
+      "audiencia": "2026-11-27"
+     },
+     "estado": "pendiente de resolución",
+     "nota": "El escrito S-LIM-PLA-26-00113 es la carta de presentación del recurso del SDT2; el recurso es su Anexo C (leído con capa de texto; citas comprobadas literales, z24b de cc). Impugna solo los FE de MT (PPMT y PEMT) del SDT2, no los de BT ni los coeficientes de reajuste."
+    },
+    {
+     "recurrente": "Egepsa",
+     "ruc": "20281512502",
+     "condicion": "empresa_norma",
+     "empresa": "Egepsa",
+     "conceptos": [
+      {
+       "concepto": "costos anuales de personal por cargo tipo del ST4 iguales a los del ST3 y el SER",
+       "cita": "escrito de Egepsa, primera entrega (01Recurso_Reconsideracion_Res185-2026-OS-CD_Egepsa, 23-10-2026, con la Carta N.º 516-2026-EGEPSA/GG, expediente 212-2026-GRT; escaneado y leído en imagen), pág. 1, primera pretensión principal y su subordinada",
+       "afecta": [
+        "remuneraciones",
+        "personal",
+        "coym",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "fórmula de asignación del personal de gestión (factor de actividades VAD aplicado una sola vez)",
+       "cita": "escrito de Egepsa, primera entrega (01Recurso_Reconsideracion_Res185-2026-OS-CD_Egepsa, 23-10-2026, con la Carta N.º 516-2026-EGEPSA/GG, expediente 212-2026-GRT; escaneado y leído en imagen), pág. 1, segunda pretensión principal",
+       "afecta": [
+        "personal",
+        "coym de gestión",
+        "coym",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "factores de IGV de la Amazonía (VADMT, VADBT y VADSED)",
+       "cita": "escrito de Egepsa, primera entrega (01Recurso_Reconsideracion_Res185-2026-OS-CD_Egepsa, 23-10-2026, con la Carta N.º 516-2026-EGEPSA/GG, expediente 212-2026-GRT; escaneado y leído en imagen), pág. 1, tercera pretensión principal",
+       "afecta": [
+        "factores de igv de la amazonía",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "vehículos del VNR no eléctrico del ST4 con el criterio del ST3",
+       "cita": "escrito de Egepsa, primera entrega (01Recurso_Reconsideracion_Res185-2026-OS-CD_Egepsa, 23-10-2026, con la Carta N.º 516-2026-EGEPSA/GG, expediente 212-2026-GRT; escaneado y leído en imagen), pág. 1, cuarta pretensión principal",
+       "afecta": [
+        "vnr no eléctrico",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "tope de asignación a inversiones con el VNR total (MT y BT)",
+       "cita": "escrito de Egepsa, primera entrega (01Recurso_Reconsideracion_Res185-2026-OS-CD_Egepsa, 23-10-2026, con la Carta N.º 516-2026-EGEPSA/GG, expediente 212-2026-GRT; escaneado y leído en imagen), pág. 1, quinta pretensión principal",
+       "afecta": [
+        "inversiones",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "inconsistencias de los archivos del ST4 y publicación de los libros vinculados",
+       "cita": "escrito de Egepsa, primera entrega (01Recurso_Reconsideracion_Res185-2026-OS-CD_Egepsa, 23-10-2026, con la Carta N.º 516-2026-EGEPSA/GG, expediente 212-2026-GRT; escaneado y leído en imagen), pág. 2, sexta pretensión principal",
+       "afecta": [
+        "vad"
+       ]
+      },
+      {
+       "concepto": "recálculo del VAD, los cargos fijos y los parámetros con lo que se declare fundado",
+       "cita": "escrito de Egepsa, primera entrega (01Recurso_Reconsideracion_Res185-2026-OS-CD_Egepsa, 23-10-2026, con la Carta N.º 516-2026-EGEPSA/GG, expediente 212-2026-GRT; escaneado y leído en imagen), pág. 2, pretensión accesoria",
+       "afecta": [
+        "vad",
+        "cargo fijo"
+       ]
+      },
+      {
+       "concepto": "dotación de personal de los sectores típicos 3, 4 y SER",
+       "cita": "escrito de Egepsa «nuevos extremos» (ESCRITODERECURSODERECONSIDERACION, expediente 212-2026-GRT, 06-11-2026, escaneado y leído en imagen), pág. 1, primera pretensión principal y su subordinada",
+       "afecta": [
+        "personal",
+        "coym",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "remuneraciones de los cargos tipo de los sectores típicos 3, 4 y SER",
+       "cita": "escrito de Egepsa «nuevos extremos» (ESCRITODERECURSODERECONSIDERACION, expediente 212-2026-GRT, 06-11-2026, escaneado y leído en imagen), pág. 1, segunda pretensión principal",
+       "afecta": [
+        "remuneraciones",
+        "personal",
+        "coym",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "reconectadores adicionales según el Anexo 6, literal C, de los TdR",
+       "cita": "escrito de Egepsa «nuevos extremos» (ESCRITODERECURSODERECONSIDERACION, expediente 212-2026-GRT, 06-11-2026, escaneado y leído en imagen), pág. 1, tercera pretensión principal",
+       "afecta": [
+        "reconectadores",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "postes de concreto armado centrifugado en la red aérea del ST4 (región Selva)",
+       "cita": "escrito de Egepsa «nuevos extremos» (ESCRITODERECURSODERECONSIDERACION, expediente 212-2026-GRT, 06-11-2026, escaneado y leído en imagen), pág. 1, cuarta pretensión principal",
+       "afecta": [
+        "postes de concreto",
+        "vnr",
+        "vad"
+       ]
+      }
+     ],
+     "fuente": {
+      "documento": "VAD2026_HojaInformativa_AudienciaPública_Recursos_de_Reconsideración_27-11-2026.pdf",
+      "sha256": "d21fd09fdbd71b0aab07b1a792753030f2664fd6495e568a57892cabec3f059b",
+      "url": "https://www2.osinergmin.gob.pe/GRT/Procesos-Regulatorios/VAD-2026-2030_2027-2031/",
+      "aviso": "Diario La República, 13-11-2026, pág. 19: convocatoria a audiencia pública de Osinergmin (aviso en PDF, sha256 712fa97cc5380144f277a33d9c7c8173267d4f74f8c9ca5de5127d4ed94bc099)",
+      "audiencia": "2026-11-27"
+     },
+     "estado": "pendiente de resolución",
+     "nota": "Excluye EXPRESAMENTE los FE (primera entrega, pág. 4, V. Alcance): «…los factores de expansión de pérdidas, los factores de caracterización de la carga, el factor de balance de potencia y los factores de corrección PTPMT y PTPBT (0,9493 y 0,9368) fueron evaluados por Osinergmin y no son materia del recurso». La segunda entrega (06-11-2026, nuevos extremos) tampoco los pide."
+    },
+    {
+     "recurrente": "Eilhicha",
+     "ruc": "20227395576",
+     "condicion": "empresa_norma",
+     "empresa": "Eilhicha",
+     "conceptos": [
+      {
+       "concepto": "inversiones reconocidas (CAPEX: obras de FONCODES, de ADINELSA y propias)",
+       "cita": "escrito de Eilhicha (RecursodeReconsideaciAnEilhichaS.Avf2, 06-11-2026), IV.1, págs. 4-22",
+       "afecta": [
+        "inversiones",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "FFR aplicado a las instalaciones no eléctricas",
+       "cita": "escrito de Eilhicha (RecursodeReconsideaciAnEilhichaS.Avf2, 06-11-2026), IV.1.5, pág. 22",
+       "afecta": [
+        "ffr",
+        "vnr",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "costos de conexiones",
+       "cita": "escrito de Eilhicha (RecursodeReconsideaciAnEilhichaS.Avf2, 06-11-2026), IV.2, pág. 26",
+       "afecta": [
+        "conexiones",
+        "cargo fijo",
+        "vad"
+       ]
+      },
+      {
+       "concepto": "rendimientos de la actividad de cargo fijo",
+       "cita": "escrito de Eilhicha (RecursodeReconsideaciAnEilhichaS.Avf2, 06-11-2026), IV.3, pág. 30",
+       "afecta": [
+        "cargo fijo",
+        "vad"
+       ]
+      }
+     ],
+     "fuente": {
+      "documento": "VAD2026_HojaInformativa_AudienciaPública_Recursos_de_Reconsideración_27-11-2026.pdf",
+      "sha256": "d21fd09fdbd71b0aab07b1a792753030f2664fd6495e568a57892cabec3f059b",
+      "url": "https://www2.osinergmin.gob.pe/GRT/Procesos-Regulatorios/VAD-2026-2030_2027-2031/",
+      "aviso": "Diario La República, 13-11-2026, pág. 19: convocatoria a audiencia pública de Osinergmin (aviso en PDF, sha256 712fa97cc5380144f277a33d9c7c8173267d4f74f8c9ca5de5127d4ed94bc099)",
+      "audiencia": "2026-11-27"
+     },
+     "estado": "pendiente de resolución"
+    },
+    {
+     "recurrente": "ESDE Selva",
+     "ruc": "20613581066",
+     "condicion": "tercero",
+     "conceptos": [
+      {
+       "concepto": "precios SICODI de los postes de madera tratada",
+       "cita": "escrito de ESDE (RECURSO_DE_RECONSIDERACIAN_ESDE_06.11.2026), petitorio 1.1 (pág. 1)",
+       "afecta": [
+        "sicodi",
+        "costos unitarios",
+        "vnr"
+       ]
+      },
+      {
+       "concepto": "precios SICODI de 12 transformadores monofásicos aéreos convencionales de 13.2 kV",
+       "cita": "escrito de ESDE (RECURSO_DE_RECONSIDERACIAN_ESDE_06.11.2026), petitorio 1.2 (pág. 1)",
+       "afecta": [
+        "sicodi",
+        "costos unitarios",
+        "vnr"
+       ]
+      },
+      {
+       "concepto": "precios SICODI de los transformadores trifásicos aéreos de 22.9 kV",
+       "cita": "escrito de ESDE (RECURSO_DE_RECONSIDERACIAN_ESDE_06.11.2026), petitorio 1.3 (pág. 1)",
+       "afecta": [
+        "sicodi",
+        "costos unitarios",
+        "vnr"
+       ]
+      },
+      {
+       "concepto": "precios SICODI de los conductores de aluminio desnudos",
+       "cita": "escrito de ESDE (RECURSO_DE_RECONSIDERACIAN_ESDE_06.11.2026), petitorio 1.4 (pág. 1)",
+       "afecta": [
+        "sicodi",
+        "costos unitarios",
+        "vnr"
+       ]
+      },
+      {
+       "concepto": "cantidad y asignación de recursos (mano de obra, transporte y equipos) del Anexo SICODI",
+       "cita": "escrito de ESDE (RECURSO_DE_RECONSIDERACIAN_ESDE_06.11.2026), petitorio 1.5 (pág. 1)",
+       "afecta": [
+        "sicodi",
+        "costos unitarios",
+        "vnr"
+       ]
+      }
+     ],
+     "fuente": {
+      "documento": "VAD2026_HojaInformativa_AudienciaPública_Recursos_de_Reconsideración_27-11-2026.pdf",
+      "sha256": "d21fd09fdbd71b0aab07b1a792753030f2664fd6495e568a57892cabec3f059b",
+      "url": "https://www2.osinergmin.gob.pe/GRT/Procesos-Regulatorios/VAD-2026-2030_2027-2031/",
+      "aviso": "Diario La República, 13-11-2026, pág. 19: convocatoria a audiencia pública de Osinergmin (aviso en PDF, sha256 712fa97cc5380144f277a33d9c7c8173267d4f74f8c9ca5de5127d4ed94bc099)",
+      "audiencia": "2026-11-27"
+     },
+     "estado": "pendiente de resolución",
+     "nota": "EMPRESA DE SERVICIOS Y DESARROLLO ELECTRICO DE LA SELVA S.A.C. (ESDE), RUC 20613581066, Iquitos. No es ninguna de las 15 empresas del art. 1: recurre como tercero por los precios del SICODI y su interés en el VAD del ST SER. No se casa con ninguna empresa; su legitimación la resuelve Osinergmin."
+    }
+   ],
+   "reglas": [
+    {
+     "clave": "vad.perdidas.factores_expansion",
+     "valor": {
+      "periodo": {
+       "desde": "2026-11-01",
+       "hasta": "2030-10-31"
+      },
+      "orden": [
+       "PEMT",
+       "PPMT",
+       "PESED",
+       "PPSED",
+       "PEBT",
+       "PPBT",
+       "PEBTCO",
+       "PPBTCO"
+      ],
+      "empresas": {
+       "Pluz Energía": {
+        "fe": {
+         "PEMT": 1.0077,
+         "PPMT": 1.0117,
+         "PESED": 1.0186,
+         "PPSED": 1.0259,
+         "PEBT": 1.0926,
+         "PPBT": 1.1204,
+         "PEBTCO": 1.0916,
+         "PPBTCO": 1.1189
+        },
+        "porcentaje": {
+         "PEMT": 0.76,
+         "PPMT": 1.16,
+         "PESED": 1.83,
+         "PPSED": 2.52,
+         "PEBT": 8.48,
+         "PPBT": 10.75,
+         "PEBTCO": 8.39,
+         "PPBTCO": 10.63
+        }
+       },
+       "Luz del Sur": {
+        "fe": {
+         "PEMT": 1.0086,
+         "PPMT": 1.0116,
+         "PESED": 1.0175,
+         "PPSED": 1.0238,
+         "PEBT": 1.0919,
+         "PPBT": 1.1165,
+         "PEBTCO": 1.0911,
+         "PPBTCO": 1.1153
+        },
+        "porcentaje": {
+         "PEMT": 0.85,
+         "PPMT": 1.15,
+         "PESED": 1.72,
+         "PPSED": 2.32,
+         "PEBT": 8.42,
+         "PPBT": 10.43,
+         "PEBTCO": 8.35,
+         "PPBTCO": 10.34
+        }
+       },
+       "Electro Dunas": {
+        "fe": {
+         "PEMT": 1.0091,
+         "PPMT": 1.0157,
+         "PESED": 1.0198,
+         "PPSED": 1.0275,
+         "PEBT": 1.0794,
+         "PPBT": 1.1008,
+         "PEBTCO": 1.0778,
+         "PPBTCO": 1.0984
+        },
+        "porcentaje": {
+         "PEMT": 0.9,
+         "PPMT": 1.55,
+         "PESED": 1.94,
+         "PPSED": 2.68,
+         "PEBT": 7.36,
+         "PPBT": 9.16,
+         "PEBTCO": 7.22,
+         "PPBTCO": 8.96
+        }
+       },
+       "Chavimochic": {
+        "fe": {
+         "PEMT": 1.0141,
+         "PPMT": 1.0274,
+         "PESED": 1.0131,
+         "PPSED": 1.0215,
+         "PEBT": 1.0684,
+         "PPBT": 1.0779,
+         "PEBTCO": 1.0644,
+         "PPBTCO": 1.0744
+        },
+        "porcentaje": {
+         "PEMT": 1.39,
+         "PPMT": 2.67,
+         "PESED": 1.29,
+         "PPSED": 2.1,
+         "PEBT": 6.4,
+         "PPBT": 7.23,
+         "PEBTCO": 6.05,
+         "PPBTCO": 6.92
+        }
+       },
+       "CVC Energía": {
+        "fe": {
+         "PEMT": 1.0149,
+         "PPMT": 1.0212,
+         "PESED": 1.0241,
+         "PPSED": 1.0398,
+         "PEBT": 1.0778,
+         "PPBT": 1.108,
+         "PEBTCO": 1.077,
+         "PPBTCO": 1.1069
+        },
+        "porcentaje": {
+         "PEMT": 1.47,
+         "PPMT": 2.08,
+         "PESED": 2.35,
+         "PPSED": 3.83,
+         "PEBT": 7.22,
+         "PPBT": 9.75,
+         "PEBTCO": 7.15,
+         "PPBTCO": 9.66
+        }
+       },
+       "Edelsa": {
+        "fe": {
+         "PEMT": 1.0192,
+         "PPMT": 1.0248,
+         "PESED": 1.0144,
+         "PPSED": 1.0216,
+         "PEBT": 1.0733,
+         "PPBT": 1.0867,
+         "PEBTCO": 1.0726,
+         "PPBTCO": 1.0844
+        },
+        "porcentaje": {
+         "PEMT": 1.88,
+         "PPMT": 2.42,
+         "PESED": 1.42,
+         "PPSED": 2.11,
+         "PEBT": 6.83,
+         "PPBT": 7.98,
+         "PEBTCO": 6.77,
+         "PPBTCO": 7.78
+        }
+       },
+       "Egepsa": {
+        "fe": {
+         "PEMT": 1.0192,
+         "PPMT": 1.0248,
+         "PESED": 1.0144,
+         "PPSED": 1.0216,
+         "PEBT": 1.0733,
+         "PPBT": 1.0867,
+         "PEBTCO": 1.0726,
+         "PPBTCO": 1.0844
+        },
+        "porcentaje": {
+         "PEMT": 1.88,
+         "PPMT": 2.42,
+         "PESED": 1.42,
+         "PPSED": 2.11,
+         "PEBT": 6.83,
+         "PPBT": 7.98,
+         "PEBTCO": 6.77,
+         "PPBTCO": 7.78
+        }
+       },
+       "Electro Pangoa": {
+        "fe": {
+         "PEMT": 1.0142,
+         "PPMT": 1.0285,
+         "PESED": 1.0129,
+         "PPSED": 1.0216,
+         "PEBT": 1.0682,
+         "PPBT": 1.0767,
+         "PEBTCO": 1.0639,
+         "PPBTCO": 1.0729
+        },
+        "porcentaje": {
+         "PEMT": 1.4,
+         "PPMT": 2.77,
+         "PESED": 1.27,
+         "PPSED": 2.11,
+         "PEBT": 6.38,
+         "PPBT": 7.12,
+         "PEBTCO": 6.01,
+         "PPBTCO": 6.79
+        }
+       },
+       "Electro Tocache": {
+        "fe": {
+         "PEMT": 1.0132,
+         "PPMT": 1.0252,
+         "PESED": 1.0136,
+         "PPSED": 1.021,
+         "PEBT": 1.0687,
+         "PPBT": 1.0794,
+         "PEBTCO": 1.065,
+         "PPBTCO": 1.0761
+        },
+        "porcentaje": {
+         "PEMT": 1.3,
+         "PPMT": 2.46,
+         "PESED": 1.34,
+         "PPSED": 2.06,
+         "PEBT": 6.43,
+         "PPBT": 7.36,
+         "PEBTCO": 6.1,
+         "PPBTCO": 7.07
+        }
+       },
+       "Emsemsa (administrado por Adinelsa)": {
+        "fe": {
+         "PEMT": 1.0142,
+         "PPMT": 1.0285,
+         "PESED": 1.0129,
+         "PPSED": 1.0216,
+         "PEBT": 1.0682,
+         "PPBT": 1.0767,
+         "PEBTCO": 1.0639,
+         "PPBTCO": 1.0729
+        },
+        "porcentaje": {
+         "PEMT": 1.4,
+         "PPMT": 2.77,
+         "PESED": 1.27,
+         "PPSED": 2.11,
+         "PEBT": 6.38,
+         "PPBT": 7.12,
+         "PEBTCO": 6.01,
+         "PPBTCO": 6.79
+        }
+       },
+       "Emseusa": {
+        "fe": {
+         "PEMT": 1.0142,
+         "PPMT": 1.0285,
+         "PESED": 1.0129,
+         "PPSED": 1.0216,
+         "PEBT": 1.0682,
+         "PPBT": 1.0767,
+         "PEBTCO": 1.0639,
+         "PPBTCO": 1.0729
+        },
+        "porcentaje": {
+         "PEMT": 1.4,
+         "PPMT": 2.77,
+         "PESED": 1.27,
+         "PPSED": 2.11,
+         "PEBT": 6.38,
+         "PPBT": 7.12,
+         "PEBTCO": 6.01,
+         "PPBTCO": 6.79
+        }
+       },
+       "Sersa": {
+        "fe": {
+         "PEMT": 1.0142,
+         "PPMT": 1.0285,
+         "PESED": 1.0129,
+         "PPSED": 1.0216,
+         "PEBT": 1.0682,
+         "PPBT": 1.0767,
+         "PEBTCO": 1.0639,
+         "PPBTCO": 1.0729
+        },
+        "porcentaje": {
+         "PEMT": 1.4,
+         "PPMT": 2.77,
+         "PESED": 1.27,
+         "PPSED": 2.11,
+         "PEBT": 6.38,
+         "PPBT": 7.12,
+         "PEBTCO": 6.01,
+         "PPBTCO": 6.79
+        }
+       },
+       "Esempat": {
+        "fe": {
+         "PEMT": 1.0081,
+         "PPMT": 1.0085,
+         "PESED": 1.0169,
+         "PPSED": 1.0182,
+         "PEBT": 1.071,
+         "PPBT": 1.0931,
+         "PEBTCO": 1.0703,
+         "PPBTCO": 1.0924
+        },
+        "porcentaje": {
+         "PEMT": 0.8,
+         "PPMT": 0.84,
+         "PESED": 1.66,
+         "PPSED": 1.79,
+         "PEBT": 6.63,
+         "PPBT": 8.52,
+         "PEBTCO": 6.57,
+         "PPBTCO": 8.46
+        }
+       },
+       "Eilhicha": {
+        "fe": {
+         "PEMT": 1.0081,
+         "PPMT": 1.0085,
+         "PESED": 1.0169,
+         "PPSED": 1.0182,
+         "PEBT": 1.071,
+         "PPBT": 1.0931,
+         "PEBTCO": 1.0703,
+         "PPBTCO": 1.0924
+        },
+        "porcentaje": {
+         "PEMT": 0.8,
+         "PPMT": 0.84,
+         "PESED": 1.66,
+         "PPSED": 1.79,
+         "PEBT": 6.63,
+         "PPBT": 8.52,
+         "PEBTCO": 6.57,
+         "PPBTCO": 8.46
+        }
+       },
+       "Acciona.org": {
+        "fe": {
+         "PEMT": 1.0081,
+         "PPMT": 1.0085,
+         "PESED": 1.0169,
+         "PPSED": 1.0182,
+         "PEBT": 1.071,
+         "PPBT": 1.0931,
+         "PEBTCO": 1.0703,
+         "PPBTCO": 1.0924
+        },
+        "porcentaje": {
+         "PEMT": 0.8,
+         "PPMT": 0.84,
+         "PESED": 1.66,
+         "PPSED": 1.79,
+         "PEBT": 6.63,
+         "PPBT": 8.52,
+         "PEBTCO": 6.57,
+         "PPBTCO": 8.46
+        }
+       }
+      },
+      "uso": "MT: ventas × FE_MT; BT: ventas × FE_BT × FE_SED × FE_MT; BT con medición centralizada: ventas × FE_BTCO × FE_SED × FE_MT; potencia con los PP; AT y MAT sin pérdidas (217-2013, art. 8.1). El (1+%p) de la 217 se lee como este factor, que es 1/(1−p)"
+     },
+     "articulo_o_anexo": "art. 1, num. 2.5 Factores de Expansión de Pérdidas",
+     "pagina": "17 (El Peruano, 16-10-2026; pdf 6 de 11)",
+     "cita_literal": "2.5 Factores de Expansión de Pérdidas Los factores de expansión de pérdidas aplicables en cada periodo indicado son los siguientes:",
+     "interpretacion": "FE de la 185-2026 (El Peruano), iguales valor a valor a la versión de Osinergmin y al IT 607 (pág. 35); los porcentajes vienen del IT 607, num. 3.5 (pág. 35), y cumplen FE = 1/(1−p). En el IT 607 los rótulos de las dos tablas están INTERCAMBIADOS (la de FE va bajo «Los porcentajes … son» y la de % bajo «los factores … son»): se tomó cada una por su contenido."
+    },
+    {
+     "clave": "vad.reajuste.formulas",
+     "valor": {
+      "FAVADMT": "AMT × IPM/IPM0 + BMT × TC/TC0 + CMT × IPCu/IPCu0 × TC/TC0 + DMT × IPAl/IPAl0 × TC/TC0",
+      "FAVADBT": "ABT × IPM/IPM0 + BBT × TC/TC0 + CBT × IPCu/IPCu0 × TC/TC0 + DBT × IPAl/IPAl0 × TC/TC0",
+      "FAVADSED": "ASED × IPM/IPM0 + BSED × TC/TC0 + CSED × IPCu/IPCu0 × TC/TC0 + DSED × IPAl/IPAl0 × TC/TC0",
+      "FACF": "IPM/IPM0",
+      "FACER": "TC/TC0",
+      "numeracion": {
+       "FAVADMT": "(8)",
+       "FAVADBT": "(9)",
+       "FAVADSED": "(10)",
+       "FACF": "(11)",
+       "FACER": "(12)"
+      },
+      "alcance": {
+       "FACF": "Cargos Fijos y Cargo de Reposición de Tarjeta Inteligente",
+       "FACER": "Cargo por Energía Reactiva (CER)"
+      }
+     },
+     "articulo_o_anexo": "art. 2 Fórmulas de Actualización, num. 1 a 5",
+     "pagina": "19-20 (pdf 8-9)",
+     "cita_literal": "Artículo 2.- Fórmulas de Actualización Fijar las fórmulas de actualización de los Valores Agregados de Distribución y Cargos Fijos según lo establecido en el artículo 73 de la LCE.",
+     "interpretacion": "Fórmulas leídas en la imagen (png/r185-09.png; la (8) en la pág. 8); la capa de texto las da desordenadas: se comprueban sus números y rótulos."
+    },
+    {
+     "clave": "vad.reajuste.parametros_definicion",
+     "valor": {
+      "TC": "Dólar promedio para cobertura de importaciones (valor venta), SBS; último valor venta publicado al último día hábil del mes anterior a la aplicación",
+      "IPM": "Índice de precios al por mayor, INEI; valor del mes de la última publicación oficial disponible al último día hábil del mes anterior",
+      "IPCu": "Promedio de los últimos 12 meses del precio medio mensual de la libra de cobre (Bolsa de Metales de Londres), que terminan con el segundo mes anterior; ctv. USD/lb, Nota Semanal del BCRP",
+      "IPAl": "Promedio de las últimas 52 semanas del precio semanal de la tonelada de aluminio (LME HG Cash, week avg.), que terminan con la cuarta semana del segundo mes anterior; Platt's Metals Daily"
+     },
+     "articulo_o_anexo": "art. 2, num. 6 Definición de los Parámetros de las Fórmulas de Actualización",
+     "pagina": "20 (pdf 9)",
+     "cita_literal": "6. Definición de los Parámetros de las Fórmulas de Actualización"
+    },
+    {
+     "clave": "vad.reajuste.valores_base",
+     "valor": {
+      "TC0": {
+       "valor": 3.368,
+       "unidad": "S//USD",
+       "referencia": "Al 31/12/2025"
+      },
+      "IPM0": {
+       "valor": 125.999904,
+       "unidad": "índice",
+       "referencia": "Diciembre 2025"
+      },
+      "IPCu0": {
+       "valor": 448.92,
+       "unidad": "ctv. USD/lb",
+       "referencia": "Diciembre 2025"
+      },
+      "IPAl0": {
+       "valor": 2625.27,
+       "unidad": "USD/tn",
+       "referencia": "Diciembre 2025"
+      }
+     },
+     "articulo_o_anexo": "art. 2, num. 6 (cuadro de valores base)",
+     "pagina": "20 (pdf 9)",
+     "cita_literal": "Los valores base que se utilizarán en las fórmulas de actualización son:"
+    },
+    {
+     "clave": "vad.reajuste.coeficientes",
+     "valor": {
+      "orden": [
+       "AMT",
+       "BMT",
+       "CMT",
+       "DMT",
+       "ABT",
+       "BBT",
+       "CBT",
+       "DBT",
+       "ASED",
+       "BSED",
+       "CSED",
+       "DSED"
+      ],
+      "empresas": {
+       "Pluz Energía": {
+        "AMT": 0.9141,
+        "BMT": 0.0648,
+        "CMT": 0.0037,
+        "DMT": 0.0174,
+        "ABT": 0.8852,
+        "BBT": 0.0511,
+        "CBT": 0.0038,
+        "DBT": 0.0599,
+        "ASED": 0.8574,
+        "BSED": 0.1235,
+        "CSED": 0.0191,
+        "DSED": 0.0
+       },
+       "Luz del Sur": {
+        "AMT": 0.9192,
+        "BMT": 0.0621,
+        "CMT": 0.0028,
+        "DMT": 0.0159,
+        "ABT": 0.8955,
+        "BBT": 0.047,
+        "CBT": 0.0042,
+        "DBT": 0.0533,
+        "ASED": 0.8676,
+        "BSED": 0.1132,
+        "CSED": 0.0192,
+        "DSED": 0.0
+       },
+       "Electro Dunas": {
+        "AMT": 0.8523,
+        "BMT": 0.1315,
+        "CMT": 0.0063,
+        "DMT": 0.0099,
+        "ABT": 0.8718,
+        "BBT": 0.0706,
+        "CBT": 0.0062,
+        "DBT": 0.0514,
+        "ASED": 0.858,
+        "BSED": 0.1216,
+        "CSED": 0.0204,
+        "DSED": 0.0
+       },
+       "Chavimochic": {
+        "AMT": 0.6422,
+        "BMT": 0.2718,
+        "CMT": 0.0201,
+        "DMT": 0.0659,
+        "ABT": 0.7157,
+        "BBT": 0.1726,
+        "CBT": 0.0185,
+        "DBT": 0.0932,
+        "ASED": 0.7029,
+        "BSED": 0.1657,
+        "CSED": 0.013,
+        "DSED": 0.1184
+       },
+       "CVC Energía": {
+        "AMT": 0.6906,
+        "BMT": 0.2396,
+        "CMT": 0.0163,
+        "DMT": 0.0535,
+        "ABT": 0.7108,
+        "BBT": 0.1777,
+        "CBT": 0.0176,
+        "DBT": 0.0939,
+        "ASED": 0.6649,
+        "BSED": 0.1784,
+        "CSED": 0.0155,
+        "DSED": 0.1412
+       },
+       "Edelsa": {
+        "AMT": 0.655,
+        "BMT": 0.2633,
+        "CMT": 0.0191,
+        "DMT": 0.0626,
+        "ABT": 0.6907,
+        "BBT": 0.1884,
+        "CBT": 0.0216,
+        "DBT": 0.0993,
+        "ASED": 0.6932,
+        "BSED": 0.1689,
+        "CSED": 0.0138,
+        "DSED": 0.1241
+       },
+       "Egepsa": {
+        "AMT": 0.655,
+        "BMT": 0.2633,
+        "CMT": 0.0191,
+        "DMT": 0.0626,
+        "ABT": 0.6907,
+        "BBT": 0.1884,
+        "CBT": 0.0216,
+        "DBT": 0.0993,
+        "ASED": 0.6932,
+        "BSED": 0.1689,
+        "CSED": 0.0138,
+        "DSED": 0.1241
+       },
+       "Electro Pangoa": {
+        "AMT": 0.6422,
+        "BMT": 0.2718,
+        "CMT": 0.0201,
+        "DMT": 0.0659,
+        "ABT": 0.7157,
+        "BBT": 0.1726,
+        "CBT": 0.0185,
+        "DBT": 0.0932,
+        "ASED": 0.7029,
+        "BSED": 0.1657,
+        "CSED": 0.013,
+        "DSED": 0.1184
+       },
+       "Electro Tocache": {
+        "AMT": 0.6422,
+        "BMT": 0.2718,
+        "CMT": 0.0201,
+        "DMT": 0.0659,
+        "ABT": 0.7157,
+        "BBT": 0.1726,
+        "CBT": 0.0185,
+        "DBT": 0.0932,
+        "ASED": 0.7029,
+        "BSED": 0.1657,
+        "CSED": 0.013,
+        "DSED": 0.1184
+       },
+       "Emsemsa (administrado por Adinelsa)": {
+        "AMT": 0.6422,
+        "BMT": 0.2718,
+        "CMT": 0.0201,
+        "DMT": 0.0659,
+        "ABT": 0.7157,
+        "BBT": 0.1726,
+        "CBT": 0.0185,
+        "DBT": 0.0932,
+        "ASED": 0.7029,
+        "BSED": 0.1657,
+        "CSED": 0.013,
+        "DSED": 0.1184
+       },
+       "Emseusa": {
+        "AMT": 0.6422,
+        "BMT": 0.2718,
+        "CMT": 0.0201,
+        "DMT": 0.0659,
+        "ABT": 0.7157,
+        "BBT": 0.1726,
+        "CBT": 0.0185,
+        "DBT": 0.0932,
+        "ASED": 0.7029,
+        "BSED": 0.1657,
+        "CSED": 0.013,
+        "DSED": 0.1184
+       },
+       "Sersa": {
+        "AMT": 0.6422,
+        "BMT": 0.2718,
+        "CMT": 0.0201,
+        "DMT": 0.0659,
+        "ABT": 0.7157,
+        "BBT": 0.1726,
+        "CBT": 0.0185,
+        "DBT": 0.0932,
+        "ASED": 0.7029,
+        "BSED": 0.1657,
+        "CSED": 0.013,
+        "DSED": 0.1184
+       },
+       "Esempat": {
+        "AMT": 0.656,
+        "BMT": 0.2626,
+        "CMT": 0.019,
+        "DMT": 0.0624,
+        "ABT": 0.7082,
+        "BBT": 0.1815,
+        "CBT": 0.0201,
+        "DBT": 0.0902,
+        "ASED": 0.7281,
+        "BSED": 0.1573,
+        "CSED": 0.0114,
+        "DSED": 0.1032
+       },
+       "Eilhicha": {
+        "AMT": 0.656,
+        "BMT": 0.2626,
+        "CMT": 0.019,
+        "DMT": 0.0624,
+        "ABT": 0.7082,
+        "BBT": 0.1815,
+        "CBT": 0.0201,
+        "DBT": 0.0902,
+        "ASED": 0.7281,
+        "BSED": 0.1573,
+        "CSED": 0.0114,
+        "DSED": 0.1032
+       },
+       "Acciona.org": {
+        "AMT": 0.656,
+        "BMT": 0.2626,
+        "CMT": 0.019,
+        "DMT": 0.0624,
+        "ABT": 0.7082,
+        "BBT": 0.1815,
+        "CBT": 0.0201,
+        "DBT": 0.0902,
+        "ASED": 0.7281,
+        "BSED": 0.1573,
+        "CSED": 0.0114,
+        "DSED": 0.1032
+       }
+      }
+     },
+     "articulo_o_anexo": "art. 2, num. 7 Coeficientes de las Fórmulas",
+     "pagina": "21 (pdf 10)",
+     "cita_literal": "7. Coeficientes de las Fórmulas",
+     "interpretacion": "Iguales valor a valor en El Peruano, la versión de Osinergmin y el IT 607 (num. 4.7); en cada empresa y nivel A+B+C+D = 1."
+    },
+    {
+     "clave": "vad.reajuste.aplicacion",
+     "valor": {
+      "umbral_variacion": 0.015,
+      "redondeo_decimales": 4,
+      "indicadores_al_dia": 2,
+      "vigencia_reajuste_dia": 4
+     },
+     "articulo_o_anexo": "art. 4 Aplicación de las Fórmulas de Actualización",
+     "pagina": "21 (pdf 10)",
+     "cita_literal": "Cuando alguno de los factores de actualización FAVADMT, FAVADBT, FAVADSED o FACF se incremente o disminuya en más de 1,5% respecto a los mismos factores empleados en la última actualización.",
+     "interpretacion": "También se aplican cuando se actualizan los precios a nivel generación o los peajes de transmisión. Indicadores disponibles al segundo día calendario de cada mes; factores redondeados a cuatro dígitos decimales; los pliegos reajustados entran en vigencia el cuarto día calendario del mes."
+    }
+   ]
+  },
+  {
+   "acto": "IT 607-2026-GRT",
+   "estado_juridico": "vigente_comprobada",
+   "fecha_consulta": "2026-11-15",
+   "titulo": "Informe N° 607-2026-GRT/OS – Fijación del VAD 2026-2030 (Resolución de Fijación), sustento de la RCD 185-2026-OS/CD",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2026/Informe-Tecnico-607-2026-GRT.pdf",
+   "sha256": "4ddcc5eff1fa38ea6dea6f8e3dc267929ed26382bd96e1a591f52725b12b3c28",
+   "vigencia_desde": "2026-11-01",
+   "vigencia_hasta": "2030-10-31",
+   "nota": "Incorporado a la 185-2026 por su art. 7. Copia auténtica de Osinergmin (código de verificación voU7i4BuKV). Los IT 606 y 614-2026 no están en la ruta /Resoluciones/pdf/2026/ (404).",
+   "reglas": [
+    {
+     "clave": "vad.perdidas.factores_expansion_it607",
+     "valor": {
+      "periodo": {
+       "desde": "2026-11-01",
+       "hasta": "2030-10-31"
+      },
+      "orden": [
+       "PEMT",
+       "PPMT",
+       "PESED",
+       "PPSED",
+       "PEBT",
+       "PPBT",
+       "PEBTCO",
+       "PPBTCO"
+      ],
+      "empresas": {
+       "Pluz Energía": {
+        "fe": {
+         "PEMT": 1.0077,
+         "PPMT": 1.0117,
+         "PESED": 1.0186,
+         "PPSED": 1.0259,
+         "PEBT": 1.0926,
+         "PPBT": 1.1204,
+         "PEBTCO": 1.0916,
+         "PPBTCO": 1.1189
+        },
+        "porcentaje": {
+         "PEMT": 0.76,
+         "PPMT": 1.16,
+         "PESED": 1.83,
+         "PPSED": 2.52,
+         "PEBT": 8.48,
+         "PPBT": 10.75,
+         "PEBTCO": 8.39,
+         "PPBTCO": 10.63
+        }
+       },
+       "Luz del Sur": {
+        "fe": {
+         "PEMT": 1.0086,
+         "PPMT": 1.0116,
+         "PESED": 1.0175,
+         "PPSED": 1.0238,
+         "PEBT": 1.0919,
+         "PPBT": 1.1165,
+         "PEBTCO": 1.0911,
+         "PPBTCO": 1.1153
+        },
+        "porcentaje": {
+         "PEMT": 0.85,
+         "PPMT": 1.15,
+         "PESED": 1.72,
+         "PPSED": 2.32,
+         "PEBT": 8.42,
+         "PPBT": 10.43,
+         "PEBTCO": 8.35,
+         "PPBTCO": 10.34
+        }
+       },
+       "Electro Dunas": {
+        "fe": {
+         "PEMT": 1.0091,
+         "PPMT": 1.0157,
+         "PESED": 1.0198,
+         "PPSED": 1.0275,
+         "PEBT": 1.0794,
+         "PPBT": 1.1008,
+         "PEBTCO": 1.0778,
+         "PPBTCO": 1.0984
+        },
+        "porcentaje": {
+         "PEMT": 0.9,
+         "PPMT": 1.55,
+         "PESED": 1.94,
+         "PPSED": 2.68,
+         "PEBT": 7.36,
+         "PPBT": 9.16,
+         "PEBTCO": 7.22,
+         "PPBTCO": 8.96
+        }
+       },
+       "Chavimochic": {
+        "fe": {
+         "PEMT": 1.0141,
+         "PPMT": 1.0274,
+         "PESED": 1.0131,
+         "PPSED": 1.0215,
+         "PEBT": 1.0684,
+         "PPBT": 1.0779,
+         "PEBTCO": 1.0644,
+         "PPBTCO": 1.0744
+        },
+        "porcentaje": {
+         "PEMT": 1.39,
+         "PPMT": 2.67,
+         "PESED": 1.29,
+         "PPSED": 2.1,
+         "PEBT": 6.4,
+         "PPBT": 7.23,
+         "PEBTCO": 6.05,
+         "PPBTCO": 6.92
+        }
+       },
+       "CVC Energía": {
+        "fe": {
+         "PEMT": 1.0149,
+         "PPMT": 1.0212,
+         "PESED": 1.0241,
+         "PPSED": 1.0398,
+         "PEBT": 1.0778,
+         "PPBT": 1.108,
+         "PEBTCO": 1.077,
+         "PPBTCO": 1.1069
+        },
+        "porcentaje": {
+         "PEMT": 1.47,
+         "PPMT": 2.08,
+         "PESED": 2.35,
+         "PPSED": 3.83,
+         "PEBT": 7.22,
+         "PPBT": 9.75,
+         "PEBTCO": 7.15,
+         "PPBTCO": 9.66
+        }
+       },
+       "Edelsa": {
+        "fe": {
+         "PEMT": 1.0192,
+         "PPMT": 1.0248,
+         "PESED": 1.0144,
+         "PPSED": 1.0216,
+         "PEBT": 1.0733,
+         "PPBT": 1.0867,
+         "PEBTCO": 1.0726,
+         "PPBTCO": 1.0844
+        },
+        "porcentaje": {
+         "PEMT": 1.88,
+         "PPMT": 2.42,
+         "PESED": 1.42,
+         "PPSED": 2.11,
+         "PEBT": 6.83,
+         "PPBT": 7.98,
+         "PEBTCO": 6.77,
+         "PPBTCO": 7.78
+        }
+       },
+       "Egepsa": {
+        "fe": {
+         "PEMT": 1.0192,
+         "PPMT": 1.0248,
+         "PESED": 1.0144,
+         "PPSED": 1.0216,
+         "PEBT": 1.0733,
+         "PPBT": 1.0867,
+         "PEBTCO": 1.0726,
+         "PPBTCO": 1.0844
+        },
+        "porcentaje": {
+         "PEMT": 1.88,
+         "PPMT": 2.42,
+         "PESED": 1.42,
+         "PPSED": 2.11,
+         "PEBT": 6.83,
+         "PPBT": 7.98,
+         "PEBTCO": 6.77,
+         "PPBTCO": 7.78
+        }
+       },
+       "Electro Pangoa": {
+        "fe": {
+         "PEMT": 1.0142,
+         "PPMT": 1.0285,
+         "PESED": 1.0129,
+         "PPSED": 1.0216,
+         "PEBT": 1.0682,
+         "PPBT": 1.0767,
+         "PEBTCO": 1.0639,
+         "PPBTCO": 1.0729
+        },
+        "porcentaje": {
+         "PEMT": 1.4,
+         "PPMT": 2.77,
+         "PESED": 1.27,
+         "PPSED": 2.11,
+         "PEBT": 6.38,
+         "PPBT": 7.12,
+         "PEBTCO": 6.01,
+         "PPBTCO": 6.79
+        }
+       },
+       "Electro Tocache": {
+        "fe": {
+         "PEMT": 1.0132,
+         "PPMT": 1.0252,
+         "PESED": 1.0136,
+         "PPSED": 1.021,
+         "PEBT": 1.0687,
+         "PPBT": 1.0794,
+         "PEBTCO": 1.065,
+         "PPBTCO": 1.0761
+        },
+        "porcentaje": {
+         "PEMT": 1.3,
+         "PPMT": 2.46,
+         "PESED": 1.34,
+         "PPSED": 2.06,
+         "PEBT": 6.43,
+         "PPBT": 7.36,
+         "PEBTCO": 6.1,
+         "PPBTCO": 7.07
+        }
+       },
+       "Emsemsa (administrado por Adinelsa)": {
+        "fe": {
+         "PEMT": 1.0142,
+         "PPMT": 1.0285,
+         "PESED": 1.0129,
+         "PPSED": 1.0216,
+         "PEBT": 1.0682,
+         "PPBT": 1.0767,
+         "PEBTCO": 1.0639,
+         "PPBTCO": 1.0729
+        },
+        "porcentaje": {
+         "PEMT": 1.4,
+         "PPMT": 2.77,
+         "PESED": 1.27,
+         "PPSED": 2.11,
+         "PEBT": 6.38,
+         "PPBT": 7.12,
+         "PEBTCO": 6.01,
+         "PPBTCO": 6.79
+        }
+       },
+       "Emseusa": {
+        "fe": {
+         "PEMT": 1.0142,
+         "PPMT": 1.0285,
+         "PESED": 1.0129,
+         "PPSED": 1.0216,
+         "PEBT": 1.0682,
+         "PPBT": 1.0767,
+         "PEBTCO": 1.0639,
+         "PPBTCO": 1.0729
+        },
+        "porcentaje": {
+         "PEMT": 1.4,
+         "PPMT": 2.77,
+         "PESED": 1.27,
+         "PPSED": 2.11,
+         "PEBT": 6.38,
+         "PPBT": 7.12,
+         "PEBTCO": 6.01,
+         "PPBTCO": 6.79
+        }
+       },
+       "Sersa": {
+        "fe": {
+         "PEMT": 1.0142,
+         "PPMT": 1.0285,
+         "PESED": 1.0129,
+         "PPSED": 1.0216,
+         "PEBT": 1.0682,
+         "PPBT": 1.0767,
+         "PEBTCO": 1.0639,
+         "PPBTCO": 1.0729
+        },
+        "porcentaje": {
+         "PEMT": 1.4,
+         "PPMT": 2.77,
+         "PESED": 1.27,
+         "PPSED": 2.11,
+         "PEBT": 6.38,
+         "PPBT": 7.12,
+         "PEBTCO": 6.01,
+         "PPBTCO": 6.79
+        }
+       },
+       "Esempat": {
+        "fe": {
+         "PEMT": 1.0081,
+         "PPMT": 1.0085,
+         "PESED": 1.0169,
+         "PPSED": 1.0182,
+         "PEBT": 1.071,
+         "PPBT": 1.0931,
+         "PEBTCO": 1.0703,
+         "PPBTCO": 1.0924
+        },
+        "porcentaje": {
+         "PEMT": 0.8,
+         "PPMT": 0.84,
+         "PESED": 1.66,
+         "PPSED": 1.79,
+         "PEBT": 6.63,
+         "PPBT": 8.52,
+         "PEBTCO": 6.57,
+         "PPBTCO": 8.46
+        }
+       },
+       "Eilhicha": {
+        "fe": {
+         "PEMT": 1.0081,
+         "PPMT": 1.0085,
+         "PESED": 1.0169,
+         "PPSED": 1.0182,
+         "PEBT": 1.071,
+         "PPBT": 1.0931,
+         "PEBTCO": 1.0703,
+         "PPBTCO": 1.0924
+        },
+        "porcentaje": {
+         "PEMT": 0.8,
+         "PPMT": 0.84,
+         "PESED": 1.66,
+         "PPSED": 1.79,
+         "PEBT": 6.63,
+         "PPBT": 8.52,
+         "PEBTCO": 6.57,
+         "PPBTCO": 8.46
+        }
+       },
+       "Acciona.org": {
+        "fe": {
+         "PEMT": 1.0081,
+         "PPMT": 1.0085,
+         "PESED": 1.0169,
+         "PPSED": 1.0182,
+         "PEBT": 1.071,
+         "PPBT": 1.0931,
+         "PEBTCO": 1.0703,
+         "PPBTCO": 1.0924
+        },
+        "porcentaje": {
+         "PEMT": 0.8,
+         "PPMT": 0.84,
+         "PESED": 1.66,
+         "PPSED": 1.79,
+         "PEBT": 6.63,
+         "PPBT": 8.52,
+         "PEBTCO": 6.57,
+         "PPBTCO": 8.46
+        }
+       }
+      },
+      "uso": "MT: ventas × FE_MT; BT: ventas × FE_BT × FE_SED × FE_MT; BT con medición centralizada: ventas × FE_BTCO × FE_SED × FE_MT; potencia con los PP; AT y MAT sin pérdidas (217-2013, art. 8.1). El (1+%p) de la 217 se lee como este factor, que es 1/(1−p)"
+     },
+     "articulo_o_anexo": "num. 3.5 Porcentajes y Factores de Expansión de Pérdidas",
+     "pagina": "35 de 45",
+     "cita_literal": "Los porcentajes de pérdidas a nivel empresa, referidos al ingreso en cada nivel de tensión, son: … A partir de los porcentajes señalados, los factores de expansión de pérdidas a aplicar son los siguientes:",
+     "interpretacion": "Rótulos de las dos tablas intercambiados en el original (comprobado en la imagen png/it607-35.png y por FE = 1/(1−p)). Ponderación: más de 50 000 suministros, por demanda máxima (potencia) y energía (energía) de cada sistema sin pérdidas; hasta 50 000, ponderación de los sectores."
+    }
+   ]
+  }
+ ]
+}

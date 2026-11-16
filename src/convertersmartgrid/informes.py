@@ -14,6 +14,7 @@ banda, con aviso (086:RF-35).
 """
 from __future__ import annotations
 
+import functools
 import math
 import re
 import unicodedata
@@ -457,11 +458,50 @@ def factor_de_carga(curva: list[tuple[Any, float, Any]]) -> float | None:
     return sum(potencias) / len(potencias) / max(potencias)
 
 
-def factor_de_perdidas(fc: float) -> float:
-    """0,3·FC + 0,7·FC², la fórmula del libro de pérdidas de la empresa (RF-55)."""
+#: La regla del registro con la fórmula empírica del factor de pérdidas (TdR VAD vigente, Anexo 4-14 y num. 6.9).
+REGLA_FACTOR_PERDIDAS = 'vad.anexo4.factor_perdidas_empirico'
+
+
+@functools.lru_cache(maxsize=8)
+def _registro_en(ruta: str):
+    """El registro de la carpeta ``ruta`` (resuelta), cargado una vez POR RUTA: si el programa o una prueba
+    cambian la raíz, se carga el de la ruta nueva (orden de 28; trampa de las rutas del programa)."""
+    from .registro_normativo import cargar_registro
+
+    return cargar_registro(Path(ruta))
+
+
+def _registro_vad():
+    """El registro del VAD de la raíz ACTUAL del programa; la caché es por ruta, nunca global."""
+    from . import runtime_paths
+
+    return _registro_en(str((runtime_paths.raiz_programa() / 'config' / 'vad').resolve()))
+
+
+def coeficientes_factor_de_perdidas(registro=None, fecha: str | None = None) -> tuple[float, float, str]:
+    """(lineal, cuadrático, cita) de la fórmula fpérdidas = a·FC + b·FC², leídos del registro normativo. Sin la regla,
+    InformeError que la nombra: ningún coeficiente se supone."""
+    from .registro_normativo import RegistroError
+
+    registro = registro if registro is not None else _registro_vad()
+    try:
+        vigente = registro.regla(REGLA_FACTOR_PERDIDAS, fecha)
+    except RegistroError as exc:
+        raise InformeError(f'Falta la regla {REGLA_FACTOR_PERDIDAS} del registro normativo (la fórmula del factor de '
+                           f'pérdidas del TdR del VAD): {exc}') from exc
+    valor = vigente.regla.valor
+    cita = f'{vigente.norma.acto}, {vigente.regla.articulo_o_anexo}, pág. {vigente.regla.pagina}'
+    return float(valor['coef_lineal']), float(valor['coef_cuadratico']), cita
+
+
+def factor_de_perdidas(fc: float, registro=None, fecha: str | None = None) -> float:
+    """a·FC + b·FC², la fórmula empírica del factor de pérdidas de la norma (TdR VAD vigente, Anexo 4-14, que exige
+    el num. 6.9; el libro de pérdidas de la empresa usa la misma), con los coeficientes del registro normativo
+    (:data:`REGLA_FACTOR_PERDIDAS`: hoy 0,3 y 0,7). RF-55."""
     if not 0 < fc <= 1:
         raise InformeError(f'El factor de carga tiene que estar entre 0 y 1: {fc}.')
-    return 0.3 * fc + 0.7 * fc * fc
+    lineal, cuadratico, _cita = coeficientes_factor_de_perdidas(registro, fecha)
+    return lineal * fc + cuadratico * fc * fc
 
 
 @dataclass(frozen=True)
@@ -527,8 +567,8 @@ def _palabras_de_nombre(nombre: str) -> set[str]:
 def cliente_ajeno(carga: str, cliente: str) -> bool:
     """El cliente no comparte ningún nombre con la carga (063:RF-49).
 
-    T7 en SM218: «AMPC INKA'S BERRIES S.A.C.» salió con el cliente, el NIS y la potencia de Minera Santa
-    María, del formulario guardado. Una carga con solo un código no dice de quién es: no se afirma nada.
+    T7 en <código>: «AMPC <sitio>'S BERRIES S.A.C.» salió con el cliente, el NIS y la potencia de otra
+    minera, del formulario guardado. Una carga con solo un código no dice de quién es: no se afirma nada.
     """
     de_la_carga, del_cliente = _palabras_de_nombre(carga), _palabras_de_nombre(cliente)
     return bool(de_la_carga and del_cliente and not de_la_carga & del_cliente)
@@ -857,7 +897,7 @@ def conclusion_factibilidad(actual: Caso, cargas: Caso, con: Caso | None, limite
     063:RF-8 a RF-11. Las obras solo se justifican si el estado actual o el de la carga violan
     un límite (usuario, 2026-11-01): si los dos cumplen, factible sin obras. Con violaciones,
     decide «Con proyecto» si tiene obras (``con`` no es ``None``); sin obras, no es factible
-    sin refuerzo. INKA'S BERRIES en SM218: el estado actual ya tenía un cuello de botella al
+    sin refuerzo. <sitio>'S BERRIES en <código>: el estado actual ya tenía un cuello de botella al
     131 % y con la carga el punto de diseño bajaba a 0,934 p.u.
 
     086:RF-48: con ``bajo_limite``, una barra baja que la carga no causa no hace insuficiente la
@@ -1657,7 +1697,7 @@ def demanda_por_alimentador(filas: Sequence[Mapping[str, Any]]) -> tuple[list[li
     """Lo que atiende cada alimentador antes y después, por su cabecera y por la SET nueva (063:RF-55).
 
     Tras trasladar ramas, la cabecera sola engaña: NA203 pasó de 10 061 kW a 341 kW por la suya,
-    pero su zona atiende más demanda que antes, por las salidas de COPARA (2026-11-02).
+    pero su zona atiende más demanda que antes, por las salidas de <sitio> (2026-11-02).
     """
     tabla, textos = [], []
     for f in filas:

@@ -510,7 +510,9 @@ def test_aviso_sin_copia_y_con_copia_vieja(tmp_path, monkeypatch):
 
     raiz, _ = _crear_datos(tmp_path)
     nunca = estado_copia(raiz)
-    assert nunca['vencida'] is True and nunca['ultima'] is None and 'No hay ninguna' in nunca['aviso']
+    assert nunca['vencida'] is True and nunca['ultima'] is None
+    # 086:RF-109: sin la carpeta destino, «no consta»; nunca «no hay».
+    assert 'No consta ninguna' in nunca['aviso'] and 'No hay' not in nunca['aviso']
     momento = time.time()
     crear_copia(tmp_path / 'copias', raices={'datos': raiz}, ahora=momento)
     reciente = estado_copia(raiz, ahora=momento + 86400)
@@ -781,9 +783,13 @@ def test_la_web_recuerda_la_carpeta_y_copia_como_trabajo(tmp_path, monkeypatch):
     destino.mkdir()
     with TestClient(create_app(raiz, host='127.0.0.1')) as cliente:
         assert cliente.get('/api/copia-datos/carpeta').json() == {'carpeta': None}
-        mala = cliente.post(f'/api/workspaces/{wid}/copia-datos', json={'carpeta': str(tmp_path / 'no_existe')})
+        # COPIA-PREVIA (086:RF-82): sin confirmar, la API no encola la copia; confirmada, una carpeta que no existe da 400.
+        sin_confirmar = cliente.post(f'/api/workspaces/{wid}/copia-datos', json={'carpeta': str(destino)})
+        assert sin_confirmar.status_code == 422 and 'Copiar' in sin_confirmar.json()['detail']
+        mala = cliente.post(f'/api/workspaces/{wid}/copia-datos',
+                            json={'carpeta': str(tmp_path / 'no_existe'), 'confirmada': True})
         assert mala.status_code == 400
-        job = cliente.post(f'/api/workspaces/{wid}/copia-datos', json={'carpeta': str(destino)})
+        job = cliente.post(f'/api/workspaces/{wid}/copia-datos', json={'carpeta': str(destino), 'confirmada': True})
         assert job.status_code == 202 and job.json()['kind'] == 'copia_datos'
         fin = _esperar(cliente, job.json()['id'])
         assert fin['status'] == 'done', fin
@@ -818,11 +824,12 @@ def test_la_copia_de_la_web_se_cancela_y_bloquea_otros_trabajos(tmp_path, monkey
         return original(origen, salida)
     monkeypatch.setattr(copia, '_copiar_con_huella', lento)
     with TestClient(create_app(raiz, host='127.0.0.1')) as cliente:
-        job = cliente.post(f'/api/workspaces/{wid}/copia-datos', json={'carpeta': str(destino)}).json()
+        job = cliente.post(f'/api/workspaces/{wid}/copia-datos',
+                           json={'carpeta': str(destino), 'confirmada': True}).json()
         assert dentro.wait(20)
         otro = cliente.post(f'/api/workspaces/{wid}/load')
         assert otro.status_code == 409 and 'copia de los datos' in otro.json()['detail']
-        segunda = cliente.post(f'/api/workspaces/{wid}/copia-datos', json={'carpeta': str(destino)})
+        segunda = cliente.post(f'/api/workspaces/{wid}/copia-datos', json={'carpeta': str(destino), 'confirmada': True})
         assert segunda.status_code == 409 and 'en curso' in segunda.json()['detail']
         assert cliente.post(f"/api/jobs/{job['id']}/cancel").status_code == 200
         soltar.set()
@@ -915,3 +922,139 @@ def test_mientras_se_copia_no_entra_ningun_trabajo_tampoco_los_del_servidor():
     finally:
         soltar.set()
         jobs.shutdown(5)
+
+
+# ---------------------------------------------------------------- aclaración de RF-82 y RF-83, RF-108 y RF-109
+# Prueba con la cuenta local, 2026-11-16 (PRUEBA-CUENTA-LOCAL/INFORME.md): «Hacer una copia ahora» escribía unos 20 GB
+# en Google Drive con un clic, sin decir antes lo que ocuparía ni ofrecer «Cancelar»; y el aviso decía «Aún no hay
+# ninguna copia» con una de 19,8 GB en la carpeta.
+def _web_de_copia(tmp_path, monkeypatch):
+    """La web con solo los datos de la prueba y la configuración del equipo en tmp: nada sale de ``tmp_path``."""
+    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.web.app import create_app
+
+    monkeypatch.setattr(copia, 'raiz_local', lambda _p=None: tmp_path / 'local')
+    raiz, wid = _crear_datos(tmp_path)
+    _solo_estos_datos(monkeypatch, copia, raiz)
+    destino = tmp_path / 'drive' / 'copias_de_datos'
+    destino.mkdir(parents=True)
+    return copia, create_app(raiz, host='127.0.0.1'), raiz, wid, destino
+
+
+def _foto(carpeta: Path) -> dict[str, tuple[int, int]]:
+    """Cada entrada con su tamaño y su fecha en ns: dos fotos iguales, nada se escribió."""
+    return {p.relative_to(carpeta).as_posix(): (p.stat().st_size if p.is_file() else -1, p.stat().st_mtime_ns)
+            for p in sorted(carpeta.rglob('*'))}
+
+
+def test_la_previa_dice_lo_que_ocupara_lo_libre_y_lo_que_se_copia_sin_escribir(tmp_path, monkeypatch):
+    """086:RF-82, 086:RF-108 — antes de escribir, la previa: bytes físicos únicos, libre y lo que se copia; no escribe
+    en el destino ni recuerda la carpeta, y un servidor de red no la da."""
+    copia, app, raiz, _wid, destino = _web_de_copia(tmp_path, monkeypatch)
+    antes = _foto(tmp_path / 'drive')
+    with TestClient(app) as cliente:
+        r = cliente.get('/api/copia-datos/previa', params={'carpeta': str(destino)})
+        assert r.status_code == 200, f'no hay previa de la copia: {r.status_code} {r.text[:200]}'
+        previa = r.json()
+        assert previa['bytes_fisicos'] > 0 and previa['libre'] > 0 and previa['cabe'] is True
+        assert previa['ficheros_fisicos'] >= 1 and previa['destino']
+        assert 'La copia ocupará' in previa['texto'] and 'Libres en' in previa['texto']
+        etiquetas = {f['nombre']: f['etiqueta'] for f in previa['raices']}
+        assert etiquetas.get('datos') == 'Espacios de trabajo', previa['raices']
+        assert sum(f['bytes'] for f in previa['raices']) == previa['bytes_fisicos']
+        assert previa['copias'] == []
+        mala = cliente.get('/api/copia-datos/previa', params={'carpeta': str(tmp_path / 'no_existe')})
+        assert mala.status_code == 400 and 'no es una carpeta' in mala.json()['detail']
+        assert cliente.get('/api/copia-datos/carpeta').json() == {'carpeta': None}, 'la previa no recuerda la carpeta'
+    with TestClient(_app_de_red(raiz)) as remoto:
+        assert remoto.get('/api/copia-datos/previa', params={'carpeta': str(destino)}).status_code == 403
+    assert _foto(tmp_path / 'drive') == antes, 'la previa escribió en el destino'
+    assert not (tmp_path / 'local' / 'config' / copia.FICHERO_CARPETA).exists()
+
+
+def _app_de_red(raiz: Path):
+    """La web escuchando en la red: sin rutas locales, ni previa ni copia."""
+    from convertersmartgrid.web.app import create_app
+
+    return create_app(raiz, host='0.0.0.0')
+
+
+def test_sin_sitio_la_previa_dice_las_dos_cifras_y_no_cabe(tmp_path, monkeypatch):
+    """086:RF-83 — si no cabe, la previa lo dice con lo que ocupará y lo libre, y no escribe nada."""
+    copia, app, _raiz, _wid, destino = _web_de_copia(tmp_path, monkeypatch)
+    real = copia.shutil.disk_usage
+    monkeypatch.setattr(copia.shutil, 'disk_usage', lambda p: real(p)._replace(free=1024))
+    with TestClient(app) as cliente:
+        r = cliente.get('/api/copia-datos/previa', params={'carpeta': str(destino)})
+        assert r.status_code == 200, f'no hay previa de la copia: {r.status_code} {r.text[:200]}'
+        previa = r.json()
+    assert previa['cabe'] is False and previa['libre'] == 1024
+    assert 'No cabe' in previa['texto'] and 'La copia ocupará' in previa['texto'] and 'Libres en' in previa['texto']
+    assert list(destino.iterdir()) == []
+
+
+def test_la_copia_no_empieza_sin_pulsar_copiar(tmp_path, monkeypatch):
+    """086:RF-82 — aclaración: sin «Copiar» (``confirmada``) la API no encola la copia, no recuerda la carpeta ni
+    escribe en el destino; con ella, sí."""
+    copia, app, _raiz, wid, destino = _web_de_copia(tmp_path, monkeypatch)
+    with TestClient(app) as cliente:
+        sin = cliente.post(f'/api/workspaces/{wid}/copia-datos', json={'carpeta': str(destino)})
+        assert sin.status_code == 422, f'la copia se encoló sin pulsar «Copiar»: {sin.status_code}'
+        assert '«Copiar»' in sin.json()['detail']
+        assert list(destino.iterdir()) == []
+        assert not (tmp_path / 'local' / 'config' / copia.FICHERO_CARPETA).exists()
+        con = cliente.post(f'/api/workspaces/{wid}/copia-datos', json={'carpeta': str(destino), 'confirmada': True})
+        assert con.status_code == 202, con.text[:200]
+        assert _esperar(cliente, con.json()['id'])['status'] == 'done'
+
+
+def test_las_copias_del_destino_se_listan_desde_su_manifiesto_sin_tocarlas(tmp_path, monkeypatch):
+    """086:RF-108 — fecha, tamaño, ficheros, errores y estado de cada copia de la carpeta, de la más nueva a la más
+    vieja; una a medias y una sin manifiesto válido también salen, y nada cambia en la carpeta."""
+    copia, app, raiz, _wid, destino = _web_de_copia(tmp_path, monkeypatch)
+    vieja = copia.crear_copia(destino, raices={'datos': raiz}, ahora=1_700_000_000)
+    nueva = copia.crear_copia(destino, raices={'datos': raiz}, ahora=1_800_000_000)
+    con_errores = Path(copia.crear_copia(destino, raices={'datos': raiz}, ahora=1_750_000_000)['ruta'])
+    manifiesto = json.loads((con_errores / copia.MANIFIESTO).read_text(encoding='utf-8'))
+    manifiesto['errores'] = [{'ruta': 'x', 'motivo': 'bloqueado'}, {'ruta': 'y', 'motivo': 'bloqueado'}]
+    (con_errores / copia.MANIFIESTO).write_text(json.dumps(manifiesto), encoding='utf-8')
+    rota = destino / 'csg-copia-20200101T000000-rota0000'
+    rota.mkdir()
+    (rota / copia.MANIFIESTO).write_text('{', encoding='utf-8')
+    (destino / '.parcial-csg-copia-20200102T000000-medias00').mkdir()
+    (destino / 'otra cosa').mkdir()
+    antes = _foto(destino)
+    filas = copia.listar_copias(destino)
+    assert [f['estado'] for f in filas[:3]] == ['buena', 'con_errores', 'buena'], filas
+    assert filas[0]['ruta'] == nueva['ruta'] and filas[0]['creada'] == 1_800_000_000
+    assert filas[0]['bytes'] == nueva['bytes_total'] and filas[0]['ficheros'] == len(nueva['ficheros'])
+    assert filas[1]['errores'] == 2 and filas[2]['ruta'] == vieja['ruta']
+    assert sorted(f['estado'] for f in filas[3:]) == ['a_medias', 'no_valida'] and len(filas) == 5
+    with TestClient(app) as cliente:
+        previa = cliente.get('/api/copia-datos/previa', params={'carpeta': str(destino)})
+        assert previa.status_code == 200, previa.text[:200]
+        assert [c['nombre'] for c in previa.json()['copias']] == [f['nombre'] for f in filas]
+    assert _foto(destino) == antes, 'listar las copias cambió la carpeta'
+    assert copia.listar_copias(tmp_path / 'no_existe') == []
+
+
+def test_el_aviso_cuenta_la_copia_de_la_carpeta_recordada(tmp_path, monkeypatch):
+    """086:RF-109 — sin registro en estos datos (un espacio nuevo, otra instalación), el aviso ve la copia buena de la
+    carpeta recordada; una rota no cuenta, y sin ninguna dice «no consta», nunca «no hay»."""
+    copia, app, raiz, _wid, destino = _web_de_copia(tmp_path, monkeypatch)
+    otros = tmp_path / 'otros_datos'
+    (otros / 'esp').mkdir(parents=True)
+    (otros / 'esp' / 'dato.txt').write_text('x', encoding='utf-8')
+    (destino / 'csg-copia-20200101T000000-rota0000').mkdir()
+    ahora = time.time()
+    sin = copia.estado_copia(raiz, destino=destino, ahora=ahora)
+    assert sin['ultima'] is None and 'No consta' in sin['aviso'] and 'No hay' not in sin['aviso']
+    hecha = copia.crear_copia(destino, raices={'datos': otros}, ahora=ahora - 86400)
+    assert copia.estado_copia(raiz, ahora=ahora)['ultima'] is None, 'el registro de estos datos no la tiene'
+    estado = copia.estado_copia(raiz, destino=destino, ahora=ahora)
+    assert estado['ultima'] == ahora - 86400 and estado['ruta'] == hecha['ruta'] and estado['vencida'] is False, estado
+    with TestClient(app) as cliente:
+        assert cliente.get('/api/health').json()['copia_datos']['vencida'] is True
+        copia.recordar_carpeta(str(destino))
+        aviso = cliente.get('/api/health').json()['copia_datos']
+        assert aviso['vencida'] is False and aviso['ruta'] == hecha['ruta'], aviso

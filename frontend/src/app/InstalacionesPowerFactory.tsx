@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
-import type { InstalacionesPowerFactory } from '../api/types';
+import type { InstalacionesPowerFactory, PowerFactoryStatus } from '../api/types';
 import { Modal, Pill } from '../shared/ui';
+
+/**
+ * 086:RF-110: la píldora de la cabecera nombra la instalación y nada más; la versión de Python de su API va en la
+ * ayuda al pasar el ratón. «PowerFactory 2024 · Python 3.12» era técnico para el operador (prueba del 2026-11-16).
+ */
+export function textoPildoraPf(pf: Pick<PowerFactoryStatus, 'instalacion'> | null): string {
+  return pf?.instalacion ?? 'PowerFactory';
+}
 
 /**
  * 103:RF-3: las PowerFactory encontradas en esta máquina. Se usa sola la más nueva que funciona; el operador puede

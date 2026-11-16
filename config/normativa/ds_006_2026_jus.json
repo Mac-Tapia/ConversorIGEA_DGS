@@ -1,0 +1,39 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "RN-IMP (f4, 2026-11-15), desde el z24 de cc. TUO de la Ley 27444 VIGENTE: regla del efecto de un recurso sobre el acto recurrido.",
+ "normas": [
+  {
+   "acto": "DS 006-2026-JUS",
+   "titulo": "Decreto Supremo que aprueba el Texto Único Ordenado de la Ley N° 27444, Ley del Procedimiento Administrativo General",
+   "estado_juridico": "vigente_comprobada",
+   "fecha_publicacion": "2026-04-30",
+   "fecha_consulta": "2026-11-15",
+   "url": "https://spij.minjus.gob.pe/spij-ext-web/#/detallenorma/H1437910",
+   "sha256": "93edbd668e572f6fd810538dfe40ac1d96cd3f4cb917e88a9900c5c73768e679",
+   "vigencia_desde": "2026-05-01",
+   "nota": "sha = innerText de la ficha del SPIJ H1437910 calculado en la página (309 127 car., consulta del 2026-11-15, z24b de cc). NO es una huella estable: la interfaz dinámica del SPIJ la cambia (la misma ficha dio aa552c17… con 309 178 car. en z24) sin cambiar el texto; vale como huella de la consulta, y la versión la fijan la ficha y la fecha de consulta («version»). Separata Especial de El Peruano del 30-04-2026; dado en Lima el 28-04-2026. DEROGA el DS 004-2019-JUS («Derogar el Decreto Supremo Nº 004-2019-JUS, que aprueba el Texto Único Ordenado de la Ley Nº 27444, Ley del Procedimiento Administrativo General.»), sin fecha. Fe de erratas (SPIJ H1439111, 13-05-2026): solo los arts. 116, 117 y 143; el 216 no tiene nota de modificación. En el TUO de 2019 este artículo era el 226. Vigencia: el decreto NO trae cláusula de vigencia propia (arts. 1 Objeto, 2 Aprobación, 3 Publicación, 4 Refrendo y la derogatoria única; el art. 3 dice dónde se publica, no cuándo rige), así que se aplicó el art. 109 de la Constitución (obligatoria desde el día siguiente de su publicación): 2026-05-01.",
+   "reglas": [
+    {
+     "clave": "lpag.recurso.no_suspende_ejecucion",
+     "valor": {
+      "regla": "la interposición de cualquier recurso no suspende la ejecución del acto impugnado, salvo norma legal en contrario",
+      "excepcion": {
+       "quien": "la autoridad que resuelve el recurso, de oficio o a petición de parte",
+       "si": [
+        "perjuicios de imposible o difícil reparación",
+        "vicio de nulidad trascendente apreciado objetivamente"
+       ],
+       "ponderacion": "interés público y terceros frente al recurrente (216.3)",
+       "duracion": "durante el trámite del recurso o del contencioso, salvo cambio de condiciones (216.5)"
+      }
+     },
+     "articulo_o_anexo": "art. 216 (Suspensión de la ejecución)",
+     "pagina": "única (ficha SPIJ H1437910)",
+     "cita_literal": "216.1 La interposición de cualquier recurso, excepto los casos en que una norma legal establezca lo contrario, no suspenderá la ejecución del acto impugnado. 216.2 No obstante lo dispuesto en el numeral anterior, la autoridad a quien competa resolver el recurso suspende de oficio o a petición de parte la ejecución del acto recurrido cuando concurra alguna de las siguientes circunstancias: a) Que la ejecución pudiera causar perjuicios de imposible o difícil reparación. b) Que se aprecie objetivamente la existencia de un vicio de nulidad trascendente.",
+     "interpretacion": "El SPIJ lo anota como «Texto según el artículo 216 de la Ley Nº 27444, modificado según el artículo 2 Decreto Legislativo Nº 1272». Para la RCD 185-2026-OS/CD: sigue obligatoria mientras no se resuelvan los recursos; no consta suspensión."
+    }
+   ],
+   "version": "ficha SPIJ H1437910 (Separata Especial del 30-04-2026), consultada el 2026-11-15"
+  }
+ ]
+}

@@ -92,7 +92,7 @@ retirada.
 | [083](083-oraculo-antes-de-calibrar/spec.md) | El oráculo antes de calibrar y recalibrar | aprobada | 32 | 32 | T17 |
 | [084](084-seis-reglas-con-requisito/spec.md) | Seis reglas del operador pasan de notas a requisitos con prueba | cumplida | 30 | 30 | — |
 | [085](085-ordenes-del-maestro-con-grupos-apartados/spec.md) | Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida | 33 | 33 | — |
-| [086](086-puesta-en-operacion-comercial/spec.md) | Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | 107 | 103 | T9 (DIgSILENT), T75, T36 (DIgSILENT), T40 (DIgSILENT), T41, T78, T79, T32 (DIgSILENT), T33 (DIgSILENT), T34 |
+| [086](086-puesta-en-operacion-comercial/spec.md) | Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | 110 | 106 | T9 (DIgSILENT), T75, T36 (DIgSILENT), T40 (DIgSILENT), T41, T78, T79, T80, T32 (DIgSILENT), T33 (DIgSILENT), T34 |
 | [087](087-seleccion-de-obras-con-metodos-y-medicion/spec.md) | Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | cumplida | 57 | 57 | — |
 | [088](088-q-de-cabecera-desde-el-factor-de-potencia/spec.md) | Q negativa desde el factor de potencia | cumplida | 12 | 12 | — |
 | [089](089-pronostico-de-demanda-en-un-modulo/spec.md) | Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | 100 | 100 | T12, T7 |
@@ -113,9 +113,9 @@ retirada.
 | [104](104-libros-nuevos-se-reconocen-solos/spec.md) | Los libros nuevos de demanda se reconocen solos | aprobada | 48 | 48 | T6 |
 | [105](105-evolucion-de-clientes-fijos-por-alimentador/spec.md) | Evolución de los clientes fijos de cualquier alimentador | cumplida | 40 | 40 | — |
 | [106](106-un-turno-de-gpu-para-la-suite-y-los-entrenamientos/spec.md) | Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | aprobada | 19 | 19 | T2 |
-| [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | aprobada | 18 | 17 | T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14 (DIgSILENT), T15, T16, T18, T19, T20, T21, T23, T24, T26, T28, T29, T30 |
-| [108](108-estudio-de-costos-del-vad/spec.md) | Estudio de costos del VAD con la empresa modelo eficiente | aprobada | 19 | 13 | T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T16, T17, T18, T19, T20, T21, T22, T15 |
-| [109](109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md) | Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | aprobada | 20 | 0 | T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16 (DIgSILENT), T17 |
-| [110](110-envio-de-informes-por-correo-desde-la-web/spec.md) | Envío de informes por correo (Gmail y Outlook) desde la web | aprobada | 14 | 14 | T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13 |
-| [111](111-editor-electrico-sobre-el-plano-gis/spec.md) | Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | aprobada | 19 | 0 | T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18 (DIgSILENT), T19 |
-| [112](112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md) | Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | 11 | 0 | T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11 |
+| [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | aprobada | 18 | 18 | T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14 (DIgSILENT), T15, T16, T18, T19, T20, T21, T23, T24, T26, T28, T29, T30 |
+| [108](108-estudio-de-costos-del-vad/spec.md) | Estudio de costos del VAD con la empresa modelo eficiente | aprobada | 19 | 19 | T4, T5, T6, T7, T8, T13, T14, T16, T17, T18, T19, T20, T21, T22, T15 |
+| [109](109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md) | Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | aprobada | 24 | 24 | T8, T12, T16 (DIgSILENT), T17, T19 |
+| [110](110-envio-de-informes-por-correo-desde-la-web/spec.md) | Envío de informes por correo (Gmail y Outlook) desde la web | aprobada | 14 | 14 | T2, T3, T4, T5, T6, T7, T8, T9, T11, T12, T13 |
+| [111](111-editor-electrico-sobre-el-plano-gis/spec.md) | Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | aprobada | 19 | 19 | T1, T2, T13, T16, T17, T18 (DIgSILENT), T19 |
+| [112](112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md) | Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | 14 | 14 | T11 |

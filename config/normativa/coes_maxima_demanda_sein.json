@@ -1,6 +1,6 @@
 {
  "esquema": "registro_normativo_v1",
- "nota": "Generado por tools/normativa/generar_coes.py desde las fuentes descargadas (107 T28). Registro de datos del COES (máxima demanda anual del SEIN por año, reemplazable por año) y horas punta del MINEM.",
+ "nota": "Generado por tools/normativa/generar_coes.py desde las fuentes descargadas. Registro de datos del COES (máxima demanda anual del SEIN por año, reemplazable por año) y horas punta del MINEM.",
  "normas": [
   {
    "acto": "RM 153-2021-MINEM/DM",
@@ -14,6 +14,7 @@
    "fichero_local": "COES_SEIN/procedimientos/rm_153_2021_minem/dispositivo_1956880-1.html",
    "vigencia_desde": "2021-06-01",
    "vigencia_hasta": "2025-05-31",
+   "vigencia_hasta_motivo": "fin deducido: inicio de la RM 189-2025-MINEM/DM (2025-06-01), sin derogación expresa (la 189-2025 no tiene artículo derogatorio y solo la cita en un considerando como «vigente a la fecha»); su Artículo 2 fija el periodo «2021 al 2025» y el ciclo de cuatro años es el del RLCE, art. 110 e) (apoyo (cc), frente «z13_rm189_2025_horas_punta»)",
    "nota": "Art. 2: vigente desde el 1 de junio de 2021 para 2021-2025. La sustituye desde el 2025-06-01 la RM 189-2025-MINEM/DM (su considerando la cita como «vigente a la fecha» el 31-05-2025), así que rige hasta el 2025-05-31. Fecha de publicación (27/05/2021): la de la página de El Peruano, línea 9 de texto.txt.",
    "reglas": [
     {
@@ -55,7 +56,7 @@
    "fichero_local": "COES_SEIN/procedimientos/rm_189_2025_minem/dispositivo_EX_2405081-1.html",
    "vigencia_desde": "2025-06-01",
    "vigencia_hasta": "2029-05-31",
-   "nota": "Edición extraordinaria de El Peruano (la ruta NL da 404). La localizó cc (apoyo de f4) el 2026-11-15, en apoyo (cc), frente «a_horas_punta_y_convencion;» f4 comprobó las líneas 17-18 y las huellas.",
+   "nota": "Edición extraordinaria de El Peruano (la ruta NL da 404). La localizó cc (apoyo de f4) el 2026-11-15, en apoyo (cc), frente «a_horas_punta_y_convencion;» f4 comprobó las líneas 17-18 y las huellas. PDF oficial de la edición extraordinaria N.º 18622 del 31-05-2025, pág. 1 (firmado por Editora Perú el 31/05/2025 19:13), sha256 9bc3db86689fd43505975d764c57804cc65f28288c7c97601a479f887eecd627: contiene literales las líneas 6, 11, 17 y 18 del texto (apoyo (cc), frente «z13_rm189_2025_horas_punta»).",
    "reglas": [
     {
      "clave": "sein.horas_punta",

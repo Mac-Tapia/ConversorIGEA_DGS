@@ -71,6 +71,10 @@ SALIDAS: dict[str, Salida] = {
     'correo_microsoft': Salida('CSG_SALIDA_CORREO_MICROSOFT', 'Microsoft Graph (graph.microsoft.com)',
                                'enviar un informe por correo con la cuenta de Microsoft del operador',
                                ('src/convertersmartgrid/correo/proveedores.py',)),
+    # 109:RF-16: un solo módulo abre la red hacia Google y Microsoft; los adaptadores de cada proveedor pasan por él.
+    'nube': Salida('CSG_SALIDA_NUBE', 'Google Drive y OneDrive de la cuenta que conecte el operador',
+                   'importar fuentes y publicar o compartir expedientes',
+                   ('src/convertersmartgrid/adaptadores/nube/http.py',)),
 }
 
 
@@ -79,6 +83,9 @@ class SalidaApagada(RuntimeError):
 
 
 #: 086:RF-69: las que el operador puede cambiar desde la web. El resto, solo con su variable al arrancar.
+#: 109:RF-17: la nube también: conectar una cuenta ya es un acto explícito del operador.
+#: 086:RF-69: solo las teselas. La salida «nube» (109) se decide con ``CSG_SALIDA_NUBE``: ningún RF de la 109 pide
+#: que la web la cambie; la web la muestra con su estado y su origen.
 CAMBIABLES_DESDE_LA_WEB = frozenset({'teselas'})
 #: Otra ruta para lo guardado en el equipo; la usan las pruebas, para no leer el de la máquina.
 VARIABLE_RUTA_GUARDADAS = 'CSG_SALIDAS_RUTA'
@@ -404,3 +411,14 @@ def get_sin_redireccion_ajena(http, url: str, *, admitir=None, max_saltos: int =
         actual = siguiente
         kw.pop('params', None)
     raise RedireccionRechazada(f'Redirección rechazada desde {url}: más de {max_saltos} saltos.')
+
+
+#: 109:RF-15: las rutas de la nube (absolutas o relativas al espacio). Aquí, en el dominio, para que el asistente
+#: (`asistente/equipo.py`) las rechace sin depender de la web.
+PREFIJOS_NUBE = ('/nube', '/api/nube')
+
+
+def es_ruta_de_la_nube(ruta: str) -> bool:
+    """109:RF-15: si una ruta de la API (absoluta o relativa al espacio) es de la nube."""
+    limpia = '/' + str(ruta or '').split('?', 1)[0].lstrip('/')
+    return limpia.startswith(PREFIJOS_NUBE) or '/nube/' in limpia or limpia.endswith('/nube')

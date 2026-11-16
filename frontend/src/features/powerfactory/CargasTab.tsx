@@ -14,6 +14,7 @@ import type {
 } from '../../api/types';
 import { estadoVinculoProyecto, textoCausaVinculo, usoDeLaFuente } from '../../shared/projectBinding';
 import { DemandaMedida } from './DemandaMedida';
+import { DeshacerLotes } from './DeshacerLotes';
 import { EstudiosPF } from './EstudiosPF';
 import { MapaCargas } from './MapaCargas';
 import { ObrasPF } from './ObrasPF';
@@ -621,7 +622,7 @@ export function CargasTab() {
 
           <h4>3.1 · Demandas en bloque {plantilla('demandas')}</h4>
           <div className="row">
-            <FileDrop compact accept=".xlsx,.csv" onFiles={([f]) => { setDemandas(f); setPlan(null); }}>
+            <FileDrop entrada="demandas" compact accept=".xlsx,.csv" onFiles={([f]) => { setDemandas(f); setPlan(null); }}>
               <span>{demandas
                 ? <><strong>{demandas.name}</strong> · reemplazar: soltar otro o <u>elegir</u></>
                 : <>Libro de demandas: soltar o <u>elegir</u></>}</span>
@@ -680,7 +681,7 @@ export function CargasTab() {
 
           <h4>3.3 · Cargas nuevas en bloque {plantilla('nuevas')}</h4>
           <div className="row">
-            <FileDrop compact accept=".xlsx,.csv" onFiles={([f]) => { setNuevas(f); setPlan(null); }}>
+            <FileDrop entrada="cargas_nuevas" compact accept=".xlsx,.csv" onFiles={([f]) => { setNuevas(f); setPlan(null); }}>
               <span>{nuevas
                 ? <><strong>{nuevas.name}</strong> · reemplazar: soltar otro o <u>elegir</u></>
                 : <>Libro de cargas nuevas: soltar o <u>elegir</u></>}</span>
@@ -819,6 +820,9 @@ export function CargasTab() {
       {/* 086:RF-70: con la planificación apagada, un aviso suyo anterior no se pierde. */}
       {!betaActiva(health, 'pide') && <AvisosTrabajo paso="pf-planificacion" />}
       </fieldset>
+
+      {/* WEB-RUTAS (007:RF-38): deshacer un lote ya aplicado, con confirmación y su resumen. */}
+      <DeshacerLotes />
 
       {plan && (
         <Modal wide title={`Plan para ${plan.project}`} onClose={() => setPlan(null)} actions={<>

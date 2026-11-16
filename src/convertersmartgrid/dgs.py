@@ -100,6 +100,15 @@ def _loc_name(value: str) -> str:
     return (nombre_canonico(texto, _CANONICAS) if _CANONICAS else texto)[:40]
 
 
+def nombre_en_pf(value: str) -> str:
+    """111:RF-2 — el ``loc_name`` que el DGS da a un código de la fuente (el mismo cálculo que ``_loc_name``).
+
+    Es la única vía pública para cruzar un código con su nombre en DIgSILENT: el plano no copia la regla. El DGS no
+    pasa por aquí, así que ningún DGS cambia.
+    """
+    return _loc_name(value)
+
+
 def _material(code: str) -> str:
     upper = code.upper()
     if upper.startswith('AA'):
@@ -1865,7 +1874,7 @@ def write_dgs(
         output.extend(rows[table])
         output.extend(['', ''])
     # DIgSILENT lee el DGS con la página de códigos ANSI (cp1252): en UTF-8, «SET 46 Señor de
-    # Luren» llegaba como «SeÃ±or» (Electro Dunas por SET, 2026-10-18). Con nombres ASCII el
+    # Luren» llegaba como «SeÃ±or» (una distribuidora real por SET, 2026-10-18). Con nombres ASCII el
     # fichero es el mismo byte a byte.
     path.write_text('\n'.join(output), encoding=DGS_ENCODING, errors='replace')
 

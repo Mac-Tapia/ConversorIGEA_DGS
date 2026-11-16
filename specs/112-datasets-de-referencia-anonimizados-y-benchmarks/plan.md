@@ -24,7 +24,8 @@ Lo que ya existe y se reutiliza (comprobado leyendo el código):
 - `pronostico_demanda.py` (089), **solo lectura**: `abrir_dataset(carpeta)` (`:1644`, comprueba la huella),
   `leer_exogenas`, `METODOS = ('semanal', 'perfil_calendario', 'perfil_anclado')` (`:74`), `predecir` (`:925`),
   `medir` (`:958`), `escala_estacional` (`:941`) y `backtest_objetivo` (`:983`, que ya separa elección y prueba). Este
-  plan no lo modifica: la 089 la corrige el integrador f9 (H6/H7). El benchmark lee lo que emita y anota su huella.
+  plan solo le añade el campo opcional `Exogenas.meses` y `_mes_de` (aclaración de RF-11); sin el campo, el 089 da lo
+  mismo que antes. El benchmark lee lo que emita y anota su huella.
 - `evaluacion_modelos.py`: `huella`, `texto_canonico` y `particionar_registros` (`:109`), que valida particiones ya
   asignadas, rechaza solapes de grupo y, en modo `generalizacion`, exige un sistema retenido entero para prueba.
 - `asistente/prueba_sellada.py` y `prueba_sellada_079.py`: el patrón del sellado (`HUELLA` fijada antes de elegir
@@ -73,7 +74,7 @@ carril del motor y en la máquina del usuario; no usa PowerFactory, GPU ni red. 
 6. `series.py` toma cada objetivo del 089 (`clase`, `ident`, `magnitud`, curva): `ident` pasa por el mapa, los valores
    se multiplican por un factor sorteado en `[0,5, 2]` (WAPE y MASE no dependen de la escala) y las marcas de tiempo se
    desplazan un número sorteado de semanas completas (≥ 104), que conserva hora y día de la semana. Las exógenas que el
-   089 usa (`no_laborable`, temperatura) se escriben como columnas de la misma fila, para que el calendario real no haga
+   089 usa (`no_laborable`, temperatura y el mes de calendario, `mes`) se escriben como columnas de la misma fila, para que el calendario real no haga
    falta ni se pueda deducir (RF-11).
 7. `reproduccion.py` corre el mismo estudio en el original y en el benchmark y compara: tensión mínima y máxima por
    alimentador (|Δ| ≤ 0,005 p.u.), carga máxima de líneas y transformadores (|Δ| ≤ 1 % relativo), recuento por clase
@@ -196,3 +197,17 @@ limpia pasa.
   mapa. Es aceptable en el modelo de amenaza (hace falta el original), y el manifiesto lo declara.
 - Mover las expresiones a `privacidad.py` puede cambiar el paquete de soporte: sus pruebas de 086:RF-42 siguen en verde
   sin tocarlas.
+
+## Revisión de privacidad (2026-11-14, tras la auditoría de la T2)
+- **Semilla (RF-12).** `benchmarks/semilla.py`: la semilla de los seudónimos se guarda en `raiz_local()/benchmarks/<huella del origen>/semilla` (fuera del destino) y el manifiesto lleva `sha256("publica:" + semilla)`. El control de reidentificación busca la semilla secreta y su representación decimal en todos los ficheros publicados.
+- **Geometría (RF-13, RF-14).** `benchmarks/geometria.py`: coordenadas por un trazado del grafo (capas por distancia a la cabecera, orden estable con la semilla pública), sin la forma real. Longitudes eléctricas × (1 + ε), con ε ~ U(−a, a) y a = 5 % por defecto, recortado a la mitad hasta que T4 reproduce dentro de la tolerancia (como mucho 4 intentos; si no, no se emite). `transformar_coordenadas` (T2) queda para el uso local.
+- **Control (RF-14).** Huella del alimentador = longitudes ordenadas. Se marca como «identificado» con una correlación de Spearman ≥ 0,99 contra el original, o con un 95 % de los tramos dentro del 0,5 %. Una prueba planta la red sin perturbar y exige que se identifique (rojo) antes de dar por bueno que la perturbada no.
+- **Control del atacante, revisado (aclaración de RF-13 y RF-14; decisión del coordinador del 2026-11-14).** Sustituye a
+  la viñeta anterior. El atacante ordena las longitudes de un alimentador y las empareja **rango a rango** con las del
+  candidato: la i-ésima con la i-ésima y, si los tamaños difieren, por cuantiles. El alimentador está «identificado» si
+  el 50 % o más de los tramos quedan dentro del margen declarado (`geometria.fraccion_emparejada`). Se descarta Spearman,
+  que da 0,988–0,9998 tramo a tramo y 1,0 sobre las longitudes ordenadas, porque marca como identificada cualquier red.
+  También se descarta el emparejamiento **voraz** (cada longitud con cualquier otra dentro del margen): con muestras
+  densas, casi todas encuentran pareja, así que da por identificada también la red sintética y no distingue nada.
+  En una simulación con numpy (sin datos ni motor), el rango a rango da de media 0,03 (n = 10) a 0,30 (n = 1000) en
+  muestras independientes de la misma distribución, y 1,0 en la red perturbada al ±5 %.

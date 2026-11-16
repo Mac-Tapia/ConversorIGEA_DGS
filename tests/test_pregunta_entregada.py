@@ -35,6 +35,19 @@ def test_la_calibracion_cumple_su_objetivo_con_muestra_suficiente(programa):
     assert (programa / PE.CARPETA / PE.CALIBRACION).is_file()
 
 
+def test_pregunta_lee_los_manuales_como_llegan_al_cliente(programa):
+    """086:RF-91, 097:RF-19 — el corpus de «pregunta» no lleva las secciones de desarrollo que la entrega quita del
+    manual: el cliente no las tiene, y en la calibración un título casi vacío casaba con preguntas ajenas."""
+    secciones = json.loads((REPO / 'config' / 'entrega.json').read_text(encoding='utf-8'))['documentos'][
+        'secciones_de_desarrollo']
+    assert secciones, 'la lista de secciones de desarrollo existe'
+    for rel, titulos in secciones.items():
+        texto = (programa / PE.CARPETA / Path(rel).name).read_text(encoding='utf-8')
+        for titulo in titulos:
+            assert titulo not in texto, (rel, titulo)
+        assert texto.strip(), rel
+
+
 def test_sin_muestra_minima_no_se_calibra(programa):
     """097:RF-19 — con menos de 100 preguntas sin respuesta no se calibra, y dice cuántas faltan."""
     ruta = programa / PE.CARPETA / PE.CONJUNTO

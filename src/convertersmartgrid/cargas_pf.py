@@ -169,7 +169,7 @@ def _hojas(path: Path | str) -> dict[str, tuple[list[Any], list[list[Any]], int]
     """``{hoja: (cabecera, filas, fila_cabecera)}`` de un .xlsx (una por hoja) o un .csv (una).
 
     La cabecera es la primera fila con algo, no la fila 1: el libro de planificación de
-    Electro Dunas (NuevosclientesMayoresv1, 2026-10-14) la trae en la fila 3 tras dos
+    una distribuidora real (NuevosclientesMayoresv1, 2026-10-14) la trae en la fila 3 tras dos
     vacías, y tomando la fila 1 no se reconocía ninguna columna y sus 58 cargas se
     descartaban sin un solo aviso. ``fila_cabecera`` es su número en Excel, para que los
     mensajes citen la fila que el operador ve.

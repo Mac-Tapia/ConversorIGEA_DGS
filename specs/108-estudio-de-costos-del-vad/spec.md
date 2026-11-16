@@ -48,6 +48,14 @@ empresa modelo**: esta spec crea ese cálculo separado.
   número de tablas no está fijado: lo da el registro (el TdR del periodo 2026-2030 lista 16). Una tabla sin datos se
   entrega como hueco nombrado, nunca vacía en silencio. Absorbe el RF-16 propuesto en el inventario de entregables de
   Osinergmin (veredicto 7e del 2026-11-14).
+- Aclaración de RF-11 (2026-11-15, T9 y T10): las «tablas A y B» son los Formatos A y Formatos B del anexo 2: el informe
+  del estudio incluye «los Formatos del Anexo N° 2 (Formatos A y Formatos B)» (numeral 9 del anexo de los TdR
+  registrado, línea 3418 de la copia de texto de sha256 48ea8cf4…), con el prefijo «A» para la información de la
+  empresa y el «B» para la empresa modelo (líneas 2741-2745). Cada celda calculada lleva la fórmula de Excel traducida
+  de la fórmula transcrita del anexo 2; un total sin fórmula transcrita, o una fórmula que no se traduce sin suponer,
+  queda como hueco nombrado, sin valor. El TdR publica los formatos dentro del PDF, sin libro Excel modelo. El
+  anexo 9 fija las entidades y sus campos (nombre, orden, tipo, ancho y decimales), no nombres de carpetas ni de
+  ficheros: cada entidad se entrega en un fichero con su nombre.
 - RF-12: EL SISTEMA registrará las observaciones del regulador con su respuesta y la tabla o el cálculo al que
   afectan.
 - Aclaración de RF-12 (2026-11-14): con las observaciones respondidas, EL SISTEMA generará el Informe Definitivo con

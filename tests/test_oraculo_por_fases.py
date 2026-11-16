@@ -1,7 +1,7 @@
 """El oráculo calcula todo lo del modelo, y por fases (spec 082).
 
 Medido contra DIgSILENT el 2026-11-03: el flujo equilibrado y sin bancos daba 0,802 p.u. en TI01 de
-Electro Sur Este, donde DIgSILENT tiene 0,790, y 0,804 p.u. en C+æ02 de Luz del Sur, donde tiene 0,934,
+una distribuidora real, donde DIgSILENT tiene 0,790, y 0,804 p.u. en C+æ02 de una distribuidora real, donde tiene 0,934,
 y a C+æ02 le quitaba así el 57 % de su demanda sin motivo.
 """
 
@@ -118,12 +118,12 @@ def _q_de_la_fuente(modelo):
     import pandapower
 
     net, _barra, _informe = oraculo.red_pandapower(modelo)
-    oraculo._ejecutar(pandapower, net)
+    oraculo.ejecutar(pandapower, net)
     return float(net.res_ext_grid.q_mvar.sum())
 
 
 def test_un_banco_entrega_su_potencia_y_fuera_de_servicio_no(tmp_path):
-    """082:RF-4 — C+æ02 de Luz del Sur: sin sus 3 bancos el oráculo erraba 10 puntos."""
+    """082:RF-4 — C+æ02 de una distribuidora real: sin sus 3 bancos el oráculo erraba 10 puntos."""
     modelo = _trifasico(_modelo(tmp_path))
     sin_banco = _q_de_la_fuente(modelo)
     modelo.capacitors = [_banco(modelo, 300.0, en_servicio=False)]
@@ -215,7 +215,7 @@ def test_con_todo_trifasico_los_dos_flujos_dicen_lo_mismo(tmp_path):
     modelo = _trifasico(_modelo(tmp_path))
     equilibrada = oraculo.validar(modelo)
     net, _barra, _informe = oraculo.red_pandapower(modelo, por_fases=True)
-    oraculo._ejecutar(pandapower, net)
+    oraculo.ejecutar(pandapower, net)
     assert float(oraculo._tensiones(net).min()) == pytest.approx(equilibrada.v_min_pu, abs=0.005)
 
 

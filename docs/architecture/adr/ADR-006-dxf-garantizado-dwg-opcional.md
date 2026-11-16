@@ -1,11 +1,10 @@
 # ADR-006 · Planos y unifilares en DXF garantizado; el DWG, solo si hay convertidor
 
-- Estado: pendiente
+- Estado: vigente
 - Fecha: 2026-11-14
 - Specs: spec 107, spec 072
 - Elementos C4: cadWriter, oda, planning, pit, workspaceStore
-- Evidencia: `pyproject.toml::dep:ezdxf`
-- Pendiente en: 107 T23 (Aclaración de 107:RF-15, en `wt_107_00d3`) y 072 (planos A3 y Gantt), con `ezdxf` como dependencia obligatoria que añade el integrador
+- Evidencia: `pyproject.toml::dep:ezdxf`, `src/convertersmartgrid/pit/unifilar.py::generar`, `src/convertersmartgrid/pit/unifilar.py::convertidor_dwg`
 
 ## Contexto
 
@@ -34,6 +33,9 @@ un programa ajeno y no ganaría nada para el ente: AutoCAD abre el DXF.
 - La TO-BE añade el contenedor `cadWriter` y el sistema externo `oda`; los planos dejan de ser solo imágenes.
 - Cuando `ezdxf` entre en `[project].dependencies`, la prueba de arquitectura marcará este ADR como desfasado y se
   pasará a vigente en el mismo cambio, con la evidencia del escritor.
+- Pasa a vigente con la 107 T23 (E1+T23): `ezdxf` entra en `[project].dependencies` y el unifilar del expediente
+  del PIT se escribe en DXF (`pit/unifilar.py::generar`), con el DWG solo si hay convertidor (`convertidor_dwg`). Los
+  planos A3 y el Gantt de la 072 usarán el mismo escritor cuando se hagan.
 
 ## Contratos afectados
 

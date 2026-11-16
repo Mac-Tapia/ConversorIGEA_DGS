@@ -1,0 +1,40 @@
+{
+  "esquema": "sitios_de_casos_v2",
+  "_comentario": "Los sitios y clientes reales de los casos de prueba con que se verificó el conversor, POR SU HUELLA (sha256 del nombre normalizado, sin tildes y en minúsculas, 16 hexadecimales; también la de su forma pegada): el repositorio es público y no lleva sus nombres. Los nombres están solo en la lista local de términos, fuera de git. El escáner de tests/test_entrega_universal.py busca estas huellas en src/ y tests/, y test_casos_de_prueba en los valores del código.",
+  "sitios": [
+    {
+      "huellas": [
+        "2eeb238379f874d2"
+      ],
+      "tipo": "cliente",
+      "caso": "ampliación de un cliente agroindustrial en una SED de media tensión (informe de factibilidad en un paso)",
+      "procedencia": "specs/063-informe-de-factibilidad-en-un-paso/spec.md; specs/066-libro-de-cada-informe/spec.md"
+    },
+    {
+      "huellas": [
+        "46f083c6da3dea8b",
+        "3a4573eee1516602"
+      ],
+      "tipo": "cliente",
+      "caso": "informe de estudio de varios alimentadores y modelo de la cabecera del informe",
+      "procedencia": "specs/017-informes-de-estudio-y-factibilidad/spec.md; config/perfiles (_comentario_cabecera)"
+    },
+    {
+      "huellas": [
+        "448b4c02c075faaa",
+        "019fc34a361b7237"
+      ],
+      "tipo": "cliente",
+      "caso": "informe real con tres casos en un mismo alimentador",
+      "procedencia": "specs/066-libro-de-cada-informe/spec.md; specs/063-informe-de-factibilidad-en-un-paso/tasks.md"
+    },
+    {
+      "huellas": [
+        "192cc30ee3cfcc9f"
+      ],
+      "tipo": "SET",
+      "caso": "SET nueva de dos alimentadores en la escalera con proyecto y en la optimización con el oráculo",
+      "procedencia": "specs/042-con-proyecto-escalera-por-cargas-y-set-nueva/spec.md; specs/052-optimizacion-con-proyecto-con-el-oraculo/spec.md"
+    }
+  ]
+}

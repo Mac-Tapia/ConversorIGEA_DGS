@@ -1,6 +1,9 @@
 import {
   createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
 } from 'react';
+import { descargarBlob } from '../api/client';
+import { useNubeEntradas } from './nubeEntradas';
+import { guardarEnEquipo, NOMBRE_ORIGEN, separarPorTipo, type Origen, type VentanaGuardar } from './origenes';
 
 // ---------------------------------------------------------------- avisos (toasts)
 
@@ -98,8 +101,14 @@ export const useConfirm = () => useContext(ConfirmCtx);
 
 // ---------------------------------------------------------------- ficheros
 
+/**
+ * El campo único «Elegir archivo» de cada entrada (109:RF-21 a RF-23): del equipo (soltar o elegir, de cualquier
+ * carpeta) y, con una cuenta conectada, de Google Drive u OneDrive. Lo de la nube llega como copia fija y entra por el
+ * mismo `onFiles` que lo del equipo. Un fichero de otro tipo no entra: se dice su nombre y lo que admite.
+ * `entrada` nombra la entrada para el vínculo de la copia (una palabra en minúsculas).
+ */
 export function FileDrop({
-  onFiles, accept, multiple, children, disabled, compact,
+  onFiles, accept, multiple, children, disabled, compact, entrada = 'entrada',
 }: {
   onFiles: (files: File[]) => void;
   accept?: string;
@@ -107,10 +116,32 @@ export function FileDrop({
   children: ReactNode;
   disabled?: boolean;
   compact?: boolean;
+  entrada?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [trayendo, setTrayendo] = useState(false);
+  const { origenes, traer } = useNubeEntradas();
+  const nubes = origenes.filter((o): o is Exclude<Origen, 'equipo'> => o !== 'equipo');
+  const entregar = (files: File[]) => {
+    const { validos, aviso: motivo } = separarPorTipo(files, accept);
+    setAviso(motivo);
+    if (validos.length) onFiles(multiple ? validos : validos.slice(0, 1));
+  };
+  const deLaNube = async (o: Exclude<Origen, 'equipo'>) => {
+    setAviso(null);
+    setTrayendo(true);
+    try {
+      entregar(await traer(o, entrada, Boolean(multiple)));
+    } catch (e) {
+      setAviso(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTrayendo(false);
+    }
+  };
   return (
+    <>
     <div
       className={`drop ${over ? 'drop-over' : ''} ${disabled ? 'drop-disabled' : ''} ${compact ? 'drop-compact' : ''}`}
       role="button"
@@ -124,7 +155,7 @@ export function FileDrop({
         setOver(false);
         if (disabled) return;
         const files = Array.from(e.dataTransfer.files);
-        if (files.length) onFiles(multiple ? files : files.slice(0, 1));
+        if (files.length) entregar(files);
       }}
     >
       {children}
@@ -132,9 +163,48 @@ export function FileDrop({
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);
           e.target.value = '';
-          if (files.length) onFiles(files);
+          if (files.length) entregar(files);
         }} />
     </div>
+    {nubes.length > 0 && (
+      <span className="row origenes" role="group" aria-label="Elegir de la nube">
+        {nubes.map((o) => (
+          <button key={o} type="button" className="btn btn-sm btn-ghost" disabled={disabled || trayendo}
+            onClick={() => void deLaNube(o)}>{NOMBRE_ORIGEN[o]}</button>
+        ))}
+        {trayendo && <small className="muted" aria-live="polite">Trayendo…</small>}
+      </span>
+    )}
+    {aviso && <p className="alert alert-error" role="alert">{aviso}</p>}
+    </>
+  );
+}
+
+/**
+ * 109:RF-24: guardar una salida en la carpeta del equipo que elija el operador y, con una cuenta conectada, publicarla
+ * en la nube (RF-9). Va junto al enlace de descarga, que se queda como estaba. `rel` es su ruta en la salida.
+ */
+export function GuardarSalida({ url, nombre, rel }: { url: string; nombre: string; rel?: string }) {
+  const toast = useToast();
+  const { Publicar } = useNubeEntradas();
+  const [ocupado, setOcupado] = useState(false);
+  const guardar = async () => {
+    setOcupado(true);
+    try {
+      const hecho = await guardarEnEquipo(await descargarBlob(url), nombre, window as unknown as VentanaGuardar);
+      if (hecho === 'guardado') toast('ok', `${nombre} guardado.`);
+    } catch (e) {
+      toast('error', `No se pudo guardar ${nombre}`, e instanceof Error ? e.message : String(e));
+    } finally {
+      setOcupado(false);
+    }
+  };
+  return (
+    <>
+      <button type="button" className="btn btn-sm btn-ghost" disabled={ocupado} aria-label={`Guardar ${nombre} en una carpeta`}
+        onClick={() => void guardar()}>Guardar en…</button>
+      {Publicar && rel && <Publicar seleccion={[rel]} nombre={nombre} />}
+    </>
   );
 }
 

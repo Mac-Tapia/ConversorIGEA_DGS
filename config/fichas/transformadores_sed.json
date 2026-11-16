@@ -1,5 +1,5 @@
 {
-  "_comentario": "Fichas de transformadores de SED del conversor (020:RF-63): las usa la calibración cuando el perfil de la empresa no trae las suyas. Usuario (2026-11-11): «las fichas deben ser parte del conversor». Norma técnica nacional, no convención de una empresa; el perfil puede dar otras y mandan las suyas.",
+  "_comentario": "Fichas de transformadores de SED del conversor: las usa la calibración cuando el perfil de la empresa no trae las suyas. Usuario (2026-11-11): «las fichas deben ser parte del conversor». Norma técnica nacional, no convención de una empresa; el perfil puede dar otras y mandan las suyas.",
   "origen": "conversor",
   "umbral_carga_pct": 80,
   "tablas": [

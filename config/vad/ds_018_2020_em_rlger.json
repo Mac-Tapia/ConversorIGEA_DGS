@@ -1,0 +1,90 @@
+{
+ "esquema": "registro_normativo_v1",
+ "normas": [
+  {
+   "acto": "DS 018-2020-EM",
+   "titulo": "Reglamento de la Ley N° 28749, Ley General de Electrificación Rural (RLGER)",
+   "estado_juridico": "vigente_comprobada",
+   "fecha_publicacion": "2020-07-14",
+   "fecha_consulta": "2026-11-15",
+   "vigencia_desde": "2020-07-15",
+   "sha256": "1e5044b25cb4a0de1eb2cd5108e4186b95917a1e5f55f41d14bd8b6086593012",
+   "sha256_texto": "31edc7924de7e339215e67074738b9bf91b2c590b3df8043cbbf65b39f3f6e2f",
+   "url": "https://busquedas.elperuano.pe/dispositivo/NL/1871077-4",
+   "modificada_por": [
+    "DS 003-2026-EM"
+   ],
+   "nota": "El Peruano NL 1871077-4 (martes 14-07-2020), copia local (b8d de 6c). Sin cláusula de vigencia (arts. 1-4: objeto, refrendo, financiamiento, publicación): rige desde el día siguiente (art. 109 de la Constitución). El DS 003-2026-EM (NL 2509857-1, sábado 25-04-2026, sha f2ee76efdb12f4fd…) modifica los literales b) y c) del art. 34 (OyM: «costos eficientes que establece el OSINERGMIN»), el 38 y otros; NO modifica el 34 a), el 37 ni la DCF Décima Primera, que son las reglas de este acto. El Título VI no dice nada de las pérdidas no técnicas de los SER (solo «tecnologías anti hurto» en la conexión, 34 a).",
+   "reglas": [
+    {
+     "clave": "vad.ser.fondo_reposicion.criterio",
+     "valor": "el VAD de los SER considera un fondo de reposición de las instalaciones del SER",
+     "articulo_o_anexo": "art. 34 a)",
+     "pagina": "El Peruano",
+     "lineas": "1257-1258",
+     "cita_literal": "considera un fondo de reposición de las instalaciones del SER."
+    },
+    {
+     "clave": "vad.ser.avnr.inversion_estado_100",
+     "valor": "aVNR × factor del fondo de reposición (FFR)",
+     "articulo_o_anexo": "art. 37.2 b)",
+     "pagina": "El Peruano",
+     "lineas": "1351-1354",
+     "cita_literal": "Cuando las inversiones del SER están constituidas por el cien por ciento (100%) de los aportes del Estado, la anualidad del VNR se multiplica por el factor de reposición que corresponda."
+    },
+    {
+     "clave": "vad.ser.avnr.inversion_mixta",
+     "valor": {
+      "retribucion": "aVNR × fp",
+      "reposicion": "aVNR × (1 − fp) × FFR",
+      "total": "retribución + reposición + OyM"
+     },
+     "articulo_o_anexo": "art. 37.3 a)-c)",
+     "pagina": "El Peruano",
+     "lineas": "1362-1365",
+     "cita_literal": "El monto de reposición de la inversión se determina aplicando a la anualidad del VNR del SER el complemento del factor de proporción (1-fp) y luego se aplica el factor de reposición.",
+     "interpretacion": "fp = proporción de inversiones de otras entidades (la fija Osinergmin, 37.2 a)."
+    },
+    {
+     "clave": "vad.ser.ffr.formula",
+     "valor": {
+      "vida_util_anios": 30,
+      "tasa": "tasa de interés pasiva de mercado (efectiva anual) de moneda nacional de la SBS, vigente al último día hábil del año anterior a la fijación",
+      "factor_reposicion": "factor de fondo de amortización i/((1+i)^n − 1) a esa tasa y n = 30",
+      "ffr": "factor_reposicion / factor de la anualidad del VNR (FRC de la LCE: 12 %, 30 años)"
+     },
+     "articulo_o_anexo": "DCF Décima Primera",
+     "pagina": "El Peruano",
+     "lineas": "2395-2405",
+     "cita_literal": "El factor de reposición que sirve de base para el cálculo del factor del fondo de reposición del VNR es calculado tomando como referencia una vida útil de 30 años y la tasa de interés pasiva de mercado (tasa de interés efectiva anual) de moneda nacional establecida por la Superintendencia de Banca y Seguros, vigente al último día hábil del año anterior a la fijación tarifaria. El factor del fondo de reposición aplicable al VNR resulta de dividir el factor de reposición sobre el factor de la anualidad del VNR, éste último calculado acorde a lo señalado en la LCE.",
+     "interpretacion": "«Factor de reposición» = factor de FONDO DE AMORTIZACIÓN i/((1+i)^n − 1) (lectura de c3; el texto no da la fórmula). Lo reproduce el libro del Anexo 15 de la fijación 2026 (b8c): tasa pasiva 1,97 % (SBS al 31-12-2025) → 0,024766; FRC 12 %/30 = 0,124144; FFR = 0,1994941358."
+    }
+   ]
+  },
+  {
+   "acto": "DS 003-2026-EM",
+   "titulo": "Decreto Supremo que modifica el Reglamento de la Ley N° 28749 (RLGER)",
+   "estado_juridico": "vigente_comprobada",
+   "fecha_publicacion": "2026-04-25",
+   "fecha_consulta": "2026-11-15",
+   "vigencia_desde": "2026-04-26",
+   "sha256": "f2ee76efdb12f4fdfa392a2860d5b0f59a19ed963baf5110bd303ba5a0bb07ed",
+   "sha256_texto": "253741fa3486b3616ad46f568b474d64379ece3d0ba692cd587e8c6c3b505551",
+   "url": "https://busquedas.elperuano.pe/dispositivo/NL/2509857-1",
+   "modifica": [
+    "DS 018-2020-EM"
+   ],
+   "nota": "Sin cláusula de vigencia (arts. 5-7: financiamiento, publicación, refrendo): art. 109 de la Constitución.",
+   "reglas": [
+    {
+     "clave": "vad.ser.oym.criterio",
+     "valor": "costos eficientes que establece Osinergmin en cada periodo regulatorio",
+     "articulo_o_anexo": "art. 3 (modifica el art. 34 b) del RLGER)",
+     "pagina": "El Peruano",
+     "lineas": "486-488",
+     "cita_literal": "son los costos eficientes que establece el OSINERGMIN en cada periodo regulatorio."
+    }
+   ]
+  }
+ ]
+}

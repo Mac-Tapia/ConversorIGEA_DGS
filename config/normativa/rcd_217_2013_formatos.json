@@ -1,7 +1,7 @@
 {
  "amplia": "RCD 217-2013-OS/CD",
  "esquema": "registro_normativo_v1",
- "nota": "107 T19 y T26. Formatos de la Norma Tarifas en sus libros oficiales: https://www.osinergmin.gob.pe/seccion/centro_documental/gart/procesosregulatorios/electricidad/Infotec/NormaTarifas2013.rar (enlazado en https://prie.osinergmin.gob.pe/propuesta-tarifaria, «Formularios de norma Tarifas y Compensaciones de Sistemas Secundarios y Complementarios»), sha256 del rar 911c3712b0d44da1bdcd3ffef3019a9bcc5232c5aebb8d32a2a4f00c236f3448, descargado el 2026-11-14. Seis libros con fecha 06-11-2013 y 69 hojas, una por formato, como la tabla 1 del art. 30.1. Las modificatorias leídas (018-2018 y 242-2021) no cambian formatos; la 177-2021 no está leída. Superíndices: las llamadas a nota van aparte del rótulo («llamadas»), según el análisis de formato del libro (xlrd); libros sin revisar: ninguno.",
+ "nota": "Formatos de la Norma Tarifas en sus libros oficiales: https://www.osinergmin.gob.pe/seccion/centro_documental/gart/procesosregulatorios/electricidad/Infotec/NormaTarifas2013.rar (enlazado en https://prie.osinergmin.gob.pe/propuesta-tarifaria, «Formularios de norma Tarifas y Compensaciones de Sistemas Secundarios y Complementarios»), sha256 del rar 911c3712b0d44da1bdcd3ffef3019a9bcc5232c5aebb8d32a2a4f00c236f3448, descargado el 2026-11-14. Seis libros con fecha 06-11-2013 y 69 hojas, una por formato, como la tabla 1 del art. 30.1. Las modificatorias leídas (018-2018 y 242-2021) no cambian formatos; la 177-2021 no está leída. Superíndices: las llamadas a nota van aparte del rótulo («llamadas»), según el análisis de formato del libro (xlrd); libros sin revisar: ninguno.",
  "reglas": [
   {
    "articulo_o_anexo": "art. 30 (Título IV) y art. 4 de la resolución: archivos Excel de los formatos",
@@ -115,6 +115,11 @@
     "filas_en_hoja": 15,
     "hoja": "F-001",
     "libro": "00-Informacion General-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d1d676d826949ed65e6b6a0c0184f6f7281899bc70f9fc8b8a5ed7526060d71",
     "titulo": "INFORMACIÓN GENERAL DEL SISTEMA ELÉCTRICO A REMUNERAR"
    }
@@ -285,6 +290,11 @@
     "filas_en_hoja": 19,
     "hoja": "F-002",
     "libro": "00-Informacion General-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d1d676d826949ed65e6b6a0c0184f6f7281899bc70f9fc8b8a5ed7526060d71",
     "titulo": "PARÁMETROS ELÉCTRICOS DE LÍNEAS DE TRANSMISIÓN EXISTENTES"
    }
@@ -586,6 +596,11 @@
     "filas_en_hoja": 38,
     "hoja": "F-003",
     "libro": "00-Informacion General-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d1d676d826949ed65e6b6a0c0184f6f7281899bc70f9fc8b8a5ed7526060d71",
     "titulo": "PARÁMETROS ELÉCTRICOS DE TRANSFORMADORES EXISTENTES"
    }
@@ -720,6 +735,29 @@
     "filas_en_hoja": 25,
     "hoja": "F-101",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 6,
+     "filas": {
+      "15": [
+       "F",
+       "G"
+      ],
+      "22": [
+       "F",
+       "G"
+      ],
+      "8": [
+       "F",
+       "G"
+      ]
+     },
+     "motivo": "(2) Para \"Total Sistema\" solo se consigna el valor del \"FC\" correspondiente",
+     "nota": "A25",
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas",
+     "relleno": [
+      "negro"
+     ]
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "FACTOR DE CARGA, CONTRIBUCIÓN A LA PUNTA y SIMULTANEIDAD (1)"
    }
@@ -853,6 +891,11 @@
     "filas_en_hoja": 14,
     "hoja": "F-102",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "INFORMACIÓN DE LA CARGA - USUARIOS REGULADOS (1)"
    }
@@ -1018,6 +1061,11 @@
     "filas_en_hoja": 20,
     "hoja": "F-103",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "FACTORES POR SET - USUARIOS REGULADOS"
    }
@@ -1251,6 +1299,11 @@
     "filas_en_hoja": 34,
     "hoja": "F-104",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "INFORMACION HISTORICA DE VARIABLES EXPLICATIVAS"
    }
@@ -1444,6 +1497,11 @@
     "filas_en_hoja": 30,
     "hoja": "F-105",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "VENTAS HISTÓRICAS DE ENERGÍA (MWh)"
    }
@@ -1796,6 +1854,11 @@
     "filas_en_hoja": 60,
     "hoja": "F-106",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "PROYECCIÓN DE VENTAS GLOBALES(1) DE ENERGÍA (MWh) DE USUARIOS REGULADOS"
    }
@@ -2182,6 +2245,11 @@
     "filas_en_hoja": 67,
     "hoja": "F-107",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "PROYECCIÓN DE VENTAS GLOBALES(1) DE ENERGÍA (MWh) DE USUARIOS REGULADOS"
    }
@@ -2466,6 +2534,11 @@
     "filas_en_hoja": 49,
     "hoja": "F-108",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "PROYECCIÓN DE VENTAS DE ENERGÍA (MWh) DE USUARIOS REGULADOS"
    }
@@ -2690,6 +2763,11 @@
     "filas_en_hoja": 43,
     "hoja": "F-109",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "DETALLE DE LA PROYECCION DE DEMANDA DE ENERGIA, POR NIVEL DE TENSION"
    }
@@ -2920,6 +2998,11 @@
     "filas_en_hoja": 43,
     "hoja": "F-110",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "PROYECCION DE DEMANDA DE POTENCIA NO COINCIDENTE (MW)"
    }
@@ -3150,6 +3233,11 @@
     "filas_en_hoja": 43,
     "hoja": "F-111",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "PROYECCION DE DEMANDA DE POTENCIA COINCIDENTE A NIVEL DE SISTEMA ELECTRICO (MW)"
    }
@@ -3368,6 +3456,11 @@
     "filas_en_hoja": 42,
     "hoja": "F-112",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "PROYECCION DE DEMANDA DE POTENCIA COINCIDENTE CON LA MAXIMA DEMANDA DEL SEIN (MW)"
    }
@@ -3574,6 +3667,11 @@
     "filas_en_hoja": 42,
     "hoja": "F-113",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "INFORMACIÓN BÁSICA DE USUARIOS LIBRES Y DEMANDAS INCORPORADAS (1)"
    }
@@ -3776,6 +3874,11 @@
     "filas_en_hoja": 42,
     "hoja": "F-114",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "PROYECCIÓN DE LA ENERGÍA DE USUARIOS LIBRES Y DEMANDAS INCORPORADAS (MWh)"
    }
@@ -3978,6 +4081,11 @@
     "filas_en_hoja": 42,
     "hoja": "F-115",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "PROYECCIÓN DE LA DEMANDA DE ENERGÍA DE USUARIOS LIBRES Y DEMANDAS INCORPORADAS (MWh)"
    }
@@ -4204,6 +4312,11 @@
     "filas_en_hoja": 44,
     "hoja": "F-116",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "PROYECCIÓN DE LAS MÁXIMAS DEMANDAS DE POTENCIA NO COINCIDENTE (MW) (1)"
    }
@@ -4418,6 +4531,11 @@
     "filas_en_hoja": 43,
     "hoja": "F-117",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "PROYECCIÓN DE LA DEMANDA DE POTENCIA COINCIDENTE  A NIVEL DEL SISTEMA ELECTRICO (MW)"
    }
@@ -4626,6 +4744,11 @@
     "filas_en_hoja": 43,
     "hoja": "F-118",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "PROYECCIÓN DE LA DEMANDA DE POTENCIA COINCIDENTE  A NIVEL DEL SEIN (MW)"
    }
@@ -4892,6 +5015,11 @@
     "filas_en_hoja": 41,
     "hoja": "F-119",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "RESUMEN DE LA PROYECCION GLOBAL DE LA DEMANDA (GWh)"
    }
@@ -5099,6 +5227,11 @@
     "filas_en_hoja": 44,
     "hoja": "F-120",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "RESUMEN DE LA PROYECCION DE LA POTENCIA NO COINCIDENTE (MW)"
    }
@@ -5306,6 +5439,11 @@
     "filas_en_hoja": 43,
     "hoja": "F-121",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "RESUMEN DE LA PROYECCION DE LA POTENCIA COINCIDENTE A NIVEL SISTEMA (MW)"
    }
@@ -5507,6 +5645,11 @@
     "filas_en_hoja": 43,
     "hoja": "F-122",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "RESUMEN DE LA PROYECCION DE LA POTENCIA COINCIDENTE A NIVEL SEIN (MW)"
    }
@@ -5570,6 +5713,11 @@
     "filas_en_hoja": 47,
     "hoja": "F-123",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "MAPA DE DENSIDAD DE CARGA (1)"
    }
@@ -5691,6 +5839,11 @@
     "filas_en_hoja": 17,
     "hoja": "F-124",
     "libro": "01-Demanda_Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "4d8763572be8366507e58b9e21d91a123cd080cce8eaf60e6459ad25d5f07ce7",
     "titulo": "DATOS DE GENERACIÓN"
    }
@@ -5917,6 +6070,11 @@
     "filas_en_hoja": 33,
     "hoja": "F-201",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "CAPACIDAD ÓPTIMA DE SETs URBANAS"
    }
@@ -6348,6 +6506,70 @@
     "filas_en_hoja": 56,
     "hoja": "F-202",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 18,
+     "filas": {
+      "10": [
+       "F"
+      ],
+      "14": [
+       "F"
+      ],
+      "15": [
+       "F"
+      ],
+      "16": [
+       "F"
+      ],
+      "20": [
+       "F"
+      ],
+      "21": [
+       "F"
+      ],
+      "24": [
+       "F"
+      ],
+      "28": [
+       "F"
+      ],
+      "29": [
+       "F"
+      ],
+      "30": [
+       "F"
+      ],
+      "34": [
+       "F"
+      ],
+      "35": [
+       "F"
+      ],
+      "36": [
+       "F"
+      ],
+      "40": [
+       "F"
+      ],
+      "41": [
+       "F"
+      ],
+      "44": [
+       "F"
+      ],
+      "48": [
+       "F"
+      ],
+      "49": [
+       "F"
+      ]
+     },
+     "motivo": "celda sombreada en el libro oficial",
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas",
+     "relleno": [
+      "gris 192"
+     ]
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "IDENTIFICACIÓN DE LAS SET´s EXISTENTES QUE SUPERAN LA CAPACIDAD DE DISEÑO"
    }
@@ -6768,6 +6990,70 @@
     "filas_en_hoja": 54,
     "hoja": "F-203",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 18,
+     "filas": {
+      "10": [
+       "F"
+      ],
+      "14": [
+       "F"
+      ],
+      "15": [
+       "F"
+      ],
+      "16": [
+       "F"
+      ],
+      "20": [
+       "F"
+      ],
+      "21": [
+       "F"
+      ],
+      "24": [
+       "F"
+      ],
+      "28": [
+       "F"
+      ],
+      "29": [
+       "F"
+      ],
+      "30": [
+       "F"
+      ],
+      "34": [
+       "F"
+      ],
+      "35": [
+       "F"
+      ],
+      "36": [
+       "F"
+      ],
+      "40": [
+       "F"
+      ],
+      "41": [
+       "F"
+      ],
+      "44": [
+       "F"
+      ],
+      "48": [
+       "F"
+      ],
+      "49": [
+       "F"
+      ]
+     },
+     "motivo": "celda sombreada en el libro oficial",
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas",
+     "relleno": [
+      "gris 192"
+     ]
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "REDISTRIBUCIÓN DE LA PROYECCIÓN DE LA MÁXIMA DEMANDA DE LAS SET´s"
    }
@@ -6960,6 +7246,11 @@
     "filas_en_hoja": 24,
     "hoja": "F-204",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "DETERMINACIÓN DE LA CANTIDAD DE NUEVOS ALIMENTADORES MT"
    }
@@ -7142,6 +7433,11 @@
     "filas_en_hoja": 22,
     "hoja": "F-205",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "SELECCIÓN DE ALTERNATIVA ÓPTIMA"
    }
@@ -7543,6 +7839,11 @@
     "filas_en_hoja": 50,
     "hoja": "F-206",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "PARÁMETROS ELÉCTRICOS DE FUTURAS LÍNEAS DE TRANSMISIÓN, TRANSFORMADORES y EQUIPOS DE COMPENSACION DE ALTERNATIVA SELECCIONADA"
    }
@@ -7684,6 +7985,11 @@
     "filas_en_hoja": 19,
     "hoja": "F-207",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "SELECCIÓN DE LA SECCIÓN ÓPTIMA DEL CONDUCTOR"
    }
@@ -7923,6 +8229,11 @@
     "filas_en_hoja": 39,
     "hoja": "F-208",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "ESTADÍSTICA DE FALLAS E ÍNDICES DE DESEMPEÑO"
    }
@@ -8394,6 +8705,76 @@
     "filas_en_hoja": 72,
     "hoja": "F-209",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 20,
+     "filas": {
+      "19": [
+       "C"
+      ],
+      "20": [
+       "C"
+      ],
+      "21": [
+       "C"
+      ],
+      "22": [
+       "C"
+      ],
+      "23": [
+       "C"
+      ],
+      "35": [
+       "C"
+      ],
+      "36": [
+       "C"
+      ],
+      "37": [
+       "C"
+      ],
+      "38": [
+       "C"
+      ],
+      "39": [
+       "C"
+      ],
+      "51": [
+       "C"
+      ],
+      "52": [
+       "C"
+      ],
+      "53": [
+       "C"
+      ],
+      "54": [
+       "C"
+      ],
+      "55": [
+       "C"
+      ],
+      "67": [
+       "C"
+      ],
+      "68": [
+       "C"
+      ],
+      "69": [
+       "C"
+      ],
+      "70": [
+       "C"
+      ],
+      "71": [
+       "C"
+      ]
+     },
+     "motivo": "celda sombreada en el libro oficial",
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas",
+     "relleno": [
+      "gris 192"
+     ]
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "EQUIPAMIENTO DE SUBESTACIONES - MAT/AT(/MT) - AT/MT"
    }
@@ -8575,6 +8956,11 @@
     "filas_en_hoja": 24,
     "hoja": "F-210",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "PLAN DE EQUIPAMIENTO DE LÍNEAS DE TRANSMISIÓN"
    }
@@ -8731,6 +9117,11 @@
     "filas_en_hoja": 21,
     "hoja": "F-211",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "RESUMEN POR ÁREA DE DEMANDA"
    }
@@ -8853,6 +9244,11 @@
     "filas_en_hoja": 20,
     "hoja": "F-212",
     "libro": "02-SER-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "fa39a7adbdca9bddd568146d9c669f30f6a47942f0ed98c158dae8fff630a3ea",
     "titulo": "DIAGRAMA UNIFILAR DE ALTERNATIVAS"
    }
@@ -8955,6 +9351,11 @@
     "filas_en_hoja": 27,
     "hoja": "F-301",
     "libro": "03-Inversion-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "41f30ff7268740b6962282da8667a46fbc9ed9e93c99c3fa4a8c4952c17c9ea6",
     "titulo": "VALORIZACIÓN DE INVERSIÓN DE LÍNEAS DE TRANSMISIÓN"
    }
@@ -9805,6 +10206,1009 @@
     "filas_en_hoja": 114,
     "hoja": "F-302",
     "libro": "03-Inversion-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 896,
+     "filas": {
+      "100": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "101": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "102": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "103": [
+       "B",
+       "C",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "104": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "105": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "106": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "107": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "22": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "23": [
+       "B",
+       "C",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "24": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "25": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "26": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "27": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "28": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "29": [
+       "B",
+       "C",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "30": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "31": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "32": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "33": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "46": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "47": [
+       "B",
+       "C",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "48": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "49": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "50": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "51": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "52": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "53": [
+       "B",
+       "C",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "54": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "55": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "56": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "57": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "71": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "72": [
+       "B",
+       "C",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "73": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "74": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "75": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "76": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "77": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "78": [
+       "B",
+       "C",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "79": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "80": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "81": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "82": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "96": [
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "97": [
+       "B",
+       "C",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "98": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ],
+      "99": [
+       "B",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y"
+      ]
+     },
+     "motivo": "(3) Las celdas sombreadas no deben ser llenadas.",
+     "nota": "A112",
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas",
+     "relleno": [
+      "gris 192"
+     ]
+    },
     "sha256_libro": "41f30ff7268740b6962282da8667a46fbc9ed9e93c99c3fa4a8c4952c17c9ea6",
     "titulo": "VALORIZACIÓN DE INVERSIÓN EN SUBESTACIONES (US$)"
    }
@@ -9997,6 +11401,11 @@
     "filas_en_hoja": 23,
     "hoja": "F-303",
     "libro": "03-Inversion-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "41f30ff7268740b6962282da8667a46fbc9ed9e93c99c3fa4a8c4952c17c9ea6",
     "titulo": "ASIGNACIÓN DEL MÓDULO DE CENTRO DE CONTROL INCREMENTAL"
    }
@@ -10189,6 +11598,11 @@
     "filas_en_hoja": 23,
     "hoja": "F-304",
     "libro": "03-Inversion-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "41f30ff7268740b6962282da8667a46fbc9ed9e93c99c3fa4a8c4952c17c9ea6",
     "titulo": "ASIGNACIÓN DEL MÓDULO DE TELECOMUNICACIONES INCREMENTAL"
    }
@@ -10203,6 +11617,141 @@
    "unidad": "",
    "valor": {
     "codigo": "F-305",
+    "colores": {
+     "celdas": 116,
+     "efecto": "ninguno: ninguna nota del formato ni de la norma (RCD 217-2013) dice que no se llenen; observación (apoyo (cc), frente «z10_colores_217»; regla del auditor 28)",
+     "filas": {
+      "6": [
+       "C",
+       "D",
+       "E",
+       "F",
+       "G",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y",
+       "Z",
+       "AA",
+       "AB",
+       "AC",
+       "AD",
+       "AE"
+      ],
+      "7": [
+       "C",
+       "D",
+       "E",
+       "F",
+       "G",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y",
+       "Z",
+       "AA",
+       "AB",
+       "AC",
+       "AD",
+       "AE"
+      ],
+      "8": [
+       "C",
+       "D",
+       "E",
+       "F",
+       "G",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y",
+       "Z",
+       "AA",
+       "AB",
+       "AC",
+       "AD",
+       "AE"
+      ],
+      "9": [
+       "C",
+       "D",
+       "E",
+       "F",
+       "G",
+       "H",
+       "I",
+       "J",
+       "K",
+       "L",
+       "M",
+       "N",
+       "O",
+       "P",
+       "Q",
+       "R",
+       "S",
+       "T",
+       "U",
+       "V",
+       "W",
+       "X",
+       "Y",
+       "Z",
+       "AA",
+       "AB",
+       "AC",
+       "AD",
+       "AE"
+      ]
+     },
+     "rellenos": [
+      "(204, 255, 204)",
+      "(204, 255, 255)",
+      "(255, 255, 153)"
+     ]
+    },
     "filas": [
      {
       "celdas": {
@@ -10392,6 +11941,11 @@
     "filas_en_hoja": 24,
     "hoja": "F-305",
     "libro": "03-Inversion-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "41f30ff7268740b6962282da8667a46fbc9ed9e93c99c3fa4a8c4952c17c9ea6",
     "titulo": "BASE DE DATOS DE LOS ELEMENTOS PREVISTOS DEL SISTEMA ELÉCTRICO A REMUNERAR"
    }
@@ -10406,6 +11960,40 @@
    "unidad": "",
    "valor": {
     "codigo": "F-306",
+    "colores": {
+     "celdas": 20,
+     "efecto": "ninguno: ninguna nota del formato ni de la norma (RCD 217-2013) dice que no se llenen; observación (apoyo (cc), frente «z10_colores_217»; regla del auditor 28)",
+     "filas": {
+      "6": [
+       "B",
+       "C",
+       "D",
+       "E",
+       "F",
+       "G",
+       "H",
+       "I",
+       "J",
+       "K"
+      ],
+      "7": [
+       "B",
+       "C",
+       "D",
+       "E",
+       "F",
+       "G",
+       "H",
+       "I",
+       "J",
+       "K"
+      ]
+     },
+     "rellenos": [
+      "(204, 255, 204)",
+      "(255, 255, 153)"
+     ]
+    },
     "filas": [
      {
       "celdas": {
@@ -10826,6 +12414,11 @@
     "filas_en_hoja": 65,
     "hoja": "F-306",
     "libro": "03-Inversion-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "41f30ff7268740b6962282da8667a46fbc9ed9e93c99c3fa4a8c4952c17c9ea6",
     "titulo": "RESUMEN DE COSTOS DE INVERSIÓN US$"
    }
@@ -10840,6 +12433,40 @@
    "unidad": "",
    "valor": {
     "codigo": "F-401",
+    "colores": {
+     "celdas": 20,
+     "efecto": "ninguno: ninguna nota del formato ni de la norma (RCD 217-2013) dice que no se llenen; observación (apoyo (cc), frente «z10_colores_217»; regla del auditor 28)",
+     "filas": {
+      "6": [
+       "B",
+       "C",
+       "D",
+       "E",
+       "F",
+       "G",
+       "H",
+       "I",
+       "J",
+       "K"
+      ],
+      "7": [
+       "B",
+       "C",
+       "D",
+       "E",
+       "F",
+       "G",
+       "H",
+       "I",
+       "J",
+       "K"
+      ]
+     },
+     "rellenos": [
+      "(204, 255, 204)",
+      "(255, 255, 153)"
+     ]
+    },
     "filas": [
      {
       "celdas": {
@@ -11260,6 +12887,11 @@
     "filas_en_hoja": 65,
     "hoja": "F-401",
     "libro": "04-COYM-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "8aac953858d0eaeff1418b5c341742e9805e6ad814f99f9cc85983d177dc2035",
     "titulo": "RESUMEN DE COYM US$"
    }
@@ -11448,6 +13080,11 @@
     "filas_en_hoja": 27,
     "hoja": "F-501",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "REGISTROS MENSUALES DE ENERGÍA DEL AÑO REPRESENTATIVO (MWh)"
    }
@@ -11630,6 +13267,11 @@
     "filas_en_hoja": 26,
     "hoja": "F-502",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "FACTORES ESTACIONALES DE ENERGÍA (p.u.)"
    }
@@ -11867,6 +13509,11 @@
     "filas_en_hoja": 35,
     "hoja": "F-503",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "DEMANDA MENSUAL DE ENERGÍA (MWh)"
    }
@@ -12212,6 +13859,11 @@
     "filas_en_hoja": 45,
     "hoja": "F-504",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "PÉRDIDAS DE POTENCIA POR SISTEMAS (MW)"
    }
@@ -12480,6 +14132,11 @@
     "filas_en_hoja": 40,
     "hoja": "F-505",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "PÉRDIDAS DE ENERGIA POR SISTEMA (MWh)"
    }
@@ -12708,6 +14365,11 @@
     "filas_en_hoja": 37,
     "hoja": "F-506",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "POTENCIAS RETIRADAS (MW)"
    }
@@ -12876,6 +14538,11 @@
     "filas_en_hoja": 27,
     "hoja": "F-507",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "RESUMEN ANUAL DE PORCENTAJES DE PÉRDIDAS DE POTENCIA"
    }
@@ -13104,6 +14771,11 @@
     "filas_en_hoja": 36,
     "hoja": "F-508",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "ENERGÍAS RETIRADAS (MWh)"
    }
@@ -13266,6 +14938,11 @@
     "filas_en_hoja": 26,
     "hoja": "F-509",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "RESUMEN ANUAL DE PORCENTAJES DE PÉRDIDAS DE ENERGÍA"
    }
@@ -13280,6 +14957,25 @@
    "unidad": "",
    "valor": {
     "codigo": "F-510",
+    "colores": {
+     "celdas": 8,
+     "efecto": "ninguno: ninguna nota del formato ni de la norma (RCD 217-2013) dice que no se llenen; observación (apoyo (cc), frente «z10_colores_217»; regla del auditor 28)",
+     "filas": {
+      "22": [
+       "A",
+       "B",
+       "C",
+       "D",
+       "E",
+       "F",
+       "G",
+       "H"
+      ]
+     },
+     "rellenos": [
+      "(255, 255, 0)"
+     ]
+    },
     "filas": [
      {
       "celdas": {
@@ -13406,6 +15102,11 @@
     "filas_en_hoja": 20,
     "hoja": "F-510",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "FACTORES DE PÉRDIDAS MEDIAS"
    }
@@ -13752,6 +15453,11 @@
     "filas_en_hoja": 45,
     "hoja": "F-511",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "INGRESOS TARIFARIOS MENSUALES POR POTENCIA US$"
    }
@@ -14092,6 +15798,11 @@
     "filas_en_hoja": 45,
     "hoja": "F-512",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "INGRESOS TARIFARIOS MENSUALES POR ENERGÍA US$"
    }
@@ -14461,6 +16172,11 @@
     "filas_en_hoja": 59,
     "hoja": "F-513",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "INGRESOS TARIFARIOS ANUALIZADOS POR TITULAR US$"
    }
@@ -14977,6 +16693,11 @@
     "filas_en_hoja": 86,
     "hoja": "F-514",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "COSTOS ANUALES US$"
    }
@@ -15256,6 +16977,11 @@
     "filas_en_hoja": 38,
     "hoja": "F-515",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "PEAJE UNITARIO (PU) PARA CADA PARTE DEL SISTEMA ELÉCTRICO EQUIVALENTE"
    }
@@ -15325,6 +17051,11 @@
     "filas_en_hoja": 11,
     "hoja": "F-516",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "COMPENSACIÓN MENSUAL"
    }
@@ -15387,6 +17118,11 @@
     "filas_en_hoja": 11,
     "hoja": "F-517",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "ASIGNACIÓN DE COMPENSACIÓN MENSUAL"
    }
@@ -15585,6 +17321,40 @@
     "filas_en_hoja": 31,
     "hoja": "F-518",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 8,
+     "filas": {
+      "17": [
+       "B"
+      ],
+      "18": [
+       "B"
+      ],
+      "21": [
+       "B"
+      ],
+      "22": [
+       "B"
+      ],
+      "25": [
+       "B"
+      ],
+      "26": [
+       "B"
+      ],
+      "29": [
+       "B"
+      ],
+      "30": [
+       "B"
+      ]
+     },
+     "motivo": "celda sombreada en el libro oficial",
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas",
+     "relleno": [
+      "gris 192"
+     ]
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "FACTORES DE ACTUALIZACIÓN"
    }
@@ -15711,6 +17481,11 @@
     "filas_en_hoja": 19,
     "hoja": "F-519",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "FACTORES DE ACTUALIZACIÓN"
    }
@@ -15837,6 +17612,11 @@
     "filas_en_hoja": 19,
     "hoja": "F-520",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "FACTORES DE ACTUALIZACIÓN"
    }
@@ -15963,6 +17743,11 @@
     "filas_en_hoja": 19,
     "hoja": "F-521",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "FACTORES DE ACTUALIZACIÓN"
    }
@@ -15977,6 +17762,31 @@
    "unidad": "",
    "valor": {
     "codigo": "F-522",
+    "colores": {
+     "celdas": 12,
+     "efecto": "ninguno: ninguna nota del formato ni de la norma (RCD 217-2013) dice que no se llenen; observación (apoyo (cc), frente «z10_colores_217»; regla del auditor 28)",
+     "filas": {
+      "26": [
+       "A",
+       "B",
+       "C",
+       "D",
+       "E",
+       "F"
+      ],
+      "6": [
+       "A",
+       "B",
+       "C",
+       "D",
+       "E",
+       "F"
+      ]
+     },
+     "rellenos": [
+      "(255, 255, 153)"
+     ]
+    },
     "filas": [
      {
       "celdas": {
@@ -16277,6 +18087,11 @@
     "filas_en_hoja": 44,
     "hoja": "F-522",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "FACTORES DE ACTUALIZACIÓN DE LOS CMA Y PEAJES"
    }
@@ -16419,6 +18234,11 @@
     "filas_en_hoja": 24,
     "hoja": "F-523",
     "libro": "05-Tarifas-Rev_2013.xls",
+    "no_llenar": {
+     "celdas": 0,
+     "filas": {},
+     "procedencia": "rellenos leídos con xlrd (formatting_info) de los libros oficiales del rar (sha comprobado), cotejados con el mapa derivado <fuentes>/PIT_NORMA/rcd_217-2013_formatos/sombreadas/ (GRISES_217.json sha256 731601968d1b4b4ccef8eba0a32ad46f5d571f2e63a524bd8d6c44c976fc143b, del apoyo (cc), frente «z6_cotejo_resto»): mismas celdas"
+    },
     "sha256_libro": "e2154558d8f54b81c1bb9d91756c7cf08985f57ddda5adabde0658b2533a4e65",
     "titulo": "FACTORES DE ACTUALIZACIÓN DE LAS COMPENSACIONES"
    }

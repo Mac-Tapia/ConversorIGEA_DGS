@@ -1,0 +1,309 @@
+{
+  "esquema": "registro_normativo_v1",
+  "amplia": "tdr-vad-2026-anexo-r033",
+  "nota": "Spec 108 T5 (2026-11-15, f4/VAD-A6). Amplía el TdR registrado con las 16 reglas del Anexo 6 «Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales» (págs. Anexo 6-1 a 6-11, pdf 154 a 164), transcritas por cc (z16) con doble lectura: líneas 6317-6868 de la copia de texto de huella sha256_texto de la norma ampliada (48ea8cf4…) y capa del PDF de huella sha256 (fb534170…); las fórmulas de reconectador y seccionalizador, que en el texto van en letras matemáticas, se leyeron en la hoja del PDF (pdf 160). Completa a vad.anexo6.trazas, ya registrada en el acto, sin repetirla. Las interpretaciones van en su regla. Ninguna regla es de una empresa.",
+  "reglas": [
+    {
+      "clave": "vad.anexo6.traza_real",
+      "valor": {
+        "traza": "inalterada",
+        "km": "reales de MT y BT, troncal y derivaciones",
+        "sed": "cantidad y kVA reales como base"
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-1 (pdf 154)",
+      "lineas": "6350-6352; 6353-6354",
+      "cita_literal": "Este modelo mantiene inalterada la traza de la red real; es decir, no modifica la configuración física de las instalaciones existentes, y considera los kilómetros reales de red en MT y BT, diferenciando entre longitud de red troncal y derivaciones. [...] Asimismo, utiliza como base los valores reales de cantidad de SED y su capacidad instalada (kVA)",
+      "interpretacion": "Complementa vad.anexo6.trazas (ya registrada). Base del hash de vértices de la 108-T5."
+    },
+    {
+      "clave": "vad.anexo6.caracterizacion_circuito",
+      "valor": [
+        "potencia máxima registrada",
+        "nivel de tensión",
+        "cantidad de salidas en MT y BT",
+        "proporción de circuitos monofásicos, bifásicos y trifásicos",
+        "corriente por el troncal",
+        "relación de kilómetros de BT por SED"
+      ],
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-1 (pdf 154)",
+      "lineas": "6357-6360",
+      "cita_literal": "Cada circuito se caracteriza en función de su potencia máxima registrada, nivel de tensión, cantidad de salidas en MT y BT, proporción de circuitos monofásicos, bifásicos y trifásicos, corriente por el troncal, relación de kilómetros de BT por SED, entre otros aspectos."
+    },
+    {
+      "clave": "vad.anexo6.etapas",
+      "valor": {
+        "MT": "circuitos modelados por la empresa en software de flujo de potencia",
+        "SED": "cantidad y características del estudio VAD con su demanda",
+        "BT": "VNR GIS; calibres ajustados y validados con nuevos modelos de BT de la empresa",
+        "AP": {
+          "segun_pag_6_2": [
+            "ST3",
+            "ST4",
+            "SER"
+          ],
+          "segun_literal_F": [
+            "ST4",
+            "SER"
+          ],
+          "metodo": "factor KALP (normativa vigente); LED"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-2; Anexo 6-11 (pdf 155, 164)",
+      "lineas": "6380-6382; 6857-6860",
+      "cita_literal": "Alumbrado Público: Para los sectores típicos ST3, ST4 y SER, se aplica la metodología establecida en la normativa vigente, que implica el uso del factor KALP, considerando los criterios indicados en el literal F. [...] Para la etapa de alumbrado público (AP) correspondiente a los Sectores Típicos ST4 y SER, las instalaciones se diseñarán en cumplimiento de la normativa vigente y considerarán el trazado y la información de luminarias georreferenciada existentes, optimizadas con el empleo de lámparas LED.",
+      "interpretacion": "INCOHERENCIA del original: la pág. 6-2 dice ST3, ST4 y SER; el literal F (6-11) dice ST4 y SER. Decisión pendiente (no se elige aquí)."
+    },
+    {
+      "clave": "vad.anexo6.entregables",
+      "valor": {
+        "archivos_flujo": "formato original + formato compatible/importable por herramientas estándar del regulador, o licencia por el periodo del proceso",
+        "hoja_de_calculo": "Excel que centraliza todas las etapas, estructurado conforme al formato VNR de los TdR y agrupable por sector típico"
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-2 (pdf 155)",
+      "lineas": "6387-6391; 6397-6399",
+      "cita_literal": "La empresa deberá proporcionar los archivos de datos en su formato original y en un formato adicional que sea compatible o fácilmente importable por herramientas de análisis eléctrico estándar utilizadas por el regulador o, en su defecto, proporcionar una licencia de uso del software utilizado [...] El archivo de hoja de cálculo se debe estructurar conforme al formato VNR definido en los términos VAD, lo que permite agrupar los resultados por sector típico."
+    },
+    {
+      "clave": "vad.anexo6.terceros",
+      "valor": {
+        "excluir": "km y circuitos de terceros dentro de la concesión",
+        "incluir": "demanda de terceros que circula por la red de la concesionaria, en flujos, pérdidas y parámetros de diseño y costos"
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-2; Anexo 6-3 (pdf 155, 156)",
+      "lineas": "6415-6417; 6417-6418; 6422-6423",
+      "cita_literal": "Se excluirán expresamente del análisis la cantidad de kilómetros y circuitos pertenecientes a terceros dentro del ámbito de concesión de la empresa distribuidora. [...] La demanda de terceros que circula por la red de la concesionaria deberá incorporarse en el análisis de flujos de potencia, pérdidas y en [...] la determinación de los parámetros de diseño y de costos eficientes de la empresa modelo.",
+      "interpretacion": "Los dos tramos de la cita son una sola frase partida por el salto de página 6-2/6-3."
+    },
+    {
+      "clave": "vad.anexo6.mt.calibre_economico",
+      "valor": {
+        "flujo": "desequilibrado",
+        "criterio": "corriente económica (corriente normalizada por tramo, troncal y derivaciones)",
+        "tasa_retorno": 0.12,
+        "considera": [
+          "costos de energía",
+          "vida útil del conductor",
+          "factor de carga",
+          "pérdidas típicas"
+        ],
+        "rangos": "los sustenta la empresa en hoja de cálculo"
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-3 (pdf 156)",
+      "lineas": "6425; 6449-6450; 6452-6454",
+      "cita_literal": "El modelo simulará flujos de carga desequilibrados [...] La elección de los calibres óptimos para red troncal y derivaciones se realizará considerando la corriente económica. [...] Esta selección considerará los costos de energía, una tasa de retorno del 12%, la vida útil del conductor, el factor de carga y las pérdidas típicas."
+    },
+    {
+      "clave": "vad.anexo6.mt.fases_y_material",
+      "valor": {
+        "secciones_equivalentes": "los calibres trifásicos se convierten a secciones equivalentes en tramos monofásicos o bifásicos",
+        "zonas_corrosivas": "Cu en lugar de Al",
+        "proporcion_fases": "se conserva la real de cada circuito",
+        "monofasica_si_corriente_menor_A": 10
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-3 (pdf 156)",
+      "lineas": "6431-6433; 6433-6435; 6438-6440",
+      "cita_literal": "Cabe destacar que el modelo contemplará ajustes a los calibres trifásicos, convirtiéndolos a secciones equivalentes en los casos en que los tramos sean monofásicos o bifásicos, según la cantidad de fases correspondiente. [...] para los tramos localizados en zonas corrosivas, se establecerá el uso de conductores de cobre (Cu) en sustitución de los de aluminio (Al). [...] En los casos que corresponda, se adoptará como solución tecnológica la red monofásica para tramos con corrientes inferiores a 10 amperios."
+    },
+    {
+      "clave": "vad.anexo6.mt.caida_tension_max",
+      "valor": 6.0,
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-3 (pdf 156)",
+      "lineas": "6458-6459; 6460-6462",
+      "cita_literal": "Para el cálculo de la caída de tensión en troncales y derivaciones, se establecerá una banda admisible de hasta el 6% respecto a la tensión nominal. [...] En los casos donde la caída de tensión se ubique fuera de dicho rango, se determinarán niveles mínimos de compensación para garantizar la regulación dentro de límites aceptables.",
+      "unidad": "% de la tensión nominal",
+      "interpretacion": "Fuera de banda: compensación mínima y nueva verificación. El literal LMRT repite «La caída de tensión máxima admisible en zonas rurales será del 6%»."
+    },
+    {
+      "clave": "vad.anexo6.mt.tensiones_y_secciones",
+      "valor": {
+        "fase_fase_kV": [
+          10,
+          22.9
+        ],
+        "fase_neutro_kV": 13.2,
+        "seccion_min_mm2": {
+          "Al": 25,
+          "Cu": 16
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-4 (pdf 157)",
+      "lineas": "6470-6472",
+      "cita_literal": "Se adoptarán tensiones de fase a fase de 10 kV y 22,9 kV, y de fase a neutro de 13,2 kV, utilizando secciones normalizadas desde 25 mm² en Al y 16 mm² en Cu."
+    },
+    {
+      "clave": "vad.anexo6.mt.lmrt",
+      "valor": {
+        "uso": "zonas rurales de consumo bajo o moderado; a veces aplicaciones temporales",
+        "vano_tipico_m": 160,
+        "conductor": "AAAC desnudo",
+        "postes": "madera",
+        "proteccion": "seccionadores fusibles automáticos tipo XS, coordinados",
+        "caida_tension_max_pct": 6,
+        "corriente_max_A": [
+          10,
+          20
+        ],
+        "si_excede": "red trifásica convencional",
+        "tension_paso_V": 65,
+        "corriente_paso_mA": 30,
+        "tension_contacto_V": 24,
+        "conductores": [
+          "ACSR",
+          "AAAC"
+        ],
+        "seccion_min_mm2": {
+          "ACSR": 35,
+          "AAAC": 35
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-4; Anexo 6-5 (pdf 157, 158)",
+      "lineas": "6476-6478; 6492; 6493-6495; 6488-6490; 6508; 6509; 6524; 6525",
+      "cita_literal": "La red MRT valorizada en el sistema SICODI considera un vano típico de 160 metros, utilizando conductores desnudos tipo AAAC (Aluminium Alloy Conductor) instalados sobre postes de madera [...] La caída de tensión máxima admisible en zonas rurales será del 6%. [...] La corriente máxima admisible para redes LMRT se encontrará dentro de los valores sugeridos por normativas similares, los cuales oscilarán entre 10 A y 20 A. [...] En caso de que la caída de tensión o las pérdidas excedan los valores máximos admisibles, se optará por una red trifásica convencional [...] Tensión de paso: hasta 65 V con una corriente máxima de 30 mA [...] Tensión de contacto: hasta 24 V [...] 35 mm² para conductores de aluminio con refuerzo de acero (ACSR) [...] 35 mm² para conductores de aleación de aluminio",
+      "interpretacion": "Las tensiones de paso/contacto son «valores de referencia comúnmente aceptados» y las secciones de 35 mm² «algunos reglamentos técnicos»: el TdR los da como referencia, no como norma propia."
+    },
+    {
+      "clave": "vad.anexo6.equipos_mt.criterios",
+      "valor": {
+        "variables": [
+          "longitud total de red en MT",
+          "segmentación troncal/derivaciones",
+          "consumo energético por circuito",
+          "número y tipo de derivaciones",
+          "demanda estimada y balance energético"
+        ],
+        "fuente": "archivo parámetros de red (VNR GIS + datos comerciales y energéticos)",
+        "demanda": [
+          "energía medida por usuario",
+          "demanda del balance real",
+          "factores de caracterización (consumo y simultaneidad)"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-6 (pdf 159)",
+      "lineas": "6575-6577",
+      "cita_literal": "La información base se obtendrá del archivo parámetros de red, que incluye datos de la red física extraídos del VNR GIS de la empresa, así como datos comerciales y energéticos."
+    },
+    {
+      "clave": "vad.anexo6.equipos_mt.reconectadores",
+      "valor": {
+        "cabecera": "fuera del alcance VAD (subtransmisión)",
+        "limite_deteccion_cabecera_A": 400,
+        "segundo_si": "conductor de 25 mm² de Al",
+        "tercero_si_segundo_detecta_hasta_A": 150,
+        "cuadro": [
+          {
+            "tension_kV": "10",
+            "troncal_11_30_km": 2,
+            "troncal_mayor_30_km": 3
+          },
+          {
+            "tension_kV": "22.9 o más",
+            "troncal_25_65_km": 2,
+            "troncal_mayor_65_km": 3
+          }
+        ],
+        "formula": "C.Rec ≤ Pmsalv × Tfp × Trep × Laap × CuENS × Kim × Kadap",
+        "Kim": 8.05,
+        "max_en_serie": 3
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-6; Anexo 6-7 (pdf 159, 160)",
+      "lineas": "6616-6617; 6619-6621; 6659-6660; 6665-6666",
+      "cita_literal": "Como criterio técnico, se establecerá que el límite de detección de fallas entre fases en el reconectador de cabecera es de 400 A. [...] si este segundo reconectador detecta corrientes de falla de hasta 150 A, podrá justificar la instalación de un tercer reconectador en serie para distancias superiores. [...] Kim: Factor de capitalización: 8,05 (inversa del factor de recuperación de capital para una vida útil de 30 años y una tasa anual de 12%) [...] Cabe mencionar que no es conveniente instalar más de tres equipos de recierre en serie",
+      "interpretacion": "Cuadro y fórmula leídos en la IMAGEN (png/a6-160.png); el cuadro no tiene celdas grises (solo cabecera sombreada). El cuadro dice «2 reconectador» (sic). Kim = 1/FRC(12 %, 30 años) = 1/0,124144 = 8,055 ≈ 8,05: coincide con vad.frc del registro. Kadap NO tiene valor en el TdR («factor exponencial»): hueco."
+    },
+    {
+      "clave": "vad.anexo6.equipos_mt.seccionalizadores",
+      "valor": {
+        "trifasico": {
+          "donde": "troncal trifásico o ramal trifásico importante",
+          "formula": "C.Secc ≤ Pmsalv × Tfp × Trep × Laap × CuENS × Kim × Kadap"
+        },
+        "unipolar": {
+          "corriente_carga_max_A": 50,
+          "Pmsalv_max_kW": 25,
+          "max_en_serie": 1,
+          "formula": "misma que la trifásica, con Cequipo, Tfp monofásica y sin Kadap en la lista"
+        },
+        "fusible_tres_etapas": "desaconsejable salvo que no exista recierre o sea técnicamente imposible"
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-7; Anexo 6-8; Anexo 6-9 (pdf 160, 161, 162)",
+      "lineas": "6672-6674; 6701-6702; 6718; 6744-6746",
+      "cita_literal": "El efecto del seccionalizador trifásico es salvar el servicio en el troncal (o en el primer tramo del mismo), por fallas permanentes aguas abajo del seccionalizador (en el tramo protegido por este). [...] Los seccionalizadores unipolares son convenientes para instalar en ramales trifásicos, bifásicos o monofásicos, cuya corriente de carga no supere los 50 A. [...] No es conveniente instalar más de uno en serie. [...] Por estas razones, el uso de seccionadores fusibles de tres etapas resulta desaconsejable, salvo en casos en que no exista recierre o resulte técnicamente imposible su instalación.",
+      "interpretacion": "Fórmula del trifásico leída en la imagen (png/a6-160.png). Para el unipolar el TdR lista Pmsalv, Laap, Tfp, Cequipo, Trep, CuENS y Kim (sin Kadap): ¿se omite Kadap? Lectura literal, decisión pendiente."
+    },
+    {
+      "clave": "vad.anexo6.equipos_mt.cut_out",
+      "valor": {
+        "donde": "cada SED (protección del transformador MT/BT); también ramales",
+        "fusible_max_A": 50,
+        "coordinacion_serie": "protector ≥ 2 × protegido",
+        "max_en_serie": {
+          "rural": 2,
+          "urbana": 1
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-9 (pdf 162)",
+      "lineas": "6750-6751; 6757-6758; 6763-6764; 6768-6770",
+      "cita_literal": "Los fusibles tipo Cut Out se instalarán en cada una de las subestaciones de distribución (SED) para proteger los transformadores de MT/BT. [...] Para este propósito, no se recomienda el uso de fusibles de más de 50 A. [...] Para ello, el calibre del fusible protector debe ser al menos el doble del fusible protegido. [...] En redes rurales se recomienda no instalar más de dos fusibles en serie, mientras que en redes urbanas solo se debe instalar un fusible en serie como máximo."
+    },
+    {
+      "clave": "vad.anexo6.sed",
+      "valor": {
+        "consumos_proyectados": {
+          "grupo_1": "2026-2030",
+          "grupo_2": "2027-2031"
+        },
+        "kVA": "de los consumos ajustados por factores de carga y utilización",
+        "asignacion": "tabla de transformadores normalizados",
+        "trifasico_umbral_kVA": 5,
+        "trifasico_menor_5kVA_asigna_kVA": 10,
+        "demanda_mayor_kVA": 350,
+        "modulo_kVA": 300,
+        "agrupacion": [
+          "sistema eléctrico",
+          "sector típico"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-10 (pdf 163)",
+      "lineas": "6789-6790; 6793-6795; 6796-6797; 6798-6799",
+      "cita_literal": "A partir de los kVA obtenidos y de una tabla de transformadores normalizados, se asigna la unidad de potencia correspondiente. [...] Para puntos trifásicos con potencias menores a 5 kVA, se asigna una potencia ajustada de 10 kVA, considerando posibles consumos con potencia contratada. [...] Para demandas superiores a 350 kVA, se adoptan múltiples módulos iguales de 300 kVA hasta cubrir los requerimientos. [...] Finalmente, se valorizan todas las unidades transformadoras MT/BT y se agrupan por sistema eléctrico (SE) y por sector típico (ST).",
+      "interpretacion": "INTERPRETACIÓN (decisión de f4, 2026-11-15, VAD-A6): el Anexo 6 no da la «tabla de transformadores normalizados». Se toman las potencias con costo en el SICODI del periodo, por sector típico y tipo de SED (columna NOMBRE de Instalacion.txt del SICODI vigente; para la RCD 184-2026, el de huella 894e5670…, 44 107 filas), leído por su huella y nunca con una versión fija: se firma el fichero TAL COMO LLEGA, zip o libro xlsx, y si es zip, además el miembro leído (Instalacion.txt); para la RCD 184-2026, el zip Archivos_TXT_SICODI.zip (99cae18d…) y su Instalacion.txt (894e5670…). El periodo declara las dos huellas y la tabla de costos tiene que salir del fichero firmado (vad.costos.firmar_sicodi y leer_sicodi_del_periodo; orden de c3, VAD-A6 T7 v2). Un SICODI que llega como libro xlsx (el RR VAD de la referencia) se firma, pero costos_fuentes.leer_sicodi solo lee el zip: queda como hueco nombrado hasta que la 072 lo lea. Esa lista incluye potencias no normalizadas que existen en el parque (7, 37, 82, 167, 480 y 640 kVA, entre otras): se usan, pero cada asignación a una de ellas lleva nota. El hueco queda cubierto solo en parte: si el regulador publica la tabla, sustituye a esta lectura. El umbral del punto trifásico pequeño («menores a 5 kVA», línea 6796) va como dato propio, trifasico_umbral_kVA, y no se lee del nombre de la clave (decisión de f4, 2026-11-15, VAD-A6 T7)."
+    },
+    {
+      "clave": "vad.anexo6.bt",
+      "valor": {
+        "traza": "real (VNR GIS), longitudes efectivas",
+        "criterio": "corriente normalizada → calibre económico",
+        "tasa_retorno": 0.12,
+        "caida_tension_max_pct": 7.5,
+        "considera": [
+          "costo de energía",
+          "vida útil del conductor",
+          "factor de carga",
+          "pérdidas típicas"
+        ],
+        "precio": "ponderado por tipo de red (mono/bi/trifásica) y su participación en el sistema eléctrico",
+        "red_compartida": "se considera en el precio por calibre",
+        "terceros": "excluidos"
+      },
+      "articulo_o_anexo": "Anexo N° 6.- Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales",
+      "pagina": "Anexo 6-11 (pdf 164)",
+      "lineas": "6837-6840; 6844-6846; 6847-6848",
+      "cita_literal": "La elección de los calibres económicos se realiza en función de la corriente normalizada, considerando factores como el costo de energía, una tasa de retorno del 12 %, la vida útil del conductor, el factor de carga, una caída de tensión máxima admisible del 7,5 % y las pérdidas típicas de la red. [...] Para ello, se emplea un precio ponderado de acuerdo con el tipo de red y su participación porcentual dentro del sistema eléctrico correspondiente. [...] Asimismo, en la determinación de precios por calibre se deberá considerar si el circuito corresponde a una red compartida."
+    }
+  ]
+}

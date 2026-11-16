@@ -10,8 +10,10 @@ from pathlib import Path
 
 import pytest
 
+from convertersmartgrid import registro_normativo as rn
 from convertersmartgrid.perfil_empresa import PerfilEmpresa
 from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid import util
 from convertersmartgrid.vad import VadError
 from convertersmartgrid.vad.estudio import cargar_estudio, crear_estudio
 from convertersmartgrid.vad.pide_vad import CONTRATO, VadNivel, incorporar_pide, pide_desde_dict
@@ -23,7 +25,7 @@ FORMULA = ('(aVNR0 + OyM0 + suma(n, aDVNR / (1 + i) ** (n - 1) + DOyM / 2)) / '
 
 def _registro(tmp_path, estado='vigente_comprobada', sin=(), anios=2):
     reglas = [{'clave': c, 'valor': v, 'cita_literal': f'«{c}»', 'lineas': '1'} for c, v in (
-        ('vad.frc', 0.5), ('vad.tasa_actualizacion', 0.25), ('vad.pide.anios', anios),
+        ('vad.frc', 1.25), ('vad.vida_util_anios', 1), ('vad.tasa_actualizacion', 0.25), ('vad.pide.anios', anios),
         ('vad.formula.pide_ajustado', FORMULA)) if c not in sin]
     datos = {'esquema': 'registro_normativo_v1', 'normas': [{
         'acto': 'tdr-sintetico', 'titulo': 'TdR sintético', 'estado_juridico': estado, 'sha256': 'c' * 64,
@@ -69,12 +71,14 @@ def test_caso_calculado_a_mano(tmp_path):
     """108:RF-17, 108:RF-16 — con el PIDE aprobado, el VAD ajustado sale de la fórmula, la tasa y el factor del
     registro, y coincide con el cálculo a mano; guarda el PIDE usado y las huellas de las reglas."""
     r = incorporar_pide(_registro(tmp_path), BASE, _pide(), **KW)
-    # aΔVNR = inversión × 0,5 = [20, 10]; descuento (1,25)^(n-1) = [1, 1,25].
-    numerador = 100 + 10 + (20 / 1 + 2 / 2) + (10 / 1.25 + 4 / 2)
+    # FRC(25 %, 1 año) = 0,25 × 1,25 / 0,25 = 1,25; aΔVNR = inversión × 1,25 = [50, 25]; descuento (1,25)^(n-1) = [1, 1,25].
+    numerador = 100 + 10 + (50 / 1 + 2 / 2) + (25 / 1.25 + 4 / 2)
     denominador = 10 + 1.0 / 1 + 2.5 / 1.25
     assert r.incorporado and r.vad_ajustado['N1'] == pytest.approx(numerador / denominador)
     assert r.pide == {'id': 'pide-sintetico-1', 'acto_aprobacion': 'rcd-sintetica', 'huella': 'd' * 64}
-    assert set(r.reglas) == {'vad.frc', 'vad.tasa_actualizacion', 'vad.pide.anios', 'vad.formula.pide_ajustado'}
+    assert set(r.reglas) == {'vad.frc', 'vad.vida_util_anios', 'vad.tasa_actualizacion', 'vad.pide.anios',
+                             'vad.formula.pide_ajustado'}
+    assert not r.avisos
 
 
 def test_nivel_sin_inversion_queda_con_su_vad_base_y_se_dice(tmp_path):
@@ -126,18 +130,22 @@ def test_contrato_invalido_se_rechaza_con_mensaje(cambio, texto):
 
 
 def test_con_el_registro_real(tmp_path):
-    """108:RF-17 — con el registro real (tasa, factor, años y fórmula del TdR) el VAD ajustado coincide con el cálculo
-    a mano para los años que pide el registro."""
-    reg = cargar_registro(RAIZ / 'config' / 'vad')
+    """108:RF-17 — con el registro real (la tasa del art. 79 de la LCE a la que remite el TdR, su vida útil, sus años y
+    su fórmula) el VAD ajustado coincide con el cálculo a mano para los años que pide el registro, y el FRC calculado
+    cuadra a 6 decimales con el que publica el TdR, sin aviso."""
+    reg = cargar_registro(RAIZ / 'config' / 'vad', RAIZ / 'config' / 'normativa')
     anios = reg.regla('vad.pide.anios').regla.valor
-    frc = reg.regla('vad.frc').regla.valor
-    i = reg.regla('vad.tasa_actualizacion').regla.valor
+    assert hasattr(rn, 'regla_remitida'), 'el registro no resuelve la remisión de vad.tasa_actualizacion'
+    i = rn.regla_remitida(reg, 'vad.tasa_actualizacion').valor
+    assert hasattr(util, 'frc'), 'el FRC no sale de la única fórmula del conversor (util.frc)'
+    frc = util.frc(i, reg.regla('vad.vida_util_anios').regla.valor)
+    assert round(frc, 6) == reg.regla('vad.frc').regla.valor
     pide = _pide(niveles={'N1': {'inversion': [100.0] * anios, 'oym': [4.0] * anios, 'demanda': [1.0] * anios}})
     r = incorporar_pide(reg, BASE, pide, **KW)
     descuento = [(1 + i) ** (n - 1) for n in range(1, anios + 1)]
     num = 100 + 10 + sum(100 * frc / d + 4 / 4 for d in descuento)
     den = 10 + sum(1 / d for d in descuento)
-    assert r.incorporado and r.vad_ajustado['N1'] == pytest.approx(num / den)
+    assert r.incorporado and r.vad_ajustado['N1'] == pytest.approx(num / den) and not r.avisos
 
 
 @pytest.mark.parametrize('nombre', ['Distribuidora Sintética Norte', 'Eléctrica Ficticia del Sur'])

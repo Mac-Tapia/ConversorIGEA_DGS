@@ -3,13 +3,14 @@
  "normas": [
   {
    "acto": "RCD 018-2018-OS/CD",
-   "estado_juridico": "no_verificada",
-   "fecha_consulta": "2026-11-14",
+   "estado_juridico": "vigente_comprobada",
+   "fecha_consulta": "2026-11-15",
+   "fecha_publicacion": "2018-02-17",
    "fichero_local": "rcd_018-2018.txt",
    "modifica": [
     "RCD 217-2013-OS/CD"
    ],
-   "nota": "Texto leído con su huella; no se ha comprobado si una norma posterior volvió a modificar el 12.3.",
+   "nota": "Texto leído con su huella. Modifica los numerales 5.8.2 y 12.3 de la Norma de la RCD 217-2013-OS/CD (nuevos 12.3.1 a 12.3.5): el 12.3 vigente es el suyo. Publicada el 17-02-2018; vigencia comprobada en el SPIJ por cc (RN-VIG2, 2026-11-15), sin modificatorias ni derogación. Vigencia por SU propia cláusula (orden de 28): «Artículo 3°. - La presente resolución entrará en vigencia a partir del día siguiente de su publicación en el diario oficial El Peruano.» (líneas 139-140 del texto con sha d1323328…), es decir, desde el 2018-02-18; coincide con la regla general del art. 109 de la Constitución, que solo se aplicaría si la norma no dijera nada.",
    "reglas": [
     {
      "articulo_o_anexo": "art. 1 (num. 12.3.1 de la 217-2013)",
@@ -26,7 +27,8 @@
    "sha256_texto": "d1323328d9d2ec745b41a5adc2781fc265ec79b2b4e4350ae13ecfa755a89121",
    "titulo": "Modifica los numerales 5.8.2 y 12.3 de la Norma aprobada por la RCD 217-2013-OS/CD",
    "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2018/OSINERGMIN%20No.018-2018-OS-CD.pdf",
-   "version": "Lima, 15 de febrero de 2018"
+   "version": "Lima, 15 de febrero de 2018; ficha del SPIJ H1200701 (sha256 del innerText d9b4bcdd63b5ea8065f1994a1b9a0ba1f60d387ed2470860841961df8765bd88), sin notas de modificación ni derogación",
+   "vigencia_desde": "2018-02-18"
   }
  ]
 }

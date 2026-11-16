@@ -56,7 +56,7 @@ def raiz_local(programa: Path | None = None, environ: Mapping[str, str] | None =
     raiz = raiz_programa() if programa is None else Path(programa)
     if not es_programa_instalado(raiz):
         # 106:RF-17: durante la suite, el config/ e input/ locales del checkout real son una carpeta vacía de la
-        # sesión. Con el perfil_empresa.json de Electro Dunas (o su catálogo de input/), una prueba pasaba en esta
+        # sesión. Con el perfil_empresa.json de una distribuidora real (o su catálogo de input/), una prueba pasaba en esta
         # máquina y fallaba en otra (P13); la que necesite uno lo fija ella.
         return raiz_de_datos_heredados(raiz, env)
     otra = str(env.get(VARIABLE_DATOS) or '').strip()

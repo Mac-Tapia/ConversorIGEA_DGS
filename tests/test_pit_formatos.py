@@ -419,14 +419,15 @@ _MAPEO_SERIES = {'esquema': 'pit_mapeo_formatos_v1', 'formatos': {
 
 def _registro_con_horizonte(tmp_path, anios):
     """El registro real con otro horizonte de demanda: la regla del horizonte se sustituye en una norma sintética
-    posterior, que es la que manda por su vigencia."""
+    posterior, que es la que manda por su vigencia. La sintética MODIFICA a la 217-2013: sin ese enlace serían dos
+    normas que se suman y ``regla()`` lanzaría ReglaAmbigua (RN-AMB, 107:RF-7)."""
     carpeta = tmp_path / 'reg'
     carpeta.mkdir()
     for f in NORMATIVA.glob('*.json'):
         (carpeta / f.name).write_bytes(f.read_bytes())
     (carpeta / 'zz_horizonte.json').write_text(json.dumps({'esquema': 'registro_normativo_v1', 'normas': [
         {'acto': 'SINT-HORIZONTE', 'titulo': 'Horizonte sintético', 'estado_juridico': 'vigente_comprobada',
-         'sha256': 'f' * 64, 'vigencia_desde': '2099-01-01',
+         'sha256': 'f' * 64, 'vigencia_desde': '2099-01-01', 'modifica': ['RCD 217-2013-OS/CD'],
          'reglas': [_regla('pit.horizonte_demanda_anios', anios)]}]}), encoding='utf-8')
     return cargar_registro(carpeta)
 

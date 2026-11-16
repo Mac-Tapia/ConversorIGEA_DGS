@@ -235,6 +235,23 @@ def _cabecera(alim):
     return sw
 
 
+def test_el_modelo_de_falla_de_barras_se_lee_de_dnfr1():
+    """apoyo de 012 (FAKE-PF-DNFR) — como DIgSILENT (datascheme.db de PowerFactory 2024, build 22038): el modelo de
+    falla de barras, StoTypbar, no tiene DnFr y su falla permanente es DnFr1, que es lo que escribe
+    tools/confiabilidad_pf.py; el de líneas, StoTyplne, la lleva en DnFr. Sin esto, el doble da tasa 0 a una barra."""
+    import fake_pf
+
+    app = proyecto(alimentadores=('F1',), cargas_por_alim=1)
+    sb = app.carpetas['equip'].CreateObject('StoTypbar', 'barras')
+    sb.DnFr1, sb.RepMu = 0.02, 3.0
+    barra = app.proyecto.GetContents('*.ElmTerm', 1)[0]
+    barra.pStoch = sb
+    assert fake_pf._modelo(barra) == (0.02, 3.0)
+    _con_modelos(app, dnfr=0.1, repmu=4.0)
+    linea = app.proyecto.GetContents('*.ElmLne', 1)[0]
+    assert fake_pf._modelo(linea) == (0.1, 4.0)
+
+
 def test_sin_interruptor_de_cabecera_no_se_despeja_ninguna_falla_de_linea():
     """apoyo de 012:RF-69 — como DIgSILENT: índices a cero y el error en la salida."""
     app = proyecto(alimentadores=('F1',), cargas_por_alim=3)

@@ -12,12 +12,36 @@ adaptador VNR (integrador f9).
       lo creó, solo se añade lo que le falte al PIT. Dos registros sintéticos. (RF-7, RF-8, RF-11)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_registro_normativo.py` en verde, con una
       regla `prepublicada` y otra `no_verificada` que salen como no obligatorias.
+      Corrección (2026-11-15, f4/RN-VIG): `vigencia_hasta` es el último día de vigencia, INCLUIDO, como lo escriben
+      todas las normas del registro; se comparaba como exclusiva y el último día de cada norma quedaba sin regla
+      (p. ej., las horas punta del 2025-05-31). De un instante cuenta su fecha. Una norma cuyo fin no dice el texto
+      lo marca en `vigencia_hasta_motivo` («fin deducido: …», con su cita): la RM 153-2021 (orden de 28).
+      Corrección (2026-11-15, f4/RN-AMB): `regla(clave, fecha)` ya no oculta normas que se suman. Si varias normas
+      vigentes a la vez traen la clave y la más reciente no modifica a las demás, directa ni encadenadamente
+      (`modifica` / `modificada_por`), lanza `ReglaAmbigua`, que las nombra y remite a `reglas_vigentes(clave, fecha)`
+      o a `regla_de_empresa`. El error por empresas de VAD-FE26 es el mismo caso, con su mensaje. `reglas_vigentes`
+      da todas las vigentes, ordenadas por vigencia y sin las modificadas. Sin fecha, una norma que sucede a otra sin
+      solaparse (las RM de horas punta) no es ambigua. El expediente junta la huella de cada norma de una clave que
+      se suma. Pruebas en `tests/test_registro_normativo.py` y `tests/test_pit_registro.py` (107:RF-7, 107:RF-8).
+      Avance (2026-11-15, f4/RN-IMP): una norma con recursos de reconsideración los lleva en `impugnada` (por
+      recurrente: nombre literal, RUC si se conoce, empresa de la norma o tercero, conceptos con su cita y lo que
+      `afecta`, fuente con su sha y estado), en el esquema y en `Norma`; `avisos_de_recurso(empresa, usados, fecha)`
+      avisa SOLO de lo impugnado que se usa (una entrada `<clave>.<fila>` avisa en esa fila de la regla o en la regla
+      entera, no en otra fila), y de un escrito de alcance no determinado con el aviso genérico. La norma sigue
+      obligatoria: regla `lpag.recurso.no_suspende_ejecucion` del DS 006-2026-JUS, art. 216.1, vigente desde el
+      2026-05-01 por el art. 109 de la Constitución (el decreto no trae cláusula propia), en
+      `config/normativa/ds_006_2026_jus.json`. Pruebas en `tests/test_vad_recursos_185.py` (107:RF-8).
 - [x] T2. Leer y transcribir en `config/normativa/` las normas del PIT ya localizadas: RCD 217-2013-OS/CD (articulado,
       COyM, tasa, vida útil y formatos que fije), RCD 112-2024-OS/CD y RCD 149-2024-OS/CD (con los anexos A y B del
       Informe Técnico 565-2024-GRT), cada una con URL, fecha de consulta, huella del PDF, estado jurídico comprobado y
       cita literal con página. Sin reglas supuestas: lo que no se lea queda sin regla. (RF-7, RF-9)
       Hecho cuando: el registro valida contra su esquema en `tests/test_registro_normativo.py`, cada regla tiene página y
       cita literal, y los cuadros oficiales del PIT tienen su definición transcrita o figuran como no transcritos.
+      Corrección (2026-11-15, f4/RN-VIG2): vigencias comprobadas en el SPIJ (acceso libre; huella del texto de cada
+      ficha). La 018-2018 pasa a `vigente_comprobada` desde el día siguiente a su publicación (Constitución, art. 109)
+      y su N-1 de 30 MW ya obliga; la RM 496-2005 queda `modificada` por la RM 102-2010, que no toca la Tabla N° 01, y
+      su error admisible por clase obliga con el mismo valor; la 242-2021 trae su fecha y sigue `no_verificada`; la
+      177-2021 y la 147-2017 entran sin reglas, con sus transitorias agotadas (`rcd_217_2013_transitorias.json`).
 - [ ] T3. Leer y transcribir la RCD 199-2026-OS/CD cuando esté accesible (en G0 su enlace daba 404). Hasta entonces figura
       en el registro como `no_verificada` y sin reglas; al leerla se comprueba su existencia, su objeto, el área a la que
       modifica y su fecha de vigencia, y se actualizan `modifica` y `modificada_por` de la 149-2024. (RF-7, RF-8)
@@ -28,6 +52,16 @@ adaptador VNR (integrador f9).
       Área de Demanda 9 y no fija vigencia propia. Los elementos modificados están en el IT 655-2026-GRT, sección 6.4,
       que da 404: quedan sin regla hasta leerlo, y la resolución complementaria que los consolide (art. 3) se registra
       al publicarse.
+      Avance (2026-11-15, f4/RN-AMB): las RCD 186, 187, 188 y 189-2026-OS/CD (Áreas 1, 3, 12 y 13), leídas en sus
+      ediciones del regulador y de El Peruano (19-10-2026), están transcritas en `config/normativa/rcd_186_189_2026.json`
+      con sus elementos (sección 6.4 de los IT 599, 601, 597 y 595-2026-GRT). Ninguna tiene cláusula de vigencia:
+      rigen desde el 20-10-2026 por el art. 109 de la Constitución, citado en cada nota. La 188-2026 desestima la
+      solicitud del Área 12 y no modifica el plan. Las áreas modificadas se piden con `reglas_vigentes`: 1, 3, 9 y
+      13. La 112-2024 y la 149-2024 las enlazan en `modificada_por`.
+      Corrección (2026-11-15, f4/RN-AMB v2): la 199-2026 tampoco tiene cláusula de vigencia (arts. 1 a 4): rige desde
+      el 15-11-2026 por el art. 109 de la Constitución, citado en su nota; ya no se deja sin `vigencia_desde`. Las
+      notas que genera `tools/normativa/generar_reconsideraciones.py` citan la RCD 223-2023-OS/CD con su año, y la
+      prueba de los actos comprueba que ningún texto del registro cita una RCD sin el año.
 - [ ] T4. Perfil `pit.areas` en el esquema del perfil de empresa (área, titulares, SET, correspondencia SET →
       alimentadores, tensión mínima del ámbito y asignación de los elementos compartidos) y `pit/ambito.py`, que reúne
       los elementos de un área sin mezclarla con otra. Dos perfiles sintéticos A y B en `tests/datos_pit.py`.
@@ -52,6 +86,13 @@ adaptador VNR (integrador f9).
       queda nombrado, sin extrapolar; trabajo cancelable entre años. (RF-3, RF-4)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_diagnostico.py` en verde, con el N-1 del anillo del perfil B, el año sin
       demanda y una cancelación a mitad del horizonte.
+      Avance (2026-11-15, f4/PIT-TEN): los límites de tensión salen por barra desde la norma (aclaración de RF-3 y
+      RF-4): NTCSE (`config/normativa/ntcse.json`), NTCSER (`ntcser.json`), el 12.2.1.a y los niveles de la 217-2013
+      (`rcd_217_2013_diagnostico.json`), el 12.3.2 vigente de la 018-2018 (`rcd_018_2018_diagnostico.json`) y la
+      RM 129-2009 del SPIJ (`rm_129_2009_mem_dm.json`). `limites_de_tension` da el criterio de cada barra, las tomas
+      de los AT/MT y los huecos; las referencias van como aviso al diagnóstico, al expediente y a la web. En la v2,
+      el N-1 del Área 15 va con el rango normal salvo que `pit.emergencia_rm129` sustente el de emergencia. Pruebas:
+      `tests/test_pit_tension_norma.py`.
 - [ ] T8. Alternativas mutuamente excluyentes (`pit/alternativas.py`): inversión con `costos_fuentes.valorar_obra`
       (ámbito `transmision`) y los módulos de `set_nueva.leer_modulos_pit`, COyM y pérdidas según el registro, valor
       actual con `pide_economia.frc` y `van`, y confiabilidad según la matriz; misma demanda y mismo motor para todas;
@@ -59,6 +100,11 @@ adaptador VNR (integrador f9).
       como referencia y se dice. (RF-5, RF-8)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_alternativas.py` en verde, con una alternativa sin costo que no queda
       primera y una tasa `no_verificada` rotulada como referencia.
+      Avance (2026-11-15, f4/P-REG): el registro trae `pit.tasa_actualizacion` = 0,12 (art. 79 de la LCE, SPIJ
+      consolidado al 22-03-2026, con su verificación estructurada) y `pit.coym_pct` (cuadro de la RCD 163-2021-OS/CD,
+      vigente del 01-05-2021 al 30-04-2027); `pit.vida_util_anios` = 30 ya estaba (art. 24.2 de la 217-2013). El COyM
+      va por elemento, ubicación, nivel y año, con huecos nombrados y el aviso del transformador elevador
+      (aclaraciones de RF-5 y RF-8). Pruebas: `tests/test_pit_coym_registro.py`.
 - [ ] T9. Programa (`pit/programa.py`): cada elemento con su año de puesta en servicio, su titular y su área, con las
       bajas y los reemplazos; un programa por titular cuando el área tiene varios. (RF-6)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_programa.py` en verde con el perfil A (un titular) y el B (varios).
@@ -86,6 +132,10 @@ adaptador VNR (integrador f9).
        carga del libro de la red (.xlsx, .xlsm, .xls y .xlsb), y `npm run lint`, `npx tsc --noEmit -p .` y
        `npm run build` sin errores. Pendiente (2026-11-14, S1): el router y su prueba existen; faltan el montaje, el
        panel, la subida del libro con su validación previa (422) y las rutas de alternativas, expediente y cuadros.
+       Avance (2026-11-15, f4/P10c): el router está montado en `web/app.py`, y `POST /api/pit/expediente` arma y emite
+       el expediente como trabajo del carril engine (`pit/armado.armar_expediente`), con el libro F-000, las
+       alternativas del JSON del espacio, los costos de `pit.costos` y la carpeta de fuentes de `CSG_FUENTES_NORMATIVAS`,
+       que el doctor comprueba. Falta el panel del PIT (P10d).
 - [ ] T14. [DIgSILENT] Corrida real sobre una **copia** del proyecto de transmisión del área del primer caso (la
        primera empresa de prueba, con el área y el titular en su perfil): exportar la red, diagnosticar un año con los dos motores y comparar
        con la tolerancia de la 112 (0,005 p.u. en tensión, 1 % en corriente). (RF-2, RF-3, RF-5)
@@ -140,12 +190,28 @@ adaptador VNR (integrador f9).
        sintéticos de listas y columnas distintas (el número de formatos sale del registro), un formato listado y no
        transcrito nombrado en el resumen y una celda derivada escrita como fórmula; y la 217-2013 transcrita con cita y
        página, validada en `tests/test_registro_normativo.py`.
+       Avance (2026-11-15, f4/delta20): las 966 celdas sombreadas de la 217-2013 («no deben ser llenadas», F-302
+       nota (3)) van en cada formato como `no_llenar`, desde `tools/normativa/sombreadas_217.py`, y
+       `pit/plantillas.py` las deja vacías sin hueco y da un aviso si la fuente trae un valor para ellas
+       (`tests/test_pit_sombreadas.py`).
+       Avance (2026-11-15, f4/delta20 v2, órdenes de 28): el generador lee los rellenos de los libros oficiales con
+       xlrd (ya en el venv) y los coteja con el mapa derivado de las fuentes (sombreadas/, con su SHA256SUMS): mismas
+       966 celdas sombreadas y 176 de color. El F-101 lleva como motivo el literal de su nota (2), A25. Los rellenos
+       de color (cabeceras de F-305, F-306, F-401, F-510 y F-522) quedan como observación sin efecto en el llenado.
 - [ ] T20. Documento de absolución (aclaración de RF-10): `observaciones.escribir_absolucion`, con cada observación, su
        objeto, su respuesta y la traza de lo que cambió en el expediente (celdas o elementos, con su huella antes y
        después). (RF-10)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_observaciones.py -k absolucion` en verde:
        cada observación aparece con su objeto y su respuesta, una observación sin cambios lo dice, y una referencia
        desconocida se rechaza.
+       Avance (2026-11-15, f4/P14): `observaciones.documento_absolucion` y `escribir_documento_absolucion` dan la forma
+       que pide el regulador (IT 438-2024-GRT, pág. 25; plantilla del IT 599-2026-GRT, Anexo A): generales y luego
+       específicas con la numeración y la secuencia del oficio, cada respuesta con su lugar corregido (sección, o
+       fichero y celda con su huella), la observación sin respuesta como hueco nombrado y la evaluación del regulador
+       («Análisis», «Conclusión») vacía con sus conclusiones admitidas; `absolucion` sigue igual. v2 (condiciones de
+       28): el oficio intercalado se reagrupa con las generales primero y el documento lo dice («orden del oficio
+       reagrupado: generales primero») con la lista de las movidas; la respuesta sin lugar se ve como «lugar
+       corregido: no indicado» y sale en los huecos con campos fijos (`CAMPOS_HUECO`) para el expediente.
 - [ ] T21. Resumen ejecutivo (`pit/informe.py`): la demanda del área por año, la alternativa elegida y el programa de
        inversiones, leídos del expediente emitido. (RF-13)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_informe.py` en verde con los perfiles A y B:
@@ -156,16 +222,33 @@ adaptador VNR (integrador f9).
        (RF-14)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_expediente.py -k "memoria or sustento"` en
        verde: cada fichero del expediente figura en la relación con su huella, y cada sección emitida tiene su memoria.
+       Avance (2026-11-15, f4/P10): la relación del num. 5.3 de la Norma Tarifas va también por volúmenes
+       (`relacion_documentos.json`): n.º, fichero, tipo, descripción, aplicación y volumen con folios consecutivos sin
+       reiniciar (num. 5.5), en tabla legible; lo que falta (descripción, aplicación, volumen o folios) es un hueco
+       nombrado y el resumen sale «incompleto» con sus pendientes. El «F-000» es el grupo F-001 a F-003 (RCD 217-2013,
+       art. 30.1), declarado como alias en `config/pit_mapeo_formatos.json`: cumplido con los tres, o el hueco «F-000
+       incompleto: falta F-00x». `relacion_sustento.json` conserva su lista por fichero, con los campos nuevos.
+       Avance (2026-11-15, f4/P10b): `expediente.escribir_informacion_general` escribe, antes de emitir, el libro
+       `F-000-<área>_<periodo>.xlsx` con F-001 a F-003. Usa el motor de los cuadros (`cuadros.plan_de_formatos` y luego
+       `libro_informe.rellenar_con_excel`, que ahora inserta filas) sobre una copia temporal de la plantilla oficial,
+       comprobada por su sha256 antes y después. El libro entra en la relación del 5.3. Falta la corrida real con Excel
+       o WPS.
        Hecho (2026-11-15, S-107/108): el código ya está en la punta e182c823 (`expediente.emitir` escribe `memoria.json`
        y `relacion_sustento.json`); sus pruebas son `test_memoria_de_cada_seccion`,
        `test_sin_diagnostico_ni_alternativas_la_memoria_no_inventa_secciones` y
        `test_relacion_de_sustento_con_cada_fichero_y_su_huella`. Evidencia: `D:/csg/PM_IMPL/S107_108/MARCAS/`.
 - [ ] T23. Unifilar en DXF por alternativa y año, con el flujo de cada línea (F-212), y en DWG con el ODA File Converter
-       si la configuración o el PATH lo dan, nunca por una ruta fija (`pit/unifilar.py`). Bloqueada por dependencia (2026-11-14, S1):
-       `ezdxf` no está en `.venv/Lib/site-packages` (comprobado leyendo el entorno, sin instalar nada) y el conversor no
-       tiene escritor de DXF propio. Siguiente acción: el integrador añade `ezdxf` como dependencia OBLIGATORIA, con versión
-       fijada y su licencia (veredicto del auditor ca, 2026-11-14 20:55: el DXF es la entrega garantizada; solo el DWG es
-       opcional). (RF-15)
+       si la configuración o el PATH lo dan, nunca por una ruta fija (`pit/unifilar.py`). (RF-15)
+       Avance (2026-11-15, f4): desbloqueada. El auditor 28 instaló `ezdxf` 1.4.5 (MIT) en el entorno, por orden del
+       usuario («instala lo que falta, pero avanza»), y queda declarada como dependencia obligatoria con versión fijada
+       en `pyproject.toml`, `requirements.txt`, `constraints-python312-win.txt` y `requirements-nucleo.lock`, con la
+       huella de su rueda y las de fonttools y pyparsing. Código: `pit/unifilar.py` escribe un espacio papel A3 por
+       alternativa y año con el marco, el rótulo del F-212 y los datos que pide el art. 37 de la 217-2013 (pdf pág. 64):
+       transformadores con MVA, relación, Vcc, taps y P y Q; líneas con longitud, material, sección y P y Q; barras con
+       tensión nominal y calculada; cargas con P y Q, y el año de ingreso de lo nuevo con la convención de colores que la
+       norma pide «de preferencia». El flujo de cada elemento lo da el motor abierto (`ResultadoFlujo.flujos`). Lo que
+       falta se rotula «sin dato» y se avisa. Devuelve ficheros, avisos y sustento para el manifiesto; la conexión con
+       `pit/expediente.py` es de f4. Se marca al correr su verde.
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_unifilar.py` en verde: ezdxf, como lector
        independiente, abre el DXF y encuentra el marco A3, una hoja por alternativa y año y las barras, los
        transformadores y las líneas con su flujo; la ruta del convertidor sale del perfil o del PATH (ninguna fija en el
@@ -214,6 +297,9 @@ adaptador VNR (integrador f9).
        por la 223-2023 para las 11 empresas de esa fijación), con la comprobación permanente del cargador (FE ≥ 1 y
        FE = 1/(1−p)) y la cruzada contra el informe técnico de la fijación; y el motor de plantillas con series anuales
        cuyo horizonte sale de la norma. (Aclaración de RF-9; RF-7, RF-11)
+       Avance (2026-11-15, f4/VAD-FE26): la tabla de FE se elige por empresa entre las fijaciones vigentes
+       (`regla_de_empresa`): del 2026-11-01 el grupo 1 toma la RCD 185-2026 y el grupo 2 la 223-2023 hasta el
+       2027-10-31; la 187-2023 y la 223-2023 llevan esa vigencia, y el expediente fija la huella de cada fijación.
        Avance (2026-11-15, f4): la causa del cambio de los FE entre el IT 716 y la 223-2023, por empresa
        (`config/normativa/vad_2023_2027_reconsideraciones.json`): citada en los IT 815, 816 y 817 para 3 empresas, y
        «sin causa localizada» citado para 6 cuyos informes no aceptan nada de pérdidas técnicas (delta13).
@@ -250,6 +336,8 @@ adaptador VNR (integrador f9).
        el motor de plantillas, total con solo el FC). Falta correrlo
        con la medida real del año representativo
        a la topología y a las curvas, y los mapeos de F-101 a F-103 cotejados con la página renderizada.
+       Avance (2026-11-15, f4/RN-VIG2): la RM 496-2005-MEM/DM, comprobada en el SPIJ, queda `modificada` por la RM
+       102-2010-MEM-DM, que no toca la Tabla N° 01: el error admisible por clase obliga ya, con el mismo valor.
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_demanda.py -k factores` en verde con curvas
        sintéticas de factores conocidos, y sin medida cada formato queda como plantilla con su causa.
 - [ ] T29. Demanda regulatoria, 3c: F-108 (ventas proyectadas por nivel), F-109 (energía por barra con el factor de

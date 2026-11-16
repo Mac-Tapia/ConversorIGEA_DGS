@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '../../shared/context';
 import { equipoApi } from './estadoEquipoAsistente';
+import { MejorasPendientes } from './MejorasPendientes';
 import type { EstadoEquipo } from './estadoEquipoAsistente';
 
 /** 065/047: roles, permisos y revisión supervisada; usa eventos de trabajos existentes. */
@@ -51,6 +52,7 @@ export function EquipoAsistente({ planId }: { planId?: string }) {
           <ul>{estado.herramientas.map(h => <li key={h.herramienta}>{h.herramienta}: {h.escribe ? 'requiere confirmación' : 'lectura'}</li>)}</ul>
         </details>
       </>}
+      {abierto && <MejorasPendientes />}
       <p className="muted">La revisión no autoriza la ejecución ni acredita aceptación eléctrica o calidad del modelo.</p>
     </div>
   </details>;

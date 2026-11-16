@@ -128,7 +128,7 @@ def test_asignar_la_entrega():
 
 
 def test_la_estructura_de_electro_dunas_en_su_perfil(tmp_path):
-    """022:RF-3, 022:RF-46 — el perfil local que hereda de Electro Dunas trae la estructura
+    """022:RF-3, 022:RF-46 — el perfil local que hereda de una distribuidora real trae la estructura
     de la tabla pública: 4 zonales, NA205 en SET 51 Nasca, siglas SI → SEIN, PA → Paracas."""
     from pathlib import Path
 

@@ -5,7 +5,7 @@ import { useApp } from '../../shared/context';
 import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import { DescargaZip } from './DescargaZip';
 import type { EstructuraResumen, FeederRow } from '../../api/types';
-import { Pill, Stat, useConfirm } from '../../shared/ui';
+import { GuardarSalida, Pill, Stat, useConfirm } from '../../shared/ui';
 import { ReconstructionPanel } from './ReconstructionPanel';
 
 type SortKey = 'feeder' | 'network_id' | 'nominal_kv' | 'sections' | 'loads' | 'switches' | 'status';
@@ -56,6 +56,7 @@ function GroupsList() {
               <td className="small">{g.hoja ? `${g.hoja.formato} ${g.hoja.orientacion} 1:${g.hoja.escala_1_a.toLocaleString('es-PE')}` : 'A medida'}</td>
               <td className="row-actions">
                 {g.dgs && <a className="link" href={api.fileUrl(ws.id, `${g.name}.dgs`, true)}>Descargar</a>}
+                {g.dgs && <GuardarSalida url={api.fileUrl(ws.id, `${g.name}.dgs`, true)} nombre={`${g.name}.dgs`} rel={`${g.name}.dgs`} />}
                 {g.dgs && (
                   <button className="link" disabled={Boolean(active.powerfactory)} onClick={async () => {
                     if (await confirm('DIgSILENT PowerFactory', <p>Se importará <b>{g.name}.dgs</b> en PowerFactory y se correrá el flujo.</p>)) {

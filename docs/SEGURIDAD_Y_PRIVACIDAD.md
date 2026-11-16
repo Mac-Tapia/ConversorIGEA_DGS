@@ -45,6 +45,7 @@ Nada por defecto. Cada salida se enciende por separado con su variable, y lo que
 | `CSG_SALIDA_CODEX` | Servicio de Codex | Herramienta de desarrollo; no se entrega |
 | `CSG_SALIDA_CORREO_GOOGLE` | La API de Gmail | Enviar un informe con la cuenta de Google del operador, solo con el permiso de enviar |
 | `CSG_SALIDA_CORREO_MICROSOFT` | Microsoft Graph | Enviar un informe con la cuenta de Microsoft del operador, solo con el permiso de enviar |
+| `CSG_SALIDA_NUBE` | Google Drive y OneDrive de la cuenta que conecte el operador | Importar fuentes y publicar o compartir expedientes (spec 109); la web la muestra, pero no la cambia |
 
 Instalar no sale a internet y arrancar nunca instala nada. No hay telemetría ni comprobación de actualizaciones.
 
@@ -59,6 +60,25 @@ Todo en la carpeta de datos del usuario (`%LOCALAPPDATA%\ConverterSmartGrid\dato
 | `input\` | Catálogos de parámetros, con las fichas del operador |
 | `runtime\registros\` | Registro del programa, en ficheros rotativos |
 | `copias_actualizacion\` | La copia previa de cada actualización |
+| `secretos\nube\` | Credenciales cifradas de la nube (DPAPI), por espacio; fuera de las copias de los datos |
+
+### La nube del operador (spec 109)
+
+- Solo sale a `www.googleapis.com`, `oauth2.googleapis.com`, `graph.microsoft.com`, `login.microsoftonline.com`,
+  `api.onedrive.com`, `*.sharepoint.com` y `*.1drv.com`, por un único módulo (`adaptadores/nube/http.py`), sin proxy del
+  entorno y sin seguir redirecciones.
+- El cliente OAuth lo registra la organización (`docs/NUBE_REGISTRO_OAUTH.md`) y va en `config\nube.json`, fuera del
+  repositorio. Sin él la nube no se ofrece. La contraseña se escribe en la página del proveedor; el programa nunca la ve.
+- Permisos mínimos: en Google, `drive.file` (solo lo que el operador elige o lo que el programa publica); en Microsoft,
+  `Files.Read` y `Files.ReadWrite` solo para publicar.
+- El token de refresco va cifrado con DPAPI de Windows (ámbito del usuario, con la entropía del espacio y del proveedor) en
+  `secretos\nube\<espacio>\`. No entra en el espacio de trabajo, en `config\`, en el navegador, en los registros ni en las
+  copias de los datos. Una copia restaurada en otro equipo no trae credenciales: se vuelve a conectar.
+- Cada estudio usa una copia fija de lo importado, con su huella (`nube\copias\<sha256>\copia.json`).
+- Compartir exige la previa de quién tendrá acceso y la confirmación del operador en cada envío; solo lectura, a correos
+  concretos; «cualquiera con el enlace» solo con su autorización expresa; y nunca un expediente con TXT de CYMDIST, bases
+  Access o paquetes VNR-GIS, que se reconocen por su contenido. El asistente no puede conectar, publicar ni compartir.
+- Desconectar revoca en Google y borra la credencial del equipo; en Microsoft se retira el consentimiento desde la cuenta.
 
 Las redes, las demandas y los informes son datos de la distribuidora. El programa los lee donde se indiquen y no los envía a ningún sitio. Una ejecución de
 retención diaria limpia temporales; no borra informes ni espacios. Desinstalar no borra los datos: es decisión de la organización.

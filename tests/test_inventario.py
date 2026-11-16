@@ -238,6 +238,10 @@ def test_documentacion_del_readme():
 #: distribuidora y viven fuera de config/normativa/. Cada uno va con su nombre exacto y su razón, nunca
 #: con un comodín: un fichero al lado, o el mismo con el nombre de una empresa, sigue rechazado.
 GENERICOS_CON_RAZON = {
+    # 108 T10 (S78-T9T10-v3): la estructura del Anexo 9, por su nombre.
+    'config/vad/anexo9_estructura.json':
+        '108 (S78-T9T10): Anexo N° 9 de los TdR del VAD de Osinergmin (texto de la RCD 033-2026-OS/CD): las '
+        'entidades, sus campos y las tablas de códigos que entrega toda distribuidora, sin datos de ninguna.',
     'config/vad/anexo2_formatos.json':
         '108 (S3pp): Anexo N° 2 de los TdR del VAD 2026-2030 y 2027-2031 de Osinergmin (texto de la '
         'RCD 033-2026-OS/CD): los formatos que presenta toda distribuidora, sin cifras de ninguna.',
@@ -247,6 +251,30 @@ GENERICOS_CON_RAZON = {
     'config/vad/tdr_vad_2026_resultados.json':
         '108 (S3pp): conceptos, fórmulas y listas de los numerales 6.11, 7.5, 8 y 9 y del anexo 3 de los '
         'mismos TdR de Osinergmin, con su cita literal; ninguna regla de una empresa.',
+    # REBASE-PUNTA sobre G3+G4: los tres que añade la línea VAD, por su nombre (sustituyen al comodín de VAD-CAL).
+    'config/vad/tdr_vad_2026_anexo4.json':
+        '108 (VAD-CAR T4): Anexo N° 4 «Estudio de Caracterización de la Carga» de los mismos TdR del VAD de '
+        'Osinergmin (RCD 033-2026-OS/CD), con sus reglas citadas; ninguna regla de una empresa.',
+    'config/vad/tdr_vad_2026_calidad.json':
+        '108 (VAD-CAL): criterio del numeral 6.11 y Cuadros 21, 22 y 23 de los mismos TdR del VAD de '
+        'Osinergmin (RCD 033-2026-OS/CD), con su cita literal; ninguna regla de una empresa.',
+    'config/vad/tdr_vad_2026_requisitos.json':
+        '108 (VAD-REQ): requisitos y cuadros de V11 (numeral 6.11) y V12 (6.8.3, 6.13, 6.14 y 6.15) de los '
+        'mismos TdR del VAD de Osinergmin (RCD 033-2026-OS/CD); ninguna regla de una empresa.',
+    # E1 (línea VAD sobre la punta de D): los cuatro que añaden VAD-A6, VAD-A7 y VAD-A5U, por su nombre.
+    'config/vad/anexo5_urbano.json':
+        '108 (VAD-A5U): Anexo N° 5 «Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas» de los '
+        'mismos TdR del VAD de Osinergmin (amplía tdr-vad-2026-anexo-r033), con su cita; ninguna regla de una empresa.',
+    'config/vad/anexo6_rural.json':
+        '108 (VAD-A6 T5): Anexo N° 6 «Modelo Geo-referenciado para la Optimización de Redes Eléctricas Rurales» de '
+        'los mismos TdR del VAD de Osinergmin (amplía tdr-vad-2026-anexo-r033), con su cita; ninguna regla de una empresa.',
+    'config/vad/anexo7_coym.json':
+        '108 (VAD-A7): Anexo N° 7 «Metodología de Costos de Operación y Mantenimiento» y numerales 6.9 de los mismos '
+        'TdR del VAD de Osinergmin (amplía tdr-vad-2026-anexo-r033), con su cita; ninguna regla de una empresa.',
+    'config/vad/ds_018_2020_em_rlger.json':
+        '108 (VAD-A6 T7): Reglamento de la Ley General de Electrificación Rural (DS 018-2020-EM, modificado por el '
+        'DS 003-2026-EM), que el costeo del SER de los TdR del VAD de Osinergmin usa para el FFR; norma nacional, '
+        'igual para toda distribuidora, con su cita; ninguna regla de una empresa.',
 }
 _COMODIN = re.compile(r'[*?\[\]]')
 
@@ -266,9 +294,11 @@ def test_config_sin_datos_de_una_empresa():
     # 086:RF-33, RF-34: la lista de lo que se entrega no es de ninguna empresa, y la de términos solo lleva huellas.
     # 086:RF-39 (L5): las vulnerabilidades aceptadas por escrito son de las librerías del lock, no de una empresa.
     # 107:RF-9 (T19b): el mapeo campo → celda es de los formatos de la Norma Tarifas, igual para toda empresa.
+    # FIX-NOMBRES-HUELLAS: los sitios de los casos y los códigos VNR van por su huella, como los términos.
     genericos = {'config/vnr_dgs_profile.json', 'config/pide_universal_2017.json', 'config/entrega.json',
                  'config/terminos_huellas.json', 'config/vulnerabilidades_justificadas.json',
-                 'config/pit_mapeo_formatos.json'}
+                 'config/pit_mapeo_formatos.json', 'config/casos_de_prueba/sitios.json',
+                 'config/vnr/codigos_empresa_vnr.json'}
     malos = [f for f in salida if '.example.' not in f and f not in genericos
              and not (f.startswith('config/perfiles/') and f.endswith('.json'))
              # 020:RF-63: las fichas NTP 370.400 son del conversor (norma técnica nacional), no de una empresa.

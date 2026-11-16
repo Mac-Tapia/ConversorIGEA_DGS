@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from . import historico_interrupciones as hi
+from .util import frc
 
 #: Clases de elemento que reconoce el libro (RF-10), con su nombre en la hoja.
 CLASES = {
@@ -230,14 +231,10 @@ _COSTE_POR_NOMBRE = {_norm(v): k for k, v in COSTES.items()}
 def anualidad(inversion: float, tasa: float, vida_anios: float) -> float:
     """Coste anual de un banco, el que pide DIgSILENT (RF-64): la anualidad de su inversión.
 
-    Con tasa cero, la inversión entre la vida útil (RF-65): la fórmula da 0/0.
+    Con tasa cero, la inversión entre la vida útil (RF-65): la fórmula da 0/0. El factor es ``util.frc``, la única
+    fórmula del FRC del conversor (UNA-TASA); una vida útil ≤ 0 la rechaza ella con ``ValueError``.
     """
-    if vida_anios <= 0:
-        raise ValueError('la vida útil tiene que ser mayor que cero')
-    if tasa == 0:
-        return inversion / vida_anios
-    f = (1 + tasa) ** vida_anios
-    return inversion * tasa * f / (f - 1)
+    return inversion * frc(tasa, vida_anios)
 
 
 def tasa_para(libro: Libro, clase: str, tipo: str | None = None) -> Tasa | None:

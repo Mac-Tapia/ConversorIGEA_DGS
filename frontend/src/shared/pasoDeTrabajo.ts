@@ -24,6 +24,8 @@ export const PASOS = {
   asistente: { titulo: 'Asistente', pestana: 'asistente' },
   // 105: el tablero de la evolución de los clientes fijos, en su propia pestaña.
   'clientes-fijos': { titulo: 'Evolución de clientes fijos', pestana: 'clientes_fijos' },
+  // 111: el estudio de una variación del plano, en su pestaña.
+  plano: { titulo: 'Plano de la red', pestana: 'plano' },
 } as const;
 
 export type PasoId = keyof typeof PASOS;
@@ -35,11 +37,15 @@ export type PasoId = keyof typeof PASOS;
 export const PASO_DE_TRABAJO: Record<string, PasoId | null> = {
   // 1 · Entrada de datos: las publicaciones oficiales de VNR-GIS.
   vnr_publications: 'entradas', vnr_download: 'entradas',
+  // 109: la nube se maneja desde «Cuentas de nube», en la columna de la entrada de datos.
+  nube_importar: 'entradas', nube_versiones: 'entradas', nube_traer: 'entradas',
+  nube_publicar: 'entradas', nube_compartir: 'entradas',
   // 2 · Alimentadores: cargar, reconstruir, convertir, descargar e importar con su flujo.
   load: 'alimentadores', diagnose: 'alimentadores', reconstruct: 'alimentadores', convert: 'alimentadores',
   convert_group: 'alimentadores', archive: 'alimentadores', powerfactory: 'alimentadores',
   catalog: 'catalogo',
   clientes_fijos_evolucion: 'clientes-fijos',
+  plano_estudiar: 'plano',
   system: 'sistema',
   // Cargas en DIgSILENT.
   pf_projects: 'pf-proyecto', pf_adoptar_fuente: 'pf-proyecto', pf_verificar_base: 'pf-proyecto',
@@ -65,6 +71,8 @@ export const PASO_DE_TRABAJO: Record<string, PasoId | null> = {
   // 107: el diagnóstico de la red del área del PIT (POST /api/pit/diagnostico) es planificación, como el PIDE; su
   // aviso va al paso 5, que lo enseña también con la planificación apagada.
   pit_diagnostico: 'pf-planificacion',
+  // 107: el expediente del PIT se arma desde el mismo paso que su diagnóstico.
+  pit_expediente: 'pf-planificacion',
   asistente: 'asistente', asistente_control: 'asistente', asistente_interpretar: 'asistente',
   asistente_entrenar: 'asistente', asistente_mejora: 'asistente', asistente_indice: 'asistente', asistente_revision: 'asistente',
   agente_proyecto: 'asistente',

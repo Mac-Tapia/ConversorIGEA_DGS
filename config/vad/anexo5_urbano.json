@@ -1,0 +1,602 @@
+{
+  "esquema": "registro_normativo_v1",
+  "amplia": "tdr-vad-2026-anexo-r033",
+  "nota": "Spec 108 T14, parte de las incoherencias del TdR (2026-11-15, f4/VAD-A5U). Amplía el TdR registrado con las 22 reglas del Anexo 5 «Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas» (págs. Anexo 5-1 a 5-23, pdf 131 a 153; líneas 5439-6316 del texto de huella sha256_texto de la norma ampliada, 48ea8cf4…), transcritas por cc (z26a, muy alta densidad, y z26b, alta a muy baja) con doble lectura; las fórmulas, leídas en la imagen del PDF, en la sintaxis de vad/formulas.py y cotejadas con una segunda transcripción en 200 puntos. Añade TRI_AREA como fórmula (lista de variables de NTRI), la tasa «i» (remisión del cap. 5 al art. 79 de la LCE) y los símbolos sin definir. Las decisiones de 28 (forma cerrada de la ecuación circular, lectura (a) del paréntesis de NTRI, los +5 % sumados, las entradas sin valor por defecto y los factores de 1000) van en la interpretación de su regla. Ninguna regla es de una empresa.",
+  "reglas": [
+    {
+      "clave": "vad.anexo5.alcance",
+      "valor": {
+        "modelo": "geométrico; solución de mínimo costo de la red integrada MT + SED + BT, con los índices de calidad resultantes",
+        "costos": [
+          "inversión",
+          "operación",
+          "pérdidas"
+        ],
+        "calidad": "acorde con las exigencias regulatorias (producto y servicio, normativa vigente)",
+        "por_zona": "cada zona urbana definida; los datos económicos generales y parámetros básicos de diseño son comunes",
+        "datos": [
+          "Características del mercado a atender",
+          "Características geográficas y restricciones constructivas",
+          "Parámetros de diseño de las instalaciones",
+          "Parámetros de confiabilidad"
+        ],
+        "variables_de_diseno": [
+          "Módulo de los CT MT/BT",
+          "Cantidad de salidas BT por CT (aéreos y a nivel o subterráneos)",
+          "Topología de la red MT (en anillo, radial con derivaciones)",
+          "Topología de la red BT (en anillo, radial con derivaciones)",
+          "Cantidad de cierres en la red de MT",
+          "Cantidad de derivaciones en la red MT",
+          "Inclusión de reconectadores en la red MT"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-1; Anexo 5-2 (pdf 131, 132)",
+      "lineas": "5452-5455; 5457-5459; 5467-5468; 5478-5482; 5486; 5494",
+      "cita_literal": "El modelo geométrico es un modelo matemático que permite obtener la solución de mínimo costo para la red integrada de media y baja tensión, incluyendo además la definición del módulo de los centros de transformación y los índices de calidad de servicio resultante. [...] La solución de mínimo costo no sólo considera los costos involucrados en la prestación del servicio, tanto de inversión, operación y pérdidas, sino también una calidad acorde con las exigencias regulatorias. [...] El diseño y optimización de las redes se efectúa para cada una de las zonas urbanas definidas [...] Para la determinación de la alternativa de mínimo costo se definen una serie de parámetros que se consideran como variables de diseño, y se establecen distintos valores (dentro de rangos de razonabilidad) para que el modelo calcule toda la combinación de alternativas resultantes y determine la de mínimo costo que cumple con las condiciones de calidad establecidas. [...] • Módulo de los CT MT/BT [...] • Inclusión de reconectadores en la red MT",
+      "interpretacion": "Las listas de datos y de variables de diseño se transcriben completas en «valor»; la cita lleva el primero y el último punto de la lista de variables (la lista cruza el salto 5-1/5-2)."
+    },
+    {
+      "clave": "vad.anexo5.metodo",
+      "valor": {
+        "seleccion": "el escenario (combinación de módulos y secciones) de menor costo económico total",
+        "base": "estudio previo de secciones y módulos de transformación económicos para los rangos de corriente y carga",
+        "por": "cada zona de densidad característica",
+        "costo_total": "inversiones, pérdidas y operación a largo plazo",
+        "horizonte": "al menos igual a la vida útil promedio esperada de las instalaciones",
+        "optimizacion": "global y simultánea de MT, SED y BT",
+        "entradas": [
+          "especificación y precio de los materiales",
+          "parámetros de la zona de densidad",
+          "parámetros eléctricos del sistema y cargas conectadas",
+          "propuesta de equipamiento por opción"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-2 (pdf 132)",
+      "lineas": "5503-5505; 5516-5518; 5520-5521",
+      "cita_literal": "sobre la base del estudio previo de secciones y módulos de transformación económicos para los rangos de corriente y carga, se determinan las instalaciones económicas y se evalúan escenarios para cada zona de densidad característica. [...] estimando la erogación de fondos por inversiones, pérdidas y operación del sistema a largo plazo, en un horizonte al menos igual a la vida útil promedio esperada de las instalaciones. [...] Finalmente, la solución tecnológica óptima es aquella opción que resulte con el menor costo económico total."
+    },
+    {
+      "clave": "vad.anexo5.mad.estructura",
+      "valor": {
+        "mt": "subterránea radial con cierres entre troncales en sus extremos y derivaciones de menor sección",
+        "bt": "subterránea con posibles derivaciones de igual sección",
+        "unidad_de_costo": "USD por km2",
+        "subestacion_at_mt": "en el interior de la ciudad; área de influencia circular; troncal = componente radial + cierre con un alimentador vecino",
+        "clientes_mt": "grandes clientes MT por subestación + resto de clientes MT = fracción SCLIENTES de la carga total"
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-2; Anexo 5-3; Anexo 5-4 (pdf 132, 133, 134)",
+      "lineas": "5532-5535; 5538; 5589-5590; 5595-5596",
+      "cita_literal": "se considera el desarrollo del sistema eléctrico de media tensión (MT) con redes del tipo subterráneas radiales con cierres entre troncales en sus extremos y derivaciones de menor sección y, para el desarrollo del sistema de baja tensión (BT), se considera redes [...] subterráneas con posibles derivaciones de igual sección. [...] Las subestaciones AT/MT se consideran ubicadas en el interior de la ciudad y se supone un área de influencia circular. [...] junto con los restantes clientes de media tensión, representan una fracción “SCLIENTES” de la carga total.",
+      "interpretacion": "La fracción SCLIENTES se nombra pero ninguna fórmula de la MAD la usa: hueco de uso (¿resta de δMT?)."
+    },
+    {
+      "clave": "vad.anexo5.mad.costo_total",
+      "valor": {
+        "unidad": "USD/km2",
+        "formulas": {
+          "CTOTAL": "CI_INICIAL + CI_FUTURO + C_MANT + C_PERD",
+          "CI_INICIAL": "CMT_INICIAL + CCT_INICIAL + CTR_INICIAL + CBT_INICIAL"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-3 (pdf 133)",
+      "lineas": "5543; 5551",
+      "cita_literal": "fórmulas leídas en la imagen; ver «formulas» y su esqueleto en las líneas",
+      "interpretacion": "CCT_INICIAL (costo de los centros de transformación iniciales) está en la suma pero NINGUNA fórmula de la MAD lo define (la c. solo da CTR_INICIAL = NTRI·(ctr + ci)): hueco del TdR. DECISIÓN (3) de 28: CCT_INICIAL es la entrada del perfil vad.anexo5.cct_inicial, sin valor por defecto; sin ella, hueco nombrado (vad.anexo5.entradas_sin_definir)."
+    },
+    {
+      "clave": "vad.anexo5.mad.mt.salida",
+      "valor": {
+        "Pif": "potencia instalada firme [MVA]",
+        "Fu_ATMT": "factor de utilización de la subestación AT/MT",
+        "CS": "cantidad de salidas de MT de la subestación AT/MT",
+        "U_NOMINAL_MT": "tensión de línea nominal de las salidas MT [kV]",
+        "troncal_corriente_admisible_min": "2 × I_SALIDA_MT (operación en emergencia)",
+        "formulas": {
+          "S_SALIDA_MT": "Pif * Fu_ATMT / CS",
+          "I_SALIDA_MT": "S_SALIDA_MT / (3 ** 0.5 * U_NOMINAL_MT)"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-3 (pdf 133)",
+      "lineas": "5575-5576; 5565; 5567",
+      "cita_literal": "Para las troncales, los cables a considerar en las distintas alternativas a analizar deberán tener al menos una corriente admisible del doble de este valor para permitir operaciones en"
+    },
+    {
+      "clave": "vad.anexo5.mad.mt.geometria",
+      "valor": {
+        "Frg": 1.2,
+        "Frg_motivo": "restricciones geométricas del manzanado; en diagonal se requiere 1,41 veces la distancia mínima",
+        "CDR": "coeficiente por desequilibrio y restricciones (si se demuestra su necesidad)",
+        "Cierre": "1 cuando existen cierres en la red MT",
+        "delta_MT": "densidad de carga MT (incluye BT) del estudio de zonificación [MW/km2]",
+        "FP_DIS": "factor de potencia de diseño",
+        "FD_MT": "factor de diversidad MT",
+        "formulas": {
+          "R": "1000 * (Pif * Fu_ATMT / (3.141592653589793 * delta_MT / FP_DIS * FD_MT)) ** 0.5",
+          "Superficie": "3.141592653589793 * R ** 2 / 1000000",
+          "L_RADIAL": "Frg * R",
+          "L_CIERRE": "Frg * 3.141592653589793 * R / CS * CDR * Cierre",
+          "LMT_TRONCAL": "Frg / R * (CS / 3.141592653589793) * 10 ** 6 * CDR + L_CIERRE / Superficie * CS"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-4; Anexo 5-5 (pdf 134, 135)",
+      "lineas": "5617-5619; 5627-5628; 5599-5600; 5603; 5604; 5606; 5634",
+      "cita_literal": "igual a 1,2. Corresponde km a las restricciones geométricas impuestas por el manzanado, un desplazamiento en diagonal al sentido de las calles requiere 1,41 veces la distancia mínima. [...] variable que toma el valor de 1 cuando existen cierres en el modelamiento de la red MT.",
+      "interpretacion": "R en m; Superficie en km2; LMT_TRONCAL en m/km2. La longitud inicial de troncales [m] = LMT_TRONCAL × Superficie, y su costo = esa longitud × cmt_TRONCAL [USD/m]. OJO: en a.1 (pérdidas, pág. 5-12) el TdR REDEFINE L_RADIAL «por km2» como Frg·CS/(π·R)·10^6; aquí, en b., L_RADIAL = Frg·R [m]. Son dos magnitudes con el mismo nombre."
+    },
+    {
+      "clave": "vad.anexo5.mad.mt.costo_inicial",
+      "valor": {
+        "cmt": "costo unitario de MT [USD/m]",
+        "LMT": "longitud por km2 de la red de MT",
+        "formulas": {
+          "CMT_INICIAL": "C_TRONCAL + C_DERIV",
+          "C_TRONCAL": "cmt_TRONCAL * LMT_TRONCAL",
+          "C_DERIVAC": "cmt_DERIVAC * LMT_DERIVAC"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-4; Anexo 5-5 (pdf 134, 135)",
+      "lineas": "5636; 5638-5639; 5581; 5582; 5583",
+      "cita_literal": "La longitud inicial de troncales, en metros, resulta de multiplicar [...] El costo de la red troncal inicial resulta de multiplicar la longitud inicial de troncales por el costo unitario de red troncal ingresado como dato (USD/m).",
+      "interpretacion": "El TdR escribe C_DERIV en la suma y C_DERIVAC en su definición: es la misma magnitud."
+    },
+    {
+      "clave": "vad.anexo5.mad.ntri_ncti",
+      "valor": {
+        "delta_BT": "densidad de carga BT [MW/km2]",
+        "FD_CT": "factor de diversidad del CT",
+        "Aj": "ajuste capacidad instalada para Fuso",
+        "PTR_INICIAL": "potencia promedio de los transformadores iniciales [kVA]",
+        "Fu_MTBT": "factor de utilización promedio de los transformadores",
+        "N_CLIENTES": "número promedio de clientes con salidas dedicadas",
+        "P_CLIENTES": "potencia promedio de clientes con salidas dedicadas [kW/cliente]",
+        "COS_fi": "factor de potencia promedio de clientes con salidas dedicadas",
+        "AP_D": "densidad de potencia de alumbrado público [kVA/km2]",
+        "TRI_AREA": "área de cobertura de la SED [km2] = π·(R_BT/1000)²",
+        "NCLMTI": "número de clientes de media tensión por km2",
+        "formulas": {
+          "NTRI": "1000 * delta_BT * FD_CT * Aj / (FP_DIS * (PTR_INICIAL * Fu_MTBT - N_CLIENTES * P_CLIENTES / COS_fi - AP_D * TRI_AREA))",
+          "NCTI": "NTRI + NCLMTI",
+          "TRI_AREA": "3.141592653589793 * (R_BT / 1000) ** 2"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-5; Anexo 5-6 (pdf 135, 136)",
+      "lineas": "5644-5645; 5667",
+      "cita_literal": "fórmulas leídas en la imagen; ver «formulas» y su esqueleto en las líneas",
+      "interpretacion": "En la imagen (pág. 5-5) los paréntesis del denominador de NTRI NO cierran: hay 3 abiertos y 2 cerrados. Se lee como FP_DIS · (PTR·Fu − N·P/COS − AP_D·TRI_AREA), la única lectura en la que cada término resta potencia del transformador. TRI_AREA depende de R_BT y R_BT depende de TRI_AREA (págs. 5-5 y 5-8): es una ecuación CIRCULAR que hay que resolver por punto fijo; el TdR no lo dice. «1000·δBT» pasa MW a kW. DECISIÓN (1) de 28 (2026-11-15): la ecuación circular R_BT ↔ TRI_AREA ↔ NTRI se resuelve en FORMA CERRADA, como interpretación: con A = PTR_INICIAL·Fu_MTBT − N_CLIENTES·P_CLIENTES/COS_fi, TRI_AREA = π·(R_BT/1000)² es lineal en TRI_AREA, y en la MAD da T = A·FP_DIS/(1000·δ_BT·FD_BT) (en el resto, sin el «− AP_D/1000», T = A/(1000·δ_BT·FD_BT/FP_DIS + AP_D)); se comprueba con un residuo ≤ 1e-9 al sustituir T en las dos fórmulas TRANSCRITAS de su rama (R_BT y TRI_AREA del registro), sin forma derivada (c3, v2). La de la MAD la verificó c3 (el AP_D·T del numerador se cancela con el «− AP_D/1000» del denominador). La del resto es de f4: la de la MAD NO cumple allí el residuo (el resto no lleva ese «− AP_D/1000»), y la del resto sí; las dos coinciden solo con AP_D = 0. Hueco nombrado si A ≤ 0, si el denominador de R_BT es ≤ 0, si A − AP_D·T < 0 (raíz de R_BT) o si el denominador de NTRI es ≤ 0. DECISIÓN (2) de 28: lectura (a) del paréntesis de NTRI, FP_DIS·(PTR·Fu − N·P/COS − AP_D·TRI_AREA): el corchete es el mismo numerador que el de R_BT en la pág. 5-8 (líneas 5719-5721), donde los paréntesis sí cierran; la pág. 5-5 (líneas 5644-5645) abre 3 y cierra 2. Una lectura (b), con AP_D·TRI_AREA fuera del producto con FP_DIS, se detecta y se rechaza."
+    },
+    {
+      "clave": "vad.anexo5.mad.mt.derivaciones",
+      "valor": {
+        "vinculacion": "la mitad de la distancia media entre dos salidas vecinas de MT (alta densidad: radios BT ≈ distancia entre salidas MT)",
+        "incremento_densidad_no_uniforme": 0.05,
+        "incremento_trazado": 0.05,
+        "incremento_motivos": [
+          "mitad del área con densidad doble que el resto: +5 % a la longitud",
+          "cruces, calles de difícil canalización, desviación de la subestación del punto óptimo: +5 %"
+        ],
+        "formulas": {
+          "LMT_DERIVAC": "NCTI * Frg * 1 / 4 * 2 * 3.141592653589793 * R / (CS - clientes_ATMT) * CDR"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-6 (pdf 136)",
+      "lineas": "5673-5674; 5688-5689; 5689-5692; 5678-5681",
+      "cita_literal": "se supone que la longitud más probable de cada vinculación es igual a la mitad de la distancia media entre dos salidas vecinas de media tensión. [...] Si se considera que la mitad del área tiene una densidad el doble que el resto, se deberá agregar un 5 % a la longitud de red necesaria. [...] Además, se considera otro incremento del 5 % para tener en cuenta imposiciones en el trazado como son ciertos cruces o calles de difícil canalización, así como cierta desviación de la subestación del punto óptimo.",
+      "unidad": "m/km2",
+      "interpretacion": "El TdR no dice si los dos +5 % se suman (×1,10) o se componen (×1,1025), ni a qué longitud (¿troncal y derivaciones, o solo derivaciones?): el párrafo sigue al de derivaciones. clientes_AT/MT (salidas dedicadas a clientes) no está definido en la lista de variables. DECISIÓN (3) de 28: los dos +5 % se SUMAN (×1,10); el aviso muestra el compuesto (×1,1025). Se aplican a la longitud de las derivaciones de MT: el párrafo sigue al de derivaciones (interpretación anotada; el TdR dice «la longitud de red necesaria»)."
+    },
+    {
+      "clave": "vad.anexo5.mad.tr_inicial",
+      "valor": {
+        "ctr": "costo unitario del transformador inicial según potencia",
+        "ci": "costo de instalación",
+        "formulas": {
+          "CTR_INICIAL": "NTRI * (ctr + ci)"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-7 (pdf 137)",
+      "lineas": "5703",
+      "cita_literal": "fórmulas leídas en la imagen; ver «formulas» y su esqueleto en las líneas"
+    },
+    {
+      "clave": "vad.anexo5.mad.bt_inicial",
+      "valor": {
+        "l_c": "longitud promedio de cuadra + ancho promedio de calle [m]",
+        "FD_BT": "factor de diversidad BT",
+        "N_SALIDAS": "número promedio de salidas BT por CT",
+        "N_CL": "número de clientes especiales por centro",
+        "L_RG": "red general de BT [m/km2]",
+        "L_ACOM": "cables de salida hasta la primera esquina [m/km2]",
+        "L_CL": "cable para clientes especiales (superpuesto), no incluido en L_ACOM [m/km2]",
+        "costo": "LBT × costo unitario de la red BT",
+        "formulas": {
+          "LC": "1000 / l_c * 1000 * 2",
+          "R_BT": "1000 * ((PTR_INICIAL * Fu_MTBT - N_CLIENTES * P_CLIENTES / COS_fi - AP_D * TRI_AREA) / (3.141592653589793 * (delta_BT / FP_DIS * FD_BT - AP_D / 1000) * 1000)) ** 0.5",
+          "LBT": "L_RG + L_ACOM + L_CL",
+          "L_RG": "2 * LC - 2 * l_c * NTRI",
+          "L_ACOM": "NTRI * N_SALIDAS * l_c / 2",
+          "L_CL": "NTRI * N_CL * (Frg * R - l_c / 2) / 2"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-7; Anexo 5-8 (pdf 137, 138)",
+      "lineas": "5743-5744; 5709; 5719-5721; 5726; 5732; 5734; 5736-5738",
+      "cita_literal": "El costo de la red BT inicial resulta de multiplicar la LBT obtenida anteriormente, por el costo unitario de la red BT.",
+      "interpretacion": "En L_CL el TdR usa R; por el contexto (clientes especiales de un CT) sería R_BT, pero se transcribe R tal cual. «delta_BT/FP_DIS·FD_BT − AP_D/1000» mezcla MW/km2 y kVA/km2÷1000: coherente en MVA/km2. LC es «longitud de calles con línea por km2» (2 sentidos). DECISIÓN (1) de 28 (2026-11-15): la ecuación circular R_BT ↔ TRI_AREA ↔ NTRI se resuelve en FORMA CERRADA, como interpretación: con A = PTR_INICIAL·Fu_MTBT − N_CLIENTES·P_CLIENTES/COS_fi, TRI_AREA = π·(R_BT/1000)² es lineal en TRI_AREA, y en la MAD da T = A·FP_DIS/(1000·δ_BT·FD_BT) (en el resto, sin el «− AP_D/1000», T = A/(1000·δ_BT·FD_BT/FP_DIS + AP_D)); se comprueba con un residuo ≤ 1e-9 al sustituir T en las dos fórmulas TRANSCRITAS de su rama (R_BT y TRI_AREA del registro), sin forma derivada (c3, v2). La de la MAD la verificó c3 (el AP_D·T del numerador se cancela con el «− AP_D/1000» del denominador). La del resto es de f4: la de la MAD NO cumple allí el residuo (el resto no lleva ese «− AP_D/1000»), y la del resto sí; las dos coinciden solo con AP_D = 0. Hueco nombrado si A ≤ 0, si el denominador de R_BT es ≤ 0, si A − AP_D·T < 0 (raíz de R_BT) o si el denominador de NTRI es ≤ 0."
+    },
+    {
+      "clave": "vad.anexo5.mad.futuro",
+      "valor": {
+        "horizonte_anios": 30,
+        "a": "la mitad de la tasa de crecimiento de la demanda",
+        "i": "tasa de actualización (no la define el Anexo 5)",
+        "b": "NO definida en el Anexo 5",
+        "c": "NO definida en el Anexo 5",
+        "red_mt_futura": "alimentadores ∝ demanda; longitud ∝ raíz de la demanda",
+        "tr_futuros": "transformadores en nuevos centros + cambios de potencia (precio promedio de la potencia instalada)",
+        "bt_futura": "aumento de acometidas a la red general ∝ demanda",
+        "anio": "serie de 30 unos que fija el horizonte en el intérprete (no es del TdR)",
+        "formulas": {
+          "CI_FUTURO": "CMT_FUTURO + CTR_FUTURO + CBT_FUTURO",
+          "CMT_FUTURO": "CMT_INICIAL * K_MT",
+          "K_MT": "suma(n, ((1 + a) ** n - (1 + a) ** (n - 1)) / (1 + i) ** n * anio)",
+          "CTR_FUTURO": "C_TR + C_INST + C_CAMBIO",
+          "C_TR": "(ctr_inicial + ctr_futuro) / (PTR_INICIAL + PTR_FUTURO) * NTRI * PTR_INICIAL * K_TR",
+          "K_TR": "suma(n, ((1 + c) ** n - (1 + c) ** (n - 1)) / (1 + i) ** n * anio)",
+          "C_INST": "NTRI * c_i * K_CT",
+          "C_CAMBIO": "NTRI * PTR_INICIAL / (PTR_FUTURO - PTR_INICIAL) * (ci + cr) * K_CAMBIO",
+          "K_CAMBIO": "(c - b) * suma(n, (1 + c) ** (n - 1) / (1 + i) ** n * anio)",
+          "CBT_FUTURO": "cbt * L_ACOM * K_TR"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-8; Anexo 5-9; Anexo 5-10 (pdf 138, 139, 140)",
+      "lineas": "5763-5765; 5766-5767; 5796-5797; 5748; 5769; 5770; 5779; 5789; 5790; 5795; 5799; 5800; 5807",
+      "cita_literal": "la longitud de red futura crecerá con la raíz cuadrada de la demanda, es decir con la mitad de la tasa de crecimiento de la densidad de carga. [...] El costo total se obtiene como sumatoria de los costos anuales capitalizados durante el horizonte del estudio (30 años): [...] El incremento de la potencia por cambio de transformadores se obtiene restando al incremento anual la potencia instalada en nuevos centros.",
+      "interpretacion": "HUECOS del TdR en las fórmulas futuras: b y c no se definen (por el uso, c sería el crecimiento de la demanda y b el de los centros); K_CT (en C_INST) no se define; cr (en C_CAMBIO) no se define (¿costo de retiro?); c_i en C_INST y ci en C_CAMBIO son el mismo costo de instalación; i es la tasa de actualización (12 % de la LCE art. 79, por el resto del TdR). K_TR se usa a la vez como factor de transformadores y de «nuevas acometidas» (CBT_FUTURO). La tasa «i» no la define el Anexo 5: es vad.anexo5.tasa_i, que remite a la tasa de actualización del art. 79 de la LCE (cap. 5, líneas 1347-1350). b, K_CT y cr son entradas del perfil sin valor por defecto (vad.anexo5.entradas_sin_definir)."
+    },
+    {
+      "clave": "vad.anexo5.mad.mantenimiento",
+      "valor": {
+        "cm_mt": "costo anual de mantenimiento por metro de línea MT",
+        "cm_ct": "costo anual de mantenimiento por centro",
+        "cm_bt": "costo anual de mantenimiento por metro de línea BT",
+        "formulas": {
+          "C_MANT": "CM_MT + CM_CT + CM_BT",
+          "CM_MT": "cm_mt * (LMT_TRONCAL + LMT_DERIV) * suma(n, (1 + a) ** n / (1 + i) ** n * anio)",
+          "CM_CT": "cm_ct * NCTI * suma(n, (1 + b) ** n / (1 + i) ** n * anio)",
+          "CM_BT": "cm_bt * (L_RG + L_CL) * suma(n, 1 / (1 + i) ** n * anio) + cm_bt * L_ACOM * suma(m, (1 + c) ** m / (1 + i) ** m * anio)"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-10; Anexo 5-11 (pdf 140, 141)",
+      "lineas": "5815; 5821; 5830; 5839",
+      "cita_literal": "fórmulas leídas en la imagen; ver «formulas» y su esqueleto en las líneas",
+      "interpretacion": "La tasa «i» no la define el Anexo 5: es vad.anexo5.tasa_i, que remite a la tasa de actualización del art. 79 de la LCE (cap. 5, líneas 1347-1350). b, K_CT y cr son entradas del perfil sin valor por defecto (vad.anexo5.entradas_sin_definir)."
+    },
+    {
+      "clave": "vad.anexo5.mad.perdidas",
+      "valor": {
+        "Te": "tiempo anual equivalente de pérdidas [h/año]; si no está disponible, de Tu",
+        "Tu": "tiempo anual de utilización [h/año]",
+        "mt": "solo troncales (derivaciones despreciadas); carga concentrada en la mitad de la componente radial (no a un tercio)",
+        "factores_mt": [
+          "fF_MT desequilibrio de fase",
+          "fA_MT corrientes armónicas",
+          "fS_MT desequilibrio de salidas",
+          "fC_MT desequilibrio de cargas"
+        ],
+        "factores_tr": [
+          "fF_MTBT",
+          "fA_MTBT",
+          "fS_MTBT"
+        ],
+        "factores_bt": [
+          "fF_BT",
+          "fA_BT",
+          "fS_BT",
+          "fP_BT posición",
+          "fC_BT"
+        ],
+        "bt_derivaciones": "proporcionales a las pérdidas en las salidas (Kred)",
+        "ce": "costo de energía [USD/kWh]",
+        "r": "resistencia [ohm/km]",
+        "formulas": {
+          "CP": "CP_MT + CP_TR + CP_BT",
+          "Te": "0.3 * Tu + 0.7 * Tu ** 2 / 8760",
+          "I_SALIDA_MT_kA": "Pif * Fu_ATMT / (3 ** 0.5 * U_NOMINAL_MT * CS)",
+          "cp_MT": "Kp_MT * 3 * Leq * r * I_ALIMENTADOR ** 2 * Te * ce * fF_MT * fA_MT * fS_MT * fC_MT",
+          "Leq": "L_RADIAL / 2",
+          "Kp_MT": "suma(n, (1 + a) ** n / (1 + i) ** n * anio)",
+          "L_RADIAL_km2": "Frg * CS / (3.141592653589793 * R) * 10 ** 6",
+          "CP_TR": "Kp_TR * NTRI * PTR_INICIAL * ce * (8760 * P_Fe + Te * P_Cu * Fu_MTBT ** 2) * fF_MTBT * fA_MTBT * fS_MTBT",
+          "Kp_TR": "suma(n, (1 + c) ** n / (1 + i) ** n * anio)",
+          "I_SALIDAS_BT_kA": "(PTR_INICIAL * Fu_MTBT - N_CLIENTES * P_CLIENTES / cos_fi - AP_D * TRI_AREA) / (3 ** 0.5 * U_NOMINAL_BT * N_SALIDAS)",
+          "cp_SALIDA": "Kp_TR * 3 * Ic / 2 * r * I_SALIDA ** 2 * Te * ce * fF_BT * fA_BT * fS_BT * fP_BT * fC_BT",
+          "Kred": "0.12 * N_SALIDAS + 0.09 * Nm",
+          "Nm": "(1000 / l_c) ** 2 * 1 / NTRI",
+          "cp_BT": "NTRI * cp_SALIDA * N_SALIDAS * (1 + Kred)"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-11; Anexo 5-12; Anexo 5-13 (pdf 141, 142, 143)",
+      "lineas": "5860-5861; 5861-5862; 5929; 5849; 5856-5857; 5867-5868; 5870; 5871; 5872; 5887; 5891-5894; 5895; 5914-5916; 5918; 5932; 5933; 5938",
+      "cita_literal": "Sólo se consideran relevantes las pérdidas en las troncales, despreciándose las pérdidas en las derivaciones. [...] La carga se considera concentrada en la mitad de la componente radial (y no a un tercio) [...] Las pérdidas en las derivaciones se consideran proporcionales a las pérdidas en las salidas.",
+      "interpretacion": "Te = 0,3·Tu + 0,7·Tu²/8760 es la misma forma que el factor de pérdidas empírico del Anexo 4 (fpérdidas = 0,3·fc + 0,7·fc², con fc = Tu/8760). INCOHERENCIAS del original (se transcriben tal cual): (1) cp_MT usa I_ALIMENTADOR pero la fórmula previa define I_Salida-MT [kA]: es la misma corriente por salida; (2) cp_SALIDA (BT) usa Kp_TR, no un Kp_BT (no existe); (3) «Ic» en cp_SALIDA no se define (¿l_c, la longitud media de cuadra?); (4) la lista de BT etiqueta «fSMT» lo que es fS_BT; (5) con kA, ohm/km y h la energía sale en MWh si ce está en USD/kWh: hay un factor 1000 que el TdR no explicita; (6) Leq usa L_RADIAL [m] y r [ohm/km]: otro factor 1000; para el costo por km2 se cambia L_RADIAL por L_RADIAL_km2. DECISIÓN (3) de 28: los factores de 1000 que el TdR no escribe se aplican con su prueba de unidades: Leq pasa de m a km (r va en ohm/km) y la energía de MWh a kWh (ce va en USD/kWh). Te sale de la MISMA función de pérdidas que el Anexo 4 y el 6.9 (informes.factor_de_perdidas: Te = 8760·fp(Tu/8760)). Las dos L_RADIAL se distinguen: L_RADIAL [m] (b., Leq) y L_RADIAL_km2 [m/km2] (a.1). Ic no se define: entrada del perfil sin valor por defecto. La tasa «i» no la define el Anexo 5: es vad.anexo5.tasa_i, que remite a la tasa de actualización del art. 79 de la LCE (cap. 5, líneas 1347-1350). b, K_CT y cr son entradas del perfil sin valor por defecto (vad.anexo5.entradas_sin_definir)."
+    },
+    {
+      "clave": "vad.anexo5.resto.estructura",
+      "valor": {
+        "ambito": [
+          "alta densidad",
+          "media densidad",
+          "baja densidad",
+          "muy baja densidad"
+        ],
+        "mt": {
+          "alta_densidad": "subterránea",
+          "resto": "aérea",
+          "forma": "radial con posibles cierres entre troncales en sus extremos y derivaciones de menor sección; red «mixta» con fracciones subterráneas sT y sD (en º/1)"
+        },
+        "bt": "aérea radial con derivaciones de menor sección",
+        "unidad_de_costo": "USD por km2"
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas, 2. Alta densidad, media densidad, baja y muy baja densidad",
+      "pagina": "Anexo 5-14 (pdf 144)",
+      "lineas": "5944-5947; 5968-5969",
+      "cita_literal": "con redes del tipo subterráneas (Alta densidad) o aéreas (resto de las áreas) radiales con posibles cierres entre troncales en sus extremos y derivaciones de menor sección y, en el caso de baja tensión (BT), con redes aéreas radiales con derivaciones de menor sección. [...] Se considera una red radial con derivaciones de menor sección, los porcentajes de red subterránea son respectivamente sT y sD en º/1.",
+      "interpretacion": "El título dice «alta, media, baja y muy baja densidad» y el primer párrafo «alta, media y baja densidad»: la muy baja se trata con las mismas fórmulas (no hay otra sección)."
+    },
+    {
+      "clave": "vad.anexo5.resto.costo_total",
+      "valor": {
+        "unidad": "USD/km2",
+        "formulas": {
+          "CTOTAL": "CI_INICIAL + CI_FUTURO + C_MANT + C_PERD",
+          "CI_INICIAL": "CMT_INICIAL + CCT_INICIAL + CTR_INICIAL + CBT_INICIAL"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas, 2. Alta densidad, media densidad, baja y muy baja densidad",
+      "pagina": "Anexo 5-14 (pdf 144)",
+      "lineas": "5950; 5960",
+      "cita_literal": "fórmulas leídas en la imagen; ver «formulas» y su esqueleto en las líneas",
+      "interpretacion": "El original escribe «+ +CBT_INICIAL» (signo duplicado, errata). CCT_INICIAL tampoco aquí tiene fórmula (hueco, como en la MAD). DECISIÓN (3) de 28: CCT_INICIAL es la entrada del perfil vad.anexo5.cct_inicial, sin valor por defecto; sin ella, hueco nombrado (vad.anexo5.entradas_sin_definir)."
+    },
+    {
+      "clave": "vad.anexo5.resto.mt.inicial",
+      "valor": {
+        "sT": "fracción subterránea de la troncal (º/1)",
+        "sD": "fracción subterránea de las derivaciones (º/1)",
+        "troncal_corriente_admisible_min": "2 × I_SALIDA_MT (emergencia)",
+        "Frg": 1.2,
+        "vinculacion_derivaciones": "el doble del radio medio de una subestación MT/BT (2·R_FICTICIO)",
+        "incremento_densidad_no_uniforme": 0.05,
+        "incremento_trazado": 0.05,
+        "formulas": {
+          "S_SALIDA_MT": "Pfi * Fu_ATMT / CS",
+          "I_SALIDA_MT": "S_SALIDA / (3 ** 0.5 * U_NOMINAL_MT)",
+          "CMT_INICIAL": "C_TRONCAL + C_DERIV",
+          "C_TRONCAL": "(cmt_TRONCAL_AEREA * (1 - s_T) + cmt_TRONCAL_SUBT * s_T) * LMT_TRONCAL",
+          "C_DERIVAC": "(cmt_DERIVAC_AEREA * (1 - s_D) + cmt_DERIVAC_SUBT * s_D) * LMT_DERIVAC",
+          "R": "1000 * (Pif * Fu_ATMT / (3.141592653589793 * delta_MT / FP_DIS * FD_MT)) ** 0.5",
+          "Superficie": "3.141592653589793 * R ** 2 / 1000000",
+          "L_RADIAL": "Frg * R",
+          "L_CIERRE": "Frg * 2 * 3.141592653589793 * R / CS * CDR * cierre",
+          "LMT_TRONCAL": "Frg / R * (CS / 3.141592653589793) * 10 ** 6 * CDR + L_CIERRE / Superficie * CS",
+          "NTRI": "1000 * delta_BT * FD_CT * Aj / (FP_DIS * (PTR_INICIAL * Fu_MTBT - N_CLIENTES * P_CLIENTES / cos_fi - AP_D * TRI_AREA))",
+          "NCTI": "NTRI + NCLMTI",
+          "R_FICTICIO": "1000 * (PTR_INICIAL * Fu_MTBT / (3.141592653589793 * delta_BT / FP_DIS * FD_BT * 1000)) ** 0.5",
+          "LMT_DERIVAC": "NCTI * Frg * 2 * R_FICTICIO * CDR"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas, 2. Alta densidad, media densidad, baja y muy baja densidad",
+      "pagina": "Anexo 5-14; Anexo 5-15; Anexo 5-16; Anexo 5-17 (pdf 144, 145, 146, 147)",
+      "lineas": "5976-5977; 6008-6010; 6030-6031; 6068-6070; 5972; 5973-5974; 5978; 5981; 5982; 5996-5997; 5999; 6000; 6001; 6025; 6033-6034; 6050; 6054-6055; 6062",
+      "cita_literal": "Para las troncales, los cables a considerar deberán tener al menos una corriente admisible del doble de este valor para permitir operaciones en emergencia. [...] igual a 1,2. Corresponde km a las restricciones geométricas impuestas por el manzanado, un desplazamiento en diagonal al sentido de las calles requiere 1,41 veces la distancia mínima. [...] se supone que la longitud más probable de cada vinculación es igual al doble del radio medio de una subestación MT/BT. [...] Si se considera que la mitad del área tiene una densidad el doble que el resto, se deberá agregar un 5 % a la longitud de red necesaria. Además, se considera otro incremento del 5 % para tener en cuenta imposiciones en el trazado",
+      "unidad": "m/km2 (longitudes); USD/km2 (costos)",
+      "interpretacion": "DIFERENCIAS con la MAD: (1) L_CIERRE = Frg·2πR/CS·CDR·cierre (la MAD usa πR/CS); (2) la troncal y las derivaciones MT se valoran mezclando aérea y subterránea con sT y sD; (3) las derivaciones MT valen NCTI·Frg·2·R_FICTICIO·CDR (la MAD: un cuarto de 2πR/(CS − clientes)); (4) R_FICTICIO no descuenta clientes dedicados ni alumbrado (R_BT sí). Erratas del original: S_SALIDA-MT usa «Pfi» (en R es Pif) y I_SALIDA-MT divide «S_SALIDA» (sin -MT); «cierre» en minúscula. El TdR rotula «número de transformadores» a NCTI, que es de centros. Fu_MT/BT se describe aquí como «factor de carga promedio» y en NTRI como «factor de utilización»: es el mismo símbolo. DECISIÓN (2) de 28: lectura (a) del paréntesis de NTRI, FP_DIS·(PTR·Fu − N·P/COS − AP_D·TRI_AREA): el corchete es el mismo numerador que el de R_BT en la pág. 5-8 (líneas 5719-5721), donde los paréntesis sí cierran; la pág. 5-5 (líneas 5644-5645) abre 3 y cierra 2. Una lectura (b), con AP_D·TRI_AREA fuera del producto con FP_DIS, se detecta y se rechaza. DECISIÓN (3) de 28: los dos +5 % se SUMAN (×1,10); el aviso muestra el compuesto (×1,1025). Se aplican a la longitud de las derivaciones de MT: el párrafo sigue al de derivaciones (interpretación anotada; el TdR dice «la longitud de red necesaria»)."
+    },
+    {
+      "clave": "vad.anexo5.resto.tr_inicial",
+      "valor": {
+        "ctr": "costo unitario del transformador inicial según potencia",
+        "ci": "costo de instalación",
+        "formulas": {
+          "CTR_INICIAL": "NTRI * (ctr + ci)"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas, 2. Alta densidad, media densidad, baja y muy baja densidad",
+      "pagina": "Anexo 5-17 (pdf 147)",
+      "lineas": "6076",
+      "cita_literal": "fórmulas leídas en la imagen; ver «formulas» y su esqueleto en las líneas"
+    },
+    {
+      "clave": "vad.anexo5.resto.bt_inicial",
+      "valor": {
+        "delta_BT": "solo la superficie dentro de las áreas de influencia de los CT, sin zonas amplias sin electrificar en BT",
+        "ambas_veredas": "redes por ambas veredas (por unidad)",
+        "fe_BT": "factor de cubrimiento: fracción del área en estudio cubierta por redes BT",
+        "fe": "factor de electrificación: porcentaje de calles electrificadas dentro del radio de influencia del CT",
+        "costo": "LBT_TRONCAL × cbt_TRONCAL + LBT_DERIVAC × cbt_DERIVAC",
+        "formulas": {
+          "CBT_INICIAL": "C_TRONCAL + C_DERIV",
+          "C_TRONCAL_BT": "cbt_TRONCAL * LBT_TRONCAL",
+          "C_DERIVAC_BT": "cbt_DERIVAC * LBT_DERIVAC",
+          "LC": "1000 / l_c * 1000 * 2",
+          "R_BT": "1000 * ((PTR_INICIAL * Fu_MTBT - N_CLIENTES * P_CLIENTES / COS_fi - AP_D * TRI_AREA) / (3.141592653589793 * delta_BT / FP_DIS * FD_BT * 1000)) ** 0.5",
+          "LPT_TRONCAL": "Frg * R_BT * (1 + ambas_veredas)",
+          "LBT_TRONCAL": "NTRI * N_SALIDAS * LPT",
+          "LBT_DERIVAC": "LC * (1 + ambas_veredas) * fe * fe_BT - LBT_TRONCAL"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas, 2. Alta densidad, media densidad, baja y muy baja densidad",
+      "pagina": "Anexo 5-17; Anexo 5-18 (pdf 147, 148)",
+      "lineas": "6103-6104; 6111-6112; 6115-6116; 6081; 6082; 6083; 6088; 6099-6101; 6107; 6113; 6117",
+      "cita_literal": "tiene en cuenta sólo la superficie dentro de las áreas de influencia de los centros de transformación, sin considerar zonas amplias sin electrificar en baja tensión. [...] Se define un factor de cubrimiento fe BT que representa la fracción del área en estudio cubierta por redes de baja tensión. [...] Se define un factor de electrificación fe que representa el porcentaje calles electrificadas respecto del total, dentro del radio de influencia del centro de transformación MT/BT.",
+      "interpretacion": "DIFERENCIAS con la MAD: la BT se divide en troncal (LPT por salida) y derivaciones (el resto de las calles electrificadas), con fe y fe_BT, en lugar de L_RG + L_ACOM + L_CL. En R_BT el denominador es π·δBT/FP_DIS·FD_BT·1000, SIN el «− AP_D/1000» de la MAD. LPT se define «en m/km2», pero Frg·R_BT es una longitud [m] por salida: el rótulo de unidades del original no cuadra. La ecuación circular R_BT ↔ TRI_AREA se mantiene (TRI_AREA = π·(R_BT/1000)², dada en la MAD). DECISIÓN (1) de 28 (2026-11-15): la ecuación circular R_BT ↔ TRI_AREA ↔ NTRI se resuelve en FORMA CERRADA, como interpretación: con A = PTR_INICIAL·Fu_MTBT − N_CLIENTES·P_CLIENTES/COS_fi, TRI_AREA = π·(R_BT/1000)² es lineal en TRI_AREA, y en la MAD da T = A·FP_DIS/(1000·δ_BT·FD_BT) (en el resto, sin el «− AP_D/1000», T = A/(1000·δ_BT·FD_BT/FP_DIS + AP_D)); se comprueba con un residuo ≤ 1e-9 al sustituir T en las dos fórmulas TRANSCRITAS de su rama (R_BT y TRI_AREA del registro), sin forma derivada (c3, v2). La de la MAD la verificó c3 (el AP_D·T del numerador se cancela con el «− AP_D/1000» del denominador). La del resto es de f4: la de la MAD NO cumple allí el residuo (el resto no lleva ese «− AP_D/1000»), y la del resto sí; las dos coinciden solo con AP_D = 0. Hueco nombrado si A ≤ 0, si el denominador de R_BT es ≤ 0, si A − AP_D·T < 0 (raíz de R_BT) o si el denominador de NTRI es ≤ 0."
+    },
+    {
+      "clave": "vad.anexo5.resto.futuro",
+      "valor": {
+        "horizonte_anios": 30,
+        "a": "a = h_MT/2 + v_MT/2 (tasas de crecimiento horizontal y vertical de MT)",
+        "c": "tasa anual de crecimiento de la demanda en º/1",
+        "b": "NO definida (tampoco aquí)",
+        "i": "tasa de actualización (no la define el Anexo 5)",
+        "bt": {
+          "v_BT": "crecimiento vertical",
+          "h_BT": "nuevas zonas",
+          "e_BT": "electrificaciones dentro del área del centro",
+          "salidas": "crecen con v_BT + h_BT + e_BT",
+          "radio": "decrece con √(e + v)",
+          "d": "d = e_BT + h_BT",
+          "f": "f = v_BT/2 + h_BT/2"
+        },
+        "anio": "serie de 30 unos que fija el horizonte en el intérprete (no es del TdR)",
+        "formulas": {
+          "CI_FUTURO": "CMT_FUTURO + CTR_FUTURO + CBT_FUTURO",
+          "CMT_FUTURO": "CMT_INICIAL * K_MT",
+          "K_MT": "suma(n, ((1 + a) ** n - (1 + a) ** (n - 1)) / (1 + i) ** n * anio)",
+          "a": "h_MT / 2 + v_MT / 2",
+          "CTR_FUTURO": "C_TR + C_INST + C_CAMBIO",
+          "C_TR": "(ctr_inicial + ctr_futuro) / (PTR_INICIAL + PTR_FUTURO) * NTRI * PTR_INICIAL * K_TR",
+          "K_TR": "suma(n, ((1 + c) ** n - (1 + c) ** (n - 1)) / (1 + i) ** n * anio)",
+          "C_INST": "NTRI * c_i * K_CT",
+          "C_CAMBIO": "NTRI * PTR_INICIAL / (PTR_FUTURO - PTR_INICIAL) * (ci + cr) * K_CAMBIO",
+          "K_CAMBIO": "(c - b) * suma(n, (1 + c) ** (n - 1) / (1 + i) ** n * anio)",
+          "CBT_FUTURO": "cbt_DERIVAC * L_DERIVAC * suma(n, ((1 + d) ** n - (1 + d) ** (n - 1)) / (1 + i) ** n * anio) + cbt_TRONCAL * L_TRONCAL * suma(m, ((1 + f) ** m - (1 + f) ** (m - 1)) / (1 + i) ** m * anio)",
+          "d": "e_BT + h_BT",
+          "f": "v_BT / 2 + h_BT / 2"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas, 2. Alta densidad, media densidad, baja y muy baja densidad",
+      "pagina": "Anexo 5-18; Anexo 5-19; Anexo 5-20 (pdf 148, 149, 150)",
+      "lineas": "6144-6145; 6163; 6176-6177; 6125; 6140; 6141; 6146-6147; 6151; 6158; 6159; 6165; 6168; 6171; 6180-6185; 6188; 6189-6190",
+      "cita_literal": "Si se define una tasa de crecimiento vertical vMT y una tasa de crecimiento horizontal hMT. [...] tasa anual de crecimiento de la demanda en º/ 1 [...] Se definen tres tasas de crecimiento: v BT (vertical), h BT (nuevas zonas) y e BT (electrificaciones dentro del área del centro).",
+      "interpretacion": "DIFERENCIAS con la MAD: a se define (h_MT/2 + v_MT/2) y c también («crecimiento de la demanda»); la BT futura ya no es cbt·L_ACOM·K_TR sino dos sumas, derivaciones con d = e_BT + h_BT y troncal con f = v_BT/2 + h_BT/2. Siguen sin definirse b, K_CT y cr. En CBT_FUTURO el TdR escribe L_DERIVAC y L_TRONCAL (sin «BT»): se entienden LBT_DERIVAC y LBT_TRONCAL de d. «El radio decrecerá con √(e + v)» es descriptivo: no entra en ninguna fórmula. La tasa «i» no la define el Anexo 5: es vad.anexo5.tasa_i, que remite a la tasa de actualización del art. 79 de la LCE (cap. 5, líneas 1347-1350). b, K_CT y cr son entradas del perfil sin valor por defecto (vad.anexo5.entradas_sin_definir)."
+    },
+    {
+      "clave": "vad.anexo5.resto.mantenimiento",
+      "valor": {
+        "cm_mt": "costo anual de mantenimiento por metro de línea MT: del modelo de costos de Operación y Mantenimiento",
+        "cm_ct": "costo anual por centro: del modelo de costos de OyM",
+        "cm_bt": "costo anual por metro de línea BT: del modelo de costos de OyM",
+        "formulas": {
+          "C_MANT": "CM_MT + CM_CT + CM_BT",
+          "CM_MT": "cm_mt * (LMT_TRONCAL + LMT_DERIV) * suma(n, (1 + a) ** n / (1 + i) ** n * anio)",
+          "CM_CT": "cm_ct * NCTI * suma(n, (1 + b) ** n / (1 + i) ** n * anio)",
+          "CM_BT": "cm_bt * (LBT_TRONCAL + LBT_DERIVAC) * suma(n, (1 + d) ** n / (1 + i) ** n * anio)"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas, 2. Alta densidad, media densidad, baja y muy baja densidad",
+      "pagina": "Anexo 5-20; Anexo 5-21 (pdf 150, 151)",
+      "lineas": "6202-6203; 6194; 6198; 6207; 6217",
+      "cita_literal": "Este valor es obtenido del modelo de costos de Operación y mantenimiento.",
+      "interpretacion": "Aquí el TdR SÍ dice de dónde salen cm_mt, cm_ct y cm_bt: del modelo de costos de OyM (la MAD no lo dice; se entiende igual). CM_BT crece con d (en la MAD, por partes con 1 y con c). La tasa «i» no la define el Anexo 5: es vad.anexo5.tasa_i, que remite a la tasa de actualización del art. 79 de la LCE (cap. 5, líneas 1347-1350). b, K_CT y cr son entradas del perfil sin valor por defecto (vad.anexo5.entradas_sin_definir)."
+    },
+    {
+      "clave": "vad.anexo5.resto.perdidas",
+      "valor": {
+        "Te": "si no está disponible, de Tu: igual que la MAD",
+        "mt": "solo troncales; carga en la mitad de la componente radial",
+        "bt": "carga concentrada a 1/2 de la longitud del alimentador",
+        "r_T": "resistencia de las troncales BT [Ω/km]",
+        "r_D": "resistencia de las derivaciones BT [Ω/km]",
+        "formulas": {
+          "CP": "CP_MT + CP_TR + CP_BT",
+          "Te": "0.3 * Tu + 0.7 * Tu ** 2 / 8760",
+          "I_SALIDA_MT_kA": "Pif * Fu_ATMT / (3 ** 0.5 * U_NOMINAL_MT * CS)",
+          "cp_MT": "Kp_MT * 3 * Leq * r * I_ALIMENTADOR ** 2 * Te * ce * fF_MT * fA_MT * fS_MT * fC_MT",
+          "Leq": "L_RADIAL / 2",
+          "Kp_MT": "suma(n, (1 + a) ** n / (1 + i) ** n * anio)",
+          "L_RADIAL_km2": "Frg * CS / (3.141592653589793 * R) * 10 ** 6",
+          "CP_TR": "Kp_TR * NTRI * PTR_INICIAL * ce * (8760 * P_Fe + Te * P_Cu * Fu_MTBT ** 2) * fF_MTBT * fA_MTBT * fS_MTBT",
+          "Kp_TR": "suma(n, (1 + c) ** n / (1 + i) ** n * anio)",
+          "I_SALIDAS_BT_kA": "(PTR_INICIAL * Fu_MTBT - N_CLIENTES * P_CLIENTES / cos_fi - AP_D * TRI_AREA) / (3 ** 0.5 * U_NOMINAL_BT * N_SALIDAS)",
+          "Kred": "(lc / LPT_TRONCAL) ** 2 * r_D / r_T",
+          "cp_BT": "Kp_BT * 3 * LBT_TRONCAL / 2 * r * I_SALIDA ** 2 * (1 + Kred) * Te * ce * fF_BT * fA_BT * fS_BT * fP_BT * fC_BT",
+          "Kp_BT": "suma(n, (1 + f) ** n / (1 + i) ** n * anio)"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas, 2. Alta densidad, media densidad, baja y muy baja densidad",
+      "pagina": "Anexo 5-21; Anexo 5-22; Anexo 5-23 (pdf 151, 152, 153)",
+      "lineas": "6236-6237; 6301; 6225; 6233-6234; 6241-6242; 6244; 6246; 6247; 6261; 6265-6266; 6268; 6284-6286; 6291; 6299-6300; 6302",
+      "cita_literal": "Sólo se consideran relevantes las pérdidas en las troncales, despreciándose las pérdidas en las derivaciones. [...] La carga se considera concentrada a 1/2 de la longitud del alimentador.",
+      "interpretacion": "DIFERENCIAS con la MAD: (1) Kred = (lc/LPT_TRONCAL)²·r_D/r_T (en la MAD, 0,12·N_SALIDAS + 0,09·Nm); (2) cp_BT es por km2 directamente, con su propio Kp_BT (crece con f) y la carga a 1/2 de LBT_TRONCAL (en la MAD: NTRI·cp_SALIDA·N_SALIDAS·(1 + Kred) con Kp_TR). Kp_MT se lee en la imagen (pág. 5-21) en forma compacta ∑(1+a)^N/(1+i)^N: su esqueleto en el texto 48ea8cf4 se reduce a «Kp». Persisten: I_ALIMENTADOR por I_SALIDA-MT; «fSMT» rotulando fS_BT; factores 1000 de unidades no explícitos; en cp_BT, LBT_TRONCAL es por km2 (todas las salidas) y I_SALIDA es por salida, así que el producto no es la suma por salida: lectura literal, a revisar. DECISIÓN (3) de 28: los factores de 1000 que el TdR no escribe se aplican con su prueba de unidades: Leq pasa de m a km (r va en ohm/km) y la energía de MWh a kWh (ce va en USD/kWh). Te sale de la MISMA función de pérdidas que el Anexo 4 y el 6.9 (informes.factor_de_perdidas: Te = 8760·fp(Tu/8760)). Las dos L_RADIAL se distinguen: L_RADIAL [m] (b., Leq) y L_RADIAL_km2 [m/km2] (a.1). Ic no se define: entrada del perfil sin valor por defecto. La tasa «i» no la define el Anexo 5: es vad.anexo5.tasa_i, que remite a la tasa de actualización del art. 79 de la LCE (cap. 5, líneas 1347-1350). b, K_CT y cr son entradas del perfil sin valor por defecto (vad.anexo5.entradas_sin_definir)."
+    },
+    {
+      "clave": "vad.anexo5.tasa_i",
+      "valor": {
+        "mismas_que": "vad.tasa_actualizacion",
+        "vida_util_anios": 30
+      },
+      "unidad": "por año",
+      "articulo_o_anexo": "5 Criterios a considerar en los reportes (art. 79 de la LCE); Anexo N° 5",
+      "pagina": "27 (pdf 28)",
+      "lineas": "1347-1350",
+      "cita_literal": "Las cifras de aVNR que se mencionan más adelante corresponden a la anualidad del VNR, calculado con la tasa de actualización establecida en el artículo 79 de la LCE y para un periodo de vida útil de 30 años, es decir, se aplicará el factor igual a 0,124144 considerando la tasa de 12% del mencionado artículo.",
+      "interpretacion": "El Anexo 5 usa i sin definirla y sin remitir (z28 de cc: ninguna mención de tasa de actualización, interés, descuento, art. 79 ni 12 % en las líneas 5439-6316); se aplica la tasa a la que remite el cap. 5 (LCE art. 79). Aprobado por 28 (2026-11-15). El valor no se escribe aquí: sale de vad.tasa_actualizacion (o de pit.tasa_actualizacion cuando UNA-TASA la remita). Comprobación: FRC(i, 30) = 0,124144 (vad.frc) y 1/FRC = Kim del Anexo 6 (8,05)."
+    },
+    {
+      "clave": "vad.anexo5.entradas_sin_definir",
+      "valor": {
+        "CCT_INICIAL": {
+          "perfil": "vad.anexo5.cct_inicial",
+          "aparece_en": [
+            "vad.anexo5.mad.costo_total",
+            "vad.anexo5.resto.costo_total"
+          ]
+        },
+        "b": {
+          "perfil": "vad.anexo5.b",
+          "aparece_en": [
+            "vad.anexo5.mad.futuro",
+            "vad.anexo5.resto.futuro",
+            "vad.anexo5.mad.mantenimiento",
+            "vad.anexo5.resto.mantenimiento"
+          ]
+        },
+        "K_CT": {
+          "perfil": "vad.anexo5.k_ct",
+          "aparece_en": [
+            "vad.anexo5.mad.futuro",
+            "vad.anexo5.resto.futuro"
+          ]
+        },
+        "cr": {
+          "perfil": "vad.anexo5.cr",
+          "aparece_en": [
+            "vad.anexo5.mad.futuro",
+            "vad.anexo5.resto.futuro"
+          ]
+        },
+        "Ic": {
+          "perfil": "vad.anexo5.ic",
+          "aparece_en": [
+            "vad.anexo5.mad.perdidas"
+          ]
+        },
+        "clientes_ATMT": {
+          "perfil": "vad.anexo5.clientes_atmt",
+          "aparece_en": [
+            "vad.anexo5.mad.mt.derivaciones"
+          ]
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 5.- Modelo Geométrico para la Optimización de Redes Eléctricas Urbanas",
+      "pagina": "Anexo 5-3; Anexo 5-9 (pdf 133, 139)",
+      "lineas": "5551; 5784; 5796-5797",
+      "cita_literal": "CIINICIAL= CMTINICIAL + CCTINICIAL + CTRINICIAL + CBTINICIAL [...] : costo de instalación de los transformadores futuros [...] El incremento de la potencia por cambio de transformadores se obtiene restando al incremento anual la potencia instalada en nuevos centros.",
+      "interpretacion": "Símbolos que las fórmulas del Anexo 5 usan y que el TdR no define (z26a/z26b de cc): CCT_INICIAL (en CI_INICIAL, sin fórmula), b (crecimiento de los centros, por su uso), K_CT (en C_INST), cr (en C_CAMBIO; ¿costo de retiro?), Ic (en cp_SALIDA; ¿l_c?) y clientes_AT/MT (en LMT_DERIVAC). DECISIÓN (3) de 28 (2026-11-15): son entradas del perfil, con la clave de «perfil», SIN valor por defecto; la que falte es un hueco nombrado, nunca 0. La c sí se define en el resto (crecimiento de la demanda); en la MAD se toma la misma."
+    }
+  ]
+}

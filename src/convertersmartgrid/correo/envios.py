@@ -281,8 +281,10 @@ def enviar(diario: DiarioEnvios, borrador: Borrador, firma: str, *, espacio: str
                                         'el correo no se envió')
     try:
         token = credenciales.token(borrador.proveedor, borrador.cuenta, proveedor.alcance)
-    except CuentaNoConectada:
-        return diario.marcar(clave, 'rechazado', motivo='la cuenta no está conectada: vuelva a conectar la cuenta')
+    except CuentaNoConectada as exc:
+        # El motivo de quien da el token (p. ej. «Sin cuenta conectada: configure config/nube.json»), o el de siempre.
+        return diario.marcar(clave, 'rechazado',
+                             motivo=str(exc) or 'la cuenta no está conectada: vuelva a conectar la cuenta')
     try:
         mensaje = construir(borrador, clave)
     except ConfirmacionAnulada as exc:

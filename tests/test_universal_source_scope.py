@@ -3,6 +3,7 @@
 Spec 034: 034:RF-19.
 """
 from __future__ import annotations
+from test_entrega_universal import _hallar_nombres, _nombres_de_config  # noqa: E402
 
 import inspect
 import json
@@ -121,6 +122,5 @@ def test_inputs_panel_contains_scope_selectors_without_test_company_defaults():
     assert 'sourceScope' in source
     assert 'Empresa de la fuente' in source
     assert 'Periodo de la fuente' in source
-    assert 'ELDU' not in source
+    assert not _hallar_nombres(_nombres_de_config(Path(__file__).resolve().parents[1]), source)
     assert 'IN111' not in source
-    assert 'Electro Dunas' not in source

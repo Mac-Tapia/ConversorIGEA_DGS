@@ -440,6 +440,17 @@ def test_deshacer_una_aplicacion_desde_la_web(client):
     assert estado['result']['informe']['modo'] == 'deshacer' and estado['result']['informe']['de'] == 'aplicar'
 
 
+def test_el_lote_aplicado_y_el_deshecho_traen_su_token(client):
+    """007:RF-38 (WEB-RUTAS) — el resultado de aplicar un lote trae su token, para que la web ofrezca deshacerlo, y el
+    de deshacerlo también, para marcarlo como deshecho; simular no se ofrece para deshacer."""
+    wid = _wid(client)
+    token = _plan(client, wid, feeders=['F1'], demandas=DEMANDAS).json()['token']
+    aplicado = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/lote/{token}/apply').json())
+    assert aplicado['status'] == 'done' and aplicado['result'].get('token') == token, aplicado['result']
+    deshecho = esperar_trabajo(client, client.post(f'/api/workspaces/{wid}/lote/{token}/deshacer').json())
+    assert deshecho['status'] == 'done' and deshecho['result'].get('token') == token, deshecho['result']
+
+
 def test_deshacer_tambien_tras_reiniciar_la_web(client):
     """007:RF-38 — con el plan ya fuera de la memoria (la web se reinició), se deshace con su fichero y su informe."""
     wid = _wid(client)

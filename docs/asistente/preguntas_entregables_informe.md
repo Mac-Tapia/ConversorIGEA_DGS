@@ -28,6 +28,16 @@ Huella de lo sellado: `98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df1
 | tipos_de_informe | 27 | 22 | 5 | 19 | 8 | 0 |
 | operacion_web | 42 | 37 | 5 | 31 | 11 | 0 |
 
+## Historial de lo sellado
+
+Una medida hecha con una huella anterior se sigue citando con esa huella.
+
+| Fecha | Huella | Revisión | Motivo |
+| --- | --- | --- | --- |
+| 2026-11-02 | `f6186156a2863c8734f100466a630b5720b0781336279dad0331c2bd13b2a00e` | `fe6c67c1` | el conjunto escrito |
+| 2026-11-06 | `5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411` | `be7bd108` | f6186156 → 5d07ca9a: solo el ancla de planeamiento_pide-015, al cerrarse la tarea del adaptador |
+| 2026-11-16 | `98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce` | sin revisión de main aún | 5d07ca9a → 98ed9614: solo el ancla de planeamiento_pide-008, por E3-v2 |
+
 ## Pendientes
 
 - Bancos y valle (spec 073): está en la rama asistente/073 y no en esta; sin filas hasta integrarla.

@@ -1,0 +1,124 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Fichero propio de la NTCSER: aquí van todas sus reglas (107 T7, tarjeta PIT-TEN, 2026-11-15, f4; la tarjeta VAD-CAL añade aquí las suyas, sin repetir el acto). Texto consolidado oficial de gob.pe (con la RD 270-2015-MEM/DGE y el DU 035-2020), descargado por cc (carpetas z9b, z15 y z18 de su apoyo); la cita se leyó en la capa de texto de la pág. 8 del pdf. Vigencia comprobada en el SPIJ libre (ficha H965488).",
+ "normas": [
+  {
+   "acto": "RD 016-2008-EM/DGE",
+   "titulo": "Norma Técnica de Calidad de los Servicios Eléctricos Rurales (NTCSER)",
+   "estado_juridico": "modificada",
+   "url": "https://cdn.www.gob.pe/uploads/document/file/3908460/Resoluci%C3%B3n%20directoral%20N%C2%B0%20016-2008-EM-DGE.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "d8bea855d0df28fb042c2dbae89c037f9fc1312ede2805ccbdc0a712e6fa2d83",
+   "fichero_local": "RD-016-2008-EM-DGE_NTCSER.pdf",
+   "version": "texto consolidado de gob.pe (con la RD 270-2015-MEM/DGE y el DU 035-2020)",
+   "modificada_por": [
+    "RD 270-2015-MEM/DGE"
+   ],
+   "nota": "Rige la calidad de los Sistemas Eléctricos Rurales (SER) en lugar de la NTCSE y solo fija tolerancias de tensión en MT y BT. Vigencia desde la publicación, 24-05-2008, comprobada en el SPIJ libre (ficha H965488, sha del innerText ba820b4c…; el 4.1.2 sin marca de modificación).",
+   "reglas": [
+    {
+     "clave": "calidad.tension.tolerancia_ntcser",
+     "valor": {
+      "MT": 0.06,
+      "BT": 0.075,
+      "ambito": "Sistemas Eléctricos Rurales (SER)"
+     },
+     "unidad": "fracción de la tensión nominal",
+     "articulo_o_anexo": "num. 4.1.2 Tolerancia",
+     "pagina": "pdf 8",
+     "cita_literal": "4.1.2 Tolerancia.- Las tolerancias admitidas son ± 6% para Media Tensión (MT), y ± 7,5% para Baja Tensión (BT).",
+     "interpretacion": "En una barra de un SER: ±6 % en MT y ±7,5 % en BT. En AT o MAT la NTCSER no da tolerancia: esa barra queda como hueco nombrado, sin tomar la de la NTCSE.",
+     "verificacion": {
+      "fecha": "2026-11-15",
+      "resultado": "texto consolidado oficial de gob.pe; el 4.1.2 sin modificatoria en la consolidación",
+      "responsable": "cc (apoyo de f4)",
+      "fuentes": [
+       {
+        "documento": "RD 016-2008-EM/DGE, texto consolidado (gob.pe)",
+        "url": "https://cdn.www.gob.pe/uploads/document/file/3908460/Resoluci%C3%B3n%20directoral%20N%C2%B0%20016-2008-EM-DGE.pdf",
+        "sha256": "d8bea855d0df28fb042c2dbae89c037f9fc1312ede2805ccbdc0a712e6fa2d83"
+       }
+      ]
+     }
+    },
+    {
+     "clave": "vad.calidad.limite.interrupciones_ser",
+     "valor": {
+      "rural_concentrado": {
+       "MT": 7,
+       "BT": 10
+      },
+      "rural_disperso": {
+       "MT": 7,
+       "BT": 10
+      },
+      "ambito": {
+       "4": "rural_concentrado",
+       "5": "rural_disperso",
+       "especial": "rural_disperso"
+      }
+     },
+     "unidad": "interrupciones/semestre (NIC', promedio por cliente del SER y nivel)",
+     "articulo_o_anexo": "num. 5.1.3 Tolerancias",
+     "pagina": "pdf 11",
+     "cita_literal": "MT 07 17 07 28 BT 10 25 10 40 NIC: Interrupciones/semestre DIC: horas/semestre Se considera Rural Concentrado al actual Sector de Distribución Típico 4, y Rural Disperso se considerará al actual Sector de Distribución Típico 5, Especial",
+     "interpretacion": "ambito: sector típico → columna de la tabla, literal del 5.1.3 (ST 4 concentrado; ST 5 y Especial disperso). Tarjeta VAD-CAL."
+    },
+    {
+     "clave": "vad.calidad.limite.duracion_ser",
+     "valor": {
+      "rural_concentrado": {
+       "MT": 17,
+       "BT": 25
+      },
+      "rural_disperso": {
+       "MT": 28,
+       "BT": 40
+      },
+      "ambito": {
+       "4": "rural_concentrado",
+       "5": "rural_disperso",
+       "especial": "rural_disperso"
+      }
+     },
+     "unidad": "horas/semestre (DIC', promedio por cliente del SER y nivel)",
+     "articulo_o_anexo": "num. 5.1.3 Tolerancias",
+     "pagina": "pdf 11",
+     "cita_literal": "MT 07 17 07 28 BT 10 25 10 40 NIC: Interrupciones/semestre DIC: horas/semestre Se considera Rural Concentrado al actual Sector de Distribución Típico 4, y Rural Disperso se considerará al actual Sector de Distribución Típico 5, Especial",
+     "interpretacion": "Igual que vad.calidad.limite.interrupciones_ser. Tarjeta VAD-CAL."
+    },
+    {
+     "clave": "vad.calidad.ntcser.indicadores_nic_dic",
+     "valor": {
+      "periodo": "semestre",
+      "por": [
+       "SER",
+       "nivel"
+      ],
+      "factor_n_programadas_expansion": 1.0,
+      "k": {
+       "expansion": 0.25,
+       "mantenimiento": 0.5,
+       "otras": 1.0
+      },
+      "k_diferencia_programada": {
+       "real_menor": 0.0,
+       "real_mayor": 1.0
+      },
+      "duracion_minima_min": 3,
+      "excluye": [
+       "fuerza_mayor"
+      ]
+     },
+     "unidad": "NIC: interrupciones/semestre; DIC: horas (promedio por cliente del SER)",
+     "articulo_o_anexo": "num. 5.1.1 y 5.1.2, Fórmulas Nº 4 y 5",
+     "pagina": "pdf 10-11",
+     "cita_literal": "no se consideran las interrupciones totales de suministro cuya duración es menor de tres (3) minutos ni las relacionadas con casos de fuerza mayor [...] utilizando los siguientes dos (2) indicadores que se calculan para Períodos de Control de un semestre y para cada nivel de tensión (BT y MT). [...] (Ci) / CT ; (expresada en: interrupciones/semestre). [...] (Ci . di . Ki) / CT ; (expresada en: horas) [...] - Interrupciones programadas* por expansión o reforzamiento : Ki = 0,25 - Interrupciones programadas* por mantenimiento : Ki = 0,50 - Otras : Ki = 1,00 [...] Ki = 0 ; si la duración real es menor a la programada Ki = 1 ; si la duración real es mayor a la programada",
+     "interpretacion": "NIC = ΣCi/CT y DIC = ΣCi·di·Ki/CT por SER y nivel: el promedio por cliente de los conteos y las duraciones ponderadas; NIC no pondera las programadas (factor 1). El TdR (6.11) pide el % de clientes que no excede: en un SER, cada cliente toma el NIC y el DIC de su SER y nivel (lectura de f4, VAD-CAL; nombrada en vad/calidad.py)."
+    }
+   ],
+   "fecha_publicacion": "2008-05-24",
+   "vigencia_desde": "2008-05-24"
+  }
+ ]
+}

@@ -1,5 +1,5 @@
 {
-  "_nota": "Copie este fichero a config/suite_completa.json (fuera de git) con las rutas de esta máquina (spec 102).",
+  "_nota": "Copie este fichero a config/suite_completa.json (fuera de git) con las rutas de esta máquina.",
   "variables": {
     "CSG_RED": "D:/datos/distribuidora/RED.txt",
     "CSG_LOADS": "D:/datos/distribuidora/CARGA.txt",

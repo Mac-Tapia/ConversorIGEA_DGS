@@ -177,3 +177,28 @@ def test_web_ofrece_el_libro_junto_al_word():
     servicios = (raiz / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
     assert servicios.count('_libro_del_informe(ctx, destino,') == 2
     assert 'celda_precio' not in servicios and 'G183' not in servicios, 'las celdas van en el perfil'
+
+
+def test_insertar_filas_va_antes_de_escribir_y_sin_ella_el_plan_no_cambia(tmp_path):
+    """066 con 107-P10b — el plan puede pedir filas que insertar (``insertar_filas``: hoja, fila y cuántas): el guion
+    las inserta antes de vaciar y escribir, porque las celdas ya cuentan con ellas; un plan sin esa clave llega al
+    guion tal cual, y su bucle no da ninguna vuelta."""
+    vistos = []
+
+    def excel(orden):
+        vistos.append((orden, json.loads(Path(re.search(r"-LiteralPath '([^']+)'", orden).group(1))
+                                         .read_text(encoding='utf-8'))))
+        return SimpleNamespace(returncode=1, stderr='simulado')
+
+    con = {'destino': str(tmp_path / 'c.xlsx'), 'insertar_filas': [{'hoja': 'F-002', 'fila': 15, 'filas': 3}],
+           'escribir': [{'celda': 'F-002!A15', 'valor': 'x'}]}
+    sin = {'destino': str(tmp_path / 's.xlsx'), 'escribir': [{'celda': 'Datos!A1', 'valor': 1}]}
+    rellenar_con_excel(con, ejecutar=excel)
+    rellenar_con_excel(sin, ejecutar=excel)
+    orden, plan = vistos[0]
+    assert 'foreach ($e in $p.insertar_filas)' in orden, 'el guion no inserta las filas del plan'
+    assert plan['insertar_filas'] == con['insertar_filas']
+    assert orden.index('foreach ($e in $p.insertar_filas)') < orden.index('foreach ($ref in $p.vaciar)') < orden.index(
+        'foreach ($e in $p.escribir)')
+    assert 'Rows(' in orden[orden.index('$p.insertar_filas'):orden.index('$p.vaciar')]
+    assert vistos[1][1] == sin and 'insertar_filas' not in vistos[1][1]

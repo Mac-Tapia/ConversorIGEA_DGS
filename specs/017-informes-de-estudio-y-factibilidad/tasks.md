@@ -14,6 +14,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       RF-54 a RF-60, RF-71, RF-72)
       Hecho cuando: las pérdidas de EMAPICA salen como en el modelo, en
       `tests/test_informes.py`.
+      Corrección (2026-11-15, f4/INF-FP, orden del auditor 28): los coeficientes 0,3 y 0,7 del factor de pérdidas
+      ya no van fijos en el código: salen del registro normativo (`vad.anexo4.factor_perdidas_empirico`, TdR VAD
+      vigente, Anexo 4-14, que exige el num. 6.9), con la cita de la norma; sin la regla, error. Mismo resultado.
 - [x] T3. `informes.py`: redacción de análisis, conclusiones, antecedentes, descripción y
       transformador. (RF-20 a RF-22, RF-50, RF-107, RF-108, RF-121, RF-122)
       Hecho cuando: `pytest -q tests/test_informes.py` en verde.

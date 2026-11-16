@@ -27,6 +27,9 @@ class AreaPit:
     set_alimentadores: Mapping[str, tuple[str, ...]]
     tension_min_kv: float
     compartidos: Mapping[str, str]
+    #: Ubicación geográfica del área para el COyM (``costa``, ``sierra`` o ``selva``); vacía si el perfil no la declara,
+    #: y entonces el COyM por cuadro es un hueco nombrado (aclaración de 107:RF-5). Sin valor por defecto.
+    ubicacion: str = ''
 
 
 @dataclass
@@ -53,12 +56,15 @@ def _area(datos: Mapping[str, Any], i: int) -> AreaPit:
         raise PitError(f'{origen}.tension_min_kv: tiene que ser un número, no {datos["tension_min_kv"]!r}') from None
     if tension <= 0:
         raise PitError(f'{origen}.tension_min_kv: tiene que ser mayor que 0, no {tension!r}')
+    # La ubicación se comprueba contra el cuadro del registro al usarla: la lista de ubicaciones es de la norma.
+    ubicacion = str(datos.get('ubicacion') or '').strip().lower()
     return AreaPit(codigo=str(datos['codigo']), titulares=tuple(map(str, datos['titulares'])),
                    set=tuple(map(str, datos['set'])),
                    set_alimentadores={str(s): tuple(map(str, a))
                                       for s, a in (datos.get('set_alimentadores') or {}).items()},
                    tension_min_kv=tension,
-                   compartidos={str(k): str(v) for k, v in (datos.get('compartidos') or {}).items()})
+                   compartidos={str(k): str(v) for k, v in (datos.get('compartidos') or {}).items()},
+                   ubicacion=ubicacion)
 
 
 def areas_del_perfil(perfil: Mapping[str, Any], codigo: str | None = None) -> list[AreaPit]:

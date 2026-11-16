@@ -215,7 +215,7 @@ def test_plan_usa_pertenencia_de_fuente_y_rechaza_ambiguedad(client, monkeypatch
 
 
 def test_el_plan_lleva_el_fp_de_las_escaladas_del_perfil(client, tmp_path, monkeypatch):
-    """015:RF-53 / 015:RF-54 / 015:RF-55 / 015:RF-57 — con el perfil de Electro Dunas el plan
+    """015:RF-53 / 015:RF-54 / 015:RF-55 / 015:RF-57 — con el perfil de una distribuidora real el plan
     lleva 0,98 para las escaladas y las fijas siguen con su EA/ERI; sin perfil, nada; con
     un valor imposible no se prepara y se dice cuál."""
     import json as _json
@@ -590,7 +590,7 @@ def test_la_calibracion_guarda_lo_releido_en_digsilent_y_no_el_reparto(tmp_path)
 
 # --------------------------------------------------------------------------- spec 020
 def test_el_plan_lleva_las_fichas_de_transformadores_del_perfil(client, tmp_path, monkeypatch):
-    """020:RF-6 / 020:RF-10 / 020:RF-63 — con el perfil de Electro Dunas el plan lleva sus tablas de fichas;
+    """020:RF-6 / 020:RF-10 / 020:RF-63 — con el perfil de una distribuidora real el plan lleva sus tablas de fichas;
     sin perfil, las NTP 370.400 del conversor, con su origen (antes ninguna: CA101 no se calibraba sin perfil)."""
     import json as _json
 

@@ -1,7 +1,7 @@
 """Spec 053: el catálogo de fichas crece con cada código nuevo, sin tocar lo que ya tiene.
 
 El catálogo se arma aquí con la forma del real (sus columnas) y fichas de N2XSY y AAAC; los
-códigos nuevos son los que trajo Electro Oriente (2026-11-01).
+códigos nuevos son los que trajo una distribuidora real (2026-11-01).
 """
 from __future__ import annotations
 
@@ -140,7 +140,7 @@ def test_la_fuente_vnr_hace_crecer_el_catalogo_y_lo_usa(tmp_path):
 
 def test_familias_protegidas_y_cable_de_aluminio_y_fila_pendiente_rellenada(tmp_path):
     """053:RF-2, 053:RF-9 — AP como el AAAC, CP como el cobre y NA como el N2XSY por ρAl/ρCu; una
-    fila que quedó pendiente sin R ni X se rellena en su sitio, sin duplicarse (Electro Oriente)."""
+    fila que quedó pendiente sin R ni X se rellena en su sitio, sin duplicarse (una distribuidora real)."""
     ruta = _catalogo(tmp_path)
     aereo = cat.deducir_conductor('AP05003G', _todas(ruta))
     assert aereo['R1_modelo_ohm_km'] == pytest.approx(0.6755, rel=1e-3)   # la ficha manda

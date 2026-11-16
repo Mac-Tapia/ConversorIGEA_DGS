@@ -41,6 +41,9 @@ from .api_contract import (CorreoConfirmacion, CorreoConfirmacionPeticion, Corre
 from .seguridad import enmascarar_correo
 
 KIND = 'correo_envio'
+#: Sin las cuentas de la 109 (o sin registrar la aplicación): lo que dice el recibo, sin fallar (110:RF-2; 109:RF-19).
+SIN_CUENTA = ('Sin cuenta conectada: configure config/nube.json y conecte su cuenta de Google o de Microsoft con el '
+              'permiso de enviar (ver docs/CORREO_OAUTH.md).')
 LANE = 'correo'
 _ES_ID = frozenset('0123456789abcdef')
 
@@ -66,12 +69,12 @@ def _desde_la_ventana(request: Request) -> None:
 class SinCuentas:
     """``FuenteDeCredenciales`` mientras la 109 no esté montada: ninguna cuenta conectada (plan de la 110, P8).
 
-    Sin las cuentas de la 109, la web arranca igual y cada envío queda rechazado con «Conecte una cuenta», sin abrir la
+    Sin las cuentas de la 109, la web arranca igual y cada envío queda rechazado con «Sin cuenta conectada…», sin abrir la
     red. Cuando la 109 se integre, ``create_app`` pasa sus adaptadores (``credenciales_de``) y esto deja de usarse.
     """
 
     def token(self, proveedor: str, cuenta: str, alcance: str) -> str:
-        raise CuentaNoConectada('Conecte una cuenta de Google o de Microsoft en la web antes de enviar.')
+        raise CuentaNoConectada(SIN_CUENTA)
 
 
 def raices_de(bases: Iterable[Path]) -> Iterable[Path]:

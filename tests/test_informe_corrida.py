@@ -402,7 +402,7 @@ def test_el_resultado_de_los_estudios_nombra_su_corrida(client, monkeypatch):  #
 
 def test_pdf_con_un_apostrofo_en_la_ruta(tmp_path):
     """086:RF-12 — una carpeta con apóstrofo rompía la orden de Word y el PDF no salía: en PowerShell se dobla."""
-    carpeta = tmp_path / "INKA'S"
+    carpeta = tmp_path / "ANDES'S"
     carpeta.mkdir()
     ordenes = []
 
@@ -411,7 +411,7 @@ def test_pdf_con_un_apostrofo_en_la_ruta(tmp_path):
         return SimpleNamespace(returncode=1, stdout='', stderr='')
 
     exportar_pdf(carpeta / 'x.docx', ejecutar=correr)
-    assert "INKA''S" in ordenes[0] and "INKA'S" not in ordenes[0]
+    assert "ANDES''S" in ordenes[0] and "ANDES'S" not in ordenes[0]
 
 
 def test_la_carga_sola_trae_su_set_y_la_tension_de_su_barra(monkeypatch):

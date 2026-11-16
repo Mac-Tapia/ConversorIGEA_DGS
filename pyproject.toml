@@ -21,7 +21,11 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 # U1 (2026-11-14): el editor de la entrega, el mismo que «AppPublisher» del instalador.
 authors = [{name = "Mac-Tapia"}]
-dependencies = []
+# 107:RF-15 (auditor 28, 2026-11-15): el unifilar del expediente del PIT se escribe en DXF con ezdxf, y el DXF es la
+# entrega garantizada, así que ezdxf es obligatoria y no un extra. ezdxf 1.4.5, licencia MIT; trae fonttools (MIT),
+# numpy (BSD-3-Clause y otras), pyparsing (MIT) y typing-extensions (PSF-2.0). Las huellas de sus ruedas, en
+# requirements-nucleo.lock.
+dependencies = ["ezdxf==1.4.5"]
 
 [project.optional-dependencies]
 geo = ["pyproj>=3.6"]
@@ -44,6 +48,11 @@ web = [
     "geopandas>=0.14", "pydantic>=2.0", "chardet>=5.0",
     "pyodbc>=5.0; sys_platform == 'win32'",
 ]
+# Solo para regenerar las plantillas transcritas de la 217-2013 (tools/normativa/generar_formatos_217.py): xlrd lee
+# los rellenos (formatting_info) de los .xls oficiales, que calamine no da. Es una herramienta del mantenedor; el
+# programa no la importa, por eso va aparte y no en el núcleo de la entrega. xlrd 2.0.2, licencia BSD; rueda
+# xlrd-2.0.2-py2.py3-none-any.whl, sha256 ea762c3d29f4cca48d82df517b6d89fbce4db3107f9d78713e48cd321d5c9aa9 (PyPI).
+normativa = ["xlrd==2.0.2"]
 # Corpus PIDE: el lector PDF se importa al extraer documentos (036:RF-2).
 pide = ["pypdf>=5.0"]
 # Gemelo digital (spec 024, T11 y T12): la PINN/GNN y la GRU. Sin él, el oráculo radial y el
@@ -141,6 +150,21 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.evaluacion_harness.metricas" = "dominio"
 "convertersmartgrid.evaluacion_harness.publicacion" = "adaptadores"
 "convertersmartgrid.adaptadores.entrada.capex" = "adaptadores"
+# 109: Google Drive y OneDrive por su API (contrato, transporte único, OAuth y un adaptador por proveedor).
+"convertersmartgrid.adaptadores.nube" = "adaptadores"
+"convertersmartgrid.adaptadores.nube.proveedor" = "adaptadores"
+"convertersmartgrid.adaptadores.nube.http" = "adaptadores"
+"convertersmartgrid.adaptadores.nube.oauth" = "adaptadores"
+"convertersmartgrid.adaptadores.nube.cuentas" = "adaptadores"
+"convertersmartgrid.nube_cofre" = "adaptadores"
+"convertersmartgrid.web.nube_api" = "presentacion"
+"convertersmartgrid.adaptadores.nube.google_drive" = "adaptadores"
+"convertersmartgrid.adaptadores.nube.onedrive" = "adaptadores"
+"convertersmartgrid.adaptadores.entrada.nube" = "adaptadores"
+"convertersmartgrid.web.nube" = "presentacion"
+"convertersmartgrid.adaptadores.salida.nube" = "adaptadores"
+"convertersmartgrid.web.nube_selector" = "presentacion"
+"convertersmartgrid.adaptadores.salida" = "adaptadores"
 "convertersmartgrid.dominio" = "dominio"
 "convertersmartgrid.dominio.numeros_medidos" = "dominio"
 "convertersmartgrid.dominio.dataset" = "dominio"
@@ -217,6 +241,20 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.asistente.transformer" = "aplicacion"
 "convertersmartgrid.asistente.vigilancia" = "aplicacion"
 "convertersmartgrid.batch" = "aplicacion"
+"convertersmartgrid.benchmarks" = "adaptadores"
+"convertersmartgrid.benchmarks.cohortes" = "aplicacion"
+"convertersmartgrid.benchmarks.evaluacion" = "adaptadores"
+"convertersmartgrid.benchmarks.geometria" = "dominio"
+"convertersmartgrid.benchmarks.geometria_publica" = "adaptadores"
+"convertersmartgrid.benchmarks.manifiesto" = "adaptadores"
+"convertersmartgrid.benchmarks.publicable" = "adaptadores"
+"convertersmartgrid.benchmarks.redes" = "dominio"
+"convertersmartgrid.benchmarks.reproduccion" = "adaptadores"
+"convertersmartgrid.benchmarks.reidentificacion" = "adaptadores"
+"convertersmartgrid.benchmarks.semilla" = "dominio"
+"convertersmartgrid.benchmarks.series" = "adaptadores"
+"convertersmartgrid.benchmarks.sintetico" = "dominio"
+"convertersmartgrid.benchmarks.seudonimos" = "dominio"
 "convertersmartgrid.cabecera_ancha" = "aplicacion"
 "convertersmartgrid.capacidades" = "adaptadores"
 "convertersmartgrid.cargas_pf" = "aplicacion"
@@ -297,6 +335,13 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.loads" = "adaptadores"
 "convertersmartgrid.mapa_informe" = "adaptadores"
 "convertersmartgrid.mapa_cargas" = "adaptadores"
+# 111: el plano de la red usa el nombre del DGS (dgs.nombre_en_pf) y la geografía, adaptadores como ellos.
+"convertersmartgrid.plano_red" = "adaptadores"
+"convertersmartgrid.pagina_plano" = "adaptadores"
+# 111: la variación del plano: reglas de la edición y su diario en el espacio, con la escritura atómica.
+"convertersmartgrid.variacion_plano" = "aplicacion"
+# 111: los resultados sobre el plano usan el oráculo (adaptadores) y la variación del plano.
+"convertersmartgrid.resultados_plano" = "adaptadores"
 "convertersmartgrid.fases_red" = "dominio"
 "convertersmartgrid.model" = "dominio"
 "convertersmartgrid.model_registry" = "aplicacion"
@@ -318,6 +363,7 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.correo.envios" = "adaptadores"
 "convertersmartgrid.correo.mensaje" = "adaptadores"
 "convertersmartgrid.correo.proveedores" = "adaptadores"
+"convertersmartgrid.correo.de_la_109" = "adaptadores"
 "convertersmartgrid.perfil_empresa" = "dominio"
 "convertersmartgrid.perfil_esquema" = "adaptadores"
 "convertersmartgrid.pf_arnes" = "adaptadores"
@@ -331,6 +377,7 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.powerfactory_metadata" = "adaptadores"
 "convertersmartgrid.preflight_contract" = "aplicacion"
 "convertersmartgrid.preview" = "adaptadores"
+"convertersmartgrid.privacidad" = "dominio"
 "convertersmartgrid.puentes" = "dominio"
 "convertersmartgrid.reconstruction" = "dominio"
 "convertersmartgrid.reconstruction_pipeline" = "aplicacion"
@@ -400,6 +447,8 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.pit.formatos_red" = "adaptadores"
 "convertersmartgrid.pit.expediente" = "adaptadores"
 "convertersmartgrid.pit.informe" = "adaptadores"
+"convertersmartgrid.pit.unifilar" = "adaptadores"
+"convertersmartgrid.pit.armado" = "adaptadores"
 "convertersmartgrid.web.rutas_pit" = "presentacion"
 "convertersmartgrid.vad" = "aplicacion"
 "convertersmartgrid.vad.estudio" = "aplicacion"
@@ -408,9 +457,19 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.vad.resultados_vad" = "aplicacion"
 "convertersmartgrid.vad.pide_vad" = "aplicacion"
 "convertersmartgrid.vad.calidad" = "aplicacion"
+"convertersmartgrid.vad.caracterizacion" = "aplicacion"
 "convertersmartgrid.vad.costos_explotacion" = "aplicacion"
+"convertersmartgrid.vad.coym" = "aplicacion"
+"convertersmartgrid.vad.balance" = "aplicacion"
+"convertersmartgrid.vad.trabajo" = "aplicacion"
 "convertersmartgrid.vad.tablas_resultados" = "adaptadores"
+"convertersmartgrid.vad.observaciones" = "adaptadores"
+"convertersmartgrid.vad.entregables" = "adaptadores"
 "convertersmartgrid.vad.informes" = "adaptadores"
+"convertersmartgrid.vad.modelo_rural" = "adaptadores"
+"convertersmartgrid.vad.modelo_urbano" = "adaptadores"
+"convertersmartgrid.vad.dimensionamiento" = "adaptadores"
+"convertersmartgrid.vad.costos" = "adaptadores"
 "convertersmartgrid.estudio_planeamiento" = "dominio"
 "convertersmartgrid.metrados" = "aplicacion"
 "convertersmartgrid.madrl_obras" = "adaptadores"
@@ -432,6 +491,7 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.web.libros_nuevos" = "presentacion"
 "convertersmartgrid.web.entradas_estudios_api" = "presentacion"
 "convertersmartgrid.web.mapa_cargas_api" = "presentacion"
+"convertersmartgrid.web.plano_api" = "presentacion"
 "convertersmartgrid.web.fondo" = "presentacion"
 "convertersmartgrid.web.runtime" = "presentacion"
 "convertersmartgrid.web.seguridad" = "presentacion"

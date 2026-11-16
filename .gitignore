@@ -120,3 +120,6 @@ config/salidas.json
 config/archivo.json
 # 086:RF-85: la carpeta de las copias de los datos que recuerda esta máquina.
 config/copia_datos.json
+# 109:RF-2, RF-18: el cliente OAuth de la nube y el cofre DPAPI de sus credenciales, solo en este equipo.
+config/nube.json
+secretos/

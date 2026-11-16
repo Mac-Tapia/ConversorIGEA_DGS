@@ -188,6 +188,15 @@ def comprobar_notas(texto: str, version: str) -> None:
 CONJUNTO_PREGUNTA = Path('config', 'pregunta_entregada', 'CONJUNTO_ABSTENCION_ENTREGA.json')
 
 
+def _secciones_de_desarrollo(raiz: Path) -> dict[str, list[str]]:
+    """Las secciones de desarrollo de cada manual según config/entrega.json de ``raiz`` (vacío si no hay lista)."""
+    try:
+        datos = json.loads((raiz / 'config' / 'entrega.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+    return (datos.get('documentos') or {}).get('secciones_de_desarrollo') or {}
+
+
 def documentos_de_pregunta(raiz: Path, programa: Path, version: str, *, calibrar: bool) -> dict[str, Any] | None:
     """Los manuales y notas que se entregan, dentro del paquete, para que «pregunta» los lea en el instalado.
 
@@ -200,9 +209,17 @@ def documentos_de_pregunta(raiz: Path, programa: Path, version: str, *, calibrar
     carpeta.mkdir(parents=True, exist_ok=True)
     # Los manuales y notas del operador; MANUAL_COMANDOS y la guía de la persona ajena no, porque describen el entorno de
     # desarrollo y la aceptación interna, y el primero aún nombra alimentadores reales (auditoría de lanzamiento, 6).
+    # Lo que «pregunta» lee y calibra es lo que llega al cliente: sin las secciones de desarrollo de un manual, que
+    # copiar_documentos ya quita (086:RF-91). Entraban en su corpus y en su calibración: «Para quien prepara una versión»
+    # era un fragmento casi vacío con el que casaban preguntas ajenas («¿Cómo se prepara…?»).
+    secciones = _secciones_de_desarrollo(raiz)
     for rel in (*DOCUMENTOS, f'docs/NOTAS_VERSION_{publicacion(version)}.md'):
         if rel.endswith('.md') and (raiz / rel).is_file():
-            shutil.copyfile(raiz / rel, carpeta / Path(rel).name)
+            if secciones.get(rel):
+                texto = sin_secciones_de_desarrollo((raiz / rel).read_text(encoding='utf-8'), secciones[rel])
+                (carpeta / Path(rel).name).write_text(texto, encoding='utf-8', newline='')
+            else:
+                shutil.copyfile(raiz / rel, carpeta / Path(rel).name)
     if (raiz / CONJUNTO_PREGUNTA).is_file():
         shutil.copyfile(raiz / CONJUNTO_PREGUNTA, carpeta / PE.CONJUNTO)
     if not calibrar:

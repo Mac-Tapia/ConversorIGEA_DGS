@@ -1,0 +1,1018 @@
+{
+  "esquema": "registro_normativo_v1",
+  "amplia": "tdr-vad-2026-anexo-r033",
+  "nota": "Spec 108 T8 (2026-11-15, f4/VAD-A7). Amplía el TdR registrado con las 24 reglas del Anexo 7 «Metodología de Costos de Operación y Mantenimiento» (págs. Anexo 7-1 a 7-22, pdf 165 a 186; líneas 6868-7801 del texto de huella sha256_texto de la norma ampliada, 48ea8cf4…) y las 17 de los numerales 6.9 (pérdidas estándar) y 6.10 (balance de potencia y energía, Cuadro N° 20 = formato A-VI) del cuerpo (págs. 45-48, pdf 46-49; líneas 2150-2343), transcritas por 6c (b1 y b2) con doble lectura (texto 48ea8cf4 y capa del PDF fb534170…) y prueba de mutación; más la remisión del num. 5.12 (línea 1215), errata del TdR, y la potencia resultante del balance real con la cita de cada término del A-VI. Las decisiones de 28 van en la interpretación de su regla (P-4, P-5, P-6, A7-4, la tolerancia del cierre y la errata del num. 11). Ninguna regla es de una empresa.",
+  "reglas": [
+    {
+      "clave": "vad.anexo7.empresa_modelo",
+      "valor": {
+        "definicion": "organización diseñada de manera óptima y eficiente para prestar exclusivamente el servicio público de distribución en el área de concesión de la empresa de referencia",
+        "metodo": "bottom-up (componentes individuales → costos y recursos por componente → agregación)",
+        "sin_restricciones_historicas": [
+          "obsolescencia de activos",
+          "sobreinversiones pasadas",
+          "deficiencias estructurales"
+        ],
+        "criterio_eficiencia": "alternativas de mínimo costo que satisfagan la demanda con los niveles de calidad de la normativa vigente"
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-1; Anexo 7-2 (pdf 165, 166)",
+      "lineas": "6896-6898; 6887-6889; 6915-6917; 6918",
+      "cita_literal": "Se define como empresa modelo a la organización diseñada de manera óptima y eficiente para prestar exclusivamente el servicio público de distribución eléctrica dentro del área de concesión de la empresa de referencia correspondiente. [...] Se entiende por criterio de eficiencia la selección de alternativas de mínimo costo que permitan satisfacer la demanda cumpliendo con los niveles de calidad establecidos en la normativa vigente. [...] el dimensionamiento de la empresa modelo no debe incorporar restricciones históricas que habitualmente limitan la operación de empresas reales, tales como obsolescencia de activos, sobreinversiones pasadas o deficiencias estructurales. [...] La metodología de cálculo adoptada es del tipo bottom-up"
+    },
+    {
+      "clave": "vad.anexo7.etapas",
+      "valor": {
+        "A": "definición de procesos y actividades (terreno O&M con inspecciones de hurto; lectura, facturas y cobranza; organización)",
+        "B": {
+          "opex_por_proceso_y_actividad": true,
+          "drivers": [
+            "km de red",
+            "número de clientes/medidores",
+            "órdenes de trabajo",
+            "número de transformadores"
+          ],
+          "costos_unitarios": [
+            "HH",
+            "materiales",
+            "vehículos",
+            "TIC de soporte"
+          ],
+          "excluir": "costos extraordinarios/no eficientes",
+          "benchmarking": true
+        },
+        "C": "economías de escala y recursos compartidos; dentro de la empresa o tercerizar",
+        "D": {
+          "precios": "mercado local (y diferenciales regionales)",
+          "proyeccion": [
+            "índices de actualización (precios, tipo de cambio)",
+            "factor de productividad"
+          ],
+          "sensibilidad": true
+        },
+        "E": {
+          "inductores_prorrateo": [
+            "km de red",
+            "transformadores",
+            "clientes",
+            "transacciones",
+            "HH"
+          ],
+          "trazabilidad": "sin doble conteo, auditable"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-2; Anexo 7-3 (pdf 166, 167)",
+      "lineas": "6934-6935; 6936-6938; 6956-6958; 6960-6961",
+      "cita_literal": "Identificar drivers de demanda ( km de red, número de clientes/medidores, órdenes de trabajo, número de transformadores). [...] Construir costos unitarios eficientes (horas-hombre-HH, materiales, vehículos, tecnologías de información y comunicaciones de soporte-TIC) y excluir costos extraordinarios/no eficientes. [...] Proyectar el período tarifario con índices de actualización (precios, tipo de cambio) y un factor de productividad; documentar supuestos, fuentes y análisis de sensibilidad. [...] Definir inductores de costo para prorrateo (km de red, transformadores, clientes, transacciones, HH) y reglas de distribución consistentes",
+      "interpretacion": "El numeral 10 y el 16.1 remiten a «los criterios señalados en el numeral 4 del Anexo N° 7» para que Osinergmin regule las actividades sin sustento contractual: son estas etapas A-E."
+    },
+    {
+      "clave": "vad.anexo7.criterios_dimensionamiento",
+      "valor": {
+        "normativa": "vigente al inicio del estudio",
+        "preventivo": "costos estándar (revisiones, mediciones y adecuaciones)",
+        "frecuencias_referencia": [
+          "estudios tarifarios precedentes",
+          "estándares internacionales de empresas latinoamericanas similares",
+          "estudios propios de la empresa"
+        ],
+        "correctivo": "vinculado a la tasa de averías objetivo de la red adaptada tras mantenimiento preventivo estándar",
+        "holguras": "solo por indivisibilidades técnicas y económicas"
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-3 (pdf 167)",
+      "lineas": "6974-6975; 6976-6977; 6983-6985; 6986-6987",
+      "cita_literal": "Cumplir con todas las normativas técnicas, regulatorias y legales vigentes al inicio del estudio. [...] Los costos del mantenimiento preventivo (predictivo y detectivo) (revisiones, mediciones y adecuaciones) deberán responder a costos estándar [...] Los costos del mantenimiento correctivo estarán vinculados a la tasa de averías objetivo que deberían poseer las redes e instalaciones adaptadas luego de un proceso de mantenimiento preventivo estándar, aplicable durante su vida útil. [...] considerando únicamente holguras derivadas de indivisibilidades técnicas y económicas.",
+      "interpretacion": "El mismo texto de preventivo, frecuencias y correctivo se repite en el 10.A (Anexo 7-10 y 7-11)."
+    },
+    {
+      "clave": "vad.anexo7.restricciones_empresa_referencia",
+      "valor": [
+        "mismos clientes y patrones de consumo (regulados, libres y otras distribuidoras que usan sus instalaciones)",
+        "distribución geográfica de clientes y demanda",
+        "condiciones geográficas, climáticas y demográficas",
+        "trazado urbano y rural",
+        "nuevas tecnologías si reducen costos o mejoran calidad",
+        "cambios normativos de calidad con inversiones significativas",
+        "vegetación",
+        "polución (salina, industrial)",
+        "seguridad y medio ambiente"
+      ],
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-3; Anexo 7-4 (pdf 167, 168)",
+      "lineas": "6991-6992; 6996-6997; 7009-7010",
+      "cita_literal": "El diseño de la empresa modelo considerará como referencia una empresa real que opere en la misma zona geográfica, quedando sujeta a las siguientes condiciones: [...] Mismos clientes y patrones de consumo que la empresa de referencia, incluyendo usuarios regulados, clientes libres y otras distribuidoras que utilicen sus instalaciones. [...] Evaluación de la interacción de la vegetación con las redes y las actividades necesarias para su control."
+    },
+    {
+      "clave": "vad.anexo7.nuevas_tecnologias",
+      "valor": {
+        "evaluacion": "técnica y económica",
+        "norma": "nacional vigente; en su ausencia, estándares internacionales reconocidos citados en la normativa nacional"
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-4 (pdf 168)",
+      "lineas": "7018-7020",
+      "cita_literal": "Las tecnologías propuestas deberán cumplir con la normativa nacional vigente y, en ausencia de esta, se adoptarán estándares internacionales reconocidos, citados en la normativa nacional, para instalaciones equivalentes."
+    },
+    {
+      "clave": "vad.anexo7.procesos_basicos",
+      "valor": [
+        "Dirección, estrategia y control",
+        "Relaciones institucionales",
+        "Asuntos legales",
+        "Recursos humanos",
+        "Control de gestión",
+        "Administración y finanzas",
+        "Sistemas informáticos",
+        "Abastecimiento",
+        "Planificación técnica y normativa",
+        "Operación comercial",
+        "Atención al usuario",
+        "Regulación y tarifas",
+        "Operación y mantenimiento"
+      ],
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-4; Anexo 7-5 (pdf 168, 169)",
+      "lineas": "7023; 7045-7046",
+      "cita_literal": "Dirección, estrategia y control: Gerencia general y dirección corporativa. [...] Operación y mantenimiento: Ingeniería de mantenimiento, operación de redes y equipos e inspecciones para control del hurto.",
+      "interpretacion": "Lista del 7.A (13 procesos). El 18.A da otra lista de 16 (añade Medio ambiente, Comercialización, Lectura de medidores, Reparto de facturas y Cobranzas; no nombra Atención al usuario ni Operación comercial): ver vad.anexo7.presentacion_resultados. Incoherencia de listas del original, sin decidir aquí."
+    },
+    {
+      "clave": "vad.anexo7.componentes_de_costo",
+      "valor": {
+        "por_actividad": [
+          "costos directos",
+          "costos indirectos"
+        ],
+        "componentes": [
+          "salarios de personal permanente",
+          "tercerizado",
+          "materiales e insumos",
+          "combustible",
+          "servicios",
+          "tasas",
+          "impuestos"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-5 (pdf 169)",
+      "lineas": "7047-7048; 7051-7053",
+      "cita_literal": "Cada actividad tendrá costos directos (ej. ejecución en terreno) e indirectos (ej. Supervisión de cuadrillas, soporte administrativo) [...] cada partida de costos involucra por su naturaleza los siguientes componentes de costos; salarios de personal permanente (personal de plantilla), tercerizado, materiales e insumos, combustible, servicios, tasas e impuestos."
+    },
+    {
+      "clave": "vad.anexo7.procesos_campo",
+      "valor": {
+        "om": [
+          "mantenimiento programado preventivo (predictivo y detectivo)",
+          "mantenimiento no programado (correctivo, atención de fallas)",
+          "operación de la red (programada y no programada)"
+        ],
+        "lectura": {
+          "usuarios": [
+            "pequeña",
+            "mediana",
+            "gran demanda"
+          ],
+          "dimensionamiento": "cantidad y tipo de medidores y frecuencia de lectura",
+          "optimizacion": [
+            "lectura remota",
+            "factura digital"
+          ]
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-5 (pdf 169)",
+      "lineas": "7058; 7059; 7060; 7069; 7075; 7076",
+      "cita_literal": "Mantenimiento programado Preventivo (predictivo y detectivo). [...] Mantenimiento no programado (Correctivo, atención de fallas). [...] Operación de la red (programada y no programada). [...] Definición de parámetros para usuarios de pequeña, mediana y gran demanda. [...] Medidores con lectura remota. [...] Uso de factura digital para reducir costos de distribución física."
+    },
+    {
+      "clave": "vad.anexo7.gestion_empresarial",
+      "valor": {
+        "base": [
+          "cantidad de clientes",
+          "infraestructura (número y tipo de instalaciones)",
+          "recursos de O&M de terreno",
+          "recursos de lectura, facturas y cobranza"
+        ],
+        "lineamientos": [
+          "estructura organizacional",
+          "determinación de personal (propio vs tercerizado)",
+          "instalaciones y operación",
+          "recursos administrativos y de control (benchmarking; empleados por cliente)",
+          "estimación de recursos",
+          "entregables"
+        ],
+        "entregables": [
+          "diseño detallado de la organización",
+          "asignación de tareas",
+          "organigrama",
+          "funciones de personal propio y contratistas"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-6 (pdf 170)",
+      "lineas": "7106-7107; 7116; 7120-7122",
+      "cita_literal": "Uso de indicadores de productividad como empleados por cliente y otros comparables. [...] Organigrama de la empresa modelo. [...] La estructura óptima de recursos humanos se establecerá con base en estándares de eficiencia, comparando los valores resultantes con empresas internacionales de referencia mediante indicadores de productividad y eficiencia laboral."
+    },
+    {
+      "clave": "vad.anexo7.etapas_om",
+      "valor": {
+        "clasificacion_instalaciones": [
+          "BT (aérea y subterránea)",
+          "centros de transformación MT-BT (aéreos y subterráneos)",
+          "MT (aérea y subterránea)",
+          "aparatos de maniobra y compensación",
+          "otras"
+        ],
+        "tareas": [
+          "operación",
+          "reparación",
+          "revisión",
+          "adecuación"
+        ],
+        "valorizacion": "materiales, personal y transporte a precios de mercado peruano; cuadrillas eficientes",
+        "criterios": [
+          "última tecnología eficiente",
+          "instalaciones adaptadas",
+          "empalmes y equipos de medida independientemente de su titularidad",
+          "MT y BT diferenciadas salvo justificación",
+          "tercerización total o parcial"
+        ],
+        "presentacion": [
+          "tipo de actividad",
+          "frecuencia",
+          "cantidad anual estimada",
+          "recursos (personal, instalaciones, gastos)",
+          "costos unitarios"
+        ],
+        "incluye": [
+          "control de vegetación",
+          "mitigación de polución",
+          "volumen óptimo de inspecciones de hurto por costo-beneficio y energía recuperada"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-7 (pdf 171)",
+      "lineas": "7133-7134; 7149-7150; 7154-7156; 7157-7159",
+      "cita_literal": "Detalle de tareas por instalación : operación, reparación, revisión, adecuación, con frecuencia definida para cada tarea. [...] Inclusión de funciones asociadas a empalmes y equipos de medida independientemente de su titularidad. [...] Presentación de resultados en cuadros detallados con: tipo de actividad, frecuencia, cantidad anual estimada, recursos utilizados (personal, instalaciones, gastos) y costos unitarios. [...] Se incluirán también las actividades de control de vegetación y mitigación de polución, así como un volumen óptimo de inspecciones para control del hurto de energía, evaluando la relación costo-beneficio y la energía recuperada."
+    },
+    {
+      "clave": "vad.anexo7.clasificacion_costos",
+      "valor": {
+        "A_directos_om": [
+          "preventivo",
+          "atención de fallas (brigadas de emergencia)",
+          "operación remota y presencial"
+        ],
+        "B_directos_perdidas_no_tecnicas": "inspecciones y verificaciones de campo contra conexiones ilegales",
+        "C_directos_atencion_usuario": [
+          "presencial",
+          "remota"
+        ],
+        "D_directos_operacion_comercial": [
+          "lectura",
+          "facturación",
+          "distribución de facturas",
+          "cobranza"
+        ],
+        "E_indirectos": [
+          "planificación, supervisión y control",
+          "dirección",
+          "relaciones institucionales",
+          "legales",
+          "RRHH",
+          "control de gestión y auditoría interna",
+          "gestión ambiental",
+          "administración y finanzas",
+          "sistemas",
+          "comercialización y atención al cliente",
+          "abastecimiento",
+          "planificación técnica y normativa",
+          "regulación y tarifas"
+        ],
+        "componentes": [
+          "salarios, beneficios y cargas sociales del personal permanente",
+          "personal eventual",
+          "servicios de terceros",
+          "materiales e insumos",
+          "combustibles",
+          "tasas y contribuciones a reguladores",
+          "impuestos trasladables al VAD"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-8; Anexo 7-9 (pdf 172, 173)",
+      "lineas": "7172; 7173-7174; 7215",
+      "cita_literal": "B. Costos Directos de Control de Pérdidas No Técnicas [...] Inspecciones y verificaciones de campo destinadas a identificar, reducir y eliminar conexiones ilegales y otras prácticas indebidas. [...] Impuestos trasladables al Valor Agregado de Distribución (VAD)."
+    },
+    {
+      "clave": "vad.anexo7.costos_excluidos",
+      "valor": [
+        "fee del operador (transferencia de tecnología o asesoría de la controlante)",
+        "multas y/o penalidades",
+        "impuesto a la renta",
+        "otras actividades reguladas distintas a distribución",
+        "actividades no reguladas",
+        "gastos financieros",
+        "amortizaciones y depreciaciones de activos eléctricos",
+        "publicidad institucional",
+        "daños de terceros evitables con gestión eficiente",
+        "reubicación de postes o equipos por invasión de la franja de servidumbre",
+        "reparto de utilidades al personal de planta",
+        "otros no atribuibles a distribución"
+      ],
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-9 (pdf 173)",
+      "lineas": "7217-7218; 7219-7220; 7221; 7222; 7225; 7226; 7227; 7230-7231; 7232",
+      "cita_literal": "Quedan fuera del cálculo del VAD, por no estar directamente relacionados con la prestación del servicio público de distribución, los siguientes conceptos: [...] Honorarios por transferencia de tecnología o asesoría administrativa de la empresa controlante (“fee del operador”). [...] Multas y/o penalidades por incumplimientos normativos. [...] Impuesto a la renta. [...] Gastos financieros. [...] Amortizaciones y depreciaciones de activos eléctricos. [...] Gastos por publicidad institucional. [...] Costos por reubicación de postes o equipos debido a invasiones en la franja de servidumbre por construcciones. [...] Gastos laborales derivados del reparto de utilidades al personal de planta.",
+      "interpretacion": "Lista cerrada de 12 conceptos (9.F) más «otros no atribuibles». Es la única lista del Anexo con efecto directo de exclusión: un costo con una de estas naturalezas no entra en el COyM del VAD."
+    },
+    {
+      "clave": "vad.anexo7.costos_eficientes",
+      "valor": {
+        "sin_sustento_contractual": "no se toman los montos ni parámetros de actividades sin contratos u órdenes de servicio; la actividad no se desconoce y Osinergmin la regula con la información disponible (numeral 4)",
+        "valoracion": "precios representativos del mercado peruano y condiciones locales",
+        "desagregacion": [
+          "costos de personal",
+          "servicios contratados",
+          "servicios generales",
+          "otros egresos"
+        ],
+        "sin_duplicidad": "servicios contratados no deben repetir funciones del personal propio"
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-10 (pdf 174)",
+      "lineas": "7256-7259; 7259-7260; 7279-7281",
+      "cita_literal": "No se tomarán en cuenta, para la determinación de los costos operativos eficientes, los montos y parámetros técnicos reportados por la empresa de aquellas actividades que no haya sustentado con contratos de ejecución de servicio u órdenes de servicio. [...] Ello no implica el desconocimiento tarifario de la actividad en sí misma, sino únicamente la no consideración de la referida información. [...] En todos los casos, cuando se incluyan costos de servicios contratados, deberá verificarse que dichas actividades no estén ya consideradas en funciones asignadas al personal propio, a fin de evitar duplicidad de costos.",
+      "interpretacion": "El mismo párrafo de «No se tomarán en cuenta…» se repite en el 16.1 (Anexo 7-18)."
+    },
+    {
+      "clave": "vad.anexo7.parametros_om",
+      "valor": {
+        "tct_mt": "trabajos con tensión en líneas aéreas de MT en todos los trabajos en que resulte posible y conveniente",
+        "evaluaciones": [
+          "puntos de concentración del personal",
+          "esquemas de O&M sin cierres ni reservas innecesarias",
+          "contratistas o personal propio",
+          "asignación a contratistas",
+          "tecnologías actuales eficientes"
+        ],
+        "informe": "un capítulo separado por aspecto, explicitando las diferencias empresa modelo vs real"
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-11 (pdf 175)",
+      "lineas": "7297-7299; 7312-7313",
+      "cita_literal": "Entre las prácticas deberá considerarse el empleo de TCT (trabajos con tensión) en líneas aéreas de media tensión (MT), en todos los tipos de trabajos que resulte posible y conveniente. [...] En cada uno de los aspectos sometidos a evaluación se desarrollará un informe en un capítulo separado"
+    },
+    {
+      "clave": "vad.anexo7.remuneraciones",
+      "valor": {
+        "categorias": "por formación y años de experiencia, minimizando la varianza dentro de cada una y con peso estadístico relevante",
+        "desglose_mercado": [
+          "sueldo base mensual",
+          "asignaciones",
+          "bonos e incentivos",
+          "beneficios adicionales"
+        ],
+        "tope_costo_anual_empleado": "no puede exceder el costo efectivamente incurrido por la empresa real de referencia, con las mismas componentes",
+        "propio": "análisis comparativo de valores reales validados con estudio de mercado salarial de empresa especializada (anexo al informe); se adopta el más eficiente; sin reparto de utilidades",
+        "tercerizado": {
+          "fuentes": [
+            "modelo de costos unitarios de los contratos (Excel) y acta de adjudicación",
+            "reporte salarial de contratistas y boletas (identidad protegida)"
+          ],
+          "validacion": [
+            "encuestas de contratistas de O&M del ámbito",
+            "encuestas de organismos públicos nacionales o empresas especializadas",
+            "costos de Osinergmin del VAD inmediato anterior actualizados"
+          ]
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-12; Anexo 7-13 (pdf 176, 177)",
+      "lineas": "7347-7350; 7356-7357; 7366; 7406-7408",
+      "cita_literal": "En ningún caso, el costo unitario anual por empleado (remuneraciones + beneficios + cargas patronales) determinado a partir de encuestas de mercado podrá exceder el costo efectivamente incurrido por la empresa real de referencia, considerando las mismas componentes. [...] Las remuneraciones a utilizar serán totales, y no incluirán los eventuales ingresos por repartos de utilidades a los trabajadores. [...] Remuneraciones del personal tercerizado [...] La actualización de los costos unitarios de personal tercerizado utilizado por Osinergmin en el proceso regulatorio del VAD inmediato anterior a la oportunidad del proceso regulatorio del VAD correspondiente.",
+      "interpretacion": "⚠ INCOHERENCIA DEL ORIGINAL: el cuerpo del TdR (pág. 34, línea 1676 del texto 48ea8cf4) remite al título «Remuneración del personal tercerizado», «del literal B) del numeral 11) del Anexo N° 7»; en el Anexo 7 vigente ese título («Remuneraciones del personal tercerizado») está en el numeral 10, literal C; el 11 es el Capital de Trabajo. Se toma la lectura coherente (10.C) con esta cita."
+    },
+    {
+      "clave": "vad.anexo7.tercerizacion",
+      "valor": [
+        "cumplimiento normativo laboral",
+        "importancia estratégica",
+        "conveniencia económica (costo-beneficio)",
+        "prácticas de la industria"
+      ],
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-14 (pdf 178)",
+      "lineas": "7419-7420; 7434-7436",
+      "cita_literal": "Se deberá efectuar un análisis integral de la tercerización de actividades, en estricto cumplimiento con el marco de la normativa laboral vigente [...] Con base en este análisis, se determinarán las actividades que podrán ser ejecutadas mediante servicios tercerizados, procediendo a su valorización como parte de los costos de servicios contratados."
+    },
+    {
+      "clave": "vad.anexo7.capital_de_trabajo",
+      "valor": {
+        "tasa_interes": 0.12,
+        "fuente_tasa": "tasa activa del artículo 79 de la LCE",
+        "base": "costos eficientes de esta metodología",
+        "horizonte": "del primer día del período tarifario al 31 de diciembre de ese año",
+        "flujos": [
+          "período de facturación",
+          "plazos de pago de remuneraciones, terceros y otros",
+          "desfase cobro-desembolso"
+        ],
+        "calculo": [
+          "saldos diarios negativos de caja",
+          "interés diario de cada saldo a la tasa",
+          "cada interés actualizado al final del año",
+          "CCT = suma de los intereses actualizados"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-14; Anexo 7-15 (pdf 178, 179)",
+      "lineas": "7443; 7453-7455; 7457-7458; 7461-7462; 7463; 7464-7465",
+      "cita_literal": "La tasa de interés aplicable será la tasa activa de 12% prevista en el artículo 79° de la LCE. [...] El flujo de ingresos y egresos se estimará desde el primer día del período tarifario (considerando el inicio de operaciones en ese momento) hasta el 31 de diciembre de dicho año. [...] Identificación de los saldos diarios negativos de caja resultantes del desfase entre ingresos y egresos. [...] Cálculo del interés diario correspondiente a dichos saldos, aplicando la tasa de interés definida. [...] Actualización de cada interés diario al final del año. [...] Suma de todos los intereses actualizados para obtener el Costo del Capital de Trabajo.",
+      "unidad": "tasa anual (fracción)",
+      "interpretacion": "DECISIÓN P-4 (aprobada por 28, 2026-11-15; HUECOS A7-1): la tasa diaria es la EFECTIVA, i_d = (1 + i)^(1/365) − 1, porque el método actualiza cada interés diario al final del año (capitalización); la proporcional i/365 se muestra como contraste en el aviso, y el perfil puede elegirla con su sustento. CCT = Σ_d max(0, −S_d)·i_d·(1 + i_d)^(n_d), con S_d el saldo de caja del día d y n_d los días que faltan hasta el 31 de diciembre. La tasa del 12 % es la del TdR, que remite al art. 79 de la LCE (z11b: sin modificar). ERRATA del TdR (28): el num. 5.12 remite al «numeral 12 del Anexo 7», pero el CCT es el numeral 11 (vad.capital_de_trabajo.remision): se aplica el 11, con aviso."
+    },
+    {
+      "clave": "vad.anexo7.economias_de_escala",
+      "valor": [
+        "compra y logística de materiales",
+        "sistemas y tecnología",
+        "gestión administrativa"
+      ],
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-15 (pdf 179)",
+      "lineas": "7470-7471",
+      "cita_literal": "El diseño de la empresa modelo deberá incorporar las economías de escala identificables, de acuerdo con el volumen de instalaciones y la magnitud de su mercado."
+    },
+    {
+      "clave": "vad.anexo7.costos_compartidos",
+      "valor": {
+        "normas": [
+          "RM N° 197-94-EM/VME (Manual de Costos para Empresas de Electricidad Concesionarias y/o Autorizadas)",
+          "Resolución N° 218-2020-OS/CD (Manual de Costos basado en actividades)",
+          "Resolución N° 249-2022-OS/CD (modificatoria)"
+        ],
+        "numeral": "5.1 del Manual",
+        "organos_de_gobierno_al_servicio": 0.75,
+        "organos_de_gobierno_a_inversiones": 0.25,
+        "tope_sobre_inversion": 0.075,
+        "estudio_debe": [
+          "identificar partidas indirectas",
+          "criterios objetivos de la contabilidad real",
+          "trazabilidad de los porcentajes"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-15; Anexo 7-16 (pdf 179, 180)",
+      "lineas": "7493-7495; 7500-7501; 7504-7505",
+      "cita_literal": "Norma “Manual de Costos basado en actividades aplicable a las empresas de distribución eléctrica”, aprobado por Resolución N° 218-2020-OS-CD y su modificatoria aprobado por Resolución N° 249-2022-OS/CD. [...] serán aplicados en un 75% al costo del servicio y el 25% restante al costo de las inversiones en estudios y [...] obras, siempre que este monto resultante no exceda del 7,5% del monto de la inversión analizada”.",
+      "unidad": "fracción",
+      "interpretacion": "Cita del TdR (Anexo 7, num. 13), que la presenta como «numeral 5.1 del Manual»; cruza el salto de página 7-15/7-16. DECISIÓN de 28 (2026-11-15): para el VAD 2026-2030 MANDA EL TdR: inversión = mín(25 % de los gastos de los órganos de gobierno; 7,5 % de la inversión analizada) y 75 % al servicio. El estudio AVISA que ese texto no está en el Manual vigente (RCD 218-2020-OS/CD, art. 4, num. 2.2, ítems 1 y 2, modificada por la RCD 245-2021-OS/CD y la RCD 249-2022-OS/CD, que no tocan el 2.2): el Manual aplica el 75/25 a suministros, servicios de terceros, tributos y cargas de gestión, topa sobre la «inversión efectuada en el ejercicio» y reparte los órganos de gobierno en proporción (manual_costos.costos_indirectos.imputacion y .organos_de_gobierno; cotejo b3/COTEJO_TDR.json). Las cifras 75/25/7,5 % coinciden. HUECO A7-4: el texto de la RM 197-94-EM/VME (el Manual de 1994 que el TdR también cita) no se ha hallado; queda nombrado (vad.anexo7.manual_costos, REG-HUECOS). DECISIÓN P-5 (28): la empresa modelo no tiene ejercicio contable; la base del tope es el aVNR del periodo, como interpretación sustituible por el perfil, con VNR/vida útil como contraste en el aviso. EL EXCESO sobre el tope: el TdR no dice a dónde va, y solo lo asignaría una regla citada de este ámbito (vad.anexo7.costos_compartidos.exceso), que no existe: es un HUECO nombrado y no se asigna (c3, v3). La Nota 2 del Formato 3.2 del Manual vigente («Se aplicará un 75% o la diferencia», manual_costos.formato_3_2.nota_2) existe, pero es de otro ámbito (suministros diversos, servicios de terceros, tributos y cargas de gestión): no se extiende a los órganos de gobierno; solo se cita en el aviso."
+    },
+    {
+      "clave": "vad.anexo7.indexacion",
+      "valor": {
+        "formula": "una única fórmula polinomial para todas las componentes del COyM",
+        "base": "USD",
+        "indicadores": "disponibles, estables y de fuente oficial o de reconocido prestigio",
+        "ponderadores": "según la estructura de costos de la empresa modelo y los ponderadores normativos",
+        "sustento": [
+          "componente e indicador",
+          "ponderadores",
+          "fuentes",
+          "validación estadística de la correlación con la evolución histórica"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-16 (pdf 180)",
+      "lineas": "7514-7515; 7518; 7532-7533",
+      "cita_literal": "Se deberá elaborar y proponer una única fórmula polinomial de indexación aplicable a las componentes de costo descritas en los numerales precedentes [...] Expresarse en su valor base en dólares de los Estados Unidos de América. [...] Validación estadística de la correlación entre el indicador y la evolución histórica del costo."
+    },
+    {
+      "clave": "vad.anexo7.sustento_y_referencias",
+      "valor": {
+        "referencias": [
+          "estudios técnicos similares",
+          "presupuestos de mercado vigentes",
+          "facturas u otros comprobantes"
+        ],
+        "rendimientos_tercerizado": [
+          "registros o reportes oficiales del último año",
+          "video y fotografía de tiempos de ejecución"
+        ],
+        "desplazamiento": "aparte de la ejecución; por video de una muestra representativa o registros operativos, partes diarios, GPS o estudios de tiempos",
+        "muestra": "estadística, con el rigor de la fijación de costos de conexión y corte y reconexión",
+        "zrt": "incluye las actividades de la Zona de Responsabilidad Técnica (LCE art. 30; RLCE arts. 60A y 60B)"
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-17 (pdf 181)",
+      "lineas": "7557-7558; 7562-7563; 7575-7576",
+      "cita_literal": "Registros y/o reportes oficiales de ejecución de actividades de operación y mantenimiento de contratos de servicios tercerizado, del último año. [...] deben corresponder únicamente a la ejecución de la actividad y no deben considerar los tiempos de desplazamiento. [...] que asigne el Ministerio de Energía y Minas a la empresa, de acuerdo a lo dispuesto en el artículo 30 de la LCE y artículos 60A y 60B de su Reglamento."
+    },
+    {
+      "clave": "vad.anexo7.informacion_sustento",
+      "valor": {
+        "actividades_om": "listado de los últimos dos años con frecuencia, descripción y unidad de intervención, diferenciando MT, subestaciones y BT",
+        "tabla_modelo_columnas": [
+          "Ítem",
+          "Tipo de red",
+          "Actividad",
+          "Unidad",
+          "Descripción de la actividad",
+          "Otros"
+        ],
+        "ejemplo": {
+          "item": 1112,
+          "tipo_de_red": "Red de BT",
+          "actividad": "Pode de árboles (sic)",
+          "unidad": "Árbol"
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-18 (pdf 182)",
+      "lineas": "7598-7600; 7601-7603",
+      "cita_literal": "deberán proporcionar un anexo detallando el listado de actividades de operación y mantenimiento realizados en los últimos dos años [...] Además, la propuesta de actividades debe diferenciar las que corresponden a la red de media tensión, subestaciones y red de baja tensión.",
+      "interpretacion": "Tabla modelo leída en la IMAGEN (png/a7-182.png, a7-183.png): «Pode de árboles» (sic) en Actividad; sin celdas grises. Es un EJEMPLO de forma, no un catálogo."
+    },
+    {
+      "clave": "vad.anexo7.parametros_de_calculo",
+      "valor": {
+        "indicadores": [
+          "costo HH de contratista (los del VNR si procede)",
+          "costo de horas máquina (los del VNR si procede)",
+          "mantenimiento correctivo y preventivo",
+          "tiempos estándar de reparación y mantenimiento",
+          "frecuencias de mantenimiento por MT, SED y seccionamiento, BT y AP",
+          "tasa de falla objetivo por tipo y nivel de tensión (MT, SED, BT, AP)",
+          "infraestructura de operación (área, guardias, equipamiento)"
+        ],
+        "cuadro_costo_unitario_estandar": [
+          {
+            "componente": "Red de media tensión aérea",
+            "unidad": "S/ /km"
+          },
+          {
+            "componente": "Red de media tensión subterránea",
+            "unidad": "S/ /km"
+          },
+          {
+            "componente": "Subestaciones de distribución tipo y de seccionamiento",
+            "unidad": "S/ /subestación"
+          },
+          {
+            "componente": "Equipos de protección y maniobra",
+            "unidad": "S/ /equipo"
+          },
+          {
+            "componente": "Redes de baja tensión aérea",
+            "unidad": "S/./km"
+          },
+          {
+            "componente": "Redes de baja tensión subterránea",
+            "unidad": "S/./km"
+          },
+          {
+            "componente": "Transformador MT/BT",
+            "unidad": "S/ /trafo y S/./kVA"
+          },
+          {
+            "componente": "Instalaciones de alumbrado público",
+            "unidad": "S/ /luminaria"
+          }
+        ],
+        "costo_mantenimiento": "cantidades globales de instalaciones adaptadas por etapa × costo unitario estándar",
+        "costo_operacion": "por sistema eléctrico o zona, por dimensionamiento de la guardia de emergencia",
+        "sustento_tasas_y_frecuencias": [
+          "estudios propios",
+          "estudios regulatorios anteriores",
+          "estándares latinoamericanos sobre redes adaptadas eficientes"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-19; Anexo 7-20 (pdf 183, 184)",
+      "lineas": "7656-7657; 7671; 7700-7702; 7711-7715",
+      "cita_literal": "Costos de Hora Hombre, de personal de contratista. En los casos pertinentes se tomarán los considerados en el cálculo del VNR; [...] Tasa de falla objetivo de las instalaciones por tipo y nivel de tensión: [...] Cálculo de los costos de mantenimiento óptimos, para lo cual se multiplicará las cantidades globales de redes e instalaciones adaptadas agrupadas por las etapas del sistema de distribución, por los costos unitarios estándar de mantenimiento. [...] Las tasas de falla y frecuencias de mantenimiento se sustentarán considerando la comparación de: i) la información o estudios propios de la empresa; ii) la información de estudios regulatorios anteriores; y iii) estándares internacionales de empresas latinoamericanas similares aplicados sobre redes adaptadas que operen en condiciones de eficiencia.",
+      "interpretacion": "Cuadro «Detalle de Costo Unitario Estándar» leído en la IMAGEN (png/a7-184.png): 8 filas, 2 columnas, cabecera en negrita, SIN celdas grises; las unidades mezclan «S/ /» y «S/./» (sic). El cuadro es una plantilla sin valores: los costos los calcula el estudio."
+    },
+    {
+      "clave": "vad.anexo7.presentacion_resultados",
+      "valor": {
+        "procesos": [
+          "Dirección, estrategia y control",
+          "Relaciones institucionales",
+          "Asuntos legales",
+          "Recursos humanos",
+          "Control de gestión y auditoría",
+          "Administración y finanzas",
+          "Medio ambiente",
+          "Sistemas informáticos",
+          "Comercialización",
+          "Abastecimiento",
+          "Planificación técnica y normativa",
+          "Regulación y tarifas",
+          "Lectura de medidores",
+          "Reparto de facturas",
+          "Cobranzas",
+          "Operación y mantenimiento"
+        ],
+        "naturaleza": [
+          "salarios de personal permanente",
+          "salarios de personal tercerizado",
+          "materiales e insumos",
+          "combustible y lubricantes",
+          "servicios contratados",
+          "tasas y derechos",
+          "impuestos aplicables"
+        ],
+        "formato": "cuadros resumen y tablas detalladas por Actividad–Proceso con total y desglose por naturaleza, trazables a supuestos y fuentes"
+      },
+      "articulo_o_anexo": "Anexo N° 7.- Metodología de Costos de Operación y Mantenimiento",
+      "pagina": "Anexo 7-21; Anexo 7-22 (pdf 185, 186)",
+      "lineas": "7749-7750; 7761-7762",
+      "cita_literal": "Cada partida de costo, identificada por la combinación Actividad – Proceso , deberá desagregarse en sus componentes: [...] La información deberá entregarse en cuadros resumen y tablas detalladas, indicando para cada Actividad–Proceso el costo total y el desglose por naturaleza.",
+      "interpretacion": "Esta lista de 16 procesos es la de PRESENTACIÓN; difiere de la de 13 del 7.A (vad.anexo7.procesos_basicos)."
+    },
+    {
+      "clave": "vad.perdidas_estandar.expresion",
+      "valor": {
+        "potencia": "en la hora de punta de cada sistema de distribución y del sistema optimizado (red adaptada)",
+        "como_porcentaje_de": {
+          "potencia": "potencia máxima coincidente",
+          "energia": "energía ingresada"
+        },
+        "por": "nivel de tensión y sistema eléctrico",
+        "decimales": 2
+      },
+      "articulo_o_anexo": "Numeral 6.9 Cálculo de las pérdidas estándar de un sistema eléctrico",
+      "pagina": "45 (pdf 46)",
+      "lineas": "2173-2174; 2176-2178",
+      "cita_literal": "Las pérdidas de potencia se calcularán para la hora de punta de cada sistema de distribución y para el sistema de distribución optimizado (red adaptada) [...] Los resultados de pérdidas de potencia y energía se expresarán como porcentajes de la potencia máxima coincidente y de la energía ingresada en cada nivel de tensión para cada sistema eléctrico. Los porcentajes resultantes se expresarán con aproximación a dos decimales."
+    },
+    {
+      "clave": "vad.perdidas_estandar.caida_tension",
+      "valor": "las pérdidas físicas de la red adaptada, con sus medios de regulación de tensión, deben permitir caídas de tensión máximas dentro de la LCE, la NTCSE y la NTCSER",
+      "articulo_o_anexo": "Numeral 6.9 Cálculo de las pérdidas estándar de un sistema eléctrico",
+      "pagina": "45 (pdf 46)",
+      "lineas": "2179-2181",
+      "cita_literal": "Las pérdidas físicas en la red adaptada resultantes del cálculo y de la aplicación de los medios de regulación de tensión, deberán permitir que las caídas de tensión máximas no excedan lo establecido en la LCE, la NTCSE y la NTCSER, según corresponda.",
+      "interpretacion": "Los límites numéricos son los de vad.calidad.limite.* (z15 de cc: NTCSE 5.1.2 y NTCSER 4.1.2); aquí solo se exige la verificación."
+    },
+    {
+      "clave": "vad.perdidas_estandar.metodo",
+      "valor": {
+        "sobre": "circuitos de MT y BT y SED económicamente adaptados",
+        "urbano": "configuraciones básicas de cada área de densidad",
+        "rural": "grupo representativo de circuitos",
+        "flujo": "flujos de carga con cargas asimétricas sobre circuitos y cargas geo-referenciadas"
+      },
+      "articulo_o_anexo": "Numeral 6.9 Cálculo de las pérdidas estándar de un sistema eléctrico",
+      "pagina": "45 (pdf 46)",
+      "lineas": "2182-2185; 2185-2186",
+      "cita_literal": "La determinación de las pérdidas técnicas estándar será efectuada sobre los circuitos de MT y BT y las SED económicamente adaptados según el estudio técnico económico de las configuraciones básicas de cada área de densidad urbana y para un grupo representativo de los circuitos rurales. [...] Para ello se emplearán flujos de carga que evalúen cargas asimétricas sobre información de los circuitos y las cargas geo-referenciadas."
+    },
+    {
+      "clave": "vad.perdidas_estandar.consideraciones",
+      "valor": {
+        "transformadores_MT_BT": "pérdidas en vacío y plena carga que lleven al menor costo total capitalizado (adquisición + pérdidas capitalizadas)",
+        "resistencias": "a la temperatura de funcionamiento (ambiente media + sobreelevación por la carga optimizada)",
+        "medidores": {
+          "tecnologia": "vigente (electrónicos y electromecánicos)",
+          "sustentar_cantidad_por_tipo": true,
+          "electromecanicos_vida_util_max_anios": 30
+        },
+        "mayor_desagregacion": "con registros de medición o tablas de fabricante y cálculos justificativos"
+      },
+      "articulo_o_anexo": "Numeral 6.9 Cálculo de las pérdidas estándar de un sistema eléctrico",
+      "pagina": "45; 46 (pdf 46, 47)",
+      "lineas": "2188-2190; 2191-2193; 2196-2197; 2200-2201",
+      "cita_literal": "Las pérdidas unitarias en vacío y plena carga de los transformadores MT/BT, se tomarán de forma tal que lleven al menor costo total capitalizado incluyendo costo de adquisición de los transformadores y perdidas capitalizadas [...] Las resistencias de cables y conductores deberán corresponder a la temperatura de funcionamiento (media ambiente + sobreelevación debida a la carga resultante de la optimización). [...] Para el caso de la cantidad de medidores electromecánicos, se deberá considerar y acreditar aquellos que estén dentro de su vida útil (hasta 30 años). [...] Un mayor nivel de desagregación de pérdidas deberá sustentarse con registros de medición o tablas de fabricante del componente evaluado",
+      "interpretacion": "La cita del transformador cruza la página 45/46 en el texto (viñetas). «perdidas» sin tilde (sic)."
+    },
+    {
+      "clave": "vad.perdidas_estandar.tiempo_equivalente",
+      "valor": {
+        "aplica_a": [
+          "MT",
+          "BT"
+        ],
+        "segun": "forma de la curva de carga y factores de carga",
+        "expresiones": "alguna de las dos",
+        "integral": "fpérdidas = (1/T) ∫₀ᵀ I² dt / I²máx",
+        "empirica": "fpérdidas = 0.7 × (fcarga)² + 0.3 × fcarga",
+        "mismas_que": [
+          "vad.anexo4.factor_perdidas_integral",
+          "vad.anexo4.factor_perdidas_empirico"
+        ]
+      },
+      "articulo_o_anexo": "Numeral 6.9 Cálculo de las pérdidas estándar de un sistema eléctrico",
+      "pagina": "46 (pdf 47)",
+      "lineas": "2203-2205; 2207; 2217",
+      "cita_literal": "Los tiempos equivalentes de pérdidas en MT y BT deberán estar calculados, de acuerdo a la forma de la curva de carga y los correspondientes factores de carga utilizando alguna de las expresiones siguientes [...] Se determina mediante integración numérica de acuerdo a lo siguiente: [...] También, se determina a través de una fórmula empírica función del factor de carga:",
+      "interpretacion": "Fórmulas leídas en la IMAGEN (png/c-047.png); en el texto 48ea8cf4 la integral sale desordenada y la empírica en letras matemáticas. Son IDÉNTICAS a las del Anexo 4-14 registradas por z12: no se crea otra regla de fórmula, esta solo fija que el 6.9 las exige para MT y BT («alguna de»)."
+    },
+    {
+      "clave": "vad.perdidas_estandar.etapas",
+      "valor": {
+        "por": "sistema eléctrico y etapa; % de potencia y energía referidos al abastecimiento de cada etapa",
+        "etapas": [
+          "centros de transformación AT/MT (sólo indicativo)",
+          "redes de MT",
+          "subestaciones de distribución MT/BT y otras",
+          "redes de BT",
+          "acometidas",
+          "medidores"
+        ]
+      },
+      "articulo_o_anexo": "Numeral 6.9 Cálculo de las pérdidas estándar de un sistema eléctrico",
+      "pagina": "46 (pdf 47)",
+      "lineas": "2220-2222; 2224; 2228; 2229",
+      "cita_literal": "para cada etapa se determinarán las pérdidas porcentuales de potencia y energía, referida a los correspondientes valores de abastecimiento por etapa. [...] Pérdidas en los centros de transformación AT/MT (sólo indicativo); [...] Pérdidas en las acometidas; y [...] Pérdidas en los medidores."
+    },
+    {
+      "clave": "vad.perdidas_estandar.factores_incremento",
+      "valor": {
+        "caracter": "facultativo («se podrán considerar»), cada uno con su máximo",
+        "divergencia_cargas_max": 0.2,
+        "divergencia_ambito": "circuitos de MT de una misma SET AT/MT y de BT de una misma SED MT/BT",
+        "asimetria_fases_max": 0.25,
+        "asimetria_ambito": "MT rurales y BT urbanos y rurales",
+        "armonicos": "dentro de los límites de la NTCSE y la NTCSER"
+      },
+      "articulo_o_anexo": "Numeral 6.9 Cálculo de las pérdidas estándar de un sistema eléctrico",
+      "pagina": "46 (pdf 47)",
+      "lineas": "2230-2231; 2232-2233; 2234-2235; 2236-2237",
+      "cita_literal": "Para el cálculo de las pérdidas técnicas se podrán considerar los siguientes factores de incremento de estas: [...] Divergencia de cargas en circuitos de MT de una misma SETAT/MT y de BT de una misma SEDMT/BT hasta un 20%. [...] Asimetría de carga entre fases de circuitos de MT rurales y de BT urbanos y rurales hasta un 25%. [...] Influencia de la distorsión por armónicos de corriente, dentro de los límites admitidos en la NTCSE y NTCSER, según corresponda.",
+      "unidad": "fracción",
+      "interpretacion": "Topes del incremento («hasta»), no valores fijos. El TdR no dice si se suman o se multiplican. DECISIÓN P-6 (28, 2026-11-15; HUECOS A7-7): los factores son ENTRADAS del perfil, cada uno con su sustento, y la forma de combinarlos (suma o producto) la declara el perfil; sin ella, hueco nombrado; el resultado muestra las dos cifras (suma y producto) y los topes del 20 % y del 25 % se validan siempre; los armónicos, solo con una medición que los acredite."
+    },
+    {
+      "clave": "vad.perdidas_estandar.alumbrado_publico",
+      "valor": "en BT no se incorporan las pérdidas de redes y equipos de AP (el AP se mide en las SED); lo mismo en el balance",
+      "articulo_o_anexo": "Numeral 6.9 Cálculo de las pérdidas estándar de un sistema eléctrico",
+      "pagina": "46 (pdf 47)",
+      "lineas": "2241-2243",
+      "cita_literal": "Se debe tener presente que a nivel BT no se incorporan las pérdidas en las redes y equipos de AP, dado que la medición del AP se efectúa en las SED. La misma consideración se deberá tener en cuenta en el balance de energía y potencia."
+    },
+    {
+      "clave": "vad.perdidas_no_tecnicas.reales",
+      "valor": {
+        "definicion": "pérdidas totales − pérdidas técnicas, ambas sobre la red real (información de la etapa 1)",
+        "empresa_debe": [
+          "reportar y acreditar sus acciones de análisis, detección, supervisión y control de PNT",
+          "plan de acción con medidas y metas cuantificables al final del próximo periodo tarifario"
+        ]
+      },
+      "articulo_o_anexo": "Numeral 6.9 Cálculo de las pérdidas estándar de un sistema eléctrico",
+      "pagina": "47 (pdf 48)",
+      "lineas": "2247-2248; 2252-2253",
+      "cita_literal": "Las pérdidas no técnicas reales serán determinadas a partir de la diferencia entre las pérdidas totales y las pérdidas técnicas ambas calculadas sobre la red real (información de la etapa 1). [...] Presentar un plan de acción con medidas concretas y metas cuantificables a alcanzar al final del periodo Tarifario próximo."
+    },
+    {
+      "clave": "vad.perdidas_no_tecnicas.valor_maximo_reconocible",
+      "valor": {
+        "naturaleza": "REFERENCIA (no tope)",
+        "referencia": "valores aprobados por Osinergmin en los últimos procesos regulatorios del VAD"
+      },
+      "articulo_o_anexo": "Numeral 6.9 Cálculo de las pérdidas estándar de un sistema eléctrico",
+      "pagina": "47 (pdf 48)",
+      "lineas": "2254-2255",
+      "cita_literal": "El valor máximo de pérdidas No Técnicas reconocibles podrá tomar como referencia los valores aprobados por Osinergmin en los últimos procesos regulatorios del VAD.",
+      "interpretacion": "«podrá tomar como referencia»: REFERENCIA, NUNCA TOPE (orden de 28 para V10). El valor se muestra con su fuente y la desviación se justifica. NOTA DE NUMERAL: en el vigente este párrafo está en el 6.9 (pág. 47, antes del título «6.10 Balance»), no en el 6.10 como se ha venido citando en ORDENES; el contenido es el mismo."
+    },
+    {
+      "clave": "vad.perdidas_estandar.componentes_fuera_del_modelo",
+      "valor": {
+        "proponen": "las empresas, como en fijaciones anteriores",
+        "componentes": [
+          "acometidas",
+          "medidores",
+          "cables de comunicación",
+          "fusibles",
+          "aisladores",
+          "demás elementos auxiliares fuera del modelo"
+        ],
+        "condicion": "sustento técnico y metodológico; sujetos a evaluación y validación de Osinergmin"
+      },
+      "articulo_o_anexo": "Numeral 6.9 Cálculo de las pérdidas estándar de un sistema eléctrico",
+      "pagina": "47 (pdf 48)",
+      "lineas": "2257-2259; 2260-2262",
+      "cita_literal": "las empresas distribuidoras propondrán los valores de pérdidas técnicas correspondientes a aquellos componentes que no son abordados explícitamente por el modelo geométrico. [...] Dichos componentes incluyen, entre otros, las acometidas, medidores, cables de comunicación, fusibles, aisladores y demás elementos auxiliares del sistema eléctrico que no forman parte del alcance del modelo"
+    },
+    {
+      "clave": "vad.balance.adaptado",
+      "valor": {
+        "desde": "balance de potencia y energía real",
+        "mercados": [
+          "regulado",
+          "libre: clientes libres de la empresa",
+          "libre: libres de terceros"
+        ],
+        "solo_cambia": "pérdidas de potencia y energía"
+      },
+      "articulo_o_anexo": "Numeral 6.10 Balance de Potencia y Energía",
+      "pagina": "47 (pdf 48)",
+      "lineas": "2266-2268",
+      "cita_literal": "A partir del balance de potencia y energía real, Se deberá presentar un balance de potencia y energía adaptado considerando el mercado regulado y el mercado libre (clientes libres de la empresa y libres de terceros). Solo se modificarán los valores de pérdidas de potencia y energía."
+    },
+    {
+      "clave": "vad.balance.demanda_maxima_mt_bt",
+      "valor": {
+        "de": "balance adaptado",
+        "con": [
+          "perfiles de ingreso de energía en MT",
+          "pérdidas estándar",
+          "ventas",
+          "salidas para libres de terceros"
+        ]
+      },
+      "articulo_o_anexo": "Numeral 6.10 Balance de Potencia y Energía",
+      "pagina": "47 (pdf 48)",
+      "lineas": "2269-2271",
+      "cita_literal": "Se deberá determinar la demanda máxima de potencia en Media Tensión y Baja Tensión a partir del Balance de Potencia y Energía adaptado considerando los perfiles de ingreso de energía en MT, pérdidas estándar, ventas y salidas para libres de terceros."
+    },
+    {
+      "clave": "vad.balance.ambito",
+      "valor": [
+        "cada sistema eléctrico adaptado",
+        "cada SER adaptado",
+        "total empresa real",
+        "total empresa modelo"
+      ],
+      "articulo_o_anexo": "Numeral 6.10 Balance de Potencia y Energía",
+      "pagina": "47 (pdf 48)",
+      "lineas": "2272-2273",
+      "cita_literal": "El balance se debe elaborar para cada sistema eléctrico y SER adaptado y para el total de la empresa real y modelo."
+    },
+    {
+      "clave": "vad.balance.cierre_red_real",
+      "valor": "en el balance de la red real, la potencia máxima resultante de cada sistema y del total coincide con la potencia máxima simultánea medida",
+      "articulo_o_anexo": "Numeral 6.10 Balance de Potencia y Energía",
+      "pagina": "47 (pdf 48)",
+      "lineas": "2274-2275",
+      "cita_literal": "En el balance de la red real, la potencia máxima resultante para cada sistema eléctrico y total empresa coincidirá con la potencia máxima simultánea medida según corresponda.",
+      "interpretacion": "«coincidirá»: el TdR NO da tolerancia numérica (la T8 de la 108 hablaba de «la tolerancia transcrita»: no hay ninguna que transcribir). DECISIÓN de 28 (2026-11-15; HUECOS A7-6): la tolerancia por defecto del «coincidirá» es el error admisible de la CLASE DEL MEDIDOR (medida.error_admisible_por_clase, RM 496-2005-MEM/DM, Tabla N° 01), con la clase que declara el perfil; sin ella, la clase por defecto en MT (medida.clase_por_defecto_mt, 0,5S), marcada como tal. El perfil la puede sustituir con su sustento. La diferencia se muestra SIEMPRE, cierre o no. Es práctica decidida, no norma: el 0,5 % que se propuso antes no tenía cita y no se usa."
+    },
+    {
+      "clave": "vad.balance.factores",
+      "valor": {
+        "factor_carga_horas_uso_coincidencia": "del estudio de caracterización (Anexo N° 4)",
+        "factor_coincidencia": "F1: Factor de participación en la punta efectiva",
+        "ver": "vad.anexo4.factor_contribucion_punta (F1)"
+      },
+      "articulo_o_anexo": "Numeral 6.10 Balance de Potencia y Energía",
+      "pagina": "48 (pdf 49)",
+      "lineas": "2338-2339; 2340-2341",
+      "cita_literal": "Los factores de carga, horas de uso y el factor de coincidencia se tomarán de los resultados del estudio de caracterización de la carga que se describe en el Anexo N° 4. [...] El factor de coincidencia a emplear será el denominado “F1: Factor de participación en la punta efectiva”.",
+      "interpretacion": "El Anexo 4 (z12) define F1 como demanda en la hora de punta del sistema / demanda máxima propia; el 6.10 lo llama «Factor de participación en la punta efectiva». Mismo factor, dos nombres."
+    },
+    {
+      "clave": "vad.balance.cuadro20",
+      "valor": {
+        "titulo": "Balance de Energía y Potencia de Punta",
+        "cabecera": [
+          "Mes, Día y Hora de Máxima Demanda",
+          "Año"
+        ],
+        "columnas": [
+          "Energía (MW.h): MW.h",
+          "Energía (MW.h): %",
+          "Factor de carga/pérdidas",
+          "Potencia (kW): kW",
+          "Potencia (kW): %",
+          "Factor de Coincidencia"
+        ],
+        "grupos": [
+          "Muy Alta Tensión (MAT)",
+          "Alta Tensión (AT)",
+          "Media Tensión (MT)"
+        ],
+        "filas": [
+          "Ingreso a MAT",
+          "Ventas en MAT",
+          "Pérdidas en MAT",
+          "Ingreso a AT desde MAT",
+          "Compras en AT",
+          "Total Ingreso a AT",
+          "Ventas en AT",
+          "AT1",
+          "AT2",
+          "Pérdidas en AT",
+          "Ingreso a MT desde AT",
+          "Compras en MT",
+          "Generación Propia Neta",
+          "Consumo Propio",
+          "Ventas a Otros Distribuidores",
+          "Total Ingreso a MT",
+          "Pérdidas Estándar en Media Tensión",
+          "Técnicas",
+          "No Técnicas",
+          "Ventas en Media Tensión",
+          "MT1",
+          "MT2",
+          "MT3P",
+          "MT3FP",
+          "MT4P",
+          "MT4FP",
+          "Ingreso a BT",
+          "Pérdidas Estándar en Baja Tensión",
+          "Técnicas",
+          "No Técnicas",
+          "Ventas en Baja Tensión",
+          "BT1",
+          "BT2",
+          "BT3P",
+          "BT3FP",
+          "BT4P",
+          "BT4FP",
+          "BT5A.A",
+          "BT5A.B",
+          "BT5B",
+          "BT5C-AP",
+          "BT5D",
+          "BT5E",
+          "BT5F",
+          "BT6",
+          "BT7",
+          "Pérdidas No Estándar (MW.h)",
+          "Porcentaje Total de Pérdidas (%)"
+        ],
+        "celdas_grises": [],
+        "equivale_a": "formato A-VI (anexo2_formatos.json)",
+        "cotejo_A-VI": {
+          "filas_cuadro20": 48,
+          "filas_A-VI": 48,
+          "diferencias_en_orden": [],
+          "sobran_en_A-VI": [],
+          "columnas_A-VI": [
+            "Energía (MW.h)",
+            "Energía %",
+            "Factor de carga/pérdidas",
+            "Potencia (kW)",
+            "Potencia %",
+            "Factor de Coincidencia"
+          ]
+        }
+      },
+      "articulo_o_anexo": "Numeral 6.10 Balance de Potencia y Energía",
+      "pagina": "47 (pdf 48)",
+      "lineas": "2276-2277",
+      "cita_literal": "El balance de potencia y energía debe resumirse de acuerdo a lo indicado en el siguiente cuadro, mismo que corresponde al formato VI:",
+      "interpretacion": "Cuadro leído en la IMAGEN (png/c-049.png): sin celdas grises (solo bordes y rótulos en negrita); las filas coinciden con las líneas enteras de la capa -raw y con el A-VI del registro (ver cotejo_A-VI). El cuadro no da fórmulas de cierre: las de A-VI vienen del Anexo 2."
+    },
+    {
+      "clave": "vad.capital_de_trabajo.remision",
+      "valor": {
+        "numeral": "5.12 Estudio del costo del capital de trabajo",
+        "remite_a": "numeral 12 del Anexo 7",
+        "se_aplica": "numeral 11 del Anexo 7 (vad.anexo7.capital_de_trabajo)",
+        "errata": true
+      },
+      "articulo_o_anexo": "Numeral 5.12 Estudio del costo del capital de trabajo; Anexo N° 7, numeral 11",
+      "pagina": "24 (pdf 25); Anexo 7-14 (pdf 178)",
+      "lineas": "1215; 7437",
+      "cita_literal": "capital de trabajo, se indican en el numeral 12 del Anexo 7 del presente documento. [...] 11. Cálculo del costo del Capital de Trabajo (CCT)",
+      "interpretacion": "ERRATA del TdR (HUECOS A7-2; conformidad de 28, 2026-11-15): el 5.12 remite al numeral 12 del Anexo 7, que es «Consideración de las economías de escala» (línea 7469); el CCT está en el numeral 11. Se aplica el 11 por su contenido, con un aviso que cita las dos líneas."
+    },
+    {
+      "clave": "vad.balance.potencia_resultante",
+      "valor": {
+        "formato": "A-VI",
+        "terminos": [
+          {
+            "fila": "(1)",
+            "nombre": "Ingreso a MAT",
+            "signo": 1
+          },
+          {
+            "fila": "(5)",
+            "nombre": "Compras en AT",
+            "signo": 1
+          },
+          {
+            "fila": "(12)",
+            "nombre": "Compras en MT",
+            "signo": 1
+          },
+          {
+            "fila": "(13)",
+            "nombre": "Generación Propia Neta",
+            "signo": 1
+          },
+          {
+            "fila": "(14)",
+            "nombre": "Consumo Propio",
+            "signo": -1
+          }
+        ]
+      },
+      "unidad": "kW",
+      "articulo_o_anexo": "Anexo N° 2, Formato A-VI «Balance de Energía y Potencia de Punta»",
+      "pagina": "Anexo 2-13 (pdf 93)",
+      "lineas": "3942; 3947; 3955; 3956; 3957",
+      "cita_literal": "(1) Ingreso a MAT [...] (5) Compras en AT [...] (12) Compras en MT [...] (13) Generación Propia Neta [...] (14) Consumo Propio",
+      "interpretacion": "DECISIÓN de c3 (2026-11-15, VAD-A7 v2): la «potencia máxima resultante» de la red real (vad.balance.cierre_red_real, num. 6.10) es lo que entra en el sistema según el A-VI: (1) Ingreso a MAT + (5) Compras en AT + (12) Compras en MT + (13) Generación Propia Neta − (14) Consumo Propio, en la columna de potencia (kW). El TdR no da su fórmula; cada término lleva aquí su cita literal de la fila del formato (texto 48ea8cf4, «G eneración» partido en el original)."
+    }
+  ]
+}

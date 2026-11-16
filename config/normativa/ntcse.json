@@ -1,0 +1,125 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Fichero propio de la NTCSE: aquí van todas sus reglas (107 T7, tarjeta PIT-TEN, 2026-11-15, f4; la tarjeta VAD-CAL añade aquí sus vad.calidad.limite.*, sin repetir el acto). Texto consolidado oficial de gob.pe (a 2020: DS 009-99, 013-2000, 040-2001, 026-2006, 037-2008, 057-2010, 040-2011, 032-2014, 020-2016, 007-2017, 040-2017 y nota del DU 035-2020), descargado y cotejado por cc (carpetas z9b, z15 y z18 de su apoyo). Vigencia comprobada en el SPIJ libre (ficha H776413). Las líneas son las de ntcse_gobpe.txt (sha256_texto).",
+ "normas": [
+  {
+   "acto": "DS 020-97-EM",
+   "titulo": "Norma Técnica de Calidad de los Servicios Eléctricos (NTCSE)",
+   "estado_juridico": "modificada",
+   "url": "https://cdn.www.gob.pe/uploads/document/file/3908456/Decreto%20supremo%20N%C2%B0%20020-97-EM.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "fd9d5ea1a4203c46b33f4692731cc1c9c03b3b2cd3f1b6bc0eadf14c5e62e0ef",
+   "sha256_texto": "c3b874de80592d27fb8a5913ca395013e3745d890fa95182c70d66b244e014a8",
+   "fichero_local": "ntcse_gobpe.txt",
+   "version": "texto consolidado de gob.pe (a 2020)",
+   "modificada_por": [
+    "DS 009-99-EM",
+    "DS 013-2000-EM",
+    "DS 040-2001-EM",
+    "DS 026-2006-EM",
+    "DS 037-2008-EM",
+    "DS 057-2010-EM",
+    "DS 040-2011-EM",
+    "DS 032-2014-EM",
+    "DS 020-2016-EM",
+    "DS 007-2017-EM",
+    "DS 040-2017-EM"
+   ],
+   "nota": "Se cita el texto consolidado oficial. Vigencia desde la publicación del DS 020-97-EM, 11-10-1997, comprobada en el SPIJ libre (ficha H776413, sha del innerText 27632b33…): según sus notas, el DS 009-99-EM modifica el 5.1.2 en su segundo párrafo (mala calidad por tiempo fuera de rango), que no se transcribe aquí; el primero, el de las tolerancias, queda como se cita. Contexto 2026: el DS 013-2026-EM y el DS 020-2026-EM inaplican temporalmente transgresiones y compensaciones en supuestos acotados; no cambian las tolerancias.",
+   "reglas": [
+    {
+     "clave": "calidad.tension.tolerancia_ntcse",
+     "valor": {
+      "general": 0.05,
+      "redes_secundarias_urbano_rurales_o_rurales": 0.075,
+      "referencia": "tensión nominal del punto de entrega"
+     },
+     "unidad": "fracción de la tensión nominal",
+     "articulo_o_anexo": "num. 5.1.2 Tolerancias",
+     "pagina": "pdf 13 (consolidado de gob.pe)",
+     "lineas": "648-651",
+     "cita_literal": "5.1.2 Tolerancias.- Las tolerancias admitidas sobre las tensiones nominales de los puntos de entrega de energía, en todas las Etapas y en todos los niveles de tensión, es de hasta el ±5.0% de las tensiones nominales de tales puntos. Tratándose de redes secundarias en servicios calificados como Urbano-Rurales y/o Rurales, dichas tolerancias son de hasta el ±7.5%.",
+     "interpretacion": "±5,0 % en los puntos de entrega de cualquier nivel. El ±7,5 % es solo para las redes secundarias (BT) de los servicios que la DGE califica como urbano-rurales o rurales (disposición Décima): una barra de MT o AT de esos servicios sigue con ±5,0 %.",
+     "verificacion": {
+      "fecha": "2026-11-15",
+      "resultado": "texto consolidado oficial de gob.pe; el primer párrafo del 5.1.2 sin modificatorias en la consolidación",
+      "responsable": "cc (apoyo de f4)",
+      "fuentes": [
+       {
+        "documento": "DS 020-97-EM, texto consolidado (gob.pe)",
+        "url": "https://cdn.www.gob.pe/uploads/document/file/3908456/Decreto%20supremo%20N%C2%B0%20020-97-EM.pdf",
+        "sha256": "fd9d5ea1a4203c46b33f4692731cc1c9c03b3b2cd3f1b6bc0eadf14c5e62e0ef",
+        "consolidado_hasta": "2020 (nota del DU 035-2020)"
+       }
+      ]
+     }
+    },
+    {
+     "clave": "vad.calidad.limite.interrupciones",
+     "valor": {
+      "MAT_AT": 2,
+      "MT": 4,
+      "BT": 6,
+      "incremento_bt": {
+       "urbano_rural": 0.5,
+       "rural": 0.5
+      }
+     },
+     "unidad": "interrupciones/semestre (N', por cliente)",
+     "articulo_o_anexo": "num. 6.1.4 Tolerancias y 6.1.5 (texto del DS 040-2001-EM)",
+     "pagina": "pdf 33 (consolidado de gob.pe)",
+     "lineas": "1687-1695; 1710-1713",
+     "cita_literal": "Número de Interrupciones por Cliente (N') - Clientes en Muy Alta y Alta Tensión : 2 Interrupciones/semestre - Clientes en Media Tensión : 4 Interrupciones/semestre - Clientes en Baja Tensión : 6 Interrupciones/semestre [...] “6.1.5 Tratándose de Clientes en baja tensión en servicios calificados como urbano-rural y rural, incrementar para ambos la tolerancia del Número de Interrupciones por Cliente (N') en 50% y la tolerancia de la Duración Total Ponderada de Interrupciones por Cliente (D') en 100% para el servicios urbano-rural y 250%, para el servicio rural.”",
+     "interpretacion": "Literal: N' por nivel y el incremento del 6.1.5 para BT urbano-rural y rural (+50 %). El límite de un cliente lo calcula vad/calidad.py (6 × 1,5 = 9), no se transcribe calculado. El +30 % del Sector Típico 2 está en otra norma (DS 009-99-EM, art. 4, texto del DS 040-2001-EM): regla vad.calidad.limite.incremento_sector_tipico_2. Tarjeta VAD-CAL (108 T18)."
+    },
+    {
+     "clave": "vad.calidad.limite.duracion",
+     "valor": {
+      "MAT_AT": 4,
+      "MT": 7,
+      "BT": 10,
+      "incremento_bt": {
+       "urbano_rural": 1.0,
+       "rural": 2.5
+      }
+     },
+     "unidad": "horas/semestre (D', por cliente)",
+     "articulo_o_anexo": "num. 6.1.4 Tolerancias y 6.1.5 (texto del DS 040-2001-EM)",
+     "pagina": "pdf 33 (consolidado de gob.pe)",
+     "lineas": "1697-1700; 1710-1713",
+     "cita_literal": "Duración Total Ponderada de Interrupciones por Cliente (D') - Clientes en Muy Alta y Alta Tensión : 4 horas/semestre - Clientes en Media Tensión : 7 horas/semestre - Clientes en Baja Tensión : 10 horas/semestre [...] “6.1.5 Tratándose de Clientes en baja tensión en servicios calificados como urbano-rural y rural, incrementar para ambos la tolerancia del Número de Interrupciones por Cliente (N') en 50% y la tolerancia de la Duración Total Ponderada de Interrupciones por Cliente (D') en 100% para el servicios urbano-rural y 250%, para el servicio rural.”",
+     "interpretacion": "Literal: D' por nivel y el incremento del 6.1.5 para BT (+100 % urbano-rural, +250 % rural). El límite de un cliente lo calcula vad/calidad.py (10 × 2 = 20; 10 × 3,5 = 35). Tarjeta VAD-CAL."
+    },
+    {
+     "clave": "vad.calidad.ntcse.indicadores_n_d",
+     "valor": {
+      "periodo": "semestre",
+      "factor_n_programadas_expansion": 0.5,
+      "k": {
+       "expansion": 0.25,
+       "mantenimiento": 0.5,
+       "otras": 1.0
+      },
+      "k_diferencia_programada": {
+       "real_menor": 0.0,
+       "real_mayor": 1.0
+      },
+      "duracion_minima_min": 3,
+      "excluye": [
+       "fuerza_mayor",
+       "rechazo_carga"
+      ]
+     },
+     "unidad": "N: interrupciones/semestre; D: horas/semestre (por cliente)",
+     "articulo_o_anexo": "num. 6.1.2 y 6.1.3 (texto del DS 040-2001-EM), Fórmula Nº 13",
+     "pagina": "pdf 30-33 (consolidado de gob.pe)",
+     "lineas": "1553-1560; 1636-1685",
+     "cita_literal": "no se consideran las interrupciones totales de suministro cuya duración es menor de tres (3) minutos ni las relacionadas con casos de fuerza mayor [...] El número de interrupciones programadas* por expansión o reforzamiento de redes que deben incluirse en el cálculo de este indicador, se ponderan por un factor de cincuenta por ciento (50%). b) Duración Total Ponderada de Interrupciones por Cliente [...] - Interrupciones programadas* por expansión o reforzamiento : Ki = 0.25 - Interrupciones programadas* por mantenimiento : Ki = 0.50 - Otras : Ki = 1.00 [...] Ki = 0 ; si la duración real es menor a la programada Ki = 1 ; si la duración real es mayor a la programada No se considerará para el cálculo de los indicadores N y D, las Interrupciones por Rechazo de Carga por Mínima Frecuencia",
+     "interpretacion": "N cuenta las interrupciones de cada cliente en el semestre, con las programadas por expansión o reforzamiento al 50 %; D = Σ Ki·di. Con duración programada, la parte dentro de lo programado lleva el Ki de su tipo y la diferencia lleva Ki = 0 (real menor) o 1 (real mayor). No entran las de menos de 3 minutos, las de fuerza mayor calificada ni los rechazos de carga por mínima frecuencia. El «redondeo al entero superior» de N era del DS 013-2000-EM y el texto vigente (DS 040-2001-EM) no lo trae: no se redondea. Tarjeta VAD-CAL."
+    }
+   ],
+   "fecha_publicacion": "1997-10-11",
+   "vigencia_desde": "1997-10-11"
+  }
+ ]
+}

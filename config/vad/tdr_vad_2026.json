@@ -5,25 +5,32 @@
     {
       "acto": "rcd-174-2025-os-cd",
       "titulo": "RCD 174-2025-OS/CD: Términos de Referencia del Estudio de Costos del VAD 2026-2030 y 2027-2031",
-      "estado_juridico": "no_verificada",
+      "estado_juridico": "vigente_comprobada",
       "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2025/Osinergmin-174-2025-OS-CD.pdf",
-      "fecha_publicacion": "2025-12-18",
+      "fecha_emision": "2025-12-18",
+      "fecha_publicacion": "2025-12-19",
+      "fecha_consulta": "2026-11-14",
+      "sha256": "87dc452e9f5a121d0f5aadfe64c6b275a562e9721502d33fdc1aaa100e504070",
+      "fichero_local": "VAD_2026_2030_2027_2031/www.osinergmin.gob.pe/Resoluciones/pdf/2025/Osinergmin-174-2025-OS-CD.pdf",
       "modificada_por": [
         "rcd-033-2026-os-cd"
       ],
-      "nota": "G0 la leyó en línea el 2026-11-14 (D_REFERENCIAS_NORMATIVAS, fila 5), pero en este equipo no hay copia local ni huella del texto: queda no_verificada hasta descargarla y registrar su SHA-256. El texto aplicable de los TdR es el anexo modificado (tdr-vad-2026-anexo-r033).",
+      "nota": "Copia local descargada el 2026-11-14 a las 18:27:10 (-05:00), según el índice del corpus normativo; su SHA-256, recalculado sobre la copia local en la tarjeta VAD-REQ (2026-11-15), coincide con el del índice. Emisión: «Lima, 18 de diciembre de 2025» (pág. 1). Publicación: el 19 de diciembre de 2025, según el primer considerando de la RCD 033-2026-OS/CD («publicada el 19 de diciembre de 2025»); hasta VAD-REQ la config daba como publicación la fecha de emisión. El texto aplicable de los TdR es el anexo modificado (tdr-vad-2026-anexo-r033).",
       "reglas": []
     },
     {
       "acto": "rcd-033-2026-os-cd",
       "titulo": "RCD 033-2026-OS/CD: modifica los TdR de la RCD 174-2025-OS/CD tras las reconsideraciones",
-      "estado_juridico": "no_verificada",
+      "estado_juridico": "vigente_comprobada",
       "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2026/Osinergmin-033-2026-OS-CD.pdf",
-      "fecha_publicacion": "2026-02-26",
+      "fecha_emision": "2026-02-26",
+      "fecha_consulta": "2026-11-14",
+      "sha256": "bfd05eabd86a4d4e3cccdb76dce2ab601b4c900f8c3b38f9ab160f34b85145c4",
+      "fichero_local": "VAD_2026_2030_2027_2031/www.osinergmin.gob.pe/Resoluciones/pdf/2026/Osinergmin-033-2026-OS-CD.pdf",
       "modifica": [
         "rcd-174-2025-os-cd"
       ],
-      "nota": "G0 la leyó en línea el 2026-11-14 (fila 6); sin copia local ni huella en este equipo. Su anexo es el texto registrado en tdr-vad-2026-anexo-r033.",
+      "nota": "Copia local descargada el 2026-11-14 a las 18:28:45 (-05:00), según el índice del corpus normativo; su SHA-256, recalculado sobre la copia local en la tarjeta VAD-REQ (2026-11-15), coincide con el del índice. Emisión: «Lima, 26 de febrero del 2026» (pág. 1); hasta VAD-REQ la config la daba como fecha de publicación. La publicación en El Peruano no se ha comprobado: queda sin fecha_publicacion hasta leerla. Su anexo es el texto registrado en tdr-vad-2026-anexo-r033.",
       "reglas": []
     },
     {
@@ -113,7 +120,18 @@
           "articulo_o_anexo": "5 Criterios a considerar en los reportes (art. 79 de la LCE)",
           "pagina": "27",
           "lineas": "1347-1350",
-          "cita_literal": "Las cifras de aVNR que se mencionan más adelante corresponden a la anualidad del VNR, calculado con la tasa de actualización establecida en el artículo 79 de la LCE y para un periodo de vida útil de 30 años, es decir, se aplicará el factor igual a 0,124144 considerando la tasa de 12% del mencionado artículo."
+          "cita_literal": "Las cifras de aVNR que se mencionan más adelante corresponden a la anualidad del VNR, calculado con la tasa de actualización establecida en el artículo 79 de la LCE y para un periodo de vida útil de 30 años, es decir, se aplicará el factor igual a 0,124144 considerando la tasa de 12% del mencionado artículo.",
+          "interpretacion": "Es el factor que publica el TdR para el 12 % del art. 79 de la LCE y 30 años, y se usa como contraste (UNA-TASA): el conversor calcula el FRC con la única fórmula (util.frc), la tasa de la regla principal pit.tasa_actualizacion (DL 25844, art. 79) y vad.vida_util_anios, y lo compara con este a 6 decimales. Si no cuadran (el MINEM fijó otra tasa al amparo del 2.º párrafo del art. 79), usa el calculado y lo dice en un aviso."
+        },
+        {
+          "clave": "vad.vida_util_anios",
+          "valor": 30,
+          "unidad": "años",
+          "articulo_o_anexo": "5 Criterios a considerar en los reportes (art. 79 de la LCE)",
+          "pagina": "27",
+          "lineas": "1347-1350",
+          "cita_literal": "Las cifras de aVNR que se mencionan más adelante corresponden a la anualidad del VNR, calculado con la tasa de actualización establecida en el artículo 79 de la LCE y para un periodo de vida útil de 30 años",
+          "interpretacion": "La vida útil con la que se calcula el FRC de la anualidad del VNR (aVNR): la misma cita de vad.frc, hasta «30 años»."
         },
         {
           "clave": "vad.factor_mensual_avnr",

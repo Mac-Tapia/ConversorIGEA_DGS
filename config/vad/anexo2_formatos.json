@@ -27,6 +27,13 @@
       "nota": "La información del sistema eléctrico modelo solo aplica para la empresa con encargo del Estudio VAD por sector típico.",
       "filas": [
         {
+          "id": "grupo.media_tension",
+          "nombre": "Media Tensión",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
+        },
+        {
           "id": "MT.red_aerea",
           "nombre": "Media Tensión / Red Aérea",
           "unidad": "km",
@@ -49,7 +56,22 @@
           "nombre": "Sub Total Red Media Tensión",
           "unidad": "según componente",
           "obligatoria": false,
-          "formula": "suma de las filas MT"
+          "formula": "suma de las filas MT",
+          "tipo": "total"
+        },
+        {
+          "id": "grupo.subestaciones",
+          "nombre": "Subestaciones",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
+        },
+        {
+          "id": "grupo.subestaciones_de_distribucion_mt_bt",
+          "nombre": "Subestaciones de Distribución MT/BT",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
         },
         {
           "id": "SED.monoposte",
@@ -82,6 +104,13 @@
           "obligatoria": true
         },
         {
+          "id": "grupo.otras_subestaciones",
+          "nombre": "Otras Subestaciones",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
+        },
+        {
           "id": "SE.elevadora_reductora",
           "nombre": "Otras Subestaciones / Elevadora/Reductora",
           "unidad": "unidad",
@@ -92,6 +121,20 @@
           "nombre": "Otras Subestaciones / De Seccionamiento",
           "unidad": "unidad",
           "obligatoria": true
+        },
+        {
+          "id": "grupo.baja_tension",
+          "nombre": "Baja Tensión",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
+        },
+        {
+          "id": "grupo.red_aerea.16",
+          "nombre": "Red Aérea",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
         },
         {
           "id": "BT.aerea.servicio_particular",
@@ -124,6 +167,13 @@
           "obligatoria": true
         },
         {
+          "id": "grupo.red_subterranea.22",
+          "nombre": "Red Subterránea",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
+        },
+        {
           "id": "BT.subterranea.servicio_particular",
           "nombre": "Baja Tensión / Red Subterránea / Servicio Particular",
           "unidad": "km",
@@ -152,7 +202,40 @@
           "nombre": "Sub Total Red Baja Tensión",
           "unidad": "según componente",
           "obligatoria": false,
-          "formula": "suma de las filas BT"
+          "formula": "suma de las filas BT",
+          "tipo": "total"
+        },
+        {
+          "id": "BT.subtotal.servicio_particular",
+          "nombre": "Servicio Particular",
+          "unidad": "km",
+          "tipo": "total",
+          "nota": "desglose del «Sub Total Red Baja Tensión»: suma de Red Aérea + Red Subterránea del mismo concepto (lectura por sangría y posición; el formato no escribe la fórmula)",
+          "obligatoria": true
+        },
+        {
+          "id": "BT.subtotal.alumbrado_publico",
+          "nombre": "Alumbrado Público",
+          "unidad": "km",
+          "tipo": "total",
+          "nota": "desglose del «Sub Total Red Baja Tensión»: suma de Red Aérea + Red Subterránea del mismo concepto (lectura por sangría y posición; el formato no escribe la fórmula)",
+          "obligatoria": true
+        },
+        {
+          "id": "BT.subtotal.luminarias",
+          "nombre": "Luminarias",
+          "unidad": "unidad",
+          "tipo": "total",
+          "nota": "desglose del «Sub Total Red Baja Tensión»: suma de Red Aérea + Red Subterránea del mismo concepto (lectura por sangría y posición; el formato no escribe la fórmula)",
+          "obligatoria": true
+        },
+        {
+          "id": "BT.subtotal.equipos_de_control",
+          "nombre": "Equipos de Control",
+          "unidad": "unidad",
+          "tipo": "total",
+          "nota": "desglose del «Sub Total Red Baja Tensión»: suma de Red Aérea + Red Subterránea del mismo concepto (lectura por sangría y posición; el formato no escribe la fórmula)",
+          "obligatoria": true
         },
         {
           "id": "no_electricas",
@@ -165,7 +248,8 @@
           "nombre": "TOTAL",
           "unidad": "Miles US$",
           "obligatoria": false,
-          "formula": "suma de los componentes"
+          "formula": "suma de los componentes",
+          "tipo": "total"
         }
       ],
       "columnas": [
@@ -205,6 +289,16 @@
           "unidad": "Miles US$",
           "obligatoria": false
         }
+      ],
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 82,
+        "pie": "Anexo 2-2",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      },
+      "observaciones": [
+        "Sacar los grupos del nombre como filas «grupo» (como en V-1/V-2): el original los pinta como filas propias (Media Tensión, Subestaciones y Baja Tensión con borde de fila; los subgrupos en negrita o sangrados). «Red Aérea» y «Red Subterránea» son DATO en Media Tensión (llevan km) y GRUPO en Baja Tensión."
       ]
     },
     {
@@ -216,7 +310,6 @@
       "pagina": "Anexo 2-3",
       "lineas": "3620-3642",
       "periodo": "año",
-      "nota": "La información del sistema eléctrico modelo solo aplica para la empresa con encargo del Estudio VAD por sector típico.",
       "filas": [
         {
           "id": "A1",
@@ -347,7 +440,19 @@
           "unidad": "texto",
           "obligatoria": true
         }
-      ]
+      ],
+      "notas": {
+        "1": "El VNR debe asignarse a las actividades en correspondencia al uso compartido que tienen las instalaciones en el desarrollo de actividades.",
+        "2": "Los documentos de respaldo son fuente que sirven de base para la elaboración de la información reportada en los formatos.",
+        "3": "La información del sistema eléctrico modelo solo aplica para la empresa con encargo del Estudio VAD por sector típico."
+      },
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 83,
+        "pie": "Anexo 2-3",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      }
     },
     {
       "id": "A-II",
@@ -358,7 +463,6 @@
       "pagina": "Anexo 2-4 y 2-5",
       "lineas": "3655-3702",
       "periodo": "año",
-      "nota": "La información del sistema eléctrico modelo solo aplica para la empresa con encargo del Estudio VAD por sector típico.",
       "filas": [
         {
           "id": "A1",
@@ -490,7 +594,18 @@
           "obligatoria": true
         }
       ],
-      "interpretacion": "Las cabeceras «Total Año XX / Miles US$ Miles S/.» (líneas 3672-3675) se leen como dos bloques de moneda con las columnas de la línea 3686."
+      "interpretacion": "Las cabeceras «Total Año XX / Miles US$ Miles S/.» (líneas 3672-3675) se leen como dos bloques de moneda con las columnas de la línea 3686.",
+      "notas": {
+        "1": "Los documentos de respaldo son fuente que sirven de base para la elaboración de la información reportada en los formatos.",
+        "2": "La información del sistema eléctrico modelo solo aplica para la empresa con encargo del Estudio VAD por sector típico."
+      },
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 84,
+        "pie": "Anexo 2-4",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      }
     },
     {
       "id": "A-V-1",
@@ -503,153 +618,525 @@
       "periodo": "año",
       "filas": [
         {
+          "id": "MERCADO LIBRE",
+          "nombre": "MERCADO LIBRE",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
+        },
+        {
           "id": "MAT1",
           "nombre": "Clientes libres en MAT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
         },
         {
           "id": "AT1",
           "nombre": "Clientes libres en AT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
         },
         {
           "id": "MT1",
           "nombre": "Clientes libres en MT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
         },
         {
           "id": "BT1",
           "nombre": "Clientes libres en BT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "TOTAL MERCADO LIBRE",
+          "nombre": "TOTAL MERCADO LIBRE",
+          "unidad": "",
+          "tipo": "total",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "MERCADO REGULADO",
+          "nombre": "MERCADO REGULADO",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
+        },
+        {
+          "id": "EN ALTA TENSIÓN",
+          "nombre": "EN ALTA TENSIÓN",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
         },
         {
           "id": "AT2",
           "nombre": "2E2P",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "TOTAL ALTA TENSIÓN",
+          "nombre": "TOTAL ALTA TENSIÓN",
+          "unidad": "",
+          "tipo": "total",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "EN MEDIA TENSIÓN",
+          "nombre": "EN MEDIA TENSIÓN",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
         },
         {
           "id": "MT2",
           "nombre": "2P2E",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
         },
         {
           "id": "MT3P",
           "nombre": "1P2E, Presente en Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "MT3FP",
           "nombre": "1P2E, Presente Fuera de Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "MT4P",
           "nombre": "1P1E, Presente en Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
           "id": "MT4FP",
           "nombre": "1P1E, Presente Fuera de Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "TOTAL MEDIA TENSIÓN",
+          "nombre": "TOTAL MEDIA TENSIÓN",
+          "unidad": "",
+          "tipo": "total",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "EN BAJA TENSIÓN",
+          "nombre": "EN BAJA TENSIÓN",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
         },
         {
           "id": "BT2",
           "nombre": "2P2E",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
         },
         {
           "id": "BT3P",
           "nombre": "1P2E, Presente en Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "BT3FP",
           "nombre": "1P2E, Presente Fuera de Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "BT4P",
           "nombre": "1P1E, Presente en Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
           "id": "BT4FP",
           "nombre": "1P1E, Presente Fuera de Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
           "id": "BT5A.A",
           "nombre": "1P2E, hasta 20 kW en HP y en HFP",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "BT5A.B",
           "nombre": "1P2E, hasta 20 kW en HP y 50 kW en HFP",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "BT5B",
           "nombre": "1E, Residencial Total",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5B.1-30",
+          "nombre": "De 1 a 30 Kw.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B",
+          "nota": "«Kw.h» así en el original (en las demás filas, «kW.h»)."
+        },
+        {
+          "id": "BT5B.31-100",
+          "nombre": "De 31 a 100 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.101-150",
+          "nombre": "De 101 a 150 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.151-300",
+          "nombre": "De 151 a 300 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.301-500",
+          "nombre": "De 301 a 500 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.501-750",
+          "nombre": "De 501 a 750 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.751-1000",
+          "nombre": "De 751 a 1000 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.>1000",
+          "nombre": "Exceso de 1000 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
         },
         {
           "id": "BT5NR",
           "nombre": "1E-BT, No Residencial",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
           "id": "BT5C-AP",
           "nombre": "1P1E, Alumbrado Público",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "llamada": "1"
         },
         {
           "id": "BT5D",
           "nombre": "1E, BT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
           "id": "BT5E",
           "nombre": "1E, BT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
           "id": "BT5F",
           "nombre": "2E, BT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "BT6",
-          "nombre": "1P-BT, Potencia Fija",
+          "nombre": "1P-BT, Pesión Fija",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "llamada": "2",
+          "nota": "«Pesión Fija» (sic): errata del original por «Pensión Fija»."
         },
         {
           "id": "BT7",
           "nombre": "Prepago",
           "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "TOTAL BAJA TENSIÓN",
+          "nombre": "TOTAL BAJA TENSIÓN",
+          "unidad": "",
+          "tipo": "total",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "TOTAL MERCADO REGULADO",
+          "nombre": "TOTAL MERCADO REGULADO",
+          "unidad": "",
+          "tipo": "total",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "TOTAL EMPRESA (LIBRE+REGULADO)",
+          "nombre": "TOTAL EMPRESA (LIBRE+REGULADO)",
+          "unidad": "",
+          "tipo": "total",
           "obligatoria": true
         }
       ],
@@ -721,7 +1208,22 @@
           "obligatoria": false
         }
       ],
-      "interpretacion": "Las filas de total (mercado libre, alta, media y baja tensión, regulado y empresa) se calculan, y los rangos de consumo del BT5B (líneas 3769-3776) se detallan aparte; aquí se exige cada opción tarifaria."
+      "notas": {
+        "1": "De conformidad al artículo 184º del Reglamento de la Ley de Concesiones Eléctricas",
+        "2": "Energía = Potencia x NHUBT"
+      },
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf (TdR VIGENTE, RCD 033-2026-OS/CD)",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 90,
+        "pie": "Anexo 2-10",
+        "lectura": "Transcrito de la imagen y del texto del TdR vigente (RCD 033-2026-OS/CD), con doble lectura por cc (z5b): capa de texto y celdas grises por programa a 300 y 400 ppp, mapas idénticos, prueba de mutación 2 de 2."
+      },
+      "subtitulo": "Total Empresa y Sistemas Eléctricos",
+      "observaciones": [
+        "Las notas de columnas del V-1 no definen (e) ni (f); el V-2 sí.",
+        "«(I)» con I mayúscula en las notas del original (por (i))."
+      ]
     },
     {
       "id": "A-V-2",
@@ -734,154 +1236,515 @@
       "periodo": "año",
       "filas": [
         {
+          "id": "VENTAS A NIVEL GENERACIÓN-TRANSMISIÓN",
+          "nombre": "VENTAS A NIVEL GENERACIÓN-TRANSMISIÓN",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
+        },
+        {
           "id": "MAT1",
           "nombre": "Clientes libres en MAT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
         },
         {
           "id": "AT1",
           "nombre": "Clientes libres en AT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "AT2",
+          "nombre": "Clientes Regulados en AT",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "SUB TOTAL A NIVEL GENERACIÓN-TRANSMISIÓN",
+          "nombre": "SUB TOTAL A NIVEL GENERACIÓN-TRANSMISIÓN",
+          "unidad": "",
+          "tipo": "total",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "VENTAS A NIVEL DISTRIBUCIÓN",
+          "nombre": "VENTAS A NIVEL DISTRIBUCIÓN",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
+        },
+        {
+          "id": "EN MEDIA TENSIÓN",
+          "nombre": "EN MEDIA TENSIÓN",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
         },
         {
           "id": "MT1",
           "nombre": "Clientes libres en MT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
-        },
-        {
-          "id": "BT1",
-          "nombre": "Clientes libres en BT",
-          "unidad": "opción tarifaria",
-          "obligatoria": true
-        },
-        {
-          "id": "AT2",
-          "nombre": "2E2P",
-          "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
         },
         {
           "id": "MT2",
           "nombre": "2P2E",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
         },
         {
           "id": "MT3P",
           "nombre": "1P2E, Presente en Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "MT3FP",
           "nombre": "1P2E, Presente Fuera de Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "MT4P",
           "nombre": "1P1E, Presente en Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
           "id": "MT4FP",
           "nombre": "1P1E, Presente Fuera de Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "SUB TOTAL MT",
+          "nombre": "SUB TOTAL MT",
+          "unidad": "",
+          "tipo": "total",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "EN BAJA TENSIÓN",
+          "nombre": "EN BAJA TENSIÓN",
+          "unidad": "",
+          "tipo": "grupo",
+          "obligatoria": false
+        },
+        {
+          "id": "BT1",
+          "nombre": "Clientes libres en BT",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
         },
         {
           "id": "BT2",
           "nombre": "2P2E",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
         },
         {
           "id": "BT3P",
           "nombre": "1P2E, Presente en Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "BT3FP",
           "nombre": "1P2E, Presente Fuera de Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "BT4P",
           "nombre": "1P1E, Presente en Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
           "id": "BT4FP",
           "nombre": "1P1E, Presente Fuera de Punta",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
           "id": "BT5A.A",
-          "nombre": "1P2E, hasta 20 kW en HP y en HFP",
+          "nombre": "1P, 2E, hasta 20 kW en HP y en HFP",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "BT5A.B",
-          "nombre": "1P2E, hasta 20 kW en HP y 50 kW en HFP",
+          "nombre": "1P-2E, hasta 20 kW en HP y 50 kW en HFP",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
           "id": "BT5B",
           "nombre": "1E, Residencial Total",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5B.1-30",
+          "nombre": "De 1 a 30 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.31-100",
+          "nombre": "De 31 a 100 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.101-150",
+          "nombre": "De 101 a 150 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.151-300",
+          "nombre": "De 151 a 300 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.301-500",
+          "nombre": "De 301 a 500 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.501-750",
+          "nombre": "De 501 a 750 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.751-1000",
+          "nombre": "De 751 a 1000 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
+        },
+        {
+          "id": "BT5B.>1000",
+          "nombre": "Exceso de 1000 kW.h",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "rango_de": "BT5B"
         },
         {
           "id": "BT5NR",
           "nombre": "1E-BT, No Residencial",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
-          "id": "BT5C-AP",
+          "id": "BT5C",
           "nombre": "1P1E, Alumbrado Público",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "llamada": "1"
         },
         {
           "id": "BT5D",
           "nombre": "1E, BT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
           "id": "BT5E",
           "nombre": "1E, BT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         },
         {
           "id": "BT5F",
           "nombre": "2E, BT",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
         },
         {
-          "id": "BT6",
-          "nombre": "1P-BT, Potencia Fija",
+          "id": "BT6NR",
+          "nombre": "1P-BT, Pesión Fija",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ],
+          "llamada": "2",
+          "nota": "«Pesión Fija» (sic): errata del original por «Pensión Fija»."
         },
         {
           "id": "BT7",
           "nombre": "Prepago",
           "unidad": "opción tarifaria",
-          "obligatoria": true
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "SUB TOTAL BT",
+          "nombre": "SUB TOTAL BT",
+          "unidad": "",
+          "tipo": "total",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "SUB TOTAL DISTRIBUCIÓN",
+          "nombre": "SUB TOTAL DISTRIBUCIÓN",
+          "unidad": "",
+          "tipo": "total",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "TOTAL VENTAS",
+          "nombre": "TOTAL VENTAS",
+          "unidad": "",
+          "tipo": "total",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
         }
       ],
       "columnas": [
@@ -952,7 +1815,21 @@
           "obligatoria": false
         }
       ],
-      "interpretacion": "Mismas columnas (a)-(k) que el V-1 (líneas 3801-3804 y 3849-3855); las filas se agrupan por nivel generación-transmisión y distribución."
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf (TdR VIGENTE, RCD 033-2026-OS/CD)",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 91,
+        "pie": "Anexo 2-11",
+        "lectura": "Transcrito de la imagen y del texto del TdR vigente (RCD 033-2026-OS/CD), con doble lectura por cc (z5b): capa de texto y celdas grises por programa a 300 y 400 ppp, mapas idénticos, prueba de mutación 2 de 2."
+      },
+      "subtitulo": "Total Empresa y Sistemas Eléctricos",
+      "notas": {
+        "1": "De conformidad al artículo 184º del Reglamento de la Ley de Concesiones Eléctricas",
+        "2": "Energía = Potencia x NHUBT"
+      },
+      "observaciones": [
+        "«(I)» con I mayúscula en las notas del original (por (i))."
+      ]
     },
     {
       "id": "A-VI",
@@ -1253,14 +2130,14 @@
         {
           "id": "(47)",
           "nombre": "Pérdidas No Estándar (MW.h)",
-          "unidad": "MW.h y kW",
+          "unidad": "MW.h",
           "obligatoria": false,
           "formula": "(47) = (16) - (17) - (20) - (28) - (31)"
         },
         {
           "id": "(48)",
           "nombre": "Porcentaje Total de Pérdidas (%)",
-          "unidad": "MW.h y kW",
+          "unidad": "%",
           "obligatoria": false,
           "formula": "(48) = ((47) + (17) + (28)) / (16)"
         }
@@ -1412,7 +2289,8 @@
           "id": "rem.otros",
           "nombre": "Remuneración (S/) / Otros (1)",
           "unidad": "S/",
-          "obligatoria": true
+          "obligatoria": true,
+          "llamada": "1"
         },
         {
           "id": "rem.subtotal",
@@ -1460,13 +2338,15 @@
           "id": "ap.ptu",
           "nombre": "Aportes patronales y adicionales (S/) / PTU (3)",
           "unidad": "S/",
-          "obligatoria": true
+          "obligatoria": true,
+          "llamada": "3"
         },
         {
           "id": "ap.otros",
           "nombre": "Aportes patronales y adicionales (S/) / Otros (2)",
           "unidad": "S/",
-          "obligatoria": true
+          "obligatoria": true,
+          "llamada": "2"
         },
         {
           "id": "ap.subtotal",
@@ -1478,57 +2358,3728 @@
           "id": "total",
           "nombre": "Total (4)",
           "unidad": "S/",
-          "obligatoria": false
+          "obligatoria": false,
+          "llamada": "4"
         }
-      ]
+      ],
+      "notas": {
+        "1": "Asignación familiar y escolar, alimentación, movilidad y otros (especificar).",
+        "2": "Uniforme y ropa de trabajo, atenciones al personal y otros (especificar).",
+        "3": "El requerimiento de la PTU como parte de los requerimientos de información de costos de personal propio solicitados en los términos del VAD, se efectúa con la finalidad de identificar y cuantificar la PTU para su retiro en las evaluaciones de los costos de personal que realiza Osinergmin, con el objeto de determinar los costos eficientes a reconocer respectivos.",
+        "4": "Debe corresponder al total de costos de personal, incluidos los que son cargados a inversiones."
+      },
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 94,
+        "pie": "Anexo 2-14",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      },
+      "cabecera": [
+        {
+          "id": "empresa",
+          "nombre": "Empresa",
+          "unidad": "texto"
+        },
+        {
+          "id": "anio",
+          "nombre": "Año",
+          "unidad": "año"
+        }
+      ],
+      "subtitulo": "(costos anuales en S/ al 31 de diciembre del año que corresponda)",
+      "reconocible": {
+        "suman": [
+          "rem.basica",
+          "rem.gratificacion",
+          "rem.vacaciones",
+          "rem.otros",
+          "ap.cts",
+          "ap.essalud",
+          "ap.seguro_vida",
+          "ap.seguro_accidentes",
+          "ap.senati",
+          "ap.capacitacion",
+          "ap.otros"
+        ],
+        "no_suman": [
+          "ap.ptu"
+        ],
+        "citas": [
+          {
+            "donde": "A-VII-1, nota (3), pdf 94 (Anexo 2-14) del TdR vigente",
+            "texto": "(3) El requerimiento de la PTU como parte de los requerimientos de información de costos de personal propio solicitados en los términos del VAD, se efectúa con la finalidad de identificar y cuantificar la PTU para su retiro en las evaluaciones de los costos de personal que realiza Osinergmin, con el objeto de determinar los costos eficientes a reconocer respectivos."
+          },
+          {
+            "donde": "TdR vigente, num. 6.14, pdf 55:04-06",
+            "texto": "En los costos de personal propio no se incluirán los conceptos de participación de los trabajadores en las utilidades de la empresa (PTU) y de horas extra."
+          }
+        ],
+        "lectura": "El formato no trae un «subtotal reconocible»: lo reconocible es Total (4) menos PTU (3). La PTU se informa para identificarla y retirarla (nota (3)); el TdR 6.14 la excluye de los costos de personal propio.",
+        "limitaciones": [
+          "El 6.14 excluye también las HORAS EXTRA, que no tienen columna: si la empresa las declara dentro de Básica u Otros (1), no se pueden retirar con el formato; queda como hueco nombrado.",
+          "Nota (4): el Total incluye lo cargado a INVERSIONES. Si el costo reconocible es de OyM, la parte cargada a inversiones tampoco va al OyM; el formato no la separa: hueco nombrado (lo decide la evaluación, no el formato)."
+        ]
+      }
     },
     {
       "id": "A-III-1",
       "titulo": "Resumen de Costos de Operación y Mantenimiento por Actividad",
       "categoria": "contable",
       "obligatorio": true,
-      "transcrito": false,
-      "pagina": "Anexo 2-5 a 2-6",
-      "lineas": "3703-3717",
-      "motivo": "Solo se leen el título y las notas; las filas y las columnas están en una imagen sin texto en la copia local: hay que leerlas del PDF oficial.",
-      "filas": [],
-      "columnas": []
+      "transcrito": true,
+      "pagina": "Anexo 2-5",
+      "lineas": "pdf 85",
+      "periodo": "año",
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 85,
+        "pie": "Anexo 2-5",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      },
+      "columnas": [
+        {
+          "id": "usd.total_empresa",
+          "nombre": "Miles US$ / Total Empresa",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.sistema_modelo",
+          "nombre": "Miles US$ / Sistema Eléctrico Modelo",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.total_empresa",
+          "nombre": "Miles S/. / Total Empresa",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.sistema_modelo",
+          "nombre": "Miles S/. / Sistema Eléctrico Modelo",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "documento_respaldo",
+          "nombre": "Documento de Respaldo",
+          "unidad": "texto",
+          "obligatoria": true
+        }
+      ],
+      "filas": [
+        {
+          "id": "A1",
+          "nombre": "Compra de Energía",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A2",
+          "nombre": "Generación",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A3",
+          "nombre": "Transmisión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A4",
+          "nombre": "Distribución Media Tensión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A5",
+          "nombre": "Distribución Baja Tensión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A6",
+          "nombre": "Alumbrado Público",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A7",
+          "nombre": "Comercialización",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A8",
+          "nombre": "Conexión a la Red de Distribución Eléctrica",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A9",
+          "nombre": "Corte y Reconexión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A10",
+          "nombre": "Gestión de Inversión en Distribución",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A11",
+          "nombre": "Gestión de Inversión en Otras Áreas",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A12",
+          "nombre": "Apoyo en Postes",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A13",
+          "nombre": "Otros Servicios",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A14",
+          "nombre": "Negocios Financieros",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A15",
+          "nombre": "Otras",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A16",
+          "nombre": "Total Actividades",
+          "unidad": "actividad",
+          "tipo": "total",
+          "nota": "rótulo del código: «A16 = A4 + … + A15» (sin A1-A3), tal cual el original",
+          "obligatoria": true
+        }
+      ],
+      "subtitulo": "Total Año XX",
+      "notas": {
+        "1": "Osinergmin revisará la información consignada en el formato y, de ser el caso, requerirá a la empresa mayor detalle o sustento.",
+        "2": "La información del sistema eléctrico modelo solo aplica para la empresa con encargo del Estudio VAD por sector típico."
+      }
     },
     {
-      "id": "A-III-y-IV-restantes",
-      "titulo": "Formatos III y IV restantes (entre ellos IV-1 y IV-4 «Costos Combinados», citados en las líneas 1338-1340)",
+      "id": "A-IV-1",
+      "titulo": "Costos Combinados por Naturaleza y Destino",
       "categoria": "contable",
       "obligatorio": true,
-      "transcrito": false,
-      "pagina": "Anexo 2-7 a 2-9",
-      "lineas": "3719-3731",
-      "motivo": "Las páginas 2-7 a 2-9 no tienen texto en la copia local (solo la nota del sistema modelo): hay que leerlas del PDF oficial.",
-      "filas": [],
-      "columnas": []
+      "transcrito": true,
+      "pagina": "Anexo 2-6",
+      "lineas": "pdf 86",
+      "periodo": "año",
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 86,
+        "pie": "Anexo 2-6",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      },
+      "columnas": [
+        {
+          "id": "pen.generacion",
+          "nombre": "Costos por Destino / Generación",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.transmision",
+          "nombre": "Costos por Destino / Transmisión",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.distribucion",
+          "nombre": "Costos por Destino / Distribución",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.comercializacion",
+          "nombre": "Costos por Destino / Comercialización",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.administracion",
+          "nombre": "Costos por Destino / Administración",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.total",
+          "nombre": "Costos por Destino / Total",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        }
+      ],
+      "filas": [
+        {
+          "id": "602",
+          "nombre": "602. COMBUSTIBLES Y LUBRICANTES",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "606",
+          "nombre": "606. SUMINISTROS DIVERSOS",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "607",
+          "nombre": "607. COMPRA DE ENERGÍA",
+          "unidad": "cuenta contable",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "607.01",
+          "nombre": "607.01 Compra COES",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "607.02",
+          "nombre": "607.02 Compra Otros",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "607.03",
+          "nombre": "607.03 Uso Sistema Transmisión",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "62",
+          "nombre": "62. CARGAS DE PERSONAL",
+          "unidad": "cuenta contable",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "621",
+          "nombre": "621. Sueldos",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "622",
+          "nombre": "622. Salarios",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "623",
+          "nombre": "623. Comisiones",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "624",
+          "nombre": "624. Remuneraciones en Especie",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "625",
+          "nombre": "625. Otras Remuneraciones",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "626",
+          "nombre": "626. Vacaciones",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "627",
+          "nombre": "627. Seguridad y Previsión Social",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "628",
+          "nombre": "628. Remuneraciones al Directorio",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "629",
+          "nombre": "629. Otras Cargas al Personal",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "63",
+          "nombre": "63. SERVICIOS PRESTADOS POR TERCEROS",
+          "unidad": "cuenta contable",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "631",
+          "nombre": "631. Correos y Telecomunicaciones",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "632",
+          "nombre": "632. Honorarios, Comisiones y Corretajes",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "633",
+          "nombre": "633. Servicios Encargados a Terceros",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "634",
+          "nombre": "634. Mant. y Reparac. de Activos",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "635",
+          "nombre": "635. Alquileres",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "636",
+          "nombre": "636. Electricidad y Agua",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "637",
+          "nombre": "637. Publicidad, Publicac. y Relac. Publicas",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "638",
+          "nombre": "638. Servicios de Personal",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "639",
+          "nombre": "639. Otros Servicios",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "64",
+          "nombre": "64. TRIBUTOS",
+          "unidad": "cuenta contable",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "641",
+          "nombre": "641. Impuesto a las Ventas",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "643",
+          "nombre": "643. Canones",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "644",
+          "nombre": "644. Derechos Aduaneros",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "645",
+          "nombre": "645. Impuesto al Patrimonio Empresarial",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "646",
+          "nombre": "646. Tributos a Gobiernos Locales",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "647",
+          "nombre": "647. Cotizac. con caracter de Tributos",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "648",
+          "nombre": "648. Aportes D. Ley 25844",
+          "unidad": "cuenta contable",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 2
+        },
+        {
+          "id": "648.01",
+          "nombre": "648.01. Cuota Gastos CTE",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 3
+        },
+        {
+          "id": "648.02",
+          "nombre": "648.02. Cuota Gastos DGE",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 3
+        },
+        {
+          "id": "648.03",
+          "nombre": "648.03. Cuota Gastos COES",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 3
+        },
+        {
+          "id": "649",
+          "nombre": "649. Otros",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "65",
+          "nombre": "65. CARGAS DIVERSAS DE GESTIÓN",
+          "unidad": "cuenta contable",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "651",
+          "nombre": "651. Seguros",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "652",
+          "nombre": "652. Regalías",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "653",
+          "nombre": "653. Cotizaciones",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "654",
+          "nombre": "654. Donaciones",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "655",
+          "nombre": "655. Gastos Sindicales",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "656",
+          "nombre": "656. Viáticos Gastos de Viaje",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "659",
+          "nombre": "659. Otros",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "68",
+          "nombre": "68. PROVISIONES DEL EJERCICIO",
+          "unidad": "cuenta contable",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "681",
+          "nombre": "681. Depreciación",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "684",
+          "nombre": "684. Cobranza Dudosa",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "686",
+          "nombre": "686. Compensación Tiempo de Servicios",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "689",
+          "nombre": "689. Otras Provisiones",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "TOTAL COSTO DEL SERVICIO",
+          "nombre": "TOTAL COSTO DEL SERVICIO",
+          "unidad": "cuenta contable",
+          "tipo": "total",
+          "obligatoria": true,
+          "nivel": 0
+        },
+        {
+          "id": "670",
+          "nombre": "670. CARGAS FINANCIERAS",
+          "unidad": "cuenta contable",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "671",
+          "nombre": "671. Intereses y Gastos de Préstamos",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "672",
+          "nombre": "672. Intereses y Gastos de Sobregiros",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "673",
+          "nombre": "673. Intereses y Gastos de Bonos y Oblig.",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "674",
+          "nombre": "674. Intereses y Gastos de Doc. Descontado",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "675",
+          "nombre": "675. Descuentos por pronto Pago",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "676",
+          "nombre": "676. Pérdida por Diferencia de Cambio",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "677",
+          "nombre": "677. Egresos Financieros DS 0687 EF",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "678",
+          "nombre": "678. Gastos por Compra Vent. Valores",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "679",
+          "nombre": "679. Otras Cargas Financieras",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "COSTO DE SERVICIO + CARGAS FINANCIERAS",
+          "nombre": "COSTO DE SERVICIO + CARGAS FINANCIERAS",
+          "unidad": "cuenta contable",
+          "tipo": "total",
+          "obligatoria": true,
+          "nivel": 0
+        }
+      ],
+      "subtitulo": "Total Empresa y Sistema Eléctrico Modelo / (Miles de S/. ) / Total Año XX",
+      "notas": {
+        "1": "Los documentos de respaldo son fuente que sirven de base para la elaboración de la información reportada en los formatos.",
+        "2": "La información del sistema eléctrico modelo solo aplica para la empresa con encargo del Estudio VAD por sector típico."
+      }
+    },
+    {
+      "id": "A-IV-2",
+      "titulo": "Resumen de Costos Combinados por Naturaleza y Destino",
+      "categoria": "contable",
+      "obligatorio": true,
+      "transcrito": true,
+      "pagina": "Anexo 2-7",
+      "lineas": "pdf 87",
+      "periodo": "año",
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 87,
+        "pie": "Anexo 2-7",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      },
+      "columnas": [
+        {
+          "id": "pen.generacion",
+          "nombre": "Costos por Destino (Miles de S/.) / Generación",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.transmision",
+          "nombre": "Costos por Destino (Miles de S/.) / Transmisión",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.distribucion",
+          "nombre": "Costos por Destino (Miles de S/.) / Distribución",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.comercializacion",
+          "nombre": "Costos por Destino (Miles de S/.) / Comercialización",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.administracion",
+          "nombre": "Costos por Destino (Miles de S/.) / Administración",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.total",
+          "nombre": "Costos por Destino (Miles de S/.) / Total",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.generacion",
+          "nombre": "Costos por Destino (Miles de US$) / Generación",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.transmision",
+          "nombre": "Costos por Destino (Miles de US$) / Transmisión",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.distribucion",
+          "nombre": "Costos por Destino (Miles de US$) / Distribución",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.comercializacion",
+          "nombre": "Costos por Destino (Miles de US$) / Comercialización",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.administracion",
+          "nombre": "Costos por Destino (Miles de US$) / Administración",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.total",
+          "nombre": "Costos por Destino (Miles de US$) / Total",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        }
+      ],
+      "filas": [
+        {
+          "id": "602",
+          "nombre": "602. COMBUSTIBLES Y LUBRICANTES",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "606",
+          "nombre": "606. SUMINISTROS DIVERSOS",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "607",
+          "nombre": "607. COMPRA DE ENERGÍA",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "62",
+          "nombre": "62. CARGAS DE PERSONAL",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "63",
+          "nombre": "63. SERVICIOS PRESTADOS POR TERCEROS",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "64",
+          "nombre": "64. TRIBUTOS",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "65",
+          "nombre": "65. CARGAS DIVERSAS DE GESTIÓN",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "68",
+          "nombre": "68. PROVISIONES DEL EJERCICIO",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "TOTAL COSTO DEL SERVICIO",
+          "nombre": "TOTAL COSTO DEL SERVICIO",
+          "unidad": "cuenta contable",
+          "tipo": "total",
+          "obligatoria": true
+        },
+        {
+          "id": "670",
+          "nombre": "670. CARGAS FINANCIERAS",
+          "unidad": "cuenta contable",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "COSTO DE SERVICIO + CARGAS FINANCIERAS",
+          "nombre": "COSTO DE SERVICIO + CARGAS FINANCIERAS",
+          "unidad": "cuenta contable",
+          "tipo": "total",
+          "obligatoria": true
+        }
+      ],
+      "subtitulo": "Total Empresa y Sistema Eléctrico Modelo / Total Año XX",
+      "estructura": "dos tablas con las mismas filas: Miles de S/. (columnas pen.*) y Miles de US$ (usd.*)",
+      "notas": {
+        "1": "La información del sistema eléctrico modelo solo aplica para la empresa con encargo del Estudio VAD por sector típico."
+      }
+    },
+    {
+      "id": "A-IV-3",
+      "titulo": "Resumen de Costos Combinados por Destino y Naturaleza",
+      "categoria": "contable",
+      "obligatorio": true,
+      "transcrito": true,
+      "pagina": "Anexo 2-8",
+      "lineas": "pdf 88",
+      "periodo": "año",
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 88,
+        "pie": "Anexo 2-8",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      },
+      "columnas": [
+        {
+          "id": "pen.combustibles_y_lubricantes",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Combustibles y Lubricantes",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.compra_de_energia",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Compra de Energía",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.suministros_diversos",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Suministros Diversos",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.cargas_de_personal",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Cargas de Personal",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.servicios_de_terceros",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Servicios de Terceros",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.tributos",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Tributos",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.cargas_diversas",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Cargas Diversas",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.provisiones",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Provisiones",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.cargas_financieras",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Cargas Financieras",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.total",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Total",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.combustibles_y_lubricantes",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Combustibles y Lubricantes",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.compra_de_energia",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Compra de Energía",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.suministros_diversos",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Suministros Diversos",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.cargas_de_personal",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Cargas de Personal",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.servicios_de_terceros",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Servicios de Terceros",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.tributos",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Tributos",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.cargas_diversas",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Cargas Diversas",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.provisiones",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Provisiones",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.cargas_financieras",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Cargas Financieras",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.total",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Total",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        }
+      ],
+      "filas": [
+        {
+          "id": "911",
+          "nombre": "911. GENERACIÓN",
+          "unidad": "centro de costo (destino)",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "911.01",
+          "nombre": "911.01. Generación Hidráulica",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "911.02",
+          "nombre": "911.02. Generación Térmica",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "912",
+          "nombre": "912. TRANSMISIÓN",
+          "unidad": "centro de costo (destino)",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "912.01",
+          "nombre": "912.01. Línea de Transmisión",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "912.02",
+          "nombre": "912.02. Sub-Estac. Transformación",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "913",
+          "nombre": "913. DISTRIBUCIÓN",
+          "unidad": "centro de costo (destino)",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "913.O1",
+          "nombre": "913.O1. Jefatura",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "nota": "«913.O1» con letra O en el original (errata por 913.01); el id se deja literal",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "913.02",
+          "nombre": "913.02. Compra de Energía",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "913.03",
+          "nombre": "913.03. Distribución Primaria",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "913.04",
+          "nombre": "913.04. Distribución Secundaria",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "913.05",
+          "nombre": "913.05. Alumbrado Público",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "914",
+          "nombre": "914. COMERCIALIZACIÓN",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "915",
+          "nombre": "915. ADMINISTRACIÓN",
+          "unidad": "centro de costo (destino)",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "915.01",
+          "nombre": "915.01. Directorio",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "915.02",
+          "nombre": "915.02. Gerencia General",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "915.03",
+          "nombre": "915.03. Área de Operaciones",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "915.04",
+          "nombre": "915.04. Sistemas Multiregionales",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "915.05",
+          "nombre": "915.05. Área de Comercialización",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "915.06",
+          "nombre": "915.06. Área de Finanzas",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "915.07",
+          "nombre": "915.07. Área de Administración",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "915.99",
+          "nombre": "915.99. Otros",
+          "unidad": "centro de costo (destino)",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "COSTO TOTAL",
+          "nombre": "COSTO TOTAL",
+          "unidad": "centro de costo (destino)",
+          "tipo": "total",
+          "obligatoria": true,
+          "nivel": 0
+        }
+      ],
+      "subtitulo": "Total Empresa y Sistema Eléctrico Modelo / Total Año XX",
+      "estructura": "dos tablas con las mismas filas: Miles de S/. (pen.*) y Miles de US$ (usd.*)",
+      "notas": {
+        "1": "La información del sistema eléctrico modelo solo aplica para la empresa con encargo del Estudio VAD por sector típico."
+      }
+    },
+    {
+      "id": "A-IV-4",
+      "titulo": "Resumen de Costos por Actividad y Naturaleza",
+      "categoria": "contable",
+      "obligatorio": true,
+      "transcrito": true,
+      "pagina": "Anexo 2-9",
+      "lineas": "pdf 89",
+      "periodo": "año",
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 89,
+        "pie": "Anexo 2-9",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      },
+      "columnas": [
+        {
+          "id": "pen.combustibles_y_lubricantes",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Combustibles y Lubricantes",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.compra_de_energia",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Compra de Energía",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.suministros_diversos",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Suministros Diversos",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.cargas_de_personal",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Cargas de Personal",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.servicios_de_terceros",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Servicios de Terceros",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.tributos",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Tributos",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.cargas_diversas",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Cargas Diversas",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.provisiones",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Provisiones",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.cargas_financieras",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Cargas Financieras",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "pen.total",
+          "nombre": "Costos por Naturaleza (Miles de S/.) / Total",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.combustibles_y_lubricantes",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Combustibles y Lubricantes",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.compra_de_energia",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Compra de Energía",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.suministros_diversos",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Suministros Diversos",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.cargas_de_personal",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Cargas de Personal",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.servicios_de_terceros",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Servicios de Terceros",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.tributos",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Tributos",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.cargas_diversas",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Cargas Diversas",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.provisiones",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Provisiones",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.cargas_financieras",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Cargas Financieras",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        },
+        {
+          "id": "usd.total",
+          "nombre": "Costos por Naturaleza (Miles de US$) / Total",
+          "unidad": "Miles US$",
+          "obligatoria": true
+        }
+      ],
+      "filas": [
+        {
+          "id": "A1",
+          "nombre": "Compra de Energía",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A2",
+          "nombre": "Generación",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A3",
+          "nombre": "Transmisión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A4",
+          "nombre": "Distribución Media Tensión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A5",
+          "nombre": "Distribución Baja Tensión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A6",
+          "nombre": "Alumbrado Público",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A7",
+          "nombre": "Comercialización",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A8",
+          "nombre": "Conexión a la Red de Distribución Eléctrica",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A9",
+          "nombre": "Corte y Reconexión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A10",
+          "nombre": "Gestión de Inversión en Distribución",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A11",
+          "nombre": "Gestión de Inversión en Otras Áreas",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A12",
+          "nombre": "Apoyo en Postes",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A13",
+          "nombre": "Otros Servicios",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A14",
+          "nombre": "Negocios Financieros",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A15",
+          "nombre": "Otras",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "obligatoria": true
+        },
+        {
+          "id": "A16",
+          "nombre": "Total Actividades",
+          "unidad": "actividad",
+          "tipo": "total",
+          "nota": "rótulo del código en el original: «A16 = A1 + ... + A15»",
+          "obligatoria": true
+        },
+        {
+          "id": "A4+A5+A6+A7",
+          "nombre": "Total Distribución",
+          "unidad": "actividad",
+          "tipo": "total",
+          "nota": "rótulo del código en el original: «A4 + A5 + A6 + A7»",
+          "obligatoria": true
+        }
+      ],
+      "subtitulo": "Total Empresa y Sistema Eléctrico Modelo / Total Año XX",
+      "estructura": "dos tablas con las mismas filas: Miles de S/. (pen.*) y Miles de US$ (usd.*)",
+      "notas": {
+        "1": "La información del sistema eléctrico modelo solo aplica para la empresa con encargo del Estudio VAD por sector típico."
+      }
     },
     {
       "id": "A-V-3",
       "titulo": "Estructura de la Información Comercial",
       "categoria": "comercial",
       "obligatorio": true,
-      "transcrito": false,
+      "transcrito": true,
       "pagina": "Anexo 2-12",
       "lineas": "3861-3932",
-      "motivo": "Legible, pero es un formato largo por empresa, sistema, mes y sector; el validador por filas y columnas no lo modela todavía.",
-      "filas": [],
-      "columnas": []
+      "filas": [
+        {
+          "id": "MAT1",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "AT1",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "MT1",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "BT1",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "AT2",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "MT2",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "MT3P",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
+        },
+        {
+          "id": "MT3FP",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
+        },
+        {
+          "id": "MT4P",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "MT4FP",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT2",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "d.potencia_total"
+          ]
+        },
+        {
+          "id": "BT3P",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT3FP",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT4P",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT4FP",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5A.A",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5A.B",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5B_R1",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5B_R2",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5B_R3",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5B_R4",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5B_R5",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5B_R6",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5B_R7",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5B_R8",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5BNR",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5C-AP",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5D",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5E",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT5F",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT6",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "BT7",
+          "nombre": "",
+          "unidad": "opción tarifaria",
+          "tipo": "dato",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "e.energia_punta",
+            "f.energia_fuera_punta"
+          ]
+        },
+        {
+          "id": "Total Mes",
+          "nombre": "Total Mes <n>",
+          "unidad": "",
+          "tipo": "total",
+          "obligatoria": true,
+          "no_aplica": [
+            "b.potencia_punta",
+            "c.potencia_fuera_punta",
+            "d.potencia_total"
+          ]
+        }
+      ],
+      "columnas": [
+        {
+          "id": "a.clientes",
+          "nombre": "(a) Clientes atendidos en el mes",
+          "unidad": "clientes",
+          "obligatoria": true
+        },
+        {
+          "id": "b.potencia_punta",
+          "nombre": "(b) Potencia facturada en la punta",
+          "unidad": "kW",
+          "obligatoria": true
+        },
+        {
+          "id": "c.potencia_fuera_punta",
+          "nombre": "(c) Exceso de potencia facturada a precio de fuera de punta",
+          "unidad": "kW",
+          "obligatoria": true
+        },
+        {
+          "id": "d.potencia_total",
+          "nombre": "(d) = (b)+(c)",
+          "unidad": "kW",
+          "obligatoria": false
+        },
+        {
+          "id": "e.energia_punta",
+          "nombre": "(e) Energía facturada en horas de punta",
+          "unidad": "MW.h",
+          "obligatoria": true
+        },
+        {
+          "id": "f.energia_fuera_punta",
+          "nombre": "(f) Energía facturada en horas fuera de punta",
+          "unidad": "MW.h",
+          "obligatoria": true
+        },
+        {
+          "id": "g.energia_total",
+          "nombre": "(g) = (e)+(f)",
+          "unidad": "MW.h",
+          "obligatoria": false
+        },
+        {
+          "id": "h.cargo_fijo",
+          "nombre": "(h) Facturación atribuible únicamente al cargo fijo",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "i.energia",
+          "nombre": "(i) Facturación atribuible a la venta de energía",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "j.potencia",
+          "nombre": "(j) Facturación atribuible a la venta de potencia",
+          "unidad": "Miles S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "k.total",
+          "nombre": "(k) = (h)+(i)+(j)",
+          "unidad": "Miles S/.",
+          "obligatoria": false
+        }
+      ],
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf (TdR VIGENTE, RCD 033-2026-OS/CD)",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 92,
+        "pie": "Anexo 2-12",
+        "lectura": "Transcrito de la imagen y del texto del TdR vigente (RCD 033-2026-OS/CD), con doble lectura por cc (z5b): capa de texto y celdas grises por programa a 300 y 400 ppp, mapas idénticos, prueba de mutación 2 de 2."
+      },
+      "observaciones": [
+        "Las filas del V-3 no tienen rótulo: solo el código en la columna «Opción». «nombre» queda vacío; el rótulo se toma de la tabla de equivalencias.",
+        "El V-3 no trae llamadas (1) ni (2) ni notas.",
+        "Los rangos del BT5B tienen código propio en el V-3: BT5B_R1 a BT5B_R8 (ver equivalencias).",
+        "⚠ BT5C-AP en el V-3 tiene (d) en gris; en V-1 (BT5C-AP) y V-2 (BT5C), (d) es blanca. Confirmado a 400 ppp (png/v3_bt5cap_400.png). Se transcribe tal cual.",
+        "Los meses 2, 3 y 12 que muestra el original tienen el mismo mapa de grises que el mes 1 (comprobado por programa).",
+        "«Total Mes <n>»: no_aplica b, c y d (la energía e, f sí se totaliza)."
+      ],
+      "forma": "larga",
+      "claves_de_fila": [
+        "Empresa",
+        "Sistema",
+        "Mes",
+        "Año",
+        "Sector Típico"
+      ],
+      "repeticion": "el bloque «filas» se repite por cada Empresa × Sistema × Mes (1 a 12) y cierra con «Total Mes <n>»; el original muestra completo el mes 1 y abrevia con «…» los meses 2, 3 y 12 (solo MAT1, AT1, MT1, BT1, AT2, MT2) y los meses 4 a 11",
+      "periodo": "mes"
     },
     {
-      "id": "A-VII-2-a-IX",
-      "titulo": "Formatos VII (salvo el VII-1) a IX, citados en la línea 2634",
+      "id": "A-VIII-1",
+      "titulo": "Composición de Costos - Total Empresa",
       "categoria": "costos",
       "obligatorio": true,
-      "transcrito": false,
-      "pagina": "Anexo 2-15 a 2-18",
-      "lineas": "4026-4033",
-      "motivo": "Las páginas 2-15 a 2-18 no tienen texto en la copia local: hay que leerlas del PDF oficial.",
-      "filas": [],
-      "columnas": []
+      "transcrito": true,
+      "pagina": "Anexo 2-15",
+      "lineas": "pdf 95",
+      "periodo": "año",
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 95,
+        "pie": "Anexo 2-15",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      },
+      "columnas": [
+        {
+          "id": "costo_directo.pct",
+          "nombre": "Costo Directo / %",
+          "unidad": "%",
+          "obligatoria": true
+        },
+        {
+          "id": "costo_directo.soles",
+          "nombre": "Costo Directo / S/.",
+          "unidad": "S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "supervision_directa.pct",
+          "nombre": "Supervisión Directa / %",
+          "unidad": "%",
+          "obligatoria": true
+        },
+        {
+          "id": "supervision_directa.soles",
+          "nombre": "Supervisión Directa / S/.",
+          "unidad": "S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "costos_indirectos.pct",
+          "nombre": "Costos Indirectos / %",
+          "unidad": "%",
+          "obligatoria": true
+        },
+        {
+          "id": "costos_indirectos.soles",
+          "nombre": "Costos Indirectos / S/.",
+          "unidad": "S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "total.pct",
+          "nombre": "Total / %",
+          "unidad": "%",
+          "obligatoria": true
+        },
+        {
+          "id": "total.soles",
+          "nombre": "Total / S/.",
+          "unidad": "S/.",
+          "obligatoria": true
+        }
+      ],
+      "filas": [
+        {
+          "id": "A1",
+          "nombre": "Compra de energía",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A2",
+          "nombre": "Generación",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A3",
+          "nombre": "Transmisión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A4",
+          "nombre": "Distribución MT",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A5",
+          "nombre": "Distribución BT",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A6",
+          "nombre": "Alumbrado público",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A7",
+          "nombre": "Comercialización",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A8",
+          "nombre": "Conexión Medidores",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A9",
+          "nombre": "Corte y Reconexión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A10",
+          "nombre": "Gestión Inv. En Distribución",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A11",
+          "nombre": "Gestión Otras Inversiones",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A12",
+          "nombre": "Apoyo Postes",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A13",
+          "nombre": "Otros Servicios",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A14",
+          "nombre": "Negocios Financieros",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A15",
+          "nombre": "Otros",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "Total",
+          "nombre": "Total",
+          "unidad": "actividad",
+          "tipo": "total",
+          "obligatoria": true
+        }
+      ],
+      "valores_impresos": {
+        "total.pct": "100 en A1..A15"
+      },
+      "notas": {
+        "1": "% = Porcentaje de asignación",
+        "2": "Área Rpresentativa: Órgano o Grupos de Órganos que pueden ser subgerencias, zonales, unidades o servicios"
+      },
+      "observaciones": [
+        "«Rpresentativa» (sic) en la nota: errata del original."
+      ]
+    },
+    {
+      "id": "A-VIII-2",
+      "titulo": "Composición de Costos - Sistema Eléctrico Modelo",
+      "categoria": "costos",
+      "obligatorio": true,
+      "transcrito": true,
+      "pagina": "Anexo 2-16",
+      "lineas": "pdf 96",
+      "periodo": "año",
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 96,
+        "pie": "Anexo 2-16",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      },
+      "columnas": [
+        {
+          "id": "costo_directo.pct",
+          "nombre": "Costo Directo / %",
+          "unidad": "%",
+          "obligatoria": true
+        },
+        {
+          "id": "costo_directo.soles",
+          "nombre": "Costo Directo / S/.",
+          "unidad": "S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "supervision_directa.pct",
+          "nombre": "Supervisión Directa / %",
+          "unidad": "%",
+          "obligatoria": true
+        },
+        {
+          "id": "supervision_directa.soles",
+          "nombre": "Supervisión Directa / S/.",
+          "unidad": "S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "costos_indirectos.pct",
+          "nombre": "Costos Indirectos / %",
+          "unidad": "%",
+          "obligatoria": true
+        },
+        {
+          "id": "costos_indirectos.soles",
+          "nombre": "Costos Indirectos / S/.",
+          "unidad": "S/.",
+          "obligatoria": true
+        },
+        {
+          "id": "total.pct",
+          "nombre": "Total / %",
+          "unidad": "%",
+          "obligatoria": true
+        },
+        {
+          "id": "total.soles",
+          "nombre": "Total / S/.",
+          "unidad": "S/.",
+          "obligatoria": true
+        }
+      ],
+      "filas": [
+        {
+          "id": "A1",
+          "nombre": "Compra de energía",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A2",
+          "nombre": "Generación",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A3",
+          "nombre": "Transmisión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A4",
+          "nombre": "Distribución MT",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A5",
+          "nombre": "Distribución BT",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A6",
+          "nombre": "Alumbrado público",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A7",
+          "nombre": "Comercialización",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A8",
+          "nombre": "Conexión Medidores",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A9",
+          "nombre": "Corte y Reconexión",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A10",
+          "nombre": "Gestión Inv. En Distribución",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A11",
+          "nombre": "Gestión Otras Inversiones",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A12",
+          "nombre": "Apoyo Postes",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A13",
+          "nombre": "Otros Servicios",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A14",
+          "nombre": "Negocios Financieros",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "A15",
+          "nombre": "Otros",
+          "unidad": "actividad",
+          "tipo": "dato",
+          "nota": "«Total %» trae «100» impreso en el original",
+          "obligatoria": true
+        },
+        {
+          "id": "Total",
+          "nombre": "Total",
+          "unidad": "actividad",
+          "tipo": "total",
+          "obligatoria": true
+        }
+      ],
+      "valores_impresos": {
+        "total.pct": "100 en A1..A15"
+      },
+      "notas": {
+        "1": "% = Porcentaje de asignación",
+        "2": "Área Rpresentativa: Órgano o Grupos de Órganos que pueden ser subgerencias, zonales, unidades o servicios"
+      },
+      "observaciones": [
+        "«Rpresentativa» (sic) en la nota: errata del original."
+      ]
+    },
+    {
+      "id": "A-IX-1",
+      "titulo": "TABLA DE ASIGNACION DE COSTOS TOTALES",
+      "categoria": "costos",
+      "obligatorio": true,
+      "transcrito": true,
+      "pagina": "Anexo 2-17",
+      "lineas": "pdf 97",
+      "periodo": "año",
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 97,
+        "pie": "Anexo 2-17",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      },
+      "columnas": [
+        {
+          "id": "A1",
+          "nombre": "A1 Compra de Energía",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A2",
+          "nombre": "A2 Generación",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A3",
+          "nombre": "A3 Transmisión",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A4",
+          "nombre": "A4 Distribución MT",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A5",
+          "nombre": "A5 Distribución BT",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A6",
+          "nombre": "A6 Alumbrado Público",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A7",
+          "nombre": "A7 Comercialización",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A8",
+          "nombre": "A8 Conexión y Medidores",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A9",
+          "nombre": "A9 Corte y Reconexión",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A10",
+          "nombre": "A10 Inversión en Distribución",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A11",
+          "nombre": "A11 Inversión en otras Areas",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A12",
+          "nombre": "A12 Asesoría a Terceros",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A13",
+          "nombre": "A13 Apoyo en Postes",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A14",
+          "nombre": "A14 Negocios Financieros",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A15",
+          "nombre": "A15 Otras",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "Total",
+          "nombre": "Total",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        }
+      ],
+      "filas": [
+        {
+          "id": "1",
+          "nombre": "1 Suministro Diversos de Materiales",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "2",
+          "nombre": "2 Cargas de Personal",
+          "unidad": "concepto de costo",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "2.01",
+          "nombre": "Presidente y G. General",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.02",
+          "nombre": "Gerencia Transmisión + Subgerente de Explotación",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.03",
+          "nombre": "Subgerente de Ingeniería de Transmisión",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.04",
+          "nombre": "Finanzas y Servicios Generales",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.05",
+          "nombre": "RR.HH. Y Afines",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.06",
+          "nombre": "Gerencia Comercial + Subgerencia Comercial",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.07",
+          "nombre": "Informática",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.08",
+          "nombre": "Desarrollo y Calidad de Servicio",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.09",
+          "nombre": "Relaciones Corporativas",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.10",
+          "nombre": "Promoción",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.11",
+          "nombre": "Centro de Servicio Distribución",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.12",
+          "nombre": "Control Pérdidas",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.13",
+          "nombre": "Ingeniería de Distribución",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.14",
+          "nombre": "Planificación y Desarrollo",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.15",
+          "nombre": "Legal y Auditoría",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.16",
+          "nombre": "Ambiente y Seguridad",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.17",
+          "nombre": "Personal Eventual",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "Sub Total 2",
+          "nombre": "Sub Total 2",
+          "unidad": "concepto de costo",
+          "tipo": "total",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "3",
+          "nombre": "3 Mano de Obra Directa y/o Servicios de Terceros",
+          "unidad": "concepto de costo",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "3.01",
+          "nombre": "Mantenimiento Redes y AP",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "3.02",
+          "nombre": "Transporte",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "3.03",
+          "nombre": "Atención Reclamos",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "3.04",
+          "nombre": "Lectura Med. + Reparto de Fact. + Cobranza + Recolección Dinero + Dist. Corresp.",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "3.05",
+          "nombre": "Com. Cobranza + Apoyo informático",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "3.06",
+          "nombre": "Vigilancia + Arriendo Ofic. + Limpieza + Asesoría de Seguro + Mensajería",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "Sub Total 3",
+          "nombre": "Sub Total 3",
+          "unidad": "concepto de costo",
+          "tipo": "total",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "4",
+          "nombre": "4 Tributos",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "5",
+          "nombre": "5 Cargas Diversas",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "Sub Total",
+          "nombre": "Sub Total",
+          "unidad": "concepto de costo",
+          "tipo": "total",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "6",
+          "nombre": "6 Compra de Energía",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "7",
+          "nombre": "7 Previsiones Ejercicios",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "8",
+          "nombre": "8 Cargas Financieras",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "Total",
+          "nombre": "Total",
+          "unidad": "concepto de costo",
+          "tipo": "total",
+          "obligatoria": true,
+          "nivel": 0
+        }
+      ],
+      "subtitulo": "TOTAL EMPRESA",
+      "notas": {
+        "1": "No taxativa. El consultor puede proponer modificación."
+      },
+      "observaciones": [
+        "Columnas A1..A15 del IX NO equivalen a las de III-1/IV-4/VIII en A8, A10-A13 y A15 (ver equivalencias).",
+        "«Previsiones Ejercicios» (sic) en la fila 7: así en el original.",
+        "Descripción «No taxativa» (nota 1): las filas de personal son un ejemplo de estructura."
+      ],
+      "avisos_al_validar": [
+        {
+          "tipo": "codigos_casados_por_rotulo",
+          "texto": "códigos del IX casados por rótulo: IX.A13 «Apoyo en Postes» ≡ A12 e IX.A12 «Asesoría a Terceros» ⊂ A13 «Otros Servicios» de III-1, IV-4 y VIII (decisión anotada en equivalencias_de_actividades; TdR vigente, pdf 85, 89, 95, 97 y 98)"
+        }
+      ]
+    },
+    {
+      "id": "A-IX-2",
+      "titulo": "TABLA DE ASIGNACION DE COSTOS TOTALES",
+      "categoria": "costos",
+      "obligatorio": true,
+      "transcrito": true,
+      "pagina": "Anexo 2-18",
+      "lineas": "pdf 98",
+      "periodo": "año",
+      "fuente_vigente": {
+        "documento": "Anexo-TérminosVAD-2026-2030-2027-2031-R033-2026-OS-CD.pdf",
+        "sha256": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76",
+        "pagina_pdf": 98,
+        "pie": "Anexo 2-18",
+        "lectura": "Transcrito del TdR vigente (RCD 033-2026-OS/CD) por cc, con doble lectura (z1 y z7) y verificador independiente con prueba de mutación; f4 lo integra (VAD-A5 ampliada)."
+      },
+      "columnas": [
+        {
+          "id": "A1",
+          "nombre": "A1 Compra de Energía",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A2",
+          "nombre": "A2 Generación",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A3",
+          "nombre": "A3 Transmisión",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A4",
+          "nombre": "A4 Distribución MT",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A5",
+          "nombre": "A5 Distribución BT",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A6",
+          "nombre": "A6 Alumbrado Público",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A7",
+          "nombre": "A7 Comercialización",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A8",
+          "nombre": "A8 Conexión y Medidores",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A9",
+          "nombre": "A9 Corte y Reconexión",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A10",
+          "nombre": "A10 Inversión en Distribución",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A11",
+          "nombre": "A11 Inversión en otras Areas",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A12",
+          "nombre": "A12 Asesoría a Terceros",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A13",
+          "nombre": "A13 Apoyo en Postes",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A14",
+          "nombre": "A14 Negocios Financieros",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "A15",
+          "nombre": "A15 Otras",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        },
+        {
+          "id": "Total",
+          "nombre": "Total",
+          "unidad": "(sin unidad en el formato)",
+          "obligatoria": true
+        }
+      ],
+      "filas": [
+        {
+          "id": "1",
+          "nombre": "1 Suministro Diversos de Materiales",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "2",
+          "nombre": "2 Cargas de Personal",
+          "unidad": "concepto de costo",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "2.01",
+          "nombre": "Presidente y G. General",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.02",
+          "nombre": "Gerencia Transmisión + Subgerente de Explotación",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.03",
+          "nombre": "Subgerente de Ingeniería de Transmisión",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.04",
+          "nombre": "Finanzas y Servicios Generales",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.05",
+          "nombre": "RR.HH. Y Afines",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.06",
+          "nombre": "Gerencia Comercial + Subgerencia Comercial",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.07",
+          "nombre": "Informática",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.08",
+          "nombre": "Desarrollo y Calidad de Servicio",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.09",
+          "nombre": "Relaciones Corporativas",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.10",
+          "nombre": "Promoción",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.11",
+          "nombre": "Centro de Servicio Distribución",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.12",
+          "nombre": "Control Pérdidas",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.13",
+          "nombre": "Ingeniería de Distribución",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.14",
+          "nombre": "Planificación y Desarrollo",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.15",
+          "nombre": "Legal y Auditoría",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.16",
+          "nombre": "Ambiente y Seguridad",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "2.17",
+          "nombre": "Personal Eventual",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "Sub Total 2",
+          "nombre": "Sub Total 2",
+          "unidad": "concepto de costo",
+          "tipo": "total",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "3",
+          "nombre": "3 Mano de Obra Directa y/o Servicios de Terceros",
+          "unidad": "concepto de costo",
+          "tipo": "grupo",
+          "nota": "cuenta o concepto con desglose: el formato no dice si se llena o es la suma de sus partidas (lectura, no norma)",
+          "obligatoria": false,
+          "nivel": 1
+        },
+        {
+          "id": "3.01",
+          "nombre": "Mantenimiento Redes y AP",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "3.02",
+          "nombre": "Transporte",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "3.03",
+          "nombre": "Atención Reclamos",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "3.04",
+          "nombre": "Lectura Med. + Reparto de Fact. + Cobranza + Recolección Dinero + Dist. Corresp.",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "3.05",
+          "nombre": "Com. Cobranza + Apoyo informático",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "3.06",
+          "nombre": "Vigilancia + Arriendo Ofic. + Limpieza + Asesoría de Seguro + Mensajería",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 2
+        },
+        {
+          "id": "Sub Total 3",
+          "nombre": "Sub Total 3",
+          "unidad": "concepto de costo",
+          "tipo": "total",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "4",
+          "nombre": "4 Tributos",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "5",
+          "nombre": "5 Cargas Diversas",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "Sub Total",
+          "nombre": "Sub Total",
+          "unidad": "concepto de costo",
+          "tipo": "total",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "6",
+          "nombre": "6 Compra de Energía",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "7",
+          "nombre": "7 Previsiones Ejercicios",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "8",
+          "nombre": "8 Cargas Financieras",
+          "unidad": "concepto de costo",
+          "tipo": "dato",
+          "obligatoria": true,
+          "nivel": 1
+        },
+        {
+          "id": "Total",
+          "nombre": "Total",
+          "unidad": "concepto de costo",
+          "tipo": "total",
+          "obligatoria": true,
+          "nivel": 0
+        }
+      ],
+      "subtitulo": "SISTEMA ELÉCTRICO MODELO",
+      "notas": {
+        "1": "No taxativa. El consultor puede proponer modificación."
+      },
+      "observaciones": [
+        "Columnas A1..A15 del IX NO equivalen a las de III-1/IV-4/VIII en A8, A10-A13 y A15 (ver equivalencias).",
+        "«Previsiones Ejercicios» (sic) en la fila 7: así en el original.",
+        "Descripción «No taxativa» (nota 1): las filas de personal son un ejemplo de estructura."
+      ],
+      "avisos_al_validar": [
+        {
+          "tipo": "codigos_casados_por_rotulo",
+          "texto": "códigos del IX casados por rótulo: IX.A13 «Apoyo en Postes» ≡ A12 e IX.A12 «Asesoría a Terceros» ⊂ A13 «Otros Servicios» de III-1, IV-4 y VIII (decisión anotada en equivalencias_de_actividades; TdR vigente, pdf 85, 89, 95, 97 y 98)"
+        }
+      ]
     }
-  ]
+  ],
+  "equivalencias_de_codigos": {
+    "estado": "decisión de ingeniería de f4 (2026-11-15, VAD-A5), sobre la propuesta de cc (z5b)",
+    "criterio": "misma opción tarifaria por posición y rótulo en V-1/V-2 (mismo rótulo literal), por posición en V-3 y VI; Anexo 9 por descripción",
+    "nota": "Misma opción tarifaria con nombres distintos en el propio TdR: BT5NR (V-1, V-2) = BT5BNR (V-3) = BT5BN (Anexo 9); BT5C-AP (V-1, V-3, VI) = BT5C (V-2, Anexo 9); BT6 (V-1, V-3, VI) = BT6NR (V-2); BT5A.A y BT5A.B = BT5AA y BT5AB (Anexo 9); los rangos BT5B.<rango> (V-1, V-2) = BT5B_R1 a R8 (V-3). Cada código se conserva tal cual en su formato; esta tabla solo los une. «null»: el formato no tiene esa fila. Solo en el Anexo 9: MT1x, BT5I.",
+    "filas": [
+      {
+        "A-V-1": "MAT1",
+        "A-V-2": "MAT1",
+        "A-V-3": "MAT1",
+        "A-VI": null,
+        "Anexo9": null
+      },
+      {
+        "A-V-1": "AT1",
+        "A-V-2": "AT1",
+        "A-V-3": "AT1",
+        "A-VI": "AT1",
+        "Anexo9": null
+      },
+      {
+        "A-V-1": "MT1",
+        "A-V-2": "MT1",
+        "A-V-3": "MT1",
+        "A-VI": "MT1",
+        "Anexo9": "MT1"
+      },
+      {
+        "A-V-1": "BT1",
+        "A-V-2": "BT1",
+        "A-V-3": "BT1",
+        "A-VI": "BT1",
+        "Anexo9": "BT1"
+      },
+      {
+        "A-V-1": "AT2",
+        "A-V-2": "AT2",
+        "A-V-3": "AT2",
+        "A-VI": "AT2",
+        "Anexo9": "AT2"
+      },
+      {
+        "A-V-1": "MT2",
+        "A-V-2": "MT2",
+        "A-V-3": "MT2",
+        "A-VI": "MT2",
+        "Anexo9": "MT2"
+      },
+      {
+        "A-V-1": "MT3P",
+        "A-V-2": "MT3P",
+        "A-V-3": "MT3P",
+        "A-VI": "MT3P",
+        "Anexo9": "MT3P"
+      },
+      {
+        "A-V-1": "MT3FP",
+        "A-V-2": "MT3FP",
+        "A-V-3": "MT3FP",
+        "A-VI": "MT3FP",
+        "Anexo9": "MT3FP"
+      },
+      {
+        "A-V-1": "MT4P",
+        "A-V-2": "MT4P",
+        "A-V-3": "MT4P",
+        "A-VI": "MT4P",
+        "Anexo9": "MT4P"
+      },
+      {
+        "A-V-1": "MT4FP",
+        "A-V-2": "MT4FP",
+        "A-V-3": "MT4FP",
+        "A-VI": "MT4FP",
+        "Anexo9": "MT4FP"
+      },
+      {
+        "A-V-1": "BT2",
+        "A-V-2": "BT2",
+        "A-V-3": "BT2",
+        "A-VI": "BT2",
+        "Anexo9": "BT2"
+      },
+      {
+        "A-V-1": "BT3P",
+        "A-V-2": "BT3P",
+        "A-V-3": "BT3P",
+        "A-VI": "BT3P",
+        "Anexo9": "BT3P"
+      },
+      {
+        "A-V-1": "BT3FP",
+        "A-V-2": "BT3FP",
+        "A-V-3": "BT3FP",
+        "A-VI": "BT3FP",
+        "Anexo9": "BT3FP"
+      },
+      {
+        "A-V-1": "BT4P",
+        "A-V-2": "BT4P",
+        "A-V-3": "BT4P",
+        "A-VI": "BT4P",
+        "Anexo9": "BT4P"
+      },
+      {
+        "A-V-1": "BT4FP",
+        "A-V-2": "BT4FP",
+        "A-V-3": "BT4FP",
+        "A-VI": "BT4FP",
+        "Anexo9": "BT4FP"
+      },
+      {
+        "A-V-1": "BT5A.A",
+        "A-V-2": "BT5A.A",
+        "A-V-3": "BT5A.A",
+        "A-VI": "BT5A.A",
+        "Anexo9": "BT5AA"
+      },
+      {
+        "A-V-1": "BT5A.B",
+        "A-V-2": "BT5A.B",
+        "A-V-3": "BT5A.B",
+        "A-VI": "BT5A.B",
+        "Anexo9": "BT5AB"
+      },
+      {
+        "A-V-1": "BT5B",
+        "A-V-2": "BT5B",
+        "A-V-3": null,
+        "A-VI": "BT5B",
+        "Anexo9": "BT5B"
+      },
+      {
+        "A-V-1": "BT5NR",
+        "A-V-2": "BT5NR",
+        "A-V-3": "BT5BNR",
+        "A-VI": null,
+        "Anexo9": "BT5BN"
+      },
+      {
+        "A-V-1": "BT5C-AP",
+        "A-V-2": "BT5C",
+        "A-V-3": "BT5C-AP",
+        "A-VI": "BT5C-AP",
+        "Anexo9": "BT5C",
+        "nota": "Anexo 9: BT5C repetido («Servicio Alumbrado Publico»)"
+      },
+      {
+        "A-V-1": "BT5D",
+        "A-V-2": "BT5D",
+        "A-V-3": "BT5D",
+        "A-VI": "BT5D",
+        "Anexo9": "BT5D"
+      },
+      {
+        "A-V-1": "BT5E",
+        "A-V-2": "BT5E",
+        "A-V-3": "BT5E",
+        "A-VI": "BT5E",
+        "Anexo9": "BT5E"
+      },
+      {
+        "A-V-1": "BT5F",
+        "A-V-2": "BT5F",
+        "A-V-3": "BT5F",
+        "A-VI": "BT5F",
+        "Anexo9": "BT5F"
+      },
+      {
+        "A-V-1": "BT6",
+        "A-V-2": "BT6NR",
+        "A-V-3": "BT6",
+        "A-VI": "BT6",
+        "Anexo9": "BT6"
+      },
+      {
+        "A-V-1": "BT7",
+        "A-V-2": "BT7",
+        "A-V-3": "BT7",
+        "A-VI": "BT7",
+        "Anexo9": "BT7"
+      },
+      {
+        "A-V-1": "BT5B.1-30",
+        "A-V-2": "BT5B.1-30",
+        "A-V-3": "BT5B_R1",
+        "A-VI": null,
+        "Anexo9": null
+      },
+      {
+        "A-V-1": "BT5B.31-100",
+        "A-V-2": "BT5B.31-100",
+        "A-V-3": "BT5B_R2",
+        "A-VI": null,
+        "Anexo9": null
+      },
+      {
+        "A-V-1": "BT5B.101-150",
+        "A-V-2": "BT5B.101-150",
+        "A-V-3": "BT5B_R3",
+        "A-VI": null,
+        "Anexo9": null
+      },
+      {
+        "A-V-1": "BT5B.151-300",
+        "A-V-2": "BT5B.151-300",
+        "A-V-3": "BT5B_R4",
+        "A-VI": null,
+        "Anexo9": null
+      },
+      {
+        "A-V-1": "BT5B.301-500",
+        "A-V-2": "BT5B.301-500",
+        "A-V-3": "BT5B_R5",
+        "A-VI": null,
+        "Anexo9": null
+      },
+      {
+        "A-V-1": "BT5B.501-750",
+        "A-V-2": "BT5B.501-750",
+        "A-V-3": "BT5B_R6",
+        "A-VI": null,
+        "Anexo9": null
+      },
+      {
+        "A-V-1": "BT5B.751-1000",
+        "A-V-2": "BT5B.751-1000",
+        "A-V-3": "BT5B_R7",
+        "A-VI": null,
+        "Anexo9": null
+      },
+      {
+        "A-V-1": "BT5B.>1000",
+        "A-V-2": "BT5B.>1000",
+        "A-V-3": "BT5B_R8",
+        "A-VI": null,
+        "Anexo9": null
+      }
+    ]
+  },
+  "equivalencias_de_actividades": {
+    "estado": "decisión de ingeniería de f4 (2026-11-15, VAD-A5 ampliada), sobre la propuesta de cc (z7)",
+    "criterio": "por rótulo, no por código: el IX usa A12 y A13 con otro sentido que III-1, IV-4 y VIII",
+    "decision": [
+      "IX.A13 «Apoyo en Postes» ≡ A12 «Apoyo en Postes» de III-1, IV-4 y VIII.",
+      "IX.A12 «Asesoría a Terceros» ⊂ A13 «Otros Servicios» de III-1, IV-4 y VIII (no tiene código propio en ellos).",
+      "El resto de A1 a A16 casa por código; las diferencias de redacción (A8, A10, A11, A15) son el mismo concepto."
+    ],
+    "conflictos": [
+      "A12: «Apoyo en Postes» en III-1/IV-4/VIII; «Asesoría a Terceros» en IX. A13: «Otros Servicios» en III-1/IV-4/VIII; «Apoyo en Postes» en IX.",
+      "Propuesta por rótulo (no por código): IX.A13 ≡ A12 «Apoyo en Postes»; IX.A12 «Asesoría a Terceros» ⊂ A13 «Otros Servicios» (no hay código propio en los demás formatos).",
+      "A8: «Conexión a la Red de Distribución Eléctrica» (III-1/IV-4), «Conexión Medidores» (VIII), «Conexión y Medidores» (IX): mismo concepto por posición.",
+      "A15: «Otras» (III-1/IV-4/IX), «Otros» (VIII). A10/A11: formulaciones distintas del mismo concepto."
+    ],
+    "por_codigo": {
+      "A1": {
+        "A-III-1": "Compra de Energía",
+        "A-IV-4": "Compra de Energía",
+        "A-VIII-1": "Compra de energía",
+        "A-IX-1 (columna)": "Compra de Energía"
+      },
+      "A2": {
+        "A-III-1": "Generación",
+        "A-IV-4": "Generación",
+        "A-VIII-1": "Generación",
+        "A-IX-1 (columna)": "Generación"
+      },
+      "A3": {
+        "A-III-1": "Transmisión",
+        "A-IV-4": "Transmisión",
+        "A-VIII-1": "Transmisión",
+        "A-IX-1 (columna)": "Transmisión"
+      },
+      "A4": {
+        "A-III-1": "Distribución Media Tensión",
+        "A-IV-4": "Distribución Media Tensión",
+        "A-VIII-1": "Distribución MT",
+        "A-IX-1 (columna)": "Distribución MT"
+      },
+      "A5": {
+        "A-III-1": "Distribución Baja Tensión",
+        "A-IV-4": "Distribución Baja Tensión",
+        "A-VIII-1": "Distribución BT",
+        "A-IX-1 (columna)": "Distribución BT"
+      },
+      "A6": {
+        "A-III-1": "Alumbrado Público",
+        "A-IV-4": "Alumbrado Público",
+        "A-VIII-1": "Alumbrado público",
+        "A-IX-1 (columna)": "Alumbrado Público"
+      },
+      "A7": {
+        "A-III-1": "Comercialización",
+        "A-IV-4": "Comercialización",
+        "A-VIII-1": "Comercialización",
+        "A-IX-1 (columna)": "Comercialización"
+      },
+      "A8": {
+        "A-III-1": "Conexión a la Red de Distribución Eléctrica",
+        "A-IV-4": "Conexión a la Red de Distribución Eléctrica",
+        "A-VIII-1": "Conexión Medidores",
+        "A-IX-1 (columna)": "Conexión y Medidores"
+      },
+      "A9": {
+        "A-III-1": "Corte y Reconexión",
+        "A-IV-4": "Corte y Reconexión",
+        "A-VIII-1": "Corte y Reconexión",
+        "A-IX-1 (columna)": "Corte y Reconexión"
+      },
+      "A10": {
+        "A-III-1": "Gestión de Inversión en Distribución",
+        "A-IV-4": "Gestión de Inversión en Distribución",
+        "A-VIII-1": "Gestión Inv. En Distribución",
+        "A-IX-1 (columna)": "Inversión en Distribución"
+      },
+      "A11": {
+        "A-III-1": "Gestión de Inversión en Otras Áreas",
+        "A-IV-4": "Gestión de Inversión en Otras Áreas",
+        "A-VIII-1": "Gestión Otras Inversiones",
+        "A-IX-1 (columna)": "Inversión en otras Areas"
+      },
+      "A12": {
+        "A-III-1": "Apoyo en Postes",
+        "A-IV-4": "Apoyo en Postes",
+        "A-VIII-1": "Apoyo Postes",
+        "A-IX-1 (columna)": "Asesoría a Terceros"
+      },
+      "A13": {
+        "A-III-1": "Otros Servicios",
+        "A-IV-4": "Otros Servicios",
+        "A-VIII-1": "Otros Servicios",
+        "A-IX-1 (columna)": "Apoyo en Postes"
+      },
+      "A14": {
+        "A-III-1": "Negocios Financieros",
+        "A-IV-4": "Negocios Financieros",
+        "A-VIII-1": "Negocios Financieros",
+        "A-IX-1 (columna)": "Negocios Financieros"
+      },
+      "A15": {
+        "A-III-1": "Otras",
+        "A-IV-4": "Otras",
+        "A-VIII-1": "Otros",
+        "A-IX-1 (columna)": "Otras"
+      },
+      "A16": {
+        "A-III-1": "Total Actividades",
+        "A-IV-4": "Total Actividades"
+      }
+    },
+    "del_ix_al_resto": {
+      "A12": "A13",
+      "A13": "A12"
+    },
+    "explicacion_de_la_inclusion": {
+      "texto": "«IX.A12 ⊂ A13» quiere decir que la columna A12 «Asesoría a Terceros» del IX no tiene actividad propia en III-1, IV-4 ni VIII: en ellos, la asesoría a terceros es un servicio a terceros más y cae en A13 «Otros Servicios», junto con los demás servicios que no son Apoyo en Postes. Al pasar un costo del IX a esos formatos, lo de IX.A12 va a A13 y lo de IX.A13 «Apoyo en Postes» va a A12. Al revés no se puede separar: A13 «Otros Servicios» no dice qué parte es asesoría, y esa parte no se inventa.",
+      "citas": [
+        {
+          "formato": "A-IX-1",
+          "pagina_pdf": 97,
+          "pie": "Anexo 2-17",
+          "lee": "columnas «A12 Asesoría a Terceros» y «A13 Apoyo en Postes»"
+        },
+        {
+          "formato": "A-IX-2",
+          "pagina_pdf": 98,
+          "pie": "Anexo 2-18",
+          "lee": "las mismas columnas que el IX-1"
+        },
+        {
+          "formato": "A-III-1",
+          "pagina_pdf": 85,
+          "pie": "Anexo 2-5",
+          "lee": "filas «A12 Apoyo en Postes» y «A13 Otros Servicios»"
+        },
+        {
+          "formato": "A-IV-4",
+          "pagina_pdf": 89,
+          "pie": "Anexo 2-9",
+          "lee": "las mismas actividades que el III-1"
+        },
+        {
+          "formato": "A-VIII-1",
+          "pagina_pdf": 95,
+          "pie": "Anexo 2-15",
+          "lee": "«Apoyo Postes» en A12 y «Otros Servicios» en A13"
+        }
+      ],
+      "sha256_tdr_vigente": "fb5341703a3c427a929b10043ba0f7f3edf04f934875a4416eaa390368918f76"
+    }
+  }
 }

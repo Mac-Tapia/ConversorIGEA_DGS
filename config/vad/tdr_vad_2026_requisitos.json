@@ -1,0 +1,901 @@
+{
+  "esquema": "registro_normativo_v1",
+  "amplia": "tdr-vad-2026-anexo-r033",
+  "nota": "Spec 108, tarjeta VAD-REQ (2026-11-15, f4; datos de cc, z9, con doble lectura y verificador independiente). Amplía el TdR registrado con los requisitos y los cuadros de V11 (numeral 6.11) y V12 (6.8.3, 6.13, 6.14 y 6.15) del texto vigente (RCD 033-2026-OS/CD). Líneas de la copia de texto de huella sha256_texto de la norma ampliada; página, la impresa. «caracter»: obligatoria (debe estar), criterio (método que el TdR fija) o referencia (orienta, no limita); lo que el TdR llama «referencia» se anota en «interpretacion» como «referencia, no tope». «aplicacion»: qué comprueba el conversor. En un cuadro, la cita literal es su introducción y título («cita_lineas») y «lineas» abarca el cuadro. La regla del 6.11.1 que nombra los indicadores es vad.calidad.indicadores (tdr_vad_2026_resultados.json), que se amplía allí y no se repite aquí. Ninguna regla de una empresa (P13).",
+  "reglas": [
+    {
+      "clave": "vad.req.6_8_3.metodologia_dimensionamiento",
+      "valor": {
+        "exige": "metodología de dimensionamiento óptimo",
+        "referencia": "criterios y factores de regulaciones anteriores"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.8.3",
+      "pagina": "43",
+      "lineas": "2080-2084",
+      "cita_literal": "La empresa realizará una descripción de la metodología utilizada para realizar el dimensionamiento óptimo de los bienes muebles e inmuebles y la determinación de los costos asociados a éstos, destinados a las actividades de distribución. La metodología a formular corresponderá a un dimensionamiento óptimo. Se podrá tomar como referencia los criterios y factores utilizados en los procesos de regulación anteriores.",
+      "caracter": "obligatoria",
+      "aplicacion": "el estudio trae la metodología de dimensionamiento óptimo de bienes muebles e inmuebles (documento, no cálculo)",
+      "entregable": "V12",
+      "interpretacion": "«Se podrá tomar como referencia los criterios y factores» de regulaciones anteriores: referencia, no tope."
+    },
+    {
+      "clave": "vad.req.6_8_3.ley_29783",
+      "valor": {
+        "norma": "Ley N° 29783 (Seguridad y Salud en el Trabajo) y su Reglamento"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.8.3",
+      "pagina": "43",
+      "lineas": "2085-2086",
+      "cita_literal": "Se deberá tomar en consideración las directivas que se indican en la Ley N° 29783 (Ley de Seguridad y Salud en el Trabajo) y su Reglamento.",
+      "caracter": "obligatoria",
+      "aplicacion": "el dimensionamiento cita la Ley 29783 y su Reglamento",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_8_3.valor_mercado_y_respaldo",
+      "valor": {
+        "valoracion": "precio de mercado sustentado",
+        "terrenos_edificios": [
+          "respaldo de valores",
+          "ubicación",
+          "tipo de construcción"
+        ],
+        "evaluacion": "compra frente a alquiler, cuando corresponda"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.8.3",
+      "pagina": "43",
+      "lineas": "2087-2094",
+      "cita_literal": "Se determinará el valor de los bienes muebles e inmuebles que conforman el VNR No Eléctrico a partir del precio de mercado, que deberá ser adecuadamente sustentado. Particularmente, para los terrenos y edificios, la empresa deberá incluir en su estudio el respaldo de los valores empleados, justificando por cada uno de ellos, la ubicación y el tipo de construcción considerado, lo anterior en el marco de un servicio de distribución eficiente en las políticas de inversión y gestión de la empresa modelo. Adicionalmente, se deberá incluir en el estudio, una evaluación que muestre el análisis de conveniencia entre las opciones de compra o alquiler de las instalaciones, cuando corresponda.",
+      "caracter": "obligatoria",
+      "aplicacion": "cada terreno y edificio lleva respaldo de valor, ubicación y tipo de construcción; existe evaluación compra/alquiler cuando corresponda",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_8_3.reparto_mt_bt_sed",
+      "valor": {
+        "reparto": [
+          "MT",
+          "BT"
+        ],
+        "diferenciar": "SED",
+        "criterio": "proporcional al VNR de las instalaciones físicas de MT y BT"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.8.3",
+      "pagina": "44",
+      "lineas": "2097-2098",
+      "cita_literal": "Los valores resultantes deben distribuirse en MT y BT, diferenciando la asignación a las SED, de manera proporcional al VNR de las instalaciones físicas de MT y BT.",
+      "caracter": "obligatoria",
+      "aplicacion": "el VNR no eléctrico se reparte MT/BT (con la parte SED) en proporción al VNR físico de MT y BT",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_8_3.cuadro_18",
+      "valor": {
+        "cuadro": 18,
+        "titulo": "Resumen de VNR No Eléctrico",
+        "columnas": [
+          "Bienes Muebles e Inmuebles",
+          "Unidad",
+          "Cantidad",
+          "Total Miles US$"
+        ],
+        "filas": [
+          [
+            "Terrenos, edificios y construcciones",
+            "m2"
+          ],
+          [
+            "Equipos y vehículos de transporte y carga",
+            "c/u"
+          ],
+          [
+            "Equipos de almacén y maestranza",
+            "c/u"
+          ],
+          [
+            "Equipos de medición y control",
+            "c/u"
+          ],
+          [
+            "Equipos de comunicaciones",
+            "c/u"
+          ],
+          [
+            "Equipos de oficina",
+            "c/u"
+          ],
+          [
+            "Equipos de computación",
+            "c/u"
+          ],
+          [
+            "Otros equipos",
+            "c/u"
+          ],
+          [
+            "Sistemas informáticos (Software , sistemas de ciberseguridad, gobierno de datos, infraestructura en la nube, infraestructura de redundancia y otros)",
+            "c/u"
+          ],
+          [
+            "Total Empresa",
+            ""
+          ]
+        ]
+      },
+      "unidad": "Miles US$",
+      "articulo_o_anexo": "Numeral 6.8.3",
+      "pagina": "44",
+      "lineas": "2099-2114",
+      "cita_lineas": "2099-2100",
+      "cita_literal": "Los resultados obtenidos deben ser resumidos de acuerdo al siguiente cuadro: Cuadro N° 18. Resumen de VNR No Eléctrico",
+      "caracter": "obligatoria",
+      "aplicacion": "el Cuadro 18 tiene exactamente estas filas, unidades y columnas",
+      "entregable": "V12",
+      "interpretacion": "Fila de sistemas informáticos ampliada por el texto vigente (RCD 033-2026); el proyecto decía «Sistemas informáticos (Software)». «Software ,» con espacio, así en el original. Cuadro: la cita literal es su introducción y título (líneas de «cita_lineas»); filas y columnas leídas de la IMAGEN de su hoja del PDF vigente y cotejadas por programa con una segunda lectura (z3)."
+    },
+    {
+      "clave": "vad.req.6_8_3.lista_detallada",
+      "valor": {
+        "campos": [
+          "descripción",
+          "cantidad",
+          "precio unitario",
+          "costo total"
+        ]
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.8.3",
+      "pagina": "44",
+      "lineas": "2115-2117",
+      "cita_literal": "Adicionalmente se presentará una lista detallada de los ítems que componen el VNR No Eléctrico, indicando descripción, cantidad en las unidades que corresponda, precio unitario y costo total.",
+      "caracter": "obligatoria",
+      "aplicacion": "existe la lista de ítems con descripción, cantidad, precio unitario y costo total",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_11.diseno_cumple_ntcse",
+      "valor": {
+        "normas": [
+          "NTCSE",
+          "NTCSER"
+        ]
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "49",
+      "lineas": "2345-2347",
+      "cita_literal": "En el proceso de construcción de la empresa modelo deberá incorporar en su diseño las instalaciones eléctricas, el equipamiento e infraestructura de red que le permitan cumplir con los indicadores de calidad a que se refiere la NTCSE o la NTCSER, según corresponda.",
+      "caracter": "obligatoria",
+      "aplicacion": "la empresa modelo incorpora lo necesario para cumplir la NTCSE o la NTCSER",
+      "entregable": "V11",
+      "interpretacion": "Amplía vad.calidad.indicadores (ya registrado), que solo nombra los indicadores."
+    },
+    {
+      "clave": "vad.req.6_11.aspectos_minimos",
+      "valor": {
+        "calidad_producto": "nivel de tensión",
+        "calidad_suministro": "indicadores individuales de frecuencia y duración (NTCSE y NTCSER)"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "49",
+      "lineas": "2348-2353",
+      "cita_literal": "La verificación que los objetivos de calidad de servicio (producto y suministro) son alcanzables por el diseño de la red adaptada, se efectuará a través de un proceso de análisis y cálculo, que comprenderá como mínimo el análisis de los siguientes aspectos:  Calidad de producto: Nivel de tensión.  Calidad de suministro: Indicadores individuales de frecuencia y duración según la NTCSE y la NTCSER, según corresponda.",
+      "caracter": "obligatoria",
+      "aplicacion": "la verificación cubre como mínimo producto (nivel de tensión) y suministro (indicadores individuales de frecuencia y duración)",
+      "entregable": "V11"
+    },
+    {
+      "clave": "vad.req.6_11.calidad_producto",
+      "valor": {
+        "partida": "caídas de tensión de los circuitos típicos adaptados (urbanos y/o rurales)",
+        "medio": "tecnologías y medios habituales de regulación de tensión"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "49",
+      "lineas": "2354-2357",
+      "cita_literal": "Para verificar el cumplimiento de la calidad de producto en forma eficiente, partiendo de las caídas de tensión de los distintos circuitos típicos adaptados para zonas urbanas y/o rurales, se debe demostrar que es factible el cumplimiento de los requisitos de nivel de tensión, mediante el uso de tecnologías y medios habituales de regulación de tensión.",
+      "caracter": "criterio",
+      "aplicacion": "a partir de las caídas de tensión de los circuitos típicos adaptados, se demuestra el cumplimiento del nivel de tensión con medios habituales de regulación",
+      "entregable": "V11"
+    },
+    {
+      "clave": "vad.req.6_11.pautas_suministro",
+      "valor": {
+        "pautas": [
+          "modelo de la red adaptada de MT y BT",
+          "tasas de avería objetivo de una red de vida media (mantenimiento, TCT, revisiones y adecuaciones)",
+          "tasas objetivo de interrupción por mantenimiento preventivo (sin interrupción donde sea factible el TCT)",
+          "protecciones convenientes (re-cierre, seccionamiento automático, señalización de fallas)",
+          "tiempos de reposición objetivo de empresas eficientes a nivel latinoamericano"
+        ]
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "49",
+      "lineas": "2358-2371",
+      "cita_literal": "Para determinar la calidad de suministro se tendrá como mínimo las siguientes pautas: 1. Representación mediante un modelo de la red eléctrica adaptada de MT y BT; 2. Adopción de las tasas de avería objetivo de una red de vida media alcanzables mediante acciones de mantenimiento, incluye prácticas de trabajo con tensión (en adelante TCT), revisiones y adecuaciones; 3. Adopción de las tasas objetivo de frecuencia de interrupción para mantenimiento preventivo (no se debe contemplar interrupción en todos aquellos casos donde es factible el uso del TCT); 4. Incorporación de los sistemas de protección que sean convenientes técnica y económicamente (incorporación de re-cierre y seccionamiento automático, señalización de fallas, etc.); y 5. Determinación de los tiempos de reposición objetivo a partir de una razonable disposición de recursos y métodos operativos, habituales en empresas que hayan alcanzado un nivel de eficiencia óptimo a nivel latinoamericano.",
+      "caracter": "obligatoria",
+      "aplicacion": "el modelo de suministro aplica las 5 pautas mínimas",
+      "entregable": "V11"
+    },
+    {
+      "clave": "vad.req.6_11.saifi_saidi_curvas_porcentaje",
+      "valor": {
+        "indices": [
+          "SAIFI",
+          "SAIDI"
+        ],
+        "curvas": "distribución de frecuencia y duración, con base en las curvas reales de la distribuidora del sistema",
+        "resultado": "porcentaje de clientes que no excede N (interrupciones por cliente por semestre) y D (duración total por cliente por semestre)",
+        "limites": "NTCSE o NTCSER"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "49",
+      "lineas": "2372-2380",
+      "cita_literal": "Cumplidas las pautas indicadas en los numerales 1 a 5 anteriores, se procederá a calcular los índices esperables de frecuencia media de interrupción por sistema (SAIFI), duración media de interrupción por sistema (SAIDI). A partir de los valores medios de estos índices se procederá a determinar las curvas de distribución de frecuencia y duración, utilizando como elemento de base las curvas de distribución reales de la distribuidora para el sistema en estudio. Una vez construidas las curvas de distribución objetivo, deberá determinarse que porcentaje de clientes no excede los valores de los índices (N) número de interrupciones por cliente por semestre y (D) duración total de interrupciones por cliente por semestre, dispuestos por la NTCSE o NTCSER, según corresponda.",
+      "caracter": "criterio",
+      "aplicacion": "calcula SAIFI y SAIDI esperables; construye curvas de distribución de frecuencia y duración desde las reales de la distribuidora; obtiene el % de clientes que no excede N y D por semestre",
+      "entregable": "V11",
+      "interpretacion": "Es el criterio de la verificación; no se reduce a «valor ≤ límite» por sistema. Las definiciones y tolerancias de SAIFI, SAIDI, N, D, NIC y DIC no están aquí: las trae la tarjeta VAD-CAL."
+    },
+    {
+      "clave": "vad.req.6_11.circuitos_representativos",
+      "valor": {
+        "punto_de_partida": "circuitos representativos de las redes vinculados con el VNR del sistema económicamente adaptado"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "49-50",
+      "lineas": "2381-2387",
+      "cita_literal": "El punto de partida para la optimización de la red respecto de su calidad de suministro, mediante un modelo de cálculo, serán por tanto los circuitos representativos de las redes de distribución vinculados con el valor nuevo de reemplazo del sistema económicamente adaptado de la empresa modelo, considerando que sobre ellos las tasas de falla objetivo y los sistemas de protección adecuados.",
+      "caracter": "criterio",
+      "aplicacion": "el modelo de cálculo parte de los circuitos representativos ligados al VNR adaptado, con tasas de falla objetivo y protecciones",
+      "entregable": "V11"
+    },
+    {
+      "clave": "vad.req.6_11.cuadro_21_presentacion",
+      "valor": {
+        "presentacion": "por sector típico y zona (área urbana densidad y área rural)",
+        "cuadro": 21
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "50",
+      "lineas": "2388-2391",
+      "cita_literal": "Los valores de frecuencia y duración media de interrupción por cliente y el resultado de porcentaje (%) de clientes excedidos del límite por área característica de mercado, se indicará de acuerdo a lo mostrado en el cuadro siguiente, presentados por sector típico y zona (área urbana densidad y área rural).",
+      "caracter": "obligatoria",
+      "aplicacion": "los resultados se presentan por sector típico y zona según el Cuadro 21",
+      "entregable": "V11"
+    },
+    {
+      "clave": "vad.req.6_11.cuadro_21",
+      "valor": {
+        "cuadro": 21,
+        "titulo": "Interrupciones medias por semestre",
+        "columnas": [
+          "Tipo de Circuito Representativo de Zona Característica",
+          "Sector Típico y Zona",
+          {
+            "grupo": "Interrupciones medias por Semestre",
+            "sub": [
+              {
+                "grupo": "Cliente MT",
+                "sub": [
+                  "Frecuencia (Cantidad)",
+                  "Duración (Horas)",
+                  "% excedido de límite"
+                ]
+              },
+              {
+                "grupo": "Cliente BT",
+                "sub": [
+                  "Frecuencia (Cantidad)",
+                  "Duración (Horas)",
+                  "% excedido de límite"
+                ]
+              }
+            ]
+          }
+        ],
+        "filas": [
+          "Urbano Muy Alta Densidad",
+          "Urbano Alta Densidad",
+          "Urbano Densidad Media",
+          "Urbano Densidad Baja",
+          "Urbano Rural",
+          "Rural",
+          "Total Empresa Modelo"
+        ],
+        "unidades": {
+          "Frecuencia (Cantidad)": "interrupciones por cliente por semestre (media)",
+          "Duración (Horas)": "horas por cliente por semestre (media)",
+          "% excedido de límite": "% de clientes que exceden N' o D' (lectura: el TdR dice «clientes excedidos del límite»)"
+        },
+        "presentacion": "por sector típico y zona (área urbana densidad y área rural)"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "50",
+      "lineas": "2392-2424",
+      "cita_lineas": "2392",
+      "cita_literal": "Cuadro N° 21. Interrupciones medias por semestre",
+      "caracter": "obligatoria",
+      "aplicacion": "el Cuadro 21 tiene estas filas y columnas",
+      "entregable": "V11",
+      "interpretacion": "Cuadro: la cita literal es su introducción y título (líneas de «cita_lineas»); filas y columnas leídas de la IMAGEN de su hoja del PDF vigente y cotejadas por programa con una segunda lectura (z3)."
+    },
+    {
+      "clave": "vad.req.6_11.previsiones_adicionales",
+      "valor": {
+        "incluye": [
+          "instalaciones eléctricas",
+          "equipos de protección y seccionamiento",
+          "redundancia de redes",
+          "enlaces",
+          "cierres",
+          "otros"
+        ]
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "50",
+      "lineas": "2425-2432",
+      "cita_literal": "Se procederá a calcular y explicitar las previsiones adicionales a las contempladas en el diseño de la red adaptada para el cumplimiento de las tolerancias y para las mediciones y reportes de la Calidad de Servicio, requeridos en las normas NTCSE y NTCSER para lo cual se deberá calcular las inversiones y los costos de operación y mantenimiento necesarios. Los resultados de los cálculos deberán ser obligatoriamente especificados, indicando las instalaciones eléctricas, equipos de protección y seccionamiento, redundancia de redes, enlaces, cierres y otros, asociados a la calidad del servicio eléctrico (producto y suministro), y serán presentados haciendo uso de los siguientes cuadros:",
+      "caracter": "obligatoria",
+      "aplicacion": "se calculan y especifican las inversiones y la OyM adicionales para tolerancias, mediciones y reportes (Cuadros 22 y 23)",
+      "entregable": "V11"
+    },
+    {
+      "clave": "vad.req.6_11.cuadro_22",
+      "valor": {
+        "cuadro": 22,
+        "titulo": "Costos de Inversión",
+        "columnas": [
+          "Inversión",
+          "US$"
+        ],
+        "filas": [
+          "Sistemas de cómputo calidad de suministro (Software, hardware.)",
+          "Equipos de medición y registro de calidad de producto y suministro",
+          "Equipamiento de protección, seccionamiento y maniobra MT.",
+          "Equipamiento para trabajos con tensión en MT.",
+          "Enlaces y cierres asociados a la calidad del servicio eléctrico.",
+          "Otros (especificar)",
+          "...",
+          "Total"
+        ]
+      },
+      "unidad": "US$",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "50",
+      "lineas": "2433-2442",
+      "cita_lineas": "2433",
+      "cita_literal": "Cuadro N° 22. Costos de Inversión",
+      "caracter": "obligatoria",
+      "aplicacion": "el Cuadro 22 tiene estas filas",
+      "entregable": "V11",
+      "interpretacion": "Cuadro: la cita literal es su introducción y título (líneas de «cita_lineas»); filas y columnas leídas de la IMAGEN de su hoja del PDF vigente y cotejadas por programa con una segunda lectura (z3)."
+    },
+    {
+      "clave": "vad.req.6_11.cuadro_23",
+      "valor": {
+        "cuadro": 23,
+        "titulo": "Costos de Operación y Mantenimiento Anual",
+        "columnas": [
+          "Operación y mantenimiento",
+          "US$"
+        ],
+        "filas": [
+          "Mantenimiento de la documentación técnica AT, MT, BT y la vinculación cliente red.",
+          "Procesamiento y reporte de las interrupciones y mediciones de calidad de suministro.",
+          "Medición y procesamiento de la calidad de producto.",
+          "Mantenimiento de equipamiento de protección, seccionamiento y maniobra MT.",
+          "Operación de equipamiento de protección, seccionamiento y maniobra MT.",
+          "Mantenimiento de enlaces y cierres asociados a la calidad del servicio eléctrico.",
+          "Otros (especificar)",
+          "…",
+          "Total"
+        ]
+      },
+      "unidad": "US$",
+      "articulo_o_anexo": "Numeral 6.11",
+      "pagina": "50",
+      "lineas": "2444-2458",
+      "cita_lineas": "2444",
+      "cita_literal": "Cuadro N° 23. Costos de Operación y Mantenimiento Anual",
+      "caracter": "obligatoria",
+      "aplicacion": "el Cuadro 23 tiene estas filas",
+      "entregable": "V11",
+      "interpretacion": "Cuadro: la cita literal es su introducción y título (líneas de «cita_lineas»); filas y columnas leídas de la IMAGEN de su hoja del PDF vigente y cotejadas por programa con una segunda lectura (z3)."
+    },
+    {
+      "clave": "vad.req.6_13.alcance_operacion_comercial",
+      "valor": {
+        "incluye": [
+          "gestión comercial",
+          "comercialización",
+          "proceso comercial asociado al usuario (control, lectura, facturación, reparto y cobranza) → cargos fijos"
+        ]
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.13",
+      "pagina": "51",
+      "lineas": "2466-2478",
+      "cita_literal": "Se deberá calcular los costos eficientes de operación comercial y los de gestión para la reducción de las pérdidas comerciales. Los costos de operación comercial se refieren a las actividades de gestión comercial y comercialización. La gestión comercial comprende la planificación, seguimiento y control de la ejecución de los procesos comerciales de modo de asegurar que estos se desarrollen dentro del marco de las metas establecidas. La comercialización contempla la ejecución específica de las actividades comerciales que están relacionadas con los costos asociados a la atención del cliente (reclamos, actualización de las condiciones de contrato de suministro, tele-gestión, gestión de medios digitales y atención personalizada), acciones comerciales (atención de nuevos suministros, cortes y reconexiones, reposición y mantenimiento de conexiones, actividades no correspondientes al VAD), gestión de morosidad, gestión de pérdidas, y cálculo de tarifas; y los costos del proceso comercial asociados al usuario (control, lectura, facturación, reparto y cobranza) que se incluyen en los cargos fijos de facturación.",
+      "caracter": "obligatoria",
+      "aplicacion": "los costos comerciales cubren gestión comercial y comercialización; los del proceso asociado al usuario van a los cargos fijos",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_13.indicadores_estandar",
+      "valor": {
+        "unidades": [
+          "US$/usuario",
+          "S//usuario"
+        ],
+        "discriminado": "por tarifa",
+        "comparables": "estándares internacionales de empresas latinoamericanas eficientes",
+        "regulaciones_previas": "referencia (no tope), con mejoras de eficiencia"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.13",
+      "pagina": "51",
+      "lineas": "2479-2486",
+      "cita_literal": "Al respecto, la empresa determinará indicadores estándar para cada una de las actividades comerciales, incluidas en el VAD, mediante los cuales calculará los costos asignables a la empresa modelo. Los costos estarán expresados en US$/usuario y S//usuario y discriminados por tarifa. Dichos valores deberán ser comparables con valores estándar internacionales de empresas latinoamericanas similares, que operen en condiciones de eficiencia. Los valores de regulaciones precedentes constituyen una referencia que debe considerarse, sin embargo, sobre dicha referencia, se considerarán las mejoras de eficiencia y rendimientos observados.",
+      "caracter": "obligatoria",
+      "aplicacion": "costos por actividad comercial con indicadores estándar, en US$/usuario y S//usuario por tarifa; regulaciones previas como REFERENCIA",
+      "entregable": "V12",
+      "interpretacion": "«S//usuario» (sic). «Los valores de regulaciones precedentes constituyen una referencia»: referencia, no tope."
+    },
+    {
+      "clave": "vad.req.6_13.lectura_remota_smi",
+      "valor": {
+        "lectura_remota": "según penetración eficiente de medición remota o inteligente, costo-beneficio y calidad de información del Plan de Despliegue del SMI y pilotos aprobados",
+        "factura_digital": "usuarios para los que sea factible y lo hayan solicitado",
+        "limite": "sin adopción masiva cuando no esté económicamente justificada"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.13",
+      "pagina": "51-52",
+      "lineas": "2487-2496",
+      "cita_literal": "Asimismo, debe considerar la aplicabilidad de la lectura remota. Respecto al envío de la correspondiente factura en forma digital, debe considerar a todos los usuarios para los cuales sea factible realizarlo y lo hayan solicitado. La aplicación de lectura remota en la empresa modelo se definirá en función del nivel de penetración eficiente de sistemas de medición remota o inteligente y de los análisis de costo–beneficio y calidad de información que sustenten las empresas distribuidoras en su Plan de Despliegue de su SMI y suministros que poseen medición inteligente acorde a los proyectos piloto aprobados, sin que ello implique su adopción masiva en todos los usuarios cuando no resulte económicamente justificado.",
+      "caracter": "criterio",
+      "aplicacion": "la lectura remota de la empresa modelo se fija por penetración eficiente y costo-beneficio del Plan de Despliegue del SMI y los pilotos; factura digital a quien lo solicite y sea factible; sin adopción masiva no justificada",
+      "entregable": "V12",
+      "interpretacion": "Párrafo nuevo del texto vigente (RCD 033-2026); no estaba en el proyecto."
+    },
+    {
+      "clave": "vad.req.6_13.costos_asociados_usuario_y_cargos",
+      "valor": {
+        "BT5C-AP": "solo lectura, procesamiento y facturación del consumo de AP",
+        "BT7": [
+          "RCD 442-2006-OS/CD",
+          "DS 007-2006-EM",
+          "DS 031-2008-EM"
+        ],
+        "mensuales": "lectura, procesamiento y reparto en urbano-rurales y rurales",
+        "medicion_centralizada_BT": "cargo fijo"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.13",
+      "pagina": "52",
+      "lineas": "2497-2508",
+      "cita_literal": "Los costos (del proceso comercial) asociados al usuario, son aquellos costos que resultan independientes de su demanda de potencia y energía, correspondientes a los costos unitarios de: lectura, procesamiento y emisión de la boleta/factura, su distribución y comisión de cobranza, considerando una gestión empresarial eficiente. El cargo fijo de alumbrado público BT5C-AP, tomará en cuenta solo las actividades necesarias para la toma de lectura del consumo por alumbrado público, su procesamiento y facturación. Para el cargo fijo aplicable a la opción tarifaria BT7 del servicio eléctrico prepago, se deberán tener en cuenta los criterios y metodología de la Resolución Osinergmin N° 442-2006-OS/CD, Decreto Supremo Nº 007-2006-EM y su modificatoria, Decreto Supremo Nº 031-2008-EM Además, se determinarán cargos por lectura, procesamiento y reparto en forma mensual para los sistemas urbano-rurales y rurales, así como el cargo fijo para el sistema de medición centralizada en BT.",
+      "caracter": "obligatoria",
+      "aplicacion": "costos asociados al usuario independientes de la demanda; BT5C-AP solo lectura, procesamiento y facturación de AP; BT7 según RCD 442-2006, DS 007-2006-EM y DS 031-2008-EM; cargos mensuales en urbano-rurales y rurales; cargo fijo de medición centralizada BT",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_13.cobranza_externa",
+      "valor": {
+        "criterio": "facilitación del pago del cliente",
+        "preferencia": "medios que demandan menos recursos y desplazamiento"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.13",
+      "pagina": "52",
+      "lineas": "2509-2516",
+      "cita_literal": "El desarrollo de redes de cobranza externa, debe efectuarse tomando como criterio la facilitación del pago del cliente como modalidad básica para su diseño, en este sentido se podrá considerar centros de atención que exclusivamente realicen dicha función, ubicados en lugares como supermercados, centros comerciales, oficinas u otras modalidades, como monedero digital, donde se asegure que el usuario pueda acceder sin dificultad y ser atendido dentro de tiempos razonables de espera. Se deberá otorgar mayor preferencia a los medios que demandan menos recursos y desplazamiento de los clientes.",
+      "caracter": "criterio",
+      "aplicacion": "la red de cobranza externa facilita el pago y prefiere medios con menos recursos y desplazamiento",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_13.moneda_y_decimales",
+      "valor": {
+        "monedas": [
+          "US$",
+          "S/"
+        ],
+        "por": "mes y usuario",
+        "tipo_de_cambio": "valor venta SBS del 31 de diciembre del año anterior a la entrada en vigencia del nuevo VAD",
+        "decimales": 3
+      },
+      "unidad": "US$/mes-usuario y S//mes-usuario",
+      "articulo_o_anexo": "Numeral 6.13",
+      "pagina": "52",
+      "lineas": "2517-2519",
+      "cita_literal": "Estas cifras se expresarán en dólares y en soles por mes y por usuario, al tipo de cambio (valor venta de la SBS) del 31 de diciembre del año anterior a la entrada en vigencia del nuevo VAD, con tres decimales.",
+      "caracter": "obligatoria",
+      "aplicacion": "los cargos van en US$ y S/ por mes y por usuario, tipo de cambio venta SBS del 31-dic del año anterior a la vigencia, con 3 decimales",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_13.cuadro_24",
+      "valor": {
+        "cuadro": 24,
+        "titulo": "Estructura de Cobranza",
+        "columnas": [
+          "Modalidad de Cobranza",
+          "Unidad",
+          "Costo",
+          "Número de Transacciones Mensuales Promedio",
+          "Participación"
+        ],
+        "filas": [
+          [
+            "Oficinas Comerciales",
+            "US$/mes-talón"
+          ],
+          [
+            "Centro Autorizado de Recaudación",
+            "US$/mes-talón"
+          ],
+          [
+            "Banco por Ventanilla",
+            "US$/mes-talón"
+          ],
+          [
+            "Banca por Internet",
+            "US$/mes-talón"
+          ],
+          [
+            "Débito Automático",
+            "US$/mes-talón"
+          ],
+          [
+            "…",
+            ""
+          ],
+          [
+            "TOTAL",
+            "100.00%"
+          ]
+        ],
+        "ampliable": "se agregan las modalidades necesarias"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.13",
+      "pagina": "52",
+      "lineas": "2520-2536",
+      "cita_lineas": "2520-2523",
+      "cita_literal": "Se debe determinar la estructura de cobranza óptima de la Empresa Modelo, la cual se indicará en el cuadro siguiente. En el mismo, se agregará las modalidades de cobranza que se consideren necesarias. Cuadro N° 24. Estructura de Cobranza",
+      "caracter": "obligatoria",
+      "aplicacion": "el Cuadro 24 tiene estas columnas y filas; participación total 100,00 %",
+      "entregable": "V12",
+      "interpretacion": "Cuadro: la cita literal es su introducción y título (líneas de «cita_lineas»); filas y columnas leídas de la IMAGEN de su hoja del PDF vigente y cotejadas por programa con una segunda lectura (z3)."
+    },
+    {
+      "clave": "vad.req.6_13.cuadro_25",
+      "valor": {
+        "cuadro": 25,
+        "titulo": "Resumen de Resultados",
+        "columnas": [
+          "Cargos Fijos: CFE",
+          "CFS",
+          "CFH",
+          "CFEA",
+          "CCSP",
+          "CFHC",
+          "Costos Totales"
+        ],
+        "filas": [
+          [
+            "Lectura",
+            "US$ / año"
+          ],
+          [
+            "Facturación",
+            "US$ / año"
+          ],
+          [
+            "Distribución de Facturas",
+            "US$ / año"
+          ],
+          [
+            "Cobranza",
+            "US$ / año"
+          ],
+          [
+            "Costos Totales",
+            "US$ / año"
+          ]
+        ]
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.13",
+      "pagina": "53",
+      "lineas": "2539-2549",
+      "cita_lineas": "2539-2541",
+      "cita_literal": "Los valores resultantes se indicarán en el siguiente cuadro resumen: Cuadro N° 25. Resumen de Resultados",
+      "caracter": "obligatoria",
+      "aplicacion": "el Cuadro 25 tiene estas filas y columnas",
+      "entregable": "V12",
+      "interpretacion": "Siglas definidas en el num. 8 «Cargos Fijos» como CFEAP y CFHCO; aquí CFEA y CFHC (lectura por posición, decidida por el auditor 28 en la lectura z3). Cuadro: la cita literal es su introducción y título (líneas de «cita_lineas»); filas y columnas leídas de la IMAGEN de su hoja del PDF vigente y cotejadas por programa con una segunda lectura (z3)."
+    },
+    {
+      "clave": "vad.req.6_13.gestion_comercial_y_exclusiones",
+      "valor": {
+        "incluye": [
+          "atención de reclamos comerciales",
+          "reducción de pérdidas no técnicas",
+          "control de la calidad comercial y reportes a Osinergmin"
+        ],
+        "excluye": [
+          "conexión de nuevos suministros y/o ampliación de potencia",
+          "cortes y reconexiones"
+        ]
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.13",
+      "pagina": "53",
+      "lineas": "2550-2557",
+      "cita_literal": "Asimismo, deberán calcularse los costos de gestión comercial asociados al que incluyen:  Atención de reclamos comerciales  Actividades para la reducción de pérdidas no técnicas  Actividades requeridas para el control de la calidad comercial y presentar los reportes requeridos por el Osinergmin. No deberán incluirse las actividades que no corresponden al VAD vinculadas a:  Conexión de nuevos suministros y/o ampliación de potencia  Cortes y reconexiones",
+      "caracter": "obligatoria",
+      "aplicacion": "incluye reclamos, reducción de pérdidas no técnicas y control de calidad comercial; excluye conexiones nuevas/ampliaciones y cortes/reconexiones",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_14.organizacion_optima",
+      "valor": {
+        "servicios": [
+          "administración",
+          "contabilidad",
+          "dirección",
+          "personal",
+          "legales",
+          "compras y contrataciones",
+          "control de gestión",
+          "otros"
+        ],
+        "partida": "estructura real racionalizada (opcional)"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.14",
+      "pagina": "53",
+      "lineas": "2559-2567",
+      "cita_literal": "Se deberá analizar la organización de personal de la empresa óptima necesaria para el desarrollo de la actividad de distribución y otras anexas que desarrolla la empresa, cumpliendo los objetivos de costos eficientes y aprovechando los costos de economía de escala. Es decir, estructurando la empresa modelo, desarrollando para lo cual, los servicios de administración, contabilidad, dirección, personal, legales, compras y contrataciones, control de gestión y otros necesarios para el funcionamiento eficiente de la empresa. Para el diseño de la estructura de personal de la Empresa Modelo, se podrá partir de la estructura empresa real evaluando las funciones y actividades a realizar, y racionalizando la misma aplicando criterios de eficiencia.",
+      "caracter": "obligatoria",
+      "aplicacion": "estructura de personal óptima (distribución y anexas) con economías de escala; puede partir de la real racionalizada",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_14.costos_unitarios_personal",
+      "valor": {
+        "fuentes": [
+          "costos unitarios totales por categoría",
+          "encuestas salariales de empresas afines de la misma región"
+        ],
+        "regla": "el más eficiente de las dos, por categoría de personal propio (punto 5-k)"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.14",
+      "pagina": "53-54",
+      "lineas": "2568-2577",
+      "cita_literal": "Para la determinación de los costos unitarios de personal se deberá considerar: - Los costos unitarios totales por categoría - Encuestas salariales realizadas en empresas con actividades afines dentro de la misma región Los costos unitarios de personal se determinarán con base en los costos unitarios más eficientes determinados con base a las dos fuentes de información, para cada una de las categorías de personal propio de acuerdo a lo indicado en el punto 5 –k) correspondiente a la recolección de información preliminar",
+      "caracter": "criterio",
+      "aplicacion": "costo unitario por categoría = el más eficiente entre costos unitarios totales y encuestas salariales de la región",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_14.exclusiones_y_funcionamiento",
+      "valor": {
+        "excluye": [
+          "PTU",
+          "horas extra"
+        ],
+        "incluye": "costos de funcionamiento asociados a la estructura de personal (telefonía, movilidad, viáticos, papelería, correo, suscripciones, licencias y hardware individual, mantenimiento, limpieza, mobiliario)",
+        "ausentismo_y_descanso": "solo personal propio de plantilla; no en tercerizados"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.14",
+      "pagina": "54",
+      "lineas": "2578-2590",
+      "cita_literal": "En los costos de personal propio no se incluirán los conceptos de participación de los trabajadores en las utilidades de la empresa (PTU) y de horas extra. Además, de los costos salariares se deberán incorporar los costos de funcionamiento asociados a la estructura de personal tales como: Telefonía fija y celular, movilidad, viáticos, papelería, correo, suscripciones, licencias de software y hardware individual, mantenimiento, limpieza de oficinas, mobiliario, etc. Los costos de funcionamiento asociados con el personal propio de la empresa modelo deberán estar justificados por estándares, incluido el efecto del ausentismo laboral. No corresponde incluir el ausentismo ni suplemento por descanso en las actividades tercerizadas, debido a que dichos conceptos ya se encuentran incluidos en los costos pagados al contratista. Cabe precisar que la contratación a terceros se paga por trabajo realizado. En cambio, sí corresponde incluir en los costos laborales del personal propio de plantilla, el ausentismo y suplemento de descanso, debido a que son costos en que debe incurrir la empresa para con su personal propio.",
+      "caracter": "obligatoria",
+      "aplicacion": "sin PTU ni horas extra; con costos de funcionamiento justificados por estándares; ausentismo y descanso solo para personal propio",
+      "entregable": "V12",
+      "interpretacion": "Enlaza con la PTU del A-VII-1 (z7)."
+    },
+    {
+      "clave": "vad.req.6_14.referencias_y_superposicion",
+      "valor": {
+        "indicadores_previos": "referencia a adoptar",
+        "superposicion": "evitar con el VNR no eléctrico",
+        "eleccion": "costo indirecto o inversión no eléctrica: evaluación técnica y económica"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.14",
+      "pagina": "54",
+      "lineas": "2591-2596",
+      "cita_literal": "Los indicadores empleados en anteriores regulaciones tarifarias serán considerados como referencia a adoptar. Se deberá evitar la superposición de costos requeridos con las previsiones realizadas en el cálculo del VNR no eléctrico. En caso de existir la opción de incluir un requerimiento como costo indirecto o como inversión no eléctrica deberá evaluarse técnica y económicamente la mejor opción.",
+      "caracter": "obligatoria",
+      "aplicacion": "indicadores previos como REFERENCIA; sin superposición con el VNR no eléctrico; indirecto o inversión: la mejor opción evaluada",
+      "entregable": "V12",
+      "interpretacion": "«Los indicadores empleados en anteriores regulaciones tarifarias serán considerados como referencia a adoptar»: referencia, no tope."
+    },
+    {
+      "clave": "vad.req.6_14.asignacion_indirectos",
+      "valor": {
+        "base": "Costos Directos + Supervisión Directa",
+        "actividades": [
+          "Distribución MT",
+          "Distribución BT",
+          "Alumbrado público",
+          "Comercialización"
+        ],
+        "excluye": [
+          "Compra de energía",
+          "Otros"
+        ]
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.14",
+      "pagina": "54",
+      "lineas": "2597-2607",
+      "cita_literal": "La asignación de los costos indirectos se efectuará considerando el porcentaje de contribución de cada actividad regulada al VAD y las actividades no reguladas. La asignación de costo indirecto debe considerar aquellos costos representativos y que correspondan al giro de negocio principal de la actividad de distribución eléctrica. Al respecto, el cálculo del porcentaje de asignación de costos indirectos únicamente considera la suma de los “Costos Directos” y los costos de “Supervisión Directa” de las actividades del giro principal del negocio (Distribución MT, Distribución BT, Alumbrado público y Comercialización). Asimismo, se precisa que no se debe considerar en el cálculo del mencionado factor, las partidas de la actividad “Compra de energía” y “Otros”, dado que dicha partida incluye depreciaciones. Se deberá presentar un resumen que contenga los porcentajes de asignación de los costos indirectos dentro de cada actividad de acuerdo a la siguiente tabla:",
+      "caracter": "criterio",
+      "aplicacion": "% de asignación = (Costos Directos + Supervisión Directa) de Distribución MT, BT, AP y Comercialización; sin «Compra de energía» ni «Otros»",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_14.cuadro_26",
+      "valor": {
+        "cuadro": 26,
+        "titulo": "Optimización de Costos Indirectos",
+        "columnas": [
+          "Descripción",
+          "Miles S/.",
+          "%"
+        ],
+        "filas": [
+          "Distribución MT",
+          "Distribución BT",
+          "Alumbrado Público",
+          "Gestión Comercial",
+          "Operación Comercial",
+          "Costo asociado al Usuario",
+          "Generación Propia",
+          "Transmisión",
+          "  Subestaciones",
+          "  Redes",
+          "Otras Zonales",
+          "Conexiones y Medidores",
+          "Corte y Reconexión",
+          "Apoyo en Postes",
+          "Terceros y Otros",
+          "Inversiones",
+          "  Red de Distribución en MT",
+          "  Calidad de Redes MT",
+          "  Subestaciones de Distribución",
+          "  Red de Distribución en BT",
+          "  Alumbrado Público"
+        ]
+      },
+      "unidad": "Miles S/. y %",
+      "articulo_o_anexo": "Numeral 6.14",
+      "pagina": "54",
+      "lineas": "2608-2633",
+      "cita_lineas": "2606-2608",
+      "cita_literal": "Se deberá presentar un resumen que contenga los porcentajes de asignación de los costos indirectos dentro de cada actividad de acuerdo a la siguiente tabla: Cuadro N° 26. Optimización de Costos Indirectos",
+      "caracter": "obligatoria",
+      "aplicacion": "el Cuadro 26 tiene estas filas (con las subfilas sangradas)",
+      "entregable": "V12",
+      "interpretacion": "Cuadro: la cita literal es su introducción y título (líneas de «cita_lineas»); filas y columnas leídas de la IMAGEN de su hoja del PDF vigente y cotejadas por programa con una segunda lectura (z3)."
+    },
+    {
+      "clave": "vad.req.6_14.formatos_vii_ix",
+      "valor": {
+        "formatos": [
+          "A-VII-1",
+          "A-VIII-1",
+          "A-VIII-2",
+          "A-IX-1",
+          "A-IX-2"
+        ]
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.14",
+      "pagina": "55",
+      "lineas": "2634",
+      "cita_literal": "Se deberá presentar los formatos VII al IX señalados en el Anexo N 2.",
+      "caracter": "obligatoria",
+      "aplicacion": "se presentan los formatos VII a IX del Anexo 2 (VII-1, VIII-1/2, IX-1/2)",
+      "entregable": "V12",
+      "interpretacion": "«Anexo N 2» (sin «°»), así en el original."
+    },
+    {
+      "clave": "vad.req.6_15.componentes",
+      "valor": {
+        "incluye": [
+          "aportes a los organismos reguladores",
+          "costo de capital de trabajo",
+          "otros (estudios técnicos y de regulación, entre otros)"
+        ]
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.15",
+      "pagina": "55",
+      "lineas": "2636-2638",
+      "cita_literal": "Se deberá incorporar como costos de OyM de la empresa modelo, el costo de aportes a los organismos reguladores, costo de capital de trabajo y otros (estudios técnicos y de regulación, entre otros) que sean pertinentes de acuerdo a la normatividad.",
+      "caracter": "obligatoria",
+      "aplicacion": "OyM incluye aportes a reguladores, capital de trabajo y otros pertinentes",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_15.capital_de_trabajo",
+      "valor": {
+        "horizonte_anios": 4,
+        "paso": "diario",
+        "interes": "diario sobre saldos negativos",
+        "tasa_anual": 0.12,
+        "reconoce": "promedio de los cuatro años"
+      },
+      "unidad": "",
+      "articulo_o_anexo": "Numeral 6.15",
+      "pagina": "55",
+      "lineas": "2639-2646",
+      "cita_literal": "El capital de trabajo está referido a la determinación del flujo de ingresos y egresos de la empresa modelo desde el primer día (como si se iniciasen las operaciones en ese momento) hasta el último día del periodo regulatorio de cuatro años, y la necesidad de financiamiento que de ello se deriva. Se considera el desfase producido entre la cobranza de las ventas y los desembolsos que la empresa modelo debe realizar en su operación, y se aplica un interés diario a los saldos negativos teniendo en cuenta la tasa anual de 12% prevista en la LCE. Dado que en la tarifa se reconoce un costo anual, el costo de capital de trabajo a reconocer es el promedio de los cuatro años.",
+      "caracter": "criterio",
+      "aplicacion": "flujo diario desde el día 1 al último de 4 años; interés diario sobre saldos negativos a la tasa anual del 12 % (LCE); se reconoce el promedio de los 4 años",
+      "entregable": "V12"
+    },
+    {
+      "clave": "vad.req.6_15.cuadro_27",
+      "valor": {
+        "cuadro": 27,
+        "titulo": "Optimización de Costos Adicionales de Explotación",
+        "columnas": [
+          "Concepto",
+          "Miles de S/."
+        ],
+        "bloques": {
+          "Costos Aportes": [
+            "MT",
+            "BT",
+            "AP",
+            "Otras zonales",
+            "Total"
+          ],
+          "Costos del Capital de Trabajo": [
+            "MT",
+            "BT",
+            "Total"
+          ],
+          "Otros Costos": [
+            "MT",
+            "BT",
+            "Total"
+          ]
+        }
+      },
+      "unidad": "Miles de S/.",
+      "articulo_o_anexo": "Numeral 6.15",
+      "pagina": "55",
+      "lineas": "2647-2663",
+      "cita_lineas": "2647",
+      "cita_literal": "Cuadro N° 27. Optimización de Costos Adicionales de Explotación",
+      "caracter": "obligatoria",
+      "aplicacion": "el Cuadro 27 tiene estos bloques y filas",
+      "entregable": "V12",
+      "interpretacion": "Cuadro: la cita literal es su introducción y título (líneas de «cita_lineas»); filas y columnas leídas de la IMAGEN de su hoja del PDF vigente y cotejadas por programa con una segunda lectura (z3)."
+    }
+  ]
+}

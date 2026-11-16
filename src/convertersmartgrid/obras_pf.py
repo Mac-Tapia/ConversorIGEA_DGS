@@ -218,7 +218,7 @@ class Obra:
     kv_alta: float | None = None
     """SET nueva: tensión de alta del módulo PIT (042:RF-5)."""
     unidades: int | None = None
-    #: Nombre de la SET nueva que da el operador (052:RF-19), p. ej. «SET COPARA».
+    #: Nombre de la SET nueva que da el operador (052:RF-19), p. ej. «SET <sitio>».
     nombre_set: str = ''
     #: Terna subterránea: «ducto», «triangular» o «rectangular» (084:RF-12); sin ella, la del perfil.
     configuracion: str = ''
@@ -1072,7 +1072,7 @@ def _enlace(p: _Plan) -> None:
 def _migracion_camino(p: _Plan) -> None:
     """Solo el camino de la cabecera a la SED y las SED de sus barras, a otra tensión; lo que cuelga se abre (017:RF-42).
 
-    El usuario, 2026-11-04: lectura A de «se está migrando según la troncal que va a Casa Blanca». Con todo lo que cuelga,
+    El usuario, 2026-11-04: lectura A de «se está migrando según la troncal que va a <sitio>». Con todo lo que cuelga,
     como en la 016 desde la cabecera, se migraría el alimentador entero. Abrir los ramales deja demanda sin alimentar y
     el flujo mejora por eso: se dice, con cuánta, para que nadie lea esa mejora como efecto de la obra (RF-42f).
     """

@@ -1,6 +1,6 @@
 """Spec 051: medición de cabecera en libro ancho (una columna por alimentador) y máximas mensuales.
 
-Los libros se arman aquí con la forma de los de Electro Oriente (perfiles del PIDE 2026 y la
+Los libros se arman aquí con la forma de los de una distribuidora real (perfiles del PIDE 2026 y la
 tabla de máximas de Iquitos), con números sorteados; los reales se leen por la herramienta.
 """
 from __future__ import annotations

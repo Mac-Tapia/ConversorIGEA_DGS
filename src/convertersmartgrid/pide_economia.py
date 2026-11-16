@@ -23,7 +23,7 @@ from typing import Any
 
 from .formatos_pide import filas_de_obras
 from .pide import RUBRO_DE_ALTERNATIVA
-from .util import finite_or_none
+from .util import finite_or_none, frc
 from .valle import frase_valle
 
 #: Palabras de la denominación de una obra del CAPEX → alternativa del PIDE (RF-54).
@@ -168,14 +168,7 @@ def costos_en_moneda_de_trabajo(costos: Mapping[str, Mapping[str, Any]],
 
 
 # ------------------------------------------------------------------ art. 14 (RF-57, RF-58)
-def frc(tasa: float, anios: int) -> float:
-    """Factor de recuperación de capital: anualidad de 1 en ``anios`` a ``tasa``."""
-    if tasa == 0:
-        return 1 / anios
-    f = (1 + tasa) ** anios
-    return tasa * f / (f - 1)
-
-
+# El FRC (``frc``) es ``util.frc``, la única fórmula del conversor (UNA-TASA); se importa de ahí y se reexporta.
 def costo_anual(ci: float | None, coym: float | None, cp: float | None, *, tasa: float,
                 vida: int) -> dict[str, Any]:
     """Costo anual = anualidad del CI + COyM + CP (art. 14.4); lo que falta queda dicho.
@@ -307,7 +300,7 @@ def plan_en_moneda_de_trabajo(plan: Mapping[str, Any], *, moneda_trabajo: str | 
     """La planificación con las tarifas y el precio de compra en la moneda de trabajo (025:RF-67, RF-77; H4).
 
     El CAPEX va en la moneda de trabajo (``costos_en_moneda_de_trabajo``); las tarifas del pliego y el precio de
-    compra, en la de ``tarifas.moneda`` (Electro Dunas: PEN). Si no coinciden, se dividen una vez por el tipo de
+    compra, en la de ``tarifas.moneda`` (una distribuidora real: PEN). Si no coinciden, se dividen una vez por el tipo de
     cambio que escribe el operador (unidades de la moneda de las tarifas por una de la de trabajo, como en la
     escalera). Sin él no se supone 1: las tarifas y el precio de compra quedan fuera, la evaluación privada y el
     valor de las pérdidas no se calculan (024:RF-58e) y se dice. El plan de entrada no cambia.

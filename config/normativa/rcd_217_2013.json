@@ -7,11 +7,12 @@
    "fecha_consulta": "2026-11-14",
    "fichero_local": "rcd_217-2013.txt",
    "modificada_por": [
+    "RCD 147-2017-OS/CD",
     "RCD 018-2018-OS/CD",
     "RCD 177-2021-OS/CD",
     "RCD 242-2021-OS/CD"
    ],
-   "nota": "Modificada al menos por la 018-2018 (num. 5.8.2 y 12.3), la 177-2021 (disposición transitoria; no leída) y la 242-2021 (num. 24.5 y nuevos 15.7, 17.5, 24.11, 25.4 y 28.6). Las reglas de aquí son de numerales que esas modificatorias no tocan, pero no se ha comprobado que ninguna norma posterior las cambie: sin fecha de vigencia comprobada, se usan como referencia (107:RF-8). El 12.3 vigente está en la 018-2018.",
+   "nota": "Modificada al menos por la 018-2018 (num. 5.8.2 y 12.3), la 147-2017 y la 177-2021 (Tercera y Cuarta transitorias, agotadas; RN-VIG2) y la 242-2021 (num. 24.5 y nuevos 15.7, 17.5, 24.11, 25.4 y 28.6). Las reglas de aquí son de numerales que esas modificatorias no tocan, pero no se ha comprobado que ninguna norma posterior las cambie: sin fecha de vigencia comprobada, se usan como referencia (107:RF-8). El 12.3 vigente está en la 018-2018.",
    "reglas": [
     {
      "articulo_o_anexo": "art. 3.14",

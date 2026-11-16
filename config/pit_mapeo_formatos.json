@@ -1115,5 +1115,52 @@
     }
    ]
   }
+ },
+ "alias": {
+  "F-000": {
+   "tipo": "alias_de_grupo",
+   "grupo": "Formatos de Información General",
+   "equivale_a": [
+    "F-001",
+    "F-002",
+    "F-003"
+   ],
+   "nombre": "F-000 (grupo: F-001 a F-003)",
+   "nota": "«F-000» no es una plantilla: la Norma Tarifas no lo define ni lo trae ninguna hoja de sus libros oficiales. Es el nombre que el regulador da en sus informes al grupo «Formatos de Información General», que la norma forma con F-001, F-002 y F-003. Se da por cumplido cuando el expediente trae los tres. La relación de los documentos de sustento del num. 5.3 es otra exigencia, sin plantilla. El alias va aquí y no en rcd_217_2013_formatos.json porque ese fichero lo escribe su generador y transcribe solo las hojas oficiales.",
+   "norma": {
+    "acto": "RCD 217-2013-OS/CD",
+    "sha256": "b61ce11bf2ef05fa7d0d3f453030f624c6499f74fc159a5a194afcff980c4128"
+   },
+   "citas": [
+    {
+     "donde": "RCD 217-2013-OS/CD, art. 30, num. 30.1, pág. pdf 47",
+     "texto": "Formatos de Información General: Contiene la información básica de las características de las instalaciones existentes (SST y SCT) por Área de Demanda. Está conformado por 3 formatos denominados F-001 a F003."
+    },
+    {
+     "donde": "RCD 217-2013-OS/CD, art. 30, Tabla 1, pág. pdf 48",
+     "texto": "Formatos de Información General | F-001 al F-003 | 3"
+    },
+    {
+     "donde": "RCD 217-2013-OS/CD, art. 31, pág. pdf 49",
+     "texto": "F-001 Información General del Sistema Eléctrico a Remunerar; F-002 Información de Líneas de Transmisión Existentes; F-003 Información de Transformadores y Compensadores Existentes."
+    },
+    {
+     "donde": "IT 438-2024-GRT, pág. 28",
+     "texto": "los formatos de Información General (F-000) presentan información incompleta o parámetros del equipamiento que en algunos casos no corresponde a los utilizados en los archivos .pfd"
+    }
+   ],
+   "nombre_de_fichero": {
+    "patron": "F-000-<AD>…",
+    "plantilla": "F-000-{area}_{periodo}.xlsx",
+    "nota": "práctica de las empresas, no norma; si la norma fijara otro nombre, manda la norma",
+    "ejemplo": "el informe del regulador cita «F-000-AD01_MPIT 25-29 ….xlsx» como el fichero que entregó una empresa: práctica de las empresas"
+   },
+   "plantilla_oficial": {
+    "ruta_relativa": "PIT_NORMA/rcd_217-2013_formatos/xls_del_rar/00-Informacion General-Rev_2013.xls",
+    "sha256": "4d1d676d826949ed65e6b6a0c0184f6f7281899bc70f9fc8b8a5ed7526060d71",
+    "origen": "libro oficial del comprimido NormaTarifas2013.rar (sha256 911c3712b0d44da1bdcd3ffef3019a9bcc5232c5aebb8d32a2a4f00c236f3448), suma de xls_del_rar/SHA256SUMS.txt",
+    "nota": "ruta relativa a la carpeta de fuentes, que llega como parámetro. Se comprueba el sha antes de usarlo y solo se copia: el original nunca se abre con Excel ni con WPS, que lo reescriben al abrirlo"
+   }
+  }
  }
 }

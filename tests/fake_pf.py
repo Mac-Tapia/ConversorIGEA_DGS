@@ -1030,7 +1030,11 @@ def _modelo(elem):
     sto = getattr(elem, 'pStoch', None)
     if sto is None:
         return 0.0, 0.0
-    return float(getattr(sto, 'DnFr', 0.0)), float(getattr(sto, 'RepMu', 0.0))
+    # FAKE-PF-DNFR, como DIgSILENT (datascheme.db de PowerFactory 2024, build 22038): el modelo de falla de barras,
+    # StoTypbar, no tiene DnFr; su falla permanente es DnFr1. StoTyplne y StoTyptrf llevan DnFr.
+    clase = sto.GetClassName() if hasattr(sto, 'GetClassName') else ''
+    permanente = 'DnFr1' if clase == 'StoTypbar' else 'DnFr'
+    return float(getattr(sto, permanente, 0.0)), float(getattr(sto, 'RepMu', 0.0))
 
 
 class Fiabilidad(Obj):

@@ -452,8 +452,8 @@ def test_asunto_propuesto_con_el_tipo_y_los_alimentadores():
     from convertersmartgrid.informes import asunto_propuesto
 
     assert asunto_propuesto('estudio', ['CA101', 'CA102']) == 'ESTUDIO ELÉCTRICO DE LOS ALIMENTADORES CA101, CA102'
-    assert asunto_propuesto('factibilidad', ['SM218'], 'INKA BERRIES') == \
-        'FACTIBILIDAD Y PUNTO DE DISEÑO - INKA BERRIES (SM218)'
+    assert asunto_propuesto('factibilidad', ['XA218'], 'ANDES BERRIES') == \
+        'FACTIBILIDAD Y PUNTO DE DISEÑO - ANDES BERRIES (XA218)'
 
 
 def test_sin_modelo_ni_limites_en_el_perfil_lo_dice_el_contexto(client, tmp_path, monkeypatch):
@@ -674,14 +674,14 @@ def test_imagenes_de_cargas_nuevas_salen_de_su_flujo(tmp_path, monkeypatch):
 
 
 def test_cliente_de_otra_carga_se_dice_y_queda_como_hueco(client, tmp_path, monkeypatch):
-    """063:RF-49 — T7 en SM218: la carga de INKA'S BERRIES salió con la solicitud de Minera Santa María."""
+    """063:RF-49 — T7 en <código>: la carga de <sitio>'S BERRIES salió con la solicitud de Minera <sitio>."""
     from convertersmartgrid import informes
     from convertersmartgrid.informes import cliente_ajeno
 
-    assert cliente_ajeno("AMPC INKA'S BERRIES S.A.C.", 'Minera Santa María S.A.C.')
-    assert not cliente_ajeno("AMPC INKA'S BERRIES S.A.C.", 'Incas Berries S.A.C.')
-    assert not cliente_ajeno('SN1', 'Minera Santa María S.A.C.'), 'un código no dice de quién es'
-    assert not cliente_ajeno("AMPC INKA'S BERRIES S.A.C.", '')
+    assert cliente_ajeno("AMPC ANDES'S BERRIES S.A.C.", 'Minera Ejemplo S.A.C.')
+    assert not cliente_ajeno("AMPC ANDES'S BERRIES S.A.C.", 'Andinas Berries S.A.C.')
+    assert not cliente_ajeno('SN1', 'Minera Ejemplo S.A.C.'), 'un código no dice de quién es'
+    assert not cliente_ajeno("AMPC ANDES'S BERRIES S.A.C.", '')
 
     wid, salida = _espacio(client, tmp_path)
     _carga_aplicada(client, wid, salida)

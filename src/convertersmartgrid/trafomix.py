@@ -19,7 +19,7 @@ NA203 + NA205 (260924.mdb) eso dejaba 88 barras muertas con su ``ElmCoup``, como
 EQ_1080_320414 hacia M50226. No se escriben ni el fusible ni la barra, y el informe los
 nombra (spec 021, RF-7 y RF-8); la auditoría de completitud los descuenta (RF-9).
 
-El código ``M…`` es una convención de Electro Dunas, no de CYMDIST: otra empresa puede
+El código ``M…`` es una convención de una distribuidora real, no de CYMDIST: otra empresa puede
 tener SED reales que empiecen por ``M``. El patrón sale del perfil de empresa
 (``patron_sed_medicion``, spec 002 RF-33); sin patrón no se excluye ninguna SED.
 """

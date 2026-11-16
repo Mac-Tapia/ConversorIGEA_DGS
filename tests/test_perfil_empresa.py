@@ -224,7 +224,7 @@ def test_sin_patron_se_conservan_las_sed_que_otro_perfil_excluye(tmp_path):
 
 
 # --------------------------------------------------------------------------- RF-34
-#: Convenciones de Electro Dunas que no pueden volver al código como valores.
+#: Convenciones de una distribuidora real que no pueden volver al código como valores.
 CONVENCIONES = ('EPSG:32718', '^M\\d', 'IN111', 'NA205')
 
 
@@ -245,7 +245,7 @@ def _literales(ruta: Path) -> list[tuple[int, str]]:
 
 
 def test_el_codigo_no_trae_convenciones_de_una_empresa():
-    """002:RF-34 — ningún literal de src/ ni tools/ lleva el CRS, el patrón o un alimentador de Electro Dunas."""
+    """002:RF-34 — ningún literal de src/ ni tools/ lleva el CRS, el patrón o un alimentador de una distribuidora real."""
     hallados = [
         f'{ruta.relative_to(RAIZ)}:{linea}: {texto[:60]}'
         for carpeta in ('src', 'tools')
@@ -258,7 +258,7 @@ def test_el_codigo_no_trae_convenciones_de_una_empresa():
 
 # --------------------------------------------------------------------------- RF-35
 def test_electro_dunas_es_un_perfil_mas():
-    """002:RF-35 — el perfil de Electro Dunas está en config/perfiles, solo con convenciones."""
+    """002:RF-35 — el perfil de una distribuidora real está en config/perfiles, solo con convenciones."""
     assert 'electro_dunas' in perfiles_disponibles()
     perfil = perfil_con_nombre('electro_dunas')
     assert perfil.crs_origen and perfil.patron_sed_medicion and perfil.escala_diagrama
@@ -325,7 +325,7 @@ def test_factor_de_potencia_imposible_lo_nombra(valor):
 
 
 def test_factor_de_potencia_del_perfil_de_electro_dunas():
-    """015:RF-54 / 015:RF-55 — Electro Dunas fija 0,98 para las escaladas; sin la clave, nada."""
+    """015:RF-54 / 015:RF-55 — una distribuidora real fija 0,98 para las escaladas; sin la clave, nada."""
     from convertersmartgrid.perfil_empresa import factor_potencia_cargas
 
     raiz = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
@@ -335,7 +335,7 @@ def test_factor_de_potencia_del_perfil_de_electro_dunas():
 
 
 def test_fp_minimo_de_las_fijas_del_perfil():
-    """015:RF-62 / 015:RF-57 — Electro Dunas fija 0,98 como mínimo de las fijas; un valor
+    """015:RF-62 / 015:RF-57 — una distribuidora real fija 0,98 como mínimo de las fijas; un valor
     imposible se rechaza nombrando la clave."""
     from convertersmartgrid.perfil_empresa import factor_potencia_cargas
 
@@ -354,7 +354,7 @@ def _electro_dunas():
 
 
 def test_fichas_de_transformadores_del_perfil_de_electro_dunas():
-    """020:RF-29 / 020:RF-30 — Electro Dunas trae las Tablas 6 y 7 de FONAFE 2017 (NTP
+    """020:RF-29 / 020:RF-30 — una distribuidora real trae las Tablas 6 y 7 de FONAFE 2017 (NTP
     370.400) por rango de tensión primaria, con Po, Pc, Io y uk por kVA, y el umbral del 80 %."""
     from convertersmartgrid.perfil_empresa import transformadores_sed
 
@@ -437,7 +437,7 @@ def test_centrales_del_perfil_validadas():
     ({'conductor_terna': {'cable': 'CX120'}}, None)])
 def test_alternativas_y_conductor_terna_se_validan_en_el_perfil(escalera, error):
     """042:RF-106, 042:RF-98 — `validar-perfil` rechaza las alternativas fuera de 3 a 6 y un conductor de terna mal
-    escrito, con la clave; el perfil de Electro Dunas da los dos y la plantilla los deja en blanco."""
+    escrito, con la clave; el perfil de una distribuidora real da los dos y la plantilla los deja en blanco."""
     from convertersmartgrid.perfil_esquema import validar_perfil
 
     errores = validar_perfil({'escalera': escalera}).errores

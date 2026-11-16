@@ -33,6 +33,10 @@ Así los resultados se pueden reproducir sin revelar nada de la empresa.
   hacen falta para que el estudio dé el mismo resultado dentro de la tolerancia declarada.
 - RF-4: SI un control de reidentificación encuentra algún identificador, coordenada o patrón original, ENTONCES EL
   SISTEMA no emitirá el benchmark y dirá qué lo delató.
+- Aclaración de RF-4 (2026-11-14, auditoría R3 de 7e): SI el perfil de la empresa que se pide para el control falta o
+  no se puede leer, ENTONCES EL SISTEMA no emitirá el benchmark y dirá qué fichero y por qué, en vez de buscar «ningún
+  término» y dejar pasar en silencio el nombre de la empresa. El paquete de soporte (086:RF-42), que se usa justo cuando
+  algo falla, sí sale, pero sin los registros ni el texto libre del diagnóstico, y su LEAME dice por qué.
 - RF-5: EL SISTEMA guardará con cada benchmark su manifiesto: la huella del origen (sin revelarlo), la versión del
   generador, la semilla, las transformaciones, la tolerancia y las métricas de referencia.
 - RF-6: CUANDO se evalúe un modelo, EL SISTEMA podrá separar las cohortes por empresa (dejando una fuera) y por
@@ -46,6 +50,35 @@ Así los resultados se pueden reproducir sin revelar nada de la empresa.
   la empresa.
 - RF-11: DONDE el origen tenga un dataset de pronóstico de demanda (089), EL SISTEMA incluirá en el benchmark sus series
   desidentificadas, con las métricas de referencia de los métodos de base calculadas en el original y en el benchmark.
+- Aclaración de RF-11 (2026-11-15, rebase de la T5 sobre e182c823): el desplazamiento por semanas completas no conserva
+  el mes, y el método de base «perfil_calendario» del 089 agrupa por mes. Para que sus métricas se reproduzcan, el mes de
+  calendario viaja como una exógena más (columna `mes`), y el 089 la usa cuando viene (`Exogenas.meses`, vacío por
+  defecto). Sin ella, el 089 da los mismos resultados que antes; se descarta copiar sus métodos de base en la 112, que
+  dejaría dos versiones de la misma métrica (P5). Límite declarado: con el mes y el día de la semana de cada fila, un
+  atacante puede rehacer la fecha original; las fechas no identifican a la empresa (los valores van escalados y los
+  identificadores seudonimizados), y el manifiesto lo dice.
+- Aclaración de RF-5 (auditoría de la T2, 2026-11-14): «la semilla» del manifiesto es la **semilla pública** de RF-12,
+  nunca la de los seudónimos.
+- RF-12: EL SISTEMA guardará la semilla de los seudónimos solo en el equipo de la empresa, nunca en el manifiesto ni en
+  el benchmark, y publicará en su lugar una semilla derivada de ella por una función de un solo sentido.
+- RF-13: EL SISTEMA publicará en el benchmark de redes unas coordenadas de un trazado sintético que conserva la
+  topología, y unas longitudes eléctricas con una perturbación sorteada y acotada, en vez de la forma real de la red.
+- RF-14: SI la huella de longitudes de un alimentador del benchmark coincide con la del original, o el estudio sobre el
+  benchmark se sale de la tolerancia por la perturbación, ENTONCES EL SISTEMA no emitirá el benchmark y dirá qué
+  alimentador y qué control fallaron.
+- Aclaración de RF-13 y RF-14 (medición del subagente de la T13, 2026-11-14): con ε ~ U(−5 %, 5 %), la correlación de
+  Spearman tramo a tramo da 0,988–0,9998, y sobre las longitudes ordenadas, 1,0. Un atacante que conozca el margen
+  empareja los tramos dentro del ±5 %, así que una perturbación que cabe en la tolerancia del estudio NO oculta la huella
+  de longitudes. Por eso:
+  - el control de RF-14 modela a ese atacante: «identificado» si un emparejamiento de las longitudes ordenadas dentro
+    del margen declarado cubre el 50 % de los tramos o más;
+  - un benchmark derivado de una red real se emite solo como «uso local» (marcado en el manifiesto) y la vía de
+    publicación lo rechaza;
+  - lo publicable son redes sintéticas generadas con las estadísticas agregadas del origen (número de alimentadores y
+    de tramos y percentiles de longitud y de carga), nunca con sus tramos.
+  - un agregado solo se usa si junta al menos 5 alimentadores y 500 tramos (condición del auditor: los agregados de
+    una red pequeña también la delatan). Si no llega, se agrupa con otras redes de la misma entrega, y si aun así no
+    llega, no se emite y se dice por qué. Los mínimos van en el manifiesto y se pueden subir, nunca bajar.
 
 ## Requisitos no funcionales
 - Reproducible: con la misma semilla y el mismo origen sale el mismo benchmark, byte a byte.
@@ -72,3 +105,12 @@ Tomadas por delegación del usuario (`D:/csg/G0_PLAN_MAESTRO/G1_DECISIONES_RECOM
   p.u. en tensión y un 1 % en corriente (carga de líneas y transformadores). Para las series, la diferencia relativa de
   WAPE y MASE de cada método de base no pasa del 1 %. La tolerancia usada queda en el manifiesto (RF-5).
 - Hay benchmark de redes y también de series de demanda: entra como RF-11.
+- Privacidad, revisada tras la auditoría de la T2 (2026-11-14, decisión del implementador por delegación del usuario):
+  - Con la semilla y la lista pública de alimentadores (VNR-GIS) se rehace el mapa de seudónimos, así que la semilla es
+    secreta y solo se publica una derivada de un solo sentido (RF-12).
+  - Un giro y una traslación conservan la forma, y la forma se cuadra contra la geometría pública de Osinergmin. Por eso
+    lo publicado lleva un trazado sintético por el grafo y longitudes perturbadas dentro de la tolerancia del estudio
+    (RF-13), con un control de reidentificación por la huella de longitudes (RF-14).
+  - Descartado: publicar la red girada, que se reidentifica; y publicar solo redes enteramente sintéticas, que ya no
+    sirven para validar el lector ni las reglas con casos reales. El usuario puede elegir esta segunda opción; entonces
+    RF-13 se sustituye por «solo redes sintéticas».

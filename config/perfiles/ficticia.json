@@ -1,5 +1,5 @@
 {
-  "_comentario": "086:RF-32: el perfil de una empresa inventada, para ver cómo queda uno completo y para probar sin datos de nadie. Nada de esto describe una red real, y nunca se prueba con él en DIgSILENT.",
+  "_comentario": "El perfil de una empresa inventada, para ver cómo queda uno completo y para probar sin datos de nadie. Nada de esto describe una red real, y nunca se prueba con él en DIgSILENT.",
   "empresa": "Distribuidora Ficticia del Altiplano",
   "codigo_empresa": "DFAL",
   "crs_origen": "EPSG:32719",

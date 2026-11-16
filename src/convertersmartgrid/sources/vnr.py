@@ -161,7 +161,7 @@ def fichas_del_catalogo(modelo, catalogo: Path | None = None) -> dict[str, int]:
 
     # R, X y amperios dependen del material y la sección, no de la tensión ni de las fases:
     # en la norma VNR son sus cinco primeros caracteres («AA050», «CU016», «N2035»). El
-    # catálogo de Electro Dunas pone «D» también a las redes de 22,9 kV, así que «AA05003G»
+    # catálogo de una distribuidora real pone «D» también a las redes de 22,9 kV, así que «AA05003G»
     # (o el monofásico «AA05001D») toma la ficha de «AA05003D» (Ica, 2026-10-18).
     por_familia: dict[str, dict] = {}
     for codigo in sorted(filas):

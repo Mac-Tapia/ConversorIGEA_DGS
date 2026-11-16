@@ -2,7 +2,7 @@
 
 Las fuentes (TXT, MDB, VNR-GIS) traen la cabecera de cada alimentador —su nodo y su
 tensión— pero no la SET de la que sale ni el zonal o el sistema eléctrico al que
-pertenece. Electro Dunas los publica en su tabla «Sistemas eléctricos Electrodunas»
+pertenece. una distribuidora real los publica en su tabla «Sistemas eléctricos una distribuidora real»
 (2026-10-17: 4 zonales, cada SET con sus alimentadores y su sistema eléctrico con su
 sector típico y su norma). Esa tabla va en el perfil de empresa o se sube en Excel, nunca
 en el código (constitución 13): sin estructura, la red unida sigue como antes (RF-6).
@@ -253,7 +253,7 @@ def estructura_de_perfil(datos: Mapping[str, Any], base: Path | None = None) -> 
     """La estructura del perfil de empresa (022:RF-1), o ``None`` si no la trae (RF-6).
 
     ``estructura`` puede ser el objeto o el nombre de un JSON junto al perfil (la de
-    Electro Dunas va aparte: es larga y se actualiza sola).
+    una distribuidora real va aparte: es larga y se actualiza sola).
     """
     valor = datos.get('estructura')
     if valor is None:

@@ -29,10 +29,10 @@ def _vnr_zip(tmp_path: Path) -> Path:
     geojson = {
         'type': 'FeatureCollection',
         'features': [
-            _feature('OLD', 'OLD101', 'ELDU', 2024, -75.10),
-            _feature('S1', 'IN111', 'ELDU', 2025, -75.00),
-            _feature('S2', 'AL209', 'ELDU', 2025, -74.99),
-            _feature('OTHER', 'SE101', 'SEAL', 2025, -74.90),
+            _feature('OLD', 'OLD101', 'EMPA', 2024, -75.10),
+            _feature('S1', 'XA111', 'EMPA', 2025, -75.00),
+            _feature('S2', 'XB209', 'EMPA', 2025, -74.99),
+            _feature('OTHER', 'SE101', 'EMPB', 2025, -74.90),
         ],
     }
     archive = tmp_path / 'VNR_GIS_Electro_Dunas_2025.zip'
@@ -75,17 +75,17 @@ def test_bridge_conserva_identidad_de_dos_alimentadores():
     ]
     model.sections = [
         Section('S1', 'A', 'B', conductor_code='AA120', phases='ABC', nominal_kv=10,
-                length_m=100, feeder_id='IN111'),
+                length_m=100, feeder_id='XA111'),
         Section('S2', 'C', 'D', conductor_code='AA120', phases='ABC', nominal_kv=22.9,
-                length_m=100, feeder_id='AL209'),
+                length_m=100, feeder_id='XB209'),
     ]
     model.sources = [
-        Source('SRC1', 'A', nominal_kv=10, feeder_id='IN111'),
-        Source('SRC2', 'C', nominal_kv=22.9, feeder_id='AL209'),
+        Source('SRC1', 'A', nominal_kv=10, feeder_id='XA111'),
+        Source('SRC2', 'C', nominal_kv=22.9, feeder_id='XB209'),
     ]
     model.loads = [
-        Load('LD1', 'B', kw=120, kvar=40, phases='ABC', feeder_id='IN111'),
-        Load('LD2', 'D', kw=80, kvar=20, phases='ABC', feeder_id='AL209'),
+        Load('LD1', 'B', kw=120, kvar=40, phases='ABC', feeder_id='XA111'),
+        Load('LD2', 'D', kw=80, kvar=20, phases='ABC', feeder_id='XB209'),
     ]
     model.conductor_types = [ConductorType(
         'AA120', r1_ohm_km=0.25, x1_ohm_km=0.35, r0_ohm_km=0.7,
@@ -94,15 +94,15 @@ def test_bridge_conserva_identidad_de_dos_alimentadores():
 
     result = canonical_to_cymdist(model, source_path=Path('VNR.zip'))
 
-    assert set(result.dataset.feeders) == {'IN111', 'AL209'}
-    assert result.dataset.section_owner == {'S1': 'IN111', 'S2': 'AL209'}
-    assert set(result.dataset.sources) == {'IN111', 'AL209'}
+    assert set(result.dataset.feeders) == {'XA111', 'XB209'}
+    assert result.dataset.section_owner == {'S1': 'XA111', 'S2': 'XB209'}
+    assert set(result.dataset.sources) == {'XA111', 'XB209'}
     assert {row['feeder']: row['status'] for row in result.readiness.values()} == {
-        'IN111': 'CONVERSION_READY', 'AL209': 'CONVERSION_READY',
+        'XA111': 'CONVERSION_READY', 'XB209': 'CONVERSION_READY',
     }
-    assert len(result.dataset.customer_loads_by_feeder['IN111']) == 1
-    assert len(result.dataset.customer_loads_by_feeder['AL209']) == 1
-    converted = build_feeder_model(result.dataset, 'IN111', include_geography=True)
+    assert len(result.dataset.customer_loads_by_feeder['XA111']) == 1
+    assert len(result.dataset.customer_loads_by_feeder['XB209']) == 1
+    converted = build_feeder_model(result.dataset, 'XA111', include_geography=True)
     assert converted.loads[0].p_mw == pytest.approx(0.120)
     assert converted.loads[0].q_mvar == pytest.approx(0.040)
 
@@ -112,14 +112,14 @@ def test_bridge_enumera_pero_bloquea_vnr_sin_fuente_ni_cargas():
     from convertersmartgrid.adaptadores.entrada.vnr.pipeline import canonicalize_sections
 
     rows = [
-        _feature('S1', 'IN111', 'ELDU', 2025, -75.00),
-        _feature('S2', 'AL209', 'ELDU', 2025, -74.99),
+        _feature('S1', 'XA111', 'EMPA', 2025, -75.00),
+        _feature('S2', 'XB209', 'EMPA', 2025, -74.99),
     ]
     model = canonicalize_sections(rows).model
 
     result = canonical_to_cymdist(model, source_path=Path('VNR.zip'))
 
-    assert set(result.dataset.feeders) == {'IN111', 'AL209'}
+    assert set(result.dataset.feeders) == {'XA111', 'XB209'}
     for readiness in result.readiness.values():
         assert readiness['status'] == 'INVENTORY_ONLY'
         assert {'MISSING_SOURCE', 'MISSING_CONDUCTOR_CATALOG'} <= set(readiness['blocking_codes'])
@@ -139,11 +139,11 @@ def test_vnr_adapter_respeta_empresa_y_periodo_explicitos(tmp_path):
     ws.set_input('vnr_package', archive, origin='server')
     snapshot = create_source_run(ws)
 
-    result = adapter_for('vnr', company='ELDU', period='2025').load(snapshot, aliases={})
+    result = adapter_for('vnr', company='EMPA', period='2025').load(snapshot, aliases={})
 
-    assert set(result.dataset.feeders) == {'IN111', 'AL209'}
-    assert set(result.readiness) == {'IN111', 'AL209'}
-    assert result.provenance['company'] == 'ELDU'
+    assert set(result.dataset.feeders) == {'XA111', 'XB209'}
+    assert set(result.readiness) == {'XA111', 'XB209'}
+    assert result.provenance['company'] == 'EMPA'
     assert result.provenance['period'] == '2025'
     assert result.provenance['source_run_id'] == snapshot.run_id
     assert all(row['status'] == 'INVENTORY_ONLY' for row in result.readiness.values())

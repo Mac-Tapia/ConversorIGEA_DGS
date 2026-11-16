@@ -166,3 +166,17 @@ bloquean con una conversión, como una subida. Datos: nada del dataset ni de sus
   (`tools/generar_contrato_api.py`) se hace en la misma integración. `test_contrato_api.py` detectaría la deriva.
 - **Una publicación larga ocupa el carril `engine`.** Se ve en la barra de trabajos y se puede cancelar. Si molestara,
   se mediría antes de proponer otro carril.
+
+## Desviaciones acordadas al implementar (2026-11-14)
+
+- **El paquete se guarda inmutable por su contenido** (`<espacio>/nube/paquetes/<id>/`, con el id sacado de los nombres
+  y las huellas de las entradas). `preparar_zip` pone la hora de cada entrada en el ZIP: rehacerlo en un reintento daba
+  otro ZIP, otra huella y otra clave, y RF-13 no se cumplía. Con el paquete por contenido, el reintento reutiliza el
+  mismo ZIP byte a byte y su clave `sha256(zip) | proveedor | carpeta` es la misma. El manifiesto no lleva horas.
+- **Un `.zip` cualquiera dentro de un expediente cuenta como dato crudo** al compartir (RF-20), igual que un 7z o un RAR:
+  un paquete VNR-GIS es un comprimido, y `identify.fuente_de` lo reconoce por su extensión. Se prefiere no compartir un
+  ZIP de informes a compartir a ciegas un paquete VNR renombrado. Los .docx y .xlsx (Office Open XML) no cuentan.
+- **Selector de ficheros** (T18): el navegador recibe solo el token de acceso transitorio, con el alcance de leer y
+  `Cache-Control: no-store` (aclaración de RF-2 en la spec). En Microsoft se pide al refrescar el alcance `Files.Read`,
+  aunque la cuenta se conectara con `Files.ReadWrite`. Para OneDrive de empresa, `url_selector` en `config/nube.json`
+  apunta al selector de SharePoint del inquilino; ese caso lo valida la prueba real (T16).

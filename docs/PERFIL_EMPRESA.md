@@ -55,6 +55,7 @@ es de 60 Hz y las normas de referencia son las peruanas.
 
 | Clave | Origen | Función afectada | Si falta |
 | --- | --- | --- | --- |
+| `editor_ajuste_m` | empresa | Proponer el ajuste de un extremo a un nodo cercano en el plano de la red | El plano propone el ajuste dentro de 5 m y dice que es el radio de por defecto |
 | `estudios.tension_min_pu` | norma | Juzgar la tensión | Los estudios usan 0,95 de referencia; los informes lo piden en la web |
 | `estudios.tension_max_pu` | norma | Juzgar la tensión | Los estudios usan 1,05 de referencia; los informes lo piden en la web |
 | `estudios.cargabilidad_max_pct` | norma | Juzgar la cargabilidad | Los estudios usan 100 % de referencia; los informes lo piden en la web |
@@ -121,10 +122,14 @@ otra sin que lo pida. Si no declara ninguno, sale con la plantilla neutra y lo d
 | `planificacion.factor_seguridad_set_sin_tasa` | norma | SET nueva sin tasa de crecimiento | 1,25 de referencia, con aviso; con tasa se usa `factor_seguridad_set` |
 | `planificacion.capex` | empresa | Leer el libro CAPEX | Sin costo del libro, y se dice |
 | `planificacion.tarifas` | empresa | Evaluación privada del PIDE | Queda señalada como pendiente |
-| `pit.areas` | empresa | Plan de Inversiones en Transmisión: cada área de demanda con su código, sus titulares, sus SET, los alimentadores de cada SET, la tensión mínima del ámbito (`tension_min_kv`), a qué área va cada elemento compartido (`compartidos`), los sistemas eléctricos del área (`sistemas_electricos`: sistema → SET; sin ellos no hay F-102 por sistema) y la barra de cada alimentador si la SET tiene varias barras de carga (`barra_de_alimentador`) | El PIT no se estudia: no se supone ningún área |
+| `pit.areas` | empresa | Plan de Inversiones en Transmisión: cada área de demanda con su código, sus titulares, sus SET, los alimentadores de cada SET, la tensión mínima del ámbito (`tension_min_kv`), a qué área va cada elemento compartido (`compartidos`), los sistemas eléctricos del área (`sistemas_electricos`: sistema → SET; sin ellos no hay F-102 por sistema) la barra de cada alimentador si la SET tiene varias barras de carga (`barra_de_alimentador`) y el número oficial del Área de Demanda (`area_demanda`; el 15 lleva la RM 129-2009 en el diagnóstico de tensión) | El PIT no se estudia: no se supone ningún área |
 | `pit.libro_red` | empresa | Libro de la red de transmisión del área, en .xlsx, .xlsm, .xls o .xlsb: `hoja` (una, una lista o ninguna: entonces se recorren todas y se avisa de las que no traen el contrato), `fila_cabecera` (opcional: se busca por contenido) y `columnas` (clave del contrato → encabezado del libro) | La red sale del proyecto de transmisión de DIgSILENT |
 | `pit.libro_cuadros` | empresa | Libro modelo de los cuadros del PIT: `modelo` y, por cuadro, `hoja` y `celda` inicial | Los cuadros quedan en el expediente, sin libro, y se dice |
-| `pit.limites` | norma | Límites de tensión y cargabilidad del diagnóstico del PIT si el registro normativo no los da | Los del registro; sin ninguno, el diagnóstico se detiene y nombra el límite |
+| `pit.limites` | norma | Cargabilidad del diagnóstico del PIT si el registro normativo no la da; los límites de tensión, como respaldo explícito de la barra a la que le falta un dato para su criterio de la norma (con su origen y un aviso) | Los del registro; sin cargabilidad, el diagnóstico se detiene y la nombra; la barra sin datos queda con un hueco nombrado |
+| `pit.barras` | empresa | Por barra de la red del área, lo que la red no trae para su criterio de tensión: `entrega` (sí o no), `tipo_red` (`urbana`, `urbano_rural`, `rural` o `ser`) y `tension_operacion_kv` (tensión de operación del COES, base de la RM 129-2009 en el Área 15); lo de la red manda | Lo que falte es un hueco nombrado de esa barra en el diagnóstico |
+| `pit.emergencia_rm129` | empresa | `{"aplica": true, "sustento": "<texto>"}`: el N-1 de las barras con la RM 129-2009 usa su rango de emergencia (0,90-1,10 p.u. desde 220 kV; 0,90-1,05 p.u. hasta 138 kV) porque el estudio sustenta su importancia (nota 2 del art. 10); sale un aviso con el sustento y la nota | El N-1 va con el rango normal (0,95-1,05 p.u.); `aplica` true sin sustento es un error que lo nombra |
+| `pit.costos` | norma | Costos de las alternativas del PIT por ámbito (`transmision`): cada fuente con `lector` (`modulos_transmision` o `sicodi`), `fichero` del espacio de trabajo, `sha256`, vigencia (`vigencia_desde`, `vigencia_hasta`), `resolucion`, `anio`, `moneda`, `url`, `fecha_descarga` y, para los módulos, `columnas`, `hoja` y `unidad`; vale la vigente en la fecha de apertura | Las alternativas no se comparan: el expediente sale de diagnóstico, con el pendiente que lo dice |
+| `pit.frecuencia_hz` | empresa | Frecuencia del sistema en Hz, para la susceptancia B de las líneas del F-002 | La columna B del F-002 queda vacía con su motivo |
 
 ### Cargas nuevas
 

@@ -36,7 +36,7 @@ export function LogPanel({ lines, onClear, connected }: { lines: LogLine[]; onCl
         }}>Guardar</button>
         <button className="link small" onClick={onClear}>Limpiar</button>
       </header>
-      <div className="log-body" ref={box}
+      <div className="log-body" ref={box} tabIndex={0} role="log" aria-label="Registro"
         onScroll={(e) => {
           const el = e.currentTarget;
           setFollow(el.scrollHeight - el.scrollTop - el.clientHeight < 24);

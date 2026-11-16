@@ -41,7 +41,7 @@ from ..powerfactory_env import project_root
 from ..preview import politica_pagina_generada
 from ..runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
 from . import services
-from .copia_datos import estado_copia
+from .copia_datos import carpeta_recordada, estado_copia
 from .jobs import FINISHED, JobManager, TrabajoRechazado
 from .seguridad import AlcanceEdicion, instalar_seguridad
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, VersionRespuesta, DiagnosticoRespuesta,
@@ -473,7 +473,7 @@ class ObrasIn(BaseModel):
     # Spec 025, RF-53: el libro CAPEX de la empresa, por su ruta en este equipo.
     capex: str = Field('', max_length=1000)
     rehacer_obras: bool = False                  # 042:RF-60
-    # Spec 052, RF-19: el nombre de la SET nueva (p. ej. «SET COPARA»).
+    # Spec 052, RF-19: el nombre de la SET nueva (p. ej. «SET <sitio>»).
     set_nueva_nombre: str = Field('', max_length=40)
     # Sin escalera: todas las cargas nuevas a la SET nueva (usuario, 2026-11-01).
     directo_set_nueva: bool = False
@@ -919,6 +919,13 @@ def create_app(
     # Las rutas de VNR-GIS son parte de esta API y usan su cola de trabajos.
     app.include_router(create_router(store.root, jobs, vnr_settings))
 
+    # 107 (P10c): las rutas del PIT (/api/pit/…), con la carpeta de fuentes normativas de CSG_FUENTES_NORMATIVAS.
+    from convertersmartgrid.perfil_empresa import datos_perfil
+    from convertersmartgrid.pit.armado import carpeta_de_fuentes
+    from convertersmartgrid.web.rutas_pit import crear_router as crear_router_pit
+    app.include_router(crear_router_pit(jobs, lambda wid: ws_or_404(wid).root, datos_perfil,
+                                        project_root() / 'config' / 'normativa', fuentes=carpeta_de_fuentes))
+
     # Solo el servidor de desarrollo de Vite. En producción el front se sirve desde
     # este mismo origen y CORS no interviene.
     dev_origins = os.environ.get('CSG_WEB_DEV_ORIGINS',
@@ -1008,7 +1015,8 @@ def create_app(
                          # 081:RF-44: de qué carpeta es; un lanzador de otra no lo sustituye.
                          'raiz': str(project_root())},
             # 086:RF-47: el aviso de que la última copia de los datos es vieja o no existe.
-            'copia_datos': estado_copia(store.root),
+            # 086:RF-109: también las copias que hay en la carpeta recordada, no solo el registro de estos datos.
+            'copia_datos': estado_copia(store.root, destino=carpeta_recordada()),
             'edicion': estado_edicion(),                                       # 086:RF-16
         }
 
@@ -3056,11 +3064,19 @@ def create_app(
 
     registrar_rutas_copia(app, ws_or_404=ws_or_404, submit=submit, en_curso=jobs.en_curso, raiz_datos=store.root,
                           rutas_locales=lambda: _server_paths_allowed(host))
-    # 110:RF-1: el envío de informes por correo, en su módulo (pactado con el integrador). Sin las cuentas de la 109,
-    # cada envío dice «Conecte una cuenta»; mientras un informe se escribe en el espacio, no se adjunta (110:RF-3).
+    # 110:RF-1: el envío de informes por correo, en su módulo (T9, pactado con el integrador). Las cuentas son las de la
+    # 109, de cada espacio, y UNA sola Cuentas para la nube y el correo (una cuenta por proveedor: Google = Drive +
+    # Gmail; Microsoft = OneDrive + Outlook), la misma que recibe registrar_rutas_nube más abajo. Sin config/nube.json
+    # o sin cuenta conectada, el envío queda rechazado con su recibo y la web sigue igual. Mientras un informe se escribe
+    # en el espacio, no se adjunta (110:RF-3).
+    from ..adaptadores.nube.cuentas import Cuentas
+    from ..correo.de_la_109 import CompartidorDeLa109, CredencialesDeLa109
     from .correo_api import raices_de, registrar_rutas_correo
 
+    cuentas_nube = Cuentas()
     registrar_rutas_correo(app, ws_or_404=ws_or_404, submit=submit, raices_espacios=lambda: raices_de(store.roots),
+                           credenciales_de=lambda ws: CredencialesDeLa109(cuentas_nube, ws.id),
+                           compartidor_de=lambda ws: CompartidorDeLa109(cuentas_nube, ws.id),
                            informes_en_curso=lambda ws: any(j.kind.startswith('informe_') and j.kind != 'informe_documentos'
                                                             for j in jobs.active(ws.id)))
     # 017:RF-109, RF-124: el mapa de las cargas nuevas y su punto de diseño leído en DIgSILENT, en su módulo.
@@ -3071,6 +3087,16 @@ def create_app(
     from .entradas_estudios_api import registrar_rutas_entradas
 
     registrar_rutas_entradas(app, ws_or_404=ws_or_404, submit=submit, guardar_subida=_save_upload)
+    # 109: la nube (Google Drive y OneDrive), con la misma validación y asignación que una subida (109:RF-4).
+    # Antes del front compilado: su `spa` captura `/{full_path:path}` y taparía `GET /nube/retorno`.
+    from .nube_api import registrar_rutas_nube
+
+    registrar_rutas_nube(app, ws_or_404=ws_or_404, submit=submit, asignar_entrada=_assign,
+                         validar_entrada=_validar_entrada, reemplazar_libros=_reemplazar_carpeta, cuentas=cuentas_nube)
+    # 111:RF-15, RF-16: el plano de la red (vista, variaciones, estudio, resultados y comparación), en su módulo.
+    from .plano_api import registrar_rutas_plano
+
+    registrar_rutas_plano(app, ws_or_404=ws_or_404, submit=submit)
 
     # ------------------------------------------------------------ front compilado
     dist = frontend_dist()
@@ -3084,7 +3110,7 @@ def create_app(
 
         @app.get('/{full_path:path}', include_in_schema=False)
         def spa(full_path: str) -> Any:
-            if full_path.startswith('api/'):
+            if full_path.startswith(('api/', 'nube/')):
                 raise HTTPException(404)
             candidate = (dist / full_path).resolve()
             if full_path and candidate.is_file() and dist.resolve() in candidate.parents:

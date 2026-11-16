@@ -1,0 +1,55 @@
+{
+ "esquema": "registro_normativo_v1",
+ "amplia": "RCD 217-2013-OS/CD",
+ "nota": "107 T7, tarjeta PIT-TEN (2026-11-15, f4): criterio de tensión del diagnóstico (num. 12.2.1.a, que la RCD 018-2018-OS/CD no modifica) y niveles de tensión por rango (definición «Nivel de Tensión» de los formatos). La remisión del Área 15 (num. 12.3.2) está en la redacción vigente de la 018-2018 (rcd_018_2018_diagnostico.json). Fuente: carpeta z18_tension_pit_formatos_b del apoyo de cc, con la numeración del 12.2.1.a leída en la imagen png/r217-29.png. Las líneas son las de la copia de texto de la norma (sha256_texto de la 217-2013).",
+ "reglas": [
+  {
+   "clave": "pit.diagnostico.tension_criterio",
+   "valor": {
+    "norma_de_referencia": "NTCSE",
+    "barras_con_entrega": [
+     "AT",
+     "MT"
+    ],
+    "sin_entrega_en_AT": "regulacion_transformador_AT_MT",
+    "regla_tolerancia": "calidad.tension.tolerancia_ntcse",
+    "regla_tolerancia_ser": "calidad.tension.tolerancia_ntcser"
+   },
+   "unidad": "",
+   "articulo_o_anexo": "num. 12.2.1.a Calidad del Producto",
+   "pagina": "28 (pdf 29)",
+   "lineas": "1339-1346",
+   "cita_literal": "12.2.1.a Calidad del Producto: Debe verificarse que los niveles de tensión en las barras de AT y MT, donde se realice la entrega del suministro eléctrico, deben cumplir con las tolerancias que establece la NTCSE; mientras que, en los casos en que no exista entrega de suministro en AT, los límites de los rangos de regulación de tensión de los transformadores AT/MT deben permitir cumplir con los niveles de tensión establecidos en la NTCSE para el suministro eléctrico desde la red de distribución primaria.",
+   "interpretacion": "La Norma Tarifas no fija valores de tensión: remite a la NTCSE (5.1.2) y, en los Sistemas Eléctricos Rurales, a la NTCSER (4.1.2), que la sustituye en ellos. Con entrega de suministro, la barra cumple la tolerancia de su norma. En AT sin entrega, la barra no tiene límite propio: se comprueba que el rango de tomas de cada transformador AT/MT permita llevar su barra de MT a la tolerancia de la NTCSE. La numeración 12.2.1.a se leyó en la imagen de la página (la capa de texto la desalinea)."
+  },
+  {
+   "clave": "pit.diagnostico.niveles_tension_rangos_kv",
+   "valor": {
+    "MAT": {
+     "kv": [
+      500,
+      220,
+      138
+     ]
+    },
+    "AT": {
+     "desde_kv": 30,
+     "menor_que_kv": 138
+    },
+    "MT": {
+     "mayor_que_kv": 1,
+     "menor_que_kv": 30
+    },
+    "BT": {
+     "hasta_kv": 1
+    }
+   },
+   "unidad": "kV",
+   "articulo_o_anexo": "Anexo de formatos, definición «Nivel de Tensión»",
+   "pagina": "45 (pdf 46)",
+   "lineas": "2117-2123",
+   "cita_literal": "Nivel de Tensión: Corresponde al nivel de tensión: - Muy Alta Tensión (MAT) para valores de 500, 220 o 138 kV. - Alta Tensión (AT) para valores mayores o igual a 30 kV e inferiores a 138 kV. - Media Tensión (MT) para valores inferiores a 30 kV y superiores a 1 kV. - Baja Tensión (BT) para valores hasta 1 kV.",
+   "interpretacion": "Clasifica la tensión nominal de cada barra del diagnóstico. MAT solo para las tensiones listadas: una tensión de 138 kV o más que no está en la lista no se clasifica por aproximación y queda como hueco nombrado."
+  }
+ ]
+}

@@ -10,9 +10,12 @@
     "RCD 112-2024-OS/CD"
    ],
    "modificada_por": [
+    "RCD 186-2026-OS/CD",
+    "RCD 187-2026-OS/CD",
+    "RCD 189-2026-OS/CD",
     "RCD 199-2026-OS/CD"
    ],
-   "nota": "Incorpora el Informe Técnico 565-2024-GRT (art. 2; https://www.osinergmin.gob.pe/Resoluciones/pdf/2024/Informe-Tecnico-565-2024-GRT.pdf, sha256 f315d7123ad5df0df4c89207c03120e89f819dd6d80668fa1bed82e096b8e80e). Hay modificatorias posteriores por área que no se han leído (G0 vio la 188-2026 de forma indirecta; la 199-2026, leída el 2026-11-14 en El Peruano, modifica el Área de Demanda 9 (rcd_199_2026.json)): sin vigencia comprobada, sus reglas se usan como referencia.",
+   "nota": "Incorpora el Informe Técnico 565-2024-GRT (art. 2; https://www.osinergmin.gob.pe/Resoluciones/pdf/2024/Informe-Tecnico-565-2024-GRT.pdf, sha256 f315d7123ad5df0df4c89207c03120e89f819dd6d80668fa1bed82e096b8e80e). Hay modificatorias posteriores por área: la 199-2026, leída el 2026-11-14 en El Peruano, modifica el Área de Demanda 9 (rcd_199_2026.json); la 186-2026, la 187-2026 y la 189-2026, leídas el 2026-11-15, modifican las Áreas 1, 3 y 13, y la 188-2026 desestima la solicitud del Área 12 (rcd_186_189_2026.json). Esta norma, sin vigencia comprobada, da sus reglas como referencia.",
    "sha256": "ba01e0b51f56d34ac1b57ae356ec061ee8a2e10053856374c5e78b91127fb91a",
    "sha256_texto": "b377533d11a0c3da58f481ffdc12c44f37cd0361ed9f82372acc657b8e2108ce",
    "titulo": "Modifica la RCD 112-2024-OS/CD: Plan de Inversiones 2025-2029 por Área de Demanda y titular",

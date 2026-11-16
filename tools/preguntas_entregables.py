@@ -88,6 +88,18 @@ SAL_REPARTO = '076-reparto'
 FRACCION_SELLADO = 0.25
 #: Campos del operador: revisar no cambia lo sellado (076:RF-9).
 CAMPOS_REVISION = ('revisado_por_operador', 'revision', 'revisado_por_maestro')
+#: Historial de la huella de lo sellado (076:RF-7, RF-8): solo crece, y la última es la del conjunto de hoy. Cada cambio con
+#: su fecha, la revisión que lo fija (None: aún sin revisión de main) y su motivo. Una medida hecha con una huella anterior
+#: se sigue citando con esa huella: midió aquel sellado, y no se reescribe con la nueva ni se da por rehecha.
+HISTORIAL_SELLADO: tuple[dict[str, str | None], ...] = (
+    {'fecha': '2026-11-02', 'huella': 'f6186156a2863c8734f100466a630b5720b0781336279dad0331c2bd13b2a00e',
+     'revision': 'fe6c67c1896efec3162998070d354c8da3edec4c', 'motivo': 'el conjunto escrito'},
+    {'fecha': '2026-11-06', 'huella': '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411',
+     'revision': 'be7bd10849bb5d32c0504e3e7aea45998080a84a',
+     'motivo': 'f6186156 → 5d07ca9a: solo el ancla de planeamiento_pide-015, al cerrarse la tarea del adaptador'},
+    {'fecha': '2026-11-16', 'huella': '98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce', 'revision': None,
+     'motivo': '5d07ca9a → 98ed9614: solo el ancla de planeamiento_pide-008, por E3-v2'},
+)
 #: 076:RF-28: quién marcó la hoja; el maestro hace el rol del revisor por orden del usuario (2026-11-03), y no es humano.
 REVISORES = ('operador', 'maestro')
 
@@ -624,6 +636,12 @@ def informe_md(filas: Sequence[Mapping[str, Any]], datos: Mapping[str, Any]) -> 
         r = Counter(f['reparto'] for f in de_e)
         t.append(f"| {e} | {len(de_e)} | {c['con_respuesta']} | {c['sin_respuesta']} | {r['corpus']} | {r['sellado']} | "
                  f"{sum(1 for f in de_e if f['revisado_por_operador'])} |")
+    t += ['', '## Historial de lo sellado', '',
+          'Una medida hecha con una huella anterior se sigue citando con esa huella.', '',
+          '| Fecha | Huella | Revisión | Motivo |', '| --- | --- | --- | --- |']
+    for h in HISTORIAL_SELLADO:
+        revision = f"`{h['revision'][:8]}`" if h['revision'] else 'sin revisión de main aún'
+        t.append(f"| {h['fecha']} | `{h['huella']}` | {revision} | {h['motivo']} |")
     t += ['', '## Pendientes', ''] + [f'- {p}' for p in datos['pendientes']] + ['']
     for e in ENTREGABLES + TEMAS:
         de_e = [f for f in filas if f['entregable'] == e]

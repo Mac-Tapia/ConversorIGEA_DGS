@@ -19,7 +19,7 @@ from ..registro_normativo import RegistroError, RegistroNormativo
 from . import PitError
 
 __all__ = ['celdas_de_cuadros', 'codigos_de_grupos', 'definiciones', 'formatos_aplicables', 'plan_de_cuadros',
-           'escribir_libro_de_cuadros']
+           'plan_de_formatos', 'escribir_libro_de_cuadros']
 
 PREFIJO = 'pit.cuadro.'
 #: La regla que lista los formatos de una norma (``pit.formatos_217``, la de otra norma o periodo…): trae ``grupos``.
@@ -184,6 +184,33 @@ def plan_de_cuadros(celdas: Sequence[Mapping[str, Any]], config: Mapping[str, An
     return {'modelo': str(Path(config['modelo']).resolve()), 'destino': str(Path(destino).resolve()),
             'borrar_hojas': [], 'sin_imagenes': [], 'vaciar': vaciar, 'escribir': escribir, 'formulas': formulas,
             'imagenes': [], 'ancho_imagen': 420.0, 'huecos': list(dict.fromkeys(huecos))}
+
+
+def plan_de_formatos(resultados: Sequence[Mapping[str, Any]], *, modelo: Path, destino: Path) -> dict[str, Any]:
+    """El plan para Excel con el formato de ``libro_informe`` desde los resultados de ``plantillas.celdas_de_formato``
+    (107-P10b): cada celda en su referencia de la hoja de su formato (``F-002!A10``) y, antes de escribirlas, las filas
+    que hay que insertar (``insertar_filas``, de ``insertar_en``, en su orden). ``modelo`` es una copia del libro
+    oficial, nunca el original. Un formato con filas que insertar sin saber dónde (los grupos repetidos) es un error que
+    lo nombra: escribir sin insertarlas pisaría las filas de abajo."""
+    escribir, vaciar, huecos, insertar = [], [], [], []
+    for r in resultados:
+        sitios = list(r.get('insertar_en') or ())
+        sin_sitio = sorted(set(r.get('filas_a_insertar') or {}) - {i['bloque'] for i in sitios})
+        sin_sitio += sorted(r.get('grupos_a_insertar') or {})
+        if sin_sitio:
+            raise PitError(f'{r.get("codigo")}: no se sabe dónde insertar las filas de {sin_sitio}; sin insertarlas no '
+                           'se escribe el libro')
+        insertar += [{'hoja': i['hoja'], 'fila': int(i['fila']), 'filas': int(i['filas'])} for i in sitios]
+        for c in r.get('celdas') or ():
+            if c['valor'] in (None, ''):
+                vaciar.append(c['celda'])
+                huecos.append(c['id'])
+            else:
+                escribir.append({'celda': c['celda'], 'valor': c['valor']})
+    return {'modelo': str(Path(modelo).resolve()), 'destino': str(Path(destino).resolve()),
+            'borrar_hojas': [], 'sin_imagenes': [], 'insertar_filas': insertar, 'vaciar': vaciar,
+            'escribir': escribir, 'formulas': [], 'imagenes': [], 'ancho_imagen': 420.0,
+            'huecos': list(dict.fromkeys(huecos))}
 
 
 def escribir_libro_de_cuadros(celdas: Sequence[Mapping[str, Any]], config: Mapping[str, Any], *, destino: Path,

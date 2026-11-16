@@ -3,15 +3,20 @@
 Usuario, 2026-11-12: la web avisaba «Aún no hay ninguna copia de sus datos» y la copia solo se hacía con la orden
 del manual. Ahora el aviso lleva «Hacer una copia ahora»: pide la carpeta, la recuerda en el equipo
 (``config/copia_datos.json``, como ``config/archivo.json`` de la 105) y encola la misma ``crear_copia`` de la orden.
+
+Prueba con la cuenta local, 2026-11-16: un clic escribía unos 20 GB en Google Drive, sin decir antes lo que ocuparía
+ni ofrecer «Cancelar», y el aviso no veía la copia que ya estaba en la carpeta. Ahora la previa (aclaración de RF-82 y
+RF-83, RF-108) dice lo que ocupará, lo libre y lo que se copia, con las copias que ya hay, sin escribir nada; y la copia
+solo se encola con ``confirmada``, que la web manda al pulsar «Copiar».
 """
 from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 
-from .api_contract import CopiaDatosCarpetaRespuesta, CopiaDatosPeticion, JobRespuesta
+from .api_contract import CopiaDatosCarpetaRespuesta, CopiaDatosPeticion, CopiaDatosPreviaRespuesta, JobRespuesta
 
 KIND = 'copia_datos'
 
@@ -40,6 +45,21 @@ def registrar_rutas_copia(app: FastAPI, *, ws_or_404, submit, en_curso: Callable
         carpeta = copia.carpeta_recordada()
         return {'carpeta': carpeta.as_posix() if carpeta else None}
 
+    @app.get('/api/copia-datos/previa', response_model=CopiaDatosPreviaRespuesta)
+    def copia_previa(carpeta: str = Query(min_length=1, max_length=1024), sin_modelos: bool = False) -> dict:
+        """086:RF-82, RF-83, RF-108: lo que ocupará, lo libre, lo que se copia y las copias que ya hay; no escribe.
+
+        Ni recuerda la carpeta: eso lo hace la copia, cuando el operador pulsa «Copiar».
+        """
+        if not rutas_locales():
+            raise HTTPException(403, 'Este servidor no admite rutas locales.')
+        try:
+            destino = copia.validar_carpeta(carpeta)
+            plan = copia.planificar_copia(destino, raices=raices_del_servidor(raiz_datos), sin_modelos=sin_modelos)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return {**plan, 'texto': copia.texto_plan(plan), 'copias': copia.listar_copias(destino)}
+
     @app.post('/api/workspaces/{wid}/copia-datos', status_code=202, response_model=JobRespuesta,
               response_model_exclude_unset=True)
     def copia_lanzar(wid: str, body: CopiaDatosPeticion) -> dict:
@@ -47,6 +67,9 @@ def registrar_rutas_copia(app: FastAPI, *, ws_or_404, submit, en_curso: Callable
         ws = ws_or_404(wid)
         if not rutas_locales():
             raise HTTPException(403, 'Este servidor no admite rutas locales.')
+        # Aclaración de RF-82: nada se escribe sin que el operador haya visto lo que ocupará y pulsado «Copiar».
+        if not body.confirmada:
+            raise HTTPException(422, 'Antes de copiar, vea lo que ocupará la copia y pulse «Copiar».')
         # Copiar en medio de una calibración guardaría una mezcla de antes y de después (086:RF-10).
         ocupados = en_curso()
         if ocupados:

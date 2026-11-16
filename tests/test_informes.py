@@ -112,7 +112,7 @@ def test_bandas_de_coloreado_del_perfil(tmp_path):
 
 
 def test_electro_dunas_trae_las_bandas_del_modelo(tmp_path):
-    """017:RF-115 — Electro Dunas hereda las bandas de su modelo EMAPICA; los ficheros no."""
+    """017:RF-115 — una distribuidora real hereda las bandas de su modelo EMAPICA; los ficheros no."""
     carpeta = tmp_path / 'perfiles'
     carpeta.mkdir()
     (carpeta / 'electro_dunas.json').write_text(
@@ -242,7 +242,8 @@ def test_formulas_de_perdidas_con_los_numeros_de_emapica():
 
 
 def test_factor_de_perdidas_y_perdidas_tecnicas():
-    """017:RF-55, 017:RF-56 — 0,3·FC + 0,7·FC² y pérdidas del flujo × 8760 h × factor de pérdidas."""
+    """017:RF-55, 017:RF-56 — 0,3·FC + 0,7·FC² (coeficientes del registro: TdR VAD, Anexo 4-14; INF-FP) y pérdidas
+    del flujo × 8760 h × factor de pérdidas."""
     assert factor_de_perdidas(0.5) == pytest.approx(0.325)
     assert perdidas_anuales(1000, 10, 0.5).perdidas_kwh == pytest.approx(10 * 8760 * 0.325)
     with pytest.raises(InformeError, match='entre 0 y 1'):
@@ -464,3 +465,62 @@ def test_la_terna_con_conductor_del_perfil_lo_nombra_en_el_informe():
     assert 'AA12003D_FICHA' in texto and 'los dos circuitos' in texto
     sin = describir_obra(obra_para_informe({'clase': 'terna', 'alimentador': 'F1', 'tramos': ['S1']}))
     assert 'circuitos' not in sin and 'terna más' in sin
+
+
+# ------------------------------------------------- INF-FP (orden de 28): los coeficientes del factor de pérdidas, de la norma
+def _registro_fp(tmp_path, lineal, cuadratico):
+    """Un registro sintético con solo la regla del factor de pérdidas empírico (TdR VAD vigente, Anexo 4-14)."""
+    import json
+    datos = {'esquema': 'registro_normativo_v1', 'normas': [{
+        'acto': 'TDR-SINTETICO', 'titulo': 'TdR sintético', 'estado_juridico': 'vigente_comprobada', 'sha256': 'c' * 64,
+        'reglas': [{'clave': 'vad.anexo4.factor_perdidas_empirico',
+                    'valor': {'formula': 'fpérdidas = b × (fcarga)² + a × fcarga', 'coef_cuadratico': cuadratico,
+                              'coef_lineal': lineal},
+                    'articulo_o_anexo': 'Anexo 4-14', 'pagina': '126', 'lineas': '1-2', 'cita_literal': 'sintética'}]}]}
+    carpeta = tmp_path / 'registro'
+    carpeta.mkdir(parents=True)
+    (carpeta / 'r.json').write_text(json.dumps(datos), encoding='utf-8')
+    from convertersmartgrid.registro_normativo import cargar_registro
+    return cargar_registro(carpeta)
+
+
+def test_factor_de_perdidas_con_los_coeficientes_del_registro_real():
+    """017:RF-55 (INF-FP) — los coeficientes 0,3 y 0,7 salen del registro (TdR VAD vigente, Anexo 4-14 y num. 6.9) y el
+    resultado no cambia: 0,3·0,5 + 0,7·0,5² = 0,325."""
+    from convertersmartgrid.informes import coeficientes_factor_de_perdidas
+    lineal, cuadratico, cita = coeficientes_factor_de_perdidas()
+    assert (lineal, cuadratico) == (0.3, 0.7)
+    assert 'Anexo 4' in cita
+    assert factor_de_perdidas(0.5) == pytest.approx(0.325)
+
+
+def test_factor_de_perdidas_sigue_al_registro_y_sin_regla_es_un_error(tmp_path):
+    """017:RF-55 (INF-FP) — con otro coeficiente en el registro cambia el resultado (no hay números fijos en el código),
+    y un registro sin la regla da un error que la nombra."""
+    from convertersmartgrid.registro_normativo import cargar_registro
+    mutado = _registro_fp(tmp_path, 0.2, 0.8)
+    assert factor_de_perdidas(0.5, registro=mutado) == pytest.approx(0.2 * 0.5 + 0.8 * 0.25)
+    vacio = tmp_path / 'vacio'
+    vacio.mkdir()
+    (vacio / 'r.json').write_text('{"esquema": "registro_normativo_v1", "normas": []}', encoding='utf-8')
+    with pytest.raises(InformeError, match='vad.anexo4.factor_perdidas_empirico'):
+        factor_de_perdidas(0.5, registro=cargar_registro(vacio))
+
+
+def test_el_registro_del_factor_de_perdidas_se_cachea_por_ruta(tmp_path, monkeypatch):
+    """017:RF-55 (INF-FP, condición de 28) — la caché del registro va por RUTA: si cambia la raíz del programa se lee
+    el registro nuevo, nunca el de una caché global anterior."""
+    import shutil
+    from convertersmartgrid import runtime_paths
+    raices = []
+    for n, (lineal, cuadratico) in enumerate(((0.3, 0.7), (0.4, 0.6))):
+        registro = _registro_fp(tmp_path / f'r{n}', lineal, cuadratico)
+        assert registro is not None
+        raiz = tmp_path / f'raiz{n}'
+        shutil.copytree(tmp_path / f'r{n}' / 'registro', raiz / 'config' / 'vad')
+        raices.append(raiz)
+    monkeypatch.setattr(runtime_paths, 'raiz_programa', lambda: raices[0])
+    primero = factor_de_perdidas(0.5)
+    monkeypatch.setattr(runtime_paths, 'raiz_programa', lambda: raices[1])
+    segundo = factor_de_perdidas(0.5)
+    assert (primero, segundo) == (pytest.approx(0.3 * 0.5 + 0.7 * 0.25), pytest.approx(0.4 * 0.5 + 0.6 * 0.25))

@@ -68,6 +68,16 @@ El operador o ingeniero en la web, con su propia cuenta de Google o de Microsoft
 - RF-20: SI un expediente que se va a compartir con destinatarios contiene datos crudos de la distribuidora (TXT de
   CYMDIST, bases Access o paquetes VNR-GIS), ENTONCES EL SISTEMA no concederá el permiso y nombrará los ficheros que lo
   impiden.
+- RF-21: EL SISTEMA dará a cada entrada de la web un único campo «Elegir archivo» con su origen: el equipo (cualquier
+  carpeta) siempre, y Google Drive u OneDrive solo si hay una cuenta conectada. Sin cuenta y sin red, el campo funciona
+  igual con el equipo.
+- RF-22: CUANDO el operador elija un fichero de la nube en una entrada, EL SISTEMA guardará su copia fija (RF-3) y la
+  hará pasar por la misma subida que un fichero del equipo en esa entrada (RF-4), sin un destino que elegir aparte.
+- RF-23: SI el fichero elegido, del equipo o de la nube, no tiene un tipo que admita esa entrada, ENTONCES EL SISTEMA no
+  lo cargará y dirá su nombre y los tipos que admite.
+- RF-24: CUANDO el operador guarde una salida (informe, libro, expediente o paquete), EL SISTEMA le dejará elegir la
+  carpeta del equipo donde guardarla y, si hay una cuenta conectada, también publicarla en Google Drive u OneDrive por
+  RF-9.
 
 ## Requisitos no funcionales
 - Lo local sigue funcionando sin cuenta y sin red: sin regresión en las entradas actuales.
@@ -90,8 +100,9 @@ El operador o ingeniero en la web, con su propia cuenta de Google o de Microsoft
 
 ## Criterios de finalización
 Cada RF citado por una prueba (`grep "109:RF-"`), con un proveedor simulado y con las pruebas negativas de la lista de
-casos límite. Una prueba real controlada, en una carpeta de ensayo del usuario, importa y publica, con sus recibos.
-La prueba con el proveedor simulado no acredita la integración real.
+casos límite. La 1.0 se valida con el simulado (OAuth en versión de prueba, orden del usuario del 2026-11-15). La prueba
+real con una cuenta, en una carpeta de ensayo del operador, que importa y publica con sus recibos, es opcional: la hace el
+operador cuando registre su aplicación de prueba. La prueba con el proveedor simulado no acredita la integración real.
 
 ## Decisiones (2026-11-14)
 Tomadas por el implementador por delegación del usuario (`D:/csg/G0_PLAN_MAESTRO/G1_DECISIONES_RECOMENDADAS.md`,
@@ -100,7 +111,21 @@ puntos 1 y 2).
   es configurable: identificador, secreto y URI de retorno van en la configuración local del equipo y nunca en el
   repositorio (RF-18); sin él, la web dice que falta el registro (RF-19). Las pruebas usan un proveedor simulado. La integración real queda bloqueada solo por ese
   registro, y se deja un instructivo paso a paso en `docs/`.
+- **OAuth en versión de prueba (orden del usuario del 2026-11-15).** Basta una aplicación de prueba: Google Cloud en
+  modo «Testing» (hasta 100 usuarios de prueba, sin verificación) o Azure con cuentas personales. La 1.0 se valida con el
+  proveedor simulado; la prueba real con una cuenta es opcional y del operador (T16). Sin `config/nube.json`, la web dice
+  «Sin cuenta conectada: configure config/nube.json» y no falla (RF-19).
 - **Compartir con terceros.** Sí entra en la enmienda del principio 9, pero solo con destinatarios nombrados, en solo
   lectura y con la confirmación del operador en cada envío (RF-10, RF-15). Nunca se comparte con «cualquiera con el
   enlace» salvo que el operador lo autorice en ese envío (RF-11). Nunca se comparten datos crudos: TXT, MDB ni paquetes
   VNR-GIS (RF-20).
+
+## Aclaración de RF-2 (2026-11-14)
+Decidida por el coordinador del Plan Maestro, por delegación del usuario, al implementar el selector de ficheros.
+- Lo prohibido es la **credencial persistente**: el token de refresco y el secreto del cliente nunca llegan al navegador,
+  al espacio de trabajo, a los registros ni al repositorio.
+- Está permitido el **token de acceso transitorio de la sesión del selector**: de corta duración (menos de una hora) y
+  con el alcance mínimo de leer (`drive.file` en Google, `Files.Read` en Microsoft). El selector lo pide cada vez que se
+  abre y no se guarda: ni en `localStorage`, ni en `sessionStorage`, ni en el espacio de trabajo.
+- La clave de API de Google Picker, si hace falta, sale de `config/nube.json` y puede ir al navegador: es pública por
+  diseño en el Picker.

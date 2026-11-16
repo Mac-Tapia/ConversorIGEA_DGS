@@ -216,6 +216,15 @@ function Ficha({ t }: { t: TipoAnalisis }) {
 }
 
 /**
+ * 072:RF-37 con 086:RF-110: la norma de los tipos y su estado jurídico, en una frase y sin paréntesis. Antes decía
+ * «(proyecto: no se presenta como norma vigente)» ya en la vista inicial, sin haber elegido nada, y confundía.
+ */
+export function textoNorma(norma: TiposAnalisis['norma']): string {
+  const cita = `Según ${norma.acto}${norma.titulo ? `, «${norma.titulo}»` : ''}.`;
+  return norma.vigente ? cita : `${cita} Estado jurídico: ${norma.estado_juridico || 'sin estado jurídico'}; no es norma vigente.`;
+}
+
+/**
  * Tipo de análisis (spec 072, RF-29 a RF-38).
  *
  * El operador elige corto plazo, PIDE o planeamiento de largo plazo; la ficha (horizonte, obras, entregables y norma)
@@ -239,10 +248,7 @@ export function TipoDeAnalisis({ tipo, onTipo, anio, onAnio, tipos, error, estad
         {tipo === null && tipos && <span className="muted small">Elija uno: cada tipo tiene su horizonte, sus obras y sus entregables.</span>}
       </div>
       {error && <p role="alert" className="alert alert-error">{error}</p>}
-      {tipos && <p className="small muted">
-        Según {tipos.norma.acto}{tipos.norma.titulo ? `, «${tipos.norma.titulo}»` : ''}
-        {tipos.norma.vigente ? '.' : ` (${tipos.norma.estado_juridico || 'sin estado jurídico'}: no se presenta como norma vigente).`}
-      </p>}
+      {tipo !== null && tipos && <p className="small muted">{textoNorma(tipos.norma)}</p>}
       {tipo !== null && tipo !== 'corto_plazo' && (
         <>
           <CampoAnioPresentacion anio={anio} onAnio={onAnio} tipos={tipos}

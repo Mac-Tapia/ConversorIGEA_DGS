@@ -435,6 +435,8 @@ details summary { cursor: pointer; color: var(--primary); margin-top: 8px; }
   flex: 1; overflow: auto; padding: 8px 16px; font-family: var(--mono); font-size: 12px; line-height: 1.5;
   white-space: pre-wrap; word-break: break-word;
 }
+.segmented button[aria-disabled="true"] { opacity: .55; cursor: not-allowed; } /* desactivada sin perder el foco (F-12) */
+.log-body .muted { color: #93a1b2; } /* 086 F-12: contraste AA (≥ 4,5:1) del texto apagado sobre el fondo del registro; el --muted claro daba 3,31 */
 .log-error { color: #ff8a8a; }
 .log-warn { color: #f5c16c; }
 .log-ok { color: #7ee2a0; }
@@ -578,3 +580,15 @@ button.link { background: none; border: 0; padding: 0; color: var(--primary); fo
   [tabindex]:focus-visible { outline-color: Highlight; }
   .tabs button.on { border-bottom-color: Highlight; }
 }
+/* 111: pestaña «Plano de la red». */
+.plano-columnas { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+.plano-columnas fieldset { border: 1px solid var(--border); border-radius: 8px; display: grid; gap: 6px; }
+.lista-compacta { margin: 4px 0; padding-left: 18px; }
+.lista-compacta li { margin: 2px 0; }
+dl.datos { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 4px 0; }
+dl.datos dt { color: var(--muted); }
+dl.datos dd { margin: 0; }
+.icono-alerta { display: inline-block; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 50%;
+  background: var(--error); color: var(--surface); font-weight: 700; font-size: 12px; }
+.fila-foco { outline: 2px solid var(--primary); outline-offset: -2px; }
+tr[aria-selected="true"] { background: var(--primary-soft); }

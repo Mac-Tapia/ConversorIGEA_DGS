@@ -98,7 +98,7 @@ def test_una_prueba_que_fija_su_checkout_conserva_su_output(tmp_path, monkeypatc
 
 
 # 106:RF-17 (ampliado de nuevo el 2026-11-13, a petición del auditor) — tampoco el config/ ni el input/ locales del
-# checkout real: con el perfil_empresa.json de Electro Dunas, una prueba que lo leía pasaba en esta máquina y fallaba en
+# checkout real: con el perfil_empresa.json de una distribuidora real, una prueba que lo leía pasaba en esta máquina y fallaba en
 # otra (P13: sin perfil no se supone nada). Lo versionado (config/perfiles, config/fichas, pide_universal_2017.json…)
 # es del programa y se sigue leyendo de él.
 def test_ningun_fichero_local_de_config_ni_input_sale_del_checkout_real(monkeypatch):

@@ -478,7 +478,7 @@ function AjustesProtecciones({ project, onGuardado }: { project: string; onGuard
     <div className="stack">
       <p className="small"><strong>Ajustes de los equipos del alimentador</strong> — los ficheros del relé o del
         reconectador (TXT, PDF, foto o escaneo en JPG o PNG, o los de su programa); se leen y usted confirma cada dato antes de guardarlo.</p>
-      <FileDrop compact accept=".txt,.pdf,.csv,.set,.rdb,.jpg,.jpeg,.png,.tif,.tiff,.bmp,.webp" multiple
+      <FileDrop entrada="antecedentes" compact accept=".txt,.pdf,.csv,.set,.rdb,.jpg,.jpeg,.png,.tif,.tiff,.bmp,.webp" multiple
         onFiles={(files) => void startJob(() => api.proteccionesAjustes(ws.id, project, files))}>
         <span>Soltar o <u>elegir</u> los ficheros de ajustes</span>
       </FileDrop>

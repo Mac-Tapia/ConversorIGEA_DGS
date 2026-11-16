@@ -156,10 +156,18 @@ class Exogenas:
     no_laborables: set[date] = field(default_factory=set)
     temperatura: Mapping[datetime, float] = field(default_factory=dict)
     sin_norma: list[date] = field(default_factory=list)
+    #: 112:RF-11: el mes de calendario de cada día cuando el calendario viaja como columna (benchmark con las fechas
+    #: desplazadas). Vacío en el 089: el mes sale de la fecha.
+    meses: Mapping[date, int] = field(default_factory=dict)
 
     @cached_property
     def dias_no_laborables(self) -> np.ndarray:
         return np.array(sorted(self.no_laborables), dtype='datetime64[D]')
+
+    @cached_property
+    def dias_con_mes(self) -> tuple[np.ndarray, np.ndarray]:
+        dias = sorted(self.meses)
+        return np.array(dias, dtype='datetime64[D]'), np.array([self.meses[d] for d in dias], dtype=int)
 
     @cached_property
     def serie_temperatura(self):
@@ -838,6 +846,20 @@ def leer_exogenas(carpeta: Path | str) -> Exogenas:
 
 
 # --------------------------------------------------------------------------- métodos
+def _mes_de(t: np.ndarray, exogenas: Exogenas | None = None) -> np.ndarray:
+    """El mes de calendario de cada instante: el de ``exogenas.meses`` si el calendario viaja como columna (112:RF-11),
+    y si no, el de la fecha."""
+    import pandas as pd
+
+    mes = np.asarray(pd.DatetimeIndex(t).month)
+    if exogenas is None or not exogenas.meses:
+        return mes
+    dias, meses = exogenas.dias_con_mes
+    d = np.asarray(t, dtype='datetime64[D]')
+    i = np.minimum(np.searchsorted(dias, d), len(dias) - 1)
+    return np.where(dias[i] == d, meses[i], mes)
+
+
 def _claves(t: np.ndarray, exogenas: Exogenas | None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Mes, día de la semana y bloque del día; un no laborable es un domingo (089:RF-44)."""
     import pandas as pd
@@ -846,7 +868,7 @@ def _claves(t: np.ndarray, exogenas: Exogenas | None) -> tuple[np.ndarray, np.nd
     dia = np.asarray(indice.dayofweek)
     if exogenas is not None and len(exogenas.dias_no_laborables):
         dia = np.where(np.isin(np.asarray(t, dtype='datetime64[D]'), exogenas.dias_no_laborables), 6, dia)
-    return np.asarray(indice.month), dia, np.asarray(indice.hour * 4 + indice.minute // 15)
+    return _mes_de(t, exogenas), dia, np.asarray(indice.hour * 4 + indice.minute // 15)
 
 
 def _perfil(t_h: np.ndarray, y_h: np.ndarray, t_f: np.ndarray, exogenas: Exogenas | None, *, con_mes: bool) -> np.ndarray:
@@ -888,14 +910,16 @@ def _anclado(t_h, y_h, t_f, exogenas) -> np.ndarray:
     return forma + (media_real - media_ref)            # la Q cruza el cero con los bancos: un cociente da cualquier cosa
 
 
-def _clima_futura(t_f: np.ndarray, anterior) -> np.ndarray:
+def _clima_futura(t_f: np.ndarray, anterior, exogenas: Exogenas | None = None) -> np.ndarray:
     """La temperatura del futuro no se conoce al emitir: su climatología por mes y hora (046:RF-2, 089:RF-47)."""
     import pandas as pd
 
-    por_mes_hora = anterior.groupby([anterior.index.month, anterior.index.hour]).median()
+    mes_ant = _mes_de(np.asarray(anterior.index, dtype='datetime64[ns]'), exogenas)
+    por_mes_hora = anterior.groupby([mes_ant, anterior.index.hour]).median()
     por_hora = anterior.groupby(anterior.index.hour).median()
     indice = pd.DatetimeIndex(t_f)
-    salida = pd.Series(pd.MultiIndex.from_arrays([indice.month, indice.hour]).map(por_mes_hora), dtype=float)
+    salida = pd.Series(pd.MultiIndex.from_arrays([_mes_de(np.asarray(t_f, dtype='datetime64[ns]'), exogenas), indice.hour])
+                       .map(por_mes_hora), dtype=float)
     salida = salida.fillna(pd.Series(indice.hour.map(por_hora), dtype=float))
     return salida.fillna(float(anterior.median())).to_numpy(dtype=float)
 
@@ -919,7 +943,7 @@ def _anclado_temperatura(t_h, y_h, t_f, exogenas) -> np.ndarray:
         return base
     x = np.c_[np.ones(ok.sum()), temperatura[ok], temperatura[ok] ** 2]
     coef, *_ = np.linalg.lstsq(x, y_h[anio][ok] - ajuste[ok], rcond=None)
-    futura = _clima_futura(t_f, anterior)
+    futura = _clima_futura(t_f, anterior, exogenas)
     return base + np.c_[np.ones(len(futura)), futura, futura ** 2] @ coef
 
 

@@ -778,3 +778,411 @@ def test_107_rf11_pit_y_registro_normativo_sin_valores_de_un_area_una_empresa_o_
         malos += [f'{rel}:{n} ({clase}: {trozo})' for n, clase, trozo in CE.valores_fijos(rel, ruta.read_text(encoding='utf-8'))]
     assert not fuera, f'fuera de la entrega, sin la búsqueda de términos: {fuera}'
     assert not malos, malos
+
+
+# --------------------------------------------------------------------------- nombres reales de config (107, v2 de c3)
+#: Donde están los nombres reales: las transcripciones oficiales del registro y de las modificaciones del PIT. Solo ahí
+#: pueden estar; ni src/ ni tests/ los escriben como literales.
+CARPETAS_CON_NOMBRES = ('config/normativa', 'config/pit/modificaciones')
+#: Claves de esas transcripciones cuyo valor es el nombre de un titular o de una instalación.
+CLAVES_CON_NOMBRE = ('titular', 'instalacion')
+#: NOMBRES-001: los nombres que van como CLAVES de un diccionario bajo estas claves (p. ej. valor['empresas']).
+CLAVES_DICT_DE_NOMBRES = ('empresas',)
+#: NOMBRES-001: y el último tramo de una «clave» de regla cuando lleva mayúsculas (…causa_del_cambio.<Empresa>): las
+#: claves del registro van en minúsculas, así que un tramo con mayúscula es un nombre propio.
+#: NOMBRES-COM: tres formas más de los nombres de EMPRESA (titular, claves de «empresas» y tramo de una «clave»):
+#: (1) la forma sin espacios («Electro X» → «electrox»); (2) el primer tramo distintivo (no genérico, con
+#: NOMBRES_MIN_LETRAS letras como mínimo); (3) la sigla o código de empresa de los perfiles reales de config/perfiles.
+#: Los perfiles ficticios o de plantilla no cuentan. Siempre palabra entera, nunca subcadena.
+GENERICAS_PRIMER_TRAMO = {'electro', 'luz', 'empresa', 'sociedad', 'compania', 'consorcio', 'energia', 'electrica',
+                          'servicios', 'municipal', 'red', 'distribuidora', 'emp', 'empresas'}
+CARPETA_PERFILES = 'config/perfiles'
+#: NOMBRES-TST v2: los sitios y clientes reales de los casos de prueba (no son empresas, pero son igual de reales).
+#: FIX-NOMBRES-HUELLAS (c2 y el usuario, 16-11): el repositorio es público y config solo lleva la HUELLA de su nombre y
+#: de su forma pegada (``_huella_nombre``), con el caso y la procedencia; el nombre está en la lista local, fuera de git.
+ARCHIVO_SITIOS = 'config/casos_de_prueba/sitios.json'
+#: NOMBRES-CAT: los códigos de empresa de los paquetes VNR-GIS públicos (grupos vigentes de Osinergmin), por su HUELLA
+#: (FIX-NOMBRES-HUELLAS): ni el código ni su paquete, su dirección o su base se escriben en el repositorio.
+#: Se buscan en MAYÚSCULAS y como palabra entera: un código puede ser también una palabra del lenguaje en minúsculas.
+#: Valen desde 3 letras (por debajo de NOMBRES_MIN_LETRAS): son identificadores exactos, no palabras.
+ARCHIVO_CODIGOS_VNR = 'config/vnr/codigos_empresa_vnr.json'
+PERFILES_FICTICIOS = {'ficticia.json', 'plantilla.json'}
+#: Longitud mínima del nombre que se busca: con menos de 4 letras, las siglas coinciden con palabras y abreviaturas
+#: corrientes (p. ej. «SE», «AT», «MT») y la comprobación daría falsos positivos sin valor.
+NOMBRES_MIN_LETRAS = 4
+#: Palabras comunes que coinciden con un nombre de config y no lo identifican: no se buscan, cada una con su motivo.
+EXCEPCIONES_NOMBRES = {
+    'porvenir': 'palabra común del castellano («el porvenir»); como nombre de SET solo identifica junto a su SET',
+}
+#: Literales ya presentes antes de esta comprobación, en pruebas ajenas a la 107-T-DESBLOQUEO, con su motivo y su
+#: responsable: no se esconden, se listan hasta que su dueño las pase a leer de config. El nombre va por su huella
+#: (los 16 primeros hexadecimales del sha256 del nombre normalizado), para no escribirlo aquí tampoco.
+NOMBRES_TOLERADOS = {}  # VACÍA desde NOMBRES-001: la spec 001 usa nombres sintéticos neutros
+#: NOMBRES-001 (decisión (b) de c3): lo que el escáner AMPLIADO halló fuera de la spec 001, CONGELADO por tarjeta y
+#: responsable, con su TIPO leído de cada aparición («logica»: decide el comportamiento; «comentario»: solo en un
+#: comentario o docstring). NOMBRES-SRC = lógica de src (f4); NOMBRES-COM = comentarios y docstrings de src y de tests
+#: (2e); NOMBRES-TST = lógica de tests (2e). El trinquete la trata como a NOMBRES_TOLERADOS: solo encoge. La genera
+#: APOYO_6C/nombres001/generar_pendientes.py; el nombre va por su huella, nunca escrito.
+NOMBRES_PENDIENTES_POR_TARJETA = {}  # VACÍA desde NOMBRES-TST: NOMBRES-COM y NOMBRES-TST la vaciaron
+#: El TRINQUETE (NOMBRES-REG, orden de c3): NOMBRES_TOLERADOS solo encoge. Un nombre nuevo, o uno en un fichero que no
+#: está en la tabla, salta en test_ningun_nombre_real_de_config_en_src_ni_en_tests; una entrada cuyo nombre ya no está
+#: en su fichero (porque su dueño lo limpió o el fichero desapareció) salta en
+#: test_el_trinquete_no_deja_tolerados_que_sobran, y hay que quitarla: la tabla no puede volver a crecer escondida tras
+#: una entrada vieja. Las de tests/test_pit_registro.py (RN-AMB y VAD-FE26) salieron en NOMBRES-REG: la prueba ya lee
+#: los nombres del registro y los fija por su huella.
+_PREFIJO_SET = re.compile(r'^(?:SET|SE|S\.E\.)\s+(?:M?AT/(?:AT|MT)(?:/MT)?\s+)?', re.I)
+
+
+def _sin_tildes(texto):
+    import unicodedata
+    return unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode().casefold()
+
+
+def _nombres_de_config(raiz):  # noqa: C901 (recorrido de las transcripciones, una sola pasada)
+    """Los nombres de las transcripciones de config, normalizados: titular e instalación (sin «SET AT/MT»), las claves
+    de los diccionarios bajo CLAVES_DICT_DE_NOMBRES (sin el paréntesis) y el último tramo con mayúscula de una «clave»."""
+    crudos, empresas = set(), set()
+
+    def recorrer(x):
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if k in CLAVES_CON_NOMBRE and isinstance(v, str):
+                    crudos.add(_PREFIJO_SET.sub('', v.strip()))
+                    if k == 'titular':
+                        empresas.add(v.strip())
+                elif k in CLAVES_DICT_DE_NOMBRES and isinstance(v, dict):
+                    nuevas = {re.sub(r'\s*\(.*?\)\s*', ' ', clave).strip() for clave in v}
+                    crudos.update(nuevas)
+                    empresas.update(nuevas)
+                elif k == 'clave' and isinstance(v, str):
+                    tramo = v.rsplit('.', 1)[-1]
+                    if any(c.isupper() for c in tramo):
+                        crudos.add(tramo)
+                        empresas.add(tramo)
+                recorrer(v)
+        elif isinstance(x, list):
+            for v in x:
+                recorrer(v)
+
+    for carpeta in CARPETAS_CON_NOMBRES:
+        for f in sorted((raiz / carpeta).rglob('*.json')):
+            recorrer(json.loads(f.read_text(encoding='utf-8')))
+    for e in {_sin_tildes(x).strip() for x in empresas}:
+        partes = e.split()
+        if len(partes) > 1:
+            crudos.add(e.replace(' ', ''))
+            if partes[0] not in GENERICAS_PRIMER_TRAMO:
+                crudos.add(partes[0])
+    for f in sorted((raiz / CARPETA_PERFILES).glob('*.json')) if (raiz / CARPETA_PERFILES).is_dir() else ():
+        if f.name not in PERFILES_FICTICIOS:
+            _codigos_de_empresa(json.loads(f.read_text(encoding='utf-8')), crudos)
+    nombres = {_sin_tildes(n).strip() for n in crudos}
+    return {n for n in nombres if sum(c.isalpha() for c in n) >= NOMBRES_MIN_LETRAS and n not in EXCEPCIONES_NOMBRES}
+
+
+def _codigos_de_alimentador(raiz):
+    """Los códigos reales de alimentador de los perfiles de estructura de config (``alimentadores[].codigo``),
+    normalizados: las pruebas los leen de aquí en vez de escribirlos (NOMBRES-TST v2)."""
+    salida = set()
+
+    def recorrer(x):
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if k == 'alimentadores' and isinstance(v, list):
+                    salida.update(_sin_tildes(a['codigo']).strip() for a in v if isinstance(a, dict) and a.get('codigo'))
+                recorrer(v)
+        elif isinstance(x, list):
+            for v in x:
+                recorrer(v)
+
+    for f in sorted((raiz / CARPETA_PERFILES).glob('*.estructura.json')) if (raiz / CARPETA_PERFILES).is_dir() else ():
+        if f.name.split('.')[0] + '.json' not in PERFILES_FICTICIOS:
+            recorrer(json.loads(f.read_text(encoding='utf-8')))
+    return salida
+
+
+def _codigos_vnr(raiz):
+    """Las huellas de los códigos de empresa del catálogo VNR de config (``_huella_nombre`` del código en minúsculas)."""
+    f = raiz / ARCHIVO_CODIGOS_VNR
+    if not f.is_file():
+        return set()
+    return {p['huella'] for g in json.loads(f.read_text(encoding='utf-8'))['grupos'] for p in g['paquetes']}
+
+
+def _hallar_codigos(huellas, texto):
+    """Las huellas de los códigos que aparecen en ``texto`` en MAYÚSCULAS como palabra entera (frontera no
+    alfanumérica: el guion bajo separa, así que «X_COD_25» delata el código). En minúsculas no: un código puede ser
+    también una palabra corriente del lenguaje."""
+    vistas = {_huella_nombre(m.group(0).casefold())
+              for m in re.finditer(r'(?<![A-Za-z0-9])[A-Z0-9]{3,}(?![A-Za-z0-9])', texto)}
+    return sorted(vistas & set(huellas))
+
+
+#: Palabras de un sitio que se prueban juntas: los de los casos tienen una o dos; tres deja margen.
+SITIOS_MAX_PALABRAS = 3
+
+
+def _sitios_de_casos(raiz):
+    """Las huellas de los sitios de los casos de ARCHIVO_SITIOS: la de su nombre y, si tiene varias palabras, la de su
+    forma pegada."""
+    f = raiz / ARCHIVO_SITIOS
+    if not f.is_file():
+        return set()
+    return {h for s in json.loads(f.read_text(encoding='utf-8'))['sitios'] for h in s['huellas']}
+
+
+def _hallar_sitios(huellas, texto):
+    """Las huellas de los sitios que aparecen en ``texto`` como palabras enteras, sin tildes ni mayúsculas: cada tramo de
+    hasta SITIOS_MAX_PALABRAS palabras, separadas por un espacio, se compara por su huella. La forma pegada de un nombre
+    («PampaNandu») es una sola palabra del texto y se compara así; dos palabras distintas no se pegan."""
+    huellas = set(huellas)
+    plano = _sin_tildes(texto)
+    trozos = [(m.group(0), m.start(), m.end()) for m in re.finditer(r'[a-z0-9]+', plano)]
+    vistas = set()
+    for i in range(len(trozos)):
+        for n in range(1, min(SITIOS_MAX_PALABRAS, len(trozos) - i) + 1):
+            # Las palabras de un nombre van separadas solo por espacios: «pampa, nandu» no es «pampa nandu».
+            if n > 1 and plano[trozos[i + n - 2][2]:trozos[i + n - 1][1]].strip(' '):
+                break
+            vistas |= {_huella_nombre(' '.join(t for t, _a, _b in trozos[i:i + n]))} & huellas
+    return sorted(vistas)
+
+
+def _codigos_de_empresa(x, salida):
+    """Los valores de «codigo_empresa» de un perfil (la sigla de la empresa)."""
+    if isinstance(x, dict):
+        for k, v in x.items():
+            if k == 'codigo_empresa' and isinstance(v, str) and v.strip():
+                salida.add(v.strip())
+            _codigos_de_empresa(v, salida)
+    elif isinstance(x, list):
+        for v in x:
+            _codigos_de_empresa(v, salida)
+
+
+def _hallar_nombres(nombres, texto):
+    """Cada nombre que aparece en ``texto`` como palabra completa, sin distinguir tildes ni mayúsculas. La frontera es
+    «no alfanumérico» (NOMBRES-COM): el guion bajo separa, así que «X_SIGLA_24» delata la sigla; nunca una subcadena."""
+    plano = _sin_tildes(texto)
+    return sorted(n for n in nombres if re.search(r'(?<![a-z0-9])' + re.escape(n) + r'(?![a-z0-9])', plano))
+
+
+def _huella_nombre(nombre):
+    """La huella con que NOMBRES_TOLERADOS guarda un nombre normalizado: los 16 primeros hexadecimales de su sha256."""
+    return hashlib.sha256(nombre.encode()).hexdigest()[:16]
+
+
+def _pares_en_src_y_tests(raiz):
+    """Cada (fichero, huella del nombre) de config que aparece en los .py de src/ y tests/ de ``raiz``."""
+    nombres, codigos, sitios = _nombres_de_config(raiz), _codigos_vnr(raiz), _sitios_de_casos(raiz)
+    pares = set()
+    for carpeta in ('src', 'tests'):
+        for f in sorted((raiz / carpeta).rglob('*.py')):
+            rel = f.relative_to(raiz).as_posix()
+            texto = f.read_text(encoding='utf-8')
+            pares |= {(rel, _huella_nombre(n)) for n in _hallar_nombres(nombres, texto)}
+            pares |= {(rel, h) for h in _hallar_sitios(sitios, texto)}
+            pares |= {(rel, h) for h in _hallar_codigos(codigos, texto)}
+    return pares
+
+
+def _nombres_en_src_y_tests(raiz, tolerados=None):
+    """Los pares hallados que la tabla de tolerados no cubre: nombres o ficheros nuevos."""
+    tolerados = {**NOMBRES_TOLERADOS, **NOMBRES_PENDIENTES_POR_TARJETA} if tolerados is None else tolerados
+    return sorted(p for p in _pares_en_src_y_tests(raiz) if p not in tolerados)
+
+
+def _tolerados_que_sobran(raiz, tolerados=None):
+    """El trinquete: las entradas de la tabla cuyo nombre ya no está en su fichero. Deben salir de la tabla."""
+    tolerados = {**NOMBRES_TOLERADOS, **NOMBRES_PENDIENTES_POR_TARJETA} if tolerados is None else tolerados
+    pares = _pares_en_src_y_tests(raiz)
+    return sorted(k for k in tolerados if k not in pares)
+
+
+def _es_huella(x):
+    return isinstance(x, str) and re.fullmatch(r'[0-9a-f]{16}', x) is not None
+
+
+def test_el_escaner_ve_los_sitios_de_los_casos(tmp_path):
+    """NOMBRES-TST v2 (f4, c3) y FIX-NOMBRES-HUELLAS (c2) — los sitios y clientes reales de los casos de prueba están en
+    config POR SU HUELLA, con su tipo, su caso y su procedencia, y sin su nombre; el escáner los ve escritos en un valor,
+    con otras mayúsculas o tildes, y en su forma pegada: ni src/ ni tests/ los pueden escribir."""
+    datos = json.loads((RAIZ / ARCHIVO_SITIOS).read_text(encoding='utf-8'))
+    assert datos['esquema'] == 'sitios_de_casos_v2' and datos['sitios']
+    for sitio in datos['sitios']:
+        assert 'nombre' not in sitio, 'el nombre del sitio no va en el repositorio, solo su huella'
+        assert sitio['tipo'] in ('cliente', 'SET') and sitio['caso'] and sitio['procedencia'], sitio
+        assert sitio['huellas'] and all(_es_huella(h) for h in sitio['huellas']), sitio
+    # Un sitio inventado, con la misma forma: el escáner lo ve solo, con tildes o sin ellas y pegado; nunca dentro de
+    # otra palabra.
+    falso = {'esquema': 'sitios_de_casos_v2', 'sitios': [{'huellas': [_huella_nombre('pampa nandu'),
+                                                                      _huella_nombre('pampanandu')],
+                                                          'tipo': 'cliente', 'caso': 'sintético', 'procedencia': '-'}]}
+    for nombre, texto in (('suelto', "CLIENTE = 'PAMPA ÑANDÚ'\n"), ('pegado', "CLIENTE = 'PampaNandu'\n"),
+                          ('dentro', "CLIENTE = 'pampa nanduti'\n"),
+                          # Dos palabras del código que, pegadas, darían el nombre: no son el nombre.
+                          ('partido', "for pampa, nandu in pares:\n    pass\nx = 'pampa' + 'nandu'\n")):
+        raiz = _raiz_con_config(tmp_path / nombre, texto)
+        (raiz / ARCHIVO_SITIOS).write_text(json.dumps(falso), encoding='utf-8')
+        vistos = {h for _f, h in _pares_en_src_y_tests(raiz)}
+        visto = bool({_huella_nombre('pampa nandu'), _huella_nombre('pampanandu')} & vistos)
+        assert visto == (nombre in ('suelto', 'pegado')), (nombre, vistos)
+
+
+def _raiz_con_config(tmp_path, prueba):
+    """Una raíz con la config que lee el escáner y un tests/ con una sola prueba sintética."""
+    import shutil
+    for c in ('config/normativa', 'config/pit/modificaciones', 'config/perfiles', 'config/casos_de_prueba', 'config/vnr'):
+        if (RAIZ / c).is_dir():
+            shutil.copytree(RAIZ / c, tmp_path / c)
+    (tmp_path / 'src').mkdir()
+    (tmp_path / 'tests').mkdir()
+    (tmp_path / 'tests' / 'test_sintetico.py').write_text(prueba, encoding='utf-8')
+    return tmp_path
+
+
+def test_el_catalogo_vnr_trae_cada_codigo_con_su_fuente():
+    """NOMBRES-CAT (c3) y FIX-NOMBRES-HUELLAS (c2) — config/vnr/codigos_empresa_vnr.json: los códigos de empresa de los
+    paquetes VNR-GIS de los grupos vigentes (RCD 184-2026-OS/CD, 14 paquetes; RCD 208-2023-OS/CD, 11), cada uno por su
+    huella y con el tamaño de su paquete; sin el código, ni el nombre del paquete, su dirección o su base, que lo
+    escriben; sin códigos repetidos."""
+    datos = json.loads((RAIZ / ARCHIVO_CODIGOS_VNR).read_text(encoding='utf-8'))
+    assert datos['esquema'] == 'codigos_empresa_vnr_v2'
+    por_norma = {g['norma']: g['paquetes'] for g in datos['grupos']}
+    assert {n: len(v) for n, v in por_norma.items()} == {'RCD 184-2026-OS/CD': 14, 'RCD 208-2023-OS/CD': 11}
+    huellas = [p['huella'] for v in por_norma.values() for p in v]
+    assert len(huellas) == len(set(huellas)) == 25 and all(_es_huella(h) for h in huellas)
+    for v in por_norma.values():
+        for p in v:
+            assert set(p) == {'huella', 'bytes_paquete'} and p['bytes_paquete'] > 0, p
+
+
+def test_el_escaner_ve_cada_codigo_vnr_en_mayusculas_y_no_una_palabra_del_lenguaje(tmp_path):
+    """NOMBRES-CAT (c3) y FIX-NOMBRES-HUELLAS (c2) — un código del catálogo VNR, escrito en un valor de una prueba en
+    MAYÚSCULAS (solo o entre guiones bajos), salta en el trinquete por su huella; en minúsculas, donde puede ser una
+    palabra corriente, no. Con códigos inventados de la misma forma: los reales no se escriben aquí."""
+    codigos = ['QZX', 'ZQW9']
+    falso = {'esquema': 'codigos_empresa_vnr_v2', 'grupos': [
+        {'norma': 'sintética', 'paquetes': [{'huella': _huella_nombre(c.casefold()), 'bytes_paquete': 1} for c in codigos]}]}
+
+    def pares(nombre, prueba):
+        raiz = _raiz_con_config(tmp_path / nombre, prueba)
+        (raiz / ARCHIVO_CODIGOS_VNR).write_text(json.dumps(falso), encoding='utf-8')
+        return {h for _f, h in _pares_en_src_y_tests(raiz)}
+
+    vistos = pares('con', "ORIGEN = 'QZX'\nBASE = 'X_ZQW9_25'\n")
+    assert {_huella_nombre(c.casefold()) for c in codigos} <= vistos, vistos
+    assert not pares('minusculas', "palabra = 'qzx'\nqzxzqw9 = 1\n") & {_huella_nombre(c.casefold()) for c in codigos}
+    corriente = 'def f(x):\n    if x:\n        return 1\n    else:\n        return 2\n'
+    assert not pares('sin', corriente) & {_huella_nombre(c.casefold()) for c in codigos}
+
+
+def test_ningun_nombre_real_de_config_en_src_ni_en_tests():
+    """107:RF-11 (v2 de c3) — los nombres de titular y de SET de las transcripciones oficiales (config/normativa y
+    config/pit/modificaciones) no se escriben en src/ ni en tests/: las pruebas los leen de config."""
+    assert len(_nombres_de_config(RAIZ)) > 10, 'la comprobación leyó de verdad las transcripciones'
+    hallados = _nombres_en_src_y_tests(RAIZ)
+    assert not hallados, hallados
+
+
+def test_un_nombre_con_otra_tilde_o_en_minusculas_salta_y_una_excepcion_no():
+    """107:RF-11 — la coincidencia es por palabra completa, sin tildes ni mayúsculas; una palabra de la lista de
+    excepciones no salta, y una palabra que solo contiene el nombre tampoco."""
+    nombres = {_sin_tildes('Pampa Ñandú')}
+    assert _hallar_nombres(nombres, 'la set pampa nandu') == ['pampa nandu']
+    assert _hallar_nombres(nombres, 'LA SET PAMPA ÑANDU') == ['pampa nandu']
+    assert _hallar_nombres(nombres, 'pampa nanduti') == []
+    excepcion = next(iter(EXCEPCIONES_NOMBRES))
+    assert excepcion not in _nombres_de_config(RAIZ) and EXCEPCIONES_NOMBRES[excepcion]
+    assert _hallar_nombres(_nombres_de_config(RAIZ), f'el {excepcion.upper()} del área') == []
+    assert all(motivo for motivo in NOMBRES_TOLERADOS.values())
+
+
+def test_el_trinquete_no_deja_tolerados_que_sobran():
+    """107:RF-11 (NOMBRES-REG, trinquete de c3) — NOMBRES_TOLERADOS solo encoge: cada entrada sigue hallándose en su
+    fichero; la que ya no, sobra y la prueba la nombra para que se quite."""
+    sobran = _tolerados_que_sobran(RAIZ)
+    assert not sobran, ('quitar de NOMBRES_TOLERADOS: su nombre ya no está en el fichero', sobran)
+
+
+def _raiz_sintetica(tmp_path, ficheros):
+    """Un repositorio mínimo con una transcripción de config de nombres inventados y los .py dados."""
+    (tmp_path / 'config' / 'normativa').mkdir(parents=True)
+    (tmp_path / 'config' / 'pit' / 'modificaciones').mkdir(parents=True)
+    (tmp_path / 'config' / 'normativa' / 'x.json').write_text(json.dumps({'normas': [{'reglas': [{'valor': [
+        {'titular': 'Compañía Zeta Austral', 'instalacion': 'SET AT/MT Llano Quíntuple'}]}]}]}), encoding='utf-8')
+    for rel, texto in ficheros.items():
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(texto, encoding='utf-8')
+    return tmp_path
+
+
+def test_el_trinquete_salta_por_un_nombre_nuevo_y_por_una_entrada_que_sobra(tmp_path):
+    """107:RF-11 (NOMBRES-REG) — las dos ramas del trinquete, con nombres inventados: (1) un nombre en un fichero que
+    la tabla no lista salta; (2) una entrada de la tabla cuyo fichero ya no lo tiene, o que ya no existe, sobra. Con la
+    tabla justa, ninguna de las dos salta."""
+    zeta, llano = _huella_nombre('compania zeta austral'), _huella_nombre('llano quintuple')
+    raiz = _raiz_sintetica(tmp_path, {'src/pkg/a.py': 'X = 1\n', 'tests/test_a.py': '# la SET llano quíntuple\n',
+                                      'tests/test_b.py': 'EMPRESA = "COMPAÑÍA ZETA AUSTRAL"\n'})
+    justa = {('tests/test_a.py', llano): 'motivo', ('tests/test_b.py', zeta): 'motivo'}
+    assert _nombres_en_src_y_tests(raiz, justa) == [] and _tolerados_que_sobran(raiz, justa) == []
+    # Rama 1: un nombre en un fichero que la tabla no lista.
+    (raiz / 'src' / 'pkg' / 'a.py').write_text('# Compania Zeta Austral\nX = 1\n', encoding='utf-8')
+    assert _nombres_en_src_y_tests(raiz, justa) == [('src/pkg/a.py', zeta)]
+    # Rama 2: el dueño limpia test_b.py y su entrada se queda: sobra. La de un fichero que no existe, también.
+    (raiz / 'tests' / 'test_b.py').write_text('EMPRESA = leer_de_config()\n', encoding='utf-8')
+    con_fantasma = {**justa, ('tests/test_borrado.py', llano): 'motivo'}
+    assert _tolerados_que_sobran(raiz, con_fantasma) == [('tests/test_b.py', zeta), ('tests/test_borrado.py', llano)]
+    assert _nombres_en_src_y_tests(raiz, con_fantasma) == [('src/pkg/a.py', zeta)], 'la rama 1 sigue aparte'
+
+
+def test_el_escaner_ve_los_nombres_como_claves_de_empresas_y_como_tramo_de_una_clave(tmp_path):
+    """107:RF-11 (NOMBRES-001) — el escáner lee también los nombres que van como CLAVES de un diccionario bajo
+    «empresas» (sin su paréntesis) y el último tramo con mayúscula de una «clave» de regla; un tramo en minúsculas no
+    es un nombre."""
+    raiz = _raiz_sintetica(tmp_path, {})
+    (raiz / 'config' / 'normativa' / 'y.json').write_text(json.dumps({'normas': [{'reglas': [
+        {'clave': 'vad.perdidas.causa_del_cambio.Distribuidora Omega', 'valor': {'empresas': {
+            'Eléctrica Sigma Norte (administrada por Omega)': 1, 'Kappa Servicios': 2}}},
+        {'clave': 'vad.perdidas.factor_minusculas', 'valor': 0}]}]}), encoding='utf-8')
+    nombres = _nombres_de_config(raiz)
+    assert {'distribuidora omega', 'electrica sigma norte', 'kappa servicios'} <= nombres
+    assert 'factor_minusculas' not in nombres and not any('administrada' in n for n in nombres)
+    assert 'kappa servicios' in _hallar_nombres(nombres, '# lo entrega Kappa Servicios')  # (y su primer tramo, NOMBRES-COM)
+
+
+def test_tolerados_vacia_y_pendientes_con_tipo_tarjeta_y_responsable():
+    """107:RF-11 (NOMBRES-001) — NOMBRES_TOLERADOS queda vacía, y cada pendiente dice su tipo, su tarjeta y su
+    responsable, con la regla de reparto de c3 y f4."""
+    assert NOMBRES_TOLERADOS == {}
+    assert NOMBRES_PENDIENTES_POR_TARJETA == {}, 'NOMBRES-SRC, NOMBRES-COM y NOMBRES-TST cerradas: la tabla no vuelve'
+    reparto = {('logica', 'src'): ('NOMBRES-SRC', 'f4'), ('logica', 'tests'): ('NOMBRES-TST', '2e'),
+               ('comentario', 'src'): ('NOMBRES-COM', '2e'), ('comentario', 'tests'): ('NOMBRES-COM', '2e')}
+    for (fichero, huella), e in NOMBRES_PENDIENTES_POR_TARJETA.items():
+        assert re.fullmatch(r'[0-9a-f]{16}', huella) and e['tipo'] in ('logica', 'comentario')
+        assert (e['tarjeta'], e['responsable']) == reparto[(e['tipo'], fichero.split('/', 1)[0])], fichero
+
+def test_el_escaner_ve_la_sigla_el_nombre_pegado_y_el_primer_tramo(tmp_path):
+    """107:RF-11 (NOMBRES-COM) — tres formas más de un nombre de empresa: la sigla de un perfil real (no de uno
+    ficticio), la forma sin espacios y el primer tramo distintivo; siempre como palabra entera (el guion bajo separa),
+    nunca como subcadena, y el primer tramo genérico no cuenta."""
+    raiz = _raiz_sintetica(tmp_path, {})
+    (raiz / 'config' / 'normativa' / 'y.json').write_text(json.dumps({'normas': [{'reglas': [{'valor': {'empresas': {
+        'Volta Riberas Altas': 1, 'Electro Quinua': 2}}}]}]}), encoding='utf-8')
+    (raiz / 'config' / 'perfiles').mkdir(parents=True)
+    (raiz / 'config' / 'perfiles' / 'real.json').write_text(json.dumps({'codigo_empresa': 'VRAX'}), encoding='utf-8')
+    (raiz / 'config' / 'perfiles' / 'ficticia.json').write_text(json.dumps({'codigo_empresa': 'FICT'}), encoding='utf-8')
+    nombres = _nombres_de_config(raiz)
+    assert {'vrax', 'voltariberasaltas', 'volta', 'electroquinua'} <= nombres
+    assert 'fict' not in nombres and 'electro' not in nombres, 'ni el perfil ficticio ni un primer tramo genérico'
+    assert _hallar_nombres(nombres, 'copia VRAX_VNR_24.bak y Perdidas_VRAX') == ['vrax']
+    assert _hallar_nombres(nombres, '# la entrega de VoltaRiberasAltas') == ['voltariberasaltas']
+    assert _hallar_nombres(nombres, 'voltaje y revoltas') == [], 'nunca una subcadena'
+
+
+def test_con_la_config_real_el_escaner_ve_las_tres_formas():
+    """107:RF-11 (NOMBRES-COM, condición de f4) — con la config real, el escáner ve la sigla, la forma pegada y el
+    primer tramo que el escáner de NOMBRES-001 dejaba pasar (se nombran por su huella, no escritos)."""
+    vistas = {_huella_nombre(n) for n in _nombres_de_config(RAIZ)}
+    faltan = sorted({'805e8d7fa83d918c', 'd3b53601591f64c1', '820cf85713a4a1aa'} - vistas)
+    assert not faltan, ('el escáner no ve estas formas de nombres reales (huellas)', faltan)

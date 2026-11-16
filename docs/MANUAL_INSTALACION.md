@@ -166,6 +166,13 @@ o una carpeta que sincroniza, como Google Drive), que el equipo recuerda. La cop
 «Cancelar» en la barra de trabajos; antes de empezar dice cuánto ocupará y cuánto hay libre, y si no cabe no empieza. Cada fichero
 se guarda una vez aunque esté repetido. Mientras copia no se admite otro trabajo.
 
+## Google Drive y OneDrive desde la web
+
+Para elegir ficheros en la nube y publicar expedientes, la organización registra primero su aplicación en Google Cloud o en
+Azure y deja el cliente en `config\nube.json`: paso a paso en [NUBE_REGISTRO_OAUTH.md](NUBE_REGISTRO_OAUTH.md). Basta una
+aplicación de prueba (Google en modo «Testing» o Azure con cuentas personales). Sin ese fichero la web dice «Sin cuenta
+conectada: configure config/nube.json» y todo lo local sigue igual.
+
 ## Instalación silenciosa, para la TI del cliente
 
 En la 1.0 el programa se instala **por usuario**, sin permisos de administrador; la instalación por equipo queda para después de la

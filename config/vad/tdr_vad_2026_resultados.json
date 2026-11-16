@@ -233,12 +233,15 @@
     },
     {
       "clave": "vad.tasa_actualizacion",
-      "valor": 0.12,
+      "valor": {
+        "mismas_que": "pit.tasa_actualizacion"
+      },
       "unidad": "por año",
       "articulo_o_anexo": "Numeral 7.5 (cargos adicionales, 3. PIDE)",
       "pagina": "73",
       "lineas": "3377-3378; 3382",
-      "cita_literal": "an : anualidad calculada para la tasa de actualización establecida en el artículo 79 de la LCE (12% real anual) y la vida útil de 30 años"
+      "cita_literal": "an : anualidad calculada para la tasa de actualización establecida en el artículo 79 de la LCE (12% real anual) y la vida útil de 30 años",
+      "interpretacion": "Remisión, no valor propio (UNA-TASA, orden de c3): el TdR remite a la tasa del art. 79 de la LCE, que el registro tiene una sola vez, en la regla principal pit.tasa_actualizacion (DL 25844, la fuente de derecho). El «12% real anual» de la cita es el valor de la LCE que el TdR repite; quien usa esta clave lee el de la principal (vad.pide_vad.regla_remitida), así que las dos no pueden divergir."
     },
     {
       "clave": "vad.pide.anios",
@@ -525,7 +528,10 @@
       "pagina": "49; Anexo 3-9",
       "lineas": "2344-2352; 4376-4384",
       "cita_literal": "Índices de Calidad [...] Número de Interrupciones Interrupciones / semestre [...] Duración de las interrupciones Horas / semestre [...] Caída de Tensión en MT % de la tensión nominal [...] Caída de Tensión en BT % de la tensión nominal",
-      "interpretacion": "Los límites de cada indicador están en la NTCSE o la NTCSER (6.11), que no están transcritas: no hay ninguna regla vad.calidad.limite.* y la verificación los da como hueco."
+      "caracter": "obligatoria",
+      "aplicacion": "la verificación de la calidad de servicio de la empresa modelo usa estos indicadores, con su unidad y su sentido",
+      "entregable": "V11",
+      "interpretacion": "Los indicadores del apartado 7 del anexo 3. Sus límites están en la NTCSE o la NTCSER (6.11): desde la tarjeta VAD-CAL (2026-11-15) están registrados en esas normas (vad.calidad.limite.*, DS 020-97-EM y RD 016-2008-EM/DGE; +30 % del Sector Típico 2 en el DS 009-99-EM) y la caída de tensión usa calidad.tension.tolerancia_ntcse y _ntcser. N y D se comparan por cliente (Cuadro 21, vad.calidad.cuadro_21), no como una media del sistema. La amplían, sin repetirla, las reglas del 6.11 de tdr_vad_2026_requisitos.json (tarjeta VAD-REQ): vad.req.6_11.diseno_cumple_ntcse (el diseño de la empresa modelo cumple la NTCSE o la NTCSER), vad.req.6_11.aspectos_minimos (producto: nivel de tensión; suministro: frecuencia y duración individuales) y vad.req.6_11.cuadro_21 (presentación por sector típico y zona)."
     },
     {
       "clave": "vad.explotacion.rubros",

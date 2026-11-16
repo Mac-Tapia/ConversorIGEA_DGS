@@ -1,0 +1,1072 @@
+{
+  "esquema": "registro_normativo_v1",
+  "amplia": "tdr-vad-2026-anexo-r033",
+  "nota": "Spec 108 T10 (2026-11-15, S-107/108). Anexo N° 9 de los TdR del VAD 2026-2030 y 2027-2031 (texto modificado por la RCD 033-2026-OS/CD), transcrito de la copia de texto de sha256 48ea8cf4fcb0917eaacccd59fa59ff6177db4413374e08bfddedc1d1e28558d9 (fichero_local de la norma ampliada): las entidades con sus campos en el orden del anexo (nombre, tipo, ancho, decimales, descripción y si están en la Guía del VNR, con la línea de cada campo) y las tablas de códigos. Literal: la tabla TARIFAS trae dos veces el código BT5C (Servicio Alumbrado Público e Iluminación Especial), y el campo tipcalzada, de tipo carácter, trae 0 decimales; se transcriben así y se nombran en codigos_repetidos. El anexo pide los campos, su orden y sus características, no nombres de carpetas ni de ficheros. Ninguna regla es de una empresa (P13).",
+  "reglas": [
+    {
+      "clave": "vad.anexo9.entidades",
+      "valor": [
+        {
+          "entidad": "Suministro",
+          "geometria": "punto",
+          "lineas": "8125-8166",
+          "campos": [
+            {
+              "nombre": "Cod",
+              "tipo": "caracter",
+              "ancho": 12,
+              "decimales": null,
+              "descripcion": "Identificador del suministro (código único e invariable, asignado por la empresa), coincidente con el reportado en el FOSE",
+              "en_guia_vnr": true,
+              "linea": 8132
+            },
+            {
+              "nombre": "CodSis",
+              "tipo": "caracter",
+              "ancho": 6,
+              "decimales": null,
+              "descripcion": "Identificador del sistema eléctrico (según lo aprobado en la Resolución Osinergmin 018-2022-OS/CD o la vigente en el proceso de Fijación en curso). En el caso de los SER, considerar el código reportado para la determinación del FOSE",
+              "en_guia_vnr": false,
+              "linea": 8136
+            },
+            {
+              "nombre": "sector",
+              "tipo": "caracter",
+              "ancho": 1,
+              "decimales": null,
+              "descripcion": "Identificador del sector típico 1, 2, 3, 4 o 7 (SER)",
+              "en_guia_vnr": false,
+              "linea": 8142
+            },
+            {
+              "nombre": "UTM_X",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 2,
+              "descripcion": "Coordenada UTM X",
+              "en_guia_vnr": false,
+              "linea": 8143
+            },
+            {
+              "nombre": "UTM_Y",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 2,
+              "descripcion": "Coordenada UTM Y",
+              "en_guia_vnr": false,
+              "linea": 8144
+            },
+            {
+              "nombre": "Grupo",
+              "tipo": "caracter",
+              "ancho": 2,
+              "decimales": null,
+              "descripcion": "Nivel de tensión (MT o BT)",
+              "en_guia_vnr": false,
+              "linea": 8145
+            },
+            {
+              "nombre": "Tipo",
+              "tipo": "caracter",
+              "ancho": 1,
+              "decimales": null,
+              "descripcion": "Libre (L) o Regulado (R)",
+              "en_guia_vnr": false,
+              "linea": 8146
+            },
+            {
+              "nombre": "CTarifa",
+              "tipo": "caracter",
+              "ancho": 5,
+              "decimales": null,
+              "descripcion": "Código de descripción de la tarifa, según tabla «Tarifas»",
+              "en_guia_vnr": false,
+              "linea": 8147
+            },
+            {
+              "nombre": "kWH_Anho",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 2,
+              "descripcion": "Energía total (kWH) acumulada del año considerado en la determinación de la máxima demanda.",
+              "en_guia_vnr": false,
+              "linea": 8148
+            },
+            {
+              "nombre": "kW_BT",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 2,
+              "descripcion": "Máxima Demanda o Potencia (kW) en la red de baja tensión (Valor 0 si el suministro es de media tensión)",
+              "en_guia_vnr": false,
+              "linea": 8151
+            },
+            {
+              "nombre": "kW_MT",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 2,
+              "descripcion": "Máxima Demanda o Potencia (kW) en la red de media tensión",
+              "en_guia_vnr": false,
+              "linea": 8154
+            },
+            {
+              "nombre": "Fc",
+              "tipo": "numerico",
+              "ancho": 5,
+              "decimales": 4,
+              "descripcion": "Factor de carga",
+              "en_guia_vnr": false,
+              "linea": 8157
+            },
+            {
+              "nombre": "Fco",
+              "tipo": "numerico",
+              "ancho": 5,
+              "decimales": 4,
+              "descripcion": "Factor de coincidencia",
+              "en_guia_vnr": false,
+              "linea": 8158
+            },
+            {
+              "nombre": "Fperd",
+              "tipo": "numerico",
+              "ancho": 5,
+              "decimales": 4,
+              "descripcion": "Factor de pérdidas",
+              "en_guia_vnr": false,
+              "linea": 8159
+            },
+            {
+              "nombre": "IDCuadBT",
+              "tipo": "caracter",
+              "ancho": 15,
+              "decimales": null,
+              "descripcion": "Identificador de la cuadrícula en la Entidad Cuadricula_BT",
+              "en_guia_vnr": false,
+              "linea": 8160
+            },
+            {
+              "nombre": "IDCuadMT",
+              "tipo": "caracter",
+              "ancho": 15,
+              "decimales": null,
+              "descripcion": "Identificador de la cuadrícula en la Entidad Cuadricula_MT_BT",
+              "en_guia_vnr": false,
+              "linea": 8163
+            }
+          ]
+        },
+        {
+          "entidad": "Cuadricula_BT",
+          "geometria": "poligono",
+          "lineas": "8167-8199",
+          "campos": [
+            {
+              "nombre": "IDCuadBT",
+              "tipo": "caracter",
+              "ancho": 15,
+              "decimales": null,
+              "descripcion": "Identificador de la cuadrícula, único durante el proceso de Fijación.",
+              "en_guia_vnr": false,
+              "linea": 8174
+            },
+            {
+              "nombre": "CodSis",
+              "tipo": "caracter",
+              "ancho": 6,
+              "decimales": null,
+              "descripcion": "Identificador del sistema eléctrico de acuerdo a lo aprobado en la Resolución Osinergmin 018-2022-OS/CD o la que la sustituya para el proceso de Fijación en curso. En el caso de los SER, se considerará el código reportado para la determinación del FOSE",
+              "en_guia_vnr": false,
+              "linea": 8177
+            },
+            {
+              "nombre": "sector",
+              "tipo": "caracter",
+              "ancho": 1,
+              "decimales": null,
+              "descripcion": "Identificador del sector típico, según tabla «Sectores Típicos» de la Guía de Elaboración del VNR (Res. 232-2017-OS/CD)",
+              "en_guia_vnr": false,
+              "linea": 8183
+            },
+            {
+              "nombre": "UTM_X",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 2,
+              "descripcion": "Coordenada UTM X, de la esquina inferior izquierda de la cuadrícula",
+              "en_guia_vnr": false,
+              "linea": 8187
+            },
+            {
+              "nombre": "UTM_Y",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 2,
+              "descripcion": "Coordenada UTM Y, de la esquina inferior izquierda de la cuadrícula",
+              "en_guia_vnr": false,
+              "linea": 8190
+            },
+            {
+              "nombre": "lado",
+              "tipo": "numerico",
+              "ancho": 3,
+              "decimales": 0,
+              "descripcion": "Dimensión en metros del lado de la cuadrícula",
+              "en_guia_vnr": false,
+              "linea": 8193
+            },
+            {
+              "nombre": "area",
+              "tipo": "numerico",
+              "ancho": 6,
+              "decimales": 4,
+              "descripcion": "Área de la cuadrícula en km2",
+              "en_guia_vnr": false,
+              "linea": 8194
+            },
+            {
+              "nombre": "SumBT",
+              "tipo": "numerico",
+              "ancho": 6,
+              "decimales": 0,
+              "descripcion": "Cantidad de Suministros BT",
+              "en_guia_vnr": false,
+              "linea": 8195
+            },
+            {
+              "nombre": "kW",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 2,
+              "descripcion": "Demanda (kW) de la cuadrícula",
+              "en_guia_vnr": false,
+              "linea": 8196
+            },
+            {
+              "nombre": "mw_km2",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 6,
+              "descripcion": "Densidad (MW/km2) de la cuadrícula",
+              "en_guia_vnr": false,
+              "linea": 8197
+            }
+          ]
+        },
+        {
+          "entidad": "Cuadricula_MT_BT",
+          "geometria": "poligono",
+          "lineas": "8200-8232",
+          "campos": [
+            {
+              "nombre": "IDCuadMT",
+              "tipo": "caracter",
+              "ancho": 15,
+              "decimales": null,
+              "descripcion": "Identificador de la cuadrícula, único durante el proceso de Fijación.",
+              "en_guia_vnr": false,
+              "linea": 8207
+            },
+            {
+              "nombre": "CodSis",
+              "tipo": "caracter",
+              "ancho": 6,
+              "decimales": null,
+              "descripcion": "Identificador del sistema eléctrico de acuerdo a lo aprobado en la Resolución Osinergmin 018-2022-OS/CD o la que la sustituya para el proceso de Fijación en curso. En el caso de los SER, se considerará el código reportado para la determinación del FOSE",
+              "en_guia_vnr": false,
+              "linea": 8210
+            },
+            {
+              "nombre": "sector",
+              "tipo": "caracter",
+              "ancho": 1,
+              "decimales": null,
+              "descripcion": "Identificador del sector típico, según tabla «Sectores Típicos» de la Guía de Elaboración del VNR (Res. 232-2017-OS/CD)",
+              "en_guia_vnr": false,
+              "linea": 8216
+            },
+            {
+              "nombre": "UTM_X",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 2,
+              "descripcion": "Coordenada UTM X, de la esquina inferior izquierda de la cuadrícula",
+              "en_guia_vnr": false,
+              "linea": 8220
+            },
+            {
+              "nombre": "UTM_Y",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 2,
+              "descripcion": "Coordenada UTM Y, de la esquina inferior izquierda de la cuadrícula",
+              "en_guia_vnr": false,
+              "linea": 8223
+            },
+            {
+              "nombre": "lado",
+              "tipo": "numerico",
+              "ancho": 3,
+              "decimales": 0,
+              "descripcion": "Dimensión en metros del lado de la cuadrícula",
+              "en_guia_vnr": false,
+              "linea": 8226
+            },
+            {
+              "nombre": "area",
+              "tipo": "numerico",
+              "ancho": 6,
+              "decimales": 4,
+              "descripcion": "Área de la cuadrícula en km2",
+              "en_guia_vnr": false,
+              "linea": 8227
+            },
+            {
+              "nombre": "SumBT",
+              "tipo": "numerico",
+              "ancho": 6,
+              "decimales": 0,
+              "descripcion": "Cantidad de Suministros BT",
+              "en_guia_vnr": false,
+              "linea": 8228
+            },
+            {
+              "nombre": "SumMT",
+              "tipo": "numerico",
+              "ancho": 6,
+              "decimales": 0,
+              "descripcion": "Cantidad de Suministros MT",
+              "en_guia_vnr": false,
+              "linea": 8229
+            },
+            {
+              "nombre": "kW",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 2,
+              "descripcion": "Demanda (kW) de la cuadrícula",
+              "en_guia_vnr": false,
+              "linea": 8230
+            },
+            {
+              "nombre": "mw_km2",
+              "tipo": "numerico",
+              "ancho": 11,
+              "decimales": 6,
+              "descripcion": "Densidad (MW/km2) de la cuadrícula",
+              "en_guia_vnr": false,
+              "linea": 8231
+            }
+          ]
+        },
+        {
+          "entidad": "Zona Histórica o Monumental",
+          "geometria": "poligono",
+          "lineas": "8233-8253",
+          "campos": [
+            {
+              "nombre": "cod",
+              "tipo": "caracter",
+              "ancho": 12,
+              "decimales": null,
+              "descripcion": "Identificador de la zona histórica o monumental (código único e invariable, asignado por la empresa), coincidente con el reportado según la Resolución Osinergmin 232-2017-OS/CD",
+              "en_guia_vnr": true,
+              "linea": 8240
+            },
+            {
+              "nombre": "nombre",
+              "tipo": "caracter",
+              "ancho": 100,
+              "decimales": null,
+              "descripcion": "Nombre de la zona histórica o monumental.",
+              "en_guia_vnr": false,
+              "linea": 8245
+            },
+            {
+              "nombre": "sustento",
+              "tipo": "caracter",
+              "ancho": 20,
+              "decimales": null,
+              "descripcion": "Codificación oficial asignada al documento que sustenta el carácter de zona histórica (*). (*) La empresa debe presentar copia del documento de sustento",
+              "en_guia_vnr": false,
+              "linea": 8246
+            },
+            {
+              "nombre": "Califica",
+              "tipo": "caracter",
+              "ancho": 1,
+              "decimales": null,
+              "descripcion": "Validación del área o zona para su consideración como zona histórica (valores S o N)",
+              "en_guia_vnr": false,
+              "linea": 8249
+            }
+          ]
+        },
+        {
+          "entidad": "Manzana",
+          "geometria": "poligono",
+          "lineas": "8254-8278",
+          "campos": [
+            {
+              "nombre": "cod",
+              "tipo": "caracter",
+              "ancho": 12,
+              "decimales": null,
+              "descripcion": "Identificador de la manzana (código único e invariable, asignado por la empresa), coincidente con el reportado según la Resolución Osinergmin 232-2017-OS/CD",
+              "en_guia_vnr": true,
+              "linea": 8261
+            },
+            {
+              "nombre": "Ubigeo",
+              "tipo": "caracter",
+              "ancho": 6,
+              "decimales": null,
+              "descripcion": "Código de Ubigeo, de acuerdo a lo establecido por el INEI, identificando el distrito, provincia y departamento donde se encuentra ubicado la manzana.",
+              "en_guia_vnr": false,
+              "linea": 8265
+            },
+            {
+              "nombre": "Cod_ccpp",
+              "tipo": "caracter",
+              "ancho": 4,
+              "decimales": null,
+              "descripcion": "Código complementario al Ubigeo, correspondiente a la identificación del centro poblado (o distrito), según el INEI.",
+              "en_guia_vnr": false,
+              "linea": 8269
+            },
+            {
+              "nombre": "Tipo",
+              "tipo": "caracter",
+              "ancho": 2,
+              "decimales": null,
+              "descripcion": "Calificación del tipo de manzana realizada por la municipalidad distrital (valores CO = comercial, IL = industria ligera, IM = industria mediana, IP = industria pesada, R = residencial)",
+              "en_guia_vnr": false,
+              "linea": 8273
+            }
+          ]
+        },
+        {
+          "entidad": "Vía",
+          "geometria": "polilinea",
+          "lineas": "8279-8314",
+          "campos": [
+            {
+              "nombre": "cod",
+              "tipo": "caracter",
+              "ancho": 12,
+              "decimales": null,
+              "descripcion": "Identificador del tramo de vía (código único e invariable, asignado por la empresa), coincidente con el reportado según la Resolución Osinergmin 232-2017-OS/CD",
+              "en_guia_vnr": true,
+              "linea": 8286
+            },
+            {
+              "nombre": "nombre",
+              "tipo": "caracter",
+              "ancho": 100,
+              "decimales": null,
+              "descripcion": "Nombre de la vía",
+              "en_guia_vnr": true,
+              "linea": 8290
+            },
+            {
+              "nombre": "Denomina",
+              "tipo": "caracter",
+              "ancho": 2,
+              "decimales": null,
+              "descripcion": "Denominación de la vía (ver tabla «Denominación de Vía»)",
+              "en_guia_vnr": true,
+              "linea": 8291
+            },
+            {
+              "nombre": "Tipovia",
+              "tipo": "caracter",
+              "ancho": 2,
+              "decimales": null,
+              "descripcion": "Identificador del tipo de vía (ver tabla «Tipos de Vía»)",
+              "en_guia_vnr": true,
+              "linea": 8294
+            },
+            {
+              "nombre": "TipoIlum",
+              "tipo": "caracter",
+              "ancho": 1,
+              "decimales": null,
+              "descripcion": "Identificador del tipo de alumbrado (ver tabla «Tipos de Alumbrado»)",
+              "en_guia_vnr": true,
+              "linea": 8295
+            },
+            {
+              "nombre": "sentido",
+              "tipo": "caracter",
+              "ancho": 1,
+              "decimales": null,
+              "descripcion": "Identificador del sentido del tramo de vía (ver tabla «Sentido de Tramo de Vía»)",
+              "en_guia_vnr": true,
+              "linea": 8306
+            },
+            {
+              "nombre": "ancho",
+              "tipo": "numerico",
+              "ancho": 5,
+              "decimales": 0,
+              "descripcion": "Ancho de la vía (m) (*). (*) El ancho de vía incluye la acera. En el caso que un tramo de vía tenga un ancho de vía variable, deberá considerarse un valor promedio en metros.",
+              "en_guia_vnr": true,
+              "linea": 8309
+            },
+            {
+              "nombre": "Pistas",
+              "tipo": "numerico",
+              "ancho": 3,
+              "decimales": 0,
+              "descripcion": "Número de pistas",
+              "en_guia_vnr": true,
+              "linea": 8310
+            },
+            {
+              "nombre": "Carriles",
+              "tipo": "numerico",
+              "ancho": 3,
+              "decimales": 0,
+              "descripcion": "Número de carriles",
+              "en_guia_vnr": true,
+              "linea": 8311
+            },
+            {
+              "nombre": "tipcalzada",
+              "tipo": "caracter",
+              "ancho": 1,
+              "decimales": 0,
+              "descripcion": "Tipo de calzada (C: Clara o O: Oscura)",
+              "en_guia_vnr": true,
+              "linea": 8312
+            }
+          ]
+        },
+        {
+          "entidad": "Parque",
+          "geometria": "poligono",
+          "lineas": "8315-8334",
+          "campos": [
+            {
+              "nombre": "cod",
+              "tipo": "caracter",
+              "ancho": 12,
+              "decimales": null,
+              "descripcion": "Identificador del parque (código único e invariable, asignado por la empresa), coincidente con el reportado según la Resolución Osinergmin 232-2017-OS/CD",
+              "en_guia_vnr": true,
+              "linea": 8322
+            },
+            {
+              "nombre": "Tipo",
+              "tipo": "caracter",
+              "ancho": 1,
+              "decimales": null,
+              "descripcion": "Identificador del tipo de parque (ver tabla «Tipos de Parque»)",
+              "en_guia_vnr": true,
+              "linea": 8326
+            },
+            {
+              "nombre": "nombre",
+              "tipo": "caracter",
+              "ancho": 100,
+              "decimales": null,
+              "descripcion": "Nombre del parque",
+              "en_guia_vnr": true,
+              "linea": 8329
+            },
+            {
+              "nombre": "Ubigeo",
+              "tipo": "caracter",
+              "ancho": 6,
+              "decimales": null,
+              "descripcion": "Código de Ubigeo, de acuerdo a lo establecido por el INEI, identificando el distrito, provincia y departamento donde se encuentra ubicado el parque.",
+              "en_guia_vnr": false,
+              "linea": 8330
+            }
+          ]
+        },
+        {
+          "entidad": "ZonaConvenio",
+          "geometria": "poligono",
+          "lineas": "8335-8354",
+          "campos": [
+            {
+              "nombre": "cod",
+              "tipo": "caracter",
+              "ancho": 12,
+              "decimales": null,
+              "descripcion": "Identificador de la zona con Convenio de alumbrado público",
+              "en_guia_vnr": false,
+              "linea": 8342
+            },
+            {
+              "nombre": "sustento",
+              "tipo": "caracter",
+              "ancho": 20,
+              "decimales": null,
+              "descripcion": "Codificación oficial asignada al documento que sustenta el Convenio (*). (*) La codificación debe permitir establecer una relación con la lista de convenios firmados por la empresa con las municipalidades y/o gobiernos regionales.",
+              "en_guia_vnr": false,
+              "linea": 8345
+            },
+            {
+              "nombre": "Ubigeo",
+              "tipo": "caracter",
+              "ancho": 6,
+              "decimales": null,
+              "descripcion": "Código de Ubigeo, de acuerdo a lo establecido por el INEI, identificando el distrito, provincia y departamento donde se encuentra ubicado el convenio",
+              "en_guia_vnr": false,
+              "linea": 8348
+            }
+          ]
+        }
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Anexo N° 9.- Estructura de Archivos de Sustento de Mapas de Densidad",
+      "pagina": "Anexo 9-1 a Anexo 9-3",
+      "lineas": "8118-8353",
+      "cita_literal": "La información presentada en formato de información georreferenciada o formato texto, debe tener los nombres de campo, orden y características indicados a continuación. En caso de presentar información adicional, se debe presentar un diccionario de datos que describa la información presentada."
+    },
+    {
+      "clave": "vad.anexo9.tablas",
+      "valor": [
+        {
+          "tabla": "DENOMINACIÓN DE VÍA",
+          "lineas": "8357-8368",
+          "codigos": [
+            {
+              "codigo": "JR",
+              "descripcion": "JIRÓN",
+              "linea": 8359
+            },
+            {
+              "codigo": "AV",
+              "descripcion": "AVENIDA",
+              "linea": 8360
+            },
+            {
+              "codigo": "VE",
+              "descripcion": "VÍA EXPRESA",
+              "linea": 8361
+            },
+            {
+              "codigo": "AU",
+              "descripcion": "AUTOPISTA",
+              "linea": 8362
+            },
+            {
+              "codigo": "CA",
+              "descripcion": "CALLE",
+              "linea": 8363
+            },
+            {
+              "codigo": "CR",
+              "descripcion": "CARRETERA",
+              "linea": 8364
+            },
+            {
+              "codigo": "PS",
+              "descripcion": "PASAJE",
+              "linea": 8365
+            },
+            {
+              "codigo": "OV",
+              "descripcion": "ÓVALO",
+              "linea": 8366
+            },
+            {
+              "codigo": "MA",
+              "descripcion": "MALECÓN",
+              "linea": 8367
+            },
+            {
+              "codigo": "AL",
+              "descripcion": "ALAMEDA",
+              "linea": 8368
+            }
+          ],
+          "codigos_repetidos": []
+        },
+        {
+          "tabla": "TIPOS DE VÍA",
+          "lineas": "8370-8384",
+          "codigos": [
+            {
+              "codigo": "RE",
+              "descripcion": "REGIONAL",
+              "linea": 8372
+            },
+            {
+              "codigo": "SR",
+              "descripcion": "SUBREGIONAL",
+              "linea": 8373
+            },
+            {
+              "codigo": "EX",
+              "descripcion": "EXPRESA",
+              "linea": 8374
+            },
+            {
+              "codigo": "AR",
+              "descripcion": "ARTERIAL",
+              "linea": 8375
+            },
+            {
+              "codigo": "CO",
+              "descripcion": "COLECTORA",
+              "linea": 8376
+            },
+            {
+              "codigo": "LR",
+              "descripcion": "LOCAL RESIDENCIAL",
+              "linea": 8377
+            },
+            {
+              "codigo": "LC",
+              "descripcion": "LOCAL COMERCIAL",
+              "linea": 8378
+            },
+            {
+              "codigo": "LU",
+              "descripcion": "LOCAL RURAL",
+              "linea": 8383
+            },
+            {
+              "codigo": "PP",
+              "descripcion": "PASAJE PEATONAL Y OTROS",
+              "linea": 8384
+            }
+          ],
+          "codigos_repetidos": []
+        },
+        {
+          "tabla": "TIPOS DE ALUMBRADO",
+          "lineas": "8386-8392",
+          "codigos": [
+            {
+              "codigo": "1",
+              "descripcion": "TIPO I",
+              "linea": 8388
+            },
+            {
+              "codigo": "2",
+              "descripcion": "TIPO II",
+              "linea": 8389
+            },
+            {
+              "codigo": "3",
+              "descripcion": "TIPO III",
+              "linea": 8390
+            },
+            {
+              "codigo": "4",
+              "descripcion": "TIPO IV",
+              "linea": 8391
+            },
+            {
+              "codigo": "5",
+              "descripcion": "TIPO V",
+              "linea": 8392
+            }
+          ],
+          "codigos_repetidos": []
+        },
+        {
+          "tabla": "SENTIDO DE TRAMO DE VÍA",
+          "lineas": "8394-8398",
+          "codigos": [
+            {
+              "codigo": "D",
+              "descripcion": "DOBLE SENTIDO",
+              "linea": 8396
+            },
+            {
+              "codigo": "M",
+              "descripcion": "MISMO SENTIDO DEL TRAMO",
+              "linea": 8397
+            },
+            {
+              "codigo": "C",
+              "descripcion": "SENTIDO CONTRARIO AL TRAMO",
+              "linea": 8398
+            }
+          ],
+          "codigos_repetidos": []
+        },
+        {
+          "tabla": "TIPOS DE PARQUE",
+          "lineas": "8400-8405",
+          "codigos": [
+            {
+              "codigo": "Z",
+              "descripcion": "ZONAL",
+              "linea": 8402
+            },
+            {
+              "codigo": "M",
+              "descripcion": "METROPOLITANO",
+              "linea": 8403
+            },
+            {
+              "codigo": "L",
+              "descripcion": "LOCAL",
+              "linea": 8404
+            },
+            {
+              "codigo": "P",
+              "descripcion": "PLAZA PRINCIPAL O DE ARMAS",
+              "linea": 8405
+            }
+          ],
+          "codigos_repetidos": []
+        },
+        {
+          "tabla": "TIPOS DE PASTORAL",
+          "lineas": "8407-8427",
+          "codigos": [
+            {
+              "codigo": "A",
+              "descripcion": "PASTORAL METÁLICO SIMPLE DE 0,5 m x 1” DE DIÁMETRO",
+              "linea": 8409
+            },
+            {
+              "codigo": "B",
+              "descripcion": "PASTORAL METÁLICO SIMPLE DE 1,5 m x 1,5” DE DIÁMETRO",
+              "linea": 8410
+            },
+            {
+              "codigo": "C",
+              "descripcion": "PASTORAL METÁLICO SIMPLE DE 3,2 m x 1,5” DE DIÁMETRO",
+              "linea": 8411
+            },
+            {
+              "codigo": "D",
+              "descripcion": "PASTORAL METÁLICO SIMPLE DE 3,4 m x 2” DE DIÁMETRO",
+              "linea": 8412
+            },
+            {
+              "codigo": "E",
+              "descripcion": "PASTORAL METÁLICO DOBLE DE 1,5 m x 1,5” DE DIÁMETRO",
+              "linea": 8413
+            },
+            {
+              "codigo": "F",
+              "descripcion": "PASTORAL METÁLICO DOBLE DE 3,2 m x 1,5” DE DIÁMETRO",
+              "linea": 8414
+            },
+            {
+              "codigo": "G",
+              "descripcion": "PASTORAL METÁLICO DOBLE DE 3,4 m x 2” DE DIÁMETRO",
+              "linea": 8415
+            },
+            {
+              "codigo": "H",
+              "descripcion": "CONCRETO SIMPLE DE 1,30 m",
+              "linea": 8416
+            },
+            {
+              "codigo": "I",
+              "descripcion": "CONCRETO DOBLE DE 1,30 m",
+              "linea": 8417
+            },
+            {
+              "codigo": "J",
+              "descripcion": "CONCRETO TRIPLE DE 1,30 m",
+              "linea": 8418
+            },
+            {
+              "codigo": "K",
+              "descripcion": "CONCRETO PARABÓLICO SIMPLE DE 1,50 m",
+              "linea": 8419
+            },
+            {
+              "codigo": "L",
+              "descripcion": "CONCRETO PARABÓLICO DOBLE DE 1,50 m",
+              "linea": 8420
+            },
+            {
+              "codigo": "M",
+              "descripcion": "CONCRETO RECORTADO SIMPLE DE 0,50 m",
+              "linea": 8421
+            },
+            {
+              "codigo": "N",
+              "descripcion": "CONCRETO RECORTADO DOBLE DE 0,50 m",
+              "linea": 8422
+            },
+            {
+              "codigo": "O",
+              "descripcion": "CONCRETO RECORTADO TRIPLE DE 0,50 m",
+              "linea": 8423
+            },
+            {
+              "codigo": "P",
+              "descripcion": "CONCRETO RECORTADO CUÁDRUPLE DE 0,50 m",
+              "linea": 8424
+            },
+            {
+              "codigo": "Q",
+              "descripcion": "NINGUNO",
+              "linea": 8425
+            },
+            {
+              "codigo": "R",
+              "descripcion": "PASTORAL METÁLICO TRIPLE DE 1,5 m x 1,5” DE DIÁMETRO",
+              "linea": 8426
+            },
+            {
+              "codigo": "S",
+              "descripcion": "CONCRETO PARABÓLICO RECORTADO SIMPLE",
+              "linea": 8427
+            }
+          ],
+          "codigos_repetidos": []
+        },
+        {
+          "tabla": "TARIFAS",
+          "lineas": "8429-8460",
+          "codigos": [
+            {
+              "codigo": "AT2",
+              "descripcion": "2P2E-MT",
+              "linea": 8431
+            },
+            {
+              "codigo": "MT1",
+              "descripcion": "Cliente Libre MT de la empresa",
+              "linea": 8432
+            },
+            {
+              "codigo": "MT1x",
+              "descripcion": "Cliente Libre otro suministrador",
+              "linea": 8437
+            },
+            {
+              "codigo": "MT2",
+              "descripcion": "2P2E-MT",
+              "linea": 8438
+            },
+            {
+              "codigo": "MT3P",
+              "descripcion": "1P2E-MT Presente en Punta",
+              "linea": 8439
+            },
+            {
+              "codigo": "MT3FP",
+              "descripcion": "1P2E-MT Presente en Fuera de Punta",
+              "linea": 8440
+            },
+            {
+              "codigo": "MT4P",
+              "descripcion": "1P1E-MT Presente en Punta",
+              "linea": 8441
+            },
+            {
+              "codigo": "MT4FP",
+              "descripcion": "1P1E-MT Presente en Fuera de Punta",
+              "linea": 8442
+            },
+            {
+              "codigo": "BT1",
+              "descripcion": "Cliente Libre BT",
+              "linea": 8443
+            },
+            {
+              "codigo": "BT2",
+              "descripcion": "2P2E-BT",
+              "linea": 8444
+            },
+            {
+              "codigo": "BT3P",
+              "descripcion": "1P2E-BT Presente en Punta",
+              "linea": 8445
+            },
+            {
+              "codigo": "BT3FP",
+              "descripcion": "1P2E-BT Presente en Fuera de Punta",
+              "linea": 8446
+            },
+            {
+              "codigo": "BT4P",
+              "descripcion": "1P1E-BT Presente en Punta",
+              "linea": 8447
+            },
+            {
+              "codigo": "BT4FP",
+              "descripcion": "1P1E-BT Presente en Fuera de Punta",
+              "linea": 8448
+            },
+            {
+              "codigo": "BT5AA",
+              "descripcion": "2E-BT MD hasta 20 kW",
+              "linea": 8449
+            },
+            {
+              "codigo": "BT5AB",
+              "descripcion": "2E-BT MD hasta 20 kW en HP y 50 kW en HFP",
+              "linea": 8450
+            },
+            {
+              "codigo": "BT5B",
+              "descripcion": "1E-BT Residencial",
+              "linea": 8451
+            },
+            {
+              "codigo": "BT5BN",
+              "descripcion": "1E-BT No Residencial",
+              "linea": 8452
+            },
+            {
+              "codigo": "BT5C",
+              "descripcion": "1E-BT Servicio Alumbrado Publico",
+              "linea": 8453
+            },
+            {
+              "codigo": "BT5C",
+              "descripcion": "1E-BT Iluminación Especial",
+              "linea": 8454
+            },
+            {
+              "codigo": "BT6",
+              "descripcion": "1P-BT Pensión Fija",
+              "linea": 8455
+            },
+            {
+              "codigo": "BT7",
+              "descripcion": "1E-BT Prepago",
+              "linea": 8456
+            },
+            {
+              "codigo": "BT5D",
+              "descripcion": "BT5D (1E) – Colectivo",
+              "linea": 8457
+            },
+            {
+              "codigo": "BT5E",
+              "descripcion": "BT5E (1E) - Colectivo",
+              "linea": 8458
+            },
+            {
+              "codigo": "BT5F",
+              "descripcion": "2E-BT",
+              "linea": 8459
+            },
+            {
+              "codigo": "BT5I",
+              "descripcion": "3E-BT",
+              "linea": 8460
+            }
+          ],
+          "codigos_repetidos": [
+            "BT5C"
+          ]
+        }
+      ],
+      "unidad": "",
+      "articulo_o_anexo": "Anexo N° 9, «Tablas»",
+      "pagina": "Anexo 9-3 a Anexo 9-5",
+      "lineas": "8355-8460",
+      "cita_literal": "Tablas | DENOMINACIÓN DE VÍA | CÓDIGO DESCRIPCIÓN | JR JIRÓN … TARIFAS | CÓDIGO DESCRIPCIÓN | AT2 2P2E‐MT …"
+    }
+  ]
+}

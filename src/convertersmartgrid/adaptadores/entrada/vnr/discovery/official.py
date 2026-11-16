@@ -175,7 +175,7 @@ def _familia(suffix: str, ruta: str, ancla: str) -> str:
 
 
 def _empresa_del_paquete(ancla: str, archivo: str) -> str:
-    """080:RF-6: el rótulo, salvo si no corresponde al archivo («CVS Energía» en `CVC Energia.zip`)."""
+    """080:RF-6: el rótulo, salvo si no corresponde al archivo («CVS Energía» en `una distribuidora real.zip`)."""
     rotulo, nombre = _normal(ancla), _normal(archivo)
     if rotulo and (rotulo == nombre or rotulo.startswith(nombre + ' ') or nombre.startswith(rotulo + ' ')):
         return ancla
@@ -208,7 +208,7 @@ def vigentes_por_empresa(publicaciones: Iterable[Publication]) -> dict[str, dict
     por_ciclo: dict[str, set[str]] = {}
     for p in paquetes:
         por_ciclo.setdefault(p.period_label, set()).add(clave[p.publication_id])
-    # Solo dentro de un ciclo: «Pluz Energia» y «Pluz Energia Peru» son la misma; en ciclos
+    # Solo dentro de un ciclo: «una distribuidora real» y «una distribuidora real Peru» son la misma; en ciclos
     # distintos, un comienzo igual no prueba que lo sean.
     alias: dict[str, str] = {}
     for nombres in por_ciclo.values():

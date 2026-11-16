@@ -77,7 +77,7 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
       )}
       {/* Spec 025, RF-39 y RF-40: siempre se puede subir otro libro o indicar otra carpeta
           (un año nuevo, una entrega corregida) sin quitar antes el actual. */}
-      <FileDrop compact accept={EXT} disabled={engineBusy}
+      <FileDrop entrada="demanda_medida" compact accept={EXT} disabled={engineBusy}
         multiple={tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes'} onFiles={subir}>
         <span>{meta ? 'Reemplazar: soltar' : 'Soltar'} o <u>elegir</u>{tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes' ? ' (varios)' : ''}</span>
       </FileDrop>

@@ -498,13 +498,13 @@ def test_canonicalize_fails_closed_on_missing_or_duplicate_section_ids(rows, mat
 
 def test_source_scope_selects_company_and_latest_period_without_mixing():
     rows = [
-        {'CODEMP': 'ELDU', 'ANIO': 2024, 'CODTRAMOMT': 'A'},
-        {'CODEMP': 'ELDU', 'ANIO': 2025, 'CODTRAMOMT': 'B'},
-        {'CODEMP': 'SEAL', 'ANIO': 2025, 'CODTRAMOMT': 'C'},
+        {'CODEMP': 'EMPA', 'ANIO': 2024, 'CODTRAMOMT': 'A'},
+        {'CODEMP': 'EMPA', 'ANIO': 2025, 'CODTRAMOMT': 'B'},
+        {'CODEMP': 'EMPB', 'ANIO': 2025, 'CODTRAMOMT': 'C'},
     ]
-    selected, scope = select_source_scope(rows, company='ELDU', period='latest_available')
+    selected, scope = select_source_scope(rows, company='EMPA', period='latest_available')
     assert [row['CODTRAMOMT'] for row in selected] == ['B']
-    assert scope == {'company': 'ELDU', 'period': '2025'}
+    assert scope == {'company': 'EMPA', 'period': '2025'}
 
     with pytest.raises(ValueError, match='múltiples empresas'):
         select_source_scope(rows, period='latest_available')
@@ -520,7 +520,7 @@ def test_schema_fingerprint_deterministic():
 
 # --------------------------------------------------------------------------- catálogo/frescura
 def _pub(pid, published, period='2025'):
-    return Publication(publication_id=pid, company='ELDU', company_code='ELDU',
+    return Publication(publication_id=pid, company='EMPA', company_code='EMPA',
                        publication_type='REGULATORY_VNRGIS_PACKAGE',
                        published_at=published, reference_date=published,
                        period_label=period)
@@ -541,7 +541,7 @@ def test_catalog_immutable_history():
 
 def test_freshness_latest_by_date_not_lexical():
     pubs = [_pub('older', '2024-09-01'), _pub('newer', '2025-03-01')]
-    result = resolve_freshness(pubs, company='ELDU')
+    result = resolve_freshness(pubs, company='EMPA')
     assert result.selected_publication == 'newer'
     assert result.confidence == 'HIGH'
 
@@ -549,12 +549,12 @@ def test_freshness_latest_by_date_not_lexical():
 def test_local_source_discovers_company_and_period_values(tmp_path):
     source = tmp_path / 'vnr.csv'
     source.write_text(
-        'CODEMP,ANIO,CODTRAMOMT\nELDU,2024,T1\nELDU,2025,T2\nSEAL,2025,T3\n',
+        'CODEMP,ANIO,CODTRAMOMT\nEMPA,2024,T1\nEMPA,2025,T2\nEMPB,2025,T3\n',
         encoding='utf-8',
     )
 
-    assert list_companies(str(source)) == ['ELDU', 'SEAL']
-    assert list_periods(str(source), company='ELDU') == ['2024', '2025']
+    assert list_companies(str(source)) == ['EMPA', 'EMPB']
+    assert list_periods(str(source), company='EMPA') == ['2024', '2025']
 
 
 def test_sqlite_adapter_releases_database_file(tmp_path):
@@ -618,14 +618,14 @@ def test_arcgis_company_period_discovery_uses_distinct_queries(monkeypatch):
     def distinct(self, field, where='1=1'):
         calls.append((field, where))
         if field == 'CODEMP':
-            return ['SEAL', 'ELDU', 'ELDU']
+            return ['EMPB', 'EMPA', 'EMPA']
         return [2025, 2024]
 
     monkeypatch.setattr(ArcGISLayer, 'distinct_values', distinct, raising=False)
 
-    assert adapter.available_companies() == ['ELDU', 'SEAL']
-    assert adapter.available_periods('ELDU') == ['2024', '2025']
-    assert ('ANIO', "CODEMP = 'ELDU'") in calls
+    assert adapter.available_companies() == ['EMPA', 'EMPB']
+    assert adapter.available_periods('EMPA') == ['2024', '2025']
+    assert ('ANIO', "CODEMP = 'EMPA'") in calls
 
 
 def test_arcgis_layer_inventory_reports_actual_count(monkeypatch):
@@ -695,7 +695,7 @@ def test_official_discovery_keeps_only_official_vnr_links(tmp_path):
     html = '''
       <tr><td><a href="/docs/Resolucion-154-2026-OS-CD.pdf">Resolución 154-2026-OS/CD</a>
       <br>Proyecto de fijación del Valor Nuevo de Reemplazo (VNR) al 31 de diciembre de 2025</td></tr>
-      <a href="https://www2.osinergmin.gob.pe/GRT/VNR/ELDU_2025.rar">VNRGIS Electro Dunas 2025</a>
+      <a href="https://www2.osinergmin.gob.pe/GRT/VNR/EMPA_2025.rar">VNRGIS Empresa Uno 2025</a>
       <a href="https://example.com/falso-vnr.zip">VNR externo</a>
       <a href="/docs/otro.pdf">Documento no relacionado</a>
     '''
@@ -911,7 +911,7 @@ def _production_ready_model() -> CanonicalModel:
         'schema_fingerprint': 'schema',
         'source_fingerprint': 'source',
         'source_publication_id': 'PUB-1',
-        'source_company': 'ELDU',
+        'source_company': 'EMPA',
         'source_period': '2025',
         'source_url': 'https://www.osinergmin.gob.pe/source',
         'source_sha256': 'abc123',
@@ -1439,15 +1439,15 @@ def test_cli_companies_and_periods_report_source_values(tmp_path, capsys):
 
     source = tmp_path / 'vnr.csv'
     source.write_text(
-        'CODEMP,ANIO,CODTRAMOMT\nELDU,2024,T1\nELDU,2025,T2\nSEAL,2025,T3\n',
+        'CODEMP,ANIO,CODTRAMOMT\nEMPA,2024,T1\nEMPA,2025,T2\nEMPB,2025,T3\n',
         encoding='utf-8',
     )
 
     assert main(['companies', str(source)]) == 0
     company_output = capsys.readouterr().out
-    assert 'ELDU' in company_output and 'SEAL' in company_output
+    assert 'EMPA' in company_output and 'EMPB' in company_output
 
-    assert main(['periods', str(source), '--company', 'ELDU']) == 0
+    assert main(['periods', str(source), '--company', 'EMPA']) == 0
     period_output = capsys.readouterr().out
     assert '2024' in period_output and '2025' in period_output
 
@@ -1486,18 +1486,18 @@ def test_cli_convert_scopes_records_and_writes_provenance(tmp_path):
         ],
     }), encoding='utf-8')
     payload = json.loads(source.read_text(encoding='utf-8'))
-    payload['features'][0]['properties'].update({'CODEMP': 'ELDU', 'ANIO': 2024})
-    payload['features'][1]['properties'].update({'CODEMP': 'ELDU', 'ANIO': 2025})
+    payload['features'][0]['properties'].update({'CODEMP': 'EMPA', 'ANIO': 2024})
+    payload['features'][1]['properties'].update({'CODEMP': 'EMPA', 'ANIO': 2025})
     source.write_text(json.dumps(payload), encoding='utf-8')
     output = tmp_path / 'out'
 
     assert main([
-        'convert', str(source), '--company', 'ELDU', '--period', 'latest_available',
+        'convert', str(source), '--company', 'EMPA', '--period', 'latest_available',
         '--source-crs', 'EPSG:4326', '--output', str(output),
     ]) == 0
     canonical = json.loads((output / 'canonical.json').read_text(encoding='utf-8'))
     assert [item['section_id'] for item in canonical['sections']] == ['NEW']
-    assert canonical['metadata']['source_company'] == 'ELDU'
+    assert canonical['metadata']['source_company'] == 'EMPA'
     assert canonical['metadata']['source_period'] == '2025'
     assert len(canonical['metadata']['source_sha256']) == 64
 

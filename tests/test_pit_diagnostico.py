@@ -88,9 +88,18 @@ def test_violacion_de_cargabilidad_contra_el_limite_del_perfil():
 
 
 def test_sin_limite_es_un_error_que_lo_nombra():
-    """107:RF-11 — ningún límite por defecto: sin registro ni perfil, el error nombra el límite."""
-    with pytest.raises(PitError, match='tension_min_pu'):
+    """107:RF-11 — ningún límite por defecto: sin registro ni perfil, el error nombra el límite. Cambiada en la
+    tarjeta PIT-TEN (107 T7): la tensión sale por barra de la norma y el límite que se exige aquí es la cargabilidad;
+    el error sin ningún límite de tensión está en test_pit_tension_norma.py."""
+    with pytest.raises(PitError, match='cargabilidad_max_pct'):
         limites_del_estudio(None, {'pit': {}})
+    caso = perfil_a(13)
+    area = areas_del_perfil(caso['perfil'], caso['area'])[0]
+    red = desde_ambito(reunir(area, caso['elementos']))
+    limites = limites_del_estudio(None, {'pit': {'limites': {'cargabilidad_max_pct': 100.0}}})
+    assert 'tension_min_pu' not in limites
+    with pytest.raises(PitError, match='tension_min_pu'):  # sin tensión por barra ni del perfil, no hay diagnóstico
+        diagnosticar(area, red, caso['proyeccion'], caso['anios'][:1], limites)
 
 
 def test_demanda_por_barra_de_set():

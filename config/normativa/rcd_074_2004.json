@@ -1,0 +1,98 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Tarjeta VAD-CAL v2 (108 T18, 2026-11-15, f4). Copia oficial descargada por cc (z9b). VIGENCIA: el texto consolidado rige desde que rige su última modificatoria, la RCD 177-2012-OS/CD, «publicada el 29 agosto 2012» (líneas 7-8, 174-175 y siguientes). El texto oficial no recoge ninguna cláusula de vigencia de la 177-2012: solo cita sus arts. 1 (textos modificados e incorporados) y 3 (referencias a OSINERGMIN); la Primera Disposición Transitoria (líneas 435-437, «entra en vigencia a los 90 días calendario contados a partir del siguiente día de su publicación») es de la RCD 074-2004 de 2004, no de la modificatoria. Se aplica por eso el art. 109 de la Constitución («La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte»): rige desde el 30-08-2012. La 177-2012 suelta no se pudo bajar (ruta de Osinergmin con 404, z9b): si tuviera cláusula propia, manda la suya. La RCD 074-2004 es del 13-04-2004. Las líneas son las del texto de huella sha256_texto. La RM 163-2011-MEM/DM, que el TdR (pág. 61) cita para SAIFI y SAIDI, no tiene copia oficial: se cita lo que recoge el 9.4.",
+ "normas": [
+  {
+   "acto": "RCD 074-2004-OS/CD",
+   "titulo": "Procedimiento para la Supervisión de la Operación de los Sistemas Eléctricos (texto consolidado con la RCD 177-2012-OS/CD)",
+   "estado_juridico": "modificada",
+   "url": "https://cdn.www.gob.pe/uploads/document/file/863552/OSINERGMIN-074-2004-OS-CD.pdf",
+   "fecha_consulta": "2026-11-15",
+   "sha256": "429260f3d5d259528af31586590d75f1de1aa20e883e0bcc287e7838753cd32d",
+   "sha256_texto": "1607cba38ddff6bc568a6cbda1c3f95de3162d41a9712a79cfdb1f2c33651640",
+   "fichero_local": "RCD-074-2004-OS-CD_gobpe.txt",
+   "version": "texto consolidado de gob.pe con la RCD 177-2012-OS/CD (Anexo 2 modificado y Anexo 3 añadido)",
+   "modificada_por": [
+    "RCD 177-2012-OS/CD"
+   ],
+   "vigencia_desde": "2012-08-30",
+   "nota": "Tarjeta VAD-CAL v2 (108 T18, 2026-11-15, f4). Copia oficial descargada por cc (z9b). VIGENCIA: el texto consolidado rige desde que rige su última modificatoria, la RCD 177-2012-OS/CD, «publicada el 29 agosto 2012» (líneas 7-8, 174-175 y siguientes). El texto oficial no recoge ninguna cláusula de vigencia de la 177-2012: solo cita sus arts. 1 (textos modificados e incorporados) y 3 (referencias a OSINERGMIN); la Primera Disposición Transitoria (líneas 435-437, «entra en vigencia a los 90 días calendario contados a partir del siguiente día de su publicación») es de la RCD 074-2004 de 2004, no de la modificatoria. Se aplica por eso el art. 109 de la Constitución («La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte»): rige desde el 30-08-2012. La 177-2012 suelta no se pudo bajar (ruta de Osinergmin con 404, z9b): si tuviera cláusula propia, manda la suya. La RCD 074-2004 es del 13-04-2004. Las líneas son las del texto de huella sha256_texto. La RM 163-2011-MEM/DM, que el TdR (pág. 61) cita para SAIFI y SAIDI, no tiene copia oficial: se cita lo que recoge el 9.4.",
+   "reglas": [
+    {
+     "clave": "vad.calidad.saifi_saidi.mensual",
+     "valor": {
+      "periodo": "mes",
+      "por": "sistema",
+      "numerador_saifi": "L",
+      "numerador_saidi": "N",
+      "denominador": "T_USUARIOS",
+      "registros": "todos"
+     },
+     "unidad": "SAIFI: interrupciones por usuario; SAIDI: horas por usuario (por sistema y mes)",
+     "articulo_o_anexo": "Anexo Nº 2 (modificado por la RCD 177-2012-OS/CD)",
+     "pagina": "pdf 14",
+     "lineas": "841-862",
+     "cita_literal": "SAIFI (System Average Interruption Frecuency Index) es la Frecuencia Media de Interrupción por usuario de un sistema eléctrico en un periodo determinado. [...] å USUARIOS = Suma de los registros del campo “L” del Anexo 1 correspondiente al sistema eléctrico y al mes determinado. TUSUARIOS = Valor que corresponde al campo “C” del Anexo 2 correspondiente al sistema eléctrico y al mes determinado. [...] å DUSUARIOS = Suma de los registros del campo “N” del Anexo 1 correspondiente al sistema eléctrico y al mes determinado.",
+     "interpretacion": "SAIFI = ΣL / T_USUARIOS y SAIDI = ΣN / T_USUARIOS con todos los registros del Anexo 1 del sistema y el mes (también los rechazos de carga). Incoherencia del original: T_USUARIOS remite al «campo C» del Anexo 2, rotulado «Nro. del Sistema Eléctrico» (línea 805); por su uso es el número de usuarios del sistema en el mes (decisión de f4, VAD-CAL). En el 6.11 queda como base y traza; el 6.11 toma la anual en MT."
+    },
+    {
+     "clave": "vad.calidad.saifi_saidi.anual_mt",
+     "valor": {
+      "meses": 12,
+      "por": "sistema",
+      "numerador_saifi": "L",
+      "numerador_saidi": "N",
+      "denominador": "T_USUARIOS",
+      "filtros": {
+       "E": [
+        1,
+        2,
+        3,
+        5,
+        6
+       ],
+       "G": [
+        3,
+        4,
+        5
+       ],
+       "O": [
+        "PM",
+        "PE",
+        "NF",
+        "NO",
+        "NT",
+        "NC"
+       ],
+       "P": [
+        "D"
+       ],
+       "T": {
+        "sin_solicitud": "N",
+        "con_solicitud": "S",
+        "resultados_que_entran": [
+         "Infundada",
+         "Improcedente"
+        ]
+       }
+      }
+     },
+     "unidad": "SAIFI MT: interrupciones por usuario y año; SAIDI MT: horas por usuario y año (por sistema)",
+     "articulo_o_anexo": "num. 9.4 y Anexo 3 (añadidos por la RCD 177-2012-OS/CD)",
+     "pagina": "pdf 8; 15-16",
+     "lineas": "423-425; 881-950",
+     "cita_literal": "9.4 En aplicación del Artículo 1º y 2º de la Resolución Ministerial Nº 163-2011-MEM-DM, se establece que los indicadores de performance serán el SAIFI y SAIDI asociados a la red de MT. [...] - Campo E: Tipo de Instalación que salió, solo se considera los siguientes códigos: Código Descripción 1 SET 2 Alimentador MT 3 Sección Alimentador 5 Línea AT 6 Sistema eléctrico [...] 3 Alimentador MT 4 Sección Alimentador 5 SED MT/BT [...] PM Programado, Mantenimiento PE Programado, Expansión o reforzamiento NF No programado, Falla NO No programado, Operación NT No programado, acción de Terceros NC No programado, Fenómenos naturales [...] solo se considera el código D (Sistema de Distribución). [...] se declare Infundada o Improcedente (en última instancia administrativa) [...] es la suma del año de los indicadores obtenido por mes para cada sistema eléctrico: SAIFI MT= å 12 å NUSUARIOSMTi TUSUARIOSi i=1 SAIFI MT= å 12 å DUSUARIOSMTi TUSUARIOSi i=1",
+     "interpretacion": "SAIFI MT = Σ(i=1..12) ΣL_MT,i / T_USUARIOS,i y SAIDI MT igual con el campo N, solo con los registros que pasan los cinco filtros (E, G, O, P y T; la T = S entra solo si la solicitud se declaró Infundada o Improcedente). Incoherencias del original, anotadas por decisión de f4 (VAD-CAL): la segunda fórmula viene rotulada «SAIFI MT=» pero su numerador es D_USUARIOS_MT, es la de SAIDI MT; el texto no define D_USUARIOS_MT ni T_USUARIOS,i, que se leen como en el Anexo 2 (campo N del Anexo 1 y campo C del Anexo 2). Es la que toma el 6.11 del TdR.",
+     "pendientes": [
+      {
+       "id": "rm_163_2011",
+       "responsable": "f4",
+       "fecha": "2026-11-15",
+       "descripcion": "RM 163-2011-MEM/DM sin copia oficial (gob.pe no la devolvió; solo hay la del SPIJ en FAOLEX, no oficial): lo aplicable se cita del num. 9.4 de esta norma; falta cotejar sus arts. 1 y 2 con el texto oficial."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

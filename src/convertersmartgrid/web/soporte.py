@@ -9,48 +9,17 @@ from __future__ import annotations
 import getpass
 import json
 import os
-import re
 import socket
 import time
 import zipfile
-from collections.abc import Iterable, Iterator
 from importlib import metadata
 from pathlib import Path
 from typing import Any
 
-from .. import __version__
+from .. import __version__, privacidad
 from ..perfil_empresa import ruta_perfil_activo
 from ..registro_rotativo import carpeta_de_registros
 from .doctor import diagnosticar
-
-_RUTA_WINDOWS = re.compile(r'(?:[A-Za-z]:|\\\\[^\\/\s]+)[\\/][^\s"\'<>|«»,;]*')
-_RUTA_POSIX = re.compile(r'(?<![\w.:/])/(?:[\w.\- ]+/)+[\w.\-]*')
-_CORREO = re.compile(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+')
-_IP = re.compile(r'\b(?!127\.0\.0\.1\b)\d{1,3}(?:\.\d{1,3}){3}\b')
-#: Códigos de red y de alimentador de cualquier empresa: letras y cifras juntas, en mayúsculas.
-_CODIGO = re.compile(r'\b[A-ZÑ]{1,6}[-_]?\d{1,6}[A-Z0-9_-]*\b')
-#: Lo escrito entre comillas suele ser un nombre: de un cliente, de una SET o de un fichero.
-_ENTRECOMILLADO = re.compile(r'«[^»]*»|"[^"]*"|\'[^\']*\'')
-
-
-def _terminos_del_perfil(ruta: Path) -> set[str]:
-    """Los textos del perfil de esta empresa, que pueden salir en cualquier mensaje."""
-    try:
-        datos = json.loads(ruta.read_text(encoding='utf-8'))
-    except (OSError, ValueError):
-        return set()
-
-    def textos(x: Any) -> Iterator[str]:
-        if isinstance(x, dict):
-            for v in x.values():
-                yield from textos(v)
-        elif isinstance(x, list):
-            for v in x:
-                yield from textos(v)
-        elif isinstance(x, str) and len(x.strip()) >= 3:
-            yield x.strip()
-
-    return set(textos(datos))
 
 
 def _identidad_del_equipo() -> set[str]:
@@ -63,18 +32,8 @@ def _identidad_del_equipo() -> set[str]:
     return {s for s in salida if len(s) >= 3}
 
 
-def anonimizar(linea: str, terminos: Iterable[str] = ()) -> str:
-    """Sustituye lo que pueda identificar al cliente, al operador o su red; conserva el mensaje y la cifra."""
-    salida = linea
-    # Los más largos primero: «Empresa Norte» antes que «Norte».
-    for termino in sorted(set(terminos), key=len, reverse=True):
-        salida = re.sub(re.escape(termino), '<nombre>', salida, flags=re.IGNORECASE)
-    salida = _RUTA_WINDOWS.sub('<ruta>', salida)
-    salida = _RUTA_POSIX.sub('<ruta>', salida)
-    salida = _CORREO.sub('<correo>', salida)
-    salida = _IP.sub('<ip>', salida)
-    salida = _ENTRECOMILLADO.sub('<texto>', salida)
-    return _CODIGO.sub('<codigo>', salida)
+#: 112:RF-2: los patrones y la función viven en ``privacidad`` (una vía, P5); soporte los usa tal cual.
+anonimizar = privacidad.anonimizar
 
 
 def _forma_del_perfil(ruta: Path) -> dict[str, Any]:
@@ -93,8 +52,16 @@ def _versiones() -> dict[str, str]:
     return dict(sorted((d.metadata['Name'] or '?', d.version) for d in metadata.distributions() if d.metadata['Name']))
 
 
-def _informe_anonimo(informe: dict[str, Any], terminos: set[str]) -> dict[str, Any]:
-    return {**informe, 'comprobaciones': [{k: anonimizar(v, terminos) if k in ('detalle', 'arreglo') else v for k, v in c.items()}
+#: Lo que sustituye a un texto libre cuando el perfil no se lee y no se sabe qué nombres tapar.
+OMITIDO = '<omitido: perfil ilegible>'
+
+
+def _informe_anonimo(informe: dict[str, Any], terminos: set[str] | None) -> dict[str, Any]:
+    """El diagnóstico con su texto libre tapado; sin términos conocidos (``None``), el texto libre no va."""
+    def tapar(v: Any) -> Any:
+        return OMITIDO if terminos is None else anonimizar(v, terminos)
+
+    return {**informe, 'comprobaciones': [{k: tapar(v) if k in ('detalle', 'arreglo') else v for k, v in c.items()}
                                           for c in informe['comprobaciones']]}
 
 
@@ -104,7 +71,13 @@ def crear_paquete(destino: Path, *, carpeta_registros: Path | None = None, ruta_
     momento = time.time() if ahora is None else ahora
     perfil = ruta_perfil_activo() if ruta_perfil is None else ruta_perfil
     registros = carpeta_de_registros() if carpeta_registros is None else carpeta_registros
-    terminos = _terminos_del_perfil(perfil) | _identidad_del_equipo()
+    # 112:RF-4: con el perfil ilegible no se conocen los nombres de la empresa. El paquete sale igual (sirve justo cuando
+    # algo falla), pero sin lo que no se puede tapar: los registros y el texto libre del diagnóstico.
+    terminos: set[str] | None
+    try:
+        terminos, ilegible = privacidad.terminos_del_perfil(perfil) | _identidad_del_equipo(), ''
+    except privacidad.PerfilIlegible as exc:
+        terminos, ilegible = None, exc.causa
     destino.mkdir(parents=True, exist_ok=True)
     ruta = destino / f"csg-soporte-{time.strftime('%Y%m%dT%H%M%S', time.localtime(momento))}.zip"
     contenido: list[str] = []
@@ -117,14 +90,19 @@ def crear_paquete(destino: Path, *, carpeta_registros: Path | None = None, ruta_
                                            ensure_ascii=False, indent=2))
         escribir('perfil_forma.json', json.dumps(_forma_del_perfil(perfil), ensure_ascii=False, indent=2))
         escribir('versiones.json', json.dumps({'programa': __version__, 'librerias': _versiones()}, ensure_ascii=False, indent=2))
-        for fichero in sorted(registros.glob('*.log*')) if registros.is_dir() else ():
+        for fichero in sorted(registros.glob('*.log*')) if registros.is_dir() and terminos is not None else ():
             try:
                 texto = fichero.read_text(encoding='utf-8', errors='replace')
             except OSError:
                 continue
-            escribir(f'registros/{fichero.name}', '\n'.join(anonimizar(l, terminos) for l in texto.splitlines()) + '\n')
+            tapar = terminos or set()               # nunca None aquí: sin términos conocidos, los registros no van
+            escribir(f'registros/{fichero.name}', '\n'.join(anonimizar(l, tapar) for l in texto.splitlines()) + '\n')
         escribir('LEAME.txt', 'Paquete de soporte de ConverterSmartGrid.\n'
                               'No lleva espacios de trabajo, redes, cargas, demandas ni informes: solo lo que aparece en esta lista.\n'
                               'En los registros, las rutas, los nombres entre comillas y los códigos de red están sustituidos.\n'
-                              'Revíselo antes de enviarlo.\n\n' + '\n'.join(contenido) + '\n')
+                              'Revíselo antes de enviarlo.\n'
+                              + (f'\nEl perfil de la empresa es ilegible ({ilegible}): no se sabe qué nombres tapar, así '
+                                 'que no van los registros ni el texto de las comprobaciones del diagnóstico. Arregle el '
+                                 'perfil y vuelva a crear el paquete.\n' if terminos is None else '')
+                              + '\n' + '\n'.join(contenido) + '\n')
     return ruta

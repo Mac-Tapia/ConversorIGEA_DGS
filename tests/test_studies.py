@@ -82,7 +82,7 @@ class TestCatalogoDeEstudios:
 
 
 class TestQueEstaListoYQueNo:
-    """Estas fijan el estado real de HOY con el export de Electro Dunas."""
+    """Estas fijan el estado real de HOY con el export de una distribuidora real."""
 
     def _por_clave(self, clave: str) -> Estudio:
         return next(e for e in ESTUDIOS if e.clave == clave)

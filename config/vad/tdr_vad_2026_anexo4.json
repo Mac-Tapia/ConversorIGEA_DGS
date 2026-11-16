@@ -1,0 +1,999 @@
+{
+  "esquema": "registro_normativo_v1",
+  "amplia": "tdr-vad-2026-anexo-r033",
+  "nota": "Spec 108 T4 (2026-11-15, f4/VAD-CAR T4). Amplía el TdR registrado con las 29 reglas del Anexo 4 «Estudio de Caracterización de la Carga» (págs. Anexo 4-1 a 4-18, pdf 113 a 130), transcritas por cc (z12) con doble lectura: líneas 4604-5438 de la copia de texto de huella sha256_texto de la norma ampliada (48ea8cf4…) y capa del PDF de huella sha256 (fb534170…); las fórmulas, que son imágenes, se leyeron en la hoja del PDF. Las interpretaciones de f4 van en su regla. Ninguna regla es de una empresa.",
+  "reglas": [
+    {
+      "clave": "vad.anexo4.objeto",
+      "valor": [
+        "factor de carga",
+        "factor de pérdidas",
+        "factor de coincidencia",
+        "factor de contribución a la punta",
+        "número de horas de uso"
+      ],
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-1 (pdf 113)",
+      "lineas": "4608-4610",
+      "cita_literal": "La caracterización de la carga tiene como objetivo determinar los siguientes parámetros: factor de carga, factor de pérdidas, factor de coincidencia, factor de contribución a la punta y el número de horas de uso de las opciones tarifarias establecidas en la Norma"
+    },
+    {
+      "clave": "vad.anexo4.ambito",
+      "valor": {
+        "por": [
+          "opción tarifaria",
+          "agrupación tarifaria"
+        ],
+        "para": [
+          "sistema eléctrico",
+          "sector típico"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-11 (pdf 123)",
+      "lineas": "5103-5105",
+      "cita_literal": "se determinará para cada opción tarifaria y agrupaciones respectivas los siguientes factores para cada sistema eléctrico y/o sector típico de acuerdo a los siguientes cuadros:",
+      "interpretacion": "Los factores se dan por opción tarifaria y por agrupación (cuadros de pdf 124), en cada sistema eléctrico y/o sector típico; MT y BT nunca se mezclan: cada agrupación es de un solo nivel de tensión."
+    },
+    {
+      "clave": "vad.anexo4.resolucion_registros",
+      "valor": 15,
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-2 (pdf 114)",
+      "lineas": "4666-4668",
+      "cita_literal": "los diagramas de carga deberán construirse a partir de los registros de consumo y demanda activa medidos cada 15 minutos",
+      "unidad": "min",
+      "interpretacion": "Un día = 96 registros."
+    },
+    {
+      "clave": "vad.anexo4.recalificacion",
+      "valor": {
+        "opciones": [
+          "MT3",
+          "MT4",
+          "BT3",
+          "BT4"
+        ],
+        "cuando": "la curva característica medida no corresponde a su calificación (punta / fuera de punta)"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-11 (pdf 123)",
+      "lineas": "5098-5101",
+      "cita_literal": "Antes de determinar los factores se debe recalificar a los clientes correspondientes a las tarifas MT3, MT4, BT3 y BT4 cuyas curvas características no se relacionan a su ubicación tarifaria pudiendo ser cliente en punta y su curva característica en el período de medición es de fuera de punta o viceversa."
+    },
+    {
+      "clave": "vad.anexo4.horas_punta",
+      "valor": {
+        "desde": "18:00",
+        "hasta": "23:00",
+        "horas_punta": 5,
+        "fuera_de_punta": "resto de horas",
+        "horas_fuera_de_punta": 19
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-13; Anexo 4-16 (pdf 125, 128)",
+      "lineas": "5185; 5186; 5369",
+      "cita_literal": "Presente en horas de punta (de 18:00 a 23:00 horas) [...] Presente en horas fuera de punta (resto de horas) [...] BT5F (2 bloques): Punta (6 p.m.–11 p.m.) = 5 h; Fuera de Punta = 19 h.",
+      "unidad": "h",
+      "interpretacion": "El propio Anexo 4 fija la punta de 18:00 a 23:00 (intervalo [18:00, 23:00): 5 h; fuera de punta, el resto: 19 h) y no cita ninguna norma. Es la regla del estudio y la caracterización la usa siempre. Si en la fecha de un registro la RM de horas de punta vigente del registro (sein.horas_punta: RM 153-2021-MINEM/DM, 17:00-23:00, o RM 189-2025-MINEM/DM, 18:00-23:00 del 2025-06-01 al 2029-05-31) da otra ventana, o no hay ninguna vigente, el resultado lo avisa con las dos ventanas y sus citas, sin cambiar la del TdR."
+    },
+    {
+      "clave": "vad.anexo4.factor_carga",
+      "valor": {
+        "formula": "fcarga = demanda media / demanda máxima",
+        "de": "un usuario o grupo de usuarios"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-14 (pdf 126)",
+      "lineas": "5256; 5257-5258",
+      "cita_literal": "Factor de carga (fcarga) [...] Relación entre la demanda media y la demanda máxima de un usuario o grupo de usuarios.",
+      "interpretacion": "Sin fórmula escrita: la relación literal es Pmedia/Pmáx, por usuario y por grupo (en el grupo, sobre la curva agregada)."
+    },
+    {
+      "clave": "vad.anexo4.factor_coincidencia_punta",
+      "valor": {
+        "formula": "FCPP = máx_{t∈HP} Σ_i P_i(t) / Σ_i máx_{t∈HP} P_i(t)",
+        "periodo": "horas de punta"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-13 (pdf 125)",
+      "lineas": "5215; 5216-5217",
+      "cita_literal": "Factor de coincidencia en horas de punta (FCPP) [...] Relación entre la demanda máxima coincidente de un grupo de usuarios y la sumatoria de sus demandas máximas, en el periodo de horas de punta.",
+      "interpretacion": "El TdR no escribe la fórmula. «En el periodo de horas de punta» (Anexo 4-13, pdf 125) se aplica a las dos demandas, la máxima coincidente y las máximas de cada usuario, las dos dentro de la punta que fija el mismo Anexo 4-13 (18:00 a 23:00, vad.anexo4.horas_punta). Decisión de f4 anotada, no norma."
+    },
+    {
+      "clave": "vad.anexo4.factor_coincidencia_fuera_punta",
+      "valor": {
+        "formula": "FCFP = máx_{t∈HFP} Σ_i P_i(t) / Σ_i máx_{t∈HFP} P_i(t)",
+        "periodo": "horas fuera de punta"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-13 (pdf 125)",
+      "lineas": "5219; 5220-5221",
+      "cita_literal": "Factor de coincidencia en horas fuera de punta (FCFP) [...] Relación entre la demanda máxima coincidente de un grupo de usuarios y la sumatoria de sus demandas máximas, en el periodo de horas fuera de punta.",
+      "interpretacion": "Misma lectura que el FCPP (Anexo 4-13, pdf 125): las dos demandas dentro de las horas fuera de punta, el resto de horas. Decisión de f4 anotada, no norma."
+    },
+    {
+      "clave": "vad.anexo4.factor_perdidas_integral",
+      "valor": {
+        "formula": "fpérdidas = (1/T) ∫₀ᵀ I² dt / I²máx",
+        "variable": "I (corriente)",
+        "metodo": "integración numérica"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-14 (pdf 126)",
+      "lineas": "5260; 5261",
+      "cita_literal": "Factor de pérdidas (fpérdidas) [...] Se determina mediante integración numérica de acuerdo a lo siguiente:",
+      "interpretacion": "Fórmula leída en la IMAGEN (png/a4-126.png): integra el cuadrado de la CORRIENTE I, no de la potencia activa. Con tensión constante, I ∝ √(P²+Q²): se usa así cuando todos los registros traen kvar. Sin kvar se usa P, que equivale a suponer un factor de potencia constante, y el resultado lo dice."
+    },
+    {
+      "clave": "vad.anexo4.factor_perdidas_empirico",
+      "valor": {
+        "formula": "fpérdidas = 0.7 × (fcarga)² + 0.3 × fcarga",
+        "coef_cuadratico": 0.7,
+        "coef_lineal": 0.3
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-14 (pdf 126)",
+      "lineas": "5271",
+      "cita_literal": "También, se determina a través de una fórmula empírica función del factor de carga:",
+      "interpretacion": "Fórmula leída en la IMAGEN (png/a4-126.png); operandos comprobados en la capa del PDF."
+    },
+    {
+      "clave": "vad.anexo4.factor_contribucion_punta",
+      "valor": {
+        "CPPg": "F1 × F2 (potencia de generación)",
+        "CPPd": "F1 × F2 × F3 (potencia de distribución)",
+        "F1": "demanda del usuario o grupo en la hora de punta del sistema / su demanda máxima (usuarios con máxima fuera de punta)",
+        "F2": "demanda máxima coincidente del grupo / Σ de sus demandas máximas",
+        "F3": "demanda máxima / potencia contratada o suscrita (según modalidad de facturación de potencia)"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-14 (pdf 126)",
+      "lineas": "5228; 5236-5237; 5240-5241; 5244-5246",
+      "cita_literal": "Para la potencia de generación: [...] Se calcula como la relación entre la demanda del usuario o grupo de usuarios en la hora de punta del sistema y su demanda máxima. [...] Se calcula como la relación entre la demanda máxima coincidente de un grupo de usuarios y la sumatoria de sus demandas máximas. [...] Se calcula como la relación entre la demanda máxima de un usuario o grupo de usuarios y su potencia contratada o suscrita por dicho usuario o grupo de usuarios, tomando en cuenta las modalidades de facturación de potencia, contratada o variable.",
+      "interpretacion": "Fórmulas CPP leídas en la imagen (png/a4-126.png)."
+    },
+    {
+      "clave": "vad.anexo4.factor_ponderacion_sabado",
+      "valor": {
+        "formula": "FPS = E(sábado) / E(día útil típico de la misma semana)"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-14 (pdf 126)",
+      "lineas": "5249-5250",
+      "cita_literal": "Relación entre el consumo de energía de un día sábado y el consumo de energía de un día útil típico correspondiente a la misma semana."
+    },
+    {
+      "clave": "vad.anexo4.factor_ponderacion_domingo",
+      "valor": {
+        "formula": "FPD = E(domingo) / E(día útil típico de la misma semana)"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-14 (pdf 126)",
+      "lineas": "5253-5254",
+      "cita_literal": "Relación entre el consumo de energía de un día domingo y el consumo de energía de un día útil típico correspondiente a la misma semana."
+    },
+    {
+      "clave": "vad.anexo4.nhubt",
+      "valor": {
+        "formula": "NHUBT = E_BT5B / P_BT5B",
+        "E": "consumo de energía del conjunto BT5B (kW.h)",
+        "P": "demanda coincidente en horas de punta del conjunto BT5B (kW)"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-14; Anexo 4-15 (pdf 126, 127)",
+      "lineas": "5278-5279; 5290",
+      "cita_literal": "Participación efectiva a la punta de usuarios con simple medición de energía (opción BT5B). [...] Demanda coincidente en horas de punta del conjunto de usuarios de la opción de simple medición de energía (opción BT5B) (kW)",
+      "unidad": "h"
+    },
+    {
+      "clave": "vad.anexo4.nhubtpre",
+      "valor": {
+        "formula": "NHUBTPRE = E_BT7 / P_BT7"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-15 (pdf 127)",
+      "lineas": "5293; 5303",
+      "cita_literal": "Participación efectiva a la punta de usuarios con opción tarifaria prepago (opción BT7). [...] Demanda coincidente en horas de punta del conjunto de usuarios de la opción tarifaria prepago (opción BT7) (kW)",
+      "unidad": "h"
+    },
+    {
+      "clave": "vad.anexo4.nhubtpp_fp_bt5a",
+      "valor": {
+        "NHUBTPP": "EPP_BT5A / PPP_BT5A",
+        "NHUBTFP": "EFP_BT5A / PFP_BT5A",
+        "tramos": [
+          "hasta 20 kW en HP y HFP (NHUBTPPA, NHUBTFPA)",
+          "hasta 20 kW en HP y hasta 50 kW en HFP (NHUBTPPB, NHUBTFPB)"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-15; Anexo 4-16 (pdf 127, 128)",
+      "lineas": "5306-5307; 5334-5337",
+      "cita_literal": "Participación efectiva a la punta de usuarios con doble medición de energía (opción BT5A). [...] Cabe mencionar que en el caso de la BT5A los números de uso de baja tensión se determinarán para usuarios con demanda máxima mensual de hasta 20 kW en horas punta y fuera de punta y para usuarios con demanda máxima mensual de hasta 20 kW en horas punta y de hasta 50 kW en horas fuera de punta.",
+      "unidad": "h"
+    },
+    {
+      "clave": "vad.anexo4.nhubt_bt5f",
+      "valor": {
+        "NHUBTPPF": "EPP_BT5F / PPP_BT5F",
+        "NHUBTF": "EFP_BT5F / PFP_BT5F",
+        "tramo": "hasta 10 kW en HP y HFP",
+        "bloques": "Punta 18-23 h = 5 h; Fuera de Punta = 19 h"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-16 (pdf 128)",
+      "lineas": "5367-5369",
+      "cita_literal": "Cabe mencionar que en el caso de la BT5F los números de uso de baja tensión se determinarán para usuarios con demanda máxima mensual de hasta 10 kW en horas punta y fuera de punta.",
+      "unidad": "h"
+    },
+    {
+      "clave": "vad.anexo4.nhubt_bt5i",
+      "valor": {
+        "NHUBTIP": "bloque presente en punta",
+        "NHUBTIB": "bloque base",
+        "NHUBTIM": "bloque media",
+        "formula": null,
+        "origen": "perfil de carga de la tarifa BT5B"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-12 (pdf 124)",
+      "lineas": "5148-5150",
+      "cita_literal": "Para los usuarios BT5I, se determinarán los factores de caracterización, así como el número de horas de uso de medidores de triple medición de energía: NHUBTIP, NHUBTIB y NHUBTIM, para los bloques horarios presente en punta, base y media, respectivamente. Obtenidos del perfil de carga de la tarifa BT5B.",
+      "unidad": "h",
+      "interpretacion": "HUECO: el Anexo 4 define NHUBTIP/IB/IM pero no da su fórmula ni las horas de los bloques base y media."
+    },
+    {
+      "clave": "vad.anexo4.curvas_tipicas",
+      "valor": {
+        "unidad_curva": "por unidad",
+        "dia": "día útil más representativo",
+        "por": "usuario / SED"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-10 (pdf 122)",
+      "lineas": "5042-5043",
+      "cita_literal": "se graficará en valores por unidad y se identificarán para cada usuario la curva correspondiente del día útil más representativo.",
+      "interpretacion": "El TdR no fija la base del «por unidad»: se toma la demanda máxima de la curva (máximo = 1,0). Tampoco dice cómo se elige el «día útil más representativo»: se toma el día útil (lunes a viernes) medido cuya energía está más cerca de la media de los días útiles medidos; a igualdad, el primero. Decisiones anotadas, no norma."
+    },
+    {
+      "clave": "vad.anexo4.diagramas_agrupados",
+      "valor": {
+        "agrupacion": [
+          "grupo de opciones",
+          "opción tarifaria"
+        ],
+        "tecnica": "Cluster Analysis",
+        "distancia": "Distancia(i, j) = √Σ(Cliente i − Cliente j)²",
+        "indicador": "Indicador de eficiencia = Máxima varianza entre grupos / Mínima varianza entre grupos"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-10; Anexo 4-11 (pdf 122, 123)",
+      "lineas": "5058-5060; 5088",
+      "cita_literal": "se desarrollarán los diagramas de carga agrupados por grupo de opciones y por opción tarifaria. Para la determinación de las formas predominantes se usará la técnica estadística de Cluster Analysis. [...] De esta manera, los clientes sólo pueden pertenecer a un solo grupo.",
+      "interpretacion": "Fórmulas de distancia e indicador leídas en la imagen (png/a4-123.png); su capa de texto son glifos matemáticos sin decodificar."
+    },
+    {
+      "clave": "vad.anexo4.validacion_historica",
+      "valor": {
+        "tolerancia": 0.1,
+        "contra": "información histórica (12 meses previos)"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-10 (pdf 122)",
+      "lineas": "5051-5053",
+      "cita_literal": "Se considera una variación aceptable de +/- 10% a efectos de introducir ajustes por estacionalidad y/o cambios de la estructura de consumo",
+      "unidad": "fracción"
+    },
+    {
+      "clave": "vad.anexo4.campana_minima",
+      "valor": {
+        "duracion_minima": "una semana",
+        "incluye": [
+          "sábado",
+          "domingo"
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-9 (pdf 121)",
+      "lineas": "4994-4995",
+      "cita_literal": "siendo necesario que dicho registro contenga como mínimo el registro de una semana, incluidos los días sábado y domingo."
+    },
+    {
+      "clave": "vad.anexo4.sed_sin_medicion",
+      "valor": {
+        "sin_curva": true,
+        "se_presenta": "consumo mensual de energía",
+        "uso": "referencia para contrastar con la campaña de medición"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-9 (pdf 121)",
+      "lineas": "5004-5007",
+      "cita_literal": "Subestaciones sin medición horaria: Si una subestación no cuenta con registros de potencia cada 15 minutos, se deberá presentar el consumo mensual de energía. Esta información servirá como referencia para contrastar con los resultados obtenidos en la campaña de mediciones directas.",
+      "interpretacion": "El Anexo 4 no le asigna curva: se mide en campaña o queda como referencia mensual. La SED sin medición se nombra (hueco), no se inventa su curva."
+    },
+    {
+      "clave": "vad.anexo4.alumbrado_publico",
+      "valor": {
+        "NHUAP": 360,
+        "unidad_NHUAP": "h/mes",
+        "intervalo": "18:00 a 06:00",
+        "perfil": "consumo promedio mensual / NHUAP"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-10 (pdf 122)",
+      "lineas": "5016-5019",
+      "cita_literal": "El perfil de carga de alumbrado público se estimará dividiendo su consumo promedio mensual entre el número de horas típicas de uso nocturno (NHUAP = 360 h/mes), considerando el intervalo entre las 6:00 p.m. y las 6:00 a.m."
+    },
+    {
+      "clave": "vad.anexo4.perfil_neto_bt5b",
+      "valor": {
+        "formula": "P_BT5B(t) = P_SED(t) − P_libres(t) − P_binomios(t) − P_AP(t)",
+        "sed_validas": "con 5 o más usuarios BT5B"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-2; Anexo 4-10 (pdf 114, 122)",
+      "lineas": "5021-5023; 4677-4678",
+      "cita_literal": "Se obtendrá restando del perfil total de carga de la subestación los perfiles correspondientes a los clientes libres, clientes binomios y al alumbrado público cuando corresponda. [...] tomando en consideración aquellas en las que el número de usuarios BT5B sea igual o superior a cinco."
+    },
+    {
+      "clave": "vad.anexo4.tamano_muestra",
+      "valor": {
+        "caso1": "n = N×Z²×S² / ((N−1)×e² + Z²×S²)",
+        "caso2": "n = N Z² p(1−p) / (e²(N−1) + Z² p(1−p))",
+        "Z": 1.96,
+        "confianza": 0.95,
+        "e_recomendado_max": 0.05,
+        "clientes_libres": "todos, sin muestreo"
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-5 (pdf 117)",
+      "lineas": "4829-4830; 4812-4813",
+      "cita_literal": "El tamaño mínimo de muestra para clientes BT, clientes MT y SEDs se estimará con un nivel de confianza del 95% [...] Para el caso específico de clientes libres, se deberá considerar el total de registros de medición disponibles, sin aplicar muestreo.",
+      "interpretacion": "Fórmulas (1) y (2) leídas en la IMAGEN (png/a4-117.png y a4-118.png): (1) va en glifos sin decodificar y (2) es una imagen sin texto."
+    },
+    {
+      "clave": "vad.anexo4.cuadro_por_opcion",
+      "valor": {
+        "columnas": [
+          "FCPP",
+          "FCFP",
+          "F1",
+          "F2",
+          "F3",
+          "CPP(1)",
+          "FPS",
+          "FPD",
+          "Factor de Carga",
+          "Factor de Pérdidas",
+          "NHUBTPP y NHUBTFP",
+          "NHUBT"
+        ],
+        "filas": [
+          {
+            "nivel": "MT",
+            "opcion": "MT1",
+            "sistema_medicion": "2E2P",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 171,
+              "Factor de Pérdidas": 247
+            }
+          },
+          {
+            "nivel": "MT",
+            "opcion": "MT2",
+            "sistema_medicion": "2E2P",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 171,
+              "Factor de Pérdidas": 247
+            }
+          },
+          {
+            "nivel": "MT",
+            "opcion": "MT3P",
+            "sistema_medicion": "2E1P",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 171,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "MT",
+            "opcion": "MT3FP",
+            "sistema_medicion": "2E1P",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 171,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "MT",
+            "opcion": "MT4P",
+            "sistema_medicion": "1E1P",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 171,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "MT",
+            "opcion": "MT4FP",
+            "sistema_medicion": "1E1P",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 171,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT2",
+            "sistema_medicion": "2E2P",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 171,
+              "Factor de Pérdidas": 247
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT3P",
+            "sistema_medicion": "2E1P",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 171,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT3FP",
+            "sistema_medicion": "2E1P",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 171,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT4P",
+            "sistema_medicion": "1E1P",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 171,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT4FP",
+            "sistema_medicion": "1E1P",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 171,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT5A",
+            "sistema_medicion": "2E",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas",
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "no_aplica_gris": [],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 248,
+              "NHUBT": 250,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT5B",
+            "sistema_medicion": "1E",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas",
+              "NHUBT"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 253,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT5D",
+            "sistema_medicion": "1E",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas",
+              "NHUBT"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 250,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT5E",
+            "sistema_medicion": "1E",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas",
+              "NHUBT"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 171,
+              "NHUBT": 250,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT5F",
+            "sistema_medicion": "2E",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas",
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "no_aplica_gris": [],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 248,
+              "NHUBT": 250,
+              "Factor de Pérdidas": 248
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT5I",
+            "sistema_medicion": "3E",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas",
+              "NHUBTPP y NHUBTFP",
+              "NHUBT"
+            ],
+            "no_aplica_gris": [],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 249,
+              "NHUBT": 248,
+              "Factor de Pérdidas": 247
+            }
+          },
+          {
+            "nivel": "BT",
+            "opcion": "BT7",
+            "sistema_medicion": "Prepago",
+            "aplica": [
+              "FCPP",
+              "FCFP",
+              "F1",
+              "F2",
+              "F3",
+              "CPP(1)",
+              "FPS",
+              "FPD",
+              "Factor de Carga",
+              "Factor de Pérdidas",
+              "NHUBT"
+            ],
+            "no_aplica_gris": [
+              "NHUBTPP y NHUBTFP"
+            ],
+            "gris_medido": {
+              "NHUBTPP y NHUBTFP": 149,
+              "NHUBT": 250,
+              "Factor de Pérdidas": 248
+            }
+          }
+        ],
+        "notas": {
+          "(1)": "Para la potencia de generación y la potencia de distribución.",
+          "(2)": "BT5A: usuarios con demanda de hasta 20 kW en HP y HFP y con demanda de hasta 20 kW en HP y hasta 50 kW en HFP.",
+          "(3)": "BT5F: NHUBTPPF y NHUBTF, obtenidos del perfil de carga de la tarifa BT5B.",
+          "(4)": "BT5I: NHUBTIP, NHUBTIB y NHUBTIM, obtenidos del perfil de carga de la tarifa BT5B."
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-11; Anexo 4-12 (pdf 123, 124)",
+      "lineas": "5107; 5141",
+      "cita_literal": "Por opción tarifaria: [...] (1) Para la potencia de generación y la potencia de distribución.",
+      "interpretacion": "Celdas grises = no aplica (medidas en la imagen png/a4-124.png, umbral 215 de gris; blanco ≈ 255) y cotejadas con el número de «x» de cada fila del texto."
+    },
+    {
+      "clave": "vad.anexo4.cuadro_por_agrupacion",
+      "valor": {
+        "columnas": [
+          "FCPP",
+          "FCFP",
+          "F1",
+          "F2",
+          "F3",
+          "CPP(1)",
+          "FPS",
+          "FPD",
+          "Factor de Carga",
+          "Factor de Pérdidas"
+        ],
+        "grupos": [
+          {
+            "nivel": "MT",
+            "opciones": [
+              "MT1",
+              "MT2",
+              "MT3P",
+              "MT3FP",
+              "MT4P",
+              "MT4FP"
+            ]
+          },
+          {
+            "nivel": "MT",
+            "opciones": [
+              "MT2",
+              "MT3P",
+              "MT3FP",
+              "MT4P",
+              "MT4FP"
+            ]
+          },
+          {
+            "nivel": "MT",
+            "opciones": [
+              "MT2",
+              "MT3P",
+              "MT4P"
+            ]
+          },
+          {
+            "nivel": "MT",
+            "opciones": [
+              "MT2",
+              "MT3FP",
+              "MT4FP"
+            ]
+          },
+          {
+            "nivel": "BT",
+            "opciones": [
+              "BT2",
+              "BT3P",
+              "BT3FP",
+              "BT4P",
+              "BT4FP"
+            ]
+          },
+          {
+            "nivel": "BT",
+            "opciones": [
+              "BT2",
+              "BT3P",
+              "BT4P"
+            ]
+          },
+          {
+            "nivel": "BT",
+            "opciones": [
+              "BT2",
+              "BT3FP",
+              "BT4FP"
+            ]
+          }
+        ]
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-12 (pdf 124)",
+      "lineas": "5152",
+      "cita_literal": "Por agrupación tarifaria:",
+      "interpretacion": "Siete agrupaciones, cada una de un solo nivel de tensión; las diez columnas aplican en todas. Grupos cotejados en el texto 48ea8cf4 y en la capa -raw de la pág. 124 (la -layout reordena la tabla)."
+    },
+    {
+      "clave": "vad.anexo4.cuadros_de_presentacion",
+      "valor": {
+        "columnas": [
+          "Sector 1",
+          "Sector 2",
+          "Sector 3",
+          "Sector 4",
+          "SER"
+        ],
+        "cuadros": {
+          "Factores de Coincidencia (MT2 y BT2)": [
+            "FCPPMT",
+            "FCFPMT",
+            "FCPPBT",
+            "FCFPBT"
+          ],
+          "Factores de Contribución a la Punta (MT3, MT4, BT3 y BT4)": [
+            "CMTPPg",
+            "CMTFPg",
+            "CBTPPg",
+            "CBTFPg",
+            "CMTPPd",
+            "CMTFPd",
+            "CBTPPd",
+            "CBTFPd"
+          ],
+          "NHU BT5B": [
+            "NHUBT"
+          ],
+          "NHU BT5F": [
+            "NHUBTPPF",
+            "NHUBTF"
+          ],
+          "NHU BT5I": [
+            "NHUBTIP",
+            "NHUBTIB",
+            "NHUBTIM"
+          ],
+          "NHU BT7": [
+            "NHUBTPRE"
+          ],
+          "NHU BT5A hasta 20 kW HP y HFP": [
+            "NHUBTPPA",
+            "NHUBTFPA"
+          ],
+          "NHU BT5A hasta 20 kW HP y 50 kW HFP": [
+            "NHUBTPPB",
+            "NHUBTFPB"
+          ]
+        }
+      },
+      "articulo_o_anexo": "Anexo N° 4.- Estudio de Caracterización de la Carga",
+      "pagina": "Anexo 4-16; Anexo 4-17 (pdf 128, 129)",
+      "lineas": "5371-5373; 5377; 5385-5386",
+      "cita_literal": "Finalmente, se debe presentar, según corresponda, los factores de coincidencia, factores de contribución a la punta y números de horas de uso de baja tensión de acuerdo a lo siguiente: [...] Factores de Coincidencia: Aplicables a las opciones MT2 y BT2 [...] Factores de Contribución a la Punta: Aplicables a las opciones MT3, MT4, BT3 y BT4",
+      "interpretacion": "Cuadros vacíos (plantillas) por sector típico 1-4 y SER; subíndices g/d y A/B leídos en la imagen (png/a4-129.png, a4-130.png)."
+    }
+  ]
+}

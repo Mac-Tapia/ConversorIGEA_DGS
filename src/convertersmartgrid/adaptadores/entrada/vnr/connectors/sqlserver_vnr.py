@@ -2,14 +2,14 @@
 
 VNR-GIS es el sistema del regulador (Osinergmin) con el que todas las concesionarias
 entregan su red, con el mismo modelo de datos. La entrega real es una copia de SQL Server
-de la base de red, con su base de parámetros y un ``ConfigBD.config`` (Electro Dunas,
-2026-10-18: ``ELDU_VNR_24_APR.bak``, 819 MB, 75 tablas). Una copia no se lee sin
+de la base de red, con su base de parámetros y un ``ConfigBD.config`` (una distribuidora real,
+2026-10-18: ``<sigla>_VNR_24_APR.bak``, 819 MB, 75 tablas). Una copia no se lee sin
 restaurarla en un motor de SQL Server: aquí se restaura (``RESTORE … WITH MOVE``), se lee
 por ODBC y se arma el modelo canónico, sin nada fijo de una empresa:
 
 * las tablas se reconocen por sus campos, no por su nombre (RF-7);
 * la tensión de ``CodTenNomi`` (una letra) sale de los códigos secundarios de tensión MT
-  de la base de parámetros, por su orden (A = el primero…): en la copia de Electro Dunas,
+  de la base de parámetros, por su orden (A = el primero…): en la copia de una distribuidora real,
   D = 10 kV y G = 22,9 kV, lo que dan sus alimentadores en las otras fuentes;
 * el CRS sale del datum y la zona UTM de la empresa (``empEmpresa``); VNR-GIS es peruano,
   hemisferio sur (RF-8);
@@ -561,7 +561,7 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
 
     La red se arma por la relación padre–hijo de los tramos, que es la de VNR-GIS: cada hijo
     se une al extremo más cercano de su padre; si sus vértices no se tocan (en la copia de
-    Electro Dunas, 3 900 de 15 304 hijos quedan a más de 0,5 m), el hueco se anota.
+    una distribuidora real, 3 900 de 15 304 hijos quedan a más de 0,5 m), el hueco se anota.
     """
     pedidas = {s.strip() for s in salidas} if salidas is not None else None
     avisos: list[dict] = []
@@ -654,7 +654,7 @@ def modelo_canonico(datos: DatosVnr, salidas: Iterable[str] | None = None, *,
 
         if not raices:
             # La cadena de padres no acaba en un tramo sin padre (IN111 en la copia de
-            # Electro Dunas, 2026-10-18): la cabecera es el tramo más cercano a su SET.
+            # una distribuidora real, 2026-10-18): la cabecera es el tramo más cercano a su SET.
             raices = [min(geo, key=lambda c: min(cercania(c, 0), cercania(c, 1)))]
             avisos.append({'code': 'SALIDA_SIN_TRAMO_RAIZ', 'source_id': salida,
                            'cabecera': raices[0]})
@@ -1004,7 +1004,7 @@ def _unir_islas(nodos: _Nodos, extremos: Mapping[str, tuple[str, str]], cabecera
     cercano, y anota el hueco (RF-10: se reconstruye, no se bloquea).
 
     Una cadena de padres que no llega a la cabecera deja una isla: SM117 en la copia de
-    Electro Dunas (2026-10-18) tenía 257 tramos y 122 SED sin camino a su SET.
+    una distribuidora real (2026-10-18) tenía 257 tramos y 122 SED sin camino a su SET.
     """
     while True:
         vecinos: dict[str, set[str]] = defaultdict(set)

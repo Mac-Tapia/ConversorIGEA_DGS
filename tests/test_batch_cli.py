@@ -123,7 +123,7 @@ def test_unir_incluye_solo_los_alimentadores_seleccionados(ds, opciones_reales, 
 
 def test_red_unida_por_set_con_datos_reales(ds, opciones_reales, tmp_path):
     """022:RF-7, 022:RF-25, 022:RF-30, 022:RF-32 — alimentadores reales unidos por SET con la
-    estructura de Electro Dunas: valida, los anillos de la entrada se abren y el oráculo
+    estructura de una distribuidora real: valida, los anillos de la entrada se abren y el oráculo
     calcula una isla por barra de SET. Con otra exportación, los que estén en la tabla."""
     from convertersmartgrid.perfil_empresa import carpeta_perfiles, estructura_empresa
 
@@ -132,7 +132,7 @@ def test_red_unida_por_set_con_datos_reales(ds, opciones_reales, tmp_path):
     e = estructura_empresa(local, carpeta=carpeta_perfiles())
     nombres = sorted(n for n in (feeder_short_name(x) for x in ds.feeder_ids()) if n in e.alimentadores)
     if len(nombres) < 2:
-        pytest.skip('la entrega no trae alimentadores de la estructura de Electro Dunas')
+        pytest.skip('la entrega no trae alimentadores de la estructura de la distribuidora de referencia')
     seleccion = nombres[:4]
     man = convert_group(ds, seleccion, tmp_path / 'g', name='POR_SET', include_geography=False,
                         estructura=e,

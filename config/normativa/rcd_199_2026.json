@@ -11,7 +11,7 @@
     "RCD 112-2024-OS/CD",
     "RCD 149-2024-OS/CD"
    ],
-   "nota": "Ficha: https://busquedas.elperuano.pe/dispositivo/NL/2574534-1. Comprobados su existencia, su objeto (art. 2: el PIT 2025-2029 en el Área de Demanda 9, a partir de las solicitudes de dos titulares) y su publicación. La resolución no fija fecha de vigencia propia; no se registra vigencia_desde supuesta. El detalle de los elementos modificados está en el IT 655-2026-GRT, sección 6.4, que el art. 4 manda consignar en https://www.osinergmin.gob.pe/Resoluciones/Resoluciones-GRT-2026.aspx y que el 2026-11-14 da HTTP 404 (Informe-Tecnico-655-2026-GRT.pdf): sin él no hay regla de elementos. El art. 3 manda consolidar las modificaciones en una resolución complementaria posterior.",
+   "nota": "Ficha: https://busquedas.elperuano.pe/dispositivo/NL/2574534-1. Comprobados su existencia, su objeto (art. 2: el PIT 2025-2029 en el Área de Demanda 9, a partir de las solicitudes de dos titulares) y su publicación. Vigencia: la resolución no tiene cláusula de vigencia propia (leída su parte resolutiva, arts. 1 a 4, en la copia de El Peruano con la huella registrada: ninguno fija ni posterga la vigencia; RN-AMB v2, 2026-11-15). Se aplica la regla general: desde el día siguiente a su publicación (14-11-2026), es decir, el 2026-11-15. Constitución Política del Perú, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte.» El detalle de los elementos modificados está en el IT 655-2026-GRT, sección 6.4, que el art. 4 manda consignar en https://www.osinergmin.gob.pe/Resoluciones/Resoluciones-GRT-2026.aspx y que el 2026-11-14 da HTTP 404 (Informe-Tecnico-655-2026-GRT.pdf): sin él no hay regla de elementos. El art. 3 manda consolidar las modificaciones en una resolución complementaria posterior.",
    "reglas": [
     {
      "articulo_o_anexo": "art. 2",
@@ -104,7 +104,8 @@
    "sha256_texto": "294432ef8073f15b2824863a9537ddc431a12362029e9f0e30146d202c1d45bc",
    "titulo": "Modifica el Plan de Inversiones en Transmisión 2025-2029, aprobado mediante la RCD 112-2024-OS/CD, en lo correspondiente al Área de Demanda 9",
    "url": "https://busquedas.elperuano.pe/api/archivo/file/4nK91BtAq9TBFYoNsImdfC/*/2574534-1.PDF",
-   "version": "Lima, 12 de noviembre del 2026; El Peruano, sábado 14 de noviembre de 2026, págs. 43-44 (2574534-1)"
+   "version": "Lima, 12 de noviembre del 2026; El Peruano, sábado 14 de noviembre de 2026, págs. 43-44 (2574534-1)",
+   "vigencia_desde": "2026-11-15"
   }
  ],
  "nota": "107 T3. Leída el 2026-11-14 en la edición oficial de El Peruano (el enlace del portal de Osinergmin sigue en 404). Su detalle técnico está en el Informe Técnico 655-2026-GRT, sección 6.4, que da 404: bloqueo citado en la entrega."

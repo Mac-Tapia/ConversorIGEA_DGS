@@ -559,7 +559,7 @@ def test_curva_reducida_conserva_la_maxima(client, monkeypatch):
 # ---------------------------------------------------------------- spec 021: central térmica
 def _libros_con_central(client, wid):
     """A1 con una central en su troncal: CG (generación), CL (llegada) y CS (salida) en el
-    libro como «alimentadores» que no son de la red, igual que CTBarra en Electro Dunas."""
+    libro como «alimentadores» que no son de la red, igual que CTBarra en una distribuidora real."""
     medidores = {'h': [['codigo alimentador', 'Medidor'], ['A1', 'M1'], ['A2', 'M3'],
                        ['CTB', 'CG'], ['CTSET', 'CL'], ['CTCARGA', 'CS']]}
     filas = {k: [['Local Time', 'kW tot', 'kVAR tot']] for k in ('M1', 'CG', 'CL', 'CS')}

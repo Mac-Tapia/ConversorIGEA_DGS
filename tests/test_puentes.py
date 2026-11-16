@@ -321,7 +321,7 @@ def test_solo_se_redimensiona_la_sed_que_no_puede_con_su_carga():
 
 
 # ---------------------------------------------------------------------------
-# Trafomix: medición MT registrada como SED «M…» (patrón del perfil de Electro Dunas)
+# Trafomix: medición MT registrada como SED «M…» (patrón del perfil de una distribuidora real)
 # ---------------------------------------------------------------------------
 
 def _patron_ed() -> str:

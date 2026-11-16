@@ -208,6 +208,107 @@ def test_huella_no_depende_de_los_finales_de_linea(tmp_path, filas):
     assert PE.huella(PE.leer_jsonl(ruta)) == HUELLA_CONJUNTO
 
 
+# ----------------------------------------------------------------- historial de lo sellado
+#: Las huellas de lo sellado que una medida pudo citar. El historial no puede perder ninguna.
+HUELLAS_SELLADO_ANTERIORES = frozenset({'f6186156a2863c8734f100466a630b5720b0781336279dad0331c2bd13b2a00e',
+                                        '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411'})
+#: La revisión que fijó 5d07ca9a (be7bd108, 2026-11-06), la de antes de E3-v2.
+REVISION_5D07CA9A = 'be7bd10849bb5d32c0504e3e7aea45998080a84a'
+FILA_E3_V2 = 'planeamiento_pide-008'
+
+
+def _sellado_en(revision: str) -> list[dict]:
+    r = subprocess.run(['git', 'show', f'{revision}:docs/asistente/preguntas_entregables.jsonl'], cwd=RAIZ,
+                       capture_output=True, check=False)
+    assert r.returncode == 0, f'la revisión {revision[:8]} no está en este clon: {r.stderr[:200]!r}'
+    return [f for f in (json.loads(x) for x in r.stdout.decode('utf-8').splitlines() if x.strip())
+            if f['reparto'] == 'sellado']
+
+
+def _sin_revision(fila: dict) -> dict:
+    return {k: v for k, v in fila.items() if k not in PE.CAMPOS_REVISION}
+
+
+def test_historial_del_sellado_solo_crece_y_acaba_en_la_huella_de_hoy(filas):
+    """076:RF-7, RF-8 — cada huella que tuvo lo sellado está en el historial, con su fecha y su motivo; la de cada revisión
+    fijada se recalcula de esa revisión, y la última es la de hoy."""
+    historial = PE.HISTORIAL_SELLADO
+    assert historial, 'sin historial de lo sellado'
+    huellas = [h['huella'] for h in historial]
+    assert huellas[-1] == HUELLA_SELLADO == PE.huella([f for f in filas if f['reparto'] == 'sellado'])
+    assert len(set(huellas)) == len(huellas), 'una huella repetida en el historial'
+    assert HUELLAS_SELLADO_ANTERIORES <= set(huellas), 'el historial perdió una huella que una medida pudo citar'
+    assert [h['fecha'] for h in historial] == sorted(h['fecha'] for h in historial)
+    for antes, despues in zip(historial, historial[1:]):
+        assert despues['motivo'].startswith(f"{antes['huella'][:8]} → {despues['huella'][:8]}: "), despues
+    for h in historial:
+        if h['revision']:
+            assert PE.huella(_sellado_en(h['revision'])) == h['huella'], h
+
+
+def test_de_5d07ca9a_a_98ed9614_solo_cambia_el_ancla_de_planeamiento_pide_008(filas):
+    """076:RF-7 — E3-v2 quitó una cita de un aviso y la fila sellada que lo anclaba acortó su ancla. Pregunta y respuesta
+    son las mismas, byte a byte, que en 5d07ca9a; con la fila de antes, lo sellado de hoy vuelve a dar 5d07ca9a."""
+    antes = {f['id']: f for f in _sellado_en(REVISION_5D07CA9A)}
+    ahora = {f['id']: f for f in filas if f['reparto'] == 'sellado'}
+    assert PE.huella(antes.values()) == '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411'
+    assert antes.keys() == ahora.keys(), 'cambió qué filas están selladas'
+    assert sorted(i for i in ahora if _sin_revision(antes[i]) != _sin_revision(ahora[i])) == [FILA_E3_V2]
+    a, b = antes[FILA_E3_V2], ahora[FILA_E3_V2]
+    for campo in ('pregunta', 'respuesta_esperada'):
+        assert b[campo].encode('utf-8') == a[campo].encode('utf-8'), f'{campo} cambió'
+
+    def resto(f: dict) -> dict:
+        return {k: v for k, v in _sin_revision(f).items() if k != 'fuentes'}
+
+    assert resto(a) == resto(b)
+    assert ([{k: v for k, v in s.items() if k != 'ancla'} for s in a['fuentes']]
+            == [{k: v for k, v in s.items() if k != 'ancla'} for s in b['fuentes']])
+    assert [s['ancla'] for s in a['fuentes']] == ['diagnóstico del año 00 (RF-51)']
+    assert [s['ancla'] for s in b['fuentes']] == ['diagnóstico del año 00']
+    assert PE.huella([*(f for i, f in ahora.items() if i != FILA_E3_V2), a]) == \
+        '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411'
+
+
+_HUELLA = re.compile(r'\b[0-9a-f]{64}\b')
+
+
+def huellas_del_sellado_citadas(texto: str, de_la_076: bool = False) -> set[str]:
+    """Las huellas de 64 cifras de una línea que habla de lo sellado de la 076 (o de las preguntas por entregable). En un
+    fichero de la 076 (``de_la_076``) basta con que la línea hable de lo sellado."""
+    return {h for linea in texto.splitlines() if re.search(r'sellad', linea, re.I)
+            and (de_la_076 or re.search(r'\b076\b|entregable', linea, re.I)) for h in _HUELLA.findall(linea)}
+
+
+def test_toda_medida_cita_una_huella_del_historial():
+    """076:RF-7 — una medida o un documento que cita la huella de lo sellado cita una del historial: la que tenía al medir,
+    que sigue en él; no se reescribe con la nueva."""
+    salida = subprocess.run(['git', 'ls-files', '--', 'docs', 'config', 'specs'], cwd=RAIZ, capture_output=True,
+                            text=True, check=True).stdout.split()
+    historial = {h['huella'] for h in PE.HISTORIAL_SELLADO}
+    ajenas = {}
+    for rel in salida:
+        if not rel.endswith(('.md', '.json', '.jsonl', '.txt', '.csv')) or not (RAIZ / rel).is_file():
+            continue
+        de_la_076 = 'preguntas_entregables' in rel or '076' in rel
+        texto = (RAIZ / rel).read_text(encoding='utf-8', errors='replace')
+        fuera = huellas_del_sellado_citadas(texto, de_la_076) - historial
+        if fuera:
+            ajenas[rel] = sorted(fuera)
+    assert not ajenas, f'huellas de lo sellado que no están en el historial: {ajenas}'
+
+
+def test_el_detector_de_huellas_del_sellado_ve_la_sembrada():
+    """076:RF-7 — caso sembrado: una medida que cita lo sellado de la 076 se ve; la huella de otro conjunto, no."""
+    texto = ('Medida del 2026-11-10 sobre el sellado de la 076: ' + 'a' * 64 + '\n'
+             'Sellado del 077: ' + 'b' * 64 + '\n'
+             'Huella del contenido de las preguntas por entregable: ' + 'c' * 64 + '\n')
+    assert huellas_del_sellado_citadas(texto) == {'a' * 64}
+    informe = 'Huella de lo sellado: `' + 'd' * 64 + '`.\nHuella del contenido: `' + 'e' * 64 + '`.\n'
+    assert huellas_del_sellado_citadas(informe) == set()
+    assert huellas_del_sellado_citadas(informe, de_la_076=True) == {'d' * 64}
+
+
 def test_reparto_declarado_y_sin_solape(filas):
     """076:RF-8 — el método en el docstring, reproducible, y ningún grupo ni respuesta en los dos lados."""
     assert 'sha256' in PE.repartir.__doc__ and PE.SAL_REPARTO in PE.repartir.__doc__

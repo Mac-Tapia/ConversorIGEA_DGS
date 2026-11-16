@@ -463,7 +463,12 @@ def _p_carga(net) -> float:
 
 # ------------------------------------------------------------------- resultados de un flujo
 
-def _ejecutar(pp, net) -> None:
+def ejecutar(pp, net) -> None:
+    """El flujo de :func:`validar`: desequilibrado (``runpp_3ph``) si la red trae fases, equilibrado si no.
+
+    Público para que quien calcule sobre la red de :func:`red_pandapower` (el dimensionamiento del VAD, spec 108)
+    use el mismo flujo, sin repetir las llamadas a pandapower. Las excepciones de pandapower suben.
+    """
     if 'fases_de_barra' in net:
         from pandapower.pf.runpp_3ph import runpp_3ph
 
@@ -548,7 +553,7 @@ def validar(model: FeederModel, *, comparar: bool = True) -> InformeOraculo:
         # pandapower las deja fuera del cálculo por su cuenta; se sigue.
 
     try:
-        _ejecutar(pp, net)
+        ejecutar(pp, net)
         informe.convergio = bool(net.converged)
     except Exception as exc:  # noqa: BLE001 - pandapower lanza varias clases al no converger
         informe.convergio = False
@@ -634,7 +639,7 @@ def _comparar_equilibrado(pp, model: FeederModel) -> dict[str, Any]:
     """082:RF-8: lo que daría el flujo equilibrado, solo para compararlo."""
     net, _barra, _informe = red_pandapower(model)
     try:
-        _ejecutar(pp, net)
+        ejecutar(pp, net)
     except Exception as exc:  # noqa: BLE001 - pandapower lanza varias clases al no converger
         return {'convergio': False, 'motivo': exc.__class__.__name__}
     vm = _tensiones(net)
@@ -817,7 +822,7 @@ class InformeUnido:
 
 def _flujo(pp, net) -> bool:
     try:
-        _ejecutar(pp, net)
+        ejecutar(pp, net)
         return bool(net.converged) and bool(_tensiones(net).notna().any())
     except Exception:  # noqa: BLE001 - pandapower lanza varias clases al no converger
         return False
@@ -930,3 +935,99 @@ def _medir_isla(net, eg: int, buses: set, v: VeredictoIsla) -> None:
         if len(carga):
             v.carga_trafo_pct = round(float(carga.max()), 1)
             v.trafo_mas_cargado = str(net.trafo.at[carga.idxmax(), 'name'])
+
+
+# --------------------------------------------------------------------- resultado por elemento (111:RF-10)
+
+def _sin_resultado(mensaje: str, flujo: str = 'equilibrado') -> dict[str, Any]:
+    return {'convergio': False, 'flujo': flujo, 'mensajes': [mensaje], 'barras': {}, 'tramos': {}, 'sed': {},
+            'equipos': {}}
+
+
+def _corriente_a(net, idx: int) -> float | None:
+    """La corriente del tramo en A: la de su extremo de mayor corriente; por fases, la de su fase más cargada."""
+    if 'fases_de_barra' in net:
+        fila = net.res_line_3ph.loc[idx]
+        valores = [fila[c] for c in fila.index if c.startswith('i_') and c.endswith('_ka')]
+    else:
+        valores = [net.res_line.at[idx, 'i_from_ka'], net.res_line.at[idx, 'i_to_ka']]
+    valores = [float(v) for v in valores if v == v]
+    return max(valores) * 1000.0 if valores else None
+
+
+def _estado_equipos(model: FeederModel) -> dict[str, dict[str, str]]:
+    """El estado de cada maniobra del modelo, por su código de la fuente."""
+    return {(d.eq_number or d.eq_id or d.section_id): {'clase': d.kind, 'estado': 'cerrado' if d.on_off == 1 else 'abierto'}
+            for d in sorted(model.devices, key=lambda d: (d.section_id, d.terminal_side, d.eq_number))}
+
+
+def resultados_por_elemento(model: FeederModel) -> dict[str, Any]:
+    """111:RF-10 — el flujo del oráculo por elemento, con los códigos de la fuente. Nunca modifica el modelo.
+
+    Devuelve ``{'convergio', 'flujo', 'mensajes', 'barras': {node_id: {u_pu, kv}}, 'tramos': {section_id: {i_a,
+    carga_pct, como_conexion}}, 'sed': {código: {carga_pct}}, 'equipos': {código: {clase, estado}}}``. Sin
+    convergencia, sin valores: solo los mensajes del motor (RF-11). Una barra sin camino a la fuente lleva
+    ``u_pu = None``. Un tramo que se calcula como conexión (sin impedancia propia) no tiene corriente propia.
+    """
+    if getattr(model, 'combined', None) is not None:
+        return _sin_resultado('red unida de varios alimentadores: conviven tensiones distintas; '
+                              'el resultado por elemento se da por alimentador')
+    if not disponible():
+        return _sin_resultado('pandapower no está instalado')
+    import pandapower as pp
+
+    por_fases = tiene_fases(model)
+    flujo = 'desequilibrado' if por_fases else 'equilibrado'
+    net, barra, informe = red_pandapower(model, por_fases=por_fases)
+    from pandapower import topology
+
+    sin_alimentar = set(topology.unsupplied_buses(net))
+    fuentes = {int(b): float(net.ext_grid.at[i, 'vm_pu']) for i, b in net.ext_grid.bus.items()}
+    if set(net.bus.index) - sin_alimentar <= set(fuentes):
+        # Con las maniobras de este caso nada cuelga de la fuente (p. ej., abierta la de cabecera): no hay flujo que
+        # calcular y no es un fallo del motor. Cada barra queda sin tensión, salvo la de la fuente, a su consigna.
+        return {'convergio': True, 'flujo': flujo,
+                'mensajes': ['todo el alimentador queda sin alimentar con las maniobras de este caso'],
+                'barras': {n: {'u_pu': fuentes.get(barra[n]), 'kv': float(net.bus.at[barra[n], 'vn_kv'])}
+                           for n in sorted(model.nodes)},
+                'tramos': {ln.section_id: {'i_a': None, 'carga_pct': None,
+                                           'como_conexion': ln.section_id not in set(net.line.name)}
+                           for ln in sorted(model.lines, key=lambda ln: ln.section_id)},
+                'sed': {s.code: {'carga_pct': None} for s in sorted(model.seds, key=lambda s: (s.code, s.load_key))},
+                'equipos': _estado_equipos(model)}
+    try:
+        ejecutar(pp, net)
+    except Exception as exc:  # noqa: BLE001 - pandapower lanza varias clases al no converger
+        mensajes = [f'el flujo de potencia no converge ({exc.__class__.__name__}: {str(exc).strip()[:200]})']
+        return {**_sin_resultado(mensajes[0], flujo), 'mensajes': mensajes + [h.linea() for h in informe.errores]}
+    if not net.converged:
+        return _sin_resultado('el flujo de potencia no converge', flujo)
+    vm = _tensiones(net)
+    if set(net.bus.index) - sin_alimentar - set(vm.index):
+        # 082:RF-9, como en el veredicto: una barra alimentada sin tensión es que no convergió.
+        return _sin_resultado('el flujo de potencia no converge (barras alimentadas sin tensión)', flujo)
+    barras = {}
+    for nodo in sorted(model.nodes):
+        i = barra[nodo]
+        barras[nodo] = {'u_pu': round(float(vm.at[i]), 6) if i in vm.index else None,
+                        'kv': float(net.bus.at[i, 'vn_kv'])}
+    carga = _carga_lineas(net) if len(net.line) else None
+    linea_de = {str(net.line.at[i, 'name']): i for i in net.line.index}
+    tramos = {}
+    for ln in sorted(model.lines, key=lambda ln: ln.section_id):
+        i = linea_de.get(ln.section_id)
+        if i is None:
+            tramos[ln.section_id] = {'i_a': None, 'carga_pct': None, 'como_conexion': True}
+            continue
+        pct = carga.at[i] if carga is not None and i in carga.index else None
+        tramos[ln.section_id] = {'i_a': _corriente_a(net, i), 'carga_pct': round(float(pct), 4) if pct is not None else None,
+                                 'como_conexion': False}
+    carga_trafo = _carga_trafos(net) if len(net.trafo) else None
+    trafo_de = {str(net.trafo.at[i, 'name']): i for i in net.trafo.index}
+    sed = {}
+    for s in sorted(model.seds, key=lambda s: (s.code, s.load_key)):
+        i = trafo_de.get(f'TR_{s.loc_name}')
+        pct = carga_trafo.at[i] if i is not None and carga_trafo is not None and i in carga_trafo.index else None
+        sed[s.code] = {'carga_pct': round(float(pct), 4) if pct is not None else None}
+    return {'convergio': True, 'flujo': flujo, 'mensajes': [h.linea() for h in informe.hallazgos],
+            'barras': barras, 'tramos': tramos, 'sed': sed, 'equipos': _estado_equipos(model)}

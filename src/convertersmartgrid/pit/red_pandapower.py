@@ -36,6 +36,9 @@ class ResultadoFlujo:
     fuera: tuple[str, ...] = ()
     tensiones_pu: dict[str, float] = field(default_factory=dict)
     cargabilidad_pct: dict[str, float] = field(default_factory=dict)
+    #: Elemento → (P MW, Q Mvar) en su extremo de envío (``desde`` de la línea, ``hv`` del transformador), para el
+    #: unifilar del F-212 (107:RF-15).
+    flujos: dict[str, tuple[float, float]] = field(default_factory=dict)
     perdidas_mw: float | None = None
     p_sin_servir_mw: float = 0.0
     sin_tension: list[str] = field(default_factory=list)
@@ -139,11 +142,16 @@ def calcular(red: RedArea, cargas: Mapping[str, tuple[float, float]], *, fuera: 
             res.sin_tension.append(nombre)
         else:
             res.tensiones_pu[nombre] = v
-    for tabla, ids in ((net.res_line, lineas), (net.res_trafo, trafos), (net.res_trafo3w, trafos3)):
+    for tabla, ids, p, q in ((net.res_line, lineas, 'p_from_mw', 'q_from_mvar'),
+                             (net.res_trafo, trafos, 'p_hv_mw', 'q_hv_mvar'),
+                             (net.res_trafo3w, trafos3, 'p_hv_mw', 'q_hv_mvar')):
         for nombre, i in ids.items():
             c = float(tabla.loading_percent.at[i])
             if not math.isnan(c):
                 res.cargabilidad_pct[nombre] = c
+            pq = (float(tabla[p].at[i]), float(tabla[q].at[i]))
+            if not any(math.isnan(x) for x in pq):
+                res.flujos[nombre] = pq
     sin = set(res.sin_tension)
     res.p_sin_servir_mw = float(sum(p for b, (p, _q) in cargas.items() if b in sin))
     perdidas = [net.res_line.pl_mw.sum(), net.res_trafo.pl_mw.sum(), net.res_trafo3w.pl_mw.sum()]

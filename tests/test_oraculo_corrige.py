@@ -1,6 +1,6 @@
 """El oráculo corrige, antes de importar, la demanda de relleno o fuera de escala (spec 057).
 
-Caso real que lo motivó (2026-11-01): en la copia VNR-GIS ELOR25_V2 de Electro Oriente,
+Caso real que lo motivó (2026-11-01): en la copia VNR-GIS <paquete> de una distribuidora real,
 ``Sed.MaxDemTotal`` vale 39 kW en las 8 729 SED, con potencias instaladas de 5 a 2 000 kVA.
 NJA202 llegó a DIgSILENT con 470 SED de 5 kVA al 780 %; el oráculo dijo «no converge», se
 importó igual y DIgSILENT bajó la demanda al 10 % sin converger. Aquí se fuerza ese relleno

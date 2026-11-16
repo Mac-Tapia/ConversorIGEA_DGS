@@ -18,15 +18,15 @@ from convertersmartgrid.adaptadores.entrada.vnr.discovery.catalog import Publica
 def _publication(publication_id: str, url: str, kind: str) -> Publication:
     return Publication(
         publication_id=publication_id,
-        title='VNRGIS Electro Dunas 2025',
+        title='VNRGIS Empresa A 2025',
         publication_type=kind,
         regulatory_reference='154-2026-OS/CD',
         reference_date='2025',
         published_at='2026-08-27',
         discovered_at='2026-10-05T00:00:00+00:00',
         official_page='https://www.osinergmin.gob.pe/Resoluciones/Resoluciones-GRT-2026.aspx',
-        company='Electro Dunas',
-        company_code='ELDU',
+        company='Empresa A',
+        company_code='EMPA',
         period_label='2025',
         download_url=url,
         file_name=Path(url).name,
@@ -47,13 +47,13 @@ def client(tmp_path, monkeypatch):
         'REGULATORY_VNR_PUBLICATION',
     ))
     catalog.upsert_publication(_publication(
-        'PKG-ELDU',
-        'https://www2.osinergmin.gob.pe/GRT/VNR/ELDU_2025.zip',
+        'PKG-EMPA',
+        'https://www2.osinergmin.gob.pe/GRT/VNR/EMPA_2025.zip',
         'REGULATORY_VNRGIS_PACKAGE',
     ))
     catalog.upsert_publication(_publication(
         'PKG-EVIL',
-        'https://evil.example/VNR/ELDU_2025.zip',
+        'https://evil.example/VNR/EMPA_2025.zip',
         'REGULATORY_VNRGIS_PACKAGE',
     ))
     catalog.save(data_root / '_vnr_catalog')
@@ -82,9 +82,9 @@ def test_publications_expone_evidencia_y_no_ofrece_pdf_como_paquete(client):
     rows = {row['publication_id']: row for row in body['publications']}
     assert rows['PDF-154']['convertible'] is False
     assert rows['PDF-154']['status'] == 'REGULATORY_DOCUMENT_ONLY'
-    assert rows['PKG-ELDU']['convertible'] is True
-    assert rows['PKG-ELDU']['published_at'] == '2026-08-27'
-    assert len(rows['PKG-ELDU']['evidence_sha256']) == 64
+    assert rows['PKG-EMPA']['convertible'] is True
+    assert rows['PKG-EMPA']['published_at'] == '2026-08-27'
+    assert len(rows['PKG-EMPA']['evidence_sha256']) == 64
     assert body['status'] == 'OFFICIAL_PACKAGE_AVAILABLE'
 
 
@@ -108,7 +108,7 @@ def test_download_oficial_custodia_hash_y_asigna_slot(client, monkeypatch):
         destination = _valid_zip(Path(destination))
         digest = hashlib.sha256(destination.read_bytes()).hexdigest()
         return DownloadManifest(
-            publication_id='PKG-ELDU', company='Electro Dunas', period='2025',
+            publication_id='PKG-EMPA', company='Empresa A', period='2025',
             source_url=url, retrieved_at='2026-10-05T00:00:00Z', http_status=200,
             content_type='application/zip', bytes=destination.stat().st_size,
             sha256=digest, archive_test='PASS',
@@ -118,7 +118,7 @@ def test_download_oficial_custodia_hash_y_asigna_slot(client, monkeypatch):
     wid = _workspace(client)
 
     response = client.post(
-        f'/api/workspaces/{wid}/vnr/download', json={'publication_id': 'PKG-ELDU'},
+        f'/api/workspaces/{wid}/vnr/download', json={'publication_id': 'PKG-EMPA'},
     )
 
     assert response.status_code == 202, response.text
@@ -132,7 +132,7 @@ def test_download_oficial_custodia_hash_y_asigna_slot(client, monkeypatch):
     body = job['result']
     assert body['manifest']['archive_test'] == 'PASS'
     assert len(body['manifest']['sha256']) == 64
-    assert body['workspace']['inputs']['vnr_package']['name'] == 'ELDU_2025.zip'
+    assert body['workspace']['inputs']['vnr_package']['name'] == 'EMPA_2025.zip'
     assert body['workspace']['options']['input_mode'] == 'vnr'
 
 
@@ -179,7 +179,7 @@ def test_stream_rechaza_respuesta_documental_aunque_url_diga_zip(tmp_path, conte
 
     class Response:
         status_code = 200
-        url = 'https://www2.osinergmin.gob.pe/GRT/VNR/ELDU_2025.zip'
+        url = 'https://www2.osinergmin.gob.pe/GRT/VNR/EMPA_2025.zip'
         headers = {'Content-Type': content_type, 'Content-Length': '8'}
 
         def __enter__(self):

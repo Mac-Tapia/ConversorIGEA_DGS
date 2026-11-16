@@ -23,6 +23,7 @@
         "titulo": {"type": "string", "minLength": 1},
         "estado_juridico": {"enum": ["vigente_comprobada", "modificada", "prepublicada", "no_verificada", "derogada"]},
         "url": {"type": "string"},
+        "fecha_emision": {"$ref": "#/$defs/fecha"},
         "fecha_publicacion": {"$ref": "#/$defs/fecha"},
         "fecha_consulta": {"$ref": "#/$defs/fecha"},
         "sha256": {"type": "string", "pattern": "^([0-9a-f]{64})?$"},
@@ -31,10 +32,91 @@
         "version": {"type": "string"},
         "vigencia_desde": {"$ref": "#/$defs/fecha"},
         "vigencia_hasta": {"$ref": "#/$defs/fecha"},
+        "vigencia_hasta_motivo": {"type": "string"},
+        "solo_referencia": {"type": "string"},
         "modifica": {"type": "array", "items": {"type": "string"}},
         "modificada_por": {"type": "array", "items": {"type": "string"}},
         "nota": {"type": "string"},
-        "reglas": {"type": "array", "items": {"$ref": "#/$defs/regla"}}
+        "reglas": {"type": "array", "items": {"$ref": "#/$defs/regla"}},
+        "impugnada": {"type": "array", "items": {"$ref": "#/$defs/recurso"},
+                      "description": "Recursos de reconsideración contra la norma, uno por recurrente (RN-IMP). No la suspenden: sigue obligatoria."}
+      },
+      "additionalProperties": false
+    },
+    "recurso": {
+      "type": "object",
+      "description": "Un recurrente: su nombre literal, su RUC si se conoce, si es empresa de la norma (con el nombre de sus tablas en «empresa») o tercero (sin «empresa»: no se casa con ninguna), los conceptos que impugna con su cita y lo que «afecta» (claves del registro o conceptos del estudio), los escritos de alcance no determinado, la fuente con su sha y el estado.",
+      "required": ["recurrente", "condicion", "fuente", "estado"],
+      "properties": {
+        "recurrente": {"type": "string", "minLength": 1},
+        "ruc": {"type": "string", "pattern": "^(\\d{11})?$"},
+        "condicion": {"enum": ["empresa_norma", "tercero"]},
+        "empresa": {"type": "string"},
+        "conceptos": {"type": "array", "items": {
+          "type": "object",
+          "required": ["concepto", "cita", "afecta"],
+          "properties": {
+            "concepto": {"type": "string", "minLength": 1},
+            "cita": {"type": "string", "minLength": 1},
+            "afecta": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+            "pedido": {"description": "Lo que pide el recurrente, como DATO DEL RECURSO: nunca es un valor aplicable."}
+          },
+          "additionalProperties": false
+        }},
+        "alcance_no_determinado": {"type": "array", "items": {
+          "type": "object",
+          "required": ["escrito", "motivo"],
+          "properties": {"escrito": {"type": "string", "minLength": 1}, "motivo": {"type": "string", "minLength": 1}},
+          "additionalProperties": false
+        }},
+        "fuente": {
+          "type": "object",
+          "required": ["documento", "sha256"],
+          "properties": {
+            "documento": {"type": "string", "minLength": 1},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "url": {"type": "string"},
+            "aviso": {"type": "string"},
+            "audiencia": {"$ref": "#/$defs/fecha"}
+          },
+          "additionalProperties": false
+        },
+        "estado": {"enum": ["pendiente de resolución", "resuelto"]},
+        "nota": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "verificacion": {
+      "type": "object",
+      "description": "Comprobación de que la regla sigue vigente: fecha, resultado y fuentes (aclaración de 107:RF-8).",
+      "required": ["fecha", "resultado", "fuentes"],
+      "properties": {
+        "fecha": {"$ref": "#/$defs/fecha", "minLength": 10},
+        "resultado": {"type": "string", "minLength": 1},
+        "responsable": {"type": "string"},
+        "fuentes": {"type": "array", "minItems": 1, "items": {
+          "type": "object",
+          "required": ["documento", "url"],
+          "properties": {
+            "documento": {"type": "string", "minLength": 1},
+            "url": {"type": "string", "minLength": 1},
+            "sha256": {"type": "string", "pattern": "^([0-9a-f]{64})?$"},
+            "consolidado_hasta": {"type": "string"},
+            "cita": {"type": "string"}
+          },
+          "additionalProperties": false}}
+      },
+      "additionalProperties": false
+    },
+    "pendiente": {
+      "type": "object",
+      "description": "Lo que queda por comprobar de una regla; quien la usa lo dice en un aviso (aclaración de 107:RF-8).",
+      "required": ["descripcion"],
+      "properties": {
+        "id": {"type": "string"},
+        "descripcion": {"type": "string", "minLength": 1},
+        "responsable": {"type": "string"},
+        "fecha": {"$ref": "#/$defs/fecha"}
       },
       "additionalProperties": false
     },
@@ -51,7 +133,13 @@
         "lineas": {"type": "string"},
         "moneda": {"type": ["string", "null"]},
         "igv": {"enum": ["incluido", "excluido", "sin_leer", "no_aplica"]},
-        "interpretacion": {"type": "string"}
+        "interpretacion": {"type": "string"},
+        "caracter": {"enum": ["", "obligatoria", "criterio", "referencia"]},
+        "aplicacion": {"type": "string"},
+        "entregable": {"type": "string"},
+        "cita_lineas": {"type": "string"},
+        "pendientes": {"type": "array", "items": {"$ref": "#/$defs/pendiente"}},
+        "verificacion": {"$ref": "#/$defs/verificacion"}
       },
       "additionalProperties": false
     }

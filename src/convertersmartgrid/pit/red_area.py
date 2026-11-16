@@ -42,6 +42,13 @@ _BARRAS = {'red_externa': ('barra',), 'linea': ('desde', 'hasta'), 'trafo2': ('h
 _TEXTO = {'id', 'tipo', 'set', 'rol', 'titular', 'desde', 'hasta', 'hv', 'mv', 'lv', 'barra', 'funcion', 'areas'}
 #: Las claves del contrato: el encabezado de cada columna cuando el perfil no declara ``columnas``.
 _CONTRATO = _TEXTO | {k for claves in REQUERIDOS.values() for k in claves}
+#: Columnas que el diagnóstico de tensión usa si están (107 T7, PIT-TEN): la entrega de suministro y el tipo de red de
+#: cada barra, su tensión de operación del COES y las tomas de cada transformador. Sin ``columnas`` declaradas se toman
+#: cuando el libro las trae; su ausencia no es un error del libro: es un hueco nombrado por barra en el diagnóstico.
+#: ``tipo_barra`` (SL, PV o PQ, el ``bustp`` de DIgSILENT) dice qué red externa es la referencia del flujo cuando la
+#: red trae más de una (``red_pandapower.referencias``, 107:RF-3).
+OPCIONALES_TEXTO = frozenset({'entrega', 'tipo_red', 'tap_side', 'tipo_barra'})
+OPCIONALES = OPCIONALES_TEXTO | {'tap_min', 'tap_max', 'tap_neutral', 'tap_step_percent', 'tension_operacion_kv'}
 #: Filas en las que se busca la cabecera de cada hoja, como ``costos_fuentes._FILAS_CABECERA``.
 _FILAS_CABECERA = 30
 
@@ -104,7 +111,7 @@ def _valor(clave: str, v: Any) -> Any:
         return None
     if clave == 'areas':
         return [x.strip() for x in str(v).split(',') if x.strip()]
-    if clave in _TEXTO:
+    if clave in _TEXTO or clave in OPCIONALES_TEXTO:
         if isinstance(v, float) and v.is_integer():
             v = int(v)  # calamine da 10.0 donde la celda dice 10: el código sigue siendo «10»
         return str(v).strip()
@@ -222,6 +229,8 @@ def leer_libro_red(ruta: Path | str, cfg: Mapping[str, Any]) -> LibroRed:
             out.avisos.append(f'{ruta.name} / {hoja}: sin las columnas {", ".join(f"«{nombres[k]}»" for k in faltan)}'
                               '; sus elementos quedan sin esos datos (107:RF-12)')
         columnas = {k: cab.index(n) for k, n in nombres.items() if n in cab}
+        if not cfg.get('columnas'):
+            columnas.update({k: cab.index(k) for k in sorted(OPCIONALES) if k in cab and k not in columnas})
         out.hojas.append(hoja)
         for n, fila in enumerate(filas[i_cab + 1:], start=i_cab + 2):
             e = {k: _valor(k, fila[j] if j < len(fila) else None) for k, j in columnas.items()}

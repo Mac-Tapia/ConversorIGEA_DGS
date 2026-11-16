@@ -131,6 +131,31 @@ dependen de las entradas que cambiaron.
   la misma idea acabarían divergiendo.
 - **Sin cableado web en esta iteración.** El trabajo en cola queda listo (`vad/trabajo.py`) y se lanza desde
   `tools/vad_estudio.py`. Descartado: tocar `web/services.py`, porque es de f9.
+- **Anexo 7 y balance (VAD-A7, decisiones de 28 del 2026-11-15).** (1) El «coincidirá» del cierre del balance real
+  no tiene cifra en el TdR: la tolerancia por defecto es el error admisible de la clase del medidor
+  (`medida.error_admisible_por_clase`, RM 496-2005-MEM/DM, Tabla N° 01), con la clase del perfil o la de MT por
+  defecto, marcada; el perfil la sustituye con su sustento y la diferencia se muestra siempre. Descartado: el 0,5 %
+  que se propuso antes, porque no tenía cita. (2) Costos compartidos: para el VAD 2026-2030 manda el TdR, con el
+  aviso de que su «numeral 5.1» no está en el Manual vigente (RCD 218-2020-OS/CD y 249-2022-OS/CD), las dos citas y
+  el hueco A7-4 (la RM 197-94-EM/VME, sin texto hallado). (3) P-4: tasa diaria efectiva del CCT, con la proporcional
+  como contraste. (4) P-5: la base del tope del 7,5 % es el aVNR del periodo, sustituible. (5) P-6: los factores de
+  incremento se combinan como declare el perfil; sin declarar, hueco; los topes, siempre. (6) La errata del num. 5.12
+  (numeral 12 por 11) se aplica al 11 con aviso. (7) La potencia resultante del balance real es lo que entra en el
+  sistema, (1) + (5) + (12) + (13) − (14) del A-VI (decisión de c3, v2), en la regla `vad.balance.potencia_resultante`
+  con la cita literal de cada fila del formato. (8) El exceso sobre el tope del 7,5 % solo lo asigna una regla citada
+  de su ámbito (`vad.anexo7.costos_compartidos.exceso`), que no existe: es un hueco nombrado y no se asigna (c3, v3).
+  La Nota 2 del Formato 3.2 del Manual vigente («75% o la diferencia») se cita en el aviso como de otro ámbito.
+  Descartado: decidirlo sin cita, y extender la Nota 2 fuera de su ámbito.
+- **Anexo 5, incoherencias del TdR (VAD-A5U, aprobada por 28 el 2026-11-15).** (1) La ecuación circular R_BT,
+  TRI_AREA y NTRI se resuelve en forma cerrada (es lineal en TRI_AREA), calculada desde las fórmulas del registro y
+  comprobada con el residuo al sustituir T en las fórmulas TRANSCRITAS de cada caso (v2, c3): en la MAD coincide con
+  la de c3, T = A·FP_DIS/(1000·δ_BT·FD_BT); en el resto, la de c3 no cumple el residuo y vale la que sale de sus
+  fórmulas, T = A/(1000·δ_BT·FD_BT/FP_DIS + AP_D); descartado un punto fijo iterativo, porque la forma cerrada es exacta y dice cuándo no hay
+  solución. (2) Lectura (a) del paréntesis de NTRI, con el corchete de R_BT de la pág. 5-8; la (b) se rechaza. (3)
+  CCT_INICIAL, b, K_CT, cr, Ic y clientes_AT/MT, entradas del perfil sin valor por defecto; la tasa «i», por la remisión
+  del cap. 5 al art. 79 de la LCE (`vad.anexo5.tasa_i`); los dos +5 % se suman, con el compuesto en el aviso, sobre las
+  derivaciones de MT; los factores de 1000, con su prueba de unidades; Te y 1/FRC, con las funciones comunes
+  (`informes.factor_de_perdidas`, `pide_economia.frc`), las mismas del Anexo 4 y del Anexo 6.
 
 ## Comprobación contra la constitución
 

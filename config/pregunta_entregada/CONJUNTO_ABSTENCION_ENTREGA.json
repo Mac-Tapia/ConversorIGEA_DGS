@@ -2,7 +2,7 @@
  "esquema": "csg-conjunto-abstencion-entrega-v1",
  "procedencia": "sintetico_maestro_entrega",
  "corpus": "entrega",
- "origen_de_las_preguntas": "Redactadas por el maestro (origen «maestro», 2026-11-14) para el corpus que se entrega: los manuales y las notas de «documentos». Las que tienen respuesta anclan en el título de su apartado; las que no, son ajenas a esos documentos y el maestro confirma que no la tienen. Ninguna está literal en el corpus: el constructor lo comprueba (097:RF-19).",
+ "origen_de_las_preguntas": "Redactadas por el maestro (origen «maestro», 2026-11-14) para el corpus que se entrega: los manuales y las notas de «documentos». Las que tienen respuesta anclan en el título de su apartado; las que no, son ajenas a esos documentos y el maestro confirma que no la tienen. Ninguna está literal en el corpus: el constructor lo comprueba.",
  "preguntas": [
   {
    "id": "con-001",

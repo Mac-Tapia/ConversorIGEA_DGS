@@ -141,7 +141,7 @@ def _datos(tablas=None):
 
 # --------------------------------------------------------------------------- pruebas
 def test_una_vista_rota_no_tumba_la_lectura():
-    """023:RF-9 — una vista que nombra otra base que no vino en la copia (Electro Oriente 2025:
+    """023:RF-9 — una vista que nombra otra base que no vino en la copia (una distribuidora real 2025:
     «norEquipoMT» apunta a «VNRGISGART», su base de parámetros, que no se entregó) se anota y
     la lectura sigue con lo demás de la red."""
     class MotorRoto(Motor):
@@ -315,7 +315,7 @@ def test_la_fuente_vnr_acepta_la_copia(monkeypatch, tmp_path):
 
 
 def test_sin_base_de_parametros_la_tension_sale_de_la_tabla_tensiones():
-    """023:RF-9 — sin «cfgCodigoSecundario» (Electro Oriente 2025 no entregó su base de
+    """023:RF-9 — sin «cfgCodigoSecundario» (una distribuidora real 2025 no entregó su base de
     parámetros) la tensión de cada letra sale de la tabla «Tensiones» de la red; si vienen las
     dos, manda la del regulador."""
     tablas = _tablas()
@@ -335,7 +335,7 @@ def test_sin_base_de_parametros_la_tension_sale_de_la_tabla_tensiones():
 
 
 def test_la_copia_sin_extension_se_reconoce_por_su_cabecera(monkeypatch, tmp_path):
-    """023:RF-1 — una copia de SQL Server sin «.bak» (Electro Oriente entregó «ELOR25_V2») se
+    """023:RF-1 — una copia de SQL Server sin «.bak» (una distribuidora real entregó «<paquete>») se
     reconoce por su cabecera MTF «TAPE»; un fichero sin extensión que no lo es, no."""
     from convertersmartgrid.sources.snapshot import snapshot_from_paths
     from convertersmartgrid.sources.vnr import VnrSourceAdapter

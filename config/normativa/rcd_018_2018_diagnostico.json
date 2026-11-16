@@ -1,0 +1,22 @@
+{
+ "esquema": "registro_normativo_v1",
+ "amplia": "RCD 018-2018-OS/CD",
+ "nota": "107 T7, tarjeta PIT-TEN (2026-11-15, f4): el num. 12.3.2 vigente de la RCD 217-2013 es el de la 018-2018 (corrección de cc, carpeta z19_vigencias_spij de su apoyo: SPIJ H1200701, sin notas de modificación). Las líneas son las de la copia de texto de la 018-2018 (su sha256_texto). El estado de la 018-2018 no se toca aquí: z19 propone «vigente_comprobada», que cambia también pit.n1_demanda_min_mw y es de otra tarjeta.",
+ "reglas": [
+  {
+   "clave": "pit.diagnostico.area15_criterios",
+   "valor": {
+    "area_de_demanda": 15,
+    "norma": "RM 129-2009-MEM/DM",
+    "regla": "pit.area15.criterios_desempeno",
+    "ambito": "confiabilidad"
+   },
+   "unidad": "",
+   "articulo_o_anexo": "art. 1 (num. 12.3.2 de la 217-2013)",
+   "pagina": "3",
+   "lineas": "107-110",
+   "cita_literal": "12.3.2. Para las instalaciones que son asignadas al Área de Demanda 15 (demanda nacional total), respecto al tema de confiabilidad, se deberá tomar en cuenta la norma “Criterios y Metodología para la elaboración del Plan de Transmisión” aprobada por el Ministerio de Energía y Minas, mediante Resolución Ministerial N° 129-2009-MEM/DM y modificatorias.",
+   "interpretacion": "En el diagnóstico, las barras de MAT y de AT sin entrega del Área de Demanda 15 cumplen los criterios de tensión de la RM 129-2009-MEM/DM (normal en el caso base y de emergencia en el N-1), sobre la tensión de operación del COES. En las demás áreas esa regla no rige: la MAT sin entrega la muestra como referencia, sin contar violaciones."
+  }
+ ]
+}

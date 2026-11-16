@@ -2,7 +2,7 @@
 
 El informe de factibilidad compara las pérdidas técnicas del flujo con las que reconoce
 el regulador, y esas vienen de un libro Excel de la empresa (``informeModeloperdidas.xlsx``
-en Electro Dunas) que cada empresa ordena a su manera: por eso las hojas y columnas se
+en una distribuidora real) que cada empresa ordena a su manera: por eso las hojas y columnas se
 buscan por los nombres del perfil, nunca por posición (RF-63). Las etapas 2 y 3 del
 informe de estudio (bancos y reguladores) necesitan costes; si la empresa no tiene
 cotizaciones, se parte de una tabla de referencia con precios públicos, marcada
@@ -141,8 +141,8 @@ def _cabecera(hoja, nombres: Mapping[str, str]) -> tuple[int, dict[str, int]]:
 def _leer_por_sistema(libro, alimentador: str, config: Mapping[str, Any]) -> DatosPerdidas:
     """063:RF-41: el alimentador da su sistema en una hoja y el sistema, sus pérdidas en otra.
 
-    El libro de Electro Dunas va así: ``Clientes por radial_V2`` lleva SM218 a SE2044, y
-    ``Perdidas_ELDU`` da SE2044 con 1,69 % de energía y 2,75 % de potencia. El lector de una sola
+    El libro de una distribuidora real va así: ``Clientes por radial_V2`` lleva <código> a SE2044, y
+    ``Perdidas_<sigla>`` da SE2044 con 1,69 % de energía y 2,75 % de potencia. El lector de una sola
     hoja no podía leerlo, y el botón del informe fallaba con el libro cargado.
     """
     hojas = {_clave(n): n for n in libro.sheetnames}

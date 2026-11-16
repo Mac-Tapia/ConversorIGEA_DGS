@@ -55,7 +55,7 @@ ALIAS: dict[str, tuple[str, ...]] = {
     'kw': ('kw tot', 'kw tot mean', 'kw total', 'kw', 'p kw', 'potencia activa'),
     'kvar': ('kvar tot', 'kvar tot mean', 'kvar total', 'kvar', 'q kvar', 'potencia reactiva'),
     'kva': ('kva tot', 'kva tot mean', 'kva total', 'kva', 'pot aparente', 'potencia aparente'),
-    # «PF sign tot us» va el último: en los libros de Electro Dunas casi todos sus valores
+    # «PF sign tot us» va el último: en los libros de una distribuidora real casi todos sus valores
     # pasan de ±100, con una codificación del medidor que no es un FP. Se usa solo si su
     # valor cabe en un FP (ver ``fp_decimal``); si no, el FP se calcula.
     'fp': ('pf lag mean', 'pf lead mean', 'fp', 'factor de potencia', 'pf', 'pf tot',
@@ -342,7 +342,7 @@ _NOMBRES_MES.update({'setiembre': 9, 'set': 9, 'sept': 9})
 def mes_generico(nombre: str, anio: int) -> str | None:
     """Mes ``AAAA-MM`` del nombre de un libro de la carpeta de ``anio`` (025:RF-6).
 
-    Sin patrón de la empresa: Electro Dunas pasó de «0126clientesImportantes» en 2026 a
+    Sin patrón de la empresa: una distribuidora real pasó de «0126clientesImportantes» en 2026 a
     «0125 Pulso e» en 2025, y otra empresa nombrará de otra forma. Se aceptan ``MMAA``,
     ``AAMM``, ``AAAAMM``, ``MMAAAA``, ``AAAA-MM``, ``MM-AAAA`` y el nombre del mes, solo
     del año de la carpeta. Con ningún mes o con dos distintos no se supone nada: queda
@@ -1261,7 +1261,7 @@ class Cabecera:
                          periodo: str | None, instante: datetime | None) -> MaximaCabecera:
         """La hoja con el código del alimentador, si la del medidor no está (025:RF-12).
 
-        En la cabecera de 2025 de Electro Dunas, cuatro hojas se llaman como su alimentador
+        En la cabecera de 2025 de una distribuidora real, cuatro hojas se llaman como su alimentador
         («L-PA217») y no como el medidor que da el libro de medidores («L-PA235»).
         """
         if alimentador:
@@ -2366,7 +2366,7 @@ def clasificar_carpeta_demanda(carpeta: Path | str, alias=ALIAS) -> tuple[dict[s
     """Qué es cada carpeta (o libro suelto) de la carpeta de demanda, por su contenido
     (025:RF-25b, RF-25c).
 
-    Cada empresa, y el mismo usuario, organiza las carpetas a su manera: en Electro Dunas
+    Cada empresa, y el mismo usuario, organiza las carpetas a su manera: en una distribuidora real
     son «1.-medidoralimentador», «2.-medicioncabecera»…, y nada en el código puede contar
     con esos nombres. De cada carpeta se mira un libro de cada año (o el primero). El de
     medidores es un libro; los demás, su carpeta, con sus años. Un tipo en dos sitios, o en
@@ -2671,7 +2671,7 @@ def escribir_excel(destino: Path | str, *, cabecera: Sequence[dict] = (),
 class MedidorBarra:
     """Una fila «Barra» del libro de medidores por alimentador (022:RF-37).
 
-    En Electro Dunas: «Barra», B-PA2T1, 22,9, PA es la barra de 22,9 kV del transformador 1
+    En una distribuidora real: «Barra», B-PA2T1, 22,9, PA es la barra de 22,9 kV del transformador 1
     de la SET Paracas; «Barra CT», CT_PEDREG, 10, PE, la central en la barra de 10 kV de
     Pedregal (RF-44).
     """

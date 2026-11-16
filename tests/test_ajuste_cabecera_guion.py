@@ -1497,7 +1497,7 @@ def test_kva_de_la_sed_cuenta_las_unidades_en_paralelo(guion):
 
 # --------------------------------------------------------------------------- spec 020
 def _fichas_plan():
-    """La sección del perfil de Electro Dunas, como la manda la web en el plan."""
+    """La sección del perfil de una distribuidora real, como la manda la web en el plan."""
     import json
     from pathlib import Path
 

@@ -241,3 +241,15 @@ siguen en la misma clave de `localStorage` y en un almacén único para todos lo
 Alternativa descartada: guardar en el servidor el ámbito y la petición de cada trabajo para reintentarlo; solo
 `recalibrar` la guarda (096:RF-5) y su relanzamiento ya es automático. Sin cambio de API.
 Pruebas: `frontend/test/avisosEnSuPaso.test.mjs` lee los `submit` del servidor y exige una fila por `kind`.
+
+## Previa de la copia y copias del destino (2026-11-16; RF-82, RF-83, RF-108 a RF-110)
+
+- `web/copia_datos.py`: `validar_carpeta` (sin escribir; `recordar_carpeta` la usa), `planificar_copia` con las raíces y
+  su etiqueta, `listar_copias` (solo lectura, resumen del manifiesto en caché por ruta, tamaño y fecha) y
+  `estado_copia(destino=…)` (RF-109).
+- `web/copia_datos_api.py`: `GET /api/copia-datos/previa` (RF-82, RF-83, RF-108) y `confirmada` en el `POST` de la copia.
+- `web/app.py` y `tools/copia_datos.py estado`: el aviso con la carpeta recordada.
+- `frontend/src/app/AvisosDatos.tsx`: `PreviaCopia`, `resumenCopia` y el marcador universal; textos de RF-110 en
+  `InputsPanel.tsx`, `InstalacionesPowerFactory.tsx`/`App.tsx`, `TipoDeAnalisis.tsx`, `OptionsPanel.tsx` y `workspace.py`.
+- Descartado: calcular la previa como trabajo en cola. Solo hace `stat` de los datos locales y lee el libre del destino;
+  sus segundos no justifican la cola, y la copia sí sigue siendo trabajo (RF-86).

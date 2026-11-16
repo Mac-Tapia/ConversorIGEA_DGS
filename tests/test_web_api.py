@@ -779,3 +779,12 @@ def test_072_rf36_el_anio_del_perfil_fuera_de_rango_se_rechaza_antes_de_encolar(
     assert str(rango['min'] - 1) in detalle and str(rango['min']) in detalle and str(rango['max']) in detalle
     assert 'perfil' in detalle
     assert not [j for j in client.app.state.jobs.list(wid) if j.kind == 'pide']
+
+
+def test_rutas_del_pit_montadas_en_la_app(client):
+    """107-P10c — la app real monta las rutas del PIT: /api/pit/expediente valida su pedido (422 sin datos) y
+    /api/pit/areas responde con las áreas del perfil o con el motivo de que no las haya (no un 404)."""
+    assert client.post('/api/pit/expediente', json={}).status_code == 422
+    r = client.get('/api/pit/areas')
+    assert r.status_code in (200, 422), r.text
+    assert 'areas' in r.json() or 'detail' in r.json()

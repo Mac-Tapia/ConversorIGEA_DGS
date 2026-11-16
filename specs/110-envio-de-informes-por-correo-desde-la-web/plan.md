@@ -211,3 +211,26 @@ Carril de trabajos: `correo`, nuevo, en serie. Índices del dataset: ninguno; la
 - **Datos personales en los recibos.** Viven en `<ws.root>/envios/`, fuera de la salida. Si la retención de la 062 o la
   copia de la 086 los tratan de otro modo, T3 lo detecta; si el usuario pide otra política, entra en esta spec antes que
   en el código.
+
+## Trazabilidad (T13)
+
+Cada RF con hasta tres de las pruebas que lo citan (`110:RF-n` en su docstring); `tests/test_correo_trazabilidad.py`
+comprueba que cada una existe y lo cita. Son pruebas con el proveedor simulado: la integración real con una cuenta la
+acredita la prueba opcional de T12.
+
+| RF | Pruebas |
+| --- | --- |
+| RF-1 | `tests/test_correo_borrador.py::test_la_firma_cubre_todo_lo_que_ve_el_operador`, `tests/test_correo_borrador.py::test_la_firma_cubre_ruta_tamano_y_huella_de_cada_adjunto`, `tests/test_correo_borrador.py::test_direcciones_imposibles_se_rechazan` |
+| RF-2 | `tests/test_correo_de_la_109.py::test_la_interfaz_de_la_109_es_la_que_usa_la_110`, `tests/test_correo_de_la_109.py::test_el_permiso_de_enviar_es_el_de_la_109`, `tests/test_correo_de_la_109.py::test_token_de_la_cuenta_conectada` |
+| RF-3 | `tests/test_correo_borrador.py::test_un_informe_cerrado_da_sus_adjuntos_con_huella`, `tests/test_correo_borrador.py::test_un_informe_sin_su_resumen_no_esta_cerrado`, `tests/test_correo_borrador.py::test_solo_informes_de_la_salida_del_espacio` |
+| RF-4 | `tests/test_correo_borrador.py::test_la_firma_cubre_ruta_tamano_y_huella_de_cada_adjunto`, `tests/test_correo_borrador.py::test_un_byte_cambiado_tras_la_vista_previa_pide_revisarlo_sin_llamar_al_proveedor`, `tests/test_correo_borrador.py::test_un_adjunto_borrado_tambien_anula` |
+| RF-5 | `tests/test_correo_borrador.py::test_la_firma_cubre_todo_lo_que_ve_el_operador`, `tests/test_correo_borrador.py::test_otro_destinatario_con_la_misma_firma_se_rechaza`, `tests/test_correo_borrador.py::test_el_borrador_va_y_vuelve_por_json_con_la_misma_firma` |
+| RF-6 | `tests/test_correo_web.py::test_solo_la_ventana_del_navegador_confirma`, `tests/test_correo_web.py::test_una_orden_del_asistente_o_un_documento_solo_dejan_un_borrador`, `tests/test_correo_web.py::test_ningun_paso_del_asistente_alcanza_la_confirmacion` |
+| RF-7 | `tests/test_correo_envios.py::test_la_clave_se_reserva_antes_de_llamar_al_proveedor`, `tests/test_correo_envios.py::test_dos_confirmaciones_de_la_misma_firma_una_sola_llamada`, `tests/test_correo_envios.py::test_doble_clic_a_la_vez_una_sola_llamada` |
+| RF-8 | `tests/test_correo_envios.py::test_el_recibo_guarda_clave_id_estado_hora_destinatarios_y_huella`, `tests/test_correo_envios.py::test_los_recibos_viajan_en_la_copia_y_la_retencion_no_los_borra`, `tests/test_correo_proveedores.py::test_mime_con_cabeceras_message_id_de_la_clave_y_adjuntos` |
+| RF-9 | `tests/test_correo_de_la_109.py::test_sin_cuenta_otra_cuenta_sin_permiso_o_revocada`, `tests/test_correo_envios.py::test_timeout_tras_aceptar_queda_desconocido_y_no_se_reenvia`, `tests/test_correo_envios.py::test_un_5xx_tambien_es_desconocido` |
+| RF-10 | `tests/test_correo_borrador.py::test_un_enlace_que_no_es_https_limpio_se_rechaza`, `tests/test_correo_borrador.py::test_adjuntos_y_enlace_a_la_vez_no`, `tests/test_correo_de_la_109.py::test_conceder_lectura_a_esos_destinatarios` |
+| RF-11 | `tests/test_correo_borrador.py::test_datos_crudos_y_credenciales_renombrados_se_rechazan_por_contenido`, `tests/test_correo_borrador.py::test_solo_word_pdf_y_excel`, `tests/test_correo_borrador.py::test_un_word_que_lleva_otro_fichero_dentro_o_una_credencial_se_rechaza` |
+| RF-12 | `tests/test_correo_borrador.py::test_validez_un_informe_valido`, `tests/test_correo_borrador.py::test_validez_estudios_que_no_valen`, `tests/test_correo_borrador.py::test_validez_sin_json` |
+| RF-13 | `tests/test_correo_envios.py::test_historial_por_informe`, `tests/test_correo_envios.py::test_un_recibo_roto_no_tumba_el_historial`, `tests/test_correo_web.py::test_estado_historial_y_resolver_un_desconocido` |
+| RF-14 | `tests/test_correo_borrador.py::test_habituales_son_los_aceptados_y_la_cuenta`, `tests/test_correo_borrador.py::test_habituales_avisos_nueva_mal_escrita_y_habitual`, `tests/test_correo_borrador.py::test_habituales_el_aviso_no_impide_el_envio` |

@@ -138,3 +138,29 @@ def test_no_llena_la_salida_de_avisos_de_numba(tmp_path, capfd):
         oraculo.validar(modelo)
     salida = capfd.readouterr()
     assert 'numba' not in (salida.out + salida.err).lower()
+
+
+@pytest.mark.parametrize('layout', LAYOUTS)
+def test_111_rf10_resultados_por_elemento_coinciden_con_el_veredicto(tmp_path, layout):
+    """111:RF-10 — el resultado por elemento sale del mismo flujo que el veredicto: la tensión mínima de las barras de
+    media no baja de la mínima del veredicto, y la cargabilidad máxima de los tramos es la suya; es determinista."""
+    assert hasattr(oraculo, 'resultados_por_elemento'), 'falta oraculo.resultados_por_elemento'
+    for modelo in _modelos(tmp_path, layout, seed=11):
+        inf = oraculo.validar(modelo)
+        r = oraculo.resultados_por_elemento(modelo)
+        assert r['convergio'] == inf.convergio and r['flujo'] == inf.flujo
+        tensiones = [b['u_pu'] for b in r['barras'].values() if b['u_pu'] is not None]
+        assert min(tensiones) >= inf.v_min_pu - 1e-4
+        cargas = [t['carga_pct'] for t in r['tramos'].values() if t['carga_pct'] is not None]
+        if inf.carga_linea_max_pct is not None:
+            assert max(cargas) == pytest.approx(inf.carga_linea_max_pct, abs=0.06)
+        assert oraculo.resultados_por_elemento(modelo) == r
+
+
+def test_111_rf10_resultados_por_elemento_no_calcula_la_red_unida(tmp_path):
+    """111:RF-10 — una red unida no se calcula por elemento, igual que en el veredicto, y se dice."""
+    assert hasattr(oraculo, 'resultados_por_elemento'), 'falta oraculo.resultados_por_elemento'
+    modelo = _modelos(tmp_path)[0]
+    modelo.combined = object()
+    r = oraculo.resultados_por_elemento(modelo)
+    assert r['convergio'] is False and r['barras'] == {} and 'red unida' in r['mensajes'][0]

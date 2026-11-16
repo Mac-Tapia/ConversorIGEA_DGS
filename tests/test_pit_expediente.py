@@ -1,5 +1,5 @@
 """Spec 107 T10 — expediente y cuadros: carpeta aparte, instantánea, traza de cada celda, modificatoria posterior y
-determinismo (107:RF-1, 107:RF-7, 107:RF-8, 107:RF-9). Todo sintético: registro, costos y área sorteada."""
+determinismo (107:RF-1, 107:RF-7, 107:RF-8, 107:RF-9, 107:RF-14). Todo sintético: registro, costos y área sorteada."""
 from __future__ import annotations
 
 import json
@@ -17,7 +17,8 @@ from convertersmartgrid.pit.alternativas import evaluar
 from convertersmartgrid.pit.ambito import PitError, areas_del_perfil, reunir
 from convertersmartgrid.pit.cuadros import celdas_de_cuadros, definiciones, escribir_libro_de_cuadros
 from convertersmartgrid.pit.diagnostico import agregar_demanda, diagnosticar, limites_del_estudio
-from convertersmartgrid.pit.expediente import abrir, comprobar_modificatoria, emitir, filas_del_programa
+from convertersmartgrid.pit.expediente import (abrir, comprobar_modificatoria, emitir, escribir_informacion_general,
+                                                filas_del_programa)
 from convertersmartgrid.pit.programa import programar
 from convertersmartgrid.pit.red_area import desde_ambito
 from convertersmartgrid.registro_normativo import cargar_registro
@@ -235,6 +236,376 @@ def test_relacion_de_sustento_con_cada_fichero_y_su_huella(tmp_path):
     acta = next(r for r in json.loads(salidas['relacion'].read_text(encoding='utf-8'))
                 if r['fichero'] == 'acta_de_campo.pdf')
     assert acta['descripcion'] == 'Acta de la inspección de campo'
+
+
+# --- Relación de los documentos de sustento por volúmenes y el F-000 (107:RF-14, aclaración de RF-9, P10) ----------
+
+def _relacion_por_volumenes(salidas):
+    assert 'relacion_documentos' in salidas, 'el expediente no escribe la relación por volúmenes'
+    return json.loads(salidas['relacion_documentos'].read_text(encoding='utf-8'))
+
+
+def _todos_en_dos_volumenes(x):
+    """Emite una vez para saber qué documentos tiene el expediente y los reparte en dos volúmenes, con sus folios."""
+    salidas = emitir(x['carpeta'], x['registro'], celdas=x['celdas'], diagnostico=x['diag'], comparacion=x['comp'],
+                     programa=x['prog'])
+    nombres = [r['fichero'] for r in json.loads(salidas['relacion'].read_text(encoding='utf-8'))]
+    nombres = sorted({*nombres, 'relacion_documentos.json'})
+    mitad = len(nombres) // 2
+    colocados = {n: {'volumen': 'I' if i < mitad else 'II', 'folios': i + 2} for i, n in enumerate(nombres)}
+    volumenes = {'volumenes': [{'volumen': 'I', 'titulo': 'Resumen y diagnóstico'},
+                               {'volumen': 'II', 'titulo': 'Sustento y formatos'}], 'documentos': colocados}
+    return nombres, colocados, volumenes
+
+
+def test_relacion_de_sustento_con_sus_seis_campos(tmp_path):
+    """107:RF-14 — num. 5.3: cada documento de sustento figura con su n.º, su fichero, su tipo, la descripción de su
+    contenido, su aplicación y su volumen con sus folios, en la tabla legible y por volumen; la lista de
+    ``relacion_sustento.json`` sigue ordenada por fichero, con su descripción, su uso y su huella."""
+    import hashlib
+
+    x = _piezas(tmp_path)
+    nombres, _, volumenes = _todos_en_dos_volumenes(x)
+    salidas = emitir(x['carpeta'], x['registro'], celdas=x['celdas'], diagnostico=x['diag'], comparacion=x['comp'],
+                     programa=x['prog'], volumenes=volumenes)
+    rel = _relacion_por_volumenes(salidas)
+    assert rel['tabla']['columnas'] == ['n.º', 'fichero', 'tipo', 'descripción', 'aplicación', 'volumen', 'folios']
+    assert sorted(f[1] for f in rel['tabla']['filas']) == nombres
+    for fila in rel['tabla']['filas']:
+        assert all(fila), fila
+        assert fila[2] == 'electrónico'
+    for v in rel['volumenes']:
+        for d in v['documentos']:
+            assert d['descripcion'] and d['aplicacion'] and d['volumen'] == v['volumen'] and d['folio_desde']
+    assert rel['huecos'] == [h for h in rel['huecos'] if h['campo'] == 'F-000']
+    lista = json.loads(salidas['relacion'].read_text(encoding='utf-8'))
+    assert [r['fichero'] for r in lista] == nombres
+    for r in lista:
+        assert r['descripcion'] and r['uso'] and r['aplicacion'] and r['volumen'] in {'I', 'II'}
+        assert r['sha256'] == hashlib.sha256((x['carpeta'] / r['fichero']).read_bytes()).hexdigest()
+
+
+def test_relacion_agrupada_por_volumenes_con_foliado_consecutivo(tmp_path):
+    """107:RF-14 — num. 5.5: los volúmenes salen en su orden, el n.º corre de uno a otro y los folios son
+    consecutivos sin reiniciar en cada volumen; cada volumen dice su primer y su último folio."""
+    x = _piezas(tmp_path)
+    _, colocados, volumenes = _todos_en_dos_volumenes(x)
+    salidas = emitir(x['carpeta'], x['registro'], celdas=x['celdas'], diagnostico=x['diag'], comparacion=x['comp'],
+                     programa=x['prog'], volumenes=volumenes)
+    rel = _relacion_por_volumenes(salidas)
+    assert [v['volumen'] for v in rel['volumenes']] == ['I', 'II']
+    docs = [d for v in rel['volumenes'] for d in v['documentos']]
+    assert [d['numero'] for d in docs] == list(range(1, len(colocados) + 1))
+    assert [d['fichero'] for d in docs] == list(colocados)
+    folio = 1
+    for d in docs:
+        assert (d['folio_desde'], d['folio_hasta']) == (folio, folio + colocados[d['fichero']]['folios'] - 1)
+        folio = d['folio_hasta'] + 1
+    primero, segundo = rel['volumenes']
+    assert primero['folio_desde'] == 1 and segundo['folio_desde'] == primero['folio_hasta'] + 1
+    assert segundo['folio_hasta'] == folio - 1
+    with pytest.raises(PitError, match='III'):
+        emitir(x['carpeta'], x['registro'], celdas=x['celdas'], volumenes={
+            'volumenes': volumenes['volumenes'], 'documentos': {'expediente.json': {'volumen': 'III', 'folios': 1}}})
+
+
+def test_relacion_sin_folios_o_sin_volumen_lleva_su_hueco(tmp_path):
+    """107:RF-14 — un documento sin sus folios interrumpe el foliado de los que siguen, y uno sin volumen no se folia:
+    cada uno lo dice en su hueco, sin inventar folios; sin organización por volúmenes, todos llevan ese hueco."""
+    x = _piezas(tmp_path)
+    salidas = emitir(x['carpeta'], x['registro'], celdas=x['celdas'], volumenes={
+        'volumenes': [{'volumen': 'I', 'titulo': 'Único'}],
+        'documentos': {'expediente.json': {'volumen': 'I', 'folios': 3}, 'cuadros.json': {'volumen': 'I'},
+                       'resumen.json': {'volumen': 'I', 'folios': 2}}})
+    rel = _relacion_por_volumenes(salidas)
+    assert [v['volumen'] for v in rel['volumenes']] == ['I', None]
+    docs = {d['fichero']: d for d in rel['volumenes'][0]['documentos']}
+    assert (docs['expediente.json']['folio_desde'], docs['expediente.json']['folio_hasta']) == (1, 3)
+    assert docs['cuadros.json']['folio_desde'] is None and docs['resumen.json']['folio_desde'] is None
+    causas = {(h['fichero'], h['campo']): h['causa'] for h in rel['huecos']}
+    assert 'cuadros.json' in causas[('cuadros.json', 'folios')]
+    assert 'interrumpido' in causas[('resumen.json', 'folios')]
+    assert ('reglas_aplicadas.json', 'volumen') in causas and not rel['completa']
+    rel = _relacion_por_volumenes(emitir(x['carpeta'], x['registro'], celdas=x['celdas']))
+    assert all(d['volumen'] is None for v in rel['volumenes'] for d in v['documentos'])
+    assert {f for f, c in ((h['fichero'], h['campo']) for h in rel['huecos']) if c == 'volumen'} == {
+        f[1] for f in rel['tabla']['filas']}
+
+
+def test_documento_sin_descripcion_o_sin_aplicacion_es_un_hueco_nombrado(tmp_path):
+    """107:RF-14 — un documento que la empresa declara sin descripción o sin aplicación entra en la relación con su
+    hueco nombrado, nunca con un texto inventado; uno que nadie declara sigue deteniendo la emisión."""
+    x = _piezas(tmp_path)
+    (x['carpeta'] / 'plano_sin_texto.pdf').write_bytes(b'%PDF-1.4 sintetico')
+    (x['carpeta'] / 'hoja_sin_uso.xlsx').write_bytes(b'PK sintetico')
+    salidas = emitir(x['carpeta'], x['registro'], celdas=x['celdas'], volumenes=None, sustento={
+        'plano_sin_texto.pdf': {'descripcion': '', 'aplicacion': 'sustenta el F-101', 'tipo': 'físico'},
+        'hoja_sin_uso.xlsx': {'descripcion': 'Hoja de cálculo de la demanda'}})
+    rel = _relacion_por_volumenes(salidas)
+    filas = {f[1]: f for f in rel['tabla']['filas']}
+    assert {'plano_sin_texto.pdf', 'hoja_sin_uso.xlsx'} <= set(filas)
+    assert filas['plano_sin_texto.pdf'][2:5] == ['físico', '', 'sustenta el F-101']
+    assert filas['hoja_sin_uso.xlsx'][3:5] == ['Hoja de cálculo de la demanda', '']
+    causas = {(h['fichero'], h['campo']) for h in rel['huecos']}
+    assert {('plano_sin_texto.pdf', 'descripcion'), ('hoja_sin_uso.xlsx', 'aplicacion')} <= causas
+    assert ('plano_sin_texto.pdf', 'aplicacion') not in causas and not rel['completa']
+    with pytest.raises(PitError, match='tipo'):
+        emitir(x['carpeta'], x['registro'], celdas=x['celdas'], sustento={
+            'plano_sin_texto.pdf': {'descripcion': 'x', 'uso': 'y', 'tipo': 'otro'},
+            'hoja_sin_uso.xlsx': {'descripcion': 'x', 'uso': 'y'}})
+
+
+def test_documento_declarado_sin_descripcion_deja_el_expediente_incompleto(tmp_path):
+    """Aclaración de 107:RF-14 — un documento declarado sin descripción o sin uso no detiene la emisión: el resumen del
+    expediente dice que sale «incompleto» y lleva ese hueco en sus pendientes, los mismos que la relación."""
+    x = _piezas(tmp_path)
+    (x['carpeta'] / 'memoria_de_campo.pdf').write_bytes(b'%PDF-1.4 sintetico')
+    salidas = emitir(x['carpeta'], x['registro'], celdas=x['celdas'], sustento={
+        'memoria_de_campo.pdf': {'descripcion': '', 'uso': ''}})
+    resumen = json.loads(salidas['resumen'].read_text(encoding='utf-8'))
+    assert resumen.get('estado') == 'incompleto'
+    faltan = {(h['fichero'], h['campo']) for h in resumen['pendientes']}
+    assert {('memoria_de_campo.pdf', 'descripcion'), ('memoria_de_campo.pdf', 'aplicacion')} <= faltan
+    # Sin alternativas, el resumen añade el pendiente del expediente de diagnóstico (aclaración de 107:RF-5, P10c).
+    relacion = [h for h in resumen['pendientes'] if h['campo'] != 'alternativas']
+    assert relacion == _relacion_por_volumenes(salidas)['huecos']
+
+
+def _celdas_de_informacion_general(x, codigos):
+    """Celdas sintéticas de los formatos ``codigos``, con la traza de una celda real del expediente."""
+    base = x['celdas'][0]
+    return [*x['celdas'], *({**base, 'id': f'{c}!sintetica', 'cuadro': c} for c in codigos)]
+
+
+def test_f000_incompleto_nombra_el_formato_del_grupo_que_falta(tmp_path):
+    """Aclaración de 107:RF-14 — el «F-000» no es una plantilla: es el grupo «Formatos de Información General», que la
+    RCD 217-2013 (art. 30.1, Tabla 1 y art. 31) forma con F-001, F-002 y F-003. Si al expediente le falta uno, el F-000
+    sale con el hueco «F-000 incompleto: falta F-00x», y el expediente, «incompleto» con ese hueco en sus pendientes."""
+    x = _piezas(tmp_path)
+    salidas = emitir(x['carpeta'], x['registro'], celdas=_celdas_de_informacion_general(x, ['F-001', 'F-003']))
+    rel = _relacion_por_volumenes(salidas)
+    f000 = rel['F-000']
+    assert f000.get('cumplido') is False
+    assert f000['equivale_a'] == ['F-001', 'F-002', 'F-003'] and f000['faltan'] == ['F-002']
+    assert f000['nombre'] == 'F-000 (grupo: F-001 a F-003)' and any('30.1' in c['donde'] for c in f000['citas'])
+    assert f000['hueco'] == 'F-000 incompleto: falta F-002'
+    resumen = json.loads(salidas['resumen'].read_text(encoding='utf-8'))
+    assert resumen['estado'] == 'incompleto'
+    assert {'campo': 'F-000', 'causa': 'F-000 incompleto: falta F-002', 'fichero': None, 'numero': None} in \
+        resumen['pendientes']
+
+
+def test_f000_cumplido_con_los_tres_formatos_del_grupo(tmp_path):
+    """Aclaración de 107:RF-14 — con F-001, F-002 y F-003 en el expediente, el «F-000» (el grupo «Formatos de
+    Información General» de la RCD 217-2013, art. 30.1) se da por cumplido, sin hueco, y no deja el expediente
+    incompleto por sí mismo; la relación del num. 5.3 sigue siendo una exigencia aparte, sin plantilla."""
+    x = _piezas(tmp_path)
+    salidas = emitir(x['carpeta'], x['registro'],
+                     celdas=_celdas_de_informacion_general(x, ['F-001', 'F-002', 'F-003']))
+    rel = _relacion_por_volumenes(salidas)
+    f000 = rel['F-000']
+    assert f000.get('cumplido') is True
+    assert f000['presentes'] == ['F-001', 'F-002', 'F-003'] and f000['faltan'] == [] and 'hueco' not in f000
+    assert 'práctica de las empresas' in f000['nombre_de_fichero']['nota']
+    assert not [h for h in rel['huecos'] if h['campo'] == 'F-000']
+    resumen = json.loads(salidas['resumen'].read_text(encoding='utf-8'))
+    assert not [h for h in resumen['pendientes'] if h['campo'] == 'F-000']
+    assert all(h['campo'] in {'volumen', 'folios', 'alternativas'} for h in resumen['pendientes'])
+
+
+# --- Libro de Información General de la entrega, el «F-000» (107-P10b; aclaración de 107:RF-14) ---------------------
+
+AREA_IG, PERIODO_IG = 'AD-X', '2025-2029'
+NOMBRE_IG = 'F-000-AD-X_2025-2029.xlsx'
+
+
+def _excel_simulado(orden_de_pasos):
+    """Aplica el plan con openpyxl, como el Excel de las pruebas de los informes, anotando el orden de los pasos."""
+    import re
+    from types import SimpleNamespace
+
+    def ejecutar(orden):
+        plan = json.loads(Path(re.search(r"-LiteralPath '([^']+)'", orden).group(1)).read_text(encoding='utf-8'))
+        libro = openpyxl.load_workbook(plan['modelo'])
+        for i in plan.get('insertar_filas') or ():
+            libro[i['hoja']].insert_rows(i['fila'], i['filas'])
+            orden_de_pasos.append(('insertar', i['hoja'], i['fila']))
+        for e in plan['escribir']:
+            hoja, celda = e['celda'].rsplit('!', 1)
+            libro[hoja][celda] = e['valor']
+            orden_de_pasos.append(('escribir', hoja, celda))
+        orden_de_pasos.append(('modelo', plan['modelo']))
+        libro.save(plan['destino'])
+        return SimpleNamespace(returncode=0, stderr='')
+    return ejecutar
+
+
+def _informacion_general(tmp_path, codigos=('F-001', 'F-002', 'F-003'), lineas_extra=6, sha=None):
+    """Registro real, red sintética (8 líneas en F-002: 3 filas que insertar), un libro «oficial» sintético con sus
+    tres hojas y una marca bajo las líneas de F-002, el alias con su sha y el expediente abierto."""
+    import copy
+    import hashlib
+
+    from test_pit_formatos import FUENTE_RED, NORMATIVA, _red
+
+    from convertersmartgrid.pit.formatos_red import datos_f001, datos_f002, datos_f003
+    from convertersmartgrid.pit.plantillas import cargar_mapeo, celdas_de_formato
+    registro = cargar_registro(NORMATIVA)
+    red = _red(lineas_extra)
+    datos = {'F-001': datos_f001(red, registro, FUENTE_RED)[0], 'F-002': datos_f002(red, FUENTE_RED),
+             'F-003': datos_f003(red, FUENTE_RED)}
+    resultados = [celdas_de_formato(registro, c, datos[c]) for c in codigos]
+    fuentes = tmp_path / 'fuentes'
+    (fuentes / 'libros').mkdir(parents=True)
+    oficial = fuentes / 'libros' / 'informacion_general.xlsx'
+    libro = openpyxl.Workbook()
+    libro.active.title = 'F-001'
+    libro.create_sheet('F-002')
+    libro.create_sheet('F-003')
+    libro['F-002']['A15'] = 'bajo las líneas de ejemplo'
+    libro['F-003']['A1'] = 'F-003 de la plantilla'
+    libro.save(oficial)
+    mapeo = copy.deepcopy(cargar_mapeo())
+    mapeo['alias']['F-000']['plantilla_oficial'] = {
+        'ruta_relativa': 'libros/informacion_general.xlsx',
+        'sha256': sha or hashlib.sha256(oficial.read_bytes()).hexdigest()}
+    carpeta = abrir(tmp_path / 'espacio', AREA_IG, PERIODO_IG, registro, fecha_apertura='2001-06-01')
+    return {'registro': registro, 'resultados': resultados, 'fuentes': fuentes, 'oficial': oficial, 'mapeo': mapeo,
+            'carpeta': carpeta}
+
+
+def test_libro_de_informacion_general_con_el_nombre_del_patron_y_sus_tres_hojas(tmp_path):
+    """Aclaración de 107:RF-14 (P10b) — el «F-000» se entrega como libro aparte, con el nombre del alias del mapeo
+    (``F-000-{area}_{periodo}.xlsx``, de la ficha) y las hojas F-001, F-002 y F-003 de la plantilla oficial (RCD
+    217-2013, art. 30.1), escrito en una copia: el original no cambia."""
+    import hashlib
+
+    x = _informacion_general(tmp_path)
+    antes = hashlib.sha256(x['oficial'].read_bytes()).hexdigest()
+    pasos = []
+    r = escribir_informacion_general(x['carpeta'], x['resultados'], x['fuentes'], ejecutar=_excel_simulado(pasos),
+                                     mapeo=x['mapeo'])
+    assert r['nombre'] == NOMBRE_IG
+    assert r['libro'] is not None and r['libro'].resolve() == (x['carpeta'] / NOMBRE_IG).resolve()
+    assert r['libro'].is_file() and r['motivo'] == ''
+    assert openpyxl.load_workbook(r['libro']).sheetnames == ['F-001', 'F-002', 'F-003']
+    modelo = next(p[1] for p in pasos if p[0] == 'modelo')
+    assert Path(modelo) != x['oficial'] and hashlib.sha256(x['oficial'].read_bytes()).hexdigest() == antes
+
+
+def test_cada_hoja_lleva_las_celdas_de_su_formato(tmp_path):
+    """Aclaración de 107:RF-14 (P10b) — cada hoja lleva las celdas de su formato en su referencia, con las filas que
+    sobran de la plantilla insertadas antes de escribir (lo de debajo baja, no se pisa)."""
+    x = _informacion_general(tmp_path)
+    pasos = []
+    r = escribir_informacion_general(x['carpeta'], x['resultados'], x['fuentes'], ejecutar=_excel_simulado(pasos),
+                                     mapeo=x['mapeo'])
+    assert r['libro'] is not None and r['libro'].is_file()
+    libro = openpyxl.load_workbook(r['libro'])
+    for resultado in x['resultados']:
+        for c in resultado['celdas']:
+            hoja, celda = c['celda'].rsplit('!', 1)
+            if c['valor'] not in (None, ''):
+                assert libro[hoja][celda].value == c['valor'], c['id']
+    assert ('insertar', 'F-002', 15) in pasos
+    assert max(i for i, p in enumerate(pasos) if p[0] == 'insertar') < min(
+        i for i, p in enumerate(pasos) if p[0] == 'escribir')
+    assert libro['F-002']['A18'].value == 'bajo las líneas de ejemplo'
+
+
+def test_falta_un_formato_el_libro_sale_con_lo_que_hay_y_sigue_el_hueco(tmp_path):
+    """Aclaración de 107:RF-14 (P10b) — si falta un formato del grupo, el libro sale con lo que hay: la hoja que falta
+    queda como la plantilla oficial, sin nada inventado, y sigue el hueco «F-000 incompleto: falta F-00x». El art.
+    30.1 de la RCD 217-2013 forma el grupo con los tres; el regulador observa como incompleto un F-000 a medias (IT
+    438-2024, pág. 28) y uno no remitido deja la observación parcialmente subsanada (IT 599-2026, obs. 1.1)."""
+    x = _informacion_general(tmp_path, codigos=('F-001', 'F-002'))
+    r = escribir_informacion_general(x['carpeta'], x['resultados'], x['fuentes'], ejecutar=_excel_simulado([]),
+                                     mapeo=x['mapeo'])
+    assert r['F-000'].get('hueco') == 'F-000 incompleto: falta F-003'
+    assert r['libro'] is not None and r['libro'].is_file()
+    hoja = openpyxl.load_workbook(r['libro'])['F-003']
+    assert [(c.coordinate, c.value) for fila in hoja.iter_rows() for c in fila if c.value is not None] == [
+        ('A1', 'F-003 de la plantilla')]
+    emitidos = emitir(x['carpeta'], x['registro'], celdas=[c for res in x['resultados'] for c in res['celdas']])
+    resumen = json.loads(emitidos['resumen'].read_text(encoding='utf-8'))
+    assert 'F-000 incompleto: falta F-003' in {h['causa'] for h in resumen['pendientes']}
+
+
+def test_el_libro_figura_en_la_relacion_del_5_3(tmp_path):
+    """Aclaración de 107:RF-14 (P10b) — escrito antes de emitir, el libro de Información General figura en la relación
+    de sustento del num. 5.3 con su descripción, su aplicación y su huella; con los tres formatos, el F-000 se cumple."""
+    import hashlib
+
+    x = _informacion_general(tmp_path)
+    escribir_informacion_general(x['carpeta'], x['resultados'], x['fuentes'], ejecutar=_excel_simulado([]),
+                                 mapeo=x['mapeo'])
+    salidas = emitir(x['carpeta'], x['registro'], celdas=[c for res in x['resultados'] for c in res['celdas']])
+    lista = {r['fichero']: r for r in json.loads(salidas['relacion'].read_text(encoding='utf-8'))}
+    assert NOMBRE_IG in lista
+    fila = lista[NOMBRE_IG]
+    assert 'Información General' in fila['descripcion'] and '30.1' in fila['aplicacion']
+    assert fila['sha256'] == hashlib.sha256((x['carpeta'] / NOMBRE_IG).read_bytes()).hexdigest()
+    assert _relacion_por_volumenes(salidas)['F-000']['cumplido'] is True
+
+
+def test_plantilla_oficial_alterada_no_se_usa(tmp_path):
+    """Aclaración de 107:RF-14 (P10b) — la plantilla oficial se comprueba con su sha256 antes de copiarla: si no
+    coincide con el declarado, se para con el fichero y los dos sha, y no sale ningún libro."""
+    x = _informacion_general(tmp_path, sha='0' * 64)
+    with pytest.raises(PitError, match='FUENTE ALTERADA'):
+        escribir_informacion_general(x['carpeta'], x['resultados'], x['fuentes'], ejecutar=_excel_simulado([]),
+                                     mapeo=x['mapeo'])
+    assert not (x['carpeta'] / NOMBRE_IG).exists()
+
+
+def test_plan_de_formatos_no_escribe_sin_saber_donde_insertar(tmp_path):
+    """107-P10b — un formato con filas que insertar sin su sitio (un grupo repetido) no se escribe: insertar a ciegas
+    pisaría las filas de abajo, y el error lo nombra."""
+    from convertersmartgrid.pit.cuadros import plan_de_formatos
+
+    resultado = {'codigo': 'F-101', 'celdas': [], 'filas_a_insertar': {'sistemas:1': 2}, 'insertar_en': [],
+                 'grupos_a_insertar': {'sistemas': 1}}
+    with pytest.raises(PitError, match='F-101'):
+        plan_de_formatos([resultado], modelo=tmp_path / 'm.xls', destino=tmp_path / 'd.xlsx')
+
+
+def test_el_motor_abre_una_copia_fuera_de_las_fuentes_y_el_original_se_comprueba_dos_veces(tmp_path, monkeypatch):
+    """Aclaración de 107:RF-14 (P10b; condición de 28) — el motor recibe una copia en un directorio temporal, fuera de
+    la carpeta de fuentes, y el sha256 del original se comprueba dos veces: antes de copiarlo y después de la corrida."""
+    import hashlib
+
+    from convertersmartgrid.pit import expediente
+    x = _informacion_general(tmp_path)
+    comprobados = []
+
+    def sha_contado(ruta):
+        comprobados.append(Path(ruta).resolve())
+        return hashlib.sha256(Path(ruta).read_bytes()).hexdigest()
+
+    monkeypatch.setattr(expediente, '_sha_de', sha_contado, raising=False)
+    pasos = []
+    escribir_informacion_general(x['carpeta'], x['resultados'], x['fuentes'], ejecutar=_excel_simulado(pasos),
+                                 mapeo=x['mapeo'])
+    assert comprobados.count(x['oficial'].resolve()) == 2
+    modelo = Path(next(p[1] for p in pasos if p[0] == 'modelo')).resolve()
+    assert x['fuentes'].resolve() not in modelo.parents and modelo != x['oficial'].resolve()
+
+
+def test_original_alterado_durante_la_corrida_es_un_error(tmp_path):
+    """Aclaración de 107:RF-14 (P10b; condición de 28) — si el original de la carpeta de fuentes cambia durante la
+    corrida, la segunda comprobación de su sha256 lo dice con los dos sha y se para."""
+    x = _informacion_general(tmp_path)
+    aplicar = _excel_simulado([])
+
+    def excel_que_toca_el_original(orden):
+        hecho = aplicar(orden)
+        with x['oficial'].open('ab') as f:
+            f.write(b'reescrito por el programa de hojas')
+        return hecho
+
+    with pytest.raises(PitError, match='FUENTE ALTERADA tras la corrida'):
+        escribir_informacion_general(x['carpeta'], x['resultados'], x['fuentes'], ejecutar=excel_que_toca_el_original,
+                                     mapeo=x['mapeo'])
 
 
 # --- Modificación del plan vigente en el expediente (107:RF-17, T25) ------------------------------------------------
