@@ -37,7 +37,7 @@ preview = ["geopandas>=0.14", "leafmap>=0.30", "pyproj>=3.6"]
 # Servidor MCP local de solo lectura (spec 077): tools/mcp_conversor.py. La web no lo necesita.
 mcp = ["mcp>=2.3,<3"]
 web = [
-    "fastapi>=0.115", "uvicorn[standard]>=0.30", "python-multipart>=0.0.9", "psutil>=5.9",
+    "fastapi>=0.115", "uvicorn[standard]>=0.30", "python-multipart>=0.0.13", "psutil>=5.9",
     "pyproj>=3.6", "pandas>=2.0", "openpyxl>=3.1", "python-calamine>=0.3",
     "pypdf>=5.0", "python-docx>=1.1", "pillow>=10.0", "pandapower>=3.0",
     "requests>=2.31", "shapely>=2.0", "networkx>=3.0", "PyYAML>=6.0",
@@ -63,7 +63,7 @@ ml = [
 all = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "python-multipart>=0.0.9",
+    "python-multipart>=0.0.13",
     "psutil>=5.9",
     "pypdf>=5.0",
     "pyproj>=3.6",
@@ -134,6 +134,8 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.evaluacion_harness.adaptadores" = "adaptadores"
 "convertersmartgrid.evaluacion_harness.cli" = "presentacion"
 "convertersmartgrid.evaluacion_harness.contratos" = "dominio"
+"convertersmartgrid.evaluacion_harness.estadistica" = "dominio"
+"convertersmartgrid.evaluacion_harness.informe_final" = "aplicacion"
 "convertersmartgrid.evaluacion_harness.ejecucion" = "aplicacion"
 "convertersmartgrid.evaluacion_harness.integracion" = "adaptadores"
 "convertersmartgrid.evaluacion_harness.metricas" = "dominio"

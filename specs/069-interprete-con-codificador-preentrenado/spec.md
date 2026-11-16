@@ -110,6 +110,24 @@ integrador ya había visto los mensajes reservados; por eso se declara también 
   da la medida humana informada (el de fuera de grupo con validación cruzada), y guardará la prueba en la decisión.
 - RF-40: SI hay modelo en uso y no se pudo medir sobre las humanas, ENTONCES EL SISTEMA no aprobará el candidato; sin
   modelo en uso, la puerta de RF-38 no aplica y lo dirá.
+- Aclaración de RF-38 y RF-39 (2026-11-13, auditoría de c7 sobre 3a02ea17): el 41 de 43 de prov-8fd8a405 era dentro de
+  muestra. Su modelo final entrenó con 29 de esas 43 humanas (`confirmadas_que_entrenan` 29,
+  `humanas_modelo_final.independiente` falso) y `tr.cargar()` lo medía sobre ellas, frente al candidato fuera de grupo:
+  ningún candidato honesto podía pasar. Su propia medida fuera de grupo, la guardada, es 31 de 43 (0,721), y la de
+  reg-75fdd605, que no entrenó con ninguna humana, 32 de 43 (0,744): no empeora. Por eso el modelo en uso se mide fuera
+  de muestra, por este orden: (1) su acierto fuera de grupo guardado orden por orden en `humanas_por_orden`; (2) sin él,
+  con `tr.cargar()` solo en las humanas que no vio al entrenar (`vistas_al_entrenar`); (3) si su registro solo guarda la
+  medida agregada fuera de grupo, esa, sin parear, con la cota de McNemar que más acusa al candidato (toda la diferencia
+  como discordantes en contra) y diciendo que es sin parear. No se pudo parear porque prov-8fd8a405 se entrenó antes de
+  `humanas_por_orden` y no guardó cuál acertó: de los totales solo sale d = b − c. La cota b = d, c = 0 es conservadora,
+  no favorece al candidato: la McNemar exacta condiciona en los b + c discordantes con b binomial(b + c, 1/2)
+  (Fagerland, Lydersen y Laake, *BMC Medical Research Methodology* 13:91, 2013, https://doi.org/10.1186/1471-2288-13-91),
+  y con d > 0 fijo su valor p, unilateral o bilateral, no baja al crecer b + c; b = d, c = 0 da el más pequeño posible,
+  así que rechaza más, nunca menos; (4) si no entrenó con ninguna humana, `tr.cargar()` sobre
+  todas; (5) si no consta qué vio, se mide igual y la decisión lo dice. Las dos medidas salen del mismo conjunto: si no
+  coinciden, se compara en la intersección y se dice cuántas quedan. Cada candidato guarda en su registro su
+  `humanas_por_orden` (acierto por huella de la orden y las que vio), para que mañana se le compare así; la medida con
+  `tr.cargar()` sobre todas se sigue dando, marcada `dentro_de_muestra`, y no decide.
 
 ## Fuera de alcance
 

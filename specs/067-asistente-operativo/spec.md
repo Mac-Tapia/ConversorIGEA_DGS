@@ -45,6 +45,9 @@ piezas existían pero no estaban unidas al camino real del operador:
 - RF-8: SI el Transformer de órdenes no se puede cargar, ENTONCES EL SISTEMA seguirá interpretando la
   orden con el modelo local de Ollama.
 - RF-9: SI el Transformer de órdenes no se puede cargar, ENTONCES EL SISTEMA dirá en el plan el motivo.
+- Aclaración de RF-9 (2026-11-13): el motivo nombra a quien no pudo cargar. Sin CUDA decía «No hay GPU CUDA para el gemelo
+  digital» también cuando era el intérprete de órdenes; `training_coordinator.dispositivo` y `mensaje_sin_gpu` reciben
+  quién pide la GPU, y el intérprete se nombra a sí mismo.
 - RF-10: SI el Transformer de órdenes no se puede cargar, ENTONCES EL SISTEMA dirá en el plan qué modelo
   respondió, o que no respondió ninguno.
 - RF-11: CUANDO un plan traiga un aviso del modelo que respondió, LA PANTALLA lo mostrará como aviso.

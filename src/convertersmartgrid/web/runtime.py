@@ -15,7 +15,7 @@ REQUIRED_MODULES = (
     'pyproj',
     'fastapi',
     'uvicorn',
-    'multipart',
+    'python_multipart',
     # Sin psutil jobs.py no puede vigilar el límite RAM de los libros (036:RF-1).
     'psutil',
     # Tercera fuente: VNR-GIS y su normalización GIS/topológica.
@@ -37,7 +37,7 @@ REQUIRED_MODULES = (
 )
 
 MODULOS_POR_CAPACIDAD = {
-    'web': ('convertersmartgrid', 'fastapi', 'uvicorn', 'multipart', 'psutil', 'pydantic'),
+    'web': ('convertersmartgrid', 'fastapi', 'uvicorn', 'python_multipart', 'psutil', 'pydantic'),
     'txt': ('convertersmartgrid',),
     'geografia': ('pyproj',),
     'xlsx': ('pandas', 'openpyxl', 'python_calamine'),

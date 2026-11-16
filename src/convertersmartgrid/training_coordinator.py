@@ -47,10 +47,19 @@ class SinGPU(RuntimeError):
     """No hay GPU CUDA: el gemelo no entrena ni predice en la CPU."""
 
 
-def mensaje_sin_gpu() -> str:
+#: 067:RF-9: quién pide la GPU si no lo dice; los demás se nombran a sí mismos.
+PIDE_GEMELO = 'el gemelo digital'
+PIDE_INTERPRETE = 'el intérprete de órdenes del asistente'
+
+
+def mensaje_sin_gpu(quien: str = PIDE_GEMELO) -> str:
     """Lo que lee el operador sin GPU (086:RF-15). Antes llevaba una orden de pip y una dirección web: en el
-    programa instalado no hay pip que escribir, y lo que falta se instala con el complemento de IA."""
-    return ('No hay GPU CUDA para el gemelo digital: entrena y predice solo en una tarjeta NVIDIA con CUDA, nunca en la '
+    programa instalado no hay pip que escribir, y lo que falta se instala con el complemento de IA.
+
+    067:RF-9: nombra a quien la pidió. Decía «para el gemelo digital» también cuando el que no cargaba era el
+    intérprete de órdenes, y el plan del asistente daba como motivo un modelo que el operador no había pedido
+    (auditoría del 2026-11-13)."""
+    return (f'No hay GPU CUDA para {quien}: entrena y predice solo en una tarjeta NVIDIA con CUDA, nunca en la '
             'CPU. Instale el complemento de IA, que trae PyTorch con CUDA, compruebe el controlador de la tarjeta y '
             'revise el doctor del programa.')
 
@@ -59,12 +68,13 @@ def mensaje_sin_gpu() -> str:
 os.environ.setdefault('CUBLAS_WORKSPACE_CONFIG', ':4096:8')
 
 
-def dispositivo():
+def dispositivo(quien: str = PIDE_GEMELO):
     """La GPU CUDA, siempre (usuario, 2026-10-22: «sí o sí debe conectar a GPU para no usar
     el CPU»). Sin ella, un error que lo dice; nunca la CPU en silencio.
 
     La piden el gemelo, el pronóstico y el asistente; está en el coordinador, con la guardia de
     la GPU, para que el asistente no importe el oráculo del gemelo, que es un adaptador (002:RF-2).
+    ``quien`` es el que la pide, y el mensaje lo nombra (067:RF-9).
     """
     try:
         import torch
@@ -72,7 +82,7 @@ def dispositivo():
         raise ImportError('PyTorch no está instalado (extra «ml»): el oráculo PINN no está disponible hasta '
                           'instalar el complemento de IA; ModeloRadial cumple el mismo contrato') from exc
     if not torch.cuda.is_available():
-        raise SinGPU(mensaje_sin_gpu())
+        raise SinGPU(mensaje_sin_gpu(quien))
     return torch.device('cuda')
 
 

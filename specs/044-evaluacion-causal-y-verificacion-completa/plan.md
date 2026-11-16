@@ -143,6 +143,17 @@ eléctricas del modo por_sistema ni cierra su integración pendiente en el PINN.
 - [ ] Revisar el diff propio, actualizar `CODIGO_FUENTE.md` si se crea código y
   registrar un commit de alcance propio que cite `spec 044 T4`.
 
+## Ampliación 2.A: informe único y estadística común (RF-10 a RF-12)
+
+**Cubre:** RF-10, RF-11, RF-12.
+
+- `src/convertersmartgrid/evaluacion_harness/estadistica.py`: los contrastes de todos los bloques. Sin dependencias
+  nuevas: biblioteca estándar y scipy dentro de las funciones. Se descartó añadir statsmodels a `.venv` (no está, y
+  arrastra pandas); sus valores quedan fijados en las pruebas.
+- `src/convertersmartgrid/evaluacion_harness/informe_final.py` y `tools/evaluacion_final.py`: el consolidador.
+- Pruebas: `tests/test_evaluacion_estadistica.py` (valores publicados) y `tests/test_evaluacion_informe_final.py`
+  (repositorio git de juguete).
+
 ## Cierre y evidencia
 
 Al ejecutar, actualizar [tasks.md](tasks.md) con comandos, resultado, hashes y rutas

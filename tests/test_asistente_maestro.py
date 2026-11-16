@@ -1286,7 +1286,7 @@ def test_via_pedida_expresamente_va_con_turno_y_registro(entorno, monkeypatch, o
     monkeypatch.setattr(transformer, 'dispositivo_de_calculo', lambda: 'cuda')
     import convertersmartgrid.digital_twin.oraculo as oraculo
 
-    monkeypatch.setattr(oraculo, 'dispositivo', lambda: 'cuda')
+    monkeypatch.setattr(oraculo, 'dispositivo', lambda *_a: 'cuda')          # 067:RF-9: el que pide se nombra
 
     def antigua(vocab, **kw):
         kw_vistos.append(kw)

@@ -285,12 +285,15 @@ def test_102_rf23_la_puerta_pasa_todas_las_variables_que_las_pruebas_piden():
     assert del_ejemplo == set(PC.VARIABLES)
 
 
-def test_lo_comun_a_todas_las_pruebas_corre_la_suite_entera(tmp_path):
+def test_lo_comun_a_todas_las_pruebas_corre_la_suite_entera(tmp_path, monkeypatch):
     """106:RF-13 — un cambio en el conftest o en pyproject.toml corre todas las pruebas; un ayudante, las que lo nombran."""
     from apoyo import cargar_herramienta
 
     puerta = cargar_herramienta('puerta_calidad.py', 'puerta_comun', tools_en_path=True)
     raiz = Path(__file__).resolve().parents[1]
+    # PUERTA-CAPAS: el caso «solo capas» se prueba aparte, en un repositorio propio; aquí no depende del índice vivo
+    # (en la puerta, un commit solo de capas está en el índice).
+    monkeypatch.setattr(puerta, 'pyproject_cambia_solo_capas', lambda raiz=None: False, raising=False)
     assert puerta.pruebas_del_commit(['tests/conftest.py'], raiz) == ['tests']
     assert puerta.pruebas_del_commit(['pyproject.toml', 'src/convertersmartgrid/naming.py'], raiz) == ['tests']
     con_fake = puerta.pruebas_del_commit(['tests/fake_pf.py'], raiz)
@@ -354,3 +357,71 @@ def test_106_rf16_un_codigo_de_error_sin_pruebas_fallidas_no_aprueba(tmp_path, m
     juicio = PC._pytest([], {}, tmp_path)
     assert juicio['fallidas'], juicio
     assert 'código 1' in juicio['fallidas'][0]['motivo'] and '106:RF-16' in juicio['fallidas'][0]['motivo']
+
+
+_PYPROJECT = """[project]
+name = "x"
+dependencies = ["a>=1"]
+
+[tool.pytest.ini_options]
+filterwarnings = ["error"]
+
+[tool.convertersmartgrid.capas]
+reglas = "r"
+
+[tool.convertersmartgrid.capas.modulos]
+"x.uno" = "dominio"
+"""
+
+
+def _repo_git_capas(tmp_path: Path, cambio: str | None) -> Path:
+    """Un repositorio con pyproject.toml en HEAD y, en el índice, el pyproject cambiado con ``cambio`` (texto añadido o
+    sustitución «viejo=>nuevo»), más las pruebas de gobierno y las estructurales de capas como ficheros vacíos."""
+    raiz = _repo(tmp_path)
+    for e in getattr(PC, 'ESTRUCTURALES_DE_CAPAS', ()):  # en el rojo aún no existe: falla la aserción, no un AttributeError
+        (raiz / e).write_text('def test_x():\n    pass\n', encoding='utf-8')
+    (raiz / 'pyproject.toml').write_text(_PYPROJECT, encoding='utf-8', newline='\n')
+    git = ['git', '-c', 'user.name=prueba', '-c', 'user.email=prueba@ejemplo.invalid', '-c', 'commit.gpgsign=false']
+    subprocess.run(['git', 'init', '-q'], cwd=raiz, check=True)
+    subprocess.run(git + ['add', '-A'], cwd=raiz, check=True)
+    subprocess.run(git + ['commit', '-q', '-m', 'base'], cwd=raiz, check=True)
+    if cambio is not None:
+        texto = _PYPROJECT
+        for parte in cambio.split('||'):
+            viejo, _, nuevo = parte.partition('=>')
+            texto = texto.replace(viejo, nuevo) if nuevo else texto + viejo
+        (raiz / 'pyproject.toml').write_text(texto, encoding='utf-8', newline='\n')
+        subprocess.run(git + ['add', 'pyproject.toml'], cwd=raiz, check=True)
+    return raiz
+
+
+def test_puerta_capas_solo_capas_no_corre_la_suite_entera(tmp_path):
+    """102:RF-1 (PUERTA-CAPAS) — registrar un módulo en [tool.convertersmartgrid.capas.modulos] y nada más en pyproject
+    no corre la suite entera: corre las de gobierno y las estructurales de la pre-puerta."""
+    raiz = _repo_git_capas(tmp_path, '"x.dos" = "aplicacion"\n')
+    elegidas = PC.pruebas_del_commit(['pyproject.toml'], raiz)
+    assert elegidas != ['tests'], elegidas
+    assert set(PC.GOBIERNO) <= set(elegidas) and set(PC.ESTRUCTURALES_DE_CAPAS) <= set(elegidas), elegidas
+    assert 'tests/test_capas.py' in elegidas and 'tests/test_interactive_architecture.py' in elegidas
+
+
+@pytest.mark.parametrize('cambio', [
+    'filterwarnings = ["error"]=>filterwarnings = ["error", "ignore::DeprecationWarning"]',
+    'dependencies = ["a>=1"]=>dependencies = ["a>=1", "b>=2"]',
+    'dependencies = ["a>=1"]=>dependencies = ["a>=2"]||"x.uno" = "dominio"=>"x.uno" = "aplicacion"',
+], ids=['filterwarnings', 'dependencias', 'mixto'])
+def test_puerta_capas_otro_cambio_de_pyproject_corre_la_suite_entera(tmp_path, cambio):
+    """102:RF-1, 106:RF-13 (PUERTA-CAPAS) — un cambio de pyproject fuera de las capas (los avisos, las dependencias) o
+    mixto (capas y otra cosa) sigue corriendo la suite entera."""
+    raiz = _repo_git_capas(tmp_path, cambio)
+    assert PC.pruebas_del_commit(['pyproject.toml'], raiz) == ['tests']
+
+
+def test_puerta_capas_con_el_conftest_o_sin_cambio_corre_la_suite_entera(tmp_path):
+    """106:RF-13 (PUERTA-CAPAS) — con el conftest en el commit, aunque pyproject solo cambie las capas, la suite entera;
+    y un pyproject sin cambios reales en el índice (o ilegible) no se toma por «solo capas»."""
+    raiz = _repo_git_capas(tmp_path, '"x.dos" = "aplicacion"\n')
+    assert PC.pruebas_del_commit(['tests/conftest.py', 'pyproject.toml'], raiz) == ['tests']
+    (tmp_path / 'b').mkdir()
+    sin_cambio = _repo_git_capas(tmp_path / 'b', None)
+    assert PC.pruebas_del_commit(['pyproject.toml'], sin_cambio) == ['tests']

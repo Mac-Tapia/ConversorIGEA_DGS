@@ -60,6 +60,46 @@ VARIABLES = ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT', 'CSG_MDB', 'CSG_EQUIPMENT_
 #: 106:RF-13: lo que cambia lo que ven todas las pruebas: con uno de estos, la puerta del commit corre la suite entera.
 DE_TODA_LA_SUITE = ('tests/conftest.py', 'pyproject.toml')
 
+#: PUERTA-CAPAS (c3 vía 82, 15-11): un pyproject.toml que SOLO cambia las capas (registrar un módulo en
+#: [tool.convertersmartgrid.capas.modulos]) no toca lo que ven las pruebas; corre lo elegido por los ficheros, las de
+#: gobierno y estas, las estructurales de la pre-puerta del integrador (la lista fija de su prepuerta y los ficheros de
+#: las pruebas que tumbaron puertas el 15-11). Se toman solo las que existen en el repositorio.
+ESTRUCTURALES_DE_CAPAS = (
+    'tests/test_capas.py', 'tests/test_arquitectura_generada.py', 'tests/test_interactive_architecture.py',
+    'tests/test_inventario.py', 'tests/test_json_atomico.py', 'tests/test_instalacion_programa.py',
+    'tests/test_entrega_universal.py', 'tests/test_trazabilidad_specs.py', 'tests/test_contrato_api.py',
+    'tests/test_pf_servidor.py', 'tests/test_pf_arnes_sin_atajos.py', 'tests/test_flexibility_and_scale.py',
+    'tests/test_asistente_textos_del_plan.py', 'tests/test_pit_registro.py', 'tests/test_vad_costos.py',
+    'tests/test_vad_tablas_resultados.py')
+
+
+def _tabla_de_capas(datos: dict) -> tuple[dict, object]:
+    """El pyproject sin la tabla de capas, y la tabla de capas (con sus subtablas)."""
+    import copy
+
+    resto = copy.deepcopy(datos)
+    propia = resto.get('tool', {}).get('convertersmartgrid', {})
+    capas = propia.pop('capas', None) if isinstance(propia, dict) else None
+    return resto, capas
+
+
+def pyproject_cambia_solo_capas(raiz: Path = RAIZ) -> bool:
+    """True si pyproject.toml del índice difiere del de HEAD SOLO en [tool.convertersmartgrid.capas*]. Ante cualquier
+    duda (sin git, sin HEAD, TOML ilegible, ningún cambio o un cambio fuera de las capas) es False: la suite entera."""
+    import tomllib
+
+    def version(ref: str) -> dict:
+        salida = subprocess.run(['git', 'show', f'{ref}pyproject.toml'], cwd=raiz, capture_output=True, check=True)
+        return tomllib.loads(salida.stdout.decode('utf-8'))
+
+    try:
+        antes, despues = version('HEAD:'), version(':')
+    except (OSError, subprocess.CalledProcessError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return False
+    resto_antes, capas_antes = _tabla_de_capas(antes)
+    resto_despues, capas_despues = _tabla_de_capas(despues)
+    return resto_antes == resto_despues and capas_antes != capas_despues
+
 
 #: 106:RF-15: cuántas de las más lentas guarda el resultado, y el umbral de ``faulthandler_timeout`` de pyproject.toml.
 LENTAS_GUARDADAS = 30
@@ -84,6 +124,11 @@ def pruebas_del_commit(ficheros: Iterable[str], raiz: Path = RAIZ) -> list[str]:
     ficheros = [f.replace('\\', '/') for f in ficheros]
     # Sin carpeta de pruebas (el repositorio de las pruebas de los ganchos, 102:RF-16) no hay suite que correr.
     if any(f in DE_TODA_LA_SUITE for f in ficheros) and (raiz / 'tests').is_dir():
+        # PUERTA-CAPAS: si lo único común que cambia es la tabla de capas de pyproject, no hace falta la suite.
+        if 'tests/conftest.py' not in ficheros and pyproject_cambia_solo_capas(raiz):
+            propias = pruebas_del_commit([f for f in ficheros if f != 'pyproject.toml'], raiz)
+            extra = [e for e in ESTRUCTURALES_DE_CAPAS if (raiz / e).is_file()]
+            return list(dict.fromkeys(propias + extra))
         # 106:RF-13: el conftest de la 106 cambió lo que ven todas las pruebas y la puerta corrió solo 16 ficheros.
         return ['tests']
     elegidas = [g for g in GOBIERNO if (raiz / g).is_file()]

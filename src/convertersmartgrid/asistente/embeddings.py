@@ -13,6 +13,8 @@ from pathlib import Path
 from statistics import mean
 from typing import Any, Callable, Iterable, Mapping, Sequence
 from ..runtime_paths import raiz_programa
+# 044:RF-12: Holm vive en la estadística común; se sigue pidiendo desde aquí (047).
+from ..evaluacion_harness.estadistica import ajustar_holm  # noqa: F401
 
 
 def _json_canonico(valor: Any) -> str:
@@ -185,19 +187,6 @@ def comparar_pareado(base: Mapping[str, Any], candidato: Mapping[str, Any], *,
             'ci95_bootstrap': [inferior, superior],
             'p_permutation': (extremos + 1) / (remuestreos + 1),
             'rank_biserial': rango_biserial}
-
-
-def ajustar_holm(p_values: Mapping[str, float]) -> dict[str, float]:
-    """Ajuste de Holm para comparaciones múltiples predefinidas."""
-    orden = sorted(p_values, key=lambda k: p_values[k])
-    ajustados: dict[str, float] = {}
-    anterior = 0.0
-    m = len(orden)
-    for i, clave in enumerate(orden):
-        valor = min(1.0, (m - i) * float(p_values[clave]))
-        anterior = max(anterior, valor)
-        ajustados[clave] = anterior
-    return ajustados
 
 
 def manifiesto_indice(fragmentos: Sequence[Any], vectores: Sequence[Sequence[float]] | None,

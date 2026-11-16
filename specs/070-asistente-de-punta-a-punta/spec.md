@@ -115,6 +115,9 @@ DIgSILENT en esta fase: lo que solo se comprueba allí queda en tareas `[DIgSILE
 - RF-67: EL SISTEMA añadirá frases de entrenamiento con su origen marcado.
 - RF-68: EL SISTEMA tendrá al menos cinco paráfrasis de entrenamiento distintas por tarea.
 - RF-69: EL SISTEMA medirá los candidatos con una prueba sellada nueva de varias paráfrasis por tarea, generada de un modo declarado.
+- Aclaración de RF-69 (2026-11-13): la medida de la sellada que decide se guarda también en su propio bloque
+  (`prueba_sellada_079.medida`), en el informe y en el registro, como la anterior en `prueba_sellada.medida`, y las cifras
+  del registro la leen de ahí; antes solo estaba en `sinteticas`, y el cierre de T11 no la encontraba con su huella.
 - RF-70: EL SISTEMA fijará la huella de esa prueba, independiente del vocabulario del espacio.
 - RF-71: EL SISTEMA no llevará al entrenamiento, a la selección ni a la calibración ninguna familia de esa prueba.
 - RF-72: EL SISTEMA medirá también la prueba anterior, con su huella intacta, como histórica sin decidir.

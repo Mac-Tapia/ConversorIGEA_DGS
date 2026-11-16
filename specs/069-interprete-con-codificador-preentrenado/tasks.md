@@ -26,5 +26,10 @@
 - [x] T12 Puerta de no regresión sobre las humanas frente al modelo en uso, con McNemar exacto. (RF-38 a RF-40)
       Hecho cuando: `tests/test_no_regresion_humanas.py` (069:RF-38 a RF-40) en verde, con el caso de reg-75fdd605
       (43 humanas, 41 frente a 32) RECHAZADO y una diferencia de una orden sin bloquear.
+      Ampliada el 2026-11-13 (aclaración de RF-38 y RF-39): el modelo en uso se compara fuera de muestra y en el mismo
+      conjunto de humanas; `tests/test_no_regresion_humanas.py` (069:RF-39) reproduce el sesgo con las cifras reales de
+      prov-8fd8a405 (rojo en 3a02ea17) y pasa; `tests/test_afinado_ordenes.py` (069:RF-39) comprueba `humanas_por_orden`.
 - [ ] T7 Que un candidato pase todas las puertas, sin ajustar nada mirando la prueba ya medida.
   Hecho cuando: el registro deja un candidato PROMOVIDO, medido con una prueba que no haya orientado el ajuste.
+  Su puerta de no regresión compara con el modelo en uso fuera de muestra (aclaración de RF-38 y RF-39, 2026-11-13):
+  hasta entonces comparaba con la medida dentro de muestra de prov-8fd8a405 y ningún candidato honesto podía pasar.

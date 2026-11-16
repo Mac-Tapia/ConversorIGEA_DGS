@@ -25,7 +25,10 @@ def _metricas():
             'humanas': {'acierto_tarea': 0.72, 'f1_datos': 0.75, 'ejemplos': 43},
             'prueba_sellada': {'decide': False, 'medida': {'acierto_tarea': 0.86, 'f1_datos': 0.68, 'ejemplos': 2068}},
             'rechazo': {'rechazada': 0.92, 'se_cuela': 0.0, 'ejemplos': 206},
-            'en_uso': {'version': ANTERIOR, 'rechazo': {'se_cuela': 0.67}}}
+            # 069:RF-39: la medida fuera de grupo del modelo en uso, la que compara la puerta (31 de 43 en la aclaración).
+            'en_uso': {'version': ANTERIOR, 'rechazo': {'se_cuela': 0.67},
+                       'humanas_honestas': {'origen': 'agregada_fuera_de_grupo', 'aciertos': 31, 'ejemplos': 43, 'vistas': 29,
+                                            'acierto_tarea': 0.721}}}
 
 
 def _candidato(tmp_path, estado='RECHAZADO', reabre=True, marca=b'pesos'):
@@ -67,7 +70,10 @@ def test_guarda_la_decision_del_usuario_con_sus_cifras_y_el_anterior(datos):
     assert fila['modelo_anterior'] == ANTERIOR
     assert fila['cifras']['examen_maestro'] == {'acierto_tarea': 0.964, 'f1_datos': 0.918, 'ejemplos': 110}
     assert fila['cifras']['prueba_sellada']['acierto_tarea'] == 0.86 and fila['cifras']['rechazo']['se_cuela'] == 0.0
-    assert fila['cifras']['modelo_en_uso_al_decidir'] == {'version': ANTERIOR, 'sinteticas': None, 'humanas': None, 'se_cuela': 0.67}
+    # 085:RF-26 con 069:RF-39: del modelo anterior se guarda también su medida fuera de muestra, la que decide.
+    assert fila['cifras']['modelo_en_uso_al_decidir'] == {'version': ANTERIOR, 'sinteticas': None, 'humanas': None,
+                                                          'humanas_fuera_de_muestra': {'acierto_tarea': 0.721, 'ejemplos': 43},
+                                                          'se_cuela': 0.67}
     assert transformer.version_promovida('ordenes') == meu.version_provisional(candidato)
 
 

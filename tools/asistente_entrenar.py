@@ -167,8 +167,9 @@ def main(argv=None) -> int:
     try:
         from convertersmartgrid.asistente import almacen, clasificador, transformer
         from convertersmartgrid.digital_twin.oraculo import dispositivo
+        from convertersmartgrid.training_coordinator import PIDE_INTERPRETE
 
-        dispositivo()
+        dispositivo(PIDE_INTERPRETE)                    # 067:RF-9: sin GPU, el mensaje nombra al intérprete, no al gemelo
     except (ImportError, RuntimeError) as exc:
         salida.write_text(json.dumps({'entrenado': False, 'motivo': str(exc)}, ensure_ascii=False), encoding='utf-8')
         print(f'ERROR: {exc}')

@@ -64,9 +64,9 @@ def modulo_torch():
 
 
 def dispositivo_de_calculo():
-    from ..training_coordinator import dispositivo
+    from ..training_coordinator import PIDE_INTERPRETE, dispositivo
 
-    return dispositivo()
+    return dispositivo(PIDE_INTERPRETE)                                     # 067:RF-9: el mensaje nombra al intérprete
 
 
 def liberar_gpu() -> None:

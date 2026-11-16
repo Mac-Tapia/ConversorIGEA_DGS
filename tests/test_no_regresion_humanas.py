@@ -4,8 +4,16 @@ El 2026-11-12 se promovió reg-75fdd605 con 0 fallos de puertas: en las 43 órde
 (32 de 43) frente a 0,953 (41 de 43) del que sustituyó, prov-8fd8a405. Con menos de 200 humanas decide el
 examen del maestro (085:RF-19) y las humanas solo se informaban; la comparación con el modelo en uso era
 por familia en la sellada. La puerta compara los dos modelos sobre los mismos ejemplos (McNemar exacto).
+
+Auditoría del 2026-11-13 (c7, sobre 3a02ea17): aquel 0,953 era una medida dentro de muestra. prov-8fd8a405 entrenó
+con 29 de esas 43 humanas (``confirmadas_que_entrenan`` 29, ``humanas_modelo_final.independiente`` falso en su
+metrics.json), y ``_medir_en_uso`` lo medía con ``tr.cargar()`` sobre ellas mismas, mientras el candidato se medía
+fuera de grupo. Su propia medida fuera de grupo, la guardada, es 31 de 43 (0,721): el candidato de 32 no empeora.
+Lo que compara la puerta sale ahora del mismo conjunto de humanas y, para los dos modelos, fuera de muestra (069:RF-39).
 """
 from __future__ import annotations
+
+import json
 
 import pytest
 from scipy.stats import binomtest
@@ -35,9 +43,12 @@ def _promovible():
             {'sinteticas': {'acierto_tarea': .83}}, {'ejemplos': 206, 'rechazada': 1.0, 'se_cuela': 0.0})
 
 
-def test_069_rf38_el_caso_de_reg_75fdd605_sale_rechazado():
-    """069:RF-38, 069:RF-39 — 43 humanas, el modelo en uso acierta 41 (0,953) y el candidato 32 (0,744) sobre
-    los mismos ejemplos: la caída es significativa y la decisión sale RECHAZADO, aunque decida el maestro."""
+def test_069_rf38_una_caida_de_41_a_32_sale_rechazada():
+    """069:RF-38 — la aritmética de la puerta con las cifras que se compararon el 2026-11-12: 41 (0,953) frente a 32
+    (0,744) sobre los mismos ejemplos es una caída significativa y sale RECHAZADO, aunque decida el maestro.
+
+    Solo la cuenta: el 41 de prov-8fd8a405 era dentro de muestra, y el flujo ya no lo compara (ver
+    ``test_069_rf39_el_modelo_en_uso_se_mide_fuera_de_muestra``)."""
     filas = _humanas()
     en_uso = _Modelo(filas, set(range(41)), 'prov-8fd8a405')
     candidato = _Modelo(filas, set(range(32)))
@@ -92,18 +103,143 @@ def test_069_rf40_sin_modelo_en_uso_no_aplica_y_si_no_se_pudo_medir_bloquea():
         di.puerta_no_regresion(candidato, candidato[:-1])
 
 
-def test_069_rf39_la_puerta_sale_de_las_humanas_y_del_modelo_en_uso(monkeypatch):
-    """069:RF-39 — la medida del modelo en uso guarda su acierto por orden humana, y la puerta del flujo
-    compara con él al candidato que mide las humanas, sobre las mismas órdenes."""
+def _registro(tmp_path, monkeypatch, candidato_id, metrics, dataset=None):
+    """Un registro del asistente con un solo candidato, como el de ``output/web/_asistente/model_registry``."""
+    carpeta = tmp_path / 'almacen' / 'model_registry' / 'transformer' / 'candidates' / candidato_id
+    carpeta.mkdir(parents=True)
+    (carpeta / 'metrics.json').write_text(json.dumps(metrics), encoding='utf-8')
+    if dataset is not None:
+        (carpeta / 'dataset_manifest.json').write_text(json.dumps(dataset), encoding='utf-8')
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'almacen'))
+
+
+def _en_uso(monkeypatch, filas, aciertos, version):
     from convertersmartgrid.asistente import transformer as tr
 
+    monkeypatch.setattr(tr, 'cargar', lambda *a, **k: _Modelo(filas, aciertos, version))
+
+
+#: Las cifras de prov-8fd8a405 en su metrics.json real (leído el 2026-11-13, sin tocarlo).
+_PROV_8FD8A405 = {'validacion_cruzada': {'confirmadas_que_entrenan': 29, 'confirmadas_que_no_entrenan': 14, 'medida': True,
+                                         'humanas_fuera_de_grupo': {'acierto_tarea': 31 / 43, 'f1_datos': .75, 'ejemplos': 43},
+                                         'humanas_modelo_final': {'acierto_tarea': 41 / 43, 'ejemplos': 43,
+                                                                  'independiente': False, 'decide': False}},
+                  'humanas': {'acierto_tarea': 31 / 43, 'f1_datos': .75, 'ejemplos': 43}}
+
+
+def test_069_rf39_el_modelo_en_uso_se_mide_fuera_de_muestra(tmp_path, monkeypatch):
+    """069:RF-39 — prov-8fd8a405 entrenó con 29 de las 43 humanas: ``tr.cargar()`` sobre ellas da 41 (dentro de muestra).
+    Su medida fuera de grupo guardada es 31: el candidato con 32 fuera de grupo no empeora y no se bloquea, y la puerta
+    dice que la comparación no es pareada porque el registro no guarda cuál acertó ni cuáles vio."""
     filas = _humanas()
-    monkeypatch.setattr(tr, 'cargar', lambda *a, **k: _Modelo(filas, set(range(41)), 'prov-8fd8a405'))
+    _registro(tmp_path, monkeypatch, '8fd8a405a322c80c' + '0' * 48, _PROV_8FD8A405)
+    _en_uso(monkeypatch, filas, set(range(41)), 'prov-8fd8a405a322c80c')
     en_uso = di._medir_en_uso(filas, filas, None)
-    assert en_uso['version'] == 'prov-8fd8a405' and sum(en_uso['aciertos_humanas']) == 41
     puerta = di.no_regresion_humanas(_Modelo(filas, set(range(32))), filas, en_uso)
-    assert puerta['bloquea'] and (puerta['empeora'], puerta['mejora']) == (9, 0)
-    assert puerta['referencia'] == 'prov-8fd8a405'
-    assert not di.no_regresion_humanas(_Modelo(filas, set(range(41))), filas, en_uso)['bloquea']
+    assert not puerta['bloquea'], puerta['motivo']
+    assert puerta['aplica'] and puerta.get('pareada') is False and puerta.get('origen_referencia') == 'agregada_fuera_de_grupo'
+    assert (puerta['aciertos_referencia'], puerta['aciertos_candidato'], puerta['ejemplos']) == (31, 32, 43)
+    assert '29' in puerta['motivo'] and 'sin parear' in puerta['motivo']
+    # La primera frase del motivo, la que lee el informe de la decisión, dice que es la cota y que es conservadora.
+    assert puerta['motivo'].startswith('referencia anterior a humanas_por_orden: cota conservadora')
+    selectiva, sinteticas, medidas, rechazo = _promovible()
+    decision = di.decidir_selectiva(selectiva, 'maestro', sinteticas, medidas, rechazo, no_regresion=puerta)
+    assert decision['no_regresion']['motivo'].startswith('referencia anterior a humanas_por_orden: cota conservadora')
+    # La medida dentro de muestra se sigue dando, marcada: no decide.
+    assert en_uso['humanas']['acierto_tarea'] == 41 / 43 and en_uso['humanas']['dentro_de_muestra'] is True
+    # La cota sin parear (el emparejamiento que más acusa al candidato) sigue bloqueando una caída real: 22 frente a 31.
+    caida = di.no_regresion_humanas(_Modelo(filas, set(range(22))), filas, en_uso)
+    assert caida['bloquea'] and (caida['empeora'], caida['mejora']) == (9, 0)
+    assert abs(caida['p_valor'] - binomtest(9, 9, .5, alternative='greater').pvalue) < 1e-12
+    # Y cuando bloquea, el fallo de la decisión lleva esa misma línea.
+    rechazada = di.decidir_selectiva(selectiva, 'maestro', sinteticas, medidas, rechazo, no_regresion=caida)
+    assert rechazada['status'] == 'RECHAZADO'
+    assert any(f.startswith('no regresión en las humanas: referencia anterior a humanas_por_orden: cota conservadora')
+               for f in rechazada['fallos']), rechazada['fallos']
+
+
+def test_069_rf39_pareada_con_la_medida_guardada_y_en_la_interseccion(tmp_path, monkeypatch):
+    """069:RF-39 — con su acierto por orden guardado, la referencia es esa, orden por orden; si las humanas de hoy no
+    son las mismas, se compara en la intersección y se dice cuántas quedan."""
+    filas = _humanas(45)
+    guardadas = {di.clave_humana(f['texto']): i < 31 for i, f in enumerate(filas[:43])}
+    _registro(tmp_path, monkeypatch, '75fdd605ab8dd4c6' + '0' * 48,
+              {'humanas_por_orden': {'origen': 'fuera_de_grupo', 'aciertos': guardadas, 'vistas_al_entrenar': []}})
+    _en_uso(monkeypatch, filas, set(range(45)), 'reg-75fdd605ab8dd4c6')
+    en_uso = di._medir_en_uso(filas, filas, None)
+    puerta = di.no_regresion_humanas(_Modelo(filas, set(range(32))), filas, en_uso)
+    assert puerta.get('pareada') is True and puerta.get('origen_referencia') == 'fuera_de_grupo'
+    assert (puerta['ejemplos'], puerta['humanas_de_hoy'], puerta['aciertos_referencia']) == (43, 45, 31)
+    assert (puerta['empeora'], puerta['mejora']) == (0, 1) and not puerta['bloquea']
+    assert '43 de las 45' in puerta['motivo']
+
+
+def test_069_rf39_sin_medida_guardada_se_excluyen_las_que_vio(tmp_path, monkeypatch):
+    """069:RF-39 — si el registro dice qué humanas vio y no cuál acertó, se mide con ``tr.cargar()`` solo en las otras."""
+    filas = _humanas()
+    vistas = [di.clave_humana(f['texto']) for f in filas[:29]]
+    _registro(tmp_path, monkeypatch, 'abcdef0123456789' + '0' * 48,
+              {'humanas_por_orden': {'origen': 'fuera_de_grupo', 'vistas_al_entrenar': vistas}})
+    _en_uso(monkeypatch, filas, set(range(41)), 'reg-abcdef0123456789')
+    en_uso = di._medir_en_uso(filas, filas, None)
+    puerta = di.no_regresion_humanas(_Modelo(filas, set(range(32))), filas, en_uso)
+    assert puerta.get('pareada') is True and puerta.get('origen_referencia') == 'sin_las_vistas'
+    # De las 14 que no vio acierta 12 (de la 29 a la 40); el candidato, 3 (de la 29 a la 31).
+    assert (puerta['ejemplos'], puerta['aciertos_referencia'], puerta['aciertos_candidato']) == (14, 12, 3)
+    assert puerta['bloquea'] and '29' in puerta['motivo'] and '14 de las 43' in puerta['motivo']
+
+
+def test_069_rf39_la_que_no_entreno_con_humanas_y_la_que_no_consta(tmp_path, monkeypatch):
+    """069:RF-39 — reg-75fdd605 no entrenó con ninguna humana (solo examinaban): su medida con ``tr.cargar()`` es fuera
+    de muestra. Un modelo que no está en el registro no dice qué vio: se mide igual y se avisa."""
+    filas = _humanas()
+    _registro(tmp_path, monkeypatch, '75fdd605ab8dd4c6' + '0' * 48, {'humanas': {'acierto_tarea': 32 / 43, 'ejemplos': 43}},
+              {'dataset': {'denominadores': {'entrenamiento': {'silver_teacher_verified': 10}, 'prueba': {'gold_human': 43}}}})
+    _en_uso(monkeypatch, filas, set(range(32)), 'reg-75fdd605ab8dd4c6')
+    puerta = di.no_regresion_humanas(_Modelo(filas, set(range(31))), filas, di._medir_en_uso(filas, filas, None))
+    assert puerta.get('pareada') is True and puerta.get('origen_referencia') == 'sin_humanas_en_entrenamiento'
+    assert (puerta['ejemplos'], puerta['aciertos_referencia']) == (43, 32) and not puerta['bloquea']
+    _en_uso(monkeypatch, filas, set(range(41)), '20261024-150042-37ce')
+    heredado = di.no_regresion_humanas(_Modelo(filas, set(range(32))), filas, di._medir_en_uso(filas, filas, None))
+    assert heredado.get('origen_referencia') == 'no_consta' and 'no consta' in heredado['motivo'] and heredado['bloquea']
+
+
+def test_069_rf40_sin_modelo_en_uso_o_sin_medirlo(tmp_path, monkeypatch):
+    """069:RF-40 — sin modelo en uso no aplica; si no se pudo medir, no se aprueba."""
+    filas = _humanas()
     assert di.no_regresion_humanas(_Modelo(filas, set()), filas, {'error': 'no abre'})['bloquea']
     assert di.no_regresion_humanas(_Modelo(filas, set()), filas, None)['aplica'] is False
+
+
+def test_069_rf39_la_cota_sin_parear_es_conservadora():
+    """069:RF-39 — con la diferencia d = b − c fija, el valor p de la McNemar exacta no baja al crecer los discordantes
+    b + c, unilateral (el de la puerta) ni bilateral (Fagerland, Lydersen y Laake, 2013): la cota b = d, c = 0 que se usa
+    sin pares da el más pequeño de todos los emparejamientos que dejan esos totales, y rechaza más, nunca menos.
+    Con cifras sorteadas, contra SciPy."""
+    import random
+
+    azar = random.Random(20261114)
+    for _ in range(300):
+        d, c = azar.randint(1, 25), azar.randint(0, 60)
+        uni = [binomtest(d + k, d + 2 * k, .5, alternative='greater').pvalue for k in (c, c + 1)]
+        bi = [binomtest(d + k, d + 2 * k, .5).pvalue for k in (c, c + 1)]
+        assert uni[0] <= uni[1] + 1e-12 and bi[0] <= bi[1] + 1e-12, (d, c)
+    filas = _humanas()
+    en_uso = {'version': 'prov-8fd8a405', 'humanas_honestas': {'origen': 'agregada_fuera_de_grupo', 'ejemplos': 43, 'vistas': 29}}
+    for _ in range(200):
+        k_r, k_c = azar.randint(0, 43), azar.randint(0, 43)
+        en_uso['humanas_honestas']['aciertos'] = k_r
+        cota = di.no_regresion_humanas(_Modelo(filas, set(range(k_c))), filas, en_uso)
+        d = k_r - k_c
+        if d <= 0:
+            assert cota.get('p_valor') == 1. and not cota['bloquea']
+            continue
+        # Todo emparejamiento con esos totales: c de las 43 que solo acierta el candidato, b = d + c.
+        posibles = []
+        for c in range(0, min(k_c, 43 - k_r) + 1):
+            referencia = [False] * c + [True] * (k_c - c) + [True] * (d + c) + [False] * (43 - k_c - d - c)
+            posibles.append(di.puerta_no_regresion([True] * k_c + [False] * (43 - k_c), referencia))
+        pareadas = [p for p in posibles if p['empeora'] - p['mejora'] == d]
+        assert pareadas and 'p_valor' in cota and all('p_valor' in p for p in pareadas), 'la puerta da su valor p'
+        assert all(cota['p_valor'] <= p['p_valor'] + 1e-12 for p in pareadas)
+        assert cota['bloquea'] >= max(p['bloquea'] for p in pareadas)

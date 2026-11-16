@@ -120,6 +120,44 @@ def test_ninguna_herramienta_fija_rutas_de_datos():
                 assert not patron.search(n.value), f'{p.name}:{n.lineno}: {n.value!r}'
 
 
+#: Una carpeta de la máquina del desarrollo: las carpetas de trabajo de la unidad, el perfil de un usuario o su forma en
+#: Git Bash (/d/…).
+RUTA_DE_LA_MAQUINA = re.compile(
+    r'(?<![A-Za-z])[A-Za-z]:[/\\]+(csg|converter|Users|BaseDatos\w*)(?![A-Za-z0-9])'
+    r'|(?<![A-Za-z0-9.])/[a-z]/(csg|converter)(?![A-Za-z0-9])', re.I)
+
+
+def test_ninguna_herramienta_ni_modulo_nombra_carpetas_de_esta_maquina():
+    """009:RF-8 — ni el código de src/ ni el de tools/ nombran una carpeta de la máquina del desarrollo, tampoco en el
+    docstring: el de una herramienta es su ``--help``, y un ejemplo con «--entrada D:/csg/…» manda al usuario a una
+    carpeta que en su equipo no existe. Las rutas llegan por argumentos o por configuración."""
+    salida = subprocess.run(['git', 'ls-files', 'src/*.py', 'tools/*.py'], cwd=RAIZ, capture_output=True,
+                            text=True, encoding='utf-8', check=True).stdout
+    halladas = []
+    for f in salida.splitlines():
+        ruta = RAIZ / f
+        if not ruta.is_file():
+            continue
+        for n, linea in enumerate(ruta.read_text(encoding='utf-8').splitlines(), 1):
+            if RUTA_DE_LA_MAQUINA.search(linea):
+                halladas.append(f'{f}:{n}: {linea.strip()[:100]}')
+    assert not halladas, 'Carpetas de la máquina del desarrollo en el código:\n' + '\n'.join(halladas)
+
+
+@pytest.mark.parametrize('linea, mala', [
+    ('    python tools/x.py --entrada D:/csg/EVAL_FINAL/medidas.json', True),
+    (r"base = 'C:\Users\ana\datos'", True),
+    ('cd /d/converter/wt_x', True),
+    ('    python tools/x.py --entrada <medidas.json>', False),
+    ('ruta = Path(args.entrada)', False),
+    ("'esquema': 'csg-evaluacion-final-v1'", False),
+    ("prefix='csg-harness-candidato-'", False),
+])
+def test_el_patron_de_carpetas_de_la_maquina_distingue_rutas_de_nombres(linea, mala):
+    """009:RF-8 — la guarda anterior marca una carpeta de la máquina y no un nombre que solo empieza por «csg»."""
+    assert bool(RUTA_DE_LA_MAQUINA.search(linea)) is mala
+
+
 # ----------------------------------------------------------------- specs
 
 def _specs():

@@ -9,8 +9,12 @@ Solo emite ficheros; no escribe en la calibración, el «Caso base» ni DIgSILEN
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
+import csv
 from dataclasses import dataclass
+from datetime import date, datetime
 import hashlib
+import io
+import itertools
 import json
 import math
 from pathlib import Path
@@ -20,7 +24,7 @@ from typing import Any
 
 import numpy as np
 
-from .demanda_medida import clave_codigo, normalizar
+from .demanda_medida import abrir_libro, clave_codigo, filas_de_hoja, normalizar
 from .digital_twin.pronostico import Objetivo
 from .pide import PideError, leer_json_con_huella, leer_proyeccion_anual
 from .pronostico_demanda import (
@@ -44,6 +48,7 @@ from .pronostico_demanda import (
 from .pronostico_demanda import METODOS as METODOS_089
 from .proyeccion_mercado import METODOS as METODOS_ANUALES
 from .proyeccion_mercado import REFERENCIA, MercadoError, SerieMercado, comparar_metodos, leer_formato_01, perfiles_distintos
+from .libros_por_anio import EXTENSIONES, DemandaError
 from .runtime_paths import staging_publicacion
 
 CLASES, MAGNITUDES = ('cliente', 'escaladas'), ('kW', 'kVAR')
@@ -93,6 +98,354 @@ def _calendario(mes: int) -> int:
 
 def _registros_del_mes(mes: int) -> int:
     return int((np.datetime64(int(mes) + 1, 'M') - np.datetime64(int(mes), 'M')).astype('timedelta64[D]').astype(int)) * 96
+
+
+def _fin_de_mes(mes: int) -> date:
+    """El último día de un mes: lo publicado hasta ese día es lo que sabía quien pronosticaba en ese origen (031:RF-20)."""
+    return (np.datetime64(int(mes) + 1, 'M').astype('datetime64[D]') - np.timedelta64(1, 'D')).item()
+
+
+# --------------------------------------------------------------------------- exógenas anuales: PBI y población (031:RF-19 a RF-23)
+#: El método de elasticidad y su ablación. Son métodos anuales: el PBI y la población no tienen resolución de 15 minutos.
+ELASTICIDAD = 'elasticidad_pbi_poblacion'
+SOLO_POBLACION = 'crecimiento_poblacion'
+METODOS_EXOGENOS = (ELASTICIDAD, SOLO_POBLACION)
+#: Con menos cambios de año, una elasticidad sale de un solo punto: es una anécdota, no una medida.
+MIN_CAMBIOS_ELASTICIDAD = 2
+#: Variables que se reconocen y sus nombres habituales; el VAB departamental del INEI es el PBI de la región.
+VARIABLES_EXOGENAS: dict[str, tuple[str, ...]] = {
+    'pbi': ('pbi', 'producto bruto interno', 'producto interno bruto', 'pib', 'vab', 'valor agregado bruto'),
+    'poblacion': ('poblacion', 'poblacion total', 'habitantes'),
+}
+COLUMNAS_EXOGENAS: dict[str, tuple[str, ...]] = {
+    'variable': ('variable', 'indicador', 'serie'),
+    'region': ('region', 'departamento', 'ambito', 'zona'),
+    'anio': ('anio', 'ano', 'year'),
+    'valor': ('valor', 'value', 'cifra'),
+    'unidad': ('unidad', 'unidades', 'unidad de medida'),
+    'fuente': ('fuente', 'source', 'institucion'),
+    'publicado': ('publicado', 'fecha de publicacion', 'fecha publicacion', 'publicacion', 'as of', 'disponible desde'),
+}
+_ESCALAS = (('miles de millones', 1e9), ('millones', 1e6), ('miles', 1e3))
+FILAS_CABECERA_EXOGENAS = 30
+RESOLUCION_EXOGENAS = 'anual: el PBI y la población solo entran en los métodos anuales y nunca en la malla de 15 minutos'
+
+
+@dataclass(frozen=True)
+class CifraExogena:
+    """Una cifra publicada: de qué, dónde, de qué año, cuánto, quién y cuándo (031:RF-19). ``valor`` ya va a escala 1."""
+
+    variable: str
+    region: str
+    anio: int
+    valor: float
+    tipo: str                       # 'nivel' o 'variacion' (en %, respecto del año anterior)
+    unidad: str
+    fuente: str
+    publicado: date
+    lugar: str
+
+
+@dataclass(frozen=True)
+class RegistroExogenas:
+    """Las cifras de un registro, identificado por la huella de su contenido y no por su nombre (031:RF-19)."""
+
+    nombre: str
+    huella: str
+    cifras: tuple[CifraExogena, ...]
+    avisos: tuple[str, ...] = ()
+
+    def regiones(self) -> dict[str, str]:
+        salida: dict[str, str] = {}
+        for c in self.cifras:
+            salida.setdefault(normalizar(c.region), c.region)
+        return salida
+
+    def resumen(self) -> dict[str, Any]:
+        anios = [c.anio for c in self.cifras]
+        return {'registro': self.nombre, 'sha256': self.huella, 'fuentes': sorted({c.fuente for c in self.cifras}),
+                'periodo': [min(anios), max(anios)], 'variables': sorted({c.variable for c in self.cifras}),
+                'regiones': sorted(self.regiones().values()), 'cifras': len(self.cifras), 'avisos': list(self.avisos)}
+
+
+def _fecha(valor: Any, lugar: str = '') -> date:
+    """Una fecha de publicación: fecha de libro, ISO o día/mes/año. Sin fecha no se sabe qué se conocía en cada origen."""
+    if isinstance(valor, datetime):
+        return valor.date()
+    if isinstance(valor, date):
+        return valor
+    texto = str(valor or '').strip()
+    iso = re.fullmatch(r'(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T][0-9:.]*)?', texto)
+    dma = re.fullmatch(r'(\d{1,2})/(\d{1,2})/(\d{4})', texto)
+    partes = (int(iso[1]), int(iso[2]), int(iso[3])) if iso else (int(dma[3]), int(dma[2]), int(dma[1])) if dma else None
+    if partes is not None:
+        try:
+            return date(*partes)
+        except ValueError as exc:
+            raise ProyeccionError(f'{lugar}: «{texto}» no es una fecha de publicación válida ({exc})') from exc
+    raise ProyeccionError(f'{lugar}: «{texto}» no es una fecha de publicación (AAAA-MM-DD o DD/MM/AAAA); sin ella no se sabe qué se conocía en cada origen')
+
+
+def _anio_exogeno(valor: Any, lugar: str) -> int:
+    if isinstance(valor, bool):
+        valor = None
+    if isinstance(valor, (int, float)) and float(valor).is_integer():
+        return int(valor)
+    texto = str(valor or '').strip()
+    if re.fullmatch(r'(19|20)[0-9]{2}(\.0)?', texto):
+        return int(float(texto))
+    raise ProyeccionError(f'{lugar}: «{texto}» no es un año: el PBI y la población son anuales y no se reparten en trimestres, meses ni 15 minutos')
+
+
+def _numero(valor: Any, lugar: str) -> float:
+    if isinstance(valor, (int, float)) and not isinstance(valor, bool):
+        numero = float(valor)
+    else:
+        texto = str(valor or '').strip().replace(' ', '')
+        try:
+            numero = float(texto)
+        except ValueError:
+            try:
+                numero = float(texto.replace('.', '').replace(',', '.')) if ',' in texto else float('nan')
+            except ValueError:
+                numero = float('nan')
+    if not math.isfinite(numero):
+        raise ProyeccionError(f'{lugar}: el valor «{valor}» no es un número')
+    return numero
+
+
+def _unidad(variable: str, texto: str, lugar: str) -> tuple[str, float, str]:
+    """El tipo, la escala y la unidad comparable (sin la escala); lo nominal o desconocido no se lee (031:RF-22)."""
+    u = normalizar(texto)
+    if not u:
+        raise ProyeccionError(f'{lugar}: falta la unidad de {variable}')
+    if variable == 'pbi' and re.search(r'\b(nominal|nominales|corrientes?)\b', u):
+        raise ProyeccionError(f'{lugar}: PBI nominal («{texto}»): la inflación no es crecimiento de la demanda; cargue el PBI a precios constantes')
+    if 'variacion' in u or '%' in u or 'porcentaje' in u:
+        return 'variacion', 1.0, '%'
+    escala = next((f for prefijo, f in _ESCALAS if re.search(rf'\b{prefijo}\b', u)), 1.0)
+    for prefijo, _f in _ESCALAS:
+        u = re.sub(rf'\b{prefijo}( de)?\b', ' ', u)
+    u = ' '.join(u.split())
+    if variable == 'poblacion':
+        if not re.search(r'\b(habitantes|personas)\b', u):
+            raise ProyeccionError(f'{lugar}: unidad de población desconocida «{texto}» (habitantes, miles o millones de habitantes)')
+        return 'nivel', escala, 'habitantes'
+    if not re.search(r'\b(soles|dolares|us\$|s/|indice|moneda)', u):
+        raise ProyeccionError(f'{lugar}: unidad de PBI desconocida «{texto}» (p. ej. «millones de soles de AAAA», con AAAA el año base de sus precios, o «variación % real»)')
+    if not re.search(r'(19|20)[0-9]{2}', u):
+        raise ProyeccionError(f'{lugar}: el PBI en niveles debe decir el año base de sus precios constantes (p. ej. «millones de soles de AAAA»): «{texto}»')
+    return 'nivel', escala, u
+
+
+def _variable(texto: Any, lugar: str) -> str:
+    v = normalizar(texto)
+    for nombre, alias in VARIABLES_EXOGENAS.items():
+        if v in alias:
+            return nombre
+    raise ProyeccionError(f'{lugar}: variable «{texto}» desconocida; el registro admite PBI (o VAB) y población')
+
+
+def _cabecera_exogenas(filas: Sequence[Sequence[Any]]) -> tuple[int, dict[str, int]] | None:
+    for i, fila in enumerate(filas[:FILAS_CABECERA_EXOGENAS]):
+        celdas = [normalizar(x) for x in fila]
+        pos = {campo: next((j for j, c in enumerate(celdas) if c in alias), None) for campo, alias in COLUMNAS_EXOGENAS.items()}
+        if sum(p is not None for p in pos.values()) >= 4:
+            faltan = [c for c, p in pos.items() if p is None]
+            if faltan:
+                raise ProyeccionError(f'fila {i + 1}: a la cabecera del registro le faltan las columnas {", ".join(faltan)}; '
+                                      f'se piden {", ".join(COLUMNAS_EXOGENAS)}')
+            return i, {c: int(p) for c, p in pos.items() if p is not None}
+    return None
+
+
+def _hojas_exogenas(ruta: Path, contenido: bytes) -> list[tuple[str, list[list[Any]]]]:
+    sufijo = ruta.suffix.lower()
+    if sufijo == '.csv':
+        try:
+            texto = contenido.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            texto = contenido.decode('latin-1')          # los CSV exportados por Excel en Windows no siempre van en UTF-8
+        primera = next((x for x in texto.splitlines() if x.strip()), '')
+        delimitador = max(',;\t', key=primera.count)     # el de la cabecera: ',' en el CSV común, ';' en el de Excel en español
+        return [(ruta.name, [list(f) for f in csv.reader(io.StringIO(texto), delimiter=delimitador)])]
+    if sufijo == '.json':
+        try:
+            datos = json.loads(contenido.decode('utf-8-sig'))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ProyeccionError(f'{ruta.name}: no es un JSON legible ({exc})') from exc
+        lista = datos.get('cifras') if isinstance(datos, Mapping) else datos
+        if not isinstance(lista, list) or not all(isinstance(x, Mapping) for x in lista):
+            raise ProyeccionError(f'{ruta.name}: el JSON debe ser una lista de cifras o {{"cifras": [...]}}')
+        claves = list(COLUMNAS_EXOGENAS)
+        return [(ruta.name, [claves, *([x.get(k) for k in claves] for x in lista)])]
+    if sufijo in EXTENSIONES:
+        try:
+            libro = abrir_libro(ruta)
+        except DemandaError as exc:
+            raise ProyeccionError(str(exc)) from exc
+        return [(nombre, filas_de_hoja(libro, nombre)) for nombre in libro.sheet_names]
+    raise ProyeccionError(f'{ruta.name}: extensión no soportada para el registro de PBI y población; use .csv, .json o {", ".join(EXTENSIONES)}')
+
+
+def leer_exogenas_anuales(ruta: Path | str) -> RegistroExogenas:
+    """El registro de PBI y población que carga el operador, con su huella (031:RF-19, RF-22).
+
+    Recorre todas las hojas y reconoce la cabecera por su contenido. Nada se completa: una cifra sin fuente, sin fecha de
+    publicación, nominal, sin año base o de una variable que no es PBI ni población detiene la lectura con su sitio.
+    """
+    ruta = Path(ruta)
+    if not ruta.is_file():
+        raise ProyeccionError(f'no se encuentra el registro de PBI y población: {ruta.name}')
+    contenido = ruta.read_bytes()
+    huella = hashlib.sha256(contenido).hexdigest()
+    cifras: list[CifraExogena] = []
+    avisos: list[str] = []
+    reconocidas = 0
+    for hoja, filas in _hojas_exogenas(ruta, contenido):
+        cabecera = _cabecera_exogenas(filas)
+        if cabecera is None:
+            avisos.append(f'hoja «{hoja}»: sin la cabecera del registro ({", ".join(COLUMNAS_EXOGENAS)}); no se lee')
+            continue
+        reconocidas += 1
+        i, pos = cabecera
+        for n, fila in enumerate(filas[i + 1:], start=i + 2):
+            celdas = {c: (fila[p] if p < len(fila) else None) for c, p in pos.items()}
+            if all(str(v if v is not None else '').strip() == '' for v in celdas.values()):
+                continue
+            lugar = f'{hoja}, fila {n}'
+            variable = _variable(celdas['variable'], lugar)
+            region = str(celdas['region'] or '').strip()
+            if not region:
+                raise ProyeccionError(f'{lugar}: falta la región de la cifra')
+            fuente = str(celdas['fuente'] or '').strip()
+            if not fuente:
+                raise ProyeccionError(f'{lugar}: falta la fuente de la cifra (INEI, BCRP u otra): sin ella no se puede citar')
+            anio = _anio_exogeno(celdas['anio'], lugar)
+            valor = _numero(celdas['valor'], lugar)
+            tipo, escala, unidad = _unidad(variable, str(celdas['unidad'] or ''), lugar)
+            if tipo == 'nivel' and valor <= 0:
+                raise ProyeccionError(f'{lugar}: un nivel de {variable} debe ser positivo; vale {valor}')
+            if tipo == 'variacion' and valor <= -100:
+                raise ProyeccionError(f'{lugar}: una variación de {valor} % deja {variable} sin nivel positivo')
+            cifras.append(CifraExogena(variable, region, anio, valor * escala, tipo, unidad, fuente, _fecha(celdas['publicado'], lugar), lugar))
+    if not reconocidas:
+        raise ProyeccionError(f'{ruta.name}: ninguna hoja trae la cabecera del registro ({", ".join(COLUMNAS_EXOGENAS)}). ' + ' '.join(avisos))
+    if not cifras:
+        raise ProyeccionError(f'{ruta.name}: el registro de PBI y población no trae cifras')
+    _comprobar_registro(cifras)
+    orden = sorted(cifras, key=lambda c: (c.variable, normalizar(c.region), c.anio, c.publicado, c.tipo, c.lugar))
+    return RegistroExogenas(ruta.name, huella, tuple(orden), tuple(avisos))
+
+
+def _comprobar_registro(cifras: Sequence[CifraExogena]) -> None:
+    """Una sola unidad comparable por serie, y ninguna cifra contradictoria el mismo día (031:RF-22)."""
+    unidades: dict[tuple[str, str], CifraExogena] = {}
+    vistas: dict[tuple, CifraExogena] = {}
+    for c in cifras:
+        serie = (c.variable, normalizar(c.region))
+        if c.tipo == 'nivel':
+            primera = unidades.setdefault(serie, c)
+            if primera.unidad != c.unidad:
+                raise ProyeccionError(f'{c.lugar}: {c.variable} de {c.region} en «{c.unidad}» y en «{primera.unidad}» ({primera.lugar}): '
+                                      'dos bases distintas no se empalman sin decir cómo')
+        clave = (*serie, c.anio, c.tipo, c.publicado)
+        previa = vistas.setdefault(clave, c)
+        if previa is not c and not math.isclose(previa.valor, c.valor, rel_tol=1e-9):
+            raise ProyeccionError(f'{c.lugar}: {c.variable} {c.anio} de {c.region} publicada el mismo día con dos valores '
+                                  f'({previa.valor} en {previa.lugar} y {c.valor}): no se elige una al azar')
+
+
+def exogenas_al_corte(registro: RegistroExogenas, region: str, corte: date | str) -> dict[str, Any]:
+    """Lo que se sabía de una región el día del corte: de cada año, la última cifra publicada hasta entonces (031:RF-20).
+
+    Lo publicado después se rechaza y se anota. Una variación se encadena al nivel ya resuelto del año anterior; sin él,
+    el año falta y se dice (031:RF-22).
+    """
+    regiones = registro.regiones()
+    clave = normalizar(region)
+    if not clave or clave not in regiones:
+        raise ProyeccionError(f'la región «{region}» no está en el registro {registro.nombre} (sha256 {registro.huella[:16]}); '
+                              f'trae: {", ".join(sorted(regiones.values()))}. No se usa otra en su lugar')
+    corte = _fecha(corte, 'corte')
+    elegidas: dict[tuple[str, int], CifraExogena] = {}
+    rechazadas: list[dict[str, Any]] = []
+    for c in registro.cifras:
+        if normalizar(c.region) != clave:
+            continue
+        if c.publicado > corte:
+            rechazadas.append({'variable': c.variable, 'anio': c.anio, 'publicado': c.publicado.isoformat(), 'fuente': c.fuente})
+            continue
+        previa = elegidas.get((c.variable, c.anio))
+        if previa is None or (c.publicado, c.tipo == 'nivel') > (previa.publicado, previa.tipo == 'nivel'):
+            elegidas[(c.variable, c.anio)] = c
+    niveles: dict[str, dict[int, float]] = {v: {} for v in VARIABLES_EXOGENAS}
+    sin_ancla: list[dict[str, Any]] = []
+    for (variable, anio), c in sorted(elegidas.items()):
+        if c.tipo == 'nivel':
+            niveles[variable][anio] = c.valor
+        elif anio - 1 in niveles[variable]:
+            niveles[variable][anio] = niveles[variable][anio - 1] * (1 + c.valor / 100)
+        else:
+            sin_ancla.append({'variable': variable, 'anio': anio, 'motivo': f'variación sin el nivel de {anio - 1} publicado hasta el corte'})
+    return {'region': regiones[clave], 'corte': corte.isoformat(), 'niveles': niveles, 'rechazadas': rechazadas, 'sin_ancla': sin_ancla}
+
+
+def _proyeccion_exogena(nombre: str, niveles: Mapping[str, Mapping[int, float]], hist: Mapping[int, float], corte: int,
+                        anios: Iterable[int]) -> tuple[dict[int, float], list[str], float]:
+    """Cada año pedido, en orden, mientras haya sus exógenas; lo que falta y la elasticidad medida (031:RF-21, RF-22).
+
+    Δln(D/N) = ε·Δln(PBI/N), con ε por mínimos cuadrados sin término independiente; la ablación usa ε = 0. Nada se interpola.
+    """
+    s = sorted((a, v) for a, v in hist.items() if a <= corte)
+    if not s:
+        raise MercadoError('sin años hasta el corte')
+    if any(v <= 0 for _a, v in s):
+        raise MercadoError('un año sin demanda positiva no da elasticidad')
+    usa = ('poblacion',) if nombre == SOLO_POBLACION else ('pbi', 'poblacion')
+    pbi, pob = niveles.get('pbi') or {}, niveles.get('poblacion') or {}
+
+    def falta(a: int) -> list[str]:
+        return [v for v in usa if a not in (niveles.get(v) or {})]
+
+    a0, d0 = s[-1]
+    if falta(a0):
+        raise MercadoError(f'faltan {" y ".join(falta(a0))} de {a0} publicados hasta el corte: no se inventan')
+    e = 0.0
+    if nombre == ELASTICIDAD:
+        cambios = [(math.log((d1 / pob[a1]) / (dp / pob[ap])), math.log((pbi[a1] / pob[a1]) / (pbi[ap] / pob[ap])))
+                   for (ap, dp), (a1, d1) in itertools.pairwise(s) if a1 == ap + 1 and not falta(ap) and not falta(a1)]
+        if len(cambios) < MIN_CAMBIOS_ELASTICIDAD:
+            raise MercadoError(f'la elasticidad necesita {MIN_CAMBIOS_ELASTICIDAD} cambios de año con PBI y población; hay {len(cambios)}')
+        sxx = sum(x * x for _y, x in cambios)
+        if sxx <= 1e-12:
+            raise MercadoError('el PBI por habitante no cambia en la historia: no hay elasticidad que medir')
+        e = sum(y * x for y, x in cambios) / sxx
+    salida: dict[int, float] = {}
+    faltan: list[str] = []
+    for a in sorted(set(anios)):
+        if falta(a):
+            faltan.append(f'{" y ".join(falta(a))} de {a}')
+            break
+        crece = pob[a] / pob[a0]
+        if nombre == ELASTICIDAD:
+            crece *= ((pbi[a] / pob[a]) / (pbi[a0] / pob[a0])) ** e
+        salida[a] = d0 * crece
+    return salida, faltan, e
+
+
+def metodo_exogeno(nombre: str, niveles: Mapping[str, Mapping[int, float]]) -> Callable[[Mapping[int, float], int, Iterable[int]], dict[int, float]]:
+    """El método con la firma de los anuales de ``proyeccion_mercado``; ``MercadoError`` si le falta un año (031:RF-22)."""
+    if nombre not in METODOS_EXOGENOS:
+        raise ProyeccionError(f'{nombre} no es un método con exógenas ({", ".join(METODOS_EXOGENOS)})')
+
+    def metodo(hist: Mapping[int, float], corte: int, anios: Iterable[int]) -> dict[int, float]:
+        salida, faltan, _e = _proyeccion_exogena(nombre, niveles, hist, corte, anios)
+        if faltan:
+            raise MercadoError(f'{nombre}: faltan {faltan[0]} publicados hasta el corte; no se interpolan')
+        return salida
+
+    return metodo
 
 
 @dataclass
@@ -164,17 +517,21 @@ def historia_del_grupo(series: Iterable[_Serie], origen: int | None = None) -> d
 
 
 # --------------------------------------------------------------------------- candidatos
-def _razones_anuales(metodo: str, hist: Mapping[int, float], hasta: int) -> dict[int, float]:
-    """Lo que proyecta un método anual, para el factor sobre el año base. ``MercadoError`` si no le alcanza."""
+def _razones_anuales(metodo: str, hist: Mapping[int, float], hasta: int, metodos: Mapping[str, Callable] = METODOS_ANUALES) -> dict[int, float]:
+    """Lo que proyecta un método anual, para el factor sobre el año base. ``MercadoError`` si no le alcanza.
+
+    ``metodos`` trae, además de los de ``proyeccion_mercado``, los exógenos con lo publicado hasta el corte (031:RF-20).
+    """
     if not hist:
         raise MercadoError('sin años comparables')
     if any(v <= 0 for v in hist.values()):
         raise MercadoError('un año sin demanda positiva no da tasa')      # la Q cruza el cero con los bancos
     ultimo = max(hist)
-    return dict(METODOS_ANUALES[metodo](dict(hist), ultimo, range(ultimo, hasta + 1)))
+    return dict(metodos[metodo](dict(hist), ultimo, range(ultimo, hasta + 1)))
 
 
-def _predecir_anual(metodo: str, s: SerieMensual, origen: int, futuros: Sequence[int], historia: Mapping[str, Mapping[int, float]]) -> dict[int, tuple[float, float]] | None:
+def _predecir_anual(metodo: str, s: SerieMensual, origen: int, futuros: Sequence[int], historia: Mapping[str, Mapping[int, float]],
+                    metodos: Mapping[str, Callable] = METODOS_ANUALES) -> dict[int, tuple[float, float]] | None:
     """El mismo mes de su último año por el crecimiento del grupo que da el método, en demanda media y en máxima.
 
     «Sin crecimiento» es repetir el último valor: con los dos años de la cabecera real, anclarlo al año en curso lo hacía idéntico a
@@ -188,7 +545,7 @@ def _predecir_anual(metodo: str, s: SerieMensual, origen: int, futuros: Sequence
         razones, hist = {}, historia[campo]
         if metodo != REFERENCIA_SIN_DOS_ANIOS:
             try:
-                razones = _razones_anuales(metodo, hist, _anio(max(futuros)))
+                razones = _razones_anuales(metodo, hist, _anio(max(futuros)), metodos)
             except MercadoError:
                 return None
         por_calendario: dict[int, int] = {}
@@ -227,7 +584,7 @@ def _predecir_perfil(metodo: str, s: _Serie, origen: int, futuros: Sequence[int]
 
 
 def _familia(nombre: str) -> str:
-    if nombre in METODOS_ANUALES:
+    if nombre in METODOS_ANUALES or nombre in METODOS_EXOGENOS:
         return 'anual'
     return 'perfil' if nombre in (*METODOS_089, CON_TEMPERATURA) else 'modelo'
 
@@ -311,8 +668,12 @@ def _factor_primer_anio(media_max: Mapping[int, tuple[float, float]], s: SerieMe
 
 
 def _competir_grupo(objetivos: Sequence[Objetivo], candidatos: Sequence[str], modelos: Sequence[str], *, paso_meses: int, semilla: int,
-                    exogenas: Exogenas | None, ajustes: Mapping | None, fabrica: Callable, log: Callable) -> dict[str, Any]:
-    """Todos los candidatos en una clase y magnitud, sobre los mismos datos y orígenes (031:RF-2 a RF-4)."""
+                    exogenas: Exogenas | None, ajustes: Mapping | None, fabrica: Callable, log: Callable,
+                    metodos_de: Callable[[int], Mapping[str, Callable]] | None = None) -> dict[str, Any]:
+    """Todos los candidatos en una clase y magnitud, sobre los mismos datos y orígenes (031:RF-2 a RF-4).
+
+    ``metodos_de(origen)`` da los métodos exógenos con lo publicado hasta ese origen (031:RF-20, RF-21).
+    """
     series = {s.nombre: s for s in (_serie(o) for o in objetivos) if s.meses.media}
     resultado: dict[str, Any] = {'objetivos': len(series), 'regla_version': REGLA['version'], 'candidatos': {}, 'historia_anual': historia_del_grupo(series.values())}
     if not series:
@@ -331,7 +692,12 @@ def _competir_grupo(objetivos: Sequence[Objetivo], candidatos: Sequence[str], mo
             if not futuros or observados[0] > origen:
                 continue
             for c in candidatos:
-                p = _predecir_anual(c, s.meses, origen, futuros, historias[origen]) if c in METODOS_ANUALES else _predecir_perfil(c, s, origen, futuros, exogenas)
+                if c in METODOS_EXOGENOS:
+                    p = _predecir_anual(c, s.meses, origen, futuros, historias[origen], metodos_de(origen)) if metodos_de else None
+                elif c in METODOS_ANUALES:
+                    p = _predecir_anual(c, s.meses, origen, futuros, historias[origen])
+                else:
+                    p = _predecir_perfil(c, s, origen, futuros, exogenas)
                 if p:
                     pred[c][(nombre, origen)] = {m: p[m] for m in futuros if m in p}
     log(f'{len(series)} objetivos y {len(origenes)} orígenes medidos')
@@ -479,45 +845,111 @@ def formato_01_propio(series: Iterable[SerieMercado], *, empresa: str | None, si
     return propias, notas
 
 
-def medir_formato_01(series: Sequence[SerieMercado]) -> dict[str, Any]:
-    """Cada método anual a cada año adelante, cortando la historia completa de la empresa (031:RF-3, RF-8)."""
-    errores: dict[str, dict[int, list[tuple[float, float]]]] = {m: {} for m in METODOS_ANUALES}
-    cortes: dict[str, dict[int, int]] = {m: {} for m in METODOS_ANUALES}
-    for s in perfiles_distintos(x for x in series if x.historico):
+def medir_formato_01(series: Sequence[SerieMercado], exogenas: Callable[[date], Mapping[str, Callable]] | None = None) -> dict[str, Any]:
+    """Cada método anual a cada año adelante, cortando la historia completa de la empresa (031:RF-3, RF-8).
+
+    Con ``exogenas(corte)``, la elasticidad y su ablación compiten también, con lo publicado hasta el 31 de diciembre del año
+    de corte (031:RF-20, RF-21), y solo si dan todos los cortes que da la referencia: mismos datos para todos (RF-2).
+    """
+    nombres = [*METODOS_ANUALES, *(METODOS_EXOGENOS if exogenas else ())]
+    errores: dict[str, dict[int, list[tuple[float, float]]]] = {m: {} for m in nombres}
+    cortes: dict[str, dict[int, int]] = {m: {} for m in nombres}
+    ape: dict[str, dict[int, list[float]]] = {m: {} for m in nombres}          # por perfil, como en comparar_metodos
+    sin_dato: dict[str, list[str]] = {m: [] for m in nombres}
+    for i, s in enumerate(perfiles_distintos(x for x in series if x.historico)):
         anios = sorted(s.historico)
         for corte in anios[2:-1]:
             visible = {a: v for a, v in s.historico.items() if a <= corte}
             futuros = [a for a in anios if a > corte]
-            for nombre, metodo in METODOS_ANUALES.items():
-                pronostico = metodo(visible, corte, futuros)
+            metodos = {**METODOS_ANUALES, **(exogenas(date(corte, 12, 31)) if exogenas else {})}
+            for nombre in nombres:
+                try:
+                    pronostico = metodos[nombre](visible, corte, futuros)
+                except MercadoError as exc:
+                    if nombre not in METODOS_EXOGENOS:
+                        raise
+                    sin_dato[nombre].append(f'{s.codigo or s.nombre} {corte}: {exc}')
+                    continue
                 for a in futuros:
                     errores[nombre].setdefault(a - corte, []).append((abs(pronostico[a] - s.historico[a]), abs(s.historico[a])))
                     cortes[nombre][a - corte] = cortes[nombre].get(a - corte, 0) + 1
+                    ape[nombre].setdefault(i, []).append(abs(pronostico[a] - s.historico[a]) / s.historico[a] * 100.0)
     por_anio = {m: {str(k): {'wape': sum(e for e, _r in v) / sum(r for _e, r in v), 'n': len(v)} for k, v in sorted(d.items())} for m, d in errores.items()}
     horizonte = max((k for d in cortes.values() for k in d), default=0)
     if not horizonte:
         return {'usado': False, 'motivo': 'el Formato 01 no tiene tres años completos para cortar', 'por_anio': por_anio, 'anios_validados': 0}
-    ganador = comparar_metodos(series, horizonte=horizonte)['ganador']
+    comparacion = comparar_metodos(series, horizonte=horizonte)
+    ganador = comparacion['ganador']
+    exo: dict[str, dict[str, Any]] = {}
+    for nombre in nombres:
+        if nombre not in METODOS_EXOGENOS:
+            continue
+        if sin_dato[nombre] or set(ape[nombre]) != set(ape[REFERENCIA]):
+            exo[nombre] = {'compite': False, 'motivo': (sin_dato[nombre] or ['no da los mismos perfiles que la referencia'])[0]}
+            continue
+        exo[nombre] = {'compite': True, 'mediana_error_pct': statistics.median(statistics.fmean(v) for v in ape[nombre].values())}
+    mejor_exo = min((n for n, v in exo.items() if v['compite']), key=lambda n: exo[n]['mediana_error_pct'], default=None)
+    if mejor_exo is not None and exo[mejor_exo]['mediana_error_pct'] < comparacion['mediana_error_pct'][ganador]:
+        ganador = mejor_exo
     validados = 0
     for k in range(1, horizonte + 1):
         if cortes[ganador].get(k, 0) >= MIN_ORIGENES and validados == k - 1:
             validados = k
-    return {'usado': True, 'ganador': ganador, 'por_anio': por_anio, 'anios_validados': validados, 'series': [s.codigo or s.nombre for s in series]}
+    salida = {'usado': True, 'ganador': ganador, 'por_anio': por_anio, 'anios_validados': validados, 'series': [s.codigo or s.nombre for s in series]}
+    if exogenas:
+        salida['exogenas'] = exo
+    return salida
 
 
 def competir(dataset: Dataset, *, candidatos: Sequence[str] | None = None, modelos: Sequence[str] = (), formato_01: Sequence[SerieMercado] = (),
              semilla: int = 0, paso_meses: int = 1, ajustes: Mapping | None = None, fabrica: Callable = fabrica_modelo,
-             clases: Sequence[str] | None = None, log: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
+             clases: Sequence[str] | None = None, log: Callable[[str], None] = lambda _m: None,
+             exogenas_anuales: RegistroExogenas | None = None, region: str | None = None, corte_exogenas: date | str | None = None) -> dict[str, Any]:
     """Compite y elige por clase y magnitud, con la regla escrita antes de medir (031:RF-2 a RF-4, RF-8, RF-14).
 
-    Sin GPU, un modelo neuronal queda ``NO_DISPONIBLE`` con su motivo y compiten los demás.
+    Sin GPU, un modelo neuronal queda ``NO_DISPONIBLE`` con su motivo y compiten los demás. Con un registro de PBI y
+    población, la elasticidad y su ablación compiten igual que los demás métodos anuales, cada origen con lo publicado hasta
+    él (031:RF-20, RF-21); la emisión usa lo publicado hasta ``corte_exogenas`` o, sin él, hasta el último mes medido.
     """
     nombres = list(candidatos) if candidatos is not None else [*METODOS_ANUALES, *METODOS_089]
     exogenas = dataset.exogenas
     if candidatos is None and exogenas is not None and len(exogenas.temperatura):
         nombres.append(CON_TEMPERATURA)
+    pedidos_exo = [c for c in nombres if c in METODOS_EXOGENOS]
+    metodos_de = None
+    al_corte: dict[int, dict[str, Any]] = {}
+    emision: dict[str, Any] | None = None
+    if exogenas_anuales is None:
+        if pedidos_exo:
+            raise ProyeccionError(f'{", ".join(pedidos_exo)} necesitan el registro de PBI y población: no se compite con cifras supuestas')
+        resumen_exo: dict[str, Any] = {'usado': False, 'motivo': 'sin registro de PBI y población: compiten los métodos sin exógenas'}
+    else:
+        if not str(region or '').strip():
+            raise ProyeccionError('con el registro de PBI y población hace falta la región del estudio: no se elige una por defecto')
+        finales = [int(_mes(t[np.isfinite(y)][-1:])[0]) for t, y in (arreglos(o) for o in dataset.objetivos if len(o.curva)) if np.isfinite(y).any()]
+        if not finales:
+            raise ProyeccionError('ningún objetivo con datos: no hay corte para el PBI y la población')
+        corte_emision = _fecha(corte_exogenas, 'corte de las exógenas') if corte_exogenas is not None else _fin_de_mes(max(finales))
+        emision = exogenas_al_corte(exogenas_anuales, str(region), corte_emision)
+        if candidatos is None:
+            nombres.extend(METODOS_EXOGENOS)
+
+        def metodos_de(origen: int) -> dict[str, Callable]:
+            if origen not in al_corte:
+                al_corte[origen] = exogenas_al_corte(exogenas_anuales, str(region), min(_fin_de_mes(origen), corte_emision))
+            return {n: metodo_exogeno(n, al_corte[origen]['niveles']) for n in METODOS_EXOGENOS}
+
+        resumen_exo = {**exogenas_anuales.resumen(), 'usado': True, 'region': emision['region'], 'corte_emision': emision['corte'],
+                       'rechazadas_emision': emision['rechazadas'], 'sin_ancla_emision': emision['sin_ancla'], 'resolucion': RESOLUCION_EXOGENAS,
+                       'regla_asof': 'cada origen usa solo lo publicado hasta el último día de su mes, y de cada año la última cifra publicada'}
+
+    def exogenas_formato(corte: date) -> dict[str, Callable]:
+        niveles = exogenas_al_corte(exogenas_anuales, str(region), min(corte, _fecha(emision['corte'])))['niveles']
+        return {n: metodo_exogeno(n, niveles) for n in METODOS_EXOGENOS}
+
     salida: dict[str, Any] = {'regla': dict(REGLA), 'semilla': semilla, 'paso_meses': paso_meses, 'candidatos': nombres, 'modelos': list(modelos), 'grupos': {}}
-    salida['formato_01'] = medir_formato_01(formato_01) if formato_01 else {'usado': False, 'motivo': 'la empresa no da Formato 01 con años completos', 'anios_validados': 0}
+    salida['formato_01'] = (medir_formato_01(formato_01, exogenas_formato if emision is not None else None) if formato_01
+                            else {'usado': False, 'motivo': 'la empresa no da Formato 01 con años completos', 'anios_validados': 0})
     if clases is None:
         # Sin libros de clientes no hay escaladas (089:RF-73): se proyecta el alimentador entero y sus cargas se reparten (RF-12).
         clases = CLASES if any(o.clase == 'escaladas' for o in dataset.objetivos) else (*CLASES, 'cabecera')
@@ -527,9 +959,27 @@ def competir(dataset: Dataset, *, candidatos: Sequence[str] | None = None, model
             por_grupo.setdefault((o.clase, o.magnitud), []).append(o)
     for (clase, magnitud), objetivos in sorted(por_grupo.items()):
         log(f'Competición {clase}|{magnitud}: {len(objetivos)} objetivos')
-        grupo = _competir_grupo(objetivos, nombres, modelos, paso_meses=paso_meses, semilla=semilla, exogenas=exogenas, ajustes=ajustes, fabrica=fabrica, log=log)
+        grupo = _competir_grupo(objetivos, nombres, modelos, paso_meses=paso_meses, semilla=semilla, exogenas=exogenas, ajustes=ajustes, fabrica=fabrica, log=log,
+                                metodos_de=metodos_de)
+        if emision is not None:
+            grupo['elasticidad_pbi_emision'] = _elasticidad_de(grupo.get('historia_anual') or {}, emision['niveles'])
         salida['grupos'][f'{clase}|{magnitud}'] = {'clase': clase, 'magnitud': magnitud, **grupo}
+    if emision is not None:
+        resumen_exo['rechazadas_por_origen'] = {_rotulo(o): len(v['rechazadas']) for o, v in sorted(al_corte.items())}
+    salida['exogenas_anuales'] = resumen_exo
     return sin_infinitos(salida)
+
+
+def _elasticidad_de(historia: Mapping[str, Mapping[int, float]], niveles: Mapping[str, Mapping[int, float]]) -> dict[str, Any]:
+    """La elasticidad que usará la emisión, medida con toda la historia del grupo y lo publicado hasta el corte (031:RF-23)."""
+    hist = {int(a): float(v) for a, v in (historia.get('maxima') or {}).items()}
+    if not hist:
+        return {'elasticidad': None, 'motivo': 'el grupo no tiene años comparables'}
+    try:
+        _s, _f, e = _proyeccion_exogena(ELASTICIDAD, niveles, hist, max(hist), [max(hist)])
+    except MercadoError as exc:
+        return {'elasticidad': None, 'motivo': str(exc)}
+    return {'elasticidad': e, 'anios': sorted(hist)}
 
 
 # --------------------------------------------------------------------------- Formato 01 desde la cabecera
@@ -735,14 +1185,46 @@ def _base(serie: _Serie, instantes: np.ndarray) -> tuple[float, str, str] | None
     return float(serie.y[i]), str(serie.t[i])[:19], 'máxima propia: no tiene dato en las máximas del alimentador'
 
 
+def _razones_exogenas(ganador: str, hist: Mapping[int, float], hasta: int, exogenas: Mapping[str, Any] | None) -> tuple[dict[int, float], int, str]:
+    """Lo que da un ganador exógeno con lo publicado hasta el corte de emisión, hasta el último año con cifras (031:RF-22).
+
+    Sin el primer año no se emite con otro método en su nombre: se dice qué falta.
+    """
+    if exogenas is None:
+        raise ProyeccionError(f'el ganador {ganador} necesita el registro de PBI y población con que compitió')
+    ultimo = max(hist)
+    try:
+        razones, faltan, _e = _proyeccion_exogena(ganador, exogenas['niveles'], hist, ultimo, range(ultimo, hasta + 1))
+    except MercadoError as exc:
+        raise ProyeccionError(f"{ganador} (región {exogenas['region']}, publicado hasta {exogenas['corte']}): {exc}") from exc
+    disponibles = max(razones) - ultimo
+    if disponibles < 1:
+        raise ProyeccionError(f"{ganador} ganó, pero faltan {faltan[0]} en {exogenas['region']} publicados hasta {exogenas['corte']}: "
+                              'no se inventan; cargue la cifra publicada o compita sin exógenas')
+    nota = '' if not faltan else (f"PBI y población publicados hasta {exogenas['corte']} llegan a {ultimo + disponibles} (faltan {faltan[0]}); "
+                                  'después, la tasa de largo plazo')
+    return razones, disponibles, nota
+
+
 def _factores_de(nombre: str, grupo: Mapping[str, Any], formato: Mapping[str, Any] | None, serie_formato: SerieMercado | None,
-                 hasta: int) -> tuple[dict[int, float], str, bool]:
-    """El factor de cada año adelante: el crecimiento del grupo con el ganador o, sin él, el nivel del año que sigue y lo que diga el Formato 01."""
+                 hasta: int, exogenas: Mapping[str, Any] | None = None) -> tuple[dict[int, float], str, bool, int | None]:
+    """El factor de cada año adelante: el crecimiento del grupo con el ganador o, sin él, el nivel del año que sigue y lo que diga el Formato 01.
+
+    El cuarto valor es el último año adelante que el ganador exógeno puede dar con lo publicado (031:RF-22); ``None`` si no aplica.
+    """
     ganador = grupo['ganador']
     usar_cola = bool(formato and formato.get('usado') and serie_formato is not None)
     nota = ''
+    limite: int | None = None
     if ganador == REFERENCIA_SIN_DOS_ANIOS:
         factores = dict.fromkeys(range(1, hasta + 1), 1.0)
+    elif ganador in METODOS_EXOGENOS:
+        hist = {int(a): v for a, v in (grupo.get('historia_anual') or {}).get('maxima', {}).items()}
+        if not hist:
+            raise ProyeccionError(f'el grupo de {nombre} no tiene años comparables para {ganador}')
+        ultimo = max(hist)
+        razones, limite, nota = _razones_exogenas(ganador, hist, ultimo + hasta, exogenas)
+        factores = {k: razones[ultimo + min(k, limite)] / hist[ultimo] for k in range(1, hasta + 1)}
     elif _familia(ganador) == 'anual':
         hist = {int(a): v for a, v in (grupo.get('historia_anual') or {}).get('maxima', {}).items()}
         try:
@@ -759,11 +1241,16 @@ def _factores_de(nombre: str, grupo: Mapping[str, Any], formato: Mapping[str, An
     if usar_cola:
         hist = dict(serie_formato.historico)
         ultimo = max(hist)
-        cola = METODOS_ANUALES[formato['ganador']](hist, ultimo, range(ultimo, ultimo + hasta + 1))
+        if formato['ganador'] in METODOS_EXOGENOS:
+            cola, alcance, nota_exo = _razones_exogenas(formato['ganador'], hist, ultimo + hasta, exogenas)
+            limite = alcance                  # desde el segundo año manda la cola: el año 1 ya viene del grupo
+        else:
+            cola, nota_exo = METODOS_ANUALES[formato['ganador']](hist, ultimo, range(ultimo, ultimo + hasta + 1)), ''
+            limite = None                     # la cola da todos los años: lo exógeno del grupo solo pone el primero
         for k in range(2, hasta + 1):
-            factores[k] = factores[1] * cola[ultimo + k] / cola[ultimo + 1]
-        nota = f"desde el segundo año, {formato['ganador']} del Formato 01 de la empresa"
-    return factores, nota, usar_cola
+            factores[k] = factores[1] * cola[min(ultimo + k, max(cola))] / cola[ultimo + 1]
+        nota = ' · '.join(x for x in (f"desde el segundo año, {formato['ganador']} del Formato 01 de la empresa", nota_exo) if x)
+    return factores, nota, usar_cola, limite
 
 
 def tasa_de_largo_plazo() -> float:
@@ -820,7 +1307,7 @@ def aceptacion(validado: int, horizonte: int, orden: Mapping[str, Any] | None) -
 def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str, anio_base: int, anio_corto: int, anio_fin: int,
               cargas: Sequence[Carga] | None = None, sistema_de: Mapping[str, str] | None = None, formato_01: Sequence[SerieMercado] = (),
               orden: Mapping[str, Any] | None = None, extra: Mapping[str, Any] | None = None,
-              tasa_cola: float | None = None) -> tuple[dict, dict]:
+              tasa_cola: float | None = None, exogenas_anuales: RegistroExogenas | None = None) -> tuple[dict, dict]:
     """P y Q de cada carga en cada año, con su banda, y su evaluación (031:RF-5 a RF-7, RF-9, RF-12).
 
     ``filas`` son los años que continúan el corto plazo, los únicos que admite ``leer_proyeccion_anual``; los anteriores, en
@@ -845,6 +1332,18 @@ def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str
     por_codigo_formato = {normalizar(s.codigo): s for s in formato_01}
     avisos: list[str] = []
     cargas_apartadas: list[dict] = []
+    limites: list[int] = []
+    exo = competencia.get('exogenas_anuales') or {'usado': False}
+    exogenas = None
+    ganadores_exo = sorted({g for g, v in grupos.items() if v['ganador'] in METODOS_EXOGENOS} | ({'formato_01'} if formato.get('ganador') in METODOS_EXOGENOS else set()))
+    if exo.get('usado') and exogenas_anuales is not None:
+        if exogenas_anuales.huella != exo['sha256']:
+            raise ProyeccionError(f"el registro de PBI y población recibido (huella {exogenas_anuales.huella[:16]}) no es el de la competición "
+                                  f"(huella {exo['sha256'][:16]}): no se mezclan cifras")
+        exogenas = exogenas_al_corte(exogenas_anuales, exo['region'], exo['corte_emision'])
+    elif ganadores_exo:
+        raise ProyeccionError(f"{', '.join(ganadores_exo)}: el ganador usa PBI y población; hace falta el registro con que compitió"
+                              f" (huella {str(exo.get('sha256') or '')[:16]})")
 
     def alimentador_de(o: Objetivo) -> str:
         return str(o.fuente.get('alimentador') or o.ident) if o.clase == 'cliente' else o.ident
@@ -868,9 +1367,14 @@ def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str
         grupo_de = {m: grupos.get(f'{clase}|{m}') for m in MAGNITUDES}
         if grupo_de['kW'] is None or grupo_de['kVAR'] is None:
             return None
-        fp, nota_p, cola = _factores_de(p.nombre, grupo_de['kW'], formato, serie_formato, adelante_fin)
-        fq, nota_q, _c = _factores_de(q.nombre, grupo_de['kVAR'], formato, serie_formato, adelante_fin)
+        fp, nota_p, cola, lim_p = _factores_de(p.nombre, grupo_de['kW'], formato, serie_formato, adelante_fin, exogenas)
+        fq, nota_q, _c, lim_q = _factores_de(q.nombre, grupo_de['kVAR'], formato, serie_formato, adelante_fin, exogenas)
         validados = _validados(grupo_de['kW'], grupo_de['kVAR'], formato, cola)
+        tope = [x for x in (lim_p, lim_q) if x is not None]
+        if tope:
+            # 031:RF-22: lo validado no pasa del último año con PBI y población publicados; desde ahí, la tasa de largo plazo.
+            validados = min(validados, min(tope))
+            limites.append(min(tope))
         salida.update(p=base_p, q=base_q, fp=_con_cola(fp, validados, tasa_cola), fq=_con_cola(fq, validados, tasa_cola),
                       nota=' · '.join(x for x in (nota_p, nota_q) if x), grupo_p=grupo_de['kW'], grupo_q=grupo_de['kVAR'],
                       validados=validados, objetivo=p.nombre)
@@ -941,12 +1445,14 @@ def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str
             (filas if k > anio_corto else filas_corto).append(fila)
     modelo = 'proyeccion_anual_v{}[{}]'.format(REGLA['version'], ';'.join(f"{g}={v['ganador']}" for g, v in sorted(grupos.items())))
     validado = min((_validados(v, v, formato, bool(formato.get('usado') and formato_01)) for v in grupos.values()), default=0)
+    if limites:
+        validado = min(validado, min(limites))
     meses = min((int((v.get('validacion') or {}).get('meses') or 0) for v in grupos.values()), default=0)
     estado, via = aceptacion(validado, adelante_fin, orden)
     evaluacion = {'estado': estado, 'aceptacion': via, 'uso': 'planeamiento_anual', 'modelo': modelo, 'dataset_sha256': huella,
                   'horizonte_anios': anio_fin, 'anios_a_validar': adelante_fin, 'horizonte_validado_anios': validado, 'horizonte_validado_meses': meses,
                   'anio_base': anio_base, 'anio_corto': anio_corto, 'anio_fin': anio_fin, 'anio_ultimo_dato': anio_datos, 'ultimo_mes_medido': _rotulo(fin_datos),
-                  'tasa_de_largo_plazo': tasa_cola,
+                  'tasa_de_largo_plazo': tasa_cola, 'exogenas_anuales': exo,
                   'regla': competencia['regla'], 'semilla': competencia.get('semilla'), 'ganadores': {g: v['ganador'] for g, v in grupos.items()},
                   'competencia': competencia, 'cargas_apartadas': cargas_apartadas, 'avisos': sorted(set(avisos)) + list(dataset.avisos), 'apartados': dataset.apartados,
                   **dict(extra or {})}
@@ -1054,13 +1560,18 @@ def pronosticar_estudio(fuentes: Fuentes, *, carpeta: Path | str, proyecto: str,
                         sistema_de: Mapping[str, str] | None = None, sistemas: Mapping[str, Mapping[str, str]] | None = None,
                         formato_01: Path | str | None = None, cargas: Sequence[Carga] | None = None, modelos: Sequence[str] = (), semilla: int = 0,
                         paso_meses: int = 1, ajustes: Mapping | None = None, orden: Mapping[str, Any] | None = None, dataset: Dataset | None = None,
-                        log: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
+                        log: Callable[[str], None] = lambda _m: None, exogenas_anuales: Path | str | None = None, region: str | None = None,
+                        corte_exogenas: date | str | None = None) -> dict[str, Any]:
     """De los libros a la proyección y su evaluación, de nivel superior para correr en el proceso del trabajo (031:RF-1, RF-13, RF-15).
 
     Sin Formato 01 de la empresa, lo construye con la cabecera; una proyección ya hecha con los mismos libros se devuelve tal cual.
+    Con un registro de PBI y población, su huella entra en la firma: otro registro obliga a pronosticar de nuevo (031:RF-19).
     """
     carpeta = Path(carpeta).resolve()
+    registro = leer_exogenas_anuales(exogenas_anuales) if exogenas_anuales else None
     pedido = {'regla': REGLA['version'], 'proyecto': proyecto, 'anio_base': anio_base, 'anio_corto': anio_corto, 'anio_fin': anio_fin, 'modelos': list(modelos), 'semilla': semilla, 'paso_meses': paso_meses}
+    if registro is not None:
+        pedido.update(exogenas=registro.huella, region=region, corte_exogenas=None if corte_exogenas is None else str(corte_exogenas))
     firma = _firma_de_fuentes(fuentes, pedido) if dataset is None else (dataset.huella + json.dumps(pedido, sort_keys=True))
     hecha = None if orden else pronostico_al_dia(carpeta, firma)
     if hecha is not None:
@@ -1082,10 +1593,11 @@ def pronosticar_estudio(fuentes: Fuentes, *, carpeta: Path | str, proyecto: str,
                 series = formato_01_propio(leer_formato_01(construido), empresa=empresa)[0]
             except MercadoError as exc:
                 notas.append(f'Formato 01 construido: {exc}')
-    competencia = competir(dataset, modelos=modelos, formato_01=series, semilla=semilla, paso_meses=paso_meses, ajustes=ajustes, log=log)
+    competencia = competir(dataset, modelos=modelos, formato_01=series, semilla=semilla, paso_meses=paso_meses, ajustes=ajustes, log=log,
+                           exogenas_anuales=registro, region=region, corte_exogenas=corte_exogenas)
     extra = {'firma_fuentes': firma, 'notas_formato_01': notas, 'formato_01_construido': None if construido is None else construido.name}
     proyeccion, evaluacion = proyectar(dataset, competencia, proyecto=proyecto, anio_base=anio_base, anio_corto=anio_corto, anio_fin=anio_fin, cargas=cargas,
-                                       sistema_de=sistema_de, formato_01=series, orden=orden, extra=extra)
+                                       sistema_de=sistema_de, formato_01=series, orden=orden, extra=extra, exogenas_anuales=registro)
     referencia = escribir_proyeccion(carpeta, proyeccion, evaluacion)
     if evaluacion['estado'] == 'aceptado':
         fijar_vigente(carpeta, referencia)

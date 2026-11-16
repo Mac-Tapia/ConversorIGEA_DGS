@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 353 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 355 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
-| Herramientas y guiones | `tools/` | 109 |
+| Herramientas y guiones | `tools/` | 110 |
 | Interfaz | `frontend/src/` | 71 |
 | Pruebas de la interfaz | `frontend/test/` | 27 |
-| Pruebas | `tests/` | 470 |
+| Pruebas | `tests/` | 476 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -28,19 +28,19 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 3 |
 | retirada | 1 |
 
-112 specs con 3725 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3733 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 139 |
-| aplicacion | Apl | 105 |
-| dominio | Dom | 54 |
+| aplicacion | Apl | 106 |
+| dominio | Dom | 55 |
 | presentacion | Pre | 41 |
 | puertos | Pue | 3 |
 
-342 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+344 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -448,6 +448,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `evaluacion_modelos.py` | Apl | 044 | Política previa y validación de cuatro particiones por grupos. |
 | `experimentos.py` | Apl | 043 | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. |
 | `upstream_ia.py` | Ada | 043 | Verifica origen, commit, licencia y árbol limpio de repositorios reutilizados. |
+| `evaluacion_harness/estadistica.py` | Dom | 044, 069, 047 | Estadística común de la evaluación: Wilson, Holm, McNemar exacto, HAC, Diebold-Mariano con HLN, Wilcoxon con biserial, TOST, Bland-Altman, kappa,… |
+| `evaluacion_harness/informe_final.py` | Apl | 044 | Informe único `docs/EVALUACION_FINAL_1.0.json`: rev, árbol limpio, huellas, IC, prueba, Holm y negativos. |
 
 ### Gemelo digital: `digital_twin/`
 
@@ -752,6 +754,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `madrl_entrenar.py` | — | 074 | Entrena el control MaskablePPO del piloto y lo compara con sus referencias. |
 | `madrl_obras.py` | — | 074 | Mide la escalera y NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios. |
 | `mcp_conversor.py` | — | 077 | Servidor MCP local, solo stdio y solo lectura, con las tres lecturas del asistente. |
+| `evaluacion_final.py` | — | 044 | Consolida la evaluación final de la 1.0 en `docs/EVALUACION_FINAL_1.0.json` y, con `--comprobar`, la relee. |
 
 ### Herramientas: calidad y entrega
 

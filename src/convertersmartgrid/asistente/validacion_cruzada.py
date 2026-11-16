@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 import hashlib
 import random
@@ -213,6 +213,8 @@ class Validacion:
     modelo_final: Any
     informe: dict[str, Any]
     por_tarea: dict[str, dict]
+    #: 069:RF-39: las confirmadas con que entrenó el modelo final; las que vio no lo miden cuando sea el modelo en uso.
+    entrenables: list[dict] = field(default_factory=list)
 
 
 def _clave_de_fila(r: dict) -> str:
@@ -246,7 +248,7 @@ def ejecutar(humanas: Sequence[dict], entrenamiento: Sequence[dict], vedadas: It
 
     if len(familias) < k:
         informe.update(medida=False, motivo=f'hay {len(familias)} familias de órdenes confirmadas para {k} vueltas')    # 075:RF-9
-        return Validacion(None, final(), informe, por_tarea)
+        return Validacion(None, final(), informe, por_tarea, list(entrenables))
     vueltas = repartir_en_vueltas(familias, k, semilla)
     informe['reparto_huella'] = huella([sorted(_identidad(f) for f in v) for v in vueltas])
     predicciones: dict[str, dict] = {}
@@ -273,7 +275,7 @@ def ejecutar(humanas: Sequence[dict], entrenamiento: Sequence[dict], vedadas: It
         del modelo
         liberar()
     informe.update(medida=True, vueltas=resumen)
-    return Validacion(FueraDeGrupo(predicciones), final(), informe, por_tarea)
+    return Validacion(FueraDeGrupo(predicciones), final(), informe, por_tarea, list(entrenables))
 
 
 def resumen_por_tarea(medida_por_tarea: dict[str, dict], estados: dict[str, dict], *, acierto_minimo: float, f1_minimo: float) -> dict[str, dict]:

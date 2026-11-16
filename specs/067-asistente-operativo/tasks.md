@@ -3,6 +3,8 @@
 - [x] T1 Evidencia de los trabajos reales y revisión desde el botón. (RF-1 a RF-7)
   Hecho cuando: `pytest -q tests/test_asistente_operativo.py -k evidencia` en verde, sin registrar a mano.
 - [x] T2 Aviso del modelo que respondió. (RF-8 a RF-11)
+  Ampliada el 2026-11-13 (aclaración de RF-9): `tests/test_asistente_operativo.py` (067:RF-9) comprueba que sin GPU el
+  motivo nombra al intérprete de órdenes y el del gemelo, al gemelo.
   Hecho cuando: `pytest -q tests/test_asistente_operativo.py -k aviso` en verde.
 - [x] T3 Planes guardados por espacio. (RF-12 a RF-19)
   Hecho cuando: `pytest -q tests/test_asistente_operativo.py -k guardado` en verde.

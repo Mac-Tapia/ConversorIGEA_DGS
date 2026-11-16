@@ -30,7 +30,8 @@
 - [x] T10 [DIgSILENT] Las etapas, los faltantes y las consultas se leen en la consola de la web real, en el navegador.
   Hecho cuando: hay capturas de un plan de etapas, de un plan con faltantes y de una consulta.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
-- [ ] T11 [DIgSILENT] Un candidato entrenado pasa las puertas en la prueba nueva; lo lanza el integrador.
-  Hecho cuando: el registro deja un candidato PROMOVIDO medido con esa prueba.
+- [ ] T11 [DIgSILENT] Un candidato entrenado pasa las puertas en la prueba nueva; lo lanza el integrador. (RF-69)
+  Hecho cuando: el registro deja un candidato PROMOVIDO medido con esa prueba, con su medida en
+  `prueba_sellada_079.medida` (aclaración de RF-69) y la no regresión fuera de muestra (069, aclaración de RF-38 y RF-39).
 - [x] T12 Un solo modelo del catálogo a la caché de la web. (RF-77)
   Hecho cuando: `pytest -q tests/test_preparacion_modelos_ia.py` en verde; la web de prueba reabre el intérprete con el codificador en su caché.

@@ -19,9 +19,10 @@ from . import almacen, transformer
 
 #: Familia del registro y carpeta de sus modelos en uso.
 FAMILIAS = transformer.FAMILIAS_MODELOS
-_PREFIJO = transformer.PREFIJO_REGISTRO
-#: Un prefijo propio: ``_candidato_de`` lleva los ``reg-`` a ``promover``, que rechazaría a uno de estos.
-_PREFIJO_PROVISIONAL = 'prov-'
+#: Prefijo de las versiones en uso que salen del registro (067:RF-20). Público: ``destilacion_integral`` lo lee (069:RF-39).
+PREFIJO = transformer.PREFIJO_REGISTRO
+#: Un prefijo propio: ``_candidato_de`` lleva los ``reg-`` a ``promover``, que rechazaría a uno de estos (085:RF-26).
+PREFIJO_PROVISIONAL = 'prov-'
 _LARGO = transformer.LARGO_VERSION_REGISTRO
 _ARTEFACTOS = ('pesos.pt', 'modelo.json')
 
@@ -36,18 +37,18 @@ def version_de(candidate_id: str) -> str:
 
 def _candidato_de(familia: str, version: str | None) -> str | None:
     """El candidato del registro de una versión en uso; ``None`` si es un modelo heredado."""
-    if not version or not version.startswith(_PREFIJO):
+    if not version or not version.startswith(PREFIJO):
         return None
-    hallados = list((registro().raiz / familia / 'candidates').glob(f'{version[len(_PREFIJO):]}*'))
+    hallados = list((registro().raiz / familia / 'candidates').glob(f'{version[len(PREFIJO):]}*'))
     return hallados[0].name if len(hallados) == 1 else None
 
 
 def version_provisional(candidate_id: str) -> str:
-    return f'{_PREFIJO_PROVISIONAL}{candidate_id[:_LARGO]}'
+    return f'{PREFIJO_PROVISIONAL}{candidate_id[:_LARGO]}'
 
 
 def _candidato_provisional_de(familia: str, version: str) -> str | None:
-    hallados = list((registro().raiz / familia / 'candidates').glob(f'{version[len(_PREFIJO_PROVISIONAL):]}*'))
+    hallados = list((registro().raiz / familia / 'candidates').glob(f'{version[len(PREFIJO_PROVISIONAL):]}*'))
     return hallados[0].name if len(hallados) == 1 else None
 
 
@@ -94,11 +95,14 @@ def cifras_de(detalle: dict) -> dict[str, Any]:
     rechazo, previo = m.get('rechazo') or {}, m.get('en_uso') or {}
     return {'examen_maestro': _una_cifra(m.get('examen_maestro')),
             'prueba_sellada': _una_cifra((m.get('prueba_sellada') or {}).get('medida')),
+            'prueba_sellada_079': _una_cifra((m.get('prueba_sellada_079') or {}).get('medida')),      # 070:RF-69, 079:RF-47
             'sinteticas': _una_cifra(m.get('sinteticas')), 'humanas': _una_cifra(m.get('humanas')),
             'rechazo': {k: rechazo[k] for k in ('rechazada', 'se_cuela', 'ejemplos') if k in rechazo},
             'fallos_de_puertas': len(detalle['decision'].get('fallos') or ()),
             'modelo_en_uso_al_decidir': {'version': previo.get('version'), 'sinteticas': _una_cifra(previo.get('sinteticas')),
                                          'humanas': _una_cifra(previo.get('humanas')),
+                                         # 069:RF-39: la de fuera de muestra, la que compara la puerta de no regresión.
+                                         'humanas_fuera_de_muestra': _una_cifra(previo.get('humanas_honestas')),
                                          'se_cuela': (previo.get('rechazo') or {}).get('se_cuela')}}
 
 
@@ -126,7 +130,7 @@ def poner_provisional(familia: str, candidate_id: str, *, decidido_por: str, mot
 def uso_provisional(familia: str) -> dict[str, Any] | None:
     """La decisión del modelo en uso si es provisional; sale del puntero, y deja de valer al volver o al aprobarse otro (085:RF-29)."""
     version = transformer.version_promovida(FAMILIAS[familia])
-    if not version or not version.startswith(_PREFIJO_PROVISIONAL):
+    if not version or not version.startswith(PREFIJO_PROVISIONAL):
         return None
     candidato = _candidato_provisional_de(familia, version)
     fila = registro().uso_provisional(familia, candidato) if candidato else None

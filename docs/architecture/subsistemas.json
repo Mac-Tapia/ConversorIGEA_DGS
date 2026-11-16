@@ -241,7 +241,9 @@
     "aprendizaje_continuo.py",
     "evaluacion_modelos.py",
     "experimentos.py",
-    "upstream_ia.py"
+    "upstream_ia.py",
+    "evaluacion_harness/estadistica.py",
+    "evaluacion_harness/informe_final.py"
    ]
   },
   {
@@ -555,7 +557,8 @@
     "preparar_upstream_ia.py",
     "madrl_entrenar.py",
     "madrl_obras.py",
-    "mcp_conversor.py"
+    "mcp_conversor.py",
+    "evaluacion_final.py"
    ]
   },
   {

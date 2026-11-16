@@ -25,6 +25,10 @@ Dependencias y relación: 043; solo T0 puede adelantarse porque corrige el auxil
 - RF-8: CUANDO se publique una evaluación, EL SISTEMA conservará denominadores, unidades, particiones y política suficientes para reproducirla.
 - Aclaración de RF-8: la cobertura de un intervalo solo se afirma si las familias de calibración alcanzan para ella (⌈(g+1)·cobertura⌉ ≤ g, nueve para un 90 %); con menos, se publica la empírica con sus denominadores y la cobertura queda vacía. Nunca se promete garantía de datos intercambiables.
 - RF-9: CUANDO se confirme un diseño en PowerFactory, EL SISTEMA verificará su persistencia después de reabrirlo.
+- RF-10: CUANDO se consolide la evaluación final de una versión, EL SISTEMA escribirá un único informe con la revisión, el árbol limpio, la huella de cada conjunto y, por medida, su n, su intervalo, su prueba, su p ajustada por Holm dentro del bloque y si es un resultado negativo.
+- Aclaración de RF-10: ampliación 2.A del plan de la evaluación final de la 1.0 (D:/csg/EVAL_FINAL/PLAN_EVALUACION_FINAL_1.0.md, 2026-11-14). El informe lo escribe `tools/evaluacion_final.py` en docs/EVALUACION_FINAL_1.0.json, una salida de la evaluación que no se versiona (se genera en cada evaluación final), y cada medida va como `{valor, ic95, n}` bajo su nombre, la forma que ya lee el recolector de la tesis.
+- RF-11: SI la revisión del informe o de un bloque no es la medida, el árbol tiene cambios o la huella de un conjunto no cuadra con su fichero, ENTONCES EL SISTEMA rechazará el informe sin escribirlo.
+- RF-12: EL SISTEMA calculará los contrastes de la evaluación (Diebold-Mariano con la corrección HLN y varianza HAC, Wilcoxon pareado con biserial de rangos, TOST, Bland-Altman, Holm, kappa de Cohen, alfa de Krippendorff, Wilson, McNemar exacto y bootstrap agrupado) en un único módulo, cada uno probado contra un valor de referencia publicado.
 
 ## Requisitos no funcionales
 

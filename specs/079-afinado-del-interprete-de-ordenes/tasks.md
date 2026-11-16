@@ -1,6 +1,8 @@
 # Tareas — Spec 079
 
 - [x] T1 La prueba `sellada_079`, escrita de una vez y antes del currículo, y la sellada anterior sin decidir. (RF-38 a RF-48, RF-60, RF-64)
+  Ampliada el 2026-11-13 (aclaración de RF-46 y RF-47): `tests/test_afinado_ordenes.py` (079:RF-47) lee la medida de las
+  dos selladas en su bloque, en el informe y en el registro.
   Hecho cuando: `pytest -q tests/test_afinado_ordenes.py -k sellada` y `tests/test_asistente_maestro.py` en verde.
 - [x] T2 Codificador partido, afinado con parada por selección y artefacto. (RF-1 a RF-24)
   Hecho cuando: `pytest -q tests/test_afinado_ordenes.py -k "afinado or artefacto"` en verde.

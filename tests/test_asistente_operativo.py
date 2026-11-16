@@ -252,6 +252,22 @@ def test_aviso_sin_gpu_sigue_con_ollama_y_dice_el_motivo(entorno, monkeypatch):
     assert 'No hay GPU CUDA' in aviso and 'modelo-local' in aviso
 
 
+def test_sin_gpu_el_motivo_nombra_a_quien_la_pide(monkeypatch):
+    """067:RF-9 — sin CUDA, el intérprete de órdenes decía «No hay GPU CUDA para el gemelo digital» (auditoría del
+    2026-11-13): el motivo nombra al que la pide, y el gemelo sigue nombrándose a sí mismo."""
+    torch = pytest.importorskip('torch')
+    from convertersmartgrid import training_coordinator as tc
+    from convertersmartgrid.asistente import transformer
+
+    monkeypatch.setattr(torch.cuda, 'is_available', lambda: False)
+    with pytest.raises(tc.SinGPU) as interprete:
+        transformer.dispositivo_de_calculo()
+    assert 'intérprete de órdenes' in str(interprete.value) and 'gemelo' not in str(interprete.value)
+    with pytest.raises(tc.SinGPU) as gemelo:
+        tc.dispositivo()
+    assert 'gemelo digital' in str(gemelo.value)
+
+
 def test_aviso_sin_ningun_modelo_lo_dice(entorno, monkeypatch):
     """067:RF-10 — si tampoco responde Ollama, el plan dice que no respondió ninguno."""
     from convertersmartgrid.asistente import ollama, transformer

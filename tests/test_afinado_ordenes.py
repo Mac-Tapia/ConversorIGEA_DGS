@@ -858,8 +858,9 @@ def corrida(tmp_path_factory):
         meta_final = json.loads((raiz / 'run' / 'alumno' / 'modelo.json').read_text(encoding='utf-8'))
         protocolo = json.loads((raiz / 'run' / 'protocolo.json').read_text(encoding='utf-8'))
         registrados = ''.join(p.read_text(encoding='utf-8') for p in (raiz / 'reg').rglob('*.json'))
+        metricas = json.loads(next((raiz / 'reg').rglob('metrics.json')).read_text(encoding='utf-8'))
         yield {'r': r, 'filas': filas, 'meta': meta, 'final': meta_final, 'protocolo': protocolo, 'aperturas': aperturas, 'registrados': registrados,
-               'humanas': humanas}
+               'humanas': humanas, 'metricas': metricas}
     finally:
         parche.undo()
 
@@ -874,7 +875,8 @@ def test_cruzada_cada_vuelta_afina_desde_el_original(corrida):
 
 
 def test_cruzada_decide_la_nueva_con_las_puertas_de_siempre(corrida):
-    """079:RF-45 / 079:RF-46 / 079:RF-47 / 079:RF-48 — decide `sellada_079`; la anterior se mide sin decidir, y las dos se informan."""
+    """079:RF-45 / 079:RF-46 / 079:RF-47 / 079:RF-48 / 070:RF-69 / 069:RF-39 — decide `sellada_079`; la anterior se mide sin
+    decidir, y las dos se informan con su medida; cada humana deja su acierto fuera de grupo."""
     r, filas = corrida['r'], corrida['filas']
     decisora = sum(x.get('conjunto') == ps.CONJUNTO for x in filas)
     assert r['sinteticas']['ejemplos'] == decisora
@@ -882,6 +884,21 @@ def test_cruzada_decide_la_nueva_con_las_puertas_de_siempre(corrida):
     assert r['prueba_sellada']['huella'] == anterior.HUELLA and r['prueba_sellada']['decide'] is False
     assert r['prueba_sellada']['medida']['ejemplos'] == sum(x.get('conjunto') == anterior.CONJUNTO for x in filas)
     assert '"prueba_sellada_079"' in corrida['registrados'] and anterior.HUELLA in corrida['registrados']
+    # 070:RF-69, 079:RF-47: la medida de la sellada nueva también en su bloque, en el informe y en el registro, que es
+    # donde la leen el cierre de 070 T11 y las cifras del registro; antes solo estaba en ``sinteticas``.
+    from convertersmartgrid.asistente import modelos_en_uso
+    for donde in (r, corrida['metricas']):
+        assert 'medida' in donde['prueba_sellada_079'], 'la sellada nueva lleva su medida en su bloque (070:RF-69)'
+        assert donde['prueba_sellada_079']['medida']['ejemplos'] == decisora
+        assert donde['prueba_sellada_079']['medida']['acierto_tarea'] == r['sinteticas']['acierto_tarea']
+    cifras = modelos_en_uso.cifras_de({'metrics': corrida['metricas'], 'decision': {}})
+    assert cifras['prueba_sellada_079']['ejemplos'] == decisora and cifras['prueba_sellada']['ejemplos'] == r['prueba_sellada']['medida']['ejemplos']
+    # 069:RF-39: el acierto fuera de grupo de cada humana y las que vio el modelo final, por su huella, sin textos.
+    por_orden = corrida['metricas']['humanas_por_orden']
+    assert por_orden['origen'] == 'fuera_de_grupo'
+    assert set(por_orden['aciertos']) == {di.clave_humana(h['texto']) for h in corrida['humanas']}
+    assert sum(por_orden['aciertos'].values()) == round(r['humanas']['acierto_tarea'] * r['humanas']['ejemplos'])
+    assert len(por_orden['vistas_al_entrenar']) == r['validacion_cruzada']['confirmadas_que_entrenan']
     politica = dict(di.PoliticaEvaluacion(modo='agente').puertas_por_familia)
     assert politica == {'acierto_tarea': .95, 'f1_datos': .85}
     assert (di.RECHAZO_MINIMO, di.SE_CUELA_MAXIMO) == (.90, .02)

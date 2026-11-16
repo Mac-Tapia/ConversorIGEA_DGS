@@ -21,6 +21,8 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/evaluacion_harness/publicacion.py` | Publicación atómica y relectura de informes sellados. | 043, 044 |
 | `src/convertersmartgrid/evaluacion_harness/integracion.py` | Puente al coordinador y registro, con guardas de identidad y activación explícita. | 043, 044 |
 | `src/convertersmartgrid/evaluacion_harness/cli.py` | Interfaz de sellado, replay y comprobación de informes del arnés. | 043, 044, 047 |
+| `src/convertersmartgrid/evaluacion_harness/estadistica.py` | Estadística común de la evaluación: Wilson, Holm, McNemar exacto, HAC, Diebold-Mariano con HLN, Wilcoxon con biserial, TOST, Bland-Altman, kappa, alfa de Krippendorff y bootstrap agrupado. | 044 (RF-12), 069 (RF-37, RF-38), 047 |
+| `src/convertersmartgrid/evaluacion_harness/informe_final.py` | Informe único `docs/EVALUACION_FINAL_1.0.json`: rev, árbol limpio, huellas, IC, prueba, Holm y negativos; rechaza lo que no cuadra. | 044 (RF-10, RF-11) |
 | `tools/evaluar_harness.py` | Entrada de consola para el arnés integral de evaluación. | 043, 044, 047 |
 | `src/convertersmartgrid/contratos_aprendizaje.py` | Identidad, procedencia y tipos puros de muestras y familias; sin productores, registro ni E/S. | 050, 002 |
 | `src/convertersmartgrid/conjuntos_aprendizaje.py` | Lectura verificada del conjunto activo para inferencia, separada de la preparación. | 050, 002 |
@@ -504,6 +506,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/mcp_conversor.py` | Servidor MCP local, solo stdio y solo lectura, con las tres lecturas del asistente; restringido salvo `--datos-locales`; dependencia opcional. | 077 |
 | `tools/asistente_indice_ampliado.py` | Sin GPU: tamaño de los dos corpus, BM25 con el reparto `corpus` de la 076 y formación de los conjuntos nuevos, sin las preguntas que el corpus ya lleva; rehace la calibración. | 077, 097 (RF-19) |
 | `tools/asistente_evaluar_rag.py` | Medición real de la recuperación en la GPU, comprobación del conjunto sin ella con `--solo-conjunto`, calibración de la abstención y su medición sellada única. | 047 (RF-4, RF-27, RF-34, RF-35) |
+| `tools/evaluacion_final.py` | Consolida la evaluación final de la 1.0 en `docs/EVALUACION_FINAL_1.0.json` y, con `--comprobar`, la relee; rechaza otra rev, árbol sucio o huella alterada. | 044 (RF-10, RF-11) |
 | `tools/preguntas_entregables.py` | Preguntas de metodología y criterios por entregable: verifica fuentes, cifras y nombres, reparte en corpus y sellado, exporta e importa la hoja de revisión del operador, informa por entregable, genera preguntas estocásticas de la web con semilla y escribe lo marcado «sí» como documento del corpus ampliado. | 076 |
 | `tools/asistente_qlora.py` | Adaptador del coordinador al ajuste generativo NF4 existente y su corpus sellado; conserva pesos candidatos. | 043 (RF-13), 047 (RF-19, RF-20) |
 | `src/convertersmartgrid/experimentos.py` | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. | 043 (RF-2) |

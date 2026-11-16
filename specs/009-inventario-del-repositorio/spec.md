@@ -61,6 +61,10 @@ Herramientas
   con el código 0 sin necesitar DIgSILENT ni datos de la distribuidora.
 - RF-8: EL SISTEMA no fijará en una herramienta las rutas de los datos de la
   distribuidora: las recibirá por argumentos.
+- Aclaración de RF-8 (2026-11-14, rebase de la evaluación final 2.A sobre 00d30651): tampoco el código de `src/` ni
+  el de `tools/`, docstrings incluidos, nombrará carpetas de la máquina del desarrollo (las de trabajo de la unidad o el
+  perfil de un usuario): el docstring de una herramienta es su `--help`, y un ejemplo con una de esas carpetas manda al
+  usuario a una ruta que en su equipo no existe.
 
 Specs
 

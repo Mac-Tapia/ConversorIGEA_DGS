@@ -84,6 +84,9 @@ Los umbrales y rejillas de esta spec se declaran antes de medir. Las puertas no 
 - RF-45: CUANDO se decida un candidato, EL SISTEMA aplicará las puertas de 0,95 y 0,85 por familia a `sellada_079`.
 - RF-46: EL SISTEMA medirá la sellada anterior `df5e1db88595d378`, con su huella intacta, marcada con `decide` falso.
 - RF-47: EL SISTEMA dará las dos selladas en el informe y en el registro, cada una con su huella.
+- Aclaración de RF-46 y RF-47 (2026-11-13): cada sellada con su huella y su medida en su bloque; la anterior ya la daba en
+  `prueba_sellada.medida` y `sellada_079` solo en `sinteticas`. Ahora también en `prueba_sellada_079.medida`, con `decide`
+  según decida o no (070:RF-69).
 - RF-48: EL SISTEMA conservará las puertas de 0,98 y 0,95 humanas fuera de grupo y las de 0,90 y 0,02 de rechazo, sin ninguna excepción.
 
 ### Validación cruzada y regla de Ollama

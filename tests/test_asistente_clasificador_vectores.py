@@ -220,7 +220,7 @@ def test_026_rf39_herramienta_lleva_la_arquitectura(tmp_path, monkeypatch):
     import convertersmartgrid.digital_twin.oraculo as oraculo
     import convertersmartgrid.trabajadores_ml as tml
 
-    monkeypatch.setattr(oraculo, 'dispositivo', lambda: 'cuda')
+    monkeypatch.setattr(oraculo, 'dispositivo', lambda *_a: 'cuda')          # 067:RF-9: el que pide se nombra
     monkeypatch.setattr(tml, 'turno_gpu', lambda _n: contextlib.nullcontext())
     llamadas = []
     monkeypatch.setattr(cl, 'entrenar_gobernado', lambda *_a, **k: llamadas.append(k['arquitectura']) or {'status': 'X'})

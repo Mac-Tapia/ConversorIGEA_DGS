@@ -11,9 +11,10 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_evaluacion_modelos.py tests/test_digital_twin_particiones.py` pasa
       y están guardadas las evidencias adicionales descritas en T1 del plan.
 
-- [x] T2. Calibración y puertas por familia. (RF-4, RF-5, RF-8)
+- [x] T2. Calibración y puertas por familia; informe único y estadística común de la evaluación final. (RF-4, RF-5, RF-8, RF-10, RF-11, RF-12)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_calibracion_independiente.py tests/test_digital_twin_oraculo.py` pasa
       y están guardadas las evidencias adicionales descritas en T2 del plan.
+      Ampliación 2.A del 2026-11-14 (RF-10 a RF-12), hecha cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_evaluacion_estadistica.py tests/test_evaluacion_informe_final.py` pasa.
 
 - [x] T3. Cerrar la verificación parcial de alternativas. (RF-6, RF-7)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_verificacion_top_k_completa.py tests/test_digital_twin_evolutivo.py tests/test_digital_twin_evaluacion.py` pasa
@@ -89,3 +90,22 @@ T4 (RF-9), 2026-11-07, rama `worktree-agent-a578852c96aa94605` sobre `main` `7e8
   hora de «Con proyecto»; «Caso base» y «Sin proyecto» releídos antes y después, idénticos (0,0 p.u., 0,0 kW, mismas huellas).
 
 Ejecución 2026-10-31: ver [registro y pendientes](../../docs/EJECUCION_IA_2026-10-31.md).
+
+Ampliación 2.A (RF-10 a RF-12), 2026-11-14, rama `trabajo/evaluacion-final-estadistica` sobre `51895566`. Sin GPU ni DIgSILENT.
+- `evaluacion_harness/estadistica.py`: Wilson, Holm, McNemar exacto, varianza HAC (Bartlett y uniforme), DM-HLN, Wilcoxon
+  con biserial, TOST, Bland-Altman, kappa, alfa de Krippendorff y bootstrap agrupado. Wilson de la 069:RF-37, McNemar de la
+  069:RF-38 y Holm de la 047 salen de aquí: `destilacion_integral` y `embeddings` ya no tienen copia propia.
+- Referencias comprobadas: Newcombe 1998 (Wilson 81/263 = 0,2553–0,3662); Bland y Altman, Lancet 1986 (PEFR: sesgo −2,1,
+  límites −79,7 y 75,5 y sus IC); Krippendorff 2011 (α nominal 0,743); Hollander y Wolfe en `wilcox.test` de R (V = 40,
+  p = 0,03906); statsmodels 0.15.0 (Wilson, Holm, `ttost_paired`, `cohens_kappa`, HAC), krippendorff 0.8.1 y pingouin 0.5.5
+  (biserial 0,778), instalados aparte con `pip --target`, fuera de `.venv`; scipy y scikit-learn en vivo (t pareado = DM-HLN
+  con h = 1, `binomtest`, `wilcoxon`, `cohen_kappa_score`, `bootstrap`). Guion y valores, versionados:
+  `tests/fixtures/estadistica/referencias.py` (la carpeta de las bibliotecas por `--libs`), `referencias.json` y
+  `referencias_hac.json`; `test_las_referencias_fijas_salen_del_guion_versionado` los contrasta con el módulo.
+- Rebase sobre `00d30651` (B5 de e6, 2026-11-14): ni el código ni las pruebas nombran carpetas de la máquina del desarrollo.
+  El ejemplo de `tools/evaluacion_final.py` dice `--entrada <medidas.json>`, y la 009:RF-8 lo vigila en `src/` y `tools/`
+  (`test_ninguna_herramienta_ni_modulo_nombra_carpetas_de_esta_maquina`).
+- `evaluacion_harness/informe_final.py` y `tools/evaluacion_final.py`: el informe se rechaza con otra rev, un bloque de otra
+  rev, árbol sucio, huella alterada o medida incompleta; la relectura rechaza código cambiado después de la rev.
+- Rojo: `D:/csg/EVAL_ESTADISTICA/rojo.log` (los módulos no existían). Verde: `verde.log` (23 passed) y `verde_reutilizados.log`.
+- Límite: el informe real se escribe en el paso 4 del plan, sobre la rev candidata, cuando los bloques hayan medido.

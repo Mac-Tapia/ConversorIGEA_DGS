@@ -12,6 +12,7 @@ import sys
 import time
 import platform
 
+from ..evaluacion_harness.estadistica import intervalo_wilson, mcnemar_exacta
 from ..evaluacion_modelos import (PARTES, PoliticaEvaluacion, huella, particionar_registros,
                                   texto_canonico, verificar_familias)
 from .curriculo_maestro import (ESTILO_REAL, FAMILIAS, MAESTRO, MAESTRO_070, MAESTRO_079, MAESTRO_ESTILO_REAL, PARAFRASIS_070,
@@ -23,7 +24,7 @@ from .prueba_sellada import CONJUNTO as CONJUNTO_SELLADO, huella_de as huella_de
 from .prueba_sellada_079 import CONJUNTO as CONJUNTO_079, huella_de as huella_de_079, selladas as selladas_079
 from .sinteticos import Ejemplo, expandir, normalizar
 from .tareas import TAREAS, TAREAS_HASTA_069
-from . import ordenes_maestro as ordenes_maestro_085
+from . import modelos_en_uso as mu, ordenes_maestro as ordenes_maestro_085
 from ..runtime_paths import raiz_programa
 from ..util import publicar_duradero
 
@@ -565,7 +566,7 @@ def puerta_no_regresion(candidato: Sequence[bool], referencia: Sequence[bool] | 
     en que discrepan (Miller, *Adding Error Bars to Evals*, arXiv:2411.00640, 2024: análisis pareado). Si los dos
     fueran igual de buenos, de las ``b + c`` órdenes discordantes las ``b`` que solo acierta el modelo en uso
     seguirían una binomial de p = 0,5; el valor p es P(X >= b), el de
-    ``scipy.stats.binomtest(b, b + c, 0.5, alternative='greater')``, calculado aquí sin depender de SciPy.
+    ``scipy.stats.binomtest(b, b + c, 0.5, alternative='greater')``, que da ``estadistica.mcnemar_exacta`` sin SciPy.
     """
     if referencia is None:
         if error_referencia and candidato:
@@ -581,9 +582,7 @@ def puerta_no_regresion(candidato: Sequence[bool], referencia: Sequence[bool] | 
         return {'aplica': False, 'bloquea': False, 'ejemplos': 0, 'motivo': 'sin órdenes humanas'}
     empeora = sum(1 for c, r in zip(candidato, referencia, strict=True) if r and not c)
     mejora = sum(1 for c, r in zip(candidato, referencia, strict=True) if c and not r)
-    discordantes = empeora + mejora
-    p_valor = (sum(math.comb(discordantes, k) for k in range(empeora, discordantes + 1)) / 2 ** discordantes
-               if discordantes else 1.0)
+    p_valor = mcnemar_exacta(empeora, mejora, alternativa='mayor')                     # 044:RF-12: el común
     bloquea = empeora > mejora and p_valor < alfa
     aciertos_c, aciertos_r = sum(map(bool, candidato)), sum(map(bool, referencia))
     motivo = (f'McNemar exacto en {n} órdenes humanas: el modelo en uso acierta {aciertos_r} y el candidato '
@@ -594,12 +593,133 @@ def puerta_no_regresion(candidato: Sequence[bool], referencia: Sequence[bool] | 
             'alfa': alfa, 'prueba': 'mcnemar_exacta_unilateral', 'motivo': motivo}
 
 
+def clave_humana(texto: str) -> str:
+    """069:RF-39: una orden humana por su huella; el registro no guarda su texto (075:RF-34)."""
+    return huella({'orden_humana': texto_canonico(texto)})[:16]
+
+
+def registro_de_version(version: str | None) -> dict | None:
+    """069:RF-39: ``metrics.json`` y ``dataset_manifest.json`` del candidato del registro que es esa versión en uso.
+
+    Los ``reg-`` y ``prov-`` salen del registro (067:RF-20, 085:RF-26); un heredado no está en él y da ``None``."""
+    resto = next((version[len(p):] for p in (mu.PREFIJO, mu.PREFIJO_PROVISIONAL) if version and version.startswith(p)), None)
+    if not resto:
+        return None
+    hallados = list((mu.registro().raiz / 'transformer' / 'candidates').glob(f'{resto}*'))
+    if len(hallados) != 1 or not (hallados[0] / 'metrics.json').is_file():
+        return None
+    salida = {'candidate_id': hallados[0].name,
+              'metrics': json.loads((hallados[0] / 'metrics.json').read_text(encoding='utf-8'))}
+    manifiesto = hallados[0] / 'dataset_manifest.json'
+    if manifiesto.is_file():
+        salida['dataset_manifest'] = json.loads(manifiesto.read_text(encoding='utf-8'))
+    return salida
+
+
+def _por_orden(modelo, registros: Sequence[dict]) -> dict[str, bool]:
+    return {clave_humana(r['texto']): a for r, a in zip(registros, aciertos_de_tarea(modelo, registros), strict=True)}
+
+
+def referencia_fuera_de_muestra(activo, humanas: Sequence[dict], guardado: dict | None) -> dict:
+    """069:RF-39: el acierto del modelo en uso en las humanas que no vio al entrenar, sin medirlo con lo que leyó.
+
+    El 2026-11-13 la auditoría vio que ``tr.cargar()`` medía a prov-8fd8a405 sobre las 43 humanas, 29 de las cuales
+    entrenaron su modelo final: 41 de 43 dentro de muestra frente al candidato fuera de grupo, y ningún candidato
+    honesto podía pasar. Por orden de preferencia: su medida fuera de grupo guardada orden por orden; sin ella, medirlo
+    sin las que vio; si solo guarda la agregada, esa, sin parear; si no entrenó con humanas, su medida es fuera de
+    muestra; y si no consta qué vio, se mide igual y se dice.
+    """
+    m = (guardado or {}).get('metrics') or {}
+    por_orden = m.get('humanas_por_orden') if isinstance(m.get('humanas_por_orden'), dict) else {}
+    aciertos, vistas = por_orden.get('aciertos'), por_orden.get('vistas_al_entrenar')
+    if isinstance(aciertos, dict) and aciertos:
+        return {'origen': por_orden.get('origen') or 'fuera_de_grupo', 'por_orden': {str(k): bool(v) for k, v in aciertos.items()},
+                'vistas': len(vistas) if isinstance(vistas, list) else None}
+    if isinstance(vistas, list):
+        vistas_en_uso = set(map(str, vistas))
+        sin_ver = [r for r in humanas if clave_humana(r['texto']) not in vistas_en_uso]
+        return {'origen': 'sin_las_vistas', 'por_orden': _por_orden(activo, sin_ver),
+                'vistas': sum(clave_humana(r['texto']) in vistas_en_uso for r in humanas)}
+    cruzada = m.get('validacion_cruzada') if isinstance(m.get('validacion_cruzada'), dict) else {}
+    entrenaron = cruzada.get('confirmadas_que_entrenan')
+    if type(entrenaron) is int and entrenaron > 0:
+        fuera = cruzada.get('humanas_fuera_de_grupo') or {}
+        acierto, ejemplos = fuera.get('acierto_tarea'), fuera.get('ejemplos')
+        if type(ejemplos) is int and ejemplos > 0 and type(acierto) in (int, float) and math.isfinite(acierto):
+            return {'origen': 'agregada_fuera_de_grupo', 'aciertos': round(acierto * ejemplos), 'ejemplos': ejemplos,
+                    'vistas': entrenaron}
+        return {'origen': 'no_consta', 'por_orden': _por_orden(activo, humanas), 'vistas': entrenaron,
+                'detalle': f'entrenó con {entrenaron} humanas y no guarda su medida fuera de grupo'}
+    datos = ((guardado or {}).get('dataset_manifest') or {}).get('dataset') or {}
+    entrenamiento = (datos.get('denominadores') or {}).get('entrenamiento')
+    if guardado is not None and isinstance(entrenamiento, dict) and not entrenamiento.get('gold_human'):
+        return {'origen': 'sin_humanas_en_entrenamiento', 'por_orden': _por_orden(activo, humanas), 'vistas': 0}
+    return {'origen': 'no_consta', 'por_orden': _por_orden(activo, humanas), 'vistas': None,
+            'detalle': 'no está en el registro' if guardado is None else 'su registro no dice con qué humanas entrenó'}
+
+
+def _resumen_referencia(ref: dict) -> dict:
+    """Lo que se guarda en la decisión: cifras y huellas, nunca textos (075:RF-34)."""
+    if 'por_orden' in ref:
+        ref = {**ref, 'aciertos': sum(ref['por_orden'].values()), 'ejemplos': len(ref['por_orden'])}
+    return {**ref, 'acierto_tarea': ref['aciertos'] / ref['ejemplos'] if ref['ejemplos'] else None}
+
+
 def no_regresion_humanas(medidor, filas_humanas: Sequence[dict], en_uso: dict | None) -> dict:
-    """069:RF-39: la puerta del flujo, con el modelo que mide las humanas y la medida del modelo en uso."""
+    """069:RF-38, RF-39: la puerta del flujo, con el modelo que mide las humanas y el modelo en uso fuera de muestra.
+
+    Las dos medidas salen del mismo conjunto: si el modelo en uso solo tiene acierto en una parte de las humanas de hoy,
+    se compara en esa intersección y se dice cuántas quedan.
+
+    Si solo guarda la cifra agregada, no hay pares: prov-8fd8a405 se entrenó antes de que existiera
+    ``humanas_por_orden`` y su registro no dice cuál acertó ni cuáles vio, así que no se sabe en qué órdenes
+    discrepan los dos. De los aciertos totales solo sale la diferencia d = b − c (b, las que solo acierta el modelo en
+    uso; c, las que solo acierta el candidato). Se toma la cota CONSERVADORA b = d, c = 0, y se dice que es sin parear.
+    No favorece al candidato: la McNemar exacta condiciona en los discordantes y b sigue una binomial(b + c, 1/2)
+    (Fagerland, Lydersen y Laake, *BMC Medical Research Methodology* 13:91, 2013, ec. 3 y 4,
+    https://doi.org/10.1186/1471-2288-13-91). Con d > 0 fijo, P(X >= b | b + c) no baja al sumar un discordante a cada
+    lado: con S la diferencia de un paseo de ±1, P(S_{n+2} >= d) − P(S_n >= d) = [P(S_n = d − 2) − P(S_n = d)] / 4 >= 0,
+    porque la binomial simétrica es unimodal en el centro. El bilateral, el doble acotado a 1, igual. Así que b = d,
+    c = 0 da el valor p más pequeño de todos los emparejamientos posibles: rechaza más, nunca menos; y con d <= 0 el
+    candidato no empeora con ningún emparejamiento, y no se bloquea.
+    """
     en_uso = en_uso or {}
-    puerta = puerta_no_regresion(aciertos_de_tarea(medidor, filas_humanas) if filas_humanas else [],
-                                 en_uso.get('aciertos_humanas'), error_referencia=en_uso.get('error'))
-    return {**puerta, 'referencia': en_uso.get('version')}
+    version, ref = en_uso.get('version'), en_uso.get('humanas_honestas')
+    candidato = aciertos_de_tarea(medidor, filas_humanas) if filas_humanas else []
+    if not ref:
+        puerta = puerta_no_regresion(candidato, None, error_referencia=en_uso.get('error'))
+        return {**puerta, 'referencia': version}
+    n = len(candidato)
+    if ref['origen'] == 'agregada_fuera_de_grupo':
+        k_c = sum(map(bool, candidato))
+        k_r = ref['aciertos'] if ref['ejemplos'] == n else round(ref['aciertos'] * n / ref['ejemplos'])
+        empeora = max(0, k_r - k_c)
+        p_valor = .5 ** empeora if empeora else 1.
+        bloquea = bool(n) and p_valor < ALFA_NO_REGRESION
+        estimada = '' if ref['ejemplos'] == n else f", llevada a {n} órdenes desde {ref['aciertos']} de {ref['ejemplos']}"
+        signo = '<' if p_valor < ALFA_NO_REGRESION else '>='
+        # La primera frase lo dice sin leer el resto: esta comparación no es pareada y solo puede rechazar de más.
+        motivo = (f"referencia anterior a humanas_por_orden: cota conservadora, sin parear, que no favorece al candidato. "
+                  f"El modelo en uso {version} entrenó con {ref['vistas']} de estas humanas y su registro no guarda cuál "
+                  f"acertó ni cuáles vio: se compara su medida fuera de grupo guardada, {k_r} de {n}{estimada}, con el "
+                  f"candidato, {k_c} de {n}, sin parear; McNemar exacto con la cota que más acusa al candidato "
+                  f"({empeora} discordantes en contra y 0 a favor), p = {p_valor:.4f} {signo} {ALFA_NO_REGRESION}")
+        return {'aplica': bool(n), 'bloquea': bloquea, 'ejemplos': n, 'aciertos_candidato': k_c, 'aciertos_referencia': k_r,
+                'empeora': empeora, 'mejora': 0, 'p_valor': p_valor, 'alfa': ALFA_NO_REGRESION, 'pareada': False,
+                'prueba': 'mcnemar_exacta_unilateral_cota_sin_parear', 'origen_referencia': ref['origen'],
+                'humanas_de_hoy': n, 'referencia': version, 'motivo': motivo}
+    claves = [clave_humana(r['texto']) for r in filas_humanas]
+    comunes = [i for i, c in enumerate(claves) if c in ref['por_orden']]
+    puerta = puerta_no_regresion([candidato[i] for i in comunes], [ref['por_orden'][claves[i]] for i in comunes])
+    origen = {'fuera_de_grupo': f'el modelo en uso {version}, con su medida fuera de grupo guardada orden por orden',
+              'sin_humanas_en_entrenamiento': f'el modelo en uso {version} no entrenó con ninguna humana: su medida es fuera de muestra',
+              'sin_las_vistas': f"el modelo en uso {version} entrenó con {ref.get('vistas')} de estas humanas: se mide sin ellas",
+              }.get(ref['origen'], f"no consta qué humanas vio el modelo en uso {version} ({ref.get('detalle', 'sin registro')}): "
+                                   'su medida puede ser dentro de muestra')
+    if len(comunes) != n:
+        origen += f'; se comparan {len(comunes)} de las {n} humanas de hoy'
+    return {**puerta, 'pareada': True, 'origen_referencia': ref['origen'], 'humanas_de_hoy': n, 'referencia': version,
+            'motivo': f"{origen}; {puerta['motivo']}"}
 
 
 def decidir_promocion(sinteticas: dict, humanas: dict, familias: dict, referencia: dict | None,
@@ -652,9 +772,15 @@ def _medir_en_uso(sinteticas: list[dict], humanas: list[dict], reservados: Seque
         activo = tr.cargar()
         if activo is None:
             return None
-        return {'version': activo.version, 'sinteticas': evaluar_alumno(activo, sinteticas),
-                'humanas': evaluar_alumno(activo, humanas) if humanas else None,
-                'aciertos_humanas': aciertos_de_tarea(activo, humanas) if humanas else None,     # 069:RF-39
+        # 069:RF-39: con qué se compara al candidato en las humanas: el modelo en uso en las que no vio al entrenar.
+        honesta = referencia_fuera_de_muestra(activo, humanas, registro_de_version(activo.version)) if humanas else None
+        medida = evaluar_alumno(activo, humanas) if humanas else None
+        if medida is not None:
+            # La de ``tr.cargar()`` sobre todas se sigue dando, marcada: si vio alguna, es dentro de muestra y no decide.
+            vio = honesta.get('vistas')
+            medida = {**medida, 'dentro_de_muestra': None if vio is None else vio > 0}
+        return {'version': activo.version, 'sinteticas': evaluar_alumno(activo, sinteticas), 'humanas': medida,
+                'humanas_honestas': _resumen_referencia(honesta) if honesta else None,
                 'rechazo': medir_rechazo(activo, reservados) if reservados else None,
                 'cobertura': cobertura_por_umbral(activo, sinteticas)}
     except (ImportError, RuntimeError, OSError, ValueError, KeyError) as exc:
@@ -763,8 +889,7 @@ def limite_inferior_wilson(aciertos: int, n: int, z: float = 1.96) -> float:
     """069:RF-37: el acierto que se puede asegurar con un 95 % de confianza (intervalo de Wilson)."""
     if n <= 0:
         return 0.
-    p = aciertos / n
-    return (p + z * z / (2 * n) - z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))) / (1 + z * z / n)
+    return intervalo_wilson(aciertos, n, z=z)[0]                                     # 044:RF-12: el común
 
 
 def calibrar_umbral(modelo, registros: list[dict]) -> dict:
@@ -998,6 +1123,12 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     # 079:RF-46, RF-47: las dos selladas se informan, cada una con su huella; la anterior solo se compara.
     sellada_anterior = {**(meta.get('prueba_sellada') or {}), 'decide': decide_anterior,
                         'medida': evaluar_alumno(modelo, filas_anterior) if filas_anterior else None}
+    # 070:RF-69, 079:RF-47: la sellada nueva con su medida, como la anterior; solo estaba en ``sinteticas``.
+    filas_079 = [r for r in por_parte['prueba'] if r.get('conjunto') == CONJUNTO_079]
+    decide_079 = bool(filas_079) and prueba_sintetica[0].get('conjunto') == CONJUNTO_079
+    sellada_079 = ({**(meta.get('prueba_sellada_079') or {}), 'decide': decide_079,
+                    'medida': sinteticas if decide_079 else evaluar_alumno(modelo, filas_079)}
+                   if filas_079 else meta.get('prueba_sellada_079'))
     rechazo = medir_rechazo(modelo, reservados) if reservados else None
     cobertura = cobertura_por_umbral(modelo, prueba_sintetica)
     # 085:RF-17, RF-18: la tercera cifra, aparte de humanas y sintéticas, con su denominador y por tarea.
@@ -1018,6 +1149,14 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     # 069:RF-39: la medida de las humanas que se informa (fuera de grupo con validación cruzada) frente al modelo en uso.
     medidor_humanas = validacion.medida if validacion is not None and validacion.medida is not None else modelo
     no_regresion = no_regresion_humanas(medidor_humanas, filas_humanas, en_uso)
+    # 069:RF-39: lo que este candidato acertó fuera de muestra, orden por orden, y las que vio al entrenar, para que
+    # cuando sea el modelo en uso se le compare con su medida honesta y no con la de lo que leyó.
+    vistas = sorted({clave_humana(r['texto']) for r in (validacion.entrenables if validacion is not None else ())})
+    fuera = (filas_humanas if validacion is None or validacion.medida is not None
+             else [r for r in filas_humanas if clave_humana(r['texto']) not in set(vistas)])
+    humanas_por_orden = {'origen': ('sin_humanas_en_entrenamiento' if validacion is None else
+                                    'fuera_de_grupo' if validacion.medida is not None else 'sin_las_vistas'),
+                         'aciertos': _por_orden(medidor_humanas, fuera), 'vistas_al_entrenar': vistas}
     decision = {**completa, **decidir_selectiva(selectiva, decide, sinteticas, en_uso, rechazo, no_regresion),
                 'puerta_completa': {k: completa.get(k) for k in ('status', 'gates', 'fallos')}}
     if validacion is not None:
@@ -1050,8 +1189,8 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         dataset_manifest=protocolo, metrics={'sinteticas': sinteticas, 'humanas': humanas,
         'seleccion': candidatos, 'calibracion': calibracion, 'funcionamiento': funcionamiento,
         'rechazo': rechazo, 'cobertura': cobertura, 'en_uso': en_uso, 'prueba_historica': historica,
-        'prueba_sellada': sellada_anterior, 'prueba_sellada_079': meta.get('prueba_sellada_079'),
-        'examen_maestro': examen_maestro,
+        'prueba_sellada': sellada_anterior, 'prueba_sellada_079': sellada_079,
+        'examen_maestro': examen_maestro, 'humanas_por_orden': humanas_por_orden,
         'validacion_cruzada': bloque_cruzada, 'regla_ollama': regla_ollama, 'regla_elegida': regla_elegida,
         'confusiones': confundidas},
         decision=decision, smoke_reload=smoke, artifacts=[final / n for n in ('pesos.pt', 'modelo.json', 'readback.json')])
@@ -1062,7 +1201,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'denominadores': meta.get('denominadores'),                                       # 068:RF-29, 047:RF-13
         'rechazo': rechazo, 'cobertura': cobertura, 'modelo_en_uso': en_uso,              # 069:RF-20, RF-27
         'prueba_sellada': sellada_anterior, 'prueba_historica': historica,                # 070:RF-72, 079:RF-46
-        'prueba_sellada_079': meta.get('prueba_sellada_079'),                             # 079:RF-45, RF-47
+        'prueba_sellada_079': sellada_079, 'humanas_por_orden': humanas_por_orden,       # 079:RF-45, RF-47; 069:RF-39
         'elegido': elegido, 'candidato': candidato, 'sinteticas': sinteticas, 'humanas': humanas,
         'examen_maestro': examen_maestro,                                                  # 085:RF-17
         'tres_cifras': tres_cifras(humanas, examen_maestro, sinteticas),

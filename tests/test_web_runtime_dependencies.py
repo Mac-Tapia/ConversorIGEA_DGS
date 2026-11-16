@@ -30,7 +30,7 @@ def test_runtime_probe_covers_all_three_source_modes():
 
     required = set(runtime.REQUIRED_MODULES)
 
-    assert {'convertersmartgrid', 'pyproj', 'fastapi', 'uvicorn', 'multipart'} <= required
+    assert {'convertersmartgrid', 'pyproj', 'fastapi', 'uvicorn', 'python_multipart'} <= required
     assert {'convertersmartgrid.adaptadores.entrada.vnr', 'requests', 'shapely', 'networkx', 'yaml', 'geopandas'} <= required
 
 
@@ -113,7 +113,7 @@ def test_extras_de_arranque_declaran_los_mismos_imports_requeridos():
     manifiesto = Path(__file__).resolve().parents[1] / 'pyproject.toml'
     extras = tomllib.loads(manifiesto.read_text(encoding='utf-8'))['project']['optional-dependencies']
     paquetes = {
-        'multipart': 'python-multipart', 'python_calamine': 'python-calamine',
+        'python_multipart': 'python-multipart', 'python_calamine': 'python-calamine',
         'docx': 'python-docx', 'PIL': 'pillow', 'yaml': 'pyyaml',
     }
     requeridos = {paquetes.get(nombre, nombre).lower() for nombre in runtime.REQUIRED_MODULES
@@ -128,3 +128,24 @@ def test_extras_de_arranque_declaran_los_mismos_imports_requeridos():
     versiones = SpecifierSet(tomllib.loads(manifiesto.read_text(encoding='utf-8'))['project']['requires-python'])
     assert '3.12.0' in versiones
     assert '3.11.9' not in versiones and '3.13.0' not in versiones
+
+
+def test_la_comprobacion_importa_python_multipart_sin_aviso_de_obsolescencia(monkeypatch):
+    """065:RF-15 — el doctor comprueba la dependencia por su nombre vigente: ``import multipart`` está obsoleto desde
+    python-multipart 0.0.13 y salía como PendingDeprecationWarning en la suite (h8h5_verde_conjunto_b4b0, 2026-11-14).
+    Con los avisos como error, el nombre obsoleto se daría por dependencia que falta."""
+    import warnings
+
+    runtime = _runtime_module()
+    for nombre in ('multipart', 'multipart.multipart', 'multipart.decoders', 'multipart.exceptions'):
+        monkeypatch.delitem(sys.modules, nombre, raising=False)
+
+    def importador(nombre: str):
+        if 'multipart' in nombre:
+            return importlib.import_module(nombre)
+        return types.ModuleType(nombre)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', PendingDeprecationWarning)
+        assert runtime.missing_dependencies(importador) == ()
+    assert 'python_multipart' in runtime.MODULOS_POR_CAPACIDAD['web']
