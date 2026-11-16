@@ -490,7 +490,7 @@ def test_018_rf15_misma_fuente_sin_el_dgs_aceptado_usa_la_ejecucion_del_vinculo(
     monkeypatch.setattr(services, 'adoptar_fuente_del_vinculo', lambda ws_, p: adoptados.append(p))
     aviso = services.usar_ejecucion_del_vinculo(ws, 'P/RED', binding, ['A1'])
     assert (adoptados == ['P/RED']) is adopta
-    assert (aviso is not None and '018:RF-15' in aviso) is adopta
+    assert (aviso is not None and 'no tiene su DGS' in aviso) is adopta
 
 
 def test_018_rf15_las_acciones_nativas_no_cambian_la_ejecucion_activa(tmp_path, monkeypatch):

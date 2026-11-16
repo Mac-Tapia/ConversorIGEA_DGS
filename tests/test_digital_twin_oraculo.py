@@ -385,7 +385,7 @@ def test_intervalo_por_barra_y_no_confiable(entrenado):
     estrecha = Limites('X', 1.0, 1.0 + 1e-9, 100.0, None)
     assert orc.confiable(p, ancha)[0] == (float(2 * np.max(p['intervalo_pu'])) <= 0.1)
     ok, motivo = orc.confiable(p, estrecha)
-    assert not ok and '027:RF-13' in motivo
+    assert not ok and 'más ancho que la banda' in motivo
     e = orc.estado_electrico(p, g, estrecha)
     assert e['requiere_pf'] and e['no_confiable']
 

@@ -193,4 +193,4 @@ def test_libro_sin_textos_que_repite_el_mes_anterior_se_aparta(tmp_path):
     _libro_sin_textos(tmp_path / '2025/0325 Pulso e.xlsx', {181000485: 28})
     libros, _sin_uso = libros_con_mes(tmp_path, None)
     _por, _de, _contra, _avisos, apartados = curvas_por_cliente(libros)
-    assert any(a['objetivo'] == 'libro:0325 Pulso e.xlsx' and '104:RF-26' in a['motivo'] for a in apartados)
+    assert any(a['objetivo'] == 'libro:0325 Pulso e.xlsx' and 'repite los valores de' in a['motivo'] for a in apartados)

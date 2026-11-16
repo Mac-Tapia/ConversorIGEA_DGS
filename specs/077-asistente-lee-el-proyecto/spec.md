@@ -1,6 +1,6 @@
 # Spec 077 — El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura
 
-Estado: cumplida · Fecha: 2026-11-02 · Origen: petición del usuario
+Estado: aprobada · Fecha: 2026-11-02 · Origen: petición del usuario · Ampliada el 2026-11-14 (Plan Maestro v1.6, H10): RF-75 a RF-77, T11
 
 ## Estado del corpus ampliado (2026-11-13)
 
@@ -140,6 +140,15 @@ no un ajuste del modelo: no se entrena nada.
 - RF-72: SI la orden coincide con una frase literal de una tarea que se reconoce también como pregunta, ENTONCES EL SISTEMA no aplicará RF-69.
 - RF-73: EL SISTEMA no aplicará RF-69 a una orden sin forma de pregunta ni a una pregunta que no nombre un fichero ni una ruta de la API.
 - RF-74: CUANDO RF-69 decida la tarea, EL SISTEMA lo dirá en lo consultado y en el razonamiento del plan, y no marcará ningún trozo como `texto` (069:RF-30).
+
+### El servidor MCP, fijado y probado de verdad (2026-11-14, Plan Maestro v1.6, H10)
+
+Hasta el 2026-11-14 `requirements-mcp.txt` decía `mcp>=2.3,<3`, sin huella, y las dos pruebas del servidor real se omitían en
+todas las suites registradas: la puerta del commit corría sin `CSG_MCP_PYTHON` y no contaba las omitidas.
+
+- RF-75: EL SISTEMA fijará en `requirements-mcp.txt` el SDK de MCP y cada paquete que arrastra con su versión exacta y su huella SHA-256, para instalarlos con `pip --require-hashes`.
+- RF-76: SI hay un intérprete del MCP configurado (`CSG_MCP_PYTHON` o el `.venv_mcp` del repositorio) y le falta el paquete, ENTONCES EL SISTEMA dará por fallida la prueba del servidor real; la puerta de `main` y la de un commit que cambie el servidor MCP no aprobarán sin esas pruebas corridas y aprobadas.
+- RF-77: CUANDO el servidor MCP arranque con `--datos-locales`, EL SISTEMA avisará por stderr de que expone los datos locales solo a un cliente local de confianza.
 
 ## Requisitos no funcionales
 

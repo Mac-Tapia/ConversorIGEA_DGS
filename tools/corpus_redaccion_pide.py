@@ -59,7 +59,7 @@ def main(argv=None) -> int:
     fragmentos = _fragmentos(args.dataset)
     if args.decisiones:
         if not str(args.revisor or '').strip():
-            print('ERROR: las decisiones piden --revisor: 072:RF-19 exige revisión humana con su nombre')
+            print('ERROR: las decisiones piden --revisor: la revisión es humana y lleva su nombre')
             return 2
         por_id = {str(f.get('record_id')): f for f in fragmentos}
         for d in json.loads(args.decisiones.read_text(encoding='utf-8')):

@@ -201,7 +201,7 @@ def test_recalibrar_sin_bancos_cuadra_la_q_y_si_no_baja_se_recomienda_revisar(gu
     assert q['diferencia_kvar'] > 0 and any('no coherente' in a for a in informe['avisos'])
     rev = informe['revision_bancos']
     assert rev['motivo'] == 'MEDIDA_INCOHERENTE' and rev['diferencia_kvar'] > 0
-    assert any('evaluador' in a and '035:RF-20' in a for a in informe['avisos'])
+    assert any('evaluador' in a and 'fuera de ±' in a for a in informe['avisos'])
 
 
 def test_con_bancos_que_no_alcanzan_tambien_se_recomienda(guion):

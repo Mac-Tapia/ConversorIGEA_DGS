@@ -525,6 +525,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/digital_twin_temporal_entrenar.py` | Trabajador de entrenamiento y recarga GRU, inventario de la medición y competición de pronósticos de cabecera o clientes fijos. | 043 (RF-13), 046 (RF-3, RF-7, RF-12, RF-13, RF-15, RF-24), 060 (RF-8) |
 | `tools/evaluar_evolutivos.py` | Benchmark analítico calculado de GA, NSGA-II y DE (y los de pymoo si está) con al menos 30 semillas, el mismo presupuesto de evaluaciones reales y la misma reparación, separado de aceptación eléctrica. | 043 (RF-13), 048 (RF-3, RF-6) |
 | `tools/asistente_embeddings.py` | Ajuste solo con train y evaluación sobre consultas reservadas del recuperador local; sin cambiar índice activo. | 043 (RF-13), 047 (RF-3, RF-4) |
+| `src/convertersmartgrid/asistente/pregunta_entregada.py` | «Pregunta» en el programa instalado: calibra al construir el candidato la abstención por BM25 sobre los manuales y notas que se entregan, con la muestra mínima y la comprobación de fugas de la 097. | 086 (RF-15, RF-44); 097 (RF-19) |
 | `src/convertersmartgrid/asistente/reranker.py` | Reranker por cross-encoder en CUDA, con revisión fijada, la política que lee la decisión de la evaluación sellada y los umbrales de abstención guardados. | 047 (RF-4, RF-27, RF-30, RF-33, RF-34) |
 | `src/convertersmartgrid/asistente/evaluacion_rag.py` | Conjunto sintético sellado, medición de BM25, híbrido y rerankers, decisión según la política declarada, calibración de la abstención y su puerta en el conjunto sellado; los conjuntos del 077 sin las preguntas que su corpus ya lleva. | 047 (RF-4, RF-27, RF-28, RF-34, RF-36), 097 (RF-19) |
 | `src/convertersmartgrid/asistente/lectura_proyecto.py` | Lecturas del proyecto para el LLM y el MCP: leer un fichero, buscar un texto literal y consultar una ruta en el OpenAPI, con política local o restringida y exclusiones de secretos, sellados y examen humano; sin escritura ni red. | 077 |
@@ -660,7 +661,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/arquitectura.py` | Guarda AST de capas, ciclos y accesos privados con deuda explícita. | 065 (RF-16), 002 |
 | `tools/fijar_entorno.py` | Cierre reproducible de dependencias para CPython 3.12/Windows. | 065 (RF-15) |
 | `tools/generar_arquitectura.py` | Genera `docs/ARQUITECTURA_CATALOGO.md` desde el repositorio: ficheros, capas, rutas, tareas del asistente y roles de su equipo; lo llaman los ganchos de `.githooks/`. | 090 |
-| `tools/puerta_calidad.py` | Puerta de calidad: los ganchos `pre-commit` y `pre-push` de `.githooks/` y GitHub Actions corren con ella las pruebas del commit, la suite completa sin omitidas y la sintética. | 102 (RF-1 a RF-16) |
+| `tools/puerta_calidad.py` | Puerta de calidad: los ganchos `pre-commit` y `pre-push` de `.githooks/` y GitHub Actions corren con ella las pruebas del commit, la suite completa sin omitidas y la sintética. | 102 (RF-1 a RF-16, RF-24) |
+| `tools/rutas_sin_modelo.py` | Lista las rutas de /api sin modelo de respuesta y escribe la lista de excepciones, que solo baja. | 002 (RF-38) |
 | `tools/generar_contrato_api.py` | Generación y comprobación determinista del contrato OpenAPI a TypeScript. | 065 (RF-17), 002 |
 | `tools/trazabilidad_candidato.py` | Matriz de requisitos, código, pruebas y ejecuciones vinculadas al candidato. | 065 (RF-1, RF-20, RF-21) |
 | `run_gui.bat` | Lanzador de Windows: prepara el entorno y el frontend, y devuelve el código real del proceso web. | 065 (RF-2, RF-8) |

@@ -359,7 +359,7 @@ def aviso_deducidos(estructura: Estructura, alimentadores: Iterable[str]) -> str
     if not lineas:
         return ''
     return (f'{len(lineas)} alimentador(es) que la estructura no traía, colocados por la '
-            'entrega (022:RF-78): ' + '; '.join(lineas) + '.')
+            'entrega: ' + '; '.join(lineas) + '.')
 
 
 # =========================================================================== asignación

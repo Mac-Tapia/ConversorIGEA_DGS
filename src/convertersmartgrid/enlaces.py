@@ -36,7 +36,7 @@ class Apertura:
         que = {'entre_set': 'camino cerrado entre ' + ' y '.join(self.sets),
                'entre_alimentadores': 'camino cerrado entre ' + ' y '.join(self.alimentadores),
                'anillo': f'anillo de {self.alimentadores[0]}'}[self.motivo]
-        return f'{self.clase} {self.elemento} abierto: {que} (022:RF-30, RF-31)'
+        return f'{self.clase} {self.elemento} abierto: {que}'
 
 
 def enlaces(model: FeederModel) -> list[dict]:
@@ -211,12 +211,12 @@ class Reconstruccion:
         if not self.cargas_pasadas:
             return (f'{self.alimentador} reconstruido: tramo {self.tramo} de '
                     f'{self.distancia_m:.0f} m hasta {self.donante}, abierto; activado sin carga '
-                    'pasada (022:RF-57, RF-59).')
+                    'pasada.')
         return (f'{self.alimentador} reconstruido: tramo {self.tramo} de {self.distancia_m:.0f} m '
                 f'hasta la red de {self.donante}; abierto {self.abierto} y pasadas '
                 f'{self.cargas_pasadas} cargas ({self.kva_pasado:,.0f} de '
                 f'{self.kva_donante:,.0f} kVA), por sus medidas {self.medida_kw:,.0f} y '
-                f'{self.medida_donante_kw:,.0f} kW (022:RF-57, RF-58).')
+                f'{self.medida_donante_kw:,.0f} kW.')
 
 
 def _mas_cercano(model: FeederModel, receptor: str, distancia_max_m: float):
@@ -270,7 +270,7 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
     """
     info = model.combined
     if info is None:
-        return [], ['La reconstrucción por medida necesita la red unida (022:RF-57).']
+        return [], ['La reconstrucción por medida necesita la red unida.']
     hechas: list[Reconstruccion] = []
     avisos: list[str] = []
     for receptor in sorted(pedidos):
@@ -278,8 +278,8 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
         mejor, propios, kv = _mas_cercano(model, receptor, distancia_max_m)
         if mejor is None:
             avisos.append(f'{receptor}: ningún nodo de otro alimentador de su tensión a menos de '
-                          f'{distancia_max_m:g} m; se convierte como está (022:RF-60).'
-                          if kv else f'{receptor}: no está en la red unida (022:RF-60).')
+                          f'{distancia_max_m:g} m; se convierte como está.'
+                          if kv else f'{receptor}: no está en la red unida.')
             continue
         d, n, m = mejor
         donante = sorted(f for f in info.feeder_of_node[m] if f != receptor)[0]

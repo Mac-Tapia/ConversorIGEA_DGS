@@ -11,12 +11,16 @@ por stdio: no abre ningún puerto, no llama a la web, no escribe nada y no neces
 
 ## Instalar
 
-El paquete `mcp` es opcional y va aparte: sin él, la web y el CLI funcionan igual.
+El paquete `mcp` es opcional y va aparte, en su propio intérprete: sin él, la web y el CLI funcionan igual.
+`requirements-mcp.txt` fija el SDK y todo lo que arrastra con su versión exacta y su huella (077:RF-75), así que pip solo
+instala esas ruedas:
 
 ```bash
-.venv/Scripts/python.exe -m pip install -r requirements-mcp.txt
+python -m venv .venv_mcp
+.venv_mcp/Scripts/python.exe -m pip install --require-hashes -r requirements-mcp.txt
 ```
 
+`.venv_mcp/` queda fuera de git. Sirve también otro intérprete con el mismo fichero, si se indica en `CSG_MCP_PYTHON`.
 Sin el paquete, `tools/mcp_conversor.py` lo dice y termina con el código 3.
 
 ## Conectar
@@ -50,6 +54,8 @@ la máquina con él. Si el cliente es local de verdad, se abre con `--datos-loca
 Abre lo mismo que el LLM local de la web: todo el árbol del proyecto y las raíces de `CSG_LLM_RAICES`, `CSG_DEMANDA_DIR` y
 `raices_llm` del perfil. Nunca abre credenciales ni secretos, conjuntos sellados y sus resultados, `ejemplos.jsonl` ni
 `etiquetas*.jsonl`. El servidor no puede comprobar dónde corre su cliente: esa decisión es de quien añade la opción.
+Por eso, al arrancar con `--datos-locales`, avisa por stderr de que expone los datos locales solo a un cliente local de
+confianza (077:RF-77).
 
 ## Qué se puede leer con la política restringida
 
@@ -69,5 +75,9 @@ La bitácora de cada lectura va a stderr, con el rol `cliente_mcp`; el servidor 
 ## Comprobar
 
 ```bash
-.venv/Scripts/python.exe -m pytest -q tests/test_mcp_conversor.py
+.venv/Scripts/python.exe -m pytest -q -rs tests/test_mcp_conversor.py
 ```
+
+Las dos pruebas del servidor real usan `CSG_MCP_PYTHON` o, si no está, `.venv_mcp` (077:RF-76). Con uno de los dos, que le
+falte el paquete es un fallo, no una omisión. Sin ninguno se omiten y lo dicen; la suite de `main` no se da por buena sin
+ellas aprobadas, y un commit que cambia el servidor MCP las corre con su intérprete o se detiene.

@@ -137,7 +137,7 @@ def test_custodia_rechaza_la_red_de_prueba_vista_al_ajustar():
     grupos = _grupos_pinn()
     grupos['prueba'] = [_muestra('a', 'f3')]
     fallos = orc.fallos_de_custodia(grupos, _identidades(grupos), _politica_pinn())
-    assert fallos and 'sistema' in fallos[0] and '044:RF-1' in fallos[0]
+    assert fallos and 'sistema' in fallos[0] and 'un sistema independiente para prueba' in fallos[0]
 
 
 def test_custodia_rechaza_familia_hermana_entre_particiones():
@@ -202,4 +202,4 @@ def test_entrenar_con_familias_a_ambos_lados_no_se_inicia(tmp_path, monkeypatch)
     monkeypatch.setattr(orc, 'cargar', lambda *_a: pytest.fail('abrió el modelo sin custodia válida'))
     monkeypatch.setattr(orc, 'dispositivo', lambda: pytest.fail('pidió la GPU sin custodia válida'))
     r = orc.entrenar(BuferEpisodios(tmp_path))
-    assert not r['entrenado'] and r['status'] == 'BLOQUEADO_POR_DATOS' and any('044:RF-1' in f for f in r['fallos'])
+    assert not r['entrenado'] and r['status'] == 'BLOQUEADO_POR_DATOS' and any('un sistema independiente para prueba' in f for f in r['fallos'])

@@ -112,5 +112,5 @@ def test_cancelar_y_errores_del_proceso():
 def test_limite_de_memoria_detiene_el_trabajo():
     """027:RF-27 — un trabajo que pasa su límite se detiene con su motivo, sin tumbar al padre."""
     ctx, _ev = _contexto(None)
-    with pytest.raises(jobs.MemoriaExcedida, match='027:RF-27'):
+    with pytest.raises(jobs.MemoriaExcedida, match='se detuvo y la web sigue'):
         ctx.en_proceso(glotona, 1200, limite_mb=400)

@@ -84,13 +84,13 @@ def auditar_ordenes(*, reales: int, sinteticas: int, prueba_real: int, parametro
     avisos = []
     if reales < minimo:
         avisos.append(f'{reales} órdenes reales de las {minimo} que hacen falta: toda acción '
-                      'que escribe pide confirmación (027:RF-19).')
+                      'que escribe pide confirmación.')
     if prueba_real == 0:
         avisos.append('sin órdenes reales en la prueba: sus métricas son de órdenes sintéticas y no valen '
-                      'como puertas (027:RF-34).')
+                      'como puertas.')
     if parametros:
         avisos.append(f'{parametros:,} parámetros frente a {reales + sinteticas:,} órdenes, '
-                      f'{reales} reales (027:RF-33).')
+                      f'{reales} reales.')
     return {'reales': reales, 'sinteticas': sinteticas, 'prueba_real': prueba_real,
             'parametros': parametros,
             'puertas_con_reales': prueba_real > 0 and reales >= minimo,

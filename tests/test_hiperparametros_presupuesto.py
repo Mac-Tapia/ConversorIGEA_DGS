@@ -61,7 +61,7 @@ def test_027_rf70_el_tope_de_reloj_no_recorta_la_busqueda(monkeypatch):
     """027:RF-70 — con ensayos lentos y un tope de reloj corto, la búsqueda no devuelve una elección
     hecha con menos ensayos de los pedidos: se para y lo dice, con el tope y los ensayos hechos."""
     muestras = _doble(monkeypatch, duracion=lambda _n: 0.3)
-    with pytest.raises(TimeoutError, match=r'tope de seguridad.*027:RF-70'):
+    with pytest.raises(TimeoutError, match=r'tope de seguridad.*búsqueda incompleta'):
         hp.buscar(muestras, base=BASE, ensayos=4, limite_s=0.5, semilla=3)
 
 
@@ -82,7 +82,7 @@ def test_027_rf71_un_ensayo_que_falla_para_la_busqueda_con_su_error(monkeypatch)
     """027:RF-71 — un ensayo que falla (la memoria del acelerador) para la búsqueda con su error; no se elige
     entre los que quedaron, porque la elección dependería de la memoria libre y no de los datos."""
     muestras = _doble(monkeypatch, falla=lambda n: n == 1)
-    with pytest.raises(RuntimeError, match=r'ensayo 1.*out of memory.*027:RF-71'):
+    with pytest.raises(RuntimeError, match=r'ensayo 1.*out of memory.*no se elige entre los demás'):
         hp.buscar(muestras, base=BASE, ensayos=3, limite_s=3600, semilla=3)
 
 

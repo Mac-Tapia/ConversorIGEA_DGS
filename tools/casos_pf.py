@@ -365,7 +365,7 @@ def sin_a_con_proyecto(app, casos: dict, excluir=()) -> dict:
         out['etapas_adelantadas'] = etapas_al_dia(app)
         if out['etapas_adelantadas']:
             out['avisos'].append('«Con proyecto» no veía las etapas de ' + ', '.join(out['etapas_adelantadas'])
-                                 + ' por su fecha: se adelantan a la hora del caso (081:RF-78).')
+                                 + ' por su fecha: se adelantan a la hora del caso.')
         fotos = {}
         for rol in ('base', 'sin', 'con'):
             if rol in casos:
@@ -414,17 +414,17 @@ def sin_a_con_proyecto(app, casos: dict, excluir=()) -> dict:
             out['avisos'].append(
                 f"«Con proyecto» toma de «Sin proyecto» {len(out['copiados'])} dato(s) de "
                 'operación cambiados a mano: ' + ', '.join(
-                    f"{c['objeto']}.{c['dato']}" for c in out['copiados'][:10]) + ' (014:RF-32).')
+                    f"{c['objeto']}.{c['dato']}" for c in out['copiados'][:10]) + '.')
         if out['conflictos']:
             out['avisos'].append(
                 'Cambiados distinto en «Sin proyecto» y en «Con proyecto»; se deja el de «Con '
                 'proyecto»: ' + ', '.join(f"{c['objeto']}.{c['dato']}" for c in out['conflictos'][:10])
-                + ' (014:RF-33).')
+                + '.')
         if out['faltan']:
             out['avisos'].append(
                 'Están en «Sin proyecto» y no en «Con proyecto» (una variación de «Con proyecto» '
                 'los quita o la del operador está inactiva): ' + ', '.join(out['faltan'][:10])
-                + ' (014:RF-34).')
+                + '.')
     finally:
         if previo is not None and app.GetActiveStudyCase() is not previo:
             previo.Activate()
@@ -490,16 +490,16 @@ def operacion_de_las_obras(app, casos_anio: dict) -> dict:
         if out['copiados']:
             out['avisos'].append(
                 f"«{nombre}» toma de «{NOMBRES['con']}» la operación de sus obras: " + ', '.join(
-                    f"{c['objeto']}.{c['dato']}" for c in out['copiados'][:10]) + ' (025:RF-42b).')
+                    f"{c['objeto']}.{c['dato']}" for c in out['copiados'][:10]) + '.')
         if out['conflictos']:
             out['avisos'].append(
                 f'Cambiados distinto por las obras de «{NOMBRES["con"]}» y en «{nombre}»; se deja '
                 'el del año: ' + ', '.join(f"{c['objeto']}.{c['dato']}" for c in out['conflictos'][:10])
-                + ' (025:RF-42b).')
+                + '.')
         if out['faltan']:
             out['avisos'].append(
                 f'Las obras de «{NOMBRES["con"]}» cambian objetos que no están en «{nombre}»: '
-                + ', '.join(out['faltan'][:10]) + ' (025:RF-42b).')
+                + ', '.join(out['faltan'][:10]) + '.')
     finally:
         if previo is not None and app.GetActiveStudyCase() is not previo:
             previo.Activate()
@@ -824,7 +824,7 @@ def cargas_nuevas(app, sin, anio: int | None, variaciones: list, flujo,
         # RF-61: un caso del operador con el mismo nombre no se toca, ni se borra el del sistema para
         # copiar otro con su nombre al lado (DIgSILENT tendría dos con el mismo nombre o lo renombraría).
         informe['avisos'].append(f'Hay un caso «{nombre}» que no creó el sistema: no se toca; '
-                                 'renómbrelo en DIgSILENT para tener el de diagnóstico (025:RF-61).')
+                                 'renómbrelo en DIgSILENT para tener el de diagnóstico.')
         informe['converge'] = None
         informe['creado'] = informe['recreado'] = False
         return informe
@@ -840,7 +840,7 @@ def cargas_nuevas(app, sin, anio: int | None, variaciones: list, flujo,
             if caso is not None and not _borrar_caso(app, caso, sin):
                 reutilizado = caso
                 informe['avisos'].append(f'DIgSILENT no dejó borrar «{nombre}» para copiarlo otra vez de '
-                                         f'«{sin.loc_name}»: se reutiliza y se compara con él (025:RF-79).')
+                                         f'«{sin.loc_name}»: se reutiliza y se compara con él.')
             caso = _armar_cargas_nuevas(app, sin, carpeta, nombre, clave, informe, reutilizado)
             # «Sin proyecto» se fotografía después de armar la copia: las etapas que adelanta RF-80 son de
             # variaciones que también están activas en él, y desde ese momento también las ve.
@@ -863,13 +863,13 @@ def cargas_nuevas(app, sin, anio: int | None, variaciones: list, flujo,
                 ' antes de activar las cargas nuevas, ni al copiarlo otra vez; se sigue con él'))
         if informe['etapas_adelantadas']:
             informe['avisos'].append(f'«{nombre}» no veía las etapas de ' + ', '.join(informe['etapas_adelantadas'])
-                                     + ' por su fecha: se adelantan a la hora del caso (025:RF-80).')
+                                     + ' por su fecha: se adelantan a la hora del caso.')
         if 'con_frente_a_sin' in informe:
             informe['avisos'] += informe['con_frente_a_sin']['avisos']
         converge, mensajes = partida                     # «Cargas nuevas» sigue activo con ese flujo
         if not converge:
             informe['avisos'].append(f'«{nombre}» no converge ni sin cargas nuevas, como «Sin proyecto»: '
-                                     'no se activa ninguna (025:RF-65). DIgSILENT: ' + '; '.join(mensajes[-3:]))
+                                     'no se activa ninguna. DIgSILENT: ' + '; '.join(mensajes[-3:]))
             informe['converge'] = False
             return informe
         vistas: set[str] = set()
@@ -889,7 +889,7 @@ def cargas_nuevas(app, sin, anio: int | None, variaciones: list, flujo,
             flujo(app)                       # resultados convergidos para leer la siguiente
         informe['converge'] = bool(flujo(app)[0])
         for x in informe['no_convergen']:
-            informe['avisos'].append(f'«{nombre}»: {x.get("texto") or x["variacion"]} (025:RF-66).')
+            informe['avisos'].append(f'«{nombre}»: {x.get("texto") or x["variacion"]}.')
     finally:
         if previo is not None and app.GetActiveStudyCase() is not previo:
             previo.Activate()
@@ -915,7 +915,7 @@ def caso_valle(app, sin, anio: int | None) -> dict:
     informe: dict = {'caso': nombre, 'escenario': None, 'creado': caso is None, 'avisos': []}
     if caso is None and any(c.loc_name == nombre for c in casos):
         informe['avisos'].append(f'Hay un caso «{nombre}» que no creó el sistema: no se toca; renómbrelo en '
-                                 'DIgSILENT para tener el de valle (073:RF-15).')
+                                 'DIgSILENT para tener el de valle.')
         return {**informe, 'caso': None, 'creado': False}
     previo = app.GetActiveStudyCase()
     origen = _escenario_de(app, sin)
@@ -1015,7 +1015,7 @@ def _con_grafico_perfil(app, caso, plan: dict, informe: dict, rol: str) -> None:
         informe['casos'][rol]['graficos_perfil'] = grafico_perfil(app, caso, list(plan.get('feeders') or []))
     except Exception as exc:  # noqa: BLE001 - el gráfico no decide el caso
         informe['avisos'].append(f'Sin el gráfico de perfil de tensión en «{caso.loc_name}»: {type(exc).__name__}: '
-                                 f'{exc} (094:RF-15).')
+                                 f'{exc}.')
 
 
 def preparar_sin(app, plan: dict) -> tuple[dict, int]:
@@ -1039,7 +1039,7 @@ def preparar_sin(app, plan: dict) -> tuple[dict, int]:
     if fuera:
         return {**informe, 'error': 'El «Caso base» de ' + ', '.join(fuera) + ' no está '
                                     f"verificado: verifíquelo (paso 1.1) antes de crear «{nombre_caso('sin', anio)}» "
-                                    '(015:RF-17).'}, 2
+                                    '.'}, 2
     ajenos = _ajenos(app, anio)
     if ajenos:
         return {**informe, 'error': 'Hay en el proyecto un caso de estudio que no creó el sistema '
@@ -1143,7 +1143,7 @@ def preparar_con(app, plan: dict) -> tuple[dict, int]:
             informe['avisos'].append(
                 f'«{viejo}» no tenía obras y le faltaba lo de la recalibración de «Sin proyecto» '
                 f'({", ".join(faltaban[:10])}): se renueva como copia de ella; el anterior queda '
-                'renombrado, con su escenario (037:RF-8).')
+                'renombrado, con su escenario.')
         del_operador = sincronia['variaciones']
         informe['avisos'] += [a for a in sincronia['avisos'] if not a.startswith('Activadas')]
         con.Activate()

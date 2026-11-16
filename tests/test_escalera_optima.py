@@ -118,7 +118,7 @@ def test_sorteos_de_la_curva_con_semilla(semilla):
     assert a == eo.sorteos(curva, maximas, 200, semilla) and len(a) == 200
     assert all(set(s['factores']) == {'F1', 'F2'} and 0 < s['factores']['F1'] <= 1 for s in a)
     assert a != eo.sorteos(curva, maximas, 200, semilla + 1)
-    with pytest.raises(eo.EscaleraError, match='RF-51'):
+    with pytest.raises(eo.EscaleraError, match='no se puede sortear'):
         eo.sorteos([('t', {'F1': 1.0})], maximas, 10, 1)
 
 
@@ -212,7 +212,7 @@ def test_precios_de_perdidas_a_la_moneda_de_trabajo():
     assert p.moneda == 'USD' and p.precio_perdidas_kwh == pytest.approx(0.1443 / 3.495)
     assert p.precio_perdidas_kw_mes == pytest.approx(22.06 / 3.495)
     for tc in (None, 0):
-        with pytest.raises(eo.EscaleraError, match='tipo de cambio.*RF-68'):
+        with pytest.raises(eo.EscaleraError, match='tipo de cambio'):
             eo.parametros({**PERFIL, 'escalera': esc}, tipo_cambio=tc)
 
 
@@ -344,7 +344,7 @@ def test_con_solucion_en_la_maxima_no_se_pasa_a_otras_obras():
     r = eo.elegir(tabla, P)
     # 098:RF-45: el escalón de la sección («sección + bancos») va antes que el de la terna, aunque cueste más.
     assert r['elegida'] == 'banco+seccion' and r['sin_confirmar_sorteos'] is True
-    assert '063:RF-33' in next(t['motivo'] for t in r['tabla'] if t['nombre'] == 'banco+seccion')
+    assert 'hay que revisar los sorteos' in next(t['motivo'] for t in r['tabla'] if t['nombre'] == 'banco+seccion')
     sin_maxima = eo.elegir([_evaluada('a', False, None, 10.0)], P)
     assert sin_maxima['elegida'] is None and 'sin_confirmar_sorteos' not in sin_maxima
 
@@ -454,9 +454,9 @@ def test_en_linea_larga_el_regulador_no_queda_fuera_del_tope():
 
     largas, avisos = de(4000.0)
     triple = [v for v in largas if {'seccion', 'terna', 'regulador'} == set(v.escalones)]
-    assert triple and any('042:RF-35' in a for a in avisos)
+    assert triple and any('se plantean reguladores, también con la doble terna' in a for a in avisos)
     cortas, avisos_c = de(100.0)
-    assert not [v for v in cortas if len(v.escalones) == 3] and not any('042:RF-35' in a for a in avisos_c)
+    assert not [v for v in cortas if len(v.escalones) == 3] and not any('se plantean reguladores, también con la doble terna' in a for a in avisos_c)
 
 
 def test_en_linea_larga_los_bancos_tambien_a_dos_tercios():
@@ -511,7 +511,7 @@ def test_otra_empresa_sin_perfil_y_otra_tension_tiene_todas_las_obras():
                                                    completar_planeamiento)
 
     perfil, avisos = completar_planeamiento({})
-    assert avisos and '042:RF-39' in avisos[0]
+    assert avisos and 'Supuestos técnicos de referencia, el perfil no los da' in avisos[0]
     p = eo.parametros(perfil)
     assert p.tension_min_pu == 0.95 and sn.parametros(perfil).anios == 5
     assert completar_planeamiento({'estudios': {'tension_min_pu': 0.9}})[0]['estudios']['tension_min_pu'] == 0.9
@@ -532,7 +532,7 @@ def test_sin_medicion_las_obras_se_evaluan_en_la_maxima():
     from convertersmartgrid import escalera_optima as eo
 
     lista, avisos = eo.sorteos_o_maxima([], {'F1': 100.0}, 200, 1)
-    assert lista == [{'instante': 'máxima', 'factores': {}}] and '042:RF-42' in avisos[0]
+    assert lista == [{'instante': 'máxima', 'factores': {}}] and 'las obras se evalúan solo en la máxima' in avisos[0]
     lista, avisos = eo.sorteos_o_maxima([('t', {'F1': 50.0})], {'F1': 100.0}, 3, 1)
     assert len(lista) == 3 and lista[0]['factores'] == {'F1': 0.5} and not avisos
 
@@ -549,7 +549,7 @@ def test_cada_variante_refuerza_los_tramos_sobrecargados_de_cualquier_ramal():
     ramal = {'nombre': 'R1', 'largo_m': 500.0, 'carga_pct': 141.0, 'nlnum': 1, 'inom_a': 100.0, 'desde': 'A', 'hasta': 'B'}
     cargas = [{'barra': 'B2', 'existe': True, 'indice_troncal': 2}]
     vs, avisos = eo.variantes('F', 22.9, troncal, cargas, [], eo.parametros(perfil), banco_kvar=450.0, sobrecargados=[ramal])
-    assert any('042:RF-43' in a for a in avisos)
+    assert any('cada variante los refuerza' in a for a in avisos)
     assert vs[0].nombre.startswith('refuerzo de 1 tramos') and vs[0].cantidades['terna'] == 0.5
     for v in vs:
         ternas = [o for o in v.obras if o['clase'] == 'terna' and 'R1' in o['tramos']]
@@ -621,7 +621,7 @@ def test_el_regulador_solo_pasa_de_15_km(km, hay):
     p = eo.parametros({**PERFIL, 'escalera': esc})
     vs, avisos = eo.variantes('F1', 22.9, _tramos_de(km), [], [], p, banco_kvar=None, fuera_desde=1)
     assert any('regulador' in v.escalones for v in vs) is hay
-    assert any('042:RF-49' in a for a in avisos) is not hay
+    assert any('sin regulador: es para más de' in a for a in avisos) is not hay
 
 
 def test_el_largo_del_regulador_lo_da_el_perfil():
@@ -661,7 +661,7 @@ def test_sin_barra_de_destino_con_su_fuente_o_a_la_set_nueva():
     (v,) = [v for v in vs if 'nivel' in v.escalones]
     assert v.obras[0]['clase'] == 'tension' and 'celda_nivel' not in v.cantidades
     vs, avisos = eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel={**solo, 'compartida': True})
-    assert not [v for v in vs if 'nivel' in v.escalones] and any('042:RF-53' in a for a in avisos)
+    assert not [v for v in vs if 'nivel' in v.escalones] and any('sigue la escalera hasta la SET nueva' in a for a in avisos)
 
 
 def test_el_paso_de_tension_se_costea_aunque_el_libro_no_lo_traiga():
@@ -731,7 +731,7 @@ def test_el_elevador_que_no_conviene_dice_su_motivo_y_sigue_a_la_set_nueva():
     grande = [{**t, 'corriente_a': 2000.0} for t in _tramos_de(5.0)]
     vs, avisos = eo.variantes('F1', 10.0, grande, [], [], P, banco_kvar=None, nivel=COMPARTIDA)
     assert not [v for v in vs if 'nivel' in v.escalones]
-    assert any('pasaría de 20 MVA' in a and 'RF-62' in a for a in avisos)
+    assert any('pasaría de 20 MVA' in a and 'sigue la escalera hasta la SET nueva' in a for a in avisos)
     _vs, avisos = eo.variantes('F1', 10.0, _tramos_de(5.0), [], [], P, banco_kvar=None, nivel={**COMPARTIDA, 'nodo': ''})
     assert any('primer nodo' in a for a in avisos)
 
@@ -992,7 +992,7 @@ def test_conductor_terna_deja_los_dos_circuitos_en_el_del_perfil(semilla):
     assert abs(terna.cantidades.get('seccion', 0.0) - km) < 1e-9
     assert abs(terna.cantidades['terna'] - sum(t['largo_m'] for t in troncal) / 1000) < 1e-9
     for nombre in (t['nombre'] for t in troncal if t['nombre'] not in esperado):
-        assert any(nombre in a and '042:RF-99' in a for a in av)
+        assert any(nombre in a and 'ya lleva igual o más corriente que' in a for a in av)
     capex = {'nueva_terna': {'costo_unitario': 100.0, 'unidad': 'km'},
              'cambio_seccion': {'costo_unitario': 40.0, 'unidad': 'km'}}
     c = eo.costo(terna, capex, p, perdidas_kw=None, factor_perdidas=None)
@@ -1010,13 +1010,13 @@ def test_conductor_terna_sin_la_clave_o_sin_el_tipo_la_terna_es_como_antes():
     vs, av = eo.variantes('F', kv, troncal, cargas, _biblioteca_terna(kv), _p_terna(), banco_kvar=None)
     (obra,) = next(v for v in vs if v.escalones == ('terna',)).obras
     assert not {'tipo', 'tipo_cable', 'cambia_tipo'} & set(obra)
-    assert any('escalera.conductor_terna' in a and '042:RF-100' in a for a in av)
+    assert any('el perfil no da escalera.conductor_terna' in a for a in av)
     sin_cable = [t for t in _biblioteca_terna(kv) if not t['nombre'].startswith('CX')]
     p = _p_terna(conductor_terna={'aereo': 'AX120', 'cable': 'CX120'})
     vs, av = eo.variantes('F', kv, troncal, cargas, sin_cable, p, banco_kvar=None)
     (obra,) = next(v for v in vs if v.escalones == ('terna',)).obras
     assert 'tipo_cable' not in obra and troncal[0]['nombre'] not in obra.get('cambia_tipo', {})
-    assert any(troncal[0]['nombre'] in a and '042:RF-100' in a for a in av)
+    assert any(troncal[0]['nombre'] in a and 'sin el conductor' in a for a in av)
 
 
 @pytest.mark.parametrize('semilla', SEMILLAS)

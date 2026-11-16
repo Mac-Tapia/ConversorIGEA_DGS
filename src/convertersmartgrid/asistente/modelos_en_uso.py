@@ -16,6 +16,7 @@ from typing import Any
 
 from ..model_registry import EstadoModelo, RegistroModelo
 from . import almacen, transformer
+from .equipo import recibo_directo
 
 #: Familia del registro y carpeta de sus modelos en uso.
 FAMILIAS = transformer.FAMILIAS_MODELOS
@@ -58,7 +59,16 @@ def _copiar_artefactos(detalle: dict, carpeta: Path) -> None:
 
 
 def activar(familia: str, candidate_id: str) -> str:
-    """Pone en uso un candidato aprobado; el anterior queda en el puntero y en disco (067:RF-20 a RF-22)."""
+    """Pone en uso un candidato aprobado; el anterior queda en el puntero y en disco (067:RF-20 a RF-22).
+
+    067:RF-41: lo decide el registro, y queda su recibo."""
+    with recibo_directo('modelos_en_uso.activar', responsable='registro', decision='aprobado_por_el_registro',
+                        entradas={'familia': familia, 'candidate_id': candidate_id}) as evidencia:
+        evidencia['salida'] = _activar(familia, candidate_id)
+    return evidencia['salida']
+
+
+def _activar(familia: str, candidate_id: str) -> str:
     nombre, reg = FAMILIAS[familia], registro()
     from ..conjuntos_aprendizaje import exigir_sin_conjunto
     exigir_sin_conjunto(registro=reg)
@@ -110,7 +120,16 @@ def poner_provisional(familia: str, candidate_id: str, *, decidido_por: str, mot
                       fecha: str | None = None) -> dict[str, Any]:
     """Pone en uso un candidato rechazado por decisión del usuario, sin aprobarlo (085:RF-26 a RF-29).
 
-    La decisión se anota antes de mover el puntero: lo contrario dejaría un rato un modelo sin aprobar en uso y sin motivo."""
+    La decisión se anota antes de mover el puntero: lo contrario dejaría un rato un modelo sin aprobar en uso y sin motivo.
+    067:RF-41: con su recibo, a nombre de quien lo decidió."""
+    with recibo_directo('modelos_en_uso.poner_provisional', responsable=str(decidido_por), decision='decision_anotada_del_usuario',
+                        entradas={'familia': familia, 'candidate_id': candidate_id, 'motivo': motivo}) as evidencia:
+        evidencia['salida'] = _poner_provisional(familia, candidate_id, decidido_por=decidido_por, motivo=motivo, fecha=fecha)
+    return evidencia['salida']
+
+
+def _poner_provisional(familia: str, candidate_id: str, *, decidido_por: str, motivo: str,
+                       fecha: str | None) -> dict[str, Any]:
     nombre, reg = FAMILIAS[familia], registro()
     from ..conjuntos_aprendizaje import exigir_sin_conjunto
     exigir_sin_conjunto(registro=reg)
@@ -175,7 +194,14 @@ def aplicar_decision(familia: str, candidato: dict[str, Any]) -> dict[str, Any]:
 
 
 def volver_al_anterior(familia: str) -> str | None:
-    """Vuelve al modelo anterior con el puntero y el registro de acuerdo (067:RF-23)."""
+    """Vuelve al modelo anterior con el puntero y el registro de acuerdo (067:RF-23), con su recibo (067:RF-41)."""
+    with recibo_directo('modelos_en_uso.volver_al_anterior', responsable='operador', decision='peticion_del_operador',
+                        entradas={'familia': familia}) as evidencia:
+        evidencia['salida'] = _volver_al_anterior(familia)
+    return evidencia['salida']
+
+
+def _volver_al_anterior(familia: str) -> str | None:
     from ..conjuntos_aprendizaje import exigir_sin_conjunto
     exigir_sin_conjunto(registro=registro())
     version = transformer.volver_al_anterior(FAMILIAS[familia])

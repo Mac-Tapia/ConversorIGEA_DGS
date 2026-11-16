@@ -5,7 +5,8 @@ Uso:
   python tools/construir_candidato.py lock [--salida requirements-nucleo.lock]
   python tools/construir_candidato.py candidato --salida DIR --python-embebido python-3.12.x-embed-amd64.zip
                                                 [--ruedas-cache DIR] [--version 1.0.0rc2]
-  python tools/construir_candidato.py complemento-ia --salida DIR --ruedas-cache DIR [--version VERSION]
+  python tools/construir_candidato.py complemento-ia --salida DIR --ruedas-cache DIR (--modelos DIR | --sin-modelos)
+      [--version VERSION]
       [--capacidades integrales --versiones-capturadas FREEZE --procedencias JSON --licencias-suplementarias JSON]
 
 `rueda` construye el programa: lo que `config/entrega.json` deja entrar, con `tools/`, `config/` y `frontend/dist/`
@@ -29,6 +30,7 @@ import email
 from email import policy
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -183,8 +185,39 @@ def comprobar_notas(texto: str, version: str) -> None:
 
 
 # --------------------------------------------------------------------------- rueda propia
+CONJUNTO_PREGUNTA = Path('config', 'pregunta_entregada', 'CONJUNTO_ABSTENCION_ENTREGA.json')
+
+
+def documentos_de_pregunta(raiz: Path, programa: Path, version: str, *, calibrar: bool) -> dict[str, Any] | None:
+    """Los manuales y notas que se entregan, dentro del paquete, para que «pregunta» los lea en el instalado.
+
+    Con ``calibrar``, además la abstención sobre ellos (asistente/pregunta_entregada.py, 097:RF-19): se arma sin
+    internet y sin GPU, con BM25. El candidato la exige; una rueda suelta de ensayo no.
+    """
+    from convertersmartgrid.asistente import pregunta_entregada as PE
+
+    carpeta = programa / PE.CARPETA
+    carpeta.mkdir(parents=True, exist_ok=True)
+    # Los manuales y notas del operador; MANUAL_COMANDOS y la guía de la persona ajena no, porque describen el entorno de
+    # desarrollo y la aceptación interna, y el primero aún nombra alimentadores reales (auditoría de lanzamiento, 6).
+    for rel in (*DOCUMENTOS, f'docs/NOTAS_VERSION_{publicacion(version)}.md'):
+        if rel.endswith('.md') and (raiz / rel).is_file():
+            shutil.copyfile(raiz / rel, carpeta / Path(rel).name)
+    if (raiz / CONJUNTO_PREGUNTA).is_file():
+        shutil.copyfile(raiz / CONJUNTO_PREGUNTA, carpeta / PE.CONJUNTO)
+    if not calibrar:
+        return None
+    try:
+        return PE.calibrar(programa)
+    except (ImportError, AttributeError) as exc:
+        raise CE.EntregaError(f'La calibración de «pregunta» necesita la muestra mínima y la comprobación de fugas de la '
+                              f'evaluación del asistente, que no están en este árbol: {exc}') from exc
+    except ValueError as exc:
+        raise CE.EntregaError(f'No se pudo calibrar «pregunta» sobre los documentos que se entregan: {exc}') from exc
+
+
 def preparar_arbol(raiz: Path, arbol: Path, manifiesto: dict, terminos: CE.Terminos, *, version: str | None = None,
-                   dist: Path | None = None) -> dict[str, int]:
+                   dist: Path | None = None, calibrar_pregunta: bool = False) -> dict[str, int]:
     """Copia a ``arbol`` lo que la lista deja entrar, en la forma del paquete; devuelve qué hizo."""
     dist = raiz / 'frontend' / 'dist' if dist is None else dist
     if not (dist / 'index.html').is_file():
@@ -224,16 +257,21 @@ def preparar_arbol(raiz: Path, arbol: Path, manifiesto: dict, terminos: CE.Termi
         if n != 1:
             raise CE.EntregaError('No se encontró la versión en el paquete.')
         inicial.write_text(texto, encoding='utf-8', newline='')
+    calibrado = documentos_de_pregunta(raiz, arbol / PROGRAMA_EN_PAQUETE, version or version_del_paquete(raiz),
+                                       calibrar=calibrar_pregunta)
+    if calibrado:
+        cuenta['pregunta_umbral_bm25'] = calibrado['umbrales']['bm25_solo']
     return cuenta
 
 
 def construir_rueda(raiz: Path, salida: Path, manifiesto: dict, terminos: CE.Terminos, *, version: str | None = None,
-                    dist: Path | None = None) -> tuple[Path, dict[str, int]]:
+                    dist: Path | None = None, calibrar_pregunta: bool = False) -> tuple[Path, dict[str, int]]:
     """Sin aislamiento: con setuptools del entorno, para no salir a internet a por él en cada construcción."""
     salida.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='csg-rueda-') as temporal:
         arbol = Path(temporal) / 'arbol'
-        cuenta = preparar_arbol(raiz, arbol, manifiesto, terminos, version=version, dist=dist)
+        cuenta = preparar_arbol(raiz, arbol, manifiesto, terminos, version=version, dist=dist,
+                                calibrar_pregunta=calibrar_pregunta)
         _pip('wheel', '--no-deps', '--no-build-isolation', '--no-cache-dir', '-w', str(salida), str(arbol))
     ruedas = sorted(salida.glob('convertersmartgrid-*.whl'))
     if len(ruedas) != 1:
@@ -427,14 +465,132 @@ def _componentes_del_front(raiz: Path) -> list[dict[str, Any]]:
     return salida
 
 
-def _avisos(componentes: list[dict[str, Any]], textos: dict[str, list[tuple[str, str]]]) -> str:
+def _avisos(componentes: list[dict[str, Any]], textos: dict[str, list[tuple[str, str]]], anexo: str = '') -> str:
     partes = ['THIRD_PARTY_NOTICES: ConverterSmartGrid incluye estos componentes de terceros.',
               'Inventario técnico generado de sus metadatos: no es una opinión legal (086, D7).', '']
     partes += [f'{c["name"]} {c["version"]} [{c.get("origen", "python")}]: {c.get("license", "desconocida")}' for c in componentes]
     for nombre, lista in sorted(textos.items()):
         for ruta, texto in lista:
             partes += ['', '=' * 78, f'{nombre}: {ruta}', '=' * 78, texto.strip()]
+    if anexo:
+        partes += ['', anexo.strip()]
     return '\n'.join(partes) + '\n'
+
+
+# --------------------------------------------------------------------------- avisos que no vienen en una rueda
+#: 086:RF-44: textos de los modelos, de Ollama, de NVIDIA y de vcruntime, con su huella y su fuente (auditoría de
+#: lanzamiento, 2026-11-14: el rc6 no traía el texto de NVIDIA de las 37 DLL de CUDA de torch, ni los de OpenSSL, SQLite,
+#: expat, liblzma y zlib del Python propio, ni dónde está el código fuente de GEOS, iconv, libpq, moocore y FFmpeg).
+LICENCIAS_TERCEROS = Path('config', 'licencias_terceros', 'manifest.json')
+
+
+def _con_licencias(raiz: Path) -> Path:
+    """Los textos son de la herramienta que construye: un árbol de ensayo sin ellos usa los de este checkout."""
+    return raiz if (raiz / LICENCIAS_TERCEROS).is_file() else RAIZ
+
+
+def textos_de_terceros(raiz: Path) -> dict[str, dict[str, Any]]:
+    """Cada texto por su id, comprobado por sus bytes; uno que no permite redistribuir no entra en ningún paquete."""
+    raiz = _con_licencias(raiz)
+    try:
+        datos = json.loads((raiz / LICENCIAS_TERCEROS).read_text(encoding='utf-8'))
+        salida = {}
+        for t in datos['textos']:
+            ruta = raiz / LICENCIAS_TERCEROS.parent / t['fichero']
+            if _sha256(ruta) != t['sha256']:
+                raise ValueError(f'{t["fichero"]} no tiene la huella declarada')
+            if t.get('redistribuir') is not True:
+                raise ValueError(f'{t["id"]}: su licencia no permite redistribuirlo, no se empaqueta')
+            salida[t['id']] = {**t, 'texto': ruta.read_text(encoding='utf-8')}
+        return salida
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise CE.EntregaError(f'Licencias de terceros incompletas o alteradas ({LICENCIAS_TERCEROS.as_posix()}): {exc}') from exc
+
+
+def _manifiesto_terceros(raiz: Path) -> dict[str, Any]:
+    raiz = _con_licencias(raiz)
+    try:
+        return json.loads((raiz / LICENCIAS_TERCEROS).read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        raise CE.EntregaError(f'No se puede leer {LICENCIAS_TERCEROS.as_posix()}: {exc}') from exc
+
+
+def _con_cita(t: dict[str, Any]) -> list[tuple[str, str]]:
+    return [(t['fichero'], f'Licencia: {t["licencia"]}. Fuente: {t["fuente"]}\n{t["cita"]}\n\n{t["texto"]}')]
+
+
+def _nativas(nombres: Iterable[str]) -> list[str]:
+    return sorted({PureWindowsPath(n).name for n in nombres if n.lower().endswith(('.dll', '.pyd', '.so'))})
+
+
+def dll_de_rueda(rueda: Path) -> list[str]:
+    with zipfile.ZipFile(rueda) as z:
+        return _nativas(z.namelist())
+
+
+def avisos_nvidia(raiz: Path, contenedores: dict[str, list[str]]) -> dict[str, list[tuple[str, str]]]:
+    """El texto de NVIDIA de cada DLL de CUDA o cuDNN, con qué contenedor la trae (086:RF-44)."""
+    reglas = _manifiesto_terceros(raiz)['nvidia']
+    halladas: dict[str, list[str]] = {}
+    for contenedor, dlls in sorted(contenedores.items()):
+        for dll in dlls:
+            for id_texto, patron in reglas.items():
+                if re.search(patron, PureWindowsPath(dll).name, re.I):
+                    halladas.setdefault(id_texto, []).append(f'{contenedor}: {dll}')
+                    break
+    if not halladas:
+        return {}
+    textos = textos_de_terceros(raiz)
+    salida = {}
+    for id_texto, lista in sorted(halladas.items()):
+        t = textos[id_texto]
+        salida[f'NVIDIA {t["licencia"]}'] = [(t['fichero'], 'Se aplica a:\n' + '\n'.join(f'  {x}' for x in lista) + '\n\n'
+                                              + _con_cita(t)[0][1])]
+    return salida
+
+
+def avisos_nativos(raiz: Path, python: Path) -> dict[str, list[tuple[str, str]]]:
+    """Las licencias de las bibliotecas que trae el Python propio, su procedencia y vcruntime (086:RF-44)."""
+    salida: dict[str, list[tuple[str, str]]] = {}
+    for texto in sorted((python / 'native_licenses').glob('*.txt')):
+        salida[f'Python: {texto.stem}'] = [(f'native_licenses/{texto.name}', texto.read_text(encoding='utf-8', errors='replace'))]
+    procedencia = python / 'RUNTIME_PROVENANCE.json'
+    if procedencia.is_file():
+        salida['Python: procedencia del runtime'] = [('RUNTIME_PROVENANCE.json', procedencia.read_text(encoding='utf-8', errors='replace'))]
+    if any(python.glob('vcruntime140*.dll')):
+        salida['Microsoft vcruntime'] = _con_cita(textos_de_terceros(raiz)['vcruntime'])
+    return salida
+
+
+def fuentes_lgpl(raiz: Path, ruedas: Iterable[Path]) -> str:
+    """El apartado «Código fuente de componentes LGPL» de los avisos, de las DLL que de verdad van en el paquete.
+
+    Una DLL de una biblioteca LGPL en una rueda o versión que no está declarada para el paquete: no se arma, en vez de
+    entregar una LGPL sin decir dónde está su fuente.
+    """
+    datos = _manifiesto_terceros(raiz)
+    patrones = {e['dll'] for e in datos['lgpl']}
+    filas, faltan = [], []
+    for rueda in sorted(ruedas, key=lambda r: r.name):
+        nombre, version = _nombre_y_version(rueda.name)
+        for dll in dll_de_rueda(rueda):
+            for patron in sorted(patrones):
+                if not dll.lower().startswith(patron.lower()):
+                    continue
+                e = next((e for e in datos['lgpl'] if e['rueda'] == nombre and e['version_rueda'] == version
+                          and e['dll'] == patron), None)
+                if e is None:
+                    faltan.append(f'{nombre} {version}: {dll}')
+                elif e not in filas:
+                    filas.append(e)
+    if faltan:
+        raise CE.EntregaError('Bibliotecas LGPL sin su fuente declarada en ' + LICENCIAS_TERCEROS.as_posix() + ': '
+                              + ', '.join(faltan) + '.')
+    if not filas:
+        return ''
+    lineas = ['=' * 78, 'Código fuente de componentes LGPL', '=' * 78, datos['oferta_lgpl'], '']
+    lineas += [f'- {e["componente"]} ({e["licencia"]}), en {e["rueda"]} {e["version_rueda"]}: {e["fuente"]}' for e in filas]
+    return '\n'.join(lineas)
 
 
 def _licencias_del_front(raiz: Path, componentes: list[dict[str, Any]]) -> dict[str, list[tuple[str, str]]]:
@@ -713,7 +869,8 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     faltan = [rel for rel in documentos_del_candidato(prevista) if not (raiz / rel).is_file()]
     if faltan:                                                                                  # 086:RF-91, antes de construir
         raise CE.EntregaError('Faltan documentos que se instalan con el programa: ' + ', '.join(faltan) + '.')
-    rueda, cuenta = construir_rueda(raiz, salida / 'programa', manifiesto, terminos, version=version)
+    rueda, cuenta = construir_rueda(raiz, salida / 'programa', manifiesto, terminos, version=version,
+                                    calibrar_pregunta=True)
     version_final = rueda.name.split('-')[1]
     if version_final != prevista:
         raise CE.EntregaError(f'La rueda salió con la versión {version_final} y el paquete dice {prevista}.')
@@ -725,7 +882,7 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     # 103:RF-6: sin los Python de PowerFactory 2021 a 2023 no se arma el candidato: el operador no instala nada.
     fijados = manifiesto['candidato'].get('python_pf') or {}
     if fijados and python_pf is None:
-        raise CE.EntregaError('Faltan los Python de PowerFactory: indique su carpeta con --python-pf (103:RF-6).')
+        raise CE.EntregaError('Faltan los Python de PowerFactory: indique su carpeta con --python-pf.')
     componentes_pf = empaquetar_python_pf(python_pf, salida / 'terceros', fijados) if fijados else []
     # El lock más la rueda propia: pip la instala por su huella como a las demás.
     (salida / 'terceros' / 'instalacion.lock').write_text(
@@ -756,8 +913,12 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     leaflet = raiz / 'src' / 'convertersmartgrid' / 'recursos' / 'leaflet' / 'LICENSE'
     componentes.append({'name': 'leaflet', 'version': 'en recursos/leaflet', 'license': 'BSD-2-Clause', 'origen': 'web', 'sin_purl': True})
     textos['leaflet'] = [('LICENSE', leaflet.read_text(encoding='utf-8'))]
+    # 086:RF-44: lo que no viene en el METADATA de una rueda: las nativas del Python propio, NVIDIA y las fuentes LGPL.
+    textos.update(avisos_nativos(raiz, salida / 'terceros' / 'python'))
+    terceras = sorted(ruedas.glob('*.whl'))
+    textos.update(avisos_nvidia(raiz, {r.name: dll_de_rueda(r) for r in terceras}))
     revision = _revision(raiz)
-    (documentos / 'THIRD_PARTY_NOTICES.txt').write_text(_avisos(componentes, textos), encoding='utf-8')
+    (documentos / 'THIRD_PARTY_NOTICES.txt').write_text(_avisos(componentes, textos, fuentes_lgpl(raiz, terceras)), encoding='utf-8')
     (documentos / 'sbom.cdx.json').write_text(json.dumps(sbom(componentes, version_final, revision), ensure_ascii=False, indent=2), encoding='utf-8')
     ficheros = [{'ruta': rel, 'sha256': _sha256(r), 'bytes': r.stat().st_size} for r, rel in CE._recorrer(salida)]
     salida_manifiesto = {'version': version_final, 'revision': revision, 'python': version_python, 'creado': time.time(),
@@ -985,11 +1146,166 @@ def _procedencia_publicada(origen: dict[str, Any], base_recibos: Path) -> dict[s
     return publica
 
 
+# --------------------------------------------------------------------------- modelos del complemento
+#: Dónde quedan, dentro del complemento, los modelos y Ollama; el instalador los copia a «{app}\\complemento_ia».
+MODELOS_EN_COMPLEMENTO = Path('modelos')
+CATALOGO_MODELOS = Path('docs', 'MODELOS_IA_LOCK.json')
+
+
+def _blob_git(ruta: Path) -> str:
+    """El SHA-1 de blob de git: Hugging Face identifica así los ficheros pequeños de una revisión (los del catálogo)."""
+    h = hashlib.sha1(f'blob {ruta.stat().st_size}\0'.encode())
+    with ruta.open('rb') as f:
+        for trozo in iter(lambda: f.read(1 << 20), b''):
+            h.update(trozo)
+    return h.hexdigest()
+
+
+def _copiar_fijado(origen: Path, destino: Path) -> None:
+    """Un enlace duro si se puede (los pesos ocupan gigas), si no una copia; la huella se comprueba antes."""
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.link(origen, destino)
+    except OSError:
+        shutil.copyfile(origen, destino)
+
+
+def _ficha(raiz: Path, backend: str, identificador: str) -> dict[str, Any]:
+    catalogo = json.loads((raiz / CATALOGO_MODELOS).read_text(encoding='utf-8'))
+    ficha = next((m for m in catalogo['modelos'] if m['backend'] == backend and m['id'] == identificador), None)
+    if ficha is None:
+        raise CE.EntregaError(f'{identificador} no está en {CATALOGO_MODELOS.as_posix()}: no se entrega un modelo sin su revisión fijada.')
+    return ficha
+
+
+def _modelo_huggingface(origen: Path, destino: Path, ficha: dict[str, Any]) -> list[str]:
+    """Los ficheros de la revisión fijada, en la forma de la caché de Hugging Face, para leerlos sin internet.
+
+    El codificador de órdenes los abre con ``local_files_only=True`` y su revisión (codificador_ordenes); así no hace
+    falta ni ``CSG_SALIDA_HUGGING_FACE`` ni red en el cliente (decisión del usuario, 2026-11-13).
+    """
+    carpeta = 'models--' + ficha['id'].replace('/', '--')
+    fuente = origen / 'huggingface' / 'hub' / carpeta / 'snapshots' / ficha['revision']
+    copia = destino / 'huggingface' / 'hub' / carpeta
+    hechos = []
+    for f in ficha['files']:
+        ruta = fuente / f['path']
+        if not ruta.is_file() or ruta.stat().st_size != f['size']:
+            raise CE.EntregaError(f'Falta {ficha["id"]}/{f["path"]} de la revisión {ficha["revision"]} en {fuente}, o tiene otro tamaño.')
+        if (f['sha256'] and _sha256(ruta) != f['sha256']) or (not f['sha256'] and _blob_git(ruta) != f.get('git_blob_sha1')):
+            raise CE.EntregaError(f'{ficha["id"]}/{f["path"]} no tiene la huella de la revisión {ficha["revision"]}.')
+        _copiar_fijado(ruta, copia / 'snapshots' / ficha['revision'] / f['path'])
+        hechos.append(f['path'])
+    (copia / 'refs').mkdir(parents=True, exist_ok=True)
+    (copia / 'refs' / 'main').write_text(ficha['revision'], encoding='utf-8', newline='')
+    return hechos
+
+
+def _modelo_ollama(origen: Path, destino: Path, ficha: dict[str, Any], licencia_sha: str) -> list[str]:
+    """El manifiesto del registro (su SHA-256 es la revisión del catálogo) y sus capas, cada una por su huella."""
+    nombre, etiqueta = ficha['id'].split(':', 1)
+    rel_manifiesto = Path('manifests', 'registry.ollama.ai', 'library', nombre, etiqueta)
+    manifiesto = origen / 'ollama_modelos' / rel_manifiesto
+    if not manifiesto.is_file() or _sha256(manifiesto) != ficha['revision']:
+        raise CE.EntregaError(f'El manifiesto de {ficha["id"]} falta en {manifiesto} o no es el de la revisión {ficha["revision"]}.')
+    capas = json.loads(manifiesto.read_text(encoding='utf-8'))
+    _copiar_fijado(manifiesto, destino / 'ollama' / rel_manifiesto)
+    hechos = [rel_manifiesto.as_posix()]
+    licencias = [c['digest'] for c in capas['layers'] if c['mediaType'] == 'application/vnd.ollama.image.license']
+    if licencias != [f'sha256:{licencia_sha}']:
+        raise CE.EntregaError(f'La capa de licencia de {ficha["id"]} no es la declarada en {LICENCIAS_TERCEROS.as_posix()}.')
+    for capa in [capas['config'], *capas['layers']]:
+        digest = capa['digest'].split(':', 1)[1]
+        blob = origen / 'ollama_modelos' / 'blobs' / f'sha256-{digest}'
+        if not blob.is_file() or blob.stat().st_size != capa['size'] or _sha256(blob) != digest:
+            raise CE.EntregaError(f'Falta la capa {digest[:12]} de {ficha["id"]} o no tiene su huella.')
+        _copiar_fijado(blob, destino / 'ollama' / 'blobs' / blob.name)
+        hechos.append(f'blobs/{blob.name}')
+    return hechos
+
+
+def empaquetar_modelos(raiz: Path, origen: Path, salida: Path, manifiesto: dict[str, Any]
+                       ) -> tuple[list[dict[str, Any]], dict[str, list[tuple[str, str]]], list[dict[str, Any]]]:
+    """086:RF-34, RF-37: e5-base, qwen3:8b y Ollama, sin internet, con sus licencias; ningún peso sin declarar.
+
+    Devuelve los componentes para el SBOM, sus textos de licencia y lo que el manifiesto del complemento cuenta de ellos.
+    """
+    pedido = manifiesto.get('complemento_ia') or {}
+    if not pedido.get('modelos') or not pedido.get('ollama'):
+        raise CE.EntregaError('config/entrega.json no declara los modelos ni Ollama del complemento («complemento_ia»).')
+    textos_licencia = textos_de_terceros(raiz)
+    destino = salida / MODELOS_EN_COMPLEMENTO
+    componentes, textos, resumen = [], {}, []
+    for m in pedido['modelos']:
+        ficha = _ficha(raiz, m['backend'], m['id'])
+        lic = textos_licencia[m['licencia']]
+        if m['backend'] == 'huggingface':
+            ficheros = _modelo_huggingface(origen, destino, ficha)
+        elif m['backend'] == 'ollama':
+            ficheros = _modelo_ollama(origen, destino, ficha, lic['sha256'])
+        else:
+            raise CE.EntregaError(f'Backend de modelo desconocido: {m["backend"]}')
+        componentes.append({'tipo': 'machine-learning-model', 'name': ficha['id'], 'version': ficha['revision'],
+                            'license': lic['licencia'], 'origen': m['backend'], 'sin_purl': True, 'source_url': lic['fuente']})
+        textos[f'{ficha["id"]} (modelo)'] = _con_cita(lic)
+        resumen.append({'id': ficha['id'], 'backend': m['backend'], 'revision': ficha['revision'], 'licencia': lic['licencia'],
+                        'ficheros': len(ficheros)})
+    o = pedido['ollama']
+    zip_ollama = origen / 'ollama' / o['fichero']
+    if not zip_ollama.is_file() or _sha256(zip_ollama) != o['sha256']:
+        raise CE.EntregaError(f'Falta {o["fichero"]} de Ollama {o["version"]} en {zip_ollama.parent} o no tiene la huella publicada.')
+    _copiar_fijado(zip_ollama, destino / 'ollama_runtime' / o['fichero'])
+    with zipfile.ZipFile(zip_ollama) as z:
+        nombres = z.namelist()
+        propias = [(n, z.read(n).decode('utf-8', 'replace')) for n in nombres
+                   if re.search(r'(licen[cs]e|notice|copying)[^/]*$', n, re.I) and not n.endswith('/')]
+    componentes.append({'tipo': 'application', 'name': 'ollama', 'version': o['version'], 'license': 'MIT', 'origen': 'ollama',
+                        'sha256': o['sha256'], 'sin_purl': True, 'source_url': o['url']})
+    textos[f'Ollama {o["version"]}'] = [t for i in o['licencias'] for t in _con_cita(textos_licencia[i])] + propias
+    textos.update({f'{k} (Ollama)': v for k, v in avisos_nvidia(raiz, {f'ollama {o["version"]}': [n for n in nombres if n.lower().endswith('.dll')]}).items()})
+    resumen.append({'id': 'ollama', 'backend': 'runtime', 'revision': o['version'], 'licencia': 'MIT', 'sha256': o['sha256']})
+    # RF-34: todo peso que va en el complemento está en la lista, con su huella y entrenado con datos públicos.
+    for ruta, rel in CE._recorrer(salida):
+        if not rel.startswith(MODELOS_EN_COMPLEMENTO.as_posix() + '/') or rel.endswith('.zip'):
+            continue
+        motivo = CE.motivo_de_peso(ruta, rel, manifiesto)
+        if motivo:
+            raise CE.EntregaError(f'{rel}: {motivo}.')
+    return componentes, textos, resumen
+
+
+def corpus_neutro(salida: Path, terminos: CE.Terminos) -> dict[str, Any]:
+    """086:RF-34: un corpus de órdenes sin datos de ninguna empresa, de las plantillas del catálogo con nombres inventados.
+
+    Es lo mismo que el intérprete genera al entrenar en el cliente (transformer.entrenar_y_promover) con un vocabulario
+    vacío: queda escrito para que se pueda revisar, y se comprueba contra la lista de términos de la entrega.
+    """
+    from convertersmartgrid.asistente import ordenes_fijas, sinteticos
+
+    filas = [{'texto': e.texto, 'tarea': e.tarea, 'datos': [list(d) for d in e.datos]}
+             for e in [*sinteticos.generar({}, por_tarea=40, semilla=0), *ordenes_fijas.generar({})]]
+    memoria: dict[str, str | None] = {}
+    halladas = sorted({t for f in filas for t, _ in CE._buscar(f['texto'], terminos, memoria)})
+    if halladas:
+        raise CE.EntregaError(f'El corpus neutro lleva {len(halladas)} término(s) de la lista de la entrega: no se entrega.')
+    ruta = salida / 'corpus' / 'ordenes_neutras.json'
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(json.dumps({'origen': 'sintetico', 'vocabulario': 'vacío: nombres inventados', 'empresa': None,
+                                'filas': filas}, ensure_ascii=False, indent=0), encoding='utf-8')
+    return {'filas': len(filas), 'sha256': _sha256(ruta), 'terminos_hallados': 0}
+
+
 def construir_complemento_ia(raiz: Path, salida: Path, *, cache: Path, version: str,
                             capacidades: str = 'inferencia', versiones: Path | None = None,
                             procedencias: Path | None = None, caches_adicionales: Iterable[Path] = (),
-                            licencias: Path | None = None) -> dict[str, Any]:
-    """086:RF-37/39 — cierre offline de inferencia, independiente del núcleo y sin pesos propios."""
+                            licencias: Path | None = None, modelos: Path | None = None,
+                            lista_local: Path | None = None) -> dict[str, Any]:
+    """086:RF-37/39 — cierre offline de inferencia, independiente del núcleo y sin pesos propios del proyecto.
+
+    Con ``modelos`` (una caché fuera del repositorio con lo de ``complemento_ia`` de ``config/entrega.json``) trae además
+    e5-base en su revisión fijada, qwen3:8b y Ollama, para usarlos sin internet, con sus licencias (086:RF-34, RF-44), y
+    un corpus de órdenes neutro. Su instalador propio lo pone junto al programa (``instalador/ComplementoIA.iss``).
+    """
     if sys.platform != 'win32' or sys.version_info[:2] != (3, 12) or sys.maxsize <= 2**32:
         raise CE.EntregaError('El complemento requiere construir con CPython3.12 Windows64.')
     if salida.exists() and any(salida.iterdir()):
@@ -1061,24 +1377,50 @@ def construir_complemento_ia(raiz: Path, salida: Path, *, cache: Path, version: 
         componentes.append({**meta, 'sha256': _sha256(rueda), 'origen': 'git' if origin and origin.get('commit_id') else 'python',
             **({'sin_purl': True, 'source_url': origin['url'], 'commit_id': origin.get('commit_id')} if origin else {})})
         textos[f'{meta["name"]} {meta["version"]}'] = textos_licencia
+    # 086:RF-44: NVIDIA de las DLL de CUDA y cuDNN de torch, y dónde está el código fuente de cada LGPL.
+    terceras = sorted(ruedas.glob('*.whl'))
+    textos.update(avisos_nvidia(raiz, {r.name: dll_de_rueda(r) for r in terceras}))
+    anexo = fuentes_lgpl(raiz, terceras)
+    resumen_modelos, corpus = [], None
+    if modelos is not None:
+        manifiesto_entrega = CE.leer_manifiesto(raiz / 'config' / 'entrega.json')
+        de_modelos, textos_modelos, resumen_modelos = empaquetar_modelos(raiz, modelos, salida, manifiesto_entrega)
+        componentes += de_modelos
+        textos.update(textos_modelos)
+        for clave, lista in textos_modelos.items():                     # cada licencia también como fichero propio
+            for i, (nombre, texto) in enumerate(lista):
+                destino = salida / 'licencias' / 'modelos' / re.sub(r'[^\w.-]+', '_', f'{clave}_{i}_{Path(nombre).name}')
+                destino.parent.mkdir(parents=True, exist_ok=True)
+                destino.write_text(texto, encoding='utf-8')
+        corpus = corpus_neutro(salida, CE.cargar_terminos(raiz, manifiesto_entrega, lista_local=lista_local))
+    instalador = salida / 'instalador'
+    instalador.mkdir(exist_ok=True)
+    # 086:RF-37: el complemento se instala con su propio instalador, sin pip a mano, como el programa.
+    shutil.copyfile(RAIZ / 'tools' / 'instalar_candidato.py', instalador / 'instalar_candidato.py')
+    shutil.copyfile(RAIZ / 'instalador' / 'ComplementoIA.iss', instalador / 'ComplementoIA.iss')
     revision = _revision(raiz)
     inventario = sbom(componentes, version, revision)
     inventario['metadata']['component']['name'] = 'convertersmartgrid-complemento-ia'
     (salida / 'sbom.cdx.json').write_text(json.dumps(inventario, ensure_ascii=False, indent=2), encoding='utf-8')
-    (salida / 'THIRD_PARTY_NOTICES.txt').write_text(_avisos(componentes, textos), encoding='utf-8')
+    (salida / 'THIRD_PARTY_NOTICES.txt').write_text(_avisos(componentes, textos, anexo), encoding='utf-8')
+    con_modelos = ('Trae e5-base (revisión fijada), qwen3:8b y Ollama para usarlos sin internet; sus licencias están en\n'
+                   'licencias/modelos y en THIRD_PARTY_NOTICES.txt. No trae pesos entrenados por el proyecto.\n'
+                   if resumen_modelos else
+                   'No trae modelos: el asistente usa las frases del catálogo y el Ollama que tenga el equipo.\n')
     (salida / 'LEEME.txt').write_text(
-        f'Complemento de IA para ConverterSmartGrid {version}, CPython3.12 Windows64.\n'
-        'No incluye ni activa pesos de modelos del proyecto.\n'
+        f'Complemento de IA para ConverterSmartGrid {version}, CPython3.12 Windows64.\n' + con_modelos +
         f'Capacidades: {capacidades}; véase requisitos-declarados.txt y, para integrales, cobertura.json.\n'
-        'Con el programa cerrado, pruebe primero sobre una copia separada de la instalación.\n'
-        'Use su Python entregado, desde esta carpeta, para instalar sin red y con huellas:\n'
-        'python.exe -m pip install --no-index --require-hashes --find-links wheels -r instalacion.lock\n'
-        'python.exe -m pip check\n'
-        'La construcción no acredita carga de modelos, GPU ni aceptación científica.\n', encoding='utf-8')
+        'Se instala con su propio instalador (ConverterSmartGrid-complemento-ia-<versión>-setup.exe), con el programa de\n'
+        'la misma versión ya instalado y cerrado: comprueba cada huella, instala sin red y deja los modelos junto al\n'
+        'programa. Sin ese instalador, con el Python del programa y desde esta carpeta:\n'
+        'python.exe instalador\\instalar_candidato.py complemento --complemento . --destino <carpeta del programa>\n'
+        'La construcción no acredita GPU ni aceptación científica.\n', encoding='utf-8')
+    (salida / 'version.txt').write_text(f'{version}\n', encoding='utf-8', newline='\n')       # la lee ComplementoIA.iss
     archivos = [{'ruta': rel, 'sha256': _sha256(r), 'bytes': r.stat().st_size} for r, rel in CE._recorrer(salida)]
     resultado = {'tipo': 'complemento-ia', 'version': version, 'revision': revision, 'python': '3.12',
                  'capacidades': capacidades, 'proyecto_completo': False,
-                 'plataforma': 'win_amd64', 'pesos_del_proyecto_incluidos': False, 'modelos_activados': False,
+                 'plataforma': 'win_amd64', 'pesos_del_proyecto_incluidos': False, 'modelos_activados': bool(resumen_modelos),
+                 'modelos': resumen_modelos, 'corpus_neutro': corpus,
                  'core_lock_sha256': _sha256(raiz / LOCK.name), 'ficheros': archivos,
                  'bytes_total': sum(f['bytes'] for f in archivos)}
     (salida / 'manifiesto_candidato.json').write_text(json.dumps(resultado, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -1118,12 +1460,18 @@ def main(argv: list[str] | None = None) -> int:
     p_ia.add_argument('--procedencias', type=Path, help='JSON de recibos Git/CUDA: name, version, url, commit_id (Git), wheel, sha256.')
     p_ia.add_argument('--licencias-suplementarias', type=Path, help='Recibos y textos de origen versionado, fijados a las huellas de rueda y licencia.')
     p_ia.add_argument('--ruedas-cache-adicional', action='append', type=Path, default=[], help='Otra caché de ruedas existente, sin copiarla previamente.')
+    p_ia.add_argument('--modelos', type=Path, help='Caché fuera del repositorio con e5-base, qwen3:8b y Ollama (complemento_ia de config/entrega.json).')
+    p_ia.add_argument('--sin-modelos', action='store_true', help='Solo ruedas: el complemento no trae modelos y lo dice.')
+    p_ia.add_argument('--lista-local', type=Path, help='Lista de términos fuera de git para revisar el corpus neutro.')
     args = parser.parse_args(argv)
     try:
         if args.orden == 'complemento-ia':
+            if (args.modelos is None) == (not args.sin_modelos):
+                raise CE.EntregaError('Indique --modelos con la caché de los modelos, o --sin-modelos para un complemento sin ellos.')
             resultado = construir_complemento_ia(RAIZ, args.salida, cache=args.ruedas_cache, version=args.version or version_del_paquete(RAIZ),
                 capacidades=args.capacidades, versiones=args.versiones_capturadas, procedencias=args.procedencias,
-                caches_adicionales=args.ruedas_cache_adicional, licencias=args.licencias_suplementarias)
+                caches_adicionales=args.ruedas_cache_adicional, licencias=args.licencias_suplementarias,
+                modelos=args.modelos, lista_local=args.lista_local)
             print(json.dumps({k: resultado[k] for k in ('tipo', 'version', 'revision', 'bytes_total')}
                              | {'ficheros': len(resultado['ficheros'])}, ensure_ascii=False, indent=2))
             return 0

@@ -58,7 +58,7 @@ def test_barras_de_set_e_interruptores_de_cabecera():
         assert c.node_cabecera == m.source_node
         a = acopladores[c.coupler]
         assert a.on_off == 1 and a.kind == 'cabecera' and {a.node_a, a.node_b} == {c.node_set, c.node_cabecera}
-    assert info.sin_set == ['NUEVO'] and any('022:RF-19' in x for x in avisos)
+    assert info.sin_set == ['NUEVO'] and any('red externa propia' in x for x in avisos)
     assert info.zonal_de['NUEVO'] == ''
 
 
@@ -78,7 +78,7 @@ def test_la_barra_en_las_coordenadas_de_sus_cabeceras():
     a2.nodes['A2_H'] = Node('A2_H', 451000.0, 8400000.0)
     red, _ = combine_models([a1, a2])
     avisos = estructurar(red, e)
-    assert any('022:RF-18b' in x and 'A1' in x for x in avisos)
+    assert any('la barra va en las de' in x and 'A1' in x for x in avisos)
 
 
 def test_una_set_con_dos_tensiones_y_lo_que_no_tiene_redes():

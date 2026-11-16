@@ -777,7 +777,7 @@ def confiable(prediccion: Mapping[str, Any], limites=None) -> tuple[bool, str | 
     if len(ancho) and float(ancho.max()) > banda:
         k = int(np.argmax(ancho))
         return False, (f'intervalo de {ancho[k]:.3f} p.u. en {prediccion["ids"][k]}, más ancho que la banda '
-                       f'{banda:.3f} p.u. de {limites.norma} (027:RF-13)')
+                       f'{banda:.3f} p.u. de {limites.norma}')
     return True, None
 
 
@@ -1135,7 +1135,7 @@ def fallos_de_custodia(grupos: Mapping[str, Sequence[Muestra]], identidades: Map
     try:
         particionar_registros(registros, politica)
     except ValueError as exc:
-        return [f'{exc} (044:RF-1, RF-2)']
+        return [f'{exc}']
     return []
 
 
@@ -1143,10 +1143,10 @@ def fallos_de_particion(grupos: Mapping[str, Sequence[Muestra]]) -> list[str]:
     """Lo que impide promover por el reparto (027:RF-3)."""
     if not grupos['prueba']:
         return ['sin una red de prueba distinta de las de entrenamiento: hace falta otro sistema '
-                '(027:RF-3)']
+                '']
     if len(grupos['prueba']) < MIN_EPISODIOS_PRUEBA:
         return [f"{len(grupos['prueba'])} episodios de prueba de otra red, menos de "
-                f'{MIN_EPISODIOS_PRUEBA} (027:RF-3)']
+                f'{MIN_EPISODIOS_PRUEBA}']
     return []
 
 
@@ -1326,7 +1326,7 @@ def reproducir(bufer: BuferEpisodios, version: str, log: Callable[[str], None] =
     meta = json.loads((carpeta / 'modelo.json').read_text(encoding='utf-8'))
     man = meta.get('manifiesto')
     if not man:
-        raise ValueError(f'el modelo {version} no tiene manifiesto (es de antes de 027:RF-8)')
+        raise ValueError(f'el modelo {version} no tiene manifiesto: es de una versión anterior del registro')
     pares = [(m, i) for i in man['episodios'] if (m := muestra_de_episodio(bufer.leer(i))) is not None]
     muestras = [m for m, _i in pares]
     cfg = Entrenamiento(**man['cfg'])
@@ -1336,7 +1336,7 @@ def reproducir(bufer: BuferEpisodios, version: str, log: Callable[[str], None] =
     else:
         grupos = _grupos(muestras, [i for _m, i in pares], man.get('sistema'))
     if not all(grupos.get(k) for k in ('entrenamiento', 'validacion', 'prueba')):
-        raise ValueError('no se reproduce ajustando con particiones de respaldo (060:RF-1)')
+        raise ValueError('no se reproduce ajustando con particiones de respaldo')
     inicial = cargar(bufer, man['parte_de']) if man.get('parte_de') else None
     estados = [entrenar_miembro(grupos['entrenamiento'], Entrenamiento(**{**cfg.__dict__, 'semilla': s}),
                                 inicial.estados[k] if inicial and k < len(inicial.estados) else None,

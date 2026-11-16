@@ -885,7 +885,7 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
         if adelantadas:
             informe['etapas_adelantadas'] = adelantadas
             informe['avisos'].append('Etapas que quedaban después de la hora del caso y no se aplicaban; '
-                                     'se adelantan antes del flujo: ' + ', '.join(adelantadas) + ' (063:RF-5).')
+                                     'se adelantan antes del flujo: ' + ', '.join(adelantadas) + '.')
         ldf = app.GetFromStudyCase('ComLdf')
         # Los dos existen siempre en DIgSILENT, con 0 por defecto (sin escalado, equilibrado).
         guardados = {'iopt_fls': getattr(ldf, 'iopt_fls', 0), 'iopt_net': getattr(ldf, 'iopt_net', 0)}

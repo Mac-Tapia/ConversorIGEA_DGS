@@ -883,3 +883,62 @@ def test_lista_en_la_consola():
     """067:RF-37 — la consola enseña la lista antes del botón y manda su huella."""
     fuente = (RAIZ / 'frontend/src/features/asistente/Asistente.tsx').read_text(encoding='utf-8')
     assert 'agenteProyectoLista' in fuente and 'confirmacion: lista.confirmacion' in fuente
+
+
+def _recibos(herramienta):
+    return [f for f in almacen.leer('equipo_acciones') if f['herramienta'] == herramienta]
+
+
+def test_067_rf41_reentrenar_desde_la_web_deja_su_recibo(entorno):
+    """067:RF-41 — el botón de reentrenar no pasa por el plan, pero deja su recibo con el informe; el resultado es el mismo."""
+    from types import SimpleNamespace
+
+    ws = SimpleNamespace(id='espacio-r', out_dir=entorno / 'salida')
+
+    def proceso(cmd, **_k):
+        Path(cmd[cmd.index('--output-json') + 1]).write_text(json.dumps(
+            {'ordenes': {'promovido': False, 'en_uso': 'heredado'}}), encoding='utf-8')
+        return 0
+
+    ctx = SimpleNamespace(run_process=proceso, log=lambda _m: None)
+    r = services.asistente_entrenar(ws, ctx)
+    assert r['texto'] == 'Órdenes: sigue el modelo en uso heredado'
+    filas = _recibos('asistente_entrenar')
+    assert [f['estado'] for f in filas] == ['iniciada', 'terminada']
+    assert filas[-1]['alcance']['espacio'] == 'espacio-r' and filas[-1]['responsable'] == 'operador'
+    assert filas[-1]['revision']['decision'] == 'clic_del_operador'
+
+
+def test_067_rf41_las_mejoras_dejan_su_recibo(entorno, monkeypatch):
+    """067:RF-41 — la rama de una librería y la decisión sobre una mejora dejan su recibo; un error sale igual."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid.asistente import internet, mejoras
+
+    class Buscador:
+        def __init__(self, *_a, **_k):
+            pass
+
+        def pypi(self, paquete, _motivo):
+            return {'bloqueada': None, 'resultados': [{'nombre': paquete}]}
+
+    monkeypatch.setattr(internet, 'Buscador', Buscador)
+    monkeypatch.setattr(mejoras, 'propuesta_de_libreria', lambda r, m: {'id': 'p1', 'paquete': r['nombre']})
+    monkeypatch.setattr(mejoras, 'preparar_rama', lambda *_a, **_k: {'rama': 'mejora/p1'})
+    ws = SimpleNamespace(id='espacio-m')
+    ctx = SimpleNamespace(log=lambda _m: None)
+    assert services.asistente_proponer_libreria(ws, ctx, 'paquete', 'motivo') == {'rama': 'mejora/p1'}
+    fila = _recibos('mejoras.libreria')[-1]
+    assert fila['estado'] == 'terminada' and fila['alcance']['espacio'] == 'espacio-m'
+    assert fila['entradas'] == {'paquete': 'paquete', 'motivo': 'motivo'}
+    monkeypatch.setattr(mejoras, 'registrar_decision', lambda *a: {'id': a[0], 'decision': a[1]})
+    assert services.asistente_decision_mejora('p1', 'aceptada') == {'id': 'p1', 'decision': 'aceptada'}
+    assert _recibos('mejoras.decision')[-1]['estado'] == 'terminada'
+
+    def rechaza(*_a):
+        raise ValueError('decisión desconocida')
+
+    monkeypatch.setattr(mejoras, 'registrar_decision', rechaza)
+    with pytest.raises(services.UserError, match='decisión desconocida'):
+        services.asistente_decision_mejora('p1', 'otra')
+    assert _recibos('mejoras.decision')[-1]['estado'] == 'fallida'

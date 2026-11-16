@@ -25,10 +25,12 @@ PLAN = {'tasa_regulada': 0.12, 'vida_util_anios': 30, 'horizonte_anios': 20}
 
 
 def _obra(codigo='AL01', ci=1000.0, descartada=False, alimentador='F1', kw=100.0):
+    # 072:RF-16 (H5): el costo anual de la obra de prueba está completo y lo dice; sin «completo», no se escribe.
     return {'codigo': codigo, 'anio': 4, 'alternativa': 'bancos', 'rubro': 'calidad', 'alimentador': alimentador,
             'elemento': 'B9', 'causa': 'caida_de_tension', 'denominacion': None, 'ci': ci, 'kw_nuevos': kw,
             'energia_kwh': kw * 4000, 'indicadores': {'costo_kw': 10.0}, 'privada': None, 'descartada': descartada,
-            'sobredimensionada': False, 'regulada': {'anualidad': ci * 0.12, 'costo_anual': ci * 0.13}}
+            'sobredimensionada': False,
+            'regulada': {'anualidad': (ci or 0) * 0.12, 'costo_anual': (ci or 0) * 0.13, 'completo': bool(ci)}}
 
 
 def test_cada_formato_y_cada_campo_tiene_su_motivo():
@@ -206,13 +208,21 @@ def test_el_coym_del_perfil_llega_a_f10_f11_y_f12():
     p = ec.propuesta_pide(_INFORME_COYM, _PLAN_COYM, costos=_COSTOS_COYM, bancos_kvar={10.0: 300.0}, coym_pct_anual=2.0)
     banco = next(o for o in p['obras'] if o['alternativa'] == 'bancos')
     assert banco['regulada']['coym'] == pytest.approx(70.0)
-    assert banco['regulada']['costo_anual'] == pytest.approx(banco['regulada']['anualidad'] + 70.0)
+    # 072:RF-16 (H5): el costo anual del art. 14.4 es anualidad + COyM + CP; sin el costo de las pérdidas no está
+    # completo, y no se escribe anualidad + COyM como si lo estuviera: queda vacío, con su hueco nombrado.
+    assert banco['regulada']['completo'] is False and banco['regulada']['costo_anual'] is None
+    assert banco['regulada']['falta'] == ['pérdidas']
     f = p['formatos']
     fila = next(r for r in f['F12 Propuesta proyecto'] if r[3] == banco['codigo'])
     assert fila[FORMATOS['F12 Propuesta proyecto'].index('COyM US$')] == pytest.approx(70.0)
+    assert fila[FORMATOS['F12 Propuesta proyecto'].index('Costo anual US$')] is None
     assert _col(f, 'F10 Propuesta empresa') == pytest.approx(70.0)
     assert _col(f, 'F11 Propuesta sistema') == pytest.approx(70.0)
     assert not [h for h in huecos_de(f) if h['campo'] == 'COyM US$']
+    sin_cp = {h['formato']: h['motivo'] for h in huecos_de(f) if h['campo'] == 'Costo anual US$'}
+    assert set(sin_cp) == {'F09 Evaluación económica', 'F10 Propuesta empresa', 'F11 Propuesta sistema',
+                           'F12 Propuesta proyecto'}
+    assert all(m == MOTIVO_DEL_CAMPO['Costo anual US$'] and 'pérdidas' in m for m in sin_cp.values())
 
 
 @pytest.mark.parametrize('costos, pct', [(_COSTOS_COYM, None), ({}, 2.0)])
@@ -232,3 +242,95 @@ def test_el_coym_de_un_grupo_no_se_suma_a_medias():
     assert _col(filas_de_obras([con, sin], [], {'F1': 'SE1'}), 'F10 Propuesta empresa') is None
     sin['regulada'] = {**sin['regulada'], 'coym': 30.0}
     assert _col(filas_de_obras([con, sin], [], {'F1': 'SE1'}), 'F10 Propuesta empresa') == pytest.approx(50.0)
+
+
+def test_el_costo_anual_sin_completo_no_se_escribe():
+    """072:RF-16 (H5, auditor b4) — una obra cuyo costo anual no está completo (sin CP) deja «Costo anual US$» vacío en
+    F09 a F12, aunque traiga un número a medias, y ``huecos_de`` lo nombra en los cuatro."""
+    o = _obra()
+    o['regulada'] = {'anualidad': 120.0, 'coym': 20.0, 'cp': None, 'costo_anual': 140.0, 'completo': False}
+    f = filas_de_obras([o], [], {'F1': 'SE1'})
+    for formato in ('F09 Evaluación económica', 'F10 Propuesta empresa', 'F11 Propuesta sistema',
+                    'F12 Propuesta proyecto'):
+        assert _col(f, formato, 'Costo anual US$') is None, formato
+    assert _col(f, 'F12 Propuesta proyecto', 'Anualidad US$') == pytest.approx(120.0)
+    assert {h['formato'] for h in huecos_de(f) if h['campo'] == 'Costo anual US$'} >= {
+        'F09 Evaluación económica', 'F10 Propuesta empresa', 'F11 Propuesta sistema', 'F12 Propuesta proyecto'}
+
+
+def test_las_sumas_de_un_grupo_no_se_hacen_a_medias():
+    """072:RF-16 / 072:RF-22 (H5) — F10 y F11 suman por grupo; si una obra del grupo no trae la inversión o la energía,
+    la suma del grupo queda vacía, como el COyM: 1000 de dos obras se leería como la inversión de las dos."""
+    con, sin = _obra(), _obra('AL02', ci=None)
+    sin['energia_kwh'] = None
+    f = filas_de_obras([con, sin], [], {'F1': 'SE1'})
+    for campo in ('Energía kW.h', 'Inversión US$', 'Anualidad US$', 'Costo anual US$'):
+        assert _col(f, 'F10 Propuesta empresa', campo) is None, campo
+    assert _col(f, 'F10 Propuesta empresa', 'Demanda kW') == pytest.approx(200.0)
+    for campo in ('Inversión US$', 'Anualidad US$', 'Costo anual US$'):
+        assert _col(f, 'F11 Propuesta sistema', campo) is None, campo
+    nombrados = {(h['formato'], h['campo']) for h in huecos_de(f)}
+    assert ('F10 Propuesta empresa', 'Inversión US$') in nombrados
+    assert ('F11 Propuesta sistema', 'Inversión US$') in nombrados
+    # Con las dos completas, la suma es la de las dos.
+    assert _col(filas_de_obras([con, _obra('AL02')], []), 'F10 Propuesta empresa', 'Inversión US$') == 2000.0
+
+
+_PLAN_PEN = {**_PLAN_COYM, 'tasa_privada': 0.12, 'precio_compra_kwh': 0.70,
+             'tarifas': {'moneda': 'PEN', 'MT3': {'energia_punta_kwh': 0.32, 'energia_fuera_punta_kwh': 0.28}}}
+
+
+def test_sin_tipo_de_cambio_f09_y_f10_lo_dicen():
+    """025:RF-68 / 072:RF-16 (H4 y H5, auditor b4) — tarifas en PEN, CAPEX en USD y sin tipo de cambio: la evaluación
+    privada no se hace; F09 dice «sin tipo de cambio» en VAN, TIR y costo anual, F10 en el costo anual, y ``huecos_de``
+    los nombra con ese motivo. Ninguna de esas celdas vale 0."""
+    from convertersmartgrid.formatos_pide import MOTIVO_DE_LA_MARCA, SIN_TIPO_DE_CAMBIO
+
+    plan, avisos = ec.plan_en_moneda_de_trabajo(_PLAN_PEN, moneda_trabajo='USD', tipo_cambio=None)
+    assert any('tipo de cambio' in a for a in avisos)
+    p = ec.propuesta_pide(_INFORME_COYM, plan, costos=_COSTOS_COYM, bancos_kvar={10.0: 300.0}, factor_carga=0.6,
+                          precio_compra_kwh=plan.get('precio_compra_kwh'), coym_pct_anual=2.0)
+    f = p['formatos']
+    for campo in ('VAN US$', 'TIR', 'Costo anual US$'):
+        assert _col(f, 'F09 Evaluación económica', campo) == SIN_TIPO_DE_CAMBIO, campo
+    assert _col(f, 'F10 Propuesta empresa', 'Costo anual US$') == SIN_TIPO_DE_CAMBIO
+    assert all(c != 0 for formato in ('F09 Evaluación económica', 'F10 Propuesta empresa') for c in f[formato][0])
+    marcados = {(h['formato'], h['campo']) for h in huecos_de(f)
+                if h['motivo'] == MOTIVO_DE_LA_MARCA[SIN_TIPO_DE_CAMBIO]}
+    assert {('F09 Evaluación económica', 'VAN US$'), ('F09 Evaluación económica', 'TIR'),
+            ('F10 Propuesta empresa', 'Costo anual US$')} <= marcados
+    assert 'tipo de cambio' in MOTIVO_DE_LA_MARCA[SIN_TIPO_DE_CAMBIO]
+
+
+def test_el_flujo_privado_sin_coym_ni_perdidas_lleva_su_marca():
+    """072:RF-16 (H5) — la VAN y la TIR de un flujo sin COyM o sin el costo de las pérdidas no se presentan como completas:
+    F09 conserva la cifra, y los huecos dicen que el flujo no lleva esos costos."""
+    from convertersmartgrid.formatos_pide import ALCANCE_DEL_FLUJO_PRIVADO
+
+    plan = {**_PLAN_PEN, 'tarifas': {**_PLAN_PEN['tarifas'], 'moneda': 'USD'}}
+    p = ec.propuesta_pide(_INFORME_COYM, plan, costos=_COSTOS_COYM, bancos_kvar={10.0: 300.0}, factor_carga=0.6,
+                          precio_compra_kwh=0.05, coym_pct_anual=None)
+    banco = next(o for o in p['obras'] if o['alternativa'] == 'bancos')
+    assert banco['privada'] is not None and banco['privada']['completo'] is False
+    assert banco['privada']['falta'] == ['COyM', 'pérdidas']
+    r = formatos_del_estudio(p['obras'], _INFORME_COYM['anios'])
+    marca = [h for h in r['huecos'] if h['formato'] == 'F09 Evaluación económica'
+             and h['motivo'] == ALCANCE_DEL_FLUJO_PRIVADO]
+    assert {h['campo'] for h in marca} == {'VAN US$', 'TIR'} and all(h['filas'] == 1 for h in marca)
+
+
+def test_una_obra_sin_costo_no_queda_por_delante_de_otra_con_costo():
+    """024:RF-33 / 072:RF-16 (H5, auditor b4) — sin CAPEX la obra no vale 0: su inversión queda vacía, no gana el
+    desempate por ser «la más barata» y va tras las que tienen costo, con su aviso."""
+    informe = {'anios': [_INFORME_COYM['anios'][0], {**_INFORME_COYM['anios'][1], 'problemas': [
+        {'tipo': 'cargabilidad', 'elemento': 'F1_L2.ElmLne', 'valor': 104.0, 'limite': 100.0,
+         'causa': 'conductor_insuficiente', 'evidencia': 'e', 'kv': None, 'alimentador': 'F1'}]}]}
+    plan = {**_PLAN_COYM, 'pesos_art_15_3': {'subsanacion_calidad': 1, 'crecimiento_demanda': 1}}
+    p = ec.propuesta_pide(informe, plan, costos=_COSTOS_COYM, bancos_kvar={10.0: 300.0})
+    con = [o for o in p['obras'] if o['ci']]
+    sin = [o for o in p['obras'] if not o['ci']]
+    assert con and sin
+    assert all(o['ci'] is None for o in sin)
+    assert max(o['prioridad'] for o in con) < min(o['prioridad'] for o in sin)
+    assert all(any('sin costo' in a for a in o['avisos']) for o in sin)
+    assert any('sin costo' in a for a in p['avisos'])

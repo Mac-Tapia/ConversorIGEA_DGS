@@ -54,7 +54,7 @@ def main(argv=None) -> int:
               f"{f'{lo:.0f}–{hi:.0f}':>15s} {r['p90_s']:6.0f} {r['max_s']:6.0f}")
     rep = eo.repetidos(filas)
     if rep:
-        print('\nFallos que se repiten (081:RF-74):')
+        print('\nFallos que se repiten:')
         for g, causa, n in rep[:15]:
             print(f'  {n}× {g}: {causa}')
     resumen: dict[str, Any] = {'ordenes': len(filas), 'fallos': fallos, 'horas': horas, 'por_guion': tabla,

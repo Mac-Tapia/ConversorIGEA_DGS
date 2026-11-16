@@ -276,7 +276,9 @@ def test_config_sin_datos_de_una_empresa():
              # 107:RF-11: el registro normativo transcribe normas públicas del regulador, no datos de una empresa.
              and not (f.startswith('config/normativa/') and f.endswith('.json'))
              # 108 (FIX-108a): el Anexo 2 y los TdR del VAD, por su nombre exacto y con su razón.
-             and not _admitido_por_razon(f)]
+             and not _admitido_por_razon(f)
+             # 086:RF-44: textos de licencia de terceros y preguntas del maestro sobre los manuales: no son de una empresa.
+             and not f.startswith(('config/licencias_terceros/', 'config/pregunta_entregada/'))]
     assert not malos, f'config/ con datos de una empresa en git: {malos}'
 
 

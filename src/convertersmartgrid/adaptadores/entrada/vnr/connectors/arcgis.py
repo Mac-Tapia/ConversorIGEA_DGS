@@ -12,8 +12,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from convertersmartgrid.salidas_red import (RedireccionRechazada, get_sin_redireccion_ajena, motivo_apagada,
-                                            salida_permitida)
+from convertersmartgrid.salidas_red import (DestinoNoPermitido, RedireccionRechazada, get_sin_redireccion_ajena,
+                                            motivo_apagada, pedir_a_destino_fijado, salida_permitida, validar_destino)
 from convertersmartgrid.util import importar_opcional
 
 from .base import LayerInfo, SourceProbe, VNRSourceAdapter
@@ -23,15 +23,28 @@ class ArcGISError(RuntimeError):
     pass
 
 
-class ArcGISRedireccion(ArcGISError):
+class ArcGISDestinoError(ArcGISError):
+    """El destino no se admite o redirige: no se reintenta, porque repetirlo no lo cambia (086:RF-22)."""
+
+
+class ArcGISRedireccion(ArcGISDestinoError):
     """086:RF-22: el servidor redirigió a otra máquina; no es un fallo de red que se reintente."""
 
 
 def _require_requests():
     if not salida_permitida('arcgis'):                                         # 086:RF-22
         raise ArcGISError(motivo_apagada('arcgis'))
-    return importar_opcional('requests', ArcGISError(
-        'El conector ArcGIS necesita «requests» (ver requirements.txt).'))
+    importar_opcional('requests', ArcGISError('El conector ArcGIS necesita «requests» (ver requirements.txt).'))
+    return _DestinoFijado
+
+
+class _DestinoFijado:
+    """El «requests» de la capa (086:RF-22): cada GET va a la IP validada y devuelve el 3xx sin seguirlo."""
+
+    @staticmethod
+    def get(url: str, *, params: dict | None = None, timeout: float, allow_redirects: bool = False):
+        del allow_redirects  # la biblioteca nunca las sigue: las decide get_sin_redireccion_ajena
+        return pedir_a_destino_fijado(url, params=params, timeout=timeout, devolver_redireccion=True)
 
 
 @dataclass
@@ -40,25 +53,45 @@ class ArcGISLayer:
     timeout: int = 60
     retries: int = 3
 
-    def _get(self, requests, url: str, params: dict):
-        """086:RF-22 (SSRF-ARCGIS, BP-29): sin seguir redirecciones a otra máquina; una rechazada no se reintenta."""
+    def __post_init__(self) -> None:
+        # 086:RF-22: la URL la escribe el usuario (registry.py la pasa tal cual). Con la salida apagada solo se mira
+        # la forma y las IP escritas: resolver el nombre ya sería salir a la red.
+        self._validar(resolver=salida_permitida('arcgis'))
+
+    def _validar(self, *, resolver: bool = True) -> None:
         try:
-            return get_sin_redireccion_ajena(requests, url, params=params, timeout=self.timeout)
+            validar_destino(self.url, resolver=resolver)
+        except DestinoNoPermitido as exc:
+            raise ArcGISDestinoError(str(exc)) from None
+
+    def _get(self, url: str, params: dict) -> dict:
+        """Una consulta a la IP validada en cada salto; solo se sigue una redirección al mismo servidor (086:RF-22).
+
+        ``pedir_a_destino_fijado`` (H8H5) resuelve, valida y conecta a esa misma IP: un DNS que cambie entre la
+        validación y la conexión (rebinding) ya no lleva la consulta a esta máquina ni a la red privada. Esa función
+        devuelve el 3xx sin seguirlo, y ``get_sin_redireccion_ajena`` (SSRF-ARCGIS) lo mira ANTES de pedirlo: el mismo
+        servidor, sin bajar de https a http, se sigue (y se valida de nuevo); otra máquina se rechaza y no se reintenta.
+        """
+        http = _require_requests()
+        try:
+            response = get_sin_redireccion_ajena(http, url, params=params, timeout=self.timeout)
         except RedireccionRechazada as exc:
-            raise ArcGISRedireccion(str(exc)) from exc
+            raise ArcGISRedireccion(str(exc)) from None
+        except DestinoNoPermitido as exc:
+            raise ArcGISDestinoError(str(exc)) from None
+        response.raise_for_status()
+        data = response.json()
+        if 'error' in data:
+            raise ArcGISError(data['error'])
+        return data
 
     def metadata(self) -> dict:
-        requests = _require_requests()
+        _require_requests()
         last: Exception | None = None
         for attempt in range(1, self.retries + 1):
             try:
-                response = self._get(requests, self.url, {'f': 'json'})
-                response.raise_for_status()
-                data = response.json()
-                if 'error' in data:
-                    raise ArcGISError(data['error'])
-                return data
-            except ArcGISRedireccion:
+                return self._get(self.url, {'f': 'json'})
+            except ArcGISDestinoError:
                 raise
             except Exception as exc:  # noqa: BLE001
                 last = exc
@@ -76,18 +109,12 @@ class ArcGISLayer:
         return int(self.metadata().get('maxRecordCount', 1000))
 
     def count(self, where: str = '1=1') -> int:
-        requests = _require_requests()
         params = {'f': 'json', 'where': where, 'returnCountOnly': 'true'}
-        response = self._get(requests, f'{self.url}/query', params)
-        response.raise_for_status()
-        data = response.json()
-        if 'error' in data:
-            raise ArcGISError(data['error'])
+        data = self._get(f'{self.url}/query', params)
         return int(data.get('count', 0))
 
     def distinct_values(self, field: str, where: str = '1=1') -> list[Any]:
         """Consulta valores distintos sin descargar geometrías ni toda la capa."""
-        requests = _require_requests()
         params = {
             'f': 'json',
             'where': where,
@@ -96,11 +123,7 @@ class ArcGISLayer:
             'returnGeometry': 'false',
             'orderByFields': f'{field} ASC',
         }
-        response = self._get(requests, f'{self.url}/query', params)
-        response.raise_for_status()
-        data = response.json()
-        if 'error' in data:
-            raise ArcGISError(data['error'])
+        data = self._get(f'{self.url}/query', params)
         values = []
         for feature in data.get('features', []):
             attributes = feature.get('attributes') or feature.get('properties') or {}
@@ -113,7 +136,6 @@ class ArcGISLayer:
                       page_size: int | None = None,
                       max_features: int | None = None) -> tuple[list[dict], int]:
         """Devuelve ``(features, crs)``. Cada feature es un GeoJSON ``Feature``."""
-        requests = _require_requests()
         oid = self.object_id_field()
         limit = int(page_size or self.max_record_count())
         offset = 0
@@ -135,11 +157,7 @@ class ArcGISLayer:
                 'resultRecordCount': request_count,
                 'orderByFields': f'{oid} ASC',
             }
-            response = self._get(requests, f'{self.url}/query', params)
-            response.raise_for_status()
-            page = response.json()
-            if 'error' in page:
-                raise ArcGISError(page['error'])
+            page = self._get(f'{self.url}/query', params)
             batch = page.get('features', [])
             features.extend(batch)
             if max_features is not None and len(features) >= max_features:

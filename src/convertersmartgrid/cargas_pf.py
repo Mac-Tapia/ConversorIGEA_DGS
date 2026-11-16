@@ -313,7 +313,7 @@ def leer_hoja_nuevas(
             if not any(texto.get(c) for c in ('Kw', 'Kvar', '(kVA)')):
                 continue
             sed = f'{hoja}_F{fila}'
-            avisos.append(f'hoja {hoja}, fila {fila}: sin SED ni descripción; se nombra {sed} (RF-53)')
+            avisos.append(f'hoja {hoja}, fila {fila}: sin SED ni descripción; se nombra {sed}')
         donde = f'hoja {hoja}, fila {fila}: {sed}'
         if sed in vistas:
             errores.append(f'{donde} repetida (fila {vistas[sed]})')
@@ -366,10 +366,9 @@ def leer_hoja_nuevas(
                 fp_fila = float(fp_por_defecto)
                 q = numeros['Kw'] * math.sqrt(max(1.0 - fp_fila ** 2, 0.0)) / fp_fila
                 avisos.append(f'{donde}: sin kVAR ni FP; se toma el FP {fp_fila:.2f} del perfil de la empresa '
-                              f'({q:.1f} kvar)'.replace('.', ',') + ' (004:RF-70)')
+                              f'({q:.1f} kvar)'.replace('.', ','))
             else:
-                avisos.append(f'{donde}: sin kVAR ni FP y sin FP en el perfil de la empresa: la carga entra con Q = 0 '
-                              '(004:RF-70)')
+                avisos.append(f'{donde}: sin kVAR ni FP y sin FP en el perfil de la empresa: la carga entra con Q = 0')
         kw, kvar, _kva, fp, _derivada, sin_datos = resolve_power(
             numeros.get('Kw'), numeros.get('Kvar'), numeros.get('(kVA)'), fp_fila)
         conflicto = power_conflict(numeros.get('(kVA)'), numeros.get('FP'), kw, kvar)
@@ -394,9 +393,9 @@ def leer_hoja_nuevas(
             # el normalizado que la cubre y se anota, en vez de rechazar la carga.
             kva_instalado = kva_normalizado(math.hypot(kw, kvar))
             avisos.append(f'{donde}: sin kVA_instalado; se toma {kva_instalado:g} kVA, el '
-                          f'normalizado que cubre {math.hypot(kw, kvar):.1f} kVA de demanda (RF-52); '
+                          f'normalizado que cubre {math.hypot(kw, kvar):.1f} kVA de demanda; '
                           'con fichas en el perfil, el transformador sale de ellas al crear la '
-                          'carga (004:RF-68)')
+                          'carga')
         if lat is None and tiene_xy:
             pendientes_xy.append((len(filas), x, y))
         filas.append(CargaNueva(
@@ -712,7 +711,7 @@ def verificar_ubicacion(fila: dict, zona: ZonaAlimentador, a_gps=None) -> dict:
         'tope_m': round(zona.tope_m, 1) if zona.tope_m is not None else None,
         'tope_del_perfil': zona.tope_del_perfil, 'fuente': zona.fuente, 'fuera': not zona.dentro(d)}
     if not out['fuera']:
-        out['mensaje'] = f'{fila["sed"]}: a {distancia_es(d)} del nodo {nodo} de {zona.alimentador} (004:RF-72).'
+        out['mensaje'] = f'{fila["sed"]}: a {distancia_es(d)} del nodo {nodo} de {zona.alimentador}.'
         return out
     propuestas = propuestas_de_ubicacion(fila, zona, a_gps)
     out['propuestas'] = propuestas[:3]
@@ -720,11 +719,11 @@ def verificar_ubicacion(fila: dict, zona: ZonaAlimentador, a_gps=None) -> dict:
     if propuestas:
         p = propuestas[0]
         texto += (f'; ¿quiso decir {p["texto"]}? Quedaría a {distancia_es(p["distancia_m"])} del nodo {p["nodo"]}. '
-                  'Corríjalo y vuelva a revisar: no se cambia solo (004:RF-73, RF-74).')
+                  'Corríjalo y vuelva a revisar: no se cambia solo.')
     else:
         limite = (f'el tope del perfil, {distancia_es(zona.tope_m or 0.0)}' if zona.tope_del_perfil
                   else f'el tamaño del propio alimentador (radio de {distancia_es(zona.radio_m)})')
-        texto += f', más que {limite}: revise las coordenadas (004:RF-73).'
+        texto += f', más que {limite}: revise las coordenadas.'
     out['mensaje'] = texto
     return out
 
@@ -820,15 +819,15 @@ def _avisos_de_la_base(base: dict | None) -> list[str]:
     """Lo que el operador debe saber de la base antes de aplicar (spec 007, RF-5, RF-34, RF-37)."""
     if not base:
         return ['Sin base del ajuste: se aplica sobre las variaciones que estén activas en el '
-                'proyecto (spec 007, RF-5).']
+                'proyecto.']
     avisos = []
     for a in base.get('ajustes') or []:
         if not a.get('cuadrado'):
             desvio = (a.get('desvio') or {}).get('kw')
             error = f' (error en la cabecera {desvio:+.2%})' if isinstance(desvio, (int, float)) else ''
-            avisos.append(f"El ajuste de {a['feeder']} no cuadró{error}: se usa igual como base (RF-34).")
+            avisos.append(f"El ajuste de {a['feeder']} no cuadró{error}: se usa igual como base.")
     for x in base.get('excluidos') or []:
-        avisos.append(f"{x['feeder']} queda fuera de la base: {x['motivo']} (RF-37).")
+        avisos.append(f"{x['feeder']} queda fuera de la base: {x['motivo']}.")
     return avisos
 
 

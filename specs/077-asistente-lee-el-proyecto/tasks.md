@@ -18,6 +18,8 @@
       Hecho cuando: `docs/EVALUACION_ABSTENCION_077.json` existe; la lanza el usuario. Se mide, no se ajusta.
 - [x] T10 Regla de forma: una pregunta que nombra un fichero del árbol o una ruta de la API va a `pregunta` antes del modelo, sin capturar órdenes de acción ni preguntas sin ruta. (RF-69, RF-70, RF-71, RF-72, RF-73, RF-74)
       Hecho cuando: `tests/test_asistente_lectura_proyecto.py` pasa con los tres casos reales del 2026-11-06, la pregunta de control y dos órdenes de acción, y pasan `tests/test_asistente_interprete.py` y `tests/test_interprete_codificador.py`.
+- [ ] T11 SDK del MCP fijado con huella, prueba del servidor real obligatoria con su intérprete y aviso de `--datos-locales`. (RF-75, RF-76, RF-77)
+      Hecho cuando: con `CSG_MCP_PYTHON` apuntando a un intérprete instalado con `pip install --require-hashes -r requirements-mcp.txt`, `tests/test_mcp_conversor.py` pasa con `-rs` y 0 omitidas, y pasa `tests/test_puerta_calidad.py`.
 - [x] T7 Comprobación en la web real, tras reiniciarla: una pregunta por un skill, por una ruta de la API y por un fichero rechazado.
       Hecho cuando: las tres respuestas se ven en el navegador con su cita o su rechazo.
       Hecho el 2026-11-06: en la web del 8765 reiniciada con `main` 5c4697f4 o posterior (regla de forma de la T10), espacio de

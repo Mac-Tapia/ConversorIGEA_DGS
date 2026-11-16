@@ -143,9 +143,9 @@ def test_se_calibra_con_los_alimentadores_completos_y_la_transferencia_vuelve(gu
     assert {(c['nombre'], c['atributo']) for c in t['cambios']} == {('SEC_NUEVO_a', 'outserv'), ('F1_L6', 'outserv')}
     assert t['restituida'] and all(e['ok'] for e in t['evidencia'])
     assert y['transferencias_del_operador']['zonas'][0]['hacia'] == 'F2'
-    assert any('098:RF-5' in a and 'Sin proyecto' in a for a in x['avisos'])
+    assert any('vuelve a estar como la dejó' in a and 'Sin proyecto' in a for a in x['avisos'])
     assert any('Transferencia del operador de F1 a F2' in a and 'F1_S6' in a for a in x['avisos'])
-    assert not any('098:RF-4' in a for a in x['avisos'])          # medida de julio, importado en noviembre: de antes
+    assert not any('no se sabe si ya incluye la transferencia del operador' in a for a in x['avisos'])          # medida de julio, importado en noviembre: de antes
     for caso in ('Sin proyecto', 'Con proyecto'):
         _caso(app, caso).Activate()
         assert int(_obj(app, 'ElmLne', 'F1_L6').outserv) == 1 and int(nuevo.outserv) == 0, caso
@@ -189,7 +189,7 @@ def test_si_la_orden_muere_la_siguiente_la_restituye(guion, tpf):
     _caso(app, 'Caso base').Activate()
     (x, rc), _ = guion.ejecutar_proyecto(app, planes)
     assert rc == 0, x.get('motivo')
-    assert any('no terminó' in a and '098:RF-5' in a for a in x['avisos'])
+    assert any('no terminó' in a and 'vuelve a estar como la dejó' in a for a in x['avisos'])
     _caso(app, 'Sin proyecto').Activate()
     assert int(_obj(app, 'ElmLne', 'F1_L6').outserv) == 1 and int(nuevo.outserv) == 0
     assert not tpf.fichero(planes[0]).exists()
@@ -205,7 +205,7 @@ def test_si_no_se_puede_desactivar_se_calibra_como_esta(guion, tpf, monkeypatch)
 
     monkeypatch.setattr(tpf.RedDeLaFuente, 'preparar', falla)
     (x, _rc), _ = guion.ejecutar_proyecto(app, planes)
-    assert any('098:RF-8' in a and 'API ocupada' in a for a in x['avisos'])
+    assert any('No se pudo desactivar la transferencia del operador' in a and 'API ocupada' in a for a in x['avisos'])
     _caso(app, 'Sin proyecto').Activate()
     assert int(_obj(app, 'ElmLne', 'F1_L6').outserv) == 1 and int(nuevo.outserv) == 0
 
@@ -306,7 +306,7 @@ def test_lo_que_no_se_puede_devolver_no_se_toca():
     cargas = cx[:2] + [to.CargaRed('XS3', 'XS3', 'X3', 'X', 'Y', 100.0, 30.0)] + cy
     (z,) = to.zonas_transferidas(cargas, ramas, {'X': {'X1', 'X2'}, 'Y': {'Y1', 'Y2', 'Y3', 'X3'}},
                                  cabeceras={'X0', 'Y0'})
-    assert z.motivo == to.MOTIVO_UNIDA_EN_LA_FUENTE and not z.abrir and '098:RF-8' in to.texto_de_zona(z)
+    assert z.motivo == to.MOTIVO_UNIDA_EN_LA_FUENTE and not z.abrir and to.MOTIVOS[z.motivo] in to.texto_de_zona(z)
 
 
 def test_un_tramo_nuevo_hacia_sed_nuevas_no_es_de_la_transferencia():
@@ -333,7 +333,7 @@ def test_aviso_de_la_medida_posterior_a_la_importacion(tpf):
     """098:RF-4 — con la medida del mes de la importación o después, no se sabe si ya incluye la transferencia."""
     plan = {'objetivo': {'fecha': '2026-07-27 08:45:00'}}
     assert tpf.aviso_de_la_medida({**plan, 'fecha_importacion': '2026-11-05'}) is None      # CA101: de antes
-    assert '098:RF-4' in tpf.aviso_de_la_medida({**plan, 'fecha_importacion': '2026-06-30'})
+    assert 'no se sabe si ya incluye la transferencia del operador' in tpf.aviso_de_la_medida({**plan, 'fecha_importacion': '2026-06-30'})
     assert tpf.aviso_de_la_medida({**plan, 'fecha_importacion': '2026-07-02'}) is not None   # el mismo mes: no se sabe
     assert tpf.aviso_de_la_medida(plan) is None
 
@@ -424,7 +424,7 @@ def test_sin_maniobra_no_se_propone_la_transferencia_y_se_avisa():
     vecino = {'alimentador': 'V', 'distancia_m': 300, 'u_min': 0.99, 'carga_max_pct': 40.0, 'kv': 10.0, 'barra': 'X'}
     vs, avisos = oi.variantes('F1', 10.0, camino, {'T1'}, 'RAMA', {'B1': [vecino], 'RAMA': [vecino]}, tipos, p)
     assert vs == []
-    assert sum('098:RF-13' in a for a in avisos) == 2
+    assert sum('no se propone' in a or 'no se transfiere por él' in a for a in avisos) == 2
 
 
 def test_la_migracion_abre_el_seccionador_del_tramo_y_se_restituye_solo_ese():
@@ -716,7 +716,7 @@ def test_transferencias_por_el_enlace_de_la_mas_cercana_a_la_cabecera():
     assert (o['clase'], o['tramo'], o['enlace'], o['vecino'], o['enlace_cerrado']) == ('maniobra', 'LA2A3', 'ENL', 'Y', False)
     assert all(v.cantidades == {} and v.escalones == ('transferencia',) for v in vs)
     sin_margen, av = oi.variantes_por_enlace('X', [{**_enlace_x(), 'u_min': 0.951}], _p_098())
-    assert sin_margen and any('087:RF-32' in a and '098:RF-47' in a for a in av)   # el enlace existente se mide siempre
+    assert sin_margen and any('se mide igual, con los dos alimentadores' in a for a in av)   # el enlace existente se mide siempre
 
 
 def test_la_transferencia_sola_no_basta_y_con_bancos_si(monkeypatch):
@@ -820,7 +820,7 @@ def test_un_enlace_entre_tensiones_distintas_no_se_propone():
     informe, codigo = obras.datos_escalera(app, _plan_obras(alims, barras={'F1': [f'F1_B{n}']}))
     assert codigo == 0, informe
     assert not [x for x in informe['alimentadores']['F1']['enlaces'] if x['enlace'] == 'ENL']
-    assert any('ENL' in a and '22.9 kV' in a and '098:RF-42' in a for a in informe['avisos'])
+    assert any('ENL' in a and '22.9 kV' in a and 'sin transformador: no se propone transferir por él' in a for a in informe['avisos'])
     _obj(app, 'ElmTerm', f'F2_B{n}').uknom = 10.0
     informe, _c = obras.datos_escalera(app, _plan_obras(alims, barras={'F1': [f'F1_B{n}']}))
     assert [x for x in informe['alimentadores']['F1']['enlaces'] if x['enlace'] == 'ENL']
@@ -1247,7 +1247,7 @@ def test_la_seccion_y_la_terna_tienen_costo_sin_libro_capex():
     nivel = costos['cambio_tension']['costo_unitario']
     assert costos['cambio_seccion']['costo_unitario'] == nivel
     assert costos['nueva_terna']['costo_unitario'] == pytest.approx(1.5 * nivel)
-    assert '098:RF-35' in costos['nueva_terna']['origen'] and 'por 1.5' in costos['nueva_terna']['origen']
+    assert 'por confirmar' in costos['nueva_terna']['origen'] and 'por 1.5' in costos['nueva_terna']['origen']
     p2 = eo.parametros(_perfil_eo(factor_terna_sin_capex=2.0))
     assert eo.costos_de_alternativas({}, p2)['nueva_terna']['costo_unitario'] == pytest.approx(2.0 * nivel)
 
@@ -1635,7 +1635,7 @@ def test_la_sustitucion_cortada_se_completa_o_se_deshace_al_empezar_la_siguiente
         assert not _existe(app, vieja) and _activa(app, nueva)
     else:
         assert _existe(app, vieja) and _activa(app, vieja) and not _existe(app, nueva)
-    assert any('098:RF-36' in a for a in informe['avisos'])
+    assert any('Una sustitución quedó a medias' in a for a in informe['avisos'])
     assert not [e for e in obras.leer_aperturas(tmp_path / 'aperturas.json') if e.get('accion') == 'sustitucion']
 
 
@@ -2325,7 +2325,7 @@ def test_el_que_recibe_la_transferencia_prueba_otro_corte_de_la_misma():
     assert vs and not avisos and all(v.nombre.startswith('otro corte de la transferencia') for v in vs)
     assert [v.obras[0]['maniobra'] for v in vs] == ['SW_LS1A1', 'SW_LA1A2', 'SW_LA2A3']
     otro, av = oi.variantes_por_enlace('X', [{**_enlace_x(), 'u_min': 0.90}], _p_098())
-    assert otro and any('098:RF-47' in a for a in av), 'el enlace existente se mide aunque el vecino tenga poco margen'
+    assert otro and any('se mide igual, con los dos alimentadores' in a for a in av), 'el enlace existente se mide aunque el vecino tenga poco margen'
 
 
 def test_la_lectura_marca_el_corte_del_operador_en_los_enlaces(monkeypatch):
@@ -2543,7 +2543,7 @@ def test_el_lector_de_libros_que_cae_se_reintenta_y_si_no_se_sigue_sin_el_dato()
     avisos: list[str] = []
     assert services._en_proceso_con_reintento(Ctx(1), avisos, 'x', lambda v: v * 2, 21) == 42 and not avisos
     assert services._en_proceso_con_reintento(Ctx(2), avisos, 'x', lambda v: v, 1) is None
-    assert any('098:RF-49' in a for a in avisos)
+    assert any('cayó dos veces' in a for a in avisos)
     import inspect
     fuente = inspect.getsource(services._crecimiento_de_la_cabecera)
     assert 'CRECIMIENTO_DEL_TRABAJO[clave]' in fuente and 'en el ya calculado' not in fuente

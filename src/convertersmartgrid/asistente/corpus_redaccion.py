@@ -71,7 +71,7 @@ def registrar_revision(registro: Path | str, fragmento: Mapping[str, Any], *, re
                        aprobado: bool, uso: str, fecha: str | None = None, nota: str = '') -> dict:
     """Anota la decisión de una persona sobre un fragmento (072:RF-19) y la devuelve."""
     if origen != 'humano':
-        raise CorpusRedaccionError(f'072:RF-19 pide revisión humana; «{origen}» no lo es')
+        raise CorpusRedaccionError(f'la revisión tiene que ser humana; «{origen}» no lo es')
     if not str(revisor or '').strip():
         raise CorpusRedaccionError('la revisión no dice quién es el revisor')
     if uso not in USOS:

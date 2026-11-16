@@ -11,6 +11,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from .runtime_paths import rutas_runtime
+from .sesion_web import FiltroSecretos
 
 #: Cinco ficheros de 5 MB: bastan para varios días de trabajo y no llenan un disco en un año.
 TAMANO_MAXIMO = 5 * 1024 * 1024
@@ -57,6 +58,8 @@ def configurar_registro(nombre: str, *, carpeta: Path | None = None, nivel: int 
         except OSError:
             return None
         manejador.setFormatter(logging.Formatter(_FORMATO))
+        # 086:RF-19: el fichero nace con el filtro; puede crearse después de que la web lo instale en los que había.
+        manejador.addFilter(FiltroSecretos())
         manejador.setLevel(nivel)
         _manejadores[ruta] = manejador
     # Se puede llamar otra vez: la configuración de uvicorn quita los manejadores de sus registros al crearse.

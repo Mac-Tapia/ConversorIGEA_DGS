@@ -119,7 +119,7 @@ def test_sin_base_se_aplica_sobre_lo_activo(guion):
     app = _app()
     otra = _ajuste(app, 'A_mano')
     otra.Activate()
-    aviso = 'Sin base del ajuste: se aplica sobre las variaciones que estén activas en el proyecto (spec 007, RF-5).'
+    aviso = 'Sin base del ajuste: se aplica sobre las variaciones que estén activas en el proyecto.'
     plan = {**_plan(['F1'], [_demanda('F1_S1', 10, 1)]), 'avisos': [aviso]}
     informe, rc = guion.ejecutar(app, plan, simular=False)
     assert rc == 0 and aviso in informe['avisos']
@@ -452,7 +452,7 @@ def test_repetir_la_insercion_reutiliza_la_variacion(guion):
     assert rc == 0, segundo
     assert sorted(_variaciones(app)) == [var] and segundo['cargas'] == []
     (reuso,) = segundo['reutilizadas']
-    assert reuso['variacion'] == var and '014:RF-24' in reuso['motivo']
+    assert reuso['variacion'] == var and 'se reutiliza, activa en «Con proyecto»' in reuso['motivo']
     assert any('80.0 kW' in a and '95.0 kW' in a for a in segundo['avisos'])
     assert any('libro la da en' in a for a in segundo['avisos'])
     assert var in _activas_en(app, 'Con proyecto')
@@ -484,7 +484,7 @@ def test_carga_en_dos_variaciones_no_se_crea_y_sobra_una(guion):
     assert [c['sed'] for c in segundo['cargas']] == ['N2']
     n1 = next(x for x in segundo['no_creadas'] if x['sed'] == 'N1')
     assert n1['variacion'] == copia.loc_name and n1['eliminar'] == [f'Carga_N1_F1_{STAMP}']
-    assert any('040:RF-7' in a for a in segundo['avisos'])
+    assert any('variaciones de carga nueva; se conserva' in a for a in segundo['avisos'])
     despues = _activas_en(app, 'Con proyecto')
     assert copia.loc_name in despues and f'Carga_N1_F1_{STAMP}' not in _variaciones(app)
     assert set(antes) - {f'Carga_N1_F1_{STAMP}'} <= set(despues)
@@ -495,9 +495,9 @@ def test_ya_creada_en_la_red_de_con_proyecto_o_en_el_libro(guion):
     fuera de una variación de carga nueva no se crea; repetida en el libro, tampoco."""
     fila = _nueva('N7', barra='F1_B2')
     no_creada, avisos = guion.ya_creada(fila, ['F1'], set(), {'indice': {}, 'red': {'N7'}})
-    assert '014:RF-25' in no_creada['motivo'] and avisos == []
+    assert 'fuera de una variación de carga nueva' in no_creada['motivo'] and avisos == []
     no_creada, _ = guion.ya_creada(fila, ['F1'], {'N7'}, {'indice': {}, 'red': set()})
-    assert 'RF-15' in no_creada['motivo']
+    assert 'ya existe en el alimentador' in no_creada['motivo']
     assert guion.ya_creada(fila, ['F1'], set(), {'indice': {('F2', 'N7'): {'variaciones': ['x']}},
                                                   'red': set()}) is None
 
@@ -566,7 +566,7 @@ def test_la_carga_en_el_mismo_punto_con_otro_nombre_se_reutiliza(guion):
     assert rc == 0, segundo
     (reuso,) = segundo['reutilizadas']
     assert reuso['sed'] == 'OTRO' and reuso['variacion'] == var
-    assert 'como N1' in reuso['motivo'] and '014:RF-30' in reuso['motivo']
+    assert 'como N1' in reuso['motivo'] and 'ya existe en el mismo punto' in reuso['motivo']
     assert [c['sed'] for f in segundo['feeders'] for c in f['crearian']] == ['N3']
 
 

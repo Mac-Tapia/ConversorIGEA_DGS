@@ -112,7 +112,7 @@ def test_pide_con_tarifas_en_soles_y_sin_tipo_de_cambio_lo_dice_en_el_resultado(
     ws = SimpleNamespace(out_dir=tmp_path, plans_dir=tmp_path / 'planes')
     ctx = SimpleNamespace(log=lambda *a: None)
     r = services.pide_ejecutar(ws, ctx, 'Propio', ['F1'], capex=str(_capex(tmp_path)), implementar=False)
-    assert any('025:RF-68' in a and 'PEN' in a and 'USD' in a for a in r['avisos'])
+    assert any('tipo de cambio' in a and 'PEN' in a and 'USD' in a for a in r['avisos'])
     assert r['obras'] and all(o['privada'] is None for o in r['obras'])
 
 

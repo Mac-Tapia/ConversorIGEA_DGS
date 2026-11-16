@@ -80,7 +80,7 @@ def test_hoja_sin_magnitud_no_se_lee(tmp_path):
     ws.append(['2024-01-01 00:00', '00:15:00', 5.0])
     wb.save(tmp_path / 'x.xlsx')
     lectura = ca.leer_ancho([tmp_path / 'x.xlsx'], ['AB1'])
-    assert not lectura.series and '051:RF-2' in lectura.avisos[0]
+    assert not lectura.series and 'no dice si es activa o reactiva' in lectura.avisos[0]
 
 
 def _maximas(ruta: Path, rng: random.Random, salidas: list[str]) -> dict:
@@ -116,7 +116,7 @@ def test_maximas_mensuales_en_kw_sin_reactiva(tmp_path):
     pedida = rng.choice(salidas)
     lectura = ca.leer_maximas_mensuales([tmp_path / 'max.xlsx'], [pedida])
     assert lectura.series.get(pedida, {}) == pytest.approx(esperado.get(pedida, {})), SEMILLA
-    assert pedida in lectura.mensuales and any('051:RF-9' in a for a in lectura.avisos)
+    assert pedida in lectura.mensuales and any('no supone ningún factor de potencia' in a for a in lectura.avisos)
 
 
 def test_sin_unidad_se_pide(tmp_path):

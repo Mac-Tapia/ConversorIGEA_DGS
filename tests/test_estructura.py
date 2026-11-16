@@ -220,7 +220,7 @@ def test_barras_de_calibracion_con_la_estructura_de_electro_dunas():
     assert por['Suelta QX 10 kV'].alimentadores == ['QX101'] and por['Suelta QX 10 kV'].suelta
     assert not any('220' in b.clave for b in barras)
     assert not any('NA203' in b.alimentadores for b in barras), 'SET 51 solo tiene la central'
-    assert any('QX' in a and '022:RF-45' in a for a in avisos)
+    assert any('QX' in a and 'barra suelta propia' in a for a in avisos)
     assert not any('CHN' in a for a in avisos)
 
 
@@ -250,7 +250,7 @@ def test_barra_de_60_kv_fija_el_instante_de_toda_su_set():
     assert alta.alimentadores == ['PN209']
     assert por['SET 32 10 kV'].alimentadores == ['PA111'] and not por['SET 32 10 kV'].de_alta
     assert not any('XX' in b.clave or '220' in b.clave for b in barras)
-    assert any('B-XX60' in a and '022:RF-86' in a for a in avisos)
+    assert any('B-XX60' in a and 'no se usa' in a for a in avisos)
     assert e.set_de_texto('Chincha Nueva').codigo == 'SET CHN' and e.set_de_texto('') is None
     # Grafías del libro real (2026-10-27): sin espacio, nombre con «SET», siglas de sus
     # alimentadores; y sin columna SET, por el nombre del medidor.

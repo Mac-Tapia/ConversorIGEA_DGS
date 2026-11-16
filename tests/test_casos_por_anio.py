@@ -161,7 +161,7 @@ def test_plan_de_otro_anio_va_a_sus_casos(tmp_path, monkeypatch):
     ws, services = _ws(tmp_path, monkeypatch, calibrado=True)
     plan = services.ajuste_plan(ws, 'P', _maxima_de(2025), '', .01)
     assert (plan['anio_medicion'], plan['anio_casos'], plan['caso']) == (2025, 2025, 'Sin proyecto 2025')
-    assert any('2026' in a and '025:RF-17' in a for a in plan['avisos'])
+    assert any('2026' in a and 'se calibró sin guardar el año de la medición' in a for a in plan['avisos'])
     datos = __import__('json').loads(
         __import__('pathlib').Path(ws.cargas_planes[plan['token']]['path']).read_text(encoding='utf-8'))
     assert datos['anio_casos'] == 2025 and datos['caso'] == 'Sin proyecto 2025'
@@ -343,7 +343,7 @@ def test_las_obras_traen_su_operacion_al_caso_del_anio(monkeypatch):
         {'objeto': 'SW_1', 'dato': 'on_off', 'con': 0, 'anio': 2}]
     assert quieto.escrito == {} and out['faltan'] == ['Nuevo']
     assert app.escenario.guardado == 1 and app.activo is inicial
-    assert all('025:RF-42b' in a for a in out['avisos']) and len(out['avisos']) == 3
+    assert all('obras' in a and 'Con proyecto' in a for a in out['avisos']) and len(out['avisos']) == 3
 
 
 def test_dice_que_cargas_no_convergen_juntas(monkeypatch):
@@ -369,7 +369,7 @@ def test_dice_que_cargas_no_convergen_juntas(monkeypatch):
     j = informe['no_convergen_juntas']
     assert j['caso'] == f'Con proyecto {ANIO}' and j['solas_que_no_convergen'] == []
     assert len(j['basta_quitar_una_de']) == 2 and len(j['cargas']) == 2
-    assert any('cada una sola, sí' in a and '025:RF-44' in a for a in informe['avisos'])
+    assert any('cada una sola, sí' in a and 'Hacen falta obras' in a for a in informe['avisos'])
     assert set(j['cargas']) <= _activas_por_nombre(app, f'Con proyecto {ANIO}')
 
 
@@ -430,7 +430,7 @@ def test_cargas_nuevas_una_a_una_hasta_donde_converge(monkeypatch):
     (fuera,) = d['no_convergen']
     assert fuera['variacion'] == var['N2'] and fuera['sed'] == 'N2'
     assert 'N2' in fuera['texto'] and 'ya no converge' in fuera['texto']
-    assert any('025:RF-66' in a and 'N2' in a for a in informe['avisos'])
+    assert any('ya no converge' in a and 'N2' in a for a in informe['avisos'])
     assert _activas_en(app, _caso_por_nombre(app, f'Cargas nuevas {ANIO}'))[0] == sorted([var['N1'], var['N3']])
     assert set(var.values()) <= _activas_por_nombre(app, f'Con proyecto {ANIO}')
 
@@ -571,7 +571,7 @@ def test_una_etapa_fechada_despues_de_la_hora_del_caso_queda_aplicada():
     assert v.loc_name in _activas_en(app, caso)[0]
     assert int(etapa.tAcTime) <= int(caso.iStudyTime)
     assert informe['etapas_adelantadas'] == [v.loc_name]
-    assert any('025:RF-80' in a and v.loc_name in a for a in informe['avisos'])
+    assert any('no veía las etapas de' in a and 'se adelantan a la hora del caso' in a and v.loc_name in a for a in informe['avisos'])
 
 
 def test_la_comparacion_detecta_un_banco_y_dos_conductores_que_faltan():
@@ -635,7 +635,7 @@ def test_si_digsilent_no_deja_borrar_el_caso_se_reutiliza_sin_duplicarlo():
     informe, _sin, variaciones = _diagnostico(app, anio=None, cargas=('N2',))
     assert _caso_por_nombre(app, 'Cargas nuevas') is viejo
     assert [c.loc_name for c in app.carpetas['study'].GetContents('*.IntCase')].count('Cargas nuevas') == 1
-    assert any('no dejó borrar' in a and '025:RF-79' in a for a in informe['avisos'])
+    assert any('no dejó borrar' in a and 'se reutiliza y se compara con él' in a for a in informe['avisos'])
     assert informe['igualdad']['iguales'] is True and variaciones[0].loc_name in informe['activas']
 
 
@@ -654,7 +654,7 @@ def test_un_caso_del_operador_llamado_cargas_nuevas_no_se_toca(con_el_del_sistem
     informe, _sin, _v = _diagnostico(app, anio=None, cargas=('N2',))
     assert app.borrados == borrados and list(carpeta.GetContents('*.IntCase')) == casos
     assert ajeno.desc == ['del operador'] and informe['converge'] is None
-    assert any('025:RF-61' in a for a in informe['avisos'])
+    assert any('que no creó el sistema' in a for a in informe['avisos'])
 
 
 def test_con_proyecto_frente_a_sin_proyecto_sin_sus_obras_ni_sus_cargas():
@@ -850,7 +850,7 @@ def test_la_escalera_sin_ninguna_que_cumpla_no_aplica_nada(tmp_path, monkeypatch
         tmp_path, monkeypatch, evaluar, {'bancos': 9000})
     (f1,) = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO)['alimentadores']
     assert f1['elegida'] is None and f1['mas_cercana'].startswith('terna') and aplicadas == []
-    assert any('025:RF-56' in a for a in f1['avisos'])
+    assert any('y no se aplica nada' in a for a in f1['avisos'])
 
 
 def test_la_evaluacion_terminada_con_el_mismo_plan_se_reutiliza(tmp_path):
@@ -945,7 +945,7 @@ def test_si_con_proyecto_ya_cumple_no_se_aplica_nada_y_queda_resuelto(tmp_path, 
     monkeypatch.setattr(services, '_guion_pf', guion)
     r = services.obras_escalera(ws, ctx, 'P', ['F1', 'F2'], anio_casos=ANIO)
     assert aplicadas == []
-    assert all(f['elegida'] is None and any('025:RF-74' in a for a in f['avisos']) for f in r['alimentadores'])
+    assert all(f['elegida'] is None and any('ya cumple con lo que tiene' in a for a in f['avisos']) for f in r['alimentadores'])
     de_f2 = [p for a, p in planes if p['feeders'] == ['F2']]
     assert de_f2 and all(p['apartar_cargas_de'] == [] for p in de_f2)
 
@@ -982,7 +982,7 @@ def test_la_elegida_se_aplica_con_las_mismas_cargas_apartadas_y_solo_activa_resu
     de_f2 = [p for _a, p in planes if p['feeders'] == ['F2']]
     assert all(p['apartar_cargas_de'] == ([] if activa else ['F1']) for p in de_f2)
     f1 = r['alimentadores'][0]
-    assert any('025:RF-69' in a for a in f1['avisos']) is (not activa)
+    assert any('su flujo no converge al aplicarla' in a for a in f1['avisos']) is (not activa)
 
 def test_la_base_de_las_cargas_se_encuentra_en_otra_ejecucion(tmp_path):
     """025:RF-37 (007:RF-40) — la calibración de 2025 quedó en la ejecución anterior; al

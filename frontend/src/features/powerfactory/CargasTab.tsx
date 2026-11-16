@@ -694,7 +694,7 @@ export function CargasTab() {
             <input value={minima} inputMode="decimal" placeholder="en blanco: partir siempre"
               onChange={(e) => { setMinima(e.target.value); setPlan(null); }} />
             <small className="muted">Cada carga va en sus coordenadas y se conecta en el punto más cercano de la red de
-              media de su alimentador (016:RF-78), partiendo el tramo con una barra nueva; si ese punto queda más cerca
+              media de su alimentador, partiendo el tramo con una barra nueva; si ese punto queda más cerca
               de una barra que esta distancia, se conecta en la barra.</small>
           </label>
 
@@ -853,7 +853,7 @@ export function CargasTab() {
           {(plan.repetidas ?? []).length > 0 && (
             <div className="alert alert-warn">
               <strong>{plan.repetidas!.length} fila(s) repetida(s) en el libro de {plan.feeders.join(', ')}: no se crean;
-                cuenta la última fila del mismo cliente (099).</strong>
+                cuenta la última fila del mismo cliente.</strong>
               <div className="table-wrap table-short">
                 <table>
                   <thead><tr><th>Alimentador</th><th>No se crea</th><th>kW</th><th>Cuenta</th><th>kW</th><th>Por</th></tr></thead>

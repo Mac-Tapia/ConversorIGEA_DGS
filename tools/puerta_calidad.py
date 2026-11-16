@@ -102,6 +102,17 @@ def pyproject_cambia_solo_capas(raiz: Path = RAIZ) -> bool:
     return resto_antes == resto_despues and capas_antes != capas_despues
 
 
+#: 077:RF-76: lo que cambia el servidor MCP. Un commit con uno de estos corre su prueba real con su intérprete y no la
+#: tolera omitida: hasta el 2026-11-14 la puerta del commit corría sin ``CSG_MCP_PYTHON`` y la omitía callada.
+DEL_MCP = ('tools/mcp_conversor.py', 'requirements-mcp.txt', 'tests/test_mcp_conversor.py', 'docs/MCP_CONVERSOR.md',
+           'src/convertersmartgrid/asistente/lectura_proyecto.py')
+#: 077:RF-76: las pruebas del servidor MCP real. Sin ellas aprobadas, la suite de ``main``, la que precede a la etiqueta, no
+#: se da por buena, aunque nadie las elija o se omitan.
+MCP_REAL = ('tests.test_mcp_conversor::test_servidor_real_por_stdio',
+            'tests.test_mcp_conversor::test_servidor_real_y_sus_datos_locales')
+#: 077:RF-76: el intérprete propio del MCP, si no se indica otro (docs/MCP_CONVERSOR.md).
+VENV_MCP = ('.venv_mcp/Scripts/python.exe', '.venv_mcp/bin/python')
+
 #: 106:RF-15: cuántas de las más lentas guarda el resultado, y el umbral de ``faulthandler_timeout`` de pyproject.toml.
 LENTAS_GUARDADAS = 30
 UMBRAL_PRUEBA_LENTA_S = 1800.0
@@ -187,16 +198,24 @@ def variables_de_la_suite(raiz: Path = RAIZ, entorno: Mapping[str, str] | None =
     return {k: leidas[k] for k in VARIABLES}
 
 
-def veredicto(junit: Path) -> dict:
-    """Fallidas y omitidas del XML de JUnit de pytest, cada una con su motivo (102:RF-8, RF-9)."""
+def veredicto(junit: Path, exigidas: Iterable[str] = ()) -> dict:
+    """Fallidas y omitidas del XML de JUnit de pytest, cada una con su motivo (102:RF-8, RF-9).
+
+    077:RF-76: ``exigidas`` son pruebas que tienen que haber corrido y pasado (o cada caso de su parametrización); las
+    que no, van a ``exigidas_sin_correr``.
+    """
     try:
         arbol = ET.parse(junit)
     except (OSError, ET.ParseError) as exc:
         raise PuertaError(f'pytest no dejó su resultado ({junit.name}): {exc}') from exc
     fallidas, omitidas, total, tiempos = [], [], 0, []
+    aprobadas: dict[str, bool] = {}
     for caso in arbol.iter('testcase'):
         total += 1
         nombre = f"{caso.get('classname', '')}::{caso.get('name', '')}"
+        base = nombre.split('[', 1)[0]
+        aprobadas[base] = aprobadas.get(base, True) and not any(caso.find(e) is not None
+                                                                 for e in ('failure', 'error', 'skipped'))
         try:
             tiempos.append((float(caso.get('time') or 0), nombre))
         except ValueError:
@@ -212,7 +231,8 @@ def veredicto(junit: Path) -> dict:
     tiempos.sort(key=lambda x: (-x[0], x[1]))
     lentas = [{'prueba': p, 'segundos': round(s, 1)} for s, p in tiempos[:LENTAS_GUARDADAS]]
     return {'total': total, 'fallidas': fallidas, 'omitidas': omitidas, 'lentas': lentas,
-            'mas_de_umbral': [x for x in lentas if x['segundos'] > UMBRAL_PRUEBA_LENTA_S]}
+            'mas_de_umbral': [x for x in lentas if x['segundos'] > UMBRAL_PRUEBA_LENTA_S],
+            'exigidas_sin_correr': [e for e in exigidas if not aprobadas.get(e)]}
 
 
 def _git(*args: str, raiz: Path = RAIZ) -> str:
@@ -250,12 +270,13 @@ def guardar_resultado(revision: str, juicio: dict, raiz: Path = RAIZ) -> Path:
     carpeta.mkdir(parents=True, exist_ok=True)
     ruta = carpeta / f'{revision}.json'
     datos = {'revision': revision, 'fecha': datetime.now().isoformat(timespec='seconds'),
-             'aprobada': not juicio['fallidas'] and not juicio['omitidas'], **juicio}
+             'aprobada': not juicio['fallidas'] and not juicio['omitidas'] and not juicio.get('exigidas_sin_correr'),
+             **juicio}
     ruta.write_text(json.dumps(datos, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     return ruta
 
 
-def _pytest(argumentos: list[str], entorno: Mapping[str, str], raiz: Path) -> dict:
+def _pytest(argumentos: list[str], entorno: Mapping[str, str], raiz: Path, exigidas: Iterable[str] = ()) -> dict:
     with tempfile.TemporaryDirectory() as tmp:
         junit = Path(tmp) / 'junit.xml'
         cmd = [sys.executable, '-m', 'pytest', '-q', '-rs', '-p', 'no:cacheprovider', f'--junitxml={junit}',
@@ -272,16 +293,16 @@ def _pytest(argumentos: list[str], entorno: Mapping[str, str], raiz: Path) -> di
 
             dueno = quien_tiene_la_gpu(ruta_guardia_gpu({**limpio, **entorno}))   # la misma que calculó el conftest
             return {'total': 0, 'omitidas': [],
-                    'fallidas': [{'prueba': 'pytest', 'motivo': f'sin el turno de GPU en su plazo: la tiene {dueno} (106:RF-8)'}]}
+                    'fallidas': [{'prueba': 'pytest', 'motivo': f'sin el turno de GPU en su plazo: la tiene {dueno}'}]}
         if not junit.is_file():
             raise PuertaError(f'pytest terminó con el código {rc} sin dejar resultado.')
-        juicio = veredicto(junit)
+        juicio = veredicto(junit, exigidas)
     # 106:RF-16: un código distinto de 0 sin ninguna prueba fallida es una sesión que falló por algo que no es una prueba
     # (una línea de pruebas en un registro real de la web, por ejemplo). Antes solo contaban los códigos distintos de 0
     # y 1, y con 1 y el junit limpio la puerta daba «0 fallidas» y aprobaba (auditoría del 2026-11-13).
     if rc != 0 and not juicio['fallidas']:
         juicio['fallidas'].append({'prueba': 'pytest', 'motivo': f'terminó con el código {rc} sin ninguna prueba fallida: '
-                                   'mire su salida (p. ej. 106:RF-16, una prueba que escribió en un registro real)'})
+                                   'mire su salida (p. ej., una prueba que escribió en un registro real)'})
     return juicio
 
 
@@ -294,23 +315,92 @@ def _informar(juicio: dict, *, omitidas_cuentan: bool) -> bool:
     if omitidas_cuentan:
         for o in juicio['omitidas']:
             print(f"OMITIDA {o['prueba']}: {o['motivo']}")
-    malas = len(juicio['fallidas']) + (len(juicio['omitidas']) if omitidas_cuentan else 0)
+    for e in juicio.get('exigidas_sin_correr') or []:
+        print(f'SIN CORRER {e}: la puerta la exige corrida y aprobada.')
+    malas = (len(juicio['fallidas']) + (len(juicio['omitidas']) if omitidas_cuentan else 0)
+             + len(juicio.get('exigidas_sin_correr') or []))
     print(f"Puerta de calidad: {juicio['total']} pruebas, {len(juicio['fallidas'])} fallidas, "
           f"{len(juicio['omitidas'])} omitidas.")
     return malas == 0
 
 
+def toca_el_frontend(ficheros: Iterable[str]) -> bool:
+    """102:RF-24: el commit cambia algo de ``frontend/``, y entonces pasa también el lint de fronteras."""
+    return any(f.replace('\\', '/').startswith('frontend/') for f in ficheros)
+
+
+def lint_del_frontend(raiz: Path = RAIZ) -> tuple[bool, str]:
+    """102:RF-24: las fronteras del frontend (``npm run lint``, que es ``node scripts/fronteras.mjs``).
+
+    Se llama a node directamente, sin npm: es lo mismo que hace el script y no depende de que npm esté en el PATH del
+    gancho. Sin node no se da por bueno: el commit se detiene y lo dice (H13, auditoría del 2026-11-14: el lint no corría
+    ni en la CI ni en los ganchos, y 002 T11 quedaba sin vigilar).
+    """
+    carpeta = raiz / 'frontend'
+    try:
+        r = subprocess.run(['node', 'scripts/fronteras.mjs'], cwd=carpeta, capture_output=True, text=True,
+                           encoding='utf-8', errors='replace', check=False)
+    except FileNotFoundError:
+        return False, 'no se encuentra node para pasar el lint de fronteras del frontend'
+    if r.returncode != 0:
+        salida = (r.stdout + r.stderr).strip()
+        if 'ERR_MODULE_NOT_FOUND' in salida:
+            # Un worktree sin frontend/node_modules: el lint no se puede pasar, y no se da por bueno.
+            return False, 'faltan las dependencias del frontend: ejecute «npm ci» en frontend/'
+        return False, salida or f'el lint de fronteras salió con {r.returncode}'
+    return True, ''
+
+
+def exigencias_mcp(ficheros: Iterable[str], raiz: Path = RAIZ,
+                   entorno: Mapping[str, str] | None = None) -> tuple[dict[str, str], tuple[str, ...]]:
+    """077:RF-76: si el commit cambia el servidor MCP, su intérprete para pytest y las pruebas reales que exige.
+
+    El intérprete sale del entorno, del fichero local de variables o del ``.venv_mcp`` del repositorio, en ese orden.
+    Sin ninguno que exista: :class:`PuertaError` con lo que hay que poner.
+    """
+    if not any(f.replace('\\', '/') in DEL_MCP for f in ficheros):
+        return {}, ()
+    entorno = os.environ if entorno is None else entorno
+    python = entorno.get('CSG_MCP_PYTHON') or ''
+    if not python and (raiz / FICHERO_VARIABLES).is_file():
+        try:
+            python = str((json.loads((raiz / FICHERO_VARIABLES).read_text(encoding='utf-8')).get('variables') or {})
+                         .get('CSG_MCP_PYTHON') or '')
+        except ValueError as exc:
+            raise PuertaError(f'{FICHERO_VARIABLES} no es JSON válido: {exc}') from exc
+    if python and not Path(python).is_file():
+        raise PuertaError(f'CSG_MCP_PYTHON={python} no existe: el commit cambia el servidor MCP.')
+    if not python:
+        python = next((str(raiz / v) for v in VENV_MCP if (raiz / v).is_file()), '')
+    if not python:
+        raise PuertaError('El commit cambia el servidor MCP y falta su intérprete: ponga CSG_MCP_PYTHON o cree .venv_mcp '
+                          'con la orden de docs/MCP_CONVERSOR.md.')
+    return {'CSG_MCP_PYTHON': python}, MCP_REAL
+
+
 def puerta_commit(raiz: Path = RAIZ) -> int:
-    """102:RF-1 a RF-4."""
+    """102:RF-1 a RF-4; 077:RF-76."""
     ficheros = [f for f in _git('diff', '--cached', '--name-only', '--diff-filter=ACMR', raiz=raiz).splitlines() if f]
     pruebas = pruebas_del_commit(ficheros, raiz)
     print(f'Puerta del commit: {len(pruebas)} ficheros de prueba.')
+    if toca_el_frontend(ficheros):
+        ok, motivo = lint_del_frontend(raiz)
+        if not ok:
+            print(f'Commit detenido: el lint de fronteras del frontend falla: {motivo}')
+            return 1
     if not pruebas:
         # Un repositorio sin pruebas de gobierno (el de las pruebas de los ganchos de la 090): sin pruebas que
         # elegir, pytest correría todo el árbol y saldría con «ninguna prueba» (código 5).
         return 0
-    if not _informar(_pytest(pruebas, {}, raiz), omitidas_cuentan=False):
-        print('Commit detenido: corrija las pruebas que fallan (102:RF-3).')
+    try:
+        entorno, exigidas = exigencias_mcp(ficheros, raiz)
+    except PuertaError as exc:
+        print(f'Commit detenido: {exc}')
+        return 1
+    if exigidas and 'tests/test_mcp_conversor.py' not in pruebas and 'tests' not in pruebas:
+        pruebas.append('tests/test_mcp_conversor.py')
+    if not _informar(_pytest(pruebas, entorno, raiz, exigidas=exigidas), omitidas_cuentan=False):
+        print('Commit detenido: corrija las pruebas que fallan.')
         return 1
     return 0
 
@@ -353,18 +443,18 @@ def puerta_push(revisiones: Iterable[str], raiz: Path = RAIZ) -> int:
         print('Subida detenida: el árbol tiene cambios sin commit; la suite probaría otra cosa que la revisión.')
         return 1
     if resultado_guardado(cabeza, raiz):
-        print(f'Puerta de la subida: {cabeza[:8]} ya pasó la suite completa sin omitidas (102:RF-11).')
+        print(f'Puerta de la subida: {cabeza[:8]} ya pasó la suite completa sin omitidas.')
         return 0
     try:
         entorno = variables_de_la_suite(raiz)
     except PuertaError as exc:
-        print(f'Subida detenida: {exc} (102:RF-7)')
+        print(f'Subida detenida: {exc}')
         return 1
     print(f'Puerta de la subida: suite completa de {cabeza[:8]} con los datos reales.')
-    juicio = _pytest([], entorno, raiz)
+    juicio = _pytest([], entorno, raiz, exigidas=MCP_REAL)
     ruta = guardar_resultado(cabeza, juicio, raiz)
     if not _informar(juicio, omitidas_cuentan=True):
-        print(f'Subida detenida: la suite completa no pasa sin fallidas ni omitidas (102:RF-8, RF-9). Detalle: {ruta}')
+        print(f'Subida detenida: la suite completa no pasa sin fallidas ni omitidas. Detalle: {ruta}')
         return 1
     return 0
 
@@ -392,7 +482,7 @@ def main(argv: list[str] | None = None) -> int:
             a_main, otras = revisiones_por_destino(lineas)
             for rama in otras:
                 print(f'Puerta de la subida: {rama} es una rama de trabajo; sube sin la suite completa, que se exige al '
-                      f'integrar en {RAMA_PRINCIPAL} (102:RF-18). GitHub Actions corre la sintética.')
+                      f'integrar en {RAMA_PRINCIPAL}. GitHub Actions corre la sintética.')
             return puerta_push(a_main) if a_main else 0
         return puerta_ci()
     except PuertaError as exc:

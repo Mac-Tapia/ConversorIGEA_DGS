@@ -199,7 +199,7 @@ def test_una_orden_que_falla_deja_el_estado_como_lo_encontro(cola, servidor, mon
     assert app.casos['Con'].iStudyTime == 1000 - 10**6          # la hora es la del caso de antes
     assert app.casos['Sin'].iStudyTime == 1000
     log = (cola / 'f.log').read_text(encoding='utf-8')
-    assert 'fallo a mitad' in log and '064:RF-5' in log
+    assert 'fallo a mitad' in log and 'como estaba al empezar' in log
     assert '«Sin» activo de nuevo' in log and 'Obra' in log and 'Bancos' in log
 
 
@@ -553,7 +553,7 @@ def test_una_restitucion_que_no_surte_efecto_no_se_anuncia(cola, servidor, monke
                         lambda guion: SimpleNamespace(main=_orden_que_cambia_y_falla(app)))
     assert servidor.atender({'id': 'n', 'guion': 'estudios_pf.py', 'argv': []}, cola, app=app) == 1
     log = (cola / 'n.log').read_text(encoding='utf-8')
-    assert 'no se pudo restituir' in log and '064:RF-7' in log, log
+    assert 'no se pudo restituir' in log and 'la orden falló' in log, log
     assert 'se deja DIgSILENT como estaba' not in log, 'no se anuncia lo que no pasó'
     if que in ('caso', 'caso_mudo'):
         assert app.caso is app.casos['Con'] and app.casos['Con'].iStudyTime == 777
@@ -613,7 +613,7 @@ def test_un_fallo_al_fotografiar_cierra_la_orden_y_la_siguiente_se_atiende(cola,
         pf_arnes.compartir_app(None)
     assert hechas == ['primera', 'segunda']
     registro = (cola / 'a.log').read_text(encoding='utf-8')
-    assert 'fallo al fotografiar escenario' in registro and '064:RF-9' in registro
+    assert 'fallo al fotografiar escenario' in registro and 'no se podrá restituir el estado' in registro
     for ident in ('a', 'b'):
         assert json.loads((cola / f'{ident}.fin.json').read_text())['codigo'] == 0
 
@@ -648,7 +648,8 @@ def test_la_orden_de_otro_codigo_vuelve_a_la_cola_y_el_servidor_se_cierra(cola, 
     reloj = Reloj()
     assert servidor.servir(1.0, reloj=reloj, dormir=reloj.dormir) == 0
     assert atendidas == [] and (cola / 'a.orden.json').exists() and not (cola / 'a.en_curso.json').exists()
-    assert '019:RF-27' in capsys.readouterr().out
+    salida = capsys.readouterr().out
+    assert 'esta orden espera para correr con' in salida and 'RF-' not in salida
 
     propio = pf_arnes.carpeta_del_codigo(servidor.__file__)
     (cola / 'a.orden.json').write_text(json.dumps({'id': 'a', 'guion': 'pf_proyectos.py', 'argv': [], 'raiz': propio}))
@@ -667,7 +668,7 @@ def test_el_cliente_no_usa_el_servidor_de_otro_codigo(cola, cliente, monkeypatch
     reloj = Reloj()
     assert not cliente.asegurar_servidor(cola, 60.0, lanzar=lambda c: pytest.fail('hay servidor vivo'),
                                          reloj=reloj, dormir=reloj.dormir)
-    assert cierres and '019:RF-27' in capsys.readouterr().out
+    assert cierres and 'esta orden espera para correr con' in capsys.readouterr().out
 
     # Un servidor anterior a RF-27 no dice su carpeta: es el caso real y tampoco vale.
     vivo['servidor'] = {'pid': 1, 'guion': pf_arnes.SERVIDOR}

@@ -94,3 +94,11 @@ for(const extension of ['mjsx','cjsx','mtsx','ctsx'])test(`002:RF-19 formato .${
  const dir=fixture({[`features/uno/panel.${extension}`]:'export const x=1;'});
  assert.ok(comprobarFronteras(dir).some(e=>e.includes('formato de script no admitido')));
 });
+
+test('102:RF-24 las carpetas con punto (cachés de herramientas) no cuentan como código',()=>{
+ // H13 (2026-11-14): «ruff» dejaba frontend/src/.ruff_cache y el lint fallaba en local con «fuera de api/shared/features/app».
+ const dir=fixture({'api/types.ts':'export type Dato=number;',
+  '.ruff_cache/0.15/cache.py':'x = 1\n','.ruff_cache/CACHEDIR.TAG':'Signature',
+  '.vite/deps/chunk.js':'export const x=1;'});
+ assert.deepEqual(comprobarFronteras(dir),[]);
+});

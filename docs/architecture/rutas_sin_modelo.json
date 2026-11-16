@@ -1,0 +1,10 @@
+{
+ "_comentario": "002:RF-38: rutas de /api sin response_model, cada una con su motivo; esta lista solo baja.",
+ "rutas": {
+  "GET /api/workspaces/{wid}/cargas/plantilla/{tipo}": "devuelve la plantilla xlsx o csv como FileResponse (app.py, cargas_plantilla) y no declara response_class",
+  "GET /api/workspaces/{wid}/files/{rel:path}": "devuelve un fichero de la salida como FileResponse, HTML aislado o descarga (app.py, get_file), y no declara response_class",
+  "GET /api/workspaces/{wid}/outputs.zip": "devuelve el zip preparado por el trabajo «archive» como FileResponse (app.py, outputs_zip) y no declara response_class",
+  "GET /api/workspaces/{wid}/pf/datos-empresa/plantilla": "devuelve la plantilla del libro de datos de la empresa como FileResponse (app.py, datos_empresa_plantilla; 012:RF-7) y no declara response_class",
+  "POST /api/workspaces/{wid}/demanda/excel": "devuelve el libro de demanda generado como FileResponse (app.py, demanda_excel) y no declara response_class"
+ }
+}

@@ -109,5 +109,5 @@ def test_el_aviso_del_seqnumber_llega_a_la_validacion_de_la_geografia(ds, sample
     from dataclasses import replace
     from convertersmartgrid.geography import build_geography, validate_geography
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
-    con_aviso = replace(geo, avisos=('S1: SeqNumber vacío o no entero (010:RF-8)',))
-    assert 'S1: SeqNumber vacío o no entero (010:RF-8)' in validate_geography(sample_model, con_aviso)['warnings']
+    con_aviso = replace(geo, avisos=('S1: SeqNumber vacío o no entero',))
+    assert 'S1: SeqNumber vacío o no entero' in validate_geography(sample_model, con_aviso)['warnings']

@@ -188,7 +188,7 @@ def entrenar_afinado(ejemplos: Sequence[Ejemplo], cfg: co.Configuracion, log: Ca
     """Tramo y cabezas juntos, con parada por selección. El dispositivo lo da quien llama: sin GPU, su error de siempre (079:RF-10)."""
     torch = _torch()
     if not cache.seleccion:
-        raise ValueError('afinar sin filas de selección: no habría con qué parar (079:RF-13)')
+        raise ValueError('afinar sin filas de selección: no habría con qué parar')
     disp, base, inicio = dispositivo, cache.codificador, time.monotonic()
     _limitar_memoria(cfg, disp)
     textos = [e.texto for e in ejemplos]

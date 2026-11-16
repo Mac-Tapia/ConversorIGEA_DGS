@@ -762,7 +762,7 @@ def ejecutar(app, plan: dict, *, cancelado=None) -> tuple[dict, int]:
     informe = {'project': plan['project'], 'case': plan.get('case'), 'anios': [], 'avisos': []}
     tasa = plan.get('tasa')
     if tasa is None:
-        return {**informe, 'error': 'falta la tasa de crecimiento de la demanda (RF-51)'}, 2
+        return {**informe, 'error': 'falta la tasa de crecimiento de la demanda'}, 2
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
     if proyecto is None:
         return {**informe, 'error': f"no existe el proyecto {plan['project']!r}"}, 2

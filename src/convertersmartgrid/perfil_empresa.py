@@ -287,7 +287,7 @@ def completar_planeamiento(datos: dict[str, Any] | None, tipo_cambio: float | No
         # Sin tipo de cambio no se valoran las pérdidas, pero las obras se proponen igual.
         esc['precio_perdidas_kwh'] = esc['precio_perdidas_kw_mes'] = None
         supuestos.append('pérdidas sin valorar: falta el tipo de cambio')
-    avisos = [f"Supuestos técnicos de referencia, el perfil no los da: {'; '.join(supuestos)} (042:RF-39)."] if supuestos else []
+    avisos = [f"Supuestos técnicos de referencia, el perfil no los da: {'; '.join(supuestos)}."] if supuestos else []
     return perfil, avisos
 
 

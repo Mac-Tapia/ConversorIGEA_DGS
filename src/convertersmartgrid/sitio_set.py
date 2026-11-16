@@ -65,8 +65,7 @@ def leer_calles(ruta: str | Path | None) -> tuple[tuple[Trazado, ...], tuple[str
                 calles.append((str((f.get('properties') or {}).get('name') or f'calle {i + 1}'),
                                [(float(p[1]), float(p[0])) for p in linea]))
     except (OSError, ValueError, TypeError, AttributeError, IndexError) as exc:
-        return (), (f'No se pudo leer el fichero de calles {ruta}: {exc}; el sitio queda sin verificar en plano '
-                    '(084:RF-5).',)
+        return (), (f'No se pudo leer el fichero de calles {ruta}: {exc}; el sitio queda sin verificar en plano.',)
     return tuple(calles), ()
 
 
@@ -148,13 +147,12 @@ def revisar(punto: Punto, trazados: Sequence[Trazado], p: ParametrosSitio) -> di
     if p.retiro_m is None:
         # 084:RF-6: la distancia se da igual; sin el dato de la empresa no se juzga.
         avisos.append('El perfil no da planificacion.sitio_set.retiro_min_m: se dice la distancia a la red y el '
-                      'punto no se aparta (084:RF-6).')
+                      'punto no se aparta.')
     if a_red is None:
-        avisos.append('No hay trazado de la red con GPS: no se pudo medir la distancia a los alimentadores '
-                      '(084:RF-1).')
+        avisos.append('No hay trazado de la red con GPS: no se pudo medir la distancia a los alimentadores.')
     if not p.calles:
         avisos.append('Sin datos locales de calles (planificacion.sitio_set.calles_geojson): el punto queda '
-                      'sin verificar en plano (084:RF-5).')
+                      'sin verificar en plano.')
     if p.retiro_m is not None and a_red is not None and a_red < p.retiro_m:
         estado = SOBRE_ALIMENTADOR
     elif p.retiro_m is not None and a_calle is not None and a_calle < p.retiro_m:
@@ -180,10 +178,10 @@ def situar(punto: Punto, trazados: Sequence[Trazado], p: ParametrosSitio) -> dic
     r['original'] = {'lat': punto[0], 'lon': punto[1]}
     if sin_sitio:
         r['avisos'].append(f'Ningún punto a {ALCANCE_RETIROS} retiros deja {p.retiro_m:g} m libres de la red y de las '
-                           'calles: queda el punto original, y hay que elegirlo en el plano (084:RF-3).')
+                           'calles: queda el punto original, y hay que elegirlo en el plano.')
     elif r['movido']:
         r['avisos'].append(f'El punto se apartó {_metros(final, punto):.0f} m para dejar {p.retiro_m:g} m libres de la '
-                           'red y de las calles; los flujos se miden en el punto nuevo (084:RF-2, RF-8).')
+                           'red y de las calles; los flujos se miden en el punto nuevo.')
     r['frase'] = frase(r)
     return r
 

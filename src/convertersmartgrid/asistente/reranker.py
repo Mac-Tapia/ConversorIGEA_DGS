@@ -11,16 +11,18 @@ import contextlib
 import gc
 import hashlib
 import json
+import logging
 import os
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from .indice import (CORPUS_047, CORPUS_AMPLIADO, Abstencion, RerankerNoDisponible, mismo_modelo, modelo_vectores,
-                     puntero_vectores)
-from ..runtime_paths import raiz_programa
+from .indice import (CORPUS_047, CORPUS_AMPLIADO, CORPUS_ENTREGA, Abstencion, RerankerNoDisponible, mismo_modelo,
+                     modelo_vectores, puntero_vectores)
+from ..runtime_paths import es_programa_instalado, raiz_programa
 
 _RAIZ = raiz_programa()
+_LOG = logging.getLogger(__name__)
 CATALOGO = _RAIZ / 'docs' / 'MODELOS_IA_LOCK.json'
 INFORME = _RAIZ / 'docs' / 'EVALUACION_RAG_047.json'
 CONJUNTO = _RAIZ / 'docs' / 'RAG_PREGUNTAS_SINTETICAS_047.json'
@@ -31,6 +33,9 @@ CALIBRACION_077 = _RAIZ / 'docs' / 'CALIBRACION_ABSTENCION_077.json'
 CONJUNTO_CALIBRACION_077 = _RAIZ / 'docs' / 'CONJUNTO_ABSTENCION_CALIBRACION_077.json'
 CONJUNTO_SELLADO_077 = _RAIZ / 'docs' / 'CONJUNTO_ABSTENCION_SELLADO_077.json'
 MEDICION_077 = _RAIZ / 'docs' / 'EVALUACION_ABSTENCION_077.json'
+#: Programa instalado (pregunta_entregada): la calibración que hizo el constructor sobre los manuales que se entregan.
+CALIBRACION_ENTREGA = _RAIZ / 'documentos' / 'CALIBRACION_ABSTENCION_ENTREGA.json'
+CONJUNTO_ENTREGA = _RAIZ / 'documentos' / 'CONJUNTO_ABSTENCION_ENTREGA.json'
 #: La puerta declarada en el plan de la 047 antes de medir; la 077 no la baja (077:RF-42).
 ABSTENCION_MINIMA = 0.90
 #: Candidatos de la evaluación, ambos con revisión fijada en el catálogo.
@@ -211,7 +216,12 @@ def _medicion_aprobada(medicion: Path, conjunto: Path) -> dict[str, Any] | None:
 def servicio(medicion: Path | None = None, conjunto: Path | None = None, calibracion: Path | None = None,
              conjunto_calibracion: Path | None = None) -> dict[str, Any]:
     """Qué corpus, política y umbrales sirve la web. Sin una medición aprobada del corpus ampliado, los de la 047: seguir
-    con sus umbrales sobre un índice mayor daría una abstención sin medir (077:RF-47)."""
+    con sus umbrales sobre un índice mayor daría una abstención sin medir (077:RF-47).
+
+    En el programa instalado no van ni las specs ni CODIGO_FUENTE que indexa la 047: se sirve el corpus entregado (los
+    manuales y notas) con la abstención que calibró el constructor, solo BM25 (decisión del usuario, 2026-11-13)."""
+    if medicion is None and es_programa_instalado(_RAIZ):
+        return servicio_entregado()
     base = {'corpus': CORPUS_047, 'politica': politica(), 'abstencion': abstencion()}
     puntero = puntero_vectores()                                       # 097:RF-14: las del modelo en uso
     datos = _medicion_aprobada(medicion or Path((puntero.get('mediciones') or {}).get(CORPUS_AMPLIADO) or MEDICION_077),
@@ -228,6 +238,62 @@ def servicio(medicion: Path | None = None, conjunto: Path | None = None, calibra
     revision = ficha_modelo(umbrales.modelo_reranker)['revision']
     return {'corpus': CORPUS_AMPLIADO, 'abstencion': umbrales,
             'politica': {'hibrido': True, 'modelo': umbrales.modelo_reranker, 'revision': revision, 'motivo': ''}}
+
+
+def servicio_entregado(calibracion: Path = CALIBRACION_ENTREGA, conjunto: Path = CONJUNTO_ENTREGA) -> dict[str, Any]:
+    """«Pregunta» del programa instalado: el corpus de sus documentos, sin reranker ni vectores, y su abstención.
+
+    Si la calibración falta o no es de su conjunto, la abstención queda sin calibrar y responde «No lo sé». Solo decide
+    BM25, así que no depende del modelo de vectores en uso (097:RF-13 mira el coseno, que aquí no se usa)."""
+    politica: dict[str, Any] = {
+        'hibrido': False, 'modelo': None, 'revision': None,
+        'motivo': 'programa instalado: BM25 sobre los manuales y notas, con la abstención calibrada al construir'}
+    try:
+        umbrales = Abstencion(calibrada=True, umbral_bm25_solo=_umbral_entregado(calibracion, conjunto))
+    except CalibracionNoValida as exc:
+        # Responder «No lo sé» es lo prudente, pero no en silencio: el operador tiene que saber por qué no responde.
+        umbrales = Abstencion()
+        politica['abstencion_sin_calibrar'] = str(exc)
+        _LOG.warning('«Pregunta» del programa instalado sin calibrar; responderá «No lo sé»: %s', exc)
+    return {'corpus': CORPUS_ENTREGA, 'abstencion': umbrales, 'politica': politica}
+
+
+class CalibracionNoValida(ValueError):
+    """La calibración del corpus entregado falta, no se lee o no es la de su conjunto; el mensaje dice cuál."""
+
+
+def _umbral_entregado(calibracion: Path, conjunto: Path) -> float:
+    """El umbral BM25 que calibró el constructor, o ``CalibracionNoValida`` con la causa concreta."""
+    try:
+        texto = calibracion.read_text(encoding='utf-8')
+    except FileNotFoundError:
+        raise CalibracionNoValida(f'la calibración {calibracion} no existe') from None
+    except (OSError, UnicodeDecodeError) as exc:
+        raise CalibracionNoValida(f'la calibración {calibracion} no se puede leer: {exc}') from exc
+    try:
+        datos = json.loads(texto)
+    except ValueError as exc:
+        raise CalibracionNoValida(f'la calibración {calibracion} es ilegible: {exc}') from exc
+    if not isinstance(datos, dict):
+        raise CalibracionNoValida(f'la calibración {calibracion} no es un objeto JSON')
+    for clave in ('corpus', 'conjunto_sha256', 'umbrales'):
+        if clave not in datos:
+            raise CalibracionNoValida(f'a la calibración {calibracion} le falta {clave!r}')
+    if datos['corpus'] != CORPUS_ENTREGA:
+        raise CalibracionNoValida(f'la calibración {calibracion} es de otro corpus ({datos["corpus"]!r}, no '
+                                  f'{CORPUS_ENTREGA!r})')
+    try:
+        sello = sha256_de(conjunto)
+    except OSError as exc:
+        raise CalibracionNoValida(f'no se puede leer el conjunto {conjunto} que la calibración sella: {exc}') from exc
+    if datos['conjunto_sha256'] != sello:
+        raise CalibracionNoValida(f'la calibración {calibracion} es de otro conjunto (sello '
+                                  f'{str(datos["conjunto_sha256"])[:12]}, el de {conjunto.name} es {sello[:12]})')
+    umbrales = datos['umbrales']
+    valor = umbrales.get('bm25_solo') if isinstance(umbrales, dict) else None
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)) or valor != valor:
+        raise CalibracionNoValida(f'la calibración {calibracion} no trae un umbral bm25_solo numérico ({valor!r})')
+    return float(valor)
 
 
 def reordenador_de(pol: Mapping[str, Any], turno: Callable[[], Any] = contextlib.nullcontext

@@ -195,7 +195,7 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
         </div>
 
         {clase === 'consigna' && campo('consigna_pu', 'Consigna de la cabecera (p.u.)',
-          'Dentro de los límites de tensión del perfil (spec 019, RF-12).')}
+          'Dentro de los límites de tensión del perfil.')}
         {clase === 'condensador' && <>
           {lista('barra', 'Barra', (red?.barras ?? []).map((b) => b.nombre))}
           {campo('q_kvar', 'Potencia reactiva total (kvar)')}

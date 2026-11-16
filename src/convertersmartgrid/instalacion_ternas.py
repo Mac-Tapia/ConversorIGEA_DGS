@@ -32,17 +32,17 @@ def instalacion(*, tipo: str, ternas: int, cable: bool, perfil: Mapping[str, Any
     avisos: list[str] = []
     if elegida not in CONFIGURACIONES:
         if elegida:
-            avisos.append(f'Configuración de ternas {elegida!r} desconocida: se deja sin definir (084:RF-13).')
+            avisos.append(f'Configuración de ternas {elegida!r} desconocida: se deja sin definir.')
         elegida = ''
         avisos.append(f'{int(ternas)} ternas subterráneas sin configuración definida: van una por ducto, o en '
-                      'configuración de enterrado triangular o rectangular (084:RF-13).')
+                      'configuración de enterrado triangular o rectangular.')
     capacidad = None
     if elegida:
         fila = (cfg.get('capacidad_a') or {}).get(tipo) or {}
         capacidad = float(fila[elegida]) if fila.get(elegida) else None
     if capacidad is None:
         avisos.append(f'Sin la capacidad del fabricante de {tipo} para esa configuración: la cargabilidad usa la del '
-                      'tipo, sin confirmar para varias ternas (084:RF-15).')
+                      'tipo, sin confirmar para varias ternas.')
     return {'ternas': int(ternas), 'tipo': tipo, 'configuracion': elegida or None, 'capacidad_a': capacidad,
             'avisos': avisos}
 

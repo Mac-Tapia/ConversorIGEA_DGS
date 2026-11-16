@@ -45,6 +45,9 @@ DOCUMENTOS_PREPARANDO = 'documentos.preparando'
 DOCUMENTOS_ANTERIORES = 'documentos.anterior'
 DOCUMENTOS_RETIRAR = 'documentos.retirar'
 LANZADOR = 'ConverterSmartGrid.cmd'
+#: 086:RF-37: lo que el complemento de IA deja junto al programa, aparte de sus ruedas, que van al Python de la versión.
+COMPLEMENTO = 'complemento_ia'
+COMPLEMENTO_MODELOS = 'modelos'
 ORDEN = 'csg.cmd'
 HERRAMIENTA_COPIA = Path('Lib', 'site-packages', 'convertersmartgrid', '_programa', 'tools', 'copia_datos.py')
 
@@ -62,11 +65,23 @@ set "PYTHONNOUSERSITE=1"
 set "CSG_EDICION=producto"
 if not defined CSG_DATOS_HOME set "CSG_DATOS_HOME=%LOCALAPPDATA%\\ConverterSmartGrid\\datos"
 if not exist "%CSG_DATOS_HOME%" mkdir "%CSG_DATOS_HOME%"
+rem 086:RF-37: con el complemento de IA, sus modelos se leen de aqui, sin internet.
+set "IADIR=%~dp0complemento_ia"
+if exist "%IADIR%\\instalado.json" (
+  set "HF_HUB_CACHE=%IADIR%\\modelos\\huggingface\\hub"
+  set "HF_HUB_OFFLINE=1"
+  set "TRANSFORMERS_OFFLINE=1"
+  set "OLLAMA_MODELS=%IADIR%\\modelos\\ollama"
+  set "OLLAMA_HOST=127.0.0.1:11434"
+  set "PATH=%IADIR%\\ollama;%PATH%"
+)
 rem La carpeta del programa se sustituye al actualizar: se trabaja en la de datos.
 cd /d "%CSG_DATOS_HOME%"
 """
 # -P: con «-m», Python añade a su ruta la carpeta de trabajo, y aquí es la de datos: un json.py suelto se importaría.
-_PIE_WEB = """"%PY%" -P -m convertersmartgrid.web %*
+_PIE_WEB = """rem Ollama del complemento, si no hay otro escuchando en el puerto: si ya lo hay, este termina solo.
+if exist "%IADIR%\\ollama\\ollama.exe" start "" /min "%IADIR%\\ollama\\ollama.exe" serve
+"%PY%" -P -m convertersmartgrid.web %*
 set "CODIGO=%ERRORLEVEL%"
 if "%CODIGO%"=="3" (
   call timeout /t 20
@@ -119,6 +134,10 @@ def verificar_candidato(candidato: Path) -> dict:
         presentes = {p.relative_to(candidato).as_posix() for p in candidato.rglob('*.whl')}
         if presentes != declaradas:
             raise ErrorInstalacion('El complemento contiene ruedas extra o no declaradas, o faltan ruedas.')
+        # 086:RF-34: un peso añadido a la carpeta de modelos no entra aunque las ruedas cuadren.
+        modelos = {p.relative_to(candidato).as_posix() for p in (candidato / COMPLEMENTO_MODELOS).rglob('*') if p.is_file()}
+        if modelos - {f['ruta'] for f in manifiesto['ficheros']}:
+            raise ErrorInstalacion('El complemento contiene modelos que su manifiesto no declara: no se instala.')
     for fichero in manifiesto['ficheros']:
         ruta = candidato / fichero['ruta']
         if not ruta.is_file():
@@ -527,6 +546,77 @@ def instalar(candidato: Path, destino: Path, *, puerto: int = 8765, forzar: bool
             'reactivada': reactivada}
 
 
+def instalar_complemento(complemento: Path, destino: Path, *, puerto: int = 8765, forzar: bool = False) -> dict:
+    """086:RF-37, RF-39: el complemento de IA sin pip a mano, con el Python del programa ya instalado.
+
+    Comprueba cada huella, instala sus ruedas sin red en la versión que se usa, y deja los modelos y Ollama en
+    ``complemento_ia`` junto al programa; el lanzador los toma de ahí (HF_HUB_CACHE, OLLAMA_MODELS) sin internet. Los
+    modelos cambian de una vez, con ``os.replace``: un fallo deja los anteriores. Antes el manual pedía ejecutar
+    ``python.exe -m pip install`` en una copia aparte (auditoría de lanzamiento, 2026-11-14).
+    """
+    manifiesto = verificar_candidato(complemento)
+    if manifiesto.get('tipo') != 'complemento-ia':
+        raise ErrorInstalacion(f'{complemento} no es un complemento de IA.')
+    actual = version_instalada(destino)
+    if not actual:
+        raise ErrorInstalacion('No hay ningún ConverterSmartGrid instalado en esa carpeta: instale antes el programa.')
+    if manifiesto['version'] != actual:
+        raise ErrorInstalacion(f'El complemento es de la versión {manifiesto["version"]} y el programa instalado es la '
+                               f'{actual}: use el complemento de la misma versión.')
+    if _web_escuchando(puerto) and not forzar:
+        raise ErrorInstalacion(f'El programa está abierto en el puerto {puerto}: ciérrelo antes de instalar el complemento.')
+    python = _python_de(destino, actual)
+    carpeta = destino / COMPLEMENTO
+    preparando = destino / f'{COMPLEMENTO}.preparando'
+    shutil.rmtree(preparando, ignore_errors=True)
+    try:
+        if (complemento / COMPLEMENTO_MODELOS).is_dir():
+            shutil.copytree(complemento / COMPLEMENTO_MODELOS, preparando / COMPLEMENTO_MODELOS,
+                            ignore=shutil.ignore_patterns('ollama_runtime'))
+            for zip_ollama in sorted((complemento / COMPLEMENTO_MODELOS / 'ollama_runtime').glob('*.zip')):
+                with zipfile.ZipFile(zip_ollama) as z:
+                    z.extractall(preparando / 'ollama')
+        orden = [str(python), '-m', 'pip', 'install', '--no-index', '--require-hashes', '--no-cache-dir',
+                 '--no-warn-script-location', '--find-links', str(complemento / 'wheels'), '-r',
+                 str(complemento / 'instalacion.lock')]
+        r = subprocess.run(orden, env=_entorno_limpio(python), capture_output=True, text=True, encoding='utf-8',
+                           errors='replace', check=False)
+        if r.returncode:
+            raise ErrorInstalacion(f'pip no pudo instalar el complemento con sus huellas:\n{r.stdout[-2000:]}\n{r.stderr[-2000:]}')
+        preparando.mkdir(parents=True, exist_ok=True)
+        (preparando / 'instalado.json').write_text(json.dumps(
+            {'version': actual, 'modelos': manifiesto.get('modelos') or [], 'cuando': time.time()},
+            ensure_ascii=False, indent=1), encoding='utf-8')
+        retirar = destino / f'{COMPLEMENTO}.retirar'
+        if carpeta.exists():
+            os.replace(carpeta, retirar)
+        os.replace(preparando, carpeta)
+        _borrar_o_avisar(retirar)
+    except BaseException:
+        shutil.rmtree(preparando, ignore_errors=True)
+        raise
+    _escribir_lanzadores(destino)
+    _configurar_ollama(python, manifiesto)
+    return {'version': actual, 'modelos': [m['id'] for m in manifiesto.get('modelos') or []], 'carpeta': str(carpeta)}
+
+
+def _configurar_ollama(python: Path, manifiesto: dict) -> None:
+    """El asistente usa el modelo de Ollama que trae el complemento, salvo que el operador ya eligiera otro."""
+    elegido = next((m['id'] for m in manifiesto.get('modelos') or [] if m.get('backend') == 'ollama'), None)
+    if not elegido:
+        return
+    codigo = ('import json,sys\nfrom convertersmartgrid.asistente import almacen\n'
+              'r=almacen.raiz()/"ollama.json"\n'
+              'r.parent.mkdir(parents=True,exist_ok=True)\n'
+              'r.exists() or r.write_text(json.dumps({"modelo":sys.argv[1]}),encoding="utf-8")\n')
+    entorno = _entorno_limpio(python)
+    entorno.setdefault('CSG_DATOS_HOME', str(_raiz_de_datos(entorno)))
+    r = subprocess.run([str(python), '-P', '-c', codigo, elegido], env=entorno, capture_output=True, text=True,
+                       encoding='utf-8', errors='replace', check=False)
+    if r.returncode:
+        _avisar(f'No se pudo dejar {elegido} como modelo de Ollama del asistente: elíjalo en la web. {r.stderr[-300:]}')
+
+
 def volver(destino: Path, *, restaurar: bool = True, puerto: int = 8765, forzar: bool = False) -> dict:
     """Vuelve a la versión anterior y, por defecto, a sus datos de antes: lo actual se aparta, no se borra.
 
@@ -601,6 +691,11 @@ def main(argv: list[str] | None = None) -> int:
     p_volver.add_argument('--forzar', action='store_true', help='Aunque el programa parezca abierto.')
     p_estado = orden.add_parser('estado', parents=[comun], help='Qué versión se usa y a cuál se puede volver.')
     p_estado.add_argument('--destino', type=Path, required=True)
+    p_complemento = orden.add_parser('complemento', parents=[comun], help='Instala el complemento de IA junto al programa.')
+    p_complemento.add_argument('--complemento', type=Path, required=True)
+    p_complemento.add_argument('--destino', type=Path, required=True)
+    p_complemento.add_argument('--puerto', type=int, default=8765)
+    p_complemento.add_argument('--forzar', action='store_true', help='Aunque el programa parezca abierto.')
     p_verificar = orden.add_parser('verificar', parents=[comun], help='Comprueba cada fichero del candidato contra su huella.')
     p_verificar.add_argument('--candidato', type=Path, required=True)
     args = parser.parse_args(argv)
@@ -615,6 +710,8 @@ def main(argv: list[str] | None = None) -> int:
             salida = instalar(args.candidato, args.destino, puerto=args.puerto, forzar=args.forzar)
         elif args.orden == 'volver':
             salida = volver(args.destino, restaurar=not args.sin_restaurar, puerto=args.puerto, forzar=args.forzar)
+        elif args.orden == 'complemento':
+            salida = instalar_complemento(args.complemento, args.destino, puerto=args.puerto, forzar=args.forzar)
         elif args.orden == 'estado':
             salida = estado(args.destino)
         else:

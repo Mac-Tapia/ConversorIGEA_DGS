@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from .estudio_planeamiento import Estudio
-from .formatos_pide import huecos_de
+from .formatos_pide import alcance_de_la_evaluacion, huecos_de
 from .informe_docx import Escritor, guardar_informe, preparar_modelo
 from .informes import InformeError, filas_alternativas_escalera, notas_alternativas_escalera
 from .pide import FORMATOS
@@ -286,7 +286,11 @@ def _huecos_del_modulo(modulo: Modulo, datos: DatosPlaneamiento) -> list[dict[st
     """Lo que le falta a lo que el módulo muestra: el PIDE no cuenta las obras posteriores a su periodo."""
     if modulo.entregable == 'PIDE':
         visibles = {_nombre_del_formato(c): _del_periodo(datos, c) for c in modulo.formatos}
-        return [h for h in huecos_de(visibles) if h['formato'] in visibles]
+        huecos = [h for h in huecos_de(visibles) if h['formato'] in visibles]
+        if 'F09' in modulo.formatos:                                            # 072:RF-16 (H5)
+            ultimo = max(datos.estudio.detalle_pide)
+            huecos += alcance_de_la_evaluacion(o for o in datos.obras if o['anio'] <= ultimo)
+        return huecos
     return [h for h in datos.formatos['huecos'] if h['formato'].split()[0] in modulo.formatos]
 
 

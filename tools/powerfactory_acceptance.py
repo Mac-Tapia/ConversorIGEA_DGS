@@ -193,7 +193,7 @@ def attach_project_binding(
     feeders = tuple(evidence.get('feeders') or [fallback_feeder])
     caso = report.get('caso_base') or {'status': 'NO_VERIFICADO', 'comprobaciones': {},
                                        'avisos': ['Sin la geografía del archivo original '
-                                                  'no se verifica (015:RF-1).']}
+                                                  'no se verifica.']}
     comprobaciones = {k: bool(v.get('pass')) for k, v in (caso.get('comprobaciones') or {}).items()}
     sin_fallo = {'VERIFICADO': [], 'SIN_DATO_DE_FLUJO': ['flujo sin dato']}.get(caso.get('status'),
                                                                                 ['sin verificación completa'])
@@ -312,7 +312,7 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
     except _SinApi as exc:
         raise ImportError(
             'Módulo powerfactory no disponible. Añada a PYTHONPATH la carpeta Python\\3.x de su PowerFactory '
-            'que coincida con este intérprete, o lance el guion desde la web, que la elige sola (103:RF-4).'
+            'que coincida con este intérprete, o lance el guion desde la web, que la elige sola.'
         ) from exc
     exigir_fuera_de_pruebas(pf)                                            # 084:RF-22
 
@@ -365,7 +365,7 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
             return app
     raise RuntimeError(
         'No se pudo conectar a PowerFactory. Compruebe la licencia y que la API de Python sea de la misma '
-        'PowerFactory que se abre (103:RF-4).'
+        'PowerFactory que se abre.'
     )
 
 
@@ -2926,14 +2926,14 @@ def _aviso_convergencia(ajuste: dict[str, Any] | None) -> str | None:
         return None
     if ajuste.get('omitido'):
         return ('El flujo del «Caso base» no converge con las cargas del archivo; «Sin proyecto» '
-                'ya existe y el «Caso base» no se toca (015:RF-39). No bloquea: «Sin proyecto» '
+                'ya existe y el «Caso base» no se toca. No bloquea: «Sin proyecto» '
                 'calibra con su propio escenario.')
     if ajuste.get('pass'):
         return (f"El flujo del «Caso base» no convergía con las cargas del archivo: su demanda "
                 f"se redujo por igual al {ajuste['factor'] * 100:.1f} % en el escenario "
-                f"{ajuste.get('escenario') or 'activo'} y converge (015:RF-38).")
+                f"{ajuste.get('escenario') or 'activo'} y converge.")
     return ('El flujo del «Caso base» no converge ni reduciendo la demanda al 10 %: la demanda '
-            'queda la del archivo; vea el diagnóstico. No bloquea (015:RF-40).')
+            'queda la del archivo; vea el diagnóstico. No bloquea.')
 
 
 def actualizar_flujo_caso_base(caso_base: dict[str, Any] | None, report: dict[str, Any]) -> None:
@@ -3232,7 +3232,7 @@ def run_acceptance(
             # habría que corregir se dice y lo decide el operador.
             correcciones = [{**item, 'corregido': False,
                              'motivo': '«Sin proyecto» ya existe: el «Caso base» no se toca '
-                                       '(015:RF-19)'} for item in equipos['a_corregir']]
+                                       ''} for item in equipos['a_corregir']]
         for x in equipos['sin_capacidad']:
             errors.append(f"{x['clase']} {x['nombre']} sin capacidad definida en DIgSILENT")
     else:
@@ -3594,7 +3594,7 @@ def main(argv=None) -> int:
     # (2026-10-13) se adoptó sin manifiesto y quedó con 0 de 0 barras comparadas.
     if args.existing_project and manifest_path is None:
         print('ERROR: --existing-project requiere --manifest: sin la geografía del archivo '
-              'original no se puede verificar el «Caso base» (spec 015).', file=sys.stderr)
+              'original no se puede verificar el «Caso base».', file=sys.stderr)
         return 1
     if args.existing_project and (args.fix_until_converge or args.run_load_flow
                                   or args.run_studies):
@@ -3602,7 +3602,7 @@ def main(argv=None) -> int:
         # se verifica sin correr el flujo ni tocar sus cargas.
         print('ERROR: con --existing-project no se corre el flujo (--run-load-flow, '
               '--fix-until-converge, --run-studies): la convergencia del «Caso base» se '
-              'prueba al importar el DGS (spec 015, RF-8, RF-39).', file=sys.stderr)
+              'prueba al importar el DGS.', file=sys.stderr)
         return 1
 
     try:

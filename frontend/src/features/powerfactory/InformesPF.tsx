@@ -741,7 +741,7 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
           {documento}
           <Campos campos={SOLICITUD} valores={sol} fijar={(k, v) => setSol((s) => ({ ...s, [k]: v }))} />
           {incremento != null && <small className="muted span-2">Ampliación de {fmtNum(num(sol.potencia_actual_kw) as number, 0)} kW
-            a {fmtNum(num(sol.potencia_kw) as number, 0)} kW: incremento de {fmtNum(incremento, 0)} kW (063:RF-14).</small>}
+            a {fmtNum(num(sol.potencia_kw) as number, 0)} kW: incremento de {fmtNum(incremento, 0)} kW.</small>}
           {incrementoNoCuadra(incremento, carga.kw) && <small className="alert alert-warn span-2">El incremento de la
             solicitud es de {fmtNum(incremento as number, 0)} kW y la carga del modelo vale {fmtNum(carga.kw as number, 0)} kW:
             compruebe las potencias antes de generar.</small>}
@@ -845,7 +845,7 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
           <Campos campos={TRAFO} valores={trafo} fijar={(k, v) => setTrafo((t) => ({ ...t, [k]: v }))} />
         </div>
         <small className="muted">Sin la cargabilidad del transformador el informe no puede concluir que la carga es
-          factible (RF-71).</small>
+          factible.</small>
       </>}
       <div className="row">
         <button className="btn btn-primary" disabled={busy || Boolean(motivo)} onClick={generar}>

@@ -185,7 +185,7 @@ def test_caso_base_no_converge_dice_que_fallo():
     assert any('return_code 1' in f for f in r['comprobaciones']['flujo']['fallos'])
     assert r['flujo']['estado'] == 'no_converge' and len(r['flujo']['historial']) == 2
     assert any('no converge' in a and 'return_code 1' in a for a in r['avisos'])
-    assert any('RF-40' in a for a in r['avisos'])
+    assert any('ni reduciendo la demanda al 10 %' in a for a in r['avisos'])
 
 
 def test_caso_base_sin_dato_lo_avisa():

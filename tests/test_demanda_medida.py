@@ -341,7 +341,7 @@ def test_reactiva_del_registro_de_la_pot_del_cliente(tmp_path):
     fuera, avisos_f = dm.registros_de_maxima(tmp_path / 'c.xlsx', {'700': 400.0},
                                              instante=_dt(2026, 7, 2, 10, 0))
     assert fuera['700'] == (reg['700'][0], pytest.approx(30.0), None)
-    assert any('RF-67' in a for a in avisos_f)
+    assert any('su kVAR con el ERI del registro de su POT' in a for a in avisos_f)
     f_t = fijas_de([{'sed': 'S1', 'pot': 400.0, 'codigo': '700', 'q_registro_kvar': en_t['700'][1],
                      'p_registro_kw': en_t['700'][2]}], Objetivo(kw=1.0, kvar=0.0, medidor='M'))
     assert f_t['S1'].kw == pytest.approx((10.0 + k) * 4), 'el kW del instante, no la POT del mes'
@@ -864,7 +864,7 @@ def test_set_con_tres_transformadores_suma_los_tres():
     barras, avisos = dm.barras_de_calibracion(e, ms, ['X101'], {'X101': 10.0})
     alta = next(b for b in barras if b.alta)
     assert alta.transformadores == {f'B-X6T{i}': f'T{i}' for i in range(1, n + 1)}
-    assert any('022:RF-87' in a for a in avisos) == (n > 1)
+    assert any('transformadores medidos en 60 kV' in a for a in avisos) == (n > 1)
     t0 = datetime(2026, 7, 1)
     curvas = [[(t0 + timedelta(minutes=15 * k), (500.0 if k == i else 100.0), 0.0) for k in range(6)]
               for i in range(1, n + 1)]
@@ -1303,7 +1303,7 @@ def test_dos_set_sin_salidas_no_se_pueden_repartir():
     e = Estructura(['Z'], sets, alim, {}, set(), {})
     lineas = [dm.MedidorLinea('L-1', 60.0, 'LTSET 1', 'L'), dm.MedidorLinea('L-2', 60.0, 'LTSET 2', 'L')]
     balances, avisos = dm.balances_de_linea(e, lineas, [], ['AA1', 'BB1'])
-    assert balances == [] and '028:RF-37' in avisos[0]
+    assert balances == [] and 'no fijan el instante' in avisos[0]
 
 
 def test_sin_medida_en_el_instante_busca_en_el_mes_y_solo_entonces():
@@ -1325,7 +1325,7 @@ def test_sin_medida_en_el_instante_busca_en_el_mes_y_solo_entonces():
     assert pedidos == [('2026-04', ['M2', 'M3', 'M4']), ('2026', ['M3', 'M4'])]
     assert [(r.medidor, r.kw) for r in salen[:3]] == [('M1', 10.0), ('M2', 5.0), ('M3', 7.0)]
     assert salen[3].error and salen[4].error
-    assert sum('028:RF-38' in a for a in avisos) == 3 and 'NADA' in avisos[-1]
+    assert sum('sin medida' in a for a in avisos) == 3 and 'NADA' in avisos[-1]
 
 
 def test_el_instante_del_sistema_no_cae_en_una_transferencia_de_carga():

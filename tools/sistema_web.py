@@ -235,7 +235,7 @@ def _caso_base_verificado(web: Web, proyecto: str, grupo: str) -> bool:
     try:
         estado = web.esperar(web.post('/powerfactory/caso-base', json={'project': proyecto, 'feeders': feeders}))
     except RuntimeError as exc:
-        print(f'AVISO: «Caso base» sin verificar: {exc}; se sigue (015:RF-13).', flush=True)
+        print(f'AVISO: «Caso base» sin verificar: {exc}; se sigue.', flush=True)
         return False
     filas = (estado.get('result') or {}).get('feeders') or []
     if filas and all(f.get('proyecto_ausente') for f in filas):
@@ -246,7 +246,7 @@ def _caso_base_verificado(web: Web, proyecto: str, grupo: str) -> bool:
     if not _terminado(estado) or not filas or malos:
         motivos = [f"{f.get('feeder')}: {f.get('motivo')}" for f in filas if f.get('status') != 'VERIFICADO'
                    and f.get('motivo')]
-        print(f"AVISO: «Caso base» sin verificar: {motivos or malos or estado.get('error')}; se sigue (015:RF-13).",
+        print(f"AVISO: «Caso base» sin verificar: {motivos or malos or estado.get('error')}; se sigue.",
               flush=True)
     return False
 
@@ -267,13 +267,13 @@ def _comprobar_que_no_borra(web: Web, grupo: str) -> None:
     estado = web.esperar(web.post('/powerfactory/projects'))
     if not _terminado(estado) or estado.get('status') != 'done':
         raise NoSeImporta(f'no se pudo leer la carpeta de proyectos de DIgSILENT ({estado.get("error") or estado["status"]}),'
-                          f' y sin ella no se sabe qué borraría importar {grupo} (005:RF-22); no se importa.')
+                          f' y sin ella no se sabe qué borraría importar {grupo}; no se importa.')
     rutas = [str(p.get('path') or p.get('name') or '') for p in (estado.get('result') or {}).get('projects') or []]
     existentes = proyectos_que_borraria(rutas, grupo, web.get('').get('source_mode'))
     if existentes:
         raise NoSeImporta(
             f"el espacio no tiene vínculo con un proyecto de DIgSILENT para {grupo}, y en la carpeta ya está "
-            f"{', '.join(existentes)}: importarlo de nuevo lo borraría (005:RF-22). No se importa. Para seguir con "
+            f"{', '.join(existentes)}: importarlo de nuevo lo borraría. No se importa. Para seguir con "
             'ese proyecto, vincule el espacio con él (use el espacio de la web que lo importó, spec 018); para '
             'reemplazarlo, repita con --reconvertir, que lo borrará al importar.')
 
@@ -468,7 +468,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
             print(f"  escaneo {a}: {r['generadores']} generador(es), {r['bancos']} banco(s), "
                   f"{r['cargas_cambiadas']} carga(s) cambiada(s), {r.get('tramos_nuevos', 0)} "
                   f"tramo(s) nuevo(s), {r.get('tramos_cambiados', 0)} tramo(s) cambiado(s) a mano "
-                  '(028:RF-17, RF-26)', flush=True)
+                  '', flush=True)
     try:
         perfil = centrales_termicas(datos_perfil())
     except PerfilError:
@@ -486,7 +486,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     for a in sistema['alimentadores']:
         if a not in del_perfil and nodo_de_central(escaneo, a):
             print(f'  aviso: {a} tiene un generador en {nodo_de_central(escaneo, a)} sin medidores de '
-                  'central en el perfil; elíjalos en la web para calibrar por zonas (028:RF-11)', flush=True)
+                  'central en el perfil; elíjalos en la web para calibrar por zonas', flush=True)
     ya = {p['medidor'] for p in pares}
     for a, c in del_perfil.items():
         for m in (c['generacion'], c['llegada'], c['salida']):
@@ -577,7 +577,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         'centrales': del_perfil, 'criterio_fijas': criterio_fijas,             # 039:RF-1
         'criterio_por_alimentador': por_alimentador, **con_a_su_maxima})       # 039:RF-8, RF-16
     for aviso in plan.get('avisos', []):
-        if 'RF-62' not in aviso:              # las fijas compensadas, una por cliente
+        if 'por su banco propio' not in aviso:  # las fijas compensadas por su banco, una por cliente: no se repiten
             print(f'  aviso: {aviso}', flush=True)
     token = plan['token']
     ultimo = None
@@ -598,7 +598,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     # 083:RF-8: sin calibración válida y con SED fijas por encima de su transformador, se piden sin esperar a la opción.
     validos, fallidos = _resumen(ultimo)                 # una vez: imprime, y el resumen salía repetido
     if not transformadores and fallidos and (pedidos := _transformadores_pedidos(ultimo)):
-        print('Sin calibración válida y con SED fijas sobre su transformador: se cambian y se repite (083:RF-8).', flush=True)
+        print('Sin calibración válida y con SED fijas sobre su transformador: se cambian y se repite.', flush=True)
         ultimo = web.esperar(web.post(f'/demanda/ajuste/{token}/transformadores', json={'por_alimentador': pedidos}))
         print(f"Calibración: {ultimo['status']} {ultimo.get('error') or ''}", flush=True)
         if not _terminado(ultimo):

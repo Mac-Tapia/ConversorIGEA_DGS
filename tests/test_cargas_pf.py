@@ -107,7 +107,7 @@ def test_libro_de_planificacion_sin_sed_ni_kva_instalado():
     pinos = filas[0]
     assert (pinos.kw, pinos.alimentador, pinos.barra) == (300, 'F1', 'B 10 kV')
     assert -15 < pinos.lat < -13 and -77 < pinos.lon < -75
-    assert any('DemandaNUEVA_F3' in a and 'RF-53' in a for a in avisos)
+    assert any('DemandaNUEVA_F3' in a and 'se nombra' in a for a in avisos)
 
 
 @pytest.mark.parametrize('kva,esperado', [(0.5, 10), (10, 10), (300, 315), (316, 400),
@@ -118,7 +118,7 @@ def test_kva_instalado_deducido_es_el_normalizado_que_cubre_la_demanda(kva, espe
     avisos: list[str] = []
     filas, _ = leer_hoja_nuevas(['SED', 'Kw', 'barra', 'alimentador'], [['N1', kva, 'B1', 'A']], 'A',
                                   avisos=avisos)
-    del_kva = next(a for a in avisos if 'RF-52' in a)          # 004:RF-70 añade antes el del FP
+    del_kva = next(a for a in avisos if 'kVA de demanda' in a)          # 004:RF-70 añade antes el del FP
     assert filas[0].kva_instalado == esperado
     plan = armar_plan(project='P', feeders=['A'], demandas=None,
                       nuevas=type('L', (), {'filas': filas, 'errores': [], 'avisos': avisos})())
@@ -373,7 +373,7 @@ def test_carga_nueva_solo_con_kw_toma_el_fp_del_perfil():
     avisos = []
     filas, errores = leer_hoja_nuevas(cabecera, fila, 'h', avisos=avisos, fp_por_defecto=0.98)
     assert not errores and filas[0].kvar == pytest.approx(kw * math.sqrt(1 - 0.98 ** 2) / 0.98)
-    assert any('004:RF-70' in a and '0,98' in a for a in avisos)
+    assert any('del perfil de la empresa' in a and '0,98' in a for a in avisos)
     avisos = []
     filas, _e = leer_hoja_nuevas(cabecera, fila, 'h', avisos=avisos)
-    assert filas[0].kvar == 0.0 and any('004:RF-70' in a and 'sin FP' in a for a in avisos)
+    assert filas[0].kvar == 0.0 and any('sin FP en el perfil de la empresa' in a for a in avisos)

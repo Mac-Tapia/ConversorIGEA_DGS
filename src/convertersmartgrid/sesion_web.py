@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import getpass
 import json
+import logging
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -34,6 +36,70 @@ HOSTS_LOCALES = frozenset({'127.0.0.1', 'localhost', '::1'})
 #: apaga y las de seguridad lo encienden. No es una variable de entorno a propósito: nada de
 #: fuera de este proceso puede abrir la web.
 EXIGIR_SEGURIDAD = True
+
+#: Lo que vale una credencial tras su nombre: ``acceso=``, ``token: ``, ``"password": "…"``, la cabecera propia
+#: o ``Authorization``. ``acceso`` solo con ``=``: es el parámetro del lanzador, y «acceso:» es castellano corriente.
+_NOMBRES_DE_SECRETO = (r'access_token|api[_-]?key|apikey|client_secret|secret|token|password|passwd|pwd'
+                       r'|contraseña|contrasena|authorization')
+_COMILLAS = '"\''
+_SECRETO_CON_NOMBRE = re.compile(
+    r'(?i)(\b' + PARAMETRO_ACCESO + r'=|(?:\b(?:' + _NOMBRES_DE_SECRETO + r')\b|' + re.escape(CABECERA_TOKEN) + ')'
+    + '[' + _COMILLAS + r']?\s*[:=]\s*[' + _COMILLAS + ']?)'
+    + r'(?!(?:bearer|basic)\s)[^\s&,;)' + _COMILLAS + ']+')
+#: El valor de un ``Bearer`` o ``Basic`` aunque no lleve delante el nombre de la cabecera.
+_SECRETO_DE_ESQUEMA = re.compile(r'(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{4,}')
+
+
+def depurar_secretos(texto: str) -> str:
+    """``texto`` con el valor de cada credencial cambiado por ``***`` (086:RF-19); el resto, igual."""
+    if not isinstance(texto, str) or not texto:
+        return texto
+    return _SECRETO_CON_NOMBRE.sub(r'\1***', _SECRETO_DE_ESQUEMA.sub(r'\1 ***', texto))
+
+
+class FiltroSecretos(logging.Filter):
+    """Ningún registro guarda una credencial, venga en el mensaje o en sus argumentos (086:RF-19).
+
+    El de antes iba solo en ``uvicorn.access`` y solo miraba ``args``: el asistente escribía la orden entera en el
+    mensaje, con el token si el operador lo pegaba (auditoría b4, H8). Los argumentos se depuran uno a uno, porque
+    el formateador de accesos de uvicorn los lee por posición; si el secreto aún aparece al unirlos (``'%s: %s'``
+    con la cabecera y su valor), el mensaje queda ya formado y depurado.
+    """
+
+    #: Lo que se escribe en lugar de un registro que no se pudo depurar: falla cerrado, nunca deja pasar el crudo.
+    SUSTITUTO = 'registro omitido: no se pudo depurar de credenciales (086:RF-19)'
+
+    def __init__(self, name: str = '') -> None:
+        super().__init__(name)
+        #: Registros sustituidos porque la depuración falló; los revisa quien diagnostica el registro.
+        self.fallos = 0
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            self._depurar(record)
+        except Exception:  # noqa: BLE001 - falla cerrado: ningún error de la depuración deja salir el registro crudo
+            self.fallos += 1
+            record.msg, record.args = self.SUSTITUTO, ()
+            record.exc_info = record.exc_text = record.stack_info = None
+        return True
+
+    @staticmethod
+    def _depurar(record: logging.LogRecord) -> None:
+        if isinstance(record.args, tuple):
+            record.args = tuple(depurar_secretos(a) if isinstance(a, str) else a for a in record.args)
+        elif isinstance(record.args, dict):
+            record.args = {k: depurar_secretos(v) if isinstance(v, str) else v for k, v in record.args.items()}
+        try:
+            completo = record.getMessage()
+        except (TypeError, ValueError, KeyError):
+            # Un mensaje que no casa con sus argumentos: logging lo imprimiría crudo en handleError. Sale el mensaje
+            # depurado, sin los argumentos, y dice por qué.
+            record.msg = depurar_secretos(str(record.msg)) + ' (argumentos omitidos: no casaban con el mensaje)'
+            record.args = ()
+            return
+        limpio = depurar_secretos(completo)
+        if limpio != completo:
+            record.msg, record.args = limpio, ()
 
 
 @dataclass(frozen=True)

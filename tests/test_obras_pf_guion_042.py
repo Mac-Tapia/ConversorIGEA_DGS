@@ -331,7 +331,7 @@ def test_los_puentes_de_la_red():
     assert {p['nombre'] for p in puentes} == {'cerrado', 'reg', 'tr'} and all(p['puente'] and p['largo_m'] == 0.0 for p in puentes)
     assert next(p for p in puentes if p['nombre'] == 'tr')['hasta'] == 'F'
     fuente = (Path(__file__).resolve().parents[1] / 'tools' / 'obras_pf.py').read_text(encoding='utf-8')
-    assert 'por cercanía GPS (042:RF-45)' in fuente
+    assert 'sus obras se colocan por cercanía GPS' in fuente
 
 
 def test_el_tipo_del_proyecto_biblioteca_se_encuentra_por_el_nombre_pedido():

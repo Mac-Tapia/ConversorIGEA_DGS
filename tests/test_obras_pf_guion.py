@@ -863,7 +863,7 @@ def test_conductor_terna_cambia_el_tramo_y_suma_la_terna_en_digsilent(semilla, d
     _activas(app, CON)
     linea = _linea(app, tramo)
     assert linea.nlnum == 2 and linea.typ_id.loc_name == ('AX120' if delgado else f'AAAC_{f}')
-    assert delgado or any('042:RF-99' in a for a in informe['obras'][0]['avisos'])
+    assert delgado or any('de igual o más corriente' in a for a in informe['obras'][0]['avisos'])
     _activas(app, SIN)
     linea = _linea(app, tramo)
     assert int(getattr(linea, 'nlnum', 1)) == 1 and linea.typ_id.loc_name == f'AAAC_{f}'
@@ -1021,7 +1021,7 @@ def test_migracion_con_la_cabecera_compartida_se_rechaza():
     informe, codigo = guion.aplicar(app, _plan(alims, obras=[_migracion(f, 22.9)]))
     assert codigo == 2
     assert otro in informe['obras'][0]['error'] and 'no se migra' in informe['obras'][0]['error']
-    assert all(c in informe['obras'][0]['error'] for c in ('042:RF-51', '042:RF-61', '042:RF-6)'))   # 042:RF-63
+    assert all(c in informe['obras'][0]['error'] for c in ('la barra de destino de la SET', 'transformador elevador dedicado', 'SET nueva'))   # 042:RF-63
     assert not any(n.startswith('Obra_') for n in _variaciones(app))
 
 
@@ -1546,7 +1546,7 @@ def test_con_parte_de_los_alimentadores_avisa_de_lo_que_queda_fuera(monkeypatch)
                  sorteos=[], barras_cargas=[], parametros=PERFIL_ESCALERA)
     informe, codigo = guion.evaluar(app, plan)
     assert codigo == 0, informe
-    assert any('063:RF-40' in a and f in a for a in informe['avisos']), informe['avisos']
+    assert any('cargas de otra troncal, fuera de su ElmFeeder' in a and f in a for a in informe['avisos']), informe['avisos']
 
 
 def test_la_obra_inactiva_vuelve_a_cerrar_lo_que_abrio():
@@ -1672,7 +1672,7 @@ def test_tras_la_primera_que_cumple_hay_un_tope_de_variantes(monkeypatch):
     plan = _plan(alims, variantes=variantes, sorteos=[], barras_cargas=[], parametros=perfil, basta_una=True, alternativas=3)
     informe, codigo = guion.evaluar(app, plan)
     assert codigo == 0, informe
-    assert len(informe['variantes']) == 3 and any('042:RF-90' in a for a in informe['avisos'])
+    assert len(informe['variantes']) == 3 and any('variantes más desde la primera que cumple' in a for a in informe['avisos'])
     assert escalera_optima.parametros(PERFIL_ESCALERA).variantes_tras_cumplir == 25
 
 
@@ -1708,4 +1708,4 @@ def test_con_tres_y_ninguna_definitiva_sigue_hasta_el_tope(monkeypatch):
     perfil = {**PERFIL_ESCALERA, 'escalera': {**PERFIL_ESCALERA['escalera'], 'variantes_tras_cumplir': 4}}
     informe, codigo = guion.evaluar(app, _plan_con_horizonte(alims, 7, perfil))
     assert codigo == 0, informe
-    assert len(informe['variantes']) == 5 and any('042:RF-92' in a for a in informe['avisos'])
+    assert len(informe['variantes']) == 5 and any('Ninguna alternativa es definitiva a la vida útil' in a for a in informe['avisos'])

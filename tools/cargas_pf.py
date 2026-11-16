@@ -675,7 +675,7 @@ def error_de_unidades(unidades: dict) -> str | None:
     return ('El proyecto de DIgSILENT tiene la potencia de cargas o bancos en ' + ', '.join(
         f'{u} ({a})' for a, u in unidades['distintas'].items()) + ' y el ajuste escribe en MW y '
         'Mvar: cambie las unidades en Proyecto › Ajustes del proyecto › Variables de entrada '
-        '(cargas y generadores en «M») y vuelva a calibrar. No se escribió nada (035:RF-15).')
+        '(cargas y generadores en «M») y vuelva a calibrar. No se escribió nada.')
 
 
 def escribir_carga(obj, p_mw: float, q_mvar: float) -> None:
@@ -941,12 +941,12 @@ def _diferencias_con_la_fila(sed: str, carga, fila: dict) -> list[str]:
     if kw is not None and fila.get('kw') is not None and not math.isclose(
             kw, float(fila['kw']), rel_tol=1e-3, abs_tol=0.01):
         avisos.append(f"{sed}: ya creada con {kw:.1f} kW y el libro da {float(fila['kw']):.1f} kW; "
-                      'no se crea otra (014:RF-28).')
+                      'no se crea otra.')
     lat, lon = getattr(carga, 'GPSlat', None), getattr(carga, 'GPSlon', None)
     if fila.get('lat') is not None and lat is not None and (
             abs(float(lat) - float(fila['lat'])) > 1e-6 or abs(float(lon) - float(fila['lon'])) > 1e-6):
         avisos.append(f"{sed}: ya creada en ({float(lat):.6f}, {float(lon):.6f}) y el libro la da en "
-                      f"({float(fila['lat']):.6f}, {float(fila['lon']):.6f}); no se crea otra (014:RF-28).")
+                      f"({float(fila['lat']):.6f}, {float(fila['lon']):.6f}); no se crea otra.")
     return avisos
 
 
@@ -986,7 +986,7 @@ def creadas_de_la_fila(fila: dict, candidatos: list[str], indice: dict) -> tuple
                     if f in candidatos and _en_el_punto(d['carga'], punto)]
         if halladas:
             otros = ', '.join(sorted({SUFIJO_PF.sub('', d['carga'].loc_name) for d in halladas}))
-            criterio = f'ya existe en el mismo punto, como {otros} (014:RF-30),'
+            criterio = f'ya existe en el mismo punto, como {otros},'
     return halladas, criterio
 
 
@@ -1008,7 +1008,7 @@ def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict 
     if variaciones:
         conserva, sobran = variaciones[0], variaciones[1:]
         no_creada = {'sed': sed, 'motivo': f'{criterio} en la variación {conserva}: se reutiliza, '
-                                           'activa en «Con proyecto» (014:RF-24)',
+                                           'activa en «Con proyecto»',
                      'variacion': conserva, 'reutilizada': True,
                      'alimentador': next((d.get('feeder') for d in halladas if conserva in d['variaciones']), None)}
         no_creada['existente'] = ficha_de_existente(halladas[0]['carga'], no_creada['alimentador'], variaciones,
@@ -1017,13 +1017,13 @@ def ya_creada(fila: dict, candidatos: list[str], existentes: set[str], ya: dict 
         if sobran:
             no_creada['eliminar'] = sobran
             avisos.append(f"{sed}: estaba en {len(variaciones)} variaciones de carga nueva; se "
-                          f"conserva {conserva} y se eliminan {', '.join(sobran)} (040:RF-7).")
+                          f"conserva {conserva} y se eliminan {', '.join(sobran)}.")
         return no_creada, avisos
     if sed in existentes:
-        return {'sed': sed, 'motivo': 'ya existe en el alimentador (RF-15)'}, []
+        return {'sed': sed, 'motivo': 'ya existe en el alimentador'}, []
     if en_red is not None and nombre in en_red:
         return ({'sed': sed, 'motivo': 'ya existe en la red de «Con proyecto», fuera de una '
-                                       'variación de carga nueva (014:RF-25)'}, [])
+                                       'variación de carga nueva'}, [])
     return None
 
 
@@ -1123,8 +1123,7 @@ def reemplazo_de(fila: dict, candidatos: list[str], ya: dict | None) -> dict | N
     existente = ficha_de_existente(halladas[0]['carga'], halladas[0].get('feeder'), variaciones,
                                    'se reemplaza', cambios)
     return {'variaciones': variaciones, 'cambios': cambios, 'existente': existente,
-            'aviso': f"{fila['sed']}: cambió {que}; se reemplaza la carga anterior ({', '.join(variaciones)}) "
-                     '(004:RF-76).'}
+            'aviso': f"{fila['sed']}: cambió {que}; se reemplaza la carga anterior ({', '.join(variaciones)})."}
 
 
 def _gps_de_sed(carga) -> tuple[float, float] | None:
@@ -1297,7 +1296,7 @@ def cifras_de_sed_adaptada(fila: dict, kv: float, n: int) -> str:
     kva = float(fila.get('kva_instalado') or 0.0) or math.hypot(kw, kvar)
     con_n, con_tres = corriente_por_fase_a(kva, kv, n), corriente_por_fase_a(kva, kv, 3)
     corriente = '' if con_n is None else f'; a {kv:g} kV, {con_n:.1f} A por fase frente a {con_tres:.1f} A con tres'
-    return f'{kva:g} kVA, {kw:g} kW y {kvar:g} kvar en {n} fase(s){corriente} (081:RF-66).'
+    return f'{kva:g} kVA, {kw:g} kW y {kvar:g} kvar en {n} fase(s){corriente}.'
 
 
 def cifras_de_banco(kvar: float, kv: float, n: int) -> str:
@@ -1307,7 +1306,7 @@ def cifras_de_banco(kvar: float, kv: float, n: int) -> str:
     corriente = corriente_por_fase_a(kvar, kv, n)
     a_tension = f' a {kv:g} kV' if kv else ''
     return (f'{kvar:g} kvar{a_tension} en {n} fase(s)'
-            + ('' if corriente is None else f', {corriente:.1f} A por fase') + ' (081:RF-68).')
+            + ('' if corriente is None else f', {corriente:.1f} A por fase') + '.')
 
 
 def poner_fases(n: int, *barras) -> None:
@@ -1414,14 +1413,14 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             vigente = superadas[sed]
             suyo = str(fila.get('alimentador') or '').strip()
             dup = {'sed': sed, 'alimentador': suyo or None, 'duplicada_de': vigente,
-                   'motivo': f'el mismo cliente que {vigente}, posterior en el libro: cuenta {vigente} (099:RF-1)'}
+                   'motivo': f'el mismo cliente que {vigente}, posterior en el libro: cuenta {vigente}'}
             halladas, _criterio = creadas_de_la_fila(fila, list(alims.elegidos), indice)
             variaciones = sorted({v for d in halladas for v in d['variaciones']})
             if variaciones:
                 dup['eliminar'] = variaciones                              # 040:RF-6, 099:RF-5
             no_creadas.append(dup)
             avisos.append(f'{sed}: el mismo cliente que {vigente} en el libro ({suyo or "sin alimentador"}); '
-                          f'cuenta {vigente}, la última fila, y {sed} no se crea (099:RF-1).')
+                          f'cuenta {vigente}, la última fila, y {sed} no se crea.')
             continue
         candidatos = list(alims.elegidos)
         suyo = str(fila.get('alimentador') or '').strip()
@@ -1429,7 +1428,7 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             if suyo.upper() not in marcados:
                 de_otros[suyo] = de_otros.get(suyo, 0) + 1
                 no_creadas.append({'sed': sed, 'motivo': f'el libro la da en {suyo}, que no está '
-                                                         'entre los alimentadores marcados (RF-29)'})
+                                                         'entre los alimentadores marcados'})
                 continue
             candidatos = [marcados[suyo.upper()]]
         punto_fila = (float(fila['lat']), float(fila['lon'])) if fila.get('lat') is not None else None
@@ -1454,12 +1453,12 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                         if punto_fila is not None and distancia_m(p, punto_fila) <= MISMO_PUNTO_M), None)
         if primera is not None:
             dup = {'sed': sed, 'alimentador': suyo or None, 'duplicada_de': primera,
-                   'motivo': f'duplicada de {primera}: mismo alimentador y mismo punto en el libro (040:RF-1)'}
+                   'motivo': f'duplicada de {primera}: mismo alimentador y mismo punto en el libro'}
             if entrada and entrada['variaciones']:
                 dup['eliminar'] = sorted(entrada['variaciones'])          # 040:RF-6
             no_creadas.append(dup)
             avisos.append(f'{sed}: duplicada de {primera} en el libro (mismo alimentador y mismo '
-                          'punto); no se crea (040:RF-1).')
+                          'punto); no se crea.')
             continue
         if punto_fila is not None:
             vistas.setdefault(clave, []).append((punto_fila, sed))
@@ -1479,14 +1478,14 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             if como_amp:
                 ya_amp = {'sed': sed, 'variacion': como_amp[0], 'reutilizada': True,
                           'motivo': f"ampliación de {a['sed']} ya creada en la variación {como_amp[0]}: "
-                                    'se reutiliza, activa en «Con proyecto» (014:RF-24, 040:RF-4)'}
+                                    'se reutiliza, activa en «Con proyecto»'}
                 if como_amp[1:] + con_sed:
                     ya_amp['eliminar'] = como_amp[1:] + con_sed
                 no_creadas.append(ya_amp)
                 continue
             if a['barra'] is None:
                 no_creadas.append({'sed': sed, 'motivo': f"ampliación de {a['sed']} ({a['criterio']}), "
-                                                         'pero su carga no está conectada a una barra (040:RF-4)'})
+                                                         'pero su carga no está conectada a una barra'})
                 continue
             bt = a['barra']
             resueltas[feeder].append({
@@ -1499,7 +1498,7 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                 'eliminar': con_sed,
             })
             avisos.append(f"{sed}: ampliación de la SED {a['sed']} ({a['criterio']}); no se crea "
-                          f'SED: su carga va a la barra de baja {bt.loc_name} (040:RF-3, RF-4).')
+                          f'SED: su carga va a la barra de baja {bt.loc_name}.')
             existentes.add(sed)
             continue
         # 004:RF-76, RF-77: la ya creada se reutiliza solo si es la misma; si cambió, se reemplaza.
@@ -1561,7 +1560,7 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                 if nuevos:
                     avisos.append(f"Ninguna barra de media ni tramo de la troncal de {', '.join(nuevos)} tiene "
                                   'coordenadas en DIgSILENT: no se conecta por coordenadas ninguna carga '
-                                  'suya (007:RF-28, 016:RF-50).')
+                                  'suya.')
                     avisados.update(nuevos)
                 no_creadas.append({'sed': sed, 'motivo': 'ninguna barra de los alimentadores tiene GPS'})
                 continue
@@ -1633,7 +1632,7 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             # 004:RF-79: una línea de conexión de la mitad del alimentador o más casi siempre es una coordenada mal
             # escrita.
             avisos.append(f'{sed}: su línea de conexión mide {distancia_es(dist)}, más que la mitad del radio de '
-                          f'{feeder} ({distancia_es(radio)}): revise su ubicación (004:RF-79).')
+                          f'{feeder} ({distancia_es(radio)}): revise su ubicación.')
         resueltas[feeder].append({
             'fila': fila, 'barra': barra, 'distancia_m': dist, 'criterio': criterio,
             'partir': conexion,
@@ -1660,12 +1659,12 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             if len(seds) > 1:
                 avisos.append(f"{', '.join(seds)} caen en el mismo tramo {tramo}: la primera lo "
                               'parte y las demás se conectan en un extremo existente del tramo, '
-                              'cada una independiente (025:RF-47).')
+                              'cada una independiente.')
     if de_otros:
         total = sum(de_otros.values())
         detalle = ', '.join(f'{f} ({n})' for f, n in sorted(de_otros.items()))
         avisos.append(f'{total} carga(s) nueva(s) del libro son de alimentadores no marcados '
-                      f'({detalle}): no se crean (RF-29).')
+                      f'({detalle}): no se crean.')
     return resueltas, no_creadas, avisos
 
 
@@ -2578,20 +2577,20 @@ def variaciones_que_sobran(no_creadas: list[dict], resueltas: dict, por_nombre: 
 
     for x in no_creadas:
         if x.get('duplicada_de'):
-            motivo = f"fila duplicada de {x['duplicada_de']} en el libro (040:RF-1)"
+            motivo = f"fila duplicada de {x['duplicada_de']} en el libro"
         elif x.get('reutilizada') and str(x.get('motivo', '')).startswith('ampliación'):
-            motivo = 'la ampliación se creó antes como SED nueva (040:RF-3)'
+            motivo = 'la ampliación se creó antes como SED nueva'
         else:
-            motivo = f"la carga ya está en {x.get('variacion')} (040:RF-7)"
+            motivo = f"la carga ya está en {x.get('variacion')}"
         anotar(x.get('eliminar'), x['sed'], motivo)
     for lista in resueltas.values():
         for r in lista:
             if r.get('reemplaza'):
-                motivo = f"cambió {', '.join(r['reemplaza']['cambios'])}; se reemplaza la carga anterior (004:RF-76)"
+                motivo = f"cambió {', '.join(r['reemplaza']['cambios'])}; se reemplaza la carga anterior"
             elif r.get('ampliacion'):
-                motivo = f"ampliación de {r['ampliacion']['sed']} creada antes como SED nueva (040:RF-3)"
+                motivo = f"ampliación de {r['ampliacion']['sed']} creada antes como SED nueva"
             else:
-                motivo = 'sobra (040:RF-6)'
+                motivo = 'sobra'
             anotar(r.get('eliminar'), r['fila']['sed'], motivo)
     return [out[n] for n in sorted(out)]
 
@@ -2720,7 +2719,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             informe['avisos'].append(
                 f"{x['variacion']} ({x['sed']}): {'eliminada' if x['eliminada'] else 'no se pudo eliminar'}"
                 f" del proyecto: {x['motivo']}" + (f"; DIgSILENT: {x['error']}" if x.get('error') else '')
-                + ' (040:RF-6).')
+                + '.')
     if not simular:
         # 040:RF-11: la reutilizada cuyo nombre ya no dice su alimentador se renombra, para
         # que los casos (casos_pf.clasificar) la cuenten como carga de ese alimentador.
@@ -2735,7 +2734,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                                          plan.get('stamp') or '', nombres_dados)
             x['variacion'], x['renombrada_de'] = v.loc_name, viejo
             informe['avisos'].append(f"{viejo} ({x['sed']}): su nombre ya no decía el alimentador; "
-                                     f"se renombra {v.loc_name} (040:RF-11).")
+                                     f"se renombra {v.loc_name}.")
     carpeta = app.GetProjectFolder('scheme')
     stamp = plan.get('stamp') or ''
     nombre_demandas = plan.get('variacion_demandas') or plan.get('variacion') or f'Demandas_{stamp}'
@@ -2764,7 +2763,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
         # 008:RF-21: con todas las filas ya en el proyecto, coinciden; no es que no coincida ninguna.
         informe['avisos'].append(
             f'Nada nuevo que aplicar: las {len(reutilizadas)} carga(s) del libro ya están en el proyecto y se '
-            'reutilizan (014:RF-24).' if reutilizadas else 'Nada que aplicar: ninguna fila coincide en el proyecto.')
+            'reutilizan.' if reutilizadas else 'Nada que aplicar: ninguna fila coincide en el proyecto.')
         # 008:RF-21: los alimentadores del proyecto, aunque no se cree nada; la web los nombra en la escalera
         # de obras y decía «cambio de sección en , varias variantes» (PRUEBA_007, 2026-11-06).
         informe['feeders'] = [{'feeder': f, 'actualizadas': [], 'creadas': [], 'fallos': []} for f in alims.elegidos]
@@ -2871,7 +2870,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             adelantadas = etapas_al_dia(app)
             if adelantadas:
                 informe['avisos'].append('«Con proyecto» no veía las etapas de ' + ', '.join(adelantadas)
-                                         + ' por su fecha: se adelantan antes de medir las cargas (081:RF-78).')
+                                         + ' por su fecha: se adelantan antes de medir las cargas.')
         esc_con = next((e for c, e in apagados if casos and c is casos['con']), None)
         if con_cargas and not informe['cancelado']:
             with _con_escenario(esc_con):
@@ -2922,7 +2921,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                             + (f"se propone {cuantas}{p['kva']:g} kVA ({p.get('tipo_nuevo') or p.get('codigo')}), "
                                f"al {p.get('carga_pct_prevista', 0):.0f} %, sin aplicarlo" if p.get('kva')
                                else f"sin propuesta: {p.get('motivo')}")
-                            + ' (040:RF-5).')
+                            + '.')
                 if informe['cancelado']:
                     break
             print(f"  cargas nuevas: {len(informe['cargas'])}, cada una en su variación")
@@ -2966,7 +2965,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
             adelantadas = etapas_al_dia(app)
             if adelantadas:
                 informe['avisos'].append('«Con proyecto» no veía las etapas de ' + ', '.join(adelantadas)
-                                         + ' por su fecha: se adelantan a la hora del caso (081:RF-78).')
+                                         + ' por su fecha: se adelantan a la hora del caso.')
             # 014:RF-24: la variación de una carga que ya existía queda activa en «Con
             # proyecto», también si no se creó ninguna otra.
             if reutilizadas:
@@ -2986,7 +2985,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                         + (f"; solas tampoco: {', '.join(solas)}" if solas else '; cada una sola, sí')
                         + (f"; basta quitar una de: {', '.join(juntas['basta_quitar_una_de'])}"
                            if juntas['basta_quitar_una_de'] else '')
-                        + '. Hacen falta obras: la escalera de obras (025:RF-44).')
+                        + '. Hacen falta obras: la escalera de obras.')
                 # 025:RF-61 a RF-66: la situación real con las cargas nuevas y sin obras.
                 _a_cargas_nuevas(app, c011, casos, anio, alims, plan, informe,
                                  previas_con + de_cargas + reutilizadas)
@@ -3019,7 +3018,7 @@ def _obras_de_las_reutilizadas(app, c011, anio, casos, informe) -> None:
         informe['avisos'].append(
             f"Las cargas reutilizadas se crearon sobre obras de «{c011.NOMBRES['con']}»; activas "
             f"también en «{c011.nombre_caso('con', anio)}»: " + ', '.join(informe['obras_activadas'])
-            + ' (025:RF-42).')
+            + '.')
     if obras and casos:
         # También si ya estaban activas: la operación del escenario no la trae la variación.
         operacion = c011.operacion_de_las_obras(app, casos)
@@ -3137,7 +3136,7 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
         nota = ((nota + ' ') if nota else '') + (
             f"El tramo {p['tramo']} ya lo parte {', '.join(v.loc_name for v in otras)}: se conecta "
             f"en su extremo {getattr(r['barra'], 'loc_name', r['barra'])}, independiente de esa "
-            'carga (025:RF-47).')
+            'carga.')
     creada.update(variacion=variacion.loc_name, nota=nota)
     if plan.get('costos') and not r.get('ampliacion'):     # la ampliación no construye SED ni línea
         from convertersmartgrid.economia import CostosUnitarios, datos_etapa

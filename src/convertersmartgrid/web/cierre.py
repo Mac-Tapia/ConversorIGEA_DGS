@@ -43,7 +43,7 @@ def anotar_arranque(huella: str | None = None, *,
             continue
         aviso = {'clave': f"caida:{fila.get('fecha')}", 'nivel': 'error',
                  'texto': f"La web anterior (proceso {fila.get('pid')}, abierta el {fila.get('fecha')}) cayó sin "
-                          'registrar su cierre: motivo desconocido (081:RF-43).'}
+                          'registrar su cierre: motivo desconocido.'}
         almacen.anotar('avisos', aviso)
         anotar_cierre('caída sin motivo conocido', quien='la web siguiente', pid=fila.get('pid'))
         avisos.append(aviso)

@@ -213,3 +213,34 @@ def test_operador_en_otro_carril_pospone_admision_de_aprendizaje(tmp_path, monke
     finally:
         liberar.set()
         jobs.shutdown(timeout_s=2)
+
+
+def test_067_rf41_el_reentreno_automatico_deja_su_recibo_y_sigue_activo(tmp_path, monkeypatch):
+    """067:RF-41; 071:RF-6 — sin ninguna variable, el ciclo sigue encolándose solo; al correr deja su recibo, con la
+    vigilancia como responsable, y su resultado no cambia."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid.asistente import almacen
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
+    monkeypatch.delenv('CSG_AUTOENTRENAMIENTO', raising=False)
+    monkeypatch.setenv('CSG_APRENDIZAJE_PLAN', str(_plan(tmp_path)))
+    monkeypatch.setattr(ac, 'estado_aprendizaje', lambda _raiz: {'ultimo_ciclo': {'estado': 'terminado'}})
+
+    class Trabajos:
+        def list(self):
+            return []
+
+        def submit(self, espacio, tipo, titulo, funcion, lane):
+            self.funcion = funcion
+            return SimpleNamespace(espacio=espacio, kind=tipo, lane=lane)
+
+    trabajos = Trabajos()
+    assert app.encolar_ciclo_aprendizaje(trabajos, ['órdenes nuevas']).lane == 'engine'
+    ctx = SimpleNamespace(check_cancel=lambda: None, job=SimpleNamespace(id='j1'), log=lambda _m: None,
+                          run_process=lambda *_a, **_k: 0)
+    assert trabajos.funcion(ctx) == {'ultimo_ciclo': {'estado': 'terminado'}}
+    filas = [f for f in almacen.leer('equipo_acciones') if f['herramienta'] == 'reentreno_automatico']
+    assert [f['estado'] for f in filas] == ['iniciada', 'terminada']
+    assert filas[-1]['responsable'] == 'vigilancia' and filas[-1]['alcance']['espacio'] == 'espacio-operador'
+    assert filas[-1]['entradas']['motivos'] == ['órdenes nuevas']
+    assert filas[-1]['revision']['decision'] == 'automatico_por_defecto'

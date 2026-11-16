@@ -99,7 +99,7 @@ def conectar(servidor: str, base: str = 'master', *, conectar_odbc: Callable | N
     except Exception as exc:  # noqa: BLE001 - pyodbc.Error y los de los dobles
         raise MotorSqlNoDisponible(
             f'No hay motor de SQL Server en {servidor!r} para la copia de VNR-GIS: instale '
-            'SQL Server Express (gratuito) y arranque su servicio (023:RF-5). Detalle: '
+            'SQL Server Express (gratuito) y arranque su servicio. Detalle: '
             f'{exc}') from exc
 
 

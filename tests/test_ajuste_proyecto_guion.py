@@ -84,7 +84,7 @@ def test_el_que_no_se_prepara_queda_fuera(guion):
         app, [_de(_plan(), 'F9', 100.0), _de(_plan(), 'F1', 300.0)])
     assert rc9 == 2 and 'ElmFeeder' in f9['error']
     assert rc1 == 0 and f1['cuadrado']
-    assert any('F9' in a and '021:RF-57' in a for a in f1['avisos'])
+    assert any('F9' in a and 'Fuera de la calibración del proyecto' in a for a in f1['avisos'])
 
 
 def test_cancelar_deja_el_ultimo_reparto_comun(guion):
@@ -219,7 +219,7 @@ def test_pone_los_bancos_que_faltan_y_recalibra(guion, monkeypatch):
     filas = [c for c in inf['cambios_en_la_red'] if c['elemento'] in nombres]
     assert filas and all(c['original']['potencia'] == 0.0 and c['nuevo']['potencia'] == 2.0
                          for c in filas)
-    assert any('021:RF-64' in a for a in inf['avisos'])
+    assert any('kVAR frente a' in a and 'banco(s) de' in a for a in inf['avisos'])
 
 
 def test_los_bancos_que_faltan_con_la_variacion_del_operador_grabando(guion):
@@ -277,7 +277,7 @@ def test_una_segunda_calibracion_no_repite_los_bancos(guion):
     assert primera['bancos_nuevos']
     [(segunda, _rc)] = guion.ejecutar_proyecto(app, [plan])
     assert segunda['bancos_nuevos'] == []
-    assert any('028:RF-14' in a for a in segunda['avisos']), segunda['avisos']
+    assert any('no se ponen más' in a for a in segunda['avisos']), segunda['avisos']
 
 
 def test_barras_de_los_bancos_en_la_troncal(guion):
@@ -365,7 +365,7 @@ def test_barra_de_set_central_y_medidor(guion):
     assert b['calibrados'] == ['F1', 'F2'] and b['central_kw'] == 1.0
     assert b['cabeceras_kw'] == pytest.approx(f1['cabecera']['kw'] + f2['cabecera']['kw'])
     assert b['desvio'] == pytest.approx((b['cabeceras_kw'] - 1.0 - 480.0) / 480.0)
-    assert any('022:RF-41b' in a for a in f2['avisos'])
+    assert any('del medidor de barra el' in a for a in f2['avisos'])
 
 
 def test_sin_cuadrar_en_kw_no_se_ponen_bancos(guion):
@@ -409,10 +409,10 @@ def test_con_remedios_los_bancos_salen_de_la_q_escrita(guion, monkeypatch, con_q
     [(inf, _rc)] = guion.ejecutar_proyecto(app, [plan])
     if con_q:
         assert pedidos == [{'F1': (2, 2.0)}], '14,5 escritos frente a 10 medidos: dos de 2'
-        assert any('Q escrita' in a and '021:RF-70' in a for a in inf['avisos'])
+        assert any('Q escrita' in a and 'sin pérdidas' in a for a in inf['avisos'])
     else:
         assert not pedidos and not inf['bancos_nuevos']
-        assert any('021:RF-70' in a for a in inf['avisos'])
+        assert any('no se calcula qué bancos faltan' in a for a in inf['avisos'])
 
 
 def test_fichas_de_todo_el_proyecto_en_una_variacion(guion):

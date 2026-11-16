@@ -276,11 +276,11 @@ def texto_de_zona(zona: Zona) -> str:
     base = (f'Transferencia del operador de {zona.desde} a {zona.hacia}: {len(zona.cargas)} SED ({sed}), '
             f'{zona.kw:,.1f} kW y {zona.kvar:,.1f} kvar')
     if zona.motivo:
-        return base + ': ' + MOTIVOS[zona.motivo] + ' (098:RF-8).'
+        return base + ': ' + MOTIVOS[zona.motivo] + '.'
     abre = ', '.join(r.nombre for r in zona.abrir)
     cierra = ', '.join(r.nombre for r in zona.cerrar)
     return (base + f'. Mientras se calibra se abre {abre} y se cierra {cierra}, para medir cada alimentador completo, '
-            'como cuando se tomó la medida; al terminar se deja como estaba (098:RF-3, RF-5)'
+            'como cuando se tomó la medida; al terminar se deja como estaba'
             + ('. El estado de la fuente de lo que se cierra no venía en el plan: se supone cerrado' if zona.supuesto else '')
             + '.')
 

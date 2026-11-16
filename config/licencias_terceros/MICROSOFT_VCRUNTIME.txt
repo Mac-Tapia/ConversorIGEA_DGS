@@ -1,0 +1,11 @@
+vcruntime140.dll y vcruntime140_1.dll (Microsoft Visual C++ Redistributable)
+
+Van junto al Python del programa (terceros/python) y, dentro de algunas ruedas, con el mismo nombre. Son
+«Distributable Code» de Microsoft Visual Studio: se pueden redistribuir sin modificar como parte de una aplicación,
+según los términos de licencia de Microsoft Visual Studio y la lista de ficheros redistribuibles que publica Microsoft:
+
+  https://learn.microsoft.com/en-us/visualstudio/releases/2022/redistribution
+  https://visualstudio.microsoft.com/license-terms/
+
+Copyright (c) Microsoft Corporation. Todos los derechos reservados. ConverterSmartGrid no concede ningún derecho
+sobre estos ficheros más allá de los que da Microsoft.

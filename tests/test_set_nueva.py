@@ -316,7 +316,7 @@ def test_sin_modulo_que_cubra_la_set_se_deduce(tmp_path):
     mods = sn.leer_modulos_pit(_libro(tmp_path), CFG_PIT)
     d = sn.modulo_deducido(mods, 60_000.0, 22.9)
     m = d['modulo']
-    assert m['mva'] == 60.0 and m['kv_at'] == 60.0 and m['costo'] > 0 and m['por_confirmar'] and '042:RF-33' in d['motivo']
+    assert m['mva'] == 60.0 and m['kv_at'] == 60.0 and m['costo'] > 0 and m['por_confirmar'] and 'por confirmar' in d['motivo']
     solo = sn.modulo_deducido([], 13_800.0, 22.9)['modulo']
     assert solo['mva'] == 15.0 and solo['costo'] is None and solo['kv_at'] == sn.KV_ALTA_SUPUESTA
     enorme = sn.modulo_deducido([], 300_000.0, 22.9)['modulo']

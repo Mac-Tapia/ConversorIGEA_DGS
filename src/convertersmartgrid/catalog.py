@@ -1284,7 +1284,7 @@ def deducir_conductor(codigo: str, filas: Sequence[dict[str, Any]]) -> dict[str,
     seccion = seccion_de_codigo(codigo)
     ref_familia, factor, material = FAMILIA_EQUIVALENTE.get(familia, (familia, 1.0, material_de_codigo(codigo)))
     base = {'codigo': codigo, 'seccion_mm2': seccion or '', 'material': material}
-    pendiente = {**base, 'estado': 'por_confirmar', 'fuente': 'Pendiente: ficha del proveedor (053:RF-5)'}
+    pendiente = {**base, 'estado': 'por_confirmar', 'fuente': 'Pendiente: ficha del proveedor'}
     if not seccion:
         return {**pendiente, 'regla': 'sin sección en el código'}
     ref = _referencia(filas, ref_familia, seccion)
@@ -1309,7 +1309,7 @@ def deducir_conductor(codigo: str, filas: Sequence[dict[str, Any]]) -> dict[str,
                      + (f'·{factor:.3f} (ρAl/ρCu, IEC 60228)' if factor != 1.0 else '')
                      + '; X, X0 y B1 iguales; ampacidad·(S/Sref)^0,75'
                      + ('·√(ρCu/ρAl)' if factor != 1.0 else '')),
-           'fuente': f"Deducido (spec 053) de {ref_codigo}: {f.get('fuente') or 'catálogo'}"}
+           'fuente': f"Deducido de {ref_codigo}: {f.get('fuente') or 'catálogo'}"}
     if familia == 'AA':                                                              # RF-3
         out['R1_ficha_ohm_km'] = round(aaac_r20_ohm_km(seccion), 6)
         out['estado'] = 'ficha' if seccion in AAAC_FICHA else 'derivado'
@@ -1403,5 +1403,5 @@ def _reemplazar(tmp: Path, ruta: Path, intentos: int = 10, pausa_s: float = 0.3)
             if i == intentos - 1:
                 tmp.unlink(missing_ok=True)
                 raise CatalogError(f'{ruta} está abierto en otro programa (¿Excel?): ciérrelo para que el '
-                                   'catálogo crezca (053:RF-7).') from None
+                                   'catálogo crezca.') from None
             time.sleep(pausa_s)

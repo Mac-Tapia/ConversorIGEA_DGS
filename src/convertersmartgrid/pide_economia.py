@@ -155,7 +155,7 @@ def costos_en_moneda_de_trabajo(costos: Mapping[str, Mapping[str, Any]],
     """
     if any(c.get('costo_unitario') for c in costos.values()) and not escala:
         raise EconomiaPideError('el perfil no dice en qué escala está el libro CAPEX respecto de la moneda de '
-                                'trabajo: escalera.escala_capex, p. ej. 1000 si está en miles (025:RF-77)')
+                                'trabajo: escalera.escala_capex, p. ej. 1000 si está en miles')
     if not escala:                                     # sin costos que escalar
         return {alt: dict(c) for alt, c in costos.items()}
     out = {}
@@ -176,12 +176,18 @@ def frc(tasa: float, anios: int) -> float:
     return tasa * f / (f - 1)
 
 
-def costo_anual(ci: float, coym: float | None, cp: float | None, *, tasa: float, vida: int) -> dict[str, float | None]:
-    """Costo anual = anualidad del CI + COyM + CP (art. 14.4); lo que falta queda dicho."""
-    anualidad = ci * frc(tasa, vida)
+def costo_anual(ci: float | None, coym: float | None, cp: float | None, *, tasa: float,
+                vida: int) -> dict[str, Any]:
+    """Costo anual = anualidad del CI + COyM + CP (art. 14.4); lo que falta queda dicho.
+
+    072:RF-16 (H5, 2026-11-14): sin alguno de los tres, el costo anual queda vacío y ``falta`` dice cuál. Antes valía
+    anualidad + lo que hubiera, y los formatos lo escribían como si estuviera completo.
+    """
+    anualidad = ci * frc(tasa, vida) if ci is not None else None
+    falta = [n for n, v in (('inversión', ci), ('COyM', coym), ('pérdidas', cp)) if v is None]
     return {'anualidad': anualidad, 'coym': coym, 'cp': cp,
-            'costo_anual': anualidad + (coym or 0.0) + (cp or 0.0),
-            'completo': coym is not None and cp is not None}
+            'costo_anual': anualidad + coym + cp if not falta else None,
+            'completo': not falta, 'falta': falta}
 
 
 def valor_kw_perdidas(plan: Mapping[str, Any], *, factor_carga: float | None,
@@ -317,7 +323,7 @@ def plan_en_moneda_de_trabajo(plan: Mapping[str, Any], *, moneda_trabajo: str | 
         out['precio_compra_kwh'] = None
         return out, [f'las tarifas y el precio de compra están en {de} y el CAPEX en {moneda_trabajo}: sin el tipo '
                      f'de cambio ({de} por {moneda_trabajo}) no se hacen la evaluación privada ni el valor de las '
-                     'pérdidas (025:RF-68)']
+                     'pérdidas']
     tc = float(tipo_cambio)
     out['tarifas'] = {k: ({c: (v / tc if isinstance(v, (int, float)) and not isinstance(v, bool) else v)
                            for c, v in opcion.items()} if isinstance(opcion, Mapping) else opcion)
@@ -330,44 +336,56 @@ def plan_en_moneda_de_trabajo(plan: Mapping[str, Any], *, moneda_trabajo: str | 
 
 @dataclass
 class Evaluacion:
-    ci: float
+    ci: float | None
     regulada: dict[str, Any]
     privada: dict[str, Any] | None
     indicadores: dict[str, float | None]
     avisos: list[str] = field(default_factory=list)
+    #: 025:RF-68 (H4 y H5): la evaluación privada no se hizo porque las tarifas están en otra moneda sin tipo de cambio.
+    sin_tipo_de_cambio: bool = False
 
 
-def evaluar(ci: float, *, kw_nuevos: float, usuarios: int, km: float, coym_anual: float | None,
+def evaluar(ci: float | None, *, kw_nuevos: float, usuarios: int, km: float, coym_anual: float | None,
             cp_anual: float | None, plan: Mapping[str, Any], factor_carga: float | None,
             precio_compra_kwh: float | None, opcion: str, fraccion_punta: float = 5 / 24,
             crecimiento: float = 0.0) -> Evaluacion:
-    """Evaluación regulada (art. 14) y privada (flujo de 20 años) de una alternativa."""
+    """Evaluación regulada (art. 14) y privada (flujo de 20 años) de una alternativa.
+
+    072:RF-16 (H5, 2026-11-14): ``ci`` None es una obra sin costo, no una gratuita: anualidad, indicadores y
+    evaluación privada quedan vacíos. Un costo que falta (COyM o CP) no se toma por 0 sin decirlo: el costo anual y el
+    valor actual de los costos quedan vacíos, y el flujo privado lleva ``completo`` y ``falta``.
+    """
     avisos = []
     vida, tasa_r = int(plan['vida_util_anios']), float(plan['tasa_regulada'])
     horizonte = int(plan['horizonte_anios'])
     regulada = costo_anual(ci, coym_anual, cp_anual, tasa=tasa_r, vida=vida)
-    flujo_costos = [-ci] + [-(coym_anual or 0) - (cp_anual or 0)] * horizonte
-    regulada['van_costos'] = van(flujo_costos, tasa_r)
-    if not regulada['completo']:
-        avisos.append('costo anual sin COyM o sin pérdidas: el perfil o el flujo no los dan')
+    regulada['van_costos'] = (van([-ci] + [-coym_anual - cp_anual] * horizonte, tasa_r)
+                              if regulada['completo'] else None)
+    if ci is None:
+        avisos.append('sin costo: falta el libro CAPEX o el costo oficial de esta alternativa')
+    elif not regulada['completo']:
+        avisos.append(f"costo anual incompleto, sin {' ni '.join(regulada['falta'])}: el perfil o el flujo no lo dan")
     energia_anual = kw_nuevos * (factor_carga or 0) * 8760
+    conocido = ci is not None
     indicadores = {
-        'costo_kw': ci / kw_nuevos if kw_nuevos else None,
-        'costo_kwh': ci / energia_anual if energia_anual else None,
-        'costo_usuario': ci / usuarios if usuarios else None,
-        'costo_km': ci / km if km else None,
+        'costo_kw': ci / kw_nuevos if conocido and kw_nuevos else None,
+        'costo_kwh': ci / energia_anual if conocido and energia_anual else None,
+        'costo_usuario': ci / usuarios if conocido and usuarios else None,
+        'costo_km': ci / km if conocido and km else None,
     }
     moneda_tarifas, moneda_trabajo = (plan.get('tarifas') or {}).get('moneda'), plan.get('moneda_trabajo')
     if moneda_tarifas and moneda_trabajo and moneda_tarifas != moneda_trabajo:
         # 025:RF-77 (H4): ingresos en una moneda menos inversión en otra no es una VAN.
         avisos.append(f'evaluación privada sin hacer: las tarifas están en {moneda_tarifas} y el CAPEX en '
-                      f'{moneda_trabajo} (plan_en_moneda_de_trabajo, 025:RF-77)')
+                      f'{moneda_trabajo} (plan_en_moneda_de_trabajo)')
+        return Evaluacion(ci, regulada, None, indicadores, avisos, sin_tipo_de_cambio=True)
+    if ci is None:
         return Evaluacion(ci, regulada, None, indicadores, avisos)
     tarifa = (plan.get('tarifas') or {}).get(opcion)
     tasa_p = plan.get('tasa_privada')
     if tarifa is None or tasa_p is None or factor_carga is None or precio_compra_kwh is None:
         avisos.append('evaluación privada sin hacer: faltan tarifa, tasa privada, factor de carga '
-                      'o precio de compra (RF-58e)')
+                      'o precio de compra')
         return Evaluacion(ci, regulada, None, indicadores, avisos)
     flujos = [-ci]
     for t in range(1, horizonte + 1):
@@ -375,9 +393,15 @@ def evaluar(ci: float, *, kw_nuevos: float, usuarios: int, km: float, coym_anual
         ingresos = ingreso_anual_kw(kw, tarifa, factor_carga=factor_carga, fraccion_punta=fraccion_punta)
         compra = kw * factor_carga * 8760 * precio_compra_kwh
         flujos.append(ingresos - compra - (coym_anual or 0) - (cp_anual or 0))
+    # 072:RF-16 (H5): el flujo sin COyM o sin CP no se presenta como completo. La cifra se conserva porque los costos
+    # que faltan solo la bajarían: una VAN negativa sin ellos también lo es con ellos.
+    falta = [n for n, v in (('COyM', coym_anual), ('pérdidas', cp_anual)) if v is None]
+    if falta:
+        avisos.append(f"flujo privado sin {' ni '.join(falta)}: la VAN y la TIR quedan por encima de las reales")
     beneficios = sum(f / (1 + tasa_p) ** t for t, f in enumerate(flujos) if t > 0)
     privada = {'van': van(flujos, float(tasa_p)), 'tir': tir(flujos), 'retorno_anios': retorno(flujos),
-               'beneficio_costo': beneficios / ci if ci else None, 'flujos': flujos}
+               'beneficio_costo': beneficios / ci if ci else None, 'flujos': flujos,
+               'completo': not falta, 'falta': falta}
     return Evaluacion(ci, regulada, privada, indicadores, avisos)
 
 
@@ -411,6 +435,9 @@ def priorizar(candidatas: Sequence[Candidata], pesos: Mapping[str, float]) -> li
        barata); más los criterios del art. 15.3 por sus pesos. Mayor puntaje, antes.
     3. Para un mismo problema, las que cumplen con mayor costo que la elegida quedan
        marcadas como sobredimensionadas.
+    4. 072:RF-16 (H5, 2026-11-14): una sin costo no se compara con las que lo tienen. Antes valía 0 y ganaba el
+       desempate como la más barata; ahora va tras todas las que tienen costo, ordenada por sus criterios, con su
+       aviso, y nunca deja sobredimensionada a otra.
     """
     validas = []
     for c in candidatas:
@@ -433,12 +460,18 @@ def priorizar(candidatas: Sequence[Candidata], pesos: Mapping[str, float]) -> li
                 p += m / v
         p += sum(float(pesos.get(k, 0)) * float(v) for k, v in c.criterios.items())
         c.puntaje = p
-    orden = sorted(validas, key=lambda c: (-c.puntaje, c.evaluacion.ci, c.codigo))
+    sin_costo = [c for c in validas if c.evaluacion.ci is None]
+    for c in sin_costo:
+        c.evaluacion.avisos.append('sin costo: se prioriza tras las obras que lo tienen (art. 15)')
+    orden = (sorted((c for c in validas if c.evaluacion.ci is not None),
+                    key=lambda c: (-c.puntaje, c.evaluacion.ci, c.codigo))
+             + sorted(sin_costo, key=lambda c: (-c.puntaje, c.codigo)))
     elegida: dict[str, Candidata] = {}
     for c in orden:
         if c.problema not in elegida:
             elegida[c.problema] = c
-        elif c.evaluacion.ci > elegida[c.problema].evaluacion.ci:
+        elif (c.evaluacion.ci is not None and elegida[c.problema].evaluacion.ci is not None
+              and c.evaluacion.ci > elegida[c.problema].evaluacion.ci):
             c.sobredimensionada = True
     return orden + [c for c in candidatas if c.descartada]
 
@@ -458,7 +491,11 @@ def con_y_sin_de_las_aplicadas(obras: Iterable[Mapping[str, Any]], anios: Iterab
     inversiones: dict[int, float] = {}
     for o in obras:
         if o.get('variacion_autonoma'):
-            inversiones[int(o['anio'])] = inversiones.get(int(o['anio']), 0.0) + float(o['ci'] or 0.0)
+            if not o.get('ci'):
+                # 072:RF-16 (H5): una obra aplicada sin costo no vale 0; la cartera sin ella sería otra cartera.
+                return {'hueco': f"sin costo de la obra aplicada {o.get('codigo') or o['variacion_autonoma']}: falta "
+                                 'el libro CAPEX o el costo oficial'}
+            inversiones[int(o['anio'])] = inversiones.get(int(o['anio']), 0.0) + float(o['ci'])
     anios = list(anios)
     return evaluar_con_y_sin(inversiones, {a['anio']: a.get('perdidas_kw') for a in anios},
                              {a['anio']: (a.get('con_proyecto') or {}).get('perdidas_kw') for a in anios}, plan,
@@ -551,7 +588,7 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
         sin_modulos = bool(de_valle and de_valle.get('comprobado') and de_valle.get('modulos') == 0)
         if sin_modulos:
             avisos.append(f'{alimentador}: el valle no admite ningún módulo de banco: se toma la alternativa '
-                          'siguiente de cada causa (073:RF-28).')
+                          'siguiente de cada causa.')
         obras = plan_por_etapas([Problema(p['tipo'], p['elemento'], p.get('valor'), p.get('limite'),
                                           p['causa'], p.get('evidencia', ''), int(p['anio']))
                                  for p in lista if p.get('causa') in ALTERNATIVAS_POR_CAUSA],
@@ -567,7 +604,8 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
             sitio = min(mt, key=lambda p: p['valor']) if mt else (grupo[0] if grupo else {})
             elemento = sitio.get('elemento', o.elemento)
             costo = costos.get(o.alternativa)
-            ci = float(costo['costo_unitario']) if costo else 0.0
+            # 072:RF-16 (H5): sin costo, la inversión queda vacía; 0 la hacía la más barata en la priorización.
+            ci = float(costo['costo_unitario']) if costo and costo.get('costo_unitario') else None
             if costo and str(costo.get('unidad', '')).lower().startswith('km'):
                 avisos.append(f'{codigo}: costo por km con 1 km supuesto; el largo lo da el diseño')
             cab_obra = next((a.get('cabeceras_kw') or {} for a in anios if a['anio'] >= o.anio), cab0)
@@ -588,7 +626,7 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
                 obra, motivo = None, 'el valle no admite ningún módulo y la causa no tiene otra alternativa (073:RF-28)'
             en_valle = _valle_de_la_obra(de_valle, o.alternativa)
             if not en_valle['comprobado']:
-                avisos.append(f'{codigo}: {o.alternativa} de {alimentador}: no comprobado en valle (073:RF-24).')
+                avisos.append(f'{codigo}: {o.alternativa} de {alimentador}: no comprobado en valle.')
             if (de_valle or {}).get('por_alternativa', {}).get(o.alternativa, {}).get('valle') is False:
                 c.cumple_norma, obra, motivo = False, None, 'no cumple en valle (073:RF-40)'
             candidatas.append(c)
@@ -601,11 +639,16 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
                                'obra_011': obra, 'motivo_sin_obra': motivo, 'candidata': c, 'valle': en_valle})
     orden = priorizar(candidatas, plan.get('pesos_art_15_3') or {})
     prioridad = {c.codigo: i + 1 for i, c in enumerate(orden)}
+    sin_costo = [c.codigo for c in candidatas if c.evaluacion.ci is None]
+    if costos and sin_costo:
+        avisos.append(f"{', '.join(sin_costo)} sin costo en el libro CAPEX: van tras las obras con costo en la "
+                      'priorización')
     for f in filas_obra:
         c = f.pop('candidata')
         f.update(prioridad=prioridad[c.codigo], puntaje=c.puntaje, sobredimensionada=c.sobredimensionada,
                  descartada=c.descartada, regulada=c.evaluacion.regulada, privada=c.evaluacion.privada,
-                 indicadores=c.evaluacion.indicadores, avisos=c.evaluacion.avisos)
+                 indicadores=c.evaluacion.indicadores, avisos=c.evaluacion.avisos,
+                 sin_tipo_de_cambio=c.evaluacion.sin_tipo_de_cambio)
         if f['descartada'] and 'valle' in str(f['motivo_sin_obra']):
             f['descartada'] = 'no cumple en valle: ' + str(f['motivo_sin_obra'])
     filas_obra.sort(key=lambda f: f['prioridad'])

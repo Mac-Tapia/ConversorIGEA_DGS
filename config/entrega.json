@@ -1,5 +1,5 @@
 {
-  "_comentario": "086:RF-32 a RF-34. Único fichero que dice qué entra en el paquete: lo lee tools/comprobar_entrega.py y lo consumirá el instalador (T21). Rutas relativas a la raíz, con «/»; «*» cruza carpetas. Primero se aplica excluir.",
+  "_comentario": "086:RF-32 a RF-34. «documentos/» solo existe dentro del paquete: la rellena tools/construir_candidato.py con los manuales y notas que lee «pregunta» en el instalado, y su calibración. Único fichero que dice qué entra en el paquete: lo lee tools/comprobar_entrega.py y lo consumirá el instalador (T21). Rutas relativas a la raíz, con «/»; «*» cruza carpetas. Primero se aplica excluir.",
   "version": 1,
   "incluir": [
     "src/convertersmartgrid/*",
@@ -16,7 +16,10 @@
     "docs/PERFIL_EMPRESA.md",
     "input/README.md",
     "frontend/dist/*",
-    "docs/MODELOS_IA_LOCK.json"
+    "docs/MODELOS_IA_LOCK.json",
+    "documentos/*.md",
+    "documentos/CONJUNTO_ABSTENCION_ENTREGA.json",
+    "documentos/CALIBRACION_ABSTENCION_ENTREGA.json"
   ],
   "_comentario_excluir": "D4: sin pruebas, specs, instrucciones de agentes ni .git. Las herramientas de desarrollo no se entregan; las de entrenar sí, porque entrenar está activo en la 1.0 (086:RF-15, usuario 2026-11-13), y los pesos se generan en el cliente (RF-34). De los perfiles con nombre solo entran la plantilla y la ficticia: los de una empresa concreta siguen en el repositorio y no se listan (RF-32).",
   "excluir": [
@@ -109,7 +112,26 @@
   "fuente_de_lo_compilado": {"frontend/dist/*": ["frontend/src/*", "frontend/index.html"]},
   "_comentario_pesos": "RF-34: ningún peso entra si no está aquí, con su huella y con qué datos se entrenó. La 1.0 no entrega ninguno: lo vedado por empresa no se puede demostrar sin esta lista.",
   "extensiones_pesos": [".safetensors", ".pt", ".pth", ".ckpt", ".gguf", ".onnx", ".h5", ".keras", ".joblib", ".pkl", ".pickle", ".npz", ".msgpack", ".tflite"],
-  "pesos_permitidos": [],
+  "_comentario_pesos_complemento": "086:RF-34, decisión del usuario del 2026-11-13: el complemento de IA trae dos modelos públicos para usarlos sin internet, e5-base para el intérprete y qwen3:8b en Ollama. Ninguno está entrenado con datos de una empresa; sus rutas son las del complemento armado.",
+  "pesos_permitidos": [
+    {"ruta": "modelos/huggingface/hub/models--intfloat--multilingual-e5-base/snapshots/d128750597153bb5987e10b1c3493a34e5a4502a/model.safetensors",
+     "sha256": "a18a44fad1d0b46ded15928144138cff1135d5cc8233bdd90be5f18822de09a7", "entrenado_con": "publico",
+     "modelo": "intfloat/multilingual-e5-base", "licencia": "MIT"},
+    {"ruta": "modelos/ollama/blobs/sha256-a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f",
+     "sha256": "a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f", "entrenado_con": "publico",
+     "modelo": "qwen3:8b", "licencia": "Apache-2.0"}
+  ],
+  "_comentario_complemento_ia": "086:RF-37: lo que el complemento de IA trae además de sus ruedas, cada modelo con su revisión del catálogo (docs/MODELOS_IA_LOCK.json) y Ollama con la huella que publica su página de versiones. Las licencias, por su id en config/licencias_terceros/manifest.json.",
+  "complemento_ia": {
+    "modelos": [
+      {"backend": "huggingface", "id": "intfloat/multilingual-e5-base", "licencia": "multilingual-e5-base"},
+      {"backend": "ollama", "id": "qwen3:8b", "licencia": "qwen3"}
+    ],
+    "ollama": {"version": "0.40.16", "fichero": "ollama-windows-amd64.zip",
+               "sha256": "50fcf5ad54277f2fa5d173ebfc93bcb017adbc0c9ef2314daabc96ca9e6aa64e",
+               "url": "https://github.com/ollama/ollama/releases/download/v0.40.16/ollama-windows-amd64.zip",
+               "licencias": ["ollama", "ggml", "vcruntime"]}
+  },
   "entrenados_admitidos": ["publico", "sintetico", "empresa_cliente"],
   "_comentario_datos": "Ficheros de datos de una distribuidora o informes: no forman parte del programa.",
   "extensiones_datos": [".dgs", ".mdb", ".accdb", ".bak", ".xlsb", ".xlsx", ".xlsm", ".xls", ".docx", ".doc", ".pdf", ".csv", ".jsonl", ".zxst", ".xst", ".pfd"]

@@ -2,8 +2,8 @@
 
 Generado con `tools/preguntas_entregables.py informe` (spec 076), sobre la revisión `10fd3e1d`. No editar a mano.
 
-Filas: 441. Huella del contenido: `326974e15aedc98d0ae37fec6deb9139c05e9f3fa0c1a1be84a7595fe6076f7d`.
-Huella de lo sellado: `5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411`.
+Filas: 441. Huella del contenido: `3ec25dd399d3b0d15eb3310a0a136b264cc09e87992c46566619a1aedf66e627`.
+Huella de lo sellado: `98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce`.
 
 | Entregable o tema | Filas | Con respuesta | Sin respuesta | Corpus | Sellado | Revisadas |
 | --- | --- | --- | --- | --- | --- | --- |

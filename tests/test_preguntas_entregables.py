@@ -31,8 +31,11 @@ RAIZ = PE.RAIZ
 #: y en el árbol («¿Qué marca la imagen de ubicación?», 017:RF-109): quitarla movía el reparto de planos_informe-013.
 #: 2026-11-16: la 110 añade el carril «correo» a LANES (web/jobs.py). arquitectura-005 pasa a «Cinco…» y su ancla, como la
 #: de contradiccion-4, se acorta a lo que es cierto en la revisión fijada (línea 40) y en el árbol. Lo sellado no cambia.
-HUELLA_CONJUNTO = '326974e15aedc98d0ae37fec6deb9139c05e9f3fa0c1a1be84a7595fe6076f7d'
-HUELLA_SELLADO = '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411'
+#: 2026-11-16: el aviso de pide_ejecutar «solo el diagnóstico del año 00» deja de citar el requisito (070:RF-78). La
+#: fuente de planeamiento_pide-008, sellada, acorta su ancla a «diagnóstico del año 00», que está en la línea 4650 de la
+#: revisión fijada y en el árbol; la respuesta no cambia (sin tasa, solo el año 00). Cambia la huella de lo sellado.
+HUELLA_CONJUNTO = '3ec25dd399d3b0d15eb3310a0a136b264cc09e87992c46566619a1aedf66e627'
+HUELLA_SELLADO = '98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce'
 HUELLA_HECHOS = 'cf9e05488d73c44b2c2a16f033edb41588779968ea419d9fe81e5f6c41b7b50d'
 
 #: sha256('076:' + texto normalizado)[:16] de nombres de clientes y obras que solo salen en los casos de prueba.

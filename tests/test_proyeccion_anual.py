@@ -539,7 +539,7 @@ def test_pide_sin_libros_ni_estudio_sigue_con_la_tasa_y_lo_dice(tmp_path, monkey
         wid = cliente.post('/api/workspaces', json={'name': 'p'}).json()['id']
         ws = cliente.app.state.store.get(wid)
         avisos: list[str] = []
-        assert services._pronostico_primero(ws, None, 'P', ['F0'], None, {}, avisos) is None and '031:RF-1' in avisos[-1]
+        assert services._pronostico_primero(ws, None, 'P', ['F0'], None, {}, avisos) is None and 'no se pronostica' in avisos[-1]
         estudio = type('E', (), {'anio_base': 2030, 'largo_plazo': (4, 8)})()
         assert services._pronostico_primero(ws, None, 'P', ['F0'], estudio, {}, avisos) is None and 'libros' in avisos[-1]
 

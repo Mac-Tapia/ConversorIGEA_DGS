@@ -68,11 +68,10 @@ def _restituir_tras_fallo(app, foto) -> None:
     try:
         hecho = pf_estado.restituir(app, foto)
     except Exception as exc:  # noqa: BLE001 - la API puede fallar; el servidor sigue
-        print(f'AVISO: la orden falló y no se pudo restituir el estado de DIgSILENT: {exc} '
-              '(064:RF-7).', flush=True)
+        print(f'AVISO: la orden falló y no se pudo restituir el estado de DIgSILENT: {exc}.', flush=True)
         return
     if hecho:
-        print('La orden falló: se deja DIgSILENT como estaba al empezar (064:RF-5): '
+        print('La orden falló: se deja DIgSILENT como estaba al empezar: '
               + '; '.join(hecho) + '.', flush=True)
 
 
@@ -97,7 +96,7 @@ def atender(orden: dict, cola: Path, app=None) -> int:
                     foto = pf_estado.fotografiar(app)
                 except pf_estado.FotoFallida as exc:
                     print(f'AVISO: {exc}. La orden se atiende, pero si falla no se podrá '
-                          'restituir el estado (064:RF-9).', flush=True)
+                          'restituir el estado.', flush=True)
             try:
                 codigo = _cargar(orden['guion']).main(list(orden.get('argv') or []))
             except SystemExit as exc:
@@ -195,7 +194,7 @@ def servir(inactividad_s: float = pf_arnes.INACTIVIDAD_S, *,
             if (cola / pf_arnes.CIERRE).exists():
                 # 019:RF-14: un guion suelto espera el motor y no hay nada que atender.
                 (cola / pf_arnes.CIERRE).unlink(missing_ok=True)
-                _decir('Otro guion pide el motor y no hay órdenes: se cierra (019:RF-14).')
+                _decir('Otro guion pide el motor y no hay órdenes: se cierra.')
                 return 0
             dormir(0.3)
             continue
@@ -215,14 +214,15 @@ def servir(inactividad_s: float = pf_arnes.INACTIVIDAD_S, *,
             continue
         if _sin_cliente(orden, vivo):
             _decir(f"Orden {orden['id']} descartada: su cliente (proceso {orden['cliente']}) "
-                   'ya no la espera (019:RF-17).')
+                   'ya no la espera.')
             en_curso.unlink(missing_ok=True)
             continue
         raiz = orden.get('raiz')
         if raiz and os.path.normcase(raiz) != pf_arnes.carpeta_del_codigo(__file__):
             # 019:RF-27: atenderla aquí la correría con otro código; su cliente arranca el suyo.
             en_curso.replace(fichero)
-            _decir(f"Orden {orden['id']} es de {raiz}, no de este servidor: vuelve a la cola y se cierra (019:RF-27).")
+            _decir(f"Orden {orden['id']} es de {raiz}, no de este servidor: vuelve a la cola, donde esta orden "
+                   f'espera para correr con {raiz}, y este servidor se cierra.')
             return 0
         _decir(f"Orden {orden['id']}: {orden['guion']}")
         inicio = reloj()
@@ -237,7 +237,7 @@ def servir(inactividad_s: float = pf_arnes.INACTIVIDAD_S, *,
                    estadistica_ordenes.ultima_causa(cola / f"{orden['id']}.log") if codigo else '')   # 081:RF-71
         _decir(f"Orden {orden['id']} terminada con código {codigo} en {segundos:.0f} s.")
         ultima = reloj()
-    _decir(f'Sin órdenes en {inactividad_s:g} s: se cierra (019:RF-8).')
+    _decir(f'Sin órdenes en {inactividad_s:g} s: se cierra.')
     return 0
 
 

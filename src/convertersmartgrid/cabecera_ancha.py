@@ -146,20 +146,20 @@ def leer_ancho(rutas: Iterable[Path | str], codigos: Sequence[str],
             i, col_fecha, cols = hallada
             magnitud = _magnitud(hoja, filas)
             if magnitud is None:
-                lectura.avisos.append(f'{ruta.name} / {hoja}: no dice si es activa o reactiva; no se lee (051:RF-2).')
+                lectura.avisos.append(f'{ruta.name} / {hoja}: no dice si es activa o reactiva; no se lee.')
                 continue
             for codigo, j in cols.items():
                 otras = [k for k, c in enumerate(filas[i]) if k != j and clave_codigo(c) == clave_codigo(codigo)]
                 if otras:
                     lectura.avisos.append(f'{ruta.name} / {hoja}: {codigo} está {len(otras) + 1} veces; '
-                                          f'se toma la primera columna (051:RF-5).')
+                                          f'se toma la primera columna.')
             signo = {c: -1.0 if magnitud == 'kvar' and any(
                 'capacitiv' in normalizar(f[j]) for f in filas[:i] if j < len(f)) else 1.0
                 for c, j in cols.items()}
             for c, s in signo.items():
                 if s < 0:
                     lectura.avisos.append(f'{ruta.name} / {hoja}: la reactiva de {c} es capacitiva; '
-                                          'va con signo negativo (051:RF-4).')
+                                          'va con signo negativo.')
             k = 0 if magnitud == 'kw' else 1
             for fila in filas[i + 1:]:
                 cuando = instante(fila[col_fecha] if col_fecha < len(fila) else None,
@@ -209,14 +209,14 @@ def leer_maximas_mensuales(rutas: Iterable[Path | str], codigos: Sequence[str], 
             else:
                 continue
             if anio is None:
-                lectura.avisos.append(f'{ruta.name} / {hoja}: tabla de máximas sin año; no se lee (051:RF-9).')
+                lectura.avisos.append(f'{ruta.name} / {hoja}: tabla de máximas sin año; no se lee.')
                 continue
             titulo = ' '.join(normalizar(c) for f in filas[:i + 1] for c in f if isinstance(c, str))
             u = (unidad or ('mw' if re.search(r'\bmw\b', titulo) else 'kw' if re.search(r'\bkw\b', titulo)
                             else '')).lower()
             if u not in ('mw', 'kw'):
                 raise DemandaError(f'{ruta.name} / {hoja}: la tabla de máximas no dice si es MW o kW; '
-                                   'indíquelo (051:RF-9).')
+                                   'indíquelo.')
             factor = 1000.0 if u == 'mw' else 1.0
             vistos: set[str] = set()
             for fila in filas[i + 1:]:
@@ -233,7 +233,7 @@ def leer_maximas_mensuales(rutas: Iterable[Path | str], codigos: Sequence[str], 
                 lectura.mensuales.add(codigo)
     for c in sorted(lectura.mensuales):
         lectura.avisos.append(f'{c}: máximas mensuales sin hora ni reactiva; la calibración ajusta solo '
-                              'la activa y no supone ningún factor de potencia (051:RF-9).')
+                              'la activa y no supone ningún factor de potencia.')
     return lectura
 
 
@@ -250,12 +250,12 @@ def escribir(lectura: Lectura, carpeta: Path | str, medidores: Mapping[str, str]
     fp = {c: float(v) for c, v in (fp or {}).items()}
     malos = [f'{c}={v}' for c, v in fp.items() if not 0 < v <= 1]
     if malos:
-        raise DemandaError('El factor de potencia va entre 0 y 1: ' + ', '.join(malos) + ' (051:RF-11).')
+        raise DemandaError('El factor de potencia va entre 0 y 1: ' + ', '.join(malos) + '.')
     from openpyxl import Workbook
 
     carpeta = Path(carpeta)
     if 'referencia' in {p.casefold() for p in carpeta.resolve().parts}:
-        raise DemandaError('Los libros normalizados no se escriben en referencia/ (051:RF-7).')
+        raise DemandaError('Los libros normalizados no se escriben en referencia/.')
     carpeta.mkdir(parents=True, exist_ok=True)
     escritos = []
     anios = sorted({t.year for s in lectura.series.values() for t in s})

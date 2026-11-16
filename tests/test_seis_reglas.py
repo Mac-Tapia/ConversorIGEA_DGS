@@ -59,7 +59,7 @@ def test_mide_la_distancia_al_trazado_y_nombra_el_tramo():
         assert tramo == ('L1' if lat > -10.01 else 'L2')
     assert sitio_set.distancia_a_trazados((-10.0, -70.0), []) == (None, None)
     r = sitio_set.revisar((-10.0, -70.0), [], _p())
-    assert r['a_alimentador_m'] is None and any('084:RF-1' in a for a in r['avisos'])
+    assert r['a_alimentador_m'] is None and any('no se pudo medir la distancia a los alimentadores' in a for a in r['avisos'])
 
 
 def test_un_punto_encima_de_la_red_se_aparta_lo_justo():
@@ -69,7 +69,7 @@ def test_un_punto_encima_de_la_red_se_aparta_lo_justo():
     assert r['movido'] and r['a_alimentador_m'] >= RETIRO
     assert r['a_alimentador_m'] < 2 * RETIRO
     assert r == sitio_set.situar(punto, TRAZADO, _p())
-    assert any('084:RF-2' in a for a in r['avisos'])
+    assert any('El punto se apartó' in a for a in r['avisos'])
     # Uno que ya cumple no se mueve.
     lejos = (-10.005, -69.99)
     quieto = sitio_set.situar(lejos, TRAZADO, _p())
@@ -84,7 +84,7 @@ def test_sin_sitio_al_alcance_queda_el_punto_y_se_dice():
         malla.append((f'V{i}', [(desde, -70.0 + i * 0.0002), (hasta, -70.0 + i * 0.0002)]))
     r = sitio_set.situar((-10.0, -70.0), malla, _p())
     assert not r['movido'] and r['estado'] == sitio_set.SOBRE_ALIMENTADOR
-    assert any('084:RF-3' in a for a in r['avisos'])
+    assert any('hay que elegirlo en el plano' in a for a in r['avisos'])
     assert 'Queda encima de la red' in r['frase']
 
 
@@ -112,12 +112,12 @@ def test_sin_calles_el_punto_queda_sin_verificar_en_plano(tmp_path, monkeypatch)
     monkeypatch.setattr(urllib.request, 'urlopen', prohibido)
     r = sitio_set.situar((-10.005, -69.99), TRAZADO, _p())
     assert r['estado'] == sitio_set.SIN_VERIFICAR and 'Sin verificar en plano' in r['frase']
-    assert any('084:RF-5' in a for a in r['avisos'])
+    assert any('sin verificar en plano' in a for a in r['avisos'])
     roto = tmp_path / 'c.geojson'
     roto.write_text('no es json', encoding='utf-8')
     for ruta in (roto, tmp_path / 'no_existe.geojson'):
         p = sitio_set.parametros({'planificacion': {'sitio_set': {'retiro_min_m': RETIRO, 'calles_geojson': str(ruta)}}})
-        assert not p.calles and any('084:RF-5' in a for a in p.avisos)
+        assert not p.calles and any('sin verificar en plano' in a for a in p.avisos)
         assert sitio_set.situar((-10.005, -69.99), TRAZADO, p)['estado'] == sitio_set.SIN_VERIFICAR
     fuente = (RAIZ / 'src/convertersmartgrid/sitio_set.py').read_text(encoding='utf-8')
     assert not re.search(r'\b(requests|urllib|http|osrm|overpass)\b', fuente, re.I)
@@ -129,7 +129,7 @@ def test_sin_retiro_en_el_perfil_da_la_distancia_y_no_mueve():
     assert p.retiro_m is None
     r = sitio_set.situar((-10.005, -70.0), TRAZADO, p)
     assert not r['movido'] and r['a_alimentador_m'] == pytest.approx(0, abs=1e-6)
-    assert r['estado'] == sitio_set.SIN_VERIFICAR and any('retiro_min_m' in a and '084:RF-6' in a for a in r['avisos'])
+    assert r['estado'] == sitio_set.SIN_VERIFICAR and any('retiro_min_m' in a and 'el punto no se aparta' in a for a in r['avisos'])
 
 
 def test_nunca_dice_area_libre():
@@ -187,7 +187,7 @@ def test_si_un_flujo_no_converge_en_el_punto_final_no_cumple(perfil_retiro, monk
     assert codigo == 0, informe
     fila = informe['obras'][0]
     assert fila['set_nueva']['cumple'] is False and fila['variacion']
-    assert any('desequilibrado' in a and '084:RF-8' in a for a in fila['avisos'])
+    assert any('desequilibrado' in a and 'En el punto final no converge el flujo' in a for a in fila['avisos'])
 
 
 def test_flujos_de_otro_punto_no_estan_al_dia():
@@ -241,9 +241,9 @@ def test_la_web_situa_antes_de_crear_la_obra_y_no_bloquea(monkeypatch, tmp_path,
     assert sitio['movido'] and sitio['a_alimentador_m'] >= 400.0
     assert creadas[0]['destino'] == f"{sitio['lat']:.7f}, {sitio['lon']:.7f}"
     assert (r['ubicacion']['lat'], r['ubicacion']['lon']) == (sitio['lat'], sitio['lon'])
-    assert any('084:RF-5' in a for a in r['avisos'])
+    assert any('sin verificar en plano' in a for a in r['avisos'])
     assert r['ubicacion_final']['cumple'] is cumple
-    assert any('084:RF-10' in a for a in r['avisos']) is not cumple
+    assert any('Flujos sin repetir en el punto final de la SET nueva' in a for a in r['avisos']) is not cumple
 
 
 # ======================================================================= regla 2: ternas subterráneas
@@ -262,11 +262,11 @@ def test_dos_ternas_dicen_su_configuracion(config, esperado):
 def test_sin_configuracion_se_dice_y_una_desconocida_no_vale():
     """084:RF-13 — sin suponer: nombra las tres opciones; la obra rechaza una que no existe."""
     inst = it.instalacion(tipo='X', ternas=3, cable=True, perfil={})
-    assert inst['configuracion'] is None and any('084:RF-13' in a and 'triangular' in a for a in inst['avisos'])
+    assert inst['configuracion'] is None and any('enterrado triangular o rectangular' in a for a in inst['avisos'])
     assert 'por definir' in it.describir(inst) and '3 ternas' in it.describir(inst)
     rara = it.instalacion(tipo='X', ternas=2, cable=True, perfil={}, configuracion='plana')
     assert rara['configuracion'] is None
-    with pytest.raises(ObrasError, match='084:RF-13'):
+    with pytest.raises(ObrasError, match='La configuración de las ternas es una de'):
         validar_obra({'clase': 'terna', 'alimentador': 'A', 'casos': [CON], 'configuracion': 'plana'})
     assert validar_obra({'clase': 'terna', 'alimentador': 'A', 'casos': [CON],
                          'configuracion': 'Triangular'}).configuracion == 'triangular'
@@ -303,7 +303,7 @@ def test_sin_dato_del_fabricante_no_se_inventa_factor(monkeypatch):
     guion._instalar_ternas(fila, linea)
     assert getattr(linea, 'fline', 'sin escribir') == antes
     assert fila['instalaciones'][0]['factor'] is None
-    assert any('084:RF-15' in a for a in fila['avisos'])
+    assert any('sin confirmar para varias ternas' in a for a in fila['avisos'])
     assert 'sin confirmar' in it.describir(fila['instalaciones'][0])
     fuente = (RAIZ / 'src/convertersmartgrid/instalacion_ternas.py').read_text(encoding='utf-8')
     assert not re.search(r'(?<![\w.])0[.,]\d', fuente), 'ningún factor de agrupamiento en el código'
@@ -383,7 +383,7 @@ def test_toda_variante_se_comprueba_en_maxima_y_en_valle(escalones):
 def test_una_prueba_no_llega_al_digsilent_real():
     """084:RF-21 — bajo pytest, la API compilada se rechaza antes de tomar el turno; un doble sigue."""
     real = SimpleNamespace(__file__='C:/PF/powerfactory.cp312-win_amd64.pyd')
-    with pytest.raises(pf_arnes.PFNoDisponible, match='084:RF-21'):
+    with pytest.raises(pf_arnes.PFNoDisponible, match='no se conecta al DIgSILENT real'):
         pf_arnes.conectar('sonda', modulo=real)
     pf_arnes.exigir_fuera_de_pruebas(real, {})
     pf_arnes.exigir_fuera_de_pruebas(SimpleNamespace(__file__='tests/fake_pf.py'))
@@ -438,7 +438,7 @@ def test_borrar_solo_en_el_proyecto_de_la_orden():
     assert pf_arnes.borrar_en_su_proyecto(propio, a) == 0 and propio.borrado
     for obj, proyecto in ((ajeno, a), (_Obj('suelto'), a), (propio, None)):
         obj.borrado = False
-        with pytest.raises(pf_arnes.BorradoFueraDeProyecto, match='084:RF-24'):
+        with pytest.raises(pf_arnes.BorradoFueraDeProyecto, match='no se borra'):
             pf_arnes.borrar_en_su_proyecto(obj, proyecto)
         assert not obj.borrado
 
@@ -471,7 +471,7 @@ def test_deshacer_y_eliminar_no_borran_lo_de_otro_proyecto():
     app = SimpleNamespace(GetActiveProject=lambda: a, GetActiveStudyCase=lambda: None, GetProjectFolder=lambda _n: None)
     r = cargas_guion.eliminar_variaciones(app, [{'variacion': 'V2'}, {'variacion': 'V1'}], {'V1': propia, 'V2': ajena})
     assert not ajena.borrado and propia.borrado
-    assert r[0]['eliminada'] is False and '084:RF-24' in r[0]['error'] and r[1]['eliminada'] is True
+    assert r[0]['eliminada'] is False and 'no se borra' in r[0]['error'] and r[1]['eliminada'] is True
 
 
 #: Cada ``Delete`` de DIgSILENT con su justificación. Uno nuevo hace fallar la prueba hasta decir qué borra.
@@ -597,4 +597,4 @@ def test_la_obra_de_terna_deja_su_instalacion_en_el_informe_de_la_obra(monkeypat
     fila = informe['obras'][0]
     (inst,) = fila['instalaciones']
     assert inst['tramo'] == 'F1_L2' and inst['configuracion'] == 'rectangular' and inst['ternas'] == 2
-    assert any('084:RF-15' in a for a in fila['avisos'])
+    assert any('sin confirmar para varias ternas' in a for a in fila['avisos'])

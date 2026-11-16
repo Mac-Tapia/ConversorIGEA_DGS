@@ -444,8 +444,8 @@ def main(argv=None) -> int:
                 except (EstructuraError, PerfilError) as exc:
                     raise SystemExit(f'Estructura: {exc}') from exc
                 if estructura is None:
-                    raise SystemExit('--por-sistema: el perfil de empresa no trae estructura '
-                                     '(022:RF-1); use --estructura TABLA.xlsx.')
+                    raise SystemExit('--por-sistema: el perfil de empresa no trae estructura; '
+                                     'use --estructura TABLA.xlsx.')
                 todos = [feeder_short_name(n) for n in dataset.feeder_ids() if dataset.feeders.get(n)]
                 # 022:RF-77: los de la entrega que la tabla aún no trae, como en la web.
                 estructura = completar(estructura, {

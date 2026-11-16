@@ -391,7 +391,7 @@ def crear_tipos_conductor(app, conductores: list[dict], avisos: list[str]) -> li
         local = app.GetLocalLibrary('TypLne')
         tipo = (local.CreateObject('TypLne', c['nombre']) if local is not None else None) or equip.CreateObject('TypLne', c['nombre'])
         if tipo is None:
-            avisos.append(f"DIgSILENT no dejó crear el tipo {c['nombre']!r} (042:RF-30).")
+            avisos.append(f"DIgSILENT no dejó crear el tipo {c['nombre']!r}.")
             continue
         ref = next((o for o in existentes if a_tension(o, kv)), None)
         if ref is not None and getattr(ref, 'frnom', None):
@@ -401,12 +401,12 @@ def crear_tipos_conductor(app, conductores: list[dict], avisos: list[str]) -> li
         leidos = {a: getattr(tipo, a, None) for a in c['datos']}
         if not _iguales(leidos, c['datos']):
             tipo.Delete()
-            avisos.append(f"El tipo {c['nombre']!r} no quedó con los datos de su ficha: {leidos} (042:RF-30).")
+            avisos.append(f"El tipo {c['nombre']!r} no quedó con los datos de su ficha: {leidos}.")
             continue
         existentes.append(tipo)
         creados.append(c['nombre'])
         avisos.append(f"Se creó el tipo {c['nombre']} en la biblioteca del proyecto: {c['datos']['sline'] * 1000:.0f} A, "
-                      f"R {c['datos']['rline']:.4f} Ω/km, de su ficha ({c.get('fuente') or 'catálogo'}) (042:RF-30).")
+                      f"R {c['datos']['rline']:.4f} Ω/km, de su ficha ({c.get('fuente') or 'catálogo'}).")
     return creados
 
 
@@ -641,14 +641,14 @@ def _activar_en_el_flujo(ctx, atributo: str, que: str, propios=()) -> None:
         ldf = _ldf_del_caso(ctx.app, caso)
         if ldf is None:
             ctx.fila['avisos'].append(f'No se encontró el flujo de carga de «{nombre}»: la obra no regula allí hasta que se '
-                                      f'active su ajuste automático de {que} (ComLdf.{atributo}) (098:RF-34).')
+                                      f'active su ajuste automático de {que} (ComLdf.{atributo}).')
             continue
         if getattr(ldf, atributo, 0):
             continue
         anotar_valor(ctx, 'ComLdf', ldf, atributo, 1, caso)
         activados.append(nombre)
         ctx.fila['avisos'].append(f'Se activa el ajuste automático de {que} del flujo de «{nombre}» (ComLdf.{atributo}): '
-                                  'sin él la obra no regula (098:RF-34).')
+                                  'sin él la obra no regula.')
     if activados and atributo == 'iopt_at':
         _otras_tomas(ctx, propios)
 
@@ -707,7 +707,7 @@ def restituir_flujo_original(app, plan: dict, casos: dict, avisos: list[str]) ->
             otros = _reguladores_activos(app)
             if otros:
                 avisos.append(f"El ajuste de tomas del flujo de «{e.get('caso')}» sigue activo: lo necesitan "
-                              + ', '.join(otros[:5]) + ' (098:RF-34).')
+                              + ', '.join(otros[:5]) + '.')
                 quedan.append(e)
                 continue
             ldf = _ldf_del_caso(app, caso)
@@ -757,10 +757,10 @@ def _otras_tomas(ctx, propios=()) -> None:
     if ctx.plan.get('evaluando'):
         anotar_valores(ctx, [(c, t, a, 0, None) for c, t, a in otras])
         ctx.fila['avisos'].append(f'Mientras se mide, {otras_n} equipo(s) con toma automática quedan con la toma '
-                                  f'fija ({lista}): la variante no cumple gracias a ellos; al borrarla vuelven (098:RF-34).')
+                                  f'fija ({lista}): la variante no cumple gracias a ellos; al borrarla vuelven.')
     else:
         ctx.fila['avisos'].append(f'Con el ajuste de tomas activo, también regulan {otras_n} equipo(s) con toma '
-                                  f'automática: {lista} (098:RF-34).')
+                                  f'automática: {lista}.')
 
 
 def restituir_valores(app, casos: dict, valores: list[dict], avisos: list[str]) -> int:
@@ -776,7 +776,7 @@ def restituir_valores(app, casos: dict, valores: list[dict], avisos: list[str]) 
             caso = por_ruta.get(e.get('caso_ruta')) or por_nombre.get(e.get('caso'))
             if caso is None and e.get('caso'):
                 avisos.append(f"No está el caso «{e['caso']}»: {e.get('clase')} {e.get('nombre')}.{e['atributo']} queda "
-                              'como lo dejó la obra (098:RF-34).')
+                              'como lo dejó la obra.')
                 continue
             if caso is not None:
                 caso.Activate()
@@ -787,7 +787,7 @@ def restituir_valores(app, casos: dict, valores: list[dict], avisos: list[str]) 
                 if otros:
                     # 2 obras con regulador comparten el flujo: apagarlo al retirar una dejaba la otra sin regular.
                     avisos.append(f"El ajuste de tomas del flujo de «{e.get('caso')}» sigue activo: lo necesitan "
-                                  + ', '.join(otros[:5]) + ' (098:RF-34).')
+                                  + ', '.join(otros[:5]) + '.')
                     continue
             for o in objs:
                 if o is not None and getattr(o, e['atributo'], None) != e['valor']:
@@ -1519,7 +1519,7 @@ def construir_migracion(ctx) -> None:
         else:
             abrir(ctx, 'ElmLne', lineas[entrada])
             fila['avisos'].append(f'{entrada} no tiene interruptor ni seccionador: sale de servicio para separar la parte '
-                                  'que pasa (098:RF-12).')
+                                  'que pasa.')
     elif entrada in acopladores:
         abrir(ctx, 'ElmCoup', acopladores[entrada])
     if nuevos:
@@ -1941,12 +1941,12 @@ def construir_set_nueva(ctx) -> None:
     fila['avisos'] += [a for a in sitio['avisos'] if a not in fila['avisos']]
     no_convergen = [k for k, v in flujos_finales.items() if not v['converge']]
     if no_convergen:
-        fila['avisos'].append(f'En el punto final no converge el flujo {" ni el ".join(no_convergen)} (084:RF-8).')
+        fila['avisos'].append(f'En el punto final no converge el flujo {" ni el ".join(no_convergen)}.')
     cumple = bool(elegido['converge'] and not elegido['fuera'] and not no_convergen)
     if not cumple:
         fila['avisos'].append(f'Ningún punto de los {len(intentos)} probados deja todas las barras de media '
                               f'entre {limites.tension_min_pu:g} y {limites.tension_max_pu:g} p.u.; queda el '
-                              f'mejor, con {elegido["fuera"]} fuera (042:RF-10).')
+                              f'mejor, con {elegido["fuera"]} fuera.')
     fila['set_nueva'] = {**fila.get('set_nueva', {}), 'lat': punto[0], 'lon': punto[1], 'cumple': cumple,
                          'toma': elegido['toma'], 'u_media': elegido['u_media'], 'consigna_pu': consigna,
                          'regula': regula, 'sitio': sitio,
@@ -2286,7 +2286,7 @@ def flujo_del_plan(app, proyecto, casos, filas: list[dict], plan: dict | None = 
         cerrar_lo_abierto(app, f, plan)                                       # 042:RF-19
         f['flujo'][nombre]['diagnostico'] = diag
         f['avisos'].append(f'Con el plan completo ({len(con)} obras), el flujo de «{nombre}» no converge: '
-                           'quedan inactivas y se conservan en el proyecto (042:RF-23).')
+                           'quedan inactivas y se conservan en el proyecto.')
     return {'obras': len(con), 'converge': False}
 
 
@@ -2581,7 +2581,7 @@ def restituir_pendientes(app, plan: dict, casos: dict, informe: dict) -> list[di
         sueltas = sorted({e['variacion'] for e in restituidas if e.get('evaluando') and e.get('variacion') in existen})
         if sueltas:
             informe['avisos'].append('Quedan en el proyecto las variaciones de la evaluación cortada: '
-                                     + ', '.join(sueltas) + '; retírelas con las obras del alimentador (042:RF-60).')
+                                     + ', '.join(sueltas) + '; retírelas con las obras del alimentador.')
     informe['aperturas_restituidas'] = [{k: e.get(k) for k in ('caso', 'clase', 'nombre', 'variacion')} for e in restituidas]
     return restituidas
 
@@ -2836,7 +2836,7 @@ def deshacer_sustitucion(app, plan: dict, casos: dict, creadas, viejas, operacio
             try:
                 if quedan:
                     avisos.append('No se pudo quitar lo creado de la obra nueva (' + ', '.join(quedan) + '): la vieja '
-                                  'no se reactiva encima; revise «Con proyecto» (098:RF-36).')
+                                  'no se reactiva encima; revise «Con proyecto».')
                 else:
                     _reactivar(app, casos.get('con'), viejas)
             finally:
@@ -2891,7 +2891,7 @@ def sustituir(app, plan: dict) -> tuple[dict, int]:
     operacion = list(s.get('operacion') or [])
     base: dict[str, Any] = {'project': plan.get('project'), 'modo': 'sustituir', 'obras': [], 'avisos': []}
     if not viejas:
-        return {**base, 'error': 'sin las variaciones de la obra que se sustituye (098:RF-36)'}, 2
+        return {**base, 'error': 'sin las variaciones de la obra que se sustituye'}, 2
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
     if proyecto is None:
         return {**base, 'error': f"no existe el proyecto {plan['project']!r} en DIgSILENT"}, 2
@@ -2958,7 +2958,7 @@ def sustituir(app, plan: dict) -> tuple[dict, int]:
                 f['error'] = f'deshecha: {motivo}'
             informe['sustitucion'] = {'hecha': False, 'motivo': motivo, 'deshechas': creadas}
             informe['avisos'] = list(informe.get('avisos') or []) + base['avisos'] + [
-                f'La obra nueva no queda ({motivo}): se deshace lo creado y vuelve la vieja, activa (098:RF-36).']
+                f'La obra nueva no queda ({motivo}): se deshace lo creado y vuelve la vieja, activa.']
             if isinstance(exc, _Deshacer):
                 return informe, 2
             raise
@@ -2969,7 +2969,7 @@ def sustituir(app, plan: dict) -> tuple[dict, int]:
             borradas, sin_borrar = _borrar_variaciones(app, casos, viejas, feeders)
         except Exception as exc:  # noqa: BLE001 - la nueva se queda; lo que no se borró se dice
             sin_borrar = sorted(set(viejas) & set(_esquemas(app)))
-            base['avisos'].append(f'Al borrar la obra vieja: {exc} (098:RF-36).')
+            base['avisos'].append(f'Al borrar la obra vieja: {exc}.')
         if sin_borrar:
             try:
                 casos['con'].Activate()
@@ -2984,7 +2984,7 @@ def sustituir(app, plan: dict) -> tuple[dict, int]:
         hecho['avisos'] = list(hecho.get('avisos') or []) + base['avisos']
         if sin_borrar:
             hecho['avisos'].append('La obra vieja no se borró entera: quedan ' + ', '.join(sin_borrar)
-                                   + ', desactivadas en «Con proyecto»; retírelas a mano (098:RF-36).')
+                                   + ', desactivadas en «Con proyecto»; retírelas a mano.')
         _quitar_diario(plan, 'sustitucion', ident)
         return hecho, 0 if not sin_borrar else 2
     finally:
@@ -3007,13 +3007,13 @@ def _recuperar_especiales(app, plan: dict, casos: dict, especiales: list[dict], 
             if e.get('paso') == 'nueva_verificada':
                 borradas, quedan = _borrar_variaciones(app, casos, e.get('viejas') or [], feeders)
                 avisos.append('Una sustitución quedó a medias con la obra nueva ya comprobada: se borra la vieja, '
-                              + ', '.join(borradas or quedan) + ' (098:RF-36).')
+                              + ', '.join(borradas or quedan) + '.')
             else:
                 deshacer_sustitucion(app, plan, casos, e.get('creadas') or [], e.get('apartadas') or [],
                                      e.get('operacion') or [], e.get('operacion_nueva') or [],
                                      e.get('paso') in ('operacion_deshecha', 'nueva_creada'), avisos, feeders)
                 avisos.append('Una sustitución quedó a medias: se deshace la obra nueva ('
-                              + (', '.join(e.get('creadas') or []) or 'nada') + ') y la vieja vuelve, activa (098:RF-36).')
+                              + (', '.join(e.get('creadas') or []) or 'nada') + ') y la vieja vuelve, activa.')
             _quitar_diario(plan, 'sustitucion', e['id'])
             hechas.append(e)
         elif e.get('accion') == 'apartada':
@@ -3023,7 +3023,7 @@ def _recuperar_especiales(app, plan: dict, casos: dict, especiales: list[dict], 
                 _guardar_escenarios(app, casos, rehacer_operacion(app, plan, casos, e.get('operacion') or []))
             if vueltas:
                 avisos.append('Una medida que se cortó dejó apartada ' + ', '.join(vueltas)
-                              + ': vuelve a estar activa (098:RF-36).')
+                              + ': vuelve a estar activa.')
             _quitar_diario(plan, 'apartada', e['id'])
             hechas.append(e)
     if hechas:
@@ -3295,13 +3295,13 @@ def comprobar_persistencia(app, plan: dict, filas: list[dict], fotos_antes: dict
 def _avisos_de_persistencia(persistencia: dict, avisos: list[str]) -> None:
     for o in persistencia.get('obras') or []:
         if not o['ok']:
-            avisos.append(f"La obra {o['variacion']} no persiste como se aplicó: {o['motivo']} (048:RF-9).")
+            avisos.append(f"La obra {o['variacion']} no persiste como se aplicó: {o['motivo']}.")
     for caso, ref in (persistencia.get('referencias') or {}).items():
         if not ref['igual']:
             avisos.append(f"Las obras cambiaron «{caso}», que es la referencia: {'; '.join(ref['cambios'][:5])}"
-                          f"{' …' if ref['total_cambios'] > 5 else ''} (048:RF-9).")
+                          f"{' …' if ref['total_cambios'] > 5 else ''}.")
     if persistencia.get('error'):
-        avisos.append(f"No se pudo comprobar que las obras persisten: {persistencia['error']} (048:RF-9).")
+        avisos.append(f"No se pudo comprobar que las obras persisten: {persistencia['error']}.")
 
 
 #: Elementos con sitio en la red, y los atributos con sus barras (042:RF-36).
@@ -3457,7 +3457,7 @@ def aplicar(app, plan: dict, *, simular: bool = False,
             try:
                 georreferenciar_obras(app, informe['obras'])             # 042:RF-36
             except Exception as exc:  # noqa: BLE001 - situarlas no puede perder las obras ya aplicadas
-                informe['avisos'].append(f'No se pudieron leer las coordenadas de las obras: {exc} (042:RF-36).')
+                informe['avisos'].append(f'No se pudieron leer las coordenadas de las obras: {exc}.')
             informe['dibujo'] = completar_diagrama(app, proyecto)
     finally:
         if ajenas:
@@ -3512,7 +3512,7 @@ def reponer_cargas(app, plan: dict) -> tuple[dict, int]:
                 informe['repuestas'].append(v.loc_name)
         ahora = {v.loc_name for v in app.GetActiveNetworkVariations() or []}
         if faltan := sorted(nombres - ahora):
-            informe['avisos'].append(f"No se pudieron activar: {', '.join(faltan)} (042:RF-32).")
+            informe['avisos'].append(f"No se pudieron activar: {', '.join(faltan)}.")
     finally:
         if inicial is not None:
             inicial.Activate()
@@ -3542,7 +3542,7 @@ def retirar_obras(app, plan: dict) -> tuple[dict, int]:
     feeders = [str(f) for f in plan.get('feeders') or ()]
     pedidas = set(plan.get('variaciones') or ())
     if not pedidas:
-        informe['avisos'].append('Sin los nombres exactos de las obras a retirar no se borra ninguna (098:RF-36).')
+        informe['avisos'].append('Sin los nombres exactos de las obras a retirar no se borra ninguna.')
         return informe, 0
     try:
         casos['con'].Activate()
@@ -3556,7 +3556,7 @@ def retirar_obras(app, plan: dict) -> tuple[dict, int]:
         sin_borrar = sorted(pedidas - set(informe['retiradas']))
         if sin_borrar:
             informe['avisos'].append('No se retiran, por no estar en el proyecto o no ser obra de los alimentadores '
-                                     'pedidos: ' + ', '.join(sin_borrar) + ' (098:RF-36).')
+                                     'pedidos: ' + ', '.join(sin_borrar) + '.')
         # 098:RF-36: lo que la obra retirada abrió, cerró o cambió en el flujo es del escenario y del caso, no de su
         # variación: sin esto, CHN102 se quedaba con el ajuste de tomas y lo abierto de la obra que ya no está.
         filas = [f for f in plan.get('operacion_de_obras') or [] if f.get('variacion') in informe['retiradas']]
@@ -3680,7 +3680,7 @@ def marcar_cortes_del_operador(app, alims, plan: dict, enlaces: dict, avisos: li
 
         zonas, _objs, _frente = leer_transferencias(app, alims, plan, interesan=list(enlaces))
     except Exception as exc:  # noqa: BLE001 - sin la lectura de la transferencia, los enlaces siguen como están
-        avisos.append(f'No se pudo leer la transferencia del operador para mover su corte: {exc} (098:RF-43).')
+        avisos.append(f'No se pudo leer la transferencia del operador para mover su corte: {exc}.')
         return
     for z in zonas:
         cortes = {r.clave for r in z.cerrar} | {r.nombre for r in z.cerrar}
@@ -4003,7 +4003,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                     if nombre not in sin_ellas and c[-1]['desde'] in sin_ellas:
                         banco_en[nombre] = c[-1]['desde']        # aguas arriba, por el camino real
                 else:
-                    informe['avisos'].append(f'{f}: sin camino eléctrico hasta {nombre}: sus obras se colocan por cercanía GPS (042:RF-45).')
+                    informe['avisos'].append(f'{f}: sin camino eléctrico hasta {nombre}: sus obras se colocan por cercanía GPS.')
             # 042:RF-43: los tramos de cualquier ramal que pasan del límite con las cargas nuevas.
             limite = float(plan.get('cargabilidad_max_pct') or 0)
             por_nombre = {t['nombre']: t for t in tramos_red}
@@ -4043,7 +4043,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                 for d_ in descartados:                                                    # 098:RF-42
                     informe['avisos'].append(
                         f"El enlace {d_['enlace']} entre {' y '.join(d_['alimentadores'])} une {d_['kv'][0]:g} kV con "
-                        f"{d_['kv'][1]:g} kV sin transformador: no se propone transferir por él (098:RF-42).")
+                        f"{d_['kv'][1]:g} kV sin transformador: no se propone transferir por él.")
             informe['alimentadores'][f] = {'troncal': troncal, 'fuera_desde': fuera, 'indices': indices, 'nivel': nivel,
                                            'enlaces': enlaces.get(f, []),
                                            'bajas': [{'barra': n, 'u': round(u, 4)} for u, n in bajas[:MAX_BAJAS]],
@@ -4340,7 +4340,7 @@ class _Sorteo:
         if self.original is None:
             # Sin escenario, escribir la demanda cambiaría la red del caso, no un escenario.
             raise RuntimeError(f'«{app.GetActiveStudyCase().loc_name}» no tiene escenario de '
-                               'operación: no se sortea sobre él (025:RF-51)')
+                               'operación: no se sortea sobre él')
         carpeta = app.GetProjectFolder('scen', 1)
         nombre = nombre_libre(carpeta, 'IntScenario', 'CSG_sorteo_escalera')
         self.temporal = carpeta.AddCopy(self.original, nombre)
@@ -4442,7 +4442,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     puntos_valle = list((plan.get('valle') or {}).get('puntos') or [])
     if puntos_valle:
         informe['avisos'].append('En valle, la Q se escala con el factor de la P (scale0): la Q medida entra con '
-                                 'la calibración a valle (073 T8).')
+                                 'la calibración a valle.')
     inicial = app.GetActiveStudyCase()
     casos['con'].Activate()
     ajenas: list = []
@@ -4465,7 +4465,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             fuera = [c.loc_name for c in _cargas_de(alims, f) if c.loc_name not in vistas]
             if fuera:
                 informe['avisos'].append(f'{f}: {len(fuera)} cargas de otra troncal, fuera de su ElmFeeder, entran '
-                                         'en los sorteos, las pérdidas y el criterio (063:RF-40).')
+                                         'en los sorteos, las pérdidas y el criterio.')
         sin_max = medida_para_criterio(app, alims, feeders)
         informe['sin_proyecto'] = {'converge': sin_max['converge'], 'perdidas_kw': sin_max['perdidas_kw']}
         # 087:RF-28: la referencia sin obra se mide una vez por trabajo y se guarda; 042:RF-87 y RF-88: solo
@@ -4567,7 +4567,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                                 if restos:
                                     informe['avisos'].append(
                                         f"«{v['nombre']}» se cortó al crearse: se restituye lo que anotó, "
-                                        + ', '.join(sorted({str(e.get('nombre')) for e in restos})) + ' (098:RF-34).')
+                                        + ', '.join(sorted({str(e.get('nombre')) for e in restos})) + '.')
                 # 087:RF-51: una obra que cambia la topología (enlace, migración) deja el ElmFeeder con la red de la variante
                 # hasta otro flujo; sin él, la siguiente creación de la misma obra no hallaba su nodo («no tiene camino
                 # cerrado desde su cabecera», CHI201, Pisco, 2026-11-04) y sus sorteos y su alcance salían vacíos.
@@ -4746,12 +4746,12 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 break
             if primera_que_cumple is not None and len(filas) - primera_que_cumple >= p.variantes_tras_cumplir:
                 informe['avisos'].append(f'Se paró tras {p.variantes_tras_cumplir} variantes más desde la primera que '
-                                         f'cumple, con {len(clases_que_cumplen)} alternativa(s) (042:RF-90).')
+                                         f'cumple, con {len(clases_que_cumplen)} alternativa(s).')
                 break
             if v['nombre'] in conocidas:
                 fila = {**conocidas[v['nombre']], 'reutilizada': True}
                 filas.append((v, fila))
-                print(f"  {v['nombre']}: ya medida con la misma red (098:RF-32)", flush=True)
+                print(f"  {v['nombre']}: ya medida con la misma red", flush=True)
                 cumple_aqui = bool(fila.get('maxima')) and v.get('costo_base') is not None and fila.get('valle') is not False
                 if plan.get('alternativas') and cumple_aqui:                            # 042:RF-55
                     primera_que_cumple = len(filas) if primera_que_cumple is None else primera_que_cumple
@@ -4880,10 +4880,10 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 ganadora = fila['nombre']
         informe['tiempos_medida'] = TIEMPOS                                     # 042:RF-89
         if horizonte and not hay_definitiva and clases_que_cumplen:
-            informe['avisos'].append('Ninguna alternativa es definitiva a la vida útil dentro del tope de variantes (042:RF-92).')
+            informe['avisos'].append('Ninguna alternativa es definitiva a la vida útil dentro del tope de variantes.')
         informe['variantes'] = [f for _v, f in filas]
         print(f"  Tiempos de las medidas ligeras: {TIEMPOS['flujos']} flujos, {TIEMPOS['flujo_s']:.1f} s de flujo y "
-              f"{TIEMPOS['lectura_s']:.1f} s de lectura (042:RF-89).", flush=True)
+              f"{TIEMPOS['lectura_s']:.1f} s de lectura.", flush=True)
     finally:
         devolver_apartadas(app, plan, casos, diario_apartadas, ajenas)                     # 098:RF-36
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
@@ -5031,7 +5031,7 @@ def datos_vecinos(app, plan: dict) -> tuple[dict, int]:
         casos['con'].Activate()
         flujo = flujo_de_carga(app)
         if not flujo['converged']:
-            informe['avisos'].append('El flujo de «Con proyecto» no converge: sin margen de los vecinos (087:RF-32).')
+            informe['avisos'].append('El flujo de «Con proyecto» no converge: sin margen de los vecinos.')
         todos = {f.loc_name: f for f in app.GetCalcRelevantObjects('*.ElmFeeder')}
         # Una pasada por alimentador, no una por nodo: sus barras de media con GPS, tensión y resultado.
         resumen: dict[str, dict[str, Any]] = {}
@@ -5055,10 +5055,10 @@ def datos_vecinos(app, plan: dict) -> tuple[dict, int]:
                     punto, desde = _gps_por_la_red(barras_f.get(nodo), propio)
                     if punto is None:
                         informe['avisos'].append(f'{f}: la barra {nodo} no tiene coordenadas ni las tiene ninguna barra '
-                                                 'cercana por la red: sin vecinos para ella (087:RF-32, 098:RF-20).')
+                                                 'cercana por la red: sin vecinos para ella.')
                         continue
                     informe['avisos'].append(f'{f}: la barra {nodo} no tiene coordenadas: se toman las de {desde}, la '
-                                             'más cercana por la red (098:RF-20).')
+                                             'más cercana por la red.')
                 filas = []
                 for nombre, r in resumen.items():
                     if nombre == f or not r['gps']:

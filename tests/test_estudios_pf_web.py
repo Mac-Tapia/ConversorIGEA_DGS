@@ -407,8 +407,9 @@ def test_transferencia_sin_periodo_ni_instante_comun_no_se_calcula(client, falta
         'project': 'P', 'feeders': feeders, 'cabecera_job_id': job})
     estado = esperar_trabajo(client, r.json())
     assert estado['status'] == 'failed'
-    esperado = {'sin_maxima': 'Busque antes la máxima', 'sin_periodo': '013:RF-9',
-                'sin_comunes': '013:RF-29', 'sin_alimentador': 'no tiene la cabecera de A3'}[falta]
+    # 070:RF-78: el mensaje dice qué falta, sin el código del requisito.
+    esperado = {'sin_maxima': 'Busque antes la máxima', 'sin_periodo': 'sin periodo no se calcula la transferencia',
+                'sin_comunes': 'sin un instante común', 'sin_alimentador': 'no tiene la cabecera de A3'}[falta]
     assert esperado in estado['error']
 
 

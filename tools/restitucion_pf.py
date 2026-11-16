@@ -96,7 +96,7 @@ def alterar_y_fallar(app, plan: dict) -> dict:
         inactiva.Activate()
     alterado = _foto_legible(app)
     print(f'Estado alterado a propósito: {alterado}', flush=True)
-    print('La orden termina con código 1 para que el servidor restituya (064:T7).', flush=True)
+    print('La orden termina con código 1 para que el servidor restituya.', flush=True)
     return {'antes': antes, 'alterado': alterado, 'codigo_buscado': 1}
 
 

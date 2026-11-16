@@ -1,6 +1,6 @@
 # Spec 102 — Puerta de calidad: ningún commit ni subida con la suite en rojo
 
-Estado: cumplida (2026-11-10: T4 con la suite completa sin omitidas y GitHub Actions en verde) · Fecha: 2026-11-09 · Origen: usuario, 2026-11-09: «debe tener o implementar CI/CD, no quiero ver más
+Estado: aprobada (2026-11-14: RF-24 a RF-29, H13; antes cumplida 2026-11-10: T4 con la suite completa sin omitidas y GitHub Actions en verde) · Fecha: 2026-11-09 · Origen: usuario, 2026-11-09: «debe tener o implementar CI/CD, no quiero ver más
 fallas repetitivas; esas cosas ya se habían superado, pero veo que sigue fallando».
 
 ## Contexto y objetivo
@@ -70,6 +70,19 @@ Instalación
 - RF-23: Toda variable `CSG_*` que una prueba nombre al omitirse, y toda la del ejemplo `config/suite_completa.example.json`,
   estará en la lista de la puerta; la puerta pasa a la suite solo las de esa lista. (2026-11-12: `CSG_PF_PYTHON_39`, de la
   spec 103, estaba en el fichero local y no en la lista, y la suite de la 086 T31 habría omitido dos pruebas.)
+- RF-24: CUANDO un commit cambia algo de `frontend/`, o se sube a GitHub, la puerta y GitHub Actions pasarán también el lint de
+  fronteras del frontend (`npm run lint`); SI no se puede pasar (sin node o sin sus dependencias), ENTONCES el commit se
+  detendrá diciendo qué falta (H13, auditoría del 2026-11-14: RF-13 solo pedía el build y las pruebas).
+- RF-25: GitHub Actions usará cada acción fijada por el SHA completo de su commit, con la etiqueta de la versión en un
+  comentario, y nunca por una etiqueta que se pueda mover (H-CI1, auditoría del 2026-11-14).
+- RF-26: EL SISTEMA dará al flujo de GitHub Actions solo permiso de lectura del repositorio (`contents: read`), declarado
+  en lo más alto del flujo (H-CI2).
+- RF-27: GitHub Actions descargará el repositorio sin guardar sus credenciales en la copia de trabajo (H-CI3).
+- RF-28: CUANDO se sube a GitHub o se abre una petición de fusión, GitHub Actions pasará ruff con los errores de sintaxis
+  y de nombres sin definir (`E9,F63,F7,F82`) antes de la suite sintética (H-CI4).
+- RF-29: MIENTRAS una rama tenga abierta una petición de fusión, GitHub Actions dejará en marcha una sola corrida por
+  revisión de esa rama, y la nueva cancelará la anterior (H-CI5: la subida y la petición se corrían dos veces).
+- Aclaración de RF-29 (auditor 3e, 2026-11-14): en `main` la corrida nueva NO cancelará la anterior, para que cada commit de `main` conserve su corrida entera como evidencia de la etiqueta.
 
 ## Requisitos no funcionales
 

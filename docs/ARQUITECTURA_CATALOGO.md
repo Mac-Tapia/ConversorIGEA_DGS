@@ -8,39 +8,39 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 373 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 374 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
-| Herramientas y guiones | `tools/` | 111 |
+| Herramientas y guiones | `tools/` | 112 |
 | Interfaz | `frontend/src/` | 74 |
 | Pruebas de la interfaz | `frontend/test/` | 37 |
-| Pruebas | `tests/` | 498 |
+| Pruebas | `tests/` | 500 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 13932 líneas y 432 funciones, pendiente de partir (002).
+`web/services.py` tiene 13967 líneas y 434 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 80 |
-| aprobada | 28 |
-| implementada | 3 |
+| cumplida | 77 |
+| aprobada | 32 |
+| implementada | 2 |
 | retirada | 1 |
 
-112 specs con 3779 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3791 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 146 |
-| aplicacion | Apl | 115 |
+| aplicacion | Apl | 116 |
 | dominio | Dom | 55 |
 | presentacion | Pre | 42 |
 | puertos | Pue | 4 |
 
-362 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+363 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -563,6 +563,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `reranker.py` | Apl | 047 | Reranker por cross-encoder en CUDA, con revisión fijada, la política que lee la decisión de la evaluación sellada y los umbrales de abstención… |
 | `evaluacion_rag.py` | Apl | 047, 097 | Conjunto sintético sellado, medición de BM25, híbrido y rerankers, decisión según la política declarada, calibración de la abstención y su puerta en… |
 | `fuga_evaluacion.py` | Apl | 097 | Ninguna pregunta ni orden de un conjunto de evaluación en lo que la juzga: qué conjunto mide qué corpus, preguntas literales fuera de su fuente, de… |
+| `pregunta_entregada.py` | Apl | 086, 097 | «Pregunta» en el programa instalado: calibra al construir el candidato la abstención por BM25 sobre los manuales y notas que se entregan, con la… |
 | `corpus_proyecto.py` | Apl | 077 | Corpus ampliado del índice: ficheros, troceado sin perder líneas, caché por fichero y medida de tamaño. |
 | `lectura_proyecto.py` | Apl | 077 | Lecturas del proyecto para el LLM y el MCP: leer un fichero, buscar un texto literal y consultar una ruta en el OpenAPI, con política local o… |
 | `ejemplos_pide.py` | Ada | 027 | Ejemplos del agente desde el corpus PIDE entregado: por artículo sus evidencias en cada PIDE (por la ruta y el texto), por formato F01 a F15 sus… |
@@ -955,6 +956,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `tools/medir_mejora.py` | — | 087 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
 | `tools/pfd_diagnostico.py` | — | 004, 102 | Importa un `.pfd` con `ComPfdimport` en un proyecto nuevo de la carpeta del conversor, identificado por su huella (reutilizar, versión nueva,… |
 | `tools/pronostico_demanda.py` | — | 089 | Dataset y backtest de demanda desde las carpetas que haya. |
+| `tools/rutas_sin_modelo.py` | — | 002 | Lista las rutas de /api sin modelo de respuesta y escribe la lista de excepciones, que solo baja. |
 | `tools/verificar_entrega_integral.py` | — | 065, 086 | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. |
 
 ### Configuración, dependencias y entrega
@@ -972,6 +974,14 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/demanda_medida_alias.example.json` |
 | `config/entrega.json` |
 | `config/fichas/transformadores_sed.json` |
+| `config/licencias_terceros/APACHE-2.0_Qwen3.txt` |
+| `config/licencias_terceros/MICROSOFT_VCRUNTIME.txt` |
+| `config/licencias_terceros/MIT_Ollama.txt` |
+| `config/licencias_terceros/MIT_ggml_llama.cpp.txt` |
+| `config/licencias_terceros/MIT_multilingual-e5-base.txt` |
+| `config/licencias_terceros/NVIDIA_CUDA_EULA.txt` |
+| `config/licencias_terceros/NVIDIA_cuDNN_SLA.txt` |
+| `config/licencias_terceros/manifest.json` |
 | `config/line_type_aliases.example.json` |
 | `config/modulos_permitidos.example.json` |
 | `config/normativa/coes_maxima_demanda_sein.json` |
@@ -995,6 +1005,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/perfiles/plantilla.json` |
 | `config/pide_universal_2017.json` |
 | `config/pit_mapeo_formatos.json` |
+| `config/pregunta_entregada/CONJUNTO_ABSTENCION_ENTREGA.json` |
 | `config/suite_completa.example.json` |
 | `config/terminos_huellas.json` |
 | `config/vad/anexo2_formatos.json` |
@@ -1004,6 +1015,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/vnr_settings.example.yaml` |
 | `config/vulnerabilidades_justificadas.json` |
 | `constraints-python312-win.txt` |
+| `instalador/ComplementoIA.iss` |
 | `instalador/ConverterSmartGrid.iss` |
 | `requirements-complemento-ia.txt` |
 | `requirements-drivers.txt` |

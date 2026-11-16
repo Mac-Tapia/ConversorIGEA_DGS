@@ -72,7 +72,7 @@ def exigir_fuera_de_pruebas(modulo: Any, entorno: Any = None) -> None:
     """
     entorno = os.environ if entorno is None else entorno
     if entorno.get('PYTEST_CURRENT_TEST') and Path(getattr(modulo, '__file__', '') or '').suffix.lower() == '.pyd':
-        raise PFNoDisponible('Una prueba con datos sintéticos no se conecta al DIgSILENT real (084:RF-21); '
+        raise PFNoDisponible('Una prueba con datos sintéticos no se conecta al DIgSILENT real; '
                              'en DIgSILENT se prueba desde la web y con un proyecto importado.')
 
 
@@ -96,7 +96,7 @@ def borrar_en_su_proyecto(obj: Any, proyecto: Any) -> Any:
     if proyecto is None or dueno is None or dueno.GetFullName() != proyecto.GetFullName():
         raise BorradoFueraDeProyecto(
             f"{getattr(obj, 'loc_name', obj)!r} es de {getattr(dueno, 'loc_name', None)!r}, no del proyecto de la "
-            f"orden {getattr(proyecto, 'loc_name', None)!r}: no se borra (084:RF-24).")
+            f"orden {getattr(proyecto, 'loc_name', None)!r}: no se borra.")
     return obj.Delete()
 
 
@@ -348,7 +348,7 @@ def causa_sin_conexion(abierto: Callable[[], list[int]] | None = None, cola: Pat
     manuales = (abierto or _abierto_a_mano)()
     if manuales:
         return (f'DIgSILENT está abierto a mano (proceso {", ".join(map(str, manuales))}): ciérrelo y vuelva a '
-                'intentarlo; la acción necesita usarlo sola (019:RF-13).')
+                'intentarlo; la acción necesita usarlo sola.')
     causa = ultima_causa(cola)
     if causa:
         return f'No se pudo usar DIgSILENT: {causa}'
@@ -396,7 +396,7 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
     if manuales:
         raise PFNoDisponible(
             f'DIgSILENT está abierto a mano (proceso {", ".join(map(str, manuales))}): '
-            'ciérrelo para que la acción pueda usar el motor (019:RF-13).')
+            'ciérrelo para que la acción pueda usar el motor.')
     ruta = ruta_turno()
     ruta.parent.mkdir(parents=True, exist_ok=True)
     limite = reloj() + espera_s
@@ -427,7 +427,7 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
             # RF-4: ilegible y reciente: puede ser un dueño que lo está escribiendo; se espera dentro del plazo.
             if reloj() >= limite:
                 raise PFNoDisponible(f'DIgSILENT sigue ocupado ({dueno}) tras esperar {espera_s / 60:.0f} '
-                                     'min (019:RF-2).')
+                                     'min.')
             dormir(0.05)
             continue
         if resultado == 'ocupado':
@@ -455,7 +455,7 @@ def tomar_turno(guion: str, *, espera_s: float = ESPERA_S,
             if reloj() >= limite:
                 raise PFNoDisponible(
                     f'DIgSILENT sigue ocupado por {quien} tras esperar {espera_s / 60:.0f} '
-                    'min (019:RF-2).')
+                    'min.')
             if not cierre_pedido and pedir_cierre_si_ocioso(dueno):
                 # RF-14: el servidor sin órdenes cede el motor en vez de esperar sus 2 min.
                 cierre_pedido = True

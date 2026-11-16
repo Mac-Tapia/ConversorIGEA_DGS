@@ -152,7 +152,7 @@ def test_la_central_fuera_del_camino_mas_largo_avisa_y_calibra(guion, monkeypatc
     app = _app()
     informe, rc = guion.ejecutar(app, _plan())
     assert rc == 0, informe
-    assert any('camino más largo' in a and '021:RF-38' in a for a in informe['avisos'])
+    assert any('camino más largo' in a and 'se calibra por zonas' in a for a in informe['avisos'])
     assert informe['zonas']['arriba_kw'] and informe['zonas']['abajo_kw']
 
 

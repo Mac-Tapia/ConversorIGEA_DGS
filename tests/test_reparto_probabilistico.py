@@ -47,7 +47,7 @@ def test_el_perfil_solo_si_lo_dice_y_bien_escrito():
     prob = probabilistico_del_perfil({'calibracion': {'reparto_probabilistico': {
         'dispersion': 0.35, 'pendiente': 0.2, 'n': 80}}}, semilla=3)
     assert (prob.dispersion, prob.pendiente, prob.n, prob.semilla) == (0.35, 0.0, 80, 3)
-    assert '095:RF-3' in prob.fuente
+    assert 'ignorada' in prob.fuente
     with pytest.raises(AjusteError):
         probabilistico_del_perfil({'calibracion': {'reparto_probabilistico': {'dispersion': -1}}})
 
@@ -128,7 +128,7 @@ def test_el_guion_escribe_el_p50_y_reproduce_con_la_semilla(guion):
     assert rc == 0, informe
     prob = informe['probabilistico']
     # 095:RF-3: la pendiente del perfil se ignora y se dice.
-    assert prob['fuente'].startswith('perfil de empresa') and '095:RF-3' in prob['fuente']
+    assert prob['fuente'].startswith('perfil de empresa') and 'ignorada' in prob['fuente']
     assert prob['muestras'] == 12 and prob['escrito'] == 'P50'
     assert prob['validas'] == 12 and prob['semilla'] == 99
     kvas = [x['kva'] for x in prob['sed']]
@@ -144,7 +144,7 @@ def test_sin_fijas_ni_perfil_no_se_sortea_y_se_dice(guion):
     informe, rc = guion.ejecutar(_app(), {**_plan(kw=300.0, kvar=60.0),
                                           'probabilistico': {'n': 5, 'semilla': 1, 'perfil': None}})
     assert rc == 0 and 'probabilistico' not in informe
-    assert any('041:RF-3' in a for a in informe['avisos'])
+    assert any('Reparto probabilístico no hecho' in a for a in informe['avisos'])
 
 
 def test_la_sed_medida_en_31_queda_fija_y_fuera_del_sorteo(guion):
@@ -157,7 +157,7 @@ def test_la_sed_medida_en_31_queda_fija_y_fuera_del_sorteo(guion):
     assert fila['origen'] != 'escala' and fila['despues']['kw'] == pytest.approx(42.0)
     assert informe['sed_medidas'][0]['sed'] == 'F1_S3'
     assert 'F1_S3' not in {x['sed'] for x in informe['probabilistico']['sed']}
-    assert any('041:RF-9' in a for a in informe['avisos'])
+    assert any('quedan fijas a escala 1' in a for a in informe['avisos'])
 
 
 # ------------------------------------------------------------------ la web

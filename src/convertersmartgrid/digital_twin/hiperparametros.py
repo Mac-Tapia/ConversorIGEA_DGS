@@ -52,7 +52,7 @@ def buscar(muestras: Sequence[Muestra], *, base: Entrenamiento | None = None, en
     grupos = separar_calibracion(particionar(muestras))
     entrenamiento, validacion = grupos['entrenamiento'], grupos['validacion']
     if not entrenamiento or not validacion:
-        raise ValueError('hacen falta episodios de entrenamiento y de validación para buscar (027:RF-7)')
+        raise ValueError('hacen falta episodios de entrenamiento y de validación para buscar')
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     x = np.concatenate([m.x for m in entrenamiento])
     # Con el dominio de lo que se entrena, como ``oraculo.entrenar``: amplio para no marcar
@@ -72,7 +72,7 @@ def buscar(muestras: Sequence[Muestra], *, base: Entrenamiento | None = None, en
             estado = entrenar_miembro(entrenamiento, cfg, None, validacion=validacion, al_validar=podar)
         except RuntimeError as exc:
             raise RuntimeError(f'el ensayo {trial.number} de la búsqueda falló: {exc}; no se elige entre los '
-                               f'demás (027:RF-71)') from exc
+                               f'demás') from exc
         error = mae(OraculoPINN([estado], cfg, dominio), validacion)
         log(f'  ensayo {trial.number}: {trial.params} → {error:.3e} p.u. en validación')
         return float(error)
@@ -91,10 +91,10 @@ def buscar(muestras: Sequence[Muestra], *, base: Entrenamiento | None = None, en
     estudio.optimize(objetivo, n_trials=ensayos, callbacks=[tope_de_seguridad])
     if len(estudio.trials) < ensayos:
         raise TimeoutError(f'la búsqueda superó el tope de seguridad de {limite_s:g} s tras {len(estudio.trials)} '
-                           f'de {ensayos} ensayos; no se elige con una búsqueda incompleta (027:RF-70)')
+                           f'de {ensayos} ensayos; no se elige con una búsqueda incompleta')
     completos = [t for t in estudio.trials if t.state == optuna.trial.TrialState.COMPLETE]
     if not completos:
-        raise ValueError(f'los {ensayos} ensayos se podaron y ninguno terminó (027:RF-7)')
+        raise ValueError(f'los {ensayos} ensayos se podaron y ninguno terminó')
     mejor = estudio.best_trial
     elegida = _sugerir(optuna.trial.FixedTrial(mejor.params), base)
     informe = {'ensayos_pedidos': ensayos, 'limite_s': limite_s, 'segundos': time.monotonic() - inicio,

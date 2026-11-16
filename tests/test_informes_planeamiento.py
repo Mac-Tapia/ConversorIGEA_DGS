@@ -259,3 +259,22 @@ def test_la_tabla_dice_el_alcance_de_cada_alternativa():
     i = cabecera.index('Alcance')
     assert [f[i] for f in filas] == ['temporal, aguanta 5 años', 'definitiva, 20 años', 'sin medir']
     assert any('Definitiva:' in n for n in notas_alternativas_escalera(lista))
+
+
+def test_la_evaluacion_economica_marca_el_flujo_privado_incompleto(tmp_path):
+    """072:RF-16 (H5, auditor b4) — el módulo con F09 nombra la VAN y la TIR de un flujo privado sin COyM o sin el costo
+    de las pérdidas, solo de las obras de su periodo: la de largo plazo no cuenta."""
+    from convertersmartgrid.formatos_pide import ALCANCE_DEL_FLUJO_PRIVADO
+
+    incompleta = {'van': -10.0, 'tir': None, 'completo': False, 'falta': ['COyM', 'pérdidas']}
+    obras = [_obra('AL01', 4, privada=incompleta), _obra('AL02', 8, prioridad=2, privada=incompleta)]
+    ruta = tmp_path / 'e.docx'
+    escribir_modulo(ruta, MODULO['evaluacion_economica'], _datos(obras=obras))
+    resumen = json.loads(ruta.with_suffix('.json').read_text(encoding='utf-8'))
+    marca = [h for h in resumen['huecos'] if h['motivo'] == ALCANCE_DEL_FLUJO_PRIVADO]
+    assert {h['campo'] for h in marca} == {'VAN US$', 'TIR'} and {h['filas'] for h in marca} == {1}
+    assert ALCANCE_DEL_FLUJO_PRIVADO in _texto(ruta)
+    completa = [_obra('AL01', 4, privada={**incompleta, 'completo': True, 'falta': []})]
+    escribir_modulo(ruta, MODULO['evaluacion_economica'], _datos(obras=completa))
+    resumen = json.loads(ruta.with_suffix('.json').read_text(encoding='utf-8'))
+    assert not [h for h in resumen['huecos'] if h['motivo'] == ALCANCE_DEL_FLUJO_PRIVADO]

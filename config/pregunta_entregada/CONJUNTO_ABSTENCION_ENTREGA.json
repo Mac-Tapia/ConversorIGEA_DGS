@@ -1,0 +1,1772 @@
+{
+ "esquema": "csg-conjunto-abstencion-entrega-v1",
+ "procedencia": "sintetico_maestro_entrega",
+ "corpus": "entrega",
+ "origen_de_las_preguntas": "Redactadas por el maestro (origen «maestro», 2026-11-14) para el corpus que se entrega: los manuales y las notas de «documentos». Las que tienen respuesta anclan en el título de su apartado; las que no, son ajenas a esos documentos y el maestro confirma que no la tienen. Ninguna está literal en el corpus: el constructor lo comprueba (097:RF-19).",
+ "preguntas": [
+  {
+   "id": "con-001",
+   "pregunta": "¿Qué necesito en el equipo antes de instalar el programa?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_INSTALACION.md",
+     "ancla": "Qué hace falta"
+    }
+   ]
+  },
+  {
+   "id": "con-002",
+   "pregunta": "¿Cómo se instala ConverterSmartGrid en un equipo nuevo?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_INSTALACION.md",
+     "ancla": "Instalar"
+    }
+   ]
+  },
+  {
+   "id": "con-003",
+   "pregunta": "¿Cómo compruebo que la instalación quedó bien?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_INSTALACION.md",
+     "ancla": "Comprobar la instalación"
+    }
+   ]
+  },
+  {
+   "id": "con-004",
+   "pregunta": "¿Cómo elijo qué versión de DIgSILENT usa el programa?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_INSTALACION.md",
+     "ancla": "Elegir la versión de DIgSILENT"
+    }
+   ]
+  },
+  {
+   "id": "con-005",
+   "pregunta": "¿En qué carpeta quedan el programa y mis datos?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_INSTALACION.md",
+     "ancla": "Dónde queda cada cosa"
+    }
+   ]
+  },
+  {
+   "id": "con-006",
+   "pregunta": "¿Cómo se actualiza a una versión más nueva?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_INSTALACION.md",
+     "ancla": "Actualizar"
+    }
+   ]
+  },
+  {
+   "id": "con-007",
+   "pregunta": "¿Puedo regresar a la versión que tenía antes de actualizar?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_INSTALACION.md",
+     "ancla": "Volver a la versión anterior"
+    }
+   ]
+  },
+  {
+   "id": "con-008",
+   "pregunta": "¿Cómo hago una copia de seguridad de mis datos?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_INSTALACION.md",
+     "ancla": "Copias de los datos"
+    }
+   ]
+  },
+  {
+   "id": "con-009",
+   "pregunta": "¿Cómo paso el programa a otro equipo o a otro usuario?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_INSTALACION.md",
+     "ancla": "Llevarlo a otro equipo o a otro usuario"
+    }
+   ]
+  },
+  {
+   "id": "con-010",
+   "pregunta": "¿Qué hago si la instalación falla?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_INSTALACION.md",
+     "ancla": "Si algo falla"
+    }
+   ]
+  },
+  {
+   "id": "con-011",
+   "pregunta": "¿Dónde se configura el perfil de mi empresa al instalar?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_INSTALACION.md",
+     "ancla": "Perfil de empresa"
+    }
+   ]
+  },
+  {
+   "id": "con-012",
+   "pregunta": "¿Qué puede hacer el programa y qué cosas no hace?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_OPERADOR.md",
+     "ancla": "Qué hace y qué no"
+    }
+   ]
+  },
+  {
+   "id": "con-013",
+   "pregunta": "¿Qué hace falta para entrenar los modelos en mi equipo?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_OPERADOR.md",
+     "ancla": "Entrenar los modelos"
+    }
+   ]
+  },
+  {
+   "id": "con-014",
+   "pregunta": "¿Cuál es el recorrido de trabajo desde la fuente hasta el informe?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_OPERADOR.md",
+     "ancla": "El recorrido"
+    }
+   ]
+  },
+  {
+   "id": "con-015",
+   "pregunta": "¿Qué conviene saber del uso diario del programa?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_OPERADOR.md",
+     "ancla": "Cosas que conviene saber"
+    }
+   ]
+  },
+  {
+   "id": "con-016",
+   "pregunta": "¿Qué hago cuando algo no funciona en la web?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_OPERADOR.md",
+     "ancla": "Si algo no va"
+    }
+   ]
+  },
+  {
+   "id": "con-017",
+   "pregunta": "¿Se calcula cortocircuito o coordinación de protecciones?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_OPERADOR.md",
+     "ancla": "No hay"
+    }
+   ]
+  },
+  {
+   "id": "con-018",
+   "pregunta": "¿Puedo abrir la web desde otro ordenador de la red?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_OPERADOR.md",
+     "ancla": "Solo en este equipo"
+    }
+   ]
+  },
+  {
+   "id": "con-019",
+   "pregunta": "¿Si cierro el navegador se detiene el trabajo en curso?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/MANUAL_OPERADOR.md",
+     "ancla": "Cerrar el navegador no para un trabajo"
+    }
+   ]
+  },
+  {
+   "id": "con-020",
+   "pregunta": "¿Dónde se ejecuta el programa y con qué permisos?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/SEGURIDAD_Y_PRIVACIDAD.md",
+     "ancla": "Dónde corre"
+    }
+   ]
+  },
+  {
+   "id": "con-021",
+   "pregunta": "¿El programa envía algo por internet?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/SEGURIDAD_Y_PRIVACIDAD.md",
+     "ancla": "Qué sale a la red"
+    }
+   ]
+  },
+  {
+   "id": "con-022",
+   "pregunta": "¿Qué datos guarda el programa en el equipo?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/SEGURIDAD_Y_PRIVACIDAD.md",
+     "ancla": "Qué datos guarda"
+    }
+   ]
+  },
+  {
+   "id": "con-023",
+   "pregunta": "¿Qué lleva el paquete de soporte que se envía?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/SEGURIDAD_Y_PRIVACIDAD.md",
+     "ancla": "Paquete de soporte"
+    }
+   ]
+  },
+  {
+   "id": "con-024",
+   "pregunta": "¿Qué procesos abre y qué licencias usa?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/SEGURIDAD_Y_PRIVACIDAD.md",
+     "ancla": "Procesos, licencias y permisos"
+    }
+   ]
+  },
+  {
+   "id": "con-025",
+   "pregunta": "¿Cómo se comprueba la integridad de lo instalado?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/SEGURIDAD_Y_PRIVACIDAD.md",
+     "ancla": "Integridad"
+    }
+   ]
+  },
+  {
+   "id": "con-026",
+   "pregunta": "¿Qué documentos vienen con el paquete?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/SEGURIDAD_Y_PRIVACIDAD.md",
+     "ancla": "Lo que va con el paquete"
+    }
+   ]
+  },
+  {
+   "id": "con-027",
+   "pregunta": "¿Hay vulnerabilidades conocidas en las dependencias?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/SEGURIDAD_Y_PRIVACIDAD.md",
+     "ancla": "Vulnerabilidades conocidas"
+    }
+   ]
+  },
+  {
+   "id": "con-028",
+   "pregunta": "¿Cómo empiezo a escribir el perfil de mi empresa?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/PERFIL_EMPRESA.md",
+     "ancla": "Cómo empezar"
+    }
+   ]
+  },
+  {
+   "id": "con-029",
+   "pregunta": "¿Se puede partir de una norma en vez de una empresa?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/PERFIL_EMPRESA.md",
+     "ancla": "Empresa o norma"
+    }
+   ]
+  },
+  {
+   "id": "con-030",
+   "pregunta": "¿Qué claves generales tiene el perfil?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/PERFIL_EMPRESA.md",
+     "ancla": "Generales"
+    }
+   ]
+  },
+  {
+   "id": "con-031",
+   "pregunta": "¿Dónde se fijan los límites de tensión de los estudios?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/PERFIL_EMPRESA.md",
+     "ancla": "Límites de los estudios"
+    }
+   ]
+  },
+  {
+   "id": "con-032",
+   "pregunta": "¿Qué claves del perfil sirven para las protecciones?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/PERFIL_EMPRESA.md",
+     "ancla": "Protecciones"
+    }
+   ]
+  },
+  {
+   "id": "con-033",
+   "pregunta": "¿Qué datos del perfil usa la calibración?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/PERFIL_EMPRESA.md",
+     "ancla": "Calibración"
+    }
+   ]
+  },
+  {
+   "id": "con-034",
+   "pregunta": "¿Cómo se configura el formato de los informes en el perfil?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/PERFIL_EMPRESA.md",
+     "ancla": "Informes"
+    }
+   ]
+  },
+  {
+   "id": "con-035",
+   "pregunta": "¿Qué claves del perfil afectan a las obras y la planificación?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/PERFIL_EMPRESA.md",
+     "ancla": "Obras y planificación"
+    }
+   ]
+  },
+  {
+   "id": "con-036",
+   "pregunta": "¿Qué pide el perfil para las cargas nuevas?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/PERFIL_EMPRESA.md",
+     "ancla": "Cargas nuevas"
+    }
+   ]
+  },
+  {
+   "id": "con-037",
+   "pregunta": "¿Qué valores no salen del perfil de empresa?",
+   "tipo": "entregable",
+   "origen": "maestro",
+   "fuentes": [
+    {
+     "fichero": "documentos/PERFIL_EMPRESA.md",
+     "ancla": "Valores que no vienen del perfil"
+    }
+   ]
+  },
+  {
+   "id": "sin-001",
+   "pregunta": "¿Cuál es la capital de Australia?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-002",
+   "pregunta": "¿Cuántos jugadores tiene un equipo de rugby?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-003",
+   "pregunta": "¿Quién pintó la Mona Lisa?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-004",
+   "pregunta": "¿Cómo se prepara un ceviche de pescado?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-005",
+   "pregunta": "¿Cuál es la receta de la limonada con hierbabuena?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-006",
+   "pregunta": "¿A qué temperatura hierve el agua en la cima del Everest?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-007",
+   "pregunta": "¿Cuántos huesos tiene el cuerpo humano?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-008",
+   "pregunta": "¿Qué significa la palabra «resiliencia»?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-009",
+   "pregunta": "¿En qué año llegó el hombre a la Luna?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-010",
+   "pregunta": "¿Cuál es el río más largo de África?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-011",
+   "pregunta": "¿Cómo se juega al ajedrez?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-012",
+   "pregunta": "¿Qué es la fotosíntesis?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-013",
+   "pregunta": "¿Quién escribió Cien años de soledad?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-014",
+   "pregunta": "¿Cuál es el planeta más grande del sistema solar?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-015",
+   "pregunta": "¿Cómo se cambia una llanta de bicicleta?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-016",
+   "pregunta": "¿Qué vacunas necesita un perro cachorro?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-017",
+   "pregunta": "¿Cuánto mide la torre Eiffel?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-018",
+   "pregunta": "¿Cómo se dice «gracias» en japonés?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-019",
+   "pregunta": "¿Qué es un agujero negro?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-020",
+   "pregunta": "¿Cuál es la moneda de Suiza?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-021",
+   "pregunta": "¿Cómo se cultivan tomates en maceta?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-022",
+   "pregunta": "¿Qué equipo ganó el mundial de fútbol de 1970?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-023",
+   "pregunta": "¿Cuántas calorías tiene una manzana?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-024",
+   "pregunta": "¿Qué es la teoría de la relatividad especial?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-025",
+   "pregunta": "¿Cómo se hace pan de masa madre?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-026",
+   "pregunta": "¿Quién fue Simón Bolívar?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-027",
+   "pregunta": "¿Cuál es el océano más profundo?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-028",
+   "pregunta": "¿Qué idioma se habla en Brasil?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-029",
+   "pregunta": "¿Cómo se limpia una alfombra de lana?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-030",
+   "pregunta": "¿Qué significa ADN?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-031",
+   "pregunta": "¿Cuál es el animal terrestre más rápido?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-032",
+   "pregunta": "¿Cómo funciona un motor de combustión de cuatro tiempos?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-033",
+   "pregunta": "¿Cuántos continentes hay?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-034",
+   "pregunta": "¿Qué es el impresionismo en pintura?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-035",
+   "pregunta": "¿Cómo se toca un acorde de do mayor en guitarra?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-036",
+   "pregunta": "¿Cuál es la montaña más alta de América?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-037",
+   "pregunta": "¿Qué comen los pingüinos emperador?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-038",
+   "pregunta": "¿Cómo se calcula el área de un círculo?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-039",
+   "pregunta": "¿Qué es la inflación económica?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-040",
+   "pregunta": "¿Quién compuso la novena sinfonía?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-041",
+   "pregunta": "¿Cuál es la fórmula química de la sal común?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-042",
+   "pregunta": "¿Cómo se plancha una camisa de algodón?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-043",
+   "pregunta": "¿Qué es el yoga ashtanga?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-044",
+   "pregunta": "¿Cuál es el desierto más seco del mundo?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-045",
+   "pregunta": "¿Cómo se prepara un café expreso?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-046",
+   "pregunta": "¿Qué es un haiku?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-047",
+   "pregunta": "¿Cuántas patas tiene una araña?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-048",
+   "pregunta": "¿Qué es la deriva continental?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-049",
+   "pregunta": "¿Cómo se aprende a nadar de adulto?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-050",
+   "pregunta": "¿Cuál es el país más poblado del mundo?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-051",
+   "pregunta": "¿Qué es una ecuación de segundo grado?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-052",
+   "pregunta": "¿Cómo se cuida una orquídea?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-053",
+   "pregunta": "¿Quién inventó la imprenta?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-054",
+   "pregunta": "¿Qué es el efecto invernadero?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-055",
+   "pregunta": "¿Cómo se hace una tortilla de patatas?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-056",
+   "pregunta": "¿Cuál es la velocidad del sonido en el aire?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-057",
+   "pregunta": "¿Qué es un volcán activo?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-058",
+   "pregunta": "¿Cuál es el mejor momento para ver las líneas de Nazca?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-059",
+   "pregunta": "¿Cómo se juega al vóley playa?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-060",
+   "pregunta": "¿Qué es la mitosis celular?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-061",
+   "pregunta": "¿Quién fue Cleopatra?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-062",
+   "pregunta": "¿Cómo se prepara un lomo saltado?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-063",
+   "pregunta": "¿Qué es el jazz modal?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-064",
+   "pregunta": "¿Cuántos minutos dura un partido de baloncesto?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-065",
+   "pregunta": "¿Qué es un número primo?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-066",
+   "pregunta": "¿Cómo se quita una mancha de vino tinto?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-067",
+   "pregunta": "¿Cuál es el lago navegable más alto del mundo?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-068",
+   "pregunta": "¿Qué es la economía circular en la moda?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-069",
+   "pregunta": "¿Cómo se entrena para correr una maratón?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-070",
+   "pregunta": "¿Qué significa el término «metáfora»?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-071",
+   "pregunta": "¿Cuál es la isla más grande del planeta?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-072",
+   "pregunta": "¿Cómo se fabrica el chocolate?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-073",
+   "pregunta": "¿Qué es la meditación de atención plena?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-074",
+   "pregunta": "¿Quién descubrió la penicilina?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-075",
+   "pregunta": "¿Cómo se conserva la albahaca fresca?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-076",
+   "pregunta": "¿Qué es una estrella de neutrones?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-077",
+   "pregunta": "¿Cuál es el baile típico de la marinera?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-078",
+   "pregunta": "¿Cómo se escribe una carta de presentación?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-079",
+   "pregunta": "¿Qué es la ley de la oferta y la demanda?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-080",
+   "pregunta": "¿Cuántos años vive una tortuga gigante?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-081",
+   "pregunta": "¿Cómo se teje una bufanda a dos agujas?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-082",
+   "pregunta": "¿Qué es el barroco en arquitectura?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-083",
+   "pregunta": "¿Cuál es el ave nacional del Perú?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-084",
+   "pregunta": "¿Cómo se prepara una sopa de quinua?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-085",
+   "pregunta": "¿Qué es la criptografía de curva elíptica en monedas digitales?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-086",
+   "pregunta": "¿Cómo se poda un rosal en invierno?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-087",
+   "pregunta": "¿Qué es un tsunami?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-088",
+   "pregunta": "¿Quién dirigió la película Psicosis?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-089",
+   "pregunta": "¿Cómo se hace un nudo de corbata Windsor?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-090",
+   "pregunta": "¿Qué es el teorema de Pitágoras?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-091",
+   "pregunta": "¿Cuál es la temperatura media de Marte?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-092",
+   "pregunta": "¿Cómo se ahorra para comprar una casa?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-093",
+   "pregunta": "¿Qué es la gastronomía molecular?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-094",
+   "pregunta": "¿Cuántos idiomas oficiales tiene Bolivia?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-095",
+   "pregunta": "¿Cómo se adiestra a un gato para usar el arenero?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-096",
+   "pregunta": "¿Qué es la aurora boreal?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-097",
+   "pregunta": "¿Cuál es la obra más conocida de Cervantes?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-098",
+   "pregunta": "¿Cómo se prepara una ensalada César?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-099",
+   "pregunta": "¿Qué es un eclipse lunar?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-100",
+   "pregunta": "¿Cuánto pesa un elefante africano adulto?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-101",
+   "pregunta": "¿Cómo se aprende a tocar el cajón peruano?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-102",
+   "pregunta": "¿Qué es la novela picaresca?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-103",
+   "pregunta": "¿Cómo se prepara un ají de gallina?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-104",
+   "pregunta": "¿Qué deporte se practica en Wimbledon?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-105",
+   "pregunta": "¿Cuál es la distancia entre la Tierra y el Sol?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-106",
+   "pregunta": "¿Cómo se organiza una mudanza de casa?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-107",
+   "pregunta": "¿Qué es el surrealismo?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-108",
+   "pregunta": "¿Cómo se riega un cactus?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-109",
+   "pregunta": "¿Qué es la migración de las mariposas monarca?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  },
+  {
+   "id": "sin-110",
+   "pregunta": "¿Quién fue la primera mujer en ganar un premio Nobel?",
+   "sin_respuesta": true,
+   "tipo": "fuera",
+   "origen": "maestro",
+   "revision": {
+    "veredicto": "correcta",
+    "por": "maestro",
+    "motivo": "ajena a los manuales y notas que se entregan"
+   }
+  }
+ ]
+}

@@ -390,7 +390,7 @@ export function FeedersPanel() {
               ))}
             </select>
             <button className="btn" disabled={engineBusy || !allReady || !estructura} onClick={convertirSistema}
-              title="Un DGS por sistema eléctrico: una red por zonal, cada SET con sus barras y una red externa por barra; enlaces y anillos abiertos y el oráculo de la red entera. Aparte de unir: no se mezcla (spec 022)">
+              title="Un DGS por sistema eléctrico: una red por zonal, cada SET con sus barras y una red externa por barra; enlaces y anillos abiertos y el oráculo de la red entera. Aparte de unir: no se mezcla">
               Convertir sistema {zonal || 'eléctrico (todos)'}
             </button>
           </div>
@@ -407,7 +407,7 @@ export function FeedersPanel() {
               ))}
             </select>
             <button className="btn" disabled={engineBusy || !allReady || !setElegida} onClick={convertirSet}
-              title="Un DGS con solo esta SET: su red, sus barras de media tensión y la red externa de cada barra, como dentro de su sistema (spec 022, RF-82)">
+              title="Un DGS con solo esta SET: su red, sus barras de media tensión y la red externa de cada barra, como dentro de su sistema">
               Convertir SET {setElegida}
             </button>
             {!estructura && !errorEstructura && feeders.length > 0 && <small className="muted">Leyendo la estructura de la empresa…</small>}

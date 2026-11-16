@@ -13,11 +13,10 @@ from __future__ import annotations
 
 import json
 import math
-import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping
 
-from .salidas_red import motivo_apagada, salida_permitida
+from .salidas_red import DestinoNoPermitido, motivo_apagada, pedir_a_destino_fijado, salida_permitida
 
 Punto = tuple[float, float]
 RADIO_TIERRA_M = 6_371_008.8
@@ -51,9 +50,14 @@ class Ruta:
 
 
 def _pedir(url: str, tiempo_s: float) -> bytes:
-    pedido = urllib.request.Request(url, headers={'User-Agent': 'convertersmartgrid (enlace por la via)'})
-    with urllib.request.urlopen(pedido, timeout=tiempo_s) as r:  # noqa: S310 - URL del perfil
-        return r.read()
+    """086:RF-22: la URL del perfil iba tal cual a ``urlopen``, que abre también ``file://`` y la propia máquina y
+    sigue redirecciones. Va por la misma función que ArcGIS: valida tras resolver, conecta a esa IP (rebinding) y un
+    3xx es ``DestinoNoPermitido``. Sin ``requests`` (intérprete de DIgSILENT 2021) es ``SinClienteHttp``, un
+    ``OSError``: el enlace va en recta y lo dice (RF-85)."""
+    r = pedir_a_destino_fijado(url, timeout=tiempo_s,
+                               cabeceras={'User-Agent': 'convertersmartgrid (enlace por la via)'})
+    r.raise_for_status()
+    return r.content
 
 
 def _recta(a: Punto, b: Punto, avisos: list[str] | None = None, servicio: str = '') -> Ruta:
@@ -84,6 +88,8 @@ def ruta_por_vias(a: Punto, b: Punto, config: Mapping[str, Any] | None, *,
         tramo = [(float(lat), float(lon)) for lon, lat in ruta['geometry']['coordinates']]
         accesos = [float(w.get('distance') or 0.0) for w in datos.get('waypoints') or []][:2]
         por_la_via = float(ruta['distance'])
+    except DestinoNoPermitido as exc:                                      # 086:RF-22, sin bloquear (RF-85)
+        return _recta(a, b, [f'{exc} El enlace va en recta.'], servicio)
     except (OSError, ValueError, KeyError, IndexError, TypeError) as exc:     # RF-85
         motivo = 'no halló ruta' if isinstance(exc, (KeyError, IndexError)) else f'no respondió ({exc})'
         return _recta(a, b, [f'El enrutador de vías {motivo}: el enlace va en recta.'], servicio)

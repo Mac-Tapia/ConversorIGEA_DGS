@@ -223,11 +223,11 @@ def test_el_flujo_de_la_importacion_actualiza_el_resumen():
         'ajuste_de_cargas': {'pass': True, 'factor': 0.7, 'escenario': 'Operador',
                              'final_load_flow': {'return_code': 0, 'ldf_valid': True}}}})
     assert r['status'] == 'VERIFICADO' and r['comprobaciones']['flujo']['pass'] is True
-    assert any('70.0 %' in a and 'RF-38' in a for a in r['avisos'])
+    assert any('se redujo por igual al 70.0 %' in a and 'y converge' in a for a in r['avisos'])
     tool.actualizar_flujo_caso_base(r, {'load_flow': {'requested': True, 'return_code': 1, 'ldf_valid': False,
                                                       'ajuste_de_cargas': {'omitido': 'sin_proyecto'}}})
     assert r['status'] == 'NO_CONVERGE'
-    assert any('RF-39' in a for a in r['avisos'])
+    assert any('«Sin proyecto» ya existe y el «Caso base» no se toca' in a for a in r['avisos'])
 
 
 def _red_que_no_converge(limite):
@@ -272,7 +272,7 @@ def test_si_no_converge_ni_al_minimo_vuelve_la_demanda_original():
     assert {c.loc_name: c.plini for c in app.proyecto.GetContents('*.ElmLod', 1)} == pytest.approx(antes)
     r = tool.resumen_caso_base(_report(load_flow={'requested': True, 'return_code': 1, 'ldf_valid': False,
                                                   'ajuste_de_cargas': ajuste}), _SIN_FALLOS, [], [])
-    assert r['status'] == 'NO_CONVERGE' and any('RF-40' in a for a in r['avisos'])
+    assert r['status'] == 'NO_CONVERGE' and any('ni reduciendo la demanda al 10 %' in a for a in r['avisos'])
 
 
 def test_proyecto_existente_exige_manifiesto(tmp_path, capsys):

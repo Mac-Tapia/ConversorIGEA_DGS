@@ -69,14 +69,17 @@ def test_el_orden_de_las_obras_no_cambia_al_pasar_a_la_moneda_de_trabajo():
                                 factor_carga=0.6, precio_compra_kwh=plan_usd['precio_compra_kwh'], coym_pct_anual=2.0)
     assert [(o['codigo'], o['prioridad']) for o in en_dolares['obras']] == \
         [(o['codigo'], o['prioridad']) for o in en_soles['obras']]
-    assert [o['ci'] * tc for o in en_dolares['obras']] == pytest.approx([o['ci'] for o in en_soles['obras']])
+    # 072:RF-16 (H5): las obras sin costo en el libro quedan sin costo en las dos monedas, no en 0.
+    assert [o['ci'] is None for o in en_dolares['obras']] == [o['ci'] is None for o in en_soles['obras']]
+    assert [o['ci'] * tc for o in en_dolares['obras'] if o['ci'] is not None] == \
+        pytest.approx([o['ci'] for o in en_soles['obras'] if o['ci'] is not None])
 
 
 def test_sin_capex_se_dice():
-    """024:RF-55 — sin libro CAPEX las obras van sin costo y se avisa."""
+    """024:RF-55 / 072:RF-16 (H5) — sin libro CAPEX las obras van sin costo, vacío y no 0, y se avisa."""
     p = propuesta_pide(INFORME, PLAN, costos={}, bancos_kvar=None)
     assert any('CAPEX' in a for a in p['avisos'])
-    assert all(o['ci'] == 0 for o in p['obras'])
+    assert all(o['ci'] is None for o in p['obras'])
     assert next(o for o in p['obras'] if o['alternativa'] == 'bancos')['obra_011'] is None
 
 

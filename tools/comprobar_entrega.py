@@ -219,7 +219,7 @@ def cargar_terminos(raiz: Path = RAIZ, manifiesto: Mapping[str, Any] | None = No
         leer_lista_local(Path(local), terminos)
     elif final:
         raise EntregaError(f'La entrega final no se comprueba sin la lista local de términos: indique --lista-local o '
-                           f'{VARIABLE_LISTA_LOCAL} (086:RF-33).')
+                           f'{VARIABLE_LISTA_LOCAL}.')
     else:
         terminos.origenes.append(f'sin lista local ({VARIABLE_LISTA_LOCAL}): aviso, solo vale para un candidato de prueba')
     return terminos

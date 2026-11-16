@@ -1,4 +1,4 @@
-"""086:RF-37/39/44: capacidades opcionales offline, con cierre y procedencia."""
+"""086:RF-34/37/39/44: capacidades opcionales offline, con cierre y procedencia; modelos, avisos e instalador del complemento."""
 import hashlib
 import json
 import os
@@ -495,3 +495,275 @@ def test_integral_falla_cerrado_sin_publicar_manifest(sources, tmp_path, case):
         CC.construir_complemento_ia(source, output, cache=cache, version='1.0rc6',
             capacidades='integrales', versiones=freeze, procedencias=provenance)
     assert not (output / 'manifiesto_candidato.json').exists()
+
+
+# --------------------------------------------------------------------------- 086 L3/L4/L8: modelos, avisos e instalador
+REPO = Path(__file__).resolve().parents[1]
+
+
+def _rueda_con(cache, name, version, dlls):
+    """Una rueda con DLL nativas dentro, como shapely.libs o torch/lib."""
+    path = _wheel(cache, name, version=version)
+    with zipfile.ZipFile(path, 'a') as z:
+        for dll in dlls:
+            z.writestr(dll, b'MZ')
+    return path
+
+
+def test_textos_de_terceros_se_comprueban_por_sus_bytes(tmp_path):
+    """086:RF-44 — cada texto de modelo, Ollama, NVIDIA y vcruntime con su huella; uno alterado o que no se puede
+    redistribuir no entra en ningún paquete."""
+    textos = CC.textos_de_terceros(REPO)
+    assert {'multilingual-e5-base', 'qwen3', 'ollama', 'ggml', 'nvidia-cuda', 'nvidia-cudnn', 'vcruntime'} <= set(textos)
+    assert all(t['redistribuir'] is True and t['fuente'].startswith('https://') for t in textos.values())
+    assert 'Copyright (c) Microsoft Corporation' in textos['multilingual-e5-base']['texto']
+    assert 'Apache License' in textos['qwen3']['texto'] and 'Attachment A' in textos['nvidia-cuda']['texto']
+    copia = tmp_path / 'repo'
+    shutil.copytree(REPO / 'config' / 'licencias_terceros', copia / 'config' / 'licencias_terceros')
+    texto = copia / 'config' / 'licencias_terceros' / 'MIT_Ollama.txt'
+    texto.write_bytes(texto.read_bytes() + b' ')
+    with pytest.raises(CC.CE.EntregaError, match='huella'):
+        CC.textos_de_terceros(copia)
+    texto.write_bytes((REPO / 'config' / 'licencias_terceros' / 'MIT_Ollama.txt').read_bytes())
+    manifiesto = copia / 'config' / 'licencias_terceros' / 'manifest.json'
+    datos = json.loads(manifiesto.read_text(encoding='utf-8'))
+    datos['textos'][0]['redistribuir'] = False
+    manifiesto.write_text(json.dumps(datos), encoding='utf-8')
+    with pytest.raises(CC.CE.EntregaError, match='no permite redistribuir'):
+        CC.textos_de_terceros(copia)
+
+
+def test_fuentes_lgpl_de_las_dll_que_van_y_ninguna_sin_declarar(tmp_path):
+    """086:RF-44 — GEOS de shapely y pyogrio, iconv, libpq, moocore y FFmpeg con el enlace a su fuente; una DLL LGPL en
+    una rueda o versión no declarada impide armar el paquete."""
+    cache = tmp_path / 'cache'
+    cache.mkdir()
+    ruedas = [_rueda_con(cache, 'shapely', '2.1.2', ['shapely.libs/geos-ae6e.dll', 'shapely.libs/geos_c-072b.dll']),
+              _rueda_con(cache, 'pyogrio', '0.13.0', ['pyogrio.libs/iconv-2-ec64.dll', 'pyogrio.libs/geos-bda2.dll']),
+              _rueda_con(cache, 'opencv-python', '5.0.0.93', ['cv2/opencv_videoio_ffmpeg500_64.dll']),
+              _rueda_con(cache, 'psycopg2-binary', '2.9.13', ['psycopg2_binary.libs/libpq-57ae.dll']),
+              _rueda_con(cache, 'moocore', '0.3.2', ['moocore/_libmoocore.pyd'])]
+    texto = CC.fuentes_lgpl(REPO, ruedas)
+    for esperado in ('GEOS 3.13.1', 'GEOS 3.14.1', 'libiconv 1.18', 'FFmpeg 7.1', 'psycopg2 2.9.13', 'moocore 0.3.2',
+                     'https://github.com/libgeos/geos/releases/tag/3.13.1', 'petición escrita'):
+        assert esperado in texto
+    otra = _rueda_con(tmp_path, 'shapely', '9.9.9', ['shapely.libs/geos-0000.dll'])
+    with pytest.raises(CC.CE.EntregaError, match='LGPL sin su fuente'):
+        CC.fuentes_lgpl(REPO, [otra])
+    assert CC.fuentes_lgpl(REPO, [_wheel(tmp_path, 'pura')]) == ''
+
+
+def test_texto_de_nvidia_para_las_dll_de_cuda_y_cudnn(tmp_path):
+    """086:RF-44 — las DLL de CUDA y cuDNN de torch llevan el texto de NVIDIA, con qué rueda las trae."""
+    torch = _rueda_con(tmp_path, 'torch', '2.14.1+cu126', ['torch/lib/cudnn64_9.dll', 'torch/lib/cublas64_12.dll',
+                                                          'torch/lib/c10.dll'])
+    avisos = CC.avisos_nvidia(REPO, {torch.name: CC.dll_de_rueda(torch)})
+    assert set(avisos) == {'NVIDIA NVIDIA CUDA Toolkit EULA', 'NVIDIA NVIDIA cuDNN SLA'}
+    cuda = avisos['NVIDIA NVIDIA CUDA Toolkit EULA'][0][1]
+    assert 'cublas64_12.dll' in cuda and 'c10.dll' not in cuda and 'Attachment A' in cuda
+    assert 'cudnn64_9.dll' in avisos['NVIDIA NVIDIA cuDNN SLA'][0][1]
+    assert CC.avisos_nvidia(REPO, {'pura': ['c10.dll']}) == {}
+
+
+def test_avisos_nativos_del_python_propio(tmp_path):
+    """086:RF-44 — OpenSSL, SQLite, expat, liblzma y zlib del Python compilado aquí, su procedencia y vcruntime."""
+    python = tmp_path / 'python'
+    (python / 'native_licenses').mkdir(parents=True)
+    for nombre in ('OpenSSL-3.5.9', 'SQLite-3.54.1-public-domain', 'expat-2.9.0', 'liblzma-5.2.5', 'zlib-1.3.1'):
+        (python / 'native_licenses' / f'{nombre}.txt').write_text(f'texto de {nombre}\n', encoding='utf-8')
+    (python / 'RUNTIME_PROVENANCE.json').write_text('{"build": "local"}', encoding='utf-8')
+    (python / 'vcruntime140.dll').write_bytes(b'MZ')
+    avisos = CC.avisos_nativos(REPO, python)
+    assert {'Python: OpenSSL-3.5.9', 'Python: zlib-1.3.1', 'Python: procedencia del runtime', 'Microsoft vcruntime'} <= set(avisos)
+    assert 'visualstudio' in avisos['Microsoft vcruntime'][0][1]
+
+
+def _git_blob(datos: bytes) -> str:
+    return hashlib.sha1(f'blob {len(datos)}\0'.encode() + datos).hexdigest()
+
+
+@pytest.fixture
+def modelos(sources, tmp_path):
+    """Dobles de e5-base, qwen3:8b y Ollama con la forma real de sus cachés, y un árbol con su catálogo y entrega."""
+    source = sources[0]
+    shutil.copytree(REPO / 'config' / 'licencias_terceros', source / 'config' / 'licencias_terceros')
+    cache = tmp_path / 'MODELOS_IA'
+    rev = 'c' * 40
+    snap = cache / 'huggingface' / 'hub' / 'models--org--e5' / 'snapshots' / rev
+    snap.mkdir(parents=True)
+    peso, config = b'PESOS-E5-DOBLE', b'{"hidden_size": 8}'
+    (snap / 'model.safetensors').write_bytes(peso)
+    (snap / 'config.json').write_bytes(config)
+    licencia = (REPO / 'config' / 'licencias_terceros' / 'APACHE-2.0_Qwen3.txt').read_bytes()
+    capas = {'modelo': b'GGUF' + b'\0' * 12, 'licencia': licencia, 'config': b'{}'}
+    blobs = cache / 'ollama_modelos' / 'blobs'
+    blobs.mkdir(parents=True)
+    digest = {k: hashlib.sha256(v).hexdigest() for k, v in capas.items()}
+    for k, v in capas.items():
+        (blobs / f'sha256-{digest[k]}').write_bytes(v)
+    manifiesto = json.dumps({'schemaVersion': 2, 'config': {'digest': f'sha256:{digest["config"]}', 'size': 2},
+        'layers': [{'mediaType': 'application/vnd.ollama.image.model', 'digest': f'sha256:{digest["modelo"]}', 'size': 16},
+                   {'mediaType': 'application/vnd.ollama.image.license', 'digest': f'sha256:{digest["licencia"]}',
+                    'size': len(licencia)}]}).encode()
+    m = cache / 'ollama_modelos' / 'manifests' / 'registry.ollama.ai' / 'library' / 'qwen3' / '8b'
+    m.parent.mkdir(parents=True)
+    m.write_bytes(manifiesto)
+    (cache / 'ollama').mkdir()
+    with zipfile.ZipFile(cache / 'ollama' / 'ollama-windows-amd64.zip', 'w') as z:
+        z.writestr('ollama.exe', b'MZ')
+        z.writestr('lib/ollama/cuda_v12/cublas64_12.dll', b'MZ')
+        z.writestr('lib/ollama/LLAMA_CPP_LICENSE', 'MIT License\nCopyright (c) The ggml authors\n')
+    zsha = hashlib.sha256((cache / 'ollama' / 'ollama-windows-amd64.zip').read_bytes()).hexdigest()
+    (source / 'docs').mkdir()
+    (source / 'docs' / 'MODELOS_IA_LOCK.json').write_text(json.dumps({'modelos': [
+        {'backend': 'huggingface', 'id': 'org/e5', 'revision': rev, 'files': [
+            {'path': 'model.safetensors', 'size': len(peso), 'sha256': hashlib.sha256(peso).hexdigest()},
+            {'path': 'config.json', 'size': len(config), 'sha256': None, 'git_blob_sha1': _git_blob(config)}]},
+        {'backend': 'ollama', 'id': 'qwen3:8b', 'revision': hashlib.sha256(manifiesto).hexdigest()}]}), encoding='utf-8')
+    entrega = json.loads((REPO / 'config' / 'entrega.json').read_text(encoding='utf-8'))
+    entrega['complemento_ia'] = {'modelos': [{'backend': 'huggingface', 'id': 'org/e5', 'licencia': 'multilingual-e5-base'},
+                                             {'backend': 'ollama', 'id': 'qwen3:8b', 'licencia': 'qwen3'}],
+                                 'ollama': {**entrega['complemento_ia']['ollama'], 'sha256': zsha}}
+    entrega['pesos_permitidos'] = [
+        {'ruta': f'modelos/huggingface/hub/models--org--e5/snapshots/{rev}/model.safetensors',
+         'sha256': hashlib.sha256(peso).hexdigest(), 'entrenado_con': 'publico'},
+        {'ruta': f'modelos/ollama/blobs/sha256-{digest["modelo"]}', 'sha256': digest['modelo'], 'entrenado_con': 'publico'}]
+    (source / 'config' / 'entrega.json').write_text(json.dumps(entrega), encoding='utf-8')
+    return cache, rev, digest
+
+
+def test_complemento_trae_modelos_sin_internet_con_sus_licencias(sources, modelos, tmp_path):
+    """086:RF-34, RF-37, RF-44 — e5-base en su revisión, qwen3:8b y Ollama en el complemento, verificados por su huella,
+    con sus licencias en los avisos, en licencias/modelos y en el SBOM; y un corpus neutro sin términos de empresa."""
+    source, cache_ruedas, freeze, provenance = sources
+    cache, rev, digest = modelos
+    salida = tmp_path / 'complemento'
+    m = CC.construir_complemento_ia(source, salida, cache=cache_ruedas, version='1.0rc6', capacidades='integrales',
+                                    versiones=freeze, procedencias=provenance, modelos=cache)
+    assert (salida / 'modelos/huggingface/hub/models--org--e5/refs/main').read_text(encoding='utf-8') == rev
+    assert (salida / f'modelos/ollama/blobs/sha256-{digest["modelo"]}').is_file()
+    assert (salida / 'modelos/ollama/manifests/registry.ollama.ai/library/qwen3/8b').is_file()
+    assert (salida / 'modelos/ollama_runtime/ollama-windows-amd64.zip').is_file()
+    assert [x['id'] for x in m['modelos']] == ['org/e5', 'qwen3:8b', 'ollama'] and m['modelos_activados'] is True
+    assert m['pesos_del_proyecto_incluidos'] is False and m['corpus_neutro']['terminos_hallados'] == 0
+    avisos = (salida / 'THIRD_PARTY_NOTICES.txt').read_text(encoding='utf-8')
+    for esperado in ('Copyright (c) Microsoft Corporation', 'Apache License', 'Copyright (c) Ollama',
+                     'The ggml authors', 'cuda_v12/cublas64_12.dll', 'Attachment A'):
+        assert esperado in avisos
+    assert len(list((salida / 'licencias' / 'modelos').iterdir())) >= 4
+    bom = json.loads((salida / 'sbom.cdx.json').read_text(encoding='utf-8'))
+    tipos = {c['name']: c['type'] for c in bom['components']}
+    assert tipos['org/e5'] == tipos['qwen3:8b'] == 'machine-learning-model' and tipos['ollama'] == 'application'
+    assert (salida / 'instalador' / 'ComplementoIA.iss').is_file() and (salida / 'version.txt').read_text().strip() == '1.0rc6'
+    corpus = json.loads((salida / 'corpus' / 'ordenes_neutras.json').read_text(encoding='utf-8'))
+    assert corpus['empresa'] is None and len(corpus['filas']) == m['corpus_neutro']['filas'] > 100
+    assert IC.verificar_candidato(salida)['version'] == '1.0rc6'
+    (salida / 'modelos' / 'ollama' / 'blobs' / 'sha256-intruso').write_bytes(b'GGUF')
+    with pytest.raises(IC.ErrorInstalacion, match='no declara'):
+        IC.verificar_candidato(salida)
+
+
+@pytest.mark.parametrize('caso', ['huella_hf', 'blob_git', 'manifiesto', 'capa', 'ollama', 'peso_no_declarado', 'licencia'])
+def test_modelo_alterado_o_sin_declarar_no_se_empaqueta(sources, modelos, tmp_path, caso):
+    """086:RF-34, RF-39 — un modelo de otra revisión, una capa cambiada, otro Ollama o un peso sin declarar: no se arma."""
+    source, cache_ruedas, freeze, provenance = sources
+    cache, rev, digest = modelos
+    snap = cache / 'huggingface' / 'hub' / 'models--org--e5' / 'snapshots' / rev
+    if caso == 'huella_hf':
+        (snap / 'model.safetensors').write_bytes(b'PESOS-E5-OTROS')
+    elif caso == 'blob_git':
+        (snap / 'config.json').write_bytes(b'{"hidden_size": 9}')
+    elif caso == 'manifiesto':
+        m = cache / 'ollama_modelos/manifests/registry.ollama.ai/library/qwen3/8b'
+        m.write_bytes(m.read_bytes() + b' ')
+    elif caso == 'capa':
+        (cache / 'ollama_modelos' / 'blobs' / f'sha256-{digest["modelo"]}').write_bytes(b'GGUF' + b'\1' * 12)
+    elif caso == 'ollama':
+        with zipfile.ZipFile(cache / 'ollama' / 'ollama-windows-amd64.zip', 'a') as z:
+            z.writestr('extra.dll', b'MZ')
+    else:
+        entrega = json.loads((source / 'config' / 'entrega.json').read_text(encoding='utf-8'))
+        if caso == 'peso_no_declarado':
+            entrega['pesos_permitidos'] = entrega['pesos_permitidos'][:1]
+        else:
+            entrega['complemento_ia']['modelos'][1]['licencia'] = 'ollama'
+        (source / 'config' / 'entrega.json').write_text(json.dumps(entrega), encoding='utf-8')
+    with pytest.raises(CC.CE.EntregaError, match='huella|revisión|declarad|licencia|tamaño'):
+        CC.construir_complemento_ia(source, tmp_path / 'salida', cache=cache_ruedas, version='1.0rc6',
+                                    capacidades='integrales', versiones=freeze, procedencias=provenance, modelos=cache)
+    assert not (tmp_path / 'salida' / 'manifiesto_candidato.json').exists()
+
+
+def test_la_orden_pide_modelos_o_sin_modelos_explicito(sources, capsys):
+    """086:RF-37 — el complemento de la 1.0 trae sus modelos; sin ellos hay que decirlo con --sin-modelos."""
+    source, cache, _, _ = sources
+    assert CC.main(['complemento-ia', '--salida', str(source / 'x'), '--ruedas-cache', str(cache)]) == 1
+    assert '--sin-modelos' in capsys.readouterr().err
+
+
+def _instalado(tmp_path, version='1.0rc6'):
+    destino = tmp_path / 'app'
+    python = destino / 'versiones' / version / 'python' / 'python.exe'
+    python.parent.mkdir(parents=True)
+    python.write_text('', encoding='utf-8')
+    (destino / 'actual.txt').write_text(version + '\n', encoding='utf-8')
+    return destino
+
+
+def test_el_complemento_se_instala_junto_al_programa_sin_pip_a_mano(sources, modelos, tmp_path, monkeypatch):
+    """086:RF-37, RF-39 (auditoría L8) — con el Python del programa: comprueba las huellas, instala las ruedas sin red y
+    con huella, deja los modelos y Ollama en complemento_ia, y el lanzador los lee de ahí sin internet."""
+    source, cache_ruedas, freeze, provenance = sources
+    cache, rev, _ = modelos
+    salida = tmp_path / 'complemento'
+    CC.construir_complemento_ia(source, salida, cache=cache_ruedas, version='1.0rc6', capacidades='integrales',
+                                versiones=freeze, procedencias=provenance, modelos=cache)
+    destino = _instalado(tmp_path)
+    ordenes = []
+
+    def correr(orden, **kw):
+        ordenes.append(orden)
+        return type('R', (), {'returncode': 0, 'stdout': '', 'stderr': ''})()
+
+    monkeypatch.setattr(IC.subprocess, 'run', correr)
+    monkeypatch.setattr(IC, '_web_escuchando', lambda puerto: False)
+    r = IC.instalar_complemento(salida, destino)
+    assert r['modelos'] == ['org/e5', 'qwen3:8b', 'ollama']
+    pip = next(o for o in ordenes if 'pip' in o)
+    assert {'--no-index', '--require-hashes'} <= set(pip) and str(salida / 'instalacion.lock') in pip
+    ia = destino / 'complemento_ia'
+    assert (ia / 'instalado.json').is_file() and (ia / 'ollama' / 'ollama.exe').is_file()
+    assert (ia / 'modelos/huggingface/hub/models--org--e5/refs/main').is_file()
+    assert not (ia / 'modelos' / 'ollama_runtime').exists(), 'Ollama va descomprimido, no el zip'
+    lanzador = (destino / 'ConverterSmartGrid.cmd').read_text(encoding='cp1252')
+    assert 'HF_HUB_OFFLINE=1' in lanzador and 'OLLAMA_MODELS=' in lanzador and 'ollama.exe" serve' in lanzador
+    assert any('qwen3:8b' in o for o in ordenes if '-c' in o), 'el asistente queda con el modelo de Ollama que trae'
+
+
+@pytest.mark.parametrize('caso', ['sin_programa', 'otra_version', 'pip_falla'])
+def test_el_complemento_no_se_instala_a_medias(sources, modelos, tmp_path, monkeypatch, caso):
+    """086:RF-37, RF-39 — sin el programa, con otra versión o si pip falla, el programa queda como estaba."""
+    source, cache_ruedas, freeze, provenance = sources
+    cache, _, _ = modelos
+    salida = tmp_path / 'complemento'
+    CC.construir_complemento_ia(source, salida, cache=cache_ruedas, version='1.0rc6', capacidades='integrales',
+                                versiones=freeze, procedencias=provenance, modelos=cache)
+    destino = tmp_path / 'vacio' if caso == 'sin_programa' else _instalado(tmp_path, '1.0rc5' if caso == 'otra_version' else '1.0rc6')
+    monkeypatch.setattr(IC.subprocess, 'run', lambda *a, **k: type('R', (), {'returncode': 1, 'stdout': '', 'stderr': 'no'})())
+    monkeypatch.setattr(IC, '_web_escuchando', lambda puerto: False)
+    with pytest.raises(IC.ErrorInstalacion, match={'sin_programa': 'instale antes', 'otra_version': 'misma versión',
+                                                    'pip_falla': 'pip'}[caso]):
+        IC.instalar_complemento(salida, destino)
+    assert not (destino / 'complemento_ia').exists() and not (destino / 'complemento_ia.preparando').exists()
+
+
+def test_el_iss_del_complemento_va_en_la_linea_del_programa():
+    """086:RF-37 (auditoría L8) — su propio instalador, por usuario, en la carpeta del programa, sin pip a mano: lo hace
+    instalar_candidato.py complemento; con disco partido porque los pesos pasan de 4 GB."""
+    iss = (REPO / 'instalador' / 'ComplementoIA.iss').read_text(encoding='utf-8')
+    for esperado in ('PrivilegesRequired=lowest', 'DiskSpanning=yes', 'instalar_candidato.py" complemento',
+                     '{6F0B1C52-8A3E-4C57-9B0E-6F4C2D7A1E86}_is1', 'version.txt', 'actual.txt'):
+        assert esperado in iss
+    assert 'pip install' not in iss
+    principal = (REPO / 'instalador' / 'ConverterSmartGrid.iss').read_text(encoding='utf-8')
+    assert 'Name: "{app}\\complemento_ia"' in principal

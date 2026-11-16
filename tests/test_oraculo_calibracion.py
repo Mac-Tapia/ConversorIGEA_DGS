@@ -99,7 +99,7 @@ def test_con_central_en_un_tramo_usa_el_arranque_de_siempre():
     guion = cargar_herramienta('ajuste_cabecera_pf.py', 'ajuste_oraculo_guion', tools_en_path=True)
     reps = {'F': _reparto()}
     salen, inf = guion._arranque_del_oraculo(None, None, {'F': {'central': True}}, reps, {}, (), 0.01)
-    assert salen is reps and 'RF-6' in inf['motivo'] and inf['modelo'] is None
+    assert salen is reps and 'hay central en un tramo' in inf['motivo'] and inf['modelo'] is None
     salen, inf = guion._arranque_del_oraculo(None, None, {'F': {'central': False}}, reps, {}, (), 0.01)
     assert salen is reps and inf['modelo'] is None and inf['motivo']
 

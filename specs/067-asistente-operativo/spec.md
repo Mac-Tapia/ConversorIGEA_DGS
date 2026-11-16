@@ -1,6 +1,6 @@
 # Spec 067 — Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web
 
-Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100)
+Estado: aprobada (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100. Ampliada el 2026-11-14, Plan Maestro v1.6, H10: RF-41, T10)
 
 Rama de trabajo: `asistente/nucleo`.
 Cita: 026 (asistente), 027 (agente en producción), 043 (gobierno de modelos), 047 (revisión por
@@ -106,6 +106,16 @@ piezas existían pero no estaban unidas al camino real del operador:
   rechazará la confirmación.
 - RF-40: EL SISTEMA dirá en el inventario del equipo que el proyecto entero se confirma con una lista única,
   no etapa por etapa.
+
+### Recibo de las vías directas (2026-11-14, Plan Maestro v1.6, H10)
+
+Reentrenar desde la web, el reentreno automático, `modelos_en_uso` (activar, poner provisional y volver al anterior) y las
+mejoras (rama de una librería y decisión) escriben sin plan ni `GobiernoEquipo`, y no dejaban fila en `equipo_acciones`.
+
+- RF-41: CUANDO una vía que escribe sin plan (reentrenar desde la web, el reentreno automático, poner un modelo en uso o
+  volver al anterior, la rama de una librería o la decisión sobre una mejora) empiece y termine o falle, EL SISTEMA dejará
+  su recibo en `equipo_acciones` con los campos del de `GobiernoEquipo`, quién la decidió y `via: directa`, sin cambiar lo
+  que la vía hace ni su error; el reentreno automático sigue encendido por defecto (071:RF-6).
 
 ## Fuera de alcance
 

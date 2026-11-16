@@ -167,6 +167,30 @@
   no acredita modelos, importación nativa final ni la red físicamente cortada.
   Evidencias externas: p25_fuentes_capex_integracion_20261108,
   p25_instalador_integrado_20261108 y p22_construccion_integral_rc6_20261108.
+  Avance (2026-11-14, auditoría de lanzamiento L3, L4 y L8; decisiones del usuario del 2026-11-13): `complemento-ia
+  --modelos` trae, sin internet, intfloat/multilingual-e5-base en su revisión d1287505 (070:RF-77: la forma de la caché de
+  Hugging Face que lee el codificador, cada fichero por su SHA-256 o su blob git del catálogo), qwen3:8b (el manifiesto del
+  registro, cuyo SHA-256 es la revisión 500a1f06, y cada capa por su huella) y Ollama 0.40.16 (el zip oficial, con la huella
+  que publica su página de versiones), más un corpus de órdenes neutro, de las plantillas con nombres inventados y revisado
+  contra la lista de términos (RF-34). Sus pesos están en `pesos_permitidos`, entrenados con datos públicos. Las licencias
+  (MIT de e5 y de Ollama, MIT de ggml, Apache-2.0 de Qwen3) se comprobaron en su fuente oficial, permiten redistribuir y van
+  en `config/licencias_terceros`, en los avisos, en `licencias/modelos` y en el SBOM como `machine-learning-model` y
+  `application`. Los avisos del núcleo y del complemento llevan además las licencias nativas del Python propio, vcruntime, el
+  texto de NVIDIA de cada DLL de CUDA y cuDNN, y el código fuente de cada LGPL (GEOS, iconv, psycopg2/libpq, moocore,
+  FFmpeg); una DLL LGPL sin su fuente declarada impide armar. El complemento se instala con `instalador/ComplementoIA.iss` y
+  `instalar_candidato.py complemento`, sin pip a mano, junto al programa de su misma versión; el lanzador lee los modelos de
+  `complemento_ia` sin internet. «Pregunta» en el instalado responde sobre los manuales y notas entregados con la abstención
+  por BM25 que calibra el constructor (`asistente/pregunta_entregada.py`), con la muestra mínima y la comprobación de fugas
+  de la 097:RF-19, reutilizadas de la tarjeta de la fuga del 077. Pruebas: `tests/test_complemento_integral.py` y
+  `tests/test_pregunta_entregada.py`; evidencia en `D:/csg/INSTALADOR_IA/`. Sigue abierto: compilar el complemento real
+  (unos 10 GB) e instalarlo en este equipo con la GPU, y lo demás de esta tarea.
+  Rebase sobre 00d30651 (B5 de e6, 2026-11-14): si la calibración del corpus entregado falta, no se lee, le falta una
+  clave, su umbral no es numérico o es de otro corpus o de otro conjunto, «pregunta» sigue diciendo «No lo sé», pero ya no
+  en silencio: `reranker.servicio_entregado` lo avisa en el registro con la causa concreta y la deja en la política
+  (`abstencion_sin_calibrar`). Pruebas: `test_sin_calibracion_el_instalado_lo_avisa_y_dice_por_que` y
+  `test_una_calibracion_que_no_vale_se_avisa_con_su_causa`.
+  Rebase sobre 9d483349 (puerta C, 2026-11-16): la calibración del corpus entregado se escribe con `write_json_atomic`,
+  la escritura atómica única de 001:RF-5 (`tests/test_json_atomico.py`), y no con `write_text`.
 - [ ] T41 Una persona ajena al proyecto instala y convierte siguiendo el manual. (RF-44)
   Hecho cuando: lo consigue sin ayuda, o lo que no entendió queda corregido en el manual.
 

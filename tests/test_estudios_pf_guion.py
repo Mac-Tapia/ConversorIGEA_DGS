@@ -235,7 +235,7 @@ def test_las_etapas_atrasadas_se_aplican_antes_del_flujo():
     assert rc == 0, informe
     assert etapa.tAcTime < hora and sin.iStudyTime == hora
     assert informe['etapas_adelantadas'] == ['Fichas_P']
-    assert any('063:RF-5' in a and 'Fichas_P' in a for a in informe['avisos'])
+    assert any('se adelantan antes del flujo' in a and 'Fichas_P' in a for a in informe['avisos'])
     assert cargas_pf.VENTANA_ETAPAS_S > 10
 
 

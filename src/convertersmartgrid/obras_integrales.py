@@ -171,7 +171,7 @@ def variantes(alimentador: str, kv: float, camino: Sequence[Mapping[str, Any]], 
     for clase, falta in nodos['sin_maniobra'].items():
         if falta:
             avisos.append(f'{alimentador}: ninguna barra de su {"troncal" if clase == "transferencia" else "rama"} desde '
-                          f'la que hacer la {clase} tiene un interruptor o seccionador que abrir: no se propone (098:RF-13).')
+                          f'la que hacer la {clase} tiene un interruptor o seccionador que abrir: no se propone.')
     corriente = {str(t.get('hasta')): t.get('corriente_a') for t in camino}
     out: list[Variante] = []
     # 087:RF-52: por cada vecino con margen, la transferencia desde la barra de la troncal más cercana a él. CHI201 (Pisco,
@@ -188,18 +188,18 @@ def variantes(alimentador: str, kv: float, camino: Sequence[Mapping[str, Any]], 
         pedidos.append(('traslado', nodos['traslado'], vecinos_con_margen(vecinos.get(nodos['traslado']) or (), p)))
     if not elegidos and nodos['transferencia']:
         avisos.append(f'{alimentador}: ningún alimentador vecino de su troncal conserva margen de tensión y de carga '
-                      'para recibir su transferencia (087:RF-32).')
+                      'para recibir su transferencia.')
     for clase, nodo, utiles in pedidos:
         if not utiles:
             avisos.append(f'{alimentador}: ningún alimentador vecino de {nodo} conserva margen de tensión y de carga '
-                          f'para recibir su {clase} (087:RF-32).')
+                          f'para recibir su {clase}.')
             continue
         for v in utiles:
             kv_v = float(v.get('kv') or kv)
             tipo = _tipo_del_enlace(tipos, kv_v, corriente.get(nodo))
             if tipo is None:
                 avisos.append(f"{alimentador}: ningún conductor de {kv_v:g} kV para el enlace con {v['alimentador']} "
-                              f'(087:RF-32).')
+                              f'.')
                 continue
             km = float(v['distancia_m']) / 1000.0 * FACTOR_RUTA
             otra = not math.isclose(kv_v, float(kv), rel_tol=1e-3)
@@ -241,11 +241,11 @@ def variantes_por_enlace(alimentador: str, enlaces: Sequence[Mapping[str, Any]],
         if (e.get('u_min') is not None and not e.get('devuelve_zona')
                 and not vecinos_con_margen([{**e, 'alimentador': vecino, 'distancia_m': 0.0}], p)):
             avisos.append(f"{alimentador}: {vecino} tiene poco margen de tensión o de carga para recibir por "
-                          f"{e.get('enlace')}: se mide igual, con los dos alimentadores (087:RF-32, 098:RF-47).")
+                          f"{e.get('enlace')}: se mide igual, con los dos alimentadores.")
         puntos = [x for x in (e.get('puntos') or []) if (x.get('maniobra') or {}).get('nombre')]
         if not puntos:
             avisos.append(f"{alimentador}: ninguna maniobra en el camino hasta el enlace {e.get('enlace')} con {vecino}: "
-                          'no se transfiere por él (098:RF-13).')
+                          'no se transfiere por él.')
             continue
         # 098:RF-22: de la más cercana al enlace; 098:RF-43: al mover el corte de la zona del operador, de la más lejana,
         # la que devuelve más carga y deja pasar menos.

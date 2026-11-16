@@ -521,7 +521,9 @@ def test_lista_de_entrega_unica_y_declarativa(manifiesto):
                   'config/perfil_empresa.json', f'config/perfiles/{_perfil_excluido().name}', 'tools/madrl_obras.py',
                   'CLAUDE.md', 'docs/constitution.md'):
         assert not CE.entra(fuera, manifiesto), fuera
-    assert manifiesto['pesos_permitidos'] == []
+    # 086:RF-34 (usuario, 2026-11-13): solo los dos modelos públicos del complemento de IA, nunca uno del proyecto.
+    assert {p['modelo'] for p in manifiesto['pesos_permitidos']} == {'intfloat/multilingual-e5-base', 'qwen3:8b'}
+    assert all(p['entrenado_con'] == 'publico' and p['ruta'].startswith('modelos/') for p in manifiesto['pesos_permitidos'])
 
 
 @pytest.mark.parametrize('nombre', ['modelo.safetensors', 'pinn.pt', 'orden.gguf', 'clasificador.joblib'])

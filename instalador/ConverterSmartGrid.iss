@@ -112,6 +112,8 @@ Name: "{autoprograms}\{#NombreAcceso} - manual de instalacion"; Filename: "{win}
 ; Solo el programa. La carpeta de datos (%LOCALAPPDATA%\ConverterSmartGrid\datos) es del operador y se queda.
 Type: filesandordirs; Name: "{app}\versiones"
 Type: filesandordirs; Name: "{app}\_entrega"
+; 086:RF-37: los modelos del complemento de IA, que sin el programa no sirven; su instalador los quita también.
+Type: filesandordirs; Name: "{app}\complemento_ia"
 Type: filesandordirs; Name: "{app}\documentos"
 Type: filesandordirs; Name: "{app}\documentos.preparando"
 Type: filesandordirs; Name: "{app}\documentos.anterior"

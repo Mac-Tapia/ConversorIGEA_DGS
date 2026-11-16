@@ -77,8 +77,8 @@ def test_sin_barra_trifasica_la_sed_nueva_se_crea_con_las_fases_de_la_barra(guio
     assert rc == 0 and informe['no_creadas'] == [], (SEMILLA, informe['no_creadas'])
     creada = next(c for x in informe['feeders'] for c in x['creadas'])
     assert creada['fases'] == fases and 'adaptada' in creada['criterio'], SEMILLA
-    aviso = next(a for a in informe['avisos'] if '081:RF-66' in a)
-    assert '081:RF-9' in aviso and '100 kVA' in aviso and 'por fase' in aviso, aviso
+    aviso = next(a for a in informe['avisos'] if 'kvar en' in a and 'fase(s)' in a)
+    assert 'ninguna barra cercana lleva' in aviso and '100 kVA' in aviso and 'por fase' in aviso, aviso
     for v in app.carpetas['scheme'].GetContents('*.IntScheme'):
         v.Activate()
     from convertersmartgrid.dgs import PHTECH_POR_FASES
@@ -102,7 +102,7 @@ def test_el_tramo_que_se_parte_manda_sobre_su_extremo(guion):
     informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[fila]), simular=True)
     (r,) = informe['feeders'][0]['crearian']
     assert rc == 0 and r['fases'] == 3 and not r['parte'] and r['barra'] in ('F1_B1', 'F1_B2'), r
-    assert any('081:RF-8' in a and 'N1' in a for a in informe['avisos']), informe['avisos']
+    assert any('y necesita' in a and 'N1' in a for a in informe['avisos']), informe['avisos']
 
 
 @pytest.mark.parametrize('k', range(2))
@@ -126,5 +126,5 @@ def test_bancos_de_la_calibracion_sin_barras_trifasicas(ajuste, k):
     ctech = {2: 3, 1: 6}[fases]
     for b in informe['bancos_nuevos']:
         assert _objeto(app, 'ElmShnt', b['banco']).ctech == ctech
-    assert any('081:RF-68' in a and 'por fase' in a for a in informe['avisos']), informe['avisos']
+    assert any('fase(s)' in a and 'por fase' in a for a in informe['avisos']), informe['avisos']
     assert not any('no se ponen (054:RF-10)' in a for a in informe['avisos'])

@@ -69,17 +69,16 @@ def auditar_muestras(muestras: Sequence[Any], ids: Sequence[str], *, parametros:
                                       for m in muestras})
     avisos: list[str] = []
     if no_finitos:
-        avisos.append(f'{len(no_finitos)} campo(s) con valores no finitos: no se entrena (027:RF-30).')
+        avisos.append(f'{len(no_finitos)} campo(s) con valores no finitos: no se entrena.')
     if redes < u.min_redes:
         quien = 'una sola red' if redes == 1 else f'{redes} redes'
-        avisos.append(f'{quien} en el dataset: el error de prueba no mide la generalización a otra red '
-                      '(027:RF-33).')
+        avisos.append(f'{quien} en el dataset: el error de prueba no mide la generalización a otra red.')
     if fuera:
         avisos.append(f'{len(fuera)} episodio(s) con tensiones fuera de {u.v_min_pu}–{u.v_max_pu} p.u.; '
-                      'se mantienen: las calculó DIgSILENT (027:RF-32).')
+                      'se mantienen: las calculó DIgSILENT.')
     if parametros and etiquetas:
         avisos.append(f'{parametros:,} parámetros frente a {etiquetas:,} tensiones etiquetadas de '
-                      f'{redes} red(es) (027:RF-33).')
+                      f'{redes} red(es).')
     return {
         'apto': not no_finitos,
         'muestras': len(muestras), 'redes': redes,

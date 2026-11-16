@@ -195,7 +195,7 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
                   {' '}= aguas arriba {fmtNum(r.arriba_kw, 1)} kW + aguas abajo {fmtNum(r.abajo_kw, 1)} kW; la central
                   generaba {fmtNum(r.generacion_kw, 1)} kW y por la cabecera entraban {fmtNum(r.cabecera_kw, 1)} kW.
                   {r.maxima_cabecera && !r.coincidente && <> La máxima de cabecera, {fmtNum(r.maxima_cabecera.kw, 1)} kW el {r.maxima_cabecera.fecha}, no es la de la demanda.</>}
-                  {r.coincidente && <> Se calibra en este registro, el mismo para todos los alimentadores (021:RF-50).</>}
+                  {r.coincidente && <> Se calibra en este registro, el mismo para todos los alimentadores.</>}
                   {r.descartados > 0 && !r.coincidente && <> {fmtNum(r.descartados)} registro(s) descartados: aguas arriba fuera de lo normal.</>}
                   {r.avisos.map((x) => <span key={x}> Aviso: {x}.</span>)}
                 </>
@@ -237,9 +237,9 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
         ? <><strong>Recalibración n.º {recalibracion}: se cuadran la P (kW) y la Q (kvar)</strong>, la Q con ±1 % variando
           solo el FP de las escaladas entre el del perfil y 1, con los bancos que haya a su máxima capacidad y las fijas a escala 1;
           si con las escaladas a FP 1 la Q sigue por encima, se acepta por kW y se recomienda revisar los bancos para que los
-          valide el evaluador (035:RF-24 a RF-27). Las fijas, con el criterio elegido en 2.3 (039:RF-1). Con la máxima
+          valide el evaluador. Las fijas, con el criterio elegido en 2.3. Con la máxima
           elegida arriba (del alimentador o de su barra y SET) y la tabla cruzada, sobre la red que hay ahora en DIgSILENT (SED y
-          transformadores nuevos, bancos, tramos y cambios a mano, escaneados antes de aplicar, 028:RF-16).</>
+          transformadores nuevos, bancos, tramos y cambios a mano, escaneados antes de aplicar).</>
         : <><strong>Calibración: solo se cuadra la P (kW).</strong> La Q (kvar) se informa; se cuadra en la recalibración, que
           se activa en cuanto esta queda hecha.</>}</p>
       {falta && <small className="muted">{falta}</small>}
@@ -400,18 +400,18 @@ function InformeAjuste({ inf, report, cancelado, token }: {
               {inf.tipo_ajuste && <tr><td>Tipo</td><td colSpan={2}>{inf.tipo_ajuste.tipo === 'RECALIBRACION'
                 ? `Recalibración n.º ${inf.tipo_ajuste.numero}` : 'Calibración'} · cuadra {inf.tipo_ajuste.cuadra === 'P_Y_Q'
                 ? 'P (kW) y Q (kvar)' : 'solo la P (kW)'}</td></tr>}
-              {(inf.fijas_a_su_maxima ?? []).length > 0 && <tr><td title="039:RF-18: subidos a su máxima del mes en la tabla cruzada; su subida se descuenta de las escaladas">
+              {(inf.fijas_a_su_maxima ?? []).length > 0 && <tr><td title="subidos a su máxima del mes en la tabla cruzada; su subida se descuenta de las escaladas">
                 Clientes a su máxima</td><td colSpan={2}>{inf.fijas_a_su_maxima!.map((c) =>
                   `${c.codigo}${c.nombre ? ` (${c.nombre})` : ''} en ${c.sed}: ${fmtNum(c.p_kw, 1)} kW y ${fmtNum(c.q_kvar, 1)} kvar`
                   + (c.fecha ? `, registro ${c.fecha}` : ', POT y EA/ERI del mes')).join(' · ')}</td></tr>}
-              {inf.cuadre_q && <tr><td title="035:RF-24, RF-28 a RF-30: con la medida coherente la Q se cuadra con la de las escaladas; si no, queda la de DIgSILENT con su FP de perfil">
+              {inf.cuadre_q && <tr><td title="con la medida coherente la Q se cuadra con la de las escaladas; si no, queda la de DIgSILENT con su FP de perfil">
                 Q con bancos ({(inf.bancos_en_servicio ?? []).length} en servicio, {fmtNum(inf.cuadre_q.bancos_kvar, 0)} kvar)</td>
                 <td className="num">{inf.cuadre_q.estado === 'CUADRADA' ? 'cuadrada'
                   : inf.cuadre_q.estado === 'MEDIDA_INCOHERENTE_ALTA' || inf.cuadre_q.estado === 'MEDIDA_INCOHERENTE_BAJA'
                     ? `medida no coherente: Q de DIgSILENT ${fmtNum(inf.cuadre_q.cabecera_kvar ?? 0, 1)} kvar (${fmtNum(inf.cuadre_q.diferencia_kvar ?? 0, 1)} kvar); con FP ${fmtNum(inf.cuadre_q.extremo?.fp_escaladas ?? 1, 3)} daba ${fmtNum(inf.cuadre_q.extremo?.cabecera_kvar ?? 0, 1)}`
                   : 'sin Q en las escaladas'}</td>
                 <td className="num">FP escaladas {inf.cuadre_q.fp_escaladas == null ? '—' : fmtNum(inf.cuadre_q.fp_escaladas, 3)}</td></tr>}
-              {inf.unidades && <tr><td title="035:RF-14 a RF-16">Unidades en DIgSILENT</td>
+              {inf.unidades && <tr><td>Unidades en DIgSILENT</td>
                 <td colSpan={2}>{Object.entries(inf.unidades.leidas).map(([a, u]) => `${a} ${u ?? '—'}`).join(' · ')}
                   {inf.unidades.correctas ? '' : ' — no son MW/Mvar: no se escribió nada'}</td></tr>}
               {inf.kvar_no_bloqueante && !inf.cuadre_q && <tr><td>Diferencia de kVAR (no bloqueante)</td>
@@ -546,9 +546,9 @@ function RepartoProbabilistico({ p, medidas }: {
         de sobrecarga{p.prob_tension_fuera != null ? ` · barra fuera de banda en ${pct(p.prob_tension_fuera)}` : ''}</summary>
       <p className="small muted">Cada SED escalada con su factor propio, más cargada cuanto mayor su potencia
         (pendiente {v(p.pendiente, 2)}, dispersión {v(p.dispersion, 2)}, de {p.fuente}); semilla {p.semilla}: la misma
-        semilla repite estos números (041:RF-2, RF-3, RF-7).</p>
+        semilla repite estos números.</p>
       {medidas.length > 0 && <p className="small">{medidas.length} SED fijas por su demanda medida en «3.1 Demandas en
-        bloque», fuera del sorteo: {medidas.map((m) => m.sed).join(', ')} (041:RF-9).</p>}
+        bloque», fuera del sorteo: {medidas.map((m) => m.sed).join(', ')}.</p>}
       <div className="table-wrap table-short">
         <table className="table table-ajustada">
           <thead><tr><th>SED</th><th className="num">kVA</th><th className="num">kW P05</th><th className="num">kW P50</th>

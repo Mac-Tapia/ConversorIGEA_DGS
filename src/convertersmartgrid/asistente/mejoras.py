@@ -62,7 +62,7 @@ def validar(p: Propuesta) -> None:
 
 def _git(repo: Path, *args: str) -> str:
     if args and args[0] in PROHIBIDAS:
-        raise PermissionError(f'el asistente no ejecuta «git {args[0]}»: nunca fusiona ni sube (RF-27)')
+        raise PermissionError(f'el asistente no ejecuta «git {args[0]}»: nunca fusiona ni sube')
     r = subprocess.run(['git', *args], cwd=repo, capture_output=True, text=True, encoding='utf-8',
                        errors='replace', timeout=300, check=False)
     if r.returncode != 0:

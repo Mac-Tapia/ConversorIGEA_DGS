@@ -7,6 +7,7 @@ Origin ajeno aceptado. Cada puerta tiene aquí su prueba negativa, también en e
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import base64
 import logging
@@ -340,6 +341,30 @@ def test_el_registro_de_accesos_no_guarda_el_token():
     registro = logging.LogRecord('uvicorn.access', logging.INFO, '', 0, '%s %s', ('GET', '/?panel=x&acceso=secreto'), None)
     assert filtro.filter(registro) is True
     assert 'secreto' not in registro.getMessage() and 'panel=x' in registro.getMessage()
+
+
+def test_ningun_registro_guarda_secretos_en_el_mensaje():
+    """086:RF-19 — el filtro iba solo en ``uvicorn.access`` y solo miraba ``args``: el asistente escribía el token."""
+    import io
+
+    flujo = io.StringIO()
+    manejador = logging.StreamHandler(flujo)
+    programa = logging.getLogger('convertersmartgrid')
+    programa.addHandler(manejador)
+    nivel = programa.level
+    programa.setLevel(logging.INFO)
+    try:
+        seguridad._instalar_filtro_registro()
+        registro = logging.getLogger('convertersmartgrid.asistente')
+        registro.info('orden «%s» con acceso=secreto1 y Authorization: Bearer secreto2abc', 'convierte AL101')
+        registro.info('token=secreto3&x=1 contraseña: secreto4 "password": "secreto5"')
+        registro.info('cabecera %s: %s', 'X-CSG-Token', 'secreto6')
+    finally:
+        programa.removeHandler(manejador)
+        programa.setLevel(nivel)
+    texto = flujo.getvalue()
+    assert 'convierte AL101' in texto and 'x=1' in texto
+    assert not re.search(r'secreto\d', texto), texto
 
 
 # ------------------------------------------------------------ clientes locales
@@ -1148,6 +1173,251 @@ def test_arcgis_apagado_no_conecta(producto, monkeypatch):
         ArcGISLayer('https://arcgis.example/capa').metadata()
 
 
+def _resuelve_a(monkeypatch, ip):
+    """El DNS de las pruebas: cualquier nombre resuelve a ``ip``; ninguna prueba consulta un DNS real."""
+    def getaddrinfo(host, port, *_a, **_k):
+        familia = socket.AF_INET6 if ':' in ip else socket.AF_INET
+        return [(familia, socket.SOCK_STREAM, 6, '', (ip, port or 0))]
+    monkeypatch.setattr(socket, 'getaddrinfo', getaddrinfo)
+
+
+#: Destinos que el usuario no debe poder dar: la propia máquina, los metadatos de la nube, ficheros y otros protocolos.
+_DESTINOS_VEDADOS = ('http://127.0.0.1/arcgis/rest/services/Red/MapServer', 'http://169.254.169.254/latest/meta-data',
+                     'file:///etc/passwd', 'ftp://servidor.example/capa', 'http://[::1]/capa', 'http://0.0.0.0/capa',
+                     'https:///sin-host')
+
+
+@pytest.mark.parametrize('url', _DESTINOS_VEDADOS)
+def test_arcgis_rechaza_destinos_locales_y_otros_protocolos(url, monkeypatch):
+    """086:RF-22 — la URL del usuario llegaba tal cual a ``requests.get``: SSRF hacia la máquina o la nube."""
+    import requests
+
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.arcgis import ArcGISError, ArcGISLayer
+
+    monkeypatch.setenv(SALIDAS['arcgis'].variable, '1')
+    _resuelve_a(monkeypatch, '93.184.216.34')
+    monkeypatch.setattr(requests, 'get', _no_debe_salir)
+    with pytest.raises(ArcGISError):
+        ArcGISLayer(url)
+
+
+def test_arcgis_rechaza_un_nombre_que_resuelve_a_la_red_privada(monkeypatch):
+    """086:RF-22 — el nombre se resuelve y se mira cada IP: un DNS que apunta a 10.0.0.5 no se consulta."""
+    import requests
+
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.arcgis import ArcGISError, ArcGISLayer
+
+    monkeypatch.setenv(SALIDAS['arcgis'].variable, '1')
+    _resuelve_a(monkeypatch, '10.0.0.5')
+    monkeypatch.setattr(requests, 'get', _no_debe_salir)
+    with pytest.raises(ArcGISError, match='10.0.0.5'):
+        ArcGISLayer('https://capas.example/arcgis/rest/services/Red/MapServer/0')
+
+
+def _servidor_falso(monkeypatch, *respuestas):
+    """La red de las pruebas, por debajo de requests: cada petición la contesta el pool de urllib3 con la siguiente
+    de ``respuestas`` (código, cuerpo, cabeceras) y se anota a qué IP iba el pool y con qué nombre de TLS y Host."""
+    import io
+
+    import urllib3
+
+    cola, pedidas = list(respuestas), []
+
+    def urlopen(pool, method, url, body=None, headers=None, **_k):
+        pedidas.append({'ip': pool.host, 'host': (headers or {}).get('Host'), 'url': url,
+                        'sni': pool.conn_kw.get('server_hostname'), 'certificado': getattr(pool, 'assert_hostname', None)})
+        codigo, cuerpo, cabeceras = cola.pop(0)
+        return urllib3.HTTPResponse(body=io.BytesIO(cuerpo), headers=cabeceras, status=codigo, preload_content=False,
+                                    decode_content=False)
+
+    monkeypatch.setattr(urllib3.connectionpool.HTTPConnectionPool, 'urlopen', urlopen)
+    return pedidas
+
+
+def _dns_que_cambia(monkeypatch, *, al_validar, al_conectar):
+    """DNS rebinding: responde ``al_validar`` al programa y ``al_conectar`` a quien abre el socket (urllib3 o
+    ``socket.create_connection``), y una IP escrita se devuelve tal cual. Anota cada ``connect`` y no deja salir."""
+    conectadas = []
+
+    def getaddrinfo(host, port, *_a, **_k):
+        try:
+            ip = str(ipaddress.ip_address(host))
+        except ValueError:
+            quien = sys._getframe(1).f_globals.get('__name__', '')
+            ip = al_conectar if quien.startswith(('urllib3', 'socket', 'http')) else al_validar
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', (ip, port or 0))]
+
+    def connect(_sock, direccion):
+        conectadas.append(direccion[0])
+        raise ConnectionRefusedError('red de prueba: no se conecta a nada')
+
+    monkeypatch.setattr(socket, 'getaddrinfo', getaddrinfo)
+    monkeypatch.setattr(socket.socket, 'connect', connect)
+    return conectadas
+
+
+def test_arcgis_conecta_a_la_ip_validada_aunque_el_dns_cambie(monkeypatch):
+    """086:RF-22 (b4, rebinding) — se validaba el nombre y requests lo volvía a resolver al conectar: un DNS que da una
+    IP pública a la validación y 127.0.0.1 a la conexión llevaba la consulta a esta máquina. Ahora va a la validada."""
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import arcgis
+
+    monkeypatch.setenv(SALIDAS['arcgis'].variable, '1')
+    conectadas = _dns_que_cambia(monkeypatch, al_validar='93.184.216.34', al_conectar='127.0.0.1')
+    with pytest.raises(OSError):
+        arcgis.ArcGISLayer('https://capas.example/MapServer/0').count()
+    assert conectadas and '127.0.0.1' not in conectadas, conectadas
+    assert set(conectadas) == {'93.184.216.34'}
+
+
+def test_vias_conecta_a_la_ip_validada_aunque_el_dns_cambie(monkeypatch):
+    """086:RF-22 (b4, rebinding) — OSRM por la misma función: la conexión no va a la IP que el DNS da al conectar."""
+    from convertersmartgrid import vias
+
+    conectadas = _dns_que_cambia(monkeypatch, al_validar='93.184.216.34', al_conectar='127.0.0.1')
+    with pytest.raises(OSError):
+        vias._pedir('http://osrm.example/route/v1/driving/x', 1.0)
+    assert conectadas and set(conectadas) == {'93.184.216.34'}, conectadas
+
+
+def test_arcgis_no_sigue_redirecciones(monkeypatch):
+    """086:RF-22 — un 302 hacia una IP privada es un error con su motivo, y no se reintenta ni se sigue."""
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import arcgis
+
+    monkeypatch.setenv(SALIDAS['arcgis'].variable, '1')
+    _resuelve_a(monkeypatch, '93.184.216.34')
+    pedidas = _servidor_falso(monkeypatch, (302, b'', {'Location': 'http://10.0.0.5/arcgis/rest/services'}))
+    monkeypatch.setattr(arcgis.time, 'sleep', lambda _s: None)
+    with pytest.raises(arcgis.ArcGISDestinoError, match='10.0.0.5'):
+        arcgis.ArcGISLayer('https://capas.example/MapServer/0').metadata()
+    assert len(pedidas) == 1 and pedidas[0]['ip'] == '93.184.216.34'
+
+
+def test_arcgis_un_destino_publico_si_se_consulta(monkeypatch):
+    """086:RF-22 — lo legítimo responde como antes, por la IP validada, y TLS y Host siguen con el nombre pedido."""
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import arcgis
+
+    monkeypatch.setenv(SALIDAS['arcgis'].variable, '1')
+    _resuelve_a(monkeypatch, '93.184.216.34')
+    pedidas = _servidor_falso(monkeypatch, (200, b'{"maxRecordCount": 7}', {'Content-Type': 'application/json'}))
+    assert arcgis.ArcGISLayer('https://capas.example/MapServer/0').max_record_count() == 7
+    assert pedidas == [{'ip': '93.184.216.34', 'host': 'capas.example', 'url': '/MapServer/0?f=json',
+                        'sni': 'capas.example', 'certificado': 'capas.example'}]
+
+
+@pytest.mark.parametrize('url', ['http://127.0.0.1:9/route/v1/driving/x', 'http://169.254.169.254/route',
+                                 'file:///etc/passwd', 'ftp://osrm.example/route'])
+def test_vias_rechaza_destinos_locales_y_otros_protocolos(url, monkeypatch):
+    """086:RF-22 — OSRM tenía el mismo defecto: la URL del perfil iba tal cual a ``urlopen``."""
+    import urllib3
+
+    from convertersmartgrid import vias
+    from convertersmartgrid.salidas_red import DestinoNoPermitido
+
+    _resuelve_a(monkeypatch, '93.184.216.34')
+    monkeypatch.setattr(urllib3.connectionpool.HTTPConnectionPool, 'urlopen', _no_debe_salir)
+    with pytest.raises(DestinoNoPermitido):
+        vias._pedir(url, 1.0)
+
+
+def test_vias_con_destino_vedado_va_en_recta_y_dice_por_que(monkeypatch):
+    """086:RF-22 y 016:RF-85 — el enlace no se bloquea: va en recta, con el motivo del destino."""
+    import urllib3
+
+    from convertersmartgrid.vias import ruta_por_vias
+
+    monkeypatch.setenv(SALIDAS['vias'].variable, '1')
+    _resuelve_a(monkeypatch, '10.0.0.5')
+    monkeypatch.setattr(urllib3.connectionpool.HTTPConnectionPool, 'urlopen', _no_debe_salir)
+    ruta = ruta_por_vias((-14.0, -75.7), (-14.1, -75.8), {'servicio': 'osrm', 'url': 'https://osrm.example'})
+    assert ruta.por_via is False and '10.0.0.5' in ruta.avisos[0]
+
+
+def test_vias_no_sigue_redirecciones(monkeypatch):
+    """086:RF-22 — un 302 del enrutador hacia una IP privada corta la consulta en vez de seguirla."""
+    from convertersmartgrid import vias
+    from convertersmartgrid.salidas_red import DestinoNoPermitido
+
+    _resuelve_a(monkeypatch, '93.184.216.34')
+    pedidas = _servidor_falso(monkeypatch, (302, b'', {'Location': 'http://10.0.0.5/route'}))
+    with pytest.raises(DestinoNoPermitido, match='10.0.0.5'):
+        vias._pedir('https://osrm.example/route/v1/driving/x', 1.0)
+    assert len(pedidas) == 1
+
+
+def test_sin_requests_osrm_va_en_recta(monkeypatch):
+    """103:RF-2 y 016:RF-85 — el Python 3.9 de DIgSILENT 2021 puede no tener requests: el enlace va en recta, no cae."""
+    from convertersmartgrid import vias
+
+    monkeypatch.setenv(SALIDAS['vias'].variable, '1')
+    _resuelve_a(monkeypatch, '93.184.216.34')
+    monkeypatch.setitem(sys.modules, 'requests', None)
+    ruta = vias.ruta_por_vias((-14.0, -75.7), (-14.1, -75.8), {'servicio': 'osrm', 'url': 'https://osrm.example'})
+    assert ruta.por_via is False and 'requests' in ruta.avisos[0]
+
+
+def _guarda_de_red_activa() -> None:
+    """La guarda de ``conftest._sin_red_real`` está puesta; si no, la prueba para antes de intentar nada."""
+    puestas = {n: getattr(f, '_red_real_prohibida', False) for n, f in (
+        ('connect', socket.socket.connect), ('connect_ex', socket.socket.connect_ex),
+        ('create_connection', socket.create_connection), ('getaddrinfo', socket.getaddrinfo),
+        ('gethostbyname', socket.gethostbyname))}
+    assert all(puestas.values()), f'la guarda de red de las pruebas no está activa: {puestas}'
+
+
+def test_la_guarda_de_las_pruebas_para_cualquier_conexion_real():
+    """086:RF-22 (H8H5 v3) — en las pruebas de red, una conexión real no sale: la guarda la para y dice adónde iba.
+
+    Es de la base de pruebas, no del programa: pasa también en el rojo, con el esqueleto que no conecta."""
+    _guarda_de_red_activa()
+    with pytest.raises(AssertionError, match='red real prohibida.*192.0.2.1:9'):
+        socket.create_connection(('192.0.2.1', 9), timeout=0.1)
+    with pytest.raises(AssertionError, match='red real prohibida.*osrm.example:443'):
+        socket.getaddrinfo('osrm.example', 443)
+    with pytest.raises(AssertionError, match='red real prohibida.*osrm.example'):
+        socket.gethostbyname('osrm.example')
+    with socket.socket() as s:
+        with pytest.raises(AssertionError, match='red real prohibida.*127.0.0.1:9'):
+            s.connect(('127.0.0.1', 9))
+        with pytest.raises(AssertionError, match='red real prohibida.*169.254.169.254:80'):
+            s.connect_ex(('169.254.169.254', 80))
+    # Lo que la prueba simula sigue funcionando: la simulación sustituye a la guarda.
+    _resuelve_a_en_esta_prueba = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 443))]
+    mp = pytest.MonkeyPatch()
+    try:
+        mp.setattr(socket, 'getaddrinfo', lambda *_a, **_k: _resuelve_a_en_esta_prueba)
+        assert socket.getaddrinfo('osrm.example', 443) == _resuelve_a_en_esta_prueba
+    finally:
+        mp.undo()
+    _guarda_de_red_activa()
+
+
+def test_la_via_de_red_sin_simular_la_para_la_guarda(monkeypatch):
+    """086:RF-22 (H8H5 v3) — OSRM y ArcGIS sin red simulada: resolver el servidor para validarlo ya es salir a la red, y
+    la guarda lo para antes de cualquier conexión. Si el código no resolviera ni validara, no habría nada que parar."""
+    from convertersmartgrid import vias
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.arcgis import ArcGISLayer
+
+    _guarda_de_red_activa()
+    with pytest.raises(AssertionError, match='red real prohibida.*osrm.example'):
+        vias._pedir('https://osrm.example/route/v1/driving/x', 1.0)
+    monkeypatch.setenv(SALIDAS['arcgis'].variable, '1')
+    with pytest.raises(AssertionError, match='red real prohibida.*capas.example'):
+        ArcGISLayer('https://capas.example/arcgis/rest/services/Red/MapServer/0')
+
+
+def test_la_red_privada_solo_con_permiso_expreso(monkeypatch):
+    """086:RF-22 — el permiso de intranet abre 10/8, 172.16/12 y 192.168/16; nunca la máquina ni los metadatos."""
+    from convertersmartgrid.salidas_red import DestinoNoPermitido, validar_destino
+
+    _resuelve_a(monkeypatch, '10.0.0.5')
+    with pytest.raises(DestinoNoPermitido):
+        validar_destino('https://sig.intranet/arcgis')
+    validar_destino('https://sig.intranet/arcgis', permitir_intranet=True)
+    for vedado in ('http://127.0.0.1/x', 'http://169.254.169.254/x', 'http://224.0.0.1/x'):
+        with pytest.raises(DestinoNoPermitido):
+            validar_destino(vedado, permitir_intranet=True)
+
+
 def test_hugging_face_apagado_desde_el_arranque(producto):
     """086:RF-22 — ``huggingface_hub`` lee la variable al importarse: se decide antes de importarlo."""
     entorno = {VARIABLE_EDICION: 'producto'}
@@ -1272,3 +1542,32 @@ def test_086_rf61_el_aviso_dice_al_y_del():
 def test_086_rf61_contraer(texto, sale):
     """086:RF-61 — solo «a el» y «de el» con el artículo; un nombre propio con «El» no se contrae (RAE)."""
     assert contraer(texto) == sale
+
+
+def test_el_filtro_de_secretos_falla_cerrado_si_la_depuracion_falla(monkeypatch):
+    """086:RF-19 — si depurar falla, el registro no sale crudo: se sustituye por un texto fijo y el fallo se cuenta
+    (pre-auditoría de 7e, 2026-11-14: el ``except`` devolvía el registro sin depurar)."""
+    from convertersmartgrid import sesion_web
+
+    def depurar_roto(_texto):
+        raise RuntimeError('fallo dentro de la depuración')
+
+    filtro = sesion_web.FiltroSecretos()
+    monkeypatch.setattr(sesion_web, 'depurar_secretos', depurar_roto)
+    registro = logging.LogRecord('convertersmartgrid', logging.INFO, '', 0, 'token=secreto8 en %s', ('AL101',), None)
+    assert filtro.filter(registro) is True
+    texto = registro.getMessage()
+    assert 'secreto8' not in texto and 'no se pudo depurar' in texto
+    assert filtro.fallos == 1
+
+
+def test_un_registro_mal_formado_sale_depurado_y_sin_romper():
+    """086:RF-19 — un mensaje que no casa con sus argumentos ya no llega crudo a ``handleError``, que lo imprimía
+    entero en stderr con el secreto."""
+    from convertersmartgrid import sesion_web
+
+    filtro = sesion_web.FiltroSecretos()
+    registro = logging.LogRecord('convertersmartgrid', logging.INFO, '', 0, 'token=secreto9 %s %s', ('solo',), None)
+    assert filtro.filter(registro) is True
+    texto = registro.getMessage()
+    assert 'secreto9' not in texto and 'argumentos' in texto

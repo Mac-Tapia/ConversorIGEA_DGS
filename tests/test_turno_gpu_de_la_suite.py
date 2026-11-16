@@ -65,7 +65,7 @@ def test_la_espera_dice_quien_tiene_la_gpu_y_vence_con_su_dueno(tmp_path):
                 pass
     finally:
         otra.communicate('', timeout=30)
-    assert pid in str(exc.value) and 'otra-sesion' in str(exc.value) and '106:RF-3' in str(exc.value)
+    assert pid in str(exc.value) and 'otra-sesion' in str(exc.value) and 'GPU ocupada' in str(exc.value)
     assert len(avisos) == 2 and all(pid in a and 'otra-sesion' in a for a in avisos)
 
 

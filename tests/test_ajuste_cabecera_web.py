@@ -762,7 +762,7 @@ def test_sin_la_barra_de_la_central_se_calibra_sin_ella(client):
     wid, job = _maxima_con_central(client)
     r = _plan(client, wid, job, medidores=['M1'], centrales={'A1': {**CENTRAL, 'nodo': ''}})
     assert r.status_code == 200, r.text
-    assert any('028:RF-19' in a for a in r.json()['avisos'])
+    assert any('se calibra sin ella' in a for a in r.json()['avisos'])
     assert not _recibido(client, wid, r.json()['token']).get('central')
 
 
@@ -889,7 +889,7 @@ def test_proyecto_por_sistema_calibra_todos_y_dice_los_sin_medidor(client):
     assert body['feeders'] == ['A1', 'A2']
     assert body['sistema']['calibrados'] == ['A1', 'A2']
     assert body['sistema']['sin_medidor'] == ['B9']
-    assert any('B9' in a and '022:RF-53' in a for a in body['avisos'])
+    assert any('B9' in a and 'quedan con la demanda del archivo' in a for a in body['avisos'])
     estado = esperar_trabajo(client, client.post(
         f"/api/workspaces/{wid}/demanda/ajuste/{body['token']}/aplicar").json())
     assert estado['status'] == 'done', estado
@@ -925,8 +925,8 @@ def test_no_elegidos_ya_calibrados_conservan_su_calibracion(client):
     body = _plan(client, wid, job, medidores=['M1']).json()
     assert body['feeders'] == ['A1']
     assert body['sistema']['conservan'] == ['A2', 'C7'] and body['sistema']['sin_medidor'] == ['B9']
-    assert any('A2, C7' in a and '028:RF-41' in a for a in body['avisos'])
-    assert not any('A2' in a and '022:RF-53' in a for a in body['avisos'])
+    assert any('A2, C7' in a and 'conservan su última calibración' in a for a in body['avisos'])
+    assert not any('A2' in a and 'quedan con la demanda del archivo' in a for a in body['avisos'])
 
 
 def test_medida_por_encima_de_lo_que_da_la_red_no_se_calibra(client, monkeypatch):
@@ -941,11 +941,11 @@ def test_medida_por_encima_de_lo_que_da_la_red_no_se_calibra(client, monkeypatch
     assert services._capacidad_de_la_red({}, {}, 0.98) is None
     wid, job = _maxima(client)
     r = _plan(client, wid, job)
-    assert r.status_code == 400 and '022:RF-55' in r.json()['detail']
+    assert r.status_code == 400 and 'su red puede dar' in r.json()['detail']
     wid, job = _maxima_dos(client)
     body = _plan(client, wid, job).json()
     assert body['feeders'] == ['A2']
-    assert any(a.startswith('A1: su medidor da') and '022:RF-55' in a for a in body['avisos'])
+    assert any(a.startswith('A1: su medidor da') and 'su red puede dar' in a for a in body['avisos'])
 
 
 def test_transformadores_de_varios_alimentadores_en_un_trabajo(client):

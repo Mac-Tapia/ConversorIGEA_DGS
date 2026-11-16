@@ -127,7 +127,7 @@ def test_un_punto_bueno_sigue_con_su_distancia_al_nodo(red):
     assert rechazadas == []
     (u,) = [f['ubicacion'] for f in siguen]
     assert not u['fuera'] and u['distancia_m'] <= 30.5 and u['radio_m'] == pytest.approx(zona.radio_m, abs=0.1)
-    assert u['mensaje'] == f"SE0001: a {round(u['distancia_m'])} m del nodo {u['nodo']} de F1 (004:RF-72)."
+    assert u['mensaje'] == f"SE0001: a {round(u['distancia_m'])} m del nodo {u['nodo']} de F1."
 
 
 def test_el_tope_del_perfil_manda_sobre_el_radio(red):
@@ -259,7 +259,7 @@ def test_guion_sin_geografia_rechaza_con_las_barras_de_digsilent(guion):
     informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=filas), simular=True)
     assert rc == 0, informe
     motivos = {x['sed']: x['motivo'] for x in informe['no_creadas']}
-    assert '004:RF-73' in motivos['POLO'] and 'km de F1' in motivos['POLO']
+    assert 'revise las coordenadas' in motivos['POLO'] and 'km de F1' in motivos['POLO']
     assert 'Lat y Lon intercambiadas' in motivos['REVES'] and 'F1_B2' in motivos['REVES']
     assert [c for f in informe['feeders'] for c in f['crearian']] == []
 
@@ -279,7 +279,7 @@ def test_guion_da_la_longitud_de_la_linea_y_avisa_si_es_larga(guion):
     assert crearian['CORTA']['longitud_linea_m'] == pytest.approx(33.4, abs=1.0)
     assert crearian['LARGA']['longitud_linea_m'] == pytest.approx(166.8, abs=1.5)
     assert crearian['CORTA']['ubicacion']['nodo'] == 'F1_B2'
-    largas = [a for a in informe['avisos'] if '004:RF-79' in a]
+    largas = [a for a in informe['avisos'] if 'más que la mitad del radio de' in a]
     assert len(largas) == 1 and 'LARGA' in largas[0]
 
 
@@ -297,7 +297,7 @@ def test_guion_reutiliza_si_no_cambia_y_reemplaza_si_cambia(guion):
     igual, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[fila]), simular=False)
     assert rc == 0, igual
     assert [x['variacion'] for x in igual['reutilizadas']] == [var] and igual['cargas'] == []
-    assert not any('004:RF-76' in a for a in igual['avisos'])
+    assert not any('se reemplaza la carga anterior' in a for a in igual['avisos'])
     _caso(app, 'Caso base').Activate()
 
     movida = {**fila, 'lat': b2.GPSlat - 0.0004}
@@ -309,7 +309,7 @@ def test_guion_reutiliza_si_no_cambia_y_reemplaza_si_cambia(guion):
     assert rc == 0, segundo
     assert any('SE0001: cambió su ubicación; se reemplaza la carga anterior' in a for a in segundo['avisos'])
     (eliminada,) = segundo['eliminadas']
-    assert eliminada['variacion'] == var and eliminada['eliminada'] and '004:RF-76' in eliminada['motivo']
+    assert eliminada['variacion'] == var and eliminada['eliminada'] and 'se reemplaza la carga anterior' in eliminada['motivo']
     (creada,) = segundo['cargas']
     assert creada['sed'] == 'SE0001' and creada['reemplaza']['cambios'] == ['su ubicación']
     nuevas = [n for n in _variaciones(app) if 'SE0001' in n]

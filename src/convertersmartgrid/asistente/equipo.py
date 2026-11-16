@@ -87,6 +87,50 @@ def inventario_equipo() -> dict:
                          'revision': 'secuencial; máximo dos rondas'}}
 
 
+def _fila_accion(*, plan: str | None, herramienta: str, responsable: str, alcance: dict, entradas: Any,
+                 archivos_entrada: dict, carril: str, decision: str, plan_sha256: str | None) -> dict:
+    """Los campos comunes de un recibo de ``equipo_acciones``: el mismo contrato con plan o sin él (067:RF-41)."""
+    return {'accion': uuid.uuid4().hex, 'plan': plan, 'herramienta': herramienta, 'responsable': responsable,
+            'alcance': deepcopy(alcance), 'entradas': deepcopy(entradas), 'entrada_sha256': _huella(entradas),
+            'archivos_entrada': dict(archivos_entrada), 'carril': carril,
+            'revision': {'decision': decision, 'responsable': responsable if plan is None else 'operador',
+                         'plan_sha256': plan_sha256},
+            'aceptacion_cientifica': False, 'aceptacion_nativa': None}
+
+
+def _resumen_salida(salida):
+    if isinstance(salida, dict):
+        return {k: v for k, v in salida.items() if
+                isinstance(v, (str, int, float, bool, type(None))) or k == 'entregables'}
+    return salida if isinstance(salida, (str, int, float, bool, type(None))) else None
+
+
+@contextmanager
+def recibo_directo(herramienta: str, *, responsable: str, decision: str, espacio: str | None = None,
+                   entradas: dict | None = None, carril: str = 'engine'):
+    """El recibo de una vía que escribe sin plan ni :class:`GobiernoEquipo` (067:RF-41).
+
+    Reentrenar desde la web, el reentreno automático, poner un modelo en uso o volver al anterior y las mejoras no pasan
+    por el plan, y hasta el 2026-11-14 no dejaban rastro en ``equipo_acciones``. Ahora dejan «iniciada» y «terminada» o
+    «fallida», con los campos del gobierno, ``plan`` nulo y ``via: directa``. No valida, no confirma ni ocupa el espacio:
+    la vía hace lo mismo que antes, y su error sale igual. ``decision`` dice quién la autorizó (el clic del operador, el
+    registro, la decisión anotada del usuario o el reentreno automático por defecto, 071:RF-6).
+    """
+    base = {**_fila_accion(plan=None, herramienta=herramienta, responsable=responsable, alcance={'espacio': espacio},
+                           entradas=entradas or {}, archivos_entrada={}, carril=carril, decision=decision,
+                           plan_sha256=None), 'via': 'directa'}
+    almacen.anotar('equipo_acciones', {**base, 'estado': 'iniciada'})
+    evidencia: dict = {}
+    try:
+        yield evidencia
+    except Exception as exc:
+        almacen.anotar('equipo_acciones', {**base, 'estado': 'fallida', 'motivo': str(exc)})
+        raise
+    almacen.anotar('equipo_acciones', {**base, 'estado': 'terminada', 'salida_sha256': _huella(evidencia.get('salida')),
+                                       'salida': _resumen_salida(evidencia.get('salida')),
+                                       'alcance_final': deepcopy(base['alcance'])})
+
+
 class LecturaGobernada:
     """Las lecturas del proyecto bajo el rol que fija el servidor (077:RF-33, RF-34).
 
@@ -212,15 +256,11 @@ class GobiernoEquipo:
     @contextmanager
     def accion(self, *, cancelado=lambda: False):
         """Admisión y bitácora antes de ejecutar; el recurso siempre se libera."""
-        accion_id = uuid.uuid4().hex
-        base = {'accion': accion_id, 'plan': self.plan_id, 'herramienta': self.tarea,
-            'responsable': self.rol, 'alcance': deepcopy(self.alcance),
-            'entradas': deepcopy(self.datos), 'entrada_sha256': _huella(self.datos),
-            'archivos_entrada': dict(self.archivos_entrada),
-            'carril': 'powerfactory' if self.tarea in _NATIVAS else 'engine',
-            'revision': {'decision': 'confirmada_operador' if self.confirmado else 'lectura_permitida',
-                         'responsable': 'operador', 'plan_sha256': self.firma},
-            'aceptacion_cientifica': False, 'aceptacion_nativa': None}
+        base = _fila_accion(plan=self.plan_id, herramienta=self.tarea, responsable=self.rol, alcance=self.alcance,
+                            entradas=self.datos, archivos_entrada=self.archivos_entrada,
+                            carril='powerfactory' if self.tarea in _NATIVAS else 'engine',
+                            decision='confirmada_operador' if self.confirmado else 'lectura_permitida',
+                            plan_sha256=self.firma)
         try:
             self._validar()
             if cancelado():
@@ -318,10 +358,7 @@ class GobiernoEquipo:
 
     @staticmethod
     def _resumen(salida):
-        if isinstance(salida, dict):
-            return {k: v for k, v in salida.items() if
-                    isinstance(v, (str, int, float, bool, type(None))) or k == 'entregables'}
-        return salida if isinstance(salida, (str, int, float, bool, type(None))) else None
+        return _resumen_salida(salida)
 
     def registrar_salida_paso(self, indice: int, salida) -> None:
         almacen.anotar('equipo_acciones', {**self._registro, 'estado': 'paso_terminado',

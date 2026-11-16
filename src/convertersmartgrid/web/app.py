@@ -34,6 +34,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .. import __version__, notas_de_la_version, sesion_web
+from ..asistente.equipo import recibo_directo
 from ..edicion import estado_edicion, es_edicion_producto
 from ..identify import comprobar_ranura, identificar
 from ..powerfactory_env import project_root
@@ -133,6 +134,14 @@ def encolar_ciclo_aprendizaje(jobs: JobManager, motivos: list[str]):
         return False
     kind = f'aprendizaje:{plan["plan_hash"]}'
     def ejecutar(ctx):
+        # 067:RF-41: sin plan ni clic, pero con su recibo; sigue encendido por defecto (071:RF-6).
+        with recibo_directo('reentreno_automatico', responsable='vigilancia', decision='automatico_por_defecto',
+                            espacio=plan['workspace_id'],
+                            entradas={'motivos': list(motivos), 'plan_hash': plan['plan_hash']}) as evidencia:
+            evidencia['salida'] = ciclo(ctx)
+        return evidencia['salida']
+
+    def ciclo(ctx):
         ctx.check_cancel()
         cancelacion = Path(plan['raiz']) / 'solicitudes' / ctx.job.id / 'cancelar'
         ctx.log('Ciclo conjunto de aprendizaje: ' + '; '.join(motivos))
@@ -2229,7 +2238,7 @@ def create_app(
         # 020:RF-13, RF-14: se valida antes de encolar, para decirlo en el acto.
         pedidos = body.por_alimentador or {body.feeder: body.sed}
         if '' in pedidos:
-            raise HTTPException(422, 'Indique el alimentador de las SED (020:RF-14).')
+            raise HTTPException(422, 'Indique el alimentador de las SED.')
         cambios = {f: services.ajuste_transformadores_pedido(ws, token, f, seds)
                    for f, seds in pedidos.items()}
         quien = next(iter(cambios)) if len(cambios) == 1 else f'{len(cambios)} alim.'
@@ -2310,7 +2319,7 @@ def create_app(
             raise HTTPException(422, 'El planeamiento de largo plazo plantea las obras; no las aplica en «Con proyecto».')
         del_perfil = services.anio_presentacion_del_perfil() if body.anio_presentacion is None else None
         if body.plazo and body.anio_presentacion is None and del_perfil is None:
-            raise HTTPException(422, 'Falta el año de presentación del estudio (072:RF-36).')
+            raise HTTPException(422, 'Falta el año de presentación del estudio.')
         if del_perfil is not None and not ANIO_PRESENTACION_MIN <= del_perfil <= ANIO_PRESENTACION_MAX:
             # 072:RF-36: el del perfil, con el mismo rango que el escrito; si no, el estudio saldría con años absurdos.
             raise HTTPException(422, f'El año de presentación del perfil ({del_perfil}) está fuera de '

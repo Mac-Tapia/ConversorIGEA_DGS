@@ -1,6 +1,6 @@
 # Spec 070 — El asistente opera el conversor de punta a punta
 
-Estado: implementada
+Estado: aprobada (2026-11-15: 070:RF-78 v2, T14 por grupos de módulos; antes implementada)
 
 Rama de trabajo: `asistente/070`.
 Cita: 026 (asistente), 027 (RF-19, RF-43, RF-44, RF-65), 028 (RF-21 a RF-31), 046 (RF-20 a RF-24), 047 (RF-11),
@@ -126,6 +126,23 @@ DIgSILENT en esta fase: lo que solo se comprueba allí queda en tareas `[DIgSILE
 - RF-75: EL SISTEMA dejará idénticas las huellas de las órdenes fijas.
 - RF-76: EL SISTEMA dejará las órdenes confirmadas por el operador solo en la prueba, aunque un texto igual, sin contar mayúsculas ni tildes, estuviera como plata o en una plantilla.
 - RF-77: EL SISTEMA permitirá preparar un solo modelo del catálogo con su revisión fija, para dejar en la caché de la web el codificador que lee el intérprete.
+- RF-78: EL SISTEMA no enseñará al operador citas internas: ni los mensajes de error que llegan a la web (los de
+  `UserError` y el `detail` de `HTTPException`) ni los textos que pinta la web (texto, títulos y cadenas de
+  `frontend/src/**/*.tsx`) llevarán «RF-n», el código de una spec entre paréntesis ni una tarea con su spec. Los
+  comentarios y los docstrings sí pueden citarlos. Amplía a toda la web la aclaración de RF-51 (usuario, 2026-11-14: «en
+  la web, ninguna cita de RF ni jerga»); en el navegador real salía «… conviértalos e impórtelos antes (028:RF-23).»
+  (auditor 0d, 2026-11-15).
+  Aclaración de RF-78 (v2, 2026-11-15): también los avisos y los mensajes que no son excepciones y que la web o el informe
+  enseñan: lo que se añade a una lista de avisos y los valores de `mensaje`, `aviso`, `avisos`, `motivo`, `nota` y `texto`.
+  Se limpia por grupos de módulos (tarjetas v2a, v2b…), y la prueba recorre los ya limpios hasta cubrir `src/` entero. Lo de
+  la spec 107 (`src/convertersmartgrid/pit/`) lo limpia su dueño.
+  Aclaración de RF-78 (v3, auditor 0d, 2026-11-15): también el texto de toda excepción de `src/` (`raise X('…')` para
+  cualquier X, porque la web enseña el mensaje del trabajo que cae), lo que un guion de `tools/` escribe en su salida
+  (`print`) o en sus avisos, y el texto que se arma antes en una variable de la misma función. Lo que el análisis estático
+  siga sin ver lo cubre el navegador: cada recorrido de Playwright busca «RF-», «T<n>» y «(NNN:» en el texto visible con
+  la función común `D:/csg/PM_IMPL/navegador_comun/sin_citas.py` y falla si aparece; los «T<n>» del dominio que pueden
+  verse (nombres de transformador) van en su lista explícita, cada uno con su motivo. Y ningún código decide por una cita
+  dentro de un texto (`'051:RF-9' in aviso`): al quitar las citas, esa condición dejaría de cumplirse sin avisar.
 
 ## Fuera de alcance
 

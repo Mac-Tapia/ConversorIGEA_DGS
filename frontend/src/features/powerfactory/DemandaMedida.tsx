@@ -120,9 +120,9 @@ const ORIGEN_VALORES: Record<string, string> = {
 /** 039:RF-1: los dos criterios de las fijas, con lo que toma cada uno de la hoja de 15 minutos. */
 const CRITERIOS_FIJAS: { valor: CriterioFijas; texto: string; ayuda: string }[] = [
   { valor: 'coincidente', texto: 'Coincidentes con la máxima de cabecera',
-    ayuda: 'Cada fija con su EA × 4 y ERI × 4 del registro de la fecha y hora de la máxima de su alimentador (039:RF-3)' },
+    ayuda: 'Cada fija con su EA × 4 y ERI × 4 del registro de la fecha y hora de la máxima de su alimentador' },
   { valor: 'maximo_mes', texto: 'Máximo del mes de cada fija',
-    ayuda: 'Cada fija con su POT máxima del mes y el ERI × 4 de ese mismo registro, cada una de su día (039:RF-2)' },
+    ayuda: 'Cada fija con su POT máxima del mes y el ERI × 4 de ese mismo registro, cada una de su día' },
 ];
 const criterioDe = (c?: CriterioFijas) => CRITERIOS_FIJAS.find((x) => x.valor === (c ?? 'coincidente')) ?? CRITERIOS_FIJAS[0];
 
@@ -150,7 +150,7 @@ function AlimentadoresMaximoMes({ alimentadores, marcados, cambiar, disabled }: 
   return (
     <details className="field" aria-label="Alimentadores con fijas en su máximo del mes">
       <summary className="small">Con «{CRITERIOS_FIJAS[1].texto}»: {suyos.length ? suyos.join(', ') : 'ninguno'}
-        {' '}(los demás, el criterio de arriba; 039:RF-7)</summary>
+        {' '}(los demás, el criterio de arriba)</summary>
       <div className="row">
         {alimentadores.map((a) => (
           <label key={a} className="row small">
@@ -589,7 +589,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         </button>
         <button className="btn btn-ghost" disabled={!project || !feeders.length || Boolean(active.powerfactory)}
           onClick={escanear}
-          title="Lee en DIgSILENT, sin cambiar nada, los generadores (centrales), bancos, variaciones y cargas cambiadas a mano de cada alimentador (spec 028)">
+          title="Lee en DIgSILENT, sin cambiar nada, los generadores (centrales), bancos, variaciones y cargas cambiadas a mano de cada alimentador">
           Escanear en DIgSILENT</button>
         {!ws.demanda?.medidores && <small className="muted">Falta el libro de medidores por alimentador.</small>}
       </div>
@@ -600,7 +600,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         <div className="table-wrap table-short">
           <table className="table">
             <thead><tr><th>Alimentador</th><th>Medidores (se buscan los marcados)</th><th>A mano</th>
-              <th title="Central térmica en un tramo del alimentador (spec 021)">Central térmica</th></tr></thead>
+              <th title="Central térmica en un tramo del alimentador">Central térmica</th></tr></thead>
             <tbody>{feeders.map((f) => (
               <tr key={f}>
                 <td className="strong">{f}</td>
@@ -669,7 +669,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         </div>
       )}
       {anios.length > 0 && (
-        <label className="row" title="Cada año se calibra aparte, en sus propios casos de DIgSILENT (spec 025)">
+        <label className="row" title="Cada año se calibra aparte, en sus propios casos de DIgSILENT">
           <span>Año de las mediciones</span>
           <select value={anio} disabled={engineBusy} onChange={(e) => elegirAnio(e.target.value)}>
             <option value="">— elija el año —</option>
@@ -725,7 +725,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           </table>
           <small className="muted">En la barra: generador en esa barra de su SET con su
             medida en el instante de la barra de alta tensión. En un tramo (una central en la troncal de un alimentador): se
-            mide con su alimentador en ese mismo instante y no va a la barra (022:RF-88).</small>
+            mide con su alimentador en ese mismo instante y no va a la barra.</small>
         </div>
       )}
       {sistema && (() => {
@@ -743,8 +743,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           <table className="table">
             <thead><tr><th>Alimentador</th><th>Medidor</th><th>Fecha y hora del kW máx.</th><th className="num">kW máx.</th>
               <th className="num">kVAR</th><th className="num">kVA</th><th className="num">FP</th>
-              <th className="num" title="Tensión de línea del mismo registro (021:RF-71)">V (kV)</th>
-              <th className="num" title="En pu de la tensión nominal del alimentador (021:RF-75)">V (pu)</th>
+              <th className="num" title="Tensión de línea del mismo registro">V (kV)</th>
+              <th className="num" title="En pu de la tensión nominal del alimentador">V (pu)</th>
               <th>Libro › hoja</th></tr></thead>
             <tbody>{cabecera.map((r) => (
               <tr key={`${r.alimentador}-${r.medidor}`}>
@@ -793,7 +793,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           {barrasSet.length > 0 && <BarrasDeSet barras={barrasSet} avisos={(ultimo?.result?.avisos as string[] | undefined) ?? []} />}
           {instanteActual && (
             <small className="alert alert-info">Todos los medidores, también los de una central, en el
-              registro del {instanteActual}: se calibra a la vez, no en la máxima de cada uno (021:RF-50).</small>
+              registro del {instanteActual}: se calibra a la vez, no en la máxima de cada uno.</small>
           )}
           <small className="muted">kVAR, kVA, FP y la tensión son del mismo registro que el kW máximo; la tensión en pu, de
             la nominal del alimentador en la conversión, va a su fuente en 2.4. * calculado con kW y kVAR.
@@ -819,7 +819,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         </button>
         <button className="btn btn-ghost" disabled={!hayMaximas || !haySuministros || !ws.demanda?.clientes
           || !(estadoClientes.listoParaCruzar || cruzaPorSuMes) || engineBusy || cruzando} onClick={comparar}
-          title={hayMaximas ? 'Las fijas con los dos criterios frente a la cabecera y a la Q de la red y de los bancos de la última calibración; no abre DIgSILENT (039:RF-5)'
+          title={hayMaximas ? 'Las fijas con los dos criterios frente a la cabecera y a la Q de la red y de los bancos de la última calibración; no abre DIgSILENT'
             : 'Busque antes la máxima de cabecera (2.2)'}>
           Comparar los criterios de las fijas</button>
         {librosFaltan.length > 0 && (
@@ -910,11 +910,11 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
     <p className="small"><strong>Fijas: {criterioDe(cruce.criterio).texto}</strong> ({criterioDe(cruce.criterio).ayuda}).</p>
     {sinCoincidente.length > 0 && <div className="alert alert-error small">
       <p>{fmtNum(sinCoincidente.length)} fija(s) sin su registro del instante de la máxima: no toman otro y el ajuste
-        (2.4) no se prepara hasta que elija el mes de los clientes de esa fecha o «{CRITERIOS_FIJAS[1].texto}» (039:RF-4).</p>
+        (2.4) no se prepara hasta que elija el mes de los clientes de esa fecha o «{CRITERIOS_FIJAS[1].texto}».</p>
       <ul>{sinCoincidente.slice(0, 50).map((m) => <li key={m}>{m}</li>)}</ul></div>}
     {conMaxima && <p className="small">Clientes {maximoMes ? 'de' : 'en la máxima de'} {Object.entries(cruce.maximas ?? {})
       .map(([f, fecha]) => `${f} (${fecha ?? 'sin fecha'})`).join(', ')}: su P y su Q van a su SED como carga fija,
-      con factor de escala 1; las demás SED se escalan hasta la cabecera (035:RF-4). {Object.keys(porSed).length} SED fija(s):
+      con factor de escala 1; las demás SED se escalan hasta la cabecera. {Object.keys(porSed).length} SED fija(s):
       {' '}{fmtNum(Object.values(porSed).reduce((a, s) => a + s.p, 0), 1)} kW y
       {' '}{fmtNum(Object.values(porSed).reduce((a, s) => a + s.q, 0), 1)} kvar.</p>}
     {sinRegistro.length > 0 && <p className="alert alert-warn small">{sinRegistro.join('; ')}.
@@ -938,12 +938,12 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
           <option value="kw">Diferencia de su máxima (kW), de mayor a menor</option>
           <option value="pct">Diferencia de su máxima (%), de mayor a menor</option>
         </select></label>
-      <label className="row small" title="039:RF-11: solo las fijas cuya máxima del mes supera su valor coincidente en al menos ese %">
+      <label className="row small" title="solo las fijas cuya máxima del mes supera su valor coincidente en al menos ese %">
         <span>Diferencia mínima (%)</span>
         <input type="number" min={0} step={5} value={minPct} placeholder="todas" style={{ width: '6rem' }}
           onChange={(e) => setMinPct(e.target.value)} aria-label="Diferencia mínima en %" /></label>
       <small className="muted">A su máxima: {aSuMaxima.length ? `${fmtNum(aSuMaxima.length)} cliente(s)` : 'ninguno'}
-        {' '}(su P y su Q de máxima del mes; los demás, el criterio de su alimentador; 039:RF-12)</small>
+        {' '}(su P y su Q de máxima del mes; los demás, el criterio de su alimentador)</small>
       <button className="btn btn-ghost btn-sm" disabled={!aSuMaxima.length || bloqueado} onClick={desmarcarTodos}>
         Desmarcar todos «a su máxima»</button>
     </div>}
@@ -956,18 +956,18 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
         <thead><tr><th>Conectado</th><th>Nis / Suministro</th><th>Cliente</th><th>Cruzado por</th><th>SED</th><th>Radial</th>
           <th className="num">EA</th><th className="num">ERI</th><th className="num">Pot del mes</th>
           {conMaxima ? <>
-            <th title="035:RF-1: el registro de 15 minutos de la fecha y hora de la máxima de su alimentador">Registro</th>
-            <th className="num" title="035:RF-2: la P que el ajuste escribe en su SED, fija a escala 1">P (kW)</th>
-            <th className="num" title="035:RF-2: la Q que el ajuste escribe en su SED, fija a escala 1">Q (kvar)</th>
-            <th title="035:RF-3: de dónde salen su P y su Q">De</th>
-            <th title="039:RF-14: el criterio con que va: el de su alimentador o «a su máxima»">Criterio</th>
-            <th title="039:RF-9: su P y su Q en el registro de la fecha y hora de la máxima de cabecera">Coincidente</th>
-            <th title="039:RF-9: su POT máxima del mes y el ERI × 4 de ese mismo registro">Su máxima del mes</th>
-            <th className="num" title="039:RF-10: P de su máxima del mes menos la coincidente">Diferencia</th>
-            <th title="039:RF-12: subir este cliente a su máxima del mes (calidad de producto)">A su máxima</th>
+            <th title="el registro de 15 minutos de la fecha y hora de la máxima de su alimentador">Registro</th>
+            <th className="num" title="la P que el ajuste escribe en su SED, fija a escala 1">P (kW)</th>
+            <th className="num" title="la Q que el ajuste escribe en su SED, fija a escala 1">Q (kvar)</th>
+            <th title="de dónde salen su P y su Q">De</th>
+            <th title="el criterio con que va: el de su alimentador o «a su máxima»">Criterio</th>
+            <th title="su P y su Q en el registro de la fecha y hora de la máxima de cabecera">Coincidente</th>
+            <th title="su POT máxima del mes y el ERI × 4 de ese mismo registro">Su máxima del mes</th>
+            <th className="num" title="P de su máxima del mes menos la coincidente">Diferencia</th>
+            <th title="subir este cliente a su máxima del mes (calidad de producto)">A su máxima</th>
           </> : <>
-            <th title="004:RF-66: el registro de 15 minutos de su hoja en que se dio su Pot">Registro de su Pot</th>
-            <th className="num" title="004:RF-66: ERI de ese registro × 4">kVAR en él</th>
+            <th title="el registro de 15 minutos de su hoja en que se dio su Pot">Registro de su Pot</th>
+            <th className="num" title="ERI de ese registro × 4">kVAR en él</th>
           </>}</tr></thead>
         <tbody>{visibles.map((c) => (
           <tr key={c.codigo} className={desconectados.has(c.codigo) ? 'muted' : undefined}>
@@ -994,7 +994,7 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
                     ? <span className="badge err" title={c.sin_coincidente}>sin el registro de la máxima</span>
                     : ORIGEN_VALORES[(va?.metodo ?? '').split(' ')[0]] ?? va?.metodo ?? '—'}</td>
                   <td className="small">{marcada
-                    ? <strong title="039:RF-14">A su máxima: {kwKvar(c.valores?.maximo_mes ?? va)}{(c.valores?.maximo_mes ?? va)?.fecha
+                    ? <strong>A su máxima: {kwKvar(c.valores?.maximo_mes ?? va)}{(c.valores?.maximo_mes ?? va)?.fecha
                       ? ` (${(c.valores?.maximo_mes ?? va)!.fecha})` : ' (POT y EA/ERI del mes)'}</strong>
                     : criterioDe(criterio as CriterioFijas | undefined).texto}</td>
                   <td className="small">{c.valores?.coincidente ? <>{kwKvar(c.valores.coincidente)}
@@ -1007,7 +1007,7 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
                     {c.diferencia_pct != null && <span className="muted"> ({fmtNum(c.diferencia_pct, 1)} %)</span>}</>}</td>
                   <td><input type="checkbox" checked={marcada} disabled={bloqueado} onChange={() => conmutarMaxima(c.codigo)}
                     aria-label={`Subir ${c.codigo} a su máxima del mes`}
-                    title="Marcado: va con la POT máxima de su hoja y el ERI × 4 de ese registro; su subida se descuenta de las escaladas (039:RF-12, RF-19)" /></td>
+                    title="Marcado: va con la POT máxima de su hoja y el ERI × 4 de ese registro; su subida se descuenta de las escaladas" /></td>
                 </>;
               })()}
             </> : <>
@@ -1053,7 +1053,7 @@ function RecalibrarConCriterios({ project, periodo, feeders, criterioFijas, maxi
   return (
     <div className="row">
       <button className="btn btn-pf" disabled={Boolean(motivo) || !datos || Boolean(active.asistente) || Boolean(active.powerfactory)}
-        title="Escanea el proyecto, busca la máxima del periodo y recalibra «Sin proyecto» con el criterio de las fijas, los alimentadores con su máximo del mes y los clientes a su máxima de esta tabla (039:RF-17, 028:RF-21)"
+        title="Escanea el proyecto, busca la máxima del periodo y recalibra «Sin proyecto» con el criterio de las fijas, los alimentadores con su máximo del mes y los clientes a su máxima de esta tabla"
         onClick={() => startJob(() => api.recalibrar(ws.id, {
           project, periodo, criterio_fijas: criterioFijas, solo,
           maximo_mes: maximoMes.filter((a) => candidatos.includes(a)), a_su_maxima: aSuMaxima }))}>
@@ -1100,7 +1100,7 @@ function CompararFijas({ comparacion }: { comparacion: ComparacionFijas }) {
                   {CRITERIOS_FIJAS.map(({ valor }) => <Fragment key={valor}><td className="small">
                     {a.sumas[valor].sin_registro ? `${a.sumas[valor].sin_registro} sin registro, fuera de la suma` : ''}</td>
                     <td className="num">{v(a.sumas[valor].p_kw)}</td><td className="num">{v(a.sumas[valor].q_kvar)}</td></Fragment>)}</tr>
-                <tr><td colSpan={2} title="035:RF-28: Q de cabecera que puede dar la red con las escaladas entre FP 1 y su mínimo, frente a la medida">
+                <tr><td colSpan={2} title="Q de cabecera que puede dar la red con las escaladas entre FP 1 y su mínimo, frente a la medida">
                   Q de cabecera alcanzable</td>
                   {CRITERIOS_FIJAS.map(({ valor }) => {
                     const c = a.coherencia[valor];
@@ -1118,7 +1118,7 @@ function CompararFijas({ comparacion }: { comparacion: ComparacionFijas }) {
               {a.red.bancos_kvar != null ? ` (los bancos entregan ${v(a.red.bancos_kvar)} kvar)` : ''}.</>
             : 'Sin calibración guardada de este alimentador: no se sabe la P y la Q de la red ni si la medida es coherente.'}</p>
           <p className="small muted">Medida coherente: la recalibración cuadra la Q con el FP de las escaladas. No coherente:
-            no se fuerza; queda la Q que da DIgSILENT con las escaladas a su FP de perfil, y se dice (035:RF-28, RF-29).</p>
+            no se fuerza; queda la Q que da DIgSILENT con las escaladas a su FP de perfil, y se dice.</p>
         </div>
       ))}
     </details>
@@ -1141,7 +1141,7 @@ function BarrasDeSet({ barras, avisos }: { barras: BarraDeSet[]; avisos: string[
       <strong>Máxima por barra de SET{conAlta ? ': instante de la barra de alta tensión' : ''}</strong>
       <table className="small">
         <thead><tr><th>SET</th><th>Barra</th><th>Medidores (transformador)</th><th>Fecha y hora</th>
-          <th>kW</th><th>kVAR</th><th title="Tensión de la barra en esa fecha y hora, media de sus medidores (021:RF-78)">V (kV)</th>
+          <th>kW</th><th>kVAR</th><th title="Tensión de la barra en esa fecha y hora, media de sus medidores">V (kV)</th>
           <th>V (pu)</th><th>Centrales térmicas (CT)</th><th>Alimentadores (en esa fecha)</th></tr></thead>
         <tbody>{filas.map((b) => (
           <tr key={b.clave}>
@@ -1163,9 +1163,9 @@ function BarrasDeSet({ barras, avisos }: { barras: BarraDeSet[]; avisos: string[
       </table>
       <small className="muted">
         {conAlta
-          ? 'En cada SET con medidor de alta tensión, la máxima es la suma de sus transformadores (T1, T2, T3) en alta tensión; sus barras de media tensión, sus centrales y cada alimentador se toman en esa misma fecha y hora (022:RF-84, RF-87). '
+          ? 'En cada SET con medidor de alta tensión, la máxima es la suma de sus transformadores (T1, T2, T3) en alta tensión; sus barras de media tensión, sus centrales y cada alimentador se toman en esa misma fecha y hora. '
           : ''}
-        Cada alimentador se calibra con su kW y kVAR de esa fecha y hora, no con su máxima (022:RF-41).
+        Cada alimentador se calibra con su kW y kVAR de esa fecha y hora, no con su máxima.
       </small>
       {avisos.length > 0 && (
         <details className="alert alert-warn"><summary>Avisos del libro de medidores: {avisos.length}</summary>
@@ -1308,7 +1308,7 @@ function Recalibrar({ project, criterioFijas, elegirCriterio }: {
       {!error && !alimentadores.length && delSistema.length > 0 && (
         <fieldset className="step-box" aria-label="Alimentadores a recalibrar">
           <legend className="small">Solo estos alimentadores (sin marcar ninguno, todos). El instante es el del sistema y
-            los demás conservan su última calibración (028:RF-40, RF-41).</legend>
+            los demás conservan su última calibración.</legend>
           <div className="row">
             {delSistema.map((a) => (
               <label key={a} className="row small">

@@ -44,7 +44,7 @@ def test_un_anillo_dentro_de_un_alimentador_se_abre():
     assert ap.elemento == 'A_SEC2'
     punto = next(d for d in red.devices if d.section_id == 'A_SEC2')
     assert punto.on_off == 0 and punto.kind == 'punto_abierto'
-    assert _radial(red) and '022:RF-30' in ap.texto()
+    assert _radial(red) and 'abierto: ' in ap.texto()
 
 
 def test_un_camino_entre_dos_set_y_entre_dos_alimentadores():
@@ -124,7 +124,7 @@ def test_reconstruye_por_medida_y_pasa_la_parte_que_toca():
     assert sorted(ld.node_id for ld in red.loads if ld.feeder == 'R') == ['D_2', 'D_3', 'D_4']
     assert en.abrir_caminos_cerrados(red) == [], 'ya es radial'
     assert _radial(red)
-    assert 'RF-58' in h.texto() and 'abierto D_SEC1' in h.texto()
+    assert 'por sus medidas' in h.texto() and 'abierto D_SEC1' in h.texto()
 
 
 def test_sin_medida_queda_activado_y_abierto():
@@ -145,7 +145,7 @@ def test_sin_red_cerca_se_dice_y_queda_como_esta():
     lineas = len(red.lines)
     hechas, avisos = en.reconstruir_por_medida(red, {'R': 300.0}, {'D': 100.0})
     assert not hechas and len(red.lines) == lineas
-    assert avisos and '022:RF-60' in avisos[0]
+    assert avisos and ('se convierte como está' in avisos[0] or 'no está en la red unida' in avisos[0])
 
 
 def test_el_donante_con_medida_no_se_queda_sin_red():

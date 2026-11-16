@@ -8,7 +8,8 @@ que la web. No escribe nada, ni la bitácora: va a stderr (stdout es el canal de
 Política restringida por defecto, porque el cliente puede estar en la nube. Con `--datos-locales`, lo mismo que el LLM
 local de la web: el árbol entero y las raíces configuradas. Nunca secretos, conjuntos sellados ni el examen humano.
 
-Dependencia opcional: `pip install -r requirements-mcp.txt`. Cómo conectarlo: docs/MCP_CONVERSOR.md.
+Dependencia opcional, fijada con huella: `pip install --require-hashes -r requirements-mcp.txt` (077:RF-75).
+Cómo conectarlo: docs/MCP_CONVERSOR.md.
 Códigos de salida: 0 correcto, 3 falta el paquete `mcp`.
 """
 from __future__ import annotations
@@ -23,6 +24,10 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO / 'src') not in sys.path:
     sys.path.insert(0, str(REPO / 'src'))
 SIN_PAQUETE = 3
+#: 077:RF-77: lo que dice el arranque con ``--datos-locales``, por stderr (stdout es el canal del protocolo).
+AVISO_DATOS_LOCALES = ('Aviso: con --datos-locales este servidor expone los datos locales (todo el árbol del proyecto y '
+                       'las raíces de CSG_LLM_RAICES, CSG_DEMANDA_DIR y raices_llm) solo a un cliente local de confianza, '
+                       'que se ejecute en esta máquina: lo que lea un cliente en la nube sale con él.')
 
 
 def _registrar(fila: dict[str, Any]) -> None:
@@ -68,7 +73,8 @@ def main(argv: list[str] | None = None) -> int:
         import anyio
         from mcp.server.stdio import stdio_server
     except ImportError:
-        print('Falta el paquete opcional «mcp»: pip install -r requirements-mcp.txt. La web no lo necesita.', file=sys.stderr)
+        print('Falta el paquete opcional «mcp»: pip install --require-hashes -r requirements-mcp.txt. La web no lo necesita.',
+              file=sys.stderr)
         return SIN_PAQUETE
     from convertersmartgrid.asistente.equipo import LecturaGobernada
     from convertersmartgrid.asistente.lectura_proyecto import (
@@ -78,6 +84,8 @@ def main(argv: list[str] | None = None) -> int:
     from convertersmartgrid.documentos_solicitud import texto_pdf
 
     politica = politica_local(texto_pdf) if args.datos_locales else RESTRINGIDA  # 077:RF-61, RF-62
+    if args.datos_locales:
+        print(AVISO_DATOS_LOCALES, file=sys.stderr, flush=True)
     servidor = _servidor(LecturaGobernada(REPO, rol='cliente_mcp', registrar=_registrar, politica=politica))
 
     async def correr() -> None:

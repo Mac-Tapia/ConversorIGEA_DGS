@@ -217,7 +217,7 @@ class MaestroCodex:
             return None
         oculto, tabla = enmascarar(texto, self.vocab)
         almacen.anotar('internet', {'destino': 'codex', 'consulta': oculto,
-                                    'motivo': 'maestro de destilación (027:RF-63)'})
+                                    'motivo': 'maestro de destilación'})
         prompt = ('Eres el maestro que etiqueta órdenes de un operador de redes eléctricas. Responde SOLO un '
                   'JSON {"tarea": <nombre>, "datos": {<nombre del dato>: <valor o lista>}} con una tarea de '
                   'esta lista: ' + json.dumps(descripcion_para_modelo(), ensure_ascii=False)

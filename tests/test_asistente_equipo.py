@@ -219,3 +219,43 @@ def test_http_local_no_hereda_proxy_del_entorno():
     r = ejecutar(pasos(plan.tarea, plan.datos),
         ClienteWeb(SesionLocal(), 'http://127.0.0.1:8765', 'espacio-a', gobierno=gobierno))
     assert r['completo']
+
+
+def _claves_del_gobierno(estado):
+    _, plan, gobierno = preparar()
+    cliente = ClienteWeb(HTTP(), 'http://127.0.0.1:8765', 'espacio-a', gobierno=gobierno)
+    ejecutar(pasos(plan.tarea, plan.datos), cliente)
+    return set(next(f for f in reversed(almacen.leer('equipo_acciones')) if f['estado'] == estado))
+
+
+def test_067_rf41_el_recibo_directo_tiene_el_contrato_del_gobierno():
+    """067:RF-41 — una vía que escribe sin plan deja «iniciada» y «terminada» con los mismos campos que GobiernoEquipo,
+    sin plan ni confirmación que no hubo, y su salida, con su huella."""
+    from convertersmartgrid.asistente.equipo import recibo_directo
+
+    terminada = _claves_del_gobierno('terminada')
+    antes = len(almacen.leer('equipo_acciones'))
+    with recibo_directo('asistente_entrenar', responsable='operador', espacio='espacio-a', entradas={'x': 1},
+                        decision='clic_del_operador') as evidencia:
+        evidencia['salida'] = {'texto': 'hecho', 'ruta': 'informe.json'}
+    filas = almacen.leer('equipo_acciones')[antes:]
+    assert [f['estado'] for f in filas] == ['iniciada', 'terminada']
+    assert terminada <= set(filas[-1]) and filas[0]['accion'] == filas[1]['accion']
+    assert filas[-1]['plan'] is None and filas[-1]['via'] == 'directa'
+    assert filas[-1]['revision'] == {'decision': 'clic_del_operador', 'responsable': 'operador', 'plan_sha256': None}
+    assert filas[-1]['alcance']['espacio'] == 'espacio-a' and filas[-1]['salida_sha256'] and filas[-1]['entrada_sha256']
+    assert filas[-1]['aceptacion_cientifica'] is False
+
+
+def test_067_rf41_el_recibo_directo_anota_el_fallo_y_no_lo_cambia():
+    """067:RF-41 — el error de la vía sale igual que sin recibo, y queda «fallida» con su motivo."""
+    from convertersmartgrid.asistente.equipo import recibo_directo
+
+    fallida = _claves_del_gobierno('terminada') - {'salida', 'salida_sha256', 'alcance_final'}
+    antes = len(almacen.leer('equipo_acciones'))
+    with pytest.raises(KeyError, match='propio'):
+        with recibo_directo('mejoras.decision', responsable='operador', decision='decision_del_operador'):
+            raise KeyError('propio')
+    filas = almacen.leer('equipo_acciones')[antes:]
+    assert [f['estado'] for f in filas] == ['iniciada', 'fallida']
+    assert fallida <= set(filas[-1]) and 'propio' in filas[-1]['motivo']

@@ -190,4 +190,4 @@ def test_015_rf70_sin_conversion_vinculada_se_calibra_sin_exigir_el_caso_base(tm
 
     plan = services.ajuste_plan(_workspace(tmp_path), 'P', _maxima(), '', .01)
     avisos = ' '.join(str(a) for a in plan.get('avisos') or [])
-    assert '015:RF-70' in avisos
+    assert 'del propio proyecto de DIgSILENT' in avisos

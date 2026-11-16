@@ -70,7 +70,7 @@ def aceptar(origen: str, carpeta: str, trabajo: Path) -> dict:
         orden('borrar', copia)
     antes = alterado.get('antes')
     cambio = alterado.get('alterado') != antes
-    dice = any('064:RF-5' in linea and 'como estaba al empezar' in linea for linea in registro_f)
+    dice = any('se deja DIgSILENT como estaba al empezar' in linea for linea in registro_f)
     igual = leido.get('foto') == antes
     borrada = bool((pasos.get('borrar') or {}).get('informe', {}).get('borrada'))
     return {'aceptada': rc_f == 1 and cambio and dice and igual and borrada,

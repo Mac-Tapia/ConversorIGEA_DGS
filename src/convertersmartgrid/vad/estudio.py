@@ -74,14 +74,14 @@ def escribir_json(ruta: Path, datos: Any) -> None:
 
 def _validar(perfil: PerfilEmpresa, grupo: Any, periodo: Any, version_tdr: Any) -> None:
     if not (perfil.nombre or '').strip():
-        raise VadError('el perfil de empresa no trae nombre: la empresa del estudio no se supone (108:RF-13)')
+        raise VadError('el perfil de empresa no trae nombre: la empresa del estudio no se supone')
     if isinstance(grupo, bool) or not isinstance(grupo, int) or grupo < 1:
         raise VadError(f'el grupo de fijación tiene que ser un entero mayor que 0, no {grupo!r}')
     m = _PERIODO.fullmatch(str(periodo or ''))
     if not m or int(m.group(1)) >= int(m.group(2)):
         raise VadError(f'el periodo tiene que ser «AAAA-AAAA» con el primer año menor que el segundo, no {periodo!r}')
     if not str(version_tdr or '').strip():
-        raise VadError('el estudio necesita la versión del TdR con la que se arma (108:RF-9)')
+        raise VadError('el estudio necesita la versión del TdR con la que se arma')
 
 
 def _huella(registro: RegistroNormativo, clave: str) -> str:

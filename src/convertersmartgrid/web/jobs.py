@@ -329,7 +329,7 @@ class JobContext:
                     if mb > limite:
                         proc.kill()
                         raise MemoriaExcedida(f'el trabajo usó {mb:,.0f} MB, más que su límite de '
-                                              f'{limite:,.0f} MB; se detuvo y la web sigue (027:RF-27)')
+                                              f'{limite:,.0f} MB; se detuvo y la web sigue')
                 if tipo is None and not proc.is_alive() and cola.empty():
                     raise RuntimeError(f'el proceso del trabajo terminó sin resultado (código {proc.exitcode})')
         finally:

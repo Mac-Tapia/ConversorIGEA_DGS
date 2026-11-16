@@ -32,12 +32,14 @@ from pathlib import Path
 from collections.abc import Mapping, Sequence
 from typing import Any, Callable
 
+from ..asistente.equipo import recibo_directo
 from ..naming import feeder_short_name
 from ..runtime_paths import raiz_local
 from ..powerfactory_env import (
     pf_api_version, pf_python_dir, pf_subprocess_env, project_root, python_for_pf, tools_dir,
 )
 from ..powerfactory_binding import alimentadores_vinculados
+from ..sesion_web import depurar_secretos
 from ..util import nombre_seguro, publicar_duradero, write_json_atomic
 from .jobs import LIMITE_ARRANQUE_PF_S, JobContext
 from .requisitos import UserError, require_active_source_run, require_loaded
@@ -223,7 +225,7 @@ def usar_ejecucion_del_vinculo(ws: Workspace, project: str, binding: Any, pedido
         return None
     adoptar_fuente_del_vinculo(ws, project)
     return (f'Se usa la ejecución {binding.source_run_id}, con la que se aceptó {project}: la activa '
-            f'({activa.run_id}) es de la misma fuente pero no tiene su DGS (018:RF-15).')
+            f'({activa.run_id}) es de la misma fuente pero no tiene su DGS.')
 
 
 def native_action_context(
@@ -1788,7 +1790,7 @@ def sistema_seleccion(ws: Workspace, zonales: list[str],
     e = estructura_del_espacio(ws)
     if e is None:
         raise UserError('La conversión por sistema eléctrico necesita la estructura de la empresa: '
-                        'súbala en Excel en el paso de demanda o póngala en el perfil (022:RF-1).')
+                        'súbala en Excel en el paso de demanda o póngala en el perfil.')
     todos = group_selection(ws, [], True)
     a = asignar(e, todos)
     pedidos = [z for z in zonales if z]
@@ -2556,7 +2558,7 @@ def _verificar_ubicaciones_del_plan(ws: Workspace, plan: dict, crs: str) -> None
             zonas[f] = zona_del_alimentador(f, nodos_de_la_geografia(ruta), tope, fuente)
         except (OSError, ValueError) as exc:
             plan['avisos'].append(f'{f}: no se pudo leer la geografía de la red convertida ({exc}); la ubicación de '
-                                  'sus cargas nuevas la comprueba DIgSILENT (004:RF-75).')
+                                  'sus cargas nuevas la comprueba DIgSILENT.')
     siguen, rechazadas = verificar_ubicaciones(plan['nuevas'], zonas, (lambda pts: a_wgs84(pts, crs)) if crs else None)
     plan['nuevas'] = siguen
     plan['ubicaciones_rechazadas'] = rechazadas
@@ -3396,7 +3398,7 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
 
     estructura = estructura_del_espacio(ws)
     if estructura is None:
-        raise UserError('La máxima por barra necesita la estructura de la empresa (022:RF-1): '
+        raise UserError('La máxima por barra necesita la estructura de la empresa: '
                         'súbala en Excel o póngala en el perfil.')
     libros = _libros_de_cabecera(ws, periodo)                          # 025:RF-8
     alias = demanda_alias()
@@ -3447,7 +3449,7 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
         sin_registro = sorted({_sin_registro(r) for r in res if r.error})
         if sin_registro:
             avisos.append(f'{", ".join(sin_registro)}: sin registro en el instante del sistema; '
-                          'no se calibran con él: revise su medición (028:RF-31).')
+                          'no se calibran con él: revise su medición.')
     for aviso in avisos:
         ctx.log(f'  aviso: {aviso}')
     with ws.lock:
@@ -3649,7 +3651,7 @@ def _criterio_fijas(criterio: str | None) -> str:
     c = (criterio or CRITERIO_COINCIDENTE).strip()
     if c not in CRITERIOS_FIJAS:
         raise UserError(f'Criterio de las fijas «{c}»: es «{CRITERIO_COINCIDENTE}» o '
-                        f'«{CRITERIO_MAXIMO_MES}» (039:RF-1).')
+                        f'«{CRITERIO_MAXIMO_MES}».')
     return c
 
 
@@ -3696,7 +3698,7 @@ def _a_su_maxima(c, reg_max: dict, avisos: list[str]) -> None:
         return
     c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = '', None, None
     avisos.append(f'{c.codigo}: a su máxima sin el registro de su POT en una hoja de 15 minutos; va con su '
-                  'POT y su EA/ERI del mes (039:RF-20, 004:RF-66).')
+                  'POT y su EA/ERI del mes.')
 
 
 def _valor_fija(fila: dict, reg, en_el_instante: bool, obj, fp_min) -> dict | None:
@@ -3715,9 +3717,9 @@ def _sin_coincidente(codigo: str, instante: datetime | None) -> str:
     """El motivo de 039:RF-4, con el periodo que daría la misma fecha."""
     if instante is None:
         return (f'{codigo}: la máxima de su alimentador no tiene fecha y no hay registro '
-                'coincidente; elija «máximo del mes» (039:RF-4).')
+                'coincidente; elija «máximo del mes».')
     return (f'{codigo}: el libro de clientes no tiene su registro del {instante:%d/%m/%Y %H:%M}; '
-            f'elija el periodo {instante:%Y-%m} de los clientes o «máximo del mes» (039:RF-4).')
+            f'elija el periodo {instante:%Y-%m} de los clientes o «máximo del mes».')
 
 
 def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
@@ -4367,11 +4369,11 @@ def _central_del_plan(ws: Workspace, job_id: str, alimentador: str, cabecera: st
         proyecto = next((p for p, e in ws.escaneo.items() if alimentador in (e.get('alimentadores') or {})), None)
         nodo = nodo_de_central(ws.escaneo.get(proyecto), alimentador) or ''
         if nodo:
-            avisos.append(f'{pre}la central va en la barra {nodo}, la de su generador en el escaneo (028:RF-12).')
+            avisos.append(f'{pre}la central va en la barra {nodo}, la de su generador en el escaneo.')
     if not nodo:
         # 028:RF-19: sin barra ni generador no se detiene el plan; se calibra sin la central.
         avisos.append(f'{pre}la central no tiene barra ni generador en DIgSILENT: se calibra sin '
-                      'ella (028:RF-19).')
+                      'ella.')
         return None
     try:
         maxima = demanda_central(ws, job_id, alimentador=alimentador, cabecera=cabecera,
@@ -4380,7 +4382,7 @@ def _central_del_plan(ws: Workspace, job_id: str, alimentador: str, cabecera: st
     except LookupError as exc:
         raise UserError(f'{alimentador}: {exc}') from exc
     if maxima.get('error'):
-        avisos.append(f"{pre}central no usada: {maxima['error']} (021:RF-30).")
+        avisos.append(f"{pre}central no usada: {maxima['error']}.")
         return None
     return {'nodo': nodo, 'medidores': {k: declarada[k] for k in ('generacion', 'llegada', 'salida')},
             'maxima': maxima}
@@ -4484,7 +4486,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
     if project_binding.origen == 'proyecto':
         sin_verificar = {}
         avisos.append('Sin conversión vinculada: el «Caso base» no se verifica contra un DGS y se calibra con los datos '
-                      'del propio proyecto de DIgSILENT (015:RF-70).')
+                      'del propio proyecto de DIgSILENT.')
     else:
         sin_verificar = caso_base_verificado(ws, project, requested_feeders)
     # 032:RF-14: las fichas de los conductores, una vez para todo el proyecto.
@@ -4644,7 +4646,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             motivo = (f'{alimentador}: su medidor da {objetivo.kw:,.0f} kW y su red puede dar '
                       f'{capacidad:,.0f} kW (fijas más kVA instalado de las escaladas por el FP); '
                       'no se calibra: revise el medidor o si parte de su carga está en otro '
-                      'alimentador (022:RF-55).')
+                      'alimentador.')
             if not varios:
                 raise UserError(motivo)
             avisos.append(motivo)
@@ -4754,12 +4756,12 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         sistema.pop('medidores', None)
         if sistema['conservan']:
             avisos.append(f"{sistema['grupo']}: {', '.join(sistema['conservan'])} no se recalibran y conservan su "
-                          'última calibración (028:RF-41).')
+                          'última calibración.')
         if sistema['sin_medidor']:
             avisos.append(f"{sistema['grupo']}: {len(sistema['sin_medidor'])} de "
                           f"{len(sistema['alimentadores'])} alimentadores sin medidor "
                           f"({', '.join(sistema['sin_medidor'])}) quedan con la demanda del "
-                          'archivo, en los mismos flujos que los calibrados (022:RF-53).')
+                          'archivo, en los mismos flujos que los calibrados.')
     with ws.lock:
         ws.cargas_planes[token] = {'path': paths[0], 'paths': paths, 'project': project.strip(),
                                    'feeders': feeders, 'applicable': True,
@@ -4806,7 +4808,7 @@ def anio_de_los_casos(ws: Workspace, project: str) -> tuple[int | None, str | No
     if registros and reciente:
         return int(reciente), (
             f'«{p}» se calibró sin guardar el año de la medición: sus «Sin proyecto» y «Con '
-            f'proyecto» se toman como de {reciente}, el año más reciente de la cabecera (025:RF-17).')
+            f'proyecto» se toman como de {reciente}, el año más reciente de la cabecera.')
     return None, None
 
 
@@ -5117,7 +5119,7 @@ def ajuste_transformadores_pedido(ws: Workspace, token: str, feeder: str,
     if plan is None or plan.get('kind') != 'ajuste_cabecera':
         raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.')
     if not seds:
-        raise UserError('Marque al menos una SED para implementar sus transformadores (020:RF-14).')
+        raise UserError('Marque al menos una SED para implementar sus transformadores.')
     _, sufijo = _plan_y_sufijo(plan, feeder)
     informes = [p for p in (ws.out_dir / f'ajuste_cabecera_{m}_{token}{sufijo}.json'
                             for m in ('simulacion', 'aplicacion')) if p.is_file()]
@@ -5328,7 +5330,7 @@ def _caso_base_fusionado(acceptance: dict, fusionado) -> dict:
     if estado is None or 'flujo' not in (estado.get('comprobaciones') or {}) or 'flujo' in comprobaciones:
         return caso
     flujo = estado.get('flujo') or {}
-    registrado = f"Último flujo registrado: {flujo.get('motivo')} No se volvió a ejecutar (015:RF-39)."
+    registrado = f"Último flujo registrado: {flujo.get('motivo')} No se volvió a ejecutar."
     paso = bool(estado['comprobaciones']['flujo'])
     comprobaciones['flujo'] = {'pass': paso, 'fallos': [] if paso else [flujo.get('motivo')]}
     avisos = [a for a in caso.get('avisos') or [] if not a.startswith('Sin dato de convergencia:')]
@@ -5385,7 +5387,7 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         if geo is None:
             resultados.append({'feeder': feeder, 'status': 'NO_VERIFICADO',
                                'motivo': 'convertido sin georreferenciación: no hay con qué '
-                                         'comparar el GPS (015:RF-1)'})
+                                         'comparar el GPS'})
             continue
         report = ws.out_dir / f'{feeder}_caso_base.json'
         report.unlink(missing_ok=True)
@@ -5536,7 +5538,7 @@ def build_catalog(ws: Workspace, ctx: JobContext, feeders: list[str] | None) -> 
 #: los parámetros de la entrada (032:RF-2: ``Reglas.aplicar_fichas`` queda en False) y las fichas entran al
 #: calibrar «Sin proyecto» (032:RF-14): el operador reconvertía y el DGS seguía igual.
 AVISO_CATALOGO_APLICADO = ('Sus fichas se aplicarán al calibrar «Sin proyecto»; el DGS del «Caso base» '
-                           'conserva los parámetros de la entrada (032:RF-2, RF-14).')
+                           'conserva los parámetros de la entrada.')
 
 
 def apply_catalog(ws: Workspace, upload: Path, preview_feeder: str | None) -> dict:
@@ -5955,7 +5957,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
         plan_pide['formato_01'] = formato_01.strip().strip('"')
     estudio = None
     if plan_pide.get('anio_presentacion') is None:
-        avisos.append('Sin año de presentación no hay estudio: no se generan los módulos del plan y del PIDE (072:RF-1).')
+        avisos.append('Sin año de presentación no hay estudio: no se generan los módulos del plan y del PIDE.')
     else:
         estudio = _estudio_del_plan(ws, plan_pide, avisos)
         plan_pide.update(anios_horizonte=list(estudio.largo_plazo), anios_pide=list(estudio.detalle_pide))
@@ -5966,7 +5968,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     if proyectadas:
         import statistics
 
-        crecimiento = {a: {'tasa': r, 'origen': 'proyección aceptada (031:RF-1)'} for a, r in proyectadas.items()}
+        crecimiento = {a: {'tasa': r, 'origen': 'proyección aceptada'} for a, r in proyectadas.items()}
         tasa = statistics.median(proyectadas.values())
     elif tasa is None:
         # 029:RF-1 a RF-3: sin tasa del perfil, la de cada alimentador desde la cabecera.
@@ -5979,7 +5981,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
     anios = [0] + list(plan_pide.get('anios_horizonte') or []) if tasa is not None else [0]
     if tasa is None:
         avisos.append('sin tasa de crecimiento de la demanda en el perfil ni en la cabecera: solo el '
-                      'diagnóstico del año 00 (RF-51)')
+                      'diagnóstico del año 00')
     plan = {'project': project, 'folder': carpeta_de(ws, project), 'feeders': feeders, 'case': 'sin_proyecto',
             'tasa': tasa if tasa is not None else 0.0, 'anios': anios,
             'casos_por_anio': True,                                            # 030:RF-1, RF-2
@@ -6206,7 +6208,7 @@ def _crecimiento_de_la_cabecera(ws: Workspace, ctx: JobContext, project: str, fe
         ruta = _demanda_ruta(ws, 'cabecera') if (ws.demanda or {}).get('cabecera') else None
         if not sistema or ruta is None or not ruta.is_dir():
             avisos.append('la tasa de crecimiento por alimentador necesita un proyecto de sistema y la '
-                          'carpeta de cabecera con sus años (029:RF-1)')
+                          'carpeta de cabecera con sus años')
             return {}
         try:
             anios = anios_de(arbol_de_libros(ruta))
@@ -6215,7 +6217,7 @@ def _crecimiento_de_la_cabecera(ws: Workspace, ctx: JobContext, project: str, fe
             avisos.append(f'tasa de crecimiento: {exc}')
             return {}
         if len(libros) < 2:
-            avisos.append(f'la cabecera solo tiene {list(libros)}: hacen falta dos años (029:RF-1)')
+            avisos.append(f'la cabecera solo tiene {list(libros)}: hacen falta dos años')
             return {}
         pares = [(a, m) for a, ms in sistema['medidores'].items() for m in ms if a in feeders]
         ctx.log(f'Crecimiento por alimentador desde la cabecera de {sorted(libros)} (029:RF-1)…')
@@ -6294,14 +6296,14 @@ def _pronostico_primero(ws: Workspace, ctx: JobContext, project: str, feeders: l
         tasas = {a: r for a, r in pa.tasas_de_la_proyeccion(aceptada).items() if a in feeders}
         ev = aceptada['evaluacion_leida']
         avisos.append(f"Proyección aceptada {aceptada['modelo']} ({(ev.get('aceptacion') or {}).get('via')}): pronosticados {ev.get('horizonte_anios')} años, "
-                      f"validados contra lo ocurrido {ev.get('horizonte_validado_anios')} (031:RF-6, RF-7).")
+                      f"validados contra lo ocurrido {ev.get('horizonte_validado_anios')}.")
         return tasas or None
     if estudio is None:
-        avisos.append('Sin año de presentación no se pronostica: el PIDE sigue con la tasa del perfil o de la cabecera (031:RF-1, RF-11).')
+        avisos.append('Sin año de presentación no se pronostica: el PIDE sigue con la tasa del perfil o de la cabecera.')
         return None
     fuentes = _fuentes_de_demanda(ws, feeders)
     if fuentes is None:
-        avisos.append('Sin los libros de cabecera y medidores en este espacio no se pronostica: el PIDE sigue con la tasa del perfil o de la cabecera (031:RF-1, RF-11).')
+        avisos.append('Sin los libros de cabecera y medidores en este espacio no se pronostica: el PIDE sigue con la tasa del perfil o de la cabecera.')
         return None
     e = estructura_empresa()
     sistema_de = {a: fila.sistema for a in feeders if e is not None and (fila := e.alimentador(a)) is not None and fila.sistema}
@@ -6312,12 +6314,12 @@ def _pronostico_primero(ws: Workspace, ctx: JobContext, project: str, feeders: l
                                           anio_base=estudio.anio_base, anio_corto=periodo_de_corto_plazo(perfil), anio_fin=max(estudio.largo_plazo),
                                           empresa=perfil.get('empresa'), sistema_de=sistema_de, sistemas=sistemas, formato_01=(perfil.get('planificacion') or {}).get('formato_01'))
     except (ValueError, OSError) as exc:                  # sin datos que basten no se para el estudio: se dice
-        avisos.append(f'La proyección anual no se pudo hacer: {exc}; el PIDE sigue con la tasa (031:RF-11).')
+        avisos.append(f'La proyección anual no se pudo hacer: {exc}; el PIDE sigue con la tasa.')
         return None
     if not hecho:
-        avisos.append('La proyección anual no terminó; el PIDE sigue con la tasa del perfil o de la cabecera (031:RF-11).')
+        avisos.append('La proyección anual no terminó; el PIDE sigue con la tasa del perfil o de la cabecera.')
         return None
-    avisos.append(f"Proyección anual en {hecho['referencia']['ruta']}, sin aceptar: no cambia los años de este estudio hasta que el operador la acepte (031:RF-7, RF-11).")
+    avisos.append(f"Proyección anual en {hecho['referencia']['ruta']}, sin aceptar: no cambia los años de este estudio hasta que el operador la acepte.")
     return None
 
 
@@ -6334,8 +6336,7 @@ def _en_proceso_con_reintento(ctx: JobContext, avisos: list[str], que: str, fn, 
             if intento == 1:
                 ctx.log(f'El proceso que lee los libros para {que} cayó ({exc}); se reintenta una vez (098:RF-49).')
                 continue
-            avisos.append(f'{que}: el proceso que lee los libros cayó dos veces ({exc}); se sigue sin ese dato '
-                          '(098:RF-49).')
+            avisos.append(f'{que}: el proceso que lee los libros cayó dos veces ({exc}); se sigue sin ese dato.')
             ctx.log(avisos[-1])
             return None
 
@@ -6357,7 +6358,7 @@ def _crecimiento_de_las_fijas(ws: Workspace, ctx: JobContext, project: str, feed
               if x.get('activo') and x.get('mes') and raiz.is_dir()]
     if not any(fijas.values()) or len({m[:4] for m, _ in libros}) < 2:
         avisos.append('sin fijas calibradas o sin libros de clientes de dos años: no hay tasa de las '
-                      'fijas (042:RF-7)')
+                      'fijas')
         return {f: None for f in feeders}
     anteriores: dict[str, set[str]] = {}
     try:
@@ -6414,7 +6415,7 @@ def _pide_optimizar(project: str, obras: list[dict], limites, perfil: dict, plan
                                 semilla=int((perfil.get('gemelo') or {}).get('semilla') or 0))
     if valor is None:
         avisos.append('sin factor de carga o precio de compra en el perfil, las pérdidas solo desempatan '
-                      'entre bancos (024:RF-70)')
+                      'entre bancos')
     if grafo.get('version') != VERSION_GRAFO:
         # 045:RF-2: se usa porque DIgSILENT confirma lo que salga, pero sin callarlo.
         avisos.append(f"la red del gemelo es un grafo de la versión {grafo.get('version')}, anterior a la "
@@ -6465,7 +6466,7 @@ def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: lis
             o['variacion_autonoma'] = f['variacion']
             out.append({'codigo': o['codigo'], 'alternativa': o['alternativa'], 'variacion': f['variacion'],
                         'aviso': f"aplicada sola en «Con proyecto»; para deshacerla, desactive o borre "
-                                 f"la variación {f['variacion']} (RF-47c)"})
+                                 f"la variación {f['variacion']}"})
     return out
 
 
@@ -6737,9 +6738,9 @@ def gemelo_episodio(ws: Workspace, episode_id: str) -> dict:
     return episodio_a_dict(e)
 
 
-def _guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre: str,
-              args: tuple[str, ...] = (), cancelable: bool = True,
-              limite_s: float | None = None) -> tuple[int, dict, Path]:
+def guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre: str,
+             args: tuple[str, ...] = (), cancelable: bool = True,
+             limite_s: float | None = None) -> tuple[int, dict, Path]:
     """Escribe el plan, ejecuta el guion de DIgSILENT y lee su informe.
 
     Es lo mismo que hacen el ajuste y las cargas, una vez para los guiones de la spec 011.
@@ -6776,6 +6777,11 @@ def _guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre
     if not informe:
         informe = {'error': f'El guion terminó con el código {rc} sin dejar informe: vea el Registro.'}
     return rc, informe, report
+
+
+#: 002:RF-5 (spec 111): ``guion_pf`` es el nombre público para los demás módulos. El privado se queda como alias: lo
+#: llaman las funciones de este módulo y lo sustituyen las pruebas.
+_guion_pf = guion_pf
 
 
 # ------------------------------------------------------------------ escaneo (spec 028)
@@ -7018,18 +7024,18 @@ def _curva_del_anio(ws: Workspace, ctx: JobContext, anio: int, medidores: dict[s
     except (DemandaError, UserError, OSError) as exc:
         if avisos is None:
             raise UserError(str(exc)) from exc
-        avisos.append(f'Sin curva de cabecera de {anio}: {exc} (042:RF-42).')
+        avisos.append(f'Sin curva de cabecera de {anio}: {exc}.')
         return {}
     por_medidor = {r.medidor: r for r in res}
     out = {}
     for f, medidor in medidores.items():
         r = por_medidor.get(medidor)
         if r is None or r.error or not r.curva:
-            texto = (f'{f}: el medidor {medidor} no tiene curva de {anio} en la cabecera '
-                     '(025:RF-51)' + (f': {r.error}' if r is not None and r.error else ''))
+            texto = (f'{f}: el medidor {medidor} no tiene curva de {anio} en la cabecera'
+                     + (f': {r.error}' if r is not None and r.error else ''))
             if avisos is None:
                 raise UserError(texto)
-            avisos.append(f'{texto}; se evalúa a su demanda calibrada (042:RF-42).')
+            avisos.append(f'{texto}; se evalúa a su demanda calibrada.')
             continue
         out[f] = [(t, kw) for t, kw, *_ in r.curva if kw is not None]
     return out
@@ -7084,7 +7090,7 @@ def _valle_del_proyecto(ws: Workspace, ctx: JobContext, anio: int, feeders: list
         # La medida en valle escala las cargas y no toca el generador: se dice para no leerla como la
         # generación de ese instante.
         avisos.append(f'{f}: el valle sale de su demanda, cabecera más central, no de su cabecera; al medirlo, '
-                      'la central sigue como en su calibración (073:RF-12).')
+                      'la central sigue como en su calibración.')
     maximas_de = {str(objetivos[f]['medidor']): {'alimentador': f, 'kw': objetivos[f].get('kw'),
                                                  'kvar': objetivos[f].get('kvar')} for f in feeders}
     valle = vl.valle_de_alcance('alimentador', curvas, ajustes, str(anio))
@@ -7121,7 +7127,7 @@ def _tasa_del_alimentador(ws: Workspace, ctx: JobContext, project: str, f: str, 
     try:
         return ((_crecimiento_de_la_cabecera(ws, ctx, project, [f], avisos, todos=True) or {}).get(f) or {}).get('tasa')
     except (UserError, KeyError, TypeError, ValueError, OSError) as exc:
-        avisos.append(f'{f}: tasa de crecimiento sin leer: {exc}; el alcance se mide con el factor (042:RF-73).')
+        avisos.append(f'{f}: tasa de crecimiento sin leer: {exc}; el alcance se mide con el factor.')
         return None
 
 
@@ -7375,7 +7381,7 @@ def _variantes_de_traspaso(ws: Workspace, ctx: JobContext, comun: dict, f: str, 
     if barra is None:
         vecinos_e = sorted({o['vecino'] for v in por_enlace for o in v.obras if o.get('vecino')})
         return por_enlace, vecinos_e, avisos + [f'{f}: sin el camino de su carga nueva no se sabe qué transferir ni '
-                                                'trasladar con un enlace nuevo (087:RF-32).']
+                                                'trasladar con un enlace nuevo.']
     troncal = {str(t.get('nombre')) for t in d.get('troncal') or []}
     de = oi.nodos_de_traspaso(caminos[barra], troncal, barra, p)
     nodos = list(dict.fromkeys(list(de['transferencia']) + ([de['traslado']] if de['traslado'] else [])))  # 087:RF-52
@@ -7384,7 +7390,7 @@ def _variantes_de_traspaso(ws: Workspace, ctx: JobContext, comun: dict, f: str, 
     avisos += list(leidos.get('avisos') or [])
     if rc or leidos.get('error'):
         vecinos_e = sorted({o['vecino'] for v in por_enlace for o in v.obras if o.get('vecino')})
-        return por_enlace, vecinos_e, avisos + [f"{f}: no se leyeron sus vecinos ({leidos.get('error') or rc}) (087:RF-32)."]
+        return por_enlace, vecinos_e, avisos + [f"{f}: no se leyeron sus vecinos ({leidos.get('error') or rc})."]
     vecinos = (leidos.get('vecinos') or {}).get(f) or {}
     if objetivos is not None:
         # 087:RF-53: solo un vecino que opera, con demanda medida en su calibración. Pisco (2026-11-04): SC215 «ya no
@@ -7394,7 +7400,7 @@ def _variantes_de_traspaso(ws: Workspace, ctx: JobContext, comun: dict, f: str, 
         vecinos = {n: [x for x in filas if x['alimentador'] in operan] for n, filas in vecinos.items()}
         if fuera:
             avisos.append(f"{f}: no se proponen como vecinos {', '.join(fuera)}: sin demanda medida en su calibración, no "
-                          'operan (087:RF-53).')
+                          'operan.')
     vs, av = oi.variantes(f, kv, caminos[barra], troncal, barra, vecinos, tipos, p)
     vs = por_enlace + vs                                                          # 098:RF-21: los existentes primero
     vecinos = sorted({o['alimentador'] for v in vs for o in v.obras if o.get('clase') == 'enlace'}
@@ -7655,7 +7661,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             costos_capex = costos_por_alternativa(obras_capex)
             avisos += avisos_capex
         else:
-            avisos.append('Sin libro CAPEX: solo se costean las alternativas que da el perfil (025:RF-57).')
+            avisos.append('Sin libro CAPEX: solo se costean las alternativas que da el perfil.')
         costos = eo.costos_de_alternativas(costos_capex, p)
         # 042:RF-30, RF-34, RF-40: lo que falta se crea, a la tensión de cada alimentador y para cualquier empresa.
         lectura = obras_bibliotecas(ws, ctx, project, feeders, otro_proyecto=eo.BIBLIOTECA_TIPOS,
@@ -7666,7 +7672,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             valle = _valle_del_proyecto(ws, ctx, anio_curva, medidos, objetivos, perfil,
                                         [str(i.get('feeder')) for i in base.get('informes') or [] if i.get('central')])
         except (UserError, KeyError, TypeError, ValueError) as exc:             # 042:RF-42
-            valle = {'avisos': [f'Valle sin comprobar: {exc} (042:RF-42).']}
+            valle = {'avisos': [f'Valle sin comprobar: {exc}.']}
         avisos += list(valle.get('avisos') or [])
         if memo is not None:
             memo[clave_memo] = (anio_curva, curvas, sorteos, perdidas, costos, list(avisos), kvar, lectura, valle, procedencia_capex)
@@ -7853,10 +7859,10 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             fila['ya_cumple'] = True
             if ev['ya_cumple'].get('valle') is False:                            # 073:RF-26
                 fila['avisos'].append(f'{f}: lo que ya tiene «Con proyecto» no cumple en valle: '
-                                      + '; '.join(ev['ya_cumple'].get('valle_motivos') or []) + ' (073:RF-26).')
+                                      + '; '.join(ev['ya_cumple'].get('valle_motivos') or []) + '.')
             fila['avisos'].append(f"{f}: «Con proyecto» ya cumple con lo que tiene (sorteos "
                                   f"{100 * float(ev['ya_cumple'].get('fraccion') or 0):.0f} %): no se aplica "
-                                  'nada (025:RF-74).')
+                                  'nada.')
             fila['bajo_limite'] = ev['ya_cumple'].get('bajo_limite')             # 086:RF-48
             fila['avisos'] += _avisos_bajo_limite(f, '«Con proyecto»', fila['bajo_limite'], None, p.tension_min_pu)
             resueltos.append(f)
@@ -7892,7 +7898,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             alcance = _tasa_de_alcance(ws, project, f, p.tasa_largo_plazo)       # 031:RF-11
             fila['avisos'].append(f"{f}: el alcance se proyecta con {100 * alcance['tasa']:.2f} %/año de largo plazo"
                                   + (f'; el crecimiento medido es {100 * medida:.2f} %/año' if medida is not None else '')
-                                  + ' (042:RF-86).')
+                                  + '.')
             fila['avisos'].append(f"{f}: {alcance['aviso']}")
             for alt in fila['alternativas']:
                 alt['tasa_horizonte'] = alcance['tasa']
@@ -7923,7 +7929,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                            for t in decision['tabla']])
         for t in fila['tabla']:                                                  # 098:RF-28
             if t.get('no_aplicada'):
-                fila['avisos'].append(f"{f}: «{t['nombre']}»: {t['no_aplicada']}; no se cuenta como «no cumple» (098:RF-28).")
+                fila['avisos'].append(f"{f}: «{t['nombre']}»: {t['no_aplicada']}; no se cuenta como «no cumple».")
                 ctx.log(f"{f}: «{t['nombre']}»: {t['no_aplicada']} (098:RF-28).")
         if (operador or {}).get(f):                                              # 098:RF-44
             fila['transferencia_del_operador'] = fila_de_la_transferencia_del_operador(decision['tabla'], operador[f])
@@ -7942,7 +7948,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             fila['avisos'].append(f"{f}: {decision['aviso_valle']}")
         if decision.get('sin_comprobar_valle'):                                  # 073:RF-24
             fila['avisos'].append(f"{f}: «{decision['elegida']}» cumple con la máxima; no comprobado en valle"
-                                  + (f" ({valle['motivo']})" if valle.get('motivo') else '') + ' (073:RF-24).')
+                                  + (f" ({valle['motivo']})" if valle.get('motivo') else '') + '.')
         if decision['elegida']:
             # 086:RF-48, RF-50: la obra basta para las cargas; lo que quede bajo el límite se dice aquí mismo.
             hecha = next(t for t in decision['tabla'] if t['nombre'] == decision['elegida'])
@@ -8003,10 +8009,10 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                 resueltos.append(f)
             else:
                 fila['avisos'].append(f"{f}: «{decision['elegida']}» se creó pero no quedó activa en "
-                                      '«Con proyecto»: su flujo no converge al aplicarla (025:RF-69).')
+                                      '«Con proyecto»: su flujo no converge al aplicarla.')
         else:                                                                    # RF-56
             fila['avisos'].append(f"{f}: ninguna variante cumple; la más cercana es «{decision['mas_cercana']}», "
-                                  'y no se aplica nada (025:RF-56).')
+                                  'y no se aplica nada.')
             if basta_una:
                 # 042:RF-2: con un alimentador sin obra ya se sabe que no caben; los demás no se
                 # prueban (NA205 tardaba 40 min más tras fallar NA203).
@@ -9430,7 +9436,7 @@ def _expreso_costo_y_area(perfil: Mapping[str, Any], capex: str | None, ramas: S
                                    'tipo_cambio': None})
             costos_capex = costos_por_alternativa(obras_capex)
         except (EconomiaPideError, OSError) as exc:
-            avisos.append(f'Libro CAPEX: {exc}; el expreso se costea con la referencia (087:RF-37).')
+            avisos.append(f'Libro CAPEX: {exc}; el expreso se costea con la referencia.')
     try:
         costos = eo.costos_de_alternativas(costos_capex, eo.parametros(completo))
     except (ValueError, eo.EscaleraError) as exc:
@@ -9442,7 +9448,7 @@ def _expreso_costo_y_area(perfil: Mapping[str, Any], capex: str | None, ramas: S
                         'origen': eo.FUENTE_DE_REFERENCIA.get(alt) or 'referencia, por confirmar'}
                   for alt, v in eo.COSTOS_NIVEL_DE_REFERENCIA.items()}
         costos['nuevo_alimentador'] = {**costos['cambio_tension'], 'origen': 'referencia del cambio de tensión, por confirmar'}
-        avisos.append(f'Sin los costos del perfil o del libro ({exc}): el expreso se costea con la referencia (087:RF-37).')
+        avisos.append(f'Sin los costos del perfil o del libro ({exc}): el expreso se costea con la referencia.')
     gps: dict[str, Any] = {}
     cabeceras: dict[str, str] = {}
     for f, d in (datos.get('alimentadores') or {}).items():
@@ -9668,8 +9674,7 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
                                       'intentos': final.get('intentos'), 'utm': _punto_utm(final['lat'], final['lon']),
                                       'sitio': final.get('sitio'), 'flujos_en_punto': final.get('flujos_en_punto')}
         if not al_dia:
-            avisos.append('Flujos sin repetir en el punto final de la SET nueva: repítalos antes de darla por buena '
-                          '(084:RF-10).')
+            avisos.append('Flujos sin repetir en el punto final de la SET nueva: repítalos antes de darla por buena.')
         avisos.extend(x for x in (final.get('sitio') or {}).get('avisos') or [] if x not in avisos)
     return informe
 
@@ -10966,11 +10971,11 @@ def instantes_de_transferencia(ws: Workspace, cabecera_job_id: str | None,
         criterio = dict(ws.criterio_cabecera.get(job_id) or {})
     if not curvas:
         raise UserError('Busque antes la máxima de cabecera de los dos alimentadores (2.2): la '
-                        'transferencia se calcula en sus registros de un mismo instante (013:RF-22).')
+                        'transferencia se calcula en sus registros de un mismo instante.')
     periodo = criterio.get('periodo')
     if not periodo:
         raise UserError('Elija el mes (o todo el año) y vuelva a buscar la máxima de cabecera: sin '
-                        'periodo no se calcula la transferencia (013:RF-9).')
+                        'periodo no se calcula la transferencia.')
     por_alim = {}
     for f in feeders:
         de_f = [e['curva'] for e in curvas.values()
@@ -10983,7 +10988,7 @@ def instantes_de_transferencia(ws: Workspace, cabecera_job_id: str | None,
     if not instantes:
         raise UserError(f'{feeders[0]} y {feeders[1]} no tienen ningún registro de cabecera a la misma '
                         f'fecha y hora en {periodo}: sin un instante común no se puede afirmar la '
-                        'transferencia (013:RF-29).')
+                        'transferencia.')
     candidatos, cobertura = candidatos_de_transferencia(instantes, *feeders)
     cobertura['registros'] = {f: sum(1 for t, _kw, _q in c if en_el_periodo(t, periodo))
                               for f, c in por_alim.items()}
@@ -11162,8 +11167,8 @@ def diagnostico_cargas(ws: Workspace, project: str, feeders: list[str]) -> dict:
     return {'project': project.strip(), 'diagnosticos': out}
 
 
-def _ultimo_estudio(ws: Workspace, rol: str, project: str | None = None, alimentador: str | None = None,
-                    corrida: dict | None = None) -> dict | None:
+def ultimo_estudio(ws: Workspace, rol: str, project: str | None = None, alimentador: str | None = None,
+                   corrida: dict | None = None) -> dict | None:
     """El flujo de ese caso con el que se arma el informe: el de la corrida, nunca el de otra.
 
     El informe se arma con lo que guardaron los estudios al ejecutar «Sin proyecto» y
@@ -11224,6 +11229,11 @@ def _ultimo_estudio(ws: Workspace, rol: str, project: str | None = None, aliment
                 f'El flujo desequilibrado de {f} da {a:,.0f} kW en cabecera y el equilibrado {b:,.0f} kW: no '
                 'cuadra con la calibración, y el informe usa el equilibrado.')}  # 063:RF-45
     return des
+
+
+#: 002:RF-5 (spec 111): ``ultimo_estudio`` es el nombre público para los demás módulos; el privado, alias para este
+#: módulo y para las pruebas que lo sustituyen.
+_ultimo_estudio = ultimo_estudio
 
 
 def _avisos_de_la_corrida(corrida: dict | None, flujos: dict[str, dict | None], alimentador: str,
@@ -12910,7 +12920,8 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
     gobierno = GobiernoEquipo.desde_plan(ws, plan, extras=extras)
     publico['equipo'] = gobierno.publico()
     _asistente_guardar_plan(ws, plan, extras, gobierno)
-    almacen.anotar('ordenes', {'espacio': ws.id, 'plan': plan.id, 'texto': texto, 'tarea': plan.tarea,
+    # 086:RF-19: la orden se guarda entera para auditar y aprender; un token pegado en ella, no.
+    almacen.anotar('ordenes', {'espacio': ws.id, 'plan': plan.id, 'texto': depurar_secretos(texto), 'tarea': plan.tarea,
                                'modelo': plan.interpretado_por, 'confianza': plan.confianza, 'listo': plan.listo})
     out = {'plan': publico}
     # 086:RF-24: buscar en internet es una consulta y salía a la red al escribir la orden.
@@ -13147,7 +13158,7 @@ def _asistente_ejecutar_plan(ws: Workspace, ctx: JobContext, guardado: dict, bas
         almacen.anotar('reintentos', {'plan': plan.id, 'tarea': plan.tarea, 'error': str(exc), **decision})
         if decision['accion'] != 'reintentar' or ctx.cancel.is_set():
             _asistente_fallo(plan, str(exc), decision['motivo'])
-            raise UserError(f"El asistente paró: {exc}. {decision['motivo']} (027:RF-20)") from exc
+            raise UserError(f"El asistente paró: {exc}. {decision['motivo']}") from exc
         ctx.log(f"Asistente: «{exc}»; {decision['motivo']}: un nuevo intento (027:RF-20)")
         try:
             resultado = ejecutar(pasos(plan.tarea, plan.datos, guardado['extras']), cliente, ctx.log)
@@ -13394,7 +13405,7 @@ def es_proyecto_de_transmision(project: str) -> bool:
 def comprobar_que_se_calibra(project: str) -> None:
     if es_proyecto_de_transmision(project):
         raise UserError(f'{project} es el proyecto de transmisión: no se calibra; sirve para la cargabilidad '
-                        'del transformador de la SET (017:RF-68).')
+                        'del transformador de la SET.')
 
 
 def _set_del_grupo(ws: Workspace, grupo: str) -> tuple[str, str] | None:
@@ -13444,10 +13455,10 @@ def recalibrar_datos(ws: Workspace, project: str) -> dict:
              if (ws.groups.get(grupo) or {}).get('tipo') == 'sistema' else None)
     if not m and grupo is None:
         raise UserError(f'«{project}» no es el proyecto de un sistema eléctrico ni de alimentadores '
-                        'convertidos en este espacio: conviértalos e impórtelos antes (028:RF-23).')
+                        'convertidos en este espacio: conviértalos e impórtelos antes.')
     carpeta = carpeta_de_libros(ws)
     if carpeta is None:
-        raise UserError('El espacio no tiene libros de demanda: asígnelos en «2.1» (028:RF-23).')
+        raise UserError('El espacio no tiene libros de demanda: asígnelos en «2.1».')
     # 070:RF-59: ``SISTEMA_<zonal>_<set>`` no casaba arriba y el proyecto de una SET se calibraba como alimentadores
     # sueltos, sin su máxima de barra.
     de_set = _set_del_grupo(ws, grupo) if grupo is not None and (ws.groups.get(grupo) or {}).get('tipo') == 'sistema' else None
@@ -13469,12 +13480,12 @@ def comprobar_solo_del_sistema(base: dict, solo: list[str] | None) -> list[str]:
         return []
     if base.get('alimentadores'):
         raise UserError('Elegir alimentadores es para el proyecto de un sistema eléctrico; este ya se recalibra con los '
-                        'suyos (028:RF-40).')
+                        'suyos.')
     del_sistema = {a.upper() for a in base.get('del_sistema') or []}
     fuera = [a for a in elegidos if a not in del_sistema]
     if fuera:
         raise UserError(f"{', '.join(fuera)} no {'es' if len(fuera) == 1 else 'son'} del sistema del proyecto: "
-                        'no se recalibra (028:RF-42).')
+                        'no se recalibra.')
     return elegidos
 
 
@@ -13727,12 +13738,22 @@ def asistente_buscar(ws: Workspace, texto: str) -> dict:
 
 
 def asistente_proponer_libreria(ws: Workspace, ctx: JobContext, paquete: str, motivo: str) -> dict:
-    """Ficha de una librería en una rama aparte, con su suite, para que el operador decida (026:RF-32)."""
-    from ..asistente import mejoras
-    from ..asistente.internet import Buscador
+    """Ficha de una librería en una rama aparte, con su suite, para que el operador decida (026:RF-32).
+
+    067:RF-41: la rama queda con su recibo en ``equipo_acciones``; en el instalado no se llega a nada que anotar.
+    """
     from ..edicion import exigir_desarrollo
 
     exigir_desarrollo()                     # 086:RF-15: antes de consultar PyPI, que en el instalado no llevaría a nada
+    with recibo_directo('mejoras.libreria', responsable='operador', decision='peticion_del_operador',
+                        espacio=getattr(ws, 'id', None), entradas={'paquete': paquete, 'motivo': motivo}) as evidencia:
+        evidencia['salida'] = _proponer_libreria(ws, ctx, paquete, motivo)
+    return evidencia['salida']
+
+
+def _proponer_libreria(ws: Workspace, ctx: JobContext, paquete: str, motivo: str) -> dict:
+    from ..asistente import mejoras
+    from ..asistente.internet import Buscador
 
     vocab = asistente_vocabulario(ws)
     b = Buscador([*vocab['alimentadores'], *vocab['proyecto'], *vocab['sistema']])
@@ -13745,12 +13766,16 @@ def asistente_proponer_libreria(ws: Workspace, ctx: JobContext, paquete: str, mo
 
 
 def asistente_decision_mejora(propuesta_id: str, decision: str, comentario: str = '') -> dict:
+    """026:RF-28; 067:RF-41: la decisión del operador sobre una mejora, con su recibo."""
     from ..asistente import mejoras
 
-    try:
-        return mejoras.registrar_decision(propuesta_id, decision, comentario)
-    except ValueError as exc:
-        raise UserError(str(exc)) from exc
+    with recibo_directo('mejoras.decision', responsable='operador', decision='decision_del_operador',
+                        entradas={'propuesta': propuesta_id, 'decision': decision}) as evidencia:
+        try:
+            evidencia['salida'] = mejoras.registrar_decision(propuesta_id, decision, comentario)
+        except ValueError as exc:
+            raise UserError(str(exc)) from exc
+    return evidencia['salida']
 
 
 def asistente_registro() -> dict:
@@ -13802,7 +13827,17 @@ def asistente_marcar_entrenado(gemelo: bool) -> None:
 
 
 def asistente_entrenar(ws: Workspace, ctx: JobContext) -> dict:
-    """Reentrena el Transformer y el clasificador en otro proceso (026:RF-20), con el vocabulario del espacio."""
+    """Reentrena el Transformer y el clasificador en otro proceso (026:RF-20), con el vocabulario del espacio.
+
+    067:RF-41: la ruta directa no pasa por el plan; el clic del operador queda con su recibo en ``equipo_acciones``.
+    """
+    with recibo_directo('asistente_entrenar', responsable='operador', decision='clic_del_operador',
+                        espacio=getattr(ws, 'id', None)) as evidencia:
+        evidencia['salida'] = _asistente_entrenar(ws, ctx)
+    return evidencia['salida']
+
+
+def _asistente_entrenar(ws: Workspace, ctx: JobContext) -> dict:
     import sys
 
     from ..asistente import almacen

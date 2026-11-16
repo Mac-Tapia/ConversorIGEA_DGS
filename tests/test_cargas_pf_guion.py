@@ -330,7 +330,7 @@ def test_carga_nueva_que_ya_existe_no_se_crea(guion):
     app = fake_pf.proyecto()
     informe, _rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('F1_S1', barra='F1_B1')]),
                                   simular=False)
-    assert informe['no_creadas'] == [{'sed': 'F1_S1', 'motivo': 'ya existe en el alimentador (RF-15)'}]
+    assert informe['no_creadas'] == [{'sed': 'F1_S1', 'motivo': 'ya existe en el alimentador'}]
     assert len([o for o in app.proyecto.GetContents('*.ElmLod', 1) if o.loc_name == 'F1_S1']) == 1
 
 

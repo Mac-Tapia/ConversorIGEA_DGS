@@ -80,8 +80,8 @@ def test_fila_duplicada_en_el_mismo_alimentador_no_se_crea(guion):
     crearian = {c['sed']: f['feeder'] for f in informe['feeders'] for c in f['crearian']}
     assert crearian == {'N1B': 'F1', 'N1C': 'F2'}
     (dup,) = informe['duplicadas']
-    assert dup['sed'] == 'N1' and dup['duplicada_de'] == 'N1B' and '099:RF-1' in dup['motivo']
-    assert any(a.startswith('N1:') and '099:RF-1' in a for a in informe['avisos'])
+    assert dup['sed'] == 'N1' and dup['duplicada_de'] == 'N1B' and 'posterior en el libro: cuenta' in dup['motivo']
+    assert any(a.startswith('N1:') and 'el mismo cliente que' in a and 'no se crea' in a for a in informe['avisos'])
 
 
 # =========================================================================== RF-3
@@ -145,7 +145,7 @@ def test_la_ampliacion_solo_crea_su_carga_en_la_baja_y_propone_transformador(gui
     assert carga.loc_name == 'AMP' and carga in baja.GetConnectedElements()
     tr = next(o for o in app.proyecto.GetContents('*.ElmTr2', 1) if o.loc_name == 'TR_F1_S2')
     assert tr.typ_id.loc_name == 'TR100_F1'              # se propone, no se cambia
-    assert any('AMP' in a and 'F1_S2' in a and '040:RF-5' in a for a in informe['avisos'])
+    assert any('AMP' in a and 'F1_S2' in a and 'umbral' in a for a in informe['avisos'])
 
 
 # =========================================================================== RF-6 a RF-8
@@ -177,7 +177,7 @@ def test_se_eliminan_la_duplicada_y_la_ampliacion_creada_como_sed(guion):
     assert {c['sed'] for c in informe['cargas']} == {'N1B', 'AMP'}
     for caso in app.carpetas['study'].GetContents('*.IntCase'):
         assert dup not in caso._estado.variaciones and vieja not in caso._estado.variaciones
-    assert any(dup.loc_name in a and '040:RF-6' in a for a in informe['avisos'])
+    assert any(dup.loc_name in a and 'del proyecto' in a for a in informe['avisos'])
 
 
 def test_el_nombre_de_la_variacion_conserva_el_alimentador(guion):
@@ -211,7 +211,7 @@ def test_la_variacion_sin_alimentador_en_el_nombre_se_reconoce_y_se_renombra(gui
     (reuso,) = informe['reutilizadas']
     assert reuso['variacion'] == v.loc_name and v.loc_name != larga
     assert v.loc_name.endswith(f'_F1_{STAMP}') and len(v.loc_name) <= guion.MAX_NOMBRE
-    assert any(larga in a and '040:RF-11' in a for a in informe['avisos'])
+    assert any(larga in a and 'su nombre ya no decía el alimentador' in a for a in informe['avisos'])
 
 
 def test_la_carga_recortada_por_su_sufijo_se_reconoce_por_su_nombre(guion):
@@ -253,4 +253,4 @@ def test_la_carga_en_dos_variaciones_conserva_la_primera(guion):
     assert [x['variacion'] for x in segundo['reutilizadas']] == [copia.loc_name]
     con = next(c for c in app.carpetas['study'].GetContents('*.IntCase') if c.loc_name == 'Con proyecto')
     assert copia in con._estado.variaciones
-    assert any('040:RF-7' in a for a in segundo['avisos'])
+    assert any('variaciones de carga nueva; se conserva' in a for a in segundo['avisos'])

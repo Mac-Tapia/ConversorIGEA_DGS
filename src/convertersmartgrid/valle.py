@@ -79,7 +79,7 @@ def ajustes_de(perfil: Mapping[str, Any]) -> Ajustes:
     datos = dict(perfil.get('valle') or {})
     campos = {k: datos[k] for k in Ajustes.__dataclass_fields__ if datos.get(k) is not None}
     if 'penalizacion' in campos and float(campos['penalizacion']) < 0:
-        raise ValleError(f"valle.penalizacion no puede ser negativa: {campos['penalizacion']} (073:RF-35)")
+        raise ValleError(f"valle.penalizacion no puede ser negativa: {campos['penalizacion']}")
     return Ajustes(**campos)
 
 
@@ -369,12 +369,12 @@ def _ventana_del_anio(anio: int, puntos: Mapping[datetime, tuple], aj: Ajustes, 
     dias = _energia_por_dia(puntos)
     validos = [d for d in sorted(dias) if dias[d][0] >= aj.cobertura_dia * esperados]
     if len(validos) < 2 * CICLO_SEMANAL:
-        avisos.append(f'{anio}: {len(validos)} días con registros bastantes: no alcanzan para buscar un valle (073:RF-37).')
+        avisos.append(f'{anio}: {len(validos)} días con registros bastantes: no alcanzan para buscar un valle.')
         return None
     kwh = [dias[d][1] / dias[d][0] * 24.0 for d in validos]
     v = optimizar_ventana(validos, kwh, cobertura=aj.cobertura_dia, penalizacion=aj.penalizacion)
     if v is None:
-        avisos.append(f'{anio}: la energía de sus registros no da un periodo diferenciado de menor energía (073:RF-37).')
+        avisos.append(f'{anio}: la energía de sus registros no da un periodo diferenciado de menor energía.')
         return None
     dentro = [d for d in validos if v['inicio'] <= d <= v['fin']]
     _kw, t = min(dias[d][2] for d in dentro)
@@ -383,10 +383,10 @@ def _ventana_del_anio(anio: int, puntos: Mapping[datetime, tuple], aj: Ajustes, 
         # En la medición real, alimentadores con una ventana de meses al 4 % del resto: una baja así no
         # sale del consumo, y puede ser una transferencia o una salida larga que los filtros no ven.
         avisos.append(f"{anio}: dentro del valle hay {v['kwh_dia_dentro']:,.0f} kWh/día y fuera {v['kwh_dia_fuera']:,.0f}: "
-                      'revise si es una transferencia o una salida larga (073:RF-36).')
+                      'revise si es una transferencia o una salida larga.')
     if v['inicio'] == validos[0] or v['fin'] == validos[-1]:
         avisos.append(f"{anio}: el valle toca el borde de los registros ({v['inicio']} a {v['fin']}): puede seguir en el "
-                      'periodo contiguo, que aquí no se ve (073:RF-36).')
+                      'periodo contiguo, que aquí no se ve.')
     return v
 
 
@@ -415,7 +415,7 @@ def valle_de_alcance(alcance: str, curvas: Mapping[str, Iterable[Sequence]], aj:
             con_q = con_q and mide_q
         else:
             v.excluidos.append(medidor)
-            v.avisos.append(f'{medidor}: sin ningún registro válido: fuera de la suma (073:RF-8).')
+            v.avisos.append(f'{medidor}: sin ningún registro válido: fuera de la suma.')
     if not limpias:
         v.motivo = 'sin ningún registro válido de medición' + (f' en {periodo}' if periodo else '')
         return v
@@ -428,12 +428,12 @@ def valle_de_alcance(alcance: str, curvas: Mapping[str, Iterable[Sequence]], aj:
         if len(pobres) < len(limpias):
             for m in pobres:
                 v.avisos.append(f'{m}: {len(limpias[m])} de {esperados:.0f} registros: fuera de la suma, para no '
-                                'dejar sin instantes a los demás (073:RF-8).')
+                                'dejar sin instantes a los demás.')
                 v.excluidos.append(m)
                 del limpias[m]
     v.excluidos.sort()
     if not con_q:
-        v.avisos.append('Un medidor no mide kVAR: el punto de valle va sin su potencia reactiva (073:RF-4).')
+        v.avisos.append('Un medidor no mide kVAR: el punto de valle va sin su potencia reactiva.')
     comunes = set.intersection(*(set(c) for c in limpias.values()))
     for t in sorted({t for c in limpias.values() for t in c} - comunes):
         _registro(v.apartados, 'hueco', t, None)
@@ -458,17 +458,17 @@ def valle_de_alcance(alcance: str, curvas: Mapping[str, Iterable[Sequence]], aj:
         v.coinciden = all(_se_solapan(a, b) for i, a in enumerate(v.ventanas) for b in v.ventanas[i + 1:])
         v.avisos.append(('Las ventanas de ' if v.coinciden else 'Las ventanas NO coinciden entre ')
                         + ', '.join(str(x['anio']) for x in v.ventanas)
-                        + (' coinciden en la época del año (073:RF-38).' if v.coinciden else ' (073:RF-38).'))
+                        + (' coinciden en la época del año.' if v.coinciden else '.'))
     menor = min(puntos, key=lambda t: (puntos[t][0], t))
     if v.ventanas:
         v.ventana = v.ventanas[-1]
         v.instante = v.ventana['instante']
         if menor != v.instante['fecha']:
             v.avisos.append(f"El registro menor, {puntos[menor][0]:,.1f} kW el {menor}, queda fuera del valle: el punto para "
-                            f"el flujo es el mínimo del valle, {v.instante['kw']:,.1f} kW el {v.instante['fecha']} (073:RF-1).")
+                            f"el flujo es el mínimo del valle, {v.instante['kw']:,.1f} kW el {v.instante['fecha']}.")
     else:
         v.instante = _instante(menor, *puntos[menor])
-        v.avisos.append(f'Sin periodo diferenciado de menor energía: se usa el registro menor, el {menor} (073:RF-37).')
+        v.avisos.append(f'Sin periodo diferenciado de menor energía: se usa el registro menor, el {menor}.')
     for ventana in v.ventanas:
         ventana['instante']['por_medidor'] = {m: c[ventana['instante']['fecha']] for m, c in limpias.items()}
     v.instante['por_medidor'] = {m: c[v.instante['fecha']] for m, c in limpias.items()}
@@ -521,7 +521,7 @@ def puntos_de_valle(v: Valle, maximas: Mapping[str, Mapping[str, Any]],
     kvar_max = (sum(float(d['kvar']) for d in usados.values())
                 if all(d.get('kvar') is not None for d in usados.values()) else None)
     if v.instante['kvar'] is None or not kvar_max:
-        base['avisos'].append('Sin el kVAR del valle o el de la máxima: la Q se escala como la P (073:RF-22).')
+        base['avisos'].append('Sin el kVAR del valle o el de la máxima: la Q se escala como la P.')
     etiqueta = (f"mínimo del valle del {v.ventana['inicio']} al {v.ventana['fin']}" if v.ventana
                 else 'registro menor, sin periodo diferenciado')
     punto = _punto(etiqueta, v.instante, usados, kw_max, kvar_max)

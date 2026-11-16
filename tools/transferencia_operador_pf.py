@@ -288,7 +288,7 @@ class RedDeLaFuente:
         if self.pendientes:
             self.avisos.append((None, 'Una calibración anterior no terminó y dejó desactivada una transferencia del operador: '
                                'vuelve a estar como la dejó (' + ', '.join(sorted({e['nombre'] for e in self.pendientes}))
-                               + ') (098:RF-5).'))
+                               + ').'))
 
     def preparar(self, alims, caso, calibrados) -> None:
         """Desactiva cada zona transferida que sale de o llega a ``calibrados`` y comprueba que volvió a su alimentador."""
@@ -323,7 +323,7 @@ class RedDeLaFuente:
         try:
             _escribir(ruta, registro)                      # anotado antes de tocar nada (081:RF-80)
         except OSError as exc:
-            self.avisos.append((None, f'No se pudo anotar en disco la transferencia desactivada: {exc}; no se toca (098:RF-5).'))
+            self.avisos.append((None, f'No se pudo anotar en disco la transferencia desactivada: {exc}; no se toca.'))
             self.cambios = []
             return
         for c in self.cambios:
@@ -339,7 +339,7 @@ class RedDeLaFuente:
         if malas:
             self.avisos.append((None, 'Con la transferencia desactivada, ' + ', '.join(malas[:10])
                                + ' no volvieron a su alimentador: se deja la red como la tenía el operador y se calibra '
-                               'así (098:RF-8).'))
+                               'así.'))
             self.restituir()
             self.deshecha = True
             _flujo(self.app)
@@ -425,7 +425,7 @@ def aviso_de_la_medida(plan: dict) -> str | None:
     importado = str(plan.get('fecha_importacion') or '')[:7]
     if len(medida) == 7 and len(importado) == 7 and medida >= importado:
         return (f'La medida de cabecera es de {medida} y el proyecto se importó en {importado}: no se sabe si ya incluye '
-                'la transferencia del operador; se calibra con la red de la fuente, como si fuera de antes (098:RF-4).')
+                'la transferencia del operador; se calibra con la red de la fuente, como si fuera de antes.')
     return None
 
 

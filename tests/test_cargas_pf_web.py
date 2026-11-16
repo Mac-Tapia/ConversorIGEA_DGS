@@ -156,7 +156,7 @@ def test_carga_nueva_del_formulario_pasa_por_el_mismo_lector(client):
     # 004:RF-52: sin kVA_instalado se deduce y el aviso llega al plan.
     deducida = _plan(client, wid, nueva={'SED': 'N3', 'barra': 'B7', 'Kw': 40, 'alimentador': 'A1'}).json()
     assert deducida['nuevas'][0]['kva_instalado'] == 40
-    assert any('RF-52' in a for a in deducida['avisos'])
+    assert any('sin kVA_instalado; se toma 40 kVA' in a for a in deducida['avisos'])
     libro = _plan(client, wid, nuevas=[list(buena), list(buena.values())], nueva=buena | {'SED': 'N9'})
     # 008:RF-24: el formulario va delante del libro.
     assert [n['sed'] for n in libro.json()['nuevas']] == ['N9', 'N1']

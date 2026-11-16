@@ -853,7 +853,7 @@ def test_no_converge_remedios_y_ajustes_restituidos(guion):
     assert app.ldf.itrlx == 75 and app.ldf.iStepAdapt == 1
     assert informe['ajustes_del_flujo_conservados'] == {'itrlx': 75, 'iStepAdapt': 1}
     assert 'ajustes_restituidos' not in informe
-    assert any('015:RF-46' in a for a in informe['avisos'])
+    assert any('Ajustes del flujo de carga que se quedan en «Sin proyecto»' in a for a in informe['avisos'])
     assert 'sed_por_encima_de_su_transformador' in informe['diagnostico']
 
 
@@ -1477,7 +1477,7 @@ def test_con_proyecto_recibe_la_demanda_aunque_sin_proyecto_ya_este_calibrado(gu
     assert rc == 0, segundo
     assert segundo['decision_carga_nativa']['accion'] == 'NO_REDISTRIBUIR'
     assert segundo['con_proyecto']['corregidas'] == 1 and not segundo['con_proyecto']['fallos']
-    assert any('Con proyecto' in a and '014:RF-4' in a for a in segundo['avisos'])
+    assert any('Con proyecto' in a and 'no tenía la demanda de «Sin proyecto»' in a for a in segundo['avisos'])
     _caso(app, 'Con proyecto').Activate()
     assert _carga(app, 'F1_S2').plini == pytest.approx(en_sin)
 
@@ -1592,7 +1592,7 @@ def test_aviso_de_sobrecarga_como_causa_probable(guion):
              {'sed': 'SE30424', 'carga_pct': 118.7, 'propuesta': {'kva': None}}]
     aviso = guion.aviso_sobrecarga(sobre)
     assert aviso.startswith('SOBRECARGA') and 'SE30940 (954 %)' in aviso
-    assert 'propuesta de transformadores nuevos para 1' in aviso and '020:RF-6' in aviso
+    assert 'propuesta de transformadores nuevos para 1' in aviso and 'márquelas e implemente los transformadores' in aviso
     assert 'Sin propuesta' in guion.aviso_sobrecarga(sobre[1:])
 
 
@@ -1635,7 +1635,7 @@ def test_implementar_cambia_el_transformador_con_un_tipo_propio(guion):
     assert h['antes'] == {'tipo': 'TR2_F1', 'kva': pytest.approx(100.0), 'unidades': 1}
     assert h['despues']['tipo'] == nuevo.loc_name and h['despues']['kva'] == 400
     assert 'fijas_sobre_su_transformador' not in informe
-    assert any('020:RF-24' in a for a in informe['avisos'])
+    assert any('transformador(es) nuevo(s) en «' in a for a in informe['avisos'])
 
 
 def test_implementar_unidades_en_paralelo(guion):
@@ -1670,7 +1670,7 @@ def test_un_transformador_que_ya_tiene_la_propuesta_no_se_anuncia_como_cambio(gu
     hecho = segundo['transformadores_implementados']
     assert hecho['cambios'] == [] and _tr(app, 'TR_F1_S2').typ_id is tipo
     assert [x['sed'] for x in hecho['sin_cambio']] == ['F1_S2']
-    assert not any('→' in a and '020:RF-24' in a for a in segundo['avisos'])
+    assert not any('→' in a and 'transformador(es) nuevo(s) en «' in a for a in segundo['avisos'])
     assert any('ya tiene' in a and 'F1_S2' in a for a in segundo['avisos'])
 
 
@@ -1710,7 +1710,7 @@ def test_con_la_etapa_del_operador_grabando_los_transformadores_no_se_bloquean(g
     assert _tr(app, 'TR_F1_S2').typ_id is not viejo
     assert _variaciones(app, 'SED_NTP_')
     assert app.grabando is suya, 'la grabación vuelve a la etapa del operador'
-    assert any('Ternas_del_operador' in a and '032:RF-12' in a for a in informe['avisos'])
+    assert any('Ternas_del_operador' in a and 'estaba grabando' in a for a in informe['avisos'])
 
 
 def test_el_tipo_propio_se_reutiliza(guion):
@@ -1741,7 +1741,7 @@ def test_el_tipo_propio_con_otra_ficha_no_se_toca(guion):
 
     assert _tr(app, 'TR_F1_S2').typ_id is viejo and otro.strn == pytest.approx(0.4)
     (o,) = informe['transformadores_implementados']['omitidas']
-    assert 'ya existe el tipo' in o['motivo'] and '020:RF-22' in o['motivo']
+    assert 'ya existe el tipo' in o['motivo'] and 'no se toca un tipo existente' in o['motivo']
 
 
 def test_cancelar_tras_el_cambio_deja_los_transformadores(guion):
@@ -1968,7 +1968,7 @@ def test_informe_de_conductores_con_su_ficha(guion):
         'AAAC_F1', 0.5, 0.9, 3, 3.0)
     assert r['variacion_pct'] == pytest.approx(80.0) and r['fuente'] == 'ficha del fabricante X'
     assert (por['sline']['unidad'], por['sline']['ficha']) == ('A', 300.0)
-    assert any('032:RF-14' in a and 'AAAC_F1' in a for a in informe['avisos'])
+    assert any('con los parámetros de su ficha en «Sin proyecto»' in a and 'AAAC_F1' in a for a in informe['avisos'])
 
 
 def test_recalibrar_reutiliza_la_variacion_y_el_tipo(guion):
@@ -2018,7 +2018,7 @@ def test_con_la_etapa_del_operador_grabando_las_fichas_no_se_bloquean(guion):
     assert not informe['conductores_ficha'].get('error')
     assert _tipo(app, 'AAAC_F1_FICHA') is not None and _variaciones(app, 'Fichas_')
     assert app.grabando is suya, 'la grabación vuelve a la etapa del operador'
-    assert any('Mi_obra' in a and '032:RF-12' in a for a in informe['avisos'])
+    assert any('Mi_obra' in a and 'estaba grabando' in a for a in informe['avisos'])
 
 
 def test_codigo_sin_ficha_queda_como_en_el_archivo(guion):
@@ -2114,7 +2114,7 @@ def test_variaciones_del_catalogo_en_sin_y_con_proyecto_y_no_en_el_caso_base(gui
         assert all((ln.typ_id.loc_name == 'AAAC_F1_FICHA') is esperado for ln in _lineas(app))
     (var,) = _variaciones(app, 'Fichas_')
     assert casos.es_del_catalogo(var) and not casos.es_del_operador(var)
-    assert any('032:RF-27' in a for a in informe['avisos'])
+    assert any('Activadas también en «Con proyecto»' in a for a in informe['avisos'])
 
 
 def test_083_rf31_transformadores_de_la_ficha_en_la_misma_pasada(guion):
@@ -2132,7 +2132,7 @@ def test_083_rf31_transformadores_de_la_ficha_en_la_misma_pasada(guion):
     hechos = informe['transformadores_implementados']['cambios']
     assert [h['sed'] for h in hechos] == ['F1_S2']
     assert not informe.get('fijas_sobre_su_transformador')
-    assert any('083:RF-31' in a for a in informe['avisos'])
+    assert any('puestos antes de calibrar, en la misma pasada' in a for a in informe['avisos'])
 
 
 def test_083_rf31_sin_el_plan_automatico_solo_se_propone(guion):
@@ -2158,7 +2158,7 @@ def test_la_calibracion_deja_el_perfil_de_tension_del_alimentador(guion):
     assert [p['km'] for p in perfil['puntos']] == sorted(p['km'] for p in perfil['puntos'])
     assert perfil['troncal'] and set(perfil['troncal']) <= {p['barra'] for p in perfil['puntos']}
     assert perfil['cabecera']['medida']['kw'] == 300.0 and perfil['cabecera']['simulada']
-    assert informe['status'] == 'AVISO_KVAR' and not perfil['q_cuadrada'] and '094:RF-11' in perfil['aviso']
+    assert informe['status'] == 'AVISO_KVAR' and not perfil['q_cuadrada'] and 'las ubicaciones de bancos que salgan de él llevan ese aviso' in perfil['aviso']
 
 
 def test_el_perfil_lleva_la_banda_de_tension_del_perfil_de_la_empresa(guion):

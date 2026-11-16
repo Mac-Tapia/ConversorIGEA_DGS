@@ -210,7 +210,7 @@ def test_consultas_documentales_llevan_la_fecha_de_sellado_y_lo_dicen(tmp_path):
     consultas = [r for k, r in procedencia['referencias']['dataset'].items() if k.startswith('retrieval_train:')]
     sellado = resumen['informe']['dataset']['instante_consultas']
     assert len(consultas) == 1 and consultas[0]['instante'] == sellado['valor']
-    assert datetime.fromisoformat(sellado['valor']).utcoffset() is not None and '050:RF-17' in sellado['origen']
+    assert datetime.fromisoformat(sellado['valor']).utcoffset() is not None and 'fecha de sellado de' in sellado['origen']
     # Sin consultas reservadas, embeddings queda con su motivo textual.
     cuarentena = json.loads((tmp_path / 'salida' / 'cuarentena.json').read_text(encoding='utf-8'))
     assert any('retrieval_test' in c['motivo'] for c in cuarentena)

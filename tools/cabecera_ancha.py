@@ -58,9 +58,9 @@ def main(argv=None) -> int:
         escritos = escribir(lectura, args.salida, medidores, fps)
         for codigo, v in fps.items():
             # El aviso de RF-9 («no se supone ningún FP») ya no vale para este código: lo da el usuario.
-            lectura.avisos = [a for a in lectura.avisos if not (a.startswith(f'{codigo}:') and '051:RF-9' in a)]
-            lectura.avisos.append(f'{codigo}: sin reactiva medida; la Q sale del FP {v:g} que dio el usuario '
-                                  '(051:RF-11).')
+            lectura.avisos = [a for a in lectura.avisos
+                              if not (a.startswith(f'{codigo}:') and 'no supone ningún factor de potencia' in a)]
+            lectura.avisos.append(f'{codigo}: sin reactiva medida; la Q sale del FP {v:g} que dio el usuario.')
     except DemandaError as exc:
         print(f'ERROR: {exc}')
         return 2
@@ -69,7 +69,7 @@ def main(argv=None) -> int:
     for codigo in codigos:
         serie = lectura.series.get(codigo) or {}
         if not serie:
-            print(f'  {codigo}: no aparece en ningún libro (051:RF-5).')
+            print(f'  {codigo}: no aparece en ningún libro.')
             continue
         t, (kw, kvar) = max(serie.items(), key=lambda x: x[1][0] if x[1][0] is not None else float('-inf'))
         print(f'  {codigo}: {len(serie)} registros de {min(serie):%Y-%m-%d} a {max(serie):%Y-%m-%d}; '

@@ -492,7 +492,7 @@ def validar_obra(datos: Mapping[str, Any]) -> Obra:
         configuracion = str(datos.get('configuracion') or '').strip().lower()
         if configuracion and configuracion not in CONFIGURACIONES:
             raise ObrasError(f'La configuración de las ternas es una de {", ".join(CONFIGURACIONES)}: '
-                             f'no {configuracion!r} (084:RF-13).')
+                             f'no {configuracion!r}.')
         # 042:RF-98, RF-101: el conductor de los dos circuitos, aéreo y de cable; sin él, como antes.
         return Obra(**comunes, tramos=_lista(datos.get('tramos')), configuracion=configuracion,
                     tipo=_tipo_ref(datos.get('tipo'), clase, requerido=False),
@@ -925,19 +925,19 @@ def _conductor_de_terna(p: _Plan, tramo: str) -> str:
     ref = o.tipo_cable if cable else o.tipo
     if ref is None:
         p.avisos.append(f"La terna no trae el conductor {'de cable' if cable else 'aéreo'}: la de {tramo} se añade "
-                        'de su mismo tipo (042:RF-100).')
+                        'de su mismo tipo.')
         return ''
     try:
         nueva = float(p.traer(ref).datos.get('sline') or 0.0)
     except ObrasError as exc:
-        p.avisos.append(f'{exc} La terna de {tramo} se añade de su mismo tipo (042:RF-100).')
+        p.avisos.append(f'{exc} La terna de {tramo} se añade de su mismo tipo.')
         return ''
     antes = p.estado.tipo_tramo[tramo]
     actual = next((t for t in p.proyecto.values() if t.clase == 'TypLne' and t.nombre.lower() == antes.lower()), None)
     sline = actual.datos.get('sline') if actual is not None else None
     if not isinstance(sline, (int, float)) or not nueva or float(sline) >= nueva:
         p.avisos.append(f'{tramo} ya tiene {antes}, de igual o más corriente que {ref.nombre} o sin dato de ella: la '
-                        'terna se añade de su mismo tipo (042:RF-99).')
+                        'terna se añade de su mismo tipo.')
         return ''
     return _a_tension(p, ref)
 
@@ -988,8 +988,8 @@ def _tension(p: _Plan) -> None:
         raise ObrasError(
             f'La barra de cabecera o la fuente de {o.alimentador} alimentan también a '
             f'{", ".join(red.cabecera_compartida_con)}: no se migra desde ella. Pase la salida con una celda nueva en '
-            f'la barra de destino de la SET (042:RF-51), con un transformador elevador dedicado (042:RF-61) o a una '
-            f'SET nueva (042:RF-6).')
+            f'la barra de destino de la SET, con un transformador elevador dedicado o a una '
+            f'SET nueva.')
     origen, destino = estado.kv, o.kv_destino
     if math.isclose(origen, destino):
         raise ObrasError(f'El alimentador {o.alimentador} ya está a {origen:g} kV.')
@@ -1081,7 +1081,7 @@ def _migracion_camino(p: _Plan) -> None:
         # Como en la obra del alimentador entero (011:RF-102): esa barra alimenta a otros, que quedarían a otra tensión.
         raise ObrasError(f'La barra de cabecera o la fuente de {o.alimentador} alimentan también a '
                          f'{", ".join(red.cabecera_compartida_con)}: la troncal no se migra desde ella. Migre desde un '
-                         f'nodo con enlace (016:RF-51) o lleve la rama a una SET nueva (042:RF-6).')
+                         f'nodo con enlace o lleve la rama a una SET nueva.')
     tramos = p.camino_hasta()                                                    # RF-42c
     camino = camino_y_ramales(red.topologia, red.cabecera, p.extra['hasta']['barra'])
     origen, destino = estado.kv, o.kv_destino

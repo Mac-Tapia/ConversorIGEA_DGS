@@ -125,7 +125,7 @@ def test_troncal_sin_coordenadas(guion):
     nuevas = [_nueva(f'N{i}', alimentador='F1', **_centro_de_l2()) for i in range(3)]
     informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=nuevas), simular=True)
     assert len(informe['no_creadas']) == 3
-    assert sum('016:RF-50' in a and 'F1' in a for a in informe['avisos']) == 1
+    assert sum('no se conecta por coordenadas ninguna carga' in a and 'F1' in a for a in informe['avisos']) == 1
 
 
 def test_dos_cargas_en_el_mismo_tramo(guion):
@@ -143,7 +143,7 @@ def test_dos_cargas_en_el_mismo_tramo(guion):
     # F1_L2 va de F1_B1 (LON0 + 0,001) a F1_B2 (LON0 + 0,002): N2 está más cerca de F1_B2.
     assert creadas[1]['tramo_partido'] is None and creadas[1]['barra'] == 'F1_B2'
     assert creadas[1]['criterio'].startswith('extremo existente de F1_L2')
-    assert any('N1, N2' in a and 'F1_L2' in a and '025:RF-47' in a for a in informe['avisos'])
+    assert any('N1, N2' in a and 'F1_L2' in a and 'cada una independiente' in a for a in informe['avisos'])
     assert creadas[0]['nota'] is None and 'Carga_N1_F1' in creadas[1]['nota']
     # Independiente: N2 solo graba objetos suyos, y su barra existe sin la variación de N1.
     import casos_pf

@@ -89,7 +89,7 @@ def _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_
     if args.sellado or args.operador:
         if (args.sellado and salida.is_file()
                 and json.loads(salida.read_text(encoding='utf-8')).get('conjunto_sha256') == conjunto['sha256']):
-            print('El conjunto sellado ya se midió: no se repite (047:RF-35).', file=sys.stderr)
+            print('El conjunto sellado ya se midió: no se repite.', file=sys.stderr)
             return 2
         # 097:RF-13: los umbrales de la calibración del mismo modelo de vectores; los de otro no se aceptan.
         if ampliado:
@@ -189,7 +189,7 @@ def _elegir(args) -> int:
         inf = json.loads(ruta.read_text(encoding='utf-8'))
         modelo, corpus = inf.get('modelo_vectores'), str(inf.get('corpus') or '047')
         if not modelo or 'por_pregunta' not in inf:
-            print(f'{ruta}: sin modelo de vectores o sin señales por pregunta (097:RF-9).', file=sys.stderr)
+            print(f'{ruta}: sin modelo de vectores o sin señales por pregunta.', file=sys.stderr)
             return 2
         por_corpus.setdefault(corpus, {})[modelo] = inf['por_pregunta']
         r = inf.get('recursos') or {}

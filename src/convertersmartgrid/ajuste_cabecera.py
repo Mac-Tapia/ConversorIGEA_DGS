@@ -161,7 +161,7 @@ def derivacion_cliente(c: Mapping[str, Any], tan_objetivo: float, fp_objetivo: f
         compensado = {'fp_ea_eri': fp_libro, 'fp_escrito': fp_minimo,
                       'q_ea_eri_kvar': q_libro, 'q_escrita_kvar': q_kvar}
         aviso = (f'{codigo}: FP {fp_libro:.3f} de su EA/ERI llevado a {fp_minimo:.3f} por su '
-                 f'banco propio; Q {q_libro:,.1f} → {q_kvar:,.1f} kvar (015:RF-62).')
+                 f'banco propio; Q {q_libro:,.1f} → {q_kvar:,.1f} kvar.')
     derivacion: dict[str, Any] = {
         'cliente': codigo,
         'p_kw': kw,
@@ -1232,11 +1232,11 @@ def probabilistico_del_perfil(datos: Mapping[str, Any] | None, *, n: int | None 
     disp, pend = numero(sec.get('dispersion')), numero(sec.get('pendiente'))
     if disp is None or disp < 0 or pend is None:
         raise AjusteError('calibracion.reparto_probabilistico necesita «dispersion» (≥ 0) y '
-                          '«pendiente» numéricas (041:RF-3).')
+                          '«pendiente» numéricas.')
     # 095:RF-3: del perfil solo la dispersión; su pendiente se ignora y se dice.
     return Probabilistico(dispersion=disp, pendiente=0.0,
                           n=int(n or numero(sec.get('n')) or N_PROBABILISTICO), semilla=semilla,
-                          fuente='perfil de empresa' + (f' (pendiente {pend:g} ignorada, 095:RF-3)' if pend else ''))
+                          fuente='perfil de empresa' + (f' (pendiente {pend:g} ignorada)' if pend else ''))
 
 
 def muestra_de_reparto(rep: Reparto, prob: Probabilistico, azar) -> Reparto:

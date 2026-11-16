@@ -82,7 +82,7 @@ def test_la_anterior_no_se_crea_y_su_variacion_se_elimina(guion):
     assert rc == 0, informe
     assert {c['sed'] for c in informe['cargas']} == {'CH_23'}
     (dup,) = informe['duplicadas']
-    assert dup['sed'] == 'CH_20' and dup['duplicada_de'] == 'CH_23' and '099:RF-1' in dup['motivo']
+    assert dup['sed'] == 'CH_20' and dup['duplicada_de'] == 'CH_23' and 'posterior en el libro: cuenta' in dup['motivo']
     assert [x['variacion'] for x in informe['eliminadas']] == [vieja.loc_name]
     assert vieja.loc_name not in _variaciones(app) and obra.loc_name in _variaciones(app)
     assert any(a.startswith('CH_20:') and 'CH_23' in a for a in informe['avisos'])

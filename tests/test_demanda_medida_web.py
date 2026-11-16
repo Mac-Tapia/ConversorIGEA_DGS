@@ -768,7 +768,7 @@ def test_sesenta_kv_el_alimentador_sin_registro_en_el_instante_se_nombra(client,
     res = esperar_trabajo(client, job.json())['result']
     a2 = next(r for r in res['resultados'] if r['alimentador'] == 'A2')
     assert not a2.get('error') and a2['kw'] > 0 and a2['fecha'] != res['sistema_60kv']['fecha']
-    assert any(a.startswith('A2:') and '028:RF-38' in a for a in res['avisos'])
+    assert any(a.startswith('A2:') and 'sin medida' in a for a in res['avisos'])
 
 
 def test_sesenta_kv_sin_ninguna_barra_de_60_lo_dice_y_no_busca(client, monkeypatch):
@@ -829,7 +829,7 @@ def test_central_en_un_tramo_no_va_a_la_barra(client, monkeypatch):
     assert all(b['centrales'] == [] for b in res['barras']), 'en el tramo, no en la barra'
     ct = next(x for x in res['resultados'] if x['medidor'] == 'CT_X')
     assert ct['alimentador'] == 'Central A1' and ct['fecha'] == t5 and ct['kw'] == pytest.approx(45.0)
-    assert any('CT_X' in a and '022:RF-88' in a for a in res['avisos'])
+    assert any('CT_X' in a and 'central en el tramo de' in a for a in res['avisos'])
     # Una central en el tramo de un alimentador que no es del sistema pedido no entra.
     job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={
         'medidores': [{'alimentador': 'B1', 'medidor': 'M4'}],
@@ -867,7 +867,7 @@ def test_maxima_de_la_barra_de_60_kv_da_el_instante_a_toda_la_set(client, monkey
     assert fechas['M4'] == (T0 + timedelta(minutes=15 * 7)).isoformat(sep=' ')
     kw = {r['medidor']: r['kw'] for r in res['resultados']}
     assert kw['M1'] == pytest.approx(150.0) and kw['M3'] == pytest.approx(250.0)
-    assert not any('022:RF-89' in a for a in res['avisos']), '9 999 kW > 310 kW de su media'
+    assert not any('revise la unidad' in a for a in res['avisos']), '9 999 kW > 310 kW de su media'
 
 
 def test_instante_de_60_kv_con_registro_en_todos_sus_alimentadores(client, monkeypatch):
@@ -884,7 +884,7 @@ def test_instante_de_60_kv_con_registro_en_todos_sus_alimentadores(client, monke
     t5 = (T0 + timedelta(minutes=75)).isoformat(sep=' ')
     alta = next(b for b in res['barras'] if b['alta'])
     assert alta['fecha'] != t5 and alta['kw'] == pytest.approx(1000.0)
-    assert any('022:RF-91' in a for a in res['avisos'])
+    assert any('registro en todos' in a or 'ningún registro común con sus alimentadores' in a for a in res['avisos'])
     m3 = next(r for r in res['resultados'] if r['medidor'] == 'M3')
     assert not m3['error'] and m3['fecha'] == alta['fecha']
 
@@ -901,4 +901,4 @@ def test_barra_de_60_kv_menor_que_su_media_se_avisa(client, monkeypatch):
     res = estado['result']
     t5 = (T0 + timedelta(minutes=75)).isoformat(sep=' ')
     assert next(b for b in res['barras'] if b['alta'])['fecha'] == t5
-    assert any('SET X 60 kV' in a and '022:RF-89' in a for a in res['avisos'])
+    assert any('SET X 60 kV' in a and 'revise la unidad' in a for a in res['avisos'])

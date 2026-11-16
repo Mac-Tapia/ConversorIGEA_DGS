@@ -188,7 +188,7 @@ def test_el_informe_de_la_conversion_avisa_de_los_deducidos():
     cab = {**cab, 'ZN101': next(iter(cab.values()))}
     c = es.completar(e, cab)
     texto = es.aviso_deducidos(c, ['ZN101', sorted(e.alimentadores)[0]])
-    assert 'ZN101' in texto and 'SET ZN' in texto and '022:RF-78' in texto
+    assert 'ZN101' in texto and 'SET ZN' in texto and 'colocados por la entrega' in texto
     assert es.aviso_deducidos(c, sorted(e.alimentadores)[:1]) == ''
 
 

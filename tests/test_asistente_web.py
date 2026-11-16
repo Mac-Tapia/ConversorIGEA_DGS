@@ -19,6 +19,7 @@ ORDENES = {
     'xyzzy': ('estado', 0.2, {}),
     'convierte IN111': ('convertir', 0.97, {'alimentadores': [{'valor': 'IN111', 'confianza': 0.9}]}),
     'carga la fuente': ('cargar_fuente', 0.99, {}),
+    'que hay cargado acceso=secreto1 token=secreto2 Authorization: Bearer secreto3abc': ('estado', 0.99, {}),
 }
 
 
@@ -70,6 +71,14 @@ def test_consulta_respondida_al_momento(client):
     r = _orden(client, _wid(client), 'que hay cargado')
     assert r['plan']['tarea'] == 'estado' and not r['plan']['escribe'] and 'trabajo' not in r
     assert 'Sin fuente cargada' in r['respuesta']['texto']
+
+
+def test_el_almacen_de_ordenes_no_guarda_secretos(client):
+    """086:RF-19 — «ordenes» guardaba el texto entero: un token pegado en la orden quedaba en el disco."""
+    _orden(client, _wid(client), 'que hay cargado acceso=secreto1 token=secreto2 Authorization: Bearer secreto3abc')
+    guardadas = [f['texto'] for f in almacen.leer('ordenes')]
+    assert guardadas and all('que hay cargado' in t for t in guardadas)
+    assert not any('secreto' in t for t in guardadas), guardadas
 
 
 def test_lo_que_solo_lee_se_lanza_sin_confirmar(client, monkeypatch):

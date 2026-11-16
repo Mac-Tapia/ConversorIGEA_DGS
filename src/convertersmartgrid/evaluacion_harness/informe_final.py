@@ -106,7 +106,7 @@ def _comprobar_medida(bloque: str, nombre: str, m: Any, conjuntos: dict) -> None
     if m['conjunto'] not in conjuntos:
         raise InformeRechazado(f'{donde}: el conjunto {m["conjunto"]} no está declarado')
     if type(m['negativo']) is not bool:
-        raise InformeRechazado(f'{donde}: negativo debe decir true o false (044:RF-8)')
+        raise InformeRechazado(f'{donde}: negativo debe decir true o false')
     if 'p' in m:
         if not (_finito(m['p']) and 0 <= m['p'] <= 1):
             raise InformeRechazado(f'{donde}: p fuera de [0, 1]')

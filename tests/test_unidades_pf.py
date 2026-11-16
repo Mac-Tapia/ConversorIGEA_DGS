@@ -38,7 +38,7 @@ def test_las_unidades_del_proyecto_se_leen_y_se_comparan(guion):
     assert not mal['correctas'] and mal['distintas'] == {'plini': 'kW', 'qlini': 'kvar'}
     assert mal['leidas']['qcapn'] is None, 'sin bancos, su unidad no se sabe y no decide'
     motivo = cargas_pf['error_de_unidades'](mal)
-    assert 'kW (plini)' in motivo and 'Ajustes del proyecto' in motivo and '035:RF-15' in motivo
+    assert 'kW (plini)' in motivo and 'Ajustes del proyecto' in motivo and 'No se escribió nada' in motivo
 
 
 def test_en_un_proyecto_en_kw_no_se_escribe_nada(guion, monkeypatch):
@@ -50,7 +50,7 @@ def test_en_un_proyecto_en_kw_no_se_escribe_nada(guion, monkeypatch):
                                       'esperadas': {}, 'correctas': False,
                                       'distintas': {'plini': 'kW', 'qlini': 'kvar'}})
     informe, rc = guion.ejecutar(app, _plan())
-    assert rc == 2 and '035:RF-15' in informe['error']
+    assert rc == 2 and 'No se escribió nada' in informe['error']
     assert informe['unidades']['distintas'] == {'plini': 'kW', 'qlini': 'kvar'}
     despues = {c.loc_name: (c.plini, c.qlini, c.scale0) for c in app.proyecto.GetContents('*.ElmLod', 1)}
     assert despues == antes

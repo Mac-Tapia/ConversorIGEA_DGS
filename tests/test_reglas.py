@@ -223,7 +223,7 @@ def test_web_convierte_por_sistema_electrico_con_la_tabla_subida(tmp_path, monke
         man = json.loads(next((tmp_path / 'web').rglob('SISTEMA_ELECTRICO_manifest.json'))
                          .read_text(encoding='utf-8'))
         rec, avisos = man['estructura']['reconstrucciones'], man['estructura']['avisos']
-        assert rec or any(nombres[0] in a and 'RF-60' in a for a in avisos)
+        assert rec or any(nombres[0] in a and ('se convierte como está' in a or 'no está en la red unida' in a) for a in avisos)
         # 022:RF-50: unir dos o más, con la estructura subida, sigue sin usarla.
         j = esperar(c.post(f'/api/workspaces/{wid}/convert', json={
             'feeders': nombres[:2], 'unir': True, 'nombre': 'DOS'}).json())

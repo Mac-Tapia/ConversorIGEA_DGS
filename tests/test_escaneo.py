@@ -131,7 +131,7 @@ def test_ruta_de_la_web_guarda_el_escaneo_y_la_central_toma_su_barra(tmp_path, m
     avisos: list[str] = []
     central = services._central_del_plan(ws, 'J', 'A1', 'M', {'generacion': 'G1', 'llegada': 'G2',
                                                               'salida': 'G3', 'nodo': ''}, avisos, '')
-    assert central['nodo'] == 'N7' and any('028:RF-12' in x for x in avisos)
+    assert central['nodo'] == 'N7' and any('la de su generador en el escaneo' in x for x in avisos)
 
 
 def test_guion_lista_lo_conectado_en_la_barra_de_cabecera(guion):
@@ -214,7 +214,7 @@ def test_la_central_es_el_generador_del_operador(ajuste):
     c = informe['central']
     assert c['del_operador'] and c['generador'] == 'CT_A_MANO' and not c['creado']
     assert (gen.pgini, gen.qgini) == (pytest.approx(0.6), pytest.approx(-0.04))
-    assert '028:RF-13' in c['aviso']
+    assert 'que puso el operador en' in c['aviso'] and 'no se crea otro' in c['aviso']
 
 
 
@@ -274,7 +274,7 @@ def test_recalibrar_sin_bloqueos(tmp_path, monkeypatch):
     monkeypatch.setattr(services, 'demanda_central', lambda *a, **k: {'error': None})
     assert services._central_del_plan(ws, 'J', 'A1', 'M', {'generacion': 'G', 'llegada': 'L', 'salida': 'S',
                                                            'nodo': ''}, avisos, '') is None
-    assert any('028:RF-19' in a for a in avisos)
+    assert any('se calibra sin ella' in a for a in avisos)
     logs = []
     ctx = SimpleNamespace(log=logs.append, cancel=Event())
     monkeypatch.setattr(services, 'escanear_alimentadores',
@@ -296,7 +296,7 @@ def test_generador_del_operador_sin_central(ajuste):
     plan.pop('central')
     informe, _rc = ajuste.ejecutar(app, plan)
     assert informe['generadores_del_operador'] == [{'generador': 'GD_A_MANO', 'p_kw': 200.0}]
-    assert any('028:RF-18' in a for a in informe['avisos'])
+    assert any('la cabecera medida es la demanda menos su generación' in a for a in informe['avisos'])
     assert not [o for o in app.creados if o._clase == 'ElmGenstat' and o.loc_name.startswith('Central_')]
 
 
@@ -382,7 +382,7 @@ def test_recalibrar_solo_unos_alimentadores_del_sistema(tmp_path, monkeypatch):
         assert d['zonal'] == 'Valle' and d['del_sistema'] == ['VA101', 'VA202', 'VA303'] and 'alimentadores' not in d
         r = c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
                    json={'project': proyecto, 'periodo': '2026', 'solo': ['VA101', 'XX999']})
-        assert r.status_code == 400 and 'XX999' in r.text and 'RF-42' in r.text
+        assert r.status_code == 400 and 'XX999' in r.text and 'no es del sistema del proyecto: no se recalibra' in r.text
         assert not ordenes
         fin = esperar_trabajo(c, c.post(f'/api/workspaces/{wid}/demanda/recalibrar', json={
             'project': proyecto, 'periodo': '2026', 'solo': ['va303', 'VA101'], 'maximo_mes': ['va303']}).json())

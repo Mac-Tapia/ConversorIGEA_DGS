@@ -614,7 +614,7 @@ def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str
             info.sistemas[sist] = estructura.sistemas[sist]
     if info.sin_set:
         avisos.append(f'{len(info.sin_set)} alimentador(es) sin SET en la estructura, con su '
-                      'red externa propia: ' + ', '.join(info.sin_set) + ' (022:RF-19).')
+                      'red externa propia: ' + ', '.join(info.sin_set) + '.')
     if aviso := aviso_deducidos(estructura, (f.name for f in info.feeders)):
         avisos.append(aviso)                                                    # RF-78
     orden_zonal = {z: i for i, z in enumerate(estructura.zonales)}
@@ -635,7 +635,7 @@ def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str
             distintas = {(round(px, 1), round(py, 1)) for px, py in puntos.values()}
             if len(distintas) > 1:
                 avisos.append(f'{st.rotulo} {kv:g} kV: sus cabeceras no tienen las mismas '
-                              f'coordenadas; la barra va en las de {min(puntos)} (022:RF-18b).')
+                              f'coordenadas; la barra va en las de {min(puntos)}.')
         combinado.nodes[barra] = Node(barra, x, y)
         info.node_kv[barra] = kv
         info.feeder_of_node[barra] = [r.name for r in refs]

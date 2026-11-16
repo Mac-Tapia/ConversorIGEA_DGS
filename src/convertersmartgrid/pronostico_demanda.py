@@ -296,7 +296,7 @@ def curvas_de_cabecera(rutas: Iterable[Path | str], pares=None, *, centrales=Non
             continue
         ultimo = max(c0[-1][0] for c0 in curvas)
         if curva[-1][0] < ultimo:
-            avisos.append(f'cabecera:{alimentador}: la suma de sus medidores llega hasta {curva[-1][0]}, uno sigue hasta {ultimo} (089:RF-76)')
+            avisos.append(f'cabecera:{alimentador}: la suma de sus medidores llega hasta {curva[-1][0]}, uno sigue hasta {ultimo}')
         central = centrales.get(alimentador)
         if central:
             otros = [_unir_libros(libros, [central[k]], alimentador, abiertas)[0] for k in ('generacion', 'llegada', 'salida')]
@@ -576,7 +576,7 @@ def _curvas_por_cliente(libros: Iterable[tuple[Path, str | None]], codigos=None,
             # 104:RF-26: abril de 2026 repetía marzo registro a registro; entraba como dato bueno.
             if repite_otro_mes(compactas, previo[1])['repite']:
                 apartados.append({'objetivo': f'libro:{libro.name}',
-                                  'motivo': f'repite los valores de {nombre_de_mes(previo[0])}: no se usa (104:RF-26)'})
+                                  'motivo': f'repite los valores de {nombre_de_mes(previo[0])}: no se usa'})
                 continue
         if mes:
             previo = (mes, compactas)
@@ -695,7 +695,7 @@ def armar_dataset(fuentes: Fuentes) -> Dataset:
     fichas = [_ficha_de_libro(p) for p in libros_cabecera]
     leidas, ap = curvas_de_cabecera(libros_cabecera, pares, centrales=_centrales_del_perfil())
     avisos = [f"{a['objetivo']}: {a['motivo']}" for a in ap if a.get('libro_roto')]
-    avisos += [a for d0 in leidas.values() for a in d0['fuente']['avisos'] if '089:RF-7' in a or 'hasta' in a]
+    avisos += [a for d0 in leidas.values() for a in d0['fuente']['avisos'] if 'hasta' in a]
     apartados += ap
     de_apoyo: dict[str, dict] = {}
     if fuentes.apoyo:

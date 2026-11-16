@@ -13,7 +13,9 @@ const TIPOS_SCRIPT = new Map([
 ]);
 
 function archivos(raiz){
-  return readdirSync(raiz,{withFileTypes:true}).flatMap(e=>e.isDirectory()?archivos(join(raiz,e.name)):[join(raiz,e.name)]);
+  // 102:RF-24: las carpetas que empiezan por punto son cachés de herramientas (.ruff_cache, .vite…), no código.
+  return readdirSync(raiz,{withFileTypes:true}).filter(e=>!(e.isDirectory()&&e.name.startsWith('.')))
+    .flatMap(e=>e.isDirectory()?archivos(join(raiz,e.name)):[join(raiz,e.name)]);
 }
 function dentro(raiz,ruta){
   const rel=relative(raiz,ruta);return rel!== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);

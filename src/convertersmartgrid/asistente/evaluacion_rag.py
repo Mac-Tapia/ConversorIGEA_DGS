@@ -212,7 +212,7 @@ def muestra_suficiente(conjunto: Mapping[str, Any], minimo_sin: int = MINIMO_SIN
         faltan.append(f'{minimo_con - con} con respuesta')
     if faltan:
         raise ValueError(f'La calibración tiene {sin} preguntas sin respuesta y {con} con ella; faltan '
-                         f'{" y ".join(faltan)} para un umbral que generalice (097:RF-19): no se calibra')
+                         f'{" y ".join(faltan)} para un umbral que generalice: no se calibra')
     return {'sin_respuesta': sin, 'con_respuesta': con}
 
 

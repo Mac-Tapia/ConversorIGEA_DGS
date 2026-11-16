@@ -16,6 +16,8 @@ build/
 external/upstream/
 external/solvers/
 .venv-ml/
+# 077:RF-76: el intérprete propio del servidor MCP, con requirements-mcp.txt.
+.venv_mcp/
 venv/
 env/
 ENV/

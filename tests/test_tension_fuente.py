@@ -212,7 +212,7 @@ def test_consigna_medida_por_defecto_y_la_del_operador_manda():
     t, _ = dm.consigna_de_la_fuente(MEDIDA, del_operador=True, pu_operador=1.0278)
     assert t['origen'] == 'medida' and t['pu'] == 1.0278 and t['medidor'] == 'L-PA235'
     t, aviso = dm.consigna_de_la_fuente({**MEDIDA, 'pu': 1.12}, del_operador=False, pu_operador=None)
-    assert t is None and 'no se aplica sola' in aviso and '021:RF-82' in aviso
+    assert t is None and 'no se aplica sola' in aviso and 'si la confirma' in aviso
     assert dm.consigna_de_la_fuente(None, del_operador=False, pu_operador=None) == (None, None)
 
 
@@ -345,7 +345,7 @@ def test_consigna_en_pu_con_la_nominal_de_su_red_externa(guion):
     assert guion.consigna_en_pu({**MEDIDA, 'pu': None}, None)[0] is None
     assert guion.consigna_en_pu({'origen': 'operador', 'pu': 1.05}, 10.0) == (1.05, None)
     pu, aviso = guion.consigna_en_pu(MEDIDA, 20.0)
-    assert pu is None and '021:RF-82' in aviso
+    assert pu is None and 'si la confirma' in aviso
     assert guion.tension_del_plan({'tension_fuente_pu': 1.02}) == {'origen': 'operador', 'pu': 1.02}
     assert guion.tension_del_plan({'tension_fuente_pu': None}) is None
 

@@ -123,6 +123,8 @@ _LARGO_EMBEDDING = 2000
 _CODIGO = re.compile(r'\b[A-Za-z]{1,8}\d{2,}[A-Za-z0-9]*\b')
 CORPUS_047 = '047'
 CORPUS_AMPLIADO = corpus_proyecto.CORPUS
+#: El del programa instalado: los manuales y notas de «documentos» (asistente/pregunta_entregada.py).
+CORPUS_ENTREGA = 'entrega'
 #: Cambia cuando cambia lo que se guarda de cada trozo: un índice viejo no traía su vigencia.
 _VERSION_INDICE = 'v2'
 #: De lo leído pasa al LLM a lo sumo esto por lectura: su contexto es de un modelo en 8 GB de GPU.
@@ -170,6 +172,9 @@ def _ficheros(repo: Path) -> list[Path]:
 
 
 def _ficheros_de(repo: Path, corpus: str) -> list[Path]:
+    if corpus == CORPUS_ENTREGA:
+        # Programa instalado: solo los manuales y notas que se entregan (pregunta_entregada, decisión del 2026-11-13).
+        return sorted((repo / 'documentos').glob('*.md'))
     base = _ficheros(repo)
     if corpus == CORPUS_047:
         return base

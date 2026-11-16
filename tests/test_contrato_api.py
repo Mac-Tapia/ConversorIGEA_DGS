@@ -187,3 +187,103 @@ def test_contrato_preserva_espacio_cargado_y_obra_real(tmp_path, disposicion):
         assert modelos().ObraRespuesta.model_validate(obra.json()).model_dump(exclude_unset=True) == obra.json()
         publico = cliente.get(f'/api/workspaces/{wid}').json()
         assert modelos().EspacioRespuesta.model_validate(publico).model_dump(exclude_unset=True) == publico
+
+
+#: 002:RF-38 (aclaración): la base del trinquete, medida el 2026-11-14 sobre 00d30651 con H10 y H13. Solo puede bajar;
+#: subirla es cambiar la spec, no la prueba.
+BASE_RUTAS_SIN_MODELO = 5
+
+
+def _herramienta():
+    spec = importlib.util.spec_from_file_location('rutas_sin_modelo', RAIZ / 'tools' / 'rutas_sin_modelo.py')
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def _lista_guardada(modulo) -> dict:
+    """El fichero tal como está en el repositorio, leído sin la herramienta: la prueba no se fía de quien lo escribe."""
+    import json
+    return json.loads(modulo.LISTA.read_text(encoding='utf-8'))
+
+
+def _medidas_ahora(tmp_path) -> list[str]:
+    """Lo que mide la herramienta, ahora, sobre la aplicación que construye el código."""
+    from convertersmartgrid.web.app import create_app
+    return _herramienta().rutas_sin_modelo(create_app(tmp_path / 'web'))
+
+
+def test_002_rf38_la_herramienta_mide_las_rutas_json_sin_modelo():
+    """002:RF-38 — la medida no sale del fichero: sobre una aplicación mínima, cuenta las rutas de /api que devuelven JSON
+    sin modelo, y no las que llevan modelo, devuelven HTML, responden 204 o están fuera de /api."""
+    from fastapi import FastAPI
+    from fastapi.responses import HTMLResponse
+    from pydantic import BaseModel
+
+    class Modelo(BaseModel):
+        x: int
+
+    app = FastAPI()
+    app.get('/api/con', response_model=Modelo)(lambda: {'x': 1})
+    app.get('/api/sin')(lambda: {'x': 1})
+    app.post('/api/sin')(lambda: {'x': 1})
+    app.get('/api/pagina', response_class=HTMLResponse)(lambda: '<p>')
+    app.delete('/api/borrar', status_code=204)(lambda: None)
+    app.get('/fuera')(lambda: {'x': 1})
+    assert _herramienta().rutas_sin_modelo(app) == ['GET /api/sin', 'POST /api/sin']
+
+
+def test_002_rf38_la_lista_esta_al_dia_con_el_codigo(tmp_path):
+    """002:RF-38 (aclaración), frescura — las rutas de la lista son exactamente las que la herramienta mide ahora sobre
+    el código: ni una ruta nueva sin modelo fuera de ella, ni una que ya tenga modelo o ya no exista dentro."""
+    modulo = _herramienta()
+    guardadas = sorted(_lista_guardada(modulo)['rutas'])
+    medidas = _medidas_ahora(tmp_path)
+    nuevas, sobran = sorted(set(medidas) - set(guardadas)), sorted(set(guardadas) - set(medidas))
+    assert not nuevas, f'rutas de /api sin response_model que no están en la lista (póngales su modelo): {nuevas}'
+    assert not sobran, f'quítelas de {modulo.LISTA.name} con «tools/rutas_sin_modelo.py --escribir»: {sobran}'
+
+
+def test_002_rf38_el_numero_no_sube_y_cada_ruta_dice_por_que(tmp_path):
+    """002:RF-38 (aclaración), trinquete — la cifra la da la lista, no un número del texto; no sube de la base del
+    2026-11-14 y cada ruta lleva su motivo, en orden estable."""
+    lista = _lista_guardada(_herramienta())
+    rutas = lista['rutas']
+    assert isinstance(rutas, dict), 'cada ruta lleva su motivo: {"MÉTODO /ruta": "motivo"}'
+    assert len(rutas) <= BASE_RUTAS_SIN_MODELO, f'{len(rutas)} rutas sin modelo: la base es {BASE_RUTAS_SIN_MODELO}'
+    assert list(rutas) == sorted(rutas)
+    sin_motivo = [r for r, m in rutas.items() if not isinstance(m, str) or len(m.strip()) < 15]
+    assert not sin_motivo, f'rutas sin un motivo escrito: {sin_motivo}'
+    assert len(_medidas_ahora(tmp_path)) <= BASE_RUTAS_SIN_MODELO
+
+
+def test_002_rf38_escribir_solo_baja_y_conserva_los_motivos(tmp_path, monkeypatch, capsys):
+    """002:RF-38 (aclaración) — ``--escribir`` quita las rutas que ya tienen modelo, conserva el motivo de las que
+    quedan y se niega, sin tocar el fichero, si aparece una ruta nueva sin modelo."""
+    import json
+    modulo = _herramienta()
+    lista = tmp_path / 'rutas_sin_modelo.json'
+    lista.write_text(json.dumps({'rutas': {'GET /api/a': 'devuelve un fichero', 'GET /api/b': 'devuelve un zip'}}),
+                     encoding='utf-8')
+    monkeypatch.setattr(modulo, 'LISTA', lista)
+    monkeypatch.setattr(modulo, 'de_la_aplicacion', lambda: ['GET /api/b'])
+    assert modulo.main(['--escribir']) == 0
+    assert json.loads(lista.read_text(encoding='utf-8'))['rutas'] == {'GET /api/b': 'devuelve un zip'}
+    antes = lista.read_bytes()
+    monkeypatch.setattr(modulo, 'de_la_aplicacion', lambda: ['GET /api/b', 'POST /api/nueva'])
+    assert modulo.main(['--escribir']) == 1
+    salida = capsys.readouterr()
+    assert 'POST /api/nueva' in salida.err and 'la lista solo baja' in salida.err
+    assert lista.read_bytes() == antes, 'una ruta nueva sin modelo no entra en la lista'
+
+
+@pytest.mark.parametrize('contenido,error', [(None, 'no existe'), ('{no es json', 'no es JSON'),
+                                             ('{"rutas": 3}', '«rutas»'), ('{"rutas": {"GET /api/a": 7}}', 'motivo')])
+def test_002_rf38_una_lista_rota_se_dice(tmp_path, contenido, error):
+    """002:RF-38 — una lista que falta, que no es JSON o que no tiene la forma esperada se rechaza con un mensaje claro."""
+    modulo = _herramienta()
+    lista = tmp_path / 'rutas_sin_modelo.json'
+    if contenido is not None:
+        lista.write_text(contenido, encoding='utf-8')
+    with pytest.raises(ValueError, match=error):
+        modulo.leer_lista(lista)

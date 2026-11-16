@@ -62,7 +62,7 @@ def parametros(perfil: Mapping[str, Any]) -> Parametros:
     faltan = [k for k in ('vida_util_anios', 'factor_seguridad_set', 'modulos_pit') if not plan.get(k)]
     if faltan:
         raise SetNuevaError('el perfil de empresa no trae ' + ', '.join(f'planificacion.{k}' for k in faltan)
-                            + ': no se supone ningún valor para diseñar la SET nueva (042:RF-8).')
+                            + ': no se supone ningún valor para diseñar la SET nueva.')
     # Sin el dato, un solo transformador: el paralelo es una decisión de la empresa (P13).
     unidades = int((plan.get('transformador_set') or {}).get('unidades_en_paralelo_max') or 1)
     # El horizonte de diseño de la SET, aparte de la vida útil del costeo: con 30 años y la tasa
@@ -95,7 +95,7 @@ def potencia_de_diseno(trasladado: Mapping[str, tuple[float, float]], nuevas: tu
     faltan = sorted(f for f in trasladado if tasas.get(f) is None)
     if faltan:
         raise SetNuevaError(f"sin tasa de crecimiento de la spec 029 para {', '.join(faltan)}: no se "
-                            'supone ninguna (042:RF-8).')
+                            'supone ninguna.')
     kva = {f: math.hypot(*pq) for f, pq in trasladado.items()}
     total = sum(kva.values())
     g = (sum(tasas[f] * s for f, s in kva.items()) / total if total
@@ -229,19 +229,19 @@ def tasas_completas(tasas: Mapping[str, float | None], referencia: float) -> tup
     con_dato = [float(t) for t in tasas.values() if t is not None]
     relleno = sum(con_dato) / len(con_dato) if con_dato else float(referencia)
     faltan = sorted(f for f, t in tasas.items() if t is None)
-    avisos = ([f"Sin tasa de crecimiento medida en {', '.join(faltan)}: se usa {100 * relleno:.2f} %/año (042:RF-41)."] if faltan else [])
+    avisos = ([f"Sin tasa de crecimiento medida en {', '.join(faltan)}: se usa {100 * relleno:.2f} %/año."] if faltan else [])
     return {f: (float(t) if t is not None else relleno) for f, t in tasas.items()}, avisos
 
 
 def modulos_del_libro(capex: str | None, cfg: Mapping[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
     """042:RF-33: los módulos del libro; sin libro o si no se puede leer, ninguno y se dice: la SET se dimensiona igual."""
     if not capex or not capex.strip():
-        return [], ['Sin libro CAPEX: la SET se dimensiona con transformadores normalizados y su costo queda por confirmar (042:RF-33).']
+        return [], ['Sin libro CAPEX: la SET se dimensiona con transformadores normalizados y su costo queda por confirmar.']
     try:
         return leer_modulos_pit(Path(capex.strip().strip('"')), cfg), []
     except (SetNuevaError, OSError, KeyError, ValueError) as exc:
         return [], [f'No se pudo leer el libro CAPEX ({exc}): la SET se dimensiona con transformadores normalizados y su costo '
-                    'queda por confirmar (042:RF-33).']
+                    'queda por confirmar.']
 
 
 def modulo_deducido(modulos: Sequence[Mapping[str, Any]], kva_diseno: float, kv_mt: float,
@@ -265,7 +265,7 @@ def modulo_deducido(modulos: Sequence[Mapping[str, Any]], kva_diseno: float, kv_
     costo = float(parecido['costo']) / float(parecido['mva']) * mva * unidades if parecido else None
     motivo = (f'ningún módulo del libro cubre {kva / 1000.0:.1f} MVA a {kv_mt:g} kV: {unidades} × {mva:g} MVA normalizado'
               + (f', con el costo por MVA de «{parecido["descripcion"]}»' if parecido else ', sin costo')
-              + ', por confirmar (042:RF-33)')
+              + ', por confirmar')
     return {'modulo': {'descripcion': f'SET nueva {alta:g}/{kv_mt:g} kV de {mva:g} MVA (deducida)', 'tipo': 'set', 'kv_at': alta,
                        'kv_mt': float(kv_mt), 'kv': [alta, float(kv_mt)], 'mva': mva, 'costo': costo, 'moneda': (parecido or {}).get('moneda', ''),
                        'unidades': unidades, 'mva_total': unidades * mva, 'costo_total': costo, 'por_confirmar': True},
@@ -336,7 +336,7 @@ def ramas_a_trasladar(red, cabecera: str, destino: set[str], kw_por_barra: Mappi
 
     a = arbol(red, cabecera)
     if cabecera in destino:
-        raise SetNuevaError(f'la cabecera {cabecera} no puede pasar a otra SET (042:RF-6).')
+        raise SetNuevaError(f'la cabecera {cabecera} no puede pasar a otra SET.')
     fuera = sorted(b for b in destino if b not in a.padre)
     if fuera:
         raise SetNuevaError(f"{', '.join(fuera)} no tiene camino cerrado desde la cabecera {cabecera}.")
@@ -389,8 +389,7 @@ def ramas_a_trasladar(red, cabecera: str, destino: set[str], kw_por_barra: Mappi
         while existentes is not None and nodo not in existentes and a.padre[nodo] is not None:
             nodo = a.padre[nodo][0]
         if nodo == cabecera:
-            raise SetNuevaError(f'la rama de las cargas nuevas solo se puede abrir en la cabecera {cabecera} '
-                                '(042:RF-6).')
+            raise SetNuevaError(f'la rama de las cargas nuevas solo se puede abrir en la cabecera {cabecera}.')
         return nodo
 
     def raices(nodos: Sequence[str]) -> list[str]:

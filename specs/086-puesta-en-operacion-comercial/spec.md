@@ -117,7 +117,8 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
   activos, y el reentreno automático va sin permiso de empezar (071:RF-6).
 - RF-17: EL SISTEMA rechazará las peticiones cuyo `Host` no sea de su lista.
 - RF-18: EL SISTEMA exigirá un `Origin` propio en las peticiones que cambian algo y en el WebSocket.
-- RF-19: EL SISTEMA exigirá un token de la sesión, entregado por el lanzador, en toda la API.
+- RF-19: EL SISTEMA exigirá un token de la sesión, entregado por el lanzador, en toda la API, y ningún registro ni el almacén
+  de órdenes del asistente guardará ese token ni otra credencial, venga en el mensaje o en sus argumentos.
 - RF-20: SI se pide escuchar fuera de `127.0.0.1` sin usuarios ni TLS, ENTONCES EL SISTEMA se negará y dirá por qué.
 - RF-21: EL SISTEMA servirá sus páginas con su propio Leaflet y con una política de contenido.
   Ampliada (revisión en pantalla, 2026-11-14): las páginas generadas que la propia web enseña en un marco (el mapa de las
@@ -131,12 +132,18 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
   de seguridad dice qué se enmarca y a qué servidores se piden las teselas. La tarjeta MAPA-IFRAME lo proponía como un
   requisito aparte; queda aquí, como ampliación de este, sin número nuevo.
 - RF-22: EL SISTEMA no saldrá a la red por defecto en la edición de producto, y cada salida se activará de forma explícita.
+  Una salida cuyo destino da el usuario o el perfil (ArcGIS, OSRM) irá solo a un servidor público por http o https, comprobado
+  tras resolver el nombre, y no seguirá una redirección a otra máquina (ArcGIS, solo al mismo servidor, según la
+  aclaración de abajo; OSRM, ninguna); la propia máquina, el enlace local y lo reservado nunca se consultan, y
+  la red privada solo con un permiso expreso de intranet. La conexión irá a la IP que se validó, con el nombre original para
+  TLS y para `Host`, aunque el DNS responda otra al conectar (rebinding).
 - Aclaración de RF-22 (2026-11-15, SSRF-ARCGIS; hallazgo BP-29 del Plan Maestro, seguridad P0): una salida encendida no sigue una
   redirección a otra máquina. El conector ArcGIS y el descubrimiento y la descarga del VNR-GIS oficial piden con
   `salidas_red.get_sin_redireccion_ajena`, que mira cada salto ANTES de pedirlo: ArcGIS, solo el mismo servidor (host, puerto y
   esquema, sin bajar de https a http); el portal oficial, solo sus hosts. Antes se seguía la redirección y se miraba la URL final,
   cuando 127.0.0.1, el servicio de metadatos de la nube u otra máquina ya habían recibido la petición. Una redirección rechazada
-  no se reintenta.
+  no se reintenta. Desde el rebase de H8H5 (2026-11-16), cada salto que se sigue va también a la IP
+  validada.
 - RF-23: EL SISTEMA clasificará cada tarea del asistente por su efecto: lee, usa licencia, sale a la red o escribe.
 - RF-24: CUANDO una tarea usa licencia o sale a la red, EL SISTEMA pedirá confirmación.
 - RF-25: EL SISTEMA pedirá confirmación antes de ejecutar un guion guardado en un proyecto.

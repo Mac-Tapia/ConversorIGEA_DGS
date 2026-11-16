@@ -610,7 +610,7 @@ def test_lo_hecho_a_mano_en_sin_proyecto_pasa_a_con_proyecto(monkeypatch):
         {'objeto': 'SW_2', 'dato': 'on_off', 'sin': 0, 'con': 2}]
     assert igual.escrito == {} and out['faltan'] == ['BC_2']
     assert app.escenario.guardado == 1 and app.activo is inicial
-    assert any('014:RF-32' in a for a in out['avisos']) and any('014:RF-34' in a for a in out['avisos'])
+    assert any('operación cambiados a mano' in a for a in out['avisos']) and any('Están en «Sin proyecto» y no en «Con proyecto»' in a for a in out['avisos'])
 
 
 def test_la_consigna_de_la_fuente_pasa_a_con_proyecto(monkeypatch):
@@ -662,7 +662,7 @@ def test_081_rf78_con_proyecto_ve_las_etapas_de_la_base(monkeypatch):
     out = casos_pf.sin_a_con_proyecto(app, app.casos)
     assert vistos == ['con']
     assert out['etapas_adelantadas'] == ['SED_NTP_P']
-    assert any('081:RF-78' in a for a in out['avisos']) and app.activo is app.casos['sin']
+    assert any('«Con proyecto» no veía las etapas de' in a and 'se adelantan a la hora del caso' in a for a in out['avisos']) and app.activo is app.casos['sin']
 
 
 # --------------------------------------------------------------- 037:RF-8
@@ -693,7 +693,7 @@ def test_con_proyecto_sin_obras_se_renueva_desde_la_recalibracion(monkeypatch):
     assert nuevo is not None and nuevo is not viejo
     assert viejo.loc_name.startswith('Con proyecto anterior ') and casos_pf.rol_de(viejo) is None
     assert casos_pf.rol_de(nuevo) == 'con'
-    assert any('037:RF-8' in a and 'EBC_1' in a for a in informe['avisos'])
+    assert any('se renueva como copia de ella' in a and 'EBC_1' in a for a in informe['avisos'])
     activas, _esc = _activas_en(app, nuevo)
     assert {c.loc_name for c in v['cargas']} <= set(activas)
 
@@ -709,7 +709,7 @@ def test_con_proyecto_con_obras_no_se_renueva(monkeypatch):
     _faltan_una_vez(monkeypatch, ['EBC_1'])
     informe, codigo = casos_pf.preparar_con(app, plan)
     assert codigo == 0 and _caso(app, 'Con proyecto') is con
-    assert not any('037:RF-8' in a for a in informe['avisos'])
+    assert not any('se renueva como copia de ella' in a for a in informe['avisos'])
 
 
 @pytest.mark.parametrize('semilla', SEMILLAS)

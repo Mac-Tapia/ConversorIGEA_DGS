@@ -58,7 +58,7 @@ def test_primero_transferir_luego_trasladar_con_enlace_y_migracion():
     assert enlace['tipo']['nombre'].endswith('22.9') and migracion['kv_destino'] == 22.9 and migracion['nodo'] == 'R1B'
     assert '22.9 kV' in vs[1].nombre and vs[0].cantidades['transferencia'] == pytest.approx(1.0 * oi.FACTOR_RUTA)
     _, avisos = oi.variantes('F1', 10.0, CAMINO, TRONCAL, 'CARGA', {}, TIPOS, P)
-    assert len(avisos) == 2 and all('087:RF-32' in a for a in avisos)
+    assert len(avisos) == 2 and all('conserva margen de tensión y de carga' in a for a in avisos)
 
 
 def test_el_area_del_alimentador_nuevo():
@@ -473,7 +473,7 @@ def test_solo_reciben_carga_los_vecinos_que_operan(monkeypatch):
     objetivos = {'PA108': {'kw': 2396.0}, 'SC215': {}, 'SI114': {'kw': 0}}
     vs, vecinos, avisos = services._variantes_de_traspaso(object(), _Ctx(), {}, 'F1', d, ['RAMA'], 10.0, TIPOS, P, objetivos)
     assert vecinos == ['PA108'] and all(o['alimentador'] != 'SC215' for v in vs for o in v.obras if o['clase'] == 'enlace')
-    assert any('SC215' in a and '087:RF-53' in a for a in avisos)
+    assert any('SC215' in a and 'no operan' in a for a in avisos)
 
 
 def test_una_zona_pequena_sola_va_al_alimentador_nuevo(monkeypatch):

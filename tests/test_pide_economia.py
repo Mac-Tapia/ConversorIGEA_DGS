@@ -97,7 +97,7 @@ def test_sin_datos_no_hay_evaluacion_privada():
     """024:RF-58e — sin precio de compra o factor de carga no se inventa: solo la regulada."""
     e = ec.evaluar(1000, kw_nuevos=10, usuarios=1, km=0, coym_anual=None, cp_anual=None, plan=PLAN,
                    factor_carga=None, precio_compra_kwh=None, opcion='MT3')
-    assert e.privada is None and any('RF-58e' in a for a in e.avisos)
+    assert e.privada is None and any('evaluación privada sin hacer' in a for a in e.avisos)
     assert e.regulada['anualidad'] > 0
 
 
@@ -167,6 +167,71 @@ def test_priorizacion_del_art_15():
     assert 'VAN' in next(x for x in orden if x.codigo == 'D').descartada
     assert next(x for x in orden if x.codigo == 'A').rubro == 'mejoramiento'
 
+
+
+def test_una_obra_sin_costo_no_gana_a_otra_con_costo():
+    """024:RF-33 / 072:RF-16 (H5, auditor b4) — sin CAPEX no hay costo 0: ``evaluar`` deja la inversión, la anualidad, los
+    indicadores y la evaluación privada vacíos, y ``priorizar`` pone la obra sin costo tras la que lo tiene, con su aviso,
+    aunque sus criterios del art. 15.3 sumen más. Tampoco marca sobredimensionada a la que sí tiene costo."""
+    kw = dict(kw_nuevos=0, usuarios=0, km=0, coym_anual=None, cp_anual=None, plan=PLAN, factor_carga=0.6,
+              precio_compra_kwh=0.2, opcion='MT3')
+    sin_costo = ec.evaluar(None, **kw)
+    assert sin_costo.ci is None and sin_costo.privada is None
+    assert sin_costo.regulada['anualidad'] is None and sin_costo.regulada['costo_anual'] is None
+    assert sin_costo.regulada['completo'] is False and sin_costo.regulada['van_costos'] is None
+    assert all(v is None for v in sin_costo.indicadores.values())
+    assert any('sin costo' in a for a in sin_costo.avisos)
+    con = ec.Candidata('A', 'bancos', 'P1', True, ec.evaluar(1000.0, **kw), {})
+    sin = ec.Candidata('B', 'cambio_seccion', 'P1', True, sin_costo, {'subsanacion_calidad': 1.0})
+    orden = ec.priorizar([sin, con], {'subsanacion_calidad': 1})
+    assert [c.codigo for c in orden] == ['A', 'B']
+    assert not con.sobredimensionada and not sin.sobredimensionada
+    assert any('sin costo' in a and 'prioriza' in a for a in sin.evaluacion.avisos)
+
+
+def test_el_costo_anual_incompleto_no_se_suma_a_medias():
+    """024:RF-58 / 072:RF-16 (H5) — sin COyM o sin CP, el costo anual no vale anualidad + lo que haya: queda vacío, con lo
+    que falta, y el valor actual de los costos tampoco se da."""
+    r = ec.costo_anual(100_000, 2_000, None, tasa=0.12, vida=30)
+    assert r['anualidad'] == pytest.approx(100_000 * ec.frc(0.12, 30))
+    assert r['costo_anual'] is None and r['completo'] is False and r['falta'] == ['pérdidas']
+    e = ec.evaluar(100_000, kw_nuevos=0, usuarios=0, km=0, coym_anual=2_000, cp_anual=None, plan=PLAN,
+                   factor_carga=None, precio_compra_kwh=None, opcion='MT3')
+    assert e.regulada['van_costos'] is None and any('pérdidas' in a for a in e.avisos)
+
+
+def test_el_flujo_privado_sin_coym_ni_cp_lleva_su_marca():
+    """072:RF-16 (H5) — el flujo privado sin COyM o sin CP no se presenta como completo: ``completo`` False y ``falta`` dice
+    qué no lleva; la cifra se conserva (los costos que faltan solo la bajarían) y el aviso lo dice."""
+    e = ec.evaluar(200_000, kw_nuevos=500, usuarios=10, km=2, coym_anual=None, cp_anual=None, plan=PLAN,
+                   factor_carga=0.6, precio_compra_kwh=0.20, opcion='MT3')
+    assert e.privada is not None and e.privada['completo'] is False and e.privada['falta'] == ['COyM', 'pérdidas']
+    assert any('por encima' in a for a in e.avisos)
+    completa = ec.evaluar(200_000, kw_nuevos=500, usuarios=10, km=2, coym_anual=4_000, cp_anual=2_000, plan=PLAN,
+                          factor_carga=0.6, precio_compra_kwh=0.20, opcion='MT3')
+    assert completa.privada['completo'] is True and completa.privada['falta'] == []
+    assert completa.regulada['van_costos'] is not None
+
+
+def test_sin_tipo_de_cambio_la_evaluacion_lo_marca():
+    """025:RF-68 (H4 y H5) — sin tipo de cambio, la evaluación lo marca para que F09 y F10 lo digan en vez de un 0."""
+    plan, _ = ec.plan_en_moneda_de_trabajo(PLAN_PEN, moneda_trabajo='USD', tipo_cambio=None)
+    e = ec.evaluar(1000, kw_nuevos=10, usuarios=1, km=0, coym_anual=None, cp_anual=None, plan=plan,
+                   factor_carga=0.6, precio_compra_kwh=plan.get('precio_compra_kwh'), opcion='MT3')
+    assert e.privada is None and e.sin_tipo_de_cambio is True
+    con_tc, _ = ec.plan_en_moneda_de_trabajo(PLAN_PEN, moneda_trabajo='USD', tipo_cambio=3.5)
+    assert ec.evaluar(1000, kw_nuevos=10, usuarios=1, km=0, coym_anual=None, cp_anual=None, plan=con_tc,
+                      factor_carga=0.6, precio_compra_kwh=con_tc['precio_compra_kwh'],
+                      opcion='MT3').sin_tipo_de_cambio is False
+
+
+def test_con_y_sin_no_suma_la_cartera_a_medias():
+    """072:RF-14 / 072:RF-16 (H5) — si una obra aplicada no tiene costo, la inversión de la cartera no se toma como la de
+    las otras: queda el hueco, no una VAN con una obra gratuita."""
+    anios = [{'anio': 0, 'perdidas_kw': 100.0, 'con_proyecto': {'perdidas_kw': 90.0}}]
+    obras = [{'anio': 4, 'ci': 1000.0, 'variacion_autonoma': 'V1'}, {'anio': 4, 'ci': None, 'variacion_autonoma': 'V2'}]
+    r = ec.con_y_sin_de_las_aplicadas(obras, anios, PLAN, factor_carga=0.5, precio_compra_kwh=0.1)
+    assert 'van' not in r and 'costo' in r['hueco']
 
 def test_el_perfil_de_electro_dunas_trae_lo_que_pide_la_evaluacion():
     """024:RF-31 / 024:RF-58c — tolerancia NTCSER, tasas, vida útil, horizonte y tarifas en el

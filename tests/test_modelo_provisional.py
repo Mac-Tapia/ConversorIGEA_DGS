@@ -327,3 +327,32 @@ def test_herramienta_rechaza_lo_que_no_puede_y_lo_dice(datos, capfd):
     aprobado = _candidato(datos, 'PROMOVIDO')
     assert h.main(['poner', '--candidato', aprobado, '--decidido-por', 'usuario', '--motivo', MOTIVO]) == 1
     assert 'No se cambió' in capfd.readouterr().err and transformer.version_promovida('ordenes') == ANTERIOR
+
+
+def _recibos(herramienta):
+    from convertersmartgrid.asistente import almacen
+
+    return [f for f in almacen.leer('equipo_acciones') if f['herramienta'] == herramienta]
+
+
+def test_067_rf41_poner_en_uso_y_volver_dejan_su_recibo(datos):
+    """067:RF-41 — poner un modelo provisional, activar uno aprobado y volver al anterior cambian el modelo que interpreta
+    las órdenes: cada uno deja su recibo, con quién lo decidió, y el puntero queda igual que sin él."""
+    (datos / 'a').mkdir()
+    provisional = _candidato(datos / 'a')
+    _poner(provisional)
+    fila = _recibos('modelos_en_uso.poner_provisional')[-1]
+    assert fila['estado'] == 'terminada' and fila['responsable'] == 'usuario' and fila['via'] == 'directa'
+    assert fila['entradas'] == {'familia': 'transformer', 'candidate_id': provisional, 'motivo': MOTIVO}
+    assert fila['salida']['version'] == meu.version_provisional(provisional)
+    (datos / 'b').mkdir()
+    aprobado = _candidato(datos / 'b', estado='PROMOVIDO', marca=b'otros')
+    version = meu.activar('transformer', aprobado)
+    fila = _recibos('modelos_en_uso.activar')[-1]
+    assert fila['estado'] == 'terminada' and fila['responsable'] == 'registro' and fila['salida'] == version
+    assert meu.volver_al_anterior('transformer') == meu.version_provisional(provisional)
+    fila = _recibos('modelos_en_uso.volver_al_anterior')[-1]
+    assert fila['estado'] == 'terminada' and fila['salida'] == meu.version_provisional(provisional)
+    with pytest.raises(ValueError):
+        _poner(provisional)
+    assert _recibos('modelos_en_uso.poner_provisional')[-1]['estado'] == 'fallida'

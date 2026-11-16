@@ -47,7 +47,7 @@ def test_una_sola_red_no_tiene_prueba_y_no_se_promueve():
     rng = random.Random(SEMILLA)
     grupos = oraculo.particionar(_muestras(rng, 1, 20))
     assert grupos['prueba'] == []
-    assert any('027:RF-3' in f for f in oraculo.fallos_de_particion(grupos))
+    assert any('red de prueba' in f for f in oraculo.fallos_de_particion(grupos))
 
 
 def test_menos_de_diez_de_prueba_no_promueve():
@@ -56,7 +56,7 @@ def test_menos_de_diez_de_prueba_no_promueve():
     pocos = rng.randint(1, 9)
     grupos = oraculo.particionar(_muestras(rng, 2, pocos))
     assert len(grupos['prueba']) == pocos
-    assert any('10' in f and '027:RF-3' in f for f in oraculo.fallos_de_particion(grupos))
+    assert any('10' in f and 'episodios de prueba de otra red, menos de' in f for f in oraculo.fallos_de_particion(grupos))
     bastantes = oraculo.particionar(_muestras(rng, 2, 10))
     assert oraculo.fallos_de_particion(bastantes) == []
 

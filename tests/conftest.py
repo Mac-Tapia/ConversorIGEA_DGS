@@ -358,6 +358,82 @@ def _sin_salidas_guardadas_de_la_maquina(monkeypatch, tmp_path):
     monkeypatch.setenv(VARIABLE_RUTA_GUARDADAS, str(tmp_path / '_salidas_guardadas.json'))
 
 
+#: 086:RF-22 (H8H5 v3, orden de c3): los ficheros de pruebas de red y SSRF (salidas, ArcGIS, OSRM). En ellos ningún
+#: socket sale de verdad: el rojo viejo de H8H5 llegó a conectar con 127.0.0.1:9 y con 169.254.169.254.
+MODULOS_SIN_RED_REAL = frozenset({'test_seguridad_web', 'test_vnr_etl', 'test_vias'})
+RED_REAL_PROHIBIDA = 'conexión de red real prohibida en las pruebas'
+#: Las pruebas que levantan un uvicorn de verdad en 127.0.0.1 (``servidor_real``) se conectan a él: esas sí.
+FIXTURES_CON_RED_LOCAL = frozenset({'servidor_real'})
+
+
+def _host_y_puerto(direccion) -> str:
+    if isinstance(direccion, tuple) and len(direccion) >= 2:
+        return f'{direccion[0]}:{direccion[1]}'
+    return str(direccion)
+
+
+@pytest.fixture(autouse=True)
+def _sin_red_real(request, monkeypatch):
+    """086:RF-22: en las pruebas de red, ``connect``, ``create_connection``, ``getaddrinfo`` y ``gethostbyname`` reales
+    fallan con una AssertionError que dice adónde iban. Lo que la prueba simule con monkeypatch después la sustituye y
+    sigue funcionando. Solo se admite el ``socketpair`` del bucle de asyncio (en Windows se une por 127.0.0.1)."""
+    modulo = Path(getattr(request.module, '__file__', '') or '').stem
+    if modulo not in MODULOS_SIN_RED_REAL or FIXTURES_CON_RED_LOCAL & set(request.fixturenames):
+        yield False
+        return
+    import socket
+    import threading
+
+    permiso = threading.local()
+    connect, connect_ex, socketpair = socket.socket.connect, socket.socket.connect_ex, socket.socketpair
+
+    def vedado(direccion):
+        raise AssertionError(f'{RED_REAL_PROHIBIDA}: {_host_y_puerto(direccion)}')
+
+    def marcar(f):
+        f._red_real_prohibida = True
+        return f
+
+    @marcar
+    def connect_vedado(sock, direccion):
+        if getattr(permiso, 'par', False):
+            return connect(sock, direccion)
+        vedado(direccion)
+
+    @marcar
+    def connect_ex_vedado(sock, direccion):
+        if getattr(permiso, 'par', False):
+            return connect_ex(sock, direccion)
+        vedado(direccion)
+
+    @marcar
+    def create_connection_vedado(direccion, *_a, **_k):
+        vedado(direccion)
+
+    @marcar
+    def getaddrinfo_vedado(host, puerto, *_a, **_k):
+        vedado((host, puerto))
+
+    @marcar
+    def gethostbyname_vedado(host):
+        vedado((host, ''))
+
+    def socketpair_permitido(*a, **k):
+        permiso.par = True
+        try:
+            return socketpair(*a, **k)
+        finally:
+            permiso.par = False
+
+    monkeypatch.setattr(socket.socket, 'connect', connect_vedado)
+    monkeypatch.setattr(socket.socket, 'connect_ex', connect_ex_vedado)
+    monkeypatch.setattr(socket, 'create_connection', create_connection_vedado)
+    monkeypatch.setattr(socket, 'getaddrinfo', getaddrinfo_vedado)
+    monkeypatch.setattr(socket, 'gethostbyname', gethostbyname_vedado)
+    monkeypatch.setattr(socket, 'socketpair', socketpair_permitido)
+    yield True
+
+
 @pytest.fixture(autouse=True)
 def _sin_turno_de_la_maquina(monkeypatch, tmp_path):
     """Cada prueba con su propio turno de DIgSILENT (spec 019).

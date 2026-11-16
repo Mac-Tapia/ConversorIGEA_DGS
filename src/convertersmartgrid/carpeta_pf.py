@@ -258,14 +258,14 @@ def eliminar_versiones_anteriores(app, carpeta, nuevo: str) -> list[str]:
     for nombre in versiones_anteriores(proyectos, nuevo):
         p = proyectos[nombre]
         if activo is not None and activo is p:
-            avisos.append(f'{nombre} es una versión anterior de {nuevo}, pero está activo: no se borra (005:RF-22).')
+            avisos.append(f'{nombre} es una versión anterior de {nuevo}, pero está activo: no se borra.')
             continue
         try:
             ok = int(p.Delete() or 0) == 0
         except Exception as exc:  # noqa: BLE001 - se dice y la importación sigue valiendo
             ok, nombre = False, f'{nombre} ({exc})'
-        avisos.append(f'Se eliminó la versión anterior {nombre} (005:RF-22).' if ok else
-                      f'No se pudo eliminar la versión anterior {nombre} (005:RF-22).')
+        avisos.append(f'Se eliminó la versión anterior {nombre}.' if ok else
+                      f'No se pudo eliminar la versión anterior {nombre}.')
     return avisos
 
 

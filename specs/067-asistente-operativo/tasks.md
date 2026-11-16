@@ -29,3 +29,5 @@
 - [x] T9 [DIgSILENT] La escalera y la optimización desde una orden, sobre un proyecto de prueba.
   Hecho cuando: el trabajo termina por la ruta de la web y su resultado queda como evidencia revisable.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [ ] T10 Recibo de las cuatro vías directas, con el contrato de `asistente/equipo.py`. (RF-41)
+  Hecho cuando: pasan `tests/test_asistente_equipo.py`, `tests/test_modelo_provisional.py`, `tests/test_aprendizaje_cola.py` y `tests/test_asistente_operativo.py` con `-k rf41`, y sin él las cuatro siguen en verde.

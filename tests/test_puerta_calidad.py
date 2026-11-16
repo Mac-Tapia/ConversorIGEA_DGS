@@ -356,7 +356,7 @@ def test_106_rf16_un_codigo_de_error_sin_pruebas_fallidas_no_aprueba(tmp_path, m
     monkeypatch.setattr(PC.subprocess, 'run', correr)
     juicio = PC._pytest([], {}, tmp_path)
     assert juicio['fallidas'], juicio
-    assert 'código 1' in juicio['fallidas'][0]['motivo'] and '106:RF-16' in juicio['fallidas'][0]['motivo']
+    assert 'código 1' in juicio['fallidas'][0]['motivo'] and 'una prueba que escribió en un registro real' in juicio['fallidas'][0]['motivo']
 
 
 _PYPROJECT = """[project]
@@ -425,3 +425,197 @@ def test_puerta_capas_con_el_conftest_o_sin_cambio_corre_la_suite_entera(tmp_pat
     (tmp_path / 'b').mkdir()
     sin_cambio = _repo_git_capas(tmp_path / 'b', None)
     assert PC.pruebas_del_commit(['pyproject.toml'], sin_cambio) == ['tests']
+
+
+def test_102_rf24_github_corre_el_lint_del_frontend():
+    """102:RF-24 — GitHub Actions pasa también las fronteras del frontend (``npm run lint``), no solo el build y las
+    pruebas (H13, auditoría del 2026-11-14: 102:RF-13 solo pedía esos dos)."""
+    flujo = (RAIZ / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8')
+    assert 'npm run lint' in flujo
+
+
+@pytest.mark.parametrize('ficheros,toca', [(['frontend/src/app/App.tsx'], True), (['frontend/package.json'], True),
+                                           (['src/convertersmartgrid/model.py', 'tests/test_x.py'], False), ([], False)])
+def test_102_rf24_el_commit_que_toca_el_frontend_pasa_sus_fronteras(ficheros, toca):
+    """102:RF-24 — la puerta del commit ejecuta el lint de fronteras solo si el commit cambia algo de ``frontend/``."""
+    assert PC.toca_el_frontend(ficheros) is toca
+
+
+def test_102_rf24_lint_que_falla_detiene_el_commit(tmp_path, monkeypatch):
+    """102:RF-24 — un lint de fronteras en rojo, o sin node, detiene el commit con su motivo; en verde, sigue."""
+    (tmp_path / 'frontend' / 'scripts').mkdir(parents=True)
+    llamadas = []
+
+    def falso(argumentos, **kw):
+        llamadas.append((argumentos, kw.get('cwd')))
+        return subprocess.CompletedProcess(argumentos, codigo, stdout='', stderr='frontera rota: features/a → features/b')
+
+    monkeypatch.setattr(PC.subprocess, 'run', falso)
+    codigo = 1
+    ok, motivo = PC.lint_del_frontend(tmp_path)
+    assert not ok and 'frontera rota' in motivo
+    assert llamadas[-1][0][-1].endswith('fronteras.mjs') and str(llamadas[-1][1]).endswith('frontend')
+    codigo = 0
+    assert PC.lint_del_frontend(tmp_path) == (True, '')
+
+    def sin_node(argumentos, **kw):
+        raise FileNotFoundError('node')
+
+    monkeypatch.setattr(PC.subprocess, 'run', sin_node)
+    ok, motivo = PC.lint_del_frontend(tmp_path)
+    assert not ok and 'node' in motivo
+
+
+def test_102_rf24_sin_dependencias_del_frontend_lo_dice(tmp_path, monkeypatch):
+    """102:RF-24 — en un worktree sin ``node_modules`` el lint no se da por bueno y dice que falta ``npm ci``."""
+    (tmp_path / 'frontend').mkdir()
+
+    def sin_paquetes(argumentos, **kw):
+        return subprocess.CompletedProcess(argumentos, 1, stdout='', stderr="Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript'")
+
+    monkeypatch.setattr(PC.subprocess, 'run', sin_paquetes)
+    ok, motivo = PC.lint_del_frontend(tmp_path)
+    assert not ok and 'npm ci' in motivo
+
+
+# Ampliación de CI de H13 (hallazgos H-CI1 a H-CI5 del auditor 3e y del integrador 50, 2026-11-14).
+def _flujo_ci() -> dict:
+    import yaml
+
+    return yaml.safe_load((RAIZ / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8'))
+
+
+def _pasos_que_usan(flujo: dict, accion: str) -> list[tuple[str, dict]]:
+    return [(trabajo, paso) for trabajo, cuerpo in flujo['jobs'].items() for paso in cuerpo['steps']
+            if str(paso.get('uses', '')).split('@')[0] == accion]
+
+
+def test_102_rf25_cada_accion_va_fijada_por_su_sha_con_la_etiqueta_al_lado():
+    """102:RF-25 — cada ``uses:`` lleva el SHA completo del commit (40 hex) y la etiqueta en un comentario; ninguna
+    acción queda en una etiqueta movible como ``@v4``."""
+    import re
+
+    texto = (RAIZ / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8')
+    usos = [linea.strip() for linea in texto.splitlines() if re.match(r'\s*-?\s*uses:', linea)]
+    assert usos, 'el flujo no usa ninguna acción'
+    fijada = re.compile(r'^-?\s*uses: [\w.-]+/[\w.-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+$')
+    sueltas = [u for u in usos if not fijada.match(u)]
+    assert not sueltas, f'102:RF-25: acciones sin fijar por SHA con su etiqueta: {sueltas}'
+    flujo = _flujo_ci()
+    assert len(_pasos_que_usan(flujo, 'actions/checkout')) == 2
+    assert len(_pasos_que_usan(flujo, 'actions/setup-python')) == 1
+    assert len(_pasos_que_usan(flujo, 'actions/setup-node')) == 2
+
+
+def test_102_rf26_el_flujo_solo_lee_el_repositorio():
+    """102:RF-26 — el flujo declara en lo más alto ``permissions: contents: read`` y ningún trabajo pide más."""
+    flujo = _flujo_ci()
+    assert flujo.get('permissions') == {'contents': 'read'}
+    assert all('permissions' not in cuerpo for cuerpo in flujo['jobs'].values())
+
+
+def test_102_rf27_los_checkout_no_guardan_credenciales():
+    """102:RF-27 — los dos ``actions/checkout`` llevan ``persist-credentials: false``; el del backend conserva
+    ``fetch-depth: 0`` (la puerta compara con la historia)."""
+    pasos = dict(_pasos_que_usan(_flujo_ci(), 'actions/checkout'))
+    assert set(pasos) == {'backend', 'frontend'}
+    assert all(paso.get('with', {}).get('persist-credentials') is False for paso in pasos.values())
+    assert pasos['backend']['with'].get('fetch-depth') == 0
+
+
+def test_102_rf28_el_backend_pasa_ruff_con_los_errores_de_sintaxis_y_nombres():
+    """102:RF-28 — el trabajo del backend corre ``ruff check --select E9,F63,F7,F82 .`` con el ``.venv`` del flujo,
+    después de instalar las dependencias y antes de la suite; ruff viene de ``requirements.txt``."""
+    pasos = _flujo_ci()['jobs']['backend']['steps']
+    ordenes = [str(paso.get('run', '')) for paso in pasos]
+    con_ruff = [i for i, orden in enumerate(ordenes) if 'ruff check --select E9,F63,F7,F82 .' in orden]
+    assert len(con_ruff) == 1, ordenes
+    assert r'.venv\Scripts\python -m ruff check' in ordenes[con_ruff[0]]
+    dependencias = next(i for i, orden in enumerate(ordenes) if 'pip install -r requirements.txt' in orden)
+    suite = next(i for i, orden in enumerate(ordenes) if 'puerta_calidad.py --ci' in orden)
+    assert dependencias < con_ruff[0] < suite
+    assert 'continue-on-error' not in pasos[con_ruff[0]]
+    assert any(linea.strip().lower().startswith('ruff')
+               for linea in (RAIZ / 'requirements.txt').read_text(encoding='utf-8').splitlines())
+    assert 'frontend' not in ordenes[con_ruff[0]]       # solo el backend: el frontend no tiene Python
+
+
+def test_102_rf29_una_peticion_de_fusion_no_corre_dos_veces():
+    """102:RF-29 — la subida a la rama y la petición de fusión de esa rama comparten grupo de concurrencia
+    (``head_ref`` en el PR, ``ref_name`` en la subida), y la corrida nueva cancela la que sigue en marcha."""
+    flujo = _flujo_ci()
+    disparadores = flujo.get('on', flujo.get(True))       # YAML 1.1 lee «on» como True
+    assert disparadores['push']['branches'] == ['**']
+    assert disparadores['pull_request']['branches'] == ['main']
+    concurrencia = flujo['concurrency']
+    assert concurrencia['group'] == 'ci-${{ github.head_ref || github.ref_name }}'
+    # Aclaración de 102:RF-29 (auditor 3e): en main no se cancela; cada commit de main conserva su corrida entera
+    # como evidencia de la etiqueta.
+    assert concurrencia['cancel-in-progress'] == "${{ github.ref != 'refs/heads/main' }}"
+
+
+def _junit_mcp(tmp_path: Path, casos: dict[str, str]) -> Path:
+    """Un JUnit con las pruebas del servidor MCP real en el estado de cada una: «bien», «omitida» o «falla»."""
+    cuerpo = {'bien': '', 'omitida': '<skipped message="sin CSG_MCP_PYTHON" type="pytest.skip"/>',
+              'falla': '<failure message="assert">tb</failure>'}
+    filas = ''.join(f'<testcase classname="tests.test_mcp_conversor" name="{n}">{cuerpo[e]}</testcase>'
+                    for n, e in casos.items())
+    junit = tmp_path / 'junit.xml'
+    junit.write_text(f'<testsuites><testsuite>{filas}</testsuite></testsuites>', encoding='utf-8')
+    return junit
+
+
+@pytest.mark.parametrize('casos, sin_correr', [
+    ({'test_servidor_real_por_stdio': 'omitida', 'test_servidor_real_y_sus_datos_locales[opciones0-False]': 'bien',
+      'test_servidor_real_y_sus_datos_locales[opciones1-True]': 'bien'}, ['test_servidor_real_por_stdio']),
+    ({'test_ayuda_sin_el_paquete': 'bien'}, ['test_servidor_real_por_stdio', 'test_servidor_real_y_sus_datos_locales']),
+    ({'test_servidor_real_por_stdio': 'bien', 'test_servidor_real_y_sus_datos_locales[opciones0-False]': 'bien',
+      'test_servidor_real_y_sus_datos_locales[opciones1-True]': 'falla'}, ['test_servidor_real_y_sus_datos_locales']),
+    ({'test_servidor_real_por_stdio': 'bien', 'test_servidor_real_y_sus_datos_locales[opciones0-False]': 'bien',
+      'test_servidor_real_y_sus_datos_locales[opciones1-True]': 'bien'}, []),
+])
+def test_077_rf76_la_puerta_no_aprueba_sin_el_servidor_mcp_real(tmp_path, capsys, casos, sin_correr):
+    """077:RF-76 — omitida, sin elegir o fallida, la prueba del servidor MCP real queda «sin correr», y eso detiene la
+    puerta aunque no cuenten las omitidas: la suite de main, que precede a la etiqueta, no se da por buena sin ella."""
+    juicio = PC.veredicto(_junit_mcp(tmp_path, casos), PC.MCP_REAL)
+    assert juicio['exigidas_sin_correr'] == [f'tests.test_mcp_conversor::{n}' for n in sin_correr]
+    assert PC._informar(juicio, omitidas_cuentan=False) is not sin_correr
+    if sin_correr:
+        assert 'la puerta la exige corrida y aprobada' in capsys.readouterr().out
+    assert PC.veredicto(_junit_mcp(tmp_path, casos))['exigidas_sin_correr'] == []
+
+
+def test_077_rf76_la_subida_a_main_exige_el_servidor_mcp_real(tmp_path, monkeypatch):
+    """077:RF-76 — la suite completa pide las pruebas del servidor real y, sin ellas, ni aprueba ni queda guardada."""
+    raiz = _git_repo(tmp_path)
+    cabeza = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=raiz, capture_output=True, text=True).stdout.strip()
+    pedidas = []
+    monkeypatch.setattr(PC, '_pytest', lambda *a, **k: pedidas.append(k.get('exigidas')) or {
+        'total': 5, 'fallidas': [], 'omitidas': [], 'exigidas_sin_correr': [PC.MCP_REAL[0]]})
+    monkeypatch.setattr(PC, 'variables_de_la_suite', lambda *_a, **_k: {})
+    assert PC.puerta_push([cabeza], raiz) == 1
+    assert pedidas == [PC.MCP_REAL] and PC.resultado_guardado(cabeza, raiz) is None
+
+
+def test_077_rf76_un_commit_del_mcp_corre_su_prueba_real_con_su_interprete(tmp_path):
+    """077:RF-76 — un commit que cambia el servidor MCP pasa su intérprete a pytest y exige la prueba real; sin
+    intérprete, se detiene y dice cuál poner. Un commit que no lo toca sigue como antes."""
+    assert PC.exigencias_mcp(['src/convertersmartgrid/motor_red.py'], tmp_path, {}) == ({}, ())
+    for fichero in PC.DEL_MCP:
+        with pytest.raises(PC.PuertaError, match='falta su intérprete: ponga CSG_MCP_PYTHON'):
+            PC.exigencias_mcp([fichero], tmp_path, {})
+    python = tmp_path / 'python_mcp.exe'
+    python.write_bytes(b'')
+    esperado = ({'CSG_MCP_PYTHON': str(python)}, PC.MCP_REAL)
+    assert PC.exigencias_mcp(['tools/mcp_conversor.py'], tmp_path, {'CSG_MCP_PYTHON': str(python)}) == esperado
+    with pytest.raises(PC.PuertaError, match='no existe'):
+        PC.exigencias_mcp(['tools/mcp_conversor.py'], tmp_path, {'CSG_MCP_PYTHON': str(tmp_path / 'no_hay.exe')})
+    (tmp_path / 'config').mkdir()
+    (tmp_path / PC.FICHERO_VARIABLES).write_text(
+        '{"variables": {"CSG_MCP_PYTHON": "%s"}}' % python.as_posix(), encoding='utf-8')
+    assert PC.exigencias_mcp(['requirements-mcp.txt'], tmp_path, {}) == ({'CSG_MCP_PYTHON': python.as_posix()}, PC.MCP_REAL)
+    (tmp_path / PC.FICHERO_VARIABLES).unlink()
+    propio = tmp_path / '.venv_mcp' / 'Scripts' / 'python.exe'
+    propio.parent.mkdir(parents=True)
+    propio.write_bytes(b'')
+    assert PC.exigencias_mcp(['tests/test_mcp_conversor.py'], tmp_path, {}) == ({'CSG_MCP_PYTHON': str(propio)}, PC.MCP_REAL)

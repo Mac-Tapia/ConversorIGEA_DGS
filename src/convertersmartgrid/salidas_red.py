@@ -13,15 +13,19 @@ aquí la hace fallar.
 """
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import re
+import socket
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Mapping, MutableMapping
+from functools import lru_cache
+from urllib.parse import urlsplit, urlunsplit
 
 from .edicion import es_edicion_producto
-from .util import publicar_duradero
+from .util import importar_opcional, publicar_duradero
 
 _ENCENDIDA = ('1', 'si', 'sí', 'true', 'on')
 _APAGADA = ('0', 'no', 'false', 'off')
@@ -172,6 +176,167 @@ def exigir_salida(nombre: str) -> None:
         raise SalidaApagada(motivo_apagada(nombre))
 
 
+class DestinoNoPermitido(ValueError):
+    """La dirección de una salida no es un servidor público por http o https (086:RF-22)."""
+
+
+_ESQUEMAS = ('https', 'http')
+_PUERTO_DEL_ESQUEMA = {'https': 443, 'http': 80}
+
+
+def _motivo_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address, permitir_intranet: bool) -> str | None:
+    """Qué tiene de vedada la IP; None si es pública. La de esta máquina, los metadatos de la nube y lo reservado,
+    siempre; la red privada, solo con el permiso de intranet."""
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped                                   # ::ffff:127.0.0.1 es 127.0.0.1
+    if ip.is_unspecified or ip.is_loopback:
+        return 'de esta misma máquina'
+    if ip.is_link_local:
+        return 'de enlace local, donde están los metadatos de la nube'
+    if ip.is_multicast:
+        return 'de multidifusión'
+    if ip.is_private:
+        return None if permitir_intranet else 'de una red privada'
+    if ip.is_reserved or not ip.is_global:
+        return 'reservada, no pública'
+    return None
+
+
+def validar_destino(url: str, *, resolver: bool = True, permitir_intranet: bool = False) -> None:
+    """Que ``url`` vaya a un servidor público por http o https; si no, ``DestinoNoPermitido`` con el motivo.
+
+    La URL de ArcGIS la escribe el usuario y la de OSRM viene del perfil, y llegaban tal cual a ``requests`` y a
+    ``urlopen``: ``file://``, ``http://127.0.0.1`` (la API de la propia web) o ``http://169.254.169.254`` (las
+    credenciales de una máquina en la nube) se consultaban (auditoría b4, H8). Se resuelve el nombre y se mira cada
+    IP que devuelve, no el texto: un nombre público que el DNS apunta a 10.0.0.5 queda fuera igual.
+
+    ``resolver=False`` solo mira la forma y las IP escritas: con la salida apagada no se consulta ni el DNS, que ya
+    es salir a la red. ``permitir_intranet`` abre la red privada (10/8, 172.16/12, 192.168/16, fc00::/7) para el
+    servidor ArcGIS de una distribuidora en su propia red; nadie lo enciende todavía.
+    """
+    _resolver(url, resolver=resolver, permitir_intranet=permitir_intranet)
+
+
+@dataclass(frozen=True)
+class DestinoFijado:
+    """Un destino ya resuelto y validado: la conexión va a ``ip`` y TLS y ``Host`` siguen con ``host`` (086:RF-22)."""
+
+    url: str
+    esquema: str
+    host: str
+    puerto: int
+    ip: str
+
+
+def resolver_destino(url: str, *, permitir_intranet: bool = False) -> DestinoFijado:
+    """Resuelve el nombre de ``url``, valida TODAS sus IP como ``validar_destino`` y devuelve la primera para fijarla."""
+    destino = _resolver(url, resolver=True, permitir_intranet=permitir_intranet)
+    assert destino is not None                                  # con resolver=True siempre hay IP
+    return destino
+
+
+def _resolver(url: str, *, resolver: bool, permitir_intranet: bool) -> DestinoFijado | None:
+    partes = urlsplit((url or '').strip())
+    esquema = partes.scheme.lower()
+    if esquema not in _ESQUEMAS:
+        raise DestinoNoPermitido(f'Solo se consultan direcciones http o https, no «{esquema or "sin esquema"}»: {url}')
+    try:
+        host, puerto = partes.hostname, partes.port or _PUERTO_DEL_ESQUEMA[esquema]
+    except ValueError as exc:
+        raise DestinoNoPermitido(f'La dirección {url} no se entiende: {exc}') from None
+    if not host:
+        raise DestinoNoPermitido(f'La dirección {url} no dice a qué servidor va.')
+    try:
+        ips = [ipaddress.ip_address(host)]
+    except ValueError:
+        if not resolver:
+            return None
+        try:
+            info = socket.getaddrinfo(host, puerto, type=socket.SOCK_STREAM)
+        except (OSError, UnicodeError) as exc:
+            raise DestinoNoPermitido(f'El servidor {host} no se resuelve: {exc}') from None
+        ips = [ipaddress.ip_address(str(fila[4][0]).split('%', 1)[0]) for fila in info]
+    if not ips:
+        raise DestinoNoPermitido(f'El servidor {host} no se resuelve: el DNS no dio ninguna dirección.')
+    for ip in ips:
+        motivo = _motivo_ip(ip, permitir_intranet)
+        if motivo is not None:
+            quien = host if str(ip) == host else f'{host} va a {ip}'
+            raise DestinoNoPermitido(f'{quien}, una dirección {motivo}: no se consulta.')
+    return DestinoFijado(url, esquema, host, puerto, str(ips[0]))
+
+
+class SinClienteHttp(OSError):
+    """El intérprete no tiene ``requests`` (el 3.9 de DIgSILENT 2021 solo lleva el paquete y numpy, 103:RF-2).
+
+    Es ``OSError`` para que quien ya trata «no respondió» (OSRM va en recta, 016:RF-85) lo trate igual.
+    """
+
+
+def _requests():
+    return importar_opcional('requests', SinClienteHttp(
+        'Este Python no tiene «requests», con el que se consulta un servidor externo (ver requirements.txt).'))
+
+
+@lru_cache(maxsize=1)
+def _clase_adaptador_fijado() -> type:
+    """``HTTPAdapter`` de requests cuyo pool conecta a la IP ya validada (086:RF-22, rebinding).
+
+    La clase se crea al primer uso porque requests es opcional en el intérprete de DIgSILENT (``SinClienteHttp``),
+    no para esconder un ciclo: este módulo no importa nada del programa salvo ``edicion`` y ``util``.
+    """
+    adapters = importar_opcional('requests.adapters', SinClienteHttp('Este Python no tiene «requests».'))
+
+    class AdaptadorFijado(adapters.HTTPAdapter):
+        """La URL que recibe ya lleva la IP; ``server_hostname`` (SNI) y ``assert_hostname`` mantienen el nombre
+        original, así que TLS valida el certificado del servidor que se pidió y no el de la IP. Sin reintentos: un
+        reintento volvería a esta misma IP, y reintentar lo decide quien llama."""
+
+        def __init__(self, destino: DestinoFijado) -> None:
+            self.destino = destino
+            super().__init__(max_retries=0)
+
+        def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):  # noqa: ANN001 - de requests
+            if self.destino.esquema == 'https':
+                pool_kwargs['server_hostname'] = self.destino.host
+                pool_kwargs['assert_hostname'] = self.destino.host
+            super().init_poolmanager(connections, maxsize, block=block, **pool_kwargs)
+
+    return AdaptadorFijado
+
+
+def pedir_a_destino_fijado(url: str, *, timeout: float, params: dict | None = None,
+                           cabeceras: Mapping[str, str] | None = None,
+                           permitir_intranet: bool = False,
+                           devolver_redireccion: bool = False):  # -> requests.Response
+    """GET a ``url`` conectando a la IP que se validó, sin seguir redirecciones (086:RF-22). La usan ArcGIS y OSRM.
+
+    Antes se validaba el nombre y luego ``requests``/``urlopen`` lo volvían a resolver al conectar: un DNS que
+    respondiera una IP pública a la validación y 127.0.0.1 a la conexión llevaba la consulta a esta máquina
+    (DNS rebinding, auditoría b4). Ahora se resuelve una vez, se validan todas las IP y la conexión va a la
+    primera; ``Host`` lleva el nombre original. Un 3xx es ``DestinoNoPermitido``: seguirlo saltaría la validación.
+    Con ``devolver_redireccion`` el 3xx se devuelve sin seguirlo, y decide :func:`get_sin_redireccion_ajena` (ArcGIS:
+    solo el mismo servidor; el salto siguiente vuelve a pasar por aquí y se valida).
+    """
+    destino = resolver_destino(url, permitir_intranet=permitir_intranet)
+    requests = _requests()
+    partes = urlsplit(url.strip())
+    ip = f'[{destino.ip}]' if ':' in destino.ip else destino.ip
+    puerto = f':{partes.port}' if partes.port else ''
+    por_ip = urlunsplit((partes.scheme, ip + puerto, partes.path, partes.query, partes.fragment))
+    host = f'[{destino.host}]' if ':' in destino.host else destino.host
+    with requests.Session() as sesion:
+        sesion.trust_env = False                             # sin proxies ni .netrc del entorno, como el asistente
+        sesion.mount(f'{destino.esquema}://', _clase_adaptador_fijado()(destino))
+        respuesta = sesion.get(por_ip, params=params, timeout=timeout, allow_redirects=False,
+                               headers={**(cabeceras or {}), 'Host': host + puerto})
+    if 300 <= respuesta.status_code < 400 and not devolver_redireccion:
+        raise DestinoNoPermitido(f'{url} redirige ({respuesta.status_code}) a '
+                                 f'{respuesta.headers.get("Location", "otro sitio")}: no se siguen redirecciones; '
+                                 'ponga la dirección final del servicio.')
+    return respuesta
+
+
 def preparar_entorno_sin_red(environ: MutableMapping[str, str] | None = None) -> None:
     """Sin salida a Hugging Face, sus librerías lo saben desde que arranca el proceso.
 
@@ -235,7 +400,7 @@ def get_sin_redireccion_ajena(http, url: str, *, admitir=None, max_saltos: int =
             cerrar()
         if not admitir(siguiente):
             raise RedireccionRechazada(f'Redirección rechazada de {actual} a {siguiente}: el programa no sigue una '
-                                       'redirección a otra máquina (086:RF-22).')
+                                       'redirección a otra máquina.')
         actual = siguiente
         kw.pop('params', None)
-    raise RedireccionRechazada(f'Redirección rechazada desde {url}: más de {max_saltos} saltos (086:RF-22).')
+    raise RedireccionRechazada(f'Redirección rechazada desde {url}: más de {max_saltos} saltos.')

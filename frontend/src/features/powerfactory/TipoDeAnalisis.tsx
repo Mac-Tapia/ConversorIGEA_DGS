@@ -126,7 +126,7 @@ export function pasosDelTipo(tipo: ClaveTipoAnalisis, e: EstadoPasos, planificac
   if (tipo === 'pide') {
     return [...comunes,
       { clave: 'obras', titulo: 'Obra de corto plazo en «Con proyecto» (punto de partida)', destino: DESTINO.obras,
-        hecho: e.conProyecto, nota: 'El PIDE parte de ella y del año en que vuelve a fallar (098:RF-37).' },
+        hecho: e.conProyecto, nota: 'El PIDE parte de ella y del año en que vuelve a fallar.' },
       { clave: 'planificar', titulo: '5 · Planificar como PIDE (plan de largo plazo incluido)', destino: DESTINO.planificacion,
         hecho: e.pide, nota: sinPaso5 },
       { clave: 'entregables', titulo: '5 · Módulos del PIDE (F08 a F15) y del plan (F01 a F07)', destino: DESTINO.planificacion,

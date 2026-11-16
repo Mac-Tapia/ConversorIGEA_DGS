@@ -333,7 +333,7 @@ def test_el_cliente_a_su_maxima_va_con_su_pot_y_no_bloquea(client):
         assert f['q_kvar'] == pytest.approx(30.0) and not f.get('sin_coincidente')
     assert cruce['no_coincidentes'] == []
     assert filas['12']['metodo'] == 'ERI/EA' and filas['12']['criterio'] == 'a_su_maxima'
-    assert any(a.startswith('12:') and '039:RF-20' in a for a in cruce['avisos_a_su_maxima'])
+    assert any(a.startswith('12:') and 'va con su POT y su EA/ERI del mes' in a for a in cruce['avisos_a_su_maxima'])
     assert sorted(cruce['a_su_maxima']) == ['11', '12', '14']
     # Sin marcar 14, su falta del registro del instante vuelve a decirse (039:RF-4).
     filas = {c['codigo']: c for c in cruzar(a_su_maxima=['11'])['cruzados']}

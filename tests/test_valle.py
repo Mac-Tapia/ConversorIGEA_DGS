@@ -148,7 +148,7 @@ def test_ventana_sin_periodo_diferenciado_lo_dice(semilla):
     curva = _curva(rng, 30, kw=2000.0)
     v = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes())
     assert v.comprobado and v.ventana is None and v.instante['fecha'] == min(curva, key=lambda x: (x[1], x[0]))[0]
-    assert any('073:RF-37' in a for a in v.avisos)
+    assert any('buscar un valle' in a or 'periodo diferenciado de menor energía' in a for a in v.avisos)
     pocos = vl.valle_de_alcance('alimentador', {'M': _curva(rng, 10, kw=500.0)}, vl.Ajustes())
     assert pocos.ventana is None and any('no alcanzan' in a for a in pocos.avisos)
 
@@ -188,7 +188,7 @@ def test_ventana_un_registro_menor_fuera_del_valle_se_dice():
     curva[i + 1] = (curva[i + 1][0], 0.36 * curva[i + 1][1], 0.36 * curva[i + 1][2])
     v = vl.valle_de_alcance('alimentador', {'M': curva}, vl.Ajustes())
     assert v.ventana['inicio'] <= _dia(45) <= v.ventana['fin'] and v.instante['fecha'] != curva[i][0]
-    assert any('073:RF-1' in a and 'fuera del valle' in a for a in v.avisos)
+    assert any('queda fuera del valle' in a for a in v.avisos)
 
 
 def test_ventana_un_hueco_de_un_medidor_no_es_valle():
@@ -484,7 +484,7 @@ def test_sobretension_en_valle_se_cuela_por_la_fraccion():
     assert con_valle['valle_nodo'] == 'B' and con_valle['valle_fecha'] == '2026-03-08 03:15:00'
     r = eo.elegir([_fila('2 bancos', con_valle)], p)
     assert r['elegida'] is None and 'sin_confirmar_sorteos' not in r
-    assert 'en valle' in r['tabla'][0]['motivo'] and '073:RF-17' in r['tabla'][0]['motivo']
+    assert 'en valle' in r['tabla'][0]['motivo'] and 'en valle no' in r['tabla'][0]['motivo']
 
 
 def test_escalera_elegir_no_compensa_con_la_regla_de_la_maxima():
@@ -977,7 +977,7 @@ def test_pide_sin_modulos_en_valle_toma_la_alternativa_siguiente():
                             'valle_fecha': '2026-03-08 03:15:00'}})
     alternativas = {o['alternativa'] for o in p['obras']}
     assert 'bancos' not in alternativas and 'nueva_terna' in alternativas
-    assert any('073:RF-28' in a for a in p['avisos'])
+    assert any('se toma la alternativa siguiente' in a for a in p['avisos'])
 
 
 def test_pide_causa_sin_otra_alternativa_queda_descartada_con_su_motivo():
@@ -1248,7 +1248,7 @@ def test_el_proyecto_con_central_declarada_toma_el_valle_de_su_demanda(tmp_path,
                                      {'F1': {'kw': 6000.0, 'kvar': 1500.0, 'medidor': 'CAB'}}, perfil, ['F1'])
     assert sorted(pedidos) == ['CAB', 'GEN', 'LLE', 'SAL']
     assert r['comprobado'] and r['puntos'], r['motivo']
-    assert any('073:RF-12' in a for a in r['avisos'])
+    assert any('la central sigue como en su calibración' in a for a in r['avisos'])
     fecha = datetime.fromisoformat(str(r['puntos'][0]['fecha'])).date()
     assert _dia(78) <= fecha <= _dia(97)
 
@@ -1321,7 +1321,7 @@ def test_la_evaluacion_proyecta_con_la_tasa_de_largo_plazo_y_dice_la_medida(tmp_
     r = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=2026, aplicar=False, basta_una=True, por_alternativas=True)
     (_a, ev), = [x for x in planes if '--evaluar' in x[0]]
     assert ev['horizonte']['tasa'] < 0.1
-    assert any('042:RF-86' in a and '16.50' in a for a in r['alimentadores'][0]['avisos'])
+    assert any('de largo plazo' in a and '16.50' in a for a in r['alimentadores'][0]['avisos'])
 
 
 def test_los_bancos_suben_mientras_mejora_la_barra_peor_y_el_valle_lo_admite():

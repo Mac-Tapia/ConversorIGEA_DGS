@@ -89,10 +89,10 @@ def asegurar_servidor(cola: Path, espera_s: float = pf_arnes.ESPERA_S, *,
             pf_arnes.pedir_cierre_si_ocioso(vivo)
             if ultimo_aviso is None or reloj() - ultimo_aviso >= pf_arnes.AVISO_S:
                 print(f"DIgSILENT lo atiende un servidor de {vivo.get('codigo') or 'otro código'}: esta orden "
-                      f'espera para correr con {propio} (019:RF-27).', flush=True)
+                      f'espera para correr con {propio}.', flush=True)
                 ultimo_aviso = reloj()
             if reloj() >= limite:
-                print(f'ERROR: el servidor de otro código sigue ocupado tras {espera_s / 60:.0f} min (019:RF-27).',
+                print(f'ERROR: el servidor de otro código sigue ocupado tras {espera_s / 60:.0f} min.',
                       flush=True)
                 return False
             dormir(0.5)
@@ -120,7 +120,7 @@ def asegurar_servidor(cola: Path, espera_s: float = pf_arnes.ESPERA_S, *,
                   f"desde {dueno.get('desde')}): esperando turno.", flush=True)
             ultimo_aviso = reloj()
         if reloj() >= limite:
-            print(f'ERROR: DIgSILENT sigue ocupado tras {espera_s / 60:.0f} min (019:RF-2).',
+            print(f'ERROR: DIgSILENT sigue ocupado tras {espera_s / 60:.0f} min.',
                   flush=True)
             return False
         dormir(0.5)
@@ -195,10 +195,10 @@ def enviar(guion: str, argv: list[str], cola: Path, *, dormir=time.sleep,
             otra = _otra_en_curso(cola, en_curso)
             if otra and (ultimo_aviso is None or reloj() - ultimo_aviso >= pf_arnes.AVISO_S):
                 print(f'DIgSILENT atiende otra orden ({otra}): esta espera su turno en la '
-                      'cola (019:RF-22).', flush=True)
+                      'cola.', flush=True)
                 ultimo_aviso = reloj()
         elif not fin.exists() and _servidor_caido(dormir):
-            print('ERROR: el proceso de DIgSILENT terminó sin acabar la orden (019:RF-8).',
+            print('ERROR: el proceso de DIgSILENT terminó sin acabar la orden.',
                   flush=True)
             return 3
         dormir(0.2)

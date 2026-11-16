@@ -29,7 +29,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | Spec | Estado | Pendiente |
   | --- | --- | --- |
   | 001 Reorganización: una responsabilidad, un sitio | cumplida |  |
-  | 002 Arquitectura por capas y módulos enchufables | aprobada | falta T7, T9, T12 |
+  | 002 Arquitectura por capas y módulos enchufables | aprobada | falta T7, T9, T12, T13 |
   | 003 Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | retirada |  |
   | 004 Cargas en un proyecto existente de DIgSILENT | aprobada |  |
   | 005 Carpeta de proyectos importados en DIgSILENT | cumplida |  |
@@ -94,17 +94,17 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida |  |
   | 065 Cierre verificable de la auditoría integral | cumplida |  |
   | 066 Cada informe con su libro Excel, según el perfil de la empresa | cumplida |  |
-  | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | cumplida |  |
+  | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | aprobada | falta T10 |
   | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida |  |
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
-  | 070 El asistente opera el conversor de punta a punta | implementada | falta T11 |
+  | 070 El asistente opera el conversor de punta a punta | aprobada | falta T11, T14, T15 |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
   | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T11, T13, T14, T18 |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | cumplida |  |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida |  |
   | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | cumplida |  |
-  | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | cumplida |  |
+  | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | aprobada | falta T11 |
   | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | cumplida |  |
   | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida |  |
   | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida |  |
@@ -129,7 +129,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 099 Cargas del libro duplicadas por el nombre del cliente | cumplida |  |
   | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | aprobada | falta T1, T2, T3, T4 |
   | 101 La calibración cambia sola los transformadores que impiden converger | cumplida |  |
-  | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | cumplida |  |
+  | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | falta T12, T13, T14, T15, T16, T17 |
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
   | 104 Los libros nuevos de demanda se reconocen solos | aprobada | falta T6 |
   | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |
@@ -185,8 +185,9 @@ si no se puede escribir en la carpeta de Tesseract.
 
 Las pruebas nativas de las T4 (044, 045, 048, 049) no conectan con DIgSILENT desde pytest (084:RF-21): `tools/aceptacion_nativa.py` hace la corrida real y deja la evidencia con sus huellas, y las pruebas la releen con `CSG_EVIDENCIA_NATIVA=<carpeta>` (fuera de git, con datos de la distribuidora; la vigente, del 2026-11-10 con las relecturas tras retirar la obra, está en `D:/converter/evidencia_nativa/20261110_PE10_t4b`). Sin ella se omiten y la suite no se da por buena.
 
-La prueba del servidor MCP real (spec 077) pide `CSG_MCP_PYTHON`, un intérprete aparte con `requirements-mcp.txt`: el paquete es
-opcional y no se instala en `.venv`. Sin ella, esa prueba se omite y la suite no se da por buena.
+La prueba del servidor MCP real (spec 077) pide `CSG_MCP_PYTHON` o el `.venv_mcp` del repositorio, un intérprete aparte con
+`requirements-mcp.txt` (fijado con huella, `pip install --require-hashes`): el paquete es opcional y no se instala en `.venv`.
+Con el intérprete y sin el paquete, falla; sin ninguno, se omite y la suite no se da por buena (077:RF-75, RF-76).
 
 La comprobación de que el intérprete no entrena con lo que lo examina (097:RF-21) pide `CSG_ASISTENTE_REAL`, la carpeta del
 asistente con sus órdenes (`ejemplos.jsonl`, `ordenes_maestro.jsonl`, `maestro_real/`; en el árbol principal,

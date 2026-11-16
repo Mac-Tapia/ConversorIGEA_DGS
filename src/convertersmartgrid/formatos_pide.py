@@ -52,7 +52,10 @@ _MOTIVOS = {
     ('%',): 'la cabecera no dio su potencia',
     ('SAIFI', 'SAIDI'): 'el estudio de confiabilidad no dio este índice: DIgSILENT no lo calculó de forma fiable',
     ('N', 'D'): 'el estudio de confiabilidad da SAIFI y SAIDI, no el número y la duración de la NTCSE',
-    ('Costo US$', 'Inversión US$', 'Anualidad US$', 'Costo anual US$', 'Total'): _SIN_CAPEX,
+    ('Costo US$', 'Inversión US$', 'Anualidad US$', 'Total'): _SIN_CAPEX,
+    # 072:RF-16 (H5): el costo anual del art. 14.4 suma tres cosas, y basta que falte una para no tenerlo.
+    ('Costo anual US$',): ('el costo anual (art. 14.4) suma la anualidad, el COyM y el costo de las pérdidas, y a la '
+                           'obra le falta alguno: el libro CAPEX, el COyM del perfil o las pérdidas valoradas de la obra'),
     ('COyM US$',): 'el perfil no da el costo de operación y mantenimiento',
     ('US$/kW',): f'{_SIN_CAPEX}, o {_SIN_DEMANDA}',
     ('US$/kW.h',): 'hacen falta el costo, la demanda nueva y el factor de carga',
@@ -73,14 +76,29 @@ MOTIVO_EN_FORMATO = {('F04 Tensión BT', 'Demanda MW'): 'el diagnóstico no lee 
                      ('F04 Tensión BT', 'Longitud km'): 'el modelo lleva la barra de baja de cada SED, no su red de baja'}
 #: El alcance de lo que sí se midió en F04: no es el extremo de la red de baja, que no está modelada.
 ALCANCE_F04 = 'medida en la barra de baja de cada SED; no incluye la caída en la red de baja, que no está modelada'
+#: 072:RF-16 (H5): la VAN y la TIR de un flujo privado que no lleva todos sus costos se escriben, pero no como completas.
+ALCANCE_DEL_FLUJO_PRIVADO = ('el flujo privado no lleva el COyM o el costo de las pérdidas de la obra: la VAN y la TIR '
+                             'quedan por encima de las reales')
+
+#: 025:RF-68 / 072:RF-16 (H4 y H5): lo que dice la celda cuando la evaluación no se hizo por falta del tipo de cambio,
+#: en vez de un 0 o de un blanco que se confunda con otro motivo. ``huecos_de`` la cuenta como hueco con su motivo.
+SIN_TIPO_DE_CAMBIO = 'sin tipo de cambio'
+MOTIVO_DE_LA_MARCA = {
+    SIN_TIPO_DE_CAMBIO: ('las tarifas y el precio de compra están en otra moneda que el CAPEX y no se dio el tipo de '
+                         'cambio: la evaluación privada y el valor de las pérdidas no se hacen (025:RF-68)'),
+}
 
 
 def _vacia(celda: Any) -> bool:
     return celda is None or celda == ''
 
 
+def _marca(celda: Any) -> str | None:
+    return celda if isinstance(celda, str) and celda in MOTIVO_DE_LA_MARCA else None
+
+
 def huecos_de(filas: Mapping[str, Sequence[Sequence[Any]]]) -> list[dict[str, Any]]:
-    """Cada formato sin filas y cada campo con celdas vacías, con su motivo (072:RF-16)."""
+    """Cada formato sin filas y cada campo con celdas vacías o marcadas, con su motivo (072:RF-16)."""
     huecos: list[dict[str, Any]] = []
     for nombre, cabecera in FORMATOS.items():
         datos = filas.get(nombre) or []
@@ -92,7 +110,18 @@ def huecos_de(filas: Mapping[str, Sequence[Sequence[Any]]]) -> list[dict[str, An
             if n:
                 huecos.append({'formato': nombre, 'campo': campo, 'filas': n,
                                'motivo': MOTIVO_EN_FORMATO.get((nombre, campo), MOTIVO_DEL_CAMPO[campo])})
+            marcas = [m for fila in datos if i < len(fila) and (m := _marca(fila[i]))]
+            for m in dict.fromkeys(marcas):
+                huecos.append({'formato': nombre, 'campo': campo, 'filas': marcas.count(m),
+                               'motivo': MOTIVO_DE_LA_MARCA[m]})
     return huecos
+
+
+def alcance_de_la_evaluacion(obras: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """F09: las VAN y TIR escritas de flujos privados incompletos, con su marca (072:RF-16, H5)."""
+    n = sum(1 for o in obras if (o.get('privada') or {}).get('completo') is False)
+    return [{'formato': 'F09 Evaluación económica', 'campo': campo, 'filas': n, 'motivo': ALCANCE_DEL_FLUJO_PRIVADO}
+            for campo in ('VAN US$', 'TIR')] if n else []
 
 
 def filas_de_obras(obras: Sequence[Mapping[str, Any]], anios: Sequence[Mapping[str, Any]],
@@ -126,8 +155,7 @@ def filas_de_obras(obras: Sequence[Mapping[str, Any]], anios: Sequence[Mapping[s
     f['F09 Evaluación económica'] = [[o['anio'], o['rubro'], o['codigo'], o['alternativa'], o['ci'] or None,
                                       o['indicadores'].get('costo_kw'), o['indicadores'].get('costo_kwh'),
                                       o['indicadores'].get('costo_usuario'), o['indicadores'].get('costo_km'),
-                                      (o['privada'] or {}).get('van'), _si_hay_costo(o, 'costo_anual'),
-                                      (o['privada'] or {}).get('tir')] for o in obras]
+                                      _privada(o, 'van'), _costo_anual(o), _privada(o, 'tir')] for o in obras]
     cartera = [o for o in obras if not (o['descartada'] or o['sobredimensionada'])]
     f['F10 Propuesta empresa'] = _por_grupo(cartera, lambda o: (o['anio'], o['rubro']))
     por_sistema = _por_grupo(cartera, lambda o: (sistema_de.get(o['alimentador']), o['anio'], o['rubro']))
@@ -135,7 +163,7 @@ def filas_de_obras(obras: Sequence[Mapping[str, Any]], anios: Sequence[Mapping[s
     f['F11 Propuesta sistema'] = [[*fila[:3], *fila[6:]] for fila in por_sistema]
     f['F12 Propuesta proyecto'] = [[sistema_de.get(o['alimentador']), o['anio'], o['rubro'], o['codigo'], _proyecto(o),
                                     o['ci'] or None, _si_hay_costo(o, 'anualidad'), _si_hay_costo(o, 'coym'),
-                                    _si_hay_costo(o, 'costo_anual')]
+                                    _costo_anual(o)]
                                    for o in cartera]
     f['F13 Detalle de costos'] = [[sistema_de.get(o['alimentador']), o['anio'], o['rubro'], o['codigo'], _proyecto(o),
                                    *[None] * 9, o['ci'] or None] for o in cartera]
@@ -153,30 +181,58 @@ def _si_hay_costo(obra: Mapping[str, Any], clave: str) -> float | None:
     return obra['regulada'].get(clave) if obra['ci'] else None
 
 
+def _costo_anual(obra: Mapping[str, Any]) -> float | str | None:
+    """El costo anual solo si está completo (072:RF-16, H5): anualidad + COyM sin las pérdidas no lo es.
+
+    Sin tipo de cambio, las pérdidas no se pueden valorar y la celda lo dice (025:RF-68).
+    """
+    if obra['ci'] and obra['regulada'].get('completo') is True:
+        return obra['regulada'].get('costo_anual')
+    return SIN_TIPO_DE_CAMBIO if obra.get('sin_tipo_de_cambio') else None
+
+
+def _privada(obra: Mapping[str, Any], clave: str) -> float | str | None:
+    """VAN o TIR del flujo privado; sin tipo de cambio la celda lo dice en vez de quedar como otro hueco (025:RF-68)."""
+    valor = (obra.get('privada') or {}).get(clave)
+    return SIN_TIPO_DE_CAMBIO if valor is None and obra.get('sin_tipo_de_cambio') else valor
+
+
+def _suma(valores: Sequence[float | None]) -> float | None:
+    """La suma de un grupo, o nada si a una de sus obras le falta el dato: una suma parcial engañaría (H5)."""
+    return None if not valores or any(v is None for v in valores) else sum(valores)
+
+
 def _proyecto(obra: Mapping[str, Any]) -> str:
     return obra.get('denominacion') or obra['alternativa']
 
 
 def _por_grupo(obras: Iterable[Mapping[str, Any]], clave) -> list[list]:
-    """Filas de F10: la clave, y usuarios, demanda, energía, inversión, anualidad, COyM y costo anual."""
+    """Filas de F10: la clave, y usuarios, demanda, energía, inversión, anualidad, COyM y costo anual.
+
+    072:RF-16, RF-22 (H5, 2026-11-14): cada suma solo si todas las obras del grupo traen el dato, como ya hacía el
+    COyM. Antes la demanda, la energía, la inversión, la anualidad y el costo anual sumaban «or 0.0», y un grupo
+    con una obra sin costo salía con la inversión de las otras como si fuera la de todas.
+    """
     grupos: dict[tuple, dict[str, list]] = {}
     for o in obras:
-        g = grupos.setdefault(clave(o), {'kw': [], 'kwh': [], 'ci': [], 'anu': [], 'coym': [], 'costo': []})
-        g['kw'].append(o.get('kw_nuevos') or 0.0)
-        g['kwh'].append(o.get('energia_kwh') or 0.0)
-        if o['ci']:
-            g['ci'].append(o['ci'])
-            g['anu'].append(_si_hay_costo(o, 'anualidad') or 0.0)
-            # 072:RF-22: el COyM del grupo solo si todas sus obras con inversión lo traen: una suma
-            # parcial se leería como el COyM del grupo entero.
-            g['coym'].append(_si_hay_costo(o, 'coym'))
-            g['costo'].append(_si_hay_costo(o, 'costo_anual') or 0.0)
+        g = grupos.setdefault(clave(o), {'kw': [], 'kwh': [], 'ci': [], 'anu': [], 'coym': [], 'costo': [],
+                                         'sin_tc': []})
+        g['kw'].append(o.get('kw_nuevos'))
+        g['kwh'].append(o.get('energia_kwh'))
+        g['ci'].append(o['ci'] or None)
+        g['anu'].append(_si_hay_costo(o, 'anualidad'))
+        g['coym'].append(_si_hay_costo(o, 'coym'))
+        costo = _costo_anual(o)
+        g['costo'].append(costo if not isinstance(costo, str) else None)
+        g['sin_tc'].append(bool(o.get('sin_tipo_de_cambio')))
     filas = []
     for k, g in sorted(grupos.items(), key=lambda x: tuple(str(v) for v in x[0])):
-        ci = sum(g['ci']) or None
-        coym = sum(g['coym']) if ci and None not in g['coym'] else None
-        filas.append([*k, None, sum(g['kw']) or None, sum(g['kwh']) or None, ci,
-                      sum(g['anu']) if ci else None, coym, sum(g['costo']) if ci else None])
+        ci = _suma(g['ci']) or None
+        costo = _suma(g['costo']) if ci else None
+        if costo is None and any(g['sin_tc']):
+            costo = SIN_TIPO_DE_CAMBIO
+        filas.append([*k, None, _suma(g['kw']) or None, _suma(g['kwh']) or None, ci,
+                      _suma(g['anu']) if ci else None, _suma(g['coym']) if ci else None, costo])
     return filas
 
 
@@ -262,4 +318,4 @@ def formatos_del_estudio(obras: Sequence[Mapping[str, Any]], anios: Sequence[Map
                   'F06 Calidad suministro': filas_de_calidad(calidad, centro_de)})
     alcance = [{'formato': 'F04 Tensión BT', 'campo': 'Caída máxima %', 'filas': len(filas['F04 Tensión BT']),
                 'motivo': ALCANCE_F04}] if filas['F04 Tensión BT'] else []
-    return {'filas': filas, 'huecos': huecos_de(filas) + huecos_metrado + alcance}
+    return {'filas': filas, 'huecos': huecos_de(filas) + huecos_metrado + alcance + alcance_de_la_evaluacion(obras)}

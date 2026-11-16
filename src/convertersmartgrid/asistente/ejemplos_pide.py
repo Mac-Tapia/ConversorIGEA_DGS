@@ -164,7 +164,7 @@ def construir(dataset: Path | str, contrato: ContratoPide) -> dict[str, Any]:
                                   for (n, t), c in sorted(v.items(), key=lambda x: _orden(x[0][0]))]}
                 for k, v in secciones.items()}
     return {'schema': 'csg-pide-ejemplos-v1', 'contrato': contrato.version, 'nota': (
-                'Contexto, no norma (027:RF-47): manda el contrato de 2017.'),
+                'Contexto, no norma: manda el contrato de 2017.'),
             'fragmentos': total, 'fragmentos_con_articulo': con_articulo,
             'articulos': articulos, 'formatos': salida_formatos, 'informes': informes,
             'cobertura': {'articulos': sum(a['cubierto'] for a in articulos.values()),

@@ -229,7 +229,7 @@ def ubicar_nuevo(clase: str, nombre: str, n: int, pedida: Barra,
         d, destino = min(aptas)
         return Ubicacion(destino, n, reubicado=True,
                          nota=f'{clase} {nombre}: {pedida.nombre} lleva {pedida.n} fase(s) y necesita {n}; '
-                              f'va a {destino}, a {d:.0f} m (081:RF-8).')
+                              f'va a {destino}, a {d:.0f} m.')
     return Ubicacion(pedida.nombre, pedida.n, adaptado=True,
                      nota=f'{clase} {nombre}: ninguna barra cercana lleva {n} fases; queda en {pedida.nombre} '
-                          f'con {pedida.n} (081:RF-9).')
+                          f'con {pedida.n}.')

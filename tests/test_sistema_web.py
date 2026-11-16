@@ -178,7 +178,7 @@ def test_sin_calibracion_valida_pide_los_transformadores(herramienta, capsys):
     web = WebFalsa(informes=[malo])
     _correr(herramienta, web)
     assert ('POST', '/demanda/ajuste/t/transformadores') in web.llamadas
-    assert '083:RF-8' in capsys.readouterr().out
+    assert 'se cambian y se repite' in capsys.readouterr().out
 
 
 def test_retoma_el_proyecto_ya_importado(herramienta):

@@ -83,7 +83,7 @@ def test_una_obra_que_toca_la_referencia_no_persiste_limpia(monkeypatch):
     assert sin['igual'] is False and sin['antes'] != sin['despues']
     otro = next(a for a in alims if a != alims[0])
     assert any(otro in c and 'plini' in c for c in sin['cambios']), sin['cambios']
-    assert any('«Sin proyecto»' in a and '048:RF-9' in a for a in informe['avisos'])
+    assert any('«Sin proyecto»' in a and 'que es la referencia' in a for a in informe['avisos'])
 
 
 def test_la_variacion_que_no_vuelve_al_reabrir_se_dice(monkeypatch):

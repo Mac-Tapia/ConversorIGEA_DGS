@@ -121,6 +121,15 @@ Universalidad (constitución P13)
   al menos dos perfiles de empresa distintos.
 - RF-37: CUANDO se convierte, EL SISTEMA registrará en el manifiesto del lote el perfil de
   empresa usado y sus valores.
+- RF-38: EL SISTEMA dará a cada ruta de /api que devuelve JSON su modelo de respuesta, salvo las de una lista de
+  excepciones que solo puede bajar; SI aparece una ruta nueva sin modelo, ENTONCES la prueba fallará (H13, auditoría del
+  2026-11-14: T10 se cerró con 7 de 133 rutas sin modelo y el 2026-11-14 eran unas 84 de 180).
+- Aclaración de RF-38 (2026-11-14, auditor ca): la cifra de rutas sin modelo la da la lista generada
+  `docs/architecture/rutas_sin_modelo.json`, no un número fijo del texto; la de «unas 84 de 180» no se reproduce, y la
+  herramienta midió 5 sobre 00d30651 con H10 y H13. EL SISTEMA comprobará que la lista coincide con lo que la
+  herramienta mide en ese momento sobre el código, que su número no sube de esa base de 5 y que cada ruta lleva su
+  motivo; SI al reescribirla aparece una ruta nueva sin modelo, ENTONCES no la añadirá y lo dirá, porque la lista solo
+  baja.
 
 Contrato API ↔ frontend
 

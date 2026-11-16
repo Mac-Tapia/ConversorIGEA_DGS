@@ -2005,13 +2005,14 @@ export interface ObraPIDE {
   elemento: string;
   causa: string;
   denominacion: string | null;
-  ci: number;
+  /** 072:RF-16 (H5): sin costo en el libro CAPEX queda vacío, nunca 0. */
+  ci: number | null;
   prioridad: number;
   sobredimensionada: boolean;
   descartada: string | null;
   motivo_sin_obra: string | null;
   variacion_autonoma?: string;
-  regulada: { anualidad?: number; costo_anual?: number } | null;
+  regulada: { anualidad?: number | null; costo_anual?: number | null; completo?: boolean } | null;
   privada: { van: number; tir: number | null } | null;
 }
 

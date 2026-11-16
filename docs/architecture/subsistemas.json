@@ -362,6 +362,7 @@
     "reranker.py",
     "evaluacion_rag.py",
     "fuga_evaluacion.py",
+    "pregunta_entregada.py",
     "corpus_proyecto.py",
     "lectura_proyecto.py",
     "ejemplos_pide.py"

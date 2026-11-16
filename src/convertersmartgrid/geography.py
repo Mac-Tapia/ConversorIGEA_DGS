@@ -169,7 +169,7 @@ def ordenar_intermedios(section_id: str, rows: Sequence[Mapping[str, object]]) -
     malos = [r.get('SeqNumber') for r, k in zip(rows, claves) if k is None]
     if malos:
         return list(rows), [f'{section_id}: SeqNumber vacío o no entero ({", ".join(repr(v) for v in malos[:5])}); '
-                            'sus puntos intermedios quedan en el orden del fichero (010:RF-8)']
+                            'sus puntos intermedios quedan en el orden del fichero']
     enteros = [k for k in claves if k is not None]               # todos, porque ninguno falló
     return [rows[i] for i in sorted(range(len(rows)), key=enteros.__getitem__)], []
 

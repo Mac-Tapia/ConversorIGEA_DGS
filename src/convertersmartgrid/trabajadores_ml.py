@@ -136,7 +136,7 @@ def turno_gpu_con_plazo(nombre: str, *, ruta: Path | str | None = None, limite_s
             transcurrido = reloj() - inicio
             if transcurrido >= limite_s:
                 raise RuntimeError(f'GPU ocupada por {quien_tiene_la_gpu(ruta)} tras esperar {limite_s:.0f} s '
-                                   f'({nombre}, 106:RF-3).') from None
+                                   f'({nombre}).') from None
             if avisar is not None and (ultimo_aviso is None or reloj() - ultimo_aviso >= aviso_cada_s):
                 avisar(f'{nombre}: esperando la GPU, la tiene {quien_tiene_la_gpu(ruta)} '
                        f'({transcurrido:.0f} de {limite_s:.0f} s).')

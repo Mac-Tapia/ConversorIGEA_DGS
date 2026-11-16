@@ -23,8 +23,8 @@ import time
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from ..edicion import motivo_ruta_negada
-from ..sesion_web import (CABECERA_TOKEN, HOSTS_LOCALES, PARAMETRO_ACCESO, VARIABLE_PUERTO, Sesion,
-                          leer_sesion)
+from ..sesion_web import (CABECERA_TOKEN, HOSTS_LOCALES, PARAMETRO_ACCESO, VARIABLE_PUERTO, FiltroSecretos,
+                          Sesion, leer_sesion)
 
 VARIABLE_HOSTS = 'CSG_WEB_HOSTS'
 #: Lo que dura el token anterior tras arrancar. Basta para que una pestaña abierta se reconecte
@@ -144,15 +144,8 @@ def cabeceras_de_marco(cabeceras: list, incrustable: bool, politica: bytes) -> l
     return salida
 
 
-class _SinTokenEnElRegistro(logging.Filter):
-    """El registro de accesos de uvicorn escribe la URL entera, con el ``acceso=`` del lanzador."""
-
-    _ACCESO = re.compile(rf'({PARAMETRO_ACCESO}=)[^&\s"]+')
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        if isinstance(record.args, tuple):
-            record.args = tuple(self._ACCESO.sub(r'\1***', a) if isinstance(a, str) else a for a in record.args)
-        return True
+#: El registro de accesos de uvicorn escribe la URL entera, con el ``acceso=`` del lanzador; el filtro es ya el general.
+_SinTokenEnElRegistro = FiltroSecretos
 
 
 #: 110 (RNF): ninguna dirección de correo ni token del proveedor en el registro de la web. Se deja la primera letra y
@@ -213,11 +206,26 @@ class _SinCorreoEnElRegistro(logging.Filter):
 
 
 def _instalar_filtro_registro() -> None:
-    registro = logging.getLogger('uvicorn.access')
-    if not any(isinstance(f, _SinTokenEnElRegistro) for f in registro.filters):
-        registro.addFilter(_SinTokenEnElRegistro())
-    if not any(isinstance(f, _SinCorreoEnElRegistro) for f in registro.filters):
-        registro.addFilter(_SinCorreoEnElRegistro())
+    """086:RF-19: el filtro en el raíz, en ``uvicorn.access`` y en cada manejador que ya exista.
+
+    El filtro de un registro solo ve lo que se escribe en ese mismo registro, no lo que sube de sus hijos: lo de
+    ``convertersmartgrid.asistente`` pasa por los manejadores, y ahí va también. El fichero rotativo, que puede
+    crearse después, lo lleva desde que nace (``registro_rotativo.configurar_registro``).
+    """
+    raiz = logging.getLogger()
+    destinos: list[logging.Filterer] = [raiz, logging.getLogger('uvicorn.access'), *raiz.handlers]
+    for registro in list(logging.Logger.manager.loggerDict.values()):
+        if isinstance(registro, logging.Logger):
+            destinos.extend(registro.handlers)
+    if logging.lastResort is not None:
+        destinos.append(logging.lastResort)
+    for destino in destinos:
+        if not any(isinstance(f, FiltroSecretos) for f in destino.filters):
+            destino.addFilter(FiltroSecretos())
+    # 110 (RNF): además, sin direcciones de correo ni tokens del proveedor en el registro de accesos.
+    acceso = logging.getLogger('uvicorn.access')
+    if not any(isinstance(f, _SinCorreoEnElRegistro) for f in acceso.filters):
+        acceso.addFilter(_SinCorreoEnElRegistro())
 
 
 def _nombre_de_host(host: str) -> str:

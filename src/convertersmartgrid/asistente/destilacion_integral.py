@@ -576,7 +576,7 @@ def puerta_no_regresion(candidato: Sequence[bool], referencia: Sequence[bool] | 
                 'motivo': 'sin modelo en uso con que comparar'}
     if len(candidato) != len(referencia):
         raise ValueError(f'la no regresión compara los mismos ejemplos: {len(candidato)} del candidato y '
-                         f'{len(referencia)} del modelo en uso (069:RF-40)')
+                         f'{len(referencia)} del modelo en uso')
     n = len(candidato)
     if not n:
         return {'aplica': False, 'bloquea': False, 'ejemplos': 0, 'motivo': 'sin órdenes humanas'}

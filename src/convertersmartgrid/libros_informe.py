@@ -290,7 +290,7 @@ def _fila(datos: Any, donde: str, requeridos: tuple[str, ...]) -> Coste:
         faltan.append('referencial (true o false)')
     if faltan:
         raise LibroError(f'{donde} de la tabla de costes no trae {", ".join(faltan)}: '
-                         'cada precio va con su fuente y su fecha (RF-39b).')
+                         'cada precio va con su fuente y su fecha.')
     campos = set(Coste.__dataclass_fields__)
     desconocidos = set(datos) - campos
     if desconocidos:

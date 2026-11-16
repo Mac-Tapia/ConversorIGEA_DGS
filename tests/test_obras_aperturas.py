@@ -146,7 +146,7 @@ def test_una_orden_cortada_se_restituye_al_empezar_la_siguiente(tmp_path, monkey
     assert [a['nombre'] for a in informe['aperturas_restituidas']] == [f'{f}_L2']
     avisos = ' '.join(informe['avisos'])
     assert '081:RF-82' in avisos and f'{f}_L2' in avisos
-    assert hecho['obras'][0]['variacion'] in avisos and '042:RF-60' in avisos
+    assert hecho['obras'][0]['variacion'] in avisos and 'retírelas con las obras del alimentador' in avisos
 
 
 def test_lo_abierto_por_una_obra_aplicada_que_sigue_activa_no_se_toca(tmp_path, monkeypatch):

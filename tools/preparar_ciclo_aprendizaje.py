@@ -81,7 +81,7 @@ def leer_complemento(ruta: Path | None) -> dict:
             or not isinstance(dato.get('proyectos', {}), dict) or not isinstance(dato.get('series', {}), dict)):
         raise ValueError(f'{ruta.name}: complemento sin el esquema {ESQUEMA_COMPLEMENTO}')
     if not str(dato.get('declarado_por') or '').strip():
-        raise ValueError(f'{ruta.name}: complemento sin declarado_por; lo declarado tiene responsable (050:RF-25)')
+        raise ValueError(f'{ruta.name}: complemento sin declarado_por; lo declarado tiene responsable')
     for proyecto, campos in dato.get('proyectos', {}).items():
         if not isinstance(campos, dict) or set(campos) - {*CAMPOS_COMPLEMENTO, 'origen'}:
             raise ValueError(f'{proyecto}: el complemento solo admite {", ".join(CAMPOS_COMPLEMENTO)} y origen')
@@ -244,7 +244,7 @@ def preparar_dataset(p: Preparacion, dataset: Path, observaciones: list[Path]) -
         for clave, r in consultas:
             tabla[clave] = _referencia(manifiesto, fuente, clave, instante, r)
         p.informe['dataset'][nombre] = len(consultas)
-    p.informe['dataset']['instante_consultas'] = {'valor': instante, 'origen': 'fecha de sellado de manifest.json (050:RF-17)'}
+    p.informe['dataset']['instante_consultas'] = {'valor': instante, 'origen': 'fecha de sellado de manifest.json'}
 
 
 # ------------------------------------------------------------------ búfer del gemelo
@@ -443,7 +443,7 @@ def preparar_corpus(p: Preparacion, corpus: Path) -> None:
     p.documentos['llm_dataset'] = sha
     p.fuentes['llm_dataset'] = str(corpus)
     p.informe['llm_dataset'] = {'con_referencia': len(tabla),
-        'instante': {'valor': instante, 'origen': 'fecha de sellado de dataset_manifest.json (050:RF-17)'}}
+        'instante': {'valor': instante, 'origen': 'fecha de sellado de dataset_manifest.json'}}
 
 
 def preparar_casos(p: Preparacion, casos: Path, twin: Path | None, rutas: dict[str, Path]) -> None:
@@ -651,7 +651,7 @@ def preparar(args) -> dict:
     from convertersmartgrid.aprendizaje_continuo import ESQUEMA_PROCEDENCIA, crear_contexto_ciclo
     salida: Path = args.salida
     if args.espacios and args.perfil and args.complemento is None and not args.declarado_por.strip():
-        raise ValueError('declare --declarado-por: lo que se completa al preparar tiene responsable (050:RF-25)')
+        raise ValueError('declare --declarado-por: lo que se completa al preparar tiene responsable')
     # 050:RF-11/12: siempre una carpeta nueva; nada se mezcla con otro ensayo ni con un almacén.
     if salida.exists() and any(salida.iterdir()):
         raise ValueError(f'{salida}: la salida debe ser una carpeta nueva o vacía')

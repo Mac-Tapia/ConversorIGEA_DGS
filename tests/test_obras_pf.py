@@ -400,9 +400,9 @@ def test_conductor_terna_en_la_simulacion(semilla):
         cambia = nuevo is not None and tipos[t.tipo].datos['sline'] < tipos[nuevo].datos['sline']
         assert e.get('tipo') == (nuevo if cambia else None), (nombre, t, e)
         if not cambia and nuevo is not None:
-            assert any(nombre in a and '042:RF-99' in a for a in fila['avisos'])
+            assert any(nombre in a and 'de igual o más corriente' in a for a in fila['avisos'])
         if t.cable and not con_cable:
-            assert any(nombre in a and '042:RF-100' in a for a in fila['avisos'])
+            assert any(nombre in a and 'no trae el conductor' in a for a in fila['avisos'])
 
 
 def test_conductor_terna_una_obra_guardada_sin_tipo_se_abre_igual():

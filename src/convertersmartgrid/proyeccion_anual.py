@@ -1530,8 +1530,8 @@ def tasa_de_alcance(carpeta: Path | str | None, proyecto: str, alimentadores: Se
     propias = [tasas[a] for a in alimentadores if a in tasas]
     if propias:
         return {'tasa': statistics.median(propias), 'origen': 'proyeccion_aceptada', 'modelo': datos['modelo'],
-                'aviso': f"el alcance usa la proyección aceptada ({datos['modelo']}): {100 * statistics.median(propias):.2f} %/año equivalente (031:RF-11)."}
-    return {'tasa': tasa_perfil, 'origen': 'perfil', 'aviso': f'sin proyección aceptada de estos alimentadores, el alcance sigue con la tasa del perfil, {100 * tasa_perfil:.2f} %/año (031:RF-11).'}
+                'aviso': f"el alcance usa la proyección aceptada ({datos['modelo']}): {100 * statistics.median(propias):.2f} %/año equivalente."}
+    return {'tasa': tasa_perfil, 'origen': 'perfil', 'aviso': f'sin proyección aceptada de estos alimentadores, el alcance sigue con la tasa del perfil, {100 * tasa_perfil:.2f} %/año.'}
 
 
 def _firma_de_fuentes(fuentes: Fuentes, parametros: Mapping[str, Any]) -> str:

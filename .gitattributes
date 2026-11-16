@@ -8,5 +8,8 @@ src/convertersmartgrid/recursos/** -text
 # Los textos de licencia se verifican por sus bytes originales del tarball npm.
 frontend/licencias/*-LICENSE.txt -text
 
+# Textos de licencia de terceros y de los modelos (086:RF-44): se verifican por sus bytes, tal como se descargaron.
+config/licencias_terceros/*.txt -text
+
 # 090:RF-13: el catalogo generado no para una fusion; post-merge lo regenera.
 docs/ARQUITECTURA_CATALOGO.md merge=union

@@ -1153,7 +1153,7 @@ def test_al_importar_se_eliminan_las_versiones_anteriores():
     assert versiones_anteriores(viejos, 'Hecho a mano') == []
     avisos = eliminar_versiones_anteriores(app, carpeta, nuevo)
     nombres = sorted(h.loc_name for h in carpeta.GetContents('*.IntPrj'))
-    assert nombres == sorted([nuevo, *quedan]) and len(avisos) == 2 and all('005:RF-22' in a for a in avisos)
+    assert nombres == sorted([nuevo, *quedan]) and len(avisos) == 2 and all('versión anterior' in a for a in avisos)
 
     otro = _proyecto(app, carpeta, '20261101-000000_CSG_SISTEMA_PISCO')
     otro.Activate()

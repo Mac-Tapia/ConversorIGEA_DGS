@@ -6,6 +6,7 @@ import builtins
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -14,8 +15,25 @@ import pytest
 
 RAIZ = Path(__file__).resolve().parents[1]
 GUION = RAIZ / 'tools' / 'mcp_conversor.py'
-#: Con otro intérprete que sí tenga `mcp`, sin instalarlo en el entorno del proyecto.
-PYTHON_MCP = os.environ.get('CSG_MCP_PYTHON') or sys.executable
+
+
+def python_mcp(entorno=None, raiz: Path = RAIZ) -> tuple[str, bool]:
+    """El intérprete con el paquete `mcp` y si la prueba real queda exigida (077:RF-76).
+
+    `CSG_MCP_PYTHON` manda; si no, el `.venv_mcp` del repositorio. Con cualquiera de los dos, que falte el paquete es
+    un fallo y no una omisión. Sin ninguno, el del proyecto, que no lo lleva: la prueba se omite y la puerta de `main`
+    no da la suite por buena.
+    """
+    entorno = os.environ if entorno is None else entorno
+    if entorno.get('CSG_MCP_PYTHON'):
+        return entorno['CSG_MCP_PYTHON'], True
+    for propio in (raiz / '.venv_mcp' / 'Scripts' / 'python.exe', raiz / '.venv_mcp' / 'bin' / 'python'):
+        if propio.is_file():
+            return str(propio), True
+    return sys.executable, False
+
+
+PYTHON_MCP, MCP_EXIGIDO = python_mcp()
 
 
 def _cargar():
@@ -25,9 +43,31 @@ def _cargar():
     return modulo
 
 
-def _hay_mcp() -> bool:
-    r = subprocess.run([PYTHON_MCP, '-c', 'import mcp'], capture_output=True, check=False)
+def _hay_mcp(python: str | None = None) -> bool:
+    try:
+        r = subprocess.run([python or PYTHON_MCP, '-c', 'import mcp'], capture_output=True, check=False, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return False
     return r.returncode == 0
+
+
+def exigir_mcp(python: str | None = None, exigido: bool | None = None) -> None:
+    """077:RF-76: con un intérprete configurado, que no tenga `mcp` falla; sin ninguno, se omite con su motivo."""
+    python = python or PYTHON_MCP
+    exigido = MCP_EXIGIDO if exigido is None else exigido
+    if _hay_mcp(python):
+        return
+    if exigido:
+        pytest.fail(f'{python} no tiene el paquete mcp de requirements-mcp.txt: la prueba del servidor real no se omite '
+                    '(077:RF-76). Instálelo con la orden de docs/MCP_CONVERSOR.md.')
+    pytest.skip('sin CSG_MCP_PYTHON ni .venv_mcp: el servidor MCP real no se prueba (077:RF-76, docs/MCP_CONVERSOR.md)')
+
+
+def lineas_del_lock(ruta: Path) -> list[str]:
+    """Los requisitos de un fichero de pip, con sus continuaciones unidas y sin comentarios."""
+    texto = re.sub(r'\\\s*\n', ' ', ruta.read_text(encoding='utf-8'))
+    lineas = (re.sub(r'\s+', ' ', linea).strip() for linea in texto.splitlines())
+    return [linea for linea in lineas if linea and not linea.startswith('#')]
 
 
 def test_sin_paquete_lo_dice_y_su_codigo(monkeypatch, capsys):
@@ -95,9 +135,13 @@ def test_documentacion():
         assert marca in doc
 
 
-@pytest.mark.skipif(not _hay_mcp(), reason='CSG_MCP_PYTHON no apunta a un intérprete con el paquete opcional mcp')
 def test_servidor_real_por_stdio():
-    """077:RF-37 / 077:RF-38 — con un cliente real por stdio: tres herramientas de solo lectura, y lo rechazado no sale."""
+    """077:RF-37 / 077:RF-38 / 077:RF-75 / 077:RF-76 — con un cliente real por stdio: tres herramientas de solo
+    lectura, lo rechazado no sale, y el SDK es el fijado en requirements-mcp.txt."""
+    exigir_mcp()
+    version = subprocess.run([PYTHON_MCP, '-c', 'import importlib.metadata as m; print(m.version("mcp"))'],
+                             capture_output=True, text=True, check=False, timeout=60).stdout.strip()
+    assert f'mcp=={version}' in {linea.split()[0] for linea in lineas_del_lock(RAIZ / 'requirements-mcp.txt')}
     guion = r'''
 import asyncio, json, sys
 from mcp import ClientSession, StdioServerParameters
@@ -141,10 +185,11 @@ asyncio.run(principal())
         assert salida[clave][0] is True, clave
 
 
-@pytest.mark.skipif(not _hay_mcp(), reason='CSG_MCP_PYTHON no apunta a un intérprete con el paquete opcional mcp')
 @pytest.mark.parametrize('opciones,abierto', [([], False), (['--datos-locales'], True)])
 def test_servidor_real_y_sus_datos_locales(opciones, abierto):
-    """077:RF-61 / 077:RF-62 — por stdio real: `.gitignore` solo se abre con la opción; secretos y sellados, nunca."""
+    """077:RF-61 / 077:RF-62 / 077:RF-76 / 077:RF-77 — por stdio real: `.gitignore` solo se abre con la opción;
+    secretos y sellados, nunca; y con la opción, el aviso del arranque."""
+    exigir_mcp()
     guion = r'''
 import asyncio, json, sys
 from mcp import ClientSession, StdioServerParameters
@@ -165,7 +210,8 @@ asyncio.run(principal())
     r = subprocess.run([PYTHON_MCP, '-c', guion, str(GUION), *opciones], capture_output=True, check=False, timeout=120,
                        env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
     assert r.returncode == 0, r.stderr[-2000:]
-    r.stderr.decode('utf-8')
+    diagnostico = r.stderr.decode('utf-8')
+    assert (AVISO in diagnostico) is abierto
     salida = json.loads(r.stdout.decode('utf-8').strip().splitlines()[-1])
     assert salida['.gitignore'] is (not abierto)
     assert all(salida[x] is True for x in ('.env', 'docs/CONJUNTO_ABSTENCION_SELLADO_077.json', 'output/ejemplos.jsonl'))
@@ -175,3 +221,63 @@ def test_herramientas_iguales_a_las_de_la_web():
     """077:RF-37 — el guion no define lecturas: sus funciones son solo el servidor y el registro."""
     arbol = ast.parse(GUION.read_text(encoding='utf-8'))
     assert {n.name for n in arbol.body if isinstance(n, ast.FunctionDef)} == {'_registrar', '_servidor', 'main'}
+
+
+#: Lo que el arranque con `--datos-locales` dice siempre (077:RF-77).
+AVISO = 'solo a un cliente local de confianza'
+
+
+def test_077_rf75_el_sdk_va_fijado_con_version_exacta_y_huella():
+    """077:RF-75 — requirements-mcp.txt fija cada paquete con `==` y su huella, para `pip --require-hashes`."""
+    lineas = lineas_del_lock(RAIZ / 'requirements-mcp.txt')
+    nombres = {linea.split('==')[0].casefold() for linea in lineas}
+    assert {'mcp', 'mcp-types', 'anyio', 'pydantic', 'starlette'} <= nombres
+    for linea in lineas:
+        assert re.fullmatch(r'[a-z0-9][a-z0-9._-]*==[0-9][^ ]*( --hash=sha256:[0-9a-f]{64})+', linea), linea
+    assert 'mcp==2.3.0' in {linea.split()[0] for linea in lineas}
+    doc = (RAIZ / 'docs' / 'MCP_CONVERSOR.md').read_text(encoding='utf-8')
+    assert '--require-hashes -r requirements-mcp.txt' in doc
+
+
+def test_077_rf76_un_interprete_configurado_sin_mcp_falla_y_no_se_omite(tmp_path):
+    """077:RF-76 — con CSG_MCP_PYTHON o el .venv_mcp, que falte el paquete es un fallo; sin ninguno, una omisión dicha."""
+    falso = str(tmp_path / 'no_hay' / 'python.exe')
+    assert python_mcp({'CSG_MCP_PYTHON': falso}, tmp_path) == (falso, True)
+    with pytest.raises(pytest.fail.Exception, match='077:RF-76'):
+        exigir_mcp(falso, True)
+    with pytest.raises(pytest.skip.Exception, match='CSG_MCP_PYTHON'):
+        exigir_mcp(falso, False)
+    assert python_mcp({}, tmp_path) == (sys.executable, False)
+    propio = tmp_path / '.venv_mcp' / 'Scripts' / 'python.exe'
+    propio.parent.mkdir(parents=True)
+    propio.write_bytes(b'')
+    assert python_mcp({}, tmp_path) == (str(propio), True)
+    assert '.venv_mcp/' in (RAIZ / '.gitignore').read_text(encoding='utf-8').splitlines()
+    doc = (RAIZ / 'docs' / 'MCP_CONVERSOR.md').read_text(encoding='utf-8')
+    assert '.venv_mcp' in doc and 'CSG_MCP_PYTHON' in doc
+
+
+def _arrancar_sin_red(monkeypatch, opciones):
+    """El arranque del guion hasta antes de servir, con un `mcp` de mentira: sin el paquete ni ningún cliente."""
+    import types as tipos
+
+    import anyio
+
+    for nombre in ('mcp', 'mcp.server'):
+        monkeypatch.setitem(sys.modules, nombre, tipos.ModuleType(nombre))
+    monkeypatch.setitem(sys.modules, 'mcp.server.stdio', tipos.SimpleNamespace(stdio_server=None))
+    monkeypatch.setattr(anyio, 'run', lambda _f: None)
+    modulo = _cargar()
+    monkeypatch.setattr(modulo, '_servidor', lambda _lector: None)
+    return modulo.main(opciones)
+
+
+@pytest.mark.parametrize('opciones,avisa', [([], False), (['--datos-locales'], True)])
+def test_077_rf77_datos_locales_avisa_en_el_arranque(monkeypatch, capsys, opciones, avisa):
+    """077:RF-77 — con `--datos-locales`, el arranque avisa por stderr de que expone los datos locales solo a un cliente
+    local de confianza; sin la opción, no avisa. stdout queda limpio: es el canal del protocolo."""
+    assert _arrancar_sin_red(monkeypatch, opciones) == 0
+    salida = capsys.readouterr()
+    assert (AVISO in salida.err) is avisa and salida.out == ''
+    if avisa:
+        assert 'sale con él' in salida.err and 'esta máquina' in salida.err

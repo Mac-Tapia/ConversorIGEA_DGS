@@ -593,7 +593,17 @@ def test_safe_extract_zip_rejects_symbolic_link(tmp_path):
         safe_extract_zip(archive, tmp_path / 'extract')
 
 
+def _dns_publico(monkeypatch):
+    """086:RF-22: el conector resuelve el nombre y mira la IP; las pruebas no consultan un DNS real."""
+    import socket
+
+    monkeypatch.setattr(socket, 'getaddrinfo',
+                        lambda host, port, *_a, **_k: [(socket.AF_INET, socket.SOCK_STREAM, 6, '',
+                                                        ('93.184.216.34', port or 0))])
+
+
 def test_arcgis_company_period_discovery_uses_distinct_queries(monkeypatch):
+    _dns_publico(monkeypatch)
     adapter = ArcGISRestAdapter('https://official.example/MapServer')
     monkeypatch.setattr(adapter, 'metadata_of', lambda: {
         'layers': [{'id': 22, 'name': 'Tramo Red MT Existente'}],
@@ -619,6 +629,7 @@ def test_arcgis_company_period_discovery_uses_distinct_queries(monkeypatch):
 
 
 def test_arcgis_layer_inventory_reports_actual_count(monkeypatch):
+    _dns_publico(monkeypatch)
     adapter = ArcGISRestAdapter('https://official.example/MapServer')
     monkeypatch.setattr(adapter, 'metadata_of', lambda: {
         'layers': [{'id': 22, 'name': 'Tramo Media Tensión'}],
@@ -634,12 +645,12 @@ def test_arcgis_layer_inventory_reports_actual_count(monkeypatch):
 
 
 def test_arcgis_pagination_can_take_a_bounded_audit_sample(monkeypatch):
-    import sys
-    import types
-
+    _dns_publico(monkeypatch)
     offsets = []
 
     class Response:
+        status_code = 200
+
         def __init__(self, payload):
             self.payload = payload
 
@@ -651,9 +662,11 @@ def test_arcgis_pagination_can_take_a_bounded_audit_sample(monkeypatch):
 
     redirecciones = []
 
-    def get(url, params, timeout, allow_redirects=True):
-        # 086:RF-22 (SSRF-ARCGIS v4): se apunta si la capa dejó seguir redirecciones; se comprueba al final.
-        redirecciones.append(allow_redirects)
+    def get(url, *, params, timeout, devolver_redireccion=False):
+        # 086:RF-22: cada consulta pasa por la salida con la IP fijada (H8H5); esa función se prueba contra la red
+        # simulada en test_seguridad_web.py. Aquí, la paginación, y que la capa no deja a la biblioteca seguir un 3xx:
+        # lo devuelve a get_sin_redireccion_ajena, que decide (SSRF-ARCGIS v4).
+        redirecciones.append(devolver_redireccion)
         if not url.endswith('/query'):
             return Response({'objectIdField': 'OBJECTID', 'maxRecordCount': 2})
         offsets.append(params['resultOffset'])
@@ -664,7 +677,7 @@ def test_arcgis_pagination_can_take_a_bounded_audit_sample(monkeypatch):
             for value in range(start + 1, start + size + 1)
         ]})
 
-    monkeypatch.setitem(sys.modules, 'requests', types.SimpleNamespace(get=get))
+    monkeypatch.setattr('convertersmartgrid.adaptadores.entrada.vnr.connectors.arcgis.pedir_a_destino_fijado', get)
     features, crs = ArcGISLayer('https://official.example/MapServer/22').query_geojson(
         page_size=2,
         max_features=5,
@@ -673,7 +686,7 @@ def test_arcgis_pagination_can_take_a_bounded_audit_sample(monkeypatch):
     assert len(features) == 5
     assert offsets == [0, 2, 4]
     assert crs == 4326
-    assert redirecciones and all(r is False for r in redirecciones), (
+    assert redirecciones and all(r is True for r in redirecciones), (
         f'la capa ArcGIS debe pedir cada GET sin seguir redirecciones (086:RF-22): {redirecciones}')
 
 
@@ -1726,6 +1739,7 @@ _INTERNAS = ['http://127.0.0.1:8080/admin', 'http://169.254.169.254/latest/meta-
 
 def _arcgis_con_red(monkeypatch, red):
     import convertersmartgrid.adaptadores.entrada.vnr.connectors.arcgis as A
+    _dns_publico(monkeypatch)  # H8H5: la capa valida su servidor al crearse; sin salir a la red
     monkeypatch.setattr(A, '_require_requests', lambda: red)
     monkeypatch.setattr(A.time, 'sleep', lambda s: None)
     return A
