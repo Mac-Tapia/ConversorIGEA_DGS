@@ -29,7 +29,7 @@ La web y el CLI son dos presentaciones del mismo motor. La web lanza los guiones
 entrada y un informe JSON de salida.
 
 ```text
- Operador ─► Navegador ─► web/seguridad ─► web/app (FastAPI) ─► web/services ─► web/jobs (4 carriles)
+ Operador ─► Navegador ─► web/seguridad ─► web/app (FastAPI) ─► web/services ─► web/jobs (5 carriles)
                                                                                  │
    ┌─────────────────────────────┬───────────────────────────────┬───────────────┴──────────┐
    ▼ engine                      ▼ powerfactory                  ▼ asistente                ▼ control
@@ -202,10 +202,11 @@ anterior. `estadistica_ordenes.py` registra cada orden para contrastar versiones
 ## Web
 
 - **Nada largo dentro de una petición** (P7). `web/jobs.py` encola; el navegador sigue el progreso por WebSocket y puede cancelar.
-- **Cuatro carriles**, cada uno con un hilo: `engine` (motor en el proceso),
+- **Cinco carriles**, cada uno con un hilo: `engine` (motor en el proceso),
   `powerfactory` (guiones de DIgSILENT, en serie), `asistente` (solo
-  espera: sus pasos encolan en los otros dos) y `control` (solo cancela, para poder parar lo que corre con el asistente ocupado,
-  070:RF-33).
+  espera: sus pasos encolan en los otros dos), `control` (solo cancela, para poder parar lo que corre con el asistente ocupado,
+  070:RF-33) y `correo` (envío de informes por correo, que espera a la red y no al motor ni a DIgSILENT; sin relanzar tras
+  un reinicio, 110:RF-9).
 - **Puerta** (`web/seguridad.py`, 086:RF-17 a RF-21): un solo middleware ASGI comprueba Host, Origin y token, también en el
   WebSocket, y pone la política de contenido, de modo que una ruta nueva nace cerrada. En el navegador el token va en una cookie
   `HttpOnly`; los programas locales lo mandan en cabecera (`sesion_web.py`). Ver [`SEGURIDAD_Y_PRIVACIDAD.md`](SEGURIDAD_Y_PRIVACIDAD.md).

@@ -5,7 +5,7 @@ Orden por dependencia: T1–T7 no necesitan la web ni la 109 real (proveedor, cr
 T8–T10 montan la web; T11–T12 dependen del registro OAuth del usuario. Ninguna toca `web/services.py`,
 `pide_economia.py` ni el adaptador VNR.
 
-- [ ] T1. Proveedor simulado y contratos con la 109: `tests/correo_simulado.py` (acepta, 400, 401, 403, 413, 429, 5xx,
+- [x] T1. Proveedor simulado y contratos con la 109: `tests/correo_simulado.py` (acepta, 400, 401, 403, 413, 429, 5xx,
       `ConnectTimeout`, acepta y no responde) y los `Protocol` `FuenteDeCredenciales` y `Compartidor` en
       `src/convertersmartgrid/correo/__init__.py`; borrador con su firma en `correo/borrador.py`: la firma cubre
       cuenta, para, cc, cco, asunto, cuerpo, enlace y la ruta, el tamaño y el SHA-256 de cada adjunto; comprobar la

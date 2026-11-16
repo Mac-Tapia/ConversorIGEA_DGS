@@ -60,6 +60,13 @@ SALIDAS: dict[str, Salida] = {
     'arcgis': Salida('CSG_SALIDA_ARCGIS', 'el servidor ArcGIS que indique el usuario',
                      'leer una capa de un servicio ArcGIS',
                      ('src/convertersmartgrid/adaptadores/entrada/vnr/connectors/arcgis.py',)),
+    # 110:RF-2: enviar un informe con la cuenta del propio operador, solo con el permiso de enviar.
+    'correo_google': Salida('CSG_SALIDA_CORREO_GOOGLE', 'la API de Gmail (gmail.googleapis.com)',
+                            'enviar un informe por correo con la cuenta de Google del operador',
+                            ('src/convertersmartgrid/correo/proveedores.py',)),
+    'correo_microsoft': Salida('CSG_SALIDA_CORREO_MICROSOFT', 'Microsoft Graph (graph.microsoft.com)',
+                               'enviar un informe por correo con la cuenta de Microsoft del operador',
+                               ('src/convertersmartgrid/correo/proveedores.py',)),
 }
 
 

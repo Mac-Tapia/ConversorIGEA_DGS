@@ -35,3 +35,6 @@
       1,02 s, cuadrado y un factor por alimentador; después, 2 flujos de DIgSILENT por alimentador y 17 válidos.
 - [x] T16 El plan automático pone los transformadores de la ficha en la misma pasada; `sistema_web` lo pide sin `--transformadores`. (RF-31)
       Hecho cuando: `pytest -q tests/test_ajuste_cabecera_guion.py tests/test_sistema_web.py -k rf31` en verde.
+- [ ] T17 El informe del arranque con el oráculo declara la representación, cuenta las ramas por fases y dice que no mide la
+      desviación frente al desequilibrado; las ramas sin dato de fases o ilegibles van aparte. (RF-32 y su aclaración)
+      Hecho cuando: `pytest -q -rfs tests/test_oraculo_calibracion.py -k representacion` en verde.

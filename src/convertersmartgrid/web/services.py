@@ -10394,7 +10394,7 @@ def datos_empresa_subir(ws: Workspace, project: str, ruta: Path, nombre: str) ->
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT del libro.')
     try:
-        libro = leer_libro(ruta, nombre)
+        libro = leer_libro(ruta, nombre, red=ws.dataset)
     except DatosEmpresaError as exc:
         raise UserError(str(exc)) from exc
     carpeta = ws.root / 'datos_empresa' / nombre_seguro(project.strip())
@@ -10455,7 +10455,13 @@ def datos_empresa_aplicar(ws: Workspace, ctx: JobContext, project: str, feeders:
                                     args=('--aplicar-datos',))
     if rc == 0 and not informe.get('error'):
         with ws.lock:
-            ws.datos_empresa[project.strip()]['aplicado'] = datetime.now().isoformat(timespec='seconds')
+            meta = ws.datos_empresa[project.strip()]
+            meta['aplicado'] = datetime.now().isoformat(timespec='seconds')
+            if informe.get('libro_derivado'):
+                # 012:RF-88: el histórico subido sin red convertida queda con las tasas que dio la
+                # exposición leída del proyecto de DIgSILENT, y con su origen: el catálogo de
+                # estudios y los informes usan desde ahora esas tasas.
+                meta['libro'] = informe['libro_derivado']
             ws.save()
     return {'returncode': rc, 'report': report.name, 'informe': informe}
 

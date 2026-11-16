@@ -133,3 +133,6 @@ Cierre
 - [x] T20. Retro (033, 2026-10-29): RF-73b, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-73b)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_obras_pf_guion.py`).
+- [ ] T21. Una orden de estudio que termina con un código distinto de 0 es un error con código 2, no un resultado
+      (`tools/estudios_pf.py`, `ejecutar`). (RF-137)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_estudios_pf_guion.py -k termina` en verde.

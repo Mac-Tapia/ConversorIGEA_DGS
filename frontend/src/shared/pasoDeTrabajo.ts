@@ -58,9 +58,13 @@ export const PASO_DE_TRABAJO: Record<string, PasoId | null> = {
   transferencia: 'pf-transferencia',
   informe_estudio: 'pf-informes', informe_factibilidad: 'pf-informes', informe_documentos: 'pf-informes',
   informe_trafo: 'pf-informes', informe_trafo_cargas: 'pf-informes',
+  correo_envio: 'pf-informes',
   pide: 'pf-planificacion', gemelo_aprender: 'pf-planificacion', gemelo_deriva: 'pf-planificacion',
   gemelo_pronostico: 'pf-planificacion', gemelo_temporal: 'pf-planificacion', gemelo_entrenar: 'pf-planificacion',
   gemelo_evaluar: 'pf-planificacion',
+  // 107: el diagnóstico de la red del área del PIT (POST /api/pit/diagnostico) es planificación, como el PIDE; su
+  // aviso va al paso 5, que lo enseña también con la planificación apagada.
+  pit_diagnostico: 'pf-planificacion',
   asistente: 'asistente', asistente_control: 'asistente', asistente_interpretar: 'asistente',
   asistente_entrenar: 'asistente', asistente_mejora: 'asistente', asistente_indice: 'asistente', asistente_revision: 'asistente',
   agente_proyecto: 'asistente',

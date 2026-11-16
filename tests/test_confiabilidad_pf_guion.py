@@ -344,3 +344,119 @@ def test_ayuda_sin_digsilent():
     with pytest.raises(SystemExit) as e:
         conf.main(['--help'])
     assert e.value.code == 0
+
+
+# =========================================================================== exposición de DIgSILENT
+def _historico_del_proyecto(app, alims, rng, tmp_path, **kw):
+    """Un histórico sorteado cuyos alimentadores son los del proyecto falso (los demás quedan
+    fuera de la red), y un alimentador con cables de longitud sorteada."""
+    from test_historico_interrupciones import _escribir, _historico
+
+    filas, exp, _e, _p = _historico(rng)
+    nombres = dict(zip(exp, alims))
+    filas = [([nombres.get(e[0], e[0]), *e[1:]], ini) for e, ini in filas]
+    cable = app.carpetas['equip'].CreateObject('TypLne', 'XLPE_cable')
+    cable.cohl_ = 0
+    for ln in _alim(app, alims[-1]).GetObjs('ElmLne')[::2]:
+        ln.typ_id = cable
+    for f in alims:
+        for ln in _alim(app, f).GetObjs('ElmLne'):
+            ln.dline = round(rng.uniform(0.05, 3), 3)
+    return _escribir(tmp_path / 'historico.xlsx', filas, rng, **kw)
+
+
+def _exposicion_esperada(app, alims):
+    out = {}
+    for f in alims:
+        elm = _alim(app, f)
+        lineas = elm.GetObjs('ElmLne')
+        out[f] = {'linea': sum(ln.dline for ln in lineas if getattr(ln.typ_id, 'cohl_', 1) != 0),
+                  'cable': sum(ln.dline for ln in lineas if getattr(ln.typ_id, 'cohl_', 1) == 0),
+                  'transformador': float(len(elm.GetObjs('ElmTr2'))),
+                  'barra': float(len(elm.GetObjs('ElmTerm')))}
+    return out
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_datos_historico_sin_red_lee_la_exposicion_del_proyecto(semilla, tmp_path):
+    """012:RF-87 — el histórico subido a un espacio sin red convertida se aplica igual: la longitud
+    de las líneas aéreas y de los cables, los transformadores y las barras de cada alimentador se leen
+    del proyecto de DIgSILENT, las tasas salen de ellos como saldrían de la red convertida, y los
+    modelos escritos llevan esas tasas."""
+    rng = random.Random(semilla)
+    app, alims, clases = _red(rng)
+    ruta = _historico_del_proyecto(app, alims, rng, tmp_path)
+    libro = de.leer_libro(ruta, red=None)
+    assert libro.tasas == {} and libro.historico['reconocido']
+    esperada = _exposicion_esperada(app, alims)
+    informe, rc = conf.aplicar_datos(app, _plan(alims, libro, clases))
+    assert rc == 0, informe
+    leida = informe['exposicion']['alimentadores']
+    assert set(leida) == set(alims)
+    for f in alims:
+        assert leida[f] == pytest.approx(esperada[f]), f
+    assert 'DIgSILENT' in informe['exposicion']['origen']
+    directo = de.leer_libro(ruta, red=esperada)
+    derivado = de.Libro.desde_dict(informe['libro_derivado'])
+    assert set(derivado.tasas) == set(directo.tasas)
+    for clase, t in directo.tasas.items():
+        assert derivado.tasas[clase].permanente == pytest.approx(t.permanente, rel=1e-9, abs=1e-15)
+    _activas(app, 'sin')
+    modelos = {o.loc_name: o for o in conf._carpeta_modelos(app).GetContents('*')}
+    # El modelo de falla de barras (StoTypbar) no tiene DnFr: su falla permanente es DnFr1 (datascheme.db de
+    # PowerFactory 2024, build 22038; StoTyplne y StoTyptrf sí llevan DnFr). Es lo que escribe la herramienta.
+    for clase in ('linea', 'transformador', 'barra'):
+        atributo = 'DnFr1' if clase == 'barra' else 'DnFr'
+        assert getattr(modelos[f'{conf.PREFIJO_MODELO}{clase}'], atributo) == pytest.approx(directo.tasas[clase].permanente)
+    assert any('DIgSILENT' in a and 'km' in a for a in informe['avisos'])
+
+
+def test_datos_historico_con_tasas_no_relee_la_exposicion(tmp_path):
+    """012:RF-87 — con la red convertida las tasas ya vienen del libro: el guion no las rehace."""
+    rng = random.Random(31)
+    app, alims, clases = _red(rng)
+    ruta = _historico_del_proyecto(app, alims, rng, tmp_path)
+    libro = de.leer_libro(ruta, red=_exposicion_esperada(app, alims))
+    informe, rc = conf.aplicar_datos(app, _plan(alims, libro, clases))
+    assert rc == 0, informe
+    assert 'exposicion' not in informe and 'libro_derivado' not in informe
+
+
+def test_datos_historico_sin_causa_no_escribe_nada_y_lo_dice(tmp_path):
+    """012:RF-89 — si con la exposición del proyecto el histórico no da ninguna tasa (sin columna de
+    causa), no se escribe nada y se dice en una frase qué revisar del histórico."""
+    from convertersmartgrid import historico_interrupciones as hi
+
+    rng = random.Random(32)
+    app, alims, clases = _red(rng)
+    ruta = _historico_del_proyecto(app, alims, rng, tmp_path, sin=('causa',))
+    libro = de.leer_libro(ruta, red=None)
+    informe, rc = conf.aplicar_datos(app, _plan(alims, libro, clases))
+    assert rc == 2 and hi.SIN_TASAS in informe['error'], informe
+    assert informe['exposicion']['alimentadores']
+    assert conf.VARIACION not in [v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1)]
+
+
+def test_datos_historico_sin_columna_del_alimentador_no_escribe_nada_y_nombra_los_titulos(tmp_path):
+    """012:RF-92 — si ninguna columna del histórico es la del alimentador (ni por título ni por
+    contenido), el guion no escribe nada, sale con rc=2 y el error nombra los títulos encontrados."""
+    rng = random.Random(33)
+    app, alims, clases = _red(rng)
+    ruta = _historico_del_proyecto(app, alims, rng, tmp_path, sin=('alimentador',))
+    libro = de.leer_libro(ruta, red=None)
+    informe, rc = conf.aplicar_datos(app, _plan(alims, libro, clases))
+    assert rc == 2 and 'columna del alimentador' in informe['error'] and '«Observación»' in informe['error'], informe
+    assert conf.VARIACION not in [v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1)]
+
+
+def test_datos_historico_sin_titulo_elige_la_columna_por_contenido(tmp_path):
+    """012:RF-90, 012:RF-91 — con la columna del alimentador bajo otro título, el guion la elige por su
+    contenido con los alimentadores del proyecto, lo dice en los avisos y escribe las tasas."""
+    rng = random.Random(34)
+    app, alims, clases = _red(rng)
+    ruta = _historico_del_proyecto(app, alims, rng, tmp_path, sin=('alimentador',),
+                                   extra=(('Instalación', lambda a, _n: a),))
+    libro = de.leer_libro(ruta, red=None)
+    informe, rc = conf.aplicar_datos(app, _plan(alims, libro, clases))
+    assert rc == 0, informe
+    assert any('«Instalación», por contenido' in a and 'del proyecto' in a for a in informe['avisos'])

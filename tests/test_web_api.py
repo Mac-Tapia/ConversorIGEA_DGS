@@ -679,3 +679,103 @@ def test_086_rf68_con_la_variable_fijada_la_web_no_la_cambia(client, monkeypatch
     r = client.post('/api/salidas/teselas', json={'encendida': False})
     assert r.status_code == 409 and SALIDAS['teselas'].variable in r.json()['detail']
     assert not ruta_guardadas().exists()
+
+
+def _web_con_puerta(tmp_path, monkeypatch):
+    """La aplicación con la puerta de 086:RF-17 a RF-21 encendida y la sesión de un arranque, como la usa el navegador."""
+    from convertersmartgrid import sesion_web
+    from convertersmartgrid.web import seguridad
+
+    puerto = 8793
+    monkeypatch.setattr(sesion_web, 'EXIGIR_SEGURIDAD', True)
+    monkeypatch.setenv(sesion_web.VARIABLE_CARPETA, str(tmp_path / 'sesiones'))
+    monkeypatch.setenv(sesion_web.VARIABLE_PUERTO, str(puerto))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    sesion = sesion_web.crear_sesion(puerto)
+    app = create_app(tmp_path / 'web', host='127.0.0.1')
+    cliente = TestClient(app, base_url=f'http://127.0.0.1:{puerto}', client=('127.0.0.1', 50000),
+                         follow_redirects=False)
+    cookie = {'Cookie': f'{seguridad.nombre_cookie(puerto)}={sesion.token}'}
+    return app, cliente, cookie, f'http://127.0.0.1:{puerto}'
+
+
+def test_086_rf21_la_web_incrusta_su_vista_previa_y_su_mapa_y_nada_mas(tmp_path, monkeypatch):
+    """086:RF-21 — Modules.tsx y MapaCargas.tsx enseñan sus páginas en un iframe de la propia web: esas dos respuestas
+    se dejan enmarcar solo por la web (SAMEORIGIN y frame-ancestors 'self') y siguen aisladas; el resto, DENY y 'none'.
+    Antes la puerta les añadía DENY y el navegador dejaba el marco en blanco (revisión en pantalla, 2026-11-14)."""
+    app, cliente, cookie, base = _web_con_puerta(tmp_path, monkeypatch)
+    iframe = {**cookie, 'Accept': 'text/html', 'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Site': 'same-origin'}
+    with cliente as c:
+        wid = c.post('/api/workspaces', headers={**cookie, 'Origin': base}).json()['id']
+        salida = app.state.store.get(wid).out_dir
+        salida.mkdir(parents=True, exist_ok=True)
+        (salida / 'AL1_preview.html').write_text('<html>vista</html>', encoding='utf-8')
+        incrustadas = [c.get(f'/api/workspaces/{wid}/files/AL1_preview.html', headers=iframe),
+                       c.get(f'/api/workspaces/{wid}/mapa-cargas/pagina', params={'project': 'P'}, headers=iframe)]
+        resto = [c.get('/api/health', headers=iframe),
+                 c.get(f'/api/workspaces/{wid}/files/AL1_preview.html', params={'download': 'true'}, headers=iframe)]
+    for r in incrustadas:
+        assert r.status_code == 200 and 'location' not in r.headers
+        assert r.headers['x-frame-options'] == 'SAMEORIGIN'
+        assert "frame-ancestors 'self'" in r.headers['content-security-policy']
+        assert r.headers['content-security-policy'].startswith('sandbox allow-scripts')
+    for r in resto:
+        assert r.headers['x-frame-options'] == 'DENY'
+        assert "frame-ancestors 'none'" in r.headers['content-security-policy']
+
+
+def _perfil_de_planificacion(monkeypatch, **planificacion) -> None:
+    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil',
+                        lambda *a, **k: {'planificacion': dict(planificacion)})
+
+
+def test_072_rf36_el_anio_de_presentacion_tiene_un_rango_y_la_web_lo_lee_de_la_api(client, monkeypatch):
+    """072:RF-1, 072:RF-36 — un solo año de presentación: el de «Tipo de análisis» y el del paso 5 son el mismo valor.
+    La revisión en pantalla (2026-11-14) vio dos campos con esa etiqueta y rangos distintos (1900–2200 y 2000–2100). Ahora
+    el rango lo da la API con los tipos, y la ruta de los tipos y la de «Planificar» lo validan igual, con 422."""
+    _perfil_de_planificacion(monkeypatch)
+    r = client.get('/api/planeamiento/tipos')
+    assert r.status_code == 200
+    tipos = r.json()
+    # Antes de indexar: sin el rango, la prueba cae por su aserción (la API no lo da), no por un KeyError.
+    assert 'anio_presentacion_rango' in tipos, f'la ruta de los tipos no da el rango del año: {sorted(tipos)}'
+    rango = tipos['anio_presentacion_rango']
+    minimo, maximo = rango['min'], rango['max']
+    assert isinstance(minimo, int) and isinstance(maximo, int) and minimo < maximo
+    esquema = client.get('/openapi.json').json()
+    pide = esquema['components']['schemas']['PideIn']['properties']['anio_presentacion']['anyOf'][0]
+    assert (pide['minimum'], pide['maximum']) == (minimo, maximo)
+    (parametro,) = [p for p in esquema['paths']['/api/planeamiento/tipos']['get']['parameters']
+                    if p['name'] == 'anio_presentacion']
+    assert (parametro['schema']['anyOf'][0]['minimum'], parametro['schema']['anyOf'][0]['maximum']) == (minimo, maximo)
+    for dentro in (minimo, maximo):
+        r = client.get('/api/planeamiento/tipos', params={'anio_presentacion': dentro})
+        assert r.status_code == 200 and r.json()['estudio']['anio_presentacion'] == dentro
+    for fuera in (minimo - 1, maximo + 1, 0, -2027):
+        assert client.get('/api/planeamiento/tipos', params={'anio_presentacion': fuera}).status_code == 422, fuera
+    for basura in ('dos mil', '2027.5'):
+        assert client.get('/api/planeamiento/tipos', params={'anio_presentacion': basura}).status_code == 422, basura
+    wid = _workspace(client)
+    cuerpo = {'project': 'P', 'feeders': ['F1'], 'implementar': False, 'plazo': 'pide'}
+    for fuera in (minimo - 1, maximo + 1):
+        r = client.post(f'/api/workspaces/{wid}/pide', json={**cuerpo, 'anio_presentacion': fuera})
+        assert r.status_code == 422, (fuera, r.text)
+    assert not [j for j in client.app.state.jobs.list(wid) if j.kind == 'pide']
+
+
+def test_072_rf36_el_anio_del_perfil_fuera_de_rango_se_rechaza_antes_de_encolar(client, monkeypatch):
+    """072:RF-36 — sin año en la petición, el del perfil tiene que caer en el mismo rango; si no, 422 con un mensaje que
+    dice qué año, cuál es el rango y dónde se corrige, y no se encola nada."""
+    _perfil_de_planificacion(monkeypatch)
+    tipos = client.get('/api/planeamiento/tipos').json()
+    assert 'anio_presentacion_rango' in tipos, f'la ruta de los tipos no da el rango del año: {sorted(tipos)}'
+    rango = tipos['anio_presentacion_rango']
+    _perfil_de_planificacion(monkeypatch, anio_presentacion=rango['min'] - 1)
+    wid = _workspace(client)
+    r = client.post(f'/api/workspaces/{wid}/pide',
+                    json={'project': 'P', 'feeders': ['F1'], 'implementar': False, 'plazo': 'pide'})
+    assert r.status_code == 422
+    detalle = r.json()['detail']
+    assert str(rango['min'] - 1) in detalle and str(rango['min']) in detalle and str(rango['max']) in detalle
+    assert 'perfil' in detalle
+    assert not [j for j in client.app.state.jobs.list(wid) if j.kind == 'pide']

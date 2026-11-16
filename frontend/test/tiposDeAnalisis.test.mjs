@@ -9,18 +9,22 @@ async function cargar() {
   const salida = await build({ stdin: { contents: `
     import { createElement } from 'react';
     import { renderToStaticMarkup } from 'react-dom/server';
-    import { TipoDeAnalisis, SeguirDondeQuedo, estadoConDisco, pasosDelTipo, DESTINO } from './src/features/powerfactory/TipoDeAnalisis';
-    import { GemeloPIDE, cuerpoPlanificar, porEntregable, avisosDeEpisodio, claseDeEpisodio, fechaDeEpisodio, TEXTO_EPISODIO } from './src/features/powerfactory/GemeloPIDE';
+    import { TipoDeAnalisis, SeguirDondeQuedo, estadoConDisco, pasosDelTipo, DESTINO, anioParaTipos, motivoAnio } from './src/features/powerfactory/TipoDeAnalisis';
+    import { GemeloPIDE, cuerpoPlanificar, porEntregable, avisosDeEpisodio, claseDeEpisodio, fechaDeEpisodio, TEXTO_EPISODIO, motivoPlanificar } from './src/features/powerfactory/GemeloPIDE';
     import { Ctx } from './src/shared/context';
     export { avisosDeEpisodio, claseDeEpisodio, fechaDeEpisodio, TEXTO_EPISODIO };
-    export { pasosDelTipo, cuerpoPlanificar, porEntregable, DESTINO, estadoConDisco };
+    export { pasosDelTipo, cuerpoPlanificar, porEntregable, DESTINO, estadoConDisco, anioParaTipos, motivoAnio, motivoPlanificar };
     export const seguir = (props) => renderToStaticMarkup(createElement(SeguirDondeQuedo, props));
     export const tipo = (props) => renderToStaticMarkup(createElement(TipoDeAnalisis, {
       onTipo: () => undefined, onAnio: () => undefined, error: '', planificacion: true, ...props }));
     export const gemelo = (plazo) => renderToStaticMarkup(createElement(Ctx.Provider, { value: {
       ws:{id:'W'}, jobs:{}, active:{}, health:{edicion:{producto:true,beta:[]}},
       run: async (f) => f(), startJob: async (f) => f() } },
-      createElement(GemeloPIDE, {project:'P',feeders:['F1'],plazo,anio:'2031',onAnio:()=>undefined,tipos:null})));`,
+      createElement(GemeloPIDE, {project:'P',feeders:['F1'],plazo,anio:'2031',onAnio:()=>undefined,tipos:null})));
+    export const gemeloCon = (props) => renderToStaticMarkup(createElement(Ctx.Provider, { value: {
+      ws:{id:'W'}, jobs:{}, active:{}, health:{edicion:{producto:true,beta:[]}},
+      run: async (f) => f(), startJob: async (f) => f() } },
+      createElement(GemeloPIDE, {project:'P',feeders:['F1'],plazo:'pide',anio:'2031',onAnio:()=>undefined,tipos:null,...props})));`,
     resolveDir: fileURLToPath(new URL('..', import.meta.url)), loader: 'tsx' },
     bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic' });
   const modulo = { exports: {} };
@@ -33,6 +37,7 @@ const obra = (c, t) => ({ codigo: c, titulo: t });
 const TIPOS = {
   norma: { acto: 'RM 428-2017-MEM/DM', titulo: 'Norma de prueba', estado_juridico: 'proyecto', vigente: false, nota: '' },
   estudio: { anio_presentacion: 2031, anio_base: 2030 }, periodo_corto: 4, ciclo_anios: 4, anio_presentacion_perfil: null,
+  anio_presentacion_rango: { min: 2000, max: 2100 },
   tipos: [
     { clave: 'corto_plazo', titulo: 'Corto plazo', descripcion: 'Hoy', articulos: [], anios: anios([0, 1, 2, 3, 4], 2030),
       formatos: [], entregables: [{ clave: 'informe_estudio', titulo: 'Informe de estudio eléctrico', formatos: [] }],
@@ -190,4 +195,85 @@ test('072:RF-18 — la pantalla del PIDE pide el tipo de cambio, con su rótulo 
   const html = gemelo('pide');
   assert.match(html, /Tipo de cambio/);
   assert.match(html, /inputMode="decimal"|inputmode="decimal"/);
+});
+
+
+// La revisión en pantalla del 2026-11-14 vio dos campos «Año de presentación» con rangos distintos (1900–2200 arriba,
+// 2000–2100 en el paso 5) para un mismo valor. Ahora es un solo campo, con el rango que da la API con los tipos.
+const RANGO = { min: 2010, max: 2090 };
+const conRango = { ...TIPOS, anio_presentacion_rango: RANGO, ciclo_anios: 5 };
+const atributos = (html, marca) => {
+  const m = html.match(new RegExp(`<input[^>]*${marca}[^>]*>`));
+  assert.ok(m, `no está el campo ${marca}`);
+  return m[0];
+};
+const MOTIVO = 'El año de presentación va de 2010 a 2090.';
+const conId = (html, id) => html.includes(`id="${id}"`) && new RegExp(`id="${id}"[^>]*>${MOTIVO.replace('.', '\\.')}<`).test(html);
+
+test('072:RF-1, 072:RF-36 el año de presentación usa el rango y el ciclo de la API, arriba y en el paso 5', async () => {
+  const { tipo, gemeloCon } = await cargar();
+  for (const html of [tipo({ tipo: 'pide', anio: '2031', tipos: conRango, estado: NADA }), gemeloCon({ tipos: conRango })]) {
+    const campo = atributos(html, 'name="anio_presentacion"');
+    assert.match(campo, /min="2010"/);
+    assert.match(campo, /max="2090"/);
+    assert.ok(!/1900|2200/.test(campo), 'sin el rango del año de los casos');
+    assert.match(html, /Año de presentación \(se presenta cada 5 años\)/);
+    assert.ok(!html.includes('cada 4 años'), 'el ciclo sale de la metodología, no del código');
+  }
+  // Sin los tipos todavía, ni rango inventado ni ciclo supuesto.
+  const sin = gemeloCon({ tipos: null });
+  const campo = atributos(sin, 'name="anio_presentacion"');
+  assert.ok(!/ min=| max=/.test(campo), campo);
+  assert.ok(!sin.includes('se presenta cada'));
+});
+
+test('072:RF-36 un año fuera del rango se dice junto al campo, una vez, y el campo lo señala', async () => {
+  const { tipo, motivoAnio } = await cargar();
+  // Antes de llamarla: sin la función, la prueba cae por su aserción, no por un TypeError.
+  assert.equal(typeof motivoAnio, 'function', 'TipoDeAnalisis no exporta motivoAnio');
+  for (const mal of ['2095', '2009', '20x1', '2031.5']) assert.equal(motivoAnio(mal, conRango), MOTIVO, mal);
+  for (const bien of ['', '  ', '203', '2010', '2090', ' 2031 ']) assert.equal(motivoAnio(bien, conRango), null, bien);
+  assert.equal(motivoAnio('2095', null), null, 'sin rango de la API no se juzga: la API dirá 422');
+  const html = tipo({ tipo: 'pide', anio: '2095', tipos: conRango, estado: NADA });
+  const campo = atributos(html, 'name="anio_presentacion"');
+  assert.match(campo, /aria-invalid="true"/);
+  const id = campo.match(/aria-describedby="([^"]+)"/)?.[1];
+  assert.ok(id, 'el campo apunta a su motivo');
+  assert.ok(conId(html, id), 'el motivo es visible y lleva ese id');
+  assert.equal(html.split('va de 2010 a 2090').length - 1, 1, 'el aviso no se repite');
+  const bien = atributos(tipo({ tipo: 'pide', anio: '2031', tipos: conRango, estado: NADA }), 'name="anio_presentacion"');
+  assert.ok(!bien.includes('aria-describedby') && !bien.includes('aria-invalid="true"'), bien);
+});
+
+test('072:RF-36 los tipos solo se piden con un año dentro del rango conocido', async () => {
+  const { anioParaTipos } = await cargar();
+  assert.equal(typeof anioParaTipos, 'function', 'TipoDeAnalisis no exporta anioParaTipos');
+  assert.equal(anioParaTipos('', RANGO), null);
+  assert.equal(anioParaTipos('203', RANGO), null, 'mientras se escribe cuenta como sin año');
+  assert.equal(anioParaTipos('2031', RANGO), 2031);
+  assert.equal(anioParaTipos(' 2090 ', RANGO), 2090);
+  assert.equal(anioParaTipos('2095', RANGO), undefined);
+  assert.equal(anioParaTipos('2031.5', RANGO), undefined);
+  assert.equal(anioParaTipos('2095', null), 2095, 'sin rango todavía, decide la API');
+});
+
+test('072:RF-18, 072:RF-36 «Planificar» desactivado dice por qué en un texto visible y enlazado', async () => {
+  const { gemeloCon, motivoPlanificar } = await cargar();
+  assert.equal(typeof motivoPlanificar, 'function', 'GemeloPIDE no exporta motivoPlanificar');
+  assert.equal(motivoPlanificar({ tipoCambio: '0', anio: '2031', tipos: conRango })?.causa, 'tipo_cambio');
+  assert.equal(motivoPlanificar({ tipoCambio: 'abc', anio: '2095', tipos: conRango })?.causa, 'tipo_cambio');
+  assert.equal(motivoPlanificar({ tipoCambio: '', anio: '2095', tipos: conRango })?.causa, 'anio');
+  assert.equal(motivoPlanificar({ tipoCambio: '3,495', anio: '2031', tipos: conRango }), null);
+  assert.equal(motivoPlanificar({ tipoCambio: '', anio: '', tipos: null }), null);
+  const html = gemeloCon({ tipos: conRango, anio: '2095' });
+  const boton = html.match(/<button[^>]*>Planificar como PIDE<\/button>/)?.[0];
+  assert.ok(boton, 'está el botón');
+  assert.match(boton, /disabled=""/);
+  const id = boton.match(/aria-describedby="([^"]+)"/)?.[1];
+  assert.ok(id, 'el botón apunta a su motivo');
+  assert.ok(conId(html, id), 'el motivo es visible, junto al campo, y lleva ese id');
+  assert.ok(!/title="El /.test(boton), 'el motivo no queda solo en el title');
+  assert.equal(html.split('va de 2010 a 2090').length - 1, 1, 'un solo aviso');
+  const libre = gemeloCon({ tipos: conRango, anio: '2031' }).match(/<button[^>]*>Planificar como PIDE<\/button>/)?.[0] ?? '';
+  assert.ok(libre && !libre.includes('disabled') && !libre.includes('aria-describedby'), libre);
 });

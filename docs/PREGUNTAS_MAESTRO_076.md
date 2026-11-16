@@ -44,7 +44,7 @@ Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.
 
 Pregunta: ¿Cuántos carriles de trabajos tiene la web?
 
-Respuesta: Cuatro en el código: motor, powerfactory, asistente y control.
+Respuesta: Cinco en el código: motor, powerfactory, asistente, control y correo.
 
 Fuentes: src/convertersmartgrid/web/jobs.py:40.
 Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.

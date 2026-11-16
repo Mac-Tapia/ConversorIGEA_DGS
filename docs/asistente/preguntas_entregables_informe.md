@@ -2,7 +2,7 @@
 
 Generado con `tools/preguntas_entregables.py informe` (spec 076), sobre la revisión `10fd3e1d`. No editar a mano.
 
-Filas: 441. Huella del contenido: `f8c5b4f34cc64a3f64adc6bda65e192928dbeedce650cf8c17da5041008a45a6`.
+Filas: 441. Huella del contenido: `326974e15aedc98d0ae37fec6deb9139c05e9f3fa0c1a1be84a7595fe6076f7d`.
 Huella de lo sellado: `5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411`.
 
 | Entregable o tema | Filas | Con respuesta | Sin respuesta | Corpus | Sellado | Revisadas |
@@ -207,7 +207,7 @@ Manda el código; se anotan y no se corrigen aquí.
 - La arquitectura dice que el RAG no tiene reranker, y el índice lo usa con su abstención. Documento: `docs/ARQUITECTURA.md:184`. Código: `src/convertersmartgrid/asistente/indice.py:72`.
 - La arquitectura dice que el pronóstico multihorizonte no tiene código, y la spec 046 está cumplida con su código. Documento: `docs/ARQUITECTURA.md:240`. Código: `src/convertersmartgrid/digital_twin/pronostico.py:328`.
 - La arquitectura dice que N-HiTS, TFT y PatchTST solo están especificados, y hay adaptadores en CUDA. Documento: `docs/ARQUITECTURA.md:212`. Código: `src/convertersmartgrid/digital_twin/adaptador_neuralforecast.py:1`.
-- La arquitectura habla de tres carriles y el código tiene cuatro, con «control». Documento: `docs/ARQUITECTURA.md:118`. Código: `src/convertersmartgrid/web/jobs.py:40`.
+- La arquitectura habla de tres carriles y el código tiene cuatro, con «control». Hoy son cinco: la 110 añade «correo». Documento: `docs/ARQUITECTURA.md:118`. Código: `src/convertersmartgrid/web/jobs.py:40`.
 - La arquitectura cuenta 210 módulos con capa y pyproject.toml declara 230. Documento: `docs/ARQUITECTURA.md:47`. Código: `pyproject.toml:109`.
 - La cifra de acierto del Transformer en uso no sale de ningún fichero del repositorio y el puntero del almacén de esta revisión no existe: hay que medirla de nuevo. Documento: `docs/ARQUITECTURA.md:202`. Código: `src/convertersmartgrid/asistente/modelos_en_uso.py:4`.
 - La spec pide el informe de estudio de uno o varios alimentadores y el código lo hace de uno. Documento: `specs/017-informes-de-estudio-y-factibilidad/spec.md:137`. Código: `src/convertersmartgrid/web/services.py:6926`.

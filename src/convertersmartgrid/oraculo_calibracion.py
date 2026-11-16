@@ -5,6 +5,7 @@ hallado y sigue siendo la referencia: esto no da ninguna calibración por buena.
 """
 from __future__ import annotations
 
+import math
 import time
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -35,10 +36,17 @@ class Arranque:
     factores: dict[str, float] = field(default_factory=dict)
     sin_cuadre: dict[str, dict[str, float]] = field(default_factory=dict)   # 083:RF-28
     flujo: Any = None                   # 083:RF-20: para las muestras del reparto probabilístico
+    representacion: str = 'equilibrado'                                      # 083:RF-32
+    ramas_por_fases: dict[int, int] = field(default_factory=dict)            # 083:RF-32
+    ramas_sin_fases: int = 0                                                 # 083:RF-32 (aclaración)
+    desviacion_frente_a_desequilibrado: str | None = None                    # 083:RF-32
 
     def informe(self) -> dict[str, Any]:
         return {'sin_cuadre': self.sin_cuadre, 'modelo': self.modelo, 'motor': self.motor, 'evaluaciones': self.evaluaciones, 'segundos': round(self.segundos, 2),
-                'cuadrado': self.cuadrado, 'v_min': self.v_min, 'motivo': self.motivo, 'factores': self.factores}
+                'cuadrado': self.cuadrado, 'v_min': self.v_min, 'motivo': self.motivo, 'factores': self.factores,
+                'representacion': self.representacion, 'ramas_por_fases': dict(self.ramas_por_fases),
+                'ramas_sin_fases': self.ramas_sin_fases,
+                'desviacion_frente_a_desequilibrado': self.desviacion_frente_a_desequilibrado}
 
 
 class FlujoOraculo:
@@ -114,6 +122,49 @@ class FlujoOraculo:
         return {'carga': carga, 'fuera_de_banda': fuera}
 
 
+def _fases_de_la_rama(valor: Any) -> int | None:
+    """Las fases de una rama del grafo (1, 2 o 3), o ``None`` si no hay dato o no se puede leer (083:RF-32).
+
+    El grafo las trae de ``nlnph`` y ``nt2ph`` como número (a veces 3.0) y el del PINN no las trae. Un valor que no es
+    1, 2 ni 3 (texto, 0, fracción, NaN) no se da por trifásico: queda como «sin dato», para contarlo aparte.
+    """
+    if valor is None or isinstance(valor, bool):
+        return None
+    try:
+        numero = float(valor)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(numero) or numero != int(numero) or int(numero) not in (1, 2, 3):
+        return None
+    return int(numero)
+
+
+def representacion_del_grafo(grafo: Mapping[str, Any]) -> tuple[str, dict[int, int], int, str | None]:
+    """La representación con que el oráculo calcula esta red, las ramas por número de fases, las que no tienen dato de
+    fases y la nota de desviación (083:RF-32 y su aclaración).
+
+    El oráculo resuelve en secuencia positiva (RF-17). Con todas las ramas trifásicas eso es la red; con alguna de una o
+    dos fases es una aproximación, y el grafo no lleva las fases por conductor para medir cuánto se aparta del flujo
+    desequilibrado: se dice. Las ramas sin dato de fases no se suponen trifásicas en silencio: se cuentan y la nota avisa
+    de que, si alguna no lo es, el equilibrado también es una aproximación.
+    """
+    conteo: dict[int, int] = {}
+    sin_dato = 0
+    for rama in grafo.get('ramas') or []:
+        fases = _fases_de_la_rama(rama.get('fases'))
+        if fases is None:
+            sin_dato += 1
+        else:
+            conteo[fases] = conteo.get(fases, 0) + 1
+    conteo = dict(sorted(conteo.items()))
+    aviso_sin_dato = (f'ramas sin dato de fases: {sin_dato}; si alguna no es trifásica, el equilibrado es una '
+                      'aproximación') if sin_dato else ''
+    if any(f < 3 for f in conteo):
+        nota = 'no medida: el grafo del oráculo no lleva las fases por conductor para resolver el flujo desequilibrado'
+        return 'equilibrado (aproximación)', conteo, sin_dato, (f'{nota}; {aviso_sin_dato}' if sin_dato else nota)
+    return 'equilibrado', conteo, sin_dato, (f'no medida: {aviso_sin_dato}' if sin_dato else None)
+
+
 def arranque_con_oraculo(grafo: Mapping[str, Any], nodo_de_sed: Mapping[str, Mapping[str, str]],
                          ramas_de: Mapping[str, Iterable[str]], repartos: Mapping[str, Reparto],
                          objetivos: Mapping[str, Objetivo], *, quietas: Iterable[str] = (), tolerancia: float = 0.01,
@@ -126,6 +177,8 @@ def arranque_con_oraculo(grafo: Mapping[str, Any], nodo_de_sed: Mapping[str, Map
     """
     inicio = time.perf_counter()
     salida = Arranque()
+    (salida.representacion, salida.ramas_por_fases, salida.ramas_sin_fases,
+     salida.desviacion_frente_a_desequilibrado) = representacion_del_grafo(grafo)
     flujo = FlujoOraculo(grafo, nodo_de_sed, ramas_de, pinn=pinn, motor=motor, trafos_de=trafos_de)
     salida.flujo = flujo
     res = cuadrar_conjunto(repartos, objetivos, flujo, quietas=quietas, tolerancia=tolerancia,

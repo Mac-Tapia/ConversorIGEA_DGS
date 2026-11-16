@@ -48,6 +48,39 @@ def _politica_interfaz(host: str) -> str:
             "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
 
+#: 086:RF-21: las páginas generadas que la propia web enseña en un iframe: el mapa de las cargas nuevas
+#: (``MapaCargas.tsx``) y la vista previa de un alimentador (``Modules.tsx``). Solo ellas se dejan enmarcar, y solo por
+#: la web («'self'» y ``SAMEORIGIN``); siguen aisladas por su ``sandbox``. Lo demás, ``DENY`` y ``frame-ancestors 'none'``.
+#: Antes la ruta ponía su política sin ``frame-ancestors`` y la puerta le añadía ``DENY``: el marco salía en blanco
+#: («Refused to display … X-Frame-Options to 'deny'», revisión en pantalla del 2026-11-14).
+_INCRUSTABLES = (re.compile(r'/api/workspaces/[^/]+/mapa-cargas/pagina'),
+                 re.compile(r'/api/workspaces/[^/]+/files/.+\.html', re.IGNORECASE))
+#: Lo que FastAPI lee como «falso» en ``download``: con cualquier otro valor la respuesta es una descarga.
+_NO_DESCARGA = frozenset({'', '0', 'false', 'f', 'no', 'n', 'off'})
+_MARCO_PROPIO = b"frame-ancestors 'self'"
+_SIN_MARCO = b"frame-ancestors 'none'"
+
+
+def se_incrusta(metodo: str, ruta: str, consulta: dict[str, str]) -> bool:
+    """Si la respuesta es una de las páginas que la web enseña en su propio iframe (086:RF-21)."""
+    return (metodo in ('GET', 'HEAD') and consulta.get('download', '').strip().lower() in _NO_DESCARGA
+            and any(p.fullmatch(ruta) for p in _INCRUSTABLES))
+
+
+def _directivas(politica: bytes) -> list[bytes]:
+    return [d.strip() for d in politica.split(b';') if d.strip()]
+
+
+def _aislada(politicas: list[bytes]) -> bool:
+    """Si alguna de las políticas de la respuesta trae la directiva ``sandbox`` (no basta la palabra en un origen)."""
+    return any(d.split()[0].lower() == b'sandbox' for p in politicas for d in _directivas(p))
+
+
+def _con_marco(politica: bytes, marco: bytes) -> bytes:
+    """La política con ``marco`` como su único ``frame-ancestors``: el que trajera la ruta no cuenta, ni para abrir."""
+    return b'; '.join([*(d for d in _directivas(politica) if d.split()[0].lower() != b'frame-ancestors'), marco])
+
+
 class _SinTokenEnElRegistro(logging.Filter):
     """El registro de accesos de uvicorn escribe la URL entera, con el ``acceso=`` del lanzador."""
 
@@ -59,10 +92,69 @@ class _SinTokenEnElRegistro(logging.Filter):
         return True
 
 
+#: 110 (RNF): ninguna dirección de correo ni token del proveedor en el registro de la web. Se deja la primera letra y
+#: el dominio (``j…@dominio``), que bastan para reconocer el envío sin publicar la dirección.
+_CORREO = re.compile(r'([A-Za-z0-9])[A-Za-z0-9._%+\-]*@([A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+)')
+_PORTADOR = re.compile(r'(Bearer\s+)[^\s,;"\']+', re.IGNORECASE)
+
+
+def enmascarar_correo(texto: str) -> str:
+    """El texto sin direcciones completas ni tokens de portador."""
+    return _PORTADOR.sub(r'\1***', _CORREO.sub(lambda m: f'{m.group(1)}…@{m.group(2)}', str(texto)))
+
+
+#: Un marcador de formato ``%`` de ``logging`` (``%s``, ``%(nombre)s``, ``%5.2f``, ``%%``...): no se enmascara.
+_MARCADOR = re.compile(r'%(?:\([^)]*\))?[#0 +\-]*(?:\*|\d+)?(?:\.(?:\*|\d+))?[hlL]?[diouxXeEfFgGcrsa%]')
+
+
+def _enmascarar_plantilla(plantilla: str) -> str:
+    """La plantilla del mensaje enmascarada solo en su texto, sin comerse ningún marcador ``%``."""
+    partes, inicio = [], 0
+    for m in _MARCADOR.finditer(plantilla):
+        partes += [enmascarar_correo(plantilla[inicio:m.start()]), m.group(0)]
+        inicio = m.end()
+    return ''.join(partes) + enmascarar_correo(plantilla[inicio:])
+
+
+class _SinCorreoEnElRegistro(logging.Filter):
+    """Enmascara direcciones y tokens en el mensaje ya formateado (110, requisitos no funcionales).
+
+    Se mira el mensaje que se escribiría, no sus piezas: en ``'Bearer %s'`` el token va en un argumento y solo el texto
+    completo dice que lo es. Si basta con enmascarar la plantilla y cada argumento, se deja así, y el formateador de
+    accesos de uvicorn, que lee los argumentos por posición, sigue funcionando; si no, el registro lleva el mensaje
+    enmascarado sin argumentos. Enmascarar la plantilla a ciegas convertía ``'Bearer %s'`` en ``'Bearer ***'``, que
+    sobra un argumento, y el registro fallaba al formatearlo («not all arguments converted»).
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            completo = record.getMessage()
+        except (TypeError, ValueError, KeyError):
+            return True  # un registro mal formado lo informa logging; este filtro no lo rompe más
+        enmascarado = enmascarar_correo(completo)
+        if enmascarado == completo:
+            return True
+        plantilla = _enmascarar_plantilla(record.msg) if isinstance(record.msg, str) else record.msg
+        argumentos = record.args
+        if isinstance(argumentos, tuple):
+            argumentos = tuple(enmascarar_correo(a) if isinstance(a, str) else a for a in argumentos)
+        try:
+            por_piezas = str(plantilla) % argumentos if argumentos else str(plantilla)
+        except (TypeError, ValueError, KeyError):
+            por_piezas = None
+        if por_piezas == enmascarado:
+            record.msg, record.args = plantilla, argumentos
+        else:
+            record.msg, record.args = enmascarado, None
+        return True
+
+
 def _instalar_filtro_registro() -> None:
     registro = logging.getLogger('uvicorn.access')
     if not any(isinstance(f, _SinTokenEnElRegistro) for f in registro.filters):
         registro.addFilter(_SinTokenEnElRegistro())
+    if not any(isinstance(f, _SinCorreoEnElRegistro) for f in registro.filters):
+        registro.addFilter(_SinCorreoEnElRegistro())
 
 
 def _nombre_de_host(host: str) -> str:
@@ -150,7 +242,8 @@ class SeguridadWeb:
         await send({'type': 'http.response.start', 'status': estado,
                     'headers': [(b'content-type', b'text/html; charset=utf-8' if pagina else b'application/json'),
                                 (b'content-length', str(len(cuerpo)).encode()),
-                                (b'x-content-type-options', b'nosniff')]})
+                                (b'x-content-type-options', b'nosniff'), (b'x-frame-options', b'DENY'),
+                                (b'content-security-policy', b"frame-ancestors 'none'")]})
         await send({'type': 'http.response.body', 'body': cuerpo})
 
     async def __call__(self, scope, receive, send) -> None:
@@ -196,17 +289,28 @@ class SeguridadWeb:
                 # Sin esto, la pestaña que se reconecta perdería la sesión en el siguiente arranque.
                 extra.append(self._cookie(puerto))
 
+        incrustable = not es_ws and se_incrusta(metodo, ruta, consulta)
         politica = _politica_interfaz(host).encode('latin-1')
 
         async def enviar(mensaje) -> None:
+            marco = b'DENY'
             if mensaje['type'] == 'http.response.start':
-                existentes = {k.lower() for k, _v in mensaje.get('headers', ())}
+                propias = list(mensaje.get('headers', ()))
+                if incrustable:
+                    # Falla cerrado (condición del auditor ca): el aislamiento lo pone la ruta con «sandbox» en su
+                    # política (app.py, mapa_cargas_api.py). Sin él, la respuesta no se deja enmarcar por nadie.
+                    csp = [v for k, v in propias if k.lower() == b'content-security-policy']
+                    aislada = _aislada(csp)
+                    marco = b'SAMEORIGIN' if aislada else b'DENY'
+                    propias = [(k, _con_marco(v, _MARCO_PROPIO if aislada else _SIN_MARCO))
+                               if k.lower() == b'content-security-policy' else (k, v) for k, v in propias]
+                existentes = {k.lower() for k, _v in propias}
                 nuevas = list(extra)
                 for nombre, valor in ((b'content-security-policy', politica), (b'x-content-type-options', b'nosniff'),
-                                      (b'referrer-policy', b'no-referrer'), (b'x-frame-options', b'DENY')):
+                                      (b'referrer-policy', b'no-referrer'), (b'x-frame-options', marco)):
                     if nombre not in existentes:
                         nuevas.append((nombre, valor))
-                mensaje = {**mensaje, 'headers': [*mensaje.get('headers', ()), *nuevas]}
+                mensaje = {**mensaje, 'headers': [*propias, *nuevas]}
             elif mensaje['type'] == 'websocket.accept' and extra:
                 mensaje = {**mensaje, 'headers': [*(mensaje.get('headers') or ()), *extra]}
             await send(mensaje)

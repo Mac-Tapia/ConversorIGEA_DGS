@@ -8,43 +8,43 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 366 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 373 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 110 |
-| Interfaz | `frontend/src/` | 71 |
+| Interfaz | `frontend/src/` | 72 |
 | Pruebas de la interfaz | `frontend/test/` | 27 |
-| Pruebas | `tests/` | 487 |
+| Pruebas | `tests/` | 496 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 13926 líneas y 432 funciones, pendiente de partir (002).
+`web/services.py` tiene 13932 líneas y 432 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 82 |
-| aprobada | 26 |
+| cumplida | 79 |
+| aprobada | 29 |
 | implementada | 3 |
 | retirada | 1 |
 
-112 specs con 3739 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3750 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 142 |
-| aplicacion | Apl | 114 |
+| adaptadores | Ada | 146 |
+| aplicacion | Apl | 115 |
 | dominio | Dom | 55 |
-| presentacion | Pre | 41 |
-| puertos | Pue | 3 |
+| presentacion | Pre | 42 |
+| puertos | Pue | 4 |
 
-355 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+362 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
-`engine`, `powerfactory`, `asistente`, `control`.
+`engine`, `powerfactory`, `asistente`, `control`, `correo`.
 
 ### Rutas de la API
 
@@ -381,6 +381,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `estudios_red_pf.py` | Apl | 012 | Resultados de confiabilidad y capacidad sin DIgSILENT: índices por alimentador y su comprobación por cargas, ENS total y diferencias, aportes, mejora… |
 | `datos_empresa.py` | Apl | 012, 049 | Libro de la empresa de la confiabilidad, la capacidad y las protecciones: hojas, columnas y unidades validadas con hoja, fila y columna. |
 | `entradas_estudios.py` | Ada | 012 | Entradas que faltan a los estudios cargadas por el operador: texto de TXT, PDF o imagen (OCR), tablas con cualquier separador, columnas por su… |
+| `historico_interrupciones.py` | Apl | 012 | El libro de la empresa como histórico de interrupciones: columnas reconocidas por contenido y sinónimos, filtros de programadas, media tensión y… |
 | `protecciones.py` | Apl | 049 | Estudio de protecciones sin DIgSILENT: contrato de cada ajuste (modelo, unidades, TC/TT, poder de corte y procedencia), fila DEFAULT de la fuente que… |
 | `transferencia_pf.py` | Apl | 011, 110, 117, 121, 123, 125, 129 | Transferencia de carga sin DIgSILENT: pasos del camino y carga transferida, viabilidad y elemento que limita, máximo por seccionador y por nodo,… |
 
@@ -396,6 +397,11 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `mapa_cargas.py` | Ada | 017, 109, 111, 112, 124 | El mapa de las cargas nuevas (punto, nodo de conexión, enlace y red del alimentador), sus diferencias con lo leído en DIgSILENT, el punto de diseño… |
 | `documentos_solicitud.py` | Ada | 017, 136, 141 | PDF del solicitante (carta, oficio, ficha del punto de diseño): capa de texto por página y, en las escaneadas, OCR con Tesseract y la imagen… |
 | `archivo_informes.py` | Ada | 105 | Carpeta de archivo de la máquina (`config/archivo.json`) y `archivar(fichero, tipo, ambito, periodo)`: copia por temporal con reintentos, sin borrar… |
+| `correo/__init__.py` | Pue | 110 | Contratos del envío: `ResultadoEnvio`, `ProveedorCorreo` y, hasta que la 109 publique los suyos, `FuenteDeCredenciales` y `Compartidor`. |
+| `correo/borrador.py` | Ada | 110 | Borrador del correo (cuenta, para, cc, cco, asunto, cuerpo, adjuntos o enlace) y su firma SHA-256, que vuelve a leer los adjuntos del disco al… |
+| `correo/envios.py` | Ada | 110 | Diario durable de los envíos de un espacio (`<espacio>/envios/<clave>.json`): reserva exclusiva de la clave antes de llamar al proveedor (también la… |
+| `correo/mensaje.py` | Ada | 110 | El mensaje MIME del envío (`email.message`), con el `Message-ID` de la clave y los adjuntos releídos y comparados con su huella. |
+| `correo/proveedores.py` | Ada | 110 | `EnvioGmail` (`gmail.send`) y `EnvioOutlook` (`Mail.Send`) con `requests`, sin redirecciones ni proxy del entorno, con plazo, salida declarada,… |
 
 ### Motor: PIDE y planeamiento
 
@@ -587,6 +593,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `soporte.py` | Pre | 086 | Paquete de soporte con una lista cerrada, sin datos del cliente: registros anonimizados y forma del perfil. |
 | `copia_datos.py` | Pre | 086 | Copia y restauración de los datos con manifiesto, según la regla de la retención, cada fichero físico una vez, con reintentos y cálculo de lo que… |
 | `copia_datos_api.py` | Pre | 086 | Rutas `/api/copia-datos/carpeta` y `…/copia-datos`: la copia de los datos como trabajo, con la carpeta recordada. |
+| `correo_api.py` | Pre | 110 | Rutas del correo (`registrar_rutas_correo`): vista previa con el borrador y su firma, confirmar solo desde la ventana del navegador (reserva la clave… |
 | `mapa_cargas_api.py` | Pre | 017, 109, 124 | Rutas `…/mapa-cargas`, `…/pagina`, `…/digsilent` y `…/confirmar`: el mapa de las cargas nuevas, la lectura sin escribir en DIgSILENT y «Usar este… |
 | `entradas_estudios_api.py` | Pre | 012 | Rutas `…/pf/entradas-estudios`: leer ficheros como trabajo (borrador), guardar lo confirmado, descartar y listar, por proyecto en la carpeta del… |
 | `retencion.py` | Pre | 062, 065 | Revisión diaria de ejecuciones y temporales sin referencias, de más de siete días, con protección de datos y resumen persistido. |
@@ -800,6 +807,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/solicitudLeida.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/api/evolucionFijas.ts` | — | 105 | Cliente tipado de la evolución de los clientes fijos y de la carpeta de archivo. |
 | `src/api/mapaCargas.ts` | — | 017, 109, 124 | Cliente tipado del mapa de las cargas nuevas y de su punto de diseño. |
+| `src/api/correo.ts` | — | 110 | Cliente tipado del envío de informes por correo: vista previa, confirmar con la firma, recibo, historial y «Llegó»/«No llegó». |
 | `src/features/powerfactory/MapaCargas.tsx` | — | 017, 109, 124 | El mapa de las cargas nuevas en la web, con «Actualizar desde DIgSILENT», la tabla de diferencias y «Usar este punto». |
 | `src/features/powerfactory/puntosDeDiseno.ts` | — | 017, 109, 124 | Lógica del mapa de las cargas nuevas: la última lectura del proyecto, qué filas se pueden usar y cómo se dice cada diferencia. |
 | `test/puntosDeDiseno.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

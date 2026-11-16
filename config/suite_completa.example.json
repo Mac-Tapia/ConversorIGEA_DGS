@@ -14,6 +14,8 @@
     "CSG_MCP_PYTHON": "D:/venv_mcp/Scripts/python.exe",
     "CSG_PF_PYTHON_39": "D:/python_pf/3.9/python.exe",
     "CSG_ASISTENTE_REAL": "D:/datos/web/_asistente",
-    "CSG_CATALOGO_PROYECTO": "D:/datos/input/catalogo_parametros.xlsx"
+    "CSG_CATALOGO_PROYECTO": "D:/datos/input/catalogo_parametros.xlsx",
+    "CSG_SICODI": "D:/datos/distribuidora/sicodi.xlsx",
+    "CSG_INTERRUPCIONES": "D:/datos/distribuidora/historico_interrupciones.xlsx"
   }
 }

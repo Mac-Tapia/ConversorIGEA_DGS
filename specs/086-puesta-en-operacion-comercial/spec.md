@@ -120,6 +120,8 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - RF-19: EL SISTEMA exigirá un token de la sesión, entregado por el lanzador, en toda la API.
 - RF-20: SI se pide escuchar fuera de `127.0.0.1` sin usuarios ni TLS, ENTONCES EL SISTEMA se negará y dirá por qué.
 - RF-21: EL SISTEMA servirá sus páginas con su propio Leaflet y con una política de contenido.
+  Ampliada (revisión en pantalla, 2026-11-14): las páginas generadas que la propia web enseña en un marco (el mapa de las
+  cargas nuevas y la vista previa) se dejarán enmarcar solo por la web; todo lo demás, por nadie.
 - RF-22: EL SISTEMA no saldrá a la red por defecto en la edición de producto, y cada salida se activará de forma explícita.
 - Aclaración de RF-22 (2026-11-15, SSRF-ARCGIS; hallazgo BP-29 del Plan Maestro, seguridad P0): una salida encendida no sigue una
   redirección a otra máquina. El conector ArcGIS y el descubrimiento y la descarga del VNR-GIS oficial piden con

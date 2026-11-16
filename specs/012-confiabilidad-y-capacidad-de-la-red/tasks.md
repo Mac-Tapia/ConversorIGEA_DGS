@@ -38,6 +38,12 @@ Libro de la empresa y catálogo
       Hecho cuando: `pytest -q tests/test_datos_empresa.py` en verde.
       Hecho el 2026-10-29: `datos_empresa.py` (fila 1 columnas, fila 2 unidades; moneda la del
       libro, plantilla sin cifras); `tests/test_datos_empresa.py`, 23 en verde.
+      Ampliación del 2026-11-14 (aclaraciones de RF-6, RF-8, RF-9, RF-12, RF-19, RF-20, RF-62 y RF-63): el libro
+      puede ser el histórico de interrupciones; `historico_interrupciones.py` reconoce sus columnas,
+      deriva λ y r con la exposición de la red del espacio, da la cota al 95 % de las clases sin fallas, dice en
+      una frase lo que falta en un espacio sin red convertida y deja la procedencia en `Libro.historico`.
+      Hecho cuando: `pytest -q tests/test_historico_interrupciones.py tests/test_datos_empresa.py` en
+      verde, y con `CSG_INTERRUPCIONES` y la red TXT el histórico real da tasas mayores que cero.
 - [x] T4. Catálogo: estudios `reconectadores`, `alojamiento` y `curvas_pv` en
       `studies.py`; `fiabilidad` y `condensadores` pasan a depender del libro cargado; los
       cinco, ofrecidos en `estudios_pf.estudios_ofrecidos` solo con libro (los que lo
@@ -130,3 +136,41 @@ Cierre
       curva PV de un alimentador. (Todos)
       Hecho cuando: el usuario confirma los resultados y que el «Caso base» no cambió.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+
+Exposición leída de DIgSILENT (2026-11-14, «convertido o no»)
+
+- [ ] T14. `historico_interrupciones._cifras` y `con_exposicion` (las tasas que da una exposición que
+      llega después, con lo contado por alimentador y clase en `historico['base']`),
+      `datos_empresa.con_exposicion` y `tools/confiabilidad_pf.py`: `exposicion_del_proyecto` lee km de
+      `ElmLne` aérea y de cable, `ElmTr2` y `ElmTerm` de cada `ElmFeeder` y `aplicar_datos` deriva las
+      tasas antes de escribir los modelos. (RF-87)
+      Hecho cuando: `pytest -q tests/test_historico_interrupciones.py tests/test_confiabilidad_pf_guion.py`
+      en verde con `-k exposicion`, y la exposición leída da las mismas tasas que la red convertida.
+- [ ] T15. Web: `datos_empresa_aplicar` guarda el libro derivado y la exposición con su origen;
+      `resumen` la muestra; la frase de lo que falta antes de aplicar dice que se lee de DIgSILENT
+      al aplicar el libro. (RF-88)
+      Hecho cuando: `pytest -q tests/test_estudios_red_web.py` en verde.
+- [ ] T16. Sin ninguna interrupción de un alimentador del proyecto o sin causa: ni tasas a cero ni
+      escritura en el proyecto, y la frase `SIN_TASAS`. (RF-89)
+      Hecho cuando: `pytest -q tests/test_historico_interrupciones.py tests/test_confiabilidad_pf_guion.py`
+      en verde con `-k "sin_alimentadores or sin_causa"`.
+- [ ] T18. Columna del alimentador por su contenido: `historico_interrupciones.elegir_por_contenido`
+      (columna llena y de cardinalidad baja, `MAYORIA_ALIMENTADOR`, con la mayoría de los alimentadores,
+      `COBERTURA_ALIMENTADOR`, desempate por forma, respaldo por la forma de los valores distintos,
+      `FORMA_MINIMA`, `clave_alimentador` = `feeder_short_name` y un conjunto), `_candidatas` en `historico['base']` cuando no hay red, la elección en
+      `con_exposicion` y `reconocer_columnas`, los avisos `AVISO_COLUMNA` y el error `frase_sin_columna`
+      (y el de empate) en `que_falta` y en el guion con rc=2. (RF-90, RF-91, RF-92)
+      Hecho cuando: `pytest -q tests/test_historico_interrupciones.py tests/test_confiabilidad_pf_guion.py
+      -k "columna_del_alimentador or columna_casi or sin_titulo_elige or libro_de_toda_la_empresa"` en verde,
+      con el empate, el desempate por forma, la columna casi vacía, el umbral de cobertura y el libro de
+      40 alimentadores con un proyecto de 3 (aclaraciones de RF-90 y RF-91), y el respaldo por forma: un
+      proyecto de 10 con 3 con interrupciones, dos columnas con forma y el 70 % frente al 80 % (aclaraciones
+      de RF-91 y RF-92; `-k` con `elige_por_forma or forma_de_alimentador_es_un_error or 70_por_ciento`), y los cuatro ficheros de la confiabilidad y `tests/test_trazabilidad_specs.py`
+      en verde.
+- [ ] T17. [DIgSILENT] Prueba nativa en la sesión 2 de DIgSILENT, a cargo del usuario: un proyecto sin
+      conversión, el histórico real (`CSG_INTERRUPCIONES`) subido a un espacio sin red, «Aplicar el
+      libro» desde la web: la exposición leída por alimentador coincide con la longitud y los elementos
+      que muestra DIgSILENT, las tasas de línea y transformador son mayores que cero, los modelos
+      `CSG012_*` llevan esas tasas, la confiabilidad corre y el «Caso base» no cambia; el aviso dice qué columna
+      es la del alimentador y por qué. (RF-87 a RF-92)
+      Hecho cuando: el usuario confirma los resultados con el informe del guion.

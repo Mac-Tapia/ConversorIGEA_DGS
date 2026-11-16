@@ -67,12 +67,17 @@ def _parte(texto: str) -> str:
     return limpio
 
 
-def _huella(path: Path) -> str:
+def huella_fichero(path: Path) -> str:
+    """SHA-256 de un fichero, leído por bloques. Pública porque la usa también el correo de la 110 (P5: una vía)."""
     h = hashlib.sha256()
     with path.open('rb') as f:
         for trozo in iter(lambda: f.read(1 << 20), b''):
             h.update(trozo)
     return h.hexdigest()
+
+
+#: El nombre de antes, para quien lo use todavía.
+_huella = huella_fichero
 
 
 def _con_reintentos(accion, reintentos: int, espera: float):

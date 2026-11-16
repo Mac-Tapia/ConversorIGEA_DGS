@@ -38,8 +38,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 008 Pestaña «Cargas en DIgSILENT» en tres pasos | cumplida |  |
   | 009 Inventario del repositorio: cada fichero con su módulo y su spec | cumplida |  |
   | 010 Trazado GPS de las líneas | aprobada | falta T6 |
-  | 011 Estudios y obras de mejora sobre la red calibrada | cumplida |  |
-  | 012 Confiabilidad y capacidad de la red calibrada | cumplida |  |
+  | 011 Estudios y obras de mejora sobre la red calibrada | aprobada | falta T21 |
+  | 012 Confiabilidad y capacidad de la red calibrada | aprobada | falta T14, T15, T16, T17, T18 |
   | 013 Mes de análisis y transferencia entre dos alimentadores | cumplida |  |
   | 014 Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto» | cumplida |  |
   | 015 «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida |  |
@@ -99,7 +99,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
   | 070 El asistente opera el conversor de punta a punta | implementada | falta T11 |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
-  | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T11, T13, T14 |
+  | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T11, T13, T14, T18 |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | cumplida |  |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida |  |
@@ -110,7 +110,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida |  |
   | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | cumplida |  |
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
-  | 083 El oráculo antes de calibrar y recalibrar | cumplida |  |
+  | 083 El oráculo antes de calibrar y recalibrar | aprobada | falta T17 |
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | cumplida |  |
   | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida |  |
   | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | ver sus tareas |
@@ -137,7 +137,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | aprobada | falta T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26 |
   | 108 Estudio de costos del VAD con la empresa modelo eficiente | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
   | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
-  | 110 Envío de informes por correo (Gmail y Outlook) desde la web | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
+  | 110 Envío de informes por correo (Gmail y Outlook) desde la web | aprobada | falta T2 a T13 |
   | 111 Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
   | 112 Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
 
@@ -178,7 +178,8 @@ de Access de abajo, `CSG_DEMANDA_DIR="D:/BaseDatosElectroDunas/referencia_retira
 `CSG_VNR_BAK="D:/BaseDatosElectroDunas/referencia_retirada_20261102/Electro Dunas VNRGIS/DAT_VNR/ELDU_VNR_24_APR.bak"`, con SQL Server
 Express en marcha, spec 023, y las dos de los PDF del solicitante, spec 017:
 `CSG_SOLICITUD_PDF="D:/BaseDatosElectroDunas/referencia_retirada_20261102/Carta_Sol_Fact_AMPC_480A1000.pdf"` e
-`CSG_SOLICITUD_DIR="D:/BaseDatosElectroDunas/referencia_retirada_20261102/ampliaciondecarga"`) y `-rs` pasan todas. El OCR de esas
+`CSG_SOLICITUD_DIR="D:/BaseDatosElectroDunas/referencia_retirada_20261102/ampliaciondecarga"`, y el histórico de interrupciones
+de la confiabilidad, spec 012: `CSG_INTERRUPCIONES="D:/BaseDatosElectroDunas/referencia_retirada_20261102/BASE INTERRUPCIONES 2020 - 2026.xlsx"`) y `-rs` pasan todas. El OCR de esas
 pruebas usa Tesseract; el idioma `spa` puede ir en `~/.convertersmartgrid/tessdata` (o `CSG_TESSDATA`)
 si no se puede escribir en la carpeta de Tesseract.
 

@@ -966,6 +966,12 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
                 setattr(ldf, k, v)
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
+    rc_orden = informe.get('codigo_orden')
+    if rc_orden not in (None, 0):
+        # 011:RF-137: una orden que termina con un código distinto de 0 no es un resultado. Antes ``codigo_orden`` se
+        # guardaba y nadie lo leía, y las medidas del flujo base pasaban por las del estudio.
+        return {**informe, 'error': f'DIgSILENT terminó {ORDENES[estudio]} con el código {rc_orden}: el estudio no '
+                                    'tiene resultado, y las medidas son las del flujo base, no las del estudio'}, 2
     return informe, 0
 
 

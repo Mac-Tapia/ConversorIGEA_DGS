@@ -51,6 +51,8 @@ from casos_pf import NOMBRES, casos_del_proyecto
 
 from convertersmartgrid import datos_empresa as de
 from convertersmartgrid import estudios_red_pf as er
+from convertersmartgrid import historico_interrupciones as hi
+from convertersmartgrid.naming import feeder_short_name
 from convertersmartgrid.native_action import native_action_block_report
 
 #: Variación propia de la spec 012 (RF-21).
@@ -245,6 +247,44 @@ def _escribir_alimentador(elm, libro, modelos, clases_entrada) -> dict:
     return fila
 
 
+def exposicion_del_proyecto(elms) -> dict[str, dict[str, float]]:
+    """012:RF-87: la exposición de cada alimentador del proyecto de DIgSILENT, la misma que da la
+    red convertida (``historico_interrupciones.exposicion_de_red``): km de línea aérea y de cable
+    (``ElmLne.dline``, en km, y ``TypLne.cohl_``), transformadores (``ElmTr2``) y barras
+    (``ElmTerm``). Son los mismos elementos que reciben su modelo de falla
+    (``elementos_por_clase``), así que λ × exposición da las interrupciones del registro. Vale
+    para cualquier proyecto, convertido o no; el alimentador se nombra como en la web."""
+    out: dict[str, dict[str, float]] = {}
+    for nombre, elm in sorted(elms.items()):
+        por_clase = elementos_por_clase(elm)
+        exp = {clase: sum(float(getattr(ln, 'dline', 0.0) or 0.0) for ln in por_clase[clase])
+               for clase in ('linea', 'cable')}
+        exp['transformador'] = float(len(por_clase['transformador']))
+        exp['barra'] = float(len(por_clase['barra']))
+        corto = feeder_short_name(nombre).strip().upper()
+        previo = out.get(corto) or {}
+        out[corto] = {k: v + previo.get(k, 0.0) for k, v in exp.items()}
+    return out
+
+
+def _libro_con_exposicion(libro: de.Libro, elms, proyecto: str, informe: dict) -> tuple[de.Libro, str]:
+    """El histórico leído sin red, con la exposición del proyecto (RF-87); el informe la lleva con
+    su origen y el libro derivado, que la web guarda (RF-88). Sin ninguna tasa, el error (RF-89);
+    sin columna del alimentador, el que nombra los títulos (RF-90), y el aviso de cuál se eligió."""
+    try:
+        derivado = de.con_exposicion(libro, exposicion_del_proyecto(elms),
+                                     origen=f'el proyecto de DIgSILENT «{proyecto}»')
+    except ValueError as exc:
+        return libro, str(exc)
+    informe['exposicion'] = derivado.historico['exposicion']
+    if not derivado.tasas:
+        return libro, f'faltan {hi.SIN_TASAS}'
+    informe['libro_derivado'] = derivado.a_dict()
+    informe['avisos'].append(hi.frase_exposicion(informe['exposicion']))
+    informe['avisos'].extend(a for a in derivado.avisos if a.startswith(hi.AVISO_COLUMNA))
+    return derivado, ''
+
+
 def aplicar_datos(app, plan: dict) -> tuple[dict, int]:
     """El libro en el proyecto (RF-20 a RF-27, RF-69); bloquea sin escribir nada si falta una
     clase de la red (RF-17) o el proyecto no distingue la clase de sus equipos (RF-26)."""
@@ -269,6 +309,12 @@ def aplicar_datos(app, plan: dict) -> tuple[dict, int]:
         faltan = [f for f in feeders if f not in elms]
         if faltan:
             return {**informe, 'error': 'no están en el proyecto: ' + ', '.join(faltan)}, 2
+        if libro.historico.get('reconocido') and not libro.tasas:          # RF-87: convertido o no
+            libro, error = _libro_con_exposicion(libro, elms, plan['project'], informe)
+            if error:
+                if anterior is not None:
+                    anterior.Activate()
+                return {**informe, 'error': error}, 2
         faltan_clases, sin_clase = _bloqueos(libro, elms, feeders, clases_entrada)
         if faltan_clases or sin_clase:
             if anterior is not None:

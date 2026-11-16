@@ -1860,6 +1860,619 @@
         "title": "CopiaDatosPeticion",
         "type": "object"
       },
+      "CorreoAdjuntoRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "tamano": {
+            "title": "Tamano",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nombre",
+          "tamano",
+          "sha256"
+        ],
+        "title": "CorreoAdjuntoRespuesta",
+        "type": "object"
+      },
+      "CorreoAvisoRespuesta": {
+        "additionalProperties": false,
+        "description": "110:RF-14: una dirección que no es habitual en el espacio, con la parecida si la hay.",
+        "properties": {
+          "aviso": {
+            "title": "Aviso",
+            "type": "string"
+          },
+          "sugerencia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sugerencia"
+          }
+        },
+        "required": [
+          "aviso",
+          "sugerencia"
+        ],
+        "title": "CorreoAvisoRespuesta",
+        "type": "object"
+      },
+      "CorreoConfirmacion": {
+        "additionalProperties": false,
+        "description": "110:RF-5, RF-7: la clave reservada y el trabajo encolado, o el recibo que ya había (doble clic).",
+        "properties": {
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "recibo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CorreoEnvio"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trabajo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "clave",
+          "trabajo",
+          "recibo"
+        ],
+        "title": "CorreoConfirmacion",
+        "type": "object"
+      },
+      "CorreoConfirmacionPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "firma": {
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Firma",
+            "type": "string"
+          }
+        },
+        "required": [
+          "firma"
+        ],
+        "title": "CorreoConfirmacionPeticion",
+        "type": "object"
+      },
+      "CorreoEnvio": {
+        "additionalProperties": false,
+        "description": "110:RF-8: el recibo de un envío, como lo guarda ``correo.envios``.",
+        "properties": {
+          "adjuntos": {
+            "items": {
+              "$ref": "#/components/schemas/CorreoAdjuntoRespuesta"
+            },
+            "title": "Adjuntos",
+            "type": "array"
+          },
+          "borrador": {
+            "title": "Borrador",
+            "type": "string"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "codigo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo"
+          },
+          "cuenta": {
+            "title": "Cuenta",
+            "type": "string"
+          },
+          "destinatarios": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Destinatarios",
+            "type": "object"
+          },
+          "enlace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enlace"
+          },
+          "espacio": {
+            "title": "Espacio",
+            "type": "string"
+          },
+          "estado": {
+            "enum": [
+              "reservado",
+              "enviando",
+              "aceptado",
+              "rechazado",
+              "desconocido",
+              "cancelado"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "hora": {
+            "title": "Hora",
+            "type": "string"
+          },
+          "hora_resultado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hora Resultado"
+          },
+          "huella_informe": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Huella Informe"
+          },
+          "id_proveedor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Proveedor"
+          },
+          "informe": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Informe"
+          },
+          "intento": {
+            "title": "Intento",
+            "type": "integer"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          },
+          "orden": {
+            "default": 0,
+            "title": "Orden",
+            "type": "integer"
+          },
+          "pasos": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Pasos",
+            "type": "array"
+          },
+          "proveedor": {
+            "title": "Proveedor",
+            "type": "string"
+          },
+          "resolucion": {
+            "anyOf": [
+              {
+                "enum": [
+                  "llego",
+                  "no_llego"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolucion"
+          }
+        },
+        "required": [
+          "clave",
+          "espacio",
+          "borrador",
+          "intento",
+          "estado",
+          "hora",
+          "hora_resultado",
+          "proveedor",
+          "cuenta",
+          "destinatarios",
+          "informe",
+          "huella_informe",
+          "adjuntos",
+          "enlace",
+          "message_id",
+          "id_proveedor",
+          "codigo",
+          "motivo",
+          "resolucion",
+          "pasos"
+        ],
+        "title": "CorreoEnvio",
+        "type": "object"
+      },
+      "CorreoHistorial": {
+        "additionalProperties": false,
+        "description": "110:RF-13: los envíos de un informe, del más antiguo al más reciente.",
+        "properties": {
+          "envios": {
+            "items": {
+              "$ref": "#/components/schemas/CorreoEnvio"
+            },
+            "title": "Envios",
+            "type": "array"
+          },
+          "informe": {
+            "title": "Informe",
+            "type": "string"
+          }
+        },
+        "required": [
+          "informe",
+          "envios"
+        ],
+        "title": "CorreoHistorial",
+        "type": "object"
+      },
+      "CorreoResolucionPeticion": {
+        "additionalProperties": false,
+        "description": "110:RF-9: el operador dice si un envío desconocido llegó (lo vio en Enviados) o no.",
+        "properties": {
+          "llego": {
+            "title": "Llego",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "llego"
+        ],
+        "title": "CorreoResolucionPeticion",
+        "type": "object"
+      },
+      "CorreoValidezRespuesta": {
+        "additionalProperties": false,
+        "description": "110:RF-12: si el informe vale como estudio, y si no, por qué.",
+        "properties": {
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          },
+          "valido": {
+            "title": "Valido",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valido",
+          "motivo"
+        ],
+        "title": "CorreoValidezRespuesta",
+        "type": "object"
+      },
+      "CorreoVistaPrevia": {
+        "additionalProperties": false,
+        "properties": {
+          "adjuntos": {
+            "items": {
+              "$ref": "#/components/schemas/CorreoAdjuntoRespuesta"
+            },
+            "title": "Adjuntos",
+            "type": "array"
+          },
+          "asunto": {
+            "title": "Asunto",
+            "type": "string"
+          },
+          "avisos": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CorreoAvisoRespuesta"
+            },
+            "title": "Avisos",
+            "type": "object"
+          },
+          "borrador": {
+            "title": "Borrador",
+            "type": "string"
+          },
+          "cc": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cc",
+            "type": "array"
+          },
+          "cco": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cco",
+            "type": "array"
+          },
+          "confirmado": {
+            "title": "Confirmado",
+            "type": "boolean"
+          },
+          "cuenta": {
+            "title": "Cuenta",
+            "type": "string"
+          },
+          "cuerpo": {
+            "title": "Cuerpo",
+            "type": "string"
+          },
+          "enlace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enlace"
+          },
+          "excede_limite": {
+            "title": "Excede Limite",
+            "type": "boolean"
+          },
+          "firma": {
+            "title": "Firma",
+            "type": "string"
+          },
+          "limite_bytes": {
+            "title": "Limite Bytes",
+            "type": "integer"
+          },
+          "para": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Para",
+            "type": "array"
+          },
+          "proveedor": {
+            "title": "Proveedor",
+            "type": "string"
+          },
+          "validez": {
+            "$ref": "#/components/schemas/CorreoValidezRespuesta"
+          },
+          "ventana": {
+            "title": "Ventana",
+            "type": "string"
+          }
+        },
+        "required": [
+          "borrador",
+          "firma",
+          "cuenta",
+          "proveedor",
+          "para",
+          "cc",
+          "cco",
+          "asunto",
+          "cuerpo",
+          "enlace",
+          "adjuntos",
+          "validez",
+          "avisos",
+          "limite_bytes",
+          "excede_limite",
+          "confirmado",
+          "ventana"
+        ],
+        "title": "CorreoVistaPrevia",
+        "type": "object"
+      },
+      "CorreoVistaPreviaPeticion": {
+        "additionalProperties": false,
+        "description": "110:RF-1: lo que la ventana (o el asistente, que solo deja el borrador, RF-6) pide preparar.",
+        "properties": {
+          "adjuntar": {
+            "items": {
+              "enum": [
+                "docx",
+                "pdf",
+                "xlsx"
+              ],
+              "type": "string"
+            },
+            "title": "Adjuntar",
+            "type": "array"
+          },
+          "asunto": {
+            "default": "",
+            "maxLength": 998,
+            "title": "Asunto",
+            "type": "string"
+          },
+          "cc": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Cc",
+            "type": "array"
+          },
+          "cco": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Cco",
+            "type": "array"
+          },
+          "cuenta": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Cuenta",
+            "type": "string"
+          },
+          "cuerpo": {
+            "anyOf": [
+              {
+                "maxLength": 100000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuerpo"
+          },
+          "enlace": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enlace"
+          },
+          "escenario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escenario"
+          },
+          "expediente": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expediente"
+          },
+          "informe": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Informe",
+            "type": "string"
+          },
+          "origen": {
+            "default": "web",
+            "enum": [
+              "web",
+              "asistente",
+              "documento"
+            ],
+            "title": "Origen",
+            "type": "string"
+          },
+          "para": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Para",
+            "type": "array"
+          },
+          "proveedor": {
+            "enum": [
+              "google",
+              "microsoft"
+            ],
+            "title": "Proveedor",
+            "type": "string"
+          },
+          "proyecto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proyecto"
+          }
+        },
+        "required": [
+          "informe",
+          "cuenta",
+          "proveedor",
+          "para"
+        ],
+        "title": "CorreoVistaPreviaPeticion",
+        "type": "object"
+      },
       "CrecimientoRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -4518,7 +5131,8 @@
               "engine",
               "powerfactory",
               "asistente",
-              "control"
+              "control",
+              "correo"
             ],
             "title": "Lane",
             "type": "string"
@@ -8621,7 +9235,7 @@
     },
     "/api/planeamiento/tipos": {
       "get": {
-        "description": "072:RF-29 a RF-32, RF-37: corto plazo, PIDE y largo plazo, con su horizonte, obras y entregables.",
+        "description": "072:RF-29 a RF-32, RF-37: corto plazo, PIDE y largo plazo, con su horizonte, obras y entregables.\n\n072:RF-36: con el rango del año de presentación, el mismo que valida «Planificar», para que la web no lo copie.",
         "operationId": "planeamiento_tipos_api_planeamiento_tipos_get",
         "parameters": [
           {
@@ -8631,8 +9245,8 @@
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 9999,
-                  "minimum": 1,
+                  "maximum": 2100,
+                  "minimum": 2000,
                   "type": "integer"
                 },
                 {
@@ -10637,6 +11251,272 @@
           }
         },
         "summary": "Copia Lanzar"
+      }
+    },
+    "/api/workspaces/{wid}/correo/envios/{clave}": {
+      "get": {
+        "description": "110:RF-8: el recibo de un envío.",
+        "operationId": "correo_envio_api_workspaces__wid__correo_envios__clave__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "clave",
+            "required": true,
+            "schema": {
+              "title": "Clave",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorreoEnvio"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correo Envio"
+      }
+    },
+    "/api/workspaces/{wid}/correo/envios/{clave}/resolver": {
+      "post": {
+        "description": "110:RF-9: el operador dice si un desconocido llegó; solo «No llegó» abre otro intento.",
+        "operationId": "correo_resolver_api_workspaces__wid__correo_envios__clave__resolver_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "clave",
+            "required": true,
+            "schema": {
+              "title": "Clave",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorreoResolucionPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorreoEnvio"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correo Resolver"
+      }
+    },
+    "/api/workspaces/{wid}/correo/historial": {
+      "get": {
+        "description": "110:RF-13: los envíos de un informe.",
+        "operationId": "correo_historial_api_workspaces__wid__correo_historial_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "informe",
+            "required": true,
+            "schema": {
+              "title": "Informe",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorreoHistorial"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correo Historial"
+      }
+    },
+    "/api/workspaces/{wid}/correo/vista-previa": {
+      "post": {
+        "description": "110:RF-1, RF-3, RF-6, RF-11, RF-12, RF-14: el borrador que verá el operador; no envía nada.",
+        "operationId": "correo_vista_previa_api_workspaces__wid__correo_vista_previa_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorreoVistaPreviaPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorreoVistaPrevia"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correo Vista Previa"
+      }
+    },
+    "/api/workspaces/{wid}/correo/{bid}/confirmar": {
+      "post": {
+        "description": "110:RF-4, RF-5, RF-7: confirma ese contenido y esos destinatarios exactos y encola un solo envío.",
+        "operationId": "correo_confirmar_api_workspaces__wid__correo__bid__confirmar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid",
+            "required": true,
+            "schema": {
+              "title": "Bid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorreoConfirmacionPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorreoConfirmacion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correo Confirmar"
       }
     },
     "/api/workspaces/{wid}/demanda/ajuste/plan": {

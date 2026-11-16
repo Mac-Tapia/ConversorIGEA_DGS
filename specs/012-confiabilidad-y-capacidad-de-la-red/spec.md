@@ -1,6 +1,6 @@
 # Spec 012 — Confiabilidad y capacidad de la red calibrada
 
-Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (2026-10-29; aprobada el 2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11, tras
+Estado: aprobada (2026-11-14: RF-87 a RF-92, confiabilidad parte 2, T14 a T18 abiertas; antes cumplida 2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (2026-10-29; aprobada el 2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11, tras
 revisar el menú «Calculation» de PowerFactory 2024 con el manual de usuario (cap. 40, 41,
 45 y 46)
 
@@ -378,6 +378,107 @@ la spec en lo siguiente:
   (RF-71).
 - En carga nueva, DIgSILENT solo calcula los nodos con carga conectada (RF-72).
 - `ComOpri` cambia la hora de estudio del caso y deja su variación grabando (RF-60).
+
+## Libro de la empresa como histórico de interrupciones (2026-11-14)
+
+Decisión del usuario (2026-11-14): la confiabilidad se corre con el libro que la empresa ya
+tiene, su histórico de interrupciones en bruto (una fila por interrupción), sin pasarlo antes
+a las hojas de la plantilla. El caso real (7 967 interrupciones de 2020 a 2026, 41 columnas)
+se aceptaba pero daba cero tasas y cero tiempos y pedía las hojas «Tasas de falla» y «Tiempos».
+
+- Aclaración de RF-6 y RF-62 (2026-11-14): el libro de la empresa puede ser también un
+  histórico de interrupciones. Sus columnas (inicio, fin o duración, fin total, alimentador,
+  causa y subcausa, programada o no, tensión, clientes afectados) se reconocen por su
+  contenido y por sinónimos, nunca por el nombre que les da una empresa (P13); la que falta se
+  anota y se usa lo que haya. Si el libro trae la hoja «Tasas de falla», manda esa hoja.
+- Aclaración de RF-8 y RF-9 (2026-11-14): del histórico, EL SISTEMA derivará por clase la tasa
+  permanente como las interrupciones sostenidas (más de 5 minutos, IEEE Std 1366) entre la
+  exposición por los años del registro, la transitoria con las momentáneas (5 minutos o menos)
+  y el tiempo de reparación como la media de la duración hasta la reposición total de las
+  sostenidas. La exposición es la red del espacio: km de línea aérea y de cable, número de
+  transformadores y de barras de los alimentadores que están en la red y en el histórico.
+  Solo cuentan las no programadas de media tensión (1 kV < U ≤ 36 kV) que nacen en la red de
+  la empresa; las del cliente, de otra empresa, de generación y las obras se excluyen, cada
+  filtro con su número de filas. La clase sale de la subcausa o de la causa que nombra una
+  sola clase; una causa sin clase no se cuenta y se dice cuántas son. Una clase con exposición
+  y ninguna falla en el periodo queda con λ = 0, lo que dice el registro, y la nota y la
+  procedencia llevan su cota superior al 95 %, el límite exacto de Poisson −ln(0,05)/(exposición
+  × años) ≈ 3/(exposición × años), para que el informe no la presente como si nunca fallara; sin
+  columna de causa o sin la red del espacio no se da ninguna tasa (RF-33: nada de ceros que
+  parezcan una red sin fallas).
+- Aclaración de RF-19 y RF-63 (2026-11-14): en un espacio sin red convertida (un proyecto de
+  DIgSILENT sin convertir, spec 015) el histórico se guarda, y la confiabilidad y los
+  reconectadores dicen en una frase que faltan la longitud de las líneas y los cables y el
+  número de transformadores de la red, en vez de pedir la hoja «Tasas de falla». Desde RF-87 a
+  RF-89 esa frase dice que se leen del proyecto de DIgSILENT al aplicar el libro.
+- Aclaración de RF-12 (2026-11-14): donde el histórico distingue la primera reposición de la
+  total, la media de la primera da el tiempo de localización y maniobra; como el registro no
+  los separa, el total va en «Localización de la falla» y la maniobra manual queda en 0, y se
+  dice. Sin esa distinción no se derivan los tiempos y la hoja «Tiempos» sigue faltando.
+- Aclaración de RF-20 (2026-11-14): con el libro se guardan y se muestran la hoja, las columnas
+  reconocidas, el periodo, las filas usadas y excluidas, el criterio, las cifras por
+  alimentador y lo que no se pudo derivar.
+
+Referencias abiertas: D. Shadle, «Understanding Distribution Reliability Metrics», T&D World,
+2021-03-10 (sostenida según la IEEE: más de cinco minutos); Z. Wang, J. Pan, D. Lubkeman y
+R. E. Brown, US 7 272 516 B2 (ABB, 2007), «Service Time Failure Rate»: interrupciones
+observadas entre la exposición; I. Dobson y S. Ekisheva, arXiv:2208.06985 (2022-2023): salidas
+y reposiciones de los datos de una empresa como procesos de Poisson; T. B. Newman, JAMA
+274(13):1013, 1995, que cita la regla de J. A. Hanley y A. Lippman-Hand (JAMA 249(13):1743-1745,
+1983): con cero sucesos en N, el límite superior del 95 % es «approximately 3/N».
+
+## Exposición leída del proyecto de DIgSILENT (2026-11-14)
+
+Orden del usuario recogida por el auditor (2026-11-14, D:/csg/AUDITORIA/ORDENES_DEL_USUARIO.md):
+antes de la etiqueta, la exposición se lee del proyecto de DIgSILENT en los proyectos sin
+conversión (regla «convertido o no»), con prueba nativa en la sesión 2 de DIgSILENT. Vale para
+cualquier empresa y cualquier proyecto (P13): no depende de nombres ni de la fuente de la red.
+
+- RF-87: CUANDO se aplica a un proyecto de DIgSILENT un histórico de interrupciones que se subió
+  sin red convertida (sin tasas, RF-19), EL SISTEMA leerá del proyecto, antes de escribir nada,
+  la exposición de cada alimentador (`ElmFeeder`): los km de línea aérea y de cable de sus
+  `ElmLne` (`dline`, y `TypLne.cohl_` para distinguirlos), sus `ElmTr2` y sus `ElmTerm`, los
+  mismos elementos que reciben el modelo de falla, y derivará con ella las tasas, los tiempos y
+  las cotas al 95 % iguales a las que daría el mismo histórico con esa red convertida, sin volver
+  a abrir el libro; los modelos `Sto*` se escriben con esas tasas. Con red convertida, las tasas
+  ya vienen del libro y no se rehacen.
+- RF-88: CUANDO el libro se aplica con la exposición leída de DIgSILENT, EL SISTEMA guardará con
+  el proyecto el libro con esas tasas y la exposición con su origen (el proyecto), la de cada
+  alimentador y la total por clase, la dirá en una frase entre los avisos del libro, y desde
+  entonces ofrecerá la confiabilidad y los reconectadores. Antes de aplicarlo, la frase de lo que
+  falta (RF-19) dirá que la longitud y los elementos se leen del proyecto al aplicar el libro.
+- RF-89: SI con la exposición leída ninguna interrupción del histórico cae en una clase de
+  elemento de un alimentador del proyecto (sin columna de causa, o ninguno de sus alimentadores
+  en el proyecto), ENTONCES EL SISTEMA no escribirá nada en el proyecto, no dará tasas a cero
+  (RF-33) y dirá en una frase que revise la columna de causa y la de alimentador del histórico.
+
+Condición de universalidad del auditor (2026-11-14): la columna del alimentador del histórico no se
+reconoce solo por su título, que cambia de una distribuidora a otra (P13).
+
+- RF-90: SI ningún título del histórico nombra la columna del alimentador, ENTONCES EL SISTEMA
+  elegirá la columna en la que más de la mitad de las filas del histórico tienen un alimentador de la
+  red o del proyecto, con el nombre normalizado como en la web.
+- RF-91: CUANDO se reconoce la columna del alimentador, EL SISTEMA dirá en los avisos del libro cuál
+  eligió y por qué: «por título» o «por contenido: N de M valores son alimentadores» de la red o del
+  proyecto.
+- RF-92: SI ninguna columna cumple RF-90, o dos la cumplen con las mismas filas y cifras distintas,
+  ENTONCES EL SISTEMA no dará ninguna tasa ni escribirá nada en el proyecto y dirá en una frase los
+  títulos encontrados y que se renombre la columna del alimentador.
+- Aclaración de RF-90 (2026-11-14, auditor 3e): «la columna en la que más de la mitad de las filas
+  tienen un alimentador» se sustituye por la columna llena y de pocos valores distintos que contiene
+  más de la mitad de los alimentadores de la red o del proyecto, para que un proyecto con pocos
+  alimentadores dentro del libro de toda la empresa no acabe en error.
+- Aclaración de RF-90 (2026-11-14, auditor 3e): entre las columnas que contienen los mismos
+  alimentadores gana la que tiene más valores con forma de alimentador.
+- Aclaración de RF-91 (2026-11-14, auditor 3e): el aviso por contenido dice «N de M alimentadores»
+  de la red o del proyecto «están en ella».
+- Aclaración de RF-91 (2026-11-14, auditor 3e, «siempre una solución»): si ninguna columna llega a la
+  mayoría de los alimentadores, se elige la única columna llena y de pocos valores distintos en la que al
+  menos el 80 % de los valores distintos tienen forma de alimentador y alguno es un alimentador de la red o
+  del proyecto, y el aviso dice «elegida por la forma de sus valores: N de M distintos; K alimentadores» de
+  la red o del proyecto «con interrupciones».
+- Aclaración de RF-92 (2026-11-14, auditor 3e): el error se da solo si tampoco hay una única columna por la
+  forma de sus valores, porque hay varias o ninguna.
 
 ## Dudas abiertas
 

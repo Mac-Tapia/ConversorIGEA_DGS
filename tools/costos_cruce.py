@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """Mide cuánto de una red convertida encuentra costo en el SICODI público (spec 072).
 
-Lee el zip del SICODI y el `dataset_inventory.json` de una conversión, y dice por peso de tramos
-qué códigos de línea tienen costo y por qué no los demás. Con `--red`, `--cargas`, `--equipos` y
-`--alimentador`, además, los metrados de ese alimentador y su valoración.
+Lee el SICODI (el zip público o su libro de cálculo, 072:RF-39) y el `dataset_inventory.json` de una
+conversión, y dice por peso de tramos qué códigos de línea tienen costo y por qué no los demás. Con
+`--red`, `--cargas`, `--equipos` y `--alimentador`, además, los metrados de ese alimentador y su valoración.
 
 Con `--obra`, valora los elementos de una obra (JSON, lista de `elemento`, `ambito`, `codigo`,
 `cantidad`…): los de distribución con el SICODI y los de transmisión con el libro de módulos
@@ -90,7 +90,8 @@ def _obra(args, tabla_sicodi) -> int:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Mide cuánto de una red encuentra costo en el SICODI, y valora '
                                             'obras con SICODI y módulos de transmisión (spec 072).')
-    p.add_argument('--sicodi', type=Path, help='Zip público con Instalacion.txt')
+    p.add_argument('--sicodi', type=Path,
+                   help='SICODI: zip público con Instalacion.txt o libro .xlsx, .xlsm, .xls o .xlsb')
     p.add_argument('--obra', type=Path, help='JSON con los elementos de una obra a valorar')
     p.add_argument('--modulos', type=Path, help='Libro de módulos estándar de transmisión (.xlsx o .xlsm)')
     p.add_argument('--modulos-columnas', type=Path,

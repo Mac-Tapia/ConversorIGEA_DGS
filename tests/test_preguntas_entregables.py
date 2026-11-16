@@ -29,7 +29,9 @@ RAIZ = PE.RAIZ
 #: 2026-11-14: planos_informe-009 («¿Tiene mapa satelital de fondo?» → «No») dejó de ser cierta con 017:RF-111 ampliada
 #: (fondo con la salida de teselas encendida). Se reescribe en su mismo grupo con una pregunta cierta en la revisión fijada
 #: y en el árbol («¿Qué marca la imagen de ubicación?», 017:RF-109): quitarla movía el reparto de planos_informe-013.
-HUELLA_CONJUNTO = 'f8c5b4f34cc64a3f64adc6bda65e192928dbeedce650cf8c17da5041008a45a6'
+#: 2026-11-16: la 110 añade el carril «correo» a LANES (web/jobs.py). arquitectura-005 pasa a «Cinco…» y su ancla, como la
+#: de contradiccion-4, se acorta a lo que es cierto en la revisión fijada (línea 40) y en el árbol. Lo sellado no cambia.
+HUELLA_CONJUNTO = '326974e15aedc98d0ae37fec6deb9139c05e9f3fa0c1a1be84a7595fe6076f7d'
 HUELLA_SELLADO = '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411'
 HUELLA_HECHOS = 'cf9e05488d73c44b2c2a16f033edb41588779968ea419d9fe81e5f6c41b7b50d'
 

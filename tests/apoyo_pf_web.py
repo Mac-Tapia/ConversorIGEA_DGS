@@ -55,6 +55,17 @@ elif herramienta == 'confiabilidad_pf.py':
     else:
         informe.update(variacion='Datos_de_confiabilidad', libro=plan['libro']['nombre'], avisos=[],
                        alimentadores={f: {'interruptor_cabecera': True} for f in plan['feeders']})
+        libro = dict(plan['libro'])
+        if (libro.get('historico') or {}).get('reconocido') and not libro.get('tasas'):
+            # 012:RF-87: el guion de verdad lee la exposición del proyecto y devuelve el libro derivado.
+            origen = f'el proyecto de DIgSILENT «{proyecto}»'
+            exposicion = {'origen': origen, 'alimentadores': {f: {'linea': 1.0, 'cable': 0.0, 'transformador': 3.0,
+                                                                  'barra': 4.0} for f in plan['feeders']}}
+            libro['tasas'] = {c: {'clase': c, 'permanente': 0.1, 'transitoria': None, 'reparacion_h': 2.0, 'tipo': ''}
+                              for c in ('linea', 'transformador', 'barra')}
+            libro['hojas_que_faltan'] = [h for h in libro['hojas_que_faltan'] if h != 'Tasas de falla']
+            libro['historico'] = {**libro['historico'], 'exposicion': exposicion}
+            informe.update(exposicion=exposicion, libro_derivado=libro)
 elif herramienta == 'estudios_pf.py' and plan['estudio'] in ('fiabilidad', 'reconectadores', 'alojamiento',
                                                             'curvas_pv', 'condensadores'):
     # Spec 012: lo que devuelven sus guiones, con cifras distintas por caso.

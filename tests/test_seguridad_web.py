@@ -693,6 +693,135 @@ def test_la_web_sirve_sus_paginas_con_politica(tmp_path, puerta):
         assert 'connect-src' not in politica      # con default-src 'none': ni a la API ni a fuera
 
 
+def _como_iframe_propio(puerta) -> dict:
+    """Lo que manda Chrome al cargar el ``src`` de un iframe de la propia web: la cookie de la sesión (SameSite=Strict
+    la envía, porque el marco y su página son del mismo sitio), ni Origin ni token en cabecera, y ``Sec-Fetch-Dest``."""
+    return {'Cookie': f'{seguridad.nombre_cookie(PUERTO)}={puerta.token}', 'Accept': 'text/html,application/xhtml+xml',
+            'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin'}
+
+
+def _se_deja_enmarcar_solo_por_la_web(r) -> None:
+    assert r.status_code == 200, r.text[:200]
+    assert 'location' not in r.headers                      # ni redirección a «/» ni a ningún sitio
+    assert r.headers['x-frame-options'] == 'SAMEORIGIN'
+    politica = r.headers['content-security-policy']
+    assert "frame-ancestors 'self'" in politica and "frame-ancestors 'none'" not in politica
+    # Sigue aislada (086:RF-21): sin origen propio ni alcance a la API.
+    assert politica.startswith('sandbox allow-scripts') and "default-src 'none'" in politica
+    assert 'connect-src' not in politica
+
+
+def test_086_rf21_el_mapa_de_cargas_se_ve_en_su_marco(puerta):
+    """086:RF-21 — el mapa de las cargas nuevas (MapaCargas.tsx) va en un iframe de la propia web. La revisión en pantalla
+    del 2026-11-14 lo vio en blanco: «Refused to display … in a frame because it set 'X-Frame-Options' to 'deny'». La
+    ruta ponía su propia política sin ``frame-ancestors``, pero la puerta le añadía ``X-Frame-Options: DENY``."""
+    wid = _espacio(puerta)
+    with _cliente(puerta.app) as c:
+        r = c.get(f'/api/workspaces/{wid}/mapa-cargas/pagina', params={'project': 'PRY'},
+                  headers=_como_iframe_propio(puerta))
+    _se_deja_enmarcar_solo_por_la_web(r)
+    assert 'L.map(' in r.text
+
+
+@pytest.mark.parametrize('fichero', ['mapa.html', 'sub/Vista.HTML'])
+def test_086_rf21_la_vista_previa_se_ve_en_su_marco(puerta, fichero):
+    """086:RF-21 — la vista previa de un alimentador (Modules.tsx) va en el mismo tipo de marco que el mapa."""
+    wid = _espacio(puerta)
+    destino = puerta.app.state.store.get(wid).out_dir / fichero
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text('<html>mapa</html>', encoding='utf-8')
+    with _cliente(puerta.app) as c:
+        r = c.get(f'/api/workspaces/{wid}/files/{fichero}', headers=_como_iframe_propio(puerta))
+    _se_deja_enmarcar_solo_por_la_web(r)
+
+
+def test_086_rf21_lo_demas_no_se_deja_enmarcar(puerta):
+    """086:RF-21 — solo las dos páginas que la web incrusta se dejan enmarcar, y solo por ella. La interfaz, la API, una
+    descarga, un fichero que no es HTML, una ruta que solo se parece y el rechazo sin sesión siguen con DENY y 'none'."""
+    wid = _espacio(puerta)
+    salida = puerta.app.state.store.get(wid).out_dir
+    salida.mkdir(parents=True, exist_ok=True)
+    (salida / 'mapa.html').write_text('<html>mapa</html>', encoding='utf-8')
+    (salida / 'datos.json').write_text('{}', encoding='utf-8')
+    iframe = _como_iframe_propio(puerta)
+    with _cliente(puerta.app) as c:
+        respuestas = {
+            'interfaz': c.get('/', headers=iframe),
+            'salud': c.get('/api/health', headers=iframe),
+            'datos del mapa': c.get(f'/api/workspaces/{wid}/mapa-cargas', params={'project': 'PRY'}, headers=iframe),
+            'json': c.get(f'/api/workspaces/{wid}/files/datos.json', headers=iframe),
+            'descarga': c.get(f'/api/workspaces/{wid}/files/mapa.html', params={'download': 'true'}, headers=iframe),
+            'descarga 1': c.get(f'/api/workspaces/{wid}/files/mapa.html', params={'download': '1'}, headers=iframe),
+            'parecida': c.get(f'/api/workspaces/{wid}/mapa-cargas/pagina/otra', params={'project': 'PRY'},
+                              headers=iframe),
+        }
+        sin_sesion = c.get(f'/api/workspaces/{wid}/mapa-cargas/pagina', params={'project': 'PRY'},
+                           headers={**iframe, 'Cookie': f'{seguridad.nombre_cookie(PUERTO)}=caducada'})
+    for nombre, r in respuestas.items():
+        assert r.headers.get('x-frame-options') == 'DENY', nombre
+        politica = r.headers.get('content-security-policy', '')
+        assert "frame-ancestors 'self'" not in politica, nombre
+        if not politica.startswith('sandbox'):
+            assert "frame-ancestors 'none'" in politica, nombre
+    # Sin sesión, la página que lo dice tampoco se deja enmarcar por nadie.
+    assert sin_sesion.status_code == 401
+    assert sin_sesion.headers.get('x-frame-options') == 'DENY'
+    assert "frame-ancestors 'none'" in sin_sesion.headers.get('content-security-policy', '')
+
+
+def _puerta_sobre(rutas: dict[str, str | None]) -> tuple[TestClient, dict]:
+    """La puerta, sola, delante de unas rutas de prueba con la política que cada una ponga (``None``: ninguna)."""
+    from starlette.applications import Starlette
+    from starlette.responses import HTMLResponse
+    from starlette.routing import Route
+
+    def pagina(politica):
+        return lambda _peticion: HTMLResponse('<html>x</html>',
+                                              headers={'Content-Security-Policy': politica} if politica else None)
+
+    interior = Starlette(routes=[Route(ruta, pagina(p)) for ruta, p in rutas.items()])
+    sesion = sesion_web.Sesion('token-de-prueba')
+    app = seguridad.SeguridadWeb(interior, sesion=sesion)
+    cookie = {'Cookie': f'{seguridad.nombre_cookie(PUERTO)}={sesion.token}', 'Accept': 'text/html',
+              'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Site': 'same-origin'}
+    return _cliente(app), cookie
+
+
+def test_086_rf21_una_incrustable_sin_sandbox_no_se_deja_enmarcar():
+    """086:RF-21 — falla cerrado (condición del auditor ca): el aislamiento lo pone la ruta con «sandbox» en su política.
+    Si una ruta que casa con las incrustables llega sin él (un cambio en app.py:1767 o en mapa_cargas_api.py:154), la
+    puerta no la deja enmarcar: DENY y frame-ancestors 'none', como cualquier otra."""
+    sin_sandbox = "default-src 'none'; script-src 'unsafe-inline'"
+    cliente, cookie = _puerta_sobre({'/api/workspaces/w1/mapa-cargas/pagina': sin_sandbox,
+                                     '/api/workspaces/w1/files/vista.html': None,
+                                     '/api/workspaces/w1/files/otra.html': f"{sin_sandbox}; img-src data: sandbox.example"})
+    with cliente as c:
+        for ruta in ('/api/workspaces/w1/mapa-cargas/pagina', '/api/workspaces/w1/files/vista.html',
+                     '/api/workspaces/w1/files/otra.html'):
+            r = c.get(ruta, headers=cookie)
+            assert r.status_code == 200, ruta
+            assert r.headers['x-frame-options'] == 'DENY', ruta
+            politica = r.headers['content-security-policy']
+            assert "frame-ancestors 'self'" not in politica, ruta
+            assert "frame-ancestors 'none'" in politica, ruta
+
+
+def test_086_rf21_una_incrustable_con_sandbox_se_deja_enmarcar_por_la_web():
+    """086:RF-21 — la que sí pone «sandbox» como directiva sigue con SAMEORIGIN y frame-ancestors 'self', y aislada."""
+    from convertersmartgrid.preview import politica_pagina_generada
+
+    cliente, cookie = _puerta_sobre({'/api/workspaces/w1/mapa-cargas/pagina': politica_pagina_generada(),
+                                     '/api/workspaces/w1/files/vista.html': 'SANDBOX allow-scripts; default-src \'none\''})
+    with cliente as c:
+        for ruta in ('/api/workspaces/w1/mapa-cargas/pagina', '/api/workspaces/w1/files/vista.html'):
+            r = c.get(ruta, headers=cookie)
+            assert r.status_code == 200, ruta
+            assert r.headers['x-frame-options'] == 'SAMEORIGIN', ruta
+            politica = r.headers['content-security-policy']
+            assert "frame-ancestors 'self'" in politica and "frame-ancestors 'none'" not in politica, ruta
+            assert politica.lower().startswith('sandbox allow-scripts'), ruta
+
+
 def test_el_frente_no_pide_nada_de_fuera():
     """086:RF-21 — ni guiones ni estilos de terceros en la interfaz."""
     index = (RAIZ / 'frontend' / 'index.html').read_text(encoding='utf-8')

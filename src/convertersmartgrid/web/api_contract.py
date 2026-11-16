@@ -47,7 +47,7 @@ class JobRespuesta(Respuesta):
     kind: str
     title: str
     workspace_id: str
-    lane: Literal['engine', 'powerfactory', 'asistente', 'control']
+    lane: Literal['engine', 'powerfactory', 'asistente', 'control', 'correo']
     status: Literal['queued', 'running', 'done', 'parcial', 'no_converge', 'failed', 'cancelled', 'interrumpido']
     progress: ProgresoRespuesta | None
     result: Any = Field(description='Resultado variable según kind; incluye informes nativos y extensiones.')
@@ -831,3 +831,115 @@ class CopiaDatosPeticion(BaseModel):
 class CopiaDatosCarpetaRespuesta(Respuesta):
     """086:RF-85: la carpeta de las copias que recuerda este equipo, si hay."""
     carpeta: str | None
+
+
+# ------------------------------------------------------------------ spec 110: envío de informes por correo
+EstadoEnvioCorreo = Literal['reservado', 'enviando', 'aceptado', 'rechazado', 'desconocido', 'cancelado']
+
+
+class CorreoVistaPreviaPeticion(BaseModel):
+    """110:RF-1: lo que la ventana (o el asistente, que solo deja el borrador, RF-6) pide preparar."""
+    model_config = ConfigDict(extra='forbid')
+    informe: str = Field(min_length=1, max_length=255)
+    cuenta: str = Field(min_length=3, max_length=320)
+    proveedor: Literal['google', 'microsoft']
+    para: list[str] = Field(min_length=1, max_length=100)
+    cc: list[str] = Field(default_factory=list, max_length=100)
+    cco: list[str] = Field(default_factory=list, max_length=100)
+    asunto: str = Field(default='', max_length=998)
+    cuerpo: str | None = Field(default=None, max_length=100_000)
+    enlace: str | None = Field(default=None, max_length=2048)
+    expediente: str | None = Field(default=None, max_length=512)
+    proyecto: str | None = None
+    escenario: str | None = None
+    adjuntar: list[Literal['docx', 'pdf', 'xlsx']] = Field(default_factory=lambda: ['docx', 'pdf', 'xlsx'])
+    origen: Literal['web', 'asistente', 'documento'] = 'web'
+
+
+class CorreoAdjuntoRespuesta(Respuesta):
+    nombre: str
+    tamano: int
+    sha256: str
+
+
+class CorreoValidezRespuesta(Respuesta):
+    """110:RF-12: si el informe vale como estudio, y si no, por qué."""
+    valido: bool
+    motivo: str
+
+
+class CorreoAvisoRespuesta(Respuesta):
+    """110:RF-14: una dirección que no es habitual en el espacio, con la parecida si la hay."""
+    aviso: str
+    sugerencia: str | None
+
+
+class CorreoVistaPrevia(Respuesta):
+    borrador: str
+    firma: str
+    cuenta: str
+    proveedor: str
+    para: list[str]
+    cc: list[str]
+    cco: list[str]
+    asunto: str
+    cuerpo: str
+    enlace: str | None
+    adjuntos: list[CorreoAdjuntoRespuesta]
+    validez: CorreoValidezRespuesta
+    avisos: dict[str, CorreoAvisoRespuesta]
+    limite_bytes: int
+    excede_limite: bool
+    confirmado: bool
+    ventana: str
+
+
+class CorreoConfirmacionPeticion(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    firma: str = Field(min_length=64, max_length=64)
+
+
+class CorreoResolucionPeticion(BaseModel):
+    """110:RF-9: el operador dice si un envío desconocido llegó (lo vio en Enviados) o no."""
+    model_config = ConfigDict(extra='forbid')
+    llego: bool
+
+
+class CorreoEnvio(Respuesta):
+    """110:RF-8: el recibo de un envío, como lo guarda ``correo.envios``."""
+    clave: str
+    espacio: str
+    borrador: str
+    intento: int
+    estado: EstadoEnvioCorreo
+    hora: str
+    #: El orden de la reserva (nanosegundos, creciente): el historial va del más antiguo al más reciente aunque
+    #: dos envíos caigan en el mismo segundo de ``hora`` (110:RF-13). Un recibo anterior no lo trae: 0.
+    orden: int = 0
+    hora_resultado: str | None
+    proveedor: str
+    cuenta: str
+    destinatarios: dict[str, list[str]]
+    informe: str | None
+    huella_informe: str | None
+    adjuntos: list[CorreoAdjuntoRespuesta]
+    enlace: str | None
+    message_id: str
+    id_proveedor: str | None
+    codigo: int | None
+    motivo: str
+    resolucion: Literal['llego', 'no_llego'] | None
+    pasos: list[dict[str, JsonValue]]
+
+
+class CorreoConfirmacion(Respuesta):
+    """110:RF-5, RF-7: la clave reservada y el trabajo encolado, o el recibo que ya había (doble clic)."""
+    clave: str
+    trabajo: JobRespuesta | None
+    recibo: CorreoEnvio | None
+
+
+class CorreoHistorial(Respuesta):
+    """110:RF-13: los envíos de un informe, del más antiguo al más reciente."""
+    informe: str
+    envios: list[CorreoEnvio]

@@ -17,6 +17,35 @@ Se reutilizan `pide.py`, `pide_economia.py`, `tools/pide_pf.py`, `crecimiento.py
 | Herramientas y entrenamiento del asistente | RF-18, RF-19 | Coordinado con la spec 070 |
 | COyM del perfil en la propuesta | RF-22 | `propuesta_pide(coym_pct_anual=)`, `formatos_pide._por_grupo`; lo pasa `web/services.py` |
 | Tipo de análisis en la web (T17) | RF-29 a RF-38 | `estudio_planeamiento.tipos_de_analisis`, `GET /api/planeamiento/tipos`, `PideIn.plazo`, `TipoDeAnalisis.tsx` |
+| SICODI en libro de cálculo (T18) | RF-39 a RF-41 | `costos_fuentes.leer_sicodi`, `_leer_libro_sicodi`, `HojaSicodi`, `TablaCostos.ambiguos` y `resolver`, `SUBFAMILIA_POR_TIPO`; `demanda_medida.iterar_filas_de_hoja`; `metrados.valorar_metrados` |
+
+## SICODI en libro de cálculo (T18, 2026-11-14)
+
+- **El contenido decide.** `leer_sicodi` mira los bytes: OLE2 (.xls) o un zip con `xl/workbook.*` (.xlsx, .xlsm, .xlsb) es
+  un libro; un zip con `Instalacion.txt` sigue por la lectura de siempre. El libro se abre con el lector común
+  `demanda_medida.abrir_libro` (python-calamine) y se recorre con `iterar_filas_de_hoja`, que da las filas de
+  `filas_de_hoja` una a una: una hoja del libro puede tener cientos de miles de filas. Descartado: openpyxl, que no lee
+  .xls ni .xlsb, y un segundo lector de libros.
+- **Cada hoja por sus cabeceras.** En las 30 primeras filas se busca una fila con los campos requeridos de una clase, con
+  sinónimos normalizados (sin tildes, minúsculas y sin signos: `COSTO_MAT` = `COSTO MAT`). Clases, en orden: detalle de
+  costos de inversión, costos de inversión, armados, materiales, recursos, mantenimiento, transformadores y rangos de
+  corriente; sin cabecera, parámetros («etiqueta: | número»). Lo que no encaja va a `avisos` con su nombre y sus cabeceras;
+  una tabla dinámica declara sus filtros (`HojaSicodi.filtros`). Descartado: reconocer las hojas por su nombre.
+- **Ambigüedad, no elección.** En el libro del SICODI la clave de `Instalacion.txt` (código, tensión, secundario y
+  sector) puede repetirse con costos distintos, porque un código vale en dos subfamilias (red aérea y red
+  aérea de alumbrado público). Esas claves van a `TablaCostos.ambiguos` y solo las separa la subfamilia declarada o la
+  que deduce el tipo. Descartado: quedarse con la última fila, que daba el costo de otra subfamilia sin avisar.
+- **El tipo deduce la subfamilia (aclaración de RF-41).** Ninguna red declara la subfamilia del SICODI, así que
+  `TablaCostos.resolver` usa la del tipo del elemento con la tabla universal `costos_fuentes.SUBFAMILIA_POR_TIPO`
+  (palabras que la subfamilia lleva y no lleva: `tramo_aereo` → «red aérea» sin «alumbrado», `luminaria` → «alumbrado
+  público» sin «red», `sed_aerea` → «sed aérea»…) y lo anota en `anotacion`. `valorar_obra` toma el `tipo` del elemento;
+  `valorar_metrados`, `tramo_aereo` o `tramo_subterraneo` si el código solo tiene tramos de una clase. Si más de una
+  candidata cumple, o el tipo no está en la tabla, queda la ambigüedad nombrada. Descartado: un `if` por empresa o por
+  código, y elegir la primera candidata.
+- **Pruebas.** Libro sintético con columnas sorteadas (`CSG_SICODI_SEED`), en .xlsx y .xlsm; .xls y .xlsb leen las
+  muestras de `tests/fixtures/sicodi/`, que son el mismo libro sintético guardado por COM en los formatos 56 y 50, con
+  autor, último en guardar, empresa, título e ICV vacíos y fechas fijas (`test_las_muestras_no_llevan_metadatos`); y
+  `test_sicodi_real_en_libro` con `CSG_SICODI`, solo por el carril.
 
 ## Tipo de análisis (T17, 2026-11-11)
 

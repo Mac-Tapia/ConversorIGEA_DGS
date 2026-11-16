@@ -731,3 +731,48 @@ def test_086_rf33_el_codigo_entregado_no_cita_a_otras_distribuidoras(manifiesto)
     """086:RF-33 — L1: lo que se entrega del repositorio, sin lista local, no tiene ningún término de las huellas en el código."""
     informe = CE.comprobar(RAIZ, manifiesto, CE.cargar_terminos(RAIZ, manifiesto))
     assert not informe.en_codigo, informe.resumen()
+
+
+# --------------------------------------------------------------------------- 107:RF-11 (T17)
+#: El PIT y el registro normativo, universales: lo que vale para un área, una empresa o un periodo sale del perfil o del
+#: registro, nunca del código (107 T17).
+_UNIVERSALES_107 = ('src/convertersmartgrid/pit', 'src/convertersmartgrid/registro_normativo.py')
+
+
+def test_107_rf11_el_detector_ve_tensiones_anios_tasas_y_areas_escritas_en_el_codigo():
+    """107:RF-11 (T17) — el detector de valores fijos ve una tensión, un año, una tasa y un número de área escritos en el
+    código, y no lo que va en un comentario o en un docstring, que D5 neutraliza al empaquetar."""
+    assert hasattr(CE, 'valores_fijos'), 'comprobar_entrega.py no tiene el detector de valores fijos (107 T17)'
+    codigo = ("LIMITE = '66 kV'\n"
+              "ANIO = 2099\n"
+              "TASAS = {'tasa_descuento': 0.07}\n"
+              "AREA = 'AD-99'\n"
+              "MENSAJE = 'un 7,5 % del total'\n"
+              "# 66 kV, 2099 y AD-99 en un comentario no cuentan\n"
+              "def f():\n"
+              "    '''Ni en el docstring: 13,8 kV desde 2098, al 9 %.'''\n"
+              "    return 'de 0 a 100 %'\n")
+    hallados = CE.valores_fijos('x.py', codigo)
+    assert {(n, c) for n, c, _ in hallados} == {(1, 'tension'), (2, 'anio'), (3, 'tasa'), (4, 'area'), (5, 'tasa')}, \
+        hallados
+    assert CE.valores_fijos('x.py', 'LIMITES = registro.valor("pit.tension_min_kv")\n') == []
+
+
+def test_107_rf11_pit_y_registro_normativo_sin_valores_de_un_area_una_empresa_o_un_periodo(manifiesto):
+    """107:RF-11 (T17) — ni el paquete pit/ ni registro_normativo.py llevan en su código una tensión, un año, una tasa o
+    un número de área: salen del registro o del perfil. Los dos entran en la entrega, así que la búsqueda de nombres y
+    titulares de 086:RF-29 (test_nucleo_y_web_sin_terminos_en_el_codigo) también los recorre."""
+    assert hasattr(CE, 'valores_fijos'), 'comprobar_entrega.py no tiene el detector de valores fijos (107 T17)'
+    ficheros = []
+    for rel in _UNIVERSALES_107:
+        ruta = RAIZ / rel
+        ficheros += sorted(ruta.rglob('*.py')) if ruta.is_dir() else [ruta]
+    assert len(ficheros) > 10, 'la comprobación recorrió de verdad el paquete pit/'
+    fuera, malos = [], []
+    for ruta in ficheros:
+        rel = ruta.relative_to(RAIZ).as_posix()
+        if not CE.entra(rel, manifiesto):
+            fuera.append(rel)
+        malos += [f'{rel}:{n} ({clase}: {trozo})' for n, clase, trozo in CE.valores_fijos(rel, ruta.read_text(encoding='utf-8'))]
+    assert not fuera, f'fuera de la entrega, sin la búsqueda de términos: {fuera}'
+    assert not malos, malos

@@ -1,6 +1,6 @@
 # Spec 011 — Estudios y obras de mejora sobre la red calibrada
 
-Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (revisión 033 del 2026-10-29) · aprobada (2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11 («los estudios
+Estado: aprobada (2026-11-14: RF-137, H11; antes cumplida 2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (revisión 033 del 2026-10-29) · aprobada (2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11 («los estudios
 se deben hacer cuando se hizo la calibración en las cabeceras y la actualización de cargas por
 SED, como fijas y escaladas»)
 
@@ -488,6 +488,9 @@ hacer esos estudios en cualquier proyecto físico existente en DIgSILENT, con cu
   corrida: van a la misma variación del conversor y, las que queden fuera de ella, se reconocen por la marca que
   les pone la corrida y por no estar antes del estudio, nunca por su nombre, y se retiran; una troncal que ya
   estaba no se toca (a3, 2026-11-14: tras un estudio con troncal, el «Caso base» quedaba con ``ElmBbone``).
+- RF-137: SI la orden de DIgSILENT de un estudio termina con un código distinto de 0, ENTONCES EL SISTEMA dará el
+  estudio por fallido, con un error que nombre la orden y su código, y saldrá con el código 2, en vez de dar por
+  resultado las medidas del flujo base (H11, auditoría del 2026-11-14: ComVoltplan con 1 en NJA202 se dio por bueno).
 
 ## Requisitos no funcionales
 

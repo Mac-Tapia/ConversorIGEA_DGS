@@ -282,6 +282,13 @@ class PideAnualIn(BaseModel):
     obras_por_anio: list[PideObraAnualIn] = Field(default_factory=list)
 
 
+#: 072:RF-1, RF-36: el año de presentación del estudio, con un solo rango en «Planificar», en los tipos de análisis y en
+#: la web, que lo lee de ``/api/planeamiento/tipos`` y no lo copia. Son límites de cordura de un año de calendario, no
+#: años del estudio: estos salen del año que escribe el operador o del perfil (072:RF-1). El año de los casos
+#: (``anio_casos``, 025:RF-41) es otro concepto, el de «Sin/Con proyecto <año>», y conserva su propio rango.
+ANIO_PRESENTACION_MIN, ANIO_PRESENTACION_MAX = 2000, 2100
+
+
 class PideIn(BaseModel):
     """072:RF-18: ambos flujos PIDE por el mismo endpoint, histórico por defecto."""
     project: str
@@ -291,7 +298,7 @@ class PideIn(BaseModel):
     capex: str | None = None
     implementar: bool = True
     # 072:RF-18: el mismo rango que la pantalla; un parámetro inválido es 422 (convención del auditor, 2026-11-14).
-    anio_presentacion: int | None = Field(None, ge=2000, le=2100)
+    anio_presentacion: int | None = Field(None, ge=ANIO_PRESENTACION_MIN, le=ANIO_PRESENTACION_MAX)
     formato_01: str | None = None
     # 072:RF-29, RF-34: el tipo de análisis elegido en la web; sin él, los dos entregables, como siempre.
     plazo: Literal['pide', 'largo_plazo'] | None = None
@@ -2301,8 +2308,14 @@ def create_app(
             raise HTTPException(422, 'Seleccione el modo anual para usar sus fuentes y obras.')
         if body.plazo == 'largo_plazo' and body.implementar:                   # 072:RF-35
             raise HTTPException(422, 'El planeamiento de largo plazo plantea las obras; no las aplica en «Con proyecto».')
-        if body.plazo and body.anio_presentacion is None and services.anio_presentacion_del_perfil() is None:
+        del_perfil = services.anio_presentacion_del_perfil() if body.anio_presentacion is None else None
+        if body.plazo and body.anio_presentacion is None and del_perfil is None:
             raise HTTPException(422, 'Falta el año de presentación del estudio (072:RF-36).')
+        if del_perfil is not None and not ANIO_PRESENTACION_MIN <= del_perfil <= ANIO_PRESENTACION_MAX:
+            # 072:RF-36: el del perfil, con el mismo rango que el escrito; si no, el estudio saldría con años absurdos.
+            raise HTTPException(422, f'El año de presentación del perfil ({del_perfil}) está fuera de '
+                                     f'{ANIO_PRESENTACION_MIN}–{ANIO_PRESENTACION_MAX}: escriba el año aquí o '
+                                     'corríjalo en el perfil.')
         titulo = {'largo_plazo': 'Plan de largo plazo', 'pide': 'PIDE'}.get(body.plazo or '', 'PIDE')
         return submit(ws, 'pide', f'{titulo} · {project}',
                       lambda ctx: services.pide_ejecutar(ws, ctx, project, feeders,
@@ -2314,12 +2327,17 @@ def create_app(
                       lane='powerfactory')
 
     @app.get('/api/planeamiento/tipos')
-    def planeamiento_tipos(anio_presentacion: int | None = Query(None, ge=1, le=9999)) -> dict:
-        """072:RF-29 a RF-32, RF-37: corto plazo, PIDE y largo plazo, con su horizonte, obras y entregables."""
+    def planeamiento_tipos(anio_presentacion: int | None = Query(None, ge=ANIO_PRESENTACION_MIN,
+                                                                 le=ANIO_PRESENTACION_MAX)) -> dict:
+        """072:RF-29 a RF-32, RF-37: corto plazo, PIDE y largo plazo, con su horizonte, obras y entregables.
+
+        072:RF-36: con el rango del año de presentación, el mismo que valida «Planificar», para que la web no lo copie.
+        """
         try:
-            return services.planeamiento_tipos(anio_presentacion)
+            tipos = services.planeamiento_tipos(anio_presentacion)
         except UserError as exc:
             raise HTTPException(422, str(exc)) from exc
+        return tipos | {'anio_presentacion_rango': {'min': ANIO_PRESENTACION_MIN, 'max': ANIO_PRESENTACION_MAX}}
 
     @app.post('/api/workspaces/{wid}/digital-twin/aprender', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def gemelo_aprender(wid: str, body: dict[str, Any]) -> dict:
@@ -3029,6 +3047,13 @@ def create_app(
 
     registrar_rutas_copia(app, ws_or_404=ws_or_404, submit=submit, en_curso=jobs.en_curso, raiz_datos=store.root,
                           rutas_locales=lambda: _server_paths_allowed(host))
+    # 110:RF-1: el envío de informes por correo, en su módulo (pactado con el integrador). Sin las cuentas de la 109,
+    # cada envío dice «Conecte una cuenta»; mientras un informe se escribe en el espacio, no se adjunta (110:RF-3).
+    from .correo_api import raices_de, registrar_rutas_correo
+
+    registrar_rutas_correo(app, ws_or_404=ws_or_404, submit=submit, raices_espacios=lambda: raices_de(store.roots),
+                           informes_en_curso=lambda ws: any(j.kind.startswith('informe_') and j.kind != 'informe_documentos'
+                                                            for j in jobs.active(ws.id)))
     # 017:RF-109, RF-124: el mapa de las cargas nuevas y su punto de diseño leído en DIgSILENT, en su módulo.
     from .mapa_cargas_api import registrar_rutas_mapa
 

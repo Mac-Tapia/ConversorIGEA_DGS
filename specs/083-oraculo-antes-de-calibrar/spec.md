@@ -1,6 +1,6 @@
 # Spec 083 — El oráculo antes de calibrar y recalibrar
 
-Estado: cumplida (2026-11-07, verificada en DIgSILENT en el Pisco de prueba) · Fecha: 2026-11-03 · Origen: petición del usuario
+Estado: aprobada (2026-11-14: RF-32, H12; antes cumplida 2026-11-07, verificada en DIgSILENT en el Pisco de prueba) · Fecha: 2026-11-03 · Origen: petición del usuario
 
 ## Contexto y objetivo
 
@@ -82,6 +82,14 @@ oráculo propone el arranque, nunca da una calibración por buena (024, principi
   EL SISTEMA pondrá esos transformadores en la misma pasada, antes de calibrar, en vez de calibrar en falso y repetir (cambia
   RF-8, que queda como respaldo). En PRUEBA_007 (2026-11-06), SE20497 pedía 1 429 kW en 160 kVA: cada calibración fallaba
   la primera vez y se repetía entera. Usuario: «debe buscar la solución, no seguir intentando».
+- RF-32: CUANDO el oráculo arranca la calibración sobre una red con ramas de una o dos fases, EL SISTEMA declarará en su informe
+  la representación «equilibrado (aproximación)», cuántas ramas hay de cada número de fases y que la desviación frente al flujo
+  desequilibrado no se mide con ese grafo, en vez de callarlo (H12, auditoría del 2026-11-14; el automático es secuencia
+  positiva por RF-17 y la calibración queda fuera de alcance del desequilibrado por 082 y 057).
+- Aclaración de RF-32 (B4, 2026-11-14): una rama sin dato de fases, o con un valor que no es 1, 2 ni 3, no se supone
+  trifásica en silencio: EL SISTEMA la contará aparte en el informe como «sin dato» y la nota dirá que, si alguna no es
+  trifásica, el equilibrado también es una aproximación; un valor ilegible no detendrá el arranque con el oráculo (una
+  excepción ahí apagaría el oráculo entero por RF-4).
 
 ## Fuera de alcance
 

@@ -182,3 +182,45 @@ def test_modulo_sin_licencia_queda_no_disponible(client, tmp_path):
     assert 'alojamiento' not in ofrecidos and 'ComHostcap' in no['alojamiento']['motivo']
     r = _plan(client, wid, ajuste, project='LICENCIA', estudios=['alojamiento'])
     assert r.status_code == 400 and 'ComHostcap' in r.json()['detail']
+
+
+def test_historico_en_un_espacio_sin_conversion_dice_que_falta_la_red(client, tmp_path):
+    """012:RF-19, RF-62 — el histórico de interrupciones subido a un espacio sin red convertida se
+    guarda, y la confiabilidad dice en una frase que falta la red para normalizarlo."""
+    import random as _r
+
+    from test_historico_interrupciones import _escribir as _escribir_h, _historico
+
+    from convertersmartgrid.historico_interrupciones import FALTA_RED
+
+    rng = _r.Random(7)
+    filas, _exp, _e, _p = _historico(rng)
+    wid = _espacio(client)
+    r = _subir(client, wid, _escribir_h(tmp_path / 'historico.xlsx', filas, rng))
+    assert r.status_code == 200, r.text
+    ofrecidos, no, _cat = _catalogo(client, wid)
+    assert 'fiabilidad' not in ofrecidos
+    assert FALTA_RED in no['fiabilidad']['motivo']
+
+
+def test_historico_sin_conversion_aplicado_guarda_la_exposicion_de_digsilent(client, tmp_path):
+    """012:RF-88 — en un espacio sin red convertida, aplicar el histórico guarda con el proyecto el
+    libro con las tasas derivadas de la exposición leída en DIgSILENT y su origen; desde entonces la
+    confiabilidad se ofrece."""
+    import random as _r
+
+    from test_historico_interrupciones import _escribir as _escribir_h, _historico
+
+    rng = _r.Random(7)
+    filas, _exp, _e, _p = _historico(rng)
+    wid = _espacio(client)
+    assert _subir(client, wid, _escribir_h(tmp_path / 'historico.xlsx', filas, rng)).status_code == 200
+    assert 'fiabilidad' not in _catalogo(client, wid)[0]
+    r = client.post(f'/api/workspaces/{wid}/pf/datos-empresa/aplicar', json={'project': 'P', 'feeders': ['A1']})
+    estado = esperar_trabajo(client, r.json())
+    assert estado['status'] == 'done', estado
+    ofrecidos, _no, cat = _catalogo(client, wid)
+    assert 'fiabilidad' in ofrecidos, _no.get('fiabilidad')
+    guardado = client.get(f'/api/workspaces/{wid}/pf/datos-empresa', params={'project': 'P'}).json()['libro']
+    assert 'DIgSILENT' in guardado['historico']['exposicion']['origen']
+    assert guardado['aplicado']

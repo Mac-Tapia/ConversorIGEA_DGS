@@ -118,7 +118,7 @@
   },
   {
    "codigo": {
-    "ancla": "LANES = ('engine', 'powerfactory', 'asistente', 'control')",
+    "ancla": "LANES = ('engine', 'powerfactory', 'asistente', 'control'",
     "fichero": "src/convertersmartgrid/web/jobs.py",
     "linea": 40,
     "rf": null
@@ -130,7 +130,7 @@
     "rf": null
    },
    "estado": "resuelta el 2026-11-04: docs/ARQUITECTURA.md la corrige y conserva la frase en su tabla de correcciones (090:RF-16)",
-   "nota": "La arquitectura habla de tres carriles y el código tiene cuatro, con «control»."
+   "nota": "La arquitectura habla de tres carriles y el código tiene cuatro, con «control». Hoy son cinco: la 110 añade «correo»."
   },
   {
    "codigo": {

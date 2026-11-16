@@ -98,11 +98,16 @@ adaptador VNR (integrador f9).
 - [ ] T16. Cotejo de una muestra de celdas por un revisor independiente, con sus observaciones registradas por la vía de
        T11. (RF-9, RF-10)
        Hecho cuando: el expediente guarda el acta del cotejo, la muestra revisada y la respuesta a cada observación.
-- [ ] T17. Universalidad: el paquete `pit/` y `registro_normativo.py` sin números de área, titulares, tensiones, tasas ni
+- [x] T17. Universalidad: el paquete `pit/` y `registro_normativo.py` sin números de área, titulares, tensiones, tasas ni
        años de una empresa o un periodo. (RF-11)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_entrega_universal.py tests/test_inventario.py`
        en verde con los ficheros
        nuevos incluidos.
+       Hecho (2026-11-15, S-107/108): `tools/comprobar_entrega.py` tiene `valores_fijos` (tensiones, años, tasas y
+       números de área escritos en el código, sin comentarios ni docstrings), y
+       `test_107_rf11_pit_y_registro_normativo_sin_valores_de_un_area_una_empresa_o_un_periodo` recorre con él cada
+       fichero de `pit/` y `registro_normativo.py` y comprueba que entran en la entrega, donde la búsqueda de nombres y
+       titulares de 086:RF-29 ya los recorre. Evidencia: `D:/csg/PM_IMPL/S107_108/T17/`.
 - [ ] T18. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
        Hecho cuando: cada RF definido en `spec.md` (`grep -oE "^- RF-[0-9]+" spec.md`, de RF-1 a RF-18) aparece en
        `grep -rnoE "107:RF-[0-9]+" tests | sort -u`, con sus pruebas en verde, y
@@ -146,11 +151,15 @@ adaptador VNR (integrador f9).
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_informe.py` en verde con los perfiles A y B:
        el resumen trae sus tres apartados con las cifras del expediente, y un expediente sin alternativa elegida da un
        error que lo nombra.
-- [ ] T22. Memoria por sección y relación de sustento (`pit/expediente.emitir`): criterios, metodología, entradas y
+- [x] T22. Memoria por sección y relación de sustento (`pit/expediente.emitir`): criterios, metodología, entradas y
        resultados de cada sección, y la relación de los documentos de sustento con su descripción, su uso y su huella.
        (RF-14)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_expediente.py -k "memoria or sustento"` en
        verde: cada fichero del expediente figura en la relación con su huella, y cada sección emitida tiene su memoria.
+       Hecho (2026-11-15, S-107/108): el código ya está en la punta e182c823 (`expediente.emitir` escribe `memoria.json`
+       y `relacion_sustento.json`); sus pruebas son `test_memoria_de_cada_seccion`,
+       `test_sin_diagnostico_ni_alternativas_la_memoria_no_inventa_secciones` y
+       `test_relacion_de_sustento_con_cada_fichero_y_su_huella`. Evidencia: `D:/csg/PM_IMPL/S107_108/MARCAS/`.
 - [ ] T23. Unifilar en DXF por alternativa y año, con el flujo de cada línea (F-212), y en DWG con el ODA File Converter
        si la configuración o el PATH lo dan, nunca por una ruta fija (`pit/unifilar.py`). Bloqueada por dependencia (2026-11-14, S1):
        `ezdxf` no está en `.venv/Lib/site-packages` (comprobado leyendo el entorno, sin instalar nada) y el conversor no
@@ -178,13 +187,16 @@ adaptador VNR (integrador f9).
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_reserva.py` en verde: con un área sintética
        la reserva se elige con la regla del registro y sin regla sale el aviso que la nombra; y la 094-2022 transcrita
        en `config/normativa/`.
-- [ ] T25. Modificación del plan vigente: modo `modificacion` del expediente, que compara el programa vigente con el
+- [x] T25. Modificación del plan vigente: modo `modificacion` del expediente, que compara el programa vigente con el
        nuevo y lista lo que se elimina, cambia o agrega, con su razón, con la demanda y las alternativas rehechas con los
        mismos criterios. (RF-17)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_programa.py tests/test_pit_expediente.py
        -k modificacion` en verde: dos programas sintéticos (perfiles A y B) dan la lista de diferencias con su razón, un
        cambio sin razón es un error que lo nombra, y el expediente de la modificación no se emite con otros criterios
        que los del vigente ni sobre su misma carpeta.
+       Hecho (2026-11-15, S-107/108): el código ya está en la punta e182c823 (`programa.comparar_programas` y el modo
+       `modificacion` de `expediente.emitir`); sus pruebas son las dos `test_modificacion_*` de test_pit_programa.py y las
+       dos de test_pit_expediente.py. Evidencia: `D:/csg/PM_IMPL/S107_108/MARCAS/`.
 - [ ] T26. Formato F-208 con la estadística de fallas y los índices de desempeño de las fuentes importadas
        (confiabilidad, spec 012), con el hueco nombrado cuando falten. Bloqueada por datos (2026-11-14, S1): depende de T19,
        porque las columnas del F-208 están en los mismos libros de formatos sin transcribir. Siguiente acción: la de T19.
@@ -197,7 +209,7 @@ adaptador VNR (integrador f9).
        CONFIAB2) se cablea cuando esa tarjeta esté integrada. Se marca al correr su verde.
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_formatos.py -k f208` en verde: con fallas
        sintéticas se llenan los índices, y sin ellas cada celda queda vacía con su hueco nombrado.
-- [ ] T27. Demanda regulatoria, 3a: las reglas de la cadena (fórmula del art. 8.1, definiciones de FC, FCP y FS) y las
+- [x] T27. Demanda regulatoria, 3a: las reglas de la cadena (fórmula del art. 8.1, definiciones de FC, FCP y FS) y las
        pérdidas estándar de la fijación del VAD vigente por empresa y periodo en el registro (la 187-2023 modificada
        por la 223-2023 para las 11 empresas de esa fijación), con la comprobación permanente del cargador (FE ≥ 1 y
        FE = 1/(1−p)) y la cruzada contra el informe técnico de la fijación; y el motor de plantillas con series anuales
@@ -213,6 +225,10 @@ adaptador VNR (integrador f9).
        tests/test_pit_formatos.py` en verde, con los rojos
        de la tabla desplazada, del porcentaje mal leído y del FE < 1; y la prueba de las series del motor con dos
        horizontes de norma distintos.
+       Hecho (2026-11-15, S-107/108): el código ya está en la punta e182c823 (delta8 y delta13). Los rojos de la tabla
+       desplazada, del porcentaje mal leído y del FE < 1 son los casos de
+       `test_tabla_de_factores_mal_transcrita_falla_nombrando_la_fila`, y los dos horizontes de norma, los de
+       `test_serie_en_columnas_sale_del_horizonte_de_la_norma`. Evidencia: `D:/csg/PM_IMPL/S107_108/MARCAS/`.
 - [ ] T28. Demanda regulatoria, 3b: F-102 desde la medida del año representativo (días de máxima del sistema, de la
        SET y del SEIN, y máxima no coincidente) y, de él, F-101 (FC, FCP y FS) y F-103 (FPHMS y FPMWHS). (Aclaración de RF-9)
        Avance (2026-11-15, f4): registro del COES en `config/normativa/coes_maxima_demanda_sein.json` (máxima anual del

@@ -261,6 +261,27 @@ def lineas_de_codigo(nombre: str, texto: str) -> list[str]:
     return texto.splitlines()
 
 
+#: 107:RF-11 (T17): lo que, escrito en el código de un paquete universal, es de un área, una empresa o un periodo. Un
+#: 0 % o un 100 % no lo son: son los extremos de cualquier porcentaje.
+_VALORES_FIJOS = (
+    ('tension', re.compile(r'(?<![\w.,])\d+(?:[.,]\d+)?\s?kV\b')),
+    ('anio', re.compile(r'(?<![\w.,\-/])(?:19[89]\d|20\d\d)(?![\w.,])')),
+    ('tasa', re.compile(r'''\btasa\w*['"]?\s*[:=]\s*-?\d|(?<![\w.,{])(?!(?:0|100)\s?%)\d+(?:[.,]\d+)?\s?%''', re.I)),
+    ('area', re.compile(r'\bAD[-_ ]?\d{1,2}\b|[ÁáAa]rea de [Dd]emanda\s+(?:N[°º.]\s*)?\d')),
+)
+
+
+def valores_fijos(rel: str, texto: str) -> list[tuple[int, str, str]]:
+    """(línea, clase, trozo) de cada tensión, año, tasa o número de área escrito en el código de un fichero, sin contar
+    sus comentarios ni sus docstrings (107:RF-11): en un paquete universal esos valores salen del registro normativo o
+    del perfil de la empresa."""
+    hallados: list[tuple[int, str, str]] = []
+    for n, linea in enumerate(lineas_de_codigo(rel, texto), 1):
+        for clase, patron in _VALORES_FIJOS:
+            hallados += [(n, clase, m.group(0)) for m in patron.finditer(linea)]
+    return hallados
+
+
 # --------------------------------------------------------------------------- búsqueda
 def _buscar(linea: str, terminos: Terminos, memoria: dict[str, str | None]) -> Iterator[tuple[str, str]]:
     """(término o huella, categoría) de cada ventana de una a cuatro palabras de la línea."""

@@ -766,3 +766,32 @@ def test_en_un_caso_del_conversor_la_troncal_no_queda_en_la_red(semilla, rol, es
     assert [b for b in red.GetContents('*.ElmBbone', 1)] == [propia], 'solo queda la del operador'
     assert propia not in app.borrados and (getattr(propia, 'desc', None) == [guion.MARCA_TRONCAL]) == marcada
     assert sorted(v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme', 1)) == variaciones
+
+
+@pytest.mark.parametrize('rc_orden', (1, -1, 3))
+@pytest.mark.parametrize('estudio,clase', [('perfil_tension', 'ComVoltplan'), ('balance_fases', 'ComBalance'),
+                                           ('punto_apertura', 'ComTieopt'), ('troncal', 'ComBbone')])
+def test_orden_que_termina_mal_es_un_error_y_no_un_resultado(estudio, clase, rc_orden):
+    """011:RF-137 — si la orden de DIgSILENT termina con un código distinto de 0, el estudio sale con error y código 2,
+    con la orden y su código en el mensaje, no con las medidas del flujo base como si fueran las del estudio.
+
+    Antes, ``codigo_orden`` se guardaba en el informe pero nadie lo leía, y un optimizador que terminaba con 1 se daba
+    por bueno. Vale para cualquier orden y cualquier código distinto de 0, también negativo.
+    """
+    app, feeders = _red()
+    app.ordenes[clase] = fake_pf.Orden(app, 'MAL', rc=rc_orden, clase=clase)
+    variaciones = {v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme')}
+    informe, rc = guion.ejecutar(app, _plan([feeders[0]], estudio))
+    assert rc == 2, informe
+    assert informe['codigo_orden'] == rc_orden
+    assert clase in informe['error'] and f'código {rc_orden}' in informe['error'], informe['error']
+    assert {v.loc_name for v in app.carpetas['scheme'].GetContents('*.IntScheme')} == variaciones,         'aunque falle, no deja variaciones del estudio'
+    assert not app.proyecto.GetContents('*.ElmBbone', 1), 'aunque falle, no deja troncales de la corrida (RF-136)'
+
+
+def test_orden_que_termina_bien_sigue_igual():
+    """011:RF-137 — con código 0 nada cambia: el estudio da sus medidas y sale con 0."""
+    app, feeders = _red()
+    app.ordenes['ComBbone'] = fake_pf.Orden(app, 'BB', rc=0, clase='ComBbone')
+    informe, rc = guion.ejecutar(app, _plan([feeders[0]], 'troncal'))
+    assert rc == 0 and 'error' not in informe and informe['codigo_orden'] == 0

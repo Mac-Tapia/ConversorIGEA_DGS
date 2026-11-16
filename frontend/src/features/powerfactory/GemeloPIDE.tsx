@@ -1,9 +1,10 @@
 import { fmtNum } from '../../shared/formato';
 import { Ayuda } from '../../shared/ui';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
 import { AvisoBeta } from '../../shared/MarcaBeta';
+import { CampoAnioPresentacion, motivoAnio } from './TipoDeAnalisis';
 import type { ClaveTipoAnalisis, EpisodioResumen, ObraPIDE, PideResultado, PideAnualResultado, PideFuentes, PideSolicitud,
   TiposAnalisis } from '../../api/types';
 
@@ -84,6 +85,10 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
   const [moneda, setMoneda] = useState<string | null>(null);
   const tcEscrito = tipoCambio.trim() !== '';
   const tcValido = tipoDeCambio(tipoCambio) !== null;
+  // Lo que impide «Planificar», visible junto a su campo y enlazado al botón (no solo en el title).
+  const ids = useId();
+  const idMotivo = { tipo_cambio: `${ids}-tc`, anio: `${ids}-anio` } as const;
+  const bloqueo = motivoPlanificar({ tipoCambio, anio, tipos });
   // 072:RF-34, RF-35: el largo plazo plantea las obras; el corto plazo no se planifica aquí (pasos 2 a 4).
   const plazoPeticion = planificacionDe(plazo);
   const aplicar = implementar && plazoPeticion !== 'largo_plazo';
@@ -132,21 +137,23 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
         <label className="field grow"><span>Libro CAPEX (ruta en el servidor, opcional)</span>
           <input className="search" value={capex} placeholder="p. ej. D:\…\capex.xlsx"
             onChange={(e) => setCapex(e.target.value)} /></label>
-        <label className="field"><span>Año de presentación (se presenta cada 4 años)</span>
-          <input type="number" min={2000} max={2100} value={anio} placeholder="sin él, sin módulos"
-            onChange={(e) => setAnio(e.target.value)} /></label>
+        <CampoAnioPresentacion anio={anio} onAnio={setAnio} tipos={tipos} placeholder="sin él, sin módulos"
+          idMotivo={idMotivo.anio} />
         <label className="field grow"><span>Formato 01 de la empresa (ruta en el servidor, opcional)</span>
           <input className="search" value={formato01} placeholder="p. ej. D:\…\formato01.xlsx"
             onChange={(e) => setFormato01(e.target.value)} /></label>
         <label className="field"><span>Tipo de cambio{moneda ? ` (a ${moneda})` : ''}, opcional</span>
           <input type="text" inputMode="decimal" size={8} value={tipoCambio} placeholder="p. ej. 3,495"
             aria-label="Tipo de cambio de los precios de pérdidas a la moneda del costo"
-            aria-invalid={tcEscrito && !tcValido} onChange={(e) => setTipoCambio(e.target.value)} /></label>
+            aria-invalid={tcEscrito && !tcValido} aria-describedby={tcEscrito && !tcValido ? idMotivo.tipo_cambio : undefined}
+            onChange={(e) => setTipoCambio(e.target.value)} />
+          {tcEscrito && !tcValido && <small id={idMotivo.tipo_cambio} className="alert alert-warn">{MOTIVO_TIPO_CAMBIO}</small>}
+        </label>
         <label className="check" title={plazoPeticion === 'largo_plazo' ? 'El plan de largo plazo plantea las obras; no las aplica.' : undefined}>
           <input type="checkbox" checked={aplicar} disabled={plazoPeticion === 'largo_plazo'}
             onChange={(e) => setImplementar(e.target.checked)} /> Aplicar solas las obras que funcionan</label>
-        <button className="btn btn-pf" disabled={pfBusy || !project || (tcEscrito && !tcValido)}
-          title={tcEscrito && !tcValido ? 'El tipo de cambio debe ser un número mayor que cero.' : undefined}
+        <button className="btn btn-pf" disabled={pfBusy || !project || bloqueo !== null}
+          aria-describedby={bloqueo ? idMotivo[bloqueo.causa] : undefined}
           onClick={() => startJob(() => api.pide(ws.id, cuerpoPlanificar(project, feeders, plazo, {
             capex, anio, formato01, implementar, tipoCambio })))}>
           {plazoPeticion === 'largo_plazo' ? 'Planificar el largo plazo' : plazoPeticion === 'pide' ? 'Planificar como PIDE' : 'Planificar'}
@@ -216,6 +223,19 @@ export function cuerpoPlanificar(project: string, feeders: string[], plazo: Clav
   return { project, feeders, capex: f.capex.trim() || null, anio_presentacion: f.anio.trim() ? Number(f.anio) : null,
     formato_01: f.formato01.trim() || null, implementar: f.implementar && tipo !== 'largo_plazo',
     ...(tipo ? { plazo: tipo } : {}), ...(tc !== null ? { tipo_cambio: tc } : {}) };
+}
+
+const MOTIVO_TIPO_CAMBIO = 'El tipo de cambio debe ser un número mayor que cero.';
+
+/**
+ * 072:RF-18, RF-36: lo que impide «Planificar» con lo escrito, y en qué campo está, para enlazarlo al botón; ``null`` si
+ * nada. El texto se ve junto a su campo, una sola vez; el botón solo lo señala (antes iba solo en su title).
+ */
+export function motivoPlanificar(f: { tipoCambio: string; anio: string; tipos: TiposAnalisis | null }):
+  { causa: 'tipo_cambio' | 'anio'; texto: string } | null {
+  if (f.tipoCambio.trim() !== '' && tipoDeCambio(f.tipoCambio) === null) return { causa: 'tipo_cambio', texto: MOTIVO_TIPO_CAMBIO };
+  const anio = motivoAnio(f.anio, f.tipos);
+  return anio ? { causa: 'anio', texto: anio } : null;
 }
 
 /** El tipo de cambio escrito, con coma o punto decimal; null si está vacío o no es un número positivo. */

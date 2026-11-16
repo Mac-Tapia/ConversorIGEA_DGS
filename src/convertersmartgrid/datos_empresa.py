@@ -24,6 +24,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
+from . import historico_interrupciones as hi
+
 #: Clases de elemento que reconoce el libro (RF-10), con su nombre en la hoja.
 CLASES = {
     'linea': 'Línea aérea de media tensión',
@@ -174,6 +176,11 @@ class Libro:
     avisos: list[str] = field(default_factory=list)
     #: 049:RF-3: un dict por dispositivo con el contrato de ``protecciones`` y su ``origen``.
     protecciones: list[dict[str, Any]] = field(default_factory=list)
+    #: Aclaración de 012:RF-8 (2026-11-14): de dónde salen las tasas y los tiempos cuando el
+    #: libro es el histórico de interrupciones de la empresa (``historico_interrupciones``):
+    #: hoja, columnas reconocidas, periodo, filas usadas y excluidas, criterio, cifras por
+    #: alimentador y lo que no se pudo derivar. Vacío con el libro resumido de la plantilla.
+    historico: dict[str, Any] = field(default_factory=dict)
 
     def a_dict(self) -> dict[str, Any]:
         """Lo que viaja en el plan del guion y se guarda con el proyecto."""
@@ -187,6 +194,7 @@ class Libro:
             'tasa_descuento': self.tasa_descuento,
             'hojas_que_faltan': list(self.hojas_que_faltan), 'avisos': list(self.avisos),
             'protecciones': [dict(d) for d in self.protecciones],
+            'historico': dict(self.historico),
         }
 
     @classmethod
@@ -203,7 +211,8 @@ class Libro:
             hojas_que_faltan=list(d.get('hojas_que_faltan') or ()),
             avisos=list(d.get('avisos') or ()),
             # Los libros guardados antes de la spec 049 no traen la hoja: sin dispositivos.
-            protecciones=[dict(x) for x in d.get('protecciones') or ()])
+            protecciones=[dict(x) for x in d.get('protecciones') or ()],
+            historico=dict(d.get('historico') or {}))
 
 
 # --------------------------------------------------------------------------- utilidades
@@ -246,6 +255,16 @@ def que_falta(libro: Libro | None, estudio: str) -> list[str]:
         return ['el libro de la empresa (tasas de falla, tiempos y costes)']
     out = [f'la hoja «{POR_CLAVE[h].titulo}»' for h in NECESITA[estudio]
            if POR_CLAVE[h].titulo in libro.hojas_que_faltan]
+    if libro.historico.get('reconocido') and not libro.tasas and 'tasas' in NECESITA[estudio]:
+        # Aclaración de 012:RF-9 (2026-11-14): el libro es el histórico y el espacio no tiene red
+        # convertida. Pedir la hoja «Tasas de falla» confundiría: lo que falta es la exposición,
+        # que se lee de DIgSILENT al aplicar el libro (RF-88); con ella ya leída y sin ninguna
+        # tasa, lo que hay que revisar es el histórico (RF-89); si ninguna columna es la del
+        # alimentador, el error que nombra los títulos encontrados (RF-90).
+        tasas = f"la hoja «{POR_CLAVE['tasas'].titulo}»"
+        falta = (libro.historico.get('error_alimentador')
+                 or (hi.SIN_TASAS if libro.historico.get('exposicion') else hi.FALTA_RED))
+        out = [falta if x == tasas else x for x in out]
     if estudio == 'condensadores':
         if not libro.bancos and POR_CLAVE['bancos'].titulo not in libro.hojas_que_faltan:
             out.append('los bancos de condensadores')
@@ -464,8 +483,88 @@ def _protecciones(filas, libro: Libro, errores: list[str]) -> None:
             libro.protecciones.append({**disp, 'origen': f'{libro.nombre}, hoja «{hoja}», fila {n}'})
 
 
-def leer_libro(ruta: Path | str, nombre: str | None = None) -> Libro:
-    """Lee y valida el libro entero; con cualquier error, ``DatosEmpresaError`` con todos."""
+def _desde_historico(libro: Libro, hist: dict[str, Any]) -> None:
+    """Las tasas y los tiempos que da el histórico de interrupciones (aclaración de 012:RF-8,
+    RF-9 y RF-12, 2026-11-14), con su procedencia en ``libro.historico`` y en los avisos."""
+    hay_momentaneas = any(d.get('momentaneas') for d in hist.get('tasas', {}).values())
+    for clase, d in hist.get('tasas', {}).items():
+        libro.tasas[clase] = Tasa(clase, d['permanente'], d['transitoria'] if hay_momentaneas else None,
+                                  d['reparacion_h'])
+    libro.tiempos_min.update(hist.get('tiempos_min') or {})
+    # Las hojas que el histórico deja de hacer falta, para devolverlas si se vuelve a derivar
+    # con otra exposición (012:RF-87, ``con_exposicion``).
+    quitadas = []
+    if libro.tasas and POR_CLAVE['tasas'].titulo in libro.hojas_que_faltan:
+        quitadas.append(POR_CLAVE['tasas'].titulo)
+    if all(k in libro.tiempos_min for k in ('localizacion', 'manual')) and \
+            POR_CLAVE['tiempos'].titulo in libro.hojas_que_faltan:
+        quitadas.append(POR_CLAVE['tiempos'].titulo)
+    for titulo in quitadas:
+        libro.hojas_que_faltan.remove(titulo)
+    libro.historico = {**hist, 'hojas_quitadas': quitadas}
+    libro.avisos.extend(_avisos_del_historico(hist))
+
+
+def _avisos_del_historico(hist: Mapping[str, Any]) -> list[str]:
+    """La procedencia de las tasas y los tiempos del histórico, como avisos del libro (RF-20)."""
+    p = hist['periodo']
+    procedencia = (f"Tasas y tiempos derivados del histórico de interrupciones (hoja «{hist['hoja']}»): "
+                   f"{hist['usadas']} de {hist['filas']} filas, de {p['desde']} a {p['hasta']} "
+                   f"({p['anios']:.2f} años). Criterio: {hist['criterio']}")
+    out = [procedencia]
+    if hist.get('exposicion'):
+        out.append(hi.frase_exposicion(hist['exposicion']))
+    if hist.get('excluidas'):
+        out.append('Filas excluidas: ' + ', '.join(f'{k} {n}' for k, n in hist['excluidas'].items())
+                   + f"; sin clase de elemento por su causa: {hist.get('sin_clase', 0)}.")
+    return out + list(hist.get('notas') or ())
+
+
+def _aviso_hoja(titulo: str) -> str:
+    """El aviso de una hoja que falta, con los estudios que no se podrán ejecutar (RF-63)."""
+    afectados = [e for e, hojas in NECESITA.items() if any(POR_CLAVE[h].titulo == titulo for h in hojas)]
+    return (f'Falta la hoja «{titulo}»' + (': no se podrán ejecutar ' + ', '.join(afectados) if afectados else '')
+            + '.')
+
+
+def con_exposicion(libro: Libro, exposicion: Mapping[str, Mapping[str, float]], *, origen: str) -> Libro:
+    """012:RF-87: el libro cuyo histórico se leyó sin red, con las tasas y los tiempos que da la
+    exposición que llega después (la del proyecto de DIgSILENT, leída al aplicar el libro).
+
+    Da lo mismo que habría dado el libro subido a un espacio con esa red: las hojas, los tiempos
+    y los avisos del histórico anterior se sustituyen por los nuevos, y ``origen`` dice de dónde
+    salió la exposición. El libro que llega no cambia. Sin histórico reconocido, ``ValueError``.
+    """
+    if not libro.historico.get('reconocido'):
+        raise ValueError('el libro no es un histórico de interrupciones: sus tasas son las de su hoja')
+    previo = libro.historico
+    hist = hi.con_exposicion(previo, exposicion, clases=CLASES, por_km=POR_KM, tiempos_nombres=TIEMPOS,
+                             origen=origen)
+    nuevo = Libro.desde_dict(libro.a_dict())
+    for clase in previo.get('tasas') or {}:
+        nuevo.tasas.pop(clase, None)
+    for k in previo.get('tiempos_min') or {}:
+        nuevo.tiempos_min.pop(k, None)
+    viejos = set(_avisos_del_historico(previo)) | {_aviso_hoja(t) for t in nuevo.hojas_que_faltan}
+    nuevo.avisos = [a for a in nuevo.avisos if a not in viejos]
+    for titulo in previo.get('hojas_quitadas') or ():
+        if titulo not in nuevo.hojas_que_faltan:
+            nuevo.hojas_que_faltan.append(titulo)
+    orden = [h.titulo for h in HOJAS]
+    nuevo.hojas_que_faltan.sort(key=lambda t: orden.index(t) if t in orden else len(orden))
+    _desde_historico(nuevo, {k: v for k, v in hist.items() if k != 'hojas_quitadas'})
+    nuevo.avisos.extend(_aviso_hoja(t) for t in nuevo.hojas_que_faltan)
+    return nuevo
+
+
+def leer_libro(ruta: Path | str, nombre: str | None = None, red: Any = None) -> Libro:
+    """Lee y valida el libro entero; con cualquier error, ``DatosEmpresaError`` con todos.
+
+    Aclaración de 012:RF-6 y RF-62 (2026-11-14): si el libro no trae la hoja «Tasas de falla»
+    y una de sus hojas es un histórico de interrupciones, las tasas y los tiempos se derivan
+    de él, normalizados con ``red`` (el dataset del espacio o un mapa de exposición por
+    alimentador, ``historico_interrupciones.exposicion_de_red``).
+    """
     from openpyxl import load_workbook
 
     ruta = Path(ruta)
@@ -483,6 +582,17 @@ def leer_libro(ruta: Path | str, nombre: str | None = None) -> Libro:
                 libro.hojas_que_faltan.append(hoja.titulo)          # RF-63
                 continue
             leidas[hoja.clave] = _leer_hoja(wb[real], hoja, errores)
+        historico = None
+        if 'tasas' not in leidas:
+            exposicion = hi.exposicion_de_red(red)
+            plantilla_titulos = {_norm(h.titulo) for h in HOJAS}
+            for n in wb.sheetnames:
+                if _norm(n) not in plantilla_titulos:
+                    historico = hi.buscar_en_hoja(wb[n], exposicion, clases=CLASES, por_km=POR_KM,
+                                               tiempos_nombres=TIEMPOS)
+                    if historico and historico.get('reconocido'):
+                        break
+                    historico = None
     finally:
         wb.close()
     if 'tasas' in leidas:
@@ -503,12 +613,9 @@ def leer_libro(ruta: Path | str, nombre: str | None = None) -> Libro:
         _protecciones(leidas['protecciones'], libro, errores)
     if errores:
         raise DatosEmpresaError(errores)
-    for titulo in libro.hojas_que_faltan:
-        afectados = [e for e, hojas in NECESITA.items()
-                     if any(POR_CLAVE[h].titulo == titulo for h in hojas)]
-        libro.avisos.append(f'Falta la hoja «{titulo}»'
-                            + (': no se podrán ejecutar ' + ', '.join(afectados) if afectados else '')
-                            + '.')
+    if historico:
+        _desde_historico(libro, historico)
+    libro.avisos.extend(_aviso_hoja(t) for t in libro.hojas_que_faltan)
     return libro
 
 
@@ -556,4 +663,6 @@ def resumen(libro: Libro) -> dict[str, Any]:
             'bancos': [asdict(b) for b in libro.bancos], 'coste_energia_kwh': libro.coste_energia_kwh,
             'moneda': libro.moneda, 'tasa_descuento': libro.tasa_descuento,
             'hojas_que_faltan': list(libro.hojas_que_faltan), 'avisos': list(libro.avisos),
-            'protecciones': len(libro.protecciones)}
+            'protecciones': len(libro.protecciones),
+            'historico': {k: libro.historico[k] for k in ('hoja', 'periodo', 'filas', 'usadas', 'excluidas',
+                                                          'criterio', 'notas', 'exposicion') if k in libro.historico}}

@@ -485,3 +485,68 @@ def test_la_grabacion_vuelve_a_la_ultima_etapa_del_conversor():
     estado['graba'] = None
     guion._grabar_en_la_ultima_del_conversor(app)
     assert estado['graba'] is None, 'sin nada grabando no se pone a grabar'
+
+
+@pytest.mark.parametrize('fases,esperada,conteo,sin_dato', [
+    ((3, 3), 'equilibrado', {3: 2}, 0),
+    ((3, 1), 'equilibrado (aproximación)', {1: 1, 3: 1}, 0),
+    ((2, 1), 'equilibrado (aproximación)', {1: 1, 2: 1}, 0),
+    ((3.0, '1'), 'equilibrado (aproximación)', {1: 1, 3: 1}, 0),
+    ((None, None), 'equilibrado', {}, 2),
+    ((3, None), 'equilibrado', {3: 1}, 1),
+    ((1, None), 'equilibrado (aproximación)', {1: 1}, 1),
+])
+def test_el_informe_dice_que_representacion_uso(fases, esperada, conteo, sin_dato):
+    """083:RF-32 — el oráculo calcula en secuencia positiva; si la red tiene ramas de una o dos fases, el informe lo
+    declara como aproximación, cuenta las ramas por número de fases y dice que no mide la desviación frente al
+    desequilibrado, en vez de callarlo. Las ramas sin dato de fases se cuentan aparte (aclaración de RF-32)."""
+    g = _grafo()
+    for rama, f in zip(g['ramas'], fases):
+        if f is not None:
+            rama['fases'] = f
+    nodos, ramas = _datos()
+    r = arranque_con_oraculo(g, nodos, ramas, {'F': _reparto()}, {'F': Objetivo(1200.0, 200.0, 'M')})
+    inf = r.informe()
+    assert inf['representacion'] == esperada
+    assert inf['ramas_por_fases'] == conteo
+    assert inf['ramas_sin_fases'] == sin_dato
+    nota = inf['desviacion_frente_a_desequilibrado']
+    if esperada.endswith('(aproximación)'):
+        assert 'desequilibrado' in nota
+    elif sin_dato:
+        assert f'ramas sin dato de fases: {sin_dato}' in nota and 'aproximación' in nota
+    else:
+        assert nota is None
+
+
+@pytest.mark.parametrize('valor', ['abc', '', 0, -1, 2.5, 7, float('nan'), [3]])
+def test_la_representacion_cuenta_aparte_las_fases_ilegibles(valor):
+    """083:RF-32 (aclaración) — un valor de fases que no es 1, 2 ni 3 no se da por trifásico en silencio ni rompe el
+    arranque: la rama cuenta como «sin dato» y la nota lo dice."""
+    from convertersmartgrid.oraculo_calibracion import representacion_del_grafo
+
+    g = _grafo()
+    g['ramas'][0]['fases'] = valor
+    g['ramas'][1]['fases'] = 3
+    representacion, conteo, sin_dato, nota = representacion_del_grafo(g)
+    assert (representacion, conteo, sin_dato) == ('equilibrado', {3: 1}, 1)
+    assert 'ramas sin dato de fases: 1' in nota
+
+
+def test_la_representacion_de_un_grafo_sin_ramas():
+    """083:RF-32 — un grafo sin ramas no tiene nada que aproximar: «equilibrado», sin conteo y sin nota."""
+    from convertersmartgrid.oraculo_calibracion import representacion_del_grafo
+
+    assert representacion_del_grafo({'nodos': {}, 'ramas': []}) == ('equilibrado', {}, 0, None)
+    assert representacion_del_grafo({'nodos': {}}) == ('equilibrado', {}, 0, None)
+
+
+def test_la_representacion_no_cambia_el_resultado():
+    """083:RF-32 — declarar la representación no cambia ni los factores ni las evaluaciones."""
+    nodos, ramas = _datos()
+    obj = {'F': Objetivo(1200.0, 200.0, 'M')}
+    a = arranque_con_oraculo(_grafo(), nodos, ramas, {'F': _reparto()}, obj)
+    g = _grafo()
+    g['ramas'][1]['fases'] = 1
+    b = arranque_con_oraculo(g, nodos, ramas, {'F': _reparto()}, obj)
+    assert a.factores == b.factores and a.evaluaciones == b.evaluaciones

@@ -48,20 +48,25 @@ def valorar_metrados(por_codigo: Mapping[str, Mapping[str, float]], tabla: Tabla
     valorados, sin_costo = [], []
     for codigo_red, fila in por_codigo.items():
         codigo, tension = partir_codigo_vnr(codigo_red)
-        costo = tabla.buscar(codigo, tension, estructura, sector)
+        # Si el código es ambiguo en la fuente, el tipo del tramo decide la subfamilia; con tramos aéreos y
+        # subterráneos a la vez, el tipo no decide y la ambigüedad se nombra (072:RF-41).
+        aereo, subterraneo = bool(fila.get('km_aereo')), bool(fila.get('km_subterraneo'))
+        tipo = 'tramo_aereo' if aereo and not subterraneo else 'tramo_subterraneo' if subterraneo and not aereo else ''
+        costo, anotacion = tabla.resolver(codigo, tension, estructura, sector, tipo=tipo)
         # La estructura pedida es la de la red aérea; un tramo solo subterráneo usa la que tiene su código.
         if costo is None and not fila.get('km_aereo'):
             unica = tabla.estructura_unica(codigo, tension, sector)
-            costo = tabla.buscar(codigo, tension, unica, sector) if unica else None
+            costo, anotacion = tabla.resolver(codigo, tension, unica, sector, tipo=tipo) if unica else (None, '')
         if costo is None:
             sin_costo.append({'codigo': codigo_red, 'km': fila['km'],
-                              'motivo': tabla.motivo_sin_costo(codigo, tension, estructura, sector)})
+                              'motivo': tabla.motivo_sin_costo(codigo, tension, estructura, sector, tipo)})
         elif not costo.familia.upper().startswith('RED'):
             sin_costo.append({'codigo': codigo_red, 'km': fila['km'],
                               'motivo': f'{codigo_red} es de la familia «{costo.familia}», que no se valora por km'})
         else:
             valorados.append({'codigo': codigo_red, 'km': fila['km'], 'costo_por_km': costo.total,
-                              'costo': fila['km'] * costo.total, 'nombre': costo.nombre})
+                              'costo': fila['km'] * costo.total, 'nombre': costo.nombre,
+                              **({'anotacion': anotacion} if anotacion else {})})
     return {'moneda': tabla.fuente.moneda, 'resolucion': tabla.fuente.resolucion, 'sector': sector,
             'estructura': estructura, 'total': sum(x['costo'] for x in valorados),
             'km_valorados': sum(x['km'] for x in valorados), 'km_sin_costo': sum(x['km'] for x in sin_costo),

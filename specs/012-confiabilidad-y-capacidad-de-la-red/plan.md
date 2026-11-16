@@ -255,6 +255,51 @@ Sondas ejecutadas por el usuario en DIgSILENT 2024 (a su petición) sobre una co
 - No toca el lector ni el DGS: no hacen falta las dos disposiciones ni las `CSG_*`, salvo
   la suite completa de cierre.
 
+## Columna del alimentador del histórico (T18; RF-90 a RF-92)
+
+- **Orden**: primero el título (los sinónimos de `CONCEPTOS`); si ninguno casa, el contenido. Vale igual
+  con la red convertida (`reconocer_columnas`, al subir el libro) y con la exposición leída de DIgSILENT
+  (`con_exposicion`, al aplicarlo), de modo que las dos vías siguen dando lo mismo (RF-87).
+- **Normalización**: `clave_alimentador` = `feeder_short_name` en mayúsculas, la de la web, para las
+  celdas y para los nombres de la red o del proyecto. La comparación es contra un `set`: O(C·N), con C
+  columnas y N filas, nunca O(F·N). Memoria por lectura, porque un histórico repite cada valor.
+- **Candidatas** (`MAYORIA_ALIMENTADOR = 0.5`): compite la columna llena, con un valor en más de la
+  mitad de las filas con datos, porque la del alimentador está en todas y una casi vacía, con unos
+  pocos nombres, no es ella; y de cardinalidad baja, sin más valores distintos que la mitad de las
+  filas, porque más es un código o un texto libre. Sin red solo se guardan esas (`_candidatas`).
+- **Umbral de cobertura** (`COBERTURA_ALIMENTADOR = 0.5`, aclaración de RF-90 del auditor 3e): gana la
+  candidata que contiene más de la mitad de los alimentadores de la red o del proyecto (N de M). Se
+  descartó «más de la mitad de las filas» (versión 3): un proyecto con 3 alimentadores dentro del libro de
+  40 de la empresa tiene la mayoría de las filas de otros y acababa en error. La cobertura no depende de
+  cuántos alimentadores de otros trae el libro. Mayoría y no totalidad, porque un alimentador sin ninguna
+  interrupción en el periodo no aparece en ninguna columna. Más que una sola coincidencia (la regla de la
+  parte 1), porque una columna de observaciones o de transferencias puede nombrar uno o dos.
+- **Desempate**: entre las de la misma cobertura, la de más filas con forma de alimentador (siglas
+  seguidas de un número, `_FORMA_ALIMENTADOR`, la forma que `feeder_short_name` reconoce). Si siguen
+  empatadas y dicen lo mismo (las mismas filas con la red, o las mismas cuentas sin ella), vale la
+  primera; si no, error RF-92 con sus títulos. Elegir una al azar cambiaría las tasas sin decirlo.
+- **Sin red**: el histórico guarda en `base['alimentador']` cada columna candidata con sus cuentas, y
+  `con_exposicion` elige con los alimentadores del proyecto. Sin ninguna, `ValueError` con los títulos,
+  que el guion devuelve con rc=2 antes de escribir. Con red y sin ninguna, `historico['error_alimentador']`,
+  que `que_falta` pone en lugar de `SIN_TASAS`.
+- **Respaldo por forma** (`FORMA_MINIMA = 0.8`, aclaración de RF-91 del auditor 3e, «siempre una
+  solución»): si menos de la mitad de los alimentadores del proyecto tiene interrupciones en el periodo,
+  ninguna columna llega a la cobertura. Entonces gana la ÚNICA candidata (llena y de cardinalidad baja) en la
+  que al menos el 80 % de los valores DISTINTOS tienen forma de alimentador y alguno es del proyecto o de la
+  red. Se cuentan los distintos y no las filas, para que unos pocos alimentadores con muchas fallas no
+  oculten una columna de zonas o de textos. El 80 % es el mismo umbral de contenido de `_cumple_contenido`,
+  y deja hasta un 20 % de valores atípicos, como «SIN DATO» o una SET escrita a mano; el 70 % ya admite una
+  columna con casi un tercio de valores que no son alimentadores. Exigir que alguno sea del proyecto
+  descarta una columna de códigos de otra cosa con la misma forma. Única, porque con dos no hay forma de
+  saber cuál es sin inventar, y elegir mal cambia las tasas. Con varias o ninguna, el error de RF-92.
+- **Límite conocido**: un libro sin título del alimentador, sin cobertura y con dos columnas con forma de
+  alimentador termina en el error, que pide renombrar la columna como «Alimentador». Con un título que la
+  nombre, manda el título.
+- Pruebas: `tests/test_historico_interrupciones.py` (contenido con semillas fijas, título, empate igual y
+  distinto; con filas explícitas: columna casi vacía, cobertura 2 de 4 y 3 de 4, desempate por forma, y un
+  libro de 40 alimentadores con un proyecto de 3) y `tests/test_confiabilidad_pf_guion.py` (rc=2 sin
+  columna, elección por contenido con el doble de DIgSILENT).
+
 ## Riesgos
 
 - **Dependencias de la 011**: RF-26, RF-27 y RF-35 necesitan la clase de equipo (T15a);

@@ -179,6 +179,14 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       En la misma entrega, por la aclaración de 070:RF-51: los textos del plan ya no citan RF ni usan claves internas
       (`tareas.sin_citas`, `descripcion_para_operador`; las citas pasan a comentarios), con la prueba permanente
       `tests/test_asistente_textos_del_plan.py`, que arma el plan de cada tarea del catálogo, calibrado y sin calibrar.
+- [ ] T18 SICODI en libro de cálculo: `leer_sicodi` reconoce por su contenido el zip o el libro (.xlsx, .xlsm, .xls,
+      .xlsb, con el lector común `demanda_medida.abrir_libro`), lee los costos de inversión en la misma TablaCostos y
+      reconoce cada hoja; las claves con dos costos se separan por la subfamilia declarada o, sin ella, por la que
+      deduce el tipo del elemento con `SUBFAMILIA_POR_TIPO`, anotada. (RF-39, RF-40, RF-41)
+      Hecho cuando: `pytest -q -rfs tests/test_costos_sicodi_libro.py tests/test_estudio_y_costos.py
+      tests/test_modulos_transmision.py tests/test_trazabilidad_specs.py` en verde, con `CSG_SICODI` en el libro real
+      (`test_sicodi_real_en_libro` no omitida) y ninguna prueba omitida: .xls y .xlsb leen las muestras sintéticas de
+      `tests/fixtures/sicodi/`, sin metadatos (`test_las_muestras_no_llevan_metadatos`).
 
 Nota de corrección P17 (2026-11-08), sin cerrar criterios originales: se corrigieron
 los Important I1/I2/I3 y los Minor M1/M2 de la revisión independiente de RF-23 a

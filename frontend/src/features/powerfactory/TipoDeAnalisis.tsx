@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { api } from '../../api/client';
 import type { AvanceDisco, ClaveTipoAnalisis, TipoAnalisis, TiposAnalisis } from '../../api/types';
 
@@ -140,12 +140,52 @@ export function pasosDelTipo(tipo: ClaveTipoAnalisis, e: EstadoPasos, planificac
 }
 
 /** 072:RF-29: los tipos del servidor, con el año de presentación si el operador lo escribió. */
+type Rango = TiposAnalisis['anio_presentacion_rango'];
+
+/**
+ * 072:RF-36: el año con que se piden los tipos. ``null``: sin año (vacío, o menos de cuatro cifras mientras se escribe,
+ * para no avisar a cada tecla); ``undefined``: no vale con el rango de la API. Sin rango todavía, decide la API (422).
+ */
+export function anioParaTipos(anio: string, rango: Rango | null | undefined): number | null | undefined {
+  const t = anio.trim();
+  if (t.length < 4) return null;
+  const n = Number(t);
+  if (!/^\d+$/.test(t) || !Number.isInteger(n)) return undefined;
+  return !rango || (n >= rango.min && n <= rango.max) ? n : undefined;
+}
+
+/** 072:RF-36: por qué el año escrito no vale, en una frase; ``null`` si vale, si está vacío o si no hay rango. */
+export function motivoAnio(anio: string, tipos: Pick<TiposAnalisis, 'anio_presentacion_rango'> | null): string | null {
+  const rango = tipos?.anio_presentacion_rango;
+  if (!rango || anioParaTipos(anio, rango) !== undefined) return null;
+  return `El año de presentación va de ${rango.min} a ${rango.max}.`;
+}
+
+/**
+ * 072:RF-1, RF-36: el único campo del año de presentación, el mismo arriba («Tipo de análisis») y en el paso 5. Rango y
+ * ciclo vienen de la API con los tipos; el motivo, si lo hay, se ve junto al campo y ``idMotivo`` lo enlaza.
+ */
+export function CampoAnioPresentacion({ anio, onAnio, tipos, placeholder, idMotivo }: {
+  anio: string; onAnio: (a: string) => void; tipos: TiposAnalisis | null; placeholder?: string; idMotivo?: string;
+}) {
+  const propio = useId();
+  const id = idMotivo ?? `${propio}-motivo`;
+  const motivo = motivoAnio(anio, tipos);
+  const rango = tipos?.anio_presentacion_rango;
+  return (
+    <label className="field"><span>Año de presentación{tipos?.ciclo_anios ? ` (se presenta cada ${tipos.ciclo_anios} años)` : ''}</span>
+      <input type="number" name="anio_presentacion" min={rango?.min} max={rango?.max} value={anio}
+        placeholder={placeholder} aria-invalid={motivo ? true : undefined} aria-describedby={motivo ? id : undefined}
+        onChange={(e) => onAnio(e.target.value)} />
+      {motivo && <small id={id} className="alert alert-warn">{motivo}</small>}
+    </label>);
+}
+
 export function useTiposAnalisis(anio: string): { tipos: TiposAnalisis | null; error: string } {
   const [tipos, setTipos] = useState<TiposAnalisis | null>(null);
   const [error, setError] = useState('');
-  const n = Number(anio);
-  // Mientras se escribe (menos de cuatro cifras) cuenta como sin año: no se avisa a cada tecla.
-  const valido = anio.trim().length < 4 ? null : Number.isInteger(n) && n >= 1900 && n <= 2200 ? n : undefined;
+  // El rango es el de la última respuesta de la API; el aviso del año fuera de rango lo da el campo, no se repite aquí.
+  const valido = anioParaTipos(anio, tipos?.anio_presentacion_rango);
   useEffect(() => {
     if (valido === undefined) return;
     let vivo = true;
@@ -153,7 +193,7 @@ export function useTiposAnalisis(anio: string): { tipos: TiposAnalisis | null; e
       .catch((e: unknown) => { if (vivo) setError(e instanceof Error ? e.message : String(e)); });
     return () => { vivo = false; };
   }, [valido]);
-  return { tipos, error: valido === undefined ? 'El año de presentación tiene que ser un año de cuatro cifras.' : error };
+  return { tipos, error: valido === undefined ? '' : error };
 }
 
 const anio2 = (a: { relativo: number; calendario: number | null }) =>
@@ -204,11 +244,11 @@ export function TipoDeAnalisis({ tipo, onTipo, anio, onAnio, tipos, error, estad
         {tipos.norma.vigente ? '.' : ` (${tipos.norma.estado_juridico || 'sin estado jurídico'}: no se presenta como norma vigente).`}
       </p>}
       {tipo !== null && tipo !== 'corto_plazo' && (
-        <label className="field"><span>Año de presentación{tipos?.ciclo_anios ? ` (se presenta cada ${tipos.ciclo_anios} años)` : ''}</span>
-          <input type="number" min={1900} max={2200} value={anio} onChange={(e) => onAnio(e.target.value)}
+        <>
+          <CampoAnioPresentacion anio={anio} onAnio={onAnio} tipos={tipos}
             placeholder={tipos?.anio_presentacion_perfil ? `el del perfil: ${tipos.anio_presentacion_perfil}` : 'p. ej. el próximo año de presentación'} />
           {sinAnio && <small className="alert alert-warn">Sin año de presentación aquí ni en el perfil, «Planificar» se rechaza.</small>}
-        </label>)}
+        </>)}
       {elegido && <>
         <p>{elegido.descripcion}</p>
         <Ficha t={elegido} />

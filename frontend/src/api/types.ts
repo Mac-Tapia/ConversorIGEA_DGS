@@ -2053,6 +2053,8 @@ export interface TiposAnalisis {
   periodo_corto: number;
   ciclo_anios: number | null;
   anio_presentacion_perfil: number | null;
+  /** 072:RF-36: el rango del año de presentación que valida la API; la web no lo copia. */
+  anio_presentacion_rango: { min: number; max: number };
   tipos: TipoAnalisis[];
 }
 

@@ -171,6 +171,7 @@
     "estudios_red_pf.py",
     "datos_empresa.py",
     "entradas_estudios.py",
+    "historico_interrupciones.py",
     "protecciones.py",
     "transferencia_pf.py"
    ]
@@ -186,7 +187,12 @@
     "mapa_informe.py",
     "mapa_cargas.py",
     "documentos_solicitud.py",
-    "archivo_informes.py"
+    "archivo_informes.py",
+    "correo/__init__.py",
+    "correo/borrador.py",
+    "correo/envios.py",
+    "correo/mensaje.py",
+    "correo/proveedores.py"
    ]
   },
   {
@@ -387,6 +393,7 @@
     "soporte.py",
     "copia_datos.py",
     "copia_datos_api.py",
+    "correo_api.py",
     "mapa_cargas_api.py",
     "entradas_estudios_api.py",
     "retencion.py",
@@ -649,6 +656,7 @@
     "test/solicitudLeida.test.mjs",
     "src/api/evolucionFijas.ts",
     "src/api/mapaCargas.ts",
+    "src/api/correo.ts",
     "src/features/powerfactory/MapaCargas.tsx",
     "src/features/powerfactory/puntosDeDiseno.ts",
     "test/puntosDeDiseno.test.mjs",

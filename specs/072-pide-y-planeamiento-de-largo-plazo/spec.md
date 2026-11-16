@@ -45,6 +45,20 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
 - RF-8: EL SISTEMA no aplicará factores sobre los costos oficiales salvo que el estudio declare el factor y su sustento.
 - RF-9: EL SISTEMA guardará de cada fuente pública la URL de Osinergmin, su fecha de descarga y su huella, y usará el VNR
   aprobado de la empresa según su propia resolución de fijación.
+- RF-39: CUANDO el SICODI llegue como libro de cálculo (.xlsx, .xlsm, .xls o .xlsb), EL SISTEMA lo reconocerá por su
+  contenido y leerá sus costos de inversión en la misma tabla que el zip, con su fuente, su huella y la columna de cada
+  componente.
+- Aclaración de RF-39 (usuario, 2026-11-14: el SICODI llega también como libro de cálculo del VAD vigente): las
+  columnas se reconocen por su contenido y sus sinónimos, sin disposición fija; un componente en blanco o sin columna es
+  «sin dato», nunca cero; si ninguna hoja trae los costos, el error nombra cada hoja con lo que le falta y lo que encontró.
+- RF-40: EL SISTEMA reconocerá por su contenido cada hoja del libro del SICODI y devolverá lo leído con su hoja, su fila y
+  la huella del libro, y una hoja no reconocida quedará en los avisos con su nombre y sus cabeceras.
+- RF-41: SI una misma combinación de código, tensión, estructura y sector típico trae costos distintos en la fuente,
+  ENTONCES EL SISTEMA no elegirá ninguno salvo que el elemento declare su subfamilia, y nombrará la ambigüedad.
+- Aclaración de RF-41 (auditor 3e, 2026-11-14: «reconstruir, no bloquear»): si el elemento no declara la subfamilia, EL
+  SISTEMA la deducirá de su tipo en el modelo canónico (tramo aéreo, subterráneo, de alumbrado, luminaria, SED) con una
+  tabla universal, sin condiciones por empresa, y anotará cada valor así obtenido como «subfamilia deducida por el tipo»;
+  la ambigüedad solo se nombra cuando el tipo no decide entre varias subfamilias.
 
 ### Mercado y años
 
@@ -132,6 +146,9 @@ los dos entregables.
   encolar: el plan plantea las obras, no las aplica en «Con proyecto».
 - RF-36: SI se planifica como PIDE o largo plazo sin año de presentación en la petición ni en el perfil, ENTONCES EL SISTEMA
   lo rechazará antes de encolar, diciendo que falta el año de presentación.
+  Ampliada (revisión en pantalla, 2026-11-14): SI el año, escrito o del perfil, cae fuera del rango que la API publica con
+  los tipos de análisis, ENTONCES EL SISTEMA lo rechazará con 422 y dirá el rango; la web usa ese rango, sin copiarlo, en
+  un solo campo del año de presentación, el mismo arriba y en el paso 5.
 - RF-37: EL SISTEMA dirá con los tipos de análisis la norma de la que salen y su estado jurídico, sin presentarla como
   vigente mientras la metodología la marque como proyecto.
 - RF-38: MIENTRAS el tipo elegido sea PIDE y no conste un «Con proyecto» del proyecto, EL SISTEMA avisará que el PIDE parte

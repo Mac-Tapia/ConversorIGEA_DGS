@@ -34,7 +34,7 @@ import unicodedata
 from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
+from typing import Any, Callable, Iterable, Iterator, Literal, Mapping, Sequence
 
 from .compat_pf import zip_estricto
 from .dominio.numeros_medidos import clave_codigo, numero
@@ -201,6 +201,11 @@ def abrir_libro(path: Path | str):
 
 def filas_de_hoja(libro, hoja: str) -> list[list[Any]]:
     return libro.get_sheet_by_name(hoja).to_python(skip_empty_area=False)
+
+
+def iterar_filas_de_hoja(libro, hoja: str) -> Iterator[list[Any]]:
+    """Las filas de ``filas_de_hoja`` una a una: una hoja de cientos de miles de filas no se vuelca entera (072:RF-40)."""
+    return iter(libro.get_sheet_by_name(hoja).iter_rows())
 
 
 def hojas_del_libro(path: Path | str, hoja: str | None = None) -> tuple[list[str], str | None, list[list[Any]]]:

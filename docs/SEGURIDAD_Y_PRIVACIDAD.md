@@ -27,6 +27,8 @@ Nada por defecto. Cada salida se enciende por separado con su variable, y lo que
 | `CSG_SALIDA_INTERNET` | GitHub, PyPI y arXiv | Búsquedas técnicas del asistente |
 | `CSG_SALIDA_HUGGING_FACE` | Hugging Face | Descargar modelos del complemento de IA |
 | `CSG_SALIDA_CODEX` | Servicio de Codex | Herramienta de desarrollo; no se entrega |
+| `CSG_SALIDA_CORREO_GOOGLE` | La API de Gmail | Enviar un informe con la cuenta de Google del operador, solo con el permiso de enviar |
+| `CSG_SALIDA_CORREO_MICROSOFT` | Microsoft Graph | Enviar un informe con la cuenta de Microsoft del operador, solo con el permiso de enviar |
 
 Instalar no sale a internet y arrancar nunca instala nada. No hay telemetría ni comprobación de actualizaciones.
 
