@@ -1,6 +1,6 @@
 # Spec 010 — Trazado GPS de las líneas
 
-Estado: aprobada · Fecha: 2026-10-10 · Spec, plan e implementación aprobados por el
+Estado: cumplida (2026-11-15: T6 con el verde integrado de RF-8) · Fecha: 2026-10-10 · Spec, plan e implementación aprobados por el
 usuario el 2026-10-10, después de implementarse (lo pidió de forma explícita).
 
 ## Contexto y objetivo

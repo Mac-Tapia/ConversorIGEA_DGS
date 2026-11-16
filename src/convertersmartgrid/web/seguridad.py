@@ -1,4 +1,4 @@
-"""La puerta de la web: Host, Origin, token y política de contenido (086:RF-17, RF-18, RF-19, RF-21).
+"""La puerta de la web: Host, Origin, token, política de contenido y marcos (086:RF-17, RF-18, RF-19, RF-21).
 
 La revisión de la spec 086 reprodujo que una página cualquiera del navegador podía usar la API en
 127.0.0.1: por DNS rebinding (Host ajeno), por CSRF (Origin ajeno) y abriendo el WebSocket entre
@@ -48,23 +48,48 @@ def _politica_interfaz(host: str) -> str:
             "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
 
-#: 086:RF-21: las páginas generadas que la propia web enseña en un iframe: el mapa de las cargas nuevas
-#: (``MapaCargas.tsx``) y la vista previa de un alimentador (``Modules.tsx``). Solo ellas se dejan enmarcar, y solo por
-#: la web («'self'» y ``SAMEORIGIN``); siguen aisladas por su ``sandbox``. Lo demás, ``DENY`` y ``frame-ancestors 'none'``.
+#: 086:RF-21: las únicas rutas cuyas páginas enseña la propia web en un ``<iframe>``, por su plantilla exacta de
+#: Starlette y con la pantalla que las enmarca. Solo ellas se dejan enmarcar, y solo por la web («'self'» y
+#: ``SAMEORIGIN``), y siguen aisladas por su ``sandbox``. Todo lo demás, ``DENY`` y ``frame-ancestors 'none'``.
 #: Antes la ruta ponía su política sin ``frame-ancestors`` y la puerta le añadía ``DENY``: el marco salía en blanco
-#: («Refused to display … X-Frame-Options to 'deny'», revisión en pantalla del 2026-11-14).
-_INCRUSTABLES = (re.compile(r'/api/workspaces/[^/]+/mapa-cargas/pagina'),
-                 re.compile(r'/api/workspaces/[^/]+/files/.+\.html', re.IGNORECASE))
+#: («Refused to display … X-Frame-Options to 'deny'», revisión en pantalla del 2026-11-14). Una tercera se añade a
+#: propósito, aquí y en la spec: una prueba recorre ``app.routes`` y exige que solo estas se dejen enmarcar.
+RUTAS_ENMARCABLES: tuple[str, ...] = (
+    '/api/workspaces/{wid}/mapa-cargas/pagina',  # «Ubicación de las cargas nuevas» (MapaCargas.tsx)
+    '/api/workspaces/{wid}/files/{rel:path}',    # la vista previa del alimentador (Modules.tsx)
+)
+
+
+def _patron_de_plantilla(plantilla: str) -> re.Pattern[str]:
+    """La plantilla de Starlette como expresión exacta: ``{x}`` es un tramo y ``{x:path}``, el resto de la ruta."""
+    partes = []
+    for trozo in re.split(r'(\{[^{}]+\})', plantilla):
+        if trozo.startswith('{') and trozo.endswith('}'):
+            partes.append('.+' if trozo[1:-1].partition(':')[2] == 'path' else '[^/]+')
+        else:
+            partes.append(re.escape(trozo))
+    return re.compile(''.join(partes))
+
+
+_INCRUSTABLES = tuple(_patron_de_plantilla(p) for p in RUTAS_ENMARCABLES)
 #: Lo que FastAPI lee como «falso» en ``download``: con cualquier otro valor la respuesta es una descarga.
 _NO_DESCARGA = frozenset({'', '0', 'false', 'f', 'no', 'n', 'off'})
 _MARCO_PROPIO = b"frame-ancestors 'self'"
 _SIN_MARCO = b"frame-ancestors 'none'"
 
 
+def es_ruta_enmarcable(ruta: str) -> bool:
+    """Si la ruta es una de ``RUTAS_ENMARCABLES``, comparada entera (086:RF-21)."""
+    return any(p.fullmatch(ruta) for p in _INCRUSTABLES)
+
+
 def se_incrusta(metodo: str, ruta: str, consulta: dict[str, str]) -> bool:
-    """Si la respuesta es una de las páginas que la web enseña en su propio iframe (086:RF-21)."""
+    """Si la petición pide una de las páginas que la web enseña en su propio iframe (086:RF-21).
+
+    Es la mitad que se sabe antes de responder; la otra la mira ``_se_deja_enmarcar`` en la respuesta.
+    """
     return (metodo in ('GET', 'HEAD') and consulta.get('download', '').strip().lower() in _NO_DESCARGA
-            and any(p.fullmatch(ruta) for p in _INCRUSTABLES))
+            and es_ruta_enmarcable(ruta))
 
 
 def _directivas(politica: bytes) -> list[bytes]:
@@ -79,6 +104,44 @@ def _aislada(politicas: list[bytes]) -> bool:
 def _con_marco(politica: bytes, marco: bytes) -> bytes:
     """La política con ``marco`` como su único ``frame-ancestors``: el que trajera la ruta no cuenta, ni para abrir."""
     return b'; '.join([*(d for d in _directivas(politica) if d.split()[0].lower() != b'frame-ancestors'), marco])
+
+
+def _valor(cabeceras: list, nombre: bytes) -> bytes:
+    return next((v for k, v in cabeceras if k.lower() == nombre), b'')
+
+
+def _se_deja_enmarcar(cabeceras: list) -> bool:
+    """La mitad de la respuesta (086:RF-21): una página HTML que se abre en el sitio y va aislada.
+
+    Un error JSON de esas mismas rutas, la misma página como descarga (``Content-Disposition: attachment``) o una página
+    sin ``sandbox`` no se dejan enmarcar. Falla cerrado (condición del auditor ca): el aislamiento lo pone la ruta con
+    «sandbox» en su política (app.py, mapa_cargas_api.py), y sin él no se enmarca.
+    """
+    return (_valor(cabeceras, b'content-type').lower().startswith(b'text/html')
+            and not _valor(cabeceras, b'content-disposition').strip().lower().startswith(b'attachment')
+            and _aislada([v for k, v in cabeceras if k.lower() == b'content-security-policy']))
+
+
+def cabeceras_de_marco(cabeceras: list, incrustable: bool, politica: bytes) -> list[tuple[bytes, bytes]]:
+    """086:RF-21: ``X-Frame-Options`` y ``frame-ancestors`` de TODA respuesta, decididos aquí y no por la ruta.
+
+    Se quita el ``X-Frame-Options`` que traiga la ruta y se pone uno solo; cada política de la respuesta lleva un solo
+    ``frame-ancestors``, el de la puerta, y la que no trae política lleva la de la interfaz (``politica``).
+    """
+    propio = incrustable and _se_deja_enmarcar(cabeceras)
+    marco = _MARCO_PROPIO if propio else _SIN_MARCO
+    salida, con_politica = [], False
+    for nombre, valor in cabeceras:
+        clave = nombre.lower()
+        if clave == b'x-frame-options':
+            continue
+        if clave == b'content-security-policy':
+            valor, con_politica = _con_marco(valor, marco), True
+        salida.append((nombre, valor))
+    if not con_politica:
+        salida.append((b'content-security-policy', _con_marco(politica, marco)))
+    salida.append((b'x-frame-options', b'SAMEORIGIN' if propio else b'DENY'))
+    return salida
 
 
 class _SinTokenEnElRegistro(logging.Filter):
@@ -243,7 +306,7 @@ class SeguridadWeb:
                     'headers': [(b'content-type', b'text/html; charset=utf-8' if pagina else b'application/json'),
                                 (b'content-length', str(len(cuerpo)).encode()),
                                 (b'x-content-type-options', b'nosniff'), (b'x-frame-options', b'DENY'),
-                                (b'content-security-policy', b"frame-ancestors 'none'")]})
+                                (b'content-security-policy', _SIN_MARCO)]})
         await send({'type': 'http.response.body', 'body': cuerpo})
 
     async def __call__(self, scope, receive, send) -> None:
@@ -293,21 +356,11 @@ class SeguridadWeb:
         politica = _politica_interfaz(host).encode('latin-1')
 
         async def enviar(mensaje) -> None:
-            marco = b'DENY'
             if mensaje['type'] == 'http.response.start':
-                propias = list(mensaje.get('headers', ()))
-                if incrustable:
-                    # Falla cerrado (condición del auditor ca): el aislamiento lo pone la ruta con «sandbox» en su
-                    # política (app.py, mapa_cargas_api.py). Sin él, la respuesta no se deja enmarcar por nadie.
-                    csp = [v for k, v in propias if k.lower() == b'content-security-policy']
-                    aislada = _aislada(csp)
-                    marco = b'SAMEORIGIN' if aislada else b'DENY'
-                    propias = [(k, _con_marco(v, _MARCO_PROPIO if aislada else _SIN_MARCO))
-                               if k.lower() == b'content-security-policy' else (k, v) for k, v in propias]
+                propias = cabeceras_de_marco(list(mensaje.get('headers', ())), incrustable, politica)
                 existentes = {k.lower() for k, _v in propias}
                 nuevas = list(extra)
-                for nombre, valor in ((b'content-security-policy', politica), (b'x-content-type-options', b'nosniff'),
-                                      (b'referrer-policy', b'no-referrer'), (b'x-frame-options', marco)):
+                for nombre, valor in ((b'x-content-type-options', b'nosniff'), (b'referrer-policy', b'no-referrer')):
                     if nombre not in existentes:
                         nuevas.append((nombre, valor))
                 mensaje = {**mensaje, 'headers': [*propias, *nuevas]}
@@ -327,6 +380,7 @@ class SeguridadWeb:
         await send({'type': 'http.response.start', 'status': 303,
                     'headers': [(b'location', destino.encode('latin-1')), self._cookie(puerto),
                                 (b'cache-control', b'no-store'), (b'referrer-policy', b'no-referrer'),
+                                (b'x-frame-options', b'DENY'), (b'content-security-policy', _SIN_MARCO),
                                 (b'content-length', b'0')]})
         await send({'type': 'http.response.body', 'body': b''})
 

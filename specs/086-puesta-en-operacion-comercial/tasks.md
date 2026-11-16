@@ -81,6 +81,13 @@
 - [x] T14 Leaflet propio, política de contenido y sin salida a la red por defecto. (RF-21, RF-22) (`v1/seguridad`)
   Hecho cuando: con lo externo cortado en el navegador, cargar, convertir, descargar y abrir el mapa funcionan; una prueba recorre las salidas conocidas.
   Evidencia: `tests/test_seguridad_web.py`; navegador real en el 8791, sin conexiones externas del servidor. El flujo completo con la red cortada de verdad es la T36.
+- [ ] T75 Los marcos los decide la puerta en toda respuesta: los dos mapas que enmarca la interfaz se ven, solo al mismo
+      origen, por una lista de rutas con nombre (`seguridad.RUTAS_ENMARCABLES`) y solo si la respuesta es una página HTML
+      aislada que no es descarga; todo lo demás, también el 401, el 403, el 303, un error JSON y una descarga de esas rutas,
+      sigue con `DENY` y `frame-ancestors 'none'`; las teselas, por sus servidores exactos. (RF-21) (`v1/seguridad`)
+      Hecho cuando: `tests/test_seguridad_web.py` (086:RF-21) en verde, con la prueba que recorre `app.routes` y la coteja
+      con el contrato OpenAPI, y en rojo sobre el árbol 9d483349; y la revisión en navegador real enseña los dos mapas dentro
+      de la web y niega el marco desde otro origen.
 - [ ] T36 [DIgSILENT] El flujo completo con la red del equipo cortada de verdad: importar, calibrar e informe. (RF-22)
   Hecho cuando: sin red, el flujo termina y cada salida apagada lo dice.
 - [x] T15 Tareas por efecto, guiones con confirmación, reintentos e independencia de GPU. (RF-23, RF-24, RF-25, RF-26, RF-27) (`v1/producto`)
@@ -268,6 +275,17 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       RF-105)
       Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-103 a RF-105) en verde, con rojo previo, y las pruebas de
       RF-97 a RF-102 siguen en verde. Evidencia: `D:/csg/F2/rojo_*.log` y `D:/csg/F2/verde_*.log`.
+- [ ] T78 Accesibilidad WCAG 2.2 AA de la web: pestañas con el patrón de WAI-ARIA, flechas en los grupos de opciones,
+      separador del Registro con teclado y pulsación, salto al contenido, estados con texto o icono, tokens con contraste AA
+      en los dos temas y objetivos de 24 px. (RF-106)
+      Hecho cuando: `tests/test_accesibilidad_web.py` (086:RF-106) en rojo sobre el árbol 9d483349 y en verde con el cambio, más
+      `frontend/test/e2e/teclado.e2e.mjs` en verde con sus capturas revisadas a mano. Evidencia: `D:/csg/PM_IMPL/HEREDADAS_E6/T0c/`.
+- [ ] T79 Recorridos E2E F01–F04 con Playwright y axe-core (devDependencies fijadas), sobre una web aislada y sin red, con
+      capturas y resultado por SHA. (RF-107)
+      Bloqueada por la spec 111 (F02, editor sobre el plano, sin implementar). Playwright y axe-core ya van
+      en `package.json` y `package-lock.json` (T0c v3); falta instalar los navegadores de Playwright.
+      Hecho cuando: `npx playwright test -c test/e2e/playwright.config.mjs` da F01, F03 y F04 en verde, y F02 en verde
+      tras la 111, con `output/e2e/<sha>/` sellado.
 - [x] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
   Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`). Las líneas base y el determinismo (`workers` 1 y >1) están dentro de esa suite.

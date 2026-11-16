@@ -122,6 +122,14 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - RF-21: EL SISTEMA servirá sus páginas con su propio Leaflet y con una política de contenido.
   Ampliada (revisión en pantalla, 2026-11-14): las páginas generadas que la propia web enseña en un marco (el mapa de las
   cargas nuevas y la vista previa) se dejarán enmarcar solo por la web; todo lo demás, por nadie.
+  Aclaración de RF-21 (revisión en navegador real, 2026-11-15): «la web» es el mismo origen (`X-Frame-Options: SAMEORIGIN` y
+  `frame-ancestors 'self'`), y «por nadie», `DENY` y `frame-ancestors 'none'`. Lo decide la puerta en TODA respuesta, no la
+  ruta: se cambian las cabeceras de marco que traiga. Las rutas que se dejan enmarcar van en una lista explícita, por su
+  plantilla, y solo cuando responden una página HTML aislada (`sandbox`) que no es descarga; un error (JSON), una descarga
+  (`attachment`) o una página sin `sandbox` de esas mismas rutas, lo que rechaza la puerta (401 y 403) y la entrada con el
+  enlace del lanzador (303) llevan `DENY`. La política de esas páginas nombra cada servidor de teselas, sin comodín, y la hoja
+  de seguridad dice qué se enmarca y a qué servidores se piden las teselas. La tarjeta MAPA-IFRAME lo proponía como un
+  requisito aparte; queda aquí, como ampliación de este, sin número nuevo.
 - RF-22: EL SISTEMA no saldrá a la red por defecto en la edición de producto, y cada salida se activará de forma explícita.
 - Aclaración de RF-22 (2026-11-15, SSRF-ARCGIS; hallazgo BP-29 del Plan Maestro, seguridad P0): una salida encendida no sigue una
   redirección a otra máquina. El conector ArcGIS y el descubrimiento y la descarga del VNR-GIS oficial piden con
@@ -330,6 +338,13 @@ instalador recibió `/DVersion` a mano; y «Acerca de» enseñaba las notas del 
   `documentos.anterior`), o una versión vieja de `versiones/` al retirarla, ENTONCES EL SISTEMA no fallará por ello, pero lo dirá con su ruta en el registro del instalador.
   (Auditor, 2026-11-13: `shutil.rmtree(..., ignore_errors=True)` lo callaba y la carpeta se quedaba sin que nadie lo
   supiera.)
+- RF-106: EL SISTEMA dará a las pestañas, a los grupos de opciones y al separador del Registro su semántica ARIA, foco
+  visible y manejo por teclado (flechas, Inicio, Fin e Intro), una alternativa de una sola pulsación a cada arrastre,
+  objetivos de al menos 24 px y contraste AA en los temas claro y oscuro, y comunicará cada estado con texto o icono
+  además del color (WCAG 2.2 AA; Plan Maestro V1, F-11; T0c, 2026-11-14).
+- RF-107: CUANDO se publique un candidato, EL SISTEMA habrá recorrido en un navegador real F01 (VNR), F02 (simulación sobre
+  el plano), F03 (planificación) y F04 (asistente) sobre una web aislada y sin red, con axe-core sin infracciones graves ni
+  críticas de WCAG 2.2 AA, y guardará las capturas y el resultado por SHA (Plan Maestro V1, F-12; T0c, 2026-11-14).
 
 ### Copia de los datos sin duplicados, a un destino que sincroniza (2026-11-12)
 

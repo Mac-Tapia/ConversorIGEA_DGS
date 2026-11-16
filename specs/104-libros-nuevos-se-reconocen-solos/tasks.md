@@ -33,12 +33,23 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `tests/test_libros_nuevos_web.py -k "interrumpido or vivo_no_se_toca or plazo or cerrar_la_web or
       apartado_y_formato"` falla sin el arreglo y pasa con él (registros `D:/csg/D_todo_rojo_9063b8af.log` y
       `D:/csg/D_todo_verde.log`).
-- [ ] T10. En la web real, el aviso del dataset interrumpido y el de un libro apartado se ven en el paso de la demanda, y
+- [x] T10. En la web real, el aviso del dataset interrumpido y el de un libro apartado se ven en el paso de la demanda, y
       la confirmación de un formato (089:RF-110) se hace con su botón. (RF-44, RF-47)
       Hecho cuando: se ve en el navegador real, tras `npm run lint`, `npx tsc --noEmit -p .`, `npm test`, `npm run build`
       y `tools/generar_contrato_api.py --check` en verde.
-- [ ] T11. El estado del reconocimiento se guarda aunque Windows niegue un instante su sustitución, y un
+      RF y sus pruebas: RF-44 y RF-47 `frontend/test/librosFondo.test.mjs` («104:RF-44, 104:RF-47 cada aviso dice de qué es
+      y el interrumpido o el apartado se ven como alerta», línea 91); en el servidor, `tests/test_libros_nuevos_web.py`
+      (líneas 501, 609, 645, 778, 800, 814 y 829).
+      Hecho el 2026-11-15 (tarjeta 104_T10 de la PISTA 3; el auditor 0d la pasa de REAL a HACER con los cinco comandos,
+      sin el navegador). Sobre el árbol de PASO-PIT-DIAG (267d698d), en `D:/csg/PM_IMPL/PISTA3/104_T10/`: lint y tsc
+      rc=0 (`verde_lint_tsc.log`), `npm test` 178 de 178 (`verde_npm_test.log`), build rc=0 (`verde_build.log`) y
+      «Contrato API sin deriva.» (`verde_contrato.log`).
+- [x] T11. El estado del reconocimiento se guarda aunque Windows niegue un instante su sustitución, y un
       bloqueo que persiste sube sin dañar el estado anterior. (RF-48)
       Hecho cuando: `tests/test_libros_nuevos.py -k "windows_niegue or niega_siempre"` falla sin el arreglo
       (`D:/csg/PM_IMPL/104_REINTENTO/rojo_192946.log`) y pasa con él, y `tests/test_libros_nuevos.py`,
       `tests/test_libros_nuevos_web.py` y `tests/test_datos_duraderos.py` siguen en verde.
+      RF y sus pruebas (una por RF; todas en el mapa `D:/csg/PM_IMPL/PISTA3/MARCAS-PISTA3/mapa_T_RF_pruebas.tsv`):
+      RF-48: `tests/test_libros_nuevos.py::test_el_estado_no_se_da_por_guardado_si_windows_lo_niega_siempre` (línea 229).
+      Hecho el 2026-11-15 (MARCAS-PISTA3; arreglo de ccceb4c8): rojo `D:/csg/PM_IMPL/104_REINTENTO/rojo_192946.log`
+      (la F es el PermissionError que la prueba reproduce); verde: suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log:1202` «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.»

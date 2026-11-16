@@ -11,9 +11,9 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 373 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 110 |
-| Interfaz | `frontend/src/` | 72 |
-| Pruebas de la interfaz | `frontend/test/` | 27 |
-| Pruebas | `tests/` | 496 |
+| Interfaz | `frontend/src/` | 74 |
+| Pruebas de la interfaz | `frontend/test/` | 37 |
+| Pruebas | `tests/` | 497 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -23,12 +23,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 79 |
-| aprobada | 29 |
+| cumplida | 81 |
+| aprobada | 27 |
 | implementada | 3 |
 | retirada | 1 |
 
-112 specs con 3750 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3752 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -835,7 +835,9 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/app/InstalacionesPowerFactory.tsx` | — | 103 | Las PowerFactory encontradas en la máquina, la que se usa y la elección del operador, desde la píldora de la cabecera. |
 | `frontend/src/app/JobBar.tsx` | — | 001 | Barra de trabajos en curso. |
 | `frontend/src/app/LogPanel.tsx` | — | 001 | Registro. |
+| `frontend/src/app/Pestanas.tsx` | — | 086, 106 | Las pestañas de los módulos con el patrón de WAI-ARIA (lista, pestaña y panel enlazados) y su manejo por teclado. |
 | `frontend/src/app/main.tsx` | — | 001 | Arranque de React. |
+| `frontend/src/app/teclado.ts` | — | 086, 106 | El teclado de la web: flechas, Inicio y Fin en pestañas y grupos de opciones, y el separador del Registro con teclado y pulsación. |
 | `frontend/src/features/asistente/Aprendizaje.tsx` | — | 050 | Consulta de las siete fases del ciclo común, versiones y bloqueos. |
 | `frontend/src/features/asistente/Asistente.tsx` | — | 026, 043, 061 | Pestaña «Asistente»: consola de órdenes, plan con datos, pasos, lo que falta, dudas y razonamiento, confirmar y ejecutar, corregir la tarea,… |
 | `frontend/src/features/asistente/EquipoAsistente.tsx` | — | 065 | Roles, permisos y revisión de propuestas en la consola del asistente. |
@@ -881,8 +883,18 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/shared/styles.css` | — | 001, 021 | Tokens y estilos, modo claro y oscuro. |
 | `frontend/src/shared/ui.tsx` | — | 001 | Piezas comunes: modal, avisos, casillas, ficheros. |
 | `frontend/src/shared/useWorkspace.ts` | — | 001, 059 | Espacio de trabajo, Registro en vivo y trabajos por WebSocket. |
+| `frontend/test/accesibilidad.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/avisosEnSuPaso.test.mjs` | — | 086 | Pruebas de los avisos de trabajo en su paso: tabla completa de los `kind` del servidor, render de cada paso, resolución automática y lo que queda… |
+| `frontend/test/e2e/comun.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/e2e/entorno.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/e2e/f01_vnr.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/e2e/f02_plano.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/e2e/f03_planificacion.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/e2e/f04_asistente.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/e2e/playwright.config.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/e2e/teclado.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/e2e/vnr_sintetico.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/edicionTodoActivo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/estudiosCasos.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/evolucionFijas.test.mjs` | — | 105 | Lógica y render real del tablero de la evolución de los clientes fijos y su buscador. |

@@ -27,7 +27,10 @@ CARPETA_LEAFLET = Path(__file__).resolve().parent / 'recursos' / 'leaflet'
 #: 086:RF-21: la huella que publica Leaflet para su 1.9.4; la comprueba una prueba.
 HUELLAS_LEAFLET = {'leaflet.js': 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=',
                    'leaflet.css': 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY='}
-ORIGEN_TESELAS = 'https://*.tile.openstreetmap.org'
+#: 086:RF-21: los servidores exactos que pide la página, sin comodín: los subdominios que ``L.tileLayer`` pone por defecto
+#: en ``{s}`` («a», «b» y «c»).
+SUBDOMINIOS_TESELAS = ('a', 'b', 'c')
+ORIGEN_TESELAS = ' '.join(f'https://{s}.tile.openstreetmap.org' for s in SUBDOMINIOS_TESELAS)
 URL_TESELAS = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 #: 086:RF-63: el fondo de satélite, el que pidió el usuario junto a las calles («como en Google Maps», 2026-11-12).
 ORIGEN_SATELITE = 'https://server.arcgisonline.com'

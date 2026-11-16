@@ -11,6 +11,22 @@ opinión legal ni una certificación: no ha pasado una auditoría externa.
 - Se rechaza un `Host` ajeno; lo que cambia algo y el WebSocket exigen un `Origin` propio; toda la API exige un token que el lanzador da en cada
   arranque y que se guarda en la carpeta de sesión del usuario.
 - Las páginas se sirven con una política de contenido y con su propio Leaflet.
+- **Marcos.** Ninguna página de la web se deja enmarcar por otra (`X-Frame-Options: DENY` y `frame-ancestors 'none'`), salvo dos
+  que la propia interfaz muestra dentro de su pantalla: el mapa de «Ubicación de las cargas nuevas» y la vista previa del alimentador.
+  Esas dos, y solo cuando se abren como página aislada (no como descarga ni como error), llevan `X-Frame-Options: SAMEORIGIN` y
+  `frame-ancestors 'self'`: solo esta misma web las puede enmarcar. Lo decide la puerta de la web en toda respuesta, no cada ruta;
+  la lista de las dos rutas está en el código, por su nombre, y una prueba recorre todas las demás rutas para que ninguna se deje
+  enmarcar. Lo que rechaza la puerta (sin sesión, otro `Host` u `Origin`) y la entrada con el enlace del lanzador tampoco.
+- **Las páginas de los mapas van aisladas** (`sandbox`, sin acceso a la API ni a las cookies) y no piden nada de fuera salvo el fondo
+  del mapa, cuando su salida está encendida: imágenes de `https://a.tile.openstreetmap.org`, `https://b.tile.openstreetmap.org` y
+  `https://c.tile.openstreetmap.org` (calles) y de `https://server.arcgisonline.com` (satélite). La política nombra esos servidores,
+  sin comodín; con la salida apagada solo admite imágenes incrustadas. Si una de esas páginas llegara sin `sandbox`, no se deja
+  enmarcar.
+- **Por qué la vista previa abre más que un mapa.** La vista previa del alimentador se sirve por la ruta de los ficheros del
+  espacio de trabajo, así que esa ruta deja enmarcar, por esta misma web, cualquier página HTML del espacio, no solo la vista previa.
+  Se admite porque esas respuestas van con la política `sandbox allow-scripts` y `default-src 'none'`, sin `connect-src`: la página
+  enmarcada no llega a la API ni a las cookies. Una descarga, un fichero que no es HTML, uno que no existe o un error siguen sin
+  dejarse enmarcar.
 - **Quien tenga sesión en el equipo con ese usuario puede usar el programa y leer sus datos.** Se apoya en la cuenta de Windows y en el cifrado de disco
   que tenga la organización: el programa no cifra los datos.
 
@@ -23,7 +39,7 @@ Nada por defecto. Cada salida se enciende por separado con su variable, y lo que
 | `CSG_SALIDA_VNR_OFICIAL` | Portal de Osinergmin | Buscar y descargar paquetes VNR-GIS |
 | `CSG_SALIDA_ARCGIS` | El servidor ArcGIS que indique el usuario | Leer una capa |
 | `CSG_SALIDA_VIAS` | El enrutador OSRM del perfil | Trazar una línea nueva por la vía pública |
-| `CSG_SALIDA_TESELAS` | OpenStreetMap, desde el navegador | Fondo del mapa de la vista previa |
+| `CSG_SALIDA_TESELAS` | OpenStreetMap y Esri World Imagery, desde el navegador | Fondo de los mapas (calles y satélite) |
 | `CSG_SALIDA_INTERNET` | GitHub, PyPI y arXiv | Búsquedas técnicas del asistente |
 | `CSG_SALIDA_HUGGING_FACE` | Hugging Face | Descargar modelos del complemento de IA |
 | `CSG_SALIDA_CODEX` | Servicio de Codex | Herramienta de desarrollo; no se entrega |

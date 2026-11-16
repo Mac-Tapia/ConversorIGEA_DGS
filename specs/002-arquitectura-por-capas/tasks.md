@@ -45,12 +45,17 @@ van después de T7. T11 reordena `frontend/src` y pide probar la web en el naveg
 - [ ] T7. Mover los módulos a `dominio`, `puertos`, `aplicacion`, `adaptadores` y
       `presentacion`, con reexportaciones temporales. (RF-1)
       Hecho cuando: la tabla de `pyproject.toml` es la del plan y `test_capas.py` en verde sin excepciones de capa.
-- [ ] T8. `vnr_etl` dentro de `convertersmartgrid.adaptadores.entrada.vnr`; `vnr-etl` sigue igual. (RF-6, RF-22)
+- [x] T8. `vnr_etl` dentro de `convertersmartgrid.adaptadores.entrada.vnr`; `vnr-etl` sigue igual. (RF-6, RF-22)
       Hecho cuando: no queda `src/vnr_etl/` y `pytest -q tests/test_vnr_etl.py` en verde.
       Bloque P23 del 2026-11-08: implementación y consumidores trasladados, fachada única
       `src/vnr_etl.py` para los dos contratos de CLI, sin copia de implementación ni paquete paralelo.
       T8 conserva esta casilla abierta hasta la puerta de regresión real RF-20 del integrador;
       pruebas enfocadas, comparación sintética y revisión exacta en el HANDOFF externo indicado en el plan.
+      RF y sus pruebas (una por RF; todas en el mapa `D:/csg/PM_IMPL/PISTA3/MARCAS-PISTA3/mapa_T_RF_pruebas.tsv`):
+      RF-6: `tests/test_instalacion_programa.py::test_rueda_incluye_adaptador_vnr_y_ambos_launchers_sin_instalar` (línea 82).
+      RF-22: `tests/test_vnr_etl.py::test_sqlite_probe_cli_real_codigo_y_json` (línea 175).
+      Hecho el 2026-11-15 (MARCAS-PISTA3): en e182c823 no queda `src/vnr_etl/` (solo la fachada `src/vnr_etl.py` del CLI,
+      RF-22), y la puerta de regresión real es la suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log:1202` «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.» Incluye `tests/test_vnr_etl.py` y `tests/test_linea_base_001.py`.
 - [ ] T9. Retirar las reexportaciones; `tools/` y las pruebas usan las rutas nuevas. (RF-21)
       Hecho cuando: `test_capas.py` no encuentra ningún módulo que solo reexporte.
       Compatibilidad pendiente: `src/vnr_etl.py` (CLI público conservado por contrato) y
@@ -58,7 +63,7 @@ van después de T7. T11 reordena `frontend/src` y pide probar la web en el naveg
 - [x] T10. Modelos Pydantic en las respuestas de la API y tipos del front generados. (RF-16, RF-17)
       Hecho cuando: `pytest -q tests/test_contrato_api.py` en verde.
       Del 2026-11-03: lo cumplió la 065. Quedan 7 de 133 rutas de `/api` sin modelo de respuesta; salen como tipo abierto.
-- [ ] T11. `frontend/src` en `api/`, `shared/`, `features/` y `app/`, con la regla de fronteras. (RF-18, RF-19)
+- [x] T11. `frontend/src` en `api/`, `shared/`, `features/` y `app/`, con la regla de fronteras. (RF-18, RF-19)
       Hecho cuando: `npm run lint`, `npx tsc --noEmit -p .` y `npm run build` correctos.
       Implementación P23 frontend (2026-11-08): movidos los 47 archivos originales
       a api/shared/features/app, 49 finales por las extracciones compartidas;
@@ -70,6 +75,12 @@ van después de T7. T11 reordena `frontend/src` y pide probar la web en el naveg
       Los criterios automáticos se verifican con lint/test/typecheck/build;
       T11 conserva pendiente la revisión visual en navegador pedida arriba,
       que no está disponible. No equivale a cierre de T7/T8/T9/T12 ni de 002.
+      RF y sus pruebas: RF-18 `frontend/test/fronteras.test.mjs` («002:RF-18 capas permitidas componen sin depender de otro
+      feature», línea 20) y RF-19 la misma prueba («002:RF-19 frontera ilícita … falla incluso desde CLI», línea 35).
+      Hecho el 2026-11-15 (MARCAS-PISTA3 v3; el auditor 0d la pasa de REAL a MARCAR: su «Hecho cuando:» es lint, tsc y build,
+      sin navegador): sobre e182c823, `D:/csg/PM_IMPL/PISTA3/MARCAS-PISTA3/verde_002T11_lint_tsc_build.log` da rc_lint=0
+      («Fronteras verificadas: api/shared/features/app, sin dependencias ilícitas.»), rc_tsc=0 y rc_build=0, y
+      `verde_002T11_fronteras_test.log` 32 de 32.
 - [ ] T12. Validación: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u` lista RF-1 a RF-37;
       línea base idéntica; `CODIGO_FUENTE.md` con las rutas nuevas.
       Hecho cuando: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u` lista RF-1 a RF-37 y la línea base de la 001 sigue idéntica.

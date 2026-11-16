@@ -20,6 +20,8 @@ import { PerfilEmpresa } from '../features/conversion/PerfilEmpresa';
 import { Modal, Pill, useConfirm, useToast } from '../shared/ui';
 import type { Health, Job, PowerFactoryStatus } from '../api/types';
 import { useWorkspace } from '../shared/useWorkspace';
+import { PanelPestana, PestanasModulos } from './Pestanas';
+import { REGISTRO_INICIAL, REGISTRO_MIN, UMBRAL_PULSACION, alturaAlPulsar, alturaPorTecla, useFlechasEnGrupos } from './teclado';
 import { avisosDeTrabajos, avisosPorPestana } from '../shared/pasoDeTrabajo';
 import { useVistos } from '../shared/AvisosTrabajo';
 
@@ -41,10 +43,25 @@ const LOG_KEY = 'convertersmartgrid.log-height';
 function readLogHeight(): number {
   try {
     const v = Number(localStorage.getItem(LOG_KEY));
-    return v >= 80 ? v : 220;
+    return v >= REGISTRO_MIN ? v : REGISTRO_INICIAL;
   } catch {
-    return 220;
+    return REGISTRO_INICIAL;
   }
+}
+
+function saveLogHeight(h: number): void {
+  try { localStorage.setItem(LOG_KEY, String(h)); } catch { /* sin almacenamiento */ }
+}
+
+/** El tope del Registro: deja siempre a la vista la cabecera y algo del contenido. */
+const alturaMaxima = () => Math.max(REGISTRO_MIN, window.innerHeight - 160);
+
+/** Una capacidad del servidor: el estado se lee y se oye, no solo se ve por el color (WCAG 1.4.1). */
+function Capacidad({ ok, etiqueta, detalle }: { ok: boolean; etiqueta: string; detalle: string }) {
+  const estado = ok ? 'disponible' : 'no disponible';
+  return <Pill tone={ok ? 'ok' : 'muted'} title={`${etiqueta}: ${estado} (${detalle})`}>
+    <span aria-hidden="true">{ok ? '✓' : '–'}</span> {etiqueta}<span className="sr-only">: {estado}</span>
+  </Pill>;
 }
 
 /** Resumen de un trabajo terminado. */
@@ -138,7 +155,9 @@ export default function App() {
   });
   const [summary, setSummary] = useState<Job | null>(null);
   const [logHeight, setLogHeight] = useState(readLogHeight);
-  const drag = useRef<{ y: number; h: number } | null>(null);
+  const drag = useRef<{ y: number; h: number; movido: boolean } | null>(null);
+  // La altura antes de plegar el Registro con una pulsación (alternativa a arrastrar, WCAG 2.5.7).
+  const antesDePlegar = useRef<number | null>(null);
   // 091:RF-7: las pestañas ya abiertas siguen montadas, ocultas: el proyecto elegido vivía en la suya y se perdía.
   const visitadas = useRef(new Set<string>());
   const espacioVisto = useRef('');
@@ -155,6 +174,7 @@ export default function App() {
   }, [toast]);
   const w = useWorkspace(onFinished, leerHealth);
   const vistos = useVistos();
+  useFlechasEnGrupos();
 
   useEffect(() => {
     leerHealth();
@@ -226,6 +246,7 @@ export default function App() {
 
   return (
     <Ctx.Provider value={ctx}>
+      <a className="saltar" href="#contenido">Ir al contenido</a>
       <div className="app" style={{ gridTemplateRows: `auto 1fr 6px ${logHeight}px` }}>
         <header className="topbar">
           <div className="brand">
@@ -236,20 +257,22 @@ export default function App() {
             </div>
           </div>
           <div className="caps">
-            <Pill tone={caps.geography ? 'ok' : 'muted'} title="pyproj">GPS</Pill>
-            <Pill tone={caps.xlsx ? 'ok' : 'muted'} title="pandas + openpyxl">Excel</Pill>
-            <Pill tone={caps.access ? 'ok' : 'muted'} title="pyodbc">Access</Pill>
+            <Capacidad ok={Boolean(caps.geography)} etiqueta="GPS" detalle="pyproj" />
+            <Capacidad ok={Boolean(caps.xlsx)} etiqueta="Excel" detalle="pandas + openpyxl" />
+            <Capacidad ok={Boolean(caps.access)} etiqueta="Access" detalle="pyodbc" />
             {/* 103:RF-3: la instalación en uso; al pulsarla, las encontradas y la elección del operador. */}
             <button type="button" className="pill-boton" onClick={() => setVerPf(true)}
               title={pf ? `${pf.api_dir ?? 'sin API'} · ${pf.interpreter_reason} · pulse para elegir otra` : 'comprobando…'}>
               <Pill tone={pf?.available ? 'ok' : 'muted'}>
-                {pf?.instalacion ?? 'PowerFactory'}{pf?.api_version ? ` · Python ${pf.api_version}` : ''}
+                <span aria-hidden="true">{pf?.available ? '✓' : '–'}</span> {pf?.instalacion ?? 'PowerFactory'}{pf?.api_version ? ` · Python ${pf.api_version}` : ''}
+                <span className="sr-only">{pf ? (pf.available ? ': disponible' : ': no disponible') : ': comprobando'}</span>
               </Pill>
             </button>
           </div>
           <div className="ws-id">
             <span className="muted small" title={w.state.id}>Espacio {w.state.id.slice(0, 6)}</span>
-            <button className="btn btn-sm btn-ghost" disabled={running.length > 0} onClick={async () => {
+            <button className="btn btn-sm btn-ghost" disabled={running.length > 0}
+              title={running.length > 0 ? 'Espere a que terminen los trabajos en curso' : undefined} onClick={async () => {
               if (await confirm('Nuevo espacio de trabajo', <p>Empezará con las entradas vacías. El espacio actual se conserva en el servidor.</p>, 'Crear')) {
                 setSelected([]);
                 await run(w.newWorkspace);
@@ -258,7 +281,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="content">
+        <main className="content" id="contenido" tabIndex={-1}>
           <AvisosDatos pestanas={tabs.map((t) => t.id)} />
           <JobBar jobs={running} />
           <div className="grid">
@@ -271,19 +294,14 @@ export default function App() {
             <div className="col-main">
               <FeedersPanel />
               <section className="card">
-                <nav className="tabs" role="tablist">
-                  {tabs.map((t) => (
-                    <button key={t.id} role="tab" aria-selected={actual.id === t.id} className={actual.id === t.id ? 'on' : ''}
-                      onClick={() => setTab(t.id)}>{t.label}{t.id === 'asistente' && <> <MarcaBeta clave="asistente" /></>}
-                      {/* 086:RF-75: el aviso de un trabajo espera en su paso; la pestaña dice que lo hay. */}
-                      {avisosPestana[t.id] > 0 && <> <span className="badge warn" title="Trabajos que no terminaron bien en esta pestaña">
-                        {avisosPestana[t.id]} aviso{avisosPestana[t.id] > 1 ? 's' : ''}</span></>}</button>
-                  ))}
-                </nav>
+                {/* 086:RF-75: el aviso de un trabajo espera en su paso; la pestaña dice que lo hay. */}
+                <PestanasModulos actual={actual.id} montadas={visitadas.current} onElegir={(id) => setTab(id as typeof tab)}
+                  pestanas={tabs.map((t) => ({ id: t.id, avisos: avisosPestana[t.id],
+                    etiqueta: <>{t.label}{t.id === 'asistente' && <> <MarcaBeta clave="asistente" /></>}</> }))} />
                 {/* 091:RF-8: otro espacio las vuelve a montar, sin lo del anterior. */}
                 <div key={w.state.id}>
                   {tabs.filter((t) => visitadas.current.has(t.id)).map((t) => (
-                    <div key={t.id} role="tabpanel" hidden={t.id !== actual.id}>{t.el}</div>
+                    <PanelPestana key={t.id} id={t.id} hidden={t.id !== actual.id}>{t.el}</PanelPestana>
                   ))}
                 </div>
               </section>
@@ -291,20 +309,42 @@ export default function App() {
           </div>
         </main>
 
-        <div className="splitter" role="separator" aria-orientation="horizontal" aria-label="Redimensionar el Registro"
+        {/* WCAG 2.2: el borde del Registro se mueve con el ratón, con el teclado (flechas, Re Pág, Av Pág, Inicio y
+            Fin) y con una pulsación, que lo pliega o lo devuelve a su altura (2.1.1 y 2.5.7). */}
+        <div className="splitter" role="separator" aria-orientation="horizontal" aria-label="Altura del Registro"
+          tabIndex={0} aria-valuemin={REGISTRO_MIN} aria-valuemax={alturaMaxima()} aria-valuenow={logHeight}
+          aria-valuetext={`${logHeight} píxeles`}
+          onKeyDown={(e) => {
+            const h = alturaPorTecla(logHeight, e.key, alturaMaxima());
+            if (h === null) return;
+            e.preventDefault();
+            setLogHeight(h);
+            saveLogHeight(h);
+          }}
           onPointerDown={(e) => {
-            drag.current = { y: e.clientY, h: logHeight };
+            drag.current = { y: e.clientY, h: logHeight, movido: false };
             (e.target as HTMLElement).setPointerCapture(e.pointerId);
           }}
           onPointerMove={(e) => {
             if (!drag.current) return;
-            const h = Math.min(window.innerHeight - 160, Math.max(80, drag.current.h - (e.clientY - drag.current.y)));
-            setLogHeight(h);
+            const dy = e.clientY - drag.current.y;
+            if (!drag.current.movido && Math.abs(dy) <= UMBRAL_PULSACION) return;
+            drag.current.movido = true;
+            setLogHeight(Math.min(alturaMaxima(), Math.max(REGISTRO_MIN, drag.current.h - dy)));
           }}
           onPointerUp={() => {
+            const d = drag.current;
             drag.current = null;
-            try { localStorage.setItem(LOG_KEY, String(logHeight)); } catch { /* sin almacenamiento */ }
-          }} />
+            if (d && !d.movido) {
+              const h = alturaAlPulsar(logHeight, antesDePlegar.current);
+              antesDePlegar.current = h === REGISTRO_MIN ? logHeight : null;
+              setLogHeight(h);
+              saveLogHeight(h);
+              return;
+            }
+            saveLogHeight(logHeight);
+          }}
+          onPointerCancel={() => { drag.current = null; }} />
         <LogPanel lines={w.log} onClear={() => w.setLog([])} connected={w.connected} />
       </div>
       {summary && <JobSummary job={summary} onClose={() => setSummary(null)} />}

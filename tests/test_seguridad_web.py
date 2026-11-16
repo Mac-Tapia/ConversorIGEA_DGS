@@ -700,10 +700,21 @@ def _como_iframe_propio(puerta) -> dict:
             'Sec-Fetch-Dest': 'iframe', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin'}
 
 
+def _directivas_de_marco(politica: str) -> list[str]:
+    return [d.strip() for d in politica.split(';') if d.strip().lower().startswith('frame-ancestors')]
+
+
+def _marco(r) -> tuple[str | None, list[str]]:
+    """``X-Frame-Options`` (una sola) y los ``frame-ancestors`` de todas las políticas de la respuesta."""
+    opciones = r.headers.get_list('x-frame-options')
+    politicas = r.headers.get_list('content-security-policy')
+    return (opciones[0] if len(opciones) == 1 else repr(opciones)), [d for p in politicas for d in _directivas_de_marco(p)]
+
+
 def _se_deja_enmarcar_solo_por_la_web(r) -> None:
     assert r.status_code == 200, r.text[:200]
     assert 'location' not in r.headers                      # ni redirección a «/» ni a ningún sitio
-    assert r.headers['x-frame-options'] == 'SAMEORIGIN'
+    assert _marco(r) == ('SAMEORIGIN', ["frame-ancestors 'self'"]), _marco(r)   # una sola de cada, la de la puerta
     politica = r.headers['content-security-policy']
     assert "frame-ancestors 'self'" in politica and "frame-ancestors 'none'" not in politica
     # Sigue aislada (086:RF-21): sin origen propio ni alcance a la API.
@@ -820,6 +831,173 @@ def test_086_rf21_una_incrustable_con_sandbox_se_deja_enmarcar_por_la_web():
             politica = r.headers['content-security-policy']
             assert "frame-ancestors 'self'" in politica and "frame-ancestors 'none'" not in politica, ruta
             assert politica.lower().startswith('sandbox allow-scripts'), ruta
+
+
+# ------------------------------------------------------------ RF-21, la puerta decide los marcos de toda respuesta
+#: Las dos pantallas que enmarcan una página de la propia web (MapaCargas.tsx y Modules.tsx), por su plantilla.
+_ENMARCADAS = {'/api/workspaces/{wid}/mapa-cargas/pagina', '/api/workspaces/{wid}/files/{rel:path}'}
+_DATOS_MAPA = {'project': 'PRY', 'alimentadores': {'AL1': {'tramos': [['L1', [[-13.49, -76.01], [-13.5, -76.0]]]],
+                                                           'cabecera': None}},
+               'cargas': [{'sed': 'SE1', 'alimentador': 'AL1', 'kw': 5, 'sola': True,
+                           'punto': {'lat': -13.5, 'lon': -76.0, 'utm': None},
+                           'nodo': {'nombre': 'N1', 'lat': -13.5, 'lon': -76.0, 'utm': None}, 'enlace': None,
+                           'corregida': False}], 'avisos': [], 'repetir_flujos': []}
+_AISLADA = b"sandbox allow-scripts; default-src 'none'"
+
+
+def _plantillas(app) -> list:
+    """Cada ruta de la aplicación, también las del enrutador incluido (VNR-GIS), con su plantilla entera."""
+    salida = []
+
+    def recorrer(rutas, prefijo=''):
+        for ruta in rutas:
+            incluido = getattr(ruta, 'original_router', None)
+            if incluido is not None:
+                contexto = getattr(ruta, 'include_context', None)
+                recorrer(incluido.routes, prefijo + (getattr(contexto, 'prefix', '') or ''))
+            elif hasattr(ruta, 'path'):
+                salida.append((prefijo + ruta.path, ruta))
+    recorrer(app.routes)
+    return salida
+
+
+def _ruta_concreta(plantilla: str) -> str:
+    return re.sub(r'\{([^}:]+)(?::([^}]+))?\}',
+                  lambda m: {'path': 'carpeta/pagina.html', 'int': '1', 'float': '1.0'}.get(m.group(2) or '', 'x1'),
+                  plantilla)
+
+
+def _puerta_que_responde(cabeceras: list, cuerpo: bytes = b'<html>x</html>', estado: int = 200) -> TestClient:
+    """La puerta delante de una aplicación que responde siempre lo mismo a todo: decide la puerta, no la ruta.
+
+    Sin ``with``: es una aplicación ASGI mínima, sin ``lifespan``."""
+    async def app(scope, receive, send):
+        await send({'type': 'http.response.start', 'status': estado,
+                    'headers': [*cabeceras, (b'content-length', str(len(cuerpo)).encode())]})
+        await send({'type': 'http.response.body', 'body': cuerpo})
+    return _cliente(seguridad.SeguridadWeb(app, sesion=sesion_web.Sesion('t' * 32)))
+
+
+_CON_TOKEN_DE_PRUEBA = {sesion_web.CABECERA_TOKEN: 't' * 32, 'Origin': BASE}
+
+
+def test_086_rf21_toda_otra_ruta_sigue_sin_dejarse_enmarcar(puerta):
+    """086:RF-21 — recorre las rutas de la aplicación (``app.routes``, con el enrutador incluido, y cotejado con el
+    contrato OpenAPI): solo las dos de la lista se dejan enmarcar, solo por GET y solo por el mismo origen. Las demás,
+    también si responden una página HTML aislada que pide dejarse enmarcar por cualquiera (``frame-ancestors *`` y
+    ``SAMEORIGIN``), salen con una sola ``DENY`` y ``frame-ancestors 'none'``: la cabecera de la ruta no cuenta."""
+    rutas = _plantillas(puerta.app)
+    plantillas = {p for p, _r in rutas}
+    assert _ENMARCADAS <= plantillas, _ENMARCADAS - plantillas        # las dos son rutas que existen
+    sin_conversor = {re.sub(r':[^}]+\}', '}', p) for p in plantillas}
+    assert set(puerta.app.openapi()['paths']) <= sin_conversor
+    pagina_que_pide_marco = [(b'content-type', b'text/html; charset=utf-8'),
+                             (b'content-security-policy', _AISLADA + b'; frame-ancestors *'),
+                             (b'x-frame-options', b'SAMEORIGIN')]
+    clientes = {'html': _puerta_que_responde(pagina_que_pide_marco),
+                'json': _puerta_que_responde([(b'content-type', b'application/json')], b'{}')}
+    vistas, malas = 0, []
+    for plantilla, ruta in rutas:
+        metodos = sorted((getattr(ruta, 'methods', None) or set()) - {'HEAD'})
+        if not metodos:              # el WebSocket: no tiene respuesta HTTP que enmarcar
+            continue
+        concreta = _ruta_concreta(plantilla)
+        for metodo in metodos:
+            for nombre, cliente in clientes.items():
+                r = cliente.request(metodo, concreta, headers=_CON_TOKEN_DE_PRUEBA)
+                propia = plantilla in _ENMARCADAS and nombre == 'html' and metodo == 'GET'
+                esperado = ('SAMEORIGIN', ["frame-ancestors 'self'"]) if propia else ('DENY', ["frame-ancestors 'none'"])
+                vistas += 1
+                if r.status_code != 200 or _marco(r) != esperado:
+                    malas.append((metodo, plantilla, nombre, r.status_code, _marco(r)))
+    assert vistas > 300 and not malas, (vistas, len(malas), malas[:10])
+    # La lista va en el código con su nombre, y son esas dos: una tercera se añade a propósito, aquí y en la spec.
+    assert set(getattr(seguridad, 'RUTAS_ENMARCABLES', ())) == _ENMARCADAS
+
+
+def test_086_rf21_un_error_o_una_descarga_de_las_enmarcables_no_se_enmarca(puerta, monkeypatch):
+    """086:RF-21 — en las dos rutas de la lista solo se enmarca una página HTML aislada que se abre en el sitio. Un error
+    JSON (aunque traiga la política aislada) o la misma página servida como descarga (``attachment``) llevan ``DENY``."""
+    from convertersmartgrid.web import mapa_cargas_api
+
+    vista = '/api/workspaces/w1/files/carpeta/vista.html'
+    casos = {
+        'error json': ([(b'content-type', b'application/json'), (b'content-security-policy', _AISLADA)], 404, False),
+        'descarga': ([(b'content-type', b'text/html; charset=utf-8'), (b'content-security-policy', _AISLADA),
+                      (b'content-disposition', b'attachment; filename="vista.html"')], 200, False),
+        'en el sitio': ([(b'content-type', b'text/html; charset=utf-8'), (b'content-security-policy', _AISLADA),
+                         (b'content-disposition', b'inline')], 200, True),
+    }
+    for nombre, (cabeceras, estado, se_enmarca) in casos.items():
+        for ruta in (vista, '/api/workspaces/w1/mapa-cargas/pagina'):
+            r = _puerta_que_responde(cabeceras, estado=estado).get(ruta, headers=_CON_TOKEN_DE_PRUEBA)
+            esperado = ('SAMEORIGIN', ["frame-ancestors 'self'"]) if se_enmarca else ('DENY', ["frame-ancestors 'none'"])
+            assert r.status_code == estado and _marco(r) == esperado, (nombre, ruta, _marco(r))
+    # Por la web de verdad: un fichero que no existe y el mapa sin su proyecto son errores JSON de esas rutas.
+    monkeypatch.setattr(mapa_cargas_api, 'datos_para_la_web', lambda _ws, _p, _a: _DATOS_MAPA)
+    wid = _espacio(puerta)
+    with _cliente(puerta.app) as c:
+        for ruta in (f'/api/workspaces/{wid}/files/no_esta.html', f'/api/workspaces/{wid}/mapa-cargas/pagina'):
+            r = c.get(ruta, headers=puerta.con_token)
+            assert r.status_code >= 400 and _marco(r) == ('DENY', ["frame-ancestors 'none'"]), (ruta, r.status_code,
+                                                                                               _marco(r))
+
+
+def test_086_rf21_lo_que_rechaza_la_puerta_tampoco_se_deja_enmarcar(puerta):
+    """086:RF-21 — la página de «sin sesión» (401), el rechazo por Host u Origin (403) y la entrada con el enlace del
+    lanzador (303) no las genera ninguna ruta: las cabeceras de marco las pone la puerta."""
+    with _cliente(puerta.app) as c:
+        respuestas = {
+            '401': (c.get('/api/health', headers={'Accept': 'text/html'}), 401),
+            '403 host': (c.get('/api/health', headers={**puerta.con_token, 'Host': 'evil.example'}), 403),
+            '403 origin': (c.post('/api/workspaces', headers={**puerta.con_token, 'Origin': 'http://evil.example'}), 403),
+            '303': (c.get(f'/?{sesion_web.PARAMETRO_ACCESO}={puerta.token}'), 303),
+        }
+    for nombre, (r, estado) in respuestas.items():
+        assert r.status_code == estado and _marco(r) == ('DENY', ["frame-ancestors 'none'"]), (nombre, r.status_code,
+                                                                                               _marco(r))
+
+
+def test_086_rf21_las_teselas_por_sus_servidores_exactos(tmp_path, monkeypatch):
+    """086:RF-21 — las páginas enmarcadas no piden nada de fuera salvo las teselas, y la política nombra cada servidor
+    sin comodín: los que salen de la dirección de cada fondo con los subdominios de Leaflet. Comprobado en el HTML
+    generado de las dos páginas, no en las constantes."""
+    from convertersmartgrid import mapa_cargas as mc
+    from convertersmartgrid.preview import (CARPETA_LEAFLET, FONDOS_MAPA, politica_pagina_generada, recurso_leaflet,
+                                            write_preview_html)
+
+    monkeypatch.setenv('CSG_SALIDA_TESELAS', '1')
+    (subdominios,) = re.findall(r'subdomains:"([a-z]+)"', (CARPETA_LEAFLET / 'leaflet.js').read_text(encoding='utf-8'))
+    servidores = set()
+    for _n, url, *_resto in FONDOS_MAPA:
+        origen = re.match(r'https://[^/]+', url).group(0)
+        servidores |= {origen.replace('{s}', s) for s in subdominios} if '{s}' in origen else {origen}
+    politica = politica_pagina_generada()
+    (imagenes,) = [d for d in politica.split(';') if d.strip().startswith('img-src')]
+    assert set(imagenes.split()[1:]) == {'data:', *servidores}, imagenes
+    assert '*' not in politica
+    pagina_mapa = mc.pagina_del_mapa(_DATOS_MAPA)
+    vista = write_preview_html(*_modelo_de_vista_previa(), tmp_path / 'v.html', backend='leaflet').read_text(encoding='utf-8')
+    for html_generado in (pagina_mapa, vista):
+        for propio in ('leaflet.js', 'leaflet.css'):       # su huella la comprueba test_leaflet_propio_con_su_huella
+            assert recurso_leaflet(propio) in html_generado
+            html_generado = html_generado.replace(recurso_leaflet(propio), '')
+        assert not re.search(r'<(script|link|iframe|img)[^>]+(src|href)=["\']?https?:', html_generado)
+        pedidos = {re.match(r'https://[^/]+', u).group(0) for u in re.findall(r'https://[^\s"\'\\;]+', html_generado)}
+        pedidos = {p for p in pedidos if '{s}' not in p} | {p.replace('{s}', s) for p in pedidos if '{s}' in p
+                                                            for s in subdominios}
+        assert pedidos <= servidores, pedidos - servidores
+
+
+def test_086_rf21_la_hoja_de_seguridad_dice_que_se_enmarca_y_que_sale():
+    """086:RF-21 — el responsable de sistemas lee en la hoja qué páginas se enmarcan y a qué servidores piden teselas."""
+    from convertersmartgrid.preview import ORIGEN_SATELITE, ORIGEN_TESELAS
+
+    hoja = (RAIZ / 'docs/SEGURIDAD_Y_PRIVACIDAD.md').read_text(encoding='utf-8')
+    for texto in ('SAMEORIGIN', "frame-ancestors 'self'", "frame-ancestors 'none'", 'DENY',
+                  'Ubicación de las cargas nuevas', 'vista previa del alimentador', *ORIGEN_TESELAS.split(),
+                  ORIGEN_SATELITE):
+        assert texto in hoja, texto
 
 
 def test_el_frente_no_pide_nada_de_fuera():

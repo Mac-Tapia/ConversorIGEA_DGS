@@ -69,6 +69,7 @@ no se rehace**. Se ensaya antes sobre una copia de dos o tres espacios. Con F1 h
 | Edición de producto | RF-15, RF-16 | `web/__main__.py:368`, `vigilancia.py:151,295,337`, `Asistente.tsx:279`, `EquipoAsistente.tsx:32`, `GemeloPIDE.tsx` |
 | Host, Origin, token, 0.0.0.0 | RF-17 a RF-20 | `web/app.py:693,1276`, `web/__main__.py:339` y el lanzador; el frontend añade el token |
 | Leaflet propio y CSP | RF-21 | `preview.py:293`, `app.py:1334` |
+| Marcos: solo los dos mapas, al mismo origen | RF-21 | `web/seguridad.py` (`RUTAS_ENMARCABLES`; `cabeceras_de_marco` decide `X-Frame-Options` y `frame-ancestors` de toda respuesta, también 401, 403 y 303), `preview.py` (`ORIGEN_TESELAS` sin comodín). Descartado: que cada ruta ponga sus cabeceras, porque una ruta nueva nacería enmarcable |
 | Sin salida por defecto | RF-22 | `asistente/internet.py`, trazado por OSRM, teselas del mapa, `reranker.py:83` |
 | Tareas por efecto | RF-23, RF-24 | las tareas del asistente, hoy 16 sin confirmación |
 | Guiones y reintentos | RF-25, RF-26 | `app.py:2120` |

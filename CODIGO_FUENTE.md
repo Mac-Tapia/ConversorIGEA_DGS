@@ -437,6 +437,8 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/app/main.tsx` | Arranque de React. | 001 |
 | `frontend/src/app/App.tsx` | Marco de la página: paneles, pestañas, resúmenes de trabajos. | 001, 008 (RF-1, RF-2), 061 (RF-4), 091 |
 | `frontend/src/app/AcercaDe.tsx` | La versión de la cabecera abre sus notas y el diagnóstico de la instalación. | 086 (RF-40, RF-43) |
+| `frontend/src/app/Pestanas.tsx` | Las pestañas de los módulos con el patrón de WAI-ARIA (lista, pestaña y panel enlazados) y su manejo por teclado. | 086 (RF-106) |
+| `frontend/src/app/teclado.ts` | El teclado de la web: flechas, Inicio y Fin en pestañas y grupos de opciones, y el separador del Registro con teclado y pulsación. | 086 (RF-106) |
 | `frontend/src/shared/edicion.ts` | Pregunta a `/api/health` qué edición corre y qué funciones están en beta. | 086 (RF-16) |
 | `frontend/src/api/reconexion.ts` | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. | 086 (RF-9) |
 | `frontend/src/features/powerfactory/formularioOperacionSet.ts` | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. | 063 |

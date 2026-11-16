@@ -29,7 +29,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | Spec | Estado | Pendiente |
   | --- | --- | --- |
   | 001 Reorganización: una responsabilidad, un sitio | cumplida |  |
-  | 002 Arquitectura por capas y módulos enchufables | aprobada | falta T7, T8, T9, T11, T12 |
+  | 002 Arquitectura por capas y módulos enchufables | aprobada | falta T7, T9, T12 |
   | 003 Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | retirada |  |
   | 004 Cargas en un proyecto existente de DIgSILENT | cumplida |  |
   | 005 Carpeta de proyectos importados en DIgSILENT | cumplida |  |
@@ -37,7 +37,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 007 Cargas nuevas sobre el alimentador ajustado, una variación por carga | cumplida |  |
   | 008 Pestaña «Cargas en DIgSILENT» en tres pasos | cumplida |  |
   | 009 Inventario del repositorio: cada fichero con su módulo y su spec | cumplida |  |
-  | 010 Trazado GPS de las líneas | aprobada | falta T6 |
+  | 010 Trazado GPS de las líneas | cumplida |  |
   | 011 Estudios y obras de mejora sobre la red calibrada | aprobada | falta T21 |
   | 012 Confiabilidad y capacidad de la red calibrada | aprobada | falta T14, T15, T16, T17, T18 |
   | 013 Mes de análisis y transferencia entre dos alimentadores | cumplida |  |
@@ -61,7 +61,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 031 Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | aprobada | falta T4, T5 |
   | 032 «Caso base» con los datos originales; fichas y potencias en «Sin proyecto» | cumplida |  |
   | 033 Trazabilidad y estado de las specs | cumplida |  |
-  | 034 Motor base de conversión y contrato universal de fuentes | aprobada | falta T4, T5, T6 |
+  | 034 Motor base de conversión y contrato universal de fuentes | cumplida |  |
   | 035 Fijas de la tabla en el instante de la máxima, Q de cabecera con bancos y unidades de DIgSILENT | cumplida |  |
   | 036 Auditoría de raíz y correcciones del arranque | cumplida |  |
   | 037 Caso «Cargas nuevas» en los estudios de la web | cumplida |  |
@@ -131,7 +131,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 101 La calibración cambia sola los transformadores que impiden converger | cumplida |  |
   | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | cumplida |  |
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
-  | 104 Los libros nuevos de demanda se reconocen solos | aprobada | falta T6, T10 |
+  | 104 Los libros nuevos de demanda se reconocen solos | aprobada | falta T6 |
   | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |
   | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | aprobada | falta T2 |
   | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | aprobada | falta T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26 |
