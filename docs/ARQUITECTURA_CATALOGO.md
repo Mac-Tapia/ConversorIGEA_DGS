@@ -10,10 +10,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 445 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
-| Herramientas y guiones | `tools/` | 125 |
+| Herramientas y guiones | `tools/` | 126 |
 | Interfaz | `frontend/src/` | 112 |
 | Pruebas de la interfaz | `frontend/test/` | 50 |
-| Pruebas | `tests/` | 586 |
+| Pruebas | `tests/` | 587 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3842 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3843 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -948,6 +948,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `verify_architecture_links.py` | — | 009 | Comprueba los enlaces públicos y locales del espacio Structurizr de la arquitectura. |
 | `verify_interactive_architecture.mjs` | — | 009 | Comprobación en navegador de la página de la arquitectura C4 interactiva (Node.js). |
 | `generar_arquitectura.py` | — | 090 | Genera `docs/ARQUITECTURA_CATALOGO.md` desde el repositorio: ficheros, capas, rutas, tareas del asistente y roles de su equipo. |
+| `generar_c4.py` | — | 090 | Pone al día las cifras del C4 de `docs/architecture/` desde el catálogo generado y el Estado de cada spec. |
 | `puerta_calidad.py` | — | 102 | Puerta de calidad: los ganchos `pre-commit` y `pre-push` de `.githooks/` y GitHub Actions corren con ella las pruebas del commit, la suite completa… |
 | `rutas_sin_modelo.py` | — | 002 | Lista las rutas de /api sin modelo de respuesta y escribe la lista de excepciones, que solo baja. |
 | `verificar_entrega_integral.py` | — | 065, 086 | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. |

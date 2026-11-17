@@ -789,6 +789,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/arquitectura.py` | Guarda AST de capas, ciclos y accesos privados con deuda explícita. | 065 (RF-16), 002 |
 | `tools/fijar_entorno.py` | Cierre reproducible de dependencias para CPython 3.12/Windows. | 065 (RF-15) |
 | `tools/generar_arquitectura.py` | Genera `docs/ARQUITECTURA_CATALOGO.md` desde el repositorio: ficheros, capas, rutas, tareas del asistente y roles de su equipo; lo llaman los ganchos de `.githooks/`. | 090 |
+| `tools/generar_c4.py` | Pone al día las cifras del C4 de `docs/architecture/` desde el catálogo generado y el Estado de cada spec; la puerta la corre tras el catálogo. | 090 (RF-19) |
 | `tools/puerta_calidad.py` | Puerta de calidad: los ganchos `pre-commit` y `pre-push` de `.githooks/` y GitHub Actions corren con ella las pruebas del commit, la suite completa sin omitidas y la sintética. | 102 (RF-1 a RF-16, RF-24) |
 | `tools/rutas_sin_modelo.py` | Lista las rutas de /api sin modelo de respuesta y escribe la lista de excepciones, que solo baja. | 002 (RF-38) |
 | `tools/generar_contrato_api.py` | Generación y comprobación determinista del contrato OpenAPI a TypeScript. | 065 (RF-17), 002 |

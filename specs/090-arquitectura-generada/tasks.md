@@ -16,3 +16,9 @@
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_arquitectura_generada.py` en verde, sin la sección
       «Sin subsistema asignado» en `docs/ARQUITECTURA_CATALOGO.md`.
       Hecho en ecad83ea (LOTE-4, ARQ-SUBSISTEMAS); pruebas: tests/test_arquitectura_generada.py.
+- [x] T7. El C4 profesional al día y `tools/generar_c4.py` para sus cifras: un componente por grupo de subsistemas, con sus ficheros del catálogo, la biblioteca
+      normativa como contenedor, el PIT y el VAD y VNR con sus componentes, sin «Módulos por asignar», los enlaces a ecad83ea y
+      la página interactiva con los mismos componentes. (RF-19)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_arquitectura_c4_al_dia.py tests/test_interactive_architecture.py`
+      en verde, con las PNG y el PDF del C4 regenerados desde la página.
+      Hecho en la fila ARQ-C4 (f7, 17-11); pruebas: tests/test_arquitectura_c4_al_dia.py tests/test_interactive_architecture.py.

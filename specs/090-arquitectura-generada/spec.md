@@ -1,6 +1,6 @@
 # Spec 090 — La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo
 
-Estado: cumplida (2026-11-17: RF-18 y T6, cada fichero con su subsistema; antes 2026-11-16: RF-17 y T5) · Fecha: 2026-11-04 · Origen: petición del usuario
+Estado: cumplida (2026-11-17: RF-19 y T7, el C4 profesional al día con el catálogo; antes RF-18 y T6, cada fichero con su subsistema, y 2026-11-16: RF-17 y T5) · Fecha: 2026-11-04 · Origen: petición del usuario
 
 ## Contexto y objetivo
 
@@ -30,6 +30,7 @@ Lo que cambia en cada commit se genera desde el repositorio; lo que explica el p
 - RF-16: EL SISTEMA conservará en `docs/ARQUITECTURA.md` las frases que citan las preguntas de la 076 y los conjuntos de la 077, en una tabla de correcciones cuando ya no sean ciertas.
 - RF-17: `docs/ARQUITECTURA.md` explicará cada paquete de `src/convertersmartgrid/`; SI aparece un paquete que no explica, ENTONCES la suite lo dirá por su nombre. Sus líneas citadas por la 076 y la 077 no se mueven al ampliarlo (RF-16).
 - RF-18: Cada fichero del catálogo tendrá su subsistema en `docs/architecture/subsistemas.json`, y el mapa no nombrará ficheros que ya no existen; SI queda alguno «sin subsistema asignado», ENTONCES la suite lo dirá. La fila que añade un módulo lo asigna.
+- RF-19: El C4 de `docs/architecture/` (`workspace.dsl` y su página interactiva) tendrá un componente por cada grupo de `docs/architecture/subsistemas.json`, nombrado en su propiedad «Subsistemas», y sus cifras (ficheros de cada componente, rutas de la API, carriles, tareas del asistente, módulos y subsistemas) serán las del catálogo generado y las pondrá `tools/generar_c4.py --escribir`, que la puerta corre tras el catálogo; SI un grupo queda sin componente, una cifra no coincide, un elemento sigue «en implementación» con su spec cumplida o un enlace no apunta a una sola revisión con rutas que existen, ENTONCES la suite lo dirá con la orden que lo arregla. Las cifras no se escriben a mano ni se fijan en la prueba.
 
 ## Fuera de alcance
 

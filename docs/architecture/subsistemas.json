@@ -747,6 +747,7 @@
     "verify_architecture_links.py",
     "verify_interactive_architecture.mjs",
     "generar_arquitectura.py",
+    "generar_c4.py",
     "puerta_calidad.py",
     "rutas_sin_modelo.py",
     "verificar_entrega_integral.py"

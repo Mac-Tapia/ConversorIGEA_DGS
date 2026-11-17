@@ -173,7 +173,7 @@
 
   <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
   <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo.</p>
-  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107 a 112). 323 módulos en 25 subsistemas, según el catálogo generado.</p>
+  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107 a 111). 434 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
 
   <div class="c4-toolbar">
     <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
@@ -241,6 +241,7 @@
     <button class="btn btn-ghost" type="button" data-node-id="reports">Informes</button>
     <button class="btn btn-ghost" type="button" data-node-id="pit">PIT</button>
     <button class="btn btn-ghost" type="button" data-node-id="vad">VAD</button>
+    <button class="btn btn-ghost" type="button" data-node-id="normativa">Normativa</button>
     <button class="btn btn-ghost" type="button" data-node-id="cloudConn">Nube</button>
     <button class="btn btn-ghost" type="button" data-node-id="mailer">Correo</button>
     <button class="btn btn-ghost" type="button" data-node-id="gisEditor">Plano GIS</button>
@@ -281,13 +282,14 @@
       const NS = 'http://www.w3.org/2000/svg';
       const PLAN = 'plan';
 
-      // Cifras: docs/ARQUITECTURA_CATALOGO.md y docs/architecture/subsistemas.json (spec 090), revisión b4b03c0c.
+      // Cifras: docs/ARQUITECTURA_CATALOGO.md y docs/architecture/subsistemas.json (spec 090), revisión ecad83ea.
+      // 090:RF-19: las pone tools/generar_c4.py --escribir desde el catálogo y workspace.dsl; la prueba exige su --comprobar.
       const common = {
         // Contexto
         operator: { label: 'Operador eléctrico', tech: 'Planifica y decide', path: 'http://127.0.0.1:8765/', kind: 'external', detail: 'Elige el alcance, confirma cada escritura y acepta o rechaza con evidencia.' },
         sources: { label: 'Fuentes de la distribuidora', tech: 'TXT CYMDIST, Access y libros', path: 'src/convertersmartgrid/sources', kind: 'external', detail: 'Exportaciones de CYMDIST y libros de medición; cada fuente se carga por su ruta y nunca entra en git.' },
         vnrSource: { label: 'Paquete VNR-GIS', tech: 'Osinergmin, copia .bak', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'external', detail: 'Base y capas del VNR; las copias .bak se restauran en SQL Server Express.' },
-        regulator: { label: 'Osinergmin / COES', tech: 'Normas, costos y formatos', path: 'specs/README.md', kind: 'external', detail: 'Normas técnicas, costos oficiales y formatos del PIDE, del PIT y del VAD.' },
+        regulator: { label: 'Osinergmin / COES / MINEM', tech: 'Normas, costos y formatos', path: 'specs/README.md', kind: 'external', detail: 'Normas técnicas, costos oficiales y formatos del PIDE, del PIT y del VAD.' },
         system: { label: 'ConverterSmartGrid', tech: 'Local y auditable', path: 'README.md', kind: 'engine', detail: 'Convierte, valida, calibra, estudia y documenta redes de distribución en la máquina del operador.' },
         powerfactory: { label: 'DIgSILENT PowerFactory', tech: '2021 o posterior, API nativa', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importa el DGS, verifica el Caso base, calibra, aplica obras y corre los estudios; cada resultado se relee.' },
         llm: { label: 'LLM local', tech: 'Ollama en esta máquina', path: 'src/convertersmartgrid/asistente/ollama.py', kind: 'external', detail: 'Inferencia del asistente y de su revisión, solo en direcciones de la máquina.' },
@@ -298,10 +300,10 @@
         frontend: { label: 'Interfaz web', tech: 'React + TypeScript', path: 'frontend/src', kind: 'web', detail: 'Selección, seguimiento, confirmación y descarga; compilada en frontend/dist.' },
         security: { label: 'Puerta de seguridad', tech: 'Middleware ASGI', path: 'src/convertersmartgrid/web/seguridad.py', kind: 'engine', detail: 'Host, Origin, token de sesión, política de contenido, edición y salidas a la red.' },
         api: { label: 'API web', tech: 'FastAPI, 161 + 13 rutas', path: 'src/convertersmartgrid/web/app.py', kind: 'engine', detail: 'REST y WebSocket; valida pedidos y coordina trabajos. La web no calcula: llama al motor o lanza un guion.' },
-        jobs: { label: 'Colas de trabajo', tech: 'engine, PF, asistente, control', path: 'src/convertersmartgrid/web/jobs.py', kind: 'store', detail: 'Un hilo por carril; el de PowerFactory va en serie y el de control solo cancela.' },
+        jobs: { label: 'Colas de trabajo', tech: 'Un hilo por carril', path: 'src/convertersmartgrid/web/jobs.py', kind: 'store', detail: 'Carriles engine, powerfactory, asistente, control, correo y red; un hilo por carril; el de PowerFactory va en serie y el de control solo cancela.' },
         custody: { label: 'Custodia de fuentes', tech: 'Copias fijas + SHA-256', path: 'src/convertersmartgrid/web/source_runs.py', kind: 'store', detail: 'Fija una ejecución fuente inmutable con su alcance y sus huellas, sin mezclar fuentes.' },
         workspace: { label: 'Espacios de trabajo', tech: 'Ficheros por espacio', path: 'output/web', kind: 'store', detail: 'Entradas, opciones, ejecuciones, DGS, planes, informes y descargas de cada espacio.' },
-        vnr: { label: 'Adaptador VNR-GIS', tech: 'Python, 50 ficheros', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'engine', detail: 'Descubre, valida y exporta el VNR al mismo modelo común; su DGS sale del mismo escritor.' },
+        vnr: { label: 'Adaptador VNR-GIS', tech: 'Python, modelo común', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'engine', detail: 'Descubre, valida y exporta el VNR al mismo modelo común; su DGS sale del mismo escritor.' },
         engine: { label: 'Motor de conversión', tech: 'Python, FeederModel', path: 'src/convertersmartgrid/batch.py', kind: 'engine', detail: 'Adapta, reconstruye, aplica reglas y construye el modelo canónico; hasta 4 procesos con el mismo DGS.' },
         oracle: { label: 'Preflight consultivo', tech: 'pandapower', path: 'src/convertersmartgrid/oraculo.py', kind: 'engine', detail: 'Informa conectividad y convergencia antes de PowerFactory; sus avisos no omiten el DGS.' },
         dgs: { label: 'DGS y validación', tech: 'Esquema versionado', path: 'src/convertersmartgrid/dgs.py', kind: 'engine', detail: 'Escribe, valida y publica de forma atómica, con su manifiesto.' },
@@ -312,46 +314,58 @@
         reports: { label: 'Informes', tech: 'Word, PDF y libro Excel', path: 'src/convertersmartgrid/informes.py', kind: 'engine', detail: 'Estudio y factibilidad con lo que guardó la corrida; cada informe con su libro.' },
         planning: { label: 'PIDE y planeamiento', tech: 'Mercado, costos y formatos', path: 'src/convertersmartgrid/pide.py', kind: 'engine', detail: 'Largo plazo y PIDE de distribución: diagnóstico, obras, costos y formatos por módulo.' },
         pit: { label: 'Plan de inversiones (PIT)', tech: 'en implementación · 107', path: 'specs/107-plan-de-inversiones-en-transmision/spec.md', kind: 'engine', status: PLAN, detail: 'Producto aparte para la transmisión secundaria y complementaria; comparte red, motores, costos e informes, no el método.' },
-        vad: { label: 'Estudio de costos del VAD', tech: 'en implementación · 108', path: 'specs/108-estudio-de-costos-del-vad/spec.md', kind: 'engine', status: PLAN, detail: 'Empresa modelo eficiente en cuatro etapas; la red real y la red óptima se calculan por separado.' },
+        vad: { label: 'Estudio de costos del VAD', tech: 'en implementación · 108', path: 'specs/108-estudio-de-costos-del-vad/spec.md', kind: 'engine', status: PLAN, detail: 'Empresa modelo eficiente en cuatro etapas y VNR según la Guía 232-2017 con el SICODI; la red real y la red óptima se calculan por separado.' },
         twin: { label: 'Gemelo digital', tech: 'PINN-GNN, GRU, flujo propio', path: 'src/convertersmartgrid/digital_twin/oraculo.py', kind: 'ai', detail: 'Aprende solo de episodios clasificados y filtra candidatos; DIgSILENT decide. Exige GPU.' },
         forecast: { label: 'Pronóstico de demanda', tech: 'Competencia de modelos', path: 'src/convertersmartgrid/pronostico_demanda.py', kind: 'ai', detail: 'Un módulo con datos que crecen cada mes: compiten modelos ingenuos, GRU, N-HiTS, TFT y PatchTST. Ninguno se pone en uso solo.' },
         episodes: { label: 'Búfer de episodios', tech: 'JSON + SQLite', path: 'src/convertersmartgrid/digital_twin/buffer.py', kind: 'store', detail: 'Episodios inmutables por huella; lo dudoso va a cuarentena sin repetir la acción.' },
         governance: { label: 'Gobierno de modelos', tech: 'Registro, puertas, GPU', path: 'src/convertersmartgrid/model_registry.py', kind: 'ai', detail: 'Candidatos, puertas, puntero en uso, un turno de GPU para toda la máquina y ciclo de aprendizaje.' },
-        assistant: { label: 'Asistente y su equipo', tech: 'Intérprete, plan, revisión', path: 'src/convertersmartgrid/asistente/interprete.py', kind: 'ai', detail: '48 tareas; solo el operador ejecuta y toda escritura espera confirmación; revisan fuentes, física, coste y riesgo.' },
-        mcp: { label: 'MCP local', tech: 'stdio, solo lectura', path: 'tools/mcp_conversor.py', kind: 'ai', detail: 'Las lecturas del asistente para un cliente de esta máquina.' },
+        assistant: { label: 'Asistente y su equipo', tech: 'Intérprete, plan, revisión', path: 'src/convertersmartgrid/asistente/interprete.py', kind: 'ai', detail: '59 tareas; solo el operador ejecuta y toda escritura espera confirmación; revisan fuentes, física, coste y riesgo.' },
+        mcp: { label: 'MCP local', tech: 'stdio, solo lectura', path: 'tools/mcp_conversor.py', kind: 'ai', detail: 'Las lecturas del asistente para un cliente de esta máquina, entre ellas consultar_norma con su cita.' },
         journal: { label: 'Diario de operaciones', tech: 'SQLite + JSON + SHA-256', path: 'src/convertersmartgrid/asistente/observacion.py', kind: 'store', detail: 'Estados por espacio, contexto inicial y evidencias custodiadas; no promueve modelos.' },
-        tooling: { label: 'Herramientas de órdenes', tech: 'tools/, 66 ficheros', path: 'tools/arquitectura.py', kind: 'engine', detail: 'Operación, aceptación, entrenamientos y calidad desde la línea de órdenes.' },
+        tooling: { label: 'Herramientas de órdenes', tech: 'Operación, calidad y modelos', path: 'tools/arquitectura.py', kind: 'engine', detail: 'Operación, aceptación, entrenamientos y calidad desde la línea de órdenes.' },
         gisEditor: { label: 'Editor sobre el plano', tech: 'en implementación · 111', path: 'specs/111-editor-electrico-sobre-el-plano-gis/spec.md', kind: 'web', status: PLAN, detail: 'Ver la red, elegir un equipo, proponer maniobras u obras y ver resultados en el mismo trazo, sin tocar el Caso base.' },
         cloudConn: { label: 'Conector de nube', tech: 'en implementación · 109', path: 'specs/109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md', kind: 'engine', status: PLAN, detail: 'Elige fuentes en la nube, avisa de cambios y sube expedientes; cada estudio usa una copia fija con huella.' },
         mailer: { label: 'Envío de informes', tech: 'en implementación · 110', path: 'specs/110-envio-de-informes-por-correo-desde-la-web/spec.md', kind: 'engine', status: PLAN, detail: 'Envía el informe cerrado o un enlace privado a su expediente; queda un recibo.' },
-        bench: { label: 'Benchmarks anonimizados', tech: 'en implementación · 112', path: 'specs/112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md', kind: 'ai', status: PLAN, detail: 'Datos de referencia desidentificados, solo en local, y protocolos por cohortes de empresa y de tiempo.' },
-        // Componentes (subsistemas de docs/architecture/subsistemas.json)
-        cInterfaz: { label: 'Interfaz', tech: 'frontend/src, 71 ficheros', path: 'frontend/src', kind: 'web', detail: 'Paneles, pestañas, formularios y cliente tipado de la API.' },
-        cWeb: { label: 'Web', tech: 'web/, 33 ficheros', path: 'src/convertersmartgrid/web', kind: 'web', detail: 'Rutas, servicios, colas, seguridad, custodia, doctor y soporte.' },
-        cHerrOper: { label: 'Operación y aceptación', tech: 'tools/, 21 ficheros', path: 'tools/sistema_web.py', kind: 'engine', detail: 'Flujo completo por la web, informes de casos guardados y aceptación nativa.' },
-        cHerrCalidad: { label: 'Calidad y entrega', tech: 'tools/, 15 ficheros', path: 'tools/arquitectura.py', kind: 'engine', detail: 'Capas, contrato de la API, estado de specs, suite por tandas y candidato.' },
-        cVnr: { label: 'VNR-GIS', tech: 'adaptador, 50 ficheros', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'engine', detail: 'Conectores, descubrimiento, GIS, validación y puente al modelo común.' },
-        cEntrada: { label: 'Entrada de datos', tech: 'TXT, MDB, VNR · 14', path: 'src/convertersmartgrid/sources', kind: 'engine', detail: 'Lectores, contrato de fuente, copia fija, identificación e inventario.' },
+        normativa: { label: 'Biblioteca normativa', tech: 'Vigencia y cita de cada regla', path: 'src/convertersmartgrid/biblioteca_normativa.py', kind: 'engine', detail: 'Normas nacionales e internacionales con su vigencia, sus modificaciones y la cita de cada regla; vale para toda empresa, estudio y módulo, y para el asistente.' },
+        bench: { label: 'Benchmarks anonimizados', tech: 'Desidentificados, solo en local', path: 'specs/112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md', kind: 'ai', detail: 'Datos de referencia desidentificados, solo en local, y protocolos por cohortes de empresa y de tiempo.' },
+        // Componentes (subsistemas de docs/architecture/subsistemas.json; uno por componente de workspace.dsl)
+        cInterfaz: { label: 'Interfaz común', tech: '79 ficheros', path: 'frontend/src', kind: 'web', detail: 'Compilación, cliente tipado de la API y piezas comunes de las pestañas.' },
+        cInterfazConversion: { label: 'Conversión y perfil', tech: '7 ficheros', path: 'frontend/src/features/conversion', kind: 'web', detail: 'Entradas, alimentadores, opciones, reconstrucción y perfil de la empresa.' },
+        cInterfazEstudios: { label: 'Cargas, estudios, obras e informes', tech: '24 ficheros', path: 'frontend/src/features/powerfactory', kind: 'web', detail: '«Cargas en DIgSILENT», demanda, estudios, obras e informes.' },
+        cInterfazRegulatorio: { label: 'Módulos regulatorios', tech: '4 ficheros', path: 'frontend/src/features/pit', kind: 'web', detail: 'Pestañas del PIT, del VAD, del VNR y de la biblioteca normativa.' },
+        cInterfazNube: { label: 'Nube y correo', tech: '5 ficheros', path: 'frontend/src/features/nube', kind: 'web', detail: 'Elegir fuentes de la nube, publicar expedientes y ver versiones nuevas.' },
+        cInterfazAsistente: { label: 'Asistente en la web', tech: '8 ficheros', path: 'frontend/src/features/asistente', kind: 'web', detail: 'Órdenes, equipo, monitor, tarjeta del operador y aprendizaje.' },
+        cInterfazPruebas: { label: 'Pruebas de la interfaz', tech: '39 ficheros', path: 'frontend/test', kind: 'web', detail: 'Pruebas sin navegador de las pestañas y de la lógica.' },
+        cWeb: { label: 'Web', tech: '42 ficheros', path: 'src/convertersmartgrid/web', kind: 'web', detail: 'Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo.' },
+        cNube: { label: 'Nube', tech: '11 ficheros', path: 'src/convertersmartgrid/adaptadores/nube', kind: 'web', detail: 'Proveedores Google Drive y OneDrive, OAuth, cuentas, cofre y salida a la nube.' },
+        cVnr: { label: 'VNR-GIS', tech: '52 ficheros', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'engine', detail: 'Conectores, descubrimiento, GIS, validación y puente al modelo común.' },
+        cTransversales: { label: 'Transversales', tech: '18 ficheros', path: 'src/convertersmartgrid/runtime_paths.py', kind: 'engine', detail: 'Rutas de ejecución, nombres, perfil de empresa, privacidad, edición y salidas a la red.' },
+        cEntrada: { label: 'Entrada de datos', tech: '15 ficheros', path: 'src/convertersmartgrid/sources', kind: 'engine', detail: 'Lectores TXT, MDB y VNR, contrato de fuente, copia fija, identificación e inventario.' },
+        cFachadas: { label: 'Fachadas fuera del paquete', tech: '1 ficheros', path: 'src/vnr_etl.py', kind: 'engine', detail: 'Entrada de órdenes del VNR fuera del paquete.' },
         cReconstruccion: { label: 'Reconstrucción y catálogo', tech: '8 ficheros', path: 'src/convertersmartgrid/reconstruction_pipeline.py', kind: 'engine', detail: 'Completa lo que falta con el catálogo y anota cada supuesto.' },
         cModelo: { label: 'Modelo y reglas', tech: '9 ficheros', path: 'src/convertersmartgrid/model.py', kind: 'engine', detail: 'FeederModel, reglas comunes, puentes, fases y capacidades.' },
-        cConversion: { label: 'Conversión y oráculo', tech: 'red unida, 8 ficheros', path: 'src/convertersmartgrid/batch.py', kind: 'engine', detail: 'Lote, red unida, enlaces, estructura y oráculo de convergencia.' },
-        cSalida: { label: 'Salida y módulos', tech: 'DGS y esquemas, 19', path: 'src/convertersmartgrid/dgs.py', kind: 'engine', detail: 'Esquemas versionados, escritor DGS, validación y módulos enchufables.' },
-        cTransversales: { label: 'Transversales', tech: '11 ficheros', path: 'src/convertersmartgrid/util.py', kind: 'engine', detail: 'Rutas de ejecución, nombres, perfil de empresa, edición y salidas a la red.' },
-        cEnlace: { label: 'Enlace con DIgSILENT', tech: 'arnés y vínculo, 9', path: 'src/convertersmartgrid/pf_arnes.py', kind: 'native', detail: 'Arnés de turno exclusivo, entorno, metadatos y vínculo fuente-proyecto.' },
-        cGuiones: { label: 'Guiones de DIgSILENT', tech: 'tools/*_pf.py, 35', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importan, verifican, calibran, insertan cargas, aplican obras y corren estudios.' },
+        cConversion: { label: 'Conversión, red unida y oráculo', tech: '8 ficheros', path: 'src/convertersmartgrid/batch.py', kind: 'engine', detail: 'Lote, red unida, enlaces, estructura y oráculo de convergencia.' },
+        cSalida: { label: 'Salida y módulos enchufables', tech: '19 ficheros', path: 'src/convertersmartgrid/dgs.py', kind: 'engine', detail: 'Esquemas versionados, escritor DGS, validación y módulos enchufables.' },
+        cEnlace: { label: 'Enlace con DIgSILENT', tech: '9 ficheros', path: 'src/convertersmartgrid/pf_arnes.py', kind: 'native', detail: 'Arnés de turno exclusivo, entorno, metadatos y vínculo fuente-proyecto.' },
+        cGuiones: { label: 'Guiones de DIgSILENT', tech: '38 ficheros', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importan, verifican, calibran, insertan cargas, aplican obras y corren estudios.' },
         cDemanda: { label: 'Demanda y calibración', tech: '18 ficheros', path: 'src/convertersmartgrid/demanda_medida.py', kind: 'engine', detail: 'Libros por año y libros nuevos, cabecera, cargas y reparto.' },
-        cObras: { label: 'Obras y optimización', tech: '12 ficheros', path: 'src/convertersmartgrid/obras_pf.py', kind: 'ai', detail: 'Escalera, troncal, perfil de tensión, reguladores y optimización.' },
-        cEstudios: { label: 'Estudios', tech: '6 ficheros', path: 'src/convertersmartgrid/estudios_pf.py', kind: 'engine', detail: 'Estudios de red, protecciones y transferencia.' },
-        cInformes: { label: 'Informes', tech: '8 ficheros', path: 'src/convertersmartgrid/informes.py', kind: 'engine', detail: 'Word, libros, mapas del informe y mapa de cargas.' },
-        cPide: { label: 'PIDE y planeamiento', tech: '10 ficheros', path: 'src/convertersmartgrid/pide.py', kind: 'engine', detail: 'PIDE, economía, proyecciones de mercado y estudio de planeamiento.' },
-        cGemelo: { label: 'Gemelo digital', tech: 'digital_twin/, 28', path: 'src/convertersmartgrid/digital_twin', kind: 'ai', detail: 'Episodios, búfer, captura, oráculos, temporal, pronóstico y evolutivos.' },
-        cGobierno: { label: 'Gobierno de modelos', tech: '8 ficheros', path: 'src/convertersmartgrid/model_registry.py', kind: 'ai', detail: 'Registro, coordinador de entrenamiento, compatibilidad de GPU y evaluación.' },
-        cHerrModelos: { label: 'Modelos, asistente y MADRL', tech: 'tools/, 30 ficheros', path: 'tools/digital_twin_entrenar.py', kind: 'ai', detail: 'Entrenamientos y auditorías del gemelo, del asistente y del piloto MADRL.' },
-        cPorAsignar: { label: 'Módulos por asignar', tech: '27 módulos', path: 'docs/ARQUITECTURA_CATALOGO.md', kind: 'ai', detail: 'Arnés de evaluación, contratos de aprendizaje, pronóstico de demanda y obras integrales: el catálogo los lista sin subsistema.' },
-        cAsisNucleo: { label: 'Núcleo y operación', tech: 'asistente, 17', path: 'src/convertersmartgrid/asistente/tareas.py', kind: 'ai', detail: 'Tareas, intérprete, plan, planes guardados, ejecutor y orquestador.' },
-        cAsisModelos: { label: 'Órdenes y documentos', tech: '9 ficheros', path: 'src/convertersmartgrid/asistente/codificador_ordenes.py', kind: 'ai', detail: 'Transformer, codificador y clasificador de informes.' },
-        cAsisDatos: { label: 'Datos y entrenamiento', tech: '22 ficheros', path: 'src/convertersmartgrid/asistente/ordenes_maestro.py', kind: 'ai', detail: 'Órdenes sintéticas, fijas y del maestro; currículos y destilación.' },
-        cAsisRag: { label: 'Conocimiento y RAG', tech: '8 ficheros', path: 'src/convertersmartgrid/asistente/indice.py', kind: 'ai', detail: 'Índice, vectores, reordenación y evaluación de la recuperación.' },
+        cObras: { label: 'Obras y optimización', tech: '16 ficheros', path: 'src/convertersmartgrid/obras_pf.py', kind: 'ai', detail: 'Escalera, troncal, perfil de tensión, reguladores, obras integrales y optimización.' },
+        cEstudios: { label: 'Estudios', tech: '11 ficheros', path: 'src/convertersmartgrid/estudios_pf.py', kind: 'engine', detail: 'Estudios de red, protecciones y transferencia.' },
+        cInformes: { label: 'Informes', tech: '14 ficheros', path: 'src/convertersmartgrid/informes.py', kind: 'engine', detail: 'Word, libros, mapas del informe y mapa de cargas.' },
+        cNormativa: { label: 'Biblioteca normativa y fuentes de la empresa', tech: '5 ficheros', path: 'src/convertersmartgrid/biblioteca_normativa.py', kind: 'engine', detail: 'Registro normativo con esquema, huellas de términos, fuentes de la empresa y vínculos del .pfd.' },
+        cPide: { label: 'PIDE y planeamiento', tech: '14 ficheros', path: 'src/convertersmartgrid/estudio_planeamiento.py', kind: 'engine', detail: 'PIDE, economía, proyecciones de mercado y estudio de planeamiento.' },
+        cPit: { label: 'PIT', tech: '28 ficheros', path: 'src/convertersmartgrid/pit', kind: 'engine', detail: 'Ámbito y red del área de demanda, demanda regulatoria, diagnóstico con la norma, alternativas, formatos, expediente e informe.' },
+        cVadVnr: { label: 'VAD y VNR', tech: '24 ficheros', path: 'src/convertersmartgrid/vad', kind: 'engine', detail: 'Caracterización, dimensionamiento, costos, COyM, modelos urbano y rural, VNR de la Guía, formatos y entregables.' },
+        cGemelo: { label: 'Gemelo digital', tech: '29 ficheros', path: 'src/convertersmartgrid/digital_twin', kind: 'ai', detail: 'Episodios, búfer, captura, oráculos, temporal, pronóstico y evolutivos.' },
+        cBench: { label: 'Benchmarks anonimizados', tech: '14 ficheros', path: 'src/convertersmartgrid/benchmarks', kind: 'ai', detail: 'Seudónimos, geometría pública, cohortes, series, control de reidentificación y reproducción.' },
+        cAsisNucleo: { label: 'Núcleo y operación', tech: '17 ficheros', path: 'src/convertersmartgrid/asistente/tareas.py', kind: 'ai', detail: 'Tareas, intérprete, plan, planes guardados, ejecutor y orquestador.' },
+        cAsisModelos: { label: 'Modelos de órdenes y documentos', tech: '9 ficheros', path: 'src/convertersmartgrid/asistente/codificador_ordenes.py', kind: 'ai', detail: 'Transformer, codificador y clasificador de informes.' },
+        cAsisDatos: { label: 'Datos y entrenamiento', tech: '23 ficheros', path: 'src/convertersmartgrid/asistente/ordenes_maestro.py', kind: 'ai', detail: 'Órdenes sintéticas, fijas y del maestro; currículos y destilación.' },
+        cAsisRag: { label: 'Conocimiento y RAG', tech: '10 ficheros', path: 'src/convertersmartgrid/asistente/indice.py', kind: 'ai', detail: 'Índice con el corpus normativo, vectores, reordenación y evaluación de la recuperación.' },
+        cGobierno: { label: 'Gobierno de modelos', tech: '22 ficheros', path: 'src/convertersmartgrid/model_registry.py', kind: 'ai', detail: 'Registro, coordinador de entrenamiento, GPU, contratos de aprendizaje y arnés de evaluación.' },
+        cHerrOper: { label: 'Operación, datos y aceptación', tech: '33 ficheros', path: 'tools/sistema_web.py', kind: 'engine', detail: 'Flujo completo por la web, informes de casos guardados y aceptación nativa.' },
+        cHerrModelos: { label: 'Modelos, asistente y MADRL', tech: '37 ficheros', path: 'tools/digital_twin_entrenar.py', kind: 'ai', detail: 'Entrenamientos y auditorías del gemelo, del asistente, del pronóstico y del piloto MADRL.' },
+        cHerrCalidad: { label: 'Calidad y entrega', tech: '18 ficheros', path: 'tools/arquitectura.py', kind: 'engine', detail: 'Capas, arquitectura generada, contrato de la API, estado de specs, suite por tandas y candidato.' },
         // Despliegue
         browser: { label: 'Navegador', tech: '127.0.0.1:8765', path: 'http://127.0.0.1:8765/', kind: 'web', detail: 'Acceso local a la interfaz y a la API.' },
         python: { label: 'Proceso web', tech: 'Python 3.12: API, motor, IA', path: 'pyproject.toml', kind: 'engine', detail: 'API, colas, motor y asistente en un proceso local.' },
@@ -392,7 +406,7 @@
             g('assistant',0,2), g('gisEditor',1,2), g('custody',2,2), g('engine',3,2), g('dgs',4,2), g('native',5,2), g('oracle',6,2),
             g('mcp',0,3), g('journal',1,3), g('vnr',2,3), g('calibration',3,3), g('optimizer',4,3), g('twin',5,3), g('studies',6,3),
             g('tooling',0,4), g('governance',3,4), g('planning',4,4), g('episodes',5,4), g('reports',6,4),
-            g('forecast',2,5), g('vad',3,5), g('pit',4,5), g('bench',5,5)
+            g('forecast',2,5), g('vad',3,5), g('pit',4,5), g('bench',5,5), g('normativa',6,5)
           ],
           edges: [
             e('operator','frontend','Usa'), e('frontend','security','REST'), e('security','api','Filtra'), e('api','jobs','Encola'),
@@ -400,7 +414,7 @@
             e('jobs','engine','Carril engine'), e('jobs','native','PF'), e('engine','dgs','Modelo'), e('dgs','workspace','Publica'), e('dgs','native','DGS'),
             e('native','oracle','Solicita'), e('oracle','native','Avisos; la importación continúa'), e('native','powerfactory','Plan JSON'),
             e('native','calibration','Calibra'), e('native','studies','Estudia'), e('native','twin','Captura'), e('calibration','optimizer','Red'),
-            e('optimizer','planning','Alternativas'), e('studies','reports','Casos guardados'), e('planning','pit','Base común'), e('planning','vad','Base común'), e('regulator','planning','Normas y costos'),
+            e('optimizer','planning','Alternativas'), e('studies','reports','Casos guardados'), e('planning','pit','Base común'), e('planning','vad','Base común'), e('regulator','planning','Costos'), e('regulator','normativa','Normas y vigencia'), e('normativa','planning','Reglas citadas'),
             e('twin','episodes','Persiste'), e('twin','governance','Candidatos'), e('forecast','governance','Sin promover'), e('episodes','bench','Datos de referencia'),
             e('frontend','assistant','Órdenes'), e('frontend','gisEditor','Plano'), e('gisEditor','security','Maniobras'), e('assistant','api','Ejecuta tras confirmar'),
             e('llm','assistant','LLM'), e('mcp','assistant','Lecturas'), e('assistant','journal','Avances'), e('tooling','governance','Entrena y mide'),
@@ -411,26 +425,30 @@
           title: 'Componentes por subsistema',
           grid: true,
           width: 1960,
-          height: 1060,
+          height: 1230,
           boundary: [
-            zone(0, 'Interfaz, web y herramientas'), zone(1, 'Motor de conversión y adaptador VNR-GIS'), zone(2, 'DIgSILENT: enlace, guiones, calibración, obras, estudios e informes'),
-            zone(3, 'Planeamiento'), zone(4, 'Gemelo digital, pronóstico y gobierno de modelos'), zone(5, 'Asistente y su equipo')
+            zone(0, 'Interfaz'), zone(1, 'Web, nube, correo, herramientas y fachadas'), zone(2, 'Motor de conversión y adaptador VNR-GIS'),
+            zone(3, 'DIgSILENT: enlace, guiones, calibración, obras, estudios e informes'), zone(4, 'Regulatorio: VAD y VNR, PIDE, PIT y biblioteca normativa'),
+            zone(5, 'Gemelo digital, benchmarks y gobierno de modelos'), zone(6, 'Asistente y su equipo')
           ],
           nodes: [
-            k('cInterfaz',0,0), k('cWeb',1,0), k('cloudConn',2,0), k('mailer',3,0), k('gisEditor',4,0), k('cHerrOper',6,0), k('cHerrCalidad',7,0),
-            k('cVnr',0,1), k('cEntrada',1,1), k('cReconstruccion',2,1), k('cModelo',3,1), k('cConversion',4,1), k('cSalida',5,1), k('cTransversales',7,1),
-            k('cEnlace',0,2), k('cGuiones',1,2), k('cDemanda',2,2), k('cObras',3,2), k('cEstudios',4,2), k('cInformes',5,2),
-            k('vad',2,3), k('cPide',3,3), k('pit',4,3),
-            k('bench',0,4), k('cGemelo',1,4), k('cGobierno',2,4), k('cHerrModelos',3,4), k('cPorAsignar',5,4),
-            k('cAsisRag',1,5), k('cAsisNucleo',2,5), k('cAsisModelos',3,5), k('cAsisDatos',4,5)
+            k('cInterfazPruebas',0,0), k('cInterfaz',1,0), k('cInterfazConversion',2,0), k('cInterfazEstudios',3,0), k('cInterfazRegulatorio',4,0), k('cInterfazNube',5,0), k('cInterfazAsistente',6,0), k('gisEditor',7,0),
+            k('cFachadas',0,1), k('cWeb',1,1), k('cNube',2,1), k('mailer',3,1), k('cHerrOper',4,1), k('cHerrCalidad',5,1), k('cHerrModelos',6,1),
+            k('cVnr',0,2), k('cEntrada',1,2), k('cReconstruccion',2,2), k('cModelo',3,2), k('cConversion',4,2), k('cSalida',5,2), k('cTransversales',7,2),
+            k('cEnlace',0,3), k('cGuiones',1,3), k('cDemanda',2,3), k('cObras',3,3), k('cEstudios',4,3), k('cInformes',5,3),
+            k('cVadVnr',2,4), k('cPide',3,4), k('cPit',4,4), k('cNormativa',5,4),
+            k('cBench',0,5), k('cGemelo',1,5), k('cGobierno',2,5),
+            k('cAsisRag',1,6), k('cAsisNucleo',2,6), k('cAsisModelos',3,6), k('cAsisDatos',4,6)
           ],
           edges: [
-            e('cInterfaz','cWeb','API'), e('cWeb','cloudConn','Sube'), e('cloudConn','mailer','Enlace'), e('cWeb','cEntrada','Carga y convierte'),
+            e('cInterfazPruebas','cInterfaz','Prueba'), e('cInterfazConversion','cInterfaz','Cliente'), e('cInterfazRegulatorio','cInterfaz','Cliente'), e('cInterfaz','cWeb','API'),
+            e('cWeb','cNube','Sube'), e('cNube','mailer','Enlace'), e('cWeb','cEntrada','Carga y convierte'), e('cFachadas','cVnr','Órdenes'),
             e('cVnr','cEntrada','Puente'), e('cEntrada','cReconstruccion','Datos'), e('cReconstruccion','cModelo','Red'), e('cModelo','cConversion','Red'), e('cConversion','cSalida','Red'),
             e('cSalida','cEnlace','DGS validado'), e('cEnlace','cGuiones','Turno'), e('cGuiones','cDemanda','Calibra'), e('cDemanda','cObras','Red'), e('cObras','cEstudios','Obras'), e('cEstudios','cInformes','Casos'),
-            e('cObras','cPide','Alternativas'), e('cPide','pit','Base'), e('cPide','vad','Base común'),
-            e('cGuiones','cGemelo','Episodios'), e('cGemelo','cGobierno','Registra'), e('cHerrModelos','cGobierno','Entrena'), e('cGemelo','bench','Datos de referencia'),
-            e('cGobierno','cAsisNucleo','Modelo en uso'), e('cAsisNucleo','cAsisModelos','Usa'), e('cAsisNucleo','cAsisRag','Citas'), e('cAsisDatos','cAsisModelos','Entrena')
+            e('cObras','cPide','Alternativas'), e('cPide','cPit','Base'), e('cPide','cVadVnr','Base común'), e('cNormativa','cPit','Reglas citadas'),
+            e('cGuiones','cGemelo','Episodios'), e('cGemelo','cGobierno','Registra'), e('cHerrModelos','cGobierno','Entrena'), e('cGemelo','cBench','Datos de referencia'),
+            e('cGobierno','cAsisNucleo','Modelo en uso'), e('cAsisNucleo','cAsisModelos','Usa'), e('cAsisNucleo','cAsisRag','Citas'), e('cAsisDatos','cAsisModelos','Entrena'),
+            e('cNormativa','cAsisRag','Corpus normativo')
           ]
         },
         conversion: {
