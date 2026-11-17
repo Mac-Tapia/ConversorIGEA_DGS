@@ -211,3 +211,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (3.1) desde la web y comprobar en DIgSILENT que «Cargas nuevas» los tiene, con la hora de «Sin
       proyecto» y la comparación sin diferencias. (RF-79 a RF-83)
       Hecho cuando: el informe de la inserción dice `igualdad.iguales` y la sonda de solo lectura lo confirma.
+- [x] T28. La subida por año en la web: campo «Año» en cabecera y clientes, `demanda_subir(anio)` y
+      `_reemplazar_carpeta(subcarpeta)`; sin año con años ya separados, 422 sin tocar nada. (RF-84)
+      Hecho cuando: `pytest tests/test_demanda_medida_web.py -k rf84` en verde y `npm test` entero. Hecho en esta
+      entrega (LIBROS-ANIO, 4d).

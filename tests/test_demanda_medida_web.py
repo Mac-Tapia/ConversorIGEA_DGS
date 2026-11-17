@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import json
+from pathlib import Path
 from datetime import datetime, timedelta
 
 import pytest
@@ -902,3 +903,49 @@ def test_barra_de_60_kv_menor_que_su_media_se_avisa(client, monkeypatch):
     t5 = (T0 + timedelta(minutes=75)).isoformat(sep=' ')
     assert next(b for b in res['barras'] if b['alta'])['fecha'] == t5
     assert any('SET X 60 kV' in a and 'revise la unidad' in a for a in res['avisos'])
+
+
+def _subir_anio(client, wid, tipo, hojas, anio, nombre='libro.xlsx'):
+    return client.post(f'/api/workspaces/{wid}/demanda/{tipo}', files=[('files', (nombre, _xlsx(hojas)))],
+                       data={'anio': str(anio)})
+
+
+@pytest.mark.parametrize('tipo', ['clientes', 'cabecera'])
+def test_025_rf84_cada_anio_va_a_su_carpeta_y_se_reemplaza_solo_el_suyo(client, tipo):
+    """025:RF-84 — por la web, los libros de un año van a «<tipo>/AAAA/»; subir otra vez un año sustituye solo ese
+    año y los demás se conservan (antes la subida vaciaba la carpeta entera)."""
+    from convertersmartgrid.libros_por_anio import anios_de, arbol_de_libros
+    from convertersmartgrid.web import services
+
+    wid = _wid(client)
+    hojas = CLIENTES if tipo == 'clientes' else CABECERA
+    for anio in (2024, 2025):
+        assert _subir_anio(client, wid, tipo, hojas, anio, f'{tipo}_{anio}.xlsx').status_code == 200
+    r = _subir_anio(client, wid, tipo, hojas, 2025, f'{tipo}_2025_corregido.xlsx')
+    assert r.status_code == 200, r.text
+    raiz = services.demanda_carpeta(client.app.state.store.get(wid), tipo)
+    libros = {x.relativa for x in arbol_de_libros(raiz)}
+    assert libros == {f'2024/{tipo}_2024.xlsx', f'2025/{tipo}_2025_corregido.xlsx'}
+    assert anios_de(arbol_de_libros(raiz)) == [2024, 2025]
+    meta = r.json()['demanda'][tipo]
+    assert meta['source_kind'] == 'folder' and meta['name'] == raiz.name  # la fuente es la carpeta, con sus años
+
+
+def test_025_rf84_sin_anio_no_se_borran_los_libros_de_otros_anios(client):
+    """025:RF-84 — si la carpeta ya está separada por año, una subida sin año se rechaza y no toca ningún año."""
+    from convertersmartgrid.libros_por_anio import arbol_de_libros
+    from convertersmartgrid.web import services
+
+    wid = _wid(client)
+    assert _subir_anio(client, wid, 'clientes', CLIENTES, 2024, 'c2024.xlsx').status_code == 200
+    r = client.post(f'/api/workspaces/{wid}/demanda/clientes', files=[('files', ('otro.xlsx', _xlsx(CLIENTES)))])
+    assert r.status_code == 422 and 'año' in r.json()['detail']
+    raiz = services.demanda_carpeta(client.app.state.store.get(wid), 'clientes')
+    assert {x.relativa for x in arbol_de_libros(raiz)} == {'2024/c2024.xlsx'}
+
+
+def test_025_rf84_el_anio_se_valida(client):
+    """025:RF-84 — un año fuera de rango, o en un libro que no va por año (suministros), se rechaza."""
+    wid = _wid(client)
+    assert _subir_anio(client, wid, 'clientes', CLIENTES, 1700).status_code == 422
+    assert _subir_anio(client, wid, 'suministros', SUMINISTROS, 2025).status_code == 422

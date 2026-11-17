@@ -34,6 +34,10 @@ export function claveLibros(demanda: WorkspaceState['demanda']): string {
 function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
   const { ws, setWs, run, health, startJob, jobs, active } = useApp();
   const [ruta, setRuta] = useState('');
+  // 025:RF-84: el año de los libros que se suben; solo cabecera y clientes van por año.
+  const porAnio = tipo === 'cabecera' || tipo === 'clientes';
+  const [anioSubida, setAnioSubida] = useState('');
+  const anioValido = /^(19|20|21)\d{2}$/.test(anioSubida) ? Number(anioSubida) : undefined;
   const meta = ws.demanda?.[tipo];
   // Spec 025, RF-28 y RF-32: la cabecera en carpeta también tiene su índice por año.
   const indexable = (m: typeof meta) => tipo === 'clientes' || (tipo === 'cabecera' && m?.source_kind === 'folder');
@@ -53,7 +57,7 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
     if (indexable(r.demanda?.[tipo])) void indexar();
   };
   const subir = async (files: File[]) => {
-    const r = await run(() => api.demandaSubir(ws.id, tipo, files));
+    const r = await run(() => api.demandaSubir(ws.id, tipo, files, porAnio ? anioValido : undefined));
     if (r) asignada(r);
   };
   const porRuta = async () => {
@@ -77,6 +81,13 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
       )}
       {/* Spec 025, RF-39 y RF-40: siempre se puede subir otro libro o indicar otra carpeta
           (un año nuevo, una entrega corregida) sin quitar antes el actual. */}
+      {porAnio && (
+        <label className="row small">
+          <span>Año</span>
+          <input className="search" inputMode="numeric" maxLength={4} placeholder="AAAA" aria-label={`Año de ${titulo}`}
+            value={anioSubida} disabled={engineBusy} onChange={(e) => setAnioSubida(e.target.value.replace(/\D/g, ''))} />
+        </label>
+      )}
       <FileDrop entrada="demanda_medida" compact accept={EXT} disabled={engineBusy}
         multiple={tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes'} onFiles={subir}>
         <span>{meta ? 'Reemplazar: soltar' : 'Soltar'} o <u>elegir</u>{tipo === 'cabecera' || tipo === 'suministros' || tipo === 'clientes' ? ' (varios)' : ''}</span>

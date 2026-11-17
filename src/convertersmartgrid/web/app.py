@@ -15,6 +15,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -1405,7 +1406,8 @@ def create_app(
             shutil.copy2(origen, destino)
 
     def _reemplazar_carpeta(ws: Workspace, carpeta: Path, files: list[UploadFile], por_defecto: str, asignar, *,
-                            conservar: bool = False, lectores: frozenset[str] | None = None):
+                            conservar: bool = False, lectores: frozenset[str] | None = None,
+                            subcarpeta: str | None = None):
         """086:RF-3: los ficheros subidos sustituyen a los de ``carpeta`` solo si ``asignar`` los acepta.
 
         Se guardan y se validan en un staging del espacio (mismo volumen) y se publican con ``os.replace``, que
@@ -1413,6 +1415,8 @@ def create_app(
         retira después de asignar la nueva, y vuelve a su sitio si la asignación falla. Antes se borraba la carpeta
         antes de guardar y validar: un libro rechazado dejaba el hueco vacío y los PDF que el OCR estaba leyendo,
         borrados. Con ``conservar``, la nueva lleva también lo que ya había (la cabecera se sube por partes).
+        Con ``subcarpeta`` (025:RF-84, el año «AAAA»), los libros van a ``carpeta/subcarpeta`` y solo se reemplaza esa
+        subcarpeta: los demás años se conservan.
         Con un trabajo que pueda leerlos en curso (``lectores``; sin ella, cualquiera que no esté en
         ``NO_LEEN_LIBROS``) responde 409 sin tocar nada. Todo bajo el cerrojo de ``submit`` (086:RF-86).
         """
@@ -1428,16 +1432,20 @@ def create_app(
             anterior: Path | None = None
             publicado = False
             try:
-                if conservar and carpeta.is_dir():
+                if (conservar or subcarpeta) and carpeta.is_dir():
                     nueva.rmdir()
                     shutil.copytree(carpeta, nueva, copy_function=_enlazar_o_copiar)
+                dentro = nueva / subcarpeta if subcarpeta else nueva
+                if subcarpeta:
+                    shutil.rmtree(dentro, ignore_errors=True)  # ese año se sustituye entero; los otros siguen
+                    dentro.mkdir(parents=True, exist_ok=True)
                 destinos = []
                 for f in files:
                     nombre = safe_filename(f.filename or por_defecto)
                     # Quitar el enlace antes de escribir: escribir en él cambiaría también el libro vigente.
-                    (nueva / nombre).unlink(missing_ok=True)
-                    _escribir_subida(nueva / nombre, f)
-                    destinos.append(carpeta / nombre)
+                    (dentro / nombre).unlink(missing_ok=True)
+                    _escribir_subida(dentro / nombre, f)
+                    destinos.append(carpeta / subcarpeta / nombre if subcarpeta else carpeta / nombre)
                 if carpeta.exists():
                     anterior = raiz / f'{nueva.name}.anterior'
                     os.replace(carpeta, anterior)
@@ -2994,21 +3002,33 @@ def create_app(
     # ---------------------------------------------------------------- fin spec 104
 
     @app.post('/api/workspaces/{wid}/demanda/{tipo}')
-    def demanda_subir(wid: str, tipo: DemandaTipo, files: list[UploadFile] = File(...)) -> dict:
-        """Subida de libros. Cabecera, suministros y clientes admiten varios."""
+    def demanda_subir(wid: str, tipo: DemandaTipo, files: list[UploadFile] = File(...),
+                      anio: int | None = Form(None)) -> dict:
+        """Subida de libros. Cabecera, suministros y clientes admiten varios y, con ``anio`` (025:RF-84), van a la
+        carpeta de ese año: se sustituye solo ese año y los demás se conservan."""
         ws = ws_or_404(wid)
-        if tipo not in {'cabecera', 'suministros', 'clientes'} and len(files) != 1:
+        por_anio = tipo in {'cabecera', 'suministros', 'clientes'}
+        if not por_anio and len(files) != 1:
             raise HTTPException(422, 'Suba un solo libro.')
+        # Solo los libros con índice por año (cabecera y clientes, 025:RF-1); suministros es un catálogo sin año.
+        if anio is not None and not (tipo in {'cabecera', 'clientes'} and 1990 <= anio <= 2100):
+            raise HTTPException(422, f'Año no válido para «{tipo}»: {anio}.')
         carpeta = services.demanda_carpeta(ws, tipo)
+        if anio is None and tipo == 'clientes' and carpeta.is_dir() and any(
+                p.is_dir() and re.fullmatch(r'\d{4}', p.name) for p in carpeta.iterdir()):
+            raise HTTPException(422, 'Estos libros ya están separados por año: indique el año de los que sube; '
+                                     'así no se borran los de los otros años.')
 
         def asignar(destinos: list[Path]) -> dict:
-            fuente = (carpeta if tipo in {'cabecera', 'suministros'} or (tipo == 'clientes' and len(destinos) > 1)
+            fuente = (carpeta if tipo in {'cabecera', 'suministros'} or anio is not None
+                      or (tipo == 'clientes' and len(destinos) > 1)
                       else destinos[0])
             return services.demanda_asignar(ws, tipo, fuente, 'upload')
 
         # 086:RF-3: antes se borraba la carpeta del hueco antes de guardar y validar los libros nuevos, y sin mirar
         # si un trabajo los estaba leyendo; la cabecera se sube por partes y conserva lo que ya tenía.
-        return _reemplazar_carpeta(ws, carpeta, files, f'{tipo}.xlsx', asignar, conservar=tipo == 'cabecera')
+        return _reemplazar_carpeta(ws, carpeta, files, f'{tipo}.xlsx', asignar, conservar=tipo == 'cabecera',
+                                   subcarpeta=str(anio) if anio is not None else None)
 
     @app.delete('/api/workspaces/{wid}/demanda/{tipo}')
     def demanda_quitar(wid: str, tipo: DemandaTipo) -> dict:

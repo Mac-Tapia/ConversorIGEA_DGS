@@ -1105,6 +1105,17 @@
       },
       "Body_demanda_subir_api_workspaces__wid__demanda__tipo__post": {
         "properties": {
+          "anio": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anio"
+          },
           "files": {
             "items": {
               "contentMediaType": "application/octet-stream",
@@ -16972,7 +16983,7 @@
         "summary": "Demanda Quitar"
       },
       "post": {
-        "description": "Subida de libros. Cabecera, suministros y clientes admiten varios.",
+        "description": "Subida de libros. Cabecera, suministros y clientes admiten varios y, con ``anio`` (025:RF-84), van a la\ncarpeta de ese año: se sustituye solo ese año y los demás se conservan.",
         "operationId": "demanda_subir_api_workspaces__wid__demanda__tipo__post",
         "parameters": [
           {

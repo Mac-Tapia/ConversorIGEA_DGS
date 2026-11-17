@@ -372,6 +372,10 @@ no se aplica aunque su variación esté activa, y DIgSILENT no avisa, 081:RF-78)
 - RF-83: SI «Cargas nuevas <año>» sale distinto de «Sin proyecto <año>», ENTONCES EL SISTEMA lo
   borrará y lo copiará otra vez una sola vez y, si sigue distinto, avisará con la lista y
   seguirá con las cargas nuevas sobre él.
+- RF-84: CUANDO el operador suba por la web libros de cabecera o de clientes con su año, EL SISTEMA los guardará
+  en la carpeta «AAAA» de ese año y sustituirá solo ese año, conservando los demás; sin año, si los libros ya
+  van por año, rechazará la subida diciendo que falta el año y sin borrar nada. Suministros no va por año.
+  (Revisión de la web del 17-11: la subida vaciaba la carpeta y los libros subidos quedaban sin año.)
 
 Cargas nuevas incompletas (usuario, 2026-10-23: «las cargas nuevas que no tienen datos
 completos necesarios se rechazan y se deja un mensaje en la web»; obligatorios: barra o

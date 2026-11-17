@@ -227,9 +227,11 @@ export const api = {
   catalogClear: (id: string) => request<WorkspaceState>(`${ws(id)}/catalog`, { method: 'DELETE' }),
 
   // Demanda medida (spec 004, RF-22 a RF-39): misma pestaña que las cargas.
-  demandaSubir: (id: string, tipo: DemandaTipo, files: File[]) => {
+  // 025:RF-84: con ``anio``, los libros van a la carpeta de ese año y solo se sustituye ese año.
+  demandaSubir: (id: string, tipo: DemandaTipo, files: File[], anio?: number) => {
     const fd = new FormData();
     files.forEach((f) => fd.append('files', f, f.name));
+    if (anio) fd.append('anio', String(anio));
     return request<WorkspaceState>(`${ws(id)}/demanda/${tipo}`, { method: 'POST', body: fd });
   },
   demandaRuta: (id: string, tipo: DemandaTipo, path: string) =>
