@@ -165,6 +165,12 @@ exacto. El mes ya lo daban la carpeta del año y el nombre (104:RF-27); el trasp
   dirá, con los dos meses.
 - RF-113: SI un libro «día, hora» trae energía en más días de los que tiene el mes de su nombre, ENTONCES EL SISTEMA lo
   apartará con ese motivo y pedirá su mes.
+- RF-114: MIENTRAS lee las curvas de cabecera de una carpeta, EL SISTEMA abrirá cada libro una sola vez para todos
+  los alimentadores y sus centrales y lo cerrará antes de abrir el siguiente, de modo que nunca haya más de un libro
+  abierto y la memoria no crezca con el número de libros; las curvas, procedencias, avisos y apartados serán los
+  mismos que leyendo cada alimentador por separado, con los libros del modificado antes al modificado después. Un
+  .xls se lee entero al abrirlo (unas tres veces su tamaño): con una `Cabecera` abierta por libro, cuatro copias de un
+  libro de 173 MB pasaban de 2,3 GB (2026-11-15).
 
 ## Fuera de alcance
 

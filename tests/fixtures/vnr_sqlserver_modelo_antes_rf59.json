@@ -1,0 +1,1171 @@
+{
+ "avisos": [
+  {
+   "code": "SED_SIN_ETIQUETA",
+   "source_id": "E1_0"
+  },
+  {
+   "code": "SED_SIN_ETIQUETA",
+   "source_id": "E1_0"
+  },
+  {
+   "code": "SED_SIN_ETIQUETA",
+   "source_id": "E1_1"
+  },
+  {
+   "code": "SED_SIN_ETIQUETA",
+   "source_id": "E1_2"
+  },
+  {
+   "code": "SED_SIN_ETIQUETA",
+   "source_id": "EG_0"
+  },
+  {
+   "code": "SED_SIN_ETIQUETA",
+   "source_id": "EG_1"
+  },
+  {
+   "code": "SED_SIN_ETIQUETA",
+   "source_id": "EG_2"
+  },
+  {
+   "code": "HUECO_CON_SU_PADRE",
+   "distancia_m": 3.0,
+   "source_id": "T3_0"
+  },
+  {
+   "code": "FASE_DEDUCIDA",
+   "detalle": "1 ramales monofásicos repartidos entre A, B y C por kVA instalados (A 0, B 0, C 0): la fuente no dice la fase",
+   "source_id": "F1_0"
+  },
+  {
+   "code": "FASE_RECONSTRUIDA",
+   "detalle": "1 tramo(s) o SED con fases que no les llegaban desde la cabecera, corregidos aguas arriba o tomando las del tramo padre",
+   "source_id": "F1_0"
+  },
+  {
+   "code": "HUECO_CON_SU_PADRE",
+   "distancia_m": 3.0,
+   "source_id": "T3_0"
+  },
+  {
+   "code": "FASE_DEDUCIDA",
+   "detalle": "1 ramales monofásicos repartidos entre A, B y C por kVA instalados (A 250, B 0, C 0): la fuente no dice la fase",
+   "source_id": "F1_0"
+  },
+  {
+   "code": "FASE_RECONSTRUIDA",
+   "detalle": "1 tramo(s) o SED con fases que no les llegaban desde la cabecera, corregidos aguas arriba o tomando las del tramo padre",
+   "source_id": "F1_0"
+  },
+  {
+   "code": "HUECO_CON_SU_PADRE",
+   "distancia_m": 3.0,
+   "source_id": "T3_1"
+  },
+  {
+   "code": "SED_SIN_ENLACE",
+   "source_id": "E1_0"
+  },
+  {
+   "code": "FASE_DEDUCIDA",
+   "detalle": "1 ramales monofásicos repartidos entre A, B y C por kVA instalados (A 0, B 0, C 0): la fuente no dice la fase",
+   "source_id": "F1_1"
+  },
+  {
+   "code": "FASE_RECONSTRUIDA",
+   "detalle": "1 tramo(s) o SED con fases que no les llegaban desde la cabecera, corregidos aguas arriba o tomando las del tramo padre",
+   "source_id": "F1_1"
+  },
+  {
+   "code": "HUECO_CON_SU_PADRE",
+   "distancia_m": 3.0,
+   "source_id": "T3_2"
+  },
+  {
+   "code": "FASE_DEDUCIDA",
+   "detalle": "1 ramales monofásicos repartidos entre A, B y C por kVA instalados (A 0, B 0, C 0): la fuente no dice la fase",
+   "source_id": "F1_2"
+  },
+  {
+   "code": "FASE_RECONSTRUIDA",
+   "detalle": "1 tramo(s) o SED con fases que no les llegaban desde la cabecera, corregidos aguas arriba o tomando las del tramo padre",
+   "source_id": "F1_2"
+  },
+  {
+   "code": "SALIDA_SIN_TRAMOS_CON_SED",
+   "sed": 1,
+   "source_id": "G_0"
+  },
+  {
+   "code": "SALIDA_DE_TRAMO_NULO",
+   "source_id": "G_0",
+   "tramo": "G_0_SED"
+  },
+  {
+   "code": "SED_SIN_ENLACE",
+   "source_id": "EG_0"
+  },
+  {
+   "code": "SALIDA_SIN_TRAMOS_CON_SED",
+   "sed": 1,
+   "source_id": "G_1"
+  },
+  {
+   "code": "SALIDA_DE_TRAMO_NULO",
+   "source_id": "G_1",
+   "tramo": "G_1_SED"
+  },
+  {
+   "code": "SED_SIN_ENLACE",
+   "source_id": "EG_1"
+  },
+  {
+   "code": "SALIDA_SIN_TRAMOS_CON_SED",
+   "sed": 1,
+   "source_id": "G_2"
+  },
+  {
+   "code": "SALIDA_DE_TRAMO_NULO",
+   "source_id": "G_2",
+   "tramo": "G_2_SED"
+  },
+  {
+   "code": "SED_SIN_ENLACE",
+   "source_id": "EG_2"
+  }
+ ],
+ "modelo": {
+  "capacitors": [
+   {
+    "capacitor_id": "B1_0",
+    "connection_node": "T1_0_1",
+    "feeder_id": "F1_0",
+    "kvar": 300.0,
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "B1_0",
+    "source_layer": "mtEquipo",
+    "status": "in_service",
+    "steps": null
+   },
+   {
+    "capacitor_id": "B1_0",
+    "connection_node": "T1_0_1",
+    "feeder_id": "F1_0",
+    "kvar": 300.0,
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "B1_0",
+    "source_layer": "mtEquipo",
+    "status": "in_service",
+    "steps": null
+   },
+   {
+    "capacitor_id": "B1_1",
+    "connection_node": "T1_1_1",
+    "feeder_id": "F1_1",
+    "kvar": 300.0,
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "B1_1",
+    "source_layer": "mtEquipo",
+    "status": "in_service",
+    "steps": null
+   },
+   {
+    "capacitor_id": "B1_2",
+    "connection_node": "T1_2_1",
+    "feeder_id": "F1_2",
+    "kvar": 300.0,
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "B1_2",
+    "source_layer": "mtEquipo",
+    "status": "in_service",
+    "steps": null
+   }
+  ],
+  "companies": [],
+  "conductor_types": [
+   {
+    "ampacity_a": null,
+    "clase_cable_rx": "",
+    "conductor_code": "AA05003D",
+    "description": "RED AEREA CONDUCTOR DE AA O SIMIL. 3x50 mm2",
+    "material": "AL",
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "r0_ohm_km": null,
+    "r1_ohm_km": null,
+    "section_mm2": 50.0,
+    "source_id": "AA05003",
+    "source_layer": "admCodigosNorma",
+    "x0_ohm_km": null,
+    "x1_ohm_km": null
+   },
+   {
+    "ampacity_a": null,
+    "clase_cable_rx": "",
+    "conductor_code": "CU01601D",
+    "description": "RED AEREA CONDUCTOR DE COBRE 1x16 mm2",
+    "material": "CU",
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "r0_ohm_km": null,
+    "r1_ohm_km": null,
+    "section_mm2": 16.0,
+    "source_id": "CU01601",
+    "source_layer": "admCodigosNorma",
+    "x0_ohm_km": null,
+    "x1_ohm_km": null
+   }
+  ],
+  "equipment_types": [],
+  "feeders": [],
+  "lineage": [],
+  "loads": [
+   {
+    "connected_kva": 250.0,
+    "connection_node": "T3_0_1",
+    "etiqueta": "E1_0",
+    "feeder_id": "F1_0",
+    "geometry": null,
+    "kvar": 0.0,
+    "kw": 120.0,
+    "lineage": null,
+    "load_id": "E1_0",
+    "nominal_kv": 10.0,
+    "phases": "A",
+    "source_id": "E1_0",
+    "source_layer": "Sed"
+   },
+   {
+    "connected_kva": 250.0,
+    "connection_node": "T3_0_1",
+    "etiqueta": "E1_0",
+    "feeder_id": "F1_0",
+    "geometry": null,
+    "kvar": 0.0,
+    "kw": 120.0,
+    "lineage": null,
+    "load_id": "E1_0",
+    "nominal_kv": 10.0,
+    "phases": "A",
+    "source_id": "E1_0",
+    "source_layer": "Sed"
+   },
+   {
+    "connected_kva": 250.0,
+    "connection_node": "T1_1_1",
+    "etiqueta": "E1_0",
+    "feeder_id": "F1_1",
+    "geometry": null,
+    "kvar": 0.0,
+    "kw": 33.0,
+    "lineage": null,
+    "load_id": "E1_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "E1_0",
+    "source_layer": "Sed"
+   },
+   {
+    "connected_kva": 250.0,
+    "connection_node": "T3_1_1",
+    "etiqueta": "E1_1",
+    "feeder_id": "F1_1",
+    "geometry": null,
+    "kvar": 0.0,
+    "kw": 120.0,
+    "lineage": null,
+    "load_id": "E1_1",
+    "nominal_kv": 10.0,
+    "phases": "A",
+    "source_id": "E1_1",
+    "source_layer": "Sed"
+   },
+   {
+    "connected_kva": 250.0,
+    "connection_node": "T3_2_1",
+    "etiqueta": "E1_2",
+    "feeder_id": "F1_2",
+    "geometry": null,
+    "kvar": 0.0,
+    "kw": 120.0,
+    "lineage": null,
+    "load_id": "E1_2",
+    "nominal_kv": 10.0,
+    "phases": "A",
+    "source_id": "E1_2",
+    "source_layer": "Sed"
+   },
+   {
+    "connected_kva": 100.0,
+    "connection_node": "G_0_SED_0",
+    "etiqueta": "EG_0",
+    "feeder_id": "G_0",
+    "geometry": null,
+    "kvar": 0.0,
+    "kw": 50.0,
+    "lineage": null,
+    "load_id": "EG_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "EG_0",
+    "source_layer": "Sed"
+   },
+   {
+    "connected_kva": 100.0,
+    "connection_node": "G_1_SED_0",
+    "etiqueta": "EG_1",
+    "feeder_id": "G_1",
+    "geometry": null,
+    "kvar": 0.0,
+    "kw": 50.0,
+    "lineage": null,
+    "load_id": "EG_1",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "EG_1",
+    "source_layer": "Sed"
+   },
+   {
+    "connected_kva": 100.0,
+    "connection_node": "G_2_SED_0",
+    "etiqueta": "EG_2",
+    "feeder_id": "G_2",
+    "geometry": null,
+    "kvar": 0.0,
+    "kw": 50.0,
+    "lineage": null,
+    "load_id": "EG_2",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "EG_2",
+    "source_layer": "Sed"
+   }
+  ],
+  "metadata": {
+   "codigo_vnr": {},
+   "company": "EMP",
+   "equipos_no_modelados": {
+    "PA": 4
+   },
+   "estructura_fuente": {
+    "F1_0": {
+     "sector": "",
+     "set_codigo": "S_OTRA",
+     "set_nombre": "",
+     "sistema_codigo": "SE1",
+     "sistema_nombre": ""
+    },
+    "F1_1": {
+     "sector": "",
+     "set_codigo": "S1",
+     "set_nombre": "Uno",
+     "sistema_codigo": "SE1",
+     "sistema_nombre": ""
+    },
+    "F1_2": {
+     "sector": "",
+     "set_codigo": "S1",
+     "set_nombre": "Uno",
+     "sistema_codigo": "SE1",
+     "sistema_nombre": ""
+    },
+    "G_0": {
+     "sector": "",
+     "set_codigo": "S1",
+     "set_nombre": "Uno",
+     "sistema_codigo": "SE1",
+     "sistema_nombre": ""
+    },
+    "G_1": {
+     "sector": "",
+     "set_codigo": "S1",
+     "set_nombre": "Uno",
+     "sistema_codigo": "SE1",
+     "sistema_nombre": ""
+    },
+    "G_2": {
+     "sector": "",
+     "set_codigo": "S1",
+     "set_nombre": "Uno",
+     "sistema_codigo": "SE1",
+     "sistema_nombre": ""
+    }
+   },
+   "source_crs": "EPSG:32718",
+   "working_crs": "EPSG:32718",
+   "working_crs_is_projected": true
+  },
+  "nodes": [
+   {
+    "lineage": null,
+    "node_id": "T1_0_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T1_0_0",
+    "source_layer": "verTramoMT",
+    "x": 0.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T1_0_1",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T1_0_1",
+    "source_layer": "verTramoMT",
+    "x": 100.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T2_0_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T2_0_0",
+    "source_layer": "verTramoMT",
+    "x": 200.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T3_0_1",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T3_0_1",
+    "source_layer": "verTramoMT",
+    "x": 300.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T1_0_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T1_0_0",
+    "source_layer": "verTramoMT",
+    "x": 0.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T1_0_1",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T1_0_1",
+    "source_layer": "verTramoMT",
+    "x": 100.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T2_0_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T2_0_0",
+    "source_layer": "verTramoMT",
+    "x": 200.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T3_0_1",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T3_0_1",
+    "source_layer": "verTramoMT",
+    "x": 300.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T1_1_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T1_1_0",
+    "source_layer": "verTramoMT",
+    "x": 0.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T1_1_1",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T1_1_1",
+    "source_layer": "verTramoMT",
+    "x": 100.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T2_1_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T2_1_0",
+    "source_layer": "verTramoMT",
+    "x": 200.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T3_1_1",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T3_1_1",
+    "source_layer": "verTramoMT",
+    "x": 300.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T1_2_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T1_2_0",
+    "source_layer": "verTramoMT",
+    "x": 0.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T1_2_1",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T1_2_1",
+    "source_layer": "verTramoMT",
+    "x": 100.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T2_2_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T2_2_0",
+    "source_layer": "verTramoMT",
+    "x": 200.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "T3_2_1",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "T3_2_1",
+    "source_layer": "verTramoMT",
+    "x": 300.0,
+    "y": 1.0
+   },
+   {
+    "lineage": null,
+    "node_id": "G_0_SED_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "G_0_SED_0",
+    "source_layer": "verTramoMT",
+    "x": 500.0,
+    "y": 5.0
+   },
+   {
+    "lineage": null,
+    "node_id": "G_0_SED_fin",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "G_0_SED_fin",
+    "source_layer": "verTramoMT",
+    "x": 501.0,
+    "y": 5.0
+   },
+   {
+    "lineage": null,
+    "node_id": "G_1_SED_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "G_1_SED_0",
+    "source_layer": "verTramoMT",
+    "x": 501.0,
+    "y": 5.0
+   },
+   {
+    "lineage": null,
+    "node_id": "G_1_SED_fin",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "G_1_SED_fin",
+    "source_layer": "verTramoMT",
+    "x": 502.0,
+    "y": 5.0
+   },
+   {
+    "lineage": null,
+    "node_id": "G_2_SED_0",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "G_2_SED_0",
+    "source_layer": "verTramoMT",
+    "x": 502.0,
+    "y": 5.0
+   },
+   {
+    "lineage": null,
+    "node_id": "G_2_SED_fin",
+    "nominal_kv": 10.0,
+    "phases": "ABC",
+    "source_id": "G_2_SED_fin",
+    "source_layer": "verTramoMT",
+    "x": 503.0,
+    "y": 5.0
+   }
+  ],
+  "periods": [],
+  "regulators": [],
+  "sections": [
+   {
+    "conductor_code": "AA05003D",
+    "feeder_id": "F1_0",
+    "from_node": "T1_0_0",
+    "geometry": [
+     [
+      0.0,
+      1.0
+     ],
+     [
+      50.0,
+      1.0
+     ],
+     [
+      100.0,
+      1.0
+     ]
+    ],
+    "length_m": 100.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "ABC",
+    "section_id": "T1_0",
+    "source_id": "T1_0",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T1_0_1"
+   },
+   {
+    "conductor_code": "AA05003D",
+    "feeder_id": "F1_0",
+    "from_node": "T1_0_1",
+    "geometry": [
+     [
+      100.0,
+      1.0
+     ],
+     [
+      200.0,
+      1.0
+     ]
+    ],
+    "length_m": 100.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "ABC",
+    "section_id": "T2_0",
+    "source_id": "T2_0",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T2_0_0"
+   },
+   {
+    "conductor_code": "CU01601D",
+    "feeder_id": "F1_0",
+    "from_node": "T2_0_0",
+    "geometry": [
+     [
+      203.0,
+      1.0
+     ],
+     [
+      300.0,
+      1.0
+     ]
+    ],
+    "length_m": 97.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "A",
+    "section_id": "T3_0",
+    "source_id": "T3_0",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T3_0_1"
+   },
+   {
+    "conductor_code": "AA05003D",
+    "feeder_id": "F1_0",
+    "from_node": "T1_0_0",
+    "geometry": [
+     [
+      0.0,
+      1.0
+     ],
+     [
+      50.0,
+      1.0
+     ],
+     [
+      100.0,
+      1.0
+     ]
+    ],
+    "length_m": 100.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "ABC",
+    "section_id": "T1_0",
+    "source_id": "T1_0",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T1_0_1"
+   },
+   {
+    "conductor_code": "AA05003D",
+    "feeder_id": "F1_0",
+    "from_node": "T1_0_1",
+    "geometry": [
+     [
+      100.0,
+      1.0
+     ],
+     [
+      200.0,
+      1.0
+     ]
+    ],
+    "length_m": 100.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "ABC",
+    "section_id": "T2_0",
+    "source_id": "T2_0",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T2_0_0"
+   },
+   {
+    "conductor_code": "CU01601D",
+    "feeder_id": "F1_0",
+    "from_node": "T2_0_0",
+    "geometry": [
+     [
+      203.0,
+      1.0
+     ],
+     [
+      300.0,
+      1.0
+     ]
+    ],
+    "length_m": 97.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "A",
+    "section_id": "T3_0",
+    "source_id": "T3_0",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T3_0_1"
+   },
+   {
+    "conductor_code": "AA05003D",
+    "feeder_id": "F1_1",
+    "from_node": "T1_1_0",
+    "geometry": [
+     [
+      0.0,
+      1.0
+     ],
+     [
+      50.0,
+      1.0
+     ],
+     [
+      100.0,
+      1.0
+     ]
+    ],
+    "length_m": 100.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "ABC",
+    "section_id": "T1_1",
+    "source_id": "T1_1",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T1_1_1"
+   },
+   {
+    "conductor_code": "AA05003D",
+    "feeder_id": "F1_1",
+    "from_node": "T1_1_1",
+    "geometry": [
+     [
+      100.0,
+      1.0
+     ],
+     [
+      200.0,
+      1.0
+     ]
+    ],
+    "length_m": 100.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "ABC",
+    "section_id": "T2_1",
+    "source_id": "T2_1",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T2_1_0"
+   },
+   {
+    "conductor_code": "CU01601D",
+    "feeder_id": "F1_1",
+    "from_node": "T2_1_0",
+    "geometry": [
+     [
+      203.0,
+      1.0
+     ],
+     [
+      300.0,
+      1.0
+     ]
+    ],
+    "length_m": 97.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "A",
+    "section_id": "T3_1",
+    "source_id": "T3_1",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T3_1_1"
+   },
+   {
+    "conductor_code": "AA05003D",
+    "feeder_id": "F1_2",
+    "from_node": "T1_2_0",
+    "geometry": [
+     [
+      0.0,
+      1.0
+     ],
+     [
+      50.0,
+      1.0
+     ],
+     [
+      100.0,
+      1.0
+     ]
+    ],
+    "length_m": 100.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "ABC",
+    "section_id": "T1_2",
+    "source_id": "T1_2",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T1_2_1"
+   },
+   {
+    "conductor_code": "AA05003D",
+    "feeder_id": "F1_2",
+    "from_node": "T1_2_1",
+    "geometry": [
+     [
+      100.0,
+      1.0
+     ],
+     [
+      200.0,
+      1.0
+     ]
+    ],
+    "length_m": 100.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "ABC",
+    "section_id": "T2_2",
+    "source_id": "T2_2",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T2_2_0"
+   },
+   {
+    "conductor_code": "CU01601D",
+    "feeder_id": "F1_2",
+    "from_node": "T2_2_0",
+    "geometry": [
+     [
+      203.0,
+      1.0
+     ],
+     [
+      300.0,
+      1.0
+     ]
+    ],
+    "length_m": 97.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "A",
+    "section_id": "T3_2",
+    "source_id": "T3_2",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "T3_2_1"
+   },
+   {
+    "conductor_code": "AA05003D",
+    "feeder_id": "G_0",
+    "from_node": "G_0_SED_0",
+    "geometry": [
+     [
+      500.0,
+      5.0
+     ],
+     [
+      501.0,
+      5.0
+     ]
+    ],
+    "length_m": 1.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "ABC",
+    "section_id": "G_0_SED",
+    "source_id": "G_0_SED",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "G_0_SED_fin"
+   },
+   {
+    "conductor_code": "AA05003D",
+    "feeder_id": "G_1",
+    "from_node": "G_1_SED_0",
+    "geometry": [
+     [
+      501.0,
+      5.0
+     ],
+     [
+      502.0,
+      5.0
+     ]
+    ],
+    "length_m": 1.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "ABC",
+    "section_id": "G_1_SED",
+    "source_id": "G_1_SED",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "G_1_SED_fin"
+   },
+   {
+    "conductor_code": "AA05003D",
+    "feeder_id": "G_2",
+    "from_node": "G_2_SED_0",
+    "geometry": [
+     [
+      502.0,
+      5.0
+     ],
+     [
+      503.0,
+      5.0
+     ]
+    ],
+    "length_m": 1.0,
+    "lineage": null,
+    "nominal_kv": 10.0,
+    "overhead": null,
+    "phases": "ABC",
+    "section_id": "G_2_SED",
+    "source_id": "G_2_SED",
+    "source_layer": "mtTramo",
+    "source_network_type": "",
+    "source_status": "",
+    "status": "in_service",
+    "to_node": "G_2_SED_fin"
+   }
+  ],
+  "sections_bt": [],
+  "sources": [
+   {
+    "feeder_id": "F1_0",
+    "node_id": "T1_0_0",
+    "nominal_kv": 10.0,
+    "source_id": "SRC_F1_0",
+    "source_layer": "mtSalida",
+    "source_sid": "F1_0"
+   },
+   {
+    "feeder_id": "F1_0",
+    "node_id": "T1_0_0",
+    "nominal_kv": 10.0,
+    "source_id": "SRC_F1_0",
+    "source_layer": "mtSalida",
+    "source_sid": "F1_0"
+   },
+   {
+    "feeder_id": "F1_1",
+    "node_id": "T1_1_0",
+    "nominal_kv": 10.0,
+    "source_id": "SRC_F1_1",
+    "source_layer": "mtSalida",
+    "source_sid": "F1_1"
+   },
+   {
+    "feeder_id": "F1_2",
+    "node_id": "T1_2_0",
+    "nominal_kv": 10.0,
+    "source_id": "SRC_F1_2",
+    "source_layer": "mtSalida",
+    "source_sid": "F1_2"
+   },
+   {
+    "feeder_id": "G_0",
+    "node_id": "G_0_SED_0",
+    "nominal_kv": 10.0,
+    "source_id": "SRC_G_0",
+    "source_layer": "mtSalida",
+    "source_sid": "G_0"
+   },
+   {
+    "feeder_id": "G_1",
+    "node_id": "G_1_SED_0",
+    "nominal_kv": 10.0,
+    "source_id": "SRC_G_1",
+    "source_layer": "mtSalida",
+    "source_sid": "G_1"
+   },
+   {
+    "feeder_id": "G_2",
+    "node_id": "G_2_SED_0",
+    "nominal_kv": 10.0,
+    "source_id": "SRC_G_2",
+    "source_layer": "mtSalida",
+    "source_sid": "G_2"
+   }
+  ],
+  "structures": [],
+  "switches": [
+   {
+    "connection_node": "T2_0_0",
+    "kind": "SE",
+    "location": "L",
+    "on_off": 0,
+    "section_id": "T2_0",
+    "sectionalizer": false,
+    "source_id": "Q1_0",
+    "source_layer": "mtEquipo",
+    "switch_id": "Q1_0"
+   },
+   {
+    "connection_node": "T2_0_0",
+    "kind": "SE",
+    "location": "L",
+    "on_off": 0,
+    "section_id": "T2_0",
+    "sectionalizer": false,
+    "source_id": "Q1_0",
+    "source_layer": "mtEquipo",
+    "switch_id": "Q1_0"
+   },
+   {
+    "connection_node": "T2_1_0",
+    "kind": "SE",
+    "location": "L",
+    "on_off": 0,
+    "section_id": "T2_1",
+    "sectionalizer": false,
+    "source_id": "Q1_1",
+    "source_layer": "mtEquipo",
+    "switch_id": "Q1_1"
+   },
+   {
+    "connection_node": "T1_2_0",
+    "kind": "SE",
+    "location": "S",
+    "on_off": 0,
+    "section_id": "T1_2",
+    "sectionalizer": false,
+    "source_id": "Q1_1",
+    "source_layer": "mtEquipo",
+    "switch_id": "Q1_1"
+   },
+   {
+    "connection_node": "T2_2_0",
+    "kind": "SE",
+    "location": "L",
+    "on_off": 0,
+    "section_id": "T2_2",
+    "sectionalizer": false,
+    "source_id": "Q1_2",
+    "source_layer": "mtEquipo",
+    "switch_id": "Q1_2"
+   }
+  ],
+  "systems": [],
+  "transformers": [],
+  "validation_issues": []
+ }
+}

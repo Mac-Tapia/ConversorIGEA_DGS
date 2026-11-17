@@ -222,34 +222,83 @@ def equivalencias(ruta: Path | str, alias=ALIAS) -> tuple[list[Punto], list[dict
 
 
 # --------------------------------------------------------------------------- lectura de cabecera
-def _unir_libros(rutas: Iterable[Path], medidores: Sequence[str], alimentador: str, abiertas: dict[Path, Cabecera]):
+class _UnionDeLibros:
     """Las curvas de los medidores de un alimentador en todos los libros (089:RF-1, RF-2, RF-12).
 
     El mes nuevo llega en otro libro, y ``Cabecera.maxima`` se queda con un solo libro por medidor, que es lo
-    que pide la máxima de un periodo. ``maximas`` junta los canales sin hoja (IN111_V19 es otro canal de
-    IN111). A igual instante manda el libro modificado más tarde, el que trae la corrección.
+    que pide la máxima de un periodo. ``maximas`` junta los canales sin hoja (un «<medidor>_V19» sin hoja es otro
+    canal de su medidor). A igual instante manda el libro modificado más tarde, el que trae la corrección: los libros se
+    suman con ``sumar`` del modificado antes al modificado después.
     """
-    puntos: dict[str, dict[datetime, tuple[float, float | None]]] = {}
-    avisos, nombres, errores = [], [], {}
-    for ruta in sorted(rutas, key=lambda p: p.stat().st_mtime_ns):
-        cabecera = abiertas.setdefault(ruta, Cabecera([ruta]))
-        for r in maximas([ruta], [(alimentador, m) for m in medidores], cabecera=cabecera):
+
+    def __init__(self, medidores: Sequence[str]) -> None:
+        self.medidores = list(medidores)
+        self.puntos: dict[str, dict[datetime, tuple[float, float | None]]] = {}
+        self.avisos: list[str] = []
+        self.nombres: list[str] = []
+        self.errores: dict[str, str] = {}
+
+    def sumar(self, resultados: Iterable) -> None:
+        """Los resultados de ``maximas`` en un libro."""
+        for r in resultados:
             if r.error or not r.curva:
-                errores.setdefault(r.medidor, r.error or 'sin curva')
+                self.errores.setdefault(r.medidor, r.error or 'sin curva')
                 # Que un libro no lo tenga no dice nada; que tenga la hoja vacía, sí: dice más que los demás.
                 if 'no está en ningún libro' not in (r.error or ''):
-                    errores[r.medidor] = r.error or 'sin curva'
+                    self.errores[r.medidor] = r.error or 'sin curva'
                 continue
-            nombres.append(r.libro)
-            avisos += r.avisos
-            puntos.setdefault(r.canal_de or r.medidor, {}).update((t, (p, q)) for t, p, q in r.curva)
-    leidos = {clave_codigo(k) for k in puntos}
-    bases = {clave_codigo(base_del_medidor(k) or k) for k in puntos}
-    faltan = [m for m in medidores if clave_codigo(m) not in leidos and clave_codigo(base_del_medidor(m) or m) not in bases | leidos]
-    curvas = [[(t, *serie[t]) for t in sorted(serie)] for serie in _fundir_canales(puntos).values()]
-    # Una hoja vacía o sin kW en un libro, con el medidor bien en otros, no se calla (089:RF-75).
-    avisos += [f'{m}: {e}' for m, e in errores.items() if m not in faltan and 'no está en ningún libro' not in e]
-    return curvas, nombres, avisos, [(m, errores.get(m, 'sin curva')) for m in faltan]
+            self.nombres.append(r.libro)
+            self.avisos += r.avisos
+            self.puntos.setdefault(r.canal_de or r.medidor, {}).update((t, (p, q)) for t, p, q in r.curva)
+
+    def cerrar(self):
+        """``(curvas, nombres, avisos, faltan)``; suelta los puntos ya unidos."""
+        puntos, errores, medidores = self.puntos, self.errores, self.medidores
+        self.puntos = {}
+        leidos = {clave_codigo(k) for k in puntos}
+        bases = {clave_codigo(base_del_medidor(k) or k) for k in puntos}
+        faltan = [m for m in medidores if clave_codigo(m) not in leidos and clave_codigo(base_del_medidor(m) or m) not in bases | leidos]
+        curvas = [[(t, *serie[t]) for t in sorted(serie)] for serie in _fundir_canales(puntos).values()]
+        del puntos
+        avisos = list(self.avisos)
+        # Una hoja vacía o sin kW en un libro, con el medidor bien en otros, no se calla (089:RF-75).
+        avisos += [f'{m}: {e}' for m, e in errores.items() if m not in faltan and 'no está en ningún libro' not in e]
+        return curvas, list(self.nombres), avisos, [(m, errores.get(m, 'sin curva')) for m in faltan]
+
+
+def _por_modificacion(rutas: Iterable[Path]) -> list[Path]:
+    """Del libro modificado antes al modificado después: a igual instante gana el último (089:RF-12)."""
+    return sorted(rutas, key=lambda p: p.stat().st_mtime_ns)
+
+
+#: Los tres medidores de una central en serie en la troncal (spec 021), en el orden de ``curva_de_demanda``.
+MEDIDORES_DE_CENTRAL = ('generacion', 'llegada', 'salida')
+
+
+def _leer_por_libro(libros: Sequence[Path], por_alimentador: Mapping[str, list[str]], centrales: Mapping[str, Mapping]):
+    """Cada libro una vez, con todos los alimentadores y sus centrales, y cerrado antes del siguiente (089:RF-114).
+
+    Un .xls se lee entero al abrirlo (unas tres veces su tamaño): con una ``Cabecera`` abierta por libro, todos los de
+    la carpeta quedaban en memoria a la vez. Cada alimentador recibe los libros en el mismo orden que antes, del
+    modificado antes al modificado después, con las mismas llamadas a ``maximas``: sus curvas, avisos y faltas son
+    las mismas. Las centrales se leen aunque luego su alimentador se aparte: solo cuesta tiempo.
+    """
+    uniones = {a: _UnionDeLibros(m) for a, m in por_alimentador.items()}
+    de_central = {(a, k): _UnionDeLibros([centrales[a][k]]) for a in por_alimentador if centrales.get(a)
+                  for k in MEDIDORES_DE_CENTRAL}
+    cabeceras: list[Cabecera] = []
+    for ruta in _por_modificacion(libros):
+        cabecera = Cabecera([ruta])
+        try:
+            for alimentador, medidores in por_alimentador.items():
+                uniones[alimentador].sumar(maximas([ruta], [(alimentador, m) for m in medidores], cabecera=cabecera))
+                for k in MEDIDORES_DE_CENTRAL if centrales.get(alimentador) else ():
+                    de_central[alimentador, k].sumar(
+                        maximas([ruta], [(alimentador, centrales[alimentador][k])], cabecera=cabecera))
+        finally:
+            cabecera.cerrar()
+        cabeceras.append(cabecera)
+    return uniones, de_central, cabeceras
 
 
 def _fundir_canales(puntos: dict[str, dict]) -> dict[str, dict]:
@@ -289,10 +338,11 @@ def curvas_de_cabecera(rutas: Iterable[Path | str], pares=None, *, centrales=Non
     por_alimentador: dict[str, list[str]] = {}
     for alimentador, medidor in pares:
         por_alimentador.setdefault(alimentador, []).append(medidor)
-    abiertas: dict[Path, Cabecera] = {}
+    # 089:RF-114: libro a libro, y no un libro abierto por alimentador y todos a la vez.
+    uniones, de_central, cabeceras = _leer_por_libro(libros, por_alimentador, centrales) if por_alimentador else ({}, {}, [])
     salida, apartados = {}, []
     for alimentador, medidores in por_alimentador.items():
-        curvas, nombres, avisos, faltan = _unir_libros(libros, medidores, alimentador, abiertas)
+        curvas, nombres, avisos, faltan = uniones.pop(alimentador).cerrar()
         if faltan or not curvas:
             m, motivo = faltan[0] if faltan else (medidores[0], 'sin curva')
             # Sin uno de sus medidores, la suma se quedaría corta y parecería menos demanda.
@@ -307,7 +357,7 @@ def curvas_de_cabecera(rutas: Iterable[Path | str], pares=None, *, centrales=Non
             avisos.append(f'cabecera:{alimentador}: la suma de sus medidores llega hasta {curva[-1][0]}, uno sigue hasta {ultimo}')
         central = centrales.get(alimentador)
         if central:
-            otros = [_unir_libros(libros, [central[k]], alimentador, abiertas)[0] for k in ('generacion', 'llegada', 'salida')]
+            otros = [de_central.pop((alimentador, k)).cerrar()[0] for k in MEDIDORES_DE_CENTRAL]
             if not all(otros):
                 apartados.append({'objetivo': f'cabecera:{alimentador}',
                                   'motivo': 'falta la curva de un medidor de la central; no se pronostica sin descontarla'})
@@ -320,7 +370,7 @@ def curvas_de_cabecera(rutas: Iterable[Path | str], pares=None, *, centrales=Non
         salida[alimentador] = {'curva': curva, 'fuente': {
             'medidor': ' + '.join(medidores), 'libros': sorted(set(nombres)),
             'central_descontada': bool(central), 'avisos': avisos}}
-    for cabecera in abiertas.values():
+    for cabecera in cabeceras:
         apartados += [{'objetivo': f'libro:{ruta.name}', 'motivo': motivo, 'libro_roto': True} for ruta, motivo in cabecera.rotos.items()]
     return salida, apartados
 

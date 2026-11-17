@@ -119,9 +119,21 @@ class Terminos:
         if ' ' in n:
             self.planos.setdefault(n.replace(' ', ''), categoria)
 
+    #: Las sales ya calculadas, con el diccionario y el número de huellas de las que salieron: las huellas solo se añaden,
+    #: así que el mismo diccionario con el mismo tamaño da las mismas sales.
+    _sales: tuple[int, int, tuple[str, ...]] = field(default=(0, -1, ()), init=False, repr=False, compare=False)
+
     @property
     def sales(self) -> tuple[str, ...]:
-        return tuple(sorted({s for s, _ in self.huellas}))
+        """Se calculan al cambiar las huellas, no en cada ventana de palabras (086:RF-111).
+
+        ``_buscar`` las pide en cada ventana que no es un término plano: al preparar la rueda eran 1,8 millones de
+        conjuntos ordenados, 8 de los 66 s de ``preparar_arbol`` con el perfilador (INST-RUEDA, 2026-11-15).
+        """
+        clave = (id(self.huellas), len(self.huellas))
+        if self._sales[:2] != clave:
+            self._sales = (*clave, tuple(sorted({s for s, _ in self.huellas})))
+        return self._sales[2]
 
 
 def _nombres_de_estructura(x: Any, clave: str = '') -> Iterator[tuple[str, str]]:

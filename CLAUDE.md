@@ -107,7 +107,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | aprobada | falta T11 |
   | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | cumplida |  |
   | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida |  |
-  | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida |  |
+  | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | aprobada | falta T3, T13, T14 |
   | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | cumplida |  |
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
   | 083 El oráculo antes de calibrar y recalibrar | aprobada | falta T17 |

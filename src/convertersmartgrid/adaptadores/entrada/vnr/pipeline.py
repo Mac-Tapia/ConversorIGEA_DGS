@@ -19,10 +19,13 @@ from pathlib import Path
 from typing import Any
 
 from convertersmartgrid.adaptadores.entrada.vnr.connectors import resolve_adapter
-from convertersmartgrid.adaptadores.entrada.vnr.discovery.schema import resolve_alias
+from convertersmartgrid.adaptadores.entrada.vnr.discovery.schema import resolve_alias, rol_de_capa
 from convertersmartgrid.adaptadores.entrada.vnr.gis.geometry import coords_from_geojson, polyline_length_m
 from convertersmartgrid.adaptadores.entrada.vnr.gis.snapping import deterministic_node_id, snap_endpoints
-from convertersmartgrid.adaptadores.entrada.vnr.models import CanonicalModel, Lineage, Node, Section
+from convertersmartgrid.adaptadores.entrada.vnr.models import (
+    CanonicalModel, Capacitor, Lineage, Load, LowVoltageSection, Node, Regulator, Section, Switch)
+from convertersmartgrid.adaptadores.entrada.vnr.reglas_tramo import (
+    SIN_REGLA_BT, anotar_sin_regla, estado_o_anota, medio_o_anota, texto_fuente)
 
 
 @dataclass
@@ -86,76 +89,249 @@ def geojson_rows(path: Path) -> tuple[list[dict], str]:
     return list(payload['features']), crs
 
 
+#: 080:RF-55: los campos de un tramo MT que la vía de capas lee, con su nombre canónico.
+CAMPOS_DE_TRAMO = ('section_id', 'feeder_id', 'standard_code', 'length_source', 'status', 'network_type',
+                   'company', 'period', 'from_node', 'to_node')
+
+#: 080:RF-55: los roles de capa que la vía de capas modela (los demás se anotan ``CAPA_SIN_MODELAR``).
+ROLES_MODELADOS = ('tramos_mt', 'nodos', 'sed', 'equipos', 'tramos_bt')
+#: 080:RF-55: el TIPO de una capa de equipos y la lista del canónico que le toca (el que escribe
+#: ``exporters.capas``, y las palabras de cualquier empresa). Otro TIPO no se adivina: se anota.
+TIPOS_DE_EQUIPO = (
+    ('switches', re.compile(r'MANIOBRA|SECCIONADOR|INTERRUPTOR|RECONECTADOR|SWITCH|CUCHILLA', re.I)),
+    ('capacitors', re.compile(r'BANCO|CAPACITOR|CONDENSADOR', re.I)),
+    ('regulators', re.compile(r'REGULADOR|REGULATOR', re.I)),
+)
+
+
+def _capas_del_paquete(package_root) -> tuple[list[tuple[str, list[dict], str]], list[str]]:
+    """``[(nombre de la capa, filas, CRS)]`` de TODAS las capas del paquete, y los errores de lectura."""
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors.registry import iter_supported_sources
+
+    capas: list[tuple[str, list[dict], str]] = []
+    errors: list[str] = []
+    for path in iter_supported_sources(package_root):
+        try:
+            if path.suffix.lower() in ('.geojson', '.json'):
+                rows, crs = geojson_rows(path)
+                capas.append((path.name, rows, crs))
+                continue
+            adapter = resolve_adapter(str(path))
+            for layer in adapter.list_layers():
+                capas.append((f'{path.name}:{layer.name}', adapter.read_layer(layer.name), layer.crs or ''))
+        except (OSError, ValueError, RuntimeError) as exc:
+            errors.append(f'{path.name}: {exc}')
+    return capas, errors
+
+
+def _al_nombre_canonico(rows: list[dict], fields: list[str], capa: str) -> list[dict]:
+    """Las filas de una capa de tramos con los campos de ``CAMPOS_DE_TRAMO`` por su nombre canónico."""
+    origen = {c: resolve_alias(c, fields)[0] for c in CAMPOS_DE_TRAMO}
+    salida = []
+    for row in rows:
+        fila = normalize_feature_record(row)
+        for canonico, campo in origen.items():
+            if campo and campo != canonico:
+                fila[canonico] = fila.get(campo)
+        fila['__capa__'] = capa
+        salida.append(fila)
+    return salida
+
+
 def canonicalize_vnr_package(
     package_root: Path | str,
     *,
     company: str | None = None,
     period: str | None = None,
 ) -> tuple[CanonicalizeResult, dict[str, str]]:
-    """Descubre capas de tramo por campos, no por nombre de archivo."""
-    from convertersmartgrid.adaptadores.entrada.vnr.connectors.registry import iter_supported_sources
+    """Lee TODAS las capas del paquete y asigna a cada una su rol por sus campos y su nombre (080:RF-55).
 
-    candidates: list[tuple[list[dict], str, str, str, str, str, str]] = []
-    errors: list[str] = []
-    for path in iter_supported_sources(package_root):
-        try:
-            if path.suffix.lower() in ('.geojson', '.json'):
-                rows, crs = geojson_rows(path)
-                layer_name = path.name
-            else:
-                adapter = resolve_adapter(str(path))
-                layers = adapter.list_layers()
-                if not layers:
-                    continue
-                for layer in layers:
-                    rows = adapter.read_layer(layer.name)
-                    fields = sorted({str(key) for row in rows for key in normalize_feature_record(row)})
-                    section_field, _ = resolve_alias('section_id', fields)
-                    feeder_field, _ = resolve_alias('feeder_id', fields)
-                    if section_field and feeder_field:
-                        conductor_field, _ = resolve_alias('standard_code', fields)
-                        length_field, _ = resolve_alias('length_source', fields)
-                        candidates.append((
-                            rows, layer.crs or '', f'{path.name}:{layer.name}',
-                            section_field, feeder_field, conductor_field or '', length_field or '',
-                        ))
-                continue
-            fields = sorted({str(key) for row in rows for key in normalize_feature_record(row)})
-            section_field, _ = resolve_alias('section_id', fields)
-            feeder_field, _ = resolve_alias('feeder_id', fields)
-            if section_field and feeder_field:
-                conductor_field, _ = resolve_alias('standard_code', fields)
-                length_field, _ = resolve_alias('length_source', fields)
-                candidates.append((
-                    rows, crs, layer_name, section_field, feeder_field,
-                    conductor_field or '', length_field or '',
-                ))
-        except (OSError, ValueError, RuntimeError) as exc:
-            errors.append(f'{path.name}: {exc}')
-    if not candidates:
+    Las capas de tramos MT (una o varias, como Tramo_MT_Aereo y Tramo_MT_Subterraneo) se unen, cada
+    tramo con su capa en ``source_layer``; si traen los nodos de sus extremos (``CODNODOMT_INI`` y
+    ``CODNODOMT_FIN``), la red se une por ellos, como en la vía SQL. Las de nodos, SED, equipos y tramos
+    BT se leen al canónico (:func:`_leer_capas_de_red`). Las de un rol que la vía de capas no modela se
+    anotan con ``CAPA_SIN_MODELAR``, y las que no se reconocen con ``CAPA_NO_RECONOCIDA``, con su nombre y
+    su recuento: ninguna se descarta en silencio.
+    """
+    capas, errors = _capas_del_paquete(package_root)
+    tramos: list[tuple[str, list[dict], str, list[str]]] = []
+    de_red: list[tuple[str, str, list[dict], str, list[str]]] = []
+    otras: list[dict] = []
+    for nombre, rows, crs in capas:
+        fields = sorted({str(key) for row in rows for key in normalize_feature_record(row)})
+        rol = rol_de_capa(nombre.rsplit(':', 1)[-1], fields)
+        if rol == 'tramos_mt':
+            tramos.append((nombre, rows, crs, fields))
+        elif rol in ROLES_MODELADOS:
+            de_red.append((rol, nombre, rows, crs, fields))
+        else:
+            otras.append({'code': 'CAPA_SIN_MODELAR' if rol else 'CAPA_NO_RECONOCIDA',
+                          'capa': nombre, 'rol': rol or '', 'registros': len(rows)})
+    if not tramos:
         detail = '; '.join(errors[:5])
         raise ValueError(
             'El paquete no contiene una capa con section_id/CODTRAMOMT y '
             f'feeder_id/CODSALIDAMT.{" " + detail if detail else ""}'
         )
-    if len(candidates) > 1:
-        raise ValueError(
-            'El paquete contiene varias capas de tramos candidatas; se requiere una '
-            'selección explícita para no mezclarlas: ' + ', '.join(item[2] for item in candidates)
-        )
-    rows, crs, layer, section_field, feeder_field, conductor_field, length_field = candidates[0]
+    crs_distintos = sorted({crs or '' for _n, _r, crs, _f in tramos})
+    if len(crs_distintos) > 1:
+        raise ValueError('Las capas de tramos del paquete tienen CRS distintos; no se mezclan: '
+                         + ', '.join(f'{n} ({crs or "sin CRS"})' for n, _r, crs, _f in tramos))
+    rows: list[dict] = []
+    for nombre, filas, _crs, fields in tramos:
+        rows.extend(_al_nombre_canonico(filas, fields, nombre))
+    layer = ', '.join(n for n, _r, _c, _f in tramos)
     scoped, scope = select_source_scope(rows, company=company, period=period)
     result = canonicalize_sections(
         scoped,
-        section_id_field=section_field,
-        feeder_field=feeder_field,
-        conductor_field=conductor_field or None,
-        length_field=length_field or None,
-        source_crs=crs or None,
+        section_id_field='section_id',
+        feeder_field='feeder_id',
+        conductor_field='standard_code' if any(resolve_alias('standard_code', f)[0] for *_x, f in tramos) else None,
+        length_field='length_source' if any(resolve_alias('length_source', f)[0] for *_x, f in tramos) else None,
+        source_crs=crs_distintos[0] or None,
         source_layer=layer,
+        from_node_field='from_node' if all(resolve_alias('from_node', f)[0] for *_x, f in tramos) else None,
+        to_node_field='to_node' if all(resolve_alias('to_node', f)[0] for *_x, f in tramos) else None,
     )
     result.model.metadata.update({'company': scope['company'], 'period': scope['period']})
+    _leer_capas_de_red(result, de_red)
+    result.model.metadata['capas'] = (
+        [{'capa': n, 'rol': 'tramos_mt', 'registros': len(r)} for n, r, _c, _f in tramos]
+        + [{'capa': n, 'rol': rol, 'registros': len(r)} for rol, n, r, _c, _f in de_red]
+        + [{'capa': o['capa'], 'rol': o['rol'], 'registros': o['registros']} for o in otras])
+    if otras:
+        result.model.metadata['capas_sin_modelar'] = otras
+        result.warnings.extend(f"{o['code']}: {o['capa']} ({o['rol'] or 'sin rol'}, {o['registros']} registros)"
+                               for o in otras)
     return result, scope
+
+
+def _campo(fila: Mapping[str, Any], fields: Sequence[str], canonico: str) -> Any:
+    """El valor del campo ``canonico`` de la fila, con el nombre que le dé la capa (``resolve_alias``)."""
+    nombre = resolve_alias(canonico, fields)[0]
+    return fila.get(nombre) if nombre else None
+
+
+def _real(valor: Any) -> float | None:
+    """Un número de la capa, o None si falta (NaN incluido)."""
+    numero = _parse_float(texto_fuente(valor))
+    return None if numero is None or math.isnan(numero) else numero
+
+
+def _entero(valor: Any, defecto: int) -> int:
+    numero = _real(valor)
+    return defecto if numero is None else int(numero)
+
+
+def _punto(fila: Mapping[str, Any], crs: str | None, metadata: Mapping[str, Any]) -> tuple[float, float] | None:
+    """El punto de un objeto de la capa en el CRS de trabajo del modelo."""
+    puntos = coords_from_geojson(fila.get('geometry') or fila.get('__geometry__'))
+    if not puntos:
+        return None
+    x, y = _transform_points(puntos[:1], crs or metadata.get('source_crs'), metadata.get('working_crs'))[0]
+    return float(x), float(y)
+
+
+def _leer_capas_de_red(result: CanonicalizeResult, capas: Sequence[tuple[str, str, list[dict], str, list[str]]]
+                       ) -> None:
+    """080:RF-55: las capas de nodos, SED, equipos y tramos BT de un paquete, al canónico, como la vía SQL.
+
+    Un nodo que ya dio un tramo toma la posición y la tensión de su capa; uno que no, se añade. Una SED
+    es una carga en su nodo (``CODNODOMT``). Un equipo va a maniobras, bancos o reguladores según su
+    TIPO (``TIPOS_DE_EQUIPO``); un TIPO sin regla se anota en ``valores_sin_regla['tipo_equipo']`` y
+    con ``EQUIPO_SIN_REGLA``, nunca se pierde en silencio. Un tramo BT va a ``sections_bt``
+    (:func:`_anadir_tramo_bt`).
+    """
+    modelo = result.model
+    meta = modelo.metadata
+    nodos = {n.node_id: n for n in modelo.nodes}
+    for rol, capa, rows, crs, fields in sorted(capas, key=lambda c: ROLES_MODELADOS.index(c[0])):
+        for row in rows:
+            fila = normalize_feature_record(row)
+            if rol == 'nodos':
+                ident = texto_fuente(_campo(fila, fields, 'node_id'))
+                if not ident:
+                    continue
+                nodo = nodos.get(ident)
+                if nodo is None:
+                    nodo = nodos[ident] = Node(node_id=ident, source_id=ident)
+                    modelo.nodes.append(nodo)
+                if (punto := _punto(fila, crs, meta)) is not None:
+                    nodo.x, nodo.y = punto
+                nodo.nominal_kv = _real(fila.get('TENSION_KV')) if 'TENSION_KV' in fields else nodo.nominal_kv
+                nodo.phases = texto_fuente(fila.get('FASES')) or nodo.phases
+                nodo.source_layer = capa
+            elif rol == 'sed':
+                modelo.loads.append(Load(
+                    load_id=texto_fuente(_campo(fila, fields, 'sed_id')),
+                    connection_node=texto_fuente(_campo(fila, fields, 'connection_node')),
+                    kw=_real(fila.get('KW')) or 0.0, kvar=_real(fila.get('KVAR')) or 0.0,
+                    phases=texto_fuente(fila.get('FASES')),
+                    feeder_id=texto_fuente(_campo(fila, fields, 'feeder_id')),
+                    etiqueta=texto_fuente(fila.get('ETIQUETA')),
+                    connected_kva=_real(fila.get('POTINSTALADA')),
+                    source_layer=capa, source_id=texto_fuente(_campo(fila, fields, 'sed_id'))))
+            elif rol == 'tramos_bt':
+                _anadir_tramo_bt(modelo, fila, fields, capa, crs)
+            else:
+                _anadir_equipo(result, fila, fields, capa)
+
+
+def _anadir_tramo_bt(modelo: CanonicalModel, fila: Mapping[str, Any], fields: Sequence[str], capa: str,
+                     crs: str | None) -> None:
+    """080:RF-55: un registro de una capa de tramos BT, a ``sections_bt``, con las reglas de estado y medio de MT.
+
+    Lo que no tiene regla se cuenta en ``valores_sin_regla_bt``, como en la vía SQL. Sin ``LONGITUD``, la
+    longitud es la de su geometría.
+    """
+    ident = texto_fuente(_campo(fila, fields, 'section_bt_id'))
+    if not ident:
+        return
+    meta = modelo.metadata
+    puntos = coords_from_geojson(fila.get('geometry') or fila.get('__geometry__'))
+    puntos = [(float(x), float(y)) for x, y in
+              _transform_points(puntos, crs or meta.get('source_crs'), meta.get('working_crs'))]
+    largo = _real(_campo(fila, fields, 'length_source'))
+    if largo is None and len(puntos) >= 2:
+        largo = round(sum(math.dist(a, b) for a, b in zip(puntos, puntos[1:])), 3)
+    estado = texto_fuente(_campo(fila, fields, 'status'))
+    tipo = texto_fuente(_campo(fila, fields, 'network_type'))
+    modelo.sections_bt.append(LowVoltageSection(
+        section_id=ident, sed_id=texto_fuente(_campo(fila, fields, 'sed_id')),
+        bt_feeder_id=texto_fuente(_campo(fila, fields, 'bt_feeder_id')),
+        feeder_id=texto_fuente(_campo(fila, fields, 'feeder_id')),
+        parent_id=texto_fuente(_campo(fila, fields, 'parent_section_bt')),
+        conductor_code=texto_fuente(_campo(fila, fields, 'standard_code')), length_m=largo, geometry=puntos,
+        status=estado_o_anota(meta, estado, clave=SIN_REGLA_BT), overhead=medio_o_anota(meta, tipo, clave=SIN_REGLA_BT),
+        source_status=estado, source_network_type=tipo, source_layer=capa, source_id=ident))
+
+
+def _anadir_equipo(result: CanonicalizeResult, fila: Mapping[str, Any], fields: Sequence[str], capa: str) -> None:
+    """080:RF-55: un registro de una capa de equipos, a la lista del canónico que dice su TIPO."""
+    modelo = result.model
+    ident = texto_fuente(_campo(fila, fields, 'equipment_id'))
+    tipo = texto_fuente(_campo(fila, fields, 'equipment_type'))
+    nodo = texto_fuente(_campo(fila, fields, 'connection_node'))
+    tramo = texto_fuente(fila.get('TRAMO'))
+    lista = next((nombre for nombre, patron in TIPOS_DE_EQUIPO if patron.search(tipo)), None)
+    if lista == 'switches':
+        modelo.switches.append(Switch(switch_id=ident, connection_node=nodo, section_id=tramo,
+                                      on_off=_entero(fila.get('ON_OFF'), 1), source_layer=capa, source_id=ident))
+    elif lista == 'capacitors':
+        modelo.capacitors.append(Capacitor(capacitor_id=ident, connection_node=nodo,
+                                           kvar=_real(fila.get('KVAR')) or 0.0,
+                                           status=texto_fuente(fila.get('ESTADO')) or 'in_service',
+                                           source_layer=capa, source_id=ident))
+    elif lista == 'regulators':
+        modelo.regulators.append(Regulator(regulator_id=ident, connection_node=nodo, section_id=tramo,
+                                           on_off=_entero(fila.get('ON_OFF'), 1), source_layer=capa,
+                                           source_id=ident))
+    else:
+        cuenta = modelo.metadata.get('valores_sin_regla', {}).get('tipo_equipo', {})
+        if not cuenta.get(tipo):
+            result.warnings.append(f'EQUIPO_SIN_REGLA: {capa} trae equipos de tipo «{tipo or "sin tipo"}», '
+                                   'que la vía de capas no modela; se anotan con su recuento.')
+        anotar_sin_regla(modelo.metadata, 'tipo_equipo', tipo)
 
 
 def probe_source(source: str) -> dict:
@@ -356,6 +532,10 @@ def canonicalize_sections(
     working_crs: str | None = None,
     snap_tolerance_m: float = 0.5,
     source_layer: str = 'sections',
+    status_field: str | None = None,
+    network_type_field: str | None = None,
+    from_node_field: str | None = None,
+    to_node_field: str | None = None,
 ) -> CanonicalizeResult:
     """Convierte tramos polilínea en nodos + tramos canónicos (secciones E y G).
 
@@ -365,6 +545,12 @@ def canonicalize_sections(
     origen de cada tramo.
     """
     normalized_rows = [normalize_feature_record(row) for row in section_rows]
+    # 080:RF-55, RF-53: el estado (ESTADO/ESTADOVNR) y el tipo de red (CODTIPORED) del tramo, si
+    # la capa los trae, como en la copia de SQL Server; sin ellos, en servicio y medio por deducir.
+
+    campos = sorted({str(key) for row in normalized_rows for key in row})
+    status_field = status_field or resolve_alias('status', campos)[0]
+    network_type_field = network_type_field or resolve_alias('network_type', campos)[0]
     # Auto-elegir CRS de trabajo métrico si venía en grados.
     resolved_working = working_crs
     if source_crs == 'EPSG:4326' and not resolved_working:
@@ -440,17 +626,40 @@ def canonicalize_sections(
             phases='',
             nominal_kv=None,
             length_m=length_m,
+            status=estado_o_anota(model.metadata, texto_fuente(row.get(status_field) if status_field else None)),
+            overhead=medio_o_anota(model.metadata,
+                                    texto_fuente(row.get(network_type_field) if network_type_field else None)),
+            source_status=texto_fuente(row.get(status_field) if status_field else None),
+            source_network_type=texto_fuente(row.get(network_type_field) if network_type_field else None),
             geometry=geom,
-            source_layer=source_layer,
+            source_layer=row.get('__capa__') or source_layer,
             source_id=section_id,
             feeder_id=str(row.get(feeder_field) or '') if feeder_field else '',
             lineage=Lineage(
-                source_layer=source_layer,
+                source_layer=row.get('__capa__') or source_layer,
                 source_id=section_id,
                 source_field=section_id_field,
                 resolution_method='SOURCE',
             ),
         ))
+
+    # 080:RF-55: si TODOS los tramos traen los nodos de sus extremos, la red se une por ellos (como la
+    # vía SQL) y no por la cercanía de las geometrías; cada nodo, en el primer extremo que lo nombra.
+    explicitos = [(texto_fuente(item['row'].get(from_node_field)), texto_fuente(item['row'].get(to_node_field)))
+                  for item in prepared] if from_node_field and to_node_field else []
+    if sections and len(explicitos) == len(sections) and all(a and b for a, b in explicitos):
+        posicion: dict[str, tuple[float, float]] = {}
+        for i, (section, (desde, hasta)) in enumerate(zip(sections, explicitos)):
+            section.from_node, section.to_node = desde, hasta
+            posicion.setdefault(desde, (anchors[2 * i][1], anchors[2 * i][2]))
+            posicion.setdefault(hasta, (anchors[2 * i + 1][1], anchors[2 * i + 1][2]))
+        model.nodes = [Node(node_id=n, x=x, y=y, source_layer=source_layer, source_id=n)
+                       for n, (x, y) in posicion.items()]
+        model.sections = sections
+        model.metadata['output_section_count'] = len(sections)
+        model.metadata['topologia'] = 'nodos_de_la_fuente'
+        return CanonicalizeResult(model=model, warnings=warnings, length_report=length_report,
+                                  snap_report={'count': 0, 'mean_m': 0.0, 'max_m': 0.0, 'excessive': 0})
 
     snap = snap_endpoints(anchors, snap_tolerance_m)
     # Re-mapear IDs de tramo → nodo de origen/destino.

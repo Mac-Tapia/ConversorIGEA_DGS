@@ -8,39 +8,39 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 427 |
-| Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 429 |
+| Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 122 |
 | Interfaz | `frontend/src/` | 103 |
 | Pruebas de la interfaz | `frontend/test/` | 45 |
-| Pruebas | `tests/` | 565 |
+| Pruebas | `tests/` | 567 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 13988 líneas y 435 funciones, pendiente de partir (002).
+`web/services.py` tiene 13995 líneas y 435 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 77 |
-| aprobada | 32 |
+| cumplida | 76 |
+| aprobada | 33 |
 | implementada | 2 |
 | retirada | 1 |
 
-112 specs con 3816 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3827 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 179 |
+| adaptadores | Ada | 180 |
 | aplicacion | Apl | 124 |
-| dominio | Dom | 61 |
+| dominio | Dom | 62 |
 | presentacion | Pre | 48 |
 | puertos | Pue | 4 |
 
-416 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+418 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -675,6 +675,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `doctor.py` | Ada | 001 | Dependencias y capacidades (`vnr-etl doctor`). |
 | `logging.py` | Ada | 001 | Registro estructurado de eventos. |
 | `pipeline.py` | Ada | 001 | Capa de aplicación compartida por el CLI y la web. |
+| `reglas_tramo.py` | Dom | 080 | Reglas de estado, medio y tipo de red de un tramo, sin dependencias: las usan la vía SQL, la de capas y el puente. |
 | `application/__init__.py` | Ada | 001 | Servicios compartidos por el CLI y la API. |
 | `application/cymdist_bridge.py` | Ada | 001 | Del modelo canónico VNR al contrato del motor. |
 | `application/reconstruccion.py` | Ada | 001 | Reconstruye el modelo canónico antes del motor. |
@@ -702,6 +703,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `electrical/enrich.py` | Ada | 001 | Completa los datos eléctricos del modelo. |
 | `exporters/__init__.py` | Ada | 001 | Exportadores de simulador. |
 | `exporters/base.py` | Ada | 001 | Contrato del exportador y perfil de destino. |
+| `exporters/capas.py` | Ada | 080 | Copia VNR-GIS restaurada → paquete de capas (GeoPackage), sin un segundo ETL. |
 | `exporters/cymdist.py` | Ada | 001 | Exportador CYMDIST. |
 | `exporters/dgs.py` | Ada | 001 | Exportador DIgSILENT: delega en el motor. |
 | `gis/__init__.py` | Ada | 001 | CRS, snapping y reconstrucción de nodos. |

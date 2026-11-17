@@ -385,6 +385,7 @@ Diseño completo en `VNR-GIS.md` (las «secciones» que citan los docstrings); o
 | `src/convertersmartgrid/adaptadores/entrada/vnr/exporters/__init__.py` | Exportadores de simulador. | 001 |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/exporters/base.py` | Contrato del exportador y perfil de destino. | 001 (RF-23) |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/exporters/cymdist.py` | Exportador CYMDIST. | 001 |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/exporters/capas.py` | Copia VNR-GIS restaurada → paquete de capas (GeoPackage), sin un segundo ETL. | 080 (RF-55) |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/exporters/dgs.py` | Exportador DIgSILENT: delega en el motor. | 001 (RF-10) |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/gis/__init__.py` | CRS, snapping y reconstrucción de nodos. | 001 |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/gis/crs.py` | CRS de las capas y su deducción. | 001 (RF-20, RF-25) |
@@ -394,6 +395,7 @@ Diseño completo en `VNR-GIS.md` (las «secciones» que citan los docstrings); o
 | `src/convertersmartgrid/adaptadores/entrada/vnr/models/__init__.py` | Modelo canónico VNR-GIS. | 001 |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/models/canonical.py` | Clases del modelo canónico. | 001 |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/pipeline.py` | Capa de aplicación compartida por el CLI y la web. | 001 (RF-2) |
+| `src/convertersmartgrid/adaptadores/entrada/vnr/reglas_tramo.py` | Reglas de estado, medio y tipo de red de un tramo, sin dependencias: las usan la vía SQL, la de capas y el puente. | 080 (RF-53, RF-55) |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/reconciliation/__init__.py` | Reconciliación y comparación de periodos. | 001 |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/reconciliation/diff.py` | Comparación incremental por ID estable. | 001 |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/topology/__init__.py` | Topología y validación del grafo. | 001 |

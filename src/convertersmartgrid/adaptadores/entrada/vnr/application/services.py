@@ -85,6 +85,29 @@ class ExportResult:
         }
 
 
+#: 080:RF-57: lo que dice el resumen para el operador, sin letras de puerta ni jerga. Lo que falta
+#: en A–F se reconstruye al convertir (001:RF-17); el detalle de cada una va al Registro.
+MOTIVO_RECONSTRUIBLE = 'datos que se completan al convertir'
+MOTIVO_SIN_SIMULADOR = 'falta comprobarla en DIgSILENT'
+MOTIVO_SIN_REVISION = 'la revisión no se completó'
+
+
+def resumen_de_puertas(incidencias: list[dict]) -> str:
+    """080:RF-57: una frase para el resultado de la carga: cuántos avisos, por qué y que no impiden convertir."""
+    if not incidencias:
+        return 'Revisión de la red: sin avisos.'
+    motivos: list[str] = []
+    for incidencia in incidencias:
+        puerta = incidencia.get('gate') or ''
+        motivo = (MOTIVO_SIN_SIMULADOR if puerta in ('G', 'H')
+                  else MOTIVO_RECONSTRUIBLE if puerta in tuple('ABCDEF') else MOTIVO_SIN_REVISION)
+        if motivo not in motivos:
+            motivos.append(motivo)
+    n = len(incidencias)
+    return (f"Revisión de la red: {n} aviso{'s' if n != 1 else ''} ({'; '.join(motivos)}); "
+            'no impiden convertir.')
+
+
 class VnrApplicationService:
     """Evalúa y exporta modelos con el mismo contrato en todas las interfaces."""
 
@@ -165,6 +188,39 @@ class VnrApplicationService:
             exporter_errors=exporter_errors,
             counts=model.counts(),
         )
+
+    def informar(self, model: CanonicalModel, target: str = 'dgs') -> dict:
+        """080:RF-56: las puertas A–H en la vía de producción, solo para informar.
+
+        Nunca bloquea ni lanza: devuelve el veredicto y las incidencias (las que no pasan,
+        también G y H, que sin simulador no tienen evidencia) para el resultado de la carga.
+        Si una etapa de la evaluación falla, se dice y las puertas corren con lo que haya.
+        """
+        error = ''
+        try:
+            assessment = self.assess(model, target)
+            verdict, readiness = assessment.verdict, assessment.readiness
+        except Exception as exc:  # noqa: BLE001 - informar nunca tumba la carga (RF-17, RF-22)
+            error = f'{type(exc).__name__}: {exc}'[:300]
+            verdict = run_gates(model, strict=False)
+            readiness = 'NO_EVALUADO'
+        resultados = [r.as_dict() for r in verdict.results]
+        incidencias = [
+            {'gate': r.gate, 'label': r.label, 'detail': r.detail, 'bloquea': False}
+            for r in verdict.results if not r.passed
+        ]
+        if error:
+            incidencias.append({'gate': '', 'label': 'Evaluación de las puertas',
+                                'detail': f'No se completó: {error}', 'bloquea': False})
+        return {
+            'informativo': True,
+            'bloquea': False,
+            'readiness': readiness,
+            'resultados': resultados,
+            'incidencias': incidencias,
+            'missing_simulator': list(verdict.missing_simulator),
+            'resumen': resumen_de_puertas(incidencias),
+        }
 
     def export(
         self,

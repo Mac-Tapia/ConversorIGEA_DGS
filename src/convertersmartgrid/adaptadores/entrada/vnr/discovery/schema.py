@@ -29,6 +29,20 @@ CANONICAL_ALIASES: dict[str, list[str]] = {
     'network_type': ['CODTIPORED', 'network_type'],
     'nominal_voltage_code': ['CODTENNOMI', 'nominal_voltage_code'],
     'standard_code': ['CODNORMA', 'standard_code'],
+    # 080:RF-55: los campos que dicen el rol de las demás capas de un paquete.
+    'section_bt_id': ['CODTRAMOBT', 'COD_TRAMO_BT', 'section_bt_id'],
+    'node_id': ['CODNODOMT', 'COD_NODO', 'NODO', 'node_id'],
+    'equipment_id': ['CODEQP', 'COD_EQUIPO', 'CODEQUIPO', 'equipment_id'],
+    # 080:RF-55: los nodos de los extremos de un tramo, si la capa los trae: unen la red por el código
+    # de la fuente, como la vía SQL, en lugar de por la cercanía de las geometrías.
+    'from_node': ['CODNODOMT_INI', 'NODO_INI', 'CODNODOINI', 'from_node'],
+    'to_node': ['CODNODOMT_FIN', 'NODO_FIN', 'CODNODOFIN', 'to_node'],
+    # 080:RF-55: lo que leen las capas de SED, nodos y equipos.
+    'connection_node': ['CODNODOMT', 'COD_NODO', 'NODO', 'connection_node'],
+    'equipment_type': ['TIPO', 'TIPOEQP', 'TIPO_EQUIPO', 'equipment_type'],
+    # 080:RF-55: lo que lee una capa de tramos BT además de su código, su SED y su norma.
+    'bt_feeder_id': ['CODSALIDABT', 'COD_SALIDA_BT', 'bt_feeder_id'],
+    'parent_section_bt': ['CODTRAMOBTPADRE', 'parent_section_bt'],
 }
 
 #: Alias de sección VNR específicos (apartado D), combinados con los universales.
@@ -42,6 +56,43 @@ SECTION_ALIASES: dict[str, list[str]] = {
     'standard_code': ['CODNORMA', 'standard_code'],
     'length_source': ['LONGITUD', 'length_source'],
 }
+
+#: 080:RF-55: el rol de una capa por su nombre, cuando sus campos no lo dicen (en orden).
+ROLES_POR_NOMBRE: tuple[tuple[str, str], ...] = (
+    ('tramos_bt', r'TRAMO.?BT|BT.?TRAMO|RED.?BT'),
+    ('tramos_mt', r'TRAMO.?MT|MT.?TRAMO|TRAMO|RED.?MT'),
+    ('sed', r'\bSEDS?\b|SUBESTAC'),
+    ('nodos', r'NODO|VERTICE'),
+    ('equipos', r'EQUIPO|EQP|MANIOBRA|SECCIONADOR|INTERRUPTOR|RECONECTADOR|BANCO|REGULADOR'),
+)
+
+
+def rol_de_capa(nombre: str, campos: Sequence[str]) -> str | None:
+    """080:RF-55: ``tramos_mt``, ``tramos_bt``, ``sed``, ``nodos`` o ``equipos``; None si no se reconoce.
+
+    Primero por los campos (la misma tabla ``CANONICAL_ALIASES``), después por el nombre de la capa.
+    Tramos MT: identificador de tramo y alimentador, como la vía de capas exige.
+    """
+    campos = list(campos)
+
+    def tiene(canonico: str) -> bool:
+        return resolve_alias(canonico, campos)[0] is not None
+
+    if tiene('section_id') and tiene('feeder_id'):
+        return 'tramos_mt'
+    if tiene('section_bt_id'):
+        return 'tramos_bt'
+    if tiene('sed_id'):
+        return 'sed'
+    if tiene('equipment_id'):
+        return 'equipos'
+    if tiene('node_id'):
+        return 'nodos'
+    texto = nombre.upper()
+    for rol, patron in ROLES_POR_NOMBRE:
+        if re.search(patron, texto):
+            return None if rol == 'tramos_mt' else rol      # un «tramo» sin sus campos no se puede leer
+    return None
 
 
 def _normalize(name: str) -> str:

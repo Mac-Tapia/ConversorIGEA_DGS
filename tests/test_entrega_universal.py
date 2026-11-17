@@ -468,6 +468,18 @@ def test_palabras_corrientes_no_son_terminos():
     assert not t.planos
 
 
+def test_las_sales_se_calculan_al_cambiar_las_huellas_y_no_en_cada_ventana():
+    """086:RF-111 — construir la rueda pedía 1,8 millones de veces el conjunto ordenado de las sales: una por ventana."""
+    t = CE.Terminos()
+    t.huellas[('s1', 'a' * 16)] = 'empresa'
+    primera = t.sales
+    assert t.sales is primera, 'las sales se recalculan en cada consulta'
+    t.huellas[('s0', 'b' * 16)] = 'zona'
+    assert t.sales == ('s0', 's1') and t.sales is t.sales
+    t.huellas = {('s2', 'c' * 16): 'zona', ('s3', 'd' * 16): 'zona'}
+    assert t.sales == ('s2', 's3'), 'otro diccionario de huellas, otras sales'
+
+
 def test_candidato_con_una_prueba_o_un_perfil_excluido_se_rechaza(tmp_path, manifiesto):
     """086:RF-32, 086:RF-33 — lo que la lista no admite no entra, aunque no lleve términos."""
     base = _paquete(tmp_path)

@@ -7,7 +7,7 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 
-from .base import LayerInfo, SourceProbe, VNRSourceAdapter
+from .base import LayerInfo, SourceProbe, VNRSourceAdapter, filtrar_filas
 
 try:
     import chardet
@@ -71,7 +71,6 @@ class DelimitedTextAdapter(VNRSourceAdapter):
         return [LayerInfo(name=Path(self.path).name, fields=[{'name': f, 'type': ''} for f in fields])]
 
     def read_layer(self, layer, filters=None) -> list[dict]:
-        del filters
         path = Path(self.path)
         encoding, _ = self._detect_encoding(path)
         with path.open('r', encoding=encoding, newline='') as fh:
@@ -80,4 +79,4 @@ class DelimitedTextAdapter(VNRSourceAdapter):
             delim = self._detect_delimiter(sample)
             reader = csv.DictReader(fh, delimiter=delim)
             rows = [dict(row) for row in reader]
-        return rows
+        return filtrar_filas(rows, filters, conector='El texto delimitado')

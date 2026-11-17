@@ -808,6 +808,131 @@ def test_excel_de_salida(tmp_path):
     assert wb['No cruzados']['K2'].value == 'no está'
 
 
+# =========================================================================== memoria
+#: 004:RF-108: lo que puede crecer la memoria por cada registro más de cabecera que se guarda en un resultado (la curva y
+#: las tensiones compactas son unos 44 bytes); con tuplas, fechas y un diccionario eran unos 310.
+BYTES_POR_REGISTRO_GUARDADO = 64
+
+
+def _libro_grande(path: Path, rng, medidores: list[str], registros: int) -> Path:
+    """Un libro de cabecera grande, escrito por filas: una hoja por medidor con kW, kVAR y tensión."""
+    wb = openpyxl.Workbook(write_only=True)
+    for medidor in medidores:
+        hoja = wb.create_sheet(medidor)
+        hoja.append(['Local Time', 'kW tot', 'kVAR tot', 'Vll avg'])
+        for i in range(registros):
+            kw = round(rng.uniform(100, 4000), 1)
+            hoja.append([INICIO + timedelta(minutes=15 * i), kw, round(kw * rng.uniform(-0.3, 0.5), 1),
+                         round(rng.uniform(9800, 10200), 1)])
+    wb.save(path)
+    return path
+
+
+def test_memoria_de_maximas_no_crece_con_las_curvas_de_cada_medidor(tmp_path):
+    """004:RF-108 — con 4N medidores, el pico de memoria (tracemalloc) no pasa del de N más lo que ocupan, compactas,
+    las curvas y tensiones de los 3N de más: con una tupla y un diccionario por registro, unos 230 medidores de un año
+    pasaban de 2 GB. Medidores y registros, sorteados."""
+    import gc
+    import tracemalloc
+
+    rng = random.Random(SEMILLA)
+    n = rng.randint(2, 3)
+    registros = rng.randint(4000, 6000)
+    medidores = [f'M{k:02d}' for k in rng.sample(range(100), 4 * n)]
+    libro = _libro_grande(tmp_path / 'cabecera.xlsx', rng, medidores, registros)
+
+    def pico(cuantos: int) -> int:
+        gc.collect()
+        tracemalloc.start()
+        try:
+            res = dm.maximas([libro], [('', m) for m in medidores[:cuantos]])
+            assert all(r.error is None and len(r.curva) == registros and len(r.tensiones) == registros for r in res)
+            return tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+
+    uno, cuatro = pico(n), pico(4 * n)
+    cota = int(1.1 * uno) + 3 * n * registros * BYTES_POR_REGISTRO_GUARDADO
+    assert cuatro <= cota, (f'pico con {4 * n} medidores: {cuatro / 2**20:.1f} MB; con {n}: {uno / 2**20:.1f} MB; '
+                            f'cota {cota / 2**20:.1f} MB ({registros} registros, semilla {SEMILLA})')
+
+
+def test_curva_y_tensiones_compactas_se_leen_como_la_lista_y_el_diccionario():
+    """004:RF-108 — la curva y las tensiones compactas dan lo mismo que la lista de tuplas y el diccionario: recorrido,
+    índice, corte, igualdad, búsqueda por fecha y copia; lo que no cabe sin cambiar se queda como venía."""
+    import copy
+    import pickle
+
+    rng = random.Random(SEMILLA)
+    filas = [(INICIO + timedelta(minutes=15 * i, microseconds=rng.randrange(10)), rng.uniform(-50, 5000),
+              None if rng.random() < 0.2 else rng.uniform(-900, 900)) for i in range(rng.randint(5, 300))]
+    curva = dm.CurvaMedida.desde(filas)
+    assert isinstance(curva, dm.CurvaMedida)
+    assert list(curva) == filas and curva == filas and len(curva) == len(filas)
+    assert curva[0] == filas[0] and curva[-1] == filas[-1] and curva[1:4] == filas[1:4]
+    assert pickle.loads(pickle.dumps(curva)) == filas and copy.deepcopy(curva) == filas
+    assert dm.reducir_curva(curva, max_puntos=10) == dm.reducir_curva(filas, max_puntos=10)
+    assert dm.CurvaMedida.desde([]) == [] and not dm.CurvaMedida.desde([])
+    con_entero = [(INICIO, 5, None)]
+    assert type(dm.CurvaMedida.desde(con_entero)) is list and dm.CurvaMedida.desde(con_entero) == con_entero
+
+    tensiones = {f: (rng.uniform(9000, 11000), rng.choice(['Vll avg', 'promedio de Vll ab'])) for f, _p, _q in filas}
+    compactas = dm.TensionesMedidas.desde(tensiones)
+    assert isinstance(compactas, dm.TensionesMedidas)
+    assert compactas == tensiones and dict(compactas) == tensiones
+    f = rng.choice(list(tensiones))
+    assert compactas.get(f) == tensiones[f] and f in compactas
+    assert compactas.get(INICIO - timedelta(days=1)) is None and compactas.get('no es fecha') is None
+    assert pickle.loads(pickle.dumps(compactas)) == tensiones
+    assert type(dm.TensionesMedidas.desde({'x': (1.0, 'V')})) is dict
+
+
+def test_cabecera_no_deja_abiertos_todos_los_libros(tmp_path, monkeypatch):
+    """004:RF-108 — un .xls se lee entero al abrirlo: con los K libros de la carpeta abiertos a la vez, la memoria crecía
+    con cada libro. Con el tope a cero nunca hay más de un libro abierto, cada uno se abre como mucho dos veces (sus
+    hojas y sus medidores) aunque los medidores vengan mezclados, y las máximas salen en el orden pedido e iguales a
+    las de leerlos con todos abiertos. K, medidores y registros, sorteados."""
+    import weakref
+
+    rng = random.Random(SEMILLA)
+    k = rng.randint(3, 6)
+    medidores = {f'L{j}': [f'L{j}M{i}' for i in range(rng.randint(1, 3))] for j in range(k)}
+    for nombre, suyos in medidores.items():
+        hojas = {m: _medicion(rng, rng.randint(20, 60), {'kw': 'kW tot'})[0] for m in suyos}
+        _libro(tmp_path / f'{nombre}.xlsx', hojas)
+    pares = [('', m) for suyos in medidores.values() for m in suyos]
+    rng.shuffle(pares)
+    juntos = dm.maximas([tmp_path], pares)
+
+    original, vivos, abiertos, maximo = dm.abrir_libro, set(), [], [0]
+
+    class Libro:
+        """El libro de siempre, contando cuántos hay abiertos a la vez."""
+
+        def __init__(self, path):
+            self._libro, self.nombre, self._ficha = original(path), Path(path).name, object()
+            vivos.add(self._ficha)
+            weakref.finalize(self, vivos.discard, self._ficha)
+            maximo[0] = max(maximo[0], len(vivos))
+            abiertos.append(self.nombre)
+
+        def __getattr__(self, nombre):
+            return getattr(self._libro, nombre)
+
+        def close(self):
+            vivos.discard(self._ficha)
+            self._libro.close()
+
+    monkeypatch.setattr(dm, 'abrir_libro', Libro)
+    monkeypatch.setattr(dm, 'LIBROS_ABIERTOS_MAX_BYTES', 0, raising=False)
+    uno_a_uno = dm.maximas([tmp_path], pares)
+    assert maximo[0] <= 1, f'{maximo[0]} libros abiertos a la vez de {k} (semilla {SEMILLA})'
+    assert all(abiertos.count(x) <= 2 for x in abiertos) and len(set(abiertos)) == k, abiertos
+    assert [r.medidor for r in uno_a_uno] == [m for _a, m in pares]
+    assert [r.to_dict() for r in uno_a_uno] == [r.to_dict() for r in juntos]
+    assert all(a.curva == b.curva for a, b in zip(uno_a_uno, juntos))
+
+
 # =========================================================================== datos reales
 REAL = os.environ.get('CSG_DEMANDA_DIR', '').strip()
 real = pytest.mark.skipif(not REAL or not Path(REAL).is_dir(),

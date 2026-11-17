@@ -25,12 +25,14 @@ from __future__ import annotations
 
 import bisect
 import calendar
+import collections.abc
 import copy
 import hashlib
 import json
 import math
 import re
 import unicodedata
+from array import array
 from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
@@ -815,6 +817,121 @@ def _antes(a: Any, b: Any) -> bool:
         return False
 
 
+#: 004:RF-108: las fechas de una curva compacta son enteros de microsegundos desde esta fecha; ``datetime`` no guarda
+#: nada más fino, así que la vuelta es exacta.
+_EPOCA = datetime(1970, 1, 1)
+_MICRO = timedelta(microseconds=1)
+
+
+def _es_fecha_compactable(fecha: Any) -> bool:
+    return type(fecha) is datetime and fecha.tzinfo is None
+
+
+class CurvaMedida(collections.abc.Sequence):
+    """La curva ``(fecha, kW, kVAR)`` de un medidor en tres arreglos; se recorre como la lista de tuplas (004:RF-108).
+
+    Un año de registros de 15 minutos son unos 35 000 por medidor, y una tupla con su fecha y sus dos números ocupa unos
+    170 bytes: con cientos de medidores, las curvas que guarda cada resultado pasaban de 2 GB. Aquí son 24 bytes por
+    registro: la fecha en microsegundos, el kW y el kVAR, con NaN donde el registro no trae kVAR (``numero`` nunca da un
+    NaN, así que no se confunde con un valor). Un corte devuelve una lista de tuplas.
+    """
+
+    __slots__ = ('_t', '_p', '_q')
+
+    def __init__(self, t: array, p: array, q: array) -> None:
+        self._t, self._p, self._q = t, p, q
+
+    @classmethod
+    def desde(cls, filas: Sequence[tuple[Any, Any, Any]]) -> 'CurvaMedida | list':
+        """La curva compacta, o la lista tal cual si algo no cabe sin cambiar: fecha con zona u otro tipo, kW o kVAR
+        que no sea un ``float`` finito. Nada se redondea ni cambia de tipo."""
+        t, p, q = array('q'), array('d'), array('d')
+        for fila in filas:
+            fecha, kw, kvar = fila
+            if (not _es_fecha_compactable(fecha) or type(kw) is not float or not math.isfinite(kw)
+                    or not (kvar is None or (type(kvar) is float and math.isfinite(kvar)))):
+                return list(filas)
+            t.append((fecha - _EPOCA) // _MICRO)
+            p.append(kw)
+            q.append(math.nan if kvar is None else kvar)
+        return cls(t, p, q)
+
+    def __len__(self) -> int:
+        return len(self._t)
+
+    def __getitem__(self, i):
+        if isinstance(i, slice):
+            return [self[k] for k in range(*i.indices(len(self)))]
+        q = self._q[i]
+        return _EPOCA + self._t[i] * _MICRO, self._p[i], None if math.isnan(q) else q
+
+    def __iter__(self):
+        for t, p, q in zip(self._t, self._p, self._q):
+            yield _EPOCA + t * _MICRO, p, None if math.isnan(q) else q
+
+    def __eq__(self, otra: object) -> bool:
+        if isinstance(otra, collections.abc.Sequence) and not isinstance(otra, (str, bytes)):
+            return len(self) == len(otra) and all(a == b for a, b in zip(self, otra))
+        return NotImplemented
+
+    __hash__ = None  # type: ignore[assignment]
+
+    def __repr__(self) -> str:
+        return f'CurvaMedida({len(self)} registros)'
+
+
+class TensionesMedidas(collections.abc.Mapping):
+    """``{fecha: (tensión, columna)}`` de un medidor en arreglos ordenados por fecha (004:RF-108).
+
+    Como la curva: un diccionario con una tupla por registro costaba otros ~150 bytes por registro y medidor. Las
+    columnas, que son dos o tres por medidor, se guardan una vez. Se busca por fecha con bisección y se recorre en
+    orden de fecha.
+    """
+
+    __slots__ = ('_t', '_v', '_c', '_columnas')
+
+    def __init__(self, t: array, v: array, c: array, columnas: tuple[str, ...]) -> None:
+        self._t, self._v, self._c, self._columnas = t, v, c, columnas
+
+    @classmethod
+    def desde(cls, tensiones: Mapping[Any, tuple[Any, Any]]) -> 'TensionesMedidas | dict':
+        """Las tensiones compactas, o el diccionario tal cual si alguna fecha, tensión o columna no cabe sin cambiar."""
+        if any(not _es_fecha_compactable(f) or type(v) is not float or not math.isfinite(v) or type(c) is not str
+               for f, (v, c) in tensiones.items()):
+            return dict(tensiones)
+        columnas = tuple(dict.fromkeys(c for _v, c in tensiones.values()))
+        indice = {c: k for k, c in enumerate(columnas)}
+        orden = sorted(tensiones)
+        return cls(array('q', ((f - _EPOCA) // _MICRO for f in orden)), array('d', (tensiones[f][0] for f in orden)),
+                   array('I', (indice[tensiones[f][1]] for f in orden)), columnas)
+
+    def _posicion(self, fecha: Any) -> int | None:
+        if not isinstance(fecha, datetime) or fecha.tzinfo is not None:
+            return None
+        micros = (fecha - _EPOCA) // _MICRO
+        k = bisect.bisect_left(self._t, micros)
+        return k if k < len(self._t) and self._t[k] == micros else None
+
+    def __getitem__(self, fecha: Any) -> tuple[float, str]:
+        k = self._posicion(fecha)
+        if k is None:
+            raise KeyError(fecha)
+        return self._v[k], self._columnas[self._c[k]]
+
+    def __contains__(self, fecha: object) -> bool:
+        return self._posicion(fecha) is not None
+
+    def __len__(self) -> int:
+        return len(self._t)
+
+    def __iter__(self):
+        for t in self._t:
+            yield _EPOCA + t * _MICRO
+
+    def __repr__(self) -> str:
+        return f'TensionesMedidas({len(self)} registros)'
+
+
 @dataclass
 class MaximaCabecera:
     medidor: str
@@ -850,11 +967,12 @@ class MaximaCabecera:
     tension_aviso: str | None = None
     # Curva entera ``(fecha, kW, kVAR)`` en orden. Fuera de ``to_dict``: el resultado del
     # trabajo viaja al navegador por el WebSocket, y un año de lecturas cada 15 min son
-    # unos 35 000 registros por medidor. La web la sirve aparte y reducida (RF-39).
-    curva: list[tuple[datetime, float, float | None]] = field(default_factory=list, repr=False)
+    # unos 35 000 registros por medidor. La web la sirve aparte y reducida (RF-39). La que sale de un
+    # libro es una ``CurvaMedida`` (004:RF-108): se recorre igual que la lista.
+    curva: Sequence[tuple[datetime, float, float | None]] = field(default_factory=list, repr=False)
     # 021:RF-78: la tensión de cada registro, para la barra en el instante de su máxima. Fuera de
-    # ``to_dict`` por lo mismo que la curva.
-    tensiones: dict[datetime, tuple[float, str]] = field(default_factory=dict, repr=False)
+    # ``to_dict`` por lo mismo que la curva; ``TensionesMedidas`` si sale de un libro (004:RF-108).
+    tensiones: Mapping[datetime, tuple[float, str]] = field(default_factory=dict, repr=False)
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: copy.deepcopy(getattr(self, f.name)) for f in fields(self)
@@ -912,9 +1030,14 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
         resultado.maxima_periodo = {'fecha': _iso(del_todo.fecha), 'kw': del_todo.valores['kw'],
                                     'mes': periodo_de_fecha(del_todo.fecha)}
     resultado.registros = len(registros)
-    resultado.curva, resultado.fuera_de_curva = curva_de_registros(registros)
-    resultado.tensiones = {f: (r.valores['v'], r.fuente_tension or '') for r in registros
-                           if r.valores.get('v') is not None and (f := _como_datetime(r.fecha)) is not None}
+    # 004:RF-108: la curva y las tensiones se guardan compactas; la lista y el diccionario de tuplas son de un medidor
+    # y se sueltan aquí, así que lo que crece con los medidores es lo compacto.
+    curva, resultado.fuera_de_curva = curva_de_registros(registros)
+    resultado.curva = CurvaMedida.desde(curva)
+    del curva
+    resultado.tensiones = TensionesMedidas.desde({
+        f: (r.valores['v'], r.fuente_tension or '') for r in registros
+        if r.valores.get('v') is not None and (f := _como_datetime(r.fecha)) is not None})
     if corruptos:
         resultado.avisos.append(f'{corruptos} registro(s) con kVA negativo descartados: no son '
                                 'físicos (desborde del contador del medidor).')
@@ -1176,31 +1299,89 @@ def q_negativa_con_fp(registros: Sequence[Registro]) -> tuple[int, int]:
     return calculados, conservados
 
 
+#: 004:RF-108: bytes de fichero de los libros de cabecera que pueden quedar abiertos a la vez. Un .xls se lee entero al
+#: abrirlo, unas tres veces su tamaño en memoria: con todos los de la carpeta abiertos, la memoria crecía con cada libro
+#: (cuatro .xls de 170 MB pasaban de 2 GB). El libro en uso queda abierto aunque pase de este tamaño; los .xlsx
+#: pequeños, que se leen hoja a hoja, caben juntos y no se reabren.
+LIBROS_ABIERTOS_MAX_BYTES = 128 * 2**20
+
+
 class Cabecera:
-    """Libros de cabecera abiertos una vez por búsqueda: abrir un .xls de 400 MB cuesta ~1 s."""
+    """Libros de cabecera de una búsqueda: abrir un .xls de 400 MB cuesta ~1 s.
+
+    Los nombres de las hojas de cada libro se leen una vez y se guardan; el libro solo queda abierto mientras quepa en
+    ``LIBROS_ABIERTOS_MAX_BYTES`` con los demás abiertos, y si no, se cierra el usado hace más tiempo (004:RF-108).
+    """
 
     def __init__(self, rutas: Iterable[Path | str], alias=ALIAS) -> None:
         self.libros = libros_de_cabecera(rutas)
         self.alias = alias
+        #: Libros abiertos, del usado hace más tiempo al último.
         self._abiertos: dict[Path, Any] = {}
+        self._nombres: dict[Path, list[str]] = {}
+        self._bytes: dict[Path, int] = {}
         #: Libros que no se pudieron abrir, con el motivo (025:RF-29): uno roto en la carpeta
         #: del año no impide buscar en los demás.
         self.rotos: dict[Path, str] = {}
 
+    def _tamano(self, path: Path) -> int:
+        if path not in self._bytes:
+            self._bytes[path] = path.stat().st_size
+        return self._bytes[path]
+
+    def _cerrar(self, path: Path) -> None:
+        libro = self._abiertos.pop(path)
+        cerrar = getattr(libro, 'close', None)        # python-calamine reciente; en las viejas, al soltarlo
+        if cerrar is not None:
+            cerrar()
+
+    def cerrar(self) -> None:
+        """Cierra los libros que queden abiertos; los nombres de sus hojas se conservan."""
+        for path in list(self._abiertos):
+            self._cerrar(path)
+
     def _libro(self, path: Path):
-        if path not in self._abiertos:
-            self._abiertos[path] = abrir_libro(path)
-        return self._abiertos[path]
+        libro = self._abiertos.pop(path, None)
+        if libro is None:
+            tamano = self._tamano(path)
+            while self._abiertos and tamano + sum(map(self._tamano, self._abiertos)) > LIBROS_ABIERTOS_MAX_BYTES:
+                self._cerrar(next(iter(self._abiertos)))
+            libro = abrir_libro(path)
+            self._nombres.setdefault(path, list(libro.sheet_names))
+        self._abiertos[path] = libro
+        return libro
 
     def _hojas(self, path: Path) -> list[str]:
         """Las hojas del libro, o ninguna si no se abre (queda en ``rotos``)."""
         if path in self.rotos:
             return []
-        try:
-            return list(self._libro(path).sheet_names)
-        except DemandaError as exc:
-            self.rotos[path] = str(exc)
-            return []
+        if path not in self._nombres:
+            try:
+                self._libro(path)
+            except DemandaError as exc:
+                self.rotos[path] = str(exc)
+                return []
+        return list(self._nombres[path])
+
+    def libro_de(self, medidor: str, alimentador: str = '') -> Path | None:
+        """El libro del que ``maxima`` leerá el medidor, solo por los nombres de las hojas (004:RF-108).
+
+        Sirve para leer los medidores agrupados por libro y no reabrir un .xls por medidor; si no acierta, solo cuesta
+        tiempo: cada medidor se lee igual.
+        """
+        for nombre in (medidor, base_del_medidor(medidor)):
+            if not nombre:
+                continue
+            hallados = []
+            for path in self.libros:
+                entera, partes = hojas_del_medidor(self._hojas(path), nombre)
+                if entera or partes:
+                    hallados.append((not entera, -path.stat().st_mtime_ns, len(hallados), path))
+            if hallados:
+                return min(hallados)[3]
+        if alimentador:
+            return next((p for p in self.libros if hojas_del_alimentador(self._hojas(p), alimentador)), None)
+        return None
 
     def _completar(self, path: Path, medidor: str, registros: list[Registro],
                    res: MaximaCabecera) -> list[Registro]:
@@ -1360,21 +1541,33 @@ def maximas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, str]], *
             cabecera: Cabecera | None = None) -> list[MaximaCabecera]:
     """Máxima de cada ``(alimentador, medidor)``, por separado, sin sumar (RF-29, RF-32).
 
-    Se cancela entre medidores: un medidor se lee entero. ``cabecera``: los libros ya
-    abiertos, para no abrirlos otra vez en cada instante de la máxima por barra (022:RF-84):
-    con un hilo por instante, cada uno abría su copia de los .xls de ~400 MB y la web se
-    quedó sin memoria con Nasca (2026-10-27).
+    Se cancela entre medidores: un medidor se lee entero. ``cabecera``: la misma para cada
+    instante de la máxima por barra (022:RF-84), con los nombres de las hojas ya leídos: con un
+    hilo por instante, cada uno abría su copia de los .xls de ~400 MB y la web se quedó sin
+    memoria (2026-10-27). Los medidores se leen agrupados por libro y sin más libros abiertos
+    de los que caben en ``LIBROS_ABIERTOS_MAX_BYTES`` (004:RF-108).
     """
     cabecera = cabecera or Cabecera(rutas, alias)
-    out = []
-    for n, (alimentador, medidor) in enumerate(medidores, start=1):
+    # 004:RF-108: agrupados por libro, empezando por los que siguen abiertos, para que cada .xls se abra una vez y no
+    # haya más de uno en memoria; el resultado sale en el orden pedido. Cancelar deja los ya leídos, en ese orden.
+    orden = list(range(len(medidores)))
+    if len(medidores) > 1 and len(cabecera.libros) > 1 and not cancelado():
+        elegido = [cabecera.libro_de(m, a) for a, m in medidores]
+        posicion = {p: (p not in cabecera._abiertos, k) for k, p in enumerate(cabecera.libros)}
+        sin_libro = (True, len(cabecera.libros))
+        clave = [posicion.get(p, sin_libro) for p in elegido]
+        orden.sort(key=clave.__getitem__)
+    hechos: dict[int, MaximaCabecera] = {}
+    for n, k in enumerate(orden, start=1):
         if cancelado():
             break
+        alimentador, medidor = medidores[k]
         progreso(n, len(medidores), medidor)
         try:
-            out.append(cabecera.maxima(medidor, alimentador, periodo, instante))
+            hechos[k] = cabecera.maxima(medidor, alimentador, periodo, instante)
         except DemandaError as exc:
-            out.append(MaximaCabecera(medidor=medidor, alimentador=alimentador, error=str(exc)))
+            hechos[k] = MaximaCabecera(medidor=medidor, alimentador=alimentador, error=str(exc))
+    out = [hechos[k] for k in sorted(hechos)]
     if cabecera.rotos:
         # 025:RF-29: se busca en los demás, y cada resultado dice qué libros no se leyeron.
         aviso = 'no se pudo abrir ' + '; '.join(cabecera.rotos.values())
@@ -3125,13 +3318,14 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
         return a[len('Central '):].strip() if a.lower().startswith('central ') else a
 
     avisos = list(avisos)
-    # Los libros se abren una vez para la barra y todos sus instantes (022:RF-84).
+    # Una sola Cabecera para la barra y todos sus instantes (022:RF-84): los nombres de las hojas se leen una vez y
+    # de los .xls queda abierto el último que cabe (004:RF-108).
     cabecera = Cabecera(libros, alias)
     de_barra = maximas(libros, [(b.clave, m) for b in barras for m in b.medidores + b.centrales]
                        + [(f'LT {x.set_codigo}', m) for x in balances for m in x.llegadas + x.salidas + x.clientes],
                        alias=alias, cancelado=cancelado, cabecera=cabecera)
-    # Las curvas de los alimentadores de las SET con barra de 60 kV, con los libros ya
-    # abiertos: su instante tiene que tener registro en todos (022:RF-91).
+    # Las curvas de los alimentadores de las SET con barra de 60 kV, con la misma Cabecera:
+    # su instante tiene que tener registro en todos (022:RF-91).
     con_alta = {f for b in barras if b.alta or b.de_alta for f in b.alimentadores}
     if comun_60kv:                                                      # 028:RF-39: todos, para ver sus maniobras
         con_alta |= {duenio(a).upper() for a, _m in pares}
@@ -3293,9 +3487,9 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
         if comun:
             instantes.setdefault(duenio(a).upper(), comun['fecha'])
         grupos[comun['fecha'] if comun else instantes.get(duenio(a).upper())].append((a, m))
-    # Cada instante (uno por SET con barra de 60 kV) con los mismos libros ya abiertos: un
+    # Cada instante (uno por SET con barra de 60 kV) con la misma Cabecera, en serie: un
     # hilo por instante abría cada uno su copia de los .xls de ~400 MB y la web se quedó sin
-    # memoria con Nasca (2026-10-27); abrir es lo que cuesta, no buscar un registro.
+    # memoria (2026-10-27). Cada llamada empieza por el libro que siga abierto (004:RF-108).
     res = []
     for inst, ps in grupos.items():
         res += maximas(libros, ps, alias=alias, periodo=None if inst else periodo,

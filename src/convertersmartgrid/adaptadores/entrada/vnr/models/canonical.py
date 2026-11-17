@@ -71,6 +71,38 @@ class Section:
     source_id: str = ''
     feeder_id: str = ''
     lineage: Lineage | None = None
+    #: 080:RF-53: aéreo (True) o cable (False) si la fuente lo dice; None, se deduce en el puente.
+    overhead: bool | None = None
+    #: 080:RF-55: el estado y el tipo de red tal como los trae la fuente («E», «N», «A», «S»…), sin
+    #: regla: ``status`` y ``overhead`` son lo que dicen; estos, lo que se lee, para volver a escribirlo.
+    source_status: str = ''
+    source_network_type: str = ''
+
+
+@dataclass
+class LowVoltageSection:
+    """080:RF-55: un tramo de baja tensión de la fuente (VNR-GIS ``btTramo``), con su SED y su salida BT.
+
+    Va aparte de ``sections``: los exportadores a simuladores modelan la red MT y no lo consumen.
+    """
+
+    section_id: str
+    sed_id: str = ''
+    """La SED de la que cuelga (``btSalida.CodSed``), el ``load_id`` de su carga."""
+    bt_feeder_id: str = ''
+    """La salida BT de la SED (``CodSalidaBT``)."""
+    feeder_id: str = ''
+    """El alimentador MT de su SED, con su código operativo."""
+    parent_id: str = ''
+    conductor_code: str = ''
+    length_m: float | None = None
+    geometry: Any = None
+    status: str = 'in_service'
+    overhead: bool | None = None
+    source_status: str = ''
+    source_network_type: str = ''
+    source_layer: str = ''
+    source_id: str = ''
 
 
 @dataclass
@@ -184,6 +216,13 @@ class ConductorType:
     nominal_kv: float | None = None
     source_layer: str = ''
     source_id: str = ''
+    #: 080:RF-53: la descripción de la norma en la fuente («CABLE N2XSY 3-1X70MM2…»), si la trae.
+    description: str = ''
+    #: 080:RF-53: aéreo (True) o cable (False) si el catálogo de la fuente lo dice; None, se deduce.
+    overhead: bool | None = None
+    #: 080:RF-58: la clase del cable («8,7/15 kV»…) de la ficha que dio R y X, para que la C sea la
+    #: del mismo cable; vacía si R y X no salieron de una ficha con clase.
+    clase_cable_rx: str = ''
 
 
 @dataclass
@@ -239,6 +278,8 @@ class CanonicalModel:
     sources: list[Source] = field(default_factory=list)
     nodes: list[Node] = field(default_factory=list)
     sections: list[Section] = field(default_factory=list)
+    #: 080:RF-55: los tramos BT de la fuente, si se leyeron.
+    sections_bt: list[LowVoltageSection] = field(default_factory=list)
     structures: list[Structure] = field(default_factory=list)
     transformers: list[Transformer] = field(default_factory=list)
     switches: list[Switch] = field(default_factory=list)
@@ -278,6 +319,7 @@ class CanonicalModel:
         m.sources = many(Source, 'sources')
         m.nodes = many(Node, 'nodes')
         m.sections = many(Section, 'sections')
+        m.sections_bt = many(LowVoltageSection, 'sections_bt')
         m.structures = many(Structure, 'structures')
         m.transformers = many(Transformer, 'transformers')
         m.switches = many(Switch, 'switches')
@@ -308,7 +350,7 @@ def iter_named_collections(model: CanonicalModel) -> Iterator[tuple[str, list]]:
     """Recorre las colecciones de objetos canónicos por su nombre."""
     for name in (
         'companies', 'periods', 'systems', 'feeders', 'sources', 'nodes',
-        'sections', 'structures', 'transformers', 'switches', 'regulators',
+        'sections', 'sections_bt', 'structures', 'transformers', 'switches', 'regulators',
         'capacitors', 'loads', 'conductor_types', 'equipment_types',
     ):
         yield name, getattr(model, name)

@@ -89,8 +89,13 @@ def test_rueda_incluye_adaptador_vnr_y_ambos_launchers_sin_instalar(rueda, tmp_p
         assert not any(n.startswith('vnr_etl/') for n in nombres)
         assert 'convertersmartgrid/adaptadores/entrada/vnr/models/canonical.py' in nombres
         assert 'convertersmartgrid/adaptadores/entrada/vnr/cli.py' in nombres
-        assert sum(n.startswith('convertersmartgrid/adaptadores/entrada/vnr/') and n.endswith('.py')
-                   for n in nombres) == 50
+        # Los .py del adaptador que hay en el árbol fuente, no un número escrito (una tarjeta que añada un fichero no
+        # rompe la prueba; una rueda a la que le falte o le sobre uno, sí).
+        fuente = RAIZ / 'src' / 'convertersmartgrid' / 'adaptadores' / 'entrada' / 'vnr'
+        esperados = {'convertersmartgrid/adaptadores/entrada/vnr/' + r.relative_to(fuente).as_posix()
+                     for r in fuente.rglob('*.py') if '__pycache__' not in r.parts}
+        en_rueda = {n for n in nombres if n.startswith('convertersmartgrid/adaptadores/entrada/vnr/') and n.endswith('.py')}
+        assert len(esperados) >= 50 and en_rueda == esperados, (sorted(esperados - en_rueda), sorted(en_rueda - esperados))
         cfg = configparser.ConfigParser()
         cfg.read_string(z.read(next(n for n in nombres if n.endswith('.dist-info/entry_points.txt'))).decode('utf-8'))
         nuevo = cfg['console_scripts']['vnr-etl']

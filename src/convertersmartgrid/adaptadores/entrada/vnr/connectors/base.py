@@ -34,6 +34,28 @@ class LayerInfo:
         }
 
 
+def filtrar_filas(rows: list[dict], filters: Mapping[str, Any] | None, *, conector: str) -> list[dict]:
+    """080:RF-55: aplica ``filters`` como los demás conectores; nunca los ignora en silencio.
+
+    ``{"equals": {campo: valor}}`` deja las filas con ese valor (como SQLite). Un SQL ``where`` libre o
+    un filtro que este conector no entiende es un error claro, no una lectura sin filtrar.
+    """
+    filters = dict(filters or {})
+    if not filters:
+        return rows
+    if filters.get('where'):
+        raise ValueError(f'{conector} no acepta SQL WHERE libre; use filters={{"equals": {{...}}}}.')
+    desconocidos = sorted(set(filters) - {'equals', 'where'})
+    if desconocidos:
+        raise ValueError(f'{conector}: filtro no soportado {desconocidos}; use filters={{"equals": {{...}}}}.')
+    equals = filters.get('equals') or {}
+    faltan = sorted({str(c) for c in equals} - {str(k) for row in rows[:1] for k in row}) if rows else []
+    if faltan:
+        raise ValueError(f'{conector}: la capa no tiene el campo {faltan} del filtro.')
+    return [row for row in rows
+            if all(str(row.get(campo, '')).strip() == str(valor).strip() for campo, valor in equals.items())]
+
+
 @runtime_checkable
 class NetworkSource(Protocol):
     """Contrato mínimo de un conector de red (sección 8)."""

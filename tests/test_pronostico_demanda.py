@@ -1179,3 +1179,155 @@ def test_tope_de_lote_y_escalado_por_red():
     assert pd_.fabrica_modelo('nhits', pasos=2).lote == 64
     p = m.predecir_todos(objs, hasta, 96, None)
     assert np.isfinite(p[objs[0].nombre]).all()
+
+
+# ------------------------------------------------------------------------- memoria de la lectura de cabecera (089:RF-114)
+#: Lo que cada libro de más deja vivo mientras se leen los demás, por medidor: el nombre del libro en la procedencia,
+#: la ``Cabecera`` cerrada con los nombres de sus hojas y el resultado de ``maximas`` sin su curva. Medido en el humo
+#: (MEM-PRON, 2026-11-15, cuatro sorteos): de 1,0 a 1,6 KiB; se deja en 4 KiB. Un libro entero, 100 veces más.
+BYTES_POR_LIBRO_Y_MEDIDOR = 4096
+
+
+def _carpeta_de_copias(carpeta: Path, libro: Path, cuantas: int) -> Path:
+    """``cuantas`` copias del mismo libro, modificadas en segundos distintos, como meses corregidos."""
+    import shutil
+
+    carpeta.mkdir(parents=True, exist_ok=True)
+    for k in range(cuantas):
+        copia = shutil.copyfile(libro, carpeta / f'c{k:02d}.xlsx')
+        os.utime(copia, ns=(1_700_000_000_000_000_000 + k * 10**9,) * 2)
+    return carpeta
+
+
+def test_memoria_de_la_cabecera_no_crece_con_los_libros(tmp_path, monkeypatch):
+    """089:RF-114 — un .xls se lee entero al abrirlo (unas tres veces su tamaño): con una ``Cabecera`` abierta por libro,
+    todos los de la carpeta quedaban en memoria a la vez y la memoria crecía con cada libro. Con 4N libros, el pico de
+    tracemalloc no pasa de 1,1 veces el de N más ``BYTES_POR_LIBRO_Y_MEDIDOR`` por libro y medidor de más. Los libros
+    se leen enteros al abrirlos, como un .xls con calamine. N, alimentadores y registros, sorteados."""
+    import gc
+    import tracemalloc
+
+    from convertersmartgrid import demanda_medida as dm
+
+    rng = random.Random(SEMILLA)
+    n, alimentadores, registros = rng.randint(2, 3), rng.randint(2, 3), 96 * rng.randint(15, 25)
+    medidores = [f'M{k:02d}' for k in rng.sample(range(100), alimentadores)]
+    libro = _libro_cabecera(tmp_path / 'origen.xlsx',
+                            {m: _serie(registros / 96, 50.0 + 10 * k, ruido=rng.randrange(10**6)) for k, m in enumerate(medidores)})
+    pares = [(f'A{m}', m) for m in medidores]
+    original = dm.abrir_libro
+
+    class LibroEntero:
+        """Lo que hace calamine con un .xls: todas sus hojas en memoria desde que se abre hasta que se cierra."""
+
+        def __init__(self, path):
+            libro = original(path)
+            self.sheet_names = list(libro.sheet_names)
+            self._filas = {h: libro.get_sheet_by_name(h).to_python(skip_empty_area=False) for h in self.sheet_names}
+            libro.close()
+
+        def get_sheet_by_name(self, hoja):
+            filas = self._filas[hoja]
+            return type('Hoja', (), {'to_python': lambda _s, **_k: filas})()
+
+        def close(self):
+            self._filas = {}
+
+    monkeypatch.setattr(dm, 'abrir_libro', LibroEntero)
+
+    def pico(cuantos: int) -> int:
+        carpeta = _carpeta_de_copias(tmp_path / f'libros{cuantos}', libro, cuantos)
+        gc.collect()
+        tracemalloc.start()
+        try:
+            salida, apartados = pd_.curvas_de_cabecera([carpeta], pares)
+            assert not apartados and len(salida) == alimentadores, apartados
+            assert all(len(d['curva']) == registros and len(d['fuente']['libros']) == cuantos for d in salida.values())
+            return tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+
+    pico_n, pico_4n = pico(n), pico(4 * n)
+    cota = 1.1 * pico_n + 3 * n * alimentadores * BYTES_POR_LIBRO_Y_MEDIDOR
+    assert pico_4n <= cota, (f'pico con {4 * n} libros {pico_4n / 2**20:.2f} MB > {cota / 2**20:.2f} MB '
+                             f'(con {n}: {pico_n / 2**20:.2f} MB; semilla {SEMILLA})')
+
+
+def test_la_cabecera_del_pronostico_no_deja_abiertos_todos_los_libros(tmp_path, monkeypatch):
+    """089:RF-114 — con K libros en la carpeta y alimentadores repartidos entre ellos, nunca hay más de un libro abierto
+    a la vez y cada uno se abre una sola vez, aunque haya varios alimentadores y una central. K, alimentadores y
+    registros, sorteados."""
+    import weakref
+
+    from convertersmartgrid import demanda_medida as dm
+
+    rng = random.Random(SEMILLA)
+    k = rng.randint(3, 6)
+    alimentadores = [f'A{j}' for j in range(rng.randint(2, 4))]
+    for i in range(k):
+        hojas = {f'M{a}': _serie(rng.randint(1, 3), 40.0 + i, inicio=T0 + timedelta(days=i), ruido=rng.randrange(10**6))
+                 for a in alimentadores if rng.random() < .7 or i == 0}
+        _libro_cabecera(tmp_path / 'cab' / f'l{i}.xlsx', hojas)
+        os.utime(tmp_path / 'cab' / f'l{i}.xlsx', ns=(1_700_000_000_000_000_000 + i * 10**9,) * 2)
+    _libro_central(tmp_path / 'cab' / 'central.xlsx')
+    pares = [(a, f'M{a}') for a in alimentadores] + [('AC', 'CAB')]
+    centrales = {'AC': {'generacion': 'GEN', 'llegada': 'LLE', 'salida': 'SAL'}}
+
+    original, vivos, abiertos, maximo = dm.abrir_libro, set(), [], [0]
+
+    class Libro:
+        """El libro de siempre, contando cuántos hay abiertos a la vez."""
+
+        def __init__(self, path):
+            self._libro, self.nombre, self._ficha = original(path), Path(path).name, object()
+            vivos.add(self._ficha)
+            weakref.finalize(self, vivos.discard, self._ficha)
+            maximo[0] = max(maximo[0], len(vivos))
+            abiertos.append(self.nombre)
+
+        def __getattr__(self, nombre):
+            return getattr(self._libro, nombre)
+
+        def close(self):
+            vivos.discard(self._ficha)
+            self._libro.close()
+
+    monkeypatch.setattr(dm, 'abrir_libro', Libro)
+    salida, _apartados = pd_.curvas_de_cabecera([tmp_path / 'cab'], pares, centrales=centrales)
+    assert set(salida) == {*alimentadores, 'AC'} and salida['AC']['fuente']['central_descontada'] is True, list(salida)
+    assert maximo[0] <= 1, f'{maximo[0]} libros abiertos a la vez de {k + 1} (semilla {SEMILLA})'
+    assert sorted(abiertos) == sorted({*abiertos}) and len(abiertos) == k + 1, abiertos
+
+
+def test_libro_a_libro_da_lo_mismo_que_alimentador_a_alimentador(tmp_path):
+    """089:RF-114, 089:RF-12 — leer cada libro una vez para todos los alimentadores da las mismas curvas, procedencias,
+    avisos y apartados que leer cada alimentador por separado: a igual instante manda el libro modificado más tarde,
+    un medidor que falta aparta su alimentador, la central se descuenta y un libro roto se dice. Sorteado."""
+    rng = random.Random(SEMILLA)
+    carpeta = tmp_path / 'cab'
+    k = rng.randint(2, 4)
+    for i in range(k):
+        hojas = {}
+        for j in range(3):
+            if rng.random() < .8 or i == 0:
+                hojas[f'M{j}'] = _serie(rng.randint(1, 3), 30.0 + 10 * i + j, inicio=T0 + timedelta(hours=rng.randint(0, 30)),
+                                        ruido=rng.randrange(10**6))
+        _libro_cabecera(carpeta / f'l{i}.xlsx', hojas)
+        os.utime(carpeta / f'l{i}.xlsx', ns=(1_700_000_000_000_000_000 + rng.randrange(10**6) * 10**9,) * 2)
+    _libro_central(carpeta / 'central.xlsx')
+    (carpeta / 'roto.xlsx').write_bytes(b'no es un libro')
+    pares = [('A0', 'M0'), ('A12', 'M1'), ('A12', 'M2'), ('AF', 'NOESTA'), ('AC', 'CAB')]
+    rng.shuffle(pares)
+    centrales = {'AC': {'generacion': 'GEN', 'llegada': 'LLE', 'salida': 'SAL'}}
+
+    juntos, apartados = pd_.curvas_de_cabecera([carpeta], pares, centrales=centrales)
+    uno_a_uno, por_separado, rotos = {}, [], []
+    for a in dict.fromkeys(a for a, _m in pares):
+        s, ap = pd_.curvas_de_cabecera([carpeta], [p for p in pares if p[0] == a], centrales=centrales)
+        uno_a_uno.update(s)
+        por_separado += [x for x in ap if not x.get('libro_roto')]
+        rotos = [x for x in ap if x.get('libro_roto')]
+    assert list(juntos) == list(uno_a_uno) and juntos == uno_a_uno
+    assert [x for x in apartados if not x.get('libro_roto')] == por_separado
+    assert [x for x in apartados if x.get('libro_roto')] == rotos and len(rotos) == 1
+    assert {'AF', 'AC', 'A0'} <= {*(x['objetivo'].split(':')[1] for x in por_separado), *juntos}

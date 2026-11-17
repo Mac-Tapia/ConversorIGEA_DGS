@@ -8,6 +8,7 @@ from .canonical import (  # noqa: F401
     Feeder,
     Lineage,
     Load,
+    LowVoltageSection,
     Node,
     Period,
     Regulator,

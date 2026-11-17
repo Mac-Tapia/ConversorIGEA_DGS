@@ -156,3 +156,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       conserva; el nuevo toma el nombre base; si el anterior está activo se desactiva antes y se dice; el informe nombra
       los dos; con el doble `tests/fake_pf.py`. (RF-101, RF-103, RF-104, RF-105, RF-106, RF-107)
       Hecho cuando: `pytest -q tests/test_pfd_diagnostico.py -k "version or anterior"` en verde.
+- [x] T32. La búsqueda de máximas con la memoria acotada: `Cabecera` guarda los nombres de las hojas y cierra el libro
+      usado hace más tiempo cuando no cabe en `LIBROS_ABIERTOS_MAX_BYTES`, `maximas` lee los medidores agrupados por
+      libro y devuelve el orden pedido, y la curva y las tensiones de cada resultado son `CurvaMedida` y
+      `TensionesMedidas`. (RF-108)
+      Hecho cuando: `pytest -q tests/test_demanda_medida.py -k "memoria or compactas or abiertos"` (004:RF-108) en verde.

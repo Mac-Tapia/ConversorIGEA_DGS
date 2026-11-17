@@ -79,7 +79,9 @@ def _informe_reconstruccion(modelo, bridge, result, resolutions, catalogo) -> di
         },
         # Lo que ni la reconstrucción pudo ubicar (una carga sin red ni coordenadas, una
         # carga solo reactiva) no entra en el DGS, y se dice.
-        'omitidos': list(bridge.issues),
+        'omitidos': [i for i in bridge.issues if i.get('severity') != 'deducido'],
+        # 080:RF-53, RF-55: lo deducido (aéreo o cable, tramo fuera de servicio) entra y se dice.
+        'deducidos': [i for i in bridge.issues if i.get('severity') == 'deducido'],
         'avisos': list(modelo.avisos),
     }
 
@@ -123,7 +125,8 @@ class DgsExporter:
             avisos.append(f'El perfil declara {configured_schema!r}; se usa {self.schema_profile!r}.')
         from convertersmartgrid.batch import convert_group
         from convertersmartgrid.reconstruction_pipeline import catalogos_del_fichero, reconstruir_seleccion
-        from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+        from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import (
+            canonical_to_cymdist, patron_cable_del_perfil)
         from convertersmartgrid.adaptadores.entrada.vnr.application.reconstruccion import reconstruir_modelo
 
         name = self._network_name(model)
@@ -131,7 +134,8 @@ class DgsExporter:
         # cargas, CRS) y después el dataset con el catálogo de parámetros (RF-17, RF-18).
         modelo = reconstruir_modelo(model, nombre=name)
         avisos = modelo.avisos + avisos
-        bridge = canonical_to_cymdist(modelo.model, source_path=Path(f'{name}.vnr'))
+        bridge = canonical_to_cymdist(modelo.model, source_path=Path(f'{name}.vnr'),
+                                      patron_cable=patron_cable_del_perfil())
         feeders = sorted(bridge.dataset.feeders)
         if not feeders:
             raise ExportBlocked('Export DGS bloqueado: el modelo no tiene ningún tramo que exportar.')

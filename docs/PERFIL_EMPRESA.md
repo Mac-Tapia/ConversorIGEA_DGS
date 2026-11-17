@@ -38,6 +38,7 @@ es de 60 Hz y las normas de referencia son las peruanas.
 | `codigo_empresa` | empresa | Elegir la empresa propia dentro de un paquete VNR-GIS con varias | Se pide si el paquete trae varias |
 | `crs_origen` | empresa | Georreferenciar la red: un EPSG proyectado en metros | La web y el CLI lo piden; sin él, se convierte sin GPS |
 | `patron_sed_medicion` | empresa | Expresión regular de las SED que solo son medición | No se excluye ninguna por su nombre |
+| `vnr_patron_tipo_cable` | empresa | Expresión regular de los tipos de cable de una fuente VNR-GIS (código, norma o capa); opcional | Se deduce de la capa y de la norma; si nada lo dice, aéreo, y se anota |
 | `escala_diagrama` | empresa | Unidades de diagrama por metro del DGS | La escala del motor |
 | `forma_alimentador` | empresa | Expresión regular de los nombres de alimentador; solo avisa | No se avisa de ninguno |
 | `patron_libro_clientes` | empresa | Reconocer los libros de clientes: una expresión o varias, con grupos `mes` y `anio` | Se eligen a mano |

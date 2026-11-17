@@ -217,7 +217,8 @@ def resolve_dataset_equipment(
             equipment_class=table,
             material=_text(config, 'Material', 'ConductorMaterial'),
             section_mm2=_float_from(config, 'SectionMM2', 'Section', 'CrossSectionMM2'),
-            voltage_kv=_source_voltage(source),
+            # 080:RF-54: la tensión del propio tramo, si la fuente la da; si no, la de su fuente.
+            voltage_kv=_float_from(config, 'NominalKV') or _source_voltage(source),
             overhead=overhead,
             manufacturer=_text(config, 'Manufacturer', 'Fabricante') or '',
             physical={
@@ -225,6 +226,9 @@ def resolve_dataset_equipment(
                     'resistivity_ohm_mm2_m': _float_from(
                         config, 'ResistivityOhmMM2M', 'resistivity_ohm_mm2_m',
                     ),
+                    # 080:RF-54: la R que trae el tipo de la fuente (VNR-GIS) llega al resolvedor.
+                    'r1_ohm_km': _float_from(config, 'R1', 'r1_ohm_km'),
+                    'r0_ohm_km': _float_from(config, 'R0', 'r0_ohm_km'),
                     'x1_ohm_km': _float_from(config, 'X1', 'x1_ohm_km'),
                     'x0_ohm_km': _float_from(config, 'X0', 'x0_ohm_km'),
                     'ampacity_a': _float_from(config, 'Amps', 'ampacity_a'),
@@ -332,9 +336,12 @@ def _provisional(query, policy, *, candidates=(), reason=''):
 
 def _derive_physical(query):
     rho = finite_or_none(query.physical.get('resistivity_ohm_mm2_m'))
-    if rho is None or query.section_mm2 is None or query.section_mm2 <= 0:
-        return None
-    r1 = rho * 1000.0 / query.section_mm2
+    # 080:RF-54: la R1 de la fuente manda; sin ella, de la resistividad y la sección.
+    r1 = finite_or_none(query.physical.get('r1_ohm_km'))
+    if r1 is None:
+        if rho is None or query.section_mm2 is None or query.section_mm2 <= 0:
+            return None
+        r1 = rho * 1000.0 / query.section_mm2
     return {
         'R1': r1,
         'R0': finite_or_none(query.physical.get('r0_ohm_km')) or r1,

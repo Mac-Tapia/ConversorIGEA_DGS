@@ -397,6 +397,12 @@ desde un DGS; los `.pfd` versionados se renombran y se conservan.
   dirá en el informe.
 - RF-107: EL SISTEMA nombrará en el informe el proyecto de la versión nueva y el de la anterior, con el nombre que tenía
   y el que tiene ahora.
+- RF-108: MIENTRAS busca las máximas de cabecera, EL SISTEMA no tendrá abiertos a la vez más libros de los que quepan
+  en un tope de tamaño de fichero (el libro en uso, siempre), leerá los medidores agrupados por libro y guardará la curva
+  y las tensiones de cada resultado en arreglos de 64 bytes o menos por registro, de modo que la memoria no crezca con el
+  número de libros de la carpeta y crezca con el de medidores solo en lo compacto; los resultados serán los mismos que
+  con todos los libros abiertos y en el orden pedido. Un .xls se lee entero al abrirlo (unas tres veces su tamaño): con
+  los cuatro de un caso real abiertos y las curvas en tuplas, buscar sus 233 medidores pasaba de 5 GB (2026-11-15).
 
 ## Requisitos no funcionales
 

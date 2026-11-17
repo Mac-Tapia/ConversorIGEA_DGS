@@ -356,6 +356,13 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     for aviso in (loaded.provenance or {}).get('vnr_avisos') or ():
         if aviso.get('code') == 'BASE_VNR_RESTAURADA_DE_NUEVO':
             ctx.log(aviso['detalle'])               # 023:RF-4: la base de la huella no estaba en línea
+    # 080:RF-55: si la vía de capas dejó objetos fuera, es lo primero que lee el operador en el registro.
+    if (loaded.provenance or {}).get('capas_sin_modelar'):
+        ctx.log(((loaded.provenance or {}).get('puertas_vnr') or {}).get('resumen') or 'Quedaron capas sin modelar.')
+    # 080:RF-57 (H3): las incidencias de las puertas VNR en el registro del trabajo que ve el operador; solo informan.
+    for incidencia in ((loaded.provenance or {}).get('puertas_vnr') or {}).get('incidencias') or ():
+        ctx.log(f"Puerta {incidencia.get('gate') or '—'} ({incidencia.get('label')}): {incidencia.get('detail')} "
+                '(solo informa)')
     from ..source_contract import audit_source
 
     source_audit = audit_source(dataset, loaded.provenance)

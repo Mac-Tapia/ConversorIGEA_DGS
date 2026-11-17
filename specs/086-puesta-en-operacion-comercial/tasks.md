@@ -319,6 +319,9 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       recorrido real repetido en el navegador con las carpetas sincronizadas del usuario (`D:/csg/PM_IMPL/COPIA-PREVIA/recorrido/`):
       lectura de la previa y del listado sobre la carpeta de copias, «Cancelar» sin escribir, y una copia pequeña escrita solo
       en `pruebas_1_0` tras «Copiar», con el diff de los listados vacío fuera de esa carpeta.
+- [x] T81 Las sales de las huellas se calculan al cambiar la lista, no en cada ventana de palabras. (RF-111)
+      Hecho cuando: `tests/test_entrega_universal.py` (086:RF-111) en verde, con rojo previo, y la rueda real sigue pasando la
+      comprobación (`tests/test_instalacion_programa.py`). Evidencia: `D:/csg/PM_IMPL/INST-RUEDA/`.
 - [x] T31 Suite completa sin omitidas sobre el candidato, con líneas base y determinismo. (058 T5, 025 T22, 065 T13) (RF-46)
   Hecho cuando: cero fallos, cero omitidas.
   Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`). Las líneas base y el determinismo (`workers` 1 y >1) están dentro de esa suite.

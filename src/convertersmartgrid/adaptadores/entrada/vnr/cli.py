@@ -105,6 +105,14 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('--source', action='append', help='Página oficial inicial (repetible)')
     p.add_argument('--catalog-dir', default='data/vnr_catalog')
 
+    p = sub.add_parser('bak-a-capas', help='Una base VNR-GIS ya restaurada → paquete de capas .gpkg (080:RF-55)')
+    p.add_argument('base_red', help='Nombre de la base de red ya en línea (no se restaura nada)')
+    p.add_argument('destino', help='Fichero .gpkg de salida')
+    p.add_argument('--base-parametros', default=None, help='Base de parámetros ya en línea')
+    p.add_argument('--servidor', default=None, help='Instancia de SQL Server (por defecto la de la vía SQL)')
+    p.add_argument('--lote-salidas', type=int, default=None,
+                   help='Salidas MT cuya red BT se arma y se escribe de cada vez (080:RF-60)')
+
     p = sub.add_parser('download-vnr', help='Descarga una publicación catalogada con manifiesto')
     p.add_argument('publication_id')
     p.add_argument('--catalog-dir', default='data/vnr_catalog')
@@ -154,6 +162,21 @@ def main(argv=None) -> int:
 
         argv = ['--host', args.host, '--port', str(args.port)]
         return web_main(argv + (['--no-browser'] if args.no_browser else []))
+
+    if args.command == 'bak-a-capas':
+        from .exporters.capas import exportar_base_a_capas_en_flujo
+
+        # 080:RF-60 (MEM-BT v2): la red BT en flujo, por lotes de salidas: la memoria no crece con la red BT de la
+        # empresa. La estimación de memoria y de disco se imprime antes de leer la red BT.
+        try:
+            hecho = exportar_base_a_capas_en_flujo(args.base_red, args.base_parametros, args.destino,
+                                                   servidor=args.servidor, lote_salidas=args.lote_salidas,
+                                                   mostrar=lambda linea: print(linea, flush=True))
+        except (OSError, ValueError) as exc:
+            raise SystemExit(f'Paquete de capas: {exc}') from exc
+        print(json.dumps({'destino': str(hecho.destino), **hecho.resumen, 'tramos_bt': hecho.tramos_bt,
+                          'lotes': hecho.lotes}, ensure_ascii=False, indent=2, default=str))
+        return 0
 
     if args.command == 'inspect-sql':
         from .connectors.databases import inspect_sql_dump

@@ -27,3 +27,6 @@
       la distribuidora, están anotadas aquí. Lo hace quien tiene la orden de regenerar (no esta tarea de código).
 - [ ] T7. Corrida larga real de todos los modelos.
       Hecho cuando: cada clase, magnitud y horizonte tiene su informe fuera de git, con la decisión y sus cifras anotadas aquí.
+- [x] T13. La lectura de cabecera del pronóstico libro a libro: un libro abierto a la vez, para todos los
+      alimentadores y sus centrales, con el mismo resultado. (RF-114)
+      Hecho cuando: `pytest -q tests/test_pronostico_demanda.py -k "memoria_de_la_cabecera or no_deja_abiertos or libro_a_libro"` (089:RF-114) en verde.

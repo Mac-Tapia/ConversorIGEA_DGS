@@ -169,3 +169,16 @@ módulo de cargas del 2026-10-08 (resumida en el contexto de la spec).
   sello y huella de la versión nueva), para no renombrarlo otra vez con la versión siguiente. Después, el nuevo toma
   el nombre base. Si ese nombre lo ocupa otro proyecto, se usa el sufijo libre y se avisa (nunca se pisa). Si la
   importación falla, la versión anterior se queda con su nombre.
+## Memoria de la búsqueda de máximas (RF-108, 2026-11-15)
+
+- `demanda_medida.Cabecera`: los nombres de las hojas de cada libro se guardan al abrirlo; quedan abiertos solo los
+  libros que caben en `LIBROS_ABIERTOS_MAX_BYTES` (128 MiB de fichero), y se cierra el usado hace más tiempo. Descartado:
+  un libro abierto por medidor (reabrir un .xls de 490 MB cuesta ~2 s, y hay cientos de medidores) y leer los .xls por
+  partes (python-calamine los lee enteros).
+- `maximas`: ordena los medidores por el libro que leerá (`Cabecera.libro_de`, solo con los nombres de las hojas),
+  empezando por el que siga abierto, y devuelve el orden pedido.
+- `CurvaMedida` y `TensionesMedidas`: arreglos (`array`) que se recorren como la lista de tuplas y el diccionario; lo
+  que no cabe sin cambiar de tipo (fechas con zona, enteros) se queda como venía. No se usa la `CurvaCompacta` de
+  `pronostico_demanda` porque ese módulo importa este (capas).
+- Pruebas: en `tests/test_demanda_medida.py`, sintéticas y sorteadas: el pico de tracemalloc con 4N medidores frente a
+  N, los libros abiertos a la vez con el tope a cero y las clases compactas frente a la lista y el diccionario.

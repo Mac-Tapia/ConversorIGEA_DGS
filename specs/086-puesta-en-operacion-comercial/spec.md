@@ -352,6 +352,11 @@ instalador recibió `/DVersion` a mano; y «Acerca de» enseñaba las notas del 
 - RF-107: CUANDO se publique un candidato, EL SISTEMA habrá recorrido en un navegador real F01 (VNR), F02 (simulación sobre
   el plano), F03 (planificación) y F04 (asistente) sobre una web aislada y sin red, con axe-core sin infracciones graves ni
   críticas de WCAG 2.2 AA, y guardará las capturas y el resultado por SHA (Plan Maestro V1, F-12; T0c, 2026-11-14).
+- RF-111: CUANDO se busquen los términos prohibidos en lo que se entrega, EL SISTEMA calculará las sales de las huellas una
+  vez por cambio de la lista, y no en cada ventana de palabras.
+  (INST-RUEDA, 2026-11-15: al preparar la rueda, el conjunto ordenado de las sales se construía 1,8 millones de veces,
+  8 de 66 s con el perfilador. La caída de memoria al construir e instalar la rueda no es suya: medida fuera de pytest,
+  la construcción no pasa de 0,28 GiB y pip, de 0,05 GiB; lo demás lo toman a la vez el antivirus y otras sesiones.)
 
 ### Copia de los datos sin duplicados, a un destino que sincroniza (2026-11-12)
 

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .base import AdapterUnavailable, LayerInfo, SourceProbe, VNRSourceAdapter
+from .base import AdapterUnavailable, LayerInfo, SourceProbe, VNRSourceAdapter, filtrar_filas
 from ....fuentes_estables import abrir_fuente_estable
 
 
@@ -169,7 +169,8 @@ class AccessAdapter(VNRSourceAdapter):
             cursor = conn.cursor()
             cursor.execute(f'SELECT * FROM [{layer}]')
             columns = [d[0] for d in cursor.description]
-            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+            rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        return filtrar_filas(rows, filters, conector='Access')
 
 
 # ------------------------------------------------------------------ volcados SQL

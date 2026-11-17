@@ -253,3 +253,9 @@ Pruebas: `frontend/test/avisosEnSuPaso.test.mjs` lee los `submit` del servidor y
   `InputsPanel.tsx`, `InstalacionesPowerFactory.tsx`/`App.tsx`, `TipoDeAnalisis.tsx`, `OptionsPanel.tsx` y `workspace.py`.
 - Descartado: calcular la previa como trabajo en cola. Solo hace `stat` de los datos locales y lee el libre del destino;
   sus segundos no justifican la cola, y la copia sí sigue siendo trabajo (RF-86).
+## Buscar términos sin recalcular las sales (2026-11-15, RF-111)
+
+`Terminos.sales` guarda las sales con el diccionario de huellas y su tamaño de los que salieron: las huellas solo se
+añaden, así que se recalculan cuando cambia uno de los dos. La memoria de la rueda se midió con psutil fuera de pytest
+(`D:/csg/PM_IMPL/INST-RUEDA/medida_*.log`): construir, instalar y comprobar se quedan por debajo de 0,3 GiB; no hace falta
+excluir nada de la rueda ni cambiar la fixture, que ya es de módulo. Prueba: `tests/test_entrega_universal.py`.

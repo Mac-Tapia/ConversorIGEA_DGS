@@ -23,6 +23,20 @@ Lee: `docs/constitution.md`, 029, 046, 088.
 
 `tests/test_pronostico_demanda.py`: libros sintéticos con `openpyxl`, con número de alimentadores, clientes y meses sorteados; lectura y backtest reales con `CSG_DEMANDA_DIR`. No toca el lector de TXT, MDB ni VNR-GIS.
 
+## Memoria de la lectura de cabecera (RF-114, 2026-11-15)
+
+- `curvas_de_cabecera` lee libro a libro (`_leer_por_libro`): por cada libro, una `Cabecera` con ese libro solo,
+  las mismas llamadas a `maximas` de cada alimentador y de los medidores de su central, y `Cabecera.cerrar()` antes
+  del siguiente. `_UnionDeLibros` acumula por alimentador lo que antes hacía el bucle interior de `_unir_libros`,
+  en el mismo orden de libros (por `st_mtime_ns`), así que el resultado es el mismo.
+- Descartado: una sola `Cabecera` con todos los libros (004:RF-81). `Cabecera.maxima` se queda con un libro por
+  medidor, y aquí hacen falta todos los meses de cada medidor. También descartado cerrar el libro tras cada
+  alimentador: reabriría cada .xls una vez por alimentador.
+- Las centrales se leen en la misma pasada aunque su alimentador acabe apartado: cuesta tiempo, no memoria.
+- Pruebas: en `tests/test_pronostico_demanda.py`, sintéticas y sorteadas: el pico de tracemalloc con 4N libros
+  frente a N, leídos enteros al abrirlos como un .xls; los libros abiertos a la vez; y la igualdad de leer todo
+  junto frente a cada alimentador por separado.
+
 ## Plan total de implementación
 
 **Objetivo:** pronosticar kW y kVAR cada 15 minutos de cabecera, clientes fijos y escaladas con el mejor método medido a 28 días, actualizado cada mes sin tocar código, y llevar ese resultado a los sorteos de obras y a la proyección a años.

@@ -24,7 +24,8 @@ class VnrSourceAdapter:
             allowed={'vnr_package'},
             required={'vnr_package'},
         )
-        from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+        from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import (
+            canonical_to_cymdist, patron_cable_del_perfil)
         from convertersmartgrid.adaptadores.entrada.vnr.pipeline import canonicalize_vnr_package, safe_extract_package
 
         package = snapshot.files['vnr_package'].path
@@ -39,7 +40,8 @@ class VnrSourceAdapter:
             company=self.company,
             period=self.period,
         )
-        bridge = canonical_to_cymdist(canonical.model, source_path=package)
+        bridge = canonical_to_cymdist(canonical.model, source_path=package,
+                                      patron_cable=patron_cable_del_perfil())
         source = provenance(snapshot)
         source.update({
             'company': scope['company'],
@@ -48,7 +50,13 @@ class VnrSourceAdapter:
             'extracted_files': len(extracted.files),
             'canonical_counts': canonical.model.counts(),
             'bridge_issues': bridge.issues,
+            # 080:RF-56: las puertas A–H, solo para informar; nunca bloquean la carga.
+            'puertas_vnr': puertas_informativas(canonical.model),
         })
+        # 080:RF-55: lo que la vía de capas aún no modela va delante del resumen, no solo en metadata.
+        if aviso := aviso_de_capas_sin_modelar(canonical.model.metadata):
+            source['capas_sin_modelar'] = canonical.model.metadata['capas_sin_modelar']
+            source['puertas_vnr']['resumen'] = f"{aviso} {source['puertas_vnr'].get('resumen') or ''}".strip()
         return SourceLoadResult(
             dataset=bridge.dataset,
             catalog_report=None,
@@ -60,7 +68,8 @@ class VnrSourceAdapter:
         """Spec 023: la copia de SQL Server de VNR-GIS de cualquier concesionaria."""
         import os
 
-        from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
+        from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import (
+            canonical_to_cymdist, patron_cable_del_perfil)
         from convertersmartgrid.adaptadores.entrada.vnr.connectors.sqlserver_vnr import SERVIDOR, cargar_copia
 
         servidor = os.environ.get('CSG_SQLSERVER', SERVIDOR)
@@ -76,7 +85,7 @@ class VnrSourceAdapter:
                                             catalogo=catalogo)
         if ampliado:
             fichas = fichas_del_catalogo(modelo, catalogo)
-        bridge = canonical_to_cymdist(modelo, source_path=bak)
+        bridge = canonical_to_cymdist(modelo, source_path=bak, patron_cable=patron_cable_del_perfil())
         source = provenance(snapshot)
         source.update({
             'company': alcance['company'],
@@ -89,6 +98,8 @@ class VnrSourceAdapter:
             'fichas_del_catalogo': fichas,
             'catalogo_ampliado': ampliado,
             'bridge_issues': bridge.issues,
+            # 080:RF-56: las puertas A–H, solo para informar; nunca bloquean la carga.
+            'puertas_vnr': puertas_informativas(modelo),
         })
         return SourceLoadResult(
             dataset=bridge.dataset,
@@ -96,6 +107,70 @@ class VnrSourceAdapter:
             readiness=bridge.readiness,
             provenance=source,
         )
+
+
+#: 080:RF-55: cómo se nombra cada rol en la frase para el operador, en singular y en plural. De los roles reconocidos
+#: se cuentan sus objetos; de las capas que no se reconocen, las capas.
+NOMBRE_DEL_ROL = {'tramos_bt': ('tramo de baja tensión', 'tramos de baja tensión'), 'sed': ('SED', 'SED'),
+                  'nodos': ('nodo', 'nodos'), 'equipos': ('equipo', 'equipos'),
+                  '': ('capa sin reconocer', 'capas sin reconocer')}
+
+
+def _enumerar(partes: list[str]) -> str:
+    return partes[0] if len(partes) == 1 else f"{', '.join(partes[:-1])} y {partes[-1]}"
+
+
+def aviso_de_capas_sin_modelar(metadata: dict) -> str | None:
+    """080:RF-55: la frase que va DELANTE en el resultado de la carga cuando el paquete trae capas que la vía de capas
+    no modela (las capas sin reconocer, o un rol que no lee): qué entró y qué quedó fuera, por rol. Sin ellas, ``None``.
+
+    El auditor (2026-11-14): no basta con un aviso escondido en metadata; el operador debe verlo en la primera línea.
+    Ejemplo: «Solo se modelaron los tramos de media tensión; quedaron fuera 12 tramos de baja tensión, 3 SED y 2 capas
+    sin reconocer.»
+    """
+    otras = (metadata or {}).get('capas_sin_modelar') or []
+    if not otras:
+        return None
+    por_rol: dict[str, int] = {}
+    for capa in otras:
+        rol = str(capa.get('rol') or '')
+        por_rol[rol] = por_rol.get(rol, 0) + (1 if not rol else int(capa.get('registros') or 0))
+    partes = []
+    for rol, n in por_rol.items():
+        singular, plural = NOMBRE_DEL_ROL.get(rol, (rol, rol))
+        partes.append(f'{n} {singular if n == 1 else plural}')
+    # 080:RF-55: la vía de capas también modela nodos, SED, equipos y tramos BT; la frase dice lo que sí entró
+    # (un rol cuenta como modelado si alguna de sus capas entró y ninguna quedó fuera).
+    leidos = ({str(c.get('rol') or '') for c in (metadata or {}).get('capas') or []}
+              - {str(c.get('rol') or '') for c in otras})
+    modelados = ['los tramos de media tensión'] + [nombre for rol, nombre in MODELADOS_POR_ROL if rol in leidos]
+    if len(modelados) == 1:
+        return f'Solo se modelaron los tramos de media tensión; quedaron fuera {_enumerar(partes)}.'
+    return f'Se modelaron {_enumerar(modelados)}; quedaron fuera {_enumerar(partes)}.'
+
+
+#: 080:RF-55: los roles que la vía de capas modela además de los tramos MT, como se dicen al operador.
+MODELADOS_POR_ROL = (('nodos', 'los nodos'), ('sed', 'las SED'), ('equipos', 'los equipos'),
+                     ('tramos_bt', 'los tramos de baja tensión'))
+
+
+def puertas_informativas(modelo) -> dict:
+    """080:RF-56: veredicto e incidencias de las puertas A–H del modelo, sin bloquear nunca.
+
+    La web y el CLI cargan por aquí: antes solo el CLI de VNR corría las puertas, y el
+    operador no veía en la web las incidencias de G y H.
+    """
+    try:
+        from convertersmartgrid.adaptadores.entrada.vnr.application.services import VnrApplicationService
+
+        return VnrApplicationService().informar(modelo)
+    except Exception as exc:  # noqa: BLE001 - informar nunca tumba la carga
+        return {'informativo': True, 'bloquea': False, 'readiness': 'NO_EVALUADO', 'resultados': [],
+                'incidencias': [{'gate': '', 'label': 'Evaluación de las puertas',
+                                 'detail': f'No se completó: {type(exc).__name__}: {exc}'[:300],
+                                 'bloquea': False}],
+                'missing_simulator': [],
+                'resumen': 'Revisión de la red: 1 aviso (la revisión no se completó); no impiden convertir.'}
 
 
 def ampliar_con_lo_que_falta(modelo, *, origen: str = '', catalogo: Path | None = None) -> list[dict]:
@@ -166,12 +241,16 @@ def fichas_del_catalogo(modelo, catalogo: Path | None = None) -> dict[str, int]:
     por_familia: dict[str, dict] = {}
     for codigo in sorted(filas):
         por_familia.setdefault(codigo[:5], filas[codigo])
+    from ..catalog import clase_de_fila
+
     completados = 0
     for tipo in tipos:
         codigo = tipo.conductor_code
         fila = filas.get(codigo) or filas.get(codigo[:-1]) or por_familia.get(codigo[:5])
         if fila is None:
             continue
+        # 080:RF-58: el cable de esta ficha, para que la capacitancia sea la del mismo cable.
+        tipo.clase_cable_rx = clase_de_fila(fila, filas) or ''
         tipo.r1_ohm_km = valor(fila, 'R1', 'ohm_km')
         tipo.x1_ohm_km = valor(fila, 'X1', 'ohm_km')
         tipo.r0_ohm_km = valor(fila, 'R0', 'ohm_km')

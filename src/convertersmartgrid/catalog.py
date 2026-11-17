@@ -29,6 +29,7 @@ from __future__ import annotations
 from .runtime_paths import staging_publicacion
 
 import math
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Sequence
@@ -1147,6 +1148,174 @@ def reactancia_aerea_ohm_km(seccion_mm2: float) -> float:
     """
     radio_m = math.sqrt(seccion_mm2 / math.pi) / 1000.0
     return round(2 * math.pi * 60.0 * 2e-4 * math.log(SEPARACION_AEREA_M / (RMG_7_HILOS * radio_m)), 6)
+
+
+# --- 080:RF-58: la capacitancia de un cable, de su ficha o de su geometría; nunca 0.
+#: Capacitancia de servicio (µF/km) del cable unipolar Cu/XLPE de 8,7/15 kV (redes de hasta
+#: 13,8 kV, como las de 10 kV), por sección (mm²). Ficha del fabricante, columna «Operation
+#: Capacitance»; sus R a 20 °C son las mismas que las de ``FICHAS_N2XSY``.
+FUENTE_FICHA_C_8_7_15 = ('HES Kablo, ficha N2XSYR(A)Y 8,7/15 kV Cu/XLPE (IEC 60502-2, VDE 0276-620), '
+                         '«Operation Capacitance» µF/km: https://www.hes.com.tr/assets/doc/urunler-pdf/en/441.pdf')
+FICHAS_C_XLPE_8_7_15_UF_KM = {35: 0.181, 50: 0.201, 70: 0.229, 95: 0.255, 120: 0.278, 150: 0.302,
+                              185: 0.328, 240: 0.363, 300: 0.398, 400: 0.447, 500: 0.491, 630: 0.543}
+#: Lo mismo para el cable unipolar Cu/XLPE N2XSY de 18/30 kV (Um 36 kV, como las redes de 22,9 kV y
+#: de 33 kV). No se encontró la ficha de Indeco con capacitancia; es la de otro fabricante.
+FUENTE_FICHA_C_18_30 = ('HES Kablo, ficha N2XSY 18/30 kV Cu/XLPE (VDE 0276-620 (HD 620, armonizada con '
+                        'IEC 60502-2)), «Operational Capacitance» µF/km: '
+                        'https://www.hes.com.tr/assets/doc/urunler-pdf/en/604.pdf')
+FICHAS_C_XLPE_18_30_UF_KM = {50: 0.135, 70: 0.151, 95: 0.166, 120: 0.180, 150: 0.194, 185: 0.208,
+                             240: 0.229, 300: 0.248, 400: 0.276, 500: 0.301, 630: 0.330}
+#: Clase de cable → (ficha, fuente). Las demás clases y el EPR van por la fórmula, «supuesta».
+FICHAS_C_POR_CLASE = {'8,7/15 kV': (FICHAS_C_XLPE_8_7_15_UF_KM, FUENTE_FICHA_C_8_7_15),
+                      '18/30 kV': (FICHAS_C_XLPE_18_30_UF_KM, FUENTE_FICHA_C_18_30)}
+#: Permitividad relativa del aislante. XLPE 2,5: IEC 60287-1-1, tabla 3, según quickfield.com
+#: (https://quickfield.com/advanced/cable_dielectric_losses.htm). EPR 3,0: supuesta, sin verificar.
+PERMITIVIDAD_AISLANTE = {'XLPE': 2.5, 'EPR': 3.0}
+CITA_PERMITIVIDAD = {'XLPE': 'εr 2,5 del XLPE: IEC 60287-1-1, tabla 3, según quickfield.com',
+                     'EPR': 'εr 3,0 del EPR: supuesta, sin verificar en la norma'}
+#: La clase del cable por la tensión de FASE de la red (usuario, 2026-11-14: «sus cables de 10 kV son
+#: N2XSY 8,7/15 kV»; «la clase debe ser por tensiones de fase»). Regla universal: la menor clase
+#: U0/U(Um) de IEC 60502-2 cuya U0 (fase-tierra) no quede por debajo de la tensión de fase de la red,
+#: kV_línea/√3, con la banda ``TENSION_MAXIMA_PU`` (±5 % de los estudios, ``estudios_pf.
+#: LIMITES_POR_DEFECTO``), y cuya Um cubra la tensión de línea con la misma banda (IEC 60183:2015, 5.3:
+#: Um «not less than the highest voltage of the three-phase system»).
+#: Caso borde (33 kV: fase con margen 20,0 kV > 18): si con margen no cabe ninguna clase, se toma la
+#: de IEC 60502-2:2005, 4.1 y tabla 1, para la Um que cubre la línea con las categorías A y B, que
+#: admite una U0 por debajo de la fase más alta (Um 36 → U0 18; Um 12 → U0 6,0). Es el paso (3): criterio
+#: de fase del usuario con margen; si ninguna clase cumple, tabla 1 por Um. En 20 kV el criterio de fase
+#: es conservador (11,5·1,05 = 12,1 > 12 → 18/30 kV), aunque la tabla 1 da 12/20 kV para Um 24. Clases de 4.1:
+#: «U0/U(Um) = 3,6/6 (7,2) – 6/10 (12) – 8,7/15 (17,5) – 12/20 (24) – 18/30 (36) kV». Leído en
+#: https://cdn.standards.iteh.ai/samples/11145/ad7ebbd80ae44442aff1a64c6fda3258/IEC-60502-2-2005.pdf
+#: y https://cdn.standards.iteh.ai/samples/20037/ea388cbd4e0d4cd08777c4a6a14b015e/IEC-60183-2015.pdf.
+TENSION_MAXIMA_PU = 1.05
+#: (U0, Um, clase) de IEC 60502-2, de menor a mayor.
+CLASES_IEC_60502_2 = ((3.6, 7.2, '3,6/6 kV'), (6.0, 12.0, '6/10 kV'), (8.7, 17.5, '8,7/15 kV'),
+                      (12.0, 24.0, '12/20 kV'), (18.0, 36.0, '18/30 kV'))
+#: Espesor nominal del aislamiento XLPE de cada clase (mm), de la tabla de IEC 60502-2, sin verificar
+#: en la norma: la fórmula con ellos reproduce las fichas de 8,7/15 y 18/30 kV con menos del 5 %.
+ESPESOR_XLPE_MM = {'3,6/6 kV': 2.5, '6/10 kV': 3.4, '8,7/15 kV': 4.5, '12/20 kV': 5.5, '18/30 kV': 8.0}
+#: Espesor supuesto de la capa semiconductora sobre el conductor (mm): forma parte de dc.
+PANTALLA_CONDUCTOR_MM = 0.5
+#: Sección que se supone cuando ni el tipo ni su código la dicen (mm²); se anota.
+SECCION_CABLE_SUPUESTA_MM2 = 50.0
+FRECUENCIA_HZ = 60.0
+REFERENCIA_FORMULA_C = ('C = 2π·ε0·εr / ln(Di/dc) = εr / (18·ln(Di/dc)) µF/km (IEC 60287-1-1); '
+                        'Di = dc + 2·espesor de aislamiento de IEC 60502-2 (sin verificar en la norma); '
+                        f'dc = diámetro del conductor macizo equivalente + 2·{PANTALLA_CONDUCTOR_MM:g} mm de semiconductor')
+
+
+def regla_de_clase(kv: float | None) -> tuple[str, str]:
+    """080:RF-58: (clase, cómo se eligió) del cable de una red de tensión de línea ``kv``.
+
+    ``FASE``: la menor clase con U0 ≥ kV/√3·1,05 y Um ≥ kV·1,05. ``TABLA_1``: ninguna cabe con margen
+    y se toma la de la Um que cubre la línea (IEC 60502-2, tabla 1, A/B). ``FUERA``: sin tensión o
+    por encima de Um 36 kV, la más alta de IEC 60502-2, supuesta.
+    """
+    if kv is None or kv <= 0:
+        return CLASES_IEC_60502_2[-1][2], 'FUERA'
+    fase = kv / math.sqrt(3) * TENSION_MAXIMA_PU
+    linea = kv * TENSION_MAXIMA_PU
+    for u0, um, clase in CLASES_IEC_60502_2:
+        if u0 >= fase - 1e-9 and um >= linea - 1e-9:
+            return clase, 'FASE'
+    for _u0, um, clase in CLASES_IEC_60502_2:
+        if um >= linea - 1e-9:
+            return clase, 'TABLA_1'
+    return CLASES_IEC_60502_2[-1][2], 'FUERA'
+
+
+def clase_de_cable(kv: float | None) -> tuple[str, float]:
+    """080:RF-58: (U0/U, espesor del aislamiento en mm) del cable de una red de ``kv``, por su tensión de fase."""
+    clase = regla_de_clase(kv)[0]
+    return clase, ESPESOR_XLPE_MM[clase]
+
+
+def capacitancia_formula_uf_km(seccion_mm2: float, kv: float | None, aislante: str = 'XLPE',
+                               clase: str | None = None) -> float:
+    """080:RF-58: C de un cable unipolar apantallado: C = εr / (18·ln(Di/dc)) µF/km (IEC 60287-1-1).
+
+    Es 2π·ε0·εr / ln(Di/dc) en F/m con ε0 = 8,854·10⁻¹² F/m. dc es el diámetro sobre el
+    semiconductor del conductor y Di, sobre el aislamiento (espesor de IEC 60502-2). εr del XLPE:
+    IEC 60287-1-1, tabla 3, según quickfield.com.
+    """
+    espesor = ESPESOR_XLPE_MM[clase] if clase in ESPESOR_XLPE_MM else clase_de_cable(kv)[1]
+    dc = 2.0 * math.sqrt(seccion_mm2 / math.pi) + 2.0 * PANTALLA_CONDUCTOR_MM
+    di = dc + 2.0 * espesor
+    return PERMITIVIDAD_AISLANTE.get(aislante, PERMITIVIDAD_AISLANTE['XLPE']) / (18.0 * math.log(di / dc))
+
+
+def capacitancia_cable(seccion_mm2: float | None, kv: float | None, aislante: str = 'XLPE',
+                       clase: str | None = None) -> tuple[float, str, str]:
+    """080:RF-58: (C en µF/km, método, detalle) de un cable: de su ficha si la hay; si no, de su geometría.
+
+    Ficha para el XLPE de 8,7/15 kV y de 18/30 kV; las demás clases (6/10, 12/20…) y el EPR, por la
+    fórmula, marcada «supuesta». Reconstruir, no bloquear: un cable nunca queda con capacitancia 0.
+    Sin sección, se supone ``SECCION_CABLE_SUPUESTA_MM2`` y se dice. ``clase`` («8,7/15 kV»…), si se
+    sabe (la de la fuente o la de la ficha que dio R y X), manda sobre la de la Um de la red.
+    """
+    if clase in ESPESOR_XLPE_MM:
+        espesor = ESPESOR_XLPE_MM[clase]
+    else:
+        clase, espesor = clase_de_cable(kv)
+    supuesta = not seccion_mm2
+    seccion = float(seccion_mm2 or SECCION_CABLE_SUPUESTA_MM2)
+    tabla, fuente = FICHAS_C_POR_CLASE.get(clase, ({}, ''))
+    ficha = tabla.get(int(seccion)) if seccion.is_integer() else None
+    if ficha is not None and aislante == 'XLPE' and not supuesta:
+        return ficha, 'FICHA', f'{seccion:g} mm², {clase}: {fuente}'
+    nota_seccion = f'; sección supuesta de {seccion:g} mm²' if supuesta else ''
+    c = capacitancia_formula_uf_km(seccion, kv, aislante, clase)
+    return (c, 'FORMULA', f'capacitancia supuesta por la geometría: {seccion:g} mm², {clase}, {aislante}, '
+            f'aislamiento de {espesor:g} mm{nota_seccion}; '
+            f'{CITA_PERMITIVIDAD.get(aislante, CITA_PERMITIVIDAD["XLPE"])}; {REFERENCIA_FORMULA_C}')
+
+
+#: 080:RF-58: «8,7/15», «8.7/15 kV», «18/30 (36) kV»… (U0/U) o «15 kV» sola: la U da la clase.
+_DESIGNACION_U0_U = re.compile(r'(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?)(?:\s*\(\s*\d+(?:[.,]\d+)?\s*\))?\s*(?:kV)?',
+                               re.I)
+_DESIGNACION_U = re.compile(r'(?<![\d.,/])(\d+(?:[.,]\d+)?)\s*kV\b', re.I)
+CLASE_POR_U = {6.0: '3,6/6 kV', 10.0: '6/10 kV', 15.0: '8,7/15 kV', 20.0: '12/20 kV', 30.0: '18/30 kV'}
+
+
+def clase_de_designacion(texto: str | None) -> str | None:
+    """080:RF-58: la clase de un cable por su designación («N2XSY 8,7/15 kV», «… 30 kV»), o None.
+
+    Regla única: la U de la designación es la de la clase (``CLASE_POR_U``); una U que no es de
+    ninguna clase de IEC 60502-2 (una tensión de red como 22,9 kV) no da clase.
+    """
+    texto = str(texto or '')
+    for m in _DESIGNACION_U0_U.finditer(texto):
+        u = float(m.group(2).replace(',', '.'))
+        if u in CLASE_POR_U:
+            return CLASE_POR_U[u]
+    for m in _DESIGNACION_U.finditer(texto):
+        u = float(m.group(1).replace(',', '.'))
+        if u in CLASE_POR_U:
+            return CLASE_POR_U[u]
+    return None
+
+
+def clase_de_fila(fila: dict[str, Any], filas: dict[str, dict[str, Any]] | None = None,
+                  _vistos: frozenset[str] = frozenset()) -> str | None:
+    """080:RF-58: la clase del cable cuya ficha dio R y X a una fila del catálogo.
+
+    Por su fuente, su material o sus observaciones; una fila deducida («de N207003D: R·…») toma la
+    de la fila de la que salió.
+    """
+    texto = ' '.join(str(fila.get(c) or '') for c in ('fuente', 'material', 'observaciones', 'regla'))
+    clase = clase_de_designacion(texto)
+    if clase or not filas:
+        return clase
+    m = re.search(r'\bde ([A-Z0-9]{4,}):', texto)
+    origen = m.group(1) if m else ''
+    if origen and origen in filas and origen not in _vistos:
+        return clase_de_fila(filas[origen], filas, _vistos | {origen})
+    return None
+
+
+def susceptancia_us_km(c_uf_km: float) -> float:
+    """B = 2π·f·C: de µF/km a µS/km, a 60 Hz."""
+    return 2.0 * math.pi * FRECUENCIA_HZ * c_uf_km
 
 
 def filas_semilla() -> dict[str, list[dict[str, Any]]]:
