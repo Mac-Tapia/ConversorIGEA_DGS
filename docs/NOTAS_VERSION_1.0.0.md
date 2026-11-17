@@ -30,7 +30,7 @@ que pasa al añadir demanda. Se usa desde una página web local, en el propio eq
 
 **En beta**, marcadas en su pantalla y desactivables con `CSG_BETA_APAGADAS`: asistente de órdenes, SET nueva y confiabilidad
 (`src/convertersmartgrid/edicion.py`). El PIDE ya no es beta: el corto plazo, el PIDE y el largo plazo tienen cada uno su pestaña
-(`<HASH-L3>`). Su norma de criterios y metodología (RM 428-2017-MEM/DM) sigue publicada como proyecto, y la web lo dice.
+(`5cbe2eae`). Su norma de criterios y metodología (RM 428-2017-MEM/DM) sigue publicada como proyecto, y la web lo dice.
 
 Nada está apagado en la edición de producto (usuario, 2026-11-13). La edición solo decide lo que es de seguridad: las salidas a
 la red están apagadas hasta que el operador las encienda, y los datos del cliente se quedan en su equipo.
@@ -91,14 +91,13 @@ la red están apagadas hasta que el operador las encienda, y los datos del clien
   sin títulos por el contenido de sus columnas, avisa de cada libro que no sabe leer y deja confirmar un formato nuevo (`375200ae`).
 - Evidencia de la suite completa sin omitidas sobre el rc5 (`ee5befb6`).
 
-**Estudios regulatorios (Osinergmin)** — BORRADOR (f7, 2026-11-17). Los huecos `<HASH-…>` se cambian por el commit de cada lote
-al integrarlo.
+**Estudios regulatorios (Osinergmin)**
 
 - PIT: el diagnóstico de la red del área de demanda y el expediente con los formatos de la norma, sobre el registro normativo
   (`e182c823`, `24b4a19d`, `60044e5b`); la demanda de la cadena, el resumen por barra, la generación medida y deducida, los
   usuarios libres y los mapas de densidad de los formatos F-101 a F-124 (`016498fc`); y la pestaña «Estudio PIT» en la web, que
   sube el libro de la red en los cuatro formatos de Excel, lanza el diagnóstico y el expediente y registra las observaciones
-  (`<HASH-L2>`).
+  (`5cbe2eae`).
 - VAD: resultados, PIDE, calidad, costos, tablas e informes sobre el registro normativo (`24b4a19d`), la línea VAD con el
   diagnóstico del PIT (`8985d25f`) y el informe definitivo (`016498fc`).
 - VNR según la Guía del VNR, desde el inventario VNR-GIS y desde la web: zonificación, adaptación por sector típico, códigos del
@@ -128,7 +127,7 @@ al integrarlo.
 - El PIDE costea con la escala y la moneda del perfil y no mezcla soles con dólares (`9cb32b3a`); en la web pide el tipo de cambio
   de los precios de pérdidas (`0ce72a4c`).
 - La proyección anual del PIDE parte, en su año base, del ganador de pronóstico que publica el ciclo común, y la evaluación
-  dice cuál; sin ganador publicado, parte de lo medido y también lo dice (`<HASH-L2>`).
+  dice cuál; sin ganador publicado, parte de lo medido y también lo dice (`5cbe2eae`).
 - El asistente distingue corto plazo, PIDE y largo plazo por la orden (`e405e9c9`) y nombra los alimentadores por su código,
   como la web (`51895566`).
 
@@ -149,7 +148,7 @@ al integrarlo.
 **Internos, sin efecto en lo que se entrega activo**
 
 - Arquitectura por capas: los casos de uso piden sus adaptadores por puerto declarado en `pyproject.toml`, y la deuda de capas
-  queda vacía (`<HASH-L2>`).
+  queda vacía (`5cbe2eae`).
 - La aceptación automática por versión (spec 100) tiene su matriz, su recorrido y su veredicto (`016498fc`).
 - La arquitectura C4 rehecha, su TO-BE y 9 ADR (`00d30651`, `79d1da10`); la puerta de calidad exige el intérprete MCP y el lint de
   fronteras del frontend (`2962d35a`).

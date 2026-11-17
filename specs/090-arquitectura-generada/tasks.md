@@ -15,4 +15,4 @@
       `features/`. (RF-18)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_arquitectura_generada.py` en verde, sin la sección
       «Sin subsistema asignado» en `docs/ARQUITECTURA_CATALOGO.md`.
-      Hecho en <HASH-L4> (LOTE-4, ARQ-SUBSISTEMAS); pruebas: tests/test_arquitectura_generada.py.
+      Hecho en ecad83ea (LOTE-4, ARQ-SUBSISTEMAS); pruebas: tests/test_arquitectura_generada.py.

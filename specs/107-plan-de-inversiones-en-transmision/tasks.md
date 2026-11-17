@@ -384,17 +384,19 @@ adaptador VNR (integrador f9).
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_demanda.py -k resumen` en verde, y
        `llenado.pendientes_de_mapeo` ya no lista ningún formato de demanda sin causa aceptada.
       Hecho en 016498fc (LOTE-1); pruebas: tests/test_pit_demanda.py -k resumen.
-- [ ] T31. Entradas del PIT desde las fuentes de la empresa: `/api/pit/diagnostico` y `/api/pit/expediente` aceptan
+- [x] T31. Entradas del PIT desde las fuentes de la empresa: `/api/pit/diagnostico` y `/api/pit/expediente` aceptan
        `fuente_red_area`, `fuente_proyeccion` y `fuente_alternativas` (o la ruta, como antes), y sin ninguna toman la
        vigente de la empresa, salvo las alternativas; la pestaña «Estudio PIT» las elige con `ElegirFuente` y sube por
        `/fuentes`; `/api/pit/areas` dice la empresa del perfil para el aviso de la red del espacio. (RF-19)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_web.py` en verde; `frontend/test/pitPanel.test.mjs`
        y `npm test`, `npm run lint`, `npx tsc --noEmit -p .` y `npm run build` sin errores.
-- [ ] T32. La norma del PIT desde el registro: `pit/norma.py` lee los años de la programación, el horizonte, el factor
+       Hecho en ecad83ea (LOTE-4, PIT-ESPACIO); pruebas: tests/test_pit_web.py frontend/test/pitPanel.test.mjs.
+- [x] T32. La norma del PIT desde el registro: `pit/norma.py` lee los años de la programación, el horizonte, el factor
        de potencia de las barras de MT, la demanda mínima del N-1 y las reglas de la comparación; `diagnosticar` y
        `evaluar` las aplican con `registro` y el expediente las cita en `reglas_aplicadas.json`. (RF-20)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_norma.py` y los `tests/test_pit_*.py` en
        verde.
+       Hecho en ecad83ea (LOTE-4, PIT-NORMA); pruebas: tests/test_pit_norma.py tests/test_pit_*.py.
 - [x] T33. Biblioteca normativa general (`biblioteca_normativa.py`): cargar_biblioteca, huella_biblioteca y
       ruta_capa_usuario. (RF-21)
       Hecho cuando: `pytest tests/test_biblioteca_normativa.py` en verde. Hecho en esta entrega (BIBLIOTECA, 4d): 4 passed.

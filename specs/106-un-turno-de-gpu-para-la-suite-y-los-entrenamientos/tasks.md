@@ -30,8 +30,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `tests/test_puerta_calidad.py` (106:RF-15) en verde.
 - [ ] T2. Suite completa con un entrenamiento esperando su turno: las 62 de 10a80812 en verde, sin omitidas. (RF-1, RF-4)
       Hecho cuando: la suite completa corrida sola da 0 fallidas, 0 omitidas y 0 errores, y el entrenamiento esperó.
-- [ ] T6. La espera de trabajos de las pruebas (`tests/apoyo.esperar_trabajo`) va por estado y avance: `timeout` es la
+- [x] T6. La espera de trabajos de las pruebas (`tests/apoyo.esperar_trabajo`) va por estado y avance: `timeout` es la
       ventana sin avance, el tope total es de 900 s, e «interrumpido» también termina. Las 189 llamadas no cambian.
       (RF-20)
       Hecho cuando: `tests/test_espera_por_avance.py` (106:RF-20) en verde, con rojo previo sobre la espera de tope fijo,
       y `tests/test_web_api.py` en verde.
+      Hecho en ecad83ea (LOTE-4, FIX-ESPERA-PARALELO); pruebas: tests/test_espera_por_avance.py.

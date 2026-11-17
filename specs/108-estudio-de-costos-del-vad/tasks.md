@@ -327,13 +327,14 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       y `npm test` en verde; una SED sin demanda y un código desconocido son huecos nombrados; un fichero que no es un
       inventario o un SICODI se rechaza con 400.
       Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: tests/test_vnr_api.py tests/test_vnr_estudio.py.
-- [ ] T29. Pestaña «Estudio VAD» en la web (`frontend/src/features/vad/EstudioVad.tsx` con `frontend/src/api/vad.ts`), con
+- [x] T29. Pestaña «Estudio VAD» en la web (`frontend/src/features/vad/EstudioVad.tsx` con `frontend/src/api/vad.ts`), con
       las rutas que le faltaban en `web/vad_api.py`: el detalle del estudio (su armado, sus observaciones, lo que pueden
       afectar y sus salidas), registrar y responder observaciones, y el Informe Definitivo como trabajo, comprobado antes
       de encolar con la misma regla que el informe. Sus trabajos avisan en el paso «vad». (RF-26)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_web.py tests/test_asistente_107_112.py` en
       verde; la matriz de cobertura de `frontend/test/vadPanel.test.mjs` (cada ruta del VAD del contrato con su llamada,
       su control y su prueba) y `npm test`, `npm run lint`, `npx tsc --noEmit -p .` y `npm run build` sin errores.
+      Hecho en ecad83ea (LOTE-4, VAD-PANEL); pruebas: tests/test_vad_web.py frontend/test/vadPanel.test.mjs.
 - [ ] T30. La línea del VAD de punta a punta desde el caso: el armado encadena dimensionamiento, costo estándar,
       resultados (`calcular_vad`), PIDE (`incorporar_pide`), calidad, costos de explotación, tablas (`escribir_tablas`),
       informes e Informe Definitivo, cada paso con su entrada en `sistemas.json` o en el perfil y su hueco nombrado si
@@ -354,6 +355,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       SICODI vigente de las fuentes de la empresa, firmado tal como llega, y `estudio.costo` (resolución, año, moneda,
       estructura y código de cada SED); la tabla 2 y el apartado 4 llevan el costo estándar por sistema. Pruebas:
       `tests/test_vad_linea_b.py`.
+      Avance (LOTE-4): la línea A y B por la API de la web, en test_vad_linea y test_vad_linea_b; falta el recorrido en navegador real.
 - [x] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "108:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-26 y la suite está en verde.
       Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: las del criterio.
