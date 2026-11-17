@@ -1267,6 +1267,9 @@ def test_la_cabecera_del_pronostico_no_deja_abiertos_todos_los_libros(tmp_path, 
     for i in range(k):
         hojas = {f'M{a}': _serie(rng.randint(1, 3), 40.0 + i, inicio=T0 + timedelta(days=i), ruido=rng.randrange(10**6))
                  for a in alimentadores if rng.random() < .7 or i == 0}
+        if not hojas:  # un libro sin hojas no se puede guardar: al menos un alimentador en cada libro
+            a = rng.choice(alimentadores)
+            hojas[f'M{a}'] = _serie(rng.randint(1, 3), 40.0 + i, inicio=T0 + timedelta(days=i), ruido=rng.randrange(10**6))
         _libro_cabecera(tmp_path / 'cab' / f'l{i}.xlsx', hojas)
         os.utime(tmp_path / 'cab' / f'l{i}.xlsx', ns=(1_700_000_000_000_000_000 + i * 10**9,) * 2)
     _libro_central(tmp_path / 'cab' / 'central.xlsx')
