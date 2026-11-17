@@ -21,6 +21,12 @@ que pasa al añadir demanda. Se usa desde una página web local, en el propio eq
   complemento de IA; sin ella, el trabajo lo dice y no cae a la CPU. Ningún modelo pasa a uso sin sus puertas (071). La 1.0 no trae
   pesos entrenados: se generan en el equipo del cliente, con sus datos. El reentreno automático va solo, salvo que el operador lo
   pare (`CSG_AUTOENTRENAMIENTO=0`); las mejoras del código solo funcionan en el entorno de desarrollo.
+- Estudios regulatorios con la forma que pide Osinergmin, con sus formatos oficiales: el Plan
+  de Inversiones en Transmisión (PIT), el Valor Agregado de Distribución (VAD) y el Valor Nuevo de Reemplazo (VNR) según la
+  Guía del VNR (RCD 232-2017-OS/CD), con el SICODI de la última fijación. Las normas vigentes salen de un registro normativo
+  común, con la cláusula de vigencia de cada una.
+- Fuentes y expedientes en la nube (Google Drive y OneDrive) y envío de informes por correo (Gmail y Outlook), desde la web.
+- El editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo.
 
 **En beta**, marcadas en su pantalla y desactivables con `CSG_BETA_APAGADAS`: asistente de órdenes, SET nueva, diagnóstico y borrador
 del PIDE, y confiabilidad (`src/convertersmartgrid/edicion.py`).
@@ -84,6 +90,69 @@ la red están apagadas hasta que el operador las encienda, y los datos del clien
   sin títulos por el contenido de sus columnas, avisa de cada libro que no sabe leer y deja confirmar un formato nuevo (`375200ae`).
 - Evidencia de la suite completa sin omitidas sobre el rc5 (`ee5befb6`).
 
+**Estudios regulatorios (Osinergmin)** — BORRADOR (f7, 2026-11-17). Los huecos `<HASH-…>` se cambian por el commit de cada lote
+al integrarlo.
+
+- PIT: el diagnóstico de la red del área de demanda y el expediente con los formatos de la norma, sobre el registro normativo
+  (`e182c823`, `24b4a19d`, `60044e5b`); la demanda de la cadena, el resumen por barra, la generación medida y deducida, los
+  usuarios libres y los mapas de densidad de los formatos F-101 a F-124 (`016498fc`); y la pestaña «Estudio PIT» en la web, que
+  sube el libro de la red en los cuatro formatos de Excel, lanza el diagnóstico y el expediente y registra las observaciones
+  (`<HASH-L2>`).
+- VAD: resultados, PIDE, calidad, costos, tablas e informes sobre el registro normativo (`24b4a19d`), la línea VAD con el
+  diagnóstico del PIT (`8985d25f`) y el informe definitivo (`016498fc`).
+- VNR según la Guía del VNR, desde el inventario VNR-GIS y desde la web: zonificación, adaptación por sector típico, códigos del
+  Anexo 2, formatos del Anexo 5 y altas y bajas (`5cc6908d`).
+- El diagnóstico del `.pfd` de DIgSILENT, con cada borrado demostrado en DIgSILENT (`948eddc9`), y los vínculos de cada elemento
+  del `.pfd` con la red convertida (`016498fc`).
+
+**Nube, correo y web**
+
+- Cuentas en la nube, correo con sus borradores y un solo selector por entrada para elegir del equipo o de la nube (`60044e5b`,
+  `8985d25f`).
+- La web se maneja entera con el teclado, con su diseño accesible; el mapa y la vista previa se enmarcan con un solo mecanismo
+  (`16125499`).
+- Los avisos, los errores y los textos de la web dicen qué pasó y qué hacer, sin citar requisitos internos (`2962d35a`).
+- La búsqueda en VNR-GIS va en su propio carril y no ocupa el del motor (`016498fc`).
+- El asistente hace la nube, el correo, el PIT, el VAD, el plano y el benchmark por las mismas rutas que la web, y para
+  enviar, publicar, compartir, importar o conectar espera el clic del operador (`e2a99c73`).
+
+**Estudios y obras**
+
+- 4.2 estudia cualquier caso de cualquier proyecto de DIgSILENT, con o sin calibración, sin dejar rastro en los casos del
+  operador, y cada corrida deja su resumen ejecutivo (`bf0755df`); se calibra y se estudia cualquier proyecto, convertido o no por
+  el conversor (`8164a81f`).
+- Tras conectar una carga, la web dice qué ocasionó y si las obras lo corrigen; ningún informe se escribe sin comprobarlo en
+  DIgSILENT (`38dc1581`).
+- La solicitud de factibilidad se rellena con la carga sola, y la web no ofrece proyectos borrados de DIgSILENT (`3a02ea17`).
+- El PIDE costea con la escala y la moneda del perfil y no mezcla soles con dólares (`9cb32b3a`); en la web pide el tipo de cambio
+  de los precios de pérdidas (`0ce72a4c`).
+- La proyección anual del PIDE parte, en su año base, del ganador de pronóstico que publica el ciclo común, y la evaluación
+  dice cuál; sin ganador publicado, parte de lo medido y también lo dice (`<HASH-L2>`).
+- El asistente distingue corto plazo, PIDE y largo plazo por la orden (`e405e9c9`) y nombra los alimentadores por su código,
+  como la web (`51895566`).
+
+**Instalación y datos**
+
+- La 1.0 instalada lleva sus manuales y notas, una sola versión y una vuelta atrás que cambia documentos y punteros juntos
+  (`bd4cc7d2`); todo queda activo en la edición de producto (`ccb81aa8`).
+- Una subida rechazada ya no borra la entrada buena, y borrar un espacio no choca con un trabajo que se encola (`24d99d15`).
+- Un corte no deja ficheros de estado a medias, DIgSILENT no tiene dos dueños y la GPU no queda tomada para siempre
+  (`d958bb7e`).
+- Los libros nuevos de demanda guardan su estado y sus avisos de una vez, aunque Windows niegue un instante el reemplazo
+  (`40f8ad25`, `ccceb4c8`).
+- El controlador de NVIDIA ya no tumba el programa al iniciar CUDA, y el diagnóstico aconseja actualizarlo (`cfc66465`).
+- La conversión de los modelos de la red se hace sin recorrer las tablas una vez por cada salida (`a9918f93`).
+- La entrega se construye con su Python oficial firmado, `pip-audit`, firma y `SHA256SUMS`, y el instalador muestra la licencia
+  MIT y el acuerdo comercial opcional (`3ce72ece`, `24b4a19d`).
+
+**Internos, sin efecto en lo que se entrega activo**
+
+- Arquitectura por capas: los casos de uso piden sus adaptadores por puerto declarado en `pyproject.toml`, y la deuda de capas
+  queda vacía (`<HASH-L2>`).
+- La aceptación automática por versión (spec 100) tiene su matriz, su recorrido y su veredicto (`016498fc`).
+- La arquitectura C4 rehecha, su TO-BE y 9 ADR (`00d30651`, `79d1da10`); la puerta de calidad exige el intérprete MCP y el lint de
+  fronteras del frontend (`2962d35a`).
+
 ## Requisitos
 
 - Windows 10 u 11 de 64 bits y al menos 2 GB libres en el disco de los datos.
@@ -122,14 +191,14 @@ calibración por año con bancos y tramos de dos conductores (025 T27); el asist
 - PIDE y planeamiento de largo plazo: en beta; falta su aceptación real y la base de módulos de transmisión (072 T9b, T11, T13, T14).
 - Asistente de órdenes: en beta. Faltan el intérprete con codificador preentrenado (069 T7), la búsqueda multilingüe (097 T3) y la
   revisión por roles (047 T4, T7, T8).
-- Pronóstico de demanda: falta la corrida larga real de todos los modelos (089 T7) y la proyección para todos los años del PIDE
-  (031 T4, T5); se ofrece en las dos ediciones.
+- Pronóstico de demanda: falta la corrida larga real de todos los modelos (089 T7) y la corrida real de la proyección de un
+  sistema con sus métricas por modelo (031 T5); se ofrece en las dos ediciones.
 - Libros nuevos de demanda: falta verlo en la web real arrancada por el operador (104 T6).
 - Modelos que se entregan activos con tareas abiertas: gemelo físico PINN/GNN (045 T3), aprendizaje continuo (050 T3b, T4b, T5b), puertas de los modelos
   (071 T5), gobierno de modelos (043 T9), agente en producción (027 T11, T26), piloto MADRL (074 T5, T7, T8). La 1.0 no trae pesos
   entrenados.
-- Internas, sin efecto para el usuario: arquitectura por capas (002 T7, T8, T9, T11, T12), renombrar la carpeta (058 T6) y el turno de
-  GPU de la suite (106 T2).
+- Internas, sin efecto para el usuario: arquitectura por capas (002 T7, T9, T12), renombrar la carpeta del entorno de desarrollo
+  (058 T6, con su herramienta `tools/mudar_carpeta_principal.py` y a falta de la mudanza real) y el turno de GPU de la suite (106 T2).
 
 **Del producto:**
 

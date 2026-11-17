@@ -9,6 +9,7 @@ queda fuera y dicho en el diagnóstico (RF-11, RF-26).
 from __future__ import annotations
 
 import json
+import os
 import tomllib
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
@@ -17,9 +18,53 @@ from importlib.metadata import EntryPoint, entry_points
 from pathlib import Path
 from typing import Any
 
-from .puertos import PUERTOS, VERSION_PUERTOS, Modulo, metodos_que_faltan
+from .puertos import GRUPO_ADAPTADORES, PUERTOS, PUERTOS_ADAPTADORES, VERSION_PUERTOS, Modulo, metodos_que_faltan
 
 GRUPO = 'convertersmartgrid.modulos'
+#: Con «1», los entry points de los adaptadores se leen del pyproject del árbol y no de los metadatos instalados: para
+#: probar un worktree cuyo pyproject declara adaptadores que el .venv compartido aún no tiene instalados.
+VARIABLE_DESDE_PYPROJECT = 'CSG_ENTRY_POINTS_DESDE_PYPROJECT'
+REINSTALAR = 'pip install -e . --no-deps'
+_RAIZ_PAQUETE = Path(__file__).resolve().parents[2]
+_ADAPTADORES: dict[str, Any] = {}
+
+
+class AdaptadorFaltante(RuntimeError):
+    """Un adaptador interno que no está instalado o no cumple su puerto: dice cuál y cómo arreglarlo (002 T7, a). No es
+    un ImportError a propósito: ningún «except ImportError» de un caso de uso debe tragarlo en silencio."""
+
+
+def _entry_point_del_adaptador(puerto: str) -> EntryPoint | None:
+    """Solo el entry point pedido, por su nombre: uno roto de otro puerto ni se mira (resolución perezosa)."""
+    if os.environ.get(VARIABLE_DESDE_PYPROJECT) == '1':
+        datos = tomllib.loads((_RAIZ_PAQUETE / 'pyproject.toml').read_text(encoding='utf-8'))
+        valor = datos['project'].get('entry-points', {}).get(GRUPO_ADAPTADORES, {}).get(puerto)
+        return EntryPoint(name=puerto, value=valor, group=GRUPO_ADAPTADORES) if valor else None
+    return next(iter(entry_points(group=GRUPO_ADAPTADORES, name=puerto)), None)
+
+
+def adaptador(puerto: str) -> Any:
+    """La implementación del adaptador interno de ``puerto`` (002 T7, a; RF-9): se resuelve al pedirla, una vez por
+    proceso, y se comprueba contra su puerto. Sin ella, :class:`AdaptadorFaltante` con el entry point, el puerto y la
+    orden que lo arregla; nunca un respaldo en silencio."""
+    if puerto in _ADAPTADORES:
+        return _ADAPTADORES[puerto]
+    if puerto not in PUERTOS_ADAPTADORES:
+        raise AdaptadorFaltante(f'el puerto «{puerto}» no está en puertos.PUERTOS_ADAPTADORES')
+    ep = _entry_point_del_adaptador(puerto)
+    if ep is None:
+        raise AdaptadorFaltante(f'falta el entry point «{puerto}» del grupo {GRUPO_ADAPTADORES} (puerto {puerto}): '
+                                f'reinstale el paquete con «{REINSTALAR}»')
+    try:
+        implementacion = ep.load()
+    except Exception as exc:  # frontera: un adaptador roto se dice con su puerto, no como otro error cualquiera
+        raise AdaptadorFaltante(f'el entry point «{puerto}» ({ep.value}) no carga: {type(exc).__name__}: {exc}; '
+                                f'reinstale con «{REINSTALAR}»') from exc
+    faltan = [a for a in PUERTOS_ADAPTADORES[puerto] if not hasattr(implementacion, a)]
+    if faltan:
+        raise AdaptadorFaltante(f'el adaptador «{puerto}» ({ep.value}) no tiene {", ".join(faltan)} de su puerto')
+    _ADAPTADORES[puerto] = implementacion
+    return implementacion
 #: La distribución cuyos módulos son internos y no piden permiso (RF-27).
 DISTRIBUCION_PROPIA = 'convertersmartgrid'
 #: Lista local de permitidos; no hay ninguna ruta web que la cambie (RF-24).

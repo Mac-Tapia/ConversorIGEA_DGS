@@ -15,6 +15,7 @@ import { textoEstado } from '../features/powerfactory/enviarInformeLogica';
 import { AccionesOperadorCtx, type AccionesOperador } from '../shared/accionesOperador';
 import { AvisosDatos, EspacioNoDisponible } from './AvisosDatos';
 import { EstudioVnr } from '../features/vnr/EstudioVnr';
+import { EstudioPit } from '../features/pit/EstudioPit';
 import { CargasTab } from '../features/powerfactory/CargasTab';
 import { EvolucionFijas } from '../features/clientesfijos/EvolucionFijas';
 import { FeedersPanel } from '../features/conversion/FeedersPanel';
@@ -46,6 +47,8 @@ const TABS = [
   { id: 'clientes_fijos', label: 'Evolución de clientes fijos', el: <EvolucionFijas />, entradas: false },
   // 108 T28: el VNR según la Guía (RCD 232-2017) desde el inventario VNR-GIS y el SICODI; no necesita la red cargada.
   { id: 'vnr', label: 'Estudio VNR', el: <EstudioVnr />, entradas: false },
+  // 107 T13: el diagnóstico y el expediente del PIT por área de demanda; no necesita la red cargada.
+  { id: 'pit', label: 'Estudio PIT', el: <EstudioPit />, entradas: false },
   { id: 'catalog', label: 'Catálogo de parámetros', el: <CatalogTab />, entradas: true },
   { id: 'system', label: 'Sistema completo', el: <SystemTab />, entradas: true },
   // Spec 026: la consola de órdenes no necesita la entrega cargada (puede pedir que se cargue).

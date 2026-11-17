@@ -1,6 +1,6 @@
 # Spec 112 — Datasets de referencia anonimizados y benchmarks reproducibles
 
-Estado: aprobada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-22 y BP-21, y orden del usuario del 2026-11-14:
+Estado: cumplida (2026-11-17: todas sus tareas cerradas); antes aprobada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-22 y BP-21, y orden del usuario del 2026-11-14:
 «haz nuevos spec». G0: `D:/csg/G0_PLAN_MAESTRO/C/C_FILAS_BP.md` (BP-22: solo existe la anonimización del paquete de
 soporte).
 

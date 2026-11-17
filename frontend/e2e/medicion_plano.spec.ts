@@ -30,20 +30,19 @@ test('111:RF-1 — la red unida con todos los alimentadores se dibuja dentro del
   for (const a of alimentadores) q.append('alimentador', a);
   const url = `${base}/api/workspaces/${encodeURIComponent(espacio)}/plano/pagina?${q.toString()}`;
 
-  let pesoBytes = 0;
-  page.on('response', async (resp) => {
-    if (resp.url().includes('/plano/pagina')) pesoBytes = (await resp.body()).length;
-  });
-  // El servidor por separado: lo que tarda en generar la página (la misma petición, pedida antes del marco).
+  // El servidor por separado: lo que tarda en generar la página (la misma petición, pedida antes del marco) y su peso,
+  // leído de esa respuesta ya completa (sin carrera con un manejador asíncrono de «response»).
   const t0 = Date.now();
   const generada = await page.request.get(url);
   expect(generada.ok()).toBeTruthy();
+  const pesoBytes = (await generada.body()).length;
   const servidorMs = Date.now() - t0;
 
   // Como en la pestaña «Plano de la red»: la página va en un <iframe sandbox="allow-scripts"> dentro de la web, que es el
   // único origen al que la página manda su «listo».
-  const { primerDibujoMs, listoDesdeNavegacionMs } = await page.evaluate(async (src) => {
-    return await new Promise<{ primerDibujoMs: number; listoDesdeNavegacionMs: number }>((ok, mal) => {
+  // El primer dibujo incluye la petición del propio marco (otra vez al servidor) y el dibujo en el navegador.
+  const { primerDibujoMs } = await page.evaluate(async (src) => {
+    return await new Promise<{ primerDibujoMs: number }>((ok, mal) => {
       const marco = document.createElement('iframe');
       marco.setAttribute('sandbox', 'allow-scripts');
       marco.style.width = '1200px';
@@ -53,8 +52,7 @@ test('111:RF-1 — la red unida con todos los alimentadores se dibuja dentro del
       window.addEventListener('message', (e) => {
         if (e.source === marco.contentWindow && e.data && e.data.tipo === 'listo') {
           clearTimeout(reloj);
-          const t = performance.now() - inicio;
-          ok({ primerDibujoMs: Math.round(t), listoDesdeNavegacionMs: Math.round(t) });
+          ok({ primerDibujoMs: Math.round(performance.now() - inicio) });
         }
       });
       marco.src = src;
@@ -64,7 +62,7 @@ test('111:RF-1 — la red unida con todos los alimentadores se dibuja dentro del
 
   const medicion = {
     semilla: Number(process.env.CSG_E2E_SEMILLA), alimentadores: alimentadores.length, pesoBytes,
-    primerDibujoMs, listoDesdeNavegacionMs, servidorMs, presupuesto: PRESUPUESTO,
+    primerDibujoMs, servidorMs, presupuesto: PRESUPUESTO,
     navegador: info.project.name, fecha: new Date().toISOString(),
   };
   mkdirSync(join(AQUI, 'resultados'), { recursive: true });

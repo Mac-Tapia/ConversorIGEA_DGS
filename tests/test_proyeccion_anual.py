@@ -613,3 +613,77 @@ def test_ciclo_compiten_todos_los_modelos_de_pronostico(tmp_path):
     cmd = orden_temporal(args, tmp_path / 'r.json', 'gru', 'nhits', 'tft', 'patchtst')
     assert cmd[cmd.index('--comparar') + 1] == 'ingenuo,estacional_semanal,gru,nhits,tft,patchtst'
 
+
+
+# ------------------------------------------------------------------ T4 (RF-10): el ganador publicado del ciclo común
+def _exige_ciclo():
+    """Lo nuevo de la T4: su ausencia es la falla de la aserción, no un AttributeError."""
+    assert hasattr(pa, 'ganador_del_ciclo'), 'falta proyeccion_anual.ganador_del_ciclo (031:RF-10)'
+
+
+def _miembro(tmp_path, maximas, *, con_emision=True):
+    """Lo que da ``miembro_en_uso('gru')`` con un conjunto publicado: su versión y la carpeta del candidato."""
+    carpeta = tmp_path / 'candidato'
+    (carpeta / 'artifacts').mkdir(parents=True)
+    if con_emision:
+        (carpeta / 'artifacts' / 'pronostico.json').write_text(json.dumps(
+            {'marca': 'pronostico', 'clase': 'escaladas',
+             'maximas': {n: {'valor': v, 'algorithm': 'nhits', 'unit': 'kW'} for n, v in maximas.items()}}), encoding='utf-8')
+    return {'conjunto_id': 'c' * 64, 'familia': 'gru', 'candidate_id': 'a' * 64, 'modelo_registro': 'pronostico_escaladas',
+            'detalle': {'path': str(carpeta), 'model_manifest': {'algorithm': 'nhits'}}}
+
+
+def test_ciclo_sin_ganador_publicado_el_anio_base_parte_de_lo_medido(emitida):
+    """031:RF-10 — sin conjunto publicado no cambia nada, y la evaluación lo dice."""
+    _exige_ciclo()
+    d, c, pro, _ev = emitida
+    ciclo = pa.ganador_del_ciclo(en_uso=lambda familia: None)
+    assert ciclo['usado'] is False and 'no ha publicado' in ciclo['motivo']
+    pro2, ev2 = pa.proyectar(d, c, proyecto='P', anio_base=2026, anio_corto=4, anio_fin=7, ciclo=ciclo)
+    assert pro2['filas'] == pro['filas'] and pro2['filas_corto_plazo'] == pro['filas_corto_plazo']
+    assert ev2['ciclo_comun'] == ciclo
+
+
+def test_ciclo_el_ganador_publicado_ancla_el_anio_base_y_lo_anota(emitida, tmp_path):
+    """031:RF-10 — con un ganador publicado por el ciclo común, el año base de los objetivos que trae parte de su
+    emisión (la Q, en la misma proporción si no trae la suya); los demás siguen con lo medido. La evaluación anota el
+    conjunto, el candidato, su registro y su algoritmo, y qué objetivos parten de él."""
+    _exige_ciclo()
+    d, c, pro, _ev = emitida
+    medida = {(f['carga'], f['anio']): f for f in pro['filas']}
+    anclado = next(f for f in pro['filas'] if f['objetivo'].startswith('escaladas:'))
+    objetivo, carga = anclado['objetivo'], anclado['carga']
+    ciclo = pa.ganador_del_ciclo(en_uso=lambda familia: _miembro(tmp_path, {objetivo: 12345.0}))
+    assert ciclo['usado'] is True and ciclo['algorithm'] == 'nhits' and ciclo['modelo_registro'] == 'pronostico_escaladas'
+    pro2, ev2 = pa.proyectar(d, c, proyecto='P', anio_base=2026, anio_corto=4, anio_fin=7, ciclo=ciclo)
+    cc = ev2['ciclo_comun']
+    assert cc['usado'] is True and cc['objetivos_anclados'] == [objetivo]
+    assert {k: cc[k] for k in ('conjunto_id', 'candidate_id', 'modelo_registro', 'algorithm')} == \
+        {'conjunto_id': 'c' * 64, 'candidate_id': 'a' * 64, 'modelo_registro': 'pronostico_escaladas', 'algorithm': 'nhits'}
+    assert 'maximas' not in cc
+    razones = []
+    for f in pro2['filas']:
+        antes = medida[(f['carga'], f['anio'])]
+        if f['carga'] == carga:
+            razon = f['p_kw'] / antes['p_kw']
+            razones.append(razon)
+            assert f['q_kvar'] / antes['q_kvar'] == pytest.approx(razon, rel=1e-3), 'la Q, en la misma proporción'
+            assert 'ganador publicado del ciclo común' in f['base']
+        else:
+            assert f['p_kw'] == antes['p_kw'] and f['base'] == antes['base'], 'los que no trae siguen con lo medido'
+    assert razones and all(r == pytest.approx(razones[0], rel=1e-3) for r in razones), f'un solo cambio de nivel: {razones}'
+    assert razones[0] != pytest.approx(1.0, rel=1e-3), 'el año base cambió'
+
+def test_ciclo_ilegible_o_sin_emision_no_inventa_una_version(tmp_path):
+    """031:RF-10 — un conjunto que no se lee, o un ganador sin su emisión, no se usa: se dice por qué y el año base
+    parte de lo medido; sin emisión, la versión que se intentó queda anotada."""
+    _exige_ciclo()
+    from convertersmartgrid.contratos_aprendizaje import CicloBloqueado
+
+    def roto(familia):
+        raise CicloBloqueado('conjunto activo ilegible: x')
+
+    ciclo = pa.ganador_del_ciclo(en_uso=roto)
+    assert ciclo['usado'] is False and 'no se lee' in ciclo['motivo']
+    ciclo = pa.ganador_del_ciclo(en_uso=lambda familia: _miembro(tmp_path, {}, con_emision=False))
+    assert ciclo['usado'] is False and ciclo['candidate_id'] == 'a' * 64 and 'emisión' in ciclo['motivo']

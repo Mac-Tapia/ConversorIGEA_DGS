@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
+import { nombreCarril } from '../../shared/carriles';
 import type { MonitorAgenteEstado } from '../../api/types';
 
 const estados: Record<string, string> = {
@@ -74,7 +75,7 @@ export function MonitorAgente() {
       {!operaciones.length ? <p className="small">Aún no hay operaciones observadas en este espacio.</p> :
         <table className="small"><thead><tr><th>Operación</th><th>Estado y avance</th><th>Control y evidencia</th></tr></thead>
           <tbody>{operaciones.map((j) => <tr key={j.id}>
-            <td>{j.title}<br /><span className="muted">{j.lane === 'powerfactory' ? 'DIgSILENT' : j.lane === 'asistente' ? 'Asistente' : 'Motor'}</span></td>
+            <td>{j.title}<br /><span className="muted">{nombreCarril(j.lane)}</span></td>
             <td>{j.seguimiento === 'interrumpido' ? 'Proceso no observado: verificar antes de retomar' : estados[j.status] ?? j.status}
               {j.progress && <p>{j.progress.index}/{j.progress.total} · {j.progress.label}</p>}
               {j.error && <p className="alert alert-error">{j.error}</p>}</td>

@@ -3,6 +3,14 @@
 Un módulo, propio o de otro paquete, declara en el grupo de entry points
 ``convertersmartgrid.modulos`` un objeto :class:`Modulo`. El registro comprueba la versión
 mayor (RF-25) y los métodos de su puerto (RF-11) antes de darlo por bueno.
+
+Hay dos listas de puertos, a propósito (002 T7, a):
+
+- ``PUERTOS``, los de los **módulos enchufables** (lector, escritor, estudio, sesión), que puede declarar cualquier
+  paquete, propio o de terceros, en ``convertersmartgrid.modulos``;
+- ``PUERTOS_ADAPTADORES``, los de los **adaptadores internos** que piden los casos de uso (batch, cargas_pf, reglas) por
+  el grupo ``convertersmartgrid.adaptadores`` (``registro_modulos.adaptador``). Van aparte para que un paquete de terceros
+  no pueda declararse un puerto interno (p. ej. «oraculo») y colarse en la conversión.
 """
 from __future__ import annotations
 
@@ -59,6 +67,23 @@ PUERTOS: dict[str, tuple[str, ...]] = {
     'estudio': ('usa_powerfactory', 'ejecutar'),
     'sesion': ('ejecutar',),
 }
+
+#: 002 T7 (a), RF-1, RF-9: los puertos de los adaptadores internos que usan los casos de uso (batch, cargas_pf, reglas),
+#: cada uno con su entry point del grupo ``convertersmartgrid.adaptadores``: la aplicación no los importa. Van aparte de
+#: ``PUERTOS``, el de los módulos enchufables: un paquete de terceros no puede declararse uno de estos.
+PUERTOS_ADAPTADORES: dict[str, tuple[str, ...]] = {
+    'salida-dgs': ('write_dgs',),
+    'tablas-dgs': ('write_dgs_tsv', 'write_dgs_xlsx'),
+    'geografia': ('assert_metre_source_crs', 'exigir_crs_origen', 'build_geography', 'validate_geography',
+                  'write_geography_manifest', 'write_geography_validation', 'make_transformer'),
+    'vista-previa': ('write_preview_geojson', 'write_preview_html'),
+    'validacion-dgs': ('parse_dgs', 'validate_dgs', 'write_validation_reports'),
+    'metadatos-alimentador': ('assignments_from_model', 'write_feeder_metadata'),
+    'oraculo': ('disponible', 'validar_unida', 'corregir_para_converger'),
+}
+
+#: Grupo de entry points de los adaptadores internos (002 T7, a): uno por puerto de arriba, con el mismo nombre.
+GRUPO_ADAPTADORES = 'convertersmartgrid.adaptadores'
 
 
 @dataclass(frozen=True)

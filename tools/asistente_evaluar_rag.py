@@ -64,6 +64,17 @@ def _memoria_gpu_mib(ollama, modelo: str) -> float | None:
     return None
 
 
+def _mezcla(texto: str) -> dict[str, int]:
+    """«dominio=25,fuera=25» → {estrato: número}."""
+    salida = {}
+    for parte in texto.split(','):
+        estrato, _, numero = parte.partition('=')
+        if not estrato.strip() or not numero.strip().isdigit():
+            raise argparse.ArgumentTypeError(f'mezcla «{texto}»: va como estrato=número,estrato=número')
+        salida[estrato.strip()] = int(numero)
+    return salida
+
+
 def _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_gpu, ClienteOllama) -> int:
     """Calibra con un conjunto o mide una vez el sellado, siempre con el reranker adoptado (047:RF-34, RF-35).
 
@@ -145,6 +156,10 @@ def _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_
                            evaluacion_rag.leer_puntuaciones(i, conjunto, vector_de, puntuar, modelo)),
                        'recursos': recursos}
             informe['conserva_hibrido'] = evaluacion_rag.conserva_con_intervalo(informe['por_pregunta'])   # 097:RF-10
+            # 097-DIAG (b): la abstención con dos señales por estratos, con la mezcla de la prueba si se da; y (c): cada
+            # orden de la respuesta frente al híbrido, en esta misma calibración (nunca en el sellado).
+            informe['dos_senales'] = evaluacion_rag.calibrar_dos_senales(informe['por_pregunta'], mezcla=args.mezcla)
+            informe['ordenes'] = evaluacion_rag.medir_ordenes(i, conjunto, vector_de, puntuar, modelo)
             puntuar.liberar()
         else:
             informe = {**evaluacion_rag.medir_sellado(i, conjunto, vector_de, puntuar, modelo, umbrales),
@@ -239,6 +254,9 @@ def main(argv=None) -> int:
     p.add_argument('--modelos', nargs='*', help='Rerankers a medir; por defecto, los candidatos del plan.')
     p.add_argument('--solo-conjunto', action='store_true', help='Comprueba las anclas sin GPU ni modelos.')
     p.add_argument('--calibrar', action='store_true', help='Fija los umbrales de abstención con su conjunto de calibración.')
+    p.add_argument('--mezcla', type=_mezcla, default=None,
+                   help='Con --calibrar: sin respuesta de la prueba por estrato (dominio=25,fuera=25), para la abstención '
+                        'esperada con dos señales (097-DIAG b); es un recuento, nunca un resultado del sellado.')
     p.add_argument('--sellado', action='store_true', help='Mide la abstención calibrada en el conjunto sellado, una sola vez.')
     p.add_argument('--corpus', choices=('047', '077'), default='047', help='El corpus del índice; cada uno con sus conjuntos.')
     p.add_argument('--modelo-vectores', help='Modelo de Ollama para los vectores (097:RF-4); por defecto, el en uso.')

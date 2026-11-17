@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import random
 import re
 import time
@@ -699,3 +700,140 @@ def poner_en_uso(modelo: str, medicion: Mapping[str, Any], medicion_en_uso: Mapp
             {'modelo': modelo, 'calibraciones': dict(calibraciones), 'mediciones': dict(mediciones or {}), 'metodo': metodo,
              'medicion_sha256': medicion.get('conjunto_sha256')}, ensure_ascii=False, indent=1))
     return {'puesto': puesto, 'motivos': motivos, 'modelo': modelo, 'en_uso': modulo_indice.modelo_vectores()}
+
+
+# --- 097-DIAG: abstención con dos señales por estratos (Bonferroni, Mondrian) y orden con fusión -----------------------
+
+SENALES_DOBLES = ('reranker', 'coseno')
+ESTRATOS_SIN_RESPUESTA = ('dominio', 'fuera')
+
+
+def umbral_conforme(sin: Sequence[float], alfa: float) -> float | None:
+    """El umbral conforme de una señal: se responde solo por encima del k-ésimo valor de las preguntas sin respuesta,
+    k = ⌈(n+1)(1−α)⌉ (Angelopoulos y Bates, arXiv 2107.07511); None si con esas n no se alcanza 1−α."""
+    valores = sorted(float(v) for v in sin if v != float('-inf'))
+    n = len(valores)
+    k = math.ceil((n + 1) * (1 - alfa))
+    if not n or k > n:
+        return None
+    return valores[k - 1] + _POR_ENCIMA
+
+
+def calibrar_dos_senales(filas: Sequence[Mapping[str, Any]], *, alfa: float = 1 - OBJETIVO_CALIBRACION,
+                         estratos: Sequence[str] = ESTRATOS_SIN_RESPUESTA, mezcla: Mapping[str, int] | None = None,
+                         remuestreos: int = 2000, semilla: int = 0) -> dict[str, Any]:
+    """097-DIAG (b) con (a1): un umbral conforme por señal (reranker y coseno) y por estrato de las sin respuesta, con
+    α/2 cada señal (Bonferroni): se abstiene si cualquier señal queda bajo su umbral. Una consulta no sabe su estrato,
+    así que vale el umbral más alto de los estratos (Mondrian conservador). Da la cobertura teórica (1−α, si cada
+    estrato es intercambiable con la prueba), la empírica en la calibración y, con ``mezcla`` (estrato → nº de sin
+    respuesta de la prueba), el intervalo esperado por remuestreo estratificado."""
+    utiles = [f for f in filas if not f['codigo']]
+    sin = [f for f in utiles if not f['responde']]
+    con = [f for f in utiles if f['responde']]
+    por_estrato = {e: {s: umbral_conforme([f[s] for f in sin if f.get('tipo') == e], alfa / 2) for s in SENALES_DOBLES}
+                   for e in estratos}
+    faltan = [f'{e}:{s}' for e, u in por_estrato.items() for s, v in u.items() if v is None]
+    umbrales = {s: None if any(u[s] is None for u in por_estrato.values()) else max(u[s] for u in por_estrato.values())
+                for s in SENALES_DOBLES}
+
+    def responde(f: Mapping[str, Any]) -> bool:
+        return all(umbrales[s] is not None and float(f[s]) >= umbrales[s] for s in SENALES_DOBLES)
+
+    def abstencion(grupo: Sequence[Mapping[str, Any]]) -> float | None:
+        return sum(not responde(f) for f in grupo) / len(grupo) if grupo else None
+
+    salida: dict[str, Any] = {
+        'alfa': alfa, 'cobertura_teorica': 1 - alfa, 'umbrales_por_estrato': por_estrato, 'umbrales': umbrales,
+        'faltan': faltan,
+        'abstencion_en_calibracion': {'total': abstencion(sin),
+                                      **{e: abstencion([f for f in sin if f.get('tipo') == e]) for e in estratos}},
+        'conserva_en_calibracion': sum(responde(f) for f in con) / len(con) if con else None,
+        'preguntas': {'con_respuesta': len(con),
+                      'sin_respuesta': {e: sum(f.get('tipo') == e for f in sin) for e in estratos}},
+        'supuesto': ('la cobertura teórica solo vale si las sin respuesta de cada estrato son intercambiables con las de '
+                     'la prueba')}
+    if mezcla:
+        rnd = random.Random(semilla)
+        muestras = []
+        for _ in range(remuestreos):
+            elegidas = []
+            for e, n in mezcla.items():
+                del_estrato = [x for x in sin if x.get('tipo') == e]
+                if del_estrato:
+                    elegidas += rnd.choices(del_estrato, k=n)
+            muestras.append(abstencion(elegidas))
+        validas = sorted(m for m in muestras if m is not None)
+        salida['esperada_con_mezcla'] = {'mezcla': dict(mezcla), 'ic95': _ic95(validas) if validas else None,
+                                         'media': sum(validas) / len(validas) if validas else None}
+    return salida
+
+
+ORDENES = ('hibrido', 'reranker', 'rrf', 'top20')
+K_RRF = 60
+TOP_REORDENA = 20
+
+
+def ordenar(modo: str, candidatos: Sequence[Mapping], puntuados: Sequence[Mapping]) -> list[dict]:
+    """097-DIAG (c): el orden de la respuesta. ``candidatos`` va en el orden del híbrido y ``puntuados`` en el del
+    reranker (con su puntuación). «hibrido» no reordena; «reranker» toma su orden; «rrf» funde los dos rangos
+    (1/(60+rango) de cada uno); «top20» reordena con el reranker solo los 20 primeros del híbrido."""
+    if modo not in ORDENES:
+        raise ValueError(f'orden desconocido: {modo} (se admite {", ".join(ORDENES)})')
+    puntos = {c['id']: c.get('reranker') for c in puntuados}
+    con_puntos = [{**c, 'reranker': puntos.get(c['id'], c.get('reranker'))} for c in candidatos]
+    if modo == 'hibrido':
+        return con_puntos
+    if modo == 'reranker':
+        return [dict(c) for c in puntuados]
+    if modo == 'top20':
+        def clave(c: Mapping[str, Any]) -> float:
+            return -(float(c['reranker']) if c.get('reranker') is not None else float('-inf'))
+        return sorted(con_puntos[:TOP_REORDENA], key=clave) + con_puntos[TOP_REORDENA:]
+    rango_r = {c['id']: i for i, c in enumerate(puntuados, start=1)}
+    puntaje = {c['id']: 1 / (K_RRF + i) + 1 / (K_RRF + rango_r.get(c['id'], len(candidatos) + 1))
+               for i, c in enumerate(con_puntos, start=1)}
+    return sorted(con_puntos, key=lambda c: -puntaje[c['id']])
+
+
+def comparar_ordenes(medidos: Mapping[str, Mapping[str, Any]], *,
+                     metricas: Sequence[str] = ('mrr@10', 'recall@10')) -> dict[str, Any]:
+    """097-DIAG (c): cada orden frente al híbrido solo, en la calibración, con el IC95 pareado de cada métrica. Se
+    elige el orden cuyo MRR@10 sube con su IC95 por encima de cero sin que el IC95 del Recall@10 baje de cero; si
+    ninguno, el reranker no entra en el orden (solo en la abstención, si aporta)."""
+    base = medidos['hibrido']
+    comparacion: dict[str, Any] = {}
+    candidatos = []
+    for modo in ORDENES[1:]:
+        if modo not in medidos:
+            continue
+        comp = {m: comparar_pareado(base, medidos[modo], metrica=m) for m in metricas}
+        comparacion[modo] = comp
+        if all(c.get('status') == 'OK' and c['ci95_bootstrap'][0] >= 0 for c in comp.values()) \
+                and comp[metricas[0]]['ci95_bootstrap'][0] > 0:
+            candidatos.append((comp[metricas[0]]['mean_difference'], modo))
+    elegido = max(candidatos)[1] if candidatos else 'hibrido'
+    return {'comparacion': comparacion, 'elegido': elegido,
+            'regla': 'mejora el MRR@10 con IC95 por encima de cero sin bajar el Recall@10; si ninguno, el híbrido'}
+
+
+def medir_ordenes(indice: Any, conjunto: Mapping[str, Any], vector_de: Callable[[str], Sequence[float] | None],
+                  puntuar: Callable[[str, Sequence[str]], Sequence[float]], modelo: str) -> dict[str, Any]:
+    """097-DIAG (c): la recuperación de la calibración con cada orden (``ORDENES``), sin abstención: los candidatos del
+    híbrido y la puntuación del reranker se leen una vez por pregunta y cada orden se mide con ellos. Devuelve lo medido
+    de cada orden (con sus filas por pregunta, para el IC pareado) y la comparación con el híbrido (``comparar_ordenes``)."""
+    pares, sin_ancla, _ = resolver_pares(conjunto, indice.frags)
+    if sin_ancla:
+        raise ValueError(f'preguntas sin ancla en el índice, medir falsearía la comparación: {sin_ancla}')
+    leidos: dict[str, tuple[list[dict], list[dict]]] = {}
+    for par in pares:
+        candidatos = indice.buscar(par.pregunta, modulo_indice.CANDIDATOS, vector_de(par.pregunta))
+        puntuados = reordenar(par.pregunta, candidatos, modelo=modelo, revision='', puntuar=puntuar) if candidatos else []
+        leidos[par.pregunta] = (candidatos, puntuados)
+    medidos = {}
+    for modo in ORDENES:
+        def buscar(pregunta: str, k: int, modo: str = modo) -> list[dict]:
+            candidatos, puntuados = leidos[pregunta]
+            return ordenar(modo, candidatos, puntuados)[:k] if candidatos else []
+        medidos[modo] = _medir(pares, buscar)
+    resumen = {m: {k: medidos[m].get(k) for k in ('mrr@10', 'recall@10', 'hit@10')} for m in ORDENES}
+    return {'metricas': resumen, **comparar_ordenes(medidos), 'preguntas': len(pares)}

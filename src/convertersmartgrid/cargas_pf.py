@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Sequence
 
-from .loads import (
+from .dominio.cargas_plantilla import (
     LoadTemplateError, SUPPORTED_SUFFIXES, normalise_header, parse_number, power_conflict,
     resolve_power, canonical_columns, read_sheet,
 )
@@ -530,10 +530,10 @@ def repetidas_del_libro(filas: Sequence[dict], feeders: Sequence[str] = (), radi
 
 def a_wgs84(puntos: Sequence[tuple[float, float]], source_crs: str) -> list[tuple[float, float] | None]:
     """(x, y) en ``source_crs`` → (lat, lon). ``None`` si un punto no se puede pasar."""
-    from .geography import make_transformer
+    from .registro_modulos import adaptador  # 002 T7 (a): la geografía por su puerto, no por su módulo
 
     try:
-        transformer = make_transformer(source_crs, 'EPSG:4326')
+        transformer = adaptador('geografia').make_transformer(source_crs, 'EPSG:4326')
     except ImportError:
         return [None] * len(puntos)
     out: list[tuple[float, float] | None] = []

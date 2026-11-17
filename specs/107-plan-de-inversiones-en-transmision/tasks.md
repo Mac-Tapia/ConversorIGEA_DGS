@@ -42,7 +42,7 @@ adaptador VNR (integrador f9).
       y su N-1 de 30 MW ya obliga; la RM 496-2005 queda `modificada` por la RM 102-2010, que no toca la Tabla N° 01, y
       su error admisible por clase obliga con el mismo valor; la 242-2021 trae su fecha y sigue `no_verificada`; la
       177-2021 y la 147-2017 entran sin reglas, con sus transitorias agotadas (`rcd_217_2013_transitorias.json`).
-- [ ] T3. Leer y transcribir la RCD 199-2026-OS/CD cuando esté accesible (en G0 su enlace daba 404). Hasta entonces figura
+- [x] T3. Leer y transcribir la RCD 199-2026-OS/CD cuando esté accesible (en G0 su enlace daba 404). Hasta entonces figura
       en el registro como `no_verificada` y sin reglas; al leerla se comprueba su existencia, su objeto, el área a la que
       modifica y su fecha de vigencia, y se actualizan `modifica` y `modificada_por` de la 149-2024. (RF-7, RF-8)
       Hecho cuando: la entrada de la 199-2026 tiene URL, huella, estado comprobado y sus reglas con cita literal, y
@@ -68,13 +68,15 @@ adaptador VNR (integrador f9).
       las instalaciones y los nombres de las descripciones van por su huella en la 199 y en la 186-189; los nombres en
       claro, en la lista local (`CSG_NORMATIVA_ELEMENTOS`, fuera de git). `pit/elementos_modificacion.py` casa por
       huella con la red del usuario; `tests/test_pit_elementos_anonimos.py` es la comprobación permanente.
-- [ ] T4. Perfil `pit.areas` en el esquema del perfil de empresa (área, titulares, SET, correspondencia SET →
+      Hecho en 016498fc (LOTE-1); pruebas: tests/test_pit_elementos_anonimos.py tests/test_registro_normativo.py -k modificatoria.
+- [x] T4. Perfil `pit.areas` en el esquema del perfil de empresa (área, titulares, SET, correspondencia SET →
       alimentadores, tensión mínima del ámbito y asignación de los elementos compartidos) y `pit/ambito.py`, que reúne
       los elementos de un área sin mezclarla con otra. Dos perfiles sintéticos A y B en `tests/datos_pit.py`.
       (RF-2, RF-11)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_ambito.py` en verde con los dos perfiles, incluido el elemento compartido
       sin asignar.
-- [ ] T5. Contrato `RedArea` (`pit/red_area.py`) y su adaptador del libro de la red declarado en el perfil: cada
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_ambito.py.
+- [x] T5. Contrato `RedArea` (`pit/red_area.py`) y su adaptador del libro de la red declarado en el perfil: cada
       elemento con titular, área y fuente, y los elementos sin parámetros en `faltantes` con el dato que les falta.
       El libro se abre con `demanda_medida.abrir_libro` en cualquier formato y se leen todas sus hojas, o las que
       declare `pit.libro_red.hoja`, con la cabecera buscada por contenido. (RF-2, RF-4, RF-12)
@@ -82,12 +84,14 @@ adaptador VNR (integrador f9).
       fuera del diagnóstico completo, el mismo libro leído igual en .xlsx y .xlsm, .xls y .xlsb por el lector común,
       un libro de varias hojas leído entero con la hoja sin contrato en los avisos, la hoja declarada respetada y un
       libro sin ninguna hoja válida detenido con sus hojas y cabeceras.
-- [ ] T6. De `RedArea` a pandapower (`pit/red_pandapower.py`, con transformadores de dos y tres devanados; pandapower
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_red_area.py.
+- [x] T6. De `RedArea` a pandapower (`pit/red_pandapower.py`, con transformadores de dos y tres devanados; pandapower
       directo con los parámetros de `oraculo.py`, cuyos auxiliares son privados, y de él solo `oraculo.disponible()`) y la matriz de capacidades estudio × motor (`pit/motores.py`): el motor abierto por defecto,
       DIgSILENT si hay licencia, y cada resultado nombra su motor. (RF-3, RF-5)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_motores.py` en verde: el flujo de los perfiles A y B converge con
       pandapower, y el cortocircuito y `ComRel3` sin licencia salen como «no disponible con el motor abierto».
-- [ ] T7. Diagnóstico por año (`pit/diagnostico.py`): demanda del área desde `proyeccion_anual` por barra de SET,
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_motores.py.
+- [x] T7. Diagnóstico por año (`pit/diagnostico.py`): demanda del área desde `proyeccion_anual` por barra de SET,
       cargabilidad, tensión y N-1 de cada elemento contra los límites del registro o del perfil; el año sin demanda
       queda nombrado, sin extrapolar; trabajo cancelable entre años. (RF-3, RF-4)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_diagnostico.py` en verde, con el N-1 del anillo del perfil B, el año sin
@@ -99,6 +103,7 @@ adaptador VNR (integrador f9).
       de los AT/MT y los huecos; las referencias van como aviso al diagnóstico, al expediente y a la web. En la v2,
       el N-1 del Área 15 va con el rango normal salvo que `pit.emergencia_rm129` sustente el de emergencia. Pruebas:
       `tests/test_pit_tension_norma.py`.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_diagnostico.py.
 - [ ] T8. Alternativas mutuamente excluyentes (`pit/alternativas.py`): inversión con `costos_fuentes.valorar_obra`
       (ámbito `transmision`) y los módulos de `set_nueva.leer_modulos_pit`, COyM y pérdidas según el registro, valor
       actual con `pide_economia.frc` y `van`, y confiabilidad según la matriz; misma demanda y mismo motor para todas;
@@ -111,25 +116,29 @@ adaptador VNR (integrador f9).
       vigente del 01-05-2021 al 30-04-2027); `pit.vida_util_anios` = 30 ya estaba (art. 24.2 de la 217-2013). El COyM
       va por elemento, ubicación, nivel y año, con huecos nombrados y el aviso del transformador elevador
       (aclaraciones de RF-5 y RF-8). Pruebas: `tests/test_pit_coym_registro.py`.
-- [ ] T9. Programa (`pit/programa.py`): cada elemento con su año de puesta en servicio, su titular y su área, con las
+- [x] T9. Programa (`pit/programa.py`): cada elemento con su año de puesta en servicio, su titular y su área, con las
       bajas y los reemplazos; un programa por titular cuando el área tiene varios. (RF-6)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_programa.py` en verde con el perfil A (un titular) y el B (varios).
-- [ ] T10. Expediente y cuadros (`pit/expediente.py` y `pit/cuadros.py`): carpeta aparte de la del PIDE, instantánea del
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_programa.py.
+- [x] T10. Expediente y cuadros (`pit/expediente.py` y `pit/cuadros.py`): carpeta aparte de la del PIDE, instantánea del
        registro al abrirlo, aviso y lista de celdas afectadas si una modificatoria llega después, traza de cada celda
        (fuente con huella, cálculo, motor y regla con su estado), cuadros desde su definición transcrita y escritos en el
        libro modelo con `libro_informe`, determinismo byte a byte, y nunca la frase «aprobado por Osinergmin».
        (RF-1, RF-7, RF-8, RF-9)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_expediente.py` en verde: dos corridas iguales dan el mismo expediente, la
        modificatoria posterior se avisa sin recalcular, y ninguna celda queda sin traza.
-- [ ] T11. Observaciones del regulador (`pit/observaciones.py`): número, fecha, texto, respuesta y el elemento, el caso o
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_expediente.py.
+- [x] T11. Observaciones del regulador (`pit/observaciones.py`): número, fecha, texto, respuesta y el elemento, el caso o
        la celda a los que afecta, enlazados con la traza del expediente. (RF-10)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_observaciones.py` en verde, con una observación sobre una celda y otra
        sobre un elemento del perfil B.
-- [ ] T12. Guion `tools/pit_pf.py` (con docstring en español y `--help` sin DIgSILENT): `--exportar-red` del proyecto de
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_observaciones.py.
+- [x] T12. Guion `tools/pit_pf.py` (con docstring en español y `--help` sin DIgSILENT): `--exportar-red` del proyecto de
        transmisión a `RedArea`, `ComLdf`, `ComSimoutage` y `ComRel3` por año, sin dejar nada cambiado
        (`estudios_red_pf.cambios_de_estado`). (RF-2, RF-3, RF-5)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_pf_guion.py` en verde con el doble `tests/fake_pf.py`.
-- [ ] T13. Web: `web/rutas_pit.py` con un `APIRouter` propio (`/api/pit/…`), el diagnóstico y las alternativas como
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/fake_pf.py tests/test_pit_pf_guion.py.
+- [x] T13. Web: `web/rutas_pit.py` con un `APIRouter` propio (`/api/pit/…`), el diagnóstico y las alternativas como
        trabajos en cola (carril `engine` o `powerfactory`) con progreso por WebSocket, y el panel en
        `frontend/src/features/pit/` con la microcopia mínima. Solo el registro del router en `web/app.py`, pactado antes
        con f9. (RF-1, RF-2, RF-3, RF-5, RF-6, RF-9, RF-10)
@@ -142,6 +151,15 @@ adaptador VNR (integrador f9).
        el expediente como trabajo del carril engine (`pit/armado.armar_expediente`), con el libro F-000, las
        alternativas del JSON del espacio, los costos de `pit.costos` y la carpeta de fuentes de `CSG_FUENTES_NORMATIVAS`,
        que el doctor comprueba. Falta el panel del PIT (P10d).
+       Avance (2026-11-17, f7/P10d): la pestaña «Estudio PIT» (`frontend/src/features/pit/EstudioPit.tsx`, con
+       `frontend/src/api/pit.ts`) pide el área, los años, el periodo y el motor, sube el libro de la red (.xlsx, .xlsm,
+       .xls y .xlsb), la proyección y las alternativas por `POST /api/pit/entradas`, lanza el diagnóstico y el
+       expediente, ofrece sus salidas para guardar (las rutas relativas al espacio que ahora devuelve cada trabajo) y
+       registra las observaciones del expediente; sus trabajos avisan en su pestaña. La matriz de cobertura de las rutas
+       `/api/pit/*` (llamada, control en pantalla y prueba del servidor) está en `frontend/test/pitPanel.test.mjs`.
+      Hecho en esta entrega (LOTE-2): la pestaña «Estudio PIT» (features/pit/EstudioPit.tsx, api/pit.ts) con su
+      matriz de cobertura (frontend/test/pitPanel.test.mjs: cada /api/pit/* con su llamada, su control en pantalla y
+      su prueba de tests/test_pit_web.py); npm test 268/268, tsc, lint y build (f7).
 - [ ] T14. [DIgSILENT] Corrida real sobre una **copia** del proyecto de transmisión del área del primer caso (la
        primera empresa de prueba, con el área y el titular en su perfil): exportar la red, diagnosticar un año con los dos motores y comparar
        con la tolerancia de la 112 (0,005 p.u. en tensión, 1 % en corriente). (RF-2, RF-3, RF-5)
@@ -164,12 +182,13 @@ adaptador VNR (integrador f9).
        `test_107_rf11_pit_y_registro_normativo_sin_valores_de_un_area_una_empresa_o_un_periodo` recorre con él cada
        fichero de `pit/` y `registro_normativo.py` y comprueba que entran en la entrega, donde la búsqueda de nombres y
        titulares de 086:RF-29 ya los recorre. Evidencia: `D:/csg/PM_IMPL/S107_108/T17/`.
-- [ ] T18. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+- [x] T18. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
        Hecho cuando: cada RF definido en `spec.md` (`grep -oE "^- RF-[0-9]+" spec.md`, de RF-1 a RF-18) aparece en
        `grep -rnoE "107:RF-[0-9]+" tests | sort -u`, con sus pruebas en verde, y
        `.venv/Scripts/python.exe -m pytest -rfs tests/test_trazabilidad_specs.py` en verde. Depende de T13 y de T19 a
        T26.
-- [ ] T19. Formatos desde la norma registrada (aclaración de RF-9): transcribir en `config/normativa/` las columnas de
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: las del criterio.
+- [x] T19. Formatos desde la norma registrada (aclaración de RF-9): transcribir en `config/normativa/` las columnas de
        cada formato que lista la regla de formatos de la norma vigente (`pit.formatos_217`, hoy `transcrito: false`:
        sus columnas están en los libros Excel de la norma, que no se han descargado) y ampliar `pit/cuadros.py` para que
        emita los formatos que liste el registro, con las celdas derivadas vinculadas por fórmula. Bloqueada por datos
@@ -204,7 +223,8 @@ adaptador VNR (integrador f9).
        xlrd (ya en el venv) y los coteja con el mapa derivado de las fuentes (sombreadas/, con su SHA256SUMS): mismas
        966 celdas sombreadas y 176 de color. El F-101 lleva como motivo el literal de su nota (2), A25. Los rellenos
        de color (cabeceras de F-305, F-306, F-401, F-510 y F-522) quedan como observación sin efecto en el llenado.
-- [ ] T20. Documento de absolución (aclaración de RF-10): `observaciones.escribir_absolucion`, con cada observación, su
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_formatos.py.
+- [x] T20. Documento de absolución (aclaración de RF-10): `observaciones.escribir_absolucion`, con cada observación, su
        objeto, su respuesta y la traza de lo que cambió en el expediente (celdas o elementos, con su huella antes y
        después). (RF-10)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_observaciones.py -k absolucion` en verde:
@@ -218,11 +238,13 @@ adaptador VNR (integrador f9).
        28): el oficio intercalado se reagrupa con las generales primero y el documento lo dice («orden del oficio
        reagrupado: generales primero») con la lista de las movidas; la respuesta sin lugar se ve como «lugar
        corregido: no indicado» y sale en los huecos con campos fijos (`CAMPOS_HUECO`) para el expediente.
-- [ ] T21. Resumen ejecutivo (`pit/informe.py`): la demanda del área por año, la alternativa elegida y el programa de
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_observaciones.py -k absolucion.
+- [x] T21. Resumen ejecutivo (`pit/informe.py`): la demanda del área por año, la alternativa elegida y el programa de
        inversiones, leídos del expediente emitido. (RF-13)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_informe.py` en verde con los perfiles A y B:
        el resumen trae sus tres apartados con las cifras del expediente, y un expediente sin alternativa elegida da un
        error que lo nombra.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_informe.py.
 - [x] T22. Memoria por sección y relación de sustento (`pit/expediente.emitir`): criterios, metodología, entradas y
        resultados de cada sección, y la relación de los documentos de sustento con su descripción, su uso y su huella.
        (RF-14)
@@ -243,7 +265,7 @@ adaptador VNR (integrador f9).
        y `relacion_sustento.json`); sus pruebas son `test_memoria_de_cada_seccion`,
        `test_sin_diagnostico_ni_alternativas_la_memoria_no_inventa_secciones` y
        `test_relacion_de_sustento_con_cada_fichero_y_su_huella`. Evidencia: `D:/csg/PM_IMPL/S107_108/MARCAS/`.
-- [ ] T23. Unifilar en DXF por alternativa y año, con el flujo de cada línea (F-212), y en DWG con el ODA File Converter
+- [x] T23. Unifilar en DXF por alternativa y año, con el flujo de cada línea (F-212), y en DWG con el ODA File Converter
        si la configuración o el PATH lo dan, nunca por una ruta fija (`pit/unifilar.py`). (RF-15)
        Avance (2026-11-15, f4): desbloqueada. El auditor 28 instaló `ezdxf` 1.4.5 (MIT) en el entorno, por orden del
        usuario («instala lo que falta, pero avanza»), y queda declarada como dependencia obligatoria con versión fijada
@@ -261,7 +283,8 @@ adaptador VNR (integrador f9).
        código, ningún binario en el repositorio); la conversión a DWG se prueba con un doble del convertidor; con el
        doble ausente y con el doble que falla la entrega queda completa con el DXF, el aviso que dice cómo obtener el
        DWG está en el manifiesto del expediente y no queda ningún DWG vacío.
-- [ ] T24. Transformadores de reserva (`pit/reserva.py`) con el procedimiento vigente del registro. Bloqueada por datos
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_unifilar.py.
+- [x] T24. Transformadores de reserva (`pit/reserva.py`) con el procedimiento vigente del registro. Bloqueada por datos
        (2026-11-14, S1): la RCD 094-2022 no está descargada ni transcrita (inventario de entregables de Osinergmin,
        P13: «hay que leer la RCD 094-2022»). Siguiente acción: descargarla del portal del regulador y transcribirla en
        `config/normativa/` con cita y página. (RF-16)
@@ -276,6 +299,7 @@ adaptador VNR (integrador f9).
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_reserva.py` en verde: con un área sintética
        la reserva se elige con la regla del registro y sin regla sale el aviso que la nombra; y la 094-2022 transcrita
        en `config/normativa/`.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_reserva.py.
 - [x] T25. Modificación del plan vigente: modo `modificacion` del expediente, que compara el programa vigente con el
        nuevo y lista lo que se elimina, cambia o agrega, con su razón, con la demanda y las alternativas rehechas con los
        mismos criterios. (RF-17)
@@ -286,7 +310,7 @@ adaptador VNR (integrador f9).
        Hecho (2026-11-15, S-107/108): el código ya está en la punta e182c823 (`programa.comparar_programas` y el modo
        `modificacion` de `expediente.emitir`); sus pruebas son las dos `test_modificacion_*` de test_pit_programa.py y las
        dos de test_pit_expediente.py. Evidencia: `D:/csg/PM_IMPL/S107_108/MARCAS/`.
-- [ ] T26. Formato F-208 con la estadística de fallas y los índices de desempeño de las fuentes importadas
+- [x] T26. Formato F-208 con la estadística de fallas y los índices de desempeño de las fuentes importadas
        (confiabilidad, spec 012), con el hueco nombrado cuando falten. Bloqueada por datos (2026-11-14, S1): depende de T19,
        porque las columnas del F-208 están en los mismos libros de formatos sin transcribir. Siguiente acción: la de T19.
        (RF-18)
@@ -298,6 +322,7 @@ adaptador VNR (integrador f9).
        CONFIAB2) se cablea cuando esa tarjeta esté integrada. Se marca al correr su verde.
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_formatos.py -k f208` en verde: con fallas
        sintéticas se llenan los índices, y sin ellas cada celda queda vacía con su hueco nombrado.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_formatos.py -k f208.
 - [x] T27. Demanda regulatoria, 3a: las reglas de la cadena (fórmula del art. 8.1, definiciones de FC, FCP y FS) y las
        pérdidas estándar de la fijación del VAD vigente por empresa y periodo en el registro (la 187-2023 modificada
        por la 223-2023 para las 11 empresas de esa fijación), con la comprobación permanente del cargador (FE ≥ 1 y
@@ -321,7 +346,7 @@ adaptador VNR (integrador f9).
        desplazada, del porcentaje mal leído y del FE < 1 son los casos de
        `test_tabla_de_factores_mal_transcrita_falla_nombrando_la_fila`, y los dos horizontes de norma, los de
        `test_serie_en_columnas_sale_del_horizonte_de_la_norma`. Evidencia: `D:/csg/PM_IMPL/S107_108/MARCAS/`.
-- [ ] T28. Demanda regulatoria, 3b: F-102 desde la medida del año representativo (días de máxima del sistema, de la
+- [x] T28. Demanda regulatoria, 3b: F-102 desde la medida del año representativo (días de máxima del sistema, de la
        SET y del SEIN, y máxima no coincidente) y, de él, F-101 (FC, FCP y FS) y F-103 (FPHMS y FPMWHS). (Aclaración de RF-9)
        Avance (2026-11-15, f4): registro del COES en `config/normativa/coes_maxima_demanda_sein.json` (máxima anual del
        SEIN 2024 y 2025 de la Estadística Anual, contraste mensual, intervalo del glosario y horas punta de las RM
@@ -346,13 +371,16 @@ adaptador VNR (integrador f9).
        102-2010-MEM-DM, que no toca la Tabla N° 01: el error admisible por clase obliga ya, con el mismo valor.
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_demanda.py -k factores` en verde con curvas
        sintéticas de factores conocidos, y sin medida cada formato queda como plantilla con su causa.
-- [ ] T29. Demanda regulatoria, 3c: F-108 (ventas proyectadas por nivel), F-109 (energía por barra con el factor de
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_demanda.py -k factores.
+- [x] T29. Demanda regulatoria, 3c: F-108 (ventas proyectadas por nivel), F-109 (energía por barra con el factor de
        expansión en cascada y el FPMWHS) y F-110, F-111 y F-112 con la fórmula del art. 8.1; y el aviso que compara F-112
        con la potencia de diagnóstico por SET y año, con la diferencia en %. (Aclaración de RF-9)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_demanda.py -k cadena` en verde con una
        empresa de la fijación y otra sin fijación vigente («no transcrita», sin valores de otra), con un caso en el que
        el FE y 1+p dan resultados distintos, y con la marca «aproximado» cuando la medición centralizada no se separa.
-- [ ] T30. Demanda regulatoria, 3d: los resúmenes F-119 a F-122 y F-104 a F-107 desde la proyección con exógenas de
+      Hecho en 016498fc (LOTE-1); pruebas: tests/test_pit_demanda.py -k cadena.
+- [x] T30. Demanda regulatoria, 3d: los resúmenes F-119 a F-122 y F-104 a F-107 desde la proyección con exógenas de
        la spec 031; sin esa fuente, plantilla con su causa. (Aclaración de RF-9)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_demanda.py -k resumen` en verde, y
        `llenado.pendientes_de_mapeo` ya no lista ningún formato de demanda sin causa aceptada.
+      Hecho en 016498fc (LOTE-1); pruebas: tests/test_pit_demanda.py -k resumen.

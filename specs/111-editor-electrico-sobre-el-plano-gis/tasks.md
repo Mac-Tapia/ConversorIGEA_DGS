@@ -70,13 +70,14 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
       RF-17)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_variacion_plano_pf_guion.py` en verde con
       `tests/fake_pf.py` y `.venv/Scripts/python.exe tools/variacion_plano_pf.py --help` responde sin DIgSILENT.
-- [ ] T13. API en `web/plano_api.py` (`registrar_rutas_plano`) y contratos en `web/api_contract.py`; cableado mínimo
+- [x] T13. API en `web/plano_api.py` (`registrar_rutas_plano`) y contratos en `web/api_contract.py`; cableado mínimo
       en `web/app.py`, pactado con el integrador; versión con `409` si cambió la versión o la revisión de la red;
       estudiar como trabajo en su carril; las rutas de antes siguen. (RF-4, RF-9, RF-15, RF-16, RF-17)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_plano_api.py tests/test_contrato_api.py` en verde y
       `.venv/Scripts/python.exe tools/generar_contrato_api.py --check` sin deriva. Código hecho (`web/plano_api.py`,
       sus contratos y `tests/test_plano_api.py`); falta el cableado de `web/app.py` con su contrato regenerado, que
       monta el integrador con el parche aparte de la entrega.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_contrato_api.py tests/test_plano_api.py.
 - [x] T14. Página del plano en `pagina_plano.py`: Leaflet propio con lienzo, capas por vista, nivel de detalle solo
       gráfico y reversible, leyenda con unidad, umbral, caso y motor, tokens claro y oscuro, sin fondo si las teselas
       están apagadas, CSP aislada y mensajes `postMessage` con esquema cerrado. (RF-1, RF-2, RF-10, RF-13, RF-14,
@@ -103,5 +104,6 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
       como estaban. (RF-4, RF-10, RF-11, RF-17, RF-18)
       Hecho cuando: la evidencia de la corrida (informe del guion, foto de `pf_estado` antes y después y capturas del
       plano) está fuera de git y la relectura no da ninguna diferencia en los casos del operador.
-- [ ] T19. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+- [x] T19. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "111:RF-[0-9]+" tests frontend/test frontend/e2e | sort -u` lista de RF-1 a RF-19.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: las del criterio.

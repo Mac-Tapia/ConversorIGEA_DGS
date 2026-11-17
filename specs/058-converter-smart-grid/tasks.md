@@ -13,6 +13,11 @@
       Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`).
 - [ ] T6. Carpeta principal `ConverterSmartGrid`, `.venv`, acceso directo y espacios. (RF-6)
       Hecho cuando: la web abre desde el acceso directo nuevo con los espacios de antes.
+      Avance (2026-11-17, f7): `tools/mudar_carpeta_principal.py` lo hace en un paso (plan en seco por defecto,
+      `--aplicar` para mudar) con sus pruebas en `tests/test_mudar_carpeta_principal.py`. El plan en seco sobre la
+      carpeta real halló 34 worktrees (3 dentro), 34 uniones de `node_modules` y los 2 accesos directos, y se negó a
+      mudar con 9 programas corriendo desde ella. Falta la mudanza real, con todo cerrado, y abrir la web desde el
+      acceso directo nuevo.
 - [x] T7. [DIgSILENT] Un alimentador importado por la web con el nombre nuevo. (RF-4, RF-5)
       Hecho cuando: se cumple su criterio de finalización.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

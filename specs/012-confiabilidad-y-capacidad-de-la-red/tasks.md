@@ -139,22 +139,25 @@ Cierre
 
 Exposición leída de DIgSILENT (2026-11-14, «convertido o no»)
 
-- [ ] T14. `historico_interrupciones._cifras` y `con_exposicion` (las tasas que da una exposición que
+- [x] T14. `historico_interrupciones._cifras` y `con_exposicion` (las tasas que da una exposición que
       llega después, con lo contado por alimentador y clase en `historico['base']`),
       `datos_empresa.con_exposicion` y `tools/confiabilidad_pf.py`: `exposicion_del_proyecto` lee km de
       `ElmLne` aérea y de cable, `ElmTr2` y `ElmTerm` de cada `ElmFeeder` y `aplicar_datos` deriva las
       tasas antes de escribir los modelos. (RF-87)
       Hecho cuando: `pytest -q tests/test_historico_interrupciones.py tests/test_confiabilidad_pf_guion.py`
       en verde con `-k exposicion`, y la exposición leída da las mismas tasas que la red convertida.
-- [ ] T15. Web: `datos_empresa_aplicar` guarda el libro derivado y la exposición con su origen;
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_confiabilidad_pf_guion.py tests/test_historico_interrupciones.py.
+- [x] T15. Web: `datos_empresa_aplicar` guarda el libro derivado y la exposición con su origen;
       `resumen` la muestra; la frase de lo que falta antes de aplicar dice que se lee de DIgSILENT
       al aplicar el libro. (RF-88)
       Hecho cuando: `pytest -q tests/test_estudios_red_web.py` en verde.
-- [ ] T16. Sin ninguna interrupción de un alimentador del proyecto o sin causa: ni tasas a cero ni
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_estudios_red_web.py.
+- [x] T16. Sin ninguna interrupción de un alimentador del proyecto o sin causa: ni tasas a cero ni
       escritura en el proyecto, y la frase `SIN_TASAS`. (RF-89)
       Hecho cuando: `pytest -q tests/test_historico_interrupciones.py tests/test_confiabilidad_pf_guion.py`
       en verde con `-k "sin_alimentadores or sin_causa"`.
-- [ ] T18. Columna del alimentador por su contenido: `historico_interrupciones.elegir_por_contenido`
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_confiabilidad_pf_guion.py tests/test_historico_interrupciones.py.
+- [x] T18. Columna del alimentador por su contenido: `historico_interrupciones.elegir_por_contenido`
       (columna llena y de cardinalidad baja, `MAYORIA_ALIMENTADOR`, con la mayoría de los alimentadores,
       `COBERTURA_ALIMENTADOR`, desempate por forma, respaldo por la forma de los valores distintos,
       `FORMA_MINIMA`, `clave_alimentador` = `feeder_short_name` y un conjunto), `_candidatas` en `historico['base']` cuando no hay red, la elección en
@@ -167,6 +170,7 @@ Exposición leída de DIgSILENT (2026-11-14, «convertido o no»)
       proyecto de 10 con 3 con interrupciones, dos columnas con forma y el 70 % frente al 80 % (aclaraciones
       de RF-91 y RF-92; `-k` con `elige_por_forma or forma_de_alimentador_es_un_error or 70_por_ciento`), y los cuatro ficheros de la confiabilidad y `tests/test_trazabilidad_specs.py`
       en verde.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_confiabilidad_pf_guion.py tests/test_historico_interrupciones.py.
 - [ ] T17. [DIgSILENT] Prueba nativa en la sesión 2 de DIgSILENT, a cargo del usuario: un proyecto sin
       conversión, el histórico real (`CSG_INTERRUPCIONES`) subido a un espacio sin red, «Aplicar el
       libro» desde la web: la exposición leída por alimentador coincide con la longitud y los elementos

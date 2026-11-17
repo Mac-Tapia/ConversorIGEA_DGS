@@ -50,7 +50,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       Avance (2026-11-15, f4/VAD-A5 v3): la inclusión «IX.A12 ⊂ A13» se explica en la config con la cita de las
       páginas de los dos lados (pdf 85, 89, 95, 97 y 98), y validar el IX-1 o el IX-2 avisa «códigos del IX casados
       por rótulo» (aviso, no hueco).
-- [ ] T4. Anexo 4. Leer y transcribir en `config/vad/tdr_vad_2026_anexo4.json` la definición del factor de carga,
+- [x] T4. Anexo 4. Leer y transcribir en `config/vad/tdr_vad_2026_anexo4.json` la definición del factor de carga,
       de la simultaneidad y de las curvas MT/BT, con su cita. `vad/caracterizacion.py` las calcula con
       `demanda_medida` (`maximas`, `Cabecera`, `curva_de_registros`, `reducir_curva`, `curvas_de_clientes`). Una SED
       sin medición se nombra; solo recibe una curva si el anexo transcrito lo prevé, y con esa cita. (RF-4)
@@ -64,7 +64,8 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       Aclaración (2026-11-15, S-107/108): el JSON del Anexo 4 es `config/vad/tdr_vad_2026_anexo4.json`. Un
       `anexo4_caracterizacion.json` aparte con las mismas reglas no se crea: el cargador del registro rechaza una clave
       repetida en el mismo acto (`registro_normativo.cargar_registro`), y serían dos fuentes de la misma norma.
-- [ ] T5. Anexo 6, modelo georreferenciado rural. Leer y transcribir en `config/vad/anexo6_rural.json` sus criterios,
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_caracterizacion.py.
+- [x] T5. Anexo 6, modelo georreferenciado rural. Leer y transcribir en `config/vad/anexo6_rural.json` sus criterios,
       con la cita; ya está leído «Se respetarán las trazas…» (líneas 1981-1990). `vad/modelo_rural.py` con
       `armar_modelo_rural` y `hash_vertices`. Toma las trazas, las longitudes y las SED reales del VNR canónico en
       solo lectura (`models/canonical.py`, `gis/geometry.py`) o de `geography` en la vía TXT o MDB, y la troncal y las
@@ -79,7 +80,8 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       transformadores normalizados, como interpretación (potencias con costo en el SICODI por ST y tipo de SED, las no
       normalizadas con nota). `vad/modelo_rural.py` (`armar_modelo_rural`, `hash_vertices`, `comprobar_trazas`), capa
       adaptadores; pruebas en `tests/test_vad_modelo_rural.py`, pendientes de la corrida de f4.
-- [ ] T6. Dimensionamiento de la empresa modelo con el motor físico: `vad/dimensionamiento.py` adapta el conductor y
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_modelo_rural.py.
+- [x] T6. Dimensionamiento de la empresa modelo con el motor físico: `vad/dimensionamiento.py` adapta el conductor y
       la potencia de transformación, y calcula las pérdidas, con `oraculo.red_pandapower` y `oraculo.validar`, según
       los criterios transcritos en la T5. Ningún vértice cambia. Un conductor sin `rline` o `xline` es un hueco
       nombrado, no 0 Ω. (RF-7)
@@ -94,6 +96,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       conductor sin `rline` o `xline` deja su alimentador sin calcular y nombrado; la BT por tramo, los terceros y las
       secciones equivalentes quedan como huecos o interpretación anotada. Pruebas en `tests/test_vad_dimensionamiento.py`,
       pendientes de la corrida de f4.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_dimensionamiento.py.
 - [ ] T7. Costo estándar: `vad/costos.py` valora la red **dimensionada** con el SICODI (`costos_fuentes.leer_sicodi`)
       mediante `valorar_obra` y `metrados.valorar_metrados`, con la fuente, la moneda y el IGV de cada elemento según
       el registro de la T2. `CostoEstandar` solo se construye con un `Dimensionamiento`, y el VNR real va solo como
@@ -110,7 +113,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       con la tasa pasiva del perfil y hueco nombrado sin ella. En la T6: AAAC y ACSR cuentan como Al (interpretación de f4),
       el umbral trifásico es el dato `trifasico_umbral_kVA` de `vad.anexo6.sed` y el flujo es `oraculo.ejecutar`. Pruebas
       en `tests/test_vad_costos.py` y `tests/test_vad_dimensionamiento.py`, pendientes de la corrida de f4.
-- [ ] T8. Anexo 7 y balance. Leer y transcribir en `config/vad/anexo7_coym.json` la metodología del COyM técnico, y
+- [x] T8. Anexo 7 y balance. Leer y transcribir en `config/vad/anexo7_coym.json` la metodología del COyM técnico, y
       la de las pérdidas estándar y del balance de potencia y energía, con su cita. `vad/coym.py` y `vad/balance.py`
       los calculan por sistema y por tensión, sobre los resultados de la T6. (RF-8)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_coym_balance.py` en verde. Con dos empresas
@@ -136,6 +139,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       deducida y anotada); `RegistroNormativo.regla_de_empresa` elige la tabla de la fijación que trae a la empresa y
       `regla()` sin empresa lanza si las fijaciones vigentes cubren empresas distintas
       (`tests/test_vad_fe_por_empresa.py`).
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_coym_balance.py.
 - [x] T9. Tablas A y B en Excel con sus fórmulas: localizar en el TdR (anexos 2 y 3) qué son y qué columnas tienen, y
       transcribirlo con la cita. `vad/entregables.py` las escribe con `libro_informe` (`plan_del_libro` y
       `rellenar_con_excel` si hay libro modelo; si no, openpyxl con fórmulas vivas) y las verifica con
@@ -197,7 +201,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       BLOQUEADO_POR_DATOS (2026-11-14): no hay caso en `CSG_VAD_CASO`, ni SICODI de la 184-2026 en zip, ni la hoja de
       corriente económica ni los costos unitarios de la empresa, y el cotejo lo hace un revisor. Evidencia y siguiente
       acción: `D:/csg/PM_IMPL/108/T13/BLOQUEO.md`.
-- [ ] T14. Anexo 5, modelo geométrico urbano (**posterior a la iteración 1**; empieza cuando la T13 esté cerrada).
+- [x] T14. Anexo 5, modelo geométrico urbano (**posterior a la iteración 1**; empieza cuando la T13 esté cerrada).
       Leer y transcribir en `config/vad/anexo5_urbano.json` el modelo geométrico, con su cita. `vad/modelo_urbano.py`
       elige la red adaptada por densidad de carga según el anexo 5, y la parte urbana de un sistema mixto deja de
       quedar «sin modelar». (RF-6)
@@ -215,7 +219,8 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       la propia coinciden, y en el resto solo cumple la propia. Pruebas en `tests/test_vad_modelo_urbano.py`, pendientes
       de la corrida de f4. Falta el resto de la T14:
       el enumerador de escenarios por densidad y el sistema mixto.
-- [ ] T16. Registro de resultados y cálculo del VAD. Transcribir en `config/vad/tdr_vad_2026_resultados.json`
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_modelo_urbano.py.
+- [x] T16. Registro de resultados y cálculo del VAD. Transcribir en `config/vad/tdr_vad_2026_resultados.json`
       (amplía el TdR registrado), con su cita, los conceptos de cada ámbito (LCE y LGER), las variantes de cada
       concepto, las fórmulas del cargo fijo y del VAD de cada nivel, la ponderación a nivel empresa, la tasa de
       actualización, la fórmula del FEE y los parámetros de la fórmula de reajuste. `vad/formulas.py` evalúa una
@@ -239,7 +244,8 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       empresa. El estudio (`EstudioVad.avisos`, en `estudio.json`) lleva
       el aviso de los conceptos impugnados que usa, sin cambiar su estado: la 185 sigue obligatoria (art. 216.1 del
       TUO de la LPAG). Pruebas en `tests/test_vad_recursos_185.py` (108:RF-9).
-- [ ] T17. Incorporación del PIDE (contrato 072 → 108, versión `pide_vad_v1`): `vad/pide_vad.py` lee el PIDE aprobado
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_resultados.py.
+- [x] T17. Incorporación del PIDE (contrato 072 → 108, versión `pide_vad_v1`): `vad/pide_vad.py` lee el PIDE aprobado
       que entrega la 072 (acto de aprobación, periodo, moneda y, por nivel de tensión y año, la inversión, el COyM y la
       demanda adicionales), calcula la anualidad con el factor registrado y el VAD ajustado con la fórmula registrada
       del numeral 7.5. El estudio guarda si la empresa está en el ámbito del FONAFE (`EstudioVad.ambito_fonafe`;
@@ -248,66 +254,79 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_pide.py` en verde. Sin PIDE aprobado (o con
       el ámbito sin declarar, otro periodo u otra moneda) hay aviso y no se incorpora nada; con el PIDE de prueba el
       VAD ajustado coincide con el cálculo a mano.
-- [ ] T18. Calidad de servicio: `vad/calidad.py` compara los indicadores calculados de la empresa modelo con los
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_pide.py.
+- [x] T18. Calidad de servicio: `vad/calidad.py` compara los indicadores calculados de la empresa modelo con los
       límites del registro normativo, por sistema, y nombra el que no cumple. Un indicador sin límite registrado o sin
       valor calculado es un hueco nombrado, no un «cumple». (RF-18)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_calidad.py` en verde, con un caso que no
       cumple, uno que cumple y uno con el límite sin registrar. Los límites reales de la NTCSE y la NTCSER quedan
       BLOQUEADOS hasta transcribirlos (`D:/csg/PM_IMPL/108/S3_ENTREGA.md`, bloqueo B2).
       Avance (2026-11-15, f4/VAD-CAL): `vad/calidad.py` sigue el criterio del 6.11 (antes comparaba una media por sistema): SAIFI y SAIDI vigentes de la RCD 074-2004 consolidada con la 177-2012 (mensual por sistema y anual en MT con los filtros del Anexo 3), N y D por cliente (NTCSE) o NIC y DIC por SER (NTCSER), el Cuadro 21 con el % de clientes que exceden N' y D' por semestre y los Cuadros 22 y 23. Límites transcritos de los textos oficiales en las mismas entradas de la NTCSE y la NTCSER, el +30 % del ST 2 (DS 009-99-EM, art. 4) y la RCD 074-2004 como norma nueva; huecos nombrados: RM 163-2011 y curvas de distribución. El bloqueo B2 se levanta con ellos. Inaplicación por DS 013 y 020-2026: tarjeta CAL-DS.
-- [ ] T19. Costos de explotación: `vad/costos_explotacion.py` suma por rubro del registro (VNR no eléctrico,
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_calidad.py.
+- [x] T19. Costos de explotación: `vad/costos_explotacion.py` suma por rubro del registro (VNR no eléctrico,
       explotación técnica, comercial, indirectos y adicionales) solo las partidas dimensionadas con su fuente, y lleva
       el costo real en una columna rotulada como referencia. (RF-19)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_costos_explotacion.py` en verde. Un rubro con
       solo el costo real queda «sin dimensionar» y fuera del total; una partida sin fuente se rechaza; dos monedas no se
       suman.
-- [ ] T20. Tablas de Resultados: `vad/tablas_resultados.py` escribe en Excel una hoja por tabla que liste el registro
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_costos_explotacion.py.
+- [x] T20. Tablas de Resultados: `vad/tablas_resultados.py` escribe en Excel una hoja por tabla que liste el registro
       (numeral 9), con su título, sus filas por sistema eléctrico y el total con fórmulas, más un índice. (Aclaración de
       RF-11; RF-11)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_tablas_resultados.py` en verde. Con el
       registro sintético de 16 tablas salen 16 hojas y con uno de 3, tres; una tabla sin datos es un hueco nombrado en
       el índice; ninguna celda da un error de `libro_informe.ERRORES_DE_FORMULA`; un dato de una tabla que el registro
       no lista se rechaza.
-- [ ] T21. Informes en Word: `vad/informes.py` escribe el Informe de Resultados Relevantes con los apartados del
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_tablas_resultados.py.
+- [x] T21. Informes en Word: `vad/informes.py` escribe el Informe de Resultados Relevantes con los apartados del
       anexo 3 registrado y el Informe del Estudio con la estructura del numeral 9 registrada; cada cifra sale del
       estudio con su origen o queda como hueco nombrado; el PDF integrado se pide a `informe_docx.exportar_pdf` y, si
       no sale, se dice el motivo y el Word queda hecho. (RF-14, RF-15)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_informes.py` en verde. El índice del Word
       coincide con la estructura del registro sintético; un apartado sin contenido es un hueco nombrado; una cifra sin
       origen se rechaza; el PDF sale con un exportador de prueba y su fallo se informa.
-- [ ] T22. Informe Definitivo (numeral 9.2): con las observaciones de la T11, `vad/informes.py` arma los documentos
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_informes.py.
+- [x] T22. Informe Definitivo (numeral 9.2): con las observaciones de la T11, `vad/informes.py` arma los documentos
       que liste el registro para el definitivo y el informe de respuestas, cada una con su sustento y la tabla o el
       cálculo que cambió. Empieza cuando la T11 esté integrada. (Aclaración de RF-12; RF-12)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_informe_definitivo.py` en verde; una respuesta
       sin sustento o sin la tabla o el cálculo que cambió se rechaza.
-- [ ] T23. Registro de la Guía del VNR: `config/normativa/rcd_232_2017.json` con la vigencia del art. 2, la Tabla
+      Hecho en 016498fc (LOTE-1); pruebas: tests/test_vad_informe_definitivo.py.
+- [x] T23. Registro de la Guía del VNR: `config/normativa/rcd_232_2017.json` con la vigencia del art. 2, la Tabla
       N° 1 y los parámetros del art. 22, la fórmula del art. 17.2 y las instalaciones del art. 16.4, con su cita
       literal; `tools/extraer_anexo6_vnr.py` saca las tablas de equivalencia del Anexo 6 del PDF oficial a
       `config/vnr/anexo6_equivalencias.json` con su huella. (RF-20)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_guia_registro.py` en verde; una tabla que no
       cuadra con el texto oficial se rechaza; el extractor reproduce el JSON byte a byte desde el PDF.
-- [ ] T24. Zonificación del art. 22: `vad/vnr_guia.py` arma las cuadrículas UTM de 1000, 500 y 250 m, su densidad con
+      Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: tests/test_vnr_guia_registro.py.
+- [x] T24. Zonificación del art. 22: `vad/vnr_guia.py` arma las cuadrículas UTM de 1000, 500 y 250 m, su densidad con
       la máxima demanda de las SED (FC 0,5 y coincidencia 1,0 para el AP), la zona de la Tabla N° 1, la predominante
       para la aislada y los mapas de MT y BT. (RF-21)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_guia_zonas.py` en verde con dos concesiones
       sintéticas; una cuadrícula de 1000 m con 4 MW queda «Muy Alta» y no se subdivide; una de densidad cero se elimina.
-- [ ] T25. Adaptación por sector típico (arts. 23 a 44) con las tablas del Anexo 6: metrado existente y adaptado por
+      Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: tests/test_vnr_guia_zonas.py.
+- [x] T25. Adaptación por sector típico (arts. 23 a 44) con las tablas del Anexo 6: metrado existente y adaptado por
       tramo, con la regla que lo cambió. (RF-22)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_guia_adaptacion.py` en verde; un tramo aéreo
       de AA protegido en zona Media no corrosiva sale en AA desnudo; uno subterráneo de 70 mm² en zona Baja pasa a aéreo.
-- [ ] T26. Cálculo del VNR (art. 17.2) con el SICODI de `CSG_SICODI` leído por `costos_fuentes.leer_sicodi`, formatos
+      Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: tests/test_vnr_guia_adaptacion.py.
+- [x] T26. Cálculo del VNR (art. 17.2) con el SICODI de `CSG_SICODI` leído por `costos_fuentes.leer_sicodi`, formatos
       A1, B1, C1 y D1 del Anexo 5, y la anualidad del VNR real con los factores del VAD para la TIR y el contraste
       con la empresa modelo. (RF-23, RF-24)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_guia_calculo.py` en verde; una instalación
       sin costo estándar es un hueco nombrado; la anualidad del VNR real cita sus factores y la huella del SICODI.
-- [ ] T27. Altas y bajas del art. 18 entre dos inventarios VNR, con su efecto en el VNR. (RF-25)
+      Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: tests/test_vnr_guia_calculo.py.
+- [x] T27. Altas y bajas del art. 18 entre dos inventarios VNR, con su efecto en el VNR. (RF-25)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_guia_altas_bajas.py` en verde.
-- [ ] T28. Estudio VNR desde el inventario VNR-GIS y la web: `vad/vnr_estudio.py` lee cada código VNR del Anexo 2 al
+      Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: tests/test_vnr_guia_altas_bajas.py.
+- [x] T28. Estudio VNR desde el inventario VNR-GIS y la web: `vad/vnr_estudio.py` lee cada código VNR del Anexo 2 al
       revés, zonifica con las SED del inventario, adapta, codifica y valoriza; `web/vnr_api.py` lo lanza como trabajo
       del motor con el canonical.json y el SICODI subidos, y la pestaña «Estudio VNR» entrega el libro de formatos.
       (RF-21, RF-22, RF-23, RF-24)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_estudio.py tests/test_vnr_api.py` en verde
       y `npm test` en verde; una SED sin demanda y un código desconocido son huecos nombrados; un fichero que no es un
       inventario o un SICODI se rechaza con 400.
-- [ ] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+      Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: tests/test_vnr_api.py tests/test_vnr_estudio.py.
+- [x] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "108:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-25 y la suite está en verde.
+      Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: las del criterio.

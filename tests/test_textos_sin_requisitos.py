@@ -628,3 +628,46 @@ def test_el_detector_de_datos_ve_cada_forma_sembrada():
     assert {'config/perfiles/plantilla.json', 'config/entrega.json',
             'config/pregunta_entregada/CONJUNTO_ABSTENCION_ENTREGA.json'} <= entregados
     assert not {'config/perfil_empresa.json', 'config/licencias_terceros/manifest.json'} & entregados
+
+
+# ------------------------------------------------------------------ textos del esquema que ve el operador
+#: Las claves del esquema cuyo texto llega al operador: ``perfil_esquema`` las pone en ``Falta.funcion`` y
+#: ``Falta.si_falta``, que enseñan el doctor y la web.
+CLAVES_DE_TEXTO_DEL_ESQUEMA = ('x-funcion', 'x-si-falta')
+ESQUEMAS = RAIZ / 'src' / 'convertersmartgrid' / 'schemas'
+
+
+def citas_en_esquema(datos, ruta: str, camino: str = '') -> list[str]:
+    """Cada ``x-funcion`` o ``x-si-falta`` con una cita, a cualquier profundidad: «ruta:/camino/clave: 'texto'»."""
+    salida = []
+    if isinstance(datos, dict):
+        for k, v in datos.items():
+            if k in CLAVES_DE_TEXTO_DEL_ESQUEMA and isinstance(v, str):
+                if CITA.search(v):
+                    salida.append(f'{ruta}:{camino}/{k}: {v[:100]!r}')
+            else:
+                salida += citas_en_esquema(v, ruta, f'{camino}/{k}')
+    elif isinstance(datos, list):
+        for i, v in enumerate(datos):
+            salida += citas_en_esquema(v, ruta, f'{camino}[{i}]')
+    return salida
+
+
+def test_ningun_texto_del_esquema_que_ve_el_operador_cita_requisitos():
+    """070:RF-78 (datos) — lo que el doctor y la web dicen de una clave que falta en el perfil (su ``x-funcion`` y su
+    ``x-si-falta``) no cita requisitos, specs ni tareas."""
+    citas = []
+    for f in sorted(ESQUEMAS.glob('*.json')):
+        citas += citas_en_esquema(json.loads(f.read_text(encoding='utf-8')), f'src/convertersmartgrid/schemas/{f.name}')
+    assert citas == [], f'{len(citas)} texto(s) del esquema con citas internas:\n' + '\n'.join(citas)
+
+
+def test_el_detector_del_esquema_ve_cada_forma_sembrada():
+    """070:RF-78 (datos) — caso sembrado: un ``x-funcion`` anidado y un ``x-si-falta`` dentro de una lista con su cita se
+    ven; una descripción técnica (``description``) con cita no es de esta prueba, y un texto sin cita no se ve."""
+    esquema = {'properties': {'pit': {'properties': {'areas': {'x-funcion': 'Áreas del PIT (107:RF-9)',
+                                                               'x-si-falta': 'sin áreas no hay expediente'}}},
+                              'lista': {'items': [{'x-si-falta': 'no se calcula (spec 049)'}]},
+                              'otra': {'description': 'interna (086:RF-3)', 'x-funcion': 'Bancos por tensión'}}}
+    vistas = [c.split(': ', 1)[0] for c in citas_en_esquema(esquema, 'x.json')]
+    assert vistas == ['x.json:/properties/pit/properties/areas/x-funcion', 'x.json:/properties/lista/items[0]/x-si-falta']

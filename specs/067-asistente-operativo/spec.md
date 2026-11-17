@@ -1,6 +1,6 @@
 # Spec 067 — Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web
 
-Estado: aprobada (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100. Ampliada el 2026-11-14, Plan Maestro v1.6, H10: RF-41, T10)
+Estado: cumplida (2026-11-17: todas sus tareas cerradas); antes aprobada (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100. Ampliada el 2026-11-14, Plan Maestro v1.6, H10: RF-41, T10)
 
 Rama de trabajo: `asistente/nucleo`.
 Cita: 026 (asistente), 027 (agente en producción), 043 (gobierno de modelos), 047 (revisión por

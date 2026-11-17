@@ -102,6 +102,17 @@ lector-mdb = "convertersmartgrid.sources.mdb:MODULO"
 lector-txt = "convertersmartgrid.sources.txt:MODULO"
 lector-vnr = "convertersmartgrid.sources.vnr:MODULO"
 
+# 002 T7 (a), RF-9: los adaptadores internos de los casos de uso, uno por puerto de puertos.PUERTOS_ADAPTADORES; batch,
+# cargas_pf y reglas los resuelven al usarlos (registro_modulos.adaptador). Al cambiarlos: «pip install -e . --no-deps».
+[project.entry-points."convertersmartgrid.adaptadores"]
+salida-dgs = "convertersmartgrid.dgs"
+tablas-dgs = "convertersmartgrid.export_tables"
+geografia = "convertersmartgrid.geography"
+vista-previa = "convertersmartgrid.preview"
+validacion-dgs = "convertersmartgrid.validate"
+metadatos-alimentador = "convertersmartgrid.feeder_metadata"
+oraculo = "convertersmartgrid.oraculo"
+
 [tool.setuptools]
 py-modules = ["vnr_etl"]
 
@@ -171,6 +182,7 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.dominio.meses_copiados" = "dominio"
 "convertersmartgrid.dominio.evolucion_mensual" = "dominio"
 "convertersmartgrid.dominio.conciliacion_clientes" = "dominio"
+"convertersmartgrid.dominio.cargas_plantilla" = "dominio"
 "convertersmartgrid.dominio.huellas_terminos" = "dominio"
 "convertersmartgrid.contratos_aprendizaje" = "dominio"
 "convertersmartgrid.conjuntos_aprendizaje" = "aplicacion"

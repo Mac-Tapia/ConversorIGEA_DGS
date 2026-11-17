@@ -21,28 +21,44 @@ from typing import Any
 from pathlib import Path
 
 from .dominio.dataset import CymdistDataset
-from .dgs import write_dgs
-from .export_tables import write_dgs_tsv, write_dgs_xlsx
-from .geography import (
-    assert_metre_source_crs,
-    exigir_crs_origen,
-    build_geography,
-    validate_geography,
-    write_geography_manifest,
-    write_geography_validation,
-)
 from .model import ModelBuildError, build_feeder_model
 from .naming import feeder_short_name, sort_key_feeder
-from .preview import write_preview_geojson, write_preview_html
 from .perfil_empresa import SIN_PERFIL, PerfilEmpresa
-from .registro_modulos import Resolucion, instalar_en_proceso, resolver
+from .registro_modulos import Resolucion, adaptador, instalar_en_proceso, resolver
 from .reglas import REGLAS_PROYECTO, Reglas, aplicar_reglas, auditar_completitud, preparar_dataset, project_root
 from .runtime_paths import raiz_local
 from .util import nombre_seguro, write_json_atomic
 from .runtime_paths import staging_publicacion
-from .validate import parse_dgs, validate_dgs, write_validation_reports
 
 ProgressCallback = Callable[[str, int, int], None]
+
+
+def _del_adaptador(puerto: str, nombre: str) -> Callable[..., Any]:
+    """002 T7 (a), RF-9: ``nombre`` del adaptador de ``puerto``, resuelto al llamarlo (registro_modulos.adaptador). El
+    caso de uso no importa el adaptador; el nombre del módulo sigue aquí para quien lo llama o lo sustituye en pruebas."""
+    def llamar(*args: Any, **kwargs: Any) -> Any:
+        return getattr(adaptador(puerto), nombre)(*args, **kwargs)
+    llamar.__name__ = llamar.__qualname__ = nombre
+    llamar.__doc__ = f'{nombre} del adaptador «{puerto}», resuelto al usarse (002:RF-9).'
+    return llamar
+
+
+write_dgs = _del_adaptador('salida-dgs', 'write_dgs')
+write_dgs_tsv = _del_adaptador('tablas-dgs', 'write_dgs_tsv')
+write_dgs_xlsx = _del_adaptador('tablas-dgs', 'write_dgs_xlsx')
+assert_metre_source_crs = _del_adaptador('geografia', 'assert_metre_source_crs')
+exigir_crs_origen = _del_adaptador('geografia', 'exigir_crs_origen')
+build_geography = _del_adaptador('geografia', 'build_geography')
+validate_geography = _del_adaptador('geografia', 'validate_geography')
+write_geography_manifest = _del_adaptador('geografia', 'write_geography_manifest')
+write_geography_validation = _del_adaptador('geografia', 'write_geography_validation')
+write_preview_geojson = _del_adaptador('vista-previa', 'write_preview_geojson')
+write_preview_html = _del_adaptador('vista-previa', 'write_preview_html')
+parse_dgs = _del_adaptador('validacion-dgs', 'parse_dgs')
+validate_dgs = _del_adaptador('validacion-dgs', 'validate_dgs')
+write_validation_reports = _del_adaptador('validacion-dgs', 'write_validation_reports')
+assignments_from_model = _del_adaptador('metadatos-alimentador', 'assignments_from_model')
+write_feeder_metadata = _del_adaptador('metadatos-alimentador', 'write_feeder_metadata')
 
 STAGE_PREFIX = '.csg-stage-'
 
@@ -209,8 +225,6 @@ def _convert_feeder(
 
         manifiesto_dgs = write_dgs(model, dgs_path, schema_profile=opts.schema_profile,
                                    geography=geography, trafos=opts.trafos)
-        from .feeder_metadata import assignments_from_model, write_feeder_metadata
-
         write_feeder_metadata(
             assignments_from_model(model, manifiesto_dgs), dgs_path, metadata_path,
             capacitor_banks=manifiesto_dgs.capacitor_banks,
@@ -762,8 +776,6 @@ def convert_group(
         metadata_path = stage / f'{nombre}_feeder_metadata.json'
         man = write_dgs(combinado, dgs_path, schema_profile=schema_profile,
                         geography=geography, trafos=trafos)
-        from .feeder_metadata import assignments_from_model, write_feeder_metadata
-
         write_feeder_metadata(
             assignments_from_model(combinado, man), dgs_path, metadata_path,
             capacitor_banks=man.capacitor_banks,
@@ -840,7 +852,8 @@ def _por_set(combinado, estructura, alimentadores, reconstruir=None) -> dict[str
     from .combine import estructurar
     from .enlaces import abrir_caminos_cerrados, enlaces, reconstruir_por_medida
     from .estructura import asignar
-    from .oraculo import disponible, validar_unida
+    oraculo = adaptador('oraculo')
+    disponible, validar_unida = oraculo.disponible, oraculo.validar_unida
 
     asignacion = asignar(estructura, alimentadores)
     avisos = estructurar(combinado, estructura, asignacion)

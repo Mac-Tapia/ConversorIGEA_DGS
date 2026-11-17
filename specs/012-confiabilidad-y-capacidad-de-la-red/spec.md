@@ -1,6 +1,6 @@
 # Spec 012 — Confiabilidad y capacidad de la red calibrada
 
-Estado: aprobada (2026-11-14: RF-87 a RF-92, confiabilidad parte 2, T14 a T18 abiertas; antes cumplida 2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (2026-10-29; aprobada el 2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11, tras
+Estado: implementada (2026-11-17: código cerrado; queda T17 en DIgSILENT); antes aprobada (2026-11-14: RF-87 a RF-92, confiabilidad parte 2, T14 a T18 abiertas; antes cumplida 2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (2026-10-29; aprobada el 2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11, tras
 revisar el menú «Calculation» de PowerFactory 2024 con el manual de usuario (cap. 40, 41,
 45 y 46)
 

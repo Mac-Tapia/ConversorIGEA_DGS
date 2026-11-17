@@ -114,6 +114,26 @@ export async function revisarAxe(page, flujo, nombre, testInfo) {
   await testInfo.attach(`axe-${nombre}`, { path: ruta, contentType: 'application/json' });
   const graves = resumen.filter((v) => GRAVES.has(v.impacto)).map((v) => `${v.id} (${v.impacto}, ${v.nodos.length} nodos): ${v.ayuda}`);
   expect(graves, `axe en ${flujo}/${nombre}: ${ruta}`).toEqual([]);
+  await comprobar_sin_citas(page, `${flujo}/${nombre}`);
+}
+
+/**
+ * 070:RF-78 — lo que ve el operador no cita requisitos ni tareas internas: el mismo patrón que
+ * `tests/test_textos_sin_requisitos.py` (CITA), salvo «(NNN)» suelto, que en pantalla puede ser un recuento.
+ * Cada recorrido lo comprueba en cada estado, porque `revisarAxe` lo llama.
+ */
+export const CITA_EN_PANTALLA = /RF-\d|\b\d{3}:RF|\(spec \d{3}\b|(?:\b\d{3}[ :]|\btarea\s)T\d+\b/g;
+
+export async function comprobar_sin_citas(page, donde) {
+  // Las fuentes que cita el asistente son texto literal del corpus, con su RF: procedencia, no un aviso. Se excluyen
+  // solo ellas (marcadas con data-cita-de-fuente); el resto de la pantalla no cita requisitos ni tareas.
+  const texto = await page.evaluate(() => {
+    let visible = document.body.innerText;
+    for (const n of document.querySelectorAll('[data-cita-de-fuente]')) visible = visible.replace(n.innerText, '');
+    return visible;
+  });
+  const citas = [...new Set(texto.match(CITA_EN_PANTALLA) ?? [])];
+  expect(citas, `citas internas a la vista en ${donde}`).toEqual([]);
 }
 
 /** Al terminar un recorrido: sin salidas a la red y sin errores en la consola. */

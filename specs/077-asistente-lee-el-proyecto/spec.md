@@ -1,6 +1,6 @@
 # Spec 077 — El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura
 
-Estado: aprobada · Fecha: 2026-11-02 · Origen: petición del usuario · Ampliada el 2026-11-14 (Plan Maestro v1.6, H10): RF-75 a RF-77, T11
+Estado: cumplida (2026-11-17: todas sus tareas cerradas); antes aprobada · Fecha: 2026-11-02 · Origen: petición del usuario · Ampliada el 2026-11-14 (Plan Maestro v1.6, H10): RF-75 a RF-77, T11
 
 ## Estado del corpus ampliado (2026-11-13)
 

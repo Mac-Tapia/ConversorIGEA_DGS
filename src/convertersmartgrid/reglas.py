@@ -260,7 +260,10 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
 
 def _corregir_con_oraculo(model) -> dict[str, Any]:
     """057:RF-1 a RF-4: la corrección del oráculo, en el informe de reglas y en los avisos."""
-    from .oraculo import corregir_para_converger, disponible
+    from .registro_modulos import adaptador  # 002 T7 (a): el oráculo por su puerto, no por su módulo
+
+    oraculo = adaptador('oraculo')
+    corregir_para_converger, disponible = oraculo.corregir_para_converger, oraculo.disponible
 
     if getattr(model, 'combined', None) is not None or not disponible():
         # La red unida tiene su propio veredicto por isla (022:RF-33); sin pandapower no

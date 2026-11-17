@@ -9,7 +9,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, test, type Page } from './sin_red';
+import { comprobar_sin_citas, expect, test, type Page } from './sin_red';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const FIJADAS = join(AQUI, 'linea_base_acciones.json');
@@ -58,6 +58,7 @@ test('111:RF-16 — todas las pestañas de la web siguen y conservan sus accione
     await expect(boton).toHaveAttribute('aria-selected', 'true');
     await page.waitForLoadState('networkidle');
     vistas[p.id] = await acciones(page);
+    await comprobar_sin_citas(page, `pestaña ${p.id}`);
     expect(vistas[p.id].length, `la pestaña ${p.id} no ofrece ninguna acción`).toBeGreaterThan(0);
   }
 

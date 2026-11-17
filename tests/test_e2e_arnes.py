@@ -107,3 +107,19 @@ def test_111_rf16_la_web_de_prueba_no_arranca_nada_al_importarse():
     sueltos = [n.lineno for n in arbol.body[1:] if not isinstance(n, permitidos)
                and not (isinstance(n, ast.If) and "__name__" in ast.unparse(n.test))]
     assert not sueltos, f'web_de_prueba.py ejecuta código al importarse en las líneas {sueltos}'
+
+
+def test_070_rf78_los_guiones_de_playwright_comprueban_que_no_hay_citas_a_la_vista():
+    """070:RF-78 (070 T15) — los recorridos en navegador real llaman a ``comprobar_sin_citas``: la línea base en cada
+    pestaña, y cada recorrido de ``test/e2e`` en cada estado (lo llama ``revisarAxe``, que todos usan)."""
+    comun = (FRONT / 'test' / 'e2e' / 'comun.mjs').read_text(encoding='utf-8')
+    assert 'export async function comprobar_sin_citas' in comun
+    cuerpo_axe = comun.split('export async function revisarAxe', 1)[1].split('\n}\n', 1)[0]
+    assert 'comprobar_sin_citas(' in cuerpo_axe
+    for guion in sorted((FRONT / 'test' / 'e2e').glob('*.e2e.mjs')):
+        texto = guion.read_text(encoding='utf-8')
+        if ('test.skip(' in texto or 'test.fixme(' in texto) and 'revisarAxe' not in texto:  # pendiente a propósito
+            continue
+        assert 'revisarAxe(' in texto or 'comprobar_sin_citas(' in texto, guion.name
+    assert 'comprobar_sin_citas(' in _texto('linea_base.spec.ts')
+    assert 'export async function comprobar_sin_citas' in _texto('sin_red.ts')

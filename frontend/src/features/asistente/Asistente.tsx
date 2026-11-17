@@ -345,7 +345,7 @@ export function Asistente() {
               <div className="stack">
                 <p>{x.r.respuesta.texto}</p>
                 {(x.r.respuesta.citas ?? []).length > 0 && (
-                  <ol className="small">{x.r.respuesta.citas!.map((c) => <li key={c.n}><code>{c.fuente}</code> {c.texto.slice(0, 240)}</li>)}</ol>
+                  <ol className="small" aria-label="Fuentes citadas" data-cita-de-fuente="">{x.r.respuesta.citas!.map((c) => <li key={c.n}><code>{c.fuente}</code> {c.texto.slice(0, 240)}</li>)}</ol>
                 )}
               </div>
             )}

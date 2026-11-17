@@ -37,14 +37,15 @@
   Hecho cuando: `tests/test_textos_sin_requisitos.py` falla en e182c823 (66 textos) y pasa tras quitarlos, y
   `tests/test_trazabilidad_specs.py`, `npm run lint`, `npx tsc --noEmit -p .`, `npm run build` y `npm test` siguen como
   antes. Hecho el 2026-11-15 (tarjeta MENSAJES-SIN-RF): rojo y verde en `D:/csg/PM_IMPL/PISTA3/MENSAJES-SIN-RF/`.
-- [ ] T14 Ningún aviso ni mensaje de las respuestas cita requisitos, specs ni tareas, por grupos de módulos. (RF-78)
+- [x] T14 Ningún aviso ni mensaje de las respuestas cita requisitos, specs ni tareas, por grupos de módulos. (RF-78)
   Hecho cuando: `tests/test_textos_sin_requisitos.py` recorre `src/` entero sin `EN_VUELO` (cuando la 107 limpie `pit/`) y
   está en verde con las pruebas de cada módulo.
   Avance del 2026-11-15, rojo y verde de cada tarjeta en `D:/csg/PM_IMPL/PISTA3/MENSAJES-SIN-RF/<tarjeta>/`: v2a (13
   módulos), v2b (4), v2c (2), v2d (2), v2e (`web/services.py`) y la final (src/ entero; también los avisos por `avisar(…)`).
   Falta solo `src/convertersmartgrid/pit/` (7 avisos con «107:RF-8/12»), que quita la 107. Está en `EN_VUELO`, y
   `test_la_lista_de_en_vuelo_no_esconde_nada` obliga a sacarla de la lista en cuanto quede limpia: entonces se marca.
-- [ ] T15 Excepciones de cualquier clase, salida de los guiones y textos en variables sin citas, por tarjetas. (RF-78)
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_textos_sin_requisitos.py.
+- [x] T15 Excepciones de cualquier clase, salida de los guiones y textos en variables sin citas, por tarjetas. (RF-78)
   Hecho cuando: `PENDIENTES_V3` de `tests/test_textos_sin_requisitos.py` está vacío, `tests/test_textos_sin_requisitos.py`
   está en verde con las pruebas de cada módulo, y los guiones de Playwright llaman a `comprobar_sin_citas`.
   Avance del 2026-11-15: v3a (detector v3, src/ limpio salvo pit/ de la 107, 57 textos; la función común de Playwright
@@ -53,19 +54,28 @@
   por una cita y los 4 filtros que lo hacían, ahora por el sentido del aviso (tools/cabecera_ancha.py,
   tools/aceptar_restitucion_pf.py, tools/sistema_web.py y src/convertersmartgrid/pronostico_demanda.py); la lista explícita
   de «T<n>» permitidos en `sin_citas.py`. v3c: tools/cargas_pf.py (56 líneas). v3d: tools/obras_pf.py (64 líneas). v3e: tools/ajuste_cabecera_pf.py (107 líneas) y su filtro por «(083:RF-31)», ahora por el sentido: PENDIENTES_V3 queda vacío. v3f: el detector ve también el texto que devuelve una función (`return`) y las claves `error`, `origen` y `fuente`; se quitan sus 72 textos en 25 ficheros (los 137 medidos al cerrar v3e, contados una vez por línea y texto). Solo falta la parte del navegador.
+  Cerrada (2026-11-17, 4d): `comprobar_sin_citas` en `frontend/test/e2e/comun.mjs` (la llama `revisarAxe`, en cada
+  estado de cada recorrido) y en `frontend/e2e/sin_red.ts` (la línea base, en cada pestaña); las fuentes literales
+  del asistente van marcadas (`data-cita-de-fuente`) y no cuentan. En navegador real: F01 a F05 y teclado, 10
+  passed; prueba permanente en `tests/test_e2e_arnes.py`. `PENDIENTES_V3` vacío y su prueba en verde.
 - [x] T12 Un solo modelo del catálogo a la caché de la web. (RF-77)
   Hecho cuando: `pytest -q tests/test_preparacion_modelos_ia.py` en verde; la web de prueba reabre el intérprete con el codificador en su caché.
-- [ ] T16 Correo y nube por el asistente: tareas, rutas de previa, la tarjeta del panel con su botón y el seguimiento
+- [x] T16 Correo y nube por el asistente: tareas, rutas de previa, la tarjeta del panel con su botón y el seguimiento
   del recibo; e2e con la nube y el correo simulados. (RF-79, RF-80, RF-81, RF-82, RF-83)
   Hecho cuando: `pytest -q tests/test_asistente_nube_correo.py` y el e2e del panel en verde.
-- [ ] T17 Tareas del PIT por `/api/pit/…`. (RF-79)
+      Hecho en e2a99c73 (PUERTA3); pruebas: tests/test_asistente_nube_correo.py.
+- [x] T17 Tareas del PIT por `/api/pit/…`. (RF-79)
   Hecho cuando: `pytest -q tests/test_asistente_107_112.py -k pit` en verde.
-- [ ] T18 Ruta web del VAD y su tarea. (RF-79, RF-86)
+      Hecho en e2a99c73 (PUERTA3); pruebas: tests/test_asistente_107_112.py -k pit.
+- [x] T18 Ruta web del VAD y su tarea. (RF-79, RF-86)
   Hecho cuando: `pytest -q tests/test_asistente_107_112.py -k vad` en verde.
-- [ ] T19 Tareas del plano: maniobra en una variación y su estudio. (RF-79)
+      Hecho en e2a99c73 (PUERTA3); pruebas: tests/test_asistente_107_112.py -k vad.
+- [x] T19 Tareas del plano: maniobra en una variación y su estudio. (RF-79)
   Hecho cuando: `pytest -q tests/test_asistente_107_112.py -k plano` en verde.
-- [ ] T20 Tarea del benchmark anonimizado. (RF-79)
+      Hecho en e2a99c73 (PUERTA3); pruebas: tests/test_asistente_107_112.py -k plano.
+- [x] T20 Tarea del benchmark anonimizado. (RF-79)
   Hecho cuando: `pytest -q tests/test_asistente_107_112.py -k benchmark` en verde.
+      Hecho en e2a99c73 (PUERTA3); pruebas: tests/test_asistente_107_112.py -k benchmark.
 - [ ] T21 Frases del maestro, sintéticos y la prueba sellada nueva con su huella; la anterior, histórica. (RF-84, RF-85)
   Hecho cuando: `pytest -q tests/test_prueba_sellada_107_112.py tests/test_asistente_maestro.py tests/test_maestro_real.py tests/test_asistente_sinteticos.py` en verde, y la destilación la mide (con la T22).
 - [ ] T22 [GPU] Reentrenar el modelo de órdenes con las tareas nuevas y pasar sus puertas (085). (RF-84)

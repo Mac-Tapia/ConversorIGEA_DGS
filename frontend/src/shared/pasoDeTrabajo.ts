@@ -25,6 +25,8 @@ export const PASOS = {
   // 105: el tablero de la evolución de los clientes fijos, en su propia pestaña.
   'clientes-fijos': { titulo: 'Evolución de clientes fijos', pestana: 'clientes_fijos' },
   vnr: { titulo: 'Estudio VNR', pestana: 'vnr' },
+  // 107 T13: el diagnóstico y el expediente del PIT, en su pestaña.
+  pit: { titulo: 'Estudio PIT', pestana: 'pit' },
   // 111: el estudio de una variación del plano, en su pestaña.
   plano: { titulo: 'Plano de la red', pestana: 'plano' },
 } as const;
@@ -70,11 +72,10 @@ export const PASO_DE_TRABAJO: Record<string, PasoId | null> = {
   pide: 'pf-planificacion', gemelo_aprender: 'pf-planificacion', gemelo_deriva: 'pf-planificacion',
   gemelo_pronostico: 'pf-planificacion', gemelo_temporal: 'pf-planificacion', gemelo_entrenar: 'pf-planificacion',
   gemelo_evaluar: 'pf-planificacion',
-  // 107: el diagnóstico de la red del área del PIT (POST /api/pit/diagnostico) es planificación, como el PIDE; su
-  // aviso va al paso 5, que lo enseña también con la planificación apagada.
-  pit_diagnostico: 'pf-planificacion',
-  // 107: el expediente del PIT se arma desde el mismo paso que su diagnóstico.
-  pit_expediente: 'pf-planificacion',
+  // 107 T13: el diagnóstico de la red del área y el expediente del PIT se lanzan desde la pestaña «Estudio PIT», y su
+  // aviso sale allí.
+  pit_diagnostico: 'pit',
+  pit_expediente: 'pit',
   asistente: 'asistente', asistente_control: 'asistente', asistente_interpretar: 'asistente',
   asistente_entrenar: 'asistente', asistente_mejora: 'asistente', asistente_indice: 'asistente', asistente_revision: 'asistente',
   agente_proyecto: 'asistente',

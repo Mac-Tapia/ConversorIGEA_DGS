@@ -69,3 +69,17 @@ export const test = base.extend<{ red: Red }>({
 
 export { expect };
 export type { Page } from '@playwright/test';
+
+/** 070:RF-78 — el mismo patrón de `test/e2e/comun.mjs` (CITA_EN_PANTALLA): nada a la vista cita requisitos o tareas. */
+const CITA_EN_PANTALLA = /RF-\d|\b\d{3}:RF|\(spec \d{3}\b|(?:\b\d{3}[ :]|\btarea\s)T\d+\b/g;
+
+export async function comprobar_sin_citas(page: import('@playwright/test').Page, donde: string): Promise<void> {
+  // Las fuentes citadas por el asistente (data-cita-de-fuente) son texto literal del corpus: se excluyen solo ellas.
+  const texto = await page.evaluate(() => {
+    let visible = document.body.innerText;
+    for (const n of document.querySelectorAll<HTMLElement>('[data-cita-de-fuente]')) visible = visible.replace(n.innerText, '');
+    return visible;
+  });
+  const citas = [...new Set(texto.match(CITA_EN_PANTALLA) ?? [])];
+  expect(citas, `citas internas a la vista en ${donde}`).toEqual([]);
+}

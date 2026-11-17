@@ -1,6 +1,6 @@
 # Spec 083 — El oráculo antes de calibrar y recalibrar
 
-Estado: aprobada (2026-11-14: RF-32, H12; antes cumplida 2026-11-07, verificada en DIgSILENT en el Pisco de prueba) · Fecha: 2026-11-03 · Origen: petición del usuario
+Estado: cumplida (2026-11-17: todas sus tareas cerradas); antes aprobada (2026-11-14: RF-32, H12; antes cumplida 2026-11-07, verificada en DIgSILENT en el Pisco de prueba) · Fecha: 2026-11-03 · Origen: petición del usuario
 
 ## Contexto y objetivo
 

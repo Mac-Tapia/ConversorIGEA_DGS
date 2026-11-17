@@ -33,6 +33,8 @@ FUERA = REPO / 'docs' / 'CONJUNTO_FUERA_077.json'
 #: 33 con ella, y `muestra_suficiente` pide 100 y 30. No van en docs/PREGUNTAS_MAESTRO_076.md, que entra en el corpus
 #: (076:RF-29), ni en el JSONL de la 076, cuyo reparto `corpus` copia ese documento.
 MAESTRO = REPO / 'docs' / 'CONJUNTO_MAESTRO_CALIBRACION_077.json'
+#: 097-DIAG (a2): más sin respuesta del maestro con la mezcla de la 076 y 15 «fuera» más, solo para la calibración.
+MAESTRO_097 = REPO / 'docs' / 'CONJUNTO_MAESTRO_CALIBRACION_097.json'
 
 
 def _filas() -> list[dict]:
@@ -99,12 +101,19 @@ def _conjuntos(indice, evaluacion_rag, reranker, rehacer_calibracion: bool = Fal
         if ruta.is_file() and not (rehacer_calibracion and clave == 'calibracion'):
             salida[clave] = {'estado': 'ya existe: un conjunto sellado no se vuelve a formar', 'sha256': reranker.sha256_de(ruta)}
             continue
-        nuevas = json.loads(MAESTRO.read_text(encoding='utf-8'))['preguntas'] if clave == 'calibracion' else []
-        conjunto = evaluacion_rag.conjunto_de_entregables(filas + nuevas, reparto, frags, fuera[clave], sin_las_del_corpus=True)
+        nuevas, de_fuera = [], list(fuera[clave])
+        if clave == 'calibracion':
+            nuevas = json.loads(MAESTRO.read_text(encoding='utf-8'))['preguntas']
+            if MAESTRO_097.is_file():
+                extra = json.loads(MAESTRO_097.read_text(encoding='utf-8'))
+                nuevas += extra['preguntas']
+                de_fuera += extra.get('fuera_calibracion') or []
+        conjunto = evaluacion_rag.conjunto_de_entregables(filas + nuevas, reparto, frags, de_fuera, sin_las_del_corpus=True)
         if nuevas:
             dentro = {f['pregunta'] for f in conjunto['preguntas']}
             conjunto['ampliada_por_el_maestro'] = {
                 'fichero': MAESTRO.relative_to(REPO).as_posix(),
+                'ficheros': [m.relative_to(REPO).as_posix() for m in (MAESTRO, MAESTRO_097) if m.is_file()],
                 'sin_respuesta': sum(f['tipo'] == 'sin_respuesta' and f['pregunta'] in dentro for f in nuevas),
                 'con_respuesta': sum(f['tipo'] == 'con_respuesta' and f['pregunta'] in dentro for f in nuevas)}
         ruta.write_text(json.dumps(conjunto, ensure_ascii=False, indent=0, sort_keys=True) + '\n', encoding='utf-8', newline='\n')

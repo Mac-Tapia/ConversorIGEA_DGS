@@ -1169,6 +1169,18 @@ def _instantes_de_maxima(cabecera: _Serie | None) -> np.ndarray:
     return t[orden][:INSTANTES_DE_MAXIMA]
 
 
+def _resumen_del_ciclo(ciclo: Mapping[str, Any] | None, anclados: Sequence[str]) -> dict[str, Any]:
+    """Lo que la evaluación anota del ciclo común (031:RF-10): la versión usada y los objetivos que parten de ella."""
+    if ciclo is None:
+        return {'usado': False, 'motivo': 'no se consultó el ciclo común'}
+    resumen = {k: v for k, v in ciclo.items() if k != 'maximas'}
+    if ciclo.get('usado'):
+        resumen['objetivos_anclados'] = sorted(set(anclados))
+        if not anclados:
+            resumen.update(usado=False, motivo='el ganador publicado no trae ninguno de estos objetivos: el año base parte de lo medido')
+    return resumen
+
+
 def _base(serie: _Serie, instantes: np.ndarray) -> tuple[float, str, str] | None:
     """El valor medido en el primer instante de máxima del alimentador que la serie tiene; ninguno se rellena (031:RF-5)."""
     if not len(serie.t):
@@ -1304,10 +1316,59 @@ def aceptacion(validado: int, horizonte: int, orden: Mapping[str, Any] | None) -
                            'falta': f'validados {validado} de {horizonte} años: hace falta la orden expresa del operador'}
 
 
+#: 031:RF-10: la etapa del ciclo común (050) en que compiten los modelos de pronóstico (GRU, N-HiTS, TFT y PatchTST).
+FAMILIA_PRONOSTICO = 'gru'
+
+
+def ganador_del_ciclo(*, en_uso: Callable[[str], Mapping[str, Any] | None] | None = None) -> dict[str, Any]:
+    """El ganador de pronóstico que publicó el ciclo común: su versión y las máximas de su emisión (031:RF-10).
+
+    Lo da el conjunto activo del 050 (``miembro_en_uso``), nunca el último candidato suelto. Sin conjunto publicado, o
+    si no se puede leer, devuelve ``usado: False`` con el motivo, y el año base parte de lo medido.
+    """
+    from .conjuntos_aprendizaje import miembro_en_uso
+    from .contratos_aprendizaje import CicloBloqueado
+    try:
+        miembro = (en_uso or miembro_en_uso)(FAMILIA_PRONOSTICO)
+    except (CicloBloqueado, OSError, ValueError) as exc:
+        return {'usado': False, 'motivo': f'el conjunto del ciclo común no se lee ({exc}): el año base parte de lo medido'}
+    if miembro is None:
+        return {'usado': False, 'motivo': 'el ciclo común no ha publicado un ganador de pronóstico: el año base parte de lo medido'}
+    detalle = miembro['detalle']
+    version = {'conjunto_id': miembro['conjunto_id'], 'candidate_id': miembro['candidate_id'],
+               'modelo_registro': miembro['modelo_registro'],
+               'algorithm': (detalle.get('model_manifest') or {}).get('algorithm')}
+    try:
+        emision = json.loads((Path(detalle['path']) / 'artifacts' / 'pronostico.json').read_text(encoding='utf-8'))
+        maximas = {str(n): float(m['valor']) for n, m in (emision.get('maximas') or {}).items()}
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        return {'usado': False, **version,
+                'motivo': f'el ganador publicado no trae su emisión legible ({exc}): el año base parte de lo medido'}
+    maximas = {n: v for n, v in maximas.items() if math.isfinite(v)}
+    return {'usado': True, **version, 'clase': emision.get('clase'), 'maximas': maximas}
+
+
+def _anclar_al_ciclo(base_p: tuple[float, str, str], base_q: tuple[float, str, str], nombre_p: str, nombre_q: str,
+                     ciclo: Mapping[str, Any] | None) -> tuple[tuple[float, str, str], tuple[float, str, str], bool]:
+    """El año base parte de la emisión del ganador publicado si trae al objetivo; la Q, la suya o en la misma proporción
+    que la P (031:RF-10). Sin él, lo medido sigue tal cual."""
+    maximas = (ciclo.get('maximas') or {}) if ciclo and ciclo.get('usado') else {}
+    if nombre_p not in maximas:
+        return base_p, base_q, False
+    rotulo = f"ganador publicado del ciclo común ({str(ciclo['candidate_id'])[:12]})"
+    nueva_p = maximas[nombre_p]
+    if nombre_q in maximas:
+        nueva_q = maximas[nombre_q]
+    else:
+        nueva_q = base_q[0] * nueva_p / base_p[0] if base_p[0] else base_q[0]
+    return (nueva_p, base_p[1], rotulo), (nueva_q, base_q[1], rotulo), True
+
+
 def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str, anio_base: int, anio_corto: int, anio_fin: int,
               cargas: Sequence[Carga] | None = None, sistema_de: Mapping[str, str] | None = None, formato_01: Sequence[SerieMercado] = (),
               orden: Mapping[str, Any] | None = None, extra: Mapping[str, Any] | None = None,
-              tasa_cola: float | None = None, exogenas_anuales: RegistroExogenas | None = None) -> tuple[dict, dict]:
+              tasa_cola: float | None = None, exogenas_anuales: RegistroExogenas | None = None,
+              ciclo: Mapping[str, Any] | None = None) -> tuple[dict, dict]:
     """P y Q de cada carga en cada año, con su banda, y su evaluación (031:RF-5 a RF-7, RF-9, RF-12).
 
     ``filas`` son los años que continúan el corto plazo, los únicos que admite ``leer_proyeccion_anual``; los anteriores, en
@@ -1333,6 +1394,7 @@ def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str
     avisos: list[str] = []
     cargas_apartadas: list[dict] = []
     limites: list[int] = []
+    anclados: list[str] = []
     exo = competencia.get('exogenas_anuales') or {'usado': False}
     exogenas = None
     ganadores_exo = sorted({g for g, v in grupos.items() if v['ganador'] in METODOS_EXOGENOS} | ({'formato_01'} if formato.get('ganador') in METODOS_EXOGENOS else set()))
@@ -1362,6 +1424,9 @@ def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str
         base_q = _base(q, np.r_[np.datetime64(base_p[1]).astype('datetime64[ns]'), instantes])
         if base_q is None:
             return None
+        base_p, base_q, anclado = _anclar_al_ciclo(base_p, base_q, p.nombre, q.nombre, ciclo)
+        if anclado:
+            anclados.append(p.nombre)
         sistema = (sistema_de or {}).get(alimentador)
         serie_formato = por_codigo_formato.get(normalizar(sistema)) if sistema else None
         grupo_de = {m: grupos.get(f'{clase}|{m}') for m in MAGNITUDES}
@@ -1453,6 +1518,7 @@ def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str
                   'horizonte_anios': anio_fin, 'anios_a_validar': adelante_fin, 'horizonte_validado_anios': validado, 'horizonte_validado_meses': meses,
                   'anio_base': anio_base, 'anio_corto': anio_corto, 'anio_fin': anio_fin, 'anio_ultimo_dato': anio_datos, 'ultimo_mes_medido': _rotulo(fin_datos),
                   'tasa_de_largo_plazo': tasa_cola, 'exogenas_anuales': exo,
+                  'ciclo_comun': _resumen_del_ciclo(ciclo, anclados),
                   'regla': competencia['regla'], 'semilla': competencia.get('semilla'), 'ganadores': {g: v['ganador'] for g, v in grupos.items()},
                   'competencia': competencia, 'cargas_apartadas': cargas_apartadas, 'avisos': sorted(set(avisos)) + list(dataset.avisos), 'apartados': dataset.apartados,
                   **dict(extra or {})}
@@ -1561,7 +1627,7 @@ def pronosticar_estudio(fuentes: Fuentes, *, carpeta: Path | str, proyecto: str,
                         formato_01: Path | str | None = None, cargas: Sequence[Carga] | None = None, modelos: Sequence[str] = (), semilla: int = 0,
                         paso_meses: int = 1, ajustes: Mapping | None = None, orden: Mapping[str, Any] | None = None, dataset: Dataset | None = None,
                         log: Callable[[str], None] = lambda _m: None, exogenas_anuales: Path | str | None = None, region: str | None = None,
-                        corte_exogenas: date | str | None = None) -> dict[str, Any]:
+                        corte_exogenas: date | str | None = None, ciclo: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """De los libros a la proyección y su evaluación, de nivel superior para correr en el proceso del trabajo (031:RF-1, RF-13, RF-15).
 
     Sin Formato 01 de la empresa, lo construye con la cabecera; una proyección ya hecha con los mismos libros se devuelve tal cual.
@@ -1569,7 +1635,10 @@ def pronosticar_estudio(fuentes: Fuentes, *, carpeta: Path | str, proyecto: str,
     """
     carpeta = Path(carpeta).resolve()
     registro = leer_exogenas_anuales(exogenas_anuales) if exogenas_anuales else None
+    ciclo = ganador_del_ciclo() if ciclo is None else ciclo
     pedido = {'regla': REGLA['version'], 'proyecto': proyecto, 'anio_base': anio_base, 'anio_corto': anio_corto, 'anio_fin': anio_fin, 'modelos': list(modelos), 'semilla': semilla, 'paso_meses': paso_meses}
+    # 031:RF-10: otro ganador publicado obliga a pronosticar de nuevo.
+    pedido['ciclo'] = ciclo.get('candidate_id') if ciclo.get('usado') else None
     if registro is not None:
         pedido.update(exogenas=registro.huella, region=region, corte_exogenas=None if corte_exogenas is None else str(corte_exogenas))
     firma = _firma_de_fuentes(fuentes, pedido) if dataset is None else (dataset.huella + json.dumps(pedido, sort_keys=True))
@@ -1597,7 +1666,8 @@ def pronosticar_estudio(fuentes: Fuentes, *, carpeta: Path | str, proyecto: str,
                            exogenas_anuales=registro, region=region, corte_exogenas=corte_exogenas)
     extra = {'firma_fuentes': firma, 'notas_formato_01': notas, 'formato_01_construido': None if construido is None else construido.name}
     proyeccion, evaluacion = proyectar(dataset, competencia, proyecto=proyecto, anio_base=anio_base, anio_corto=anio_corto, anio_fin=anio_fin, cargas=cargas,
-                                       sistema_de=sistema_de, formato_01=series, orden=orden, extra=extra, exogenas_anuales=registro)
+                                       sistema_de=sistema_de, formato_01=series, orden=orden, extra=extra, exogenas_anuales=registro,
+                                       ciclo=ciclo)
     referencia = escribir_proyeccion(carpeta, proyeccion, evaluacion)
     if evaluacion['estado'] == 'aceptado':
         fijar_vigente(carpeta, referencia)

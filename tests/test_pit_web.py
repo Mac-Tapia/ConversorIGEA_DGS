@@ -167,3 +167,39 @@ def test_alternativa_elegida_sin_alternativas_es_un_error(tmp_path):
     assert r.status_code == 422, r.text
     assert r.json()['detail'] == 'alternativa_elegida: hay alternativa elegida y no hay alternativas'
     assert cola.trabajos == []
+
+
+# --- El panel del PIT en la web (107 T13, P10d) -----------------------------------------------------------------------
+
+def test_107_t13_entradas_admite_los_cuatro_formatos_de_excel(tmp_path):
+    """107 T13 (lector común) — el libro de la red sube en .xlsx, .xlsm, .xls y .xlsb: los cuatro que lee calamine."""
+    caso = perfil_b(15)
+    cliente, _ = _cliente(tmp_path, caso)
+    for ext in ('.xlsx', '.xlsm', '.xls', '.xlsb'):
+        r = cliente.post('/api/pit/entradas', data={'workspace_id': 'ws1'},
+                         files=[('files', (f'red{ext}', b'PK', 'application/octet-stream'))])
+        assert r.status_code == 200, (ext, r.text)
+        assert r.json()['rutas'] == [f'entradas_pit/red{ext}']
+
+
+def test_107_t13_los_resultados_traen_sus_rutas_dentro_del_espacio(tmp_path):
+    """107 T13 (P10d) — el panel descarga lo que deja el trabajo y pide las observaciones de su expediente: el
+    diagnóstico y el expediente devuelven sus rutas relativas al espacio, con «/»."""
+    from test_pit_formatos import NORMATIVA
+    caso = perfil_b(15)
+    cliente, cola = _cliente(tmp_path, caso)
+    cliente.post('/api/pit/diagnostico', json={'workspace_id': 'ws1', 'area': caso['area'], 'anios': caso['anios'],
+                                               'libro_red': 'red.xlsx', 'proyeccion': 'proyeccion.json'})
+    assert cola.trabajos[0]['resultado'].get('salida_relativa') == \
+        f"expedientes_pit/{caso['area']}/diagnostico_de_trabajo.json"
+    caso = perfil_a(27)
+    otro = tmp_path / 'b'
+    otro.mkdir()
+    cliente, cola = _cliente(otro, caso, normativa=NORMATIVA)
+    r = cliente.post('/api/pit/expediente', json=_pedido(caso))
+    assert r.status_code == 200, r.text
+    res = cola.trabajos[0]['resultado']
+    assert res.get('carpeta_relativa') == f"expedientes_pit/{caso['area']}/2025-2029"
+    assert res.get('salidas_relativas') and all(not v.startswith(('/', '.')) and '\\' not in v and ':' not in v
+                                                for v in res['salidas_relativas'].values())
+    assert set(res['salidas_relativas']) == set(res['salidas'])

@@ -31,15 +31,15 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 001 Reorganización: una responsabilidad, un sitio | cumplida |  |
   | 002 Arquitectura por capas y módulos enchufables | aprobada | falta T7, T9, T12, T13 |
   | 003 Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | retirada |  |
-  | 004 Cargas en un proyecto existente de DIgSILENT | aprobada |  |
+  | 004 Cargas en un proyecto existente de DIgSILENT | implementada | queda T30 (DIgSILENT) |
   | 005 Carpeta de proyectos importados en DIgSILENT | cumplida |  |
   | 006 Ajuste de las demandas a la máxima de cabecera | cumplida |  |
   | 007 Cargas nuevas sobre el alimentador ajustado, una variación por carga | cumplida |  |
   | 008 Pestaña «Cargas en DIgSILENT» en tres pasos | cumplida |  |
   | 009 Inventario del repositorio: cada fichero con su módulo y su spec | cumplida |  |
   | 010 Trazado GPS de las líneas | cumplida |  |
-  | 011 Estudios y obras de mejora sobre la red calibrada | aprobada | falta T21 |
-  | 012 Confiabilidad y capacidad de la red calibrada | aprobada | falta T14, T15, T16, T17, T18 |
+  | 011 Estudios y obras de mejora sobre la red calibrada | cumplida | |
+  | 012 Confiabilidad y capacidad de la red calibrada | implementada | queda T17 (DIgSILENT) |
   | 013 Mes de análisis y transferencia entre dos alimentadores | cumplida |  |
   | 014 Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto» | cumplida |  |
   | 015 «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida |  |
@@ -94,7 +94,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida |  |
   | 065 Cierre verificable de la auditoría integral | cumplida |  |
   | 066 Cada informe con su libro Excel, según el perfil de la empresa | cumplida |  |
-  | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | aprobada | falta T10 |
+  | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | cumplida | |
   | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida |  |
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
   | 070 El asistente opera el conversor de punta a punta | aprobada | falta T11, T14, T15 |
@@ -104,13 +104,13 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida |  |
   | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | cumplida |  |
-  | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | aprobada | falta T11 |
+  | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | cumplida | |
   | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | cumplida |  |
   | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida |  |
   | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | aprobada | falta T3, T13, T14 |
   | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | cumplida |  |
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
-  | 083 El oráculo antes de calibrar y recalibrar | aprobada | falta T17 |
+  | 083 El oráculo antes de calibrar y recalibrar | cumplida | |
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | cumplida |  |
   | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida |  |
   | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | ver sus tareas |
@@ -127,7 +127,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 097 Vectores multilingües para la búsqueda del asistente | aprobada | falta T5 |
   | 098 La transferencia de carga del operador, en la calibración y en las obras | cumplida |  |
   | 099 Cargas del libro duplicadas por el nombre del cliente | cumplida |  |
-  | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | aprobada | falta T1, T2, T3, T4 |
+  | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | implementada | queda T4 (DIgSILENT) |
   | 101 La calibración cambia sola los transformadores que impiden converger | cumplida |  |
   | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | falta T12, T13, T14, T15, T16, T17, T20 |
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
@@ -136,10 +136,10 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | aprobada | falta T2 |
   | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | aprobada | falta T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30 |
   | 108 Estudio de costos del VAD con la empresa modelo eficiente | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
-  | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | aprobada | falta T8, T12, T16 (DIgSILENT), T17 |
+  | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | implementada | queda T16 (DIgSILENT) |
   | 110 Envío de informes por correo (Gmail y Outlook) desde la web | aprobada | falta T2 a T9, T11 a T13 |
   | 111 Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | aprobada | falta T1, T2, T13, T16, T17, T18 (DIgSILENT), T19 |
-  | 112 Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | T1 a T10 y T12 a T14 hechas; queda T11 |
+  | 112 Datasets de referencia anonimizados y benchmarks reproducibles | cumplida | |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

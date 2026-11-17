@@ -1,6 +1,6 @@
 # Spec 100 — Aceptación automática por versión, sin tareas pendientes por proyecto
 
-Estado: aprobada · Fecha: 2026-11-08 · Origen: usuario, 2026-11-08: «no debería quedar como pendiente cada que se ejecute
+Estado: implementada (2026-11-17: código cerrado; queda T4 en DIgSILENT); antes aprobada · Fecha: 2026-11-08 · Origen: usuario, 2026-11-08: «no debería quedar como pendiente cada que se ejecute
 el conversor o falte convertirlo; esas cosas no pasan en software comerciales».
 
 ## Contexto y objetivo

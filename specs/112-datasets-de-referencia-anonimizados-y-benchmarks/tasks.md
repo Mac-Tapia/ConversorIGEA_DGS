@@ -118,9 +118,10 @@ se lee su salida, con una excepción acotada, la de la T5 (aclaración de RF-11)
       trazado que no, plan de descarga sin red con el destino fuera del programa, y el manifiesto con
       `identificados_publica`) y rojo `rojo_humo.log` (3 F por aserción, rojo=VALIDO); `tools/vnr_publico_empresa.py
       --help` rc=0. La descarga real de una empresa la hace el operador (b3), fuera de la suite.
-- [ ] T11. Validación: cada RF citado por al menos una prueba y en verde. (RF-1 a RF-14)
+- [x] T11. Validación: cada RF citado por al menos una prueba y en verde. (RF-1 a RF-14)
       Hecho cuando: `grep -rnoE "112:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-14 y la suite completa con las tres
       variables `CSG_*` está en verde.
       Avance (2026-11-15, R10): el grep lista RF-1 a RF-14, cada uno citado por al menos una prueba
       (`D:/csg/PM_IMPL/112/R10/validacion_rf.txt`), y las pruebas de la 112 pasan en el humo sin pytest
       (`D:/csg/PM_IMPL/112/R10/humo_verde.log`); falta la suite completa con las tres `CSG_*`, que corre el carril.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: las del criterio.

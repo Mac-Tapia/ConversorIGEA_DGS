@@ -12,13 +12,17 @@
 - [x] T3. El PIDE pronostica primero y las obras leen la proyección aceptada. (RF-1, RF-11)
       Hecho cuando: `pytest -q tests/test_proyeccion_anual.py -k "pide or obras"` en verde.
       Hecho el 2026-11-08: 7 pruebas en verde. Residuo: con proyección aceptada el PIDE recibe una tasa equivalente por alimentador; el valor de cada año exige las identidades `.ElmLod` del modo anual.
-- [ ] T4. Los modelos neuronales compiten en el ciclo común y el ganador publicado ancla el año base. (RF-2, RF-10)
+- [x] T4. Los modelos neuronales compiten en el ciclo común y el ganador publicado ancla el año base. (RF-2, RF-10)
       Hecho cuando: `pytest -q tests/test_proyeccion_anual.py -k ciclo` en verde.
-      Bloqueada por alcance (2026-11-14, T0b de e6): el plan la pone en `tools/reentrenar_modelos.py` y `aprendizaje_continuo.py`, fuera de los ficheros de F-06 (`D:/csg/PM_IMPL/PLAN_MAESTRO_ESTRATEGICO/INFORME.md`, §3, Tanda 0). Siguiente acción: e6 le da dueño cuando el pronóstico de la 089 (Tanda 1) esté integrado.
+      Desbloqueada el 2026-11-17: el integrador le dio dueño (f7) con el pronóstico de la 089 ya integrado.
+      Hecho en esta entrega (LOTE-2); pruebas: tests/test_proyeccion_anual.py -k ciclo. RF-2: compiten en la etapa `gru` del
+      ciclo (`orden_temporal`); RF-10: `proyeccion_anual.ganador_del_ciclo` lee el conjunto activo (`miembro_en_uso`) y su
+      `pronostico.json`, y la evaluación anota `ciclo_comun`. La corrida real con GPU es la T5.
 - [ ] T5. Corrida real: proyección de un sistema con sus métricas por modelo y el ganador anotados aquí. (Todos)
       Hecho cuando: el informe está fuera de git y el resumen, sin datos de la distribuidora, anotado aquí.
       Bloqueada por datos y carril (2026-11-14, T0b de e6): la corrida real necesita los libros de la empresa, el registro de PBI y población del INEI y el BCRP de su región y el turno de GPU; el encargo prohíbe descargas, datos reales pesados y GPU (`D:/csg/PM_IMPL/ENCARGOS_E6.md`, «Prohibiciones»). Siguiente acción: el operador carga el registro y e6 la pone en el corredor.
 - [x] T7. Lanzador del PIDE en la GPU en un paso, sin ganador fijo ni series inventadas. (RF-17, RF-18)
       Hecho cuando: `tests/test_lanzar_pronostico_pide_gpu.py` en verde y `--help` responde.
-- [ ] T8. PBI y población como exógenas anuales, con su fuente, su huella y su fecha de publicación, en la competición y en la emisión. (RF-19, RF-20, RF-21, RF-22, RF-23)
+- [x] T8. PBI y población como exógenas anuales, con su fuente, su huella y su fecha de publicación, en la competición y en la emisión. (RF-19, RF-20, RF-21, RF-22, RF-23)
       Hecho cuando: `pytest -q tests/test_proyeccion_anual_exogenas.py` en verde, con la prueba de que una cifra publicada después del origen se rechaza.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_proyeccion_anual_exogenas.py.

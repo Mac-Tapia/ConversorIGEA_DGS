@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { nombreCarril } from '../shared/carriles';
 import type { Job } from '../api/types';
 
 const elapsed = (j: Job) => {
@@ -24,7 +25,7 @@ export function JobBar({ jobs }: { jobs: Job[] }) {
         return (
           <div key={j.id} className="job">
             <div className="job-top">
-              <span className={`lane lane-${j.lane}`}>{j.lane === 'powerfactory' ? 'DIgSILENT' : 'Motor'}</span>
+              <span className={`lane lane-${j.lane}`}>{nombreCarril(j.lane)}</span>
               <strong>{j.title}</strong>
               <span className="muted">
                 {j.status === 'queued' ? 'en cola' : p ? `${p.index}/${p.total}${p.label ? ` · ${p.label}` : ''}` : 'trabajando…'}

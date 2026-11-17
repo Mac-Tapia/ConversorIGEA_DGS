@@ -84,7 +84,8 @@ van después de T7. T11 reordena `frontend/src` y pide probar la web en el naveg
 - [ ] T12. Validación: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u` lista RF-1 a RF-37;
       línea base idéntica; `CODIGO_FUENTE.md` con las rutas nuevas.
       Hecho cuando: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u` lista RF-1 a RF-37 y la línea base de la 001 sigue idéntica.
-- [ ] T13. Tope de rutas sin modelo de respuesta: `tools/rutas_sin_modelo.py` y `docs/architecture/rutas_sin_modelo.json`,
+- [x] T13. Tope de rutas sin modelo de respuesta: `tools/rutas_sin_modelo.py` y `docs/architecture/rutas_sin_modelo.json`,
       con una lista que solo baja, al día con el código y con el motivo de cada ruta. (RF-38 y su aclaración)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_contrato_api.py -k rf38` en verde y
       `python tools/rutas_sin_modelo.py --help` sale con 0.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_contrato_api.py -k rf38.

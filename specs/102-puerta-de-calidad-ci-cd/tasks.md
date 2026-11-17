@@ -31,18 +31,24 @@
       Hecho cuando: `pytest -q tests/test_puerta_calidad.py` (102:RF-22) en verde.
 - [x] T11. La lista de variables de la puerta cubre las que nombran las pruebas y el ejemplo. (RF-23)
       Hecho cuando: `pytest -q tests/test_puerta_calidad.py` (102:RF-23) en verde.
-- [ ] T12. El lint de fronteras en GitHub Actions y en la puerta del commit cuando cambia `frontend/`. (RF-24)
+- [x] T12. El lint de fronteras en GitHub Actions y en la puerta del commit cuando cambia `frontend/`. (RF-24)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_puerta_calidad.py -k rf24` en verde.
-- [ ] T13. Acciones de GitHub fijadas por SHA con su etiqueta en un comentario. (RF-25)
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_puerta_calidad.py -k rf24.
+- [x] T13. Acciones de GitHub fijadas por SHA con su etiqueta en un comentario. (RF-25)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_puerta_calidad.py -k rf25` en verde.
-- [ ] T14. El flujo con `permissions: contents: read` en lo más alto. (RF-26)
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_puerta_calidad.py -k rf25.
+- [x] T14. El flujo con `permissions: contents: read` en lo más alto. (RF-26)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_puerta_calidad.py -k rf26` en verde.
-- [ ] T15. Los dos checkout con `persist-credentials: false`. (RF-27)
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_puerta_calidad.py -k rf26.
+- [x] T15. Los dos checkout con `persist-credentials: false`. (RF-27)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_puerta_calidad.py -k rf27` en verde.
-- [ ] T16. Paso de ruff (`E9,F63,F7,F82`) en el trabajo del backend. (RF-28)
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_puerta_calidad.py -k rf27.
+- [x] T16. Paso de ruff (`E9,F63,F7,F82`) en el trabajo del backend. (RF-28)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_puerta_calidad.py -k rf28` en verde.
-- [ ] T17. Un grupo de concurrencia común a la subida y a la petición de fusión de una rama. (RF-29)
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_puerta_calidad.py -k rf28.
+- [x] T17. Un grupo de concurrencia común a la subida y a la petición de fusión de una rama. (RF-29)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_puerta_calidad.py -k rf29` en verde.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_puerta_calidad.py -k rf29.
 - [x] T18. PUERTA-ESPECULATIVA: el veredicto de un árbol (`--arbol`) y el gancho del commit que no repite la suite
       sobre ese mismo árbol; cualquier duda la repite; solo en la rama de trabajo, nunca en main ni en su subida
       (v2, condición de 0d). (RF-11, RF-9, RF-5)

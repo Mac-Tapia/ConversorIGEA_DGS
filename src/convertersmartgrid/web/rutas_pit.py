@@ -64,7 +64,7 @@ class PedidoObservaciones(BaseModel):
 
 
 #: 070:RF-79: lo que se sube para el PIT (el libro de la red, la proyección y las alternativas), con su tope por fichero.
-EXTENSIONES_ENTRADA = ('.xlsx', '.xlsm', '.xls', '.json')
+EXTENSIONES_ENTRADA = ('.xlsx', '.xlsm', '.xls', '.xlsb', '.json')  # los cuatro libros del lector común
 TOPE_ENTRADA = 200 * 2 ** 20
 CARPETA_ENTRADAS = 'entradas_pit'
 _RESERVADOS = re.compile(r'^(con|prn|aux|nul|com[1-9]|lpt[1-9])$', re.IGNORECASE)
@@ -75,6 +75,14 @@ def _dentro(raiz: Path, relativa: str) -> Path:
     if not ruta.is_relative_to(raiz.resolve()):
         raise HTTPException(400, f'{relativa}: fuera del espacio de trabajo')
     return ruta
+
+
+def _relativa(raiz: Path, ruta: str | Path) -> str | None:
+    """La ruta de una salida dentro del espacio, con «/», para que el panel la descargue (107 T13); fuera, ``None``."""
+    try:
+        return Path(ruta).resolve().relative_to(raiz.resolve()).as_posix()
+    except ValueError:
+        return None
 
 
 def crear_router(jobs: Any, espacio: Callable[[str], Path], perfil: Callable[[], Mapping[str, Any]],
@@ -152,7 +160,8 @@ def crear_router(jobs: Any, espacio: Callable[[str], Path], perfil: Callable[[],
             salida.parent.mkdir(parents=True, exist_ok=True)
             publicar_duradero(salida, json.dumps(diag.como_dict(), ensure_ascii=False, indent=1, sort_keys=True,
                                                  default=str) + '\n')
-            return {'salida': str(salida), 'completo': diag.completo, 'avisos': diag.avisos,
+            return {'salida': str(salida), 'salida_relativa': _relativa(raiz, salida), 'completo': diag.completo,
+                    'avisos': diag.avisos,
                     'huecos_tension': diag.huecos_tension, 'referencias': diag.referencias}
 
         job = jobs.submit(p.workspace_id, 'pit_diagnostico', f'Diagnóstico PIT {area.codigo}', trabajo,
@@ -192,10 +201,14 @@ def crear_router(jobs: Any, espacio: Callable[[str], Path], perfil: Callable[[],
 
         def trabajo(ctx) -> dict[str, Any]:
             filas = json.loads(proyeccion.read_text(encoding='utf-8'))
-            return armar_expediente(raiz, datos, registro, area=area.codigo, periodo=p.periodo, anios=p.anios,
-                                    libro_red=libro, proyeccion=filas, fecha_apertura=date.today().isoformat(),
-                                    alternativas=alternativas, alternativa_elegida=p.alternativa_elegida,
-                                    fuentes=fuentes(), motor=motor, cancel=ctx.cancel, on_progress=ctx.progress)
+            res = armar_expediente(raiz, datos, registro, area=area.codigo, periodo=p.periodo, anios=p.anios,
+                                   libro_red=libro, proyeccion=filas, fecha_apertura=date.today().isoformat(),
+                                   alternativas=alternativas, alternativa_elegida=p.alternativa_elegida,
+                                   fuentes=fuentes(), motor=motor, cancel=ctx.cancel, on_progress=ctx.progress)
+            # 107 T13: el panel descarga las salidas y pide las observaciones con rutas del espacio.
+            relativas = {k: _relativa(raiz, v) for k, v in res['salidas'].items()}
+            return {**res, 'carpeta_relativa': _relativa(raiz, res['carpeta']),
+                    'salidas_relativas': {k: v for k, v in relativas.items() if v is not None}}
 
         job = jobs.submit(p.workspace_id, 'pit_expediente', f'Expediente PIT {area.codigo} {p.periodo}', trabajo,
                           lane='engine')

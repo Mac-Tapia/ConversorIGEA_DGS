@@ -40,7 +40,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       de revisión o huella distinta, no queda copia y se dice la causa. `copia.json` va por `util.write_json_atomic`
       (001:RF-5). (RF-3, RF-5, RF-6)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_nube_importar.py -k copia` en verde.
-- [ ] T8. Router `web/nube_api.py` con `registrar_rutas_nube(...)`, que recibe `_assign`, `_validar_entrada` y
+- [x] T8. Router `web/nube_api.py` con `registrar_rutas_nube(...)`, que recibe `_assign`, `_validar_entrada` y
       `_reemplazar_carpeta`, más el valor `'nube'` en el `origin` de `api_contract.py`. El cableado son dos líneas en
       `web/app.py`, pactadas con f9, y `esquema.ts` se regenera. Cada ruta declara su `response_model`, para que
       el OpenAPI y `esquema.ts` den la forma de cada respuesta. El kind `nube_importar` tiene su fila en
@@ -51,6 +51,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       libro de medición, rechazado igual; y ninguna fuente nueva mezclada con la vigente. Queda abierta hasta que el
       integrador aplique el cableado de `web/app.py` y el `origin` `'nube'` de `api_contract.py` (un parche aparte,
       del integrador), con `esquema.ts` regenerado.
+      Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_contrato_api.py tests/test_nube_importar.py tests/test_web_api.py.
 - [x] T9. Vínculos y versiones en `web/nube.py`: aviso de revisión nueva, comparación con la anterior y aceptación solo
       con confirmación. Sin conexión, dice que no pudo comprobar. Rutas con su `response_model` y los kinds
       `nube_versiones` y `nube_traer` en `pasoDeTrabajo.ts`. (RF-7, RF-8, RF-17)
@@ -68,13 +69,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       rechazo de los datos crudos; recibo por permiso. (RF-10, RF-11, RF-12, RF-20)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_nube_compartir.py` en verde. Incluye un TXT de
       CYMDIST, una MDB y un VNR sintéticos renombrados dentro del expediente, reconocidos por su contenido.
-- [ ] T12. El asistente y los documentos importados no publican, ni comparten, ni conectan sin el botón del operador:
+- [x] T12. El asistente y los documentos importados no publican, ni comparten, ni conectan sin el botón del operador:
       `equipo.autorizar_peticion` solo deja al asistente las lecturas y las previas de la nube, y la acción la manda el
       navegador desde la tarjeta del panel (aclaración de RF-15 del 2026-11-16; 070 T16). (RF-15)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_nube_seguridad.py -k asistente` en verde. Incluye
       un PDF importado con la orden «publica y comparte», que no lanza ningún trabajo.
       `es_ruta_de_la_nube` está en `salidas_red.py` (dominio), para que `asistente/equipo.py` la use sin depender de
       la web; el cambio de `equipo.py` es del integrador (parche aparte) y la tarea sigue abierta hasta aplicarlo.
+      Hecho en e2a99c73 (PUERTA3); pruebas: tests/test_nube_seguridad.py -k asistente.
 - [x] T13. Secretos y aislamiento: ningún token en registros, `workspace.json`, `vinculos.json`, recibos, respuestas
       de trabajos ni copias de datos; dos empresas en el mismo puesto no ven la cuenta, los vínculos ni los recibos de
       la otra. El registro de accesos tapa el `code` y el `state` de `/nube/retorno`. (RF-2, RF-14)
@@ -119,9 +121,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: el documento existe y está enlazado desde `docs/MANUAL_INSTALACION.md`, las pruebas con el
       simulado de T1 a T13 están en verde y el recorrido de la web está anotado. Si el operador hace la prueba real, deja la copia con su huella y los recibos
       de la publicación y del permiso, con la carpeta de evidencia anotada aquí; sin ella, la 1.0 no queda bloqueada.
-- [ ] T17. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
+- [x] T17. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "109:RF-[0-9]+" tests frontend/src frontend/test | sort -u` lista RF-1 a RF-24.
       La lista da RF-1 a RF-20 (RF-21 a RF-24 con T19); queda abierta hasta el verde de pytest de todas y las tareas T8, T12 y T14.
+      Hecho en e2a99c73 (PUERTA3); pruebas: las del criterio.
 - [x] T18. Selector de ficheros: `GET /nube/selector/{proveedor}` (página propia con su CSP, Google Picker y File
       Picker v8 de OneDrive, que devuelve los ids por `postMessage` con el origen propio) y
       `POST /api/workspaces/{wid}/nube/{proveedor}/selector/token`, que da solo el token de acceso de corta duración y
@@ -130,7 +133,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       el endpoint nunca devuelve el `refresh_token` ni el secreto del cliente, de que el alcance de Microsoft es
       `Files.Read` aunque la cuenta se conectara para publicar, y de que la página no usa `localStorage` ni
       `sessionStorage` ni lleva el token dentro.
-- [ ] T19. Selector único por entrada y guardar en local (SELECTOR-UNICO, orden del usuario del 2026-11-16):
+- [x] T19. Selector único por entrada y guardar en local (SELECTOR-UNICO, orden del usuario del 2026-11-16):
       `FileDrop` (shared/ui.tsx) con el origen Equipo, Google Drive u OneDrive, y el filtro de tipo de su `accept`;
       `POST …/nube/importar` con `entrada` (solo la copia fija, sin asignar) y `GET …/nube/copias/{sha256}` para que la
       copia entre por la subida propia de la entrada; `Guardar` para las salidas, con la carpeta del equipo y la
@@ -138,3 +141,4 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_nube_selector_unico.py` y `npm test` en verde, y
       la e2e en navegador real (`frontend/test/e2e/f05_selector_unico.e2e.mjs`, con la web de
       `tests/e2e_web_nube_simulada.py`) recorre los tres orígenes con la nube simulada.
+      Hecho en 016498fc (LOTE-1, con E2E-RED); pruebas: tests/test_nube_selector_unico.py y npm test; e2e en navegador real f05_selector_unico, 10 passed (D:/csg/INTEGRA_54/e2e_086/f01_f05_b.log).
