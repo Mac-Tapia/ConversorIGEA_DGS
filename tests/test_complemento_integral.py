@@ -767,3 +767,33 @@ def test_el_iss_del_complemento_va_en_la_linea_del_programa():
     assert 'pip install' not in iss
     principal = (REPO / 'instalador' / 'ConverterSmartGrid.iss').read_text(encoding='utf-8')
     assert 'Name: "{app}\\complemento_ia"' in principal
+
+
+def test_086_rf34_una_sintetica_que_coincide_con_un_termino_se_resortea(tmp_path, monkeypatch):
+    """086:RF-34 — un código inventado que coincide por azar con un término de la lista (PUERTA3 del 16-11: un código de alimentador real)
+    no rechaza la entrega ni entra en el corpus: su orden se sustituye por otra de su tarea con la semilla siguiente,
+    y el corpus conserva su tamaño. Una orden fija con un término sí la rechaza."""
+    import importlib.util as iu
+    from types import SimpleNamespace
+    from convertersmartgrid.asistente import ordenes_fijas, sinteticos
+    raiz = Path(__file__).resolve().parents[1]
+    spec = iu.spec_from_file_location('construir_candidato_resorteo', raiz / 'tools' / 'construir_candidato.py')
+    cc = iu.module_from_spec(spec)
+    spec.loader.exec_module(cc)
+    orden = lambda texto, tarea='t': SimpleNamespace(texto=texto, tarea=tarea, datos=[])  # noqa: E731
+
+    def generar(_vocab, por_tarea, semilla):
+        return [orden('mira ZQ999 ahora'), orden('mira AB123 ahora')] if semilla == 0 else [orden(f'mira CD{semilla}00')]
+    monkeypatch.setattr(sinteticos, 'generar', generar)
+    monkeypatch.setattr(ordenes_fijas, 'generar', lambda _v: [orden('ayuda', 'fija')])
+    terminos = cc.CE.Terminos()
+    terminos.anadir('ZQ999', 'alimentador')
+    assert any(True for _ in cc.CE._buscar('mira ZQ999 ahora', terminos, {}))
+    r = cc.corpus_neutro(tmp_path, terminos)
+    corpus = json.loads((tmp_path / 'corpus' / 'ordenes_neutras.json').read_text(encoding='utf-8'))
+    textos = [f['texto'] for f in corpus['filas']]
+    assert r['terminos_hallados'] == 0 and r['sinteticas_resorteadas'] == 1 and r['filas'] == 3
+    assert not any('ZQ999' in x for x in textos) and 'mira CD100' in textos
+    monkeypatch.setattr(ordenes_fijas, 'generar', lambda _v: [orden('abre ZQ999', 'fija')])
+    with pytest.raises(cc.CE.EntregaError):
+        cc.corpus_neutro(tmp_path / 'b', terminos)

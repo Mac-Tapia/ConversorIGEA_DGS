@@ -232,6 +232,10 @@ def _pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> l
     nuevos = _pasos_070(tarea, datos, extras, proyecto, feeders)
     if nuevos is not None:
         return nuevos
+    nuevos = (_pasos_nube_y_correo(tarea, extras) or _pasos_pit(tarea, extras) or _pasos_vad(tarea, extras)
+              or _pasos_plano(tarea, datos, extras))
+    if nuevos is not None:
+        return nuevos
     raise ValueError(f'la tarea {tarea!r} no tiene pasos: es una consulta o un proceso')
 
 
@@ -291,6 +295,113 @@ def _pasos_070(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any], 
         return [Paso('pronóstico de demanda', 'POST', '/digital-twin/temporal',
                      {**(extras.get('pronostico') or {}), 'modo': 'pronostico'})]
     return None
+
+
+def cuenta_de_correo(cuentas: Any, preferido: str | None) -> dict:
+    """070:RF-79: la cuenta conectada con la que sale el correo: la del proveedor que nombra la orden, o la única."""
+    lista = [c for c in (cuentas or {}).get('cuentas') or [] if isinstance(c, dict) and c.get('conectada') and c.get('cuenta')]
+    if preferido:
+        lista = [c for c in lista if c.get('nombre') == preferido]
+    if not lista:
+        raise PasoFallido('No hay ninguna cuenta de correo conectada' + (f' de {preferido}' if preferido else '') +
+                          ': conéctela antes, por ejemplo con «conecta mi cuenta de google».')
+    if len(lista) > 1:
+        raise PasoFallido('Hay más de una cuenta conectada: diga en la orden si sale por Gmail o por Outlook.')
+    return lista[0]
+
+
+def _pasos_nube_y_correo(tarea: str, extras: Mapping[str, Any]) -> list[Paso] | None:
+    """070:RF-79 a RF-81: el asistente solo lee y prepara. Enviar, publicar, compartir, importar y conectar son el clic
+    del operador en la tarjeta que queda en su panel, que el navegador manda por la ruta de siempre."""
+    if tarea == 'enviar_informe':
+        def peticion(r):
+            c = cuenta_de_correo(r[-1], extras.get('proveedor'))
+            return {'informe': extras['informe'], 'cuenta': c['cuenta'], 'proveedor': c['nombre'],
+                    'para': list(extras['para']), 'origen': 'asistente'}
+
+        return [Paso('leer las cuentas conectadas', 'GET', '/nube/cuentas', espera=False),
+                Paso('preparar el borrador del correo', 'POST', '/correo/vista-previa', peticion, espera=False)]
+    if tarea == 'compartir_nube':
+        return [Paso('leer los expedientes publicados', 'GET', '/nube/recibos', espera=False),
+                Paso('leer las cuentas conectadas', 'GET', '/nube/cuentas', espera=False)]
+    if tarea in ('publicar_nube', 'importar_nube'):
+        return [Paso('leer las cuentas conectadas', 'GET', '/nube/cuentas', espera=False)]
+    if tarea == 'conectar_nube':
+        return [Paso('leer los proveedores registrados', 'GET', '/api/nube/proveedores', espera=False)]
+    return None
+
+
+def _pasos_pit(tarea: str, extras: Mapping[str, Any]) -> list[Paso] | None:
+    """070:RF-79: el PIT por sus rutas (``/api/pit``): sube los ficheros al espacio, pide el trabajo y lo sigue."""
+    if tarea not in ('pit_diagnostico', 'pit_expediente'):
+        return None
+    pit = extras['pit']
+    rutas = [Path(pit['libro_red']), Path(pit['proyeccion']), *([Path(pit['alternativas'])] if pit.get('alternativas') else [])]
+
+    def ficheros(_r):
+        return [('files', (p.name, p.read_bytes(), 'application/octet-stream')) for p in rutas]
+
+    def pedido(r):
+        subidas = r[-1]['rutas']
+        cuerpo = {'workspace_id': pit['workspace_id'], 'area': pit['area'], 'anios': list(pit['anios']),
+                  'libro_red': subidas[0], 'proyeccion': subidas[1]}
+        if tarea == 'pit_expediente':
+            cuerpo['periodo'] = pit['periodo']
+            if pit.get('alternativas'):
+                cuerpo.update(alternativas=subidas[2], alternativa_elegida=pit.get('alternativa_elegida'))
+        return cuerpo
+
+    que, ruta = (('el diagnóstico del PIT', '/api/pit/diagnostico') if tarea == 'pit_diagnostico'
+                 else ('el expediente del PIT', '/api/pit/expediente'))
+    return [Paso('subir el libro de la red y la proyección al espacio', 'POST', '/api/pit/entradas',
+                 {'workspace_id': pit['workspace_id']}, archivos=ficheros),
+            Paso(f'pedir {que}', 'POST', ruta, pedido, espera=False),
+            Paso(f'esperar {que}', 'GET', lambda r: f"/api/jobs/{r[-1]['job']}")]
+
+
+def _pasos_vad(tarea: str, extras: Mapping[str, Any]) -> list[Paso] | None:
+    """070:RF-79, RF-86: el VAD por sus rutas: crear el estudio, o subir el caso y seguir el armado de la empresa modelo."""
+    vad = extras.get('vad') or {}
+    if tarea == 'vad_crear_estudio':
+        return [Paso('crear el estudio del VAD', 'POST', '/vad/estudios',
+                     {'grupo': vad['grupo'], 'periodo': vad['periodo'], 'version_tdr': vad['version_tdr']}, espera=False)]
+    if tarea == 'vad_empresa_modelo':
+        rutas = [Path(r) for r in vad['ficheros']]
+
+        def ficheros(_r):
+            return [('files', (p.name, p.read_bytes(), 'application/json')) for p in rutas]
+
+        return [Paso('subir el caso y armar la empresa modelo', 'POST', f"/vad/{vad['estudio']}/armar", {},
+                     archivos=ficheros)]
+    return None
+
+
+def _pasos_plano(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> list[Paso] | None:
+    """070:RF-79: el plano por sus rutas (111): la vista y su revisión, una variación, la maniobra y su estudio."""
+    if tarea != 'plano_maniobra':
+        return None
+    plano = extras['plano']
+    alimentador = plano['alimentador']
+
+    def abrir(r):
+        vista = next((v for v in (r[-1] or {}).get('vistas') or [] if v.get('alimentador') == alimentador), None)
+        if vista is None:
+            raise PasoFallido(f'El alimentador {alimentador} no está en el plano: conviértalo antes.')
+        codigos = [m['codigo'] for m in vista.get('maniobras') or []]
+        if plano['maniobra'] not in codigos:
+            raise PasoFallido(f"La maniobra {plano['maniobra']} no está en {alimentador}; las que hay son "
+                              + (', '.join(codigos[:12]) or 'ninguna') + '.')
+        return {'alimentador': alimentador, 'caso': plano['caso'], 'revision': vista['revision']}
+
+    return [Paso('leer el plano del alimentador', 'GET', f'/plano?alimentador={quote(alimentador)}', espera=False),
+            Paso('abrir una variación sobre la red actual', 'POST', '/plano/variaciones', abrir, espera=False),
+            Paso(f"{'abrir' if plano['estado'] == 'abierto' else 'cerrar'} la maniobra {plano['maniobra']}", 'PATCH',
+                 lambda r: f"/plano/variaciones/{r[-1]['id']}",
+                 lambda r: {'version': r[-1]['version'],
+                            'edicion': {'tipo': 'maniobra', 'codigo': plano['maniobra'], 'estado': plano['estado']}},
+                 espera=False),
+            Paso('estudiar la variación', 'POST', lambda r: f"/plano/variaciones/{r[-1]['id']}/estudiar",
+                 {'project': datos.get('proyecto') or None})]
 
 
 def describir(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any] | None = None) -> list[str]:

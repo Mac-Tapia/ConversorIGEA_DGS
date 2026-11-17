@@ -7,6 +7,12 @@ import { NubeEnEntradas } from './NubeEnEntradas';
 import { Ctx, type AppCtx } from '../shared/context';
 import { betaActiva } from '../shared/edicion';
 import { Asistente } from '../features/asistente/Asistente';
+import { ElegirDeLaNube } from '../features/nube/ElegirDeLaNube';
+import { conectadas } from '../features/nube/logica';
+import { PublicarExpediente } from '../features/nube/PublicarExpediente';
+import { VistaPrevia } from '../features/powerfactory/EnviarInforme';
+import { textoEstado } from '../features/powerfactory/enviarInformeLogica';
+import { AccionesOperadorCtx, type AccionesOperador } from '../shared/accionesOperador';
 import { AvisosDatos, EspacioNoDisponible } from './AvisosDatos';
 import { EstudioVnr } from '../features/vnr/EstudioVnr';
 import { CargasTab } from '../features/powerfactory/CargasTab';
@@ -150,6 +156,9 @@ function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
   </Modal>;
 }
 
+/** 002:RF-19: la capa app da a la tarjeta de operador del asistente lo que usa de la nube y del correo. */
+const ACCIONES_OPERADOR: AccionesOperador = { ElegirDeLaNube, PublicarExpediente, VistaPrevia, conectadas, textoEstado };
+
 export default function App() {
   const toast = useToast();
   const confirm = useConfirm();
@@ -254,6 +263,7 @@ export default function App() {
 
   return (
     <Ctx.Provider value={ctx}>
+    <AccionesOperadorCtx.Provider value={ACCIONES_OPERADOR}>
       <NubeEnEntradas>
       <a className="saltar" href="#contenido">Ir al contenido</a>
       <div className="app" style={{ gridTemplateRows: `auto 1fr 6px ${logHeight}px` }}>
@@ -361,6 +371,7 @@ export default function App() {
       {verPf && <InstalacionesPowerFactoryModal onClose={() => setVerPf(false)}
         onCambio={() => { api.powerfactory(true).then(setPf).catch(() => undefined); }} />}
       </NubeEnEntradas>
+    </AccionesOperadorCtx.Provider>
     </Ctx.Provider>
   );
 }

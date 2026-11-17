@@ -16,9 +16,9 @@ import uuid
 from typing import Any
 from urllib.parse import urlsplit
 
-from ..salidas_red import es_ruta_de_la_nube
+from ..salidas_red import es_ruta_de_la_nube, lectura_de_la_nube
 from . import almacen, lectura_proyecto
-from .tareas import EFECTOS, TAREAS, requiere_confirmacion
+from .tareas import EFECTOS, TAREAS, TAREAS_107_112_NUBE, requiere_confirmacion
 
 ROLES_REVISION = ('fuentes', 'fisica', 'coste', 'riesgo')
 #: Quién puede pedir una lectura del proyecto (077:RF-33): el rol lo fija el servidor, nunca el modelo.
@@ -313,8 +313,9 @@ class GobiernoEquipo:
 
     def autorizar_peticion(self, metodo: str, ruta: str, parametros: dict) -> None:
         """También la frontera HTTP exige permiso: no basta saltarse el bucle de pasos."""
-        # 109:RF-15: el asistente nunca conecta, importa, publica ni comparte en la nube, ni con un plan confirmado.
-        if es_ruta_de_la_nube(ruta):
+        # 109:RF-15: el asistente nunca conecta, importa, publica ni comparte en la nube, ni con un plan confirmado. En sus
+        # tareas de la nube y el correo solo lee y pide la previa; la acción es el clic del operador (070:RF-81).
+        if es_ruta_de_la_nube(ruta) and not (self.tarea in TAREAS_107_112_NUBE and lectura_de_la_nube(metodo, ruta)):
             raise PermisoDenegado('la nube solo la maneja el operador desde la web')
         if self.rol != 'operador' or self.tarea not in TAREAS or not self.listo:
             raise PermisoDenegado('el rol o la herramienta no tienen permiso HTTP')

@@ -1,6 +1,6 @@
 # Arquitectura de ConverterSmartGrid
 
-Revisado a mano el 2026-11-04, sobre `main` en `c9c4d129` (versión `1.0.0rc1`). Describe el código **tal como está**, también lo que aún
+Revisado a mano el 2026-11-04, sobre `main` en `c9c4d129` (versión `1.0.0rc1`), y puesto al día el 2026-11-16 con las specs 102 y 107 a 112. Describe el código **tal como está**, también lo que aún
 no funciona. **Todos los módulos, las tareas del asistente, los roles de su equipo y las cifras están en
 [`ARQUITECTURA_CATALOGO.md`](ARQUITECTURA_CATALOGO.md), que se genera solo en cada commit (spec 090).** Aquí queda el porqué. Lo que
 está en ramas sin integrar se cita aparte, en
@@ -224,17 +224,19 @@ anterior. `estadistica_ordenes.py` registra cada orden para contrastar versiones
 
 | Familia | Para qué |
 | --- | --- |
-| Espacio (`inputs`, `inputs-auto`, `load`, `options`, `runs`, `no-disponibles`, `restaurar-copia`, `files`, `events`, `ws`) | Cargar y custodiar la fuente, y seguir los trabajos |
+| Espacio (`inputs`, `inputs-auto`, `load`, `options`, `runs`, `no-disponibles`, `restaurar-copia`, `copia-datos`, `files`, `events`, `ws`) y `nube` | Cargar y custodiar la fuente, también desde la nube, y seguir los trabajos |
 | Conversión (`feeders`, `convert`, `diagnose`, `reconstruct`, `catalog`, `system`, `estructura`, `lote`, `outputs`, `outputs.zip`, `vnr`, `source-scope`) | Convertir y descargar |
 | `demanda` | Libros, máximas, clientes y curvas |
-| `pf`, `powerfactory`, `cargas`, `obras` | Proyectos, calibración, casos, estudios y obras |
+| `pf`, `powerfactory`, `cargas`, `obras`, `plano` | Proyectos, calibración, casos, estudios, obras y variaciones sobre el plano |
 | `informes` | Informes, formularios y sus libros |
-| `pide` | PIDE y estudio de planeamiento |
+| `pide`, `vnr/estudio` y `/api/pit/` | PIDE, estudio de planeamiento, Estudio VNR y PIT |
 | `digital-twin`, `modelos` | Gemelo, pronóstico y modelos en uso |
 | `asistente`, `agente` | Órdenes, planes, revisión y monitor |
-| Generales (`jobs`, `sistema`, `health`) y la página | Trabajos, datos de la instalación y `frontend/dist` |
+| Generales (`jobs`, `sistema`, `health`, `/api/nube/proveedores`, `/api/copia-datos/`) y la página | Trabajos, datos de la instalación y `frontend/dist` |
+| `correo` | Vista previa, confirmación y diario de los envíos de informes |
+| Fuera de `/api/`: `/nube/retorno` y `/nube/selector/{proveedor}` | Vuelta de OAuth y página del selector del proveedor |
 
-**Interfaz** (`frontend/src`): pestañas Resultados, Cargas en DIgSILENT, Catálogo de parámetros, Sistema completo y Asistente.
+**Interfaz** (`frontend/src`): pestañas Resultados, Cargas en DIgSILENT, Catálogo de parámetros, Sistema completo, Estudio VNR y Asistente.
 «Cargas en DIgSILENT» sigue los pasos 1 · Proyecto, 2 · Alimentadores y calibración, 3 · Integración de nuevas, 4 · Obras y estudios
 y 5 · PIDE. La web se prueba en el navegador real.
 
@@ -314,6 +316,15 @@ Una orden recorre esto. Solo el rol `operador` ejecuta, y toda escritura espera 
 **Lo que el equipo es:** `fuentes`, `fisica`, `coste` y `riesgo` son el mismo modelo de Ollama con otro prompt de sistema, no agentes
 separados, y su revisión es documental (`autoriza_ejecucion=False`). Exige evidencias en `observacion/evidencias` del espacio, que se
 custodian solas cuando un informe, un estudio, un PIDE o unas obras terminan bien.
+
+**Con las specs 107 a 112:** el asistente prepara el correo de un informe, la publicación, el compartir, la importación y la
+conexión de una cuenta, y deja en su panel una tarjeta con lo exacto que saldrá (`TarjetaOperador.tsx`). Lo envía, publica,
+comparte, importa o conecta el clic del operador en ella, que el navegador manda por la ruta de siempre: el ejecutor solo lee la
+nube y pide previas (`salidas_red.lectura_de_la_nube`), y un documento importado no prepara nada (070:RF-79 a RF-83). Hace
+también el diagnóstico y el expediente del PIT: sube al espacio el libro de la red y la proyección que nombra la orden
+(`/api/pit/entradas`) y pide el trabajo por las rutas del PIT; y crea el estudio del VAD y arma su empresa modelo por
+`web/vad_api.py` (070:RF-86); y abre o cierra una maniobra en una variación del plano y la estudia, por `web/plano_api.py`,
+sin tocar el caso base; y genera el benchmark anonimizado de la fuente TXT cargada con `tools/benchmark_anonimo.py`.
 
 ## Modelos (024, 026, 043, 045, 046, 060, 069, 075, 079, 085)
 
@@ -398,6 +409,84 @@ El oráculo solo ordena y filtra: **toda obra se confirma con DIgSILENT**.
 - **Soporte:** `web/doctor.py` (qué falta y cómo arreglarlo), `web/soporte.py` (paquete sin datos del cliente), `registro_rotativo.py`
   y `web/copia_datos.py` con `tools/copia_datos.py`.
 
+## PIT y VAD sobre el registro normativo (107, 108)
+
+- **Registro normativo** (`registro_normativo.py`, `config/normativa/`): cada norma lleva su acto, título, URL, fechas, huella del
+  texto leído, estado jurídico (`vigente_comprobada`, `modificada`, `prepublicada`, `no_verificada` o `derogada`) y sus relaciones.
+  Cada regla lleva clave, valor, unidad, artículo o anexo, página y cita literal. El PIT y el VAD leen de aquí sus valores: ningún
+  número de un área, una empresa o un periodo está en el código (107:RF-11). Una regla que falta o es ambigua se dice como motivo,
+  sin suponerse.
+- **PIT** (`pit/`): producto aparte del PIDE (107:RF-1), con su norma, horizonte, formatos y expediente, aunque comparte con él la
+  red, los motores y los costos. Sus rutas van en un `APIRouter` propio (`web/rutas_pit.py`, `/api/pit/…`). El diagnóstico, las
+  alternativas y el expediente son trabajos en cola: `engine` con el motor abierto, `powerfactory` con DIgSILENT. Lo que se puede
+  comprobar antes de encolar (rutas, área, libro de la red y alternativas) da 422 sin encolar.
+- **VAD** (`vad/`): estudio de costos con la empresa modelo eficiente, aparte del PIDE y del PIT (108:RF-1). Su registro vive en
+  `<espacio>/vad/<id>/estudio.json` y nunca toca las carpetas de los otros dos. El armado (`vad/trabajo.py`) es un trabajo del carril
+  `engine`, cancelable entre sistemas, por `web/vad_api.py` (crear el estudio y armar con el caso subido; 070:RF-86). El
+  paquete se importa sin pandapower ni openpyxl, y cada submódulo tiene su capa.
+- **VNR según la Guía** (RCD 232-2017-OS/CD; 108:RF-20 a RF-25): `tools/normativa/generar_guia_vnr_232.py` comprueba la huella
+  del PDF y escribe, reproducible, la regla citada en `config/normativa/rcd_232_2017.json` y sus anexos en `config/vnr/`
+  (equivalencias, códigos VNR y formatos; la tabla que es imagen sale por OCR y se coteja). `vad/vnr_guia.py` zonifica, adapta,
+  codifica y valoriza (art. 17.2); `vad/vnr_estudio.py` lo corre sobre el inventario VNR-GIS y el SICODI, y `vad/vnr_formatos.py`
+  escribe los formatos del Anexo 5. La pestaña «Estudio VNR» (`features/vnr/EstudioVnr.tsx`) lo encola por
+  `web/vnr_api.py` como trabajo del motor. Una regla sin dato deja un hueco nombrado, nunca un valor inventado. El VNR real va
+  a la TIR y a contrastar con la empresa modelo; el aVNR del VAD sigue saliendo de la empresa modelo.
+- **Forma oficial**: el PIT, el VAD y el PIDE se entregan con la forma de los formatos de Osinergmin, leída de la norma, y para
+  cualquier distribuidora. La empresa sale del perfil (P13).
+
+## Nube, selector único y correo (109, 110)
+
+- **Cuentas** (`adaptadores/nube/`): Google Drive y OneDrive con OAuth 2.0, PKCE y `state` de un solo uso (`oauth.py`). El cliente
+  OAuth lo registra el usuario con su cuenta ([`NUBE_REGISTRO_OAUTH.md`](NUBE_REGISTRO_OAUTH.md)) en `config/nube.json`, que no
+  entra en git. El token de refresco va al cofre DPAPI del espacio, y el de acceso solo vive en memoria (`cuentas.py`). Se piden los
+  permisos mínimos (`drive.file`; `Files.Read`, y `Files.ReadWrite` solo al publicar). Sin registro, la web dice «Sin cuenta
+  conectada» y todo lo local sigue igual.
+- **Copia fija**: un fichero traído de la nube se guarda con su huella SHA-256 y entra por el mismo camino que una subida
+  (`web/nube_api.py` recibe `asignar_entrada` y `validar_entrada` de la web: no copia su lógica, 109:RF-4). Los vínculos comprueban
+  versiones y traen la nueva solo con confirmación (`web/nube.py`).
+- **Selector único** (109:RF-21 a RF-24): cada entrada de la web tiene un solo «Elegir archivo» (`FileDrop`), con el equipo como
+  origen siempre y la nube solo con una cuenta conectada (`shared/origenes.ts`, `shared/nubeEntradas.ts`, `app/NubeEnEntradas.tsx`).
+  Un tipo que la entrada no admite no se carga, y se dice su nombre y los tipos admitidos. Las salidas se guardan en una carpeta del
+  equipo y, con cuenta, se publican también (`GuardarSalida`). El selector del proveedor corre en una página propia con su CSP
+  (`web/nube_selector.py`); su token de acceso es transitorio y no se guarda en ningún sitio. La de la web no se relaja.
+- **Correo** (`correo/`, `web/correo_api.py`): Gmail y Outlook con las mismas cuentas. La vista previa guarda un borrador y su firma
+  SHA-256 (`borrador.py`). «Confirmar y enviar» manda esa firma, y el trabajo la recalcula con los adjuntos del disco: si no
+  coincide, no sale nada (110:RF-4, RF-5). Cada envío reserva su clave en el disco antes de llamar al proveedor (`envios.py`), así
+  que un doble clic no envía dos veces. Un envío «desconocido» nunca se reenvía solo: lo resuelve el operador (110:RF-9). El
+  asistente prepara el borrador y lo deja en su tarjeta; lo envía el clic del operador. Su carril es `correo`.
+- **Copia de los datos** (`web/copia_datos_api.py`, 086:RF-85 y RF-86): la previa dice lo que ocupará, lo libre y las copias que ya
+  hay, sin escribir nada. La copia solo se encola confirmada, con progreso y cancelación.
+
+## Plano de la red (111)
+
+- **Identidad** (`plano_red.py`): cada barra, tramo, SED y maniobra va por su código de la fuente, con el nombre que le da el DGS
+  (`dgs.nombre_en_pf`, sin copiar la regla). La revisión de la red es la huella de la ejecución de la fuente y de sus manifiestos de
+  geografía: un resultado de otra revisión no se pinta.
+- **Variaciones** (`variacion_plano.py`): un diario de ediciones con versión, guardado en `<espacio>/variaciones_plano/` con la
+  escritura atómica (P6). La fuente, el DGS y la geografía nunca se escriben. Toda regla eléctrica vive en el servidor
+  (`web/plano_api.py`, 111:RF-15): dos tramos solo se unen por un nodo o un equipo comunes, y un ajuste a un nodo cercano es una
+  propuesta que se confirma.
+- **Estudio** (`resultados_plano.py`): DIgSILENT si hay licencia y el proyecto está vinculado a la red que se ve; si no, el motor
+  abierto sobre una copia derivada del modelo. El resultado dice siempre qué motor lo calculó (111:RF-17, RF-18). Un incumplimiento
+  lleva texto, icono, valor y umbral, no solo color.
+- **Página** (`pagina_plano.py`): Leaflet en lienzo, con capas encendibles y todos los vértices de la fuente. Va aislada como toda
+  página generada (086:RF-21) y habla con la pestaña solo por `postMessage`, con un esquema cerrado. Sin la salida «teselas» no hay
+  fondo, y se dice.
+
+## Benchmarks anonimizados (112)
+
+`benchmarks/` genera en local conjuntos de referencia que no revelan a la empresa: seudónimos, un trazado sintético por el grafo,
+longitudes perturbadas y solo las columnas de una lista cerrada. `generar_benchmark` es la única vía de emisión: reproduce el
+estudio, pasa el control de reidentificación con el manifiesto escrito y solo entonces publica con `os.replace`. La semilla de los
+seudónimos se queda en el equipo.
+
+## Paquetes sin sección propia
+
+- `dominio/`: reglas y valores puros del dominio eléctrico, sin lectura ni escritura (002).
+- `evaluacion_harness/`: la evaluación integral local; importarlo no carga modelos ni motores.
+- `recursos/`: lo que viaja con el paquete sin ser código, como el Leaflet propio de las páginas generadas y las notas de
+  versión.
+
 ## Calidad: qué lo comprueba
 
 | Comprobación | Dónde | Qué evita |
@@ -411,6 +500,7 @@ El oráculo solo ordena y filtra: **toda obra se confirma con DIgSILENT**.
 | Suite | `tools/suite_por_tandas.py`; solo vale con las variables `CSG_*` y ninguna omitida | Una suite que pasa sin probar lo real |
 | Aceptación nativa | `tools/powerfactory_acceptance.py`, `tools/accept_*.py`, `tools/sistema_web.py` | Lo que solo se ve en DIgSILENT real |
 | Candidato | `tools/verificar_candidato.py`, `tools/trazabilidad_candidato.py` | Entregar con evidencia de otra revisión |
+| Puerta de calidad | `tools/puerta_calidad.py`, sus ganchos y GitHub Actions (102) | Un commit o una subida con la suite en rojo; una subida a `main` sin la suite fresca |
 
 ## Deudas y trabajo sin integrar
 
@@ -422,8 +512,12 @@ El oráculo solo ordena y filtra: **toda obra se confirma con DIgSILENT**.
 4. `web/services.py` sigue siendo un solo fichero enorme: su partición y la migración de paquetes siguen pendientes (002).
 5. El instalador no se ha compilado de verdad, y faltan las corridas de la 086 en máquina limpia.
 6. Quedan excepciones de capas; las reexportaciones de `web/sources/` las retira 002:RF-21.
+7. La nube y el correo se prueban con un proveedor simulado (`tests/nube_simulada.py`); con una cuenta real hace falta registrar
+   antes el cliente OAuth en `config/nube.json`.
+8. La puerta corre la suite en una sola sesión hasta que su T20 compare uno, dos y tres procesos y mida el pico de memoria.
 
-**En ramas, fuera de esta descripción** (estado anotado el 2026-11-04; comprobar antes de fiarse):
+**En ramas, fuera de esta descripción** (anotadas el 2026-11-04; el 2026-11-16 ninguna de las tres existe ya: lo que traían se
+integró o se retiró, y su estado está en `specs/README.md`):
 
 | Rama | Worktree | Qué trae |
 | --- | --- | --- |

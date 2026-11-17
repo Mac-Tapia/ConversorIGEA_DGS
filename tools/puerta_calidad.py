@@ -7,13 +7,17 @@ Uso:
     python tools/puerta_calidad.py --commit      # gancho pre-commit: gobierno y las pruebas del commit
     python tools/puerta_calidad.py --push        # gancho pre-push: suite completa, sin fallidas ni omitidas
     python tools/puerta_calidad.py --ci          # GitHub Actions: suite sintética
+    python tools/puerta_calidad.py --arbol       # suite entera del árbol del índice; deja su veredicto (102:RF-11)
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import platform
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -119,6 +123,81 @@ UMBRAL_PRUEBA_LENTA_S = 1800.0
 
 #: El fichero local de las variables, fuera de git (102:RF-6, RF-15).
 FICHERO_VARIABLES = Path('config') / 'suite_completa.json'
+
+#: 102:RF-11 (aclaración del 2026-11-15, PUERTA-ESPECULATIVA): el veredicto de un ÁRBOL (``git write-tree``), que deja
+#: ``--arbol`` en ``.git/puerta_calidad/arbol_<árbol>.json``, vale como mucho estas horas. La suite entera tarda ~80 min
+#: y el integrador monta y comete el mismo grupo en pocas horas; pasado el tope, los datos, SQL Server o el controlador
+#: de la GPU pueden ser otros y se repite. Se cambia con :data:`VARIABLE_HORAS_VEREDICTO`.
+HORAS_VEREDICTO_ARBOL = 12.0
+VARIABLE_HORAS_VEREDICTO = 'CSG_PUERTA_HORAS_VEREDICTO'
+#: La forma del veredicto de árbol: otra forma no se interpreta, se repite la suite.
+FORMATO_VEREDICTO_ARBOL = 1
+#: 102:RF-11 v2 (condición de 0d, 2026-11-15): las únicas ramas en las que el gancho del commit reutiliza un veredicto
+#: de árbol: la rama de trabajo y la del integrador (wt_integra comete en ella y la funde por avance rápido en la de
+#: trabajo). En main, en cualquier otra rama o sin rama, nunca: «main exige la completa»; y la subida a main
+#: (:func:`puerta_push`) no consulta los veredictos de árbol.
+RAMAS_CON_VEREDICTO_DE_ARBOL = ('trabajo/puerta-por-ramas', 'trabajo/integra-capas-suite')
+
+#: 102:RF-5 (aclaración del 2026-11-15, PUERTA-XDIST): la suite entera de la puerta, repartida en N procesos de CPU.
+#: Memoria de un proceso de pytest de la suite. PROVISIONAL: en los ensayos de la 106:RF-16 del 2026-11-14 con -n 2 y
+#: sin datos reales, el mayor pico de un trabajador fue 2,74 GiB (y 5,97 GiB el árbol entero); b3 medirá el de la suite
+#: con los datos reales (pico del árbol de procesos con psutil) y lo fijará aquí. Se cambia con VARIABLE_GIB_POR_PROCESO.
+GIB_POR_PROCESO = 3.0
+VARIABLE_GIB_POR_PROCESO = 'CSG_PUERTA_GIB_POR_PROCESO'
+#: Lo que se deja libre al equipo: las reglas de recursos piden ≥ 2 GiB libres al lanzar (y 0d, ≥ 1,5 GiB en el pico).
+RESERVA_GIB = 2.0
+#: Tope de procesos. UNO hasta que la T20 de la spec 102 compare la suite entera con -n 1, 2 y 3 y mida el pico con los
+#: datos reales (auditoría de c2, 2026-11-16: GIB_POR_PROCESO aún no está medido y hay pruebas que caían con -n 2): hasta
+#: entonces todas las puertas corren la suite en una sola sesión, como antes. La T20 lo sube con su medida. Para ensayar
+#: 2 o 3 procesos, VARIABLE_PROCESOS; la memoria y las CPU lo siguen limitando.
+PROCESOS_MAXIMOS = 1
+VARIABLE_PROCESOS = 'CSG_PUERTA_PROCESOS'
+#: Las tres partes de la suite repartida (marcas de tests/conftest.py, ``EN_SERIE``, y la ``gpu`` de 106:RF-6): «serie»,
+#: una sesión sola con lo que no admite paralelo, a la vez que «reparto», con xdist; después, «a_solas», sin nada más.
+#: Las tres juntas son la suite entera: toda prueba cae en una y solo una.
+SELECCION_SERIE = '(gpu or serie) and not a_solas'
+SELECCION_REPARTO = 'not gpu and not serie and not a_solas'
+SELECCION_A_SOLAS = 'a_solas'
+#: Código de pytest sin pruebas que elegir: en una parte de la suite repartida no es un fallo (el junit lo confirma).
+_SIN_PRUEBAS = 5
+
+
+def _hay_xdist() -> bool:
+    import importlib.util
+
+    return importlib.util.find_spec('xdist') is not None
+
+
+def _memoria_libre_gib() -> float | None:
+    try:
+        import psutil
+    except ImportError:
+        return None
+    return psutil.virtual_memory().available / 2**30
+
+
+def procesos_de_la_suite(entorno: Mapping[str, str] | None = None) -> tuple[int, str]:
+    """102:RF-5 (PUERTA-XDIST): cuántos procesos usa la suite entera, y por qué. Sale de la memoria libre medida al
+    arrancar, menos :data:`RESERVA_GIB`, entre :data:`GIB_POR_PROCESO`, con el tope de procesos y el de CPU. Sin
+    pytest-xdist, sin psutil o con poca memoria: 1, la suite en una sola sesión, como siempre."""
+    entorno = os.environ if entorno is None else entorno
+    if not _hay_xdist():
+        return 1, 'pytest-xdist no está instalado: la suite entera en una sola sesión (N=1)'
+    libre = _memoria_libre_gib()
+    if libre is None:
+        return 1, 'sin psutil no se mide la memoria libre: la suite entera en una sola sesión (N=1)'
+    try:
+        por_proceso = float(entorno.get(VARIABLE_GIB_POR_PROCESO) or GIB_POR_PROCESO)
+        tope = int(entorno.get(VARIABLE_PROCESOS) or PROCESOS_MAXIMOS)
+    except ValueError:
+        return 1, f'{VARIABLE_GIB_POR_PROCESO} o {VARIABLE_PROCESOS} no es un número: una sola sesión (N=1)'
+    cpus = os.cpu_count() or 1
+    por_memoria = int((libre - RESERVA_GIB) // por_proceso) if por_proceso > 0 else 1
+    n = max(1, min(tope, por_memoria, cpus))
+    return n, (f'{libre:.1f} GiB libres, {por_proceso:g} GiB por proceso y {RESERVA_GIB:g} GiB de reserva, tope {tope} '
+               f'y {cpus} CPU: N={n}')
+#: El lock de las dependencias del núcleo; su sha256 va en la firma del entorno del veredicto.
+LOCK_DE_DEPENDENCIAS = 'requirements-nucleo.lock'
 
 _CERO = '0' * 40
 
@@ -276,34 +355,299 @@ def guardar_resultado(revision: str, juicio: dict, raiz: Path = RAIZ) -> Path:
     return ruta
 
 
-def _pytest(argumentos: list[str], entorno: Mapping[str, str], raiz: Path, exigidas: Iterable[str] = ()) -> dict:
+# ----------------------------------------------------------------- 102:RF-11: el veredicto de un árbol (especulativa)
+
+def _sha256(ruta: Path) -> str:
+    h = hashlib.sha256()
+    with Path(ruta).open('rb') as f:
+        for bloque in iter(lambda: f.read(1 << 20), b''):
+            h.update(bloque)
+    return h.hexdigest()
+
+
+def _variables_del_fichero(raiz: Path) -> dict[str, str]:
+    """Todas las variables del fichero local (las de la puerta y las que añade la máquina, como las de los carriles), con
+    el entorno por encima; ``{}`` si no hay fichero o no se lee."""
+    try:
+        datos = json.loads((raiz / FICHERO_VARIABLES).read_text(encoding='utf-8'))
+        leidas = {k: str(v) for k, v in (datos.get('variables') or {}).items() if v not in (None, '')}
+    except (OSError, ValueError, AttributeError):
+        return {}
+    return {k: os.environ.get(k) or v for k, v in leidas.items()}
+
+
+def _entorno_de_pytest(entorno: Mapping[str, str]) -> dict[str, str]:
+    """El entorno que recibe pytest: el del proceso sin las ``GIT_*`` del gancho (102:RF-19) y, encima, ``entorno``."""
+    return {**{k: v for k, v in os.environ.items() if not k.startswith('GIT_')}, **entorno}
+
+
+def variables_de_la_firma(raiz: Path, entorno_pytest: Mapping[str, str]) -> dict[str, str]:
+    """Las variables de datos reales que ve la suite: las de la puerta (:data:`VARIABLES`) y las del fichero local, con
+    el valor que les llega a pytest. Un veredicto solo vale con exactamente las mismas, nombre y valor."""
+    nombres = set(VARIABLES) | set(_variables_del_fichero(raiz))
+    return {k: str(entorno_pytest[k]) for k in sorted(nombres) if entorno_pytest.get(k)}
+
+
+def entorno_de_la_firma(raiz: Path) -> dict[str, str]:
+    """La versión del entorno: el Python, el sha256 del lock de dependencias y el de los paquetes instalados (nombre y
+    versión), que es lo que de verdad importa la suite."""
+    from importlib import metadata
+
+    lock = raiz / LOCK_DE_DEPENDENCIAS
+    paquetes = sorted({f"{(d.metadata.get('Name') or '').lower()}=={d.version}" for d in metadata.distributions()})
+    return {'python': f'{platform.python_implementation()} {platform.python_version()}',
+            'lock': _sha256(lock) if lock.is_file() else '',
+            'paquetes': hashlib.sha256('\n'.join(paquetes).encode('utf-8')).hexdigest()}
+
+
+def firma_de_la_puerta() -> str:
+    """El sha256 de esta herramienta, la que juzga: otra versión de la puerta no reutiliza el veredicto."""
+    return _sha256(Path(__file__))
+
+
+def arbol_del_indice(raiz: Path = RAIZ) -> str:
+    """El árbol que se cometería (``git write-tree``). En el gancho, git pone GIT_INDEX_FILE: es el índice del commit."""
+    return _git('write-tree', raiz=raiz).strip()
+
+
+def rama_actual(raiz: Path = RAIZ) -> str:
+    """La rama de HEAD (la que recibe el commit), o '' sin rama (HEAD separado) o si git no responde."""
+    try:
+        return _git('symbolic-ref', '--short', '-q', 'HEAD', raiz=raiz).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return ''
+
+
+def ruta_veredicto_de_arbol(arbol: str, raiz: Path = RAIZ) -> Path:
+    return _carpeta_resultados(raiz) / f'arbol_{arbol}.json'
+
+
+def indice_igual_al_disco(raiz: Path = RAIZ) -> bool:
+    """Lo del disco es el índice: nada sin preparar en lo versionado ni ficheros nuevos de código, pruebas o specs."""
+    for linea in _git('status', '--porcelain', raiz=raiz).splitlines():
+        ruta = linea[3:].strip().strip('"')
+        if linea.startswith('??'):
+            if ruta.startswith(('src/', 'tools/', 'tests/', 'specs/', 'config/')):
+                return False
+        elif linea[1:2] != ' ':
+            return False
+    return True
+
+
+def _edad_horas(fecha: str, ahora: datetime | None) -> float:
+    momento = datetime.fromisoformat(fecha)
+    if momento.tzinfo is None:
+        momento = momento.astimezone()
+    return ((ahora or datetime.now().astimezone()) - momento).total_seconds() / 3600
+
+
+def veredicto_de_arbol(arbol: str, raiz: Path = RAIZ, entorno_pytest: Mapping[str, str] | None = None,
+                       ahora: datetime | None = None) -> tuple[dict | None, str]:
+    """102:RF-11: el veredicto del árbol si vale para ESTE gancho, o ``(None, motivo)``. Ante cualquier duda, no vale.
+
+    Vale solo si: es de este árbol y de esta forma; lo dio esta misma puerta (sha256); con las mismas variables, nombre
+    y valor; con el mismo Python, lock y paquetes; aprobado, sin fallidas ni omitidas; con fecha y dentro del tope de
+    horas; y cada junit existe, cuadra con su sha256 y, releído, da el mismo total sin fallidas ni omitidas.
+    """
+    ruta = ruta_veredicto_de_arbol(arbol, raiz)
+    try:
+        datos = json.loads(ruta.read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        return None, 'no hay veredicto de este árbol'
+    except (OSError, ValueError) as exc:
+        return None, f'veredicto ilegible: {exc}'
+    try:
+        if not isinstance(datos, dict) or datos.get('formato') != FORMATO_VEREDICTO_ARBOL:
+            return None, 'otra forma de veredicto'
+        if datos.get('arbol') != arbol:
+            return None, f"es de otro árbol ({str(datos.get('arbol'))[:8]})"
+        if datos.get('puerta') != firma_de_la_puerta():
+            return None, 'lo dio otra versión de tools/puerta_calidad.py'
+        esperadas = variables_de_la_firma(raiz, os.environ if entorno_pytest is None else entorno_pytest)
+        guardadas = datos.get('variables') or {}
+        faltan = [k for k in VARIABLES if not guardadas.get(k)]
+        if faltan:
+            return None, f"la suite corrió sin {', '.join(faltan)}"
+        if guardadas != esperadas:
+            distintas = sorted(k for k in set(guardadas) | set(esperadas) if guardadas.get(k) != esperadas.get(k))
+            return None, f"otras variables: {', '.join(distintas)}"
+        entorno = entorno_de_la_firma(raiz)
+        if datos.get('entorno') != entorno:
+            distintas = sorted(k for k in entorno if (datos.get('entorno') or {}).get(k) != entorno[k])
+            return None, f"otro entorno: {', '.join(distintas) or 'forma'}"
+        if datos.get('aprobada') is not True or datos.get('fallidas') or datos.get('omitidas'):
+            return None, (f"la suite no aprobó: {len(datos.get('fallidas') or [])} fallidas, "
+                          f"{len(datos.get('omitidas') or [])} omitidas")
+        tope = float(os.environ.get(VARIABLE_HORAS_VEREDICTO) or HORAS_VEREDICTO_ARBOL)
+        edad = _edad_horas(datos['fecha'], ahora)
+        if not 0 <= edad <= tope:
+            return None, f'veredicto de hace {edad:.1f} h, fuera de 0 a {tope:g} h'
+        carpeta, total = _carpeta_resultados(raiz), 0
+        junits = datos.get('junits') or []
+        if not junits:
+            return None, 'sin junit'
+        for j in junits:
+            nombre = str(j['fichero'])
+            if Path(nombre).name != nombre:
+                return None, f'junit fuera de la carpeta: {nombre}'
+            junit = carpeta / nombre
+            if not junit.is_file() or _sha256(junit) != j['sha256']:
+                return None, f'el junit {nombre} no cuadra con su sha256'
+            relectura = veredicto(junit)
+            if relectura['fallidas'] or relectura['omitidas']:
+                return None, f'el junit {nombre} trae fallidas u omitidas'
+            total += relectura['total']
+        if total != datos.get('total') or not total:
+            return None, f"el junit da {total} pruebas y el veredicto {datos.get('total')}"
+    except (KeyError, TypeError, ValueError, AttributeError, OSError, PuertaError) as exc:
+        return None, f'veredicto mal formado: {type(exc).__name__}: {exc}'
+    return datos, ''
+
+
+def _veredicto_del_indice(raiz: Path) -> tuple[str, dict | None, str]:
+    """El árbol del índice y su veredicto válido para el gancho (102:RF-11), o el motivo por el que no vale."""
+    try:
+        arbol = arbol_del_indice(raiz)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        return '', None, f'sin árbol del índice: {exc}'
+    datos, motivo = veredicto_de_arbol(arbol, raiz, _entorno_de_pytest({}))
+    return arbol, datos, motivo
+
+
+def puerta_arbol(raiz: Path = RAIZ) -> int:
+    """102:RF-11 (PUERTA-ESPECULATIVA): la suite entera sobre el árbol del índice, con los datos reales, y su veredicto en
+    ``.git/puerta_calidad/arbol_<árbol>.json``, firmado. Se corre fuera de wt_integra, en un worktree con el mismo montaje;
+    el gancho del commit con ese mismo árbol lo reutiliza y no repite la suite."""
+    if not indice_igual_al_disco(raiz):
+        print('Veredicto del árbol: el disco no es el índice (cambios sin preparar o ficheros nuevos de código, pruebas '
+              'o specs); la suite probaría otra cosa que el árbol. Prepare el montaje entero con git add.')
+        return 1
+    arbol = arbol_del_indice(raiz)
+    try:
+        entorno = {**_variables_del_fichero(raiz), **variables_de_la_suite(raiz)}
+    except PuertaError as exc:
+        print(f'Veredicto del árbol: {exc}')
+        return 1
+    previo, _motivo = veredicto_de_arbol(arbol, raiz, _entorno_de_pytest(entorno))
+    if previo:
+        print(f'Veredicto del árbol: {arbol[:8]} ya tiene un veredicto válido ({ruta_veredicto_de_arbol(arbol, raiz)}).')
+        return 0
+    carpeta = _carpeta_resultados(raiz)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    print(f'Veredicto del árbol: suite entera de {arbol} con los datos reales.')
+    juicio = _pytest([], entorno, raiz, conservar=carpeta / f'arbol_{arbol}', procesos=_procesos_de_la_suite_entera())
+    if arbol_del_indice(raiz) != arbol or not indice_igual_al_disco(raiz):
+        print(f'Veredicto del árbol: el árbol cambió durante la suite; no se deja veredicto de {arbol[:8]}.')
+        return 1
+    ruta = ruta_veredicto_de_arbol(arbol, raiz)
+    datos = {'formato': FORMATO_VEREDICTO_ARBOL, 'arbol': arbol,
+             'fecha': datetime.now().astimezone().isoformat(timespec='seconds'),
+             'puerta': firma_de_la_puerta(), 'variables': variables_de_la_firma(raiz, _entorno_de_pytest(entorno)),
+             'entorno': entorno_de_la_firma(raiz),
+             'aprobada': not juicio['fallidas'] and not juicio['omitidas'], **juicio}
+    from convertersmartgrid import util
+
+    util.write_json_atomic(ruta, datos)              # 001:RF-5: la escritura atómica única, después de los junit
+    aprobada = _informar(juicio, omitidas_cuentan=True)
+    print(f'Veredicto del árbol {arbol[:8]}: {"aprobado" if aprobada else "NO aprobado"} ({ruta}).')
+    return 0 if aprobada else 1
+
+
+def _procesos_de_la_suite_entera() -> int:
+    """102:RF-5: los procesos de la suite entera, dicho en la salida (con poca memoria o sin xdist, 1)."""
+    procesos, motivo = procesos_de_la_suite()
+    print(f'Puerta: {motivo}.', flush=True)
+    return procesos
+
+
+def _orden_pytest(junit: Path, argumentos: list[str]) -> list[str]:
+    return [sys.executable, '-m', 'pytest', '-q', '-rs', '-p', 'no:cacheprovider', f'--junitxml={junit}', *argumentos]
+
+
+def _partes_de_la_suite(procesos: int) -> list[list[tuple[str, list[str]]]]:
+    """102:RF-5 (PUERTA-XDIST): las sesiones de la suite, por tandas (las de una tanda corren a la vez). Con un proceso,
+    una sola sesión, la de siempre. Con N: «serie» (una sesión) a la vez que «reparto» (N-1 procesos: con xdist y
+    ``--dist loadfile`` desde dos, que mantiene juntas las pruebas de un fichero y sus fixtures de módulo); después,
+    «a_solas»."""
+    if procesos <= 1:
+        return [[('suite', [])]]
+    reparto = ['-m', SELECCION_REPARTO] + (['-n', str(procesos - 1), '--dist', 'loadfile'] if procesos > 2 else [])
+    return [[('serie', ['-m', SELECCION_SERIE]), ('reparto', reparto)], [('a_solas', ['-m', SELECCION_A_SOLAS])]]
+
+
+def _unir(juicios: list[dict]) -> dict:
+    """El juicio de la suite repartida: la suma de los de sus sesiones; las lentas, otra vez las 30 mayores."""
+    if len(juicios) == 1:
+        return juicios[0]
+    lentas = sorted((x for j in juicios for x in j.get('lentas') or []), key=lambda x: (-x['segundos'], x['prueba']))
+    lentas = lentas[:LENTAS_GUARDADAS]
+    unido = {'total': sum(j['total'] for j in juicios),
+             'fallidas': [f for j in juicios for f in j['fallidas']],
+             'omitidas': [o for j in juicios for o in j['omitidas']], 'lentas': lentas,
+             'mas_de_umbral': [x for x in lentas if x['segundos'] > UMBRAL_PRUEBA_LENTA_S]}
+    if any('junits' in j for j in juicios):
+        unido['junits'] = [x for j in juicios for x in j.get('junits') or []]
+    return unido
+
+
+def _pytest(argumentos: list[str], entorno: Mapping[str, str], raiz: Path, exigidas: Iterable[str] = (), *,
+            conservar: Path | None = None, procesos: int = 1) -> dict:
+    """pytest con su junit; ``conservar`` (ruta sin extensión) guarda una copia de cada junit, ``<nombre>.<sesión>.junit.xml``,
+    y su sha256 va en ``juicio['junits']`` (102:RF-11). ``procesos`` > 1 reparte la suite entera (102:RF-5,
+    :func:`procesos_de_la_suite`); con 1, la orden de siempre."""
+    from convertersmartgrid.trabajadores_ml import SALIDA_SIN_TURNO_GPU, quien_tiene_la_gpu
+
+    # 102:RF-19: sin las variables que git pone al gancho (GIT_INDEX_FILE, GIT_DIR…): heredadas, el «git worktree add»
+    # de las pruebas del asistente usaba el índice de este repositorio y fallaba solo dentro de la puerta (2026-11-11).
+    limpio = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
+    env = {**limpio, **entorno}
+    tandas = _partes_de_la_suite(procesos)
+    if procesos > 1:
+        con_xdist = f', xdist -n {procesos - 1} --dist loadfile' if procesos > 2 else ''
+        print(f'Puerta: suite entera repartida en {procesos} procesos: «serie» ({SELECCION_SERIE}) a la vez '
+              f'que «reparto» ({SELECCION_REPARTO}{con_xdist}); después «a_solas» ({SELECCION_A_SOLAS}).', flush=True)
+    juicios = []
     with tempfile.TemporaryDirectory() as tmp:
-        junit = Path(tmp) / 'junit.xml'
-        cmd = [sys.executable, '-m', 'pytest', '-q', '-rs', '-p', 'no:cacheprovider', f'--junitxml={junit}',
-               *argumentos]
-        # 102:RF-19: sin las variables que git pone al gancho (GIT_INDEX_FILE, GIT_DIR…): heredadas, el «git worktree add»
-        # de las pruebas del asistente usaba el índice de este repositorio y fallaba solo dentro de la puerta (2026-11-11).
-        limpio = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
-        rc = subprocess.run(cmd, cwd=raiz, env={**limpio, **entorno}).returncode
-        from convertersmartgrid.trabajadores_ml import SALIDA_SIN_TURNO_GPU, quien_tiene_la_gpu
+        resultados = []
+        for tanda in tandas:
+            if procesos <= 1:
+                junit = Path(tmp) / 'junit.xml'
+                resultados.append(('suite', junit, subprocess.run(_orden_pytest(junit, argumentos), cwd=raiz,
+                                                                  env=env).returncode))
+                continue
+            lanzados = []
+            for sesion, extra in tanda:
+                junit = Path(tmp) / f'junit.{sesion}.xml'
+                lanzados.append((sesion, junit, subprocess.Popen(_orden_pytest(junit, [*extra, *argumentos]), cwd=raiz,
+                                                                 env=env)))
+            resultados += [(sesion, junit, proceso.wait()) for sesion, junit, proceso in lanzados]
+        for sesion, junit, rc in resultados:
+            if rc == SALIDA_SIN_TURNO_GPU:
+                # 106:RF-8: sin el turno de GPU no hay veredicto, y eso es un fallo con su dueño, nunca «0 fallidas».
+                from convertersmartgrid.training_coordinator import ruta_guardia_gpu
 
-        if rc == SALIDA_SIN_TURNO_GPU:
-            # 106:RF-8: sin el turno de GPU no hay veredicto, y eso es un fallo con su dueño, nunca «0 fallidas».
-            from convertersmartgrid.training_coordinator import ruta_guardia_gpu
-
-            dueno = quien_tiene_la_gpu(ruta_guardia_gpu({**limpio, **entorno}))   # la misma que calculó el conftest
-            return {'total': 0, 'omitidas': [],
-                    'fallidas': [{'prueba': 'pytest', 'motivo': f'sin el turno de GPU en su plazo: la tiene {dueno}'}]}
-        if not junit.is_file():
-            raise PuertaError(f'pytest terminó con el código {rc} sin dejar resultado.')
-        juicio = veredicto(junit, exigidas)
-    # 106:RF-16: un código distinto de 0 sin ninguna prueba fallida es una sesión que falló por algo que no es una prueba
-    # (una línea de pruebas en un registro real de la web, por ejemplo). Antes solo contaban los códigos distintos de 0
-    # y 1, y con 1 y el junit limpio la puerta daba «0 fallidas» y aprobaba (auditoría del 2026-11-13).
-    if rc != 0 and not juicio['fallidas']:
-        juicio['fallidas'].append({'prueba': 'pytest', 'motivo': f'terminó con el código {rc} sin ninguna prueba fallida: '
-                                   'mire su salida (p. ej., una prueba que escribió en un registro real)'})
-    return juicio
+                dueno = quien_tiene_la_gpu(ruta_guardia_gpu(env))   # la misma que calculó el conftest
+                return {'total': 0, 'omitidas': [],
+                        'fallidas': [{'prueba': 'pytest', 'motivo': f'sin el turno de GPU en su plazo: la tiene {dueno}'}]}
+            if not junit.is_file():
+                raise PuertaError(f'pytest ({sesion}) terminó con el código {rc} sin dejar resultado.')
+            juicio = veredicto(junit, exigidas)
+            if conservar is not None:
+                copia = conservar.with_name(f'{conservar.name}.{sesion}.junit.xml')
+                shutil.copyfile(junit, copia)
+                juicio['junits'] = [{'fichero': copia.name, 'sha256': _sha256(copia)}]
+            # 106:RF-16: un código distinto de 0 sin ninguna prueba fallida es una sesión que falló por algo que no es una
+            # prueba (una línea de pruebas en un registro real de la web, por ejemplo). Antes solo contaban los códigos
+            # distintos de 0 y 1, y con 1 y el junit limpio la puerta daba «0 fallidas» y aprobaba (auditoría del
+            # 2026-11-13). En la suite repartida, una parte sin pruebas que elegir (código 5, junit vacío) no lo es.
+            sin_pruebas = sesion != 'suite' and rc == _SIN_PRUEBAS and juicio['total'] == 0
+            if rc != 0 and not juicio['fallidas'] and not sin_pruebas:
+                donde = '' if sesion == 'suite' else f' (sesión «{sesion}»)'
+                juicio['fallidas'].append({'prueba': 'pytest', 'motivo': f'terminó con el código {rc}{donde} sin ninguna '
+                                           'prueba fallida: mire su salida (p. ej., una prueba que escribió en un '
+                                           'registro real)'})
+            juicios.append(juicio)
+    return _unir(juicios)
 
 
 def _informar(juicio: dict, *, omitidas_cuentan: bool) -> bool:
@@ -399,7 +743,25 @@ def puerta_commit(raiz: Path = RAIZ) -> int:
         return 1
     if exigidas and 'tests/test_mcp_conversor.py' not in pruebas and 'tests' not in pruebas:
         pruebas.append('tests/test_mcp_conversor.py')
-    if not _informar(_pytest(pruebas, entorno, raiz, exigidas=exigidas), omitidas_cuentan=False):
+    # 102:RF-11 (aclaración, PUERTA-ESPECULATIVA): si este mismo árbol ya pasó la suite ENTERA con los datos reales,
+    # firmada por esta puerta y en su plazo, lo que elegiría el commit ya está probado; no se repite y se cita.
+    arbol, aprobado, motivo = _veredicto_del_indice(raiz)
+    rama = rama_actual(raiz)
+    if aprobado and rama not in RAMAS_CON_VEREDICTO_DE_ARBOL:
+        # 102:RF-11 v2: fuera de la rama de trabajo (main, otra rama o sin rama) la suite corre fresca.
+        aprobado, motivo = None, (f"en la rama «{rama or 'sin rama'}» no se reutiliza: solo en "
+                                  f"{', '.join(RAMAS_CON_VEREDICTO_DE_ARBOL)}")
+    if aprobado:
+        junits = ', '.join(j['sha256'][:12] for j in aprobado['junits'])
+        print(f"Puerta del commit: el árbol {arbol} ya pasó la suite entera el {aprobado['fecha']}, sin fallidas ni "
+              f"omitidas (veredicto {ruta_veredicto_de_arbol(arbol, raiz)}; junit sha256 {junits}; puerta "
+              f"{aprobado['puerta'][:12]}); no se repite.")
+        _informar({'total': aprobado['total'], 'fallidas': [], 'omitidas': []}, omitidas_cuentan=True)
+        return 0
+    if arbol and ruta_veredicto_de_arbol(arbol, raiz).exists():
+        print(f'Puerta del commit: el veredicto del árbol {arbol[:8]} no vale ({motivo}); se corren las pruebas.')
+    procesos = _procesos_de_la_suite_entera() if pruebas == ['tests'] else 1
+    if not _informar(_pytest(pruebas, entorno, raiz, exigidas=exigidas, procesos=procesos), omitidas_cuentan=False):
         print('Commit detenido: corrija las pruebas que fallan.')
         return 1
     return 0
@@ -450,8 +812,10 @@ def puerta_push(revisiones: Iterable[str], raiz: Path = RAIZ) -> int:
     except PuertaError as exc:
         print(f'Subida detenida: {exc}')
         return 1
-    print(f'Puerta de la subida: suite completa de {cabeza[:8]} con los datos reales.')
-    juicio = _pytest([], entorno, raiz, exigidas=MCP_REAL)
+    # 102:RF-11 v2: aquí nunca se consulta un veredicto de árbol (arbol_<T>.json): main exige la suite completa.
+    print(f'Puerta de la subida: suite completa de {cabeza[:8]} con los datos reales; main exige la suite completa y '
+          'aquí no vale ningún veredicto de árbol.')
+    juicio = _pytest([], entorno, raiz, exigidas=MCP_REAL, procesos=_procesos_de_la_suite_entera())
     ruta = guardar_resultado(cabeza, juicio, raiz)
     if not _informar(juicio, omitidas_cuentan=True):
         print(f'Subida detenida: la suite completa no pasa sin fallidas ni omitidas. Detalle: {ruta}')
@@ -461,7 +825,7 @@ def puerta_push(revisiones: Iterable[str], raiz: Path = RAIZ) -> int:
 
 def puerta_ci(raiz: Path = RAIZ) -> int:
     """102:RF-12, RF-14: la suite sintética; allí no hay datos reales y sus pruebas se omiten (RF-15)."""
-    return 0 if _informar(_pytest([], {}, raiz), omitidas_cuentan=False) else 1
+    return 0 if _informar(_pytest([], {}, raiz, procesos=_procesos_de_la_suite_entera()), omitidas_cuentan=False) else 1
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -471,10 +835,14 @@ def main(argv: list[str] | None = None) -> int:
     modo.add_argument('--push', action='store_true', help='gancho pre-push: suite completa sin fallidas ni omitidas; '
                       'lee de la entrada estándar las líneas del gancho')
     modo.add_argument('--ci', action='store_true', help='GitHub Actions: suite sintética')
+    modo.add_argument('--arbol', action='store_true', help='suite entera del árbol del índice con los datos reales; deja '
+                      'su veredicto para el gancho del commit con ese mismo árbol (102:RF-11)')
     args = parser.parse_args(argv)
     try:
         if args.commit:
             return puerta_commit()
+        if args.arbol:
+            return puerta_arbol()
         if args.push:
             lineas = [] if sys.stdin is None or sys.stdin.isatty() else sys.stdin.read().splitlines()
             if not lineas:                        # a mano, sin el gancho: la revisión actual, como al integrar

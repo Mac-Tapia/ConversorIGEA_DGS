@@ -1299,17 +1299,47 @@ def corpus_neutro(salida: Path, terminos: CE.Terminos) -> dict[str, Any]:
     """
     from convertersmartgrid.asistente import ordenes_fijas, sinteticos
 
-    filas = [{'texto': e.texto, 'tarea': e.tarea, 'datos': [list(d) for d in e.datos]}
-             for e in [*sinteticos.generar({}, por_tarea=40, semilla=0), *ordenes_fijas.generar({})]]
     memoria: dict[str, str | None] = {}
-    halladas = sorted({t for f in filas for t, _ in CE._buscar(f['texto'], terminos, memoria)})
+
+    def fila(e) -> dict[str, Any]:
+        return {'texto': e.texto, 'tarea': e.tarea, 'datos': [list(d) for d in e.datos]}
+
+    def limpia(e) -> bool:
+        return not any(True for _ in CE._buscar(e.texto, terminos, memoria))
+
+    # Las sintéticas inventan códigos con la forma de los reales (el intérprete aprende a reconocerlos): una que coincide
+    # por azar con un término de la lista se descarta y se sustituye por otra de su misma tarea, sorteada con la semilla
+    # siguiente. Así el corpus no lleva ningún término y conserva su tamaño por tarea (PUERTA3, 16-11: un código de alimentador real).
+    sorteadas = sinteticos.generar({}, por_tarea=40, semilla=0)
+    validas = [e for e in sorteadas if limpia(e)]
+    faltan: dict[str, int] = {}
+    for e in sorteadas:
+        if not limpia(e):
+            faltan[e.tarea] = faltan.get(e.tarea, 0) + 1
+    descartadas = sum(faltan.values())
+    semilla = 1
+    while faltan and semilla <= 50:
+        for e in sinteticos.generar({}, por_tarea=40, semilla=semilla):
+            if faltan.get(e.tarea) and limpia(e) and all(e.texto != v.texto for v in validas):
+                validas.append(e)
+                faltan[e.tarea] -= 1
+                if not faltan[e.tarea]:
+                    del faltan[e.tarea]
+        semilla += 1
+    if faltan:
+        raise CE.EntregaError(f'El corpus neutro no completa {sum(faltan.values())} orden(es) sin términos de la lista '
+                              'de la entrega: no se entrega.')
+    fijas = ordenes_fijas.generar({})
+    # Las órdenes fijas están escritas a mano: una con un término de la lista es un defecto y rechaza la entrega.
+    halladas = sorted({t for e in fijas for t, _ in CE._buscar(e.texto, terminos, memoria)})
     if halladas:
         raise CE.EntregaError(f'El corpus neutro lleva {len(halladas)} término(s) de la lista de la entrega: no se entrega.')
+    filas = [fila(e) for e in [*validas, *fijas]]
     ruta = salida / 'corpus' / 'ordenes_neutras.json'
     ruta.parent.mkdir(parents=True, exist_ok=True)
     ruta.write_text(json.dumps({'origen': 'sintetico', 'vocabulario': 'vacío: nombres inventados', 'empresa': None,
                                 'filas': filas}, ensure_ascii=False, indent=0), encoding='utf-8')
-    return {'filas': len(filas), 'sha256': _sha256(ruta), 'terminos_hallados': 0}
+    return {'filas': len(filas), 'sha256': _sha256(ruta), 'terminos_hallados': 0, 'sinteticas_resorteadas': descartadas}
 
 
 def construir_complemento_ia(raiz: Path, salida: Path, *, cache: Path, version: str,

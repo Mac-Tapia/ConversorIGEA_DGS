@@ -1,6 +1,6 @@
 # Spec 070 — El asistente opera el conversor de punta a punta
 
-Estado: aprobada (2026-11-15: 070:RF-78 v2, T14 por grupos de módulos; antes implementada)
+Estado: aprobada (2026-11-16: RF-79 a RF-86, el asistente cubre las specs 107 a 112, T16 a T22; 2026-11-15: 070:RF-78 v2, T14 por grupos de módulos; antes implementada)
 
 Rama de trabajo: `asistente/070`.
 Cita: 026 (asistente), 027 (RF-19, RF-43, RF-44, RF-65), 028 (RF-21 a RF-31), 046 (RF-20 a RF-24), 047 (RF-11),
@@ -143,6 +143,32 @@ DIgSILENT en esta fase: lo que solo se comprueba allí queda en tareas `[DIgSILE
   la función común `D:/csg/PM_IMPL/navegador_comun/sin_citas.py` y falla si aparece; los «T<n>» del dominio que pueden
   verse (nombres de transformador) van en su lista explícita, cada uno con su motivo. Y ningún código decide por una cita
   dentro de un texto (`'051:RF-9' in aviso`): al quitar las citas, esa condición dejaría de cumplirse sin avisar.
+
+### El asistente cubre las specs 107 a 112 (2026-11-16)
+
+Orden del usuario del 2026-11-16: «el asistente debe hacer todo el conversor», también la nube y el correo. Hasta hoy
+no tenía ninguna tarea del PIT, del VAD, del plano, de los benchmarks, de la nube ni del correo, y las rutas de la nube
+le estaban cerradas aunque el operador confirmara.
+
+- RF-79: EL SISTEMA dará al asistente una tarea por cada función de la web de las specs 107 a 112: el diagnóstico, las
+  alternativas y el expediente del PIT; el armado de la empresa modelo del VAD; abrir o cerrar una maniobra en una
+  variación del plano y estudiarla; generar un benchmark anonimizado; enviar un informe por correo; e importar,
+  publicar y compartir en la nube y conectar una cuenta.
+- RF-80: CUANDO el asistente prepare un envío de correo, una publicación, un compartir, una importación o una conexión,
+  EL SISTEMA lo dejará en el panel del asistente con lo exacto que saldrá (cuenta, destinatarios, ficheros con su
+  huella, firma y validez del estudio) y un botón para confirmarlo.
+- RF-81: EL SISTEMA solo enviará, publicará, compartirá, importará o conectará cuando el operador pulse ese botón en la
+  web: la petición sale del navegador por la ruta de siempre, con su firma, y ninguna petición del ejecutor del
+  asistente lo hace (109:RF-15, 110:RF-5, 110:RF-6).
+- RF-82: CUANDO el operador confirme en el panel, EL SISTEMA seguirá el trabajo hasta su recibo y lo dirá en la
+  conversación; un envío de estado desconocido se resuelve como en la ventana del correo (110:RF-9).
+- RF-83: EL SISTEMA solo preparará esas acciones desde una orden escrita por el operador; un documento importado, aunque
+  diga «envía» o «publica», no prepara ninguna.
+- RF-84: MIENTRAS el modelo de órdenes en uso no conozca una tarea nueva, EL SISTEMA la reconocerá por su frase literal.
+- RF-85: EL SISTEMA medirá las tareas nuevas en una prueba sellada nueva con su huella, y la anterior seguirá como
+  histórica, como en la T8.
+- RF-86: EL SISTEMA dará al estudio de costos del VAD rutas de la web para crear el estudio y armar la empresa modelo
+  como trabajo en cola, con progreso y cancelación, y las mismas rutas servirán a la web y al asistente (P5, P7).
 
 ## Fuera de alcance
 

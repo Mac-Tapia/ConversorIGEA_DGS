@@ -254,6 +254,17 @@ def test_la_arquitectura_enlaza_el_catalogo_sin_sus_cifras():
     assert not re.search(r'\b\d+ (módulos|rutas|funciones|excepciones)\b', cuerpo)
 
 
+def test_la_arquitectura_explica_cada_paquete():
+    """090:RF-17 — un paquete de ``src/convertersmartgrid`` que la arquitectura no explica se dice por su nombre."""
+    texto = (RAIZ / 'docs/ARQUITECTURA.md').read_text(encoding='utf-8')
+    raiz = RAIZ / 'src/convertersmartgrid'
+    paquetes = sorted(p.name for p in raiz.iterdir() if p.is_dir() and not p.name.startswith(('_', '.'))
+                      and any(f.is_file() for f in p.rglob('*') if '__pycache__' not in f.parts))
+    assert {'pit', 'vad', 'correo', 'benchmarks', 'adaptadores'} <= set(paquetes)
+    sin_explicar = [p for p in paquetes if f'`{p}/' not in texto]
+    assert not sin_explicar, f'Paquetes sin explicar en docs/ARQUITECTURA.md: {sin_explicar}'
+
+
 def test_las_citas_de_los_conjuntos_siguen_en_la_arquitectura():
     """090:RF-16 — ni la 076 ni la 077 se quedan con una frase que ya no está."""
     texto = (RAIZ / 'docs/ARQUITECTURA.md').read_text(encoding='utf-8')

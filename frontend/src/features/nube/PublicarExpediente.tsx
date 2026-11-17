@@ -45,11 +45,13 @@ export function VistaCompartir({ previa, autorizo, onAutorizo, ocupado, onConfir
 }
 
 /** 109:RF-9 a RF-13: publicar el expediente (la salida del espacio) en una carpeta de la nube y compartirlo. */
-export function PublicarExpediente({ cuentas, seleccion, nombreInicial = '', boton = 'Publicar' }: {
+export function PublicarExpediente({ cuentas, seleccion, nombreInicial = '', paraInicial = '', boton = 'Publicar' }: {
   cuentas: CuentaNube[];
   /** 109:RF-24: publicar solo esta salida (su ruta en la salida del espacio) en lugar del expediente entero. */
   seleccion?: string[];
   nombreInicial?: string;
+  /** Spec 070, RF-80: las direcciones que dijo la orden al asistente; el operador las revisa antes de compartir. */
+  paraInicial?: string;
   boton?: string;
 }) {
   const { ws, jobs, active, startJob } = useApp();
@@ -60,7 +62,7 @@ export function PublicarExpediente({ cuentas, seleccion, nombreInicial = '', bot
   const [previa, setPrevia] = useState<PublicarPreviaRespuesta | null>(null);
   const [recibos, setRecibos] = useState<ReciboNube[]>([]);
   const [publicacion, setPublicacion] = useState('');
-  const [para, setPara] = useState('');
+  const [para, setPara] = useState(paraInicial);
   const [publico, setPublico] = useState(false);
   const [previaC, setPreviaC] = useState<CompartirPreviaRespuesta | null>(null);
   const [autorizo, setAutorizo] = useState(false);

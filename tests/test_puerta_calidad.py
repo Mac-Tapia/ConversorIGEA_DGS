@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -619,3 +620,466 @@ def test_077_rf76_un_commit_del_mcp_corre_su_prueba_real_con_su_interprete(tmp_p
     propio.parent.mkdir(parents=True)
     propio.write_bytes(b'')
     assert PC.exigencias_mcp(['tests/test_mcp_conversor.py'], tmp_path, {}) == ({'CSG_MCP_PYTHON': str(propio)}, PC.MCP_REAL)
+
+
+
+# ----------------------------------------------------------------- PUERTA-ESPECULATIVA (102:RF-11, aclaración del 15-11)
+
+_RUN_REAL = subprocess.run
+_CASOS_VERDES = ''.join(f'<testcase classname="tests.test_a" name="test_{i}" time="0.1"/>' for i in range(3))
+#: La subida exige además las pruebas reales del MCP (077:RF-76, H10H13): una suite real las trae aprobadas.
+_CASOS_SUBIDA = _CASOS_VERDES + ''.join(
+    f'<testcase classname="{c}" name="{n}" time="0.1"/>' for c, n in (x.split('::') for x in PC.MCP_REAL))
+
+
+def _pytest_falso(monkeypatch, corridas: list, casos: str = _CASOS_VERDES, durante=None):
+    """Sustituye SOLO el pytest que lanza la puerta: deja un junit con ``casos`` y sale con 0; git sigue siendo real."""
+    def correr(cmd, *args, **kwargs):
+        if len(cmd) > 2 and list(cmd[1:3]) == ['-m', 'pytest']:
+            corridas.append(list(cmd))
+            junit = next(a.split('=', 1)[1] for a in cmd if a.startswith('--junitxml='))
+            Path(junit).write_text(f'<testsuites><testsuite>{casos}</testsuite></testsuites>', encoding='utf-8')
+            if durante is not None:
+                durante()
+            return subprocess.CompletedProcess(cmd, 0)
+        return _RUN_REAL(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(PC.subprocess, 'run', correr)
+
+
+def _git_t(raiz: Path, *args: str) -> str:
+    return _RUN_REAL(['git', *args], cwd=raiz, capture_output=True, text=True, check=True).stdout.strip()
+
+
+def _arbol_para_la_puerta(tmp_path: Path, monkeypatch) -> Path:
+    """Un repositorio con las pruebas de gobierno, el lock de dependencias y un cambio del conftest preparado (la puerta
+    del commit corre entonces la suite entera, 106:RF-13), con las variables de datos reales en el entorno, como las
+    exportan los guiones del integrador."""
+    raiz = tmp_path / 'repo'
+    raiz.mkdir()
+    _git_repo(raiz)
+    (raiz / 'tests').mkdir()
+    for g in PC.GOBIERNO:
+        (raiz / g).write_text('def test_x():\n    pass\n', encoding='utf-8')
+    (raiz / 'tests' / 'conftest.py').write_text('\n', encoding='utf-8')
+    (raiz / 'requirements-nucleo.lock').write_text('paquete==1.0\n', encoding='utf-8')
+    _git_t(raiz, 'add', '-A')
+    _git_t(raiz, 'commit', '-q', '-m', 'base')
+    # 102:RF-11 v2: el veredicto de árbol solo se reutiliza en la rama de trabajo.
+    _git_t(raiz, 'branch', '-M', 'trabajo/puerta-por-ramas')
+    (raiz / 'tests' / 'conftest.py').write_text('# cambio común a toda la suite\n', encoding='utf-8')
+    _git_t(raiz, 'add', 'tests/conftest.py')
+    datos = tmp_path / 'datos'
+    datos.mkdir()
+    variables = {k: str(datos) for k in PC.VARIABLES}
+    for k, v in variables.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(PC, 'variables_de_la_suite', lambda *_a, **_k: dict(variables))
+    # PUERTA-XDIST (la tarjeta siguiente): aquí, una sola sesión de pytest, la de hoy.
+    monkeypatch.setattr(PC, 'procesos_de_la_suite', lambda *_a, **_k: (1, 'una sola sesión (prueba)'), raising=False)
+    return raiz
+
+
+#: Lo que traen PUERTA-ESPECULATIVA y PUERTA-XDIST. Sus pruebas lo exigen primero: sin ello caen por aserción, no por
+#: AttributeError (rojo VALIDO, lección B1 del 2026-11-16).
+LO_NUEVO_DE_LA_PUERTA = ('veredicto_de_arbol', 'puerta_arbol', 'arbol_del_indice', 'ruta_veredicto_de_arbol',
+                         'indice_igual_al_disco', 'procesos_de_la_suite', 'PROCESOS_MAXIMOS', 'VARIABLE_PROCESOS',
+                         'GIB_POR_PROCESO', 'RESERVA_GIB', 'SELECCION_A_SOLAS', 'RAMAS_CON_VEREDICTO_DE_ARBOL',
+                         'HORAS_VEREDICTO_ARBOL')
+
+
+def _exige_lo_nuevo() -> None:
+    faltan = [n for n in LO_NUEVO_DE_LA_PUERTA if not hasattr(PC, n)]
+    assert not faltan, f'falta en tools/puerta_calidad.py: {faltan}'
+
+
+def test_102_rf11_un_commit_con_el_arbol_ya_aprobado_no_repite_la_suite(tmp_path, monkeypatch, capsys):
+    """102:RF-11 (aclaración, PUERTA-ESPECULATIVA) — la suite entera ya pasada fuera de wt_integra sobre el MISMO árbol
+    (write-tree), con las mismas variables y la misma puerta, sin fallidas ni omitidas, deja su veredicto; el gancho del
+    commit con ese índice no la repite, lo cita y da la línea de siempre. Hasta el 15-11 la repetía: ~80 min por puerta."""
+    _exige_lo_nuevo()
+    raiz = _arbol_para_la_puerta(tmp_path, monkeypatch)
+    corridas: list = []
+    _pytest_falso(monkeypatch, corridas)
+    getattr(PC, 'puerta_arbol', lambda _raiz: None)(raiz)
+    antes = len(corridas)
+    capsys.readouterr()
+    assert PC.puerta_commit(raiz) == 0
+    salida = capsys.readouterr().out
+    assert len(corridas) == antes, f'el gancho repitió la suite sobre el mismo árbol ({len(corridas) - antes} corrida)'
+    arbol = _git_t(raiz, 'write-tree')
+    assert f'arbol_{arbol}.json' in salida and 'no se repite' in salida, salida
+    assert re.search(r'^Puerta de calidad: 3 pruebas, 0 fallidas, 0 omitidas\.$', salida, re.M), salida
+
+
+@pytest.mark.parametrize('rama', ['main', 'otra/rama', 'sin_rama'], ids=['main', 'otra_rama', 'sin_rama'])
+def test_102_rf11_fuera_de_la_rama_de_trabajo_el_gancho_no_reutiliza_el_veredicto(tmp_path, monkeypatch, capsys, rama):
+    """102:RF-11 v2 (PUERTA-ESPECULATIVA, condición de 0d) — «main exige la completa»: el veredicto de árbol vale solo en
+    la rama de trabajo (y en la del integrador que se funde en ella); en main, en otra rama o sin rama, el gancho corre
+    la suite aunque el veredicto sea válido. Hasta la v2 lo reutilizaba en cualquier rama."""
+    _exige_lo_nuevo()
+    raiz = _arbol_para_la_puerta(tmp_path, monkeypatch)
+    corridas: list = []
+    _pytest_falso(monkeypatch, corridas)
+    getattr(PC, 'puerta_arbol', lambda _raiz: None)(raiz)
+    antes = len(corridas)
+    if rama == 'sin_rama':
+        _git_t(raiz, 'update-ref', '--no-deref', 'HEAD', _git_t(raiz, 'rev-parse', 'HEAD'))   # HEAD separado, sin checkout
+    else:
+        _git_t(raiz, 'branch', '-M', rama)
+    capsys.readouterr()
+    assert PC.puerta_commit(raiz) == 0
+    assert len(corridas) == antes + 1, f'en «{rama}» el gancho reutilizó el veredicto del árbol y no corrió la suite'
+    assert corridas[-1][-1] == 'tests', corridas[-1]
+
+
+def test_102_rf11_el_pre_push_a_main_corre_siempre_la_suite_fresca(tmp_path, monkeypatch, capsys):
+    """102:RF-5, 102:RF-11 v2 (PUERTA-ESPECULATIVA) — con un veredicto de árbol válido del mismo árbol que HEAD, la subida
+    a main corre la suite entera de nuevo: allí nunca se reutiliza un veredicto de árbol."""
+    _exige_lo_nuevo()
+    raiz = _arbol_para_la_puerta(tmp_path, monkeypatch)
+    corridas: list = []
+    _pytest_falso(monkeypatch, corridas, _CASOS_SUBIDA)
+    _git_t(raiz, 'commit', '-q', '-m', 'el conftest')
+    assert PC.puerta_arbol(raiz) == 0 and len(corridas) == 1
+    cabeza = _git_t(raiz, 'rev-parse', 'HEAD')
+    assert PC.veredicto_de_arbol(_git_t(raiz, 'rev-parse', 'HEAD^{tree}'), raiz, dict(PC.os.environ))[0]
+    linea = f'refs/heads/main {cabeza} refs/heads/main {"0" * 40}'
+    assert PC.revisiones_por_destino([linea]) == ([cabeza], [])
+    assert PC.puerta_push([cabeza], raiz) == 0
+    assert len(corridas) == 2, 'el pre-push a main no corrió la suite fresca'
+    assert 'main exige la suite completa' in capsys.readouterr().out
+
+
+def _alterar(raiz: Path, campo: str, monkeypatch) -> None:
+    """Cambia UNA cosa del veredicto o de lo que el gancho compara con él."""
+    import json
+    from datetime import datetime, timedelta
+
+    carpeta = PC._carpeta_resultados(raiz)
+    ruta = carpeta / f"arbol_{_git_t(raiz, 'write-tree')}.json"
+    datos = json.loads(ruta.read_text(encoding='utf-8'))
+    if campo == 'arbol':
+        (raiz / 'tests' / 'conftest.py').write_text('# otro cambio\n', encoding='utf-8')
+        _git_t(raiz, 'add', 'tests/conftest.py')
+        return
+    if campo == 'variables':
+        otra = raiz.parent / 'otros_datos'
+        otra.mkdir()
+        monkeypatch.setenv('CSG_RED', str(otra))
+        return
+    if campo == 'junit':
+        junit = carpeta / datos['junits'][0]['fichero']
+        junit.write_text(junit.read_text(encoding='utf-8') + ' ', encoding='utf-8')
+        return
+    ahora = datetime.now().astimezone()
+    cambios = {
+        'formato': lambda d: d.update(formato=99),
+        'puerta': lambda d: d.update(puerta='0' * 64),
+        'lock': lambda d: d['entorno'].update(lock='0' * 64),
+        'python': lambda d: d['entorno'].update(python='CPython 3.0.0'),
+        'paquetes': lambda d: d['entorno'].update(paquetes='0' * 64),
+        'sha_del_junit': lambda d: d['junits'][0].update(sha256='0' * 64),
+        'fallidas': lambda d: d.update(fallidas=[{'prueba': 't::x', 'motivo': 'assert'}]),
+        'omitidas': lambda d: d.update(omitidas=[{'prueba': 't::y', 'motivo': 'sin datos'}]),
+        'aprobada': lambda d: d.update(aprobada=False),
+        'total': lambda d: d.update(total=d['total'] + 1),
+        'viejo': lambda d: d.update(fecha=(ahora - timedelta(hours=PC.HORAS_VEREDICTO_ARBOL + 1)).isoformat()),
+        'futuro': lambda d: d.update(fecha=(ahora + timedelta(hours=1)).isoformat()),
+        'sin_fecha': lambda d: d.pop('fecha'),
+    }
+    cambios[campo](datos)
+    ruta.write_text(json.dumps(datos), encoding='utf-8')
+
+
+@pytest.mark.parametrize('campo', ['arbol', 'formato', 'puerta', 'variables', 'lock', 'python', 'paquetes', 'junit',
+                                   'sha_del_junit', 'fallidas', 'omitidas', 'aprobada', 'total', 'viejo', 'futuro',
+                                   'sin_fecha'])
+def test_102_rf11_ante_cualquier_duda_el_gancho_corre_la_suite_entera(tmp_path, monkeypatch, capsys, campo):
+    """102:RF-11 (aclaración, PUERTA-ESPECULATIVA) — otro árbol, otra versión de la puerta, otras variables, otro lock,
+    otro Python u otros paquetes, un junit que no cuadra con su sha, un veredicto con F u omitidas, o viejo, o del futuro:
+    cada campo alterado, uno por uno, fuerza la suite entera."""
+    _exige_lo_nuevo()
+    raiz = _arbol_para_la_puerta(tmp_path, monkeypatch)
+    corridas: list = []
+    _pytest_falso(monkeypatch, corridas)
+    assert PC.puerta_arbol(raiz) == 0 and len(corridas) == 1
+    datos, motivo = PC.veredicto_de_arbol(_git_t(raiz, 'write-tree'), raiz, dict(PC.os.environ))
+    assert datos and not motivo, motivo
+    _alterar(raiz, campo, monkeypatch)
+    capsys.readouterr()
+    assert PC.puerta_commit(raiz) == 0
+    assert len(corridas) == 2, f'«{campo}» alterado y el gancho no corrió la suite'
+    assert corridas[-1][-1] == 'tests', corridas[-1]
+
+
+@pytest.mark.parametrize('casos', [
+    '<testcase classname="t" name="a"/><testcase classname="t" name="b"><failure message="assert 1 == 2"/></testcase>',
+    '<testcase classname="t" name="a"/><testcase classname="t" name="b"><skipped message="sin SQL Server"/></testcase>',
+], ids=['con_F', 'con_omitidas'])
+def test_102_rf11_una_suite_con_fallidas_u_omitidas_no_aprueba_el_arbol(tmp_path, monkeypatch, casos):
+    """102:RF-9, 102:RF-11 (PUERTA-ESPECULATIVA) — el veredicto de una suite con F u omitidas queda guardado, pero no
+    aprueba el árbol: el gancho corre la suite."""
+    _exige_lo_nuevo()
+    raiz = _arbol_para_la_puerta(tmp_path, monkeypatch)
+    corridas: list = []
+    _pytest_falso(monkeypatch, corridas, casos=casos)
+    assert PC.puerta_arbol(raiz) == 1
+    datos, motivo = PC.veredicto_de_arbol(_git_t(raiz, 'write-tree'), raiz, dict(PC.os.environ))
+    assert datos is None and motivo, motivo
+    _pytest_falso(monkeypatch, corridas)
+    assert PC.puerta_commit(raiz) == 0 and len(corridas) == 2
+
+
+def test_102_rf11_el_veredicto_del_arbol_se_publica_con_la_escritura_atomica(tmp_path, monkeypatch):
+    """001:RF-5, 102:RF-11 (PUERTA-ESPECULATIVA) — el json del veredicto va por la escritura atómica única del proyecto
+    (un corte no deja un veredicto truncado), y se publica después de su junit."""
+    _exige_lo_nuevo()
+    from convertersmartgrid import util
+
+    raiz = _arbol_para_la_puerta(tmp_path, monkeypatch)
+    _pytest_falso(monkeypatch, [])
+    publicados = []
+    real = util.write_json_atomic
+    monkeypatch.setattr(util, 'write_json_atomic',
+                        lambda ruta, datos, **k: publicados.append((Path(ruta), datos)) or real(ruta, datos, **k))
+    assert PC.puerta_arbol(raiz) == 0
+    arbol = _git_t(raiz, 'write-tree')
+    assert [r.name for r, _ in publicados] == [f'arbol_{arbol}.json']
+    datos = publicados[0][1]
+    junit = PC._carpeta_resultados(raiz) / datos['junits'][0]['fichero']
+    assert junit.is_file() and datos['arbol'] == arbol and datos['aprobada'] is True
+    assert {'puerta', 'variables', 'entorno', 'fecha', 'total'} <= set(datos)
+    assert {'python', 'lock', 'paquetes'} <= set(datos['entorno'])
+    assert set(PC.VARIABLES) <= set(datos['variables'])
+
+
+def test_102_rf11_el_arbol_solo_se_juzga_con_el_disco_igual_al_indice(tmp_path, monkeypatch):
+    """102:RF-11 (PUERTA-ESPECULATIVA) — un cambio sin preparar o un fichero nuevo de código haría probar otra cosa que el
+    árbol T: no se corre ni se deja veredicto; y si el árbol cambia durante la suite, tampoco se aprueba."""
+    _exige_lo_nuevo()
+    import json
+
+    raiz = _arbol_para_la_puerta(tmp_path, monkeypatch)
+    corridas: list = []
+    _pytest_falso(monkeypatch, corridas)
+    (raiz / 'tests' / 'conftest.py').write_text('# sin preparar\n', encoding='utf-8')
+    assert PC.puerta_arbol(raiz) == 1 and corridas == []
+    _git_t(raiz, 'add', 'tests/conftest.py')
+    (raiz / 'tests' / 'test_nuevo.py').write_text('def test_n():\n    pass\n', encoding='utf-8')
+    assert PC.puerta_arbol(raiz) == 1 and corridas == []
+    (raiz / 'tests' / 'test_nuevo.py').unlink()
+
+    def cambia_el_arbol():
+        (raiz / PC.GOBIERNO[0]).write_text('def test_y():\n    pass\n', encoding='utf-8')
+        _git_t(raiz, 'add', PC.GOBIERNO[0])
+
+    _pytest_falso(monkeypatch, corridas, durante=cambia_el_arbol)
+    arbol = _git_t(raiz, 'write-tree')
+    assert PC.puerta_arbol(raiz) == 1 and len(corridas) == 1
+    ruta = PC._carpeta_resultados(raiz) / f'arbol_{arbol}.json'
+    assert not ruta.exists() or json.loads(ruta.read_text(encoding='utf-8')).get('aprobada') is not True
+
+
+
+# ----------------------------------------------------------------- PUERTA-XDIST (102:RF-5, aclaración del 15-11)
+
+_POPEN_REAL = subprocess.Popen
+
+
+def _sesiones_falsas(monkeypatch, lanzadas: list, rc_de=None):
+    """Sustituye SOLO el pytest de la puerta, por ``subprocess.run`` y por ``subprocess.Popen``: cada sesión deja su junit
+    con dos casos propios y sale con 0, o con lo que diga ``rc_de(cmd) -> (rc, casos)``; git sigue siendo real."""
+    def lanzar(cmd) -> int:
+        rc, n = rc_de(cmd) if rc_de else (0, 2)
+        junit = next(a.split('=', 1)[1] for a in cmd if a.startswith('--junitxml='))
+        indice = len(lanzadas)
+        Path(junit).write_text('<testsuites><testsuite>' + ''.join(
+            f'<testcase classname="tests.test_s{indice}" name="t{i}"/>' for i in range(n)) + '</testsuite></testsuites>',
+            encoding='utf-8')
+        lanzadas.append(list(cmd))
+        return rc
+
+    def correr(cmd, *args, **kwargs):
+        if len(cmd) > 2 and list(cmd[1:3]) == ['-m', 'pytest']:
+            return subprocess.CompletedProcess(cmd, lanzar(cmd))
+        return _RUN_REAL(cmd, *args, **kwargs)
+
+    class Proceso:
+        def __init__(self, rc):
+            self.returncode = rc
+
+        def wait(self, timeout=None):
+            return self.returncode
+
+        def poll(self):
+            return self.returncode
+
+    def abrir(cmd, *args, **kwargs):
+        # subprocess.run de git usa Popen por dentro: solo el pytest de la puerta es falso.
+        if len(cmd) > 2 and list(cmd[1:3]) == ['-m', 'pytest']:
+            return Proceso(lanzar(cmd))
+        return _POPEN_REAL(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(PC.subprocess, 'run', correr)
+    monkeypatch.setattr(PC.subprocess, 'Popen', abrir)
+
+
+def _memoria(monkeypatch, gib: float, *, xdist: bool = True, cpus: int = 8) -> None:
+    """La memoria libre que mide la puerta al arrancar (psutil), simulada; y si pytest-xdist está instalado."""
+    import types
+
+    import psutil
+
+    monkeypatch.setattr(psutil, 'virtual_memory', lambda: types.SimpleNamespace(available=int(gib * 2**30),
+                                                                                total=64 * 2**30))
+    monkeypatch.setattr(PC, '_hay_xdist', lambda: xdist, raising=False)
+    monkeypatch.setattr(PC.os, 'cpu_count', lambda: cpus)
+    for variable in ('CSG_PUERTA_PROCESOS', 'CSG_PUERTA_GIB_POR_PROCESO'):
+        monkeypatch.delenv(variable, raising=False)
+
+
+def _con(cmd: list, opcion: str) -> str | None:
+    """El valor de una opción de la orden, después de «python -m pytest»."""
+    resto = cmd[3:]
+    return resto[resto.index(opcion) + 1] if opcion in resto else None
+
+
+def test_102_rf5_la_suite_entera_se_reparte_con_memoria_y_no_con_poca(tmp_path, monkeypatch, capsys):
+    """102:RF-5 (aclaración, PUERTA-XDIST) — con memoria para varios procesos y pytest-xdist, la suite entera de la puerta
+    se reparte: lo que no admite paralelo en una sesión «serie», el resto a la vez con -n y --dist loadfile, y lo que mide
+    tiempos o el árbol entero a solas al final; el juicio suma los junit. Con poca memoria, una sola sesión: la de hoy."""
+    _exige_lo_nuevo()
+    lanzadas: list = []
+    _sesiones_falsas(monkeypatch, lanzadas)
+    _memoria(monkeypatch, 64.0)
+    monkeypatch.setenv(PC.VARIABLE_PROCESOS, '3')   # FIX-XDIST-UNO: el reparto se pide hasta que la T20 mida
+    assert PC.puerta_ci(tmp_path) == 0
+    con_n = [c for c in lanzadas if '-n' in c]
+    assert len(con_n) == 1, f'con 64 GiB libres y xdist la suite no se repartió: {lanzadas}'
+    reparto = con_n[0]
+    assert _con(reparto, '--dist') == 'loadfile' and int(_con(reparto, '-n') or 0) >= 2, reparto
+    selecciones = sorted(_con(c, '-m') or '' for c in lanzadas)
+    assert selecciones == sorted([PC.SELECCION_SERIE, PC.SELECCION_REPARTO, PC.SELECCION_A_SOLAS]), selecciones
+    assert len({_con(c, '-p') for c in lanzadas}) == 1 and all('-rs' in c for c in lanzadas)
+    assert len({a for c in lanzadas for a in c if a.startswith('--junitxml=')}) == 3, 'cada sesión con su junit'
+    salida = capsys.readouterr().out
+    assert re.search(r'^Puerta de calidad: 6 pruebas, 0 fallidas, 0 omitidas\.$', salida, re.MULTILINE), salida
+
+    lanzadas.clear()
+    _memoria(monkeypatch, 3.0)
+    assert PC.puerta_ci(tmp_path) == 0
+    assert len(lanzadas) == 1, lanzadas
+    junit = next(a for a in lanzadas[0] if a.startswith('--junitxml='))
+    assert lanzadas[0] == [PC.sys.executable, '-m', 'pytest', '-q', '-rs', '-p', 'no:cacheprovider', junit], (
+        'con poca memoria, la orden de hoy, sin -n ni -m')
+
+
+@pytest.mark.parametrize('sobra, xdist, cpus, tope, esperado', [
+    (5, True, 8, '3', 3), (2, True, 8, '3', 2), (1, True, 8, '3', 1), (0, True, 8, '3', 1), (-1, True, 8, '3', 1),
+    (5, False, 8, '3', 1), (5, True, 2, '3', 2), (5, True, 8, '2', 2), (5, True, 8, '1', 1),
+], ids=['mucha', 'dos', 'uno', 'justa', 'menos_que_la_reserva', 'sin_xdist', 'dos_cpu', 'tope_2', 'tope_1'])
+def test_102_rf5_la_memoria_libre_decide_cuantos_procesos(monkeypatch, sobra, xdist, cpus, tope, esperado):
+    """102:RF-5 (PUERTA-XDIST) — N sale de la memoria libre al arrancar, menos la reserva, entre la memoria de un proceso,
+    con el tope de procesos y de CPU; sin pytest-xdist, N=1 y lo dice."""
+    _exige_lo_nuevo()
+    libre = PC.RESERVA_GIB + sobra * PC.GIB_POR_PROCESO + 0.1
+    _memoria(monkeypatch, libre, xdist=xdist, cpus=cpus)
+    if tope:
+        monkeypatch.setenv(PC.VARIABLE_PROCESOS, tope)
+    n, motivo = PC.procesos_de_la_suite()
+    assert n == esperado, (n, motivo)
+    if not xdist:
+        assert 'pytest-xdist' in motivo and 'N=1' in motivo, motivo
+    else:
+        assert f'N={n}' in motivo and 'GiB' in motivo, motivo
+
+
+def test_102_rf5_sin_la_variable_la_suite_va_en_una_sola_sesion(monkeypatch):
+    """102:RF-5 (FIX-XDIST-UNO) — hasta que la T20 mida, sin CSG_PUERTA_PROCESOS la puerta usa UN proceso aunque sobren
+    memoria, CPU y xdist; con la variable, se puede ensayar el reparto."""
+    _exige_lo_nuevo()
+    _memoria(monkeypatch, PC.RESERVA_GIB + 5 * PC.GIB_POR_PROCESO + 0.1, xdist=True, cpus=8)
+    monkeypatch.delenv(PC.VARIABLE_PROCESOS, raising=False)
+    assert PC.PROCESOS_MAXIMOS == 1
+    n, motivo = PC.procesos_de_la_suite()
+    assert n == 1 and 'N=1' in motivo, motivo
+    monkeypatch.setenv(PC.VARIABLE_PROCESOS, '3')
+    assert PC.procesos_de_la_suite()[0] == 3
+
+
+def test_102_rf5_lo_que_no_admite_paralelo_va_en_serie():
+    """102:RF-5 (PUERTA-XDIST) — la tabla del conftest: cada fichero existe y dice su recurso y su motivo; la marca
+    ``serie`` (y ``a_solas``) se pone sola; la GPU va en serie por su marca ``gpu`` (106:RF-6); y todo fichero que
+    restaura la copia real de VNR-GIS en SQL Server está en la tabla."""
+    _exige_lo_nuevo()
+    import conftest
+
+    assert conftest.EN_SERIE
+    for fichero, (recurso, motivo) in conftest.EN_SERIE.items():
+        assert (RAIZ / 'tests' / fichero).is_file(), fichero
+        assert recurso in conftest.RECURSOS_EN_SERIE and len(motivo) > 20, (fichero, recurso, motivo)
+
+    class Item:
+        def __init__(self, nombre):
+            self.path, self.marcas = RAIZ / 'tests' / nombre, []
+
+        def add_marker(self, marca):
+            self.marcas.append(marca.name)
+
+    items = [Item('test_vnr_sqlserver.py'), Item('test_flexibility_and_scale.py'), Item('test_util.py')]
+    conftest.marcar_en_serie(items)
+    assert [i.marcas for i in items] == [['serie'], ['serie', 'a_solas'], []]
+    assert 'gpu or serie' in PC.SELECCION_SERIE and 'not gpu' in PC.SELECCION_REPARTO
+    senal = 'cargar_' + 'copia('
+    for prueba in sorted((RAIZ / 'tests').glob('test_*.py')):
+        texto = prueba.read_text(encoding='utf-8', errors='replace')
+        if senal in texto and 'CSG_VNR_BAK' in texto:
+            assert conftest.EN_SERIE.get(prueba.name, ('',))[0] == 'sqlserver', prueba.name
+
+
+def test_102_rf5_cada_sesion_repartida_se_juzga_por_su_cuenta(tmp_path, monkeypatch, capsys):
+    """102:RF-5, 106:RF-8, 106:RF-16 (PUERTA-XDIST) — sin el turno de GPU la serie no da veredicto y es un fallo con su
+    dueño; una sesión sin pruebas que elegir (código 5, junit vacío) no es un fallo; otro código sin fallidas, sí."""
+    _exige_lo_nuevo()
+    from convertersmartgrid.trabajadores_ml import SALIDA_SIN_TURNO_GPU
+
+    _memoria(monkeypatch, 64.0)
+    monkeypatch.setenv(PC.VARIABLE_PROCESOS, '3')   # FIX-XDIST-UNO: el reparto se pide hasta que la T20 mida
+
+    def rc_de(cmd):
+        return {PC.SELECCION_A_SOLAS: (5, 0), PC.SELECCION_REPARTO: (0, 2)}.get(_con(cmd, '-m'), (0, 2))
+
+    lanzadas: list = []
+    _sesiones_falsas(monkeypatch, lanzadas, rc_de)
+    assert PC.puerta_ci(tmp_path) == 0 and len(lanzadas) == 3
+    assert 'Puerta de calidad: 4 pruebas, 0 fallidas, 0 omitidas.' in capsys.readouterr().out
+
+    lanzadas.clear()
+    _sesiones_falsas(monkeypatch, lanzadas, lambda c: (1, 2) if _con(c, '-m') == PC.SELECCION_REPARTO else (0, 2))
+    juicio = PC._pytest([], {}, tmp_path, procesos=3)
+    assert [f['prueba'] for f in juicio['fallidas']] == ['pytest'] and 'reparto' in juicio['fallidas'][0]['motivo']
+
+    lanzadas.clear()
+    _sesiones_falsas(monkeypatch, lanzadas,
+                     lambda c: (SALIDA_SIN_TURNO_GPU, 0) if _con(c, '-m') == PC.SELECCION_SERIE else (0, 2))
+    juicio = PC._pytest([], {}, tmp_path, procesos=3)
+    assert juicio['fallidas'] and 'sin el turno de GPU' in juicio['fallidas'][0]['motivo'], juicio
+
+
+def test_102_rf5_rf11_una_suite_repartida_deja_un_veredicto_que_el_gancho_reutiliza(tmp_path, monkeypatch):
+    """102:RF-5, 102:RF-11 (PUERTA-XDIST sobre PUERTA-ESPECULATIVA) — repartida, el veredicto del árbol lleva un junit
+    por sesión, cada uno con su sha256, y el gancho del commit con ese árbol no repite la suite."""
+    _exige_lo_nuevo()
+    raiz = _arbol_para_la_puerta(tmp_path, monkeypatch)
+    monkeypatch.setattr(PC, 'procesos_de_la_suite', lambda *_a, **_k: (3, 'tres procesos (prueba)'))
+    lanzadas: list = []
+    _sesiones_falsas(monkeypatch, lanzadas)
+    assert PC.puerta_arbol(raiz) == 0 and len(lanzadas) == 3
+    arbol = _git_t(raiz, 'write-tree')
+    datos, motivo = PC.veredicto_de_arbol(arbol, raiz, dict(PC.os.environ))
+    assert datos and not motivo, motivo
+    assert [j['fichero'] for j in datos['junits']] == [f'arbol_{arbol}.{f}.junit.xml'
+                                                       for f in ('serie', 'reparto', 'a_solas')]
+    assert datos['total'] == 6
+    assert PC.puerta_commit(raiz) == 0 and len(lanzadas) == 3

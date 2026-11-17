@@ -11,11 +11,17 @@ RAIZ = Path(__file__).resolve().parents[1]
 
 
 def test_cada_tarea_apunta_a_algo_que_existe():
-    """026:RF-10 — cada tarea se ejecuta por una función de la web o una herramienta de
-    tools/ que existe: el asistente no tiene una vía propia."""
+    """026:RF-10, 070:RF-79 — cada tarea se ejecuta por una función de la web, la de un router de ``web/``
+    (``modulo.funcion``) o una herramienta de tools/ que existe: el asistente no tiene una vía propia."""
+    import importlib
+
     for t in TAREAS.values():
         if t.modo == 'proceso':
             assert (RAIZ / 'tools' / f'{t.funcion}.py').is_file(), t.nombre
+        elif '.' in t.funcion:
+            modulo, funcion = t.funcion.rsplit('.', 1)
+            web = importlib.import_module(f'convertersmartgrid.web.{modulo}')
+            assert callable(getattr(web, funcion, None)), t.nombre
         else:
             assert callable(getattr(services, t.funcion, None)), t.nombre
         assert t.modo in ('consulta', 'trabajo', 'proceso', 'etapas')             # 070:RF-31

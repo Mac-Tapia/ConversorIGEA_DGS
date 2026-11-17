@@ -585,9 +585,280 @@ def ejecutar_etapas(svc, ws, ctx, plan, extras: dict, base: str, http: Any) -> d
     return svc.agente_proyecto(ws, ctx, datos, base, http)
 
 
-def presentar(ws, plan, resultado: dict) -> None:
+_CORREO = re.compile(r"(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)+(?![\w-])")
+_PROVEEDOR = (('google', re.compile(r'\b(google|gmail|drive)\b')), ('microsoft', re.compile(r'\b(microsoft|outlook|onedrive)\b')))
+
+
+def _proveedor_de(texto: str) -> str | None:
+    """El proveedor que nombra la orden, si nombra uno solo; «google drive» y «onedrive» no se confunden."""
+    t = normalizar(texto)
+    nombrados = {p for p, rx in _PROVEEDOR if rx.search(t)}
+    return nombrados.pop() if len(nombrados) == 1 else None
+
+
+def _informe_cerrado(ws, plan) -> str | None:
+    """El Word de la salida que nombra la orden, o el último cerrado (con su resumen .json, 110:RF-12)."""
+    salida = Path(ws.out_dir)
+    nombrado = plan.datos.get('ruta')
+    if nombrado:
+        nombre = Path(str(nombrado)).name
+        if not nombre.lower().endswith('.docx'):
+            nombre += '.docx'
+        return nombre if (salida / nombre).is_file() else None
+    cerrados = [p for p in salida.glob('*.docx') if p.with_suffix('.json').is_file()] if salida.is_dir() else []
+    return max(cerrados, key=lambda p: (p.stat().st_mtime_ns, p.name)).name if cerrados else None
+
+
+def _nube_y_correo(ws, plan, extras: dict) -> None:
+    """070:RF-79, RF-80, RF-83: lo que la tarjeta necesita, sacado de la orden escrita por el operador."""
+    extras['proveedor'] = _proveedor_de(plan.texto)
+    extras['para'] = list(dict.fromkeys(m.lower() for m in _CORREO.findall(plan.texto)))
+    if plan.tarea == 'enviar_informe':
+        extras['informe'] = _informe_cerrado(ws, plan)
+        if not extras['informe']:
+            plan.faltan.append('un informe cerrado en la salida del espacio: ' + (
+                f'«{plan.datos["ruta"]}» no está.' if plan.datos.get('ruta') else 'aún no hay ninguno.'))
+        if not extras['para']:
+            plan.faltan.append('a quién va: escriba en la orden la dirección de correo.')
+    elif plan.tarea == 'publicar_nube':
+        extras['salida'] = str(plan.datos.get('ruta') or '')
+
+
+_RUTA_EN_ORDEN = re.compile(r'"([^"]+)"|«([^»]+)»|(?<![\w])([A-Za-z]:[\\/][^\s"«»,;]+)')
+_RANGO_ANIOS = re.compile(r'\b(20\d\d)\s*(?:-|–|a|al|hasta)\s*(20\d\d)\b')
+_ANIO = re.compile(r'\b(20\d\d)\b')
+_ALTERNATIVA = re.compile(r'alternativa\s+(?:elegida\s+)?[«"]([^»"]+)[»"]', re.IGNORECASE)
+
+
+def _rutas_de_la_orden(plan) -> list[str]:
+    rutas = [next(g for g in m.groups() if g) for m in _RUTA_EN_ORDEN.finditer(plan.texto)]
+    dato = plan.datos.get('ruta')
+    for d in dato if isinstance(dato, list) else [dato] if dato else []:
+        if str(d) not in rutas:
+            rutas.append(str(d))
+    return rutas
+
+
+def _pit(ws, plan, extras: dict) -> None:
+    """070:RF-79: el área, los años, el periodo y los ficheros del PIT, sacados de la orden; lo que falta lo dice el plan."""
+    from ..perfil_empresa import datos_perfil
+    from ..pit import PitError
+    from ..pit.ambito import areas_del_perfil
+
+    rutas = _rutas_de_la_orden(plan)
+    libros = [r for r in rutas if Path(r).suffix.lower() in ('.xlsx', '.xlsm', '.xls')]
+    jsons = [r for r in rutas if Path(r).suffix.lower() == '.json']
+    alternativas = [r for r in jsons if 'alternativ' in Path(r).name.lower()]
+    proyecciones = [r for r in jsons if r not in alternativas]
+    pit: dict[str, Any] = {'workspace_id': ws.id}
+    for clave, lista, que in (('libro_red', libros, 'el libro de la red del área (.xlsx)'),
+                              ('proyeccion', proyecciones, 'la proyección de la demanda (.json)')):
+        if len(lista) != 1:
+            plan.faltan.append(f'{que}: escriba en la orden su ruta entre comillas.' if not lista
+                               else f'{que}: la orden nombra varios; deje solo uno.')
+        elif not Path(lista[0]).is_file():
+            plan.faltan.append(f'{que}: «{lista[0]}» no existe.')
+        else:
+            pit[clave] = lista[0]
+    if alternativas:
+        pit['alternativas'] = alternativas[0]
+        if (m := _ALTERNATIVA.search(plan.texto)) is not None:
+            pit['alternativa_elegida'] = m[1].strip()
+        elif plan.tarea == 'pit_expediente':
+            plan.faltan.append('la alternativa elegida: escríbala entre comillas, por ejemplo alternativa «A».')
+    if (rango := _RANGO_ANIOS.search(plan.texto)) is not None and int(rango[1]) <= int(rango[2]):
+        pit['anios'] = list(range(int(rango[1]), int(rango[2]) + 1))
+        pit['periodo'] = f'{rango[1]}-{rango[2]}'
+    else:
+        pit['anios'] = sorted({int(a) for a in _ANIO.findall(plan.texto)})
+    if not pit['anios']:
+        plan.faltan.append('los años del estudio: por ejemplo, «de 2027 a 2031».')
+    if plan.tarea == 'pit_expediente' and 'periodo' not in pit:
+        plan.faltan.append('el periodo del expediente: por ejemplo, «de 2027 a 2031».')
+    try:
+        areas = [a.codigo for a in areas_del_perfil(datos_perfil())]
+    except PitError as exc:
+        plan.faltan.append(sin_citas(str(exc)))
+        areas = []
+    texto = plan.texto.lower()
+    nombradas = [a for a in areas if re.search(rf'(?<![\w-]){re.escape(a.lower())}(?![\w-])', texto)]
+    if len(nombradas) == 1 or (not nombradas and len(areas) == 1):
+        pit['area'] = (nombradas or areas)[0]
+    elif areas:
+        plan.faltan.append('el área de demanda: diga cuál de ' + ', '.join(areas) + '.')
+    extras['pit'] = pit
+
+
+_GRUPO = re.compile(r'\bgrupo\s+(\d)\b', re.IGNORECASE)
+_ESTUDIO_VAD = re.compile(r'[\w-]+')
+
+
+def _registro_vad():
+    from ..registro_normativo import cargar_registro
+    from ..powerfactory_env import project_root
+
+    return cargar_registro(project_root() / 'config' / 'vad', project_root() / 'config' / 'normativa')
+
+
+def _vad_crear(plan, extras: dict) -> None:
+    """070:RF-79: el grupo, el periodo y el TdR del estudio, de la orden; el TdR, el que nombre o el único del registro."""
+    vad: dict[str, Any] = {}
+    if (m := _GRUPO.search(plan.texto)) is not None:
+        vad['grupo'] = int(m[1])
+    else:
+        plan.faltan.append('el grupo del estudio: por ejemplo, «del grupo 1».')
+    if (r := _RANGO_ANIOS.search(plan.texto)) is not None and int(r[1]) < int(r[2]):
+        vad['periodo'] = f'{r[1]}-{r[2]}'
+    else:
+        plan.faltan.append('el periodo del estudio: por ejemplo, «para 2027-2031».')
+    try:
+        normas = _registro_vad().normas
+    except (OSError, ValueError) as exc:
+        plan.faltan.append(f'el registro normativo del VAD no se pudo leer: {sin_citas(str(exc))}')
+        normas = {}
+    texto = normalizar(plan.texto)
+    nombrados = [a for a in normas if a in texto]
+    tdr = [a for a, n in normas.items() if 'términos de referencia' in n.titulo.lower()]
+    elegido = nombrados if len(nombrados) == 1 else (tdr if not nombrados and len(tdr) == 1 else [])
+    if elegido:
+        vad['version_tdr'] = elegido[0]
+    elif normas:
+        plan.faltan.append('el TdR del estudio: diga cuál de ' + ', '.join(sorted(tdr or normas)) + '.')
+    extras['vad'] = vad
+
+
+def _vad_empresa_modelo(ws, plan, extras: dict) -> None:
+    """070:RF-79, RF-86: el caso (sistemas.json y lo que nombra) y el estudio: el nombrado o el único del espacio."""
+    import json
+
+    vad: dict[str, Any] = {}
+    carpetas = [Path(r) for r in _rutas_de_la_orden(plan)]
+    carpetas = [c if c.is_dir() else c.parent for c in carpetas if (c if c.is_dir() else c.parent).joinpath('sistemas.json').is_file()]
+    if len(carpetas) != 1:
+        plan.faltan.append('la carpeta del caso del VAD, con su sistemas.json: escriba su ruta entre comillas.')
+    else:
+        try:
+            sistemas = json.loads((carpetas[0] / 'sistemas.json').read_text(encoding='utf-8')).get('sistemas') or {}
+            nombrados = sorted({str(r) for pasos in sistemas.values() for r in (pasos or {}).values()})
+        except (OSError, ValueError, AttributeError) as exc:
+            plan.faltan.append(f'un sistemas.json que se pueda leer: {exc}')
+            nombrados = []
+        vad['ficheros'] = [str(carpetas[0] / 'sistemas.json'), *(str(carpetas[0] / n) for n in nombrados)]
+        if (sueltos := [n for n in nombrados if not (carpetas[0] / n).is_file()]):
+            plan.faltan.append('los ficheros que nombra sistemas.json: no están ' + ', '.join(sueltos) + '.')
+    estudios = sorted(p.parent.name for p in (Path(ws.root) / 'vad').glob('*/estudio.json'))
+    texto = plan.texto.lower()
+    nombrado = [e for e in estudios if e.lower() in texto]
+    if len(nombrado) == 1 or (not nombrado and len(estudios) == 1):
+        vad['estudio'] = (nombrado or estudios)[0]
+    elif estudios:
+        plan.faltan.append('el estudio del VAD: diga cuál de ' + ', '.join(estudios) + '.')
+    else:
+        plan.faltan.append('un estudio del VAD en este espacio: créelo antes, por ejemplo «crea el estudio del VAD del '
+                           'grupo 1 para 2027-2031».')
+    extras['vad'] = vad
+
+
+def _texto_vad(plan, resultado: dict) -> None:
+    final = resultado.get('resultado') or {}
+    if plan.tarea == 'vad_crear_estudio':
+        resultado['texto'] = f"Estudio del VAD {final.get('id') or ''} creado ({final.get('estado') or 'sin estado'})."
+    else:
+        estados = list((final.get('sistemas') or {}).values())
+        resultado['texto'] = (f"Empresa modelo armada: {estados.count('OK')} de {len(estados)} sistema(s) en OK; el "
+                              f"estudio está «{final.get('estado_estudio') or 'sin estado'}».")
+
+
+_MANIOBRA = re.compile(r'\b(?:maniobra|interruptor|seccionador|reconectador|recloser|cuchilla|equipo)\s+'
+                       r'(?:n(?:umero|°|º|o\.?)\s*)?([A-Za-z0-9][\w.-]*)', re.IGNORECASE)
+_CASO_PLANO = re.compile(r'\bcaso\s+[«"]([^»"]+)[»"]', re.IGNORECASE)
+
+
+def _plano(plan, extras: dict) -> None:
+    """070:RF-79: el alimentador, la maniobra, abrir o cerrar y el caso (el de la orden, o «Caso base» como la web)."""
+    texto = normalizar(plan.texto)
+    alimentadores = [a for a in plan.datos.get('alimentadores') or [] if a != 'todos']
+    plano: dict[str, Any] = {'caso': (m[1].strip() if (m := _CASO_PLANO.search(plan.texto)) else 'Caso base')}
+    if len(alimentadores) == 1:
+        plano['alimentador'] = alimentadores[0]
+    else:
+        plan.faltan.append('el alimentador: uno solo, el de la maniobra.')
+    if (m := _MANIOBRA.search(plan.texto)) is not None:
+        plano['maniobra'] = m[1]
+    else:
+        plan.faltan.append('la maniobra: su número de equipo, por ejemplo «el seccionador S-104».')
+    abre, cierra = (bool(re.search(rf'\b{v}\w*\b', texto)) for v in ('abr', 'cierr'))
+    if abre != cierra:
+        plano['estado'] = 'abierto' if abre else 'cerrado'
+    else:
+        plan.faltan.append('si se abre o se cierra la maniobra.')
+    extras['plano'] = plano
+
+
+def _texto_plano(plan, resultado: dict, extras: dict) -> None:
+    final = resultado.get('resultado') or {}
+    p = extras.get('plano') or {}
+    motor = final.get('motor') or 'el motor elegido'
+    resultado['texto'] = (f"Variación con la maniobra {p.get('maniobra')} {p.get('estado')} en {p.get('alimentador')} "
+                          f"({p.get('caso')}), estudiada con {motor}: véala en el plano; el caso base no cambió.")
+
+
+def _benchmark(ws, plan) -> None:
+    """070:RF-79: el benchmark sale de la fuente TXT cargada en el espacio; sin ella, el plan lo dice."""
+    faltan = [n for s, n in (('red', 'RED'), ('loads', 'CARGA'), ('equipment', 'EQUIPOS'))
+              if not ws.input_path(s) or not Path(ws.input_path(s)).is_file()]
+    if faltan:
+        plan.faltan.append('la fuente TXT cargada en el espacio: falta ' + ', '.join(faltan) + '.')
+
+
+def _texto_pit(plan, resultado: dict) -> None:
+    """070:RF-79: lo que el operador lee del diagnóstico o del expediente."""
+    r = resultado.get('resultado') or {}
+    if plan.tarea == 'pit_diagnostico':
+        avisos = r.get('avisos') or []
+        resultado['texto'] = (f"Diagnóstico del PIT {'completo' if r.get('completo') else 'incompleto'}, con "
+                              f"{len(avisos)} aviso(s); queda en {Path(str(r.get('salida') or '')).name or 'el espacio'}.")
+    else:
+        pendientes = r.get('pendientes') or []
+        resultado['texto'] = (f"Expediente del PIT {r.get('tipo') or ''} ({r.get('estado') or 'sin estado'}), con "
+                              f"{len(pendientes)} pendiente(s).").replace('  ', ' ')
+
+
+#: 070:RF-80: lo que dice cada tarjeta antes del clic del operador.
+_TEXTO_DE_LA_TARJETA = {
+    'enviar_informe': 'Borrador listo. Revíselo y pulse «Confirmar y enviar»: sin ese clic no sale nada.',
+    'publicar_nube': 'Elija la carpeta de destino y pulse «Publicar»: sin ese clic no se sube nada.',
+    'compartir_nube': 'Elija el expediente y revise el acceso: sin su confirmación no se comparte nada.',
+    'importar_nube': 'Elija el fichero en el selector de la nube: entra con lo que usted elija.',
+    'conectar_nube': 'Pulse «Conectar» y escriba la contraseña en la página del proveedor.',
+}
+
+
+def _tarjeta(plan, resultado: dict, extras: dict) -> None:
+    """070:RF-80, RF-81: la tarjeta del panel; su botón lo pulsa el operador y el navegador lo manda."""
+    final = resultado.get('resultado') or {}
+    tarjeta: dict[str, Any] = {'tipo': plan.tarea, 'proveedor': extras.get('proveedor'), 'para': extras.get('para') or []}
+    if plan.tarea == 'enviar_informe':
+        tarjeta['previa'] = final
+    elif plan.tarea == 'publicar_nube':
+        tarjeta['salida'] = extras.get('salida') or ''
+    elif plan.tarea == 'conectar_nube':
+        tarjeta['proveedores'] = final.get('proveedores') or []
+    resultado['tarjeta'] = tarjeta
+    resultado['texto'] = _TEXTO_DE_LA_TARJETA[plan.tarea]
+
+
+def presentar(ws, plan, resultado: dict, extras: dict | None = None) -> None:
     """Lo que el operador lee del resultado (070:RF-35, RF-37)."""
-    if plan.tarea == 'descargar_resultados':
+    if plan.tarea in _TEXTO_DE_LA_TARJETA:
+        _tarjeta(plan, resultado, extras or {})
+    elif plan.tarea in ('pit_diagnostico', 'pit_expediente'):
+        _texto_pit(plan, resultado)
+    elif plan.tarea in ('vad_crear_estudio', 'vad_empresa_modelo'):
+        _texto_vad(plan, resultado)
+    elif plan.tarea == 'plano_maniobra':
+        _texto_plano(plan, resultado, extras or {})
+    elif plan.tarea == 'descargar_resultados':
         trabajo = next((p['trabajo'] for p in resultado.get('pasos') or []), None)
         if trabajo:
             resultado['enlace'] = f'/api/workspaces/{ws.id}/outputs.zip?job={trabajo}'
@@ -651,3 +922,15 @@ def requisitos(svc, ws, plan, extras: dict) -> None:
         _factibilidad(plan, extras)
     elif tarea == 'pide':
         _pide(plan, extras)
+    elif tarea in _TEXTO_DE_LA_TARJETA:
+        _nube_y_correo(ws, plan, extras)
+    elif tarea in ('pit_diagnostico', 'pit_expediente'):
+        _pit(ws, plan, extras)
+    elif tarea == 'vad_crear_estudio':
+        _vad_crear(plan, extras)
+    elif tarea == 'vad_empresa_modelo':
+        _vad_empresa_modelo(ws, plan, extras)
+    elif tarea == 'plano_maniobra':
+        _plano(plan, extras)
+    elif tarea == 'benchmark_anonimo':
+        _benchmark(ws, plan)

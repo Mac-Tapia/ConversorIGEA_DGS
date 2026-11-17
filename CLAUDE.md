@@ -129,7 +129,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 099 Cargas del libro duplicadas por el nombre del cliente | cumplida |  |
   | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | aprobada | falta T1, T2, T3, T4 |
   | 101 La calibración cambia sola los transformadores que impiden converger | cumplida |  |
-  | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | falta T12, T13, T14, T15, T16, T17 |
+  | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | falta T12, T13, T14, T15, T16, T17, T20 |
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
   | 104 Los libros nuevos de demanda se reconocen solos | aprobada | falta T6 |
   | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |

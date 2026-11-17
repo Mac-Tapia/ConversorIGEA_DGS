@@ -8,3 +8,5 @@
       Hecho cuando: `pytest -q tests/test_arquitectura_generada.py -k gancho` en verde.
 - [x] T4. `docs/ARQUITECTURA.md` sin las cifras que cambian, con sus citas y su tabla de correcciones. (RF-15, RF-16)
       Hecho cuando: `pytest -q tests/test_arquitectura_generada.py tests/test_preguntas_entregables.py` en verde.
+- [x] T5. `docs/ARQUITECTURA.md` al día con las specs 102 y 107 a 112, y cada paquete explicado. (RF-17)
+      Hecho cuando: `pytest -q tests/test_arquitectura_generada.py tests/test_preguntas_entregables.py` en verde.

@@ -113,3 +113,36 @@ def generar_propuestas() -> tuple[list[dict], dict]:
         'familias': len({r['group_id'] for r in filas}), 'por_tarea': dict(Counter(r['tarea'] for r in filas)),
         'dataset_hash': huella(filas), 'vocabulario': VOCABULARIO,
         'alcance': 'aceptación asistida; no observaciones humanas ni aceptación eléctrica'}
+
+
+# 070:RF-79: las tareas de la nube y el correo (maestro de la sesión, 2026-11-16).
+PLANTILLAS.update({
+    'enviar_informe': ('Envía por correo el informe «{ruta}»', 'Prepara el correo con el informe «{ruta}»'),
+    'publicar_nube': ('Publica «{ruta}» en Google Drive', 'Sube la salida «{ruta}» a OneDrive'),
+    'compartir_nube': ('Comparte el expediente publicado en la nube', 'Da acceso de lectura a lo publicado en Drive'),
+    'importar_nube': ('Importa un fichero desde Google Drive', 'Trae un libro desde OneDrive'),
+    'conectar_nube': ('Conecta la cuenta de Google Drive', 'Vincula la cuenta de Microsoft'),
+})
+
+# 070:RF-79: el PIT (maestro de la sesión, 2026-11-16).
+PLANTILLAS.update({
+    'pit_diagnostico': ('Haz el diagnóstico del PIT con «{ruta}»', 'Diagnostica el plan de inversiones con «{ruta}»'),
+    'pit_expediente': ('Arma el expediente del PIT con «{ruta}»', 'Prepara el expediente del plan de inversiones con «{ruta}»'),
+})
+
+# 070:RF-79: el VAD (maestro de la sesión, 2026-11-16).
+PLANTILLAS.update({
+    'vad_crear_estudio': ('Crea el estudio de costos del VAD del grupo 1', 'Abre un estudio nuevo del VAD'),
+    'vad_empresa_modelo': ('Arma la empresa modelo con «{ruta}»', 'Construye la empresa modelo del VAD con «{ruta}»'),
+})
+
+# 070:RF-79: el plano (maestro de la sesión, 2026-11-16).
+PLANTILLAS.update({
+    'plano_maniobra': ('Abre el seccionador de «{alimentadores}» en el plano y estúdialo',
+                       'Cierra la maniobra de «{alimentadores}» en una variación'),
+})
+
+# 070:RF-79: el benchmark de la 112 (maestro de la sesión, 2026-11-16).
+PLANTILLAS.update({
+    'benchmark_anonimo': ('Genera el benchmark anonimizado de la red cargada', 'Prepara el conjunto de referencia anonimizado'),
+})

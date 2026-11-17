@@ -422,3 +422,20 @@ def es_ruta_de_la_nube(ruta: str) -> bool:
     """109:RF-15: si una ruta de la API (absoluta o relativa al espacio) es de la nube."""
     limpia = '/' + str(ruta or '').split('?', 1)[0].lstrip('/')
     return limpia.startswith(PREFIJOS_NUBE) or '/nube/' in limpia or limpia.endswith('/nube')
+
+
+#: 109:RF-15 (aclaración del 2026-11-16), 070:RF-81: lo único de la nube que puede pedir el asistente. Ninguna de estas
+#: rutas conecta, importa, publica ni comparte: leen las cuentas, los proveedores, los vínculos y los recibos, o dan la
+#: previa, cuya confirmación de un solo uso solo vale desde el navegador.
+LECTURAS_NUBE = ('/nube/cuentas', '/nube/vinculos', '/nube/recibos')
+PREVIAS_NUBE = ('/nube/publicar/previa', '/nube/compartir/previa')
+
+
+def lectura_de_la_nube(metodo: str, ruta: str) -> bool:
+    """070:RF-81: si la petición a la nube solo lee o pide una previa."""
+    limpia = '/' + str(ruta or '').split('?', 1)[0].lstrip('/')
+    if '..' in limpia or '//' in limpia:
+        return False
+    if metodo == 'GET':
+        return limpia == '/api/nube/proveedores' or limpia.endswith(LECTURAS_NUBE)
+    return metodo == 'POST' and limpia.endswith(PREVIAS_NUBE)

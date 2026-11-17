@@ -1,6 +1,6 @@
 # Spec 090 — La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo
 
-Estado: cumplida · Fecha: 2026-11-04 · Origen: petición del usuario
+Estado: cumplida (2026-11-16: RF-17 y T5, con su rojo y su verde) · Fecha: 2026-11-04 · Origen: petición del usuario
 
 ## Contexto y objetivo
 
@@ -28,6 +28,7 @@ Lo que cambia en cada commit se genera desde el repositorio; lo que explica el p
 - RF-14: SI el generador falla durante un commit, ENTONCES EL SISTEMA avisará y dejará pasar el commit, y será la suite quien lo detenga.
 - RF-15: `docs/ARQUITECTURA.md` enlazará el catálogo y dejará en él las cifras que cambian con el código.
 - RF-16: EL SISTEMA conservará en `docs/ARQUITECTURA.md` las frases que citan las preguntas de la 076 y los conjuntos de la 077, en una tabla de correcciones cuando ya no sean ciertas.
+- RF-17: `docs/ARQUITECTURA.md` explicará cada paquete de `src/convertersmartgrid/`; SI aparece un paquete que no explica, ENTONCES la suite lo dirá por su nombre. Sus líneas citadas por la 076 y la 077 no se mueven al ampliarlo (RF-16).
 
 ## Fuera de alcance
 

@@ -13171,7 +13171,7 @@ def _asistente_ejecutar_plan(ws: Workspace, ctx: JobContext, guardado: dict, bas
         resultado['clasificacion'] = _asistente_clasificar_generado(ws, plan, entregables(resultado.get('resultado')))
     from .asistente_operacion import presentar
 
-    presentar(ws, plan, resultado)                                             # 070:RF-35, RF-37
+    presentar(ws, plan, resultado, guardado['extras'])                         # 070:RF-35, RF-37, RF-80
     ctx.log(f"Asistente: «{plan.tarea}» terminado; {len(resultado.get('entregables') or [])} entregable(s).")
     return {'plan': plan.id, 'tarea': plan.tarea, **resultado}
 
@@ -13560,6 +13560,8 @@ def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
 
     if plan.tarea == 'entrenar_asistente':
         return asistente_entrenar(ws, ctx)
+    if plan.tarea == 'benchmark_anonimo':
+        return _asistente_benchmark(ws, ctx, plan)
     if plan.tarea == 'recalibrar':
         # 070:RF-26: la ruta da 409 con el carril del asistente ocupado, y aquí lo ocupa este mismo trabajo.
         return {'plan': plan.id, 'tarea': plan.tarea,
@@ -13579,6 +13581,24 @@ def _asistente_proceso(ws: Workspace, ctx: JobContext, plan) -> dict:
     return {'plan': plan.id, 'tarea': plan.tarea, 'codigo': rc,
             'texto': 'calibrado y válido' if rc == 0 else 'calibrado con fallos: vea el registro',
             **_verdad_del_sistema(resumen, rc)}
+
+
+def _asistente_benchmark(ws: Workspace, ctx: JobContext, plan) -> dict:
+    """070:RF-79, 112:RF-1 a RF-5: el benchmark de la fuente TXT cargada, con su herramienta y en esta máquina."""
+    import sys
+
+    destino = ws.out_dir / 'benchmarks' / f'benchmark_{ctx.job.id}'
+    cmd = [sys.executable, str(_script('benchmark_anonimo.py')), '--red', ws.input_path('red'),
+           '--carga', ws.input_path('loads'), '--equipo', ws.input_path('equipment'), '--destino', str(destino)]
+    rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
+    if rc == 2:
+        raise UserError('No se emite el benchmark: el estudio no se reproduce o el control de reidentificación '
+                        'encontró una fuga; el registro del trabajo dice cuál.')
+    if rc != 0:
+        raise UserError(f'El benchmark no se pudo generar (código {rc}).')
+    return {'plan': plan.id, 'tarea': plan.tarea, 'codigo': 0, 'destino': str(destino),
+            'texto': f'Benchmark emitido en {destino.name}, de uso local; la semilla de los seudónimos se queda en '
+                     'este equipo.'}
 
 
 def _asistente_clasificar_generado(ws: Workspace, plan, nombres: list[str]) -> dict | None:

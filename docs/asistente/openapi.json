@@ -1069,6 +1069,28 @@
         "title": "Body_demanda_subir_api_workspaces__wid__demanda__tipo__post",
         "type": "object"
       },
+      "Body_entradas_api_pit_entradas_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "files"
+        ],
+        "title": "Body_entradas_api_pit_entradas_post",
+        "type": "object"
+      },
       "Body_entradas_leer_api_workspaces__wid__pf_entradas_estudios__clave__leer_post": {
         "properties": {
           "files": {
@@ -1322,6 +1344,23 @@
           "file"
         ],
         "title": "Body_upload_source_api_vnr_sources_upload_post",
+        "type": "object"
+      },
+      "Body_vad_armar_api_workspaces__wid__vad__estudio__armar_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_vad_armar_api_workspaces__wid__vad__estudio__armar_post",
         "type": "object"
       },
       "Body_vnr_lanzar_api_workspaces__wid__vnr_estudio_post": {
@@ -3163,6 +3202,36 @@
           "para"
         ],
         "title": "CorreoVistaPreviaPeticion",
+        "type": "object"
+      },
+      "CrearEstudioVad": {
+        "additionalProperties": false,
+        "description": "108:RF-1: el estudio de la empresa del perfil para un grupo, un periodo y una versión del TdR.",
+        "properties": {
+          "grupo": {
+            "maximum": 9.0,
+            "minimum": 1.0,
+            "title": "Grupo",
+            "type": "integer"
+          },
+          "periodo": {
+            "pattern": "^\\d{4}-\\d{4}$",
+            "title": "Periodo",
+            "type": "string"
+          },
+          "version_tdr": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Version Tdr",
+            "type": "string"
+          }
+        },
+        "required": [
+          "grupo",
+          "periodo",
+          "version_tdr"
+        ],
+        "title": "CrearEstudioVad",
         "type": "object"
       },
       "CrecimientoRespuesta": {
@@ -12267,6 +12336,50 @@
           }
         },
         "summary": "Diagnostico",
+        "tags": [
+          "pit"
+        ]
+      }
+    },
+    "/api/pit/entradas": {
+      "post": {
+        "description": "070:RF-79: el libro de la red, la proyección y las alternativas, dentro del espacio, para pedir el diagnóstico\no el expediente con sus rutas. Las rutas del PIT solo leen ficheros del espacio.",
+        "operationId": "entradas_api_pit_entradas_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_entradas_api_pit_entradas_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Entradas Api Pit Entradas Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Entradas",
         "tags": [
           "pit"
         ]
@@ -22424,6 +22537,157 @@
           }
         },
         "summary": "System"
+      }
+    },
+    "/api/workspaces/{wid}/vad/estudios": {
+      "get": {
+        "description": "108:RF-1: los estudios del espacio y el estado de su último armado.",
+        "operationId": "vad_estudios_api_workspaces__wid__vad_estudios_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Vad Estudios Api Workspaces  Wid  Vad Estudios Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Vad Estudios"
+      },
+      "post": {
+        "description": "108:RF-1, RF-9: crea el estudio con la empresa del perfil y la instantánea del registro.",
+        "operationId": "vad_crear_api_workspaces__wid__vad_estudios_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearEstudioVad"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Vad Crear Api Workspaces  Wid  Vad Estudios Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Vad Crear"
+      }
+    },
+    "/api/workspaces/{wid}/vad/{estudio}/armar": {
+      "post": {
+        "description": "108:RF-1, RF-5, RF-7: el caso en la carpeta del estudio y el armado de la empresa modelo como trabajo.",
+        "operationId": "vad_armar_api_workspaces__wid__vad__estudio__armar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "estudio",
+            "required": true,
+            "schema": {
+              "title": "Estudio",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_vad_armar_api_workspaces__wid__vad__estudio__armar_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Vad Armar"
       }
     },
     "/api/workspaces/{wid}/vnr/download": {

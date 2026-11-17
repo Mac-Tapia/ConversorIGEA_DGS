@@ -1,6 +1,6 @@
 # Spec 102 — Puerta de calidad: ningún commit ni subida con la suite en rojo
 
-Estado: aprobada (2026-11-14: RF-24 a RF-29, H13; antes cumplida 2026-11-10: T4 con la suite completa sin omitidas y GitHub Actions en verde) · Fecha: 2026-11-09 · Origen: usuario, 2026-11-09: «debe tener o implementar CI/CD, no quiero ver más
+Estado: aprobada (2026-11-14: RF-24 a RF-29, H13; 2026-11-15 ampliada por orden del usuario con RF-11 y RF-5 aclarados, T18 a T20: queda T20, la comparación de la suite entera repartida con la de una sola sesión; antes cumplida 2026-11-10: T4 con la suite completa sin omitidas y GitHub Actions en verde) · Fecha: 2026-11-09 · Origen: usuario, 2026-11-09: «debe tener o implementar CI/CD, no quiero ver más
 fallas repetitivas; esas cosas ya se habían superado, pero veo que sigue fallando».
 
 ## Contexto y objetivo
@@ -29,12 +29,39 @@ Antes del commit
 Antes de subir
 
 - RF-5: CUANDO se sube a la rama principal (`main`), EL SISTEMA correrá la suite completa con todas las variables de datos reales (ver RF-18).
+  - Aclaración (2026-11-15, PUERTA-XDIST, encargo de c2 por orden del usuario): CUANDO la puerta corra la suite entera
+    (la subida, `--ci`, `--arbol` o un commit que la pide) y estén instalados pytest-xdist y psutil, EL SISTEMA medirá la
+    memoria libre al arrancar y la repartirá en N procesos de CPU: N = (libre − `RESERVA_GIB`) / `GIB_POR_PROCESO`, con
+    el tope `PROCESOS_MAXIMOS` (`CSG_PUERTA_PROCESOS`) y el de CPU. Con N ≥ 2, lo que no admite paralelo (la GPU por su
+    marca `gpu` y los ficheros de `EN_SERIE` de `tests/conftest.py`, marca `serie`) corre en una sesión «serie», una
+    prueba tras otra, a la vez que el resto en «reparto» (`-n N−1 --dist loadfile` desde N = 3); después, «a_solas» (lo
+    que mide tiempos o el árbol entero) sin nada más. Las tres juntas son la suite entera y el juicio suma sus junit. SI
+    no está pytest-xdist, o no hay memoria para dos, ENTONCES N = 1, una sola sesión, la orden de siempre, y lo dice.
+    No cambia nada más: el junit, las variables, «0 fallidas, 0 omitidas», el gancho y el pre-push.
 - RF-6: EL SISTEMA leerá las variables de datos reales de un fichero local fuera de git, o del entorno.
 - RF-7: SI falta una variable de datos reales o su ruta no existe, ENTONCES EL SISTEMA detendrá la subida y la nombrará.
 - RF-8: SI alguna prueba falla, ENTONCES EL SISTEMA detendrá la subida y nombrará las pruebas que fallan.
 - RF-9: SI alguna prueba se omite, ENTONCES EL SISTEMA detendrá la subida y nombrará cada omitida con su motivo.
 - RF-10: CUANDO la suite completa pasa sin omitidas, EL SISTEMA guardará el resultado con la revisión que se probó.
 - RF-11: CUANDO se sube una revisión que ya pasó RF-10 con el árbol limpio, EL SISTEMA no volverá a correr la suite.
+  - Aclaración (2026-11-15, PUERTA-ESPECULATIVA, encargo de c2 por orden del usuario): vale también para un ÁRBOL. La
+    suite entera corrida con `tools/puerta_calidad.py --arbol` fuera de wt_integra, sobre el árbol T del índice
+    (`git write-tree`, con el disco igual al índice), con los datos reales, deja su veredicto en
+    `.git/puerta_calidad/arbol_<T>.json`, publicado con la escritura atómica única (001:RF-5) y firmado con el sha256 de
+    cada junit (copiado al lado), el de la puerta, las variables que vio pytest (las de la puerta y las del fichero
+    local, nombre y valor), el entorno (Python, sha256 del lock de dependencias y de los paquetes instalados) y la hora.
+    CUANDO el gancho del commit tenga ese mismo árbol en el índice y el veredicto valga, EL SISTEMA no repetirá la
+    suite, lo citará en su salida y dará su línea de siempre («Puerta de calidad: N pruebas, 0 fallidas, 0 omitidas.»).
+    SI hay cualquier duda (otro árbol, otra puerta, otras variables, otro lock, otro Python u otros paquetes, un junit
+    que no cuadra con su sha256 o que releído no da el mismo total, un veredicto con fallidas u omitidas, sin fecha, del
+    futuro o de hace más de `HORAS_VEREDICTO_ARBOL` horas, 12 por omisión, `CSG_PUERTA_HORAS_VEREDICTO`), ENTONCES EL
+    SISTEMA correrá lo de siempre: la suite entera si el commit la pide. Si el árbol cambia durante la suite, no queda
+    veredicto aprobado.
+  - Condición (2026-11-15, v2, auditor 0d): la reutilización vale SOLO en la rama de trabajo
+    (`trabajo/puerta-por-ramas`) y en la del integrador que se funde en ella por avance rápido
+    (`trabajo/integra-capas-suite`), `RAMAS_CON_VEREDICTO_DE_ARBOL`. En `main`, en otra rama o sin rama, el gancho del
+    commit corre la suite aunque el veredicto valga; y la subida a `main` (RF-5) nunca consulta un veredicto de árbol:
+    «main exige la completa».
 
 En GitHub
 

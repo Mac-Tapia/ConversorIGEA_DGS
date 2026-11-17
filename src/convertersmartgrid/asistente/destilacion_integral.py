@@ -23,7 +23,7 @@ from .ordenes_fijas import generar as generar_fijas, repartir
 from .prueba_sellada import CONJUNTO as CONJUNTO_SELLADO, huella_de as huella_de_sellada, selladas
 from .prueba_sellada_079 import CONJUNTO as CONJUNTO_079, huella_de as huella_de_079, selladas as selladas_079
 from .sinteticos import Ejemplo, expandir, normalizar
-from .tareas import TAREAS, TAREAS_HASTA_069
+from .tareas import TAREAS, TAREAS_107_112, TAREAS_HASTA_069
 from . import modelos_en_uso as mu, ordenes_maestro as ordenes_maestro_085
 from ..runtime_paths import raiz_programa
 from ..util import publicar_duradero
@@ -952,7 +952,8 @@ def casos_funcionales(registros: list[dict], *, por_tarea: int = 1) -> list[dict
         elif cuenta[r['tarea']] < por_tarea:
             casos.append(r)
             cuenta[r['tarea']] += 1
-    if set(cuenta) != set(TAREAS):
+    # 070:RF-85: las tareas de las specs 107 a 112 no tienen filas de prueba en este corpus: se miden en su sellada.
+    if set(cuenta) != set(TAREAS) - TAREAS_107_112:
         raise ValueError('BLOQUEADO_POR_DATOS: faltan tareas en la prueba funcional')
     return casos
 

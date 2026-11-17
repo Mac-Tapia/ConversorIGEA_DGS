@@ -5,7 +5,8 @@ se ejecuta y con qué frases se suele pedir. Las frases son plantillas: ``[a|b]`
 una variante y ``{tipo}`` es un dato que se rellena con nombres reales del espacio
 (``sinteticos.py``, RF-21). La ejecución no se define aquí sino en ``ejecutor.py``, por
 las mismas rutas de la web (P5): este fichero solo nombra la función de ``web/services``
-(o la herramienta de ``tools/``) que hace el trabajo, y su prueba comprueba que existe.
+(o la herramienta de ``tools/``, o ``modulo.funcion`` de un router de ``web/``) que hace el trabajo, y su prueba
+comprueba que existe.
 
 Modos: ``consulta`` se responde en la misma petición con lo que ya hay; ``trabajo`` va por
 las rutas y la cola de la web; ``proceso`` lanza una herramienta de ``tools/``; ``etapas``
@@ -65,6 +66,10 @@ SET_OPC = Dato('set', 'set', obligatorio=False, descripcion='SET de la estructur
 ESTUDIO_OPC = Dato('estudio', 'estudio', obligatorio=False, descripcion='el estudio del catálogo, si es solo uno')
 LIBROS = Dato('ruta', 'ruta', obligatorio=False, descripcion='carpeta de los libros de demanda; sin ella, la del espacio')
 CAPEX = Dato('ruta', 'ruta', obligatorio=False, descripcion='libro CAPEX')
+INFORME = Dato('ruta', 'ruta', obligatorio=False, descripcion='el informe de la salida; sin él, el último cerrado')
+SALIDA = Dato('ruta', 'ruta', obligatorio=False, descripcion='la carpeta de la salida; sin ella, toda la salida')
+ENTRADAS_PIT = Dato('ruta', 'ruta', descripcion='el libro de la red y la proyección del área (y las alternativas)')
+CASO_VAD = Dato('ruta', 'ruta', descripcion='la carpeta del caso del VAD, con su sistemas.json')
 
 _TAREAS = (
     # ------------------------------------------------------------ consultas (sin confirmar)
@@ -327,6 +332,78 @@ _TAREAS = (
               'pronostica la cabecera de {alimentadores} con el libro {ruta}', 'pronóstico de clientes fijos con {ruta}',
               'proyecta la demanda de cabecera de {alimentadores} con {ruta}'),
           frases_literales=(r'\bpronostic\w*\b',)),
+    # ------------------------------------------------------------ nube y correo (070:RF-79 a RF-83)
+    # El asistente lo prepara todo con las rutas que no envían ni publican (la vista previa del correo, las cuentas, los
+    # recibos) y deja en su panel la tarjeta con lo exacto que saldrá; solo el clic del operador en ella lo envía,
+    # publica, comparte, importa o conecta, desde el navegador (109:RF-15, 110:RF-5, RF-6).
+    Tarea('enviar_informe', 'Prepara el correo de un informe con sus adjuntos y lo deja listo para «Confirmar y enviar»; '
+          'solo sale con ese clic.', (INFORME,), False, 'trabajo', 'correo_api.registrar_rutas_correo', (
+              'envía el informe {ruta} por correo', 'manda por correo el informe {ruta}',
+              'envíale el informe por correo al cliente', 'prepara el correo del informe {ruta}'),
+          frases_literales=(r'\b(envia\w*|manda\w*|remite|remitele)\b.*\b(correo|mail|email|e-mail)\b',
+                            r'\bpor (correo|mail|email)\b', r'\bcorreo del informe\b')),
+    Tarea('publicar_nube', 'Deja listo publicar una salida en Google Drive u OneDrive; se publica con el clic del operador.',
+          (SALIDA,), False, 'trabajo', 'nube_api.registrar_rutas_nube', (
+              'publica {ruta} en la nube', 'sube la salida a google drive', 'publica el expediente en onedrive',
+              'sube los resultados a drive'),
+          frases_literales=(r'\b(publica\w*|sube|subir|subelo|subela)\b.*\b(nube|drive|onedrive|google drive)\b',)),
+    Tarea('compartir_nube', 'Deja listo compartir un expediente publicado, solo lectura y con quien diga la orden; se '
+          'comparte con el clic del operador.', (), False, 'trabajo', 'nube_api.registrar_rutas_nube', (
+              'comparte el expediente publicado', 'dale acceso al expediente en la nube',
+              'comparte lo publicado en drive', 'comparte el enlace del expediente'),
+          frases_literales=(r'\bcompart\w*\b.*\b(nube|drive|onedrive|expediente|publicad\w*|enlace)\b',
+                            r'\bdale acceso\b.*\b(nube|drive|onedrive|expediente)\b')),
+    Tarea('importar_nube', 'Abre el selector de Google Drive u OneDrive para traer un fichero a una entrada; entra con lo '
+          'que el operador elija.', (), False, 'trabajo', 'nube_api.registrar_rutas_nube', (
+              'trae un fichero de la nube', 'importa el libro desde google drive', 'jala el archivo de onedrive',
+              'carga un fichero desde drive'),
+          frases_literales=(r'\b(trae\w*|importa\w*|jala\w*|baja\w*|carga\w*)\b.*\b(de|desde) (la nube|mi drive|drive|google drive|onedrive)\b',)),
+    Tarea('conectar_nube', 'Deja listo conectar la cuenta de Google o de Microsoft; la contraseña se escribe en la página '
+          'del proveedor.', (), False, 'trabajo', 'nube_api.registrar_rutas_nube', (
+              'conecta mi cuenta de google', 'vincula onedrive', 'conecta la cuenta de microsoft',
+              'enlaza mi google drive'),
+          frases_literales=(r'\b(conecta\w*|vincula\w*|enlaza\w*)\b.*\b(cuenta|drive|onedrive|google|microsoft|outlook|gmail)\b',)),
+    # ------------------------------------------------------------ PIT (070:RF-79; spec 107)
+    # Por las rutas de ``/api/pit``: sube al espacio los ficheros que nombra la orden y pide el trabajo del carril engine.
+    Tarea('pit_diagnostico', 'Diagnóstico del PIT de un área de demanda, año por año, con el libro de la red y la '
+          'proyección que nombre la orden.', (ENTRADAS_PIT,), True, 'trabajo', 'rutas_pit.crear_router', (
+              'diagnostico del pit con {ruta}', 'haz el diagnostico del plan de inversiones con {ruta}',
+              'diagnostica el pit del area con {ruta}', 'corre el diagnostico pit con {ruta}'),
+          frases_literales=(r'\bdiagnostic\w*\b.*\b(pit|plan de inversiones)\b',
+                            r'\b(pit|plan de inversiones)\b.*\bdiagnostic\w*\b')),
+    Tarea('pit_expediente', 'Arma el expediente del PIT de un área para un periodo, con sus formatos, su informe y lo '
+          'que queda pendiente.', (ENTRADAS_PIT,), True, 'trabajo', 'rutas_pit.crear_router', (
+              'arma el expediente del pit con {ruta}', 'expediente del plan de inversiones con {ruta}',
+              'prepara el expediente pit del area con {ruta}', 'haz el expediente del pit con {ruta}'),
+          frases_literales=(r'\bexpediente\b.*\b(pit|plan de inversiones)\b',
+                            r'\b(pit|plan de inversiones)\b.*\bexpediente\b')),
+    # ------------------------------------------------------------ VAD (070:RF-79, RF-86; spec 108)
+    Tarea('vad_crear_estudio', 'Crea el estudio de costos del VAD de la empresa del perfil para un grupo y un periodo, con '
+          'el TdR del registro normativo.', (), True, 'trabajo', 'vad_api.registrar_rutas_vad', (
+              'crea el estudio del vad del grupo 1', 'nuevo estudio de costos del vad', 'abre el estudio vad del periodo',
+              'registra el estudio del vad'),
+          frases_literales=(r'\b(crea\w*|abre|nuevo|registra\w*)\b.*\bestudio\b.*\bvad\b',)),
+    Tarea('vad_empresa_modelo', 'Arma la empresa modelo del estudio del VAD, sistema por sistema, con el caso que nombre la '
+          'orden; deja su manifiesto.', (CASO_VAD,), True, 'trabajo', 'vad_api.registrar_rutas_vad', (
+              'arma la empresa modelo con {ruta}', 'empresa modelo del vad con {ruta}',
+              'dimensiona la empresa modelo con el caso {ruta}', 'corre el estudio vad con {ruta}'),
+          frases_literales=(r'\bempresa modelo\b', r'\b(arma|corre|haz)\b.*\bestudio\b.*\bvad\b.*\bcaso\b')),
+    # ------------------------------------------------------------ plano (070:RF-79; spec 111)
+    Tarea('plano_maniobra', 'Abre o cierra una maniobra de un alimentador en una variación del plano, sin tocar el caso '
+          'base, y la estudia con DIgSILENT o con el motor abierto.', (A, P_OPC), True, 'trabajo',
+          'plano_api.registrar_rutas_plano', (
+              'abre el seccionador del alimentador {alimentadores} en el plano', 'cierra la maniobra de {alimentadores} y estudiala',
+              'en el plano abre el interruptor de {alimentadores}', 'simula abrir la maniobra en {alimentadores}'),
+          # «abre el seccionador para transferir la carga» es de `transferencia`, que el modelo conoce: no se le quita.
+          frases_literales=(r'^(?!.*\btransf\w*)(?=.*\b(abre|abrir|cierra|cerrar|abrelo|cierralo)\b)'
+                            r'.*\b(maniobra|interruptor|seccionador|reconectador|recloser|cuchilla)\b',)),
+    # ------------------------------------------------------------ benchmarks (070:RF-79; spec 112)
+    Tarea('benchmark_anonimo', 'Genera en local el benchmark anonimizado de la fuente TXT cargada; si el estudio no se '
+          'reproduce o el control encuentra una fuga, no se emite nada.', (), True, 'proceso', 'benchmark_anonimo', (
+              'genera el benchmark anonimizado', 'haz un dataset de referencia anonimizado de la red',
+              'prepara el benchmark de la red cargada', 'anonimiza la red para un benchmark'),
+          frases_literales=(r'\bbenchmark\w*\b', r'\b(dataset|conjunto)\b.*\banonimizad\w*\b',
+                            r'\banonimiz\w*\b.*\bred\b')),
     Tarea('entrenar_asistente', 'Reentrena el Transformer de órdenes y, solo si hay informes reales en su prueba, el '
           'clasificador de informes; lo que no pase sus puertas deja el modelo en uso (026:RF-20, 067:RF-28).', (),
           True, 'proceso', 'asistente_entrenar', (
@@ -342,6 +419,18 @@ EFECTOS: dict[str, tuple[str, ...]] = {
     **dict.fromkeys(('estado', 'proyectos', 'resultados_pide', 'episodios', 'pregunta', 'clasificar_informe',
                      'consultar_datos', 'no_disponible', 'evaluar_gemelo', 'buscar_maxima', 'cruzar_clientes',
                      'descargar_resultados'), (LEE,)),
+    # 070:RF-81: lo que el asistente hace solo lee o prepara; enviar, publicar, compartir, importar y conectar son el
+    # clic del operador en su tarjeta, por las rutas del navegador.
+    **dict.fromkeys(TAREAS_107_112_NUBE := ('enviar_informe', 'publicar_nube', 'compartir_nube', 'importar_nube',
+                                            'conectar_nube'), (LEE,)),
+    # 070:RF-79: el PIT por el asistente; escribe su expediente en el espacio.
+    **dict.fromkeys(TAREAS_107_112_PIT := ('pit_diagnostico', 'pit_expediente'), (ESCRIBE,)),
+    # 070:RF-79, RF-86: el VAD por el asistente; escribe su estudio y su manifiesto en el espacio.
+    **dict.fromkeys(TAREAS_107_112_VAD := ('vad_crear_estudio', 'vad_empresa_modelo'), (ESCRIBE,)),
+    # 070:RF-79: el plano por el asistente; escribe la variación y, con licencia y vínculo, estudia en DIgSILENT.
+    **dict.fromkeys(TAREAS_107_112_PLANO := ('plano_maniobra',), (ESCRIBE, LICENCIA)),
+    # 070:RF-79: el benchmark de la 112, en local y sin red; escribe su carpeta en la salida.
+    **dict.fromkeys(TAREAS_107_112_BENCH := ('benchmark_anonimo',), (ESCRIBE,)),
     **dict.fromkeys(('leer_proyectos', 'escanear', 'verificar_convergencia'), (LICENCIA,)),
     'buscar_internet': (RED,),
     **dict.fromkeys(('cargar_fuente', 'convertir', 'unir', 'convertir_sistema', 'convertir_set', 'gemelo_entrenar',
@@ -373,6 +462,11 @@ TAREAS_HASTA_069: dict[str, Tarea] = {n: TAREAS[n] for n in (
     'flujo', 'verificar_caso_base', 'cargas_nuevas', 'obras', 'estudios', 'obras_escalera', 'optimizar_con_proyecto',
     'transferencia', 'pide', 'gemelo_aprender', 'gemelo_entrenar', 'gemelo_temporal', 'informe_estudio',
     'informe_factibilidad', 'entrenar_asistente')}
+
+#: 070:RF-85: las tareas de las specs 107 a 112. Las dos pruebas selladas de antes se quedan con las suyas y su huella;
+#: estas se miden en la prueba sellada nueva (070 T21).
+TAREAS_107_112: frozenset[str] = frozenset((*TAREAS_107_112_NUBE, *TAREAS_107_112_PIT, *TAREAS_107_112_VAD,
+                                            *TAREAS_107_112_PLANO, *TAREAS_107_112_BENCH))
 
 
 #: 072:RF-29: los tres tipos de análisis, por las palabras de la orden, y la tarea del catálogo que hace cada uno. Sin

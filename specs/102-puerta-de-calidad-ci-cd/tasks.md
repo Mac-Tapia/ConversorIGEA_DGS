@@ -43,3 +43,19 @@
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_puerta_calidad.py -k rf28` en verde.
 - [ ] T17. Un grupo de concurrencia común a la subida y a la petición de fusión de una rama. (RF-29)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_puerta_calidad.py -k rf29` en verde.
+- [x] T18. PUERTA-ESPECULATIVA: el veredicto de un árbol (`--arbol`) y el gancho del commit que no repite la suite
+      sobre ese mismo árbol; cualquier duda la repite; solo en la rama de trabajo, nunca en main ni en su subida
+      (v2, condición de 0d). (RF-11, RF-9, RF-5)
+      Hecho cuando: `pytest -q tests/test_puerta_calidad.py -k rf11` en verde: con el veredicto válido no la repite en la
+      rama de trabajo, la repite en main, en otra rama y sin rama, el pre-push a main la corre fresca, y cada campo
+      alterado, uno por uno, la fuerza.
+- [x] T19. PUERTA-XDIST: la suite entera repartida en N procesos según la memoria libre, con lo que no admite paralelo
+      en serie (`EN_SERIE` del conftest y la marca `gpu`) y lo que mide tiempos a solas; sin xdist o con poca memoria,
+      N = 1. (RF-5)
+      Hecho cuando: `pytest -q tests/test_puerta_calidad.py -k rf5` en verde: reparte con memoria, no con poca, y cada
+      sesión se juzga por su cuenta.
+- [ ] T20. La suite entera repartida da lo mismo que en una sola sesión: con N = 1, 2 y 3 sobre el mismo árbol, las
+      mismas pruebas, 0 fallidas y 0 omitidas, el pico del árbol de procesos con ≥ 1,5 GiB libres, y `GIB_POR_PROCESO`
+      fijado con el pico medido; es la T20 la que sube PROCESOS_MAXIMOS (hoy 1, FIX-XDIST-UNO) al N medido. (RF-5)
+      Hecho cuando: el guion de comparación (PUERTA-XDIST/comparar_n.py), lanzado por b3 por los carriles en un hueco sin
+      puerta, deja su informe con «iguales» y los picos, y la constante queda con su medida.

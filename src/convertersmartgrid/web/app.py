@@ -3101,6 +3101,10 @@ def create_app(
     from .plano_api import registrar_rutas_plano
 
     registrar_rutas_plano(app, ws_or_404=ws_or_404, submit=submit)
+    # 108:RF-1, 070:RF-86: el estudio de costos del VAD (crear el estudio y armar la empresa modelo), en su módulo.
+    from .vad_api import registrar_rutas_vad
+
+    registrar_rutas_vad(app, ws_or_404=ws_or_404, submit=submit, raiz_config=project_root() / 'config')
 
     # ------------------------------------------------------------ front compilado
     dist = frontend_dist()

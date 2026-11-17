@@ -8,16 +8,16 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 425 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 427 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
 | Herramientas y guiones | `tools/` | 122 |
-| Interfaz | `frontend/src/` | 100 |
-| Pruebas de la interfaz | `frontend/test/` | 44 |
-| Pruebas | `tests/` | 562 |
+| Interfaz | `frontend/src/` | 103 |
+| Pruebas de la interfaz | `frontend/test/` | 45 |
+| Pruebas | `tests/` | 565 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 13968 líneas y 434 funciones, pendiente de partir (002).
+`web/services.py` tiene 13988 líneas y 435 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,19 +28,19 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 2 |
 | retirada | 1 |
 
-112 specs con 3807 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3816 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 179 |
-| aplicacion | Apl | 123 |
+| aplicacion | Apl | 124 |
 | dominio | Dom | 61 |
-| presentacion | Pre | 47 |
+| presentacion | Pre | 48 |
 | puertos | Pue | 4 |
 
-414 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+416 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -129,7 +129,7 @@ El intérprete acepta al modelo de órdenes con confianza 0.85, salvo que traiga
 | `riesgo` | no | sí | Revisa el riesgo de operación: si, según la evidencia, la propuesta deja cargas sin respaldo o sin servicio. |
 | `cliente_mcp` | no | sí | Un cliente MCP de esta máquina: solo las lecturas del proyecto. |
 
-### Tareas (48)
+### Tareas (59)
 
 Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. Todas están en las dos ediciones (086:RF-15).
 
@@ -182,6 +182,17 @@ Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. 
 | `leer_solicitud` | trabajo | sí | engine | `informe_documentos` | ruta | Lee los PDF del solicitante y propone sus datos, sin rellenar el formulario (017:RF-137). |
 | `descargar_resultados` | trabajo | no | engine | `feeder_rows` | alimentadores? | Prepara el ZIP de los resultados y da el enlace para bajarlo (spec 001). |
 | `pronostico` | trabajo | sí | engine | `gemelo_temporal` | ruta, alimentadores? | Pronóstico de demanda de cabecera o de clientes fijos, con su competencia de modelos (spec 046). Es un pronóstico, nunca una medición. |
+| `enviar_informe` | trabajo | no | engine | `correo_api.registrar_rutas_correo` | ruta? | Prepara el correo de un informe con sus adjuntos y lo deja listo para «Confirmar y enviar»; solo sale con ese clic. |
+| `publicar_nube` | trabajo | no | engine | `nube_api.registrar_rutas_nube` | ruta? | Deja listo publicar una salida en Google Drive u OneDrive; se publica con el clic del operador. |
+| `compartir_nube` | trabajo | no | engine | `nube_api.registrar_rutas_nube` | — | Deja listo compartir un expediente publicado, solo lectura y con quien diga la orden; se comparte con el clic del operador. |
+| `importar_nube` | trabajo | no | engine | `nube_api.registrar_rutas_nube` | — | Abre el selector de Google Drive u OneDrive para traer un fichero a una entrada; entra con lo que el operador elija. |
+| `conectar_nube` | trabajo | no | engine | `nube_api.registrar_rutas_nube` | — | Deja listo conectar la cuenta de Google o de Microsoft; la contraseña se escribe en la página del proveedor. |
+| `pit_diagnostico` | trabajo | sí | engine | `rutas_pit.crear_router` | ruta | Diagnóstico del PIT de un área de demanda, año por año, con el libro de la red y la proyección que nombre la orden. |
+| `pit_expediente` | trabajo | sí | engine | `rutas_pit.crear_router` | ruta | Arma el expediente del PIT de un área para un periodo, con sus formatos, su informe y lo que queda pendiente. |
+| `vad_crear_estudio` | trabajo | sí | engine | `vad_api.registrar_rutas_vad` | — | Crea el estudio de costos del VAD de la empresa del perfil para un grupo y un periodo, con el TdR del registro normativo. |
+| `vad_empresa_modelo` | trabajo | sí | engine | `vad_api.registrar_rutas_vad` | ruta | Arma la empresa modelo del estudio del VAD, sistema por sistema, con el caso que nombre la orden; deja su manifiesto. |
+| `plano_maniobra` | trabajo | sí | engine | `plano_api.registrar_rutas_plano` | alimentadores, proyecto? | Abre o cierra una maniobra de un alimentador en una variación del plano, sin tocar el caso base, y la estudia con DIgSILENT o con el motor abierto. |
+| `benchmark_anonimo` | proceso | sí | engine | `benchmark_anonimo` | — | Genera en local el benchmark anonimizado de la fuente TXT cargada; si el estudio no se reproduce o el control encuentra una fuga, no se emite nada. |
 | `entrenar_asistente` | proceso | sí | engine | `asistente_entrenar` | — | Reentrena el Transformer de órdenes y, solo si hay informes reales en su prueba, el clasificador de informes; lo que no pase sus puertas deja el modelo en uso (026:RF-20, 067:RF-28). |
 
 ### Etapas del proyecto entero
@@ -910,7 +921,9 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/features/asistente/EquipoAsistente.tsx` | — | 065 | Roles, permisos y revisión de propuestas en la consola del asistente. |
 | `frontend/src/features/asistente/MejorasPendientes.tsx` | — | 026 | Las mejoras que propone el asistente, sin decisión: su motivo, el resultado de su suite en palabras y las tres decisiones del operador, con… |
 | `frontend/src/features/asistente/MonitorAgente.tsx` | — | 061, 062 | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. |
+| `frontend/src/features/asistente/TarjetaOperador.tsx` | — | 070 | La tarjeta que el asistente deja en su panel: el correo con «Confirmar y enviar» (y su recibo), publicar, compartir, importar y conectar con las… |
 | `frontend/src/features/asistente/estadoEquipoAsistente.ts` | — | 065 | Cliente tipado de permisos, acciones y revisiones del equipo. |
+| `frontend/src/features/asistente/tarjetaOperadorLogica.ts` | — | 070 | Las cinco tarjetas posibles, cada una de su tarea y con su forma (borrador y firma). |
 | `frontend/src/features/conversion/DescargaZip.tsx` | — | 065 | Descarga ZIP preparada como trabajo con progreso y cancelación. |
 | `frontend/src/features/conversion/FeedersPanel.tsx` | — | 001, 022, 091 | Tabla de alimentadores y conversión.; conversión por sistema eléctrico con su zonal, aparte de unir, y el tipo de cada DGS unido |
 | `frontend/src/features/conversion/InputsPanel.tsx` | — | 001 | Entrada de datos: TXT, MDB y VNR-GIS. |
@@ -952,6 +965,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/shared/MarcaBeta.tsx` | — | 086 | La marca y el aviso de una función en beta. |
 | `frontend/src/shared/PfWarning.tsx` | — | 002, 008 | Aviso de disponibilidad de PowerFactory común a conversión y operación. |
 | `frontend/src/shared/SinPantallaEnBlanco.tsx` | — | 042 | Si una pantalla falla al dibujarse, lo dice y deja recargar |
+| `frontend/src/shared/accionesOperador.tsx` | — | 002, 070 | El contrato de lo que la tarjeta de operador del asistente usa de la nube y del correo. |
 | `frontend/src/shared/context.tsx` | — | 001 | Contexto común de la aplicación. |
 | `frontend/src/shared/direcciones.ts` | — | 109, 110 | Separa y limpia las direcciones de correo que escribe el operador, sin repetidas, y nombra las mal escritas. |
 | `frontend/src/shared/edicion.ts` | — | 086 | Pregunta a `/api/health` qué edición corre y qué funciones están en beta. |
@@ -993,6 +1007,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/test/retomarEspacio.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/selectorUnico.test.mjs` | — | 109 | Pruebas del campo único por entrada, del filtro de tipo y de guardar una salida en el equipo o en la nube. |
 | `frontend/test/superficies.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `frontend/test/tarjetaOperador.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/tensionFuente.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/test/tiposDeAnalisis.test.mjs` | — | 072 | Selector explícito, ficha, pasos de cada tipo, aviso del PIDE sin corto plazo y cuerpo de «Planificar» por tipo. |
 | `frontend/test/ubicacionCarga.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
@@ -1000,6 +1015,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/adaptadores/entrada/__init__.py` | Ada | 002 | Adaptadores de entrada. |
 | `src/convertersmartgrid/adaptadores/entrada/capex.py` | Ada | 072, 024 | Recibo de la lectura CAPEX efectiva desde descriptor protegido. |
 | `src/convertersmartgrid/adaptadores/fuentes_estables.py` | Ada | 034, 065 | Descriptor readonly identificado y protegido contra escritura/reemplazo durante el lector. |
+| `src/convertersmartgrid/asistente/prueba_sellada_107_112.py` | Apl | 070 | La prueba sellada de las once tareas de las specs 107 a 112 (la nube, el correo, el PIT, el VAD, el plano y el benchmark): seis frases por tarea de… |
 | `src/convertersmartgrid/compat_pf.py` | Dom | 103 | Equivalentes de `itertools.pairwise` y `zip(..., strict=True)` para lo que cargan los guiones de DIgSILENT con el Python 3.9 de PowerFactory 2021. |
 | `src/convertersmartgrid/conjuntos_aprendizaje.py` | Apl | 050, 002 | Lectura verificada del conjunto activo para inferencia, separada de la preparación. |
 | `src/convertersmartgrid/contratos_aprendizaje.py` | Dom | 050, 002 | Identidad, procedencia y tipos puros de muestras y familias. |
@@ -1047,6 +1063,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/vad/vnr_estudio.py` | Ada | — | Estudio VNR de una empresa desde su inventario VNR-GIS (modelo canónico del módulo ``vnr``), con la Guía del VNR |
 | `src/convertersmartgrid/vad/vnr_formatos.py` | Ada | — | Los formatos del Anexo 5 de la Guía del VNR (RCD 232-2017-OS/CD) en un libro Excel: una hoja por formato con sus |
 | `src/convertersmartgrid/vad/vnr_guia.py` | Apl | — | VNR según la «Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica» (RCD 232-2017-OS/CD; |
+| `src/convertersmartgrid/web/vad_api.py` | Pre | 108, 070 | Rutas `…/vad/estudios` (listar y crear el estudio con la empresa del perfil y un TdR del registro) y `…/vad/{estudio}/armar` (el caso subido a la… |
 | `src/convertersmartgrid/web/vnr_api.py` | Pre | — | 108 T28: el estudio VNR desde la web (Guía del VNR, RCD 232-2017-OS/CD; 108:RF-21 a RF-25). |
 | `src/vnr_etl.py` | Pre | 002 | Fachada de CLI para python -m vnr_etl y el launcher anterior. |
 | `tools/asistente_informes_reales.py` | — | 026 | Anota informes reales etiquetados (Word, PDF con OCR o texto del maestro) para el clasificador, por grupo y sin repetir. |

@@ -444,3 +444,97 @@ PARAFRASIS_079 = {
                             'validacion del caso base en {proyecto}', 'somete a verificacion el caso base en {alimentadores} de {proyecto}',
                             'analiza el modelo base de {proyecto} frente al original', 'modelo base de {proyecto}: revisalo'),
 }
+
+
+#: 070:RF-79, RF-85: de dónde salen las frases de las tareas de las specs 107 a 112.
+MAESTRO_107_112 = {'autor': 'Claude, maestro de la sesión', 'revision': '2026-11-16-v1', 'origen': 'sintetico_spec_070_rf79',
+                   'metodo': 'response_distillation_single_annotation', 'votos_por_anotacion': 1,
+                   'logits_del_maestro_disponibles': False}
+
+# 070:RF-79: las tareas de la nube y el correo, con la regla de las cuatro columnas de ``FAMILIAS``. Sintéticas: no copian
+# órdenes del operador ni ninguna prueba, ni nombran empresa ni dirección real (P9, P13).
+FAMILIAS.update({
+    'enviar_informe': ('manda el informe {ruta} al cliente por correo', 'remite por email el informe que acabo',
+                       'quiero enviar por mail el informe {ruta}', 'prepara el envio por correo del ultimo informe'),
+    'publicar_nube': ('sube la carpeta {ruta} a mi drive', 'publica la salida del estudio en onedrive',
+                      'deja el expediente en google drive', 'pon los resultados en la nube'),
+    'compartir_nube': ('comparte con el revisor lo que publique', 'da permiso de lectura del expediente publicado',
+                       'comparte el expediente de la nube con el cliente', 'manda el enlace de lo publicado en drive'),
+    'importar_nube': ('trae el libro de cabecera desde drive', 'importa un archivo de mi google drive',
+                      'baja de onedrive el libro de clientes', 'carga la fuente desde la nube'),
+    'conectar_nube': ('conecta la cuenta de google drive', 'vincula mi cuenta de microsoft',
+                      'enlaza la cuenta de gmail para enviar', 'conecta onedrive para publicar'),
+})
+
+for _tarea, _frases in {
+    'enviar_informe': ('envia el informe por correo', 'manda el informe por mail', 'mandale el informe {ruta} por correo',
+                       'envia por correo el informe', 'correo del informe {ruta}', 'manda por email lo del informe',
+                       'mandalo por correo', 'el informe por mail al cliente', 'envia el ultimo informe por correo',
+                       'correo con el informe adjunto', 'pasale el informe por email', 'informe {ruta} por correo'),
+    'publicar_nube': ('sube la salida a drive', 'publica en onedrive', 'sube los resultados a la nube',
+                      'publica {ruta} en google drive', 'subelo a mi drive', 'publica el expediente en la nube',
+                      'sube el expediente a onedrive', 'pon la salida en drive', 'sube {ruta} a la nube',
+                      'publica los resultados en drive', 'manda la salida a onedrive', 'subelo a la nube'),
+    'compartir_nube': ('comparte el expediente', 'comparte lo publicado', 'dale acceso al expediente en drive',
+                       'comparte el enlace del expediente', 'comparte en la nube con el cliente', 'comparte lo de onedrive',
+                       'comparte la carpeta publicada', 'da acceso a lo publicado', 'comparte el expediente con el revisor',
+                       'compartelo en drive', 'comparte lo subido', 'dale lectura al expediente'),
+    'importar_nube': ('trae un archivo de drive', 'importa desde la nube', 'jala el libro desde onedrive',
+                      'carga un fichero desde google drive', 'baja el archivo de mi drive', 'trae el libro desde la nube',
+                      'importa de onedrive', 'jala de drive', 'trae de la nube la red',
+                      'baja de onedrive el libro', 'importa el excel desde drive', 'carga desde la nube'),
+    'conectar_nube': ('conecta mi google', 'conecta la cuenta de google', 'vincula onedrive', 'conecta microsoft',
+                      'enlaza mi drive', 'conecta outlook para el correo',
+                      'vincula mi google', 'conecta gmail', 'enlaza onedrive',
+                      'conecta la cuenta de outlook', 'vincula la cuenta de google drive', 'conecta mi cuenta'),
+}.items():
+    ESTILO_REAL[_tarea] = _frases
+
+# 070:RF-79: el PIT, con la regla de las cuatro columnas. Sintéticas (P9, P13).
+FAMILIAS.update({
+    'pit_diagnostico': ('diagnostico del plan de inversiones en transmision con {ruta}', 'evalua el area de demanda del pit con {ruta}',
+                        'revisa la red del pit año por año con {ruta}', 'diagnostico pit del area con el libro {ruta}'),
+    'pit_expediente': ('arma el expediente del plan de inversiones con {ruta}', 'genera los formatos del pit con {ruta}',
+                       'prepara la presentacion del pit con {ruta}', 'expediente pit del periodo con {ruta}'),
+})
+ESTILO_REAL['pit_diagnostico'] = ('diagnostico del pit', 'has el diagnostico pit con {ruta}', 'diagnostica el pit con {ruta}',
+                                  'diagnostico del plan de inversiones', 'el pit diagnosticalo con {ruta}',
+                                  'corre el diagnostico del pit',
+                                  'diagnostica el area del pit', 'diagnostico pit con el libro {ruta}', 'el pit, el diagnostico', 'revisa el pit año por año', 'corre el pit con {ruta}', 'diagnostico de transmision')
+ESTILO_REAL['pit_expediente'] = ('expediente del pit', 'arma el expediente pit con {ruta}', 'has el expediente del pit',
+                                 'expediente del plan de inversiones con {ruta}', 'el pit, su expediente con {ruta}',
+                                 'prepara el expediente del pit',
+                                 'expediente pit', 'arma el pit con {ruta}', 'los formatos del pit', 'el expediente del plan de inversiones', 'saca el expediente pit con {ruta}', 'expediente para osinergmin del pit')
+
+# 070:RF-79: el VAD, con la regla de las cuatro columnas. Sintéticas (P9, P13).
+FAMILIAS.update({
+    'vad_crear_estudio': ('inicia el estudio de costos del vad del grupo 2', 'da de alta el estudio vad del periodo',
+                          'abre un estudio nuevo del valor agregado de distribucion', 'crea el estudio del vad de la empresa'),
+    'vad_empresa_modelo': ('arma la empresa modelo eficiente con {ruta}', 'construye la empresa modelo del vad con {ruta}',
+                           'empresa modelo sistema por sistema con {ruta}', 'dimensiona la empresa modelo con {ruta}'),
+})
+ESTILO_REAL['vad_crear_estudio'] = ('crea el estudio vad', 'nuevo estudio del vad', 'abre el estudio del vad del grupo 1',
+                                    'registra el estudio vad', 'crea el estudio de costos del vad', 'estudio vad nuevo',
+                                    'estudio vad del grupo 2', 'crea un estudio del vad', 'alta del estudio vad', 'estudio de costos nuevo', 'abre el estudio del vad para el periodo', 'nuevo estudio del valor agregado')
+ESTILO_REAL['vad_empresa_modelo'] = ('empresa modelo', 'arma la empresa modelo con {ruta}', 'has la empresa modelo',
+                                     'empresa modelo del vad con {ruta}', 'corre la empresa modelo', 'la empresa modelo con el caso {ruta}',
+                                     'empresa modelo con el caso {ruta}', 'arma la empresa modelo eficiente', 'corre la empresa modelo con {ruta}', 'empresa modelo sistema por sistema', 'haz la empresa modelo del estudio', 'la empresa modelo del vad')
+
+# 070:RF-79: el plano, con la regla de las cuatro columnas. Sintéticas (P9, P13).
+FAMILIAS.update({
+    'plano_maniobra': ('en el plano abre el seccionador de {alimentadores} y estudialo', 'cierra el interruptor de {alimentadores} en una variacion',
+                       'simula abrir la cuchilla de {alimentadores}', 'prueba cerrar la maniobra de {alimentadores} sobre el plano'),
+})
+ESTILO_REAL['plano_maniobra'] = ('abre el seccionador de {alimentadores}', 'cierra el interruptor de {alimentadores}',
+                                 'abre la maniobra en {alimentadores} y corre', 'cierra la cuchilla de {alimentadores}',
+                                 'en el plano abre el recloser de {alimentadores}', 'abrir maniobra de {alimentadores}',
+                                 'cierra la maniobra de {alimentadores}', 'abre el interruptor de {alimentadores} en el plano', 'prueba abrir el seccionador de {alimentadores}', 'cierra el recloser de {alimentadores}', 'abre la maniobra de {alimentadores}', 'en una variacion cierra la cuchilla de {alimentadores}')
+
+# 070:RF-79: el benchmark de la 112, con la regla de las cuatro columnas. Sintéticas (P9, P13).
+FAMILIAS.update({
+    'benchmark_anonimo': ('saca un benchmark sin datos de la empresa', 'genera el conjunto de referencia anonimizado',
+                          'prepara la red anonima para comparar metodos', 'emite el benchmark reproducible de la red'),
+})
+ESTILO_REAL['benchmark_anonimo'] = ('benchmark', 'genera el benchmark', 'has el benchmark anonimizado',
+                                    'dataset de referencia anonimizado', 'anonimiza la red', 'el benchmark de la red',
+                                    'haz un benchmark', 'benchmark anonimizado de la red', 'saca el benchmark', 'genera un dataset anonimizado', 'anonimiza la red del espacio', 'el benchmark reproducible')

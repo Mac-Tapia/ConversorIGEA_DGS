@@ -8,6 +8,8 @@ import { AvisoBeta } from '../../shared/MarcaBeta';
 import { MonitorAgente } from './MonitorAgente';
 import { EquipoAsistente } from './EquipoAsistente';
 import { Aprendizaje } from './Aprendizaje';
+import { TarjetaOperador } from './TarjetaOperador';
+import { tarjetaDe } from './tarjetaOperadorLogica';
 
 /** Spec 026: la consola del asistente. La orden se escribe en español; lo que escribe en
  * DIgSILENT o en disco espera la confirmación (RF-8) y se ejecuta como cualquier trabajo. */
@@ -332,6 +334,8 @@ export function Asistente() {
         const plan = x.r.plan;
         const job = x.trabajo ? jobs[x.trabajo] : undefined;
         const entregables: string[] = [...(x.r.respuesta?.entregables ?? []), ...(job?.result?.entregables ?? [])];
+        // Spec 070, RF-80: lo que el asistente dejó preparado para el clic del operador.
+        const tarjeta = job?.status === 'done' ? tarjetaDe(plan.tarea, job.result) : null;
         return (
           <article key={plan.id} className="card stack">
             <p><b>›</b> {x.texto}</p>
@@ -353,6 +357,7 @@ export function Asistente() {
                 {typeof job.result?.enlace === 'string' && <> <a href={job.result.enlace}>Descargar</a></>}
               </p>
             )}
+            {tarjeta && <TarjetaOperador tarjeta={tarjeta} />}
             {entregables.length > 0 && (
               <p className="small">Entregables: {entregables.map((e) => (
                 <a key={e} href={api.fileUrl(ws.id, e, true)}>{e} </a>

@@ -124,11 +124,54 @@ def usa_gpu(ruta) -> bool:
     return _usa_gpu_cache[ruta]
 
 
+#: 102:RF-5 (aclaración del 2026-11-15, PUERTA-XDIST): los recursos que no admiten paralelo. Con la suite repartida
+#: (tools/puerta_calidad.py, SELECCION_*), las pruebas «serie» corren una tras otra en una sesión aparte, como hoy, a la
+#: vez que el resto; las «a_solas», al final y sin nada más. La GPU va en «serie» por su marca ``gpu`` (106:RF-6), con su
+#: turno de la máquina (106:RF-1), que solo pide esa sesión.
+RECURSOS_EN_SERIE = {
+    'sqlserver': ('restauran la copia real de VNR-GIS (CSG_VNR_BAK) en la instancia de SQL Server de la máquina: '
+                  'sqlserver_vnr.restaurar hace DROP y RESTORE DATABASE de una base con nombre fijo por copia, y dos a '
+                  'la vez se pisan'),
+    'a_solas': ('miden tiempos con la CPU, o comparan lo generado con el árbol entero: otra sesión a la vez cambia lo '
+                'que miden'),
+}
+#: Fichero de pruebas → (recurso, motivo). Revisado el 2026-11-15 sobre tests/ entero; lo que NO está y por qué, en
+#: specs/102-puerta-de-calidad-ci-cd/plan.md (DIgSILENT, Word/COM, puertos, candados y Access no lo necesitan).
+EN_SERIE: dict[str, tuple[str, str]] = {
+    'test_vnr_sqlserver.py': ('sqlserver', 'su prueba con CSG_VNR_BAK llama a sv.cargar_copia: restaura la copia real'),
+    'test_asistente_vocabulario.py': ('sqlserver', 'test_vnr_real llama a sv.cargar_copia(CSG_VNR_BAK): restaura la copia'),
+    'test_flexibility_and_scale.py': ('a_solas', ('compara el coste por tramo de 4N frente a N (cociente < 8 y por tramo '
+                                                  '< 2×): ya tumbó puertas en un solo proceso (fallos_de_puerta.tsv)')),
+    'test_performance_budget.py': ('a_solas', 'presupuesto absoluto de segundos del alimentador mayor y cociente de 4N'),
+    'test_arquitectura_generada.py': ('a_solas', ('compara el catálogo generado con el árbol entero; falló en los dos '
+                                                  'ensayos de la 106:RF-16 con -n 2 (2026-11-14)')),
+    'test_trazabilidad_specs.py': ('a_solas', ('compara specs/README.md con el árbol entero; falló en los dos ensayos de '
+                                              'la 106:RF-16 con -n 2 (2026-11-14)')),
+}
+
+
+def pytest_configure(config):
+    config.addinivalue_line('markers', 'serie: no admite paralelo; la suite repartida la corre aparte, una tras otra '
+                                       '(102:RF-5, EN_SERIE de tests/conftest.py)')
+    config.addinivalue_line('markers', 'a_solas: la suite repartida la corre al final, sin nada más (102:RF-5)')
+
+
+def marcar_en_serie(items) -> None:
+    """102:RF-5: las marcas ``serie`` y ``a_solas`` salen de :data:`EN_SERIE`, por fichero, como la ``gpu`` (106:RF-6)."""
+    for item in items:
+        fila = EN_SERIE.get(Path(item.path).name)
+        if fila:
+            item.add_marker(pytest.mark.serie)
+            if fila[0] == 'a_solas':
+                item.add_marker(pytest.mark.a_solas)
+
+
 def pytest_collection_modifyitems(config, items):
     """106:RF-6: la marca ``gpu`` se pone sola; ninguna prueba depende de que alguien se acuerde de marcarla."""
     for item in items:
         if usa_gpu(item.path):
             item.add_marker(pytest.mark.gpu)
+    marcar_en_serie(items)
 
 
 def tomar_turno_si_hace_falta(items) -> None:

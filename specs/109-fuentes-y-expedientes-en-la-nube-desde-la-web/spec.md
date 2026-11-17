@@ -120,6 +120,15 @@ puntos 1 y 2).
   enlace» salvo que el operador lo autorice en ese envío (RF-11). Nunca se comparten datos crudos: TXT, MDB ni paquetes
   VNR-GIS (RF-20).
 
+## Aclaración de RF-15 (2026-11-16)
+Orden del usuario del 2026-11-16: el asistente también maneja la nube (070:RF-79 a RF-83). La «confirmación del
+operador en la web» es el botón de la tarjeta que el asistente deja en su panel, o el de la ventana de siempre:
+- El ejecutor del asistente solo pide lo que no publica, ni comparte, ni importa, ni conecta: las cuentas, los
+  proveedores, los vínculos, los recibos y las **previas** de publicar y compartir.
+- La acción la hace el navegador al pulsar el botón, por la ruta de siempre: una petición con el token de un programa
+  se sigue rechazando.
+- Un documento importado nunca prepara ninguna de esas acciones.
+
 ## Aclaración de RF-2 (2026-11-14)
 Decidida por el coordinador del Plan Maestro, por delegación del usuario, al implementar el selector de ficheros.
 - Lo prohibido es la **credencial persistente**: el token de refresco y el secreto del cliente nunca llegan al navegador,

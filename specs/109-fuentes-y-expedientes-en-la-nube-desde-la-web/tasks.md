@@ -68,8 +68,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       rechazo de los datos crudos; recibo por permiso. (RF-10, RF-11, RF-12, RF-20)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_nube_compartir.py` en verde. Incluye un TXT de
       CYMDIST, una MDB y un VNR sintéticos renombrados dentro del expediente, reconocidos por su contenido.
-- [ ] T12. El asistente y los documentos importados no publican, ni comparten, ni conectan: `equipo.autorizar_peticion`
-      rechaza toda ruta de la nube, también con el plan confirmado. (RF-15)
+- [ ] T12. El asistente y los documentos importados no publican, ni comparten, ni conectan sin el botón del operador:
+      `equipo.autorizar_peticion` solo deja al asistente las lecturas y las previas de la nube, y la acción la manda el
+      navegador desde la tarjeta del panel (aclaración de RF-15 del 2026-11-16; 070 T16). (RF-15)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_nube_seguridad.py -k asistente` en verde. Incluye
       un PDF importado con la orden «publica y comparte», que no lanza ningún trabajo.
       `es_ruta_de_la_nube` está en `salidas_red.py` (dominio), para que `asistente/equipo.py` la use sin depender de

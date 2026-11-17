@@ -146,11 +146,15 @@ def test_una_orden_del_asistente_o_un_documento_solo_dejan_un_borrador(tmp_path,
 
 
 def test_ningun_paso_del_asistente_alcanza_la_confirmacion(tmp_path, monkeypatch):
-    """110:RF-6 — ni el ejecutor ni las tareas del asistente nombran la ruta de confirmar, y el gobierno la niega."""
+    """110:RF-6, 070:RF-81 — el asistente solo nombra la vista previa del correo (aclaración de 110:RF-6 del
+    2026-11-16): ni el ejecutor ni las tareas nombran la ruta de confirmar, y el gobierno la niega."""
+    import re
+
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'equipo'))
     raiz = Path(__file__).resolve().parents[1] / 'src' / 'convertersmartgrid' / 'asistente'
     for fichero in raiz.rglob('*.py'):
-        assert '/correo/' not in fichero.read_text(encoding='utf-8'), fichero
+        rutas = re.findall(r"/correo/[\w{}\-/]*", fichero.read_text(encoding='utf-8'))
+        assert set(rutas) <= {'/correo/vista-previa'}, (fichero, rutas)
     from test_asistente_equipo import preparar
 
     _, _, gobierno = preparar()

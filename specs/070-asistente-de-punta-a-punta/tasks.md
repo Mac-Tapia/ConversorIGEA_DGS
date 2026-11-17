@@ -55,3 +55,18 @@
   de «T<n>» permitidos en `sin_citas.py`. v3c: tools/cargas_pf.py (56 líneas). v3d: tools/obras_pf.py (64 líneas). v3e: tools/ajuste_cabecera_pf.py (107 líneas) y su filtro por «(083:RF-31)», ahora por el sentido: PENDIENTES_V3 queda vacío. v3f: el detector ve también el texto que devuelve una función (`return`) y las claves `error`, `origen` y `fuente`; se quitan sus 72 textos en 25 ficheros (los 137 medidos al cerrar v3e, contados una vez por línea y texto). Solo falta la parte del navegador.
 - [x] T12 Un solo modelo del catálogo a la caché de la web. (RF-77)
   Hecho cuando: `pytest -q tests/test_preparacion_modelos_ia.py` en verde; la web de prueba reabre el intérprete con el codificador en su caché.
+- [ ] T16 Correo y nube por el asistente: tareas, rutas de previa, la tarjeta del panel con su botón y el seguimiento
+  del recibo; e2e con la nube y el correo simulados. (RF-79, RF-80, RF-81, RF-82, RF-83)
+  Hecho cuando: `pytest -q tests/test_asistente_nube_correo.py` y el e2e del panel en verde.
+- [ ] T17 Tareas del PIT por `/api/pit/…`. (RF-79)
+  Hecho cuando: `pytest -q tests/test_asistente_107_112.py -k pit` en verde.
+- [ ] T18 Ruta web del VAD y su tarea. (RF-79, RF-86)
+  Hecho cuando: `pytest -q tests/test_asistente_107_112.py -k vad` en verde.
+- [ ] T19 Tareas del plano: maniobra en una variación y su estudio. (RF-79)
+  Hecho cuando: `pytest -q tests/test_asistente_107_112.py -k plano` en verde.
+- [ ] T20 Tarea del benchmark anonimizado. (RF-79)
+  Hecho cuando: `pytest -q tests/test_asistente_107_112.py -k benchmark` en verde.
+- [ ] T21 Frases del maestro, sintéticos y la prueba sellada nueva con su huella; la anterior, histórica. (RF-84, RF-85)
+  Hecho cuando: `pytest -q tests/test_prueba_sellada_107_112.py tests/test_asistente_maestro.py tests/test_maestro_real.py tests/test_asistente_sinteticos.py` en verde, y la destilación la mide (con la T22).
+- [ ] T22 [GPU] Reentrenar el modelo de órdenes con las tareas nuevas y pasar sus puertas (085). (RF-84)
+  Hecho cuando: el candidato pasa sus puertas, o queda el modelo en uso con su diagnóstico.

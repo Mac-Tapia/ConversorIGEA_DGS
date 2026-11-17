@@ -14,11 +14,12 @@ y el JSON de alternativas, campo a campo) da 422 antes de encolar. La carpeta de
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from ..pit import PitError
@@ -29,7 +30,7 @@ from ..pit.motores import ESTUDIOS, MOTORES, capacidad, elegir_motor
 from ..pit.observaciones import escribir_observaciones, registrar
 from ..pit.red_area import desde_ambito, leer_libro_red
 from ..registro_normativo import cargar_registro
-from ..util import publicar_duradero  # 001:RF-5 (H14): escritura atómica y duradera
+from ..util import nombre_seguro, publicar_duradero  # 001:RF-5 (H14): escritura atómica y duradera
 
 __all__ = ['crear_router']
 
@@ -62,6 +63,13 @@ class PedidoObservaciones(BaseModel):
     referencias: dict[str, dict[str, Any]]
 
 
+#: 070:RF-79: lo que se sube para el PIT (el libro de la red, la proyección y las alternativas), con su tope por fichero.
+EXTENSIONES_ENTRADA = ('.xlsx', '.xlsm', '.xls', '.json')
+TOPE_ENTRADA = 200 * 2 ** 20
+CARPETA_ENTRADAS = 'entradas_pit'
+_RESERVADOS = re.compile(r'^(con|prn|aux|nul|com[1-9]|lpt[1-9])$', re.IGNORECASE)
+
+
 def _dentro(raiz: Path, relativa: str) -> Path:
     ruta = (raiz / relativa).resolve()
     if not ruta.is_relative_to(raiz.resolve()):
@@ -89,6 +97,28 @@ def crear_router(jobs: Any, espacio: Callable[[str], Path], perfil: Callable[[],
         return {'motores': list(MOTORES), 'licencia': licencia(),
                 'matriz': [{'motor': m, 'estudio': e, 'alcance': capacidad(m, e).alcance,
                             'texto': capacidad(m, e).texto} for m in MOTORES for e in ESTUDIOS]}
+
+    @r.post('/entradas')
+    async def entradas(workspace_id: str = Form(...), files: list[UploadFile] = File(...)) -> dict[str, Any]:
+        """070:RF-79: el libro de la red, la proyección y las alternativas, dentro del espacio, para pedir el diagnóstico
+        o el expediente con sus rutas. Las rutas del PIT solo leen ficheros del espacio."""
+        carpeta = espacio(workspace_id) / CARPETA_ENTRADAS
+        rutas = []
+        for f in files:
+            nombre = Path(f.filename or '').name
+            raiz = Path(nombre).stem
+            if not nombre or Path(nombre).suffix.lower() not in EXTENSIONES_ENTRADA:
+                raise HTTPException(422, f'{nombre or "un fichero sin nombre"}: el PIT admite libros de Excel y JSON')
+            if nombre_seguro(raiz) != raiz or _RESERVADOS.match(raiz):
+                # Lección A8 del 16-11: los nombres reservados de Windows y los caracteres raros no entran en el espacio.
+                raise HTTPException(422, f'{nombre}: el nombre solo puede llevar letras, dígitos, «-» y «_»')
+            datos = await f.read(TOPE_ENTRADA + 1)
+            if len(datos) > TOPE_ENTRADA:
+                raise HTTPException(413, f'{nombre}: pasa de {TOPE_ENTRADA // 2 ** 20} MiB')
+            carpeta.mkdir(parents=True, exist_ok=True)
+            publicar_duradero(carpeta / nombre, datos)
+            rutas.append(f'{CARPETA_ENTRADAS}/{nombre}')
+        return {'rutas': rutas}
 
     @r.post('/diagnostico')
     def diagnostico(p: PedidoDiagnostico) -> dict[str, Any]:

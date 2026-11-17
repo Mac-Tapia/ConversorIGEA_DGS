@@ -69,6 +69,12 @@ Cada RF citado por una prueba (`grep "110:RF-"`), con un proveedor simulado y co
 envío, cambio del adjunto, orden del asistente). La prueba real controlada, un envío a una dirección del usuario con su
 recibo, es opcional: la hace el operador cuando registre su aplicación de prueba (decisión del 2026-11-15).
 
+## Aclaración de RF-6 (2026-11-16)
+Orden del usuario del 2026-11-16: el asistente también envía (070:RF-79 a RF-82). Prepara el borrador con su firma y lo
+deja en su panel con el botón «Confirmar y enviar». Ese botón es la confirmación en la web de RF-5 y RF-6: la manda el
+navegador por `…/correo/{borrador}/confirmar` con la firma que el operador ve, y el asistente sigue el envío hasta su
+recibo. El ejecutor del asistente nunca confirma un envío.
+
 ## Decisiones (2026-11-14)
 Tomadas por delegación del usuario (`D:/csg/G0_PLAN_MAESTRO/G1_DECISIONES_RECOMENDADAS.md`, decisiones 1 y 2).
 - Destinatarios: no hay una libreta cerrada; vale cualquier dirección. La ventana avisa cuando una dirección no está

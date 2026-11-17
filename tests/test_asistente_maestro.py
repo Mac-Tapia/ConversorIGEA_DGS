@@ -1402,9 +1402,10 @@ def normalizar_todo(*dicts):
 def test_curriculo_prueba_sellada_con_varias_parafrasis_y_su_declaracion():
     """070:RF-69 — varias frases por tarea de todo el catálogo, y el módulo dice cómo se generó."""
     from convertersmartgrid.asistente import prueba_sellada as ps
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.asistente.tareas import TAREAS, TAREAS_107_112
 
-    assert set(ps.FRASES) == set(TAREAS) and all(len(set(v)) >= 5 for v in ps.FRASES.values())
+    # 070:RF-85: las tareas de las specs 107 a 112 se miden en la prueba sellada nueva, y esta conserva su huella.
+    assert set(ps.FRASES) == set(TAREAS) - TAREAS_107_112 and all(len(set(v)) >= 5 for v in ps.FRASES.values())
     filas = ps.selladas()
     por_grupo = {}
     for r in filas:
