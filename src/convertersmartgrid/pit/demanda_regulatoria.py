@@ -519,7 +519,7 @@ def demanda_regulatoria(registro: RegistroNormativo, area: AreaPit, red: RedArea
 _MOMENTOS = ('sistema_electrico', 'set_maxima', 'sein', 'no_coincidente')
 
 
-def _barra_y_tension(red: RedArea, devanado: str) -> tuple[str | None, float | None, str | None]:
+def barra_y_tension(red: RedArea, devanado: str) -> tuple[str | None, float | None, str | None]:
     """La barra del lado del transformador (``T:lv`` o ``T:mv``) y su tensión en la red del área, o el motivo."""
     trafo, _, lado = devanado.partition(':')
     t = next((e for tipo in ('trafo2', 'trafo3') for e in red.de_tipo(tipo) if str(e.get('id')) == trafo), None)
@@ -536,7 +536,7 @@ def filas_f102(f102: Mapping[str, Any], red: RedArea) -> list[dict[str, Any]]:
     """Las filas del bloque «devanados» de F-102 para el motor de plantillas, con el motivo de cada vacío."""
     filas = []
     for f in f102['filas']:
-        barra, kv, motivo = _barra_y_tension(red, f['devanado'])
+        barra, kv, motivo = barra_y_tension(red, f['devanado'])
         fila: dict[str, Any] = {'sistema': f['sistema'], 'set': f['set'], 'barra': barra, 'tension_kv': kv,
                                 '_motivos': {}}
         if motivo:
@@ -558,7 +558,7 @@ def filas_f103(f103: Mapping[str, Any], f102: Mapping[str, Any], red: RedArea) -
     filas = []
     for f in f103['filas']:
         base = de102.get(f['devanado'], {})
-        barra, kv, motivo = _barra_y_tension(red, f['devanado'])
+        barra, kv, motivo = barra_y_tension(red, f['devanado'])
         energia = ((f.get('traza') or {}).get('energia_kwh') or {}).get('devanado')
         pmax = (base.get('sistema_electrico') or {}).get('kw')
         fila = {'sistema': f.get('sistema') or base.get('sistema'), 'set': base.get('set'), 'barra': barra,
@@ -600,7 +600,7 @@ def grupos_f101(f101: Mapping[str, Any], f102: Mapping[str, Any], red: RedArea) 
         filas = []
         for f in filas102:
             d = por_nombre.get(('devanado', f['devanado']), {})
-            barra, kv, motivo = _barra_y_tension(red, f['devanado'])
+            barra, kv, motivo = barra_y_tension(red, f['devanado'])
             fila = {'sistema': sis, 'set': f['set'], 'barra': barra, 'tension_kv': kv,
                     'fc': d.get('fc'), 'fcp': d.get('fcp'), 'fs': d.get('fs'), '_motivos': {}}
             for campo in ('fc', 'fcp'):

@@ -192,14 +192,20 @@ def plan_de_formatos(resultados: Sequence[Mapping[str, Any]], *, modelo: Path, d
     que hay que insertar (``insertar_filas``, de ``insertar_en``, en su orden). ``modelo`` es una copia del libro
     oficial, nunca el original. Un formato con filas que insertar sin saber dónde (los grupos repetidos) es un error que
     lo nombra: escribir sin insertarlas pisaría las filas de abajo."""
-    escribir, vaciar, huecos, insertar = [], [], [], []
+    escribir, vaciar, huecos, insertar, fotos = [], [], [], [], []
     for r in resultados:
+        fotos += [dict(i) for i in r.get('imagenes') or ()]   # F-123: el mapa de cada año en su hoja
         sitios = list(r.get('insertar_en') or ())
         sin_sitio = sorted(set(r.get('filas_a_insertar') or {}) - {i['bloque'] for i in sitios})
         sin_sitio += sorted(r.get('grupos_a_insertar') or {})
         if sin_sitio:
             raise PitError(f'{r.get("codigo")}: no se sabe dónde insertar las filas de {sin_sitio}; sin insertarlas no '
                            'se escribe el libro')
+        if r.get('hojas_a_copiar'):
+            # Un formato por sistema eléctrico (F-106, F-108) con más de un sistema: sus copias de hoja no existen en el
+            # libro oficial y escribir en ellas fallaría o pisaría otra; se dice cuáles faltan.
+            raise PitError(f'{r.get("codigo")}: hacen falta las hojas {[h["a"] for h in r["hojas_a_copiar"]]} (una por '
+                           'sistema eléctrico) y el libro de la entrega aún no las crea; sin ellas no se escribe')
         insertar += [{'hoja': i['hoja'], 'fila': int(i['fila']), 'filas': int(i['filas'])} for i in sitios]
         for c in r.get('celdas') or ():
             if c['valor'] in (None, ''):
@@ -209,7 +215,7 @@ def plan_de_formatos(resultados: Sequence[Mapping[str, Any]], *, modelo: Path, d
                 escribir.append({'celda': c['celda'], 'valor': c['valor']})
     return {'modelo': str(Path(modelo).resolve()), 'destino': str(Path(destino).resolve()),
             'borrar_hojas': [], 'sin_imagenes': [], 'insertar_filas': insertar, 'vaciar': vaciar,
-            'escribir': escribir, 'formulas': [], 'imagenes': [], 'ancho_imagen': 420.0,
+            'escribir': escribir, 'formulas': [], 'imagenes': fotos, 'ancho_imagen': 420.0,
             'huecos': list(dict.fromkeys(huecos))}
 
 

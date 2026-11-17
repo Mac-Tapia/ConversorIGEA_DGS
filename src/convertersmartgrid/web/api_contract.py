@@ -47,7 +47,7 @@ class JobRespuesta(Respuesta):
     kind: str
     title: str
     workspace_id: str
-    lane: Literal['engine', 'powerfactory', 'asistente', 'control', 'correo']
+    lane: Literal['engine', 'powerfactory', 'asistente', 'control', 'correo', 'red']
     status: Literal['queued', 'running', 'done', 'parcial', 'no_converge', 'failed', 'cancelled', 'interrumpido']
     progress: ProgresoRespuesta | None
     result: Any = Field(description='Resultado variable según kind; incluye informes nativos y extensiones.')

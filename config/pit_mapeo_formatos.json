@@ -1114,6 +1114,2387 @@
      ]
     }
    ]
+  },
+  "F-108": {
+   "cabecera": [
+    {
+     "celda": "B6",
+     "rotulo": [
+      6,
+      "A",
+      "SISTEMA ELÉCTRICO:"
+     ],
+     "campo": "sistema"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "anios",
+     "fila_marca": 10,
+     "marca": "0",
+     "serie_filas": {
+      "columna": "A"
+     },
+     "columnas": [
+      {
+       "letra": "C",
+       "rotulo": [
+        9,
+        "C",
+        "VENTAS (AT)"
+       ],
+       "campo": "at_mwh"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        9,
+        "D",
+        "MT"
+       ],
+       "campo": "mt_mwh"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        9,
+        "E",
+        "BT"
+       ],
+       "campo": "bt_mwh"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        9,
+        "F",
+        "VENTAS (AT+ MT+BT)"
+       ],
+       "campo": "total_mwh"
+      }
+     ]
+    }
+   ]
+  },
+  "F-109": {
+   "bloques": [
+    {
+     "bloque": "devanados",
+     "fila_marca": 14,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        8,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        8,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        8,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        9,
+        "D",
+        "kV"
+       ],
+       "campo": "tension_kv"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 9,
+      "desde": "E",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "energia_mwh"
+     }
+    }
+   ]
+  },
+  "F-110": {
+   "bloques": [
+    {
+     "bloque": "devanados",
+     "fila_marca": 13,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        7,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        7,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "kV"
+       ],
+       "campo": "tension_kv"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 8,
+      "desde": "E",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "potencia_mw"
+     }
+    }
+   ]
+  },
+  "F-111": {
+   "bloques": [
+    {
+     "bloque": "devanados",
+     "fila_marca": 13,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        7,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        7,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "kV"
+       ],
+       "campo": "tension_kv"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 8,
+      "desde": "E",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "potencia_mw"
+     }
+    }
+   ]
+  },
+  "F-112": {
+   "bloques": [
+    {
+     "bloque": "devanados",
+     "fila_marca": 13,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        7,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        7,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "kV"
+       ],
+       "campo": "tension_kv"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 8,
+      "desde": "E",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "potencia_mw"
+     }
+    }
+   ]
+  },
+  "F-104": {
+   "cabecera": [
+    {
+     "celda": "B4",
+     "rotulo": [
+      4,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "anios",
+     "fila_marca": 9,
+     "marca": "-20",
+     "serie_filas": {
+      "columna": "A",
+      "desde": -20,
+      "hasta": 0
+     },
+     "columnas": [
+      {
+       "letra": "B",
+       "rotulo": [
+        8,
+        "B",
+        "(Mio. S/.)"
+       ],
+       "campo": "pbi"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        8,
+        "C",
+        "CRECIM. (%)"
+       ],
+       "campo": "pbi_tasa"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "CLIENTES"
+       ],
+       "campo": "clientes"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        8,
+        "E",
+        "CRECIM. (%)"
+       ],
+       "campo": "clientes_tasa"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        8,
+        "F",
+        "HABITANTES"
+       ],
+       "campo": "poblacion"
+      },
+      {
+       "letra": "G",
+       "rotulo": [
+        8,
+        "G",
+        "CRECIM. (%)"
+       ],
+       "campo": "poblacion_tasa"
+      },
+      {
+       "letra": "H",
+       "rotulo": [
+        8,
+        "H",
+        "NOMINACIÓN"
+       ],
+       "campo": "otras"
+      },
+      {
+       "letra": "I",
+       "rotulo": [
+        8,
+        "I",
+        "CRECIM. (%)"
+       ],
+       "campo": "otras_tasa"
+      }
+     ]
+    }
+   ]
+  },
+  "F-105": {
+   "cabecera": [
+    {
+     "celda": "B5",
+     "rotulo": [
+      5,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "anios",
+     "fila_marca": 9,
+     "marca": "-20",
+     "serie_filas": {
+      "columna": "A",
+      "desde": -20,
+      "hasta": 0
+     },
+     "columnas": [
+      {
+       "letra": "B",
+       "rotulo": [
+        8,
+        "B",
+        "AT"
+       ],
+       "campo": "at"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        8,
+        "C",
+        "MT(1)"
+       ],
+       "campo": "mt"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "BT(1)"
+       ],
+       "campo": "bt"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        8,
+        "E",
+        "VENTAS"
+       ],
+       "campo": "total"
+      }
+     ]
+    }
+   ]
+  },
+  "F-106": {
+   "cabecera": [
+    {
+     "celda": "B5",
+     "rotulo": [
+      5,
+      "A",
+      "SISTEMA ELÉCTRICO:"
+     ],
+     "campo": "nombre"
+    },
+    {
+     "celda": "C8",
+     "rotulo": [
+      8,
+      "C",
+      "Modelo 1"
+     ],
+     "campo": "modelo_1"
+    },
+    {
+     "celda": "C42",
+     "rotulo": [
+      42,
+      "A",
+      "ECUACIÓN:"
+     ],
+     "campo": "ecuacion_1"
+    },
+    {
+     "celda": "C44",
+     "rotulo": [
+      44,
+      "A",
+      "COEFICIENTE DE"
+     ],
+     "campo": "r2_1"
+    },
+    {
+     "celda": "C52",
+     "rotulo": [
+      52,
+      "A",
+      "Valor"
+     ],
+     "campo": "f_valor_1"
+    },
+    {
+     "celda": "C53",
+     "rotulo": [
+      53,
+      "A",
+      "Prob."
+     ],
+     "campo": "f_prob_1"
+    },
+    {
+     "celda": "C48",
+     "rotulo": [
+      48,
+      "A",
+      "Valor"
+     ],
+     "campo": "t_valor_1"
+    },
+    {
+     "celda": "C49",
+     "rotulo": [
+      49,
+      "A",
+      "Prob."
+     ],
+     "campo": "t_prob_1"
+    },
+    {
+     "celda": "D8",
+     "rotulo": [
+      8,
+      "D",
+      "Modelo 2"
+     ],
+     "campo": "modelo_2"
+    },
+    {
+     "celda": "D42",
+     "rotulo": [
+      42,
+      "A",
+      "ECUACIÓN:"
+     ],
+     "campo": "ecuacion_2"
+    },
+    {
+     "celda": "D44",
+     "rotulo": [
+      44,
+      "A",
+      "COEFICIENTE DE"
+     ],
+     "campo": "r2_2"
+    },
+    {
+     "celda": "D52",
+     "rotulo": [
+      52,
+      "A",
+      "Valor"
+     ],
+     "campo": "f_valor_2"
+    },
+    {
+     "celda": "D53",
+     "rotulo": [
+      53,
+      "A",
+      "Prob."
+     ],
+     "campo": "f_prob_2"
+    },
+    {
+     "celda": "D48",
+     "rotulo": [
+      48,
+      "A",
+      "Valor"
+     ],
+     "campo": "t_valor_2"
+    },
+    {
+     "celda": "D49",
+     "rotulo": [
+      49,
+      "A",
+      "Prob."
+     ],
+     "campo": "t_prob_2"
+    },
+    {
+     "celda": "E8",
+     "rotulo": [
+      8,
+      "E",
+      "Modelo 3"
+     ],
+     "campo": "modelo_3"
+    },
+    {
+     "celda": "E42",
+     "rotulo": [
+      42,
+      "A",
+      "ECUACIÓN:"
+     ],
+     "campo": "ecuacion_3"
+    },
+    {
+     "celda": "E44",
+     "rotulo": [
+      44,
+      "A",
+      "COEFICIENTE DE"
+     ],
+     "campo": "r2_3"
+    },
+    {
+     "celda": "E52",
+     "rotulo": [
+      52,
+      "A",
+      "Valor"
+     ],
+     "campo": "f_valor_3"
+    },
+    {
+     "celda": "E53",
+     "rotulo": [
+      53,
+      "A",
+      "Prob."
+     ],
+     "campo": "f_prob_3"
+    },
+    {
+     "celda": "E48",
+     "rotulo": [
+      48,
+      "A",
+      "Valor"
+     ],
+     "campo": "t_valor_3"
+    },
+    {
+     "celda": "E49",
+     "rotulo": [
+      49,
+      "A",
+      "Prob."
+     ],
+     "campo": "t_prob_3"
+    },
+    {
+     "celda": "F8",
+     "rotulo": [
+      8,
+      "F",
+      "…"
+     ],
+     "campo": "modelo_4"
+    },
+    {
+     "celda": "F42",
+     "rotulo": [
+      42,
+      "A",
+      "ECUACIÓN:"
+     ],
+     "campo": "ecuacion_4"
+    },
+    {
+     "celda": "F44",
+     "rotulo": [
+      44,
+      "A",
+      "COEFICIENTE DE"
+     ],
+     "campo": "r2_4"
+    },
+    {
+     "celda": "F52",
+     "rotulo": [
+      52,
+      "A",
+      "Valor"
+     ],
+     "campo": "f_valor_4"
+    },
+    {
+     "celda": "F53",
+     "rotulo": [
+      53,
+      "A",
+      "Prob."
+     ],
+     "campo": "f_prob_4"
+    },
+    {
+     "celda": "F48",
+     "rotulo": [
+      48,
+      "A",
+      "Valor"
+     ],
+     "campo": "t_valor_4"
+    },
+    {
+     "celda": "F49",
+     "rotulo": [
+      49,
+      "A",
+      "Prob."
+     ],
+     "campo": "t_prob_4"
+    },
+    {
+     "celda": "G8",
+     "rotulo": [
+      8,
+      "G",
+      "Modelo n"
+     ],
+     "campo": "modelo_5"
+    },
+    {
+     "celda": "G42",
+     "rotulo": [
+      42,
+      "A",
+      "ECUACIÓN:"
+     ],
+     "campo": "ecuacion_5"
+    },
+    {
+     "celda": "G44",
+     "rotulo": [
+      44,
+      "A",
+      "COEFICIENTE DE"
+     ],
+     "campo": "r2_5"
+    },
+    {
+     "celda": "G52",
+     "rotulo": [
+      52,
+      "A",
+      "Valor"
+     ],
+     "campo": "f_valor_5"
+    },
+    {
+     "celda": "G53",
+     "rotulo": [
+      53,
+      "A",
+      "Prob."
+     ],
+     "campo": "f_prob_5"
+    },
+    {
+     "celda": "G48",
+     "rotulo": [
+      48,
+      "A",
+      "Valor"
+     ],
+     "campo": "t_valor_5"
+    },
+    {
+     "celda": "G49",
+     "rotulo": [
+      49,
+      "A",
+      "Prob."
+     ],
+     "campo": "t_prob_5"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "anios",
+     "fila_marca": 9,
+     "marca": "0",
+     "serie_filas": {
+      "columna": "A"
+     },
+     "columnas": [
+      {
+       "letra": "C",
+       "rotulo": [
+        8,
+        "C",
+        "Modelo 1"
+       ],
+       "campo": "modelo_1"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "Modelo 2"
+       ],
+       "campo": "modelo_2"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        8,
+        "E",
+        "Modelo 3"
+       ],
+       "campo": "modelo_3"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        8,
+        "F",
+        "…"
+       ],
+       "campo": "modelo_4"
+      },
+      {
+       "letra": "G",
+       "rotulo": [
+        8,
+        "G",
+        "Modelo n"
+       ],
+       "campo": "modelo_5"
+      }
+     ]
+    }
+   ]
+  },
+  "F-107": {
+   "cabecera": [
+    {
+     "celda": "B5",
+     "rotulo": [
+      5,
+      "A",
+      "ÁREA DE DEMANDA:"
+     ],
+     "campo": "nombre"
+    },
+    {
+     "celda": "C8",
+     "rotulo": [
+      8,
+      "C",
+      "Modelo 1"
+     ],
+     "campo": "modelo_1"
+    },
+    {
+     "celda": "C42",
+     "rotulo": [
+      42,
+      "A",
+      "ECUACIÓN:"
+     ],
+     "campo": "ecuacion_1"
+    },
+    {
+     "celda": "C44",
+     "rotulo": [
+      44,
+      "A",
+      "COEFICIENTE DE"
+     ],
+     "campo": "r2_1"
+    },
+    {
+     "celda": "C48",
+     "rotulo": [
+      48,
+      "A",
+      "Valor"
+     ],
+     "campo": "f_valor_1"
+    },
+    {
+     "celda": "C49",
+     "rotulo": [
+      49,
+      "A",
+      "Prob."
+     ],
+     "campo": "f_prob_1"
+    },
+    {
+     "celda": "C52",
+     "rotulo": [
+      52,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_1_1"
+    },
+    {
+     "celda": "C53",
+     "rotulo": [
+      53,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_1_1"
+    },
+    {
+     "celda": "C54",
+     "rotulo": [
+      54,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_2_1"
+    },
+    {
+     "celda": "C55",
+     "rotulo": [
+      55,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_2_1"
+    },
+    {
+     "celda": "C56",
+     "rotulo": [
+      56,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_3_1"
+    },
+    {
+     "celda": "C57",
+     "rotulo": [
+      57,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_3_1"
+    },
+    {
+     "celda": "C59",
+     "rotulo": [
+      59,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_4_1"
+    },
+    {
+     "celda": "C60",
+     "rotulo": [
+      60,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_4_1"
+    },
+    {
+     "celda": "D8",
+     "rotulo": [
+      8,
+      "D",
+      "Modelo 2"
+     ],
+     "campo": "modelo_2"
+    },
+    {
+     "celda": "D42",
+     "rotulo": [
+      42,
+      "A",
+      "ECUACIÓN:"
+     ],
+     "campo": "ecuacion_2"
+    },
+    {
+     "celda": "D44",
+     "rotulo": [
+      44,
+      "A",
+      "COEFICIENTE DE"
+     ],
+     "campo": "r2_2"
+    },
+    {
+     "celda": "D48",
+     "rotulo": [
+      48,
+      "A",
+      "Valor"
+     ],
+     "campo": "f_valor_2"
+    },
+    {
+     "celda": "D49",
+     "rotulo": [
+      49,
+      "A",
+      "Prob."
+     ],
+     "campo": "f_prob_2"
+    },
+    {
+     "celda": "D52",
+     "rotulo": [
+      52,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_1_2"
+    },
+    {
+     "celda": "D53",
+     "rotulo": [
+      53,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_1_2"
+    },
+    {
+     "celda": "D54",
+     "rotulo": [
+      54,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_2_2"
+    },
+    {
+     "celda": "D55",
+     "rotulo": [
+      55,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_2_2"
+    },
+    {
+     "celda": "D56",
+     "rotulo": [
+      56,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_3_2"
+    },
+    {
+     "celda": "D57",
+     "rotulo": [
+      57,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_3_2"
+    },
+    {
+     "celda": "D59",
+     "rotulo": [
+      59,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_4_2"
+    },
+    {
+     "celda": "D60",
+     "rotulo": [
+      60,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_4_2"
+    },
+    {
+     "celda": "E8",
+     "rotulo": [
+      8,
+      "E",
+      "Modelo 3"
+     ],
+     "campo": "modelo_3"
+    },
+    {
+     "celda": "E42",
+     "rotulo": [
+      42,
+      "A",
+      "ECUACIÓN:"
+     ],
+     "campo": "ecuacion_3"
+    },
+    {
+     "celda": "E44",
+     "rotulo": [
+      44,
+      "A",
+      "COEFICIENTE DE"
+     ],
+     "campo": "r2_3"
+    },
+    {
+     "celda": "E48",
+     "rotulo": [
+      48,
+      "A",
+      "Valor"
+     ],
+     "campo": "f_valor_3"
+    },
+    {
+     "celda": "E49",
+     "rotulo": [
+      49,
+      "A",
+      "Prob."
+     ],
+     "campo": "f_prob_3"
+    },
+    {
+     "celda": "E52",
+     "rotulo": [
+      52,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_1_3"
+    },
+    {
+     "celda": "E53",
+     "rotulo": [
+      53,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_1_3"
+    },
+    {
+     "celda": "E54",
+     "rotulo": [
+      54,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_2_3"
+    },
+    {
+     "celda": "E55",
+     "rotulo": [
+      55,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_2_3"
+    },
+    {
+     "celda": "E56",
+     "rotulo": [
+      56,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_3_3"
+    },
+    {
+     "celda": "E57",
+     "rotulo": [
+      57,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_3_3"
+    },
+    {
+     "celda": "E59",
+     "rotulo": [
+      59,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_4_3"
+    },
+    {
+     "celda": "E60",
+     "rotulo": [
+      60,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_4_3"
+    },
+    {
+     "celda": "F8",
+     "rotulo": [
+      8,
+      "F",
+      "…"
+     ],
+     "campo": "modelo_4"
+    },
+    {
+     "celda": "F42",
+     "rotulo": [
+      42,
+      "A",
+      "ECUACIÓN:"
+     ],
+     "campo": "ecuacion_4"
+    },
+    {
+     "celda": "F44",
+     "rotulo": [
+      44,
+      "A",
+      "COEFICIENTE DE"
+     ],
+     "campo": "r2_4"
+    },
+    {
+     "celda": "F48",
+     "rotulo": [
+      48,
+      "A",
+      "Valor"
+     ],
+     "campo": "f_valor_4"
+    },
+    {
+     "celda": "F49",
+     "rotulo": [
+      49,
+      "A",
+      "Prob."
+     ],
+     "campo": "f_prob_4"
+    },
+    {
+     "celda": "F52",
+     "rotulo": [
+      52,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_1_4"
+    },
+    {
+     "celda": "F53",
+     "rotulo": [
+      53,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_1_4"
+    },
+    {
+     "celda": "F54",
+     "rotulo": [
+      54,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_2_4"
+    },
+    {
+     "celda": "F55",
+     "rotulo": [
+      55,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_2_4"
+    },
+    {
+     "celda": "F56",
+     "rotulo": [
+      56,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_3_4"
+    },
+    {
+     "celda": "F57",
+     "rotulo": [
+      57,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_3_4"
+    },
+    {
+     "celda": "F59",
+     "rotulo": [
+      59,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_4_4"
+    },
+    {
+     "celda": "F60",
+     "rotulo": [
+      60,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_4_4"
+    },
+    {
+     "celda": "G8",
+     "rotulo": [
+      8,
+      "G",
+      "Modelo n"
+     ],
+     "campo": "modelo_5"
+    },
+    {
+     "celda": "G42",
+     "rotulo": [
+      42,
+      "A",
+      "ECUACIÓN:"
+     ],
+     "campo": "ecuacion_5"
+    },
+    {
+     "celda": "G44",
+     "rotulo": [
+      44,
+      "A",
+      "COEFICIENTE DE"
+     ],
+     "campo": "r2_5"
+    },
+    {
+     "celda": "G48",
+     "rotulo": [
+      48,
+      "A",
+      "Valor"
+     ],
+     "campo": "f_valor_5"
+    },
+    {
+     "celda": "G49",
+     "rotulo": [
+      49,
+      "A",
+      "Prob."
+     ],
+     "campo": "f_prob_5"
+    },
+    {
+     "celda": "G52",
+     "rotulo": [
+      52,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_1_5"
+    },
+    {
+     "celda": "G53",
+     "rotulo": [
+      53,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_1_5"
+    },
+    {
+     "celda": "G54",
+     "rotulo": [
+      54,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_2_5"
+    },
+    {
+     "celda": "G55",
+     "rotulo": [
+      55,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_2_5"
+    },
+    {
+     "celda": "G56",
+     "rotulo": [
+      56,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_3_5"
+    },
+    {
+     "celda": "G57",
+     "rotulo": [
+      57,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_3_5"
+    },
+    {
+     "celda": "G59",
+     "rotulo": [
+      59,
+      "B",
+      "Valor"
+     ],
+     "campo": "t_valor_4_5"
+    },
+    {
+     "celda": "G60",
+     "rotulo": [
+      60,
+      "B",
+      "Prob."
+     ],
+     "campo": "t_prob_4_5"
+    },
+    {
+     "celda": "A52",
+     "rotulo": [
+      52,
+      "A",
+      "Variable 1"
+     ],
+     "campo": "variable_1"
+    },
+    {
+     "celda": "A54",
+     "rotulo": [
+      54,
+      "A",
+      "Variable 2"
+     ],
+     "campo": "variable_2"
+    },
+    {
+     "celda": "A56",
+     "rotulo": [
+      56,
+      "A",
+      "Variable 3"
+     ],
+     "campo": "variable_3"
+    },
+    {
+     "celda": "A59",
+     "rotulo": [
+      59,
+      "A",
+      "Variable n"
+     ],
+     "campo": "variable_4"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "anios",
+     "fila_marca": 9,
+     "marca": "0",
+     "serie_filas": {
+      "columna": "A"
+     },
+     "columnas": [
+      {
+       "letra": "C",
+       "rotulo": [
+        8,
+        "C",
+        "Modelo 1"
+       ],
+       "campo": "modelo_1"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "Modelo 2"
+       ],
+       "campo": "modelo_2"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        8,
+        "E",
+        "Modelo 3"
+       ],
+       "campo": "modelo_3"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        8,
+        "F",
+        "…"
+       ],
+       "campo": "modelo_4"
+      },
+      {
+       "letra": "G",
+       "rotulo": [
+        8,
+        "G",
+        "Modelo n"
+       ],
+       "campo": "modelo_5"
+      }
+     ]
+    }
+   ]
+  },
+  "F-119": {
+   "cabecera": [
+    {
+     "celda": "B5",
+     "rotulo": [
+      5,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "anios",
+     "fila_marca": 8,
+     "marca": "0",
+     "serie_filas": {
+      "columna": "A"
+     },
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "AÑO"
+       ],
+       "campo": "anio"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        7,
+        "B",
+        "MAT"
+       ],
+       "campo": "mat_gwh"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        7,
+        "C",
+        "AT"
+       ],
+       "campo": "at_gwh"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        7,
+        "D",
+        "MT"
+       ],
+       "campo": "mt_gwh"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        7,
+        "E",
+        "TOTAL"
+       ],
+       "campo": "total_gwh"
+      }
+     ]
+    }
+   ]
+  },
+  "F-120": {
+   "cabecera": [
+    {
+     "celda": "B5",
+     "rotulo": [
+      5,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "devanados",
+     "fila_marca": 13,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        7,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        7,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "(kV)"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "AJ",
+       "rotulo": [
+        8,
+        "AJ",
+        "TC"
+       ],
+       "campo": "tc_pct"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 8,
+      "desde": "E",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "potencia_mw"
+     }
+    }
+   ]
+  },
+  "F-121": {
+   "cabecera": [
+    {
+     "celda": "B5",
+     "rotulo": [
+      5,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "devanados",
+     "fila_marca": 13,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        7,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        7,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "(kV)"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "AJ",
+       "rotulo": [
+        8,
+        "AJ",
+        "TC"
+       ],
+       "campo": "tc_pct"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 8,
+      "desde": "E",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "potencia_mw"
+     }
+    }
+   ]
+  },
+  "F-122": {
+   "cabecera": [
+    {
+     "celda": "B5",
+     "rotulo": [
+      5,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "devanados",
+     "fila_marca": 13,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        7,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        7,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "(kV)"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "AJ",
+       "rotulo": [
+        8,
+        "AJ",
+        "TC"
+       ],
+       "campo": "tc_pct"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 8,
+      "desde": "E",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "potencia_mw"
+     }
+    }
+   ]
+  },
+  "F-124": {
+   "cabecera": [
+    {
+     "celda": "B4",
+     "rotulo": [
+      4,
+      "A",
+      "ÁREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    },
+    {
+     "celda": "G4",
+     "rotulo": [
+      4,
+      "F",
+      "TIPO DE SISTEMA :"
+     ],
+     "campo": "tipo_sistema"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "grupos",
+     "fila_marca": 9,
+     "marca": "Grupo 1",
+     "columna_marca": "D",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        6,
+        "A",
+        "TITULAR DE"
+       ],
+       "campo": "titular"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        6,
+        "B",
+        "CENTRAL"
+       ],
+       "campo": "central"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        6,
+        "C",
+        "AÑO DE"
+       ],
+       "campo": "anio"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        6,
+        "D",
+        "GRUPOS DE"
+       ],
+       "campo": "grupo"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        6,
+        "E",
+        "CAPACIDAD"
+       ],
+       "campo": "capacidad_mw"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        7,
+        "F",
+        "SUSTENTO DE LA CAPACIDAD"
+       ],
+       "campo": "sustento"
+      }
+     ]
+    }
+   ]
+  },
+  "F-113": {
+   "cabecera": [
+    {
+     "celda": "B4",
+     "rotulo": [
+      4,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "usuarios",
+     "fila_marca": 15,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        8,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        8,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        8,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "NOMBRE"
+       ],
+       "campo": "nombre"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        8,
+        "E",
+        "TENSIÓN"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "F",
+       "rotulo": [
+        8,
+        "F",
+        "Demanda"
+       ],
+       "campo": "maxima_mw"
+      },
+      {
+       "letra": "G",
+       "rotulo": [
+        8,
+        "G",
+        "Coincidente"
+       ],
+       "campo": "coincidente_set_mw"
+      },
+      {
+       "letra": "H",
+       "rotulo": [
+        8,
+        "H",
+        "Coincidente"
+       ],
+       "campo": "coincidente_sein_mw"
+      },
+      {
+       "letra": "I",
+       "rotulo": [
+        8,
+        "I",
+        "Energía"
+       ],
+       "campo": "energia_mwh"
+      },
+      {
+       "letra": "J",
+       "rotulo": [
+        8,
+        "J",
+        "FPHMS"
+       ],
+       "campo": "fphms"
+      },
+      {
+       "letra": "K",
+       "rotulo": [
+        8,
+        "K",
+        "FCP"
+       ],
+       "campo": "fcp"
+      },
+      {
+       "letra": "L",
+       "rotulo": [
+        8,
+        "L",
+        "FS"
+       ],
+       "campo": "fs"
+      }
+     ]
+    }
+   ]
+  },
+  "F-114": {
+   "cabecera": [
+    {
+     "celda": "B4",
+     "rotulo": [
+      4,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "usuarios",
+     "fila_marca": 12,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        6,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        6,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        6,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        7,
+        "D",
+        "kV"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        7,
+        "E",
+        "USUARIO"
+       ],
+       "campo": "nombre"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 7,
+      "desde": "F",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "energia_mwh"
+     }
+    }
+   ]
+  },
+  "F-115": {
+   "cabecera": [
+    {
+     "celda": "B4",
+     "rotulo": [
+      4,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "usuarios",
+     "fila_marca": 12,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        6,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        6,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        6,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        7,
+        "D",
+        "(kV)"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        7,
+        "E",
+        "USUARIO"
+       ],
+       "campo": "nombre"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 7,
+      "desde": "F",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "energia_mwh"
+     }
+    }
+   ]
+  },
+  "F-116": {
+   "cabecera": [
+    {
+     "celda": "B5",
+     "rotulo": [
+      5,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "usuarios",
+     "fila_marca": 13,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        7,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        7,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "(kV)"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        8,
+        "E",
+        "USUARIO"
+       ],
+       "campo": "nombre"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 8,
+      "desde": "F",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "potencia_mw"
+     }
+    }
+   ]
+  },
+  "F-117": {
+   "cabecera": [
+    {
+     "celda": "B5",
+     "rotulo": [
+      5,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "usuarios",
+     "fila_marca": 13,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        7,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        7,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "(kV)"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        8,
+        "E",
+        "USUARIO"
+       ],
+       "campo": "nombre"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 8,
+      "desde": "F",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "potencia_mw"
+     }
+    }
+   ]
+  },
+  "F-118": {
+   "cabecera": [
+    {
+     "celda": "B5",
+     "rotulo": [
+      5,
+      "A",
+      "AREA DE DEMANDA:"
+     ],
+     "campo": "area"
+    }
+   ],
+   "bloques": [
+    {
+     "bloque": "usuarios",
+     "fila_marca": 13,
+     "marca": "ELÉCTRICO 1",
+     "columnas": [
+      {
+       "letra": "A",
+       "rotulo": [
+        7,
+        "A",
+        "SISTEMA"
+       ],
+       "campo": "sistema"
+      },
+      {
+       "letra": "B",
+       "rotulo": [
+        7,
+        "B",
+        "SUBESTACIÓN"
+       ],
+       "campo": "set"
+      },
+      {
+       "letra": "C",
+       "rotulo": [
+        7,
+        "C",
+        "BARRA"
+       ],
+       "campo": "barra"
+      },
+      {
+       "letra": "D",
+       "rotulo": [
+        8,
+        "D",
+        "(kV)"
+       ],
+       "campo": "tension_kv"
+      },
+      {
+       "letra": "E",
+       "rotulo": [
+        8,
+        "E",
+        "USUARIO"
+       ],
+       "campo": "nombre"
+      }
+     ],
+     "serie_columnas": {
+      "fila_rotulo": 8,
+      "desde": "F",
+      "rotulo_cero": "AÑO / 0",
+      "campo": "potencia_mw"
+     }
+    }
+   ]
   }
  },
  "alias": {

@@ -5,17 +5,23 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
 (`tests/test_inventario.py`). Ninguna tarea toca `web/services.py`, `pide_economia.py`, `adaptadores/entrada/vnr/**` ni
 `catalog_resolution.py`. Las órdenes de `npm` y `npx` se ejecutan en `frontend/`.
 
-- [ ] T1. Arnés e2e: `@playwright/test` y `@axe-core/playwright` como dependencias de desarrollo, `playwright.config.ts`
+- [x] T1. Arnés e2e: `@playwright/test` y `@axe-core/playwright` como dependencias de desarrollo, `playwright.config.ts`
       y `e2e/preparar.mjs`, que arranca la web con un espacio sintético sorteado; primera prueba: las pestañas y
       acciones de hoy siguen ahí. (RF-16)
       Hecho cuando: `npx playwright test -c e2e/playwright.config.ts linea_base.spec.ts` (111:RF-16) en verde y
       `npm run build` correcto. Código del arnés hecho (`frontend/e2e/`, aclaración T1 del plan, y
-      `tests/test_e2e_arnes.py`); falta la corrida en navegador.
-- [ ] T2. Medición de la línea base: peso de la página y tiempo hasta el primer dibujo de la vista previa Leaflet de la
+      `tests/test_e2e_arnes.py`).
+      Corrida (2026-11-16, 4d): en Chrome real, claro y oscuro, «2 passed» (semilla 1869780053, 3 alimentadores) y
+      `npm run build` rc=0. Antes, `web_de_prueba.py` arrancaba a nivel de módulo: los hijos «spawn» de la
+      conversión creaban otra sesión (401) y la conversión fallaba; ahora todo va en `main()`, con su prueba
+      permanente en `tests/test_e2e_arnes.py`.
+- [x] T2. Medición de la línea base: peso de la página y tiempo hasta el primer dibujo de la vista previa Leaflet de la
       red unida con todos los alimentadores de una entrega sorteada grande; fija el presupuesto y decide si basta
       Leaflet con lienzo o hace falta deck.gl en la página. (RF-1)
       Hecho cuando: `npx playwright test -c e2e/playwright.config.ts medicion_plano.spec.ts` deja la medición con la semilla y el número de
       alimentadores, y `plan.md` anota la cifra, el presupuesto y la decisión.
+      Medición (2026-11-16, 4d): 40 alimentadores, semilla 20261116: 316 594 bytes y 6,0 a 8,6 s; presupuesto 2 MB y
+      12 s; Leaflet con lienzo basta (plan.md, «Medición de la línea base»).
 - [x] T3. Identidad y revisión de la red en `plano_red.py`: código de la fuente por elemento, cruce con el nombre en
       DIgSILENT por `dgs.nombre_en_pf`. Esa función **no existe en 51895566**: esta tarea la CREA en `dgs.py` como alias
       público de `_loc_name`, igual a él y sin cambiar ningún DGS; ningún módulo importa el nombre privado. Aviso de

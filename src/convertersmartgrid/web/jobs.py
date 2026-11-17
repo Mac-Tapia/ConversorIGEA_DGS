@@ -40,7 +40,8 @@ from typing import Any, Callable
 #: 070:RF-33: «control» solo atiende órdenes de cancelar: con el carril del asistente ocupado la ruta da 409,
 #: y es justo entonces cuando el operador quiere parar lo que corre (un «Recalibrar» de horas).
 #: 110: el envío de correo espera a la red, no al motor ni a DIgSILENT: carril propio, en serie.
-LANES = ('engine', 'powerfactory', 'asistente', 'control', 'correo')
+#: 080:RF-61: la búsqueda de publicaciones oficiales espera a la red: carril propio, para no bloquear la entrada.
+LANES = ('engine', 'powerfactory', 'asistente', 'control', 'correo', 'red')
 
 QUEUED = 'queued'
 RUNNING = 'running'

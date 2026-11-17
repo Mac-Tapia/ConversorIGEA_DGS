@@ -177,6 +177,130 @@ def escribir_resultados_relevantes(registro: RegistroNormativo, contenido: Mappi
                      'del VAD', contenido, destino, empresa, fecha)
 
 
+#: Los documentos del Informe Definitivo (numeral 9.2 del TdR registrado): su lista sale del registro.
+DOCUMENTOS_DEFINITIVO = 'vad.informe_definitivo.documentos'
+
+
+@dataclass(frozen=True)
+class InformeDefinitivo:
+    carpeta: Path
+    #: Por documento del registro, en su orden: ``documento`` (su título), ``ruta`` (o None) y ``motivo`` si falta.
+    documentos: tuple[Mapping[str, Any], ...]
+    huecos: tuple[str, ...]
+    regla: str = ''
+    acto: str = ''
+
+
+def comprobar_respuestas(observaciones: Sequence[Any]) -> None:
+    """Para el Informe Definitivo, cada observación tiene que estar respondida, con su sustento y, por cada tabla,
+    formato o cálculo que afecta, qué cambió en él (o que no cambió, dicho con su motivo). Si no, se rechaza todo."""
+    faltas = []
+    for o in observaciones:
+        if not str(o.respuesta or '').strip():
+            faltas.append(f'{o.numero}: sin respuesta')
+            continue
+        if not str(o.sustento or '').strip():
+            faltas.append(f'{o.numero}: la respuesta no trae su sustento')
+        sin_decir = [d.texto() for d in o.afecta if not str((o.cambios or {}).get(d.texto()) or '').strip()]
+        if sin_decir:
+            faltas.append(f'{o.numero}: no dice qué cambió en {", ".join(sin_decir)}')
+    if faltas:
+        raise VadError('el Informe Definitivo no se arma con respuestas incompletas: ' + '; '.join(faltas))
+
+
+def escribir_informe_respuestas(observaciones: Sequence[Any], destino: Path | str, *, empresa: str,
+                                titulo: str) -> Path:
+    """El informe de las respuestas a las observaciones: por observación, su número, fecha y texto, la respuesta, su
+    sustento y lo que cambió en cada tabla, formato o cálculo que afecta."""
+    from docx import Document
+
+    if not str(empresa or '').strip():
+        raise VadError('el informe necesita la empresa del estudio (del perfil); no se supone ninguna')
+    comprobar_respuestas(observaciones)
+    doc = Document()
+    doc.add_heading(titulo, level=0)
+    doc.add_paragraph(f'{empresa.strip()}. {len(observaciones)} observaciones respondidas.')
+    for o in observaciones:
+        doc.add_heading(f'Observación {o.numero} ({o.fecha})', level=1)
+        doc.add_paragraph(o.texto)
+        doc.add_paragraph(f'Respuesta: {o.respuesta}')
+        doc.add_paragraph(f'Sustento: {o.sustento}')
+        tabla = doc.add_table(rows=1, cols=2)
+        tabla.rows[0].cells[0].text, tabla.rows[0].cells[1].text = 'Tabla, formato o cálculo', 'Qué cambió'
+        for d in o.afecta:
+            fila = tabla.add_row().cells
+            fila[0].text, fila[1].text = d.texto(), o.cambios[d.texto()]
+    destino = Path(destino)
+    _guardar(doc, destino)
+    return destino
+
+
+def _clase_de_documento(titulo: str) -> str | None:
+    t = ' '.join(titulo.lower().split())
+    for clase, marca in (('respuestas', 'respuestas'), ('resultados', 'resultados relevantes'),
+                         ('estudio', 'estudio de costos'), ('tablas', 'excel')):
+        if marca in t:
+            return clase
+    return None
+
+
+def armar_informe_definitivo(registro: RegistroNormativo, espacio: Path | str, id_estudio: str, carpeta: Path | str, *,
+                             empresa: str, resultados: Mapping[str, Sequence[Bloque]],
+                             estudio: Mapping[str, Sequence[Bloque]], tablas_excel: Path | str | None = None,
+                             exportar_pdf: ExportarPdf | None = None, fecha: str | None = None) -> InformeDefinitivo:
+    """El Informe Definitivo (numeral 9.2): cada documento que lista el registro, en su orden, con las respuestas a las
+    observaciones registradas del estudio (``vad/observaciones``). Un documento que el registro pide y el conversor
+    no sabe armar, o cuya fuente falta, queda nombrado como hueco; nunca se omite en silencio."""
+    import shutil
+
+    from .observaciones import cargar_observaciones
+
+    rv = _regla(registro, DOCUMENTOS_DEFINITIVO, fecha)
+    lista = rv.regla.valor
+    if not isinstance(lista, list) or not lista or not all(isinstance(x, str) and x.strip() for x in lista):
+        raise VadError(f'{DOCUMENTOS_DEFINITIVO} tiene que ser la lista de los títulos de sus documentos')
+    observaciones = cargar_observaciones(espacio, id_estudio)
+    comprobar_respuestas(observaciones)
+    carpeta = Path(carpeta)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    documentos: list[dict[str, Any]] = []
+    huecos: list[str] = []
+    for i, titulo in enumerate(lista, start=1):
+        base = carpeta / f'{i:02d}_{"_".join("".join(c if c.isalnum() else " " for c in titulo).split())}'
+        clase = _clase_de_documento(titulo)
+        doc: dict[str, Any] = {'documento': titulo, 'ruta': None, 'motivo': ''}
+        if clase == 'resultados':
+            r = escribir_resultados_relevantes(registro, resultados, base.with_suffix('.docx'), empresa=empresa,
+                                               fecha=fecha)
+            doc['ruta'], doc['huecos'] = str(r.docx), list(r.huecos)
+            huecos += [f'{titulo}: {h}' for h in r.huecos]
+        elif clase == 'estudio':
+            r = escribir_informe_estudio(registro, estudio, base.with_suffix('.docx'), empresa=empresa,
+                                         exportar_pdf=exportar_pdf, fecha=fecha)
+            doc['ruta'], doc['huecos'] = str(r.docx), list(r.huecos)
+            doc['pdf'], doc['motivo_pdf'] = (str(r.pdf) if r.pdf else None), r.motivo_pdf
+            huecos += [f'{titulo}: {h}' for h in r.huecos]
+        elif clase == 'respuestas':
+            if not observaciones:
+                doc['motivo'] = 'el estudio no tiene observaciones registradas del regulador'
+            else:
+                doc['ruta'] = str(escribir_informe_respuestas(observaciones, base.with_suffix('.docx'),
+                                                              empresa=empresa, titulo=titulo))
+        elif clase == 'tablas':
+            if tablas_excel is None or not Path(tablas_excel).is_file():
+                doc['motivo'] = 'sin el libro de las tablas de resultados del estudio'
+            else:
+                destino = base.with_suffix(Path(tablas_excel).suffix or '.xlsx')
+                shutil.copy2(tablas_excel, destino)
+                doc['ruta'] = str(destino)
+        else:
+            doc['motivo'] = 'el registro pide este documento y el conversor no sabe armarlo'
+        if doc['motivo']:
+            huecos.append(f'{titulo}: {doc["motivo"]}')
+        documentos.append(doc)
+    return InformeDefinitivo(carpeta, tuple(documentos), tuple(huecos), rv.regla.clave, rv.norma.acto)
+
+
 def escribir_informe_estudio(registro: RegistroNormativo, contenido: Mapping[str, Sequence[Bloque]],
                              destino: Path | str, *, empresa: str, exportar_pdf: ExportarPdf | None = None,
                              fecha: str | None = None) -> InformeVad:

@@ -52,6 +52,8 @@ def _fondo() -> tuple[str, str]:
     return '', 'Sin mapa base: la salida de teselas está apagada. La red se dibuja igual.'
 
 
+# 111:RF-14: la página va aislada y su política no deja cargar images/layers.png de leaflet.css; el botón del control
+# de capas plegado salía invisible, así que su icono va en la página como data: (prueba: test_pagina_plano).
 def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | None = None,
            titulo: str = 'Plano de la red') -> str:
     """El HTML del plano de esas vistas (``plano_red.vista``) y, si se dan, las capas de un resultado pintable."""
@@ -76,6 +78,9 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
 {recurso_leaflet('leaflet.js')}
   </script>
   <style>
+    /* Icono del control de capas en línea: la política de la página no deja cargar images/layers.png. */
+    .leaflet-control-layers-toggle {{ background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cg fill='none' stroke='%230f172a' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M13 4 23 9 13 14 3 9Z' fill='%23e2e8f0'/%3E%3Cpath d='M3 13l10 5 10-5'/%3E%3Cpath d='M3 17l10 5 10-5'/%3E%3C/g%3E%3C/svg%3E"); background-size: 26px 26px; }}
+    .leaflet-retina .leaflet-control-layers-toggle {{ background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cg fill='none' stroke='%230f172a' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M13 4 23 9 13 14 3 9Z' fill='%23e2e8f0'/%3E%3Cpath d='M3 13l10 5 10-5'/%3E%3Cpath d='M3 17l10 5 10-5'/%3E%3C/g%3E%3C/svg%3E"); }}
     :root {{ --plano-fondo: #f8fafc; --plano-texto: #0f172a; --plano-panel: rgba(255,255,255,.94);
       --plano-tramo: #1d4ed8; --plano-barra: #0f766e; --plano-sed: #7c3aed; --plano-abierto: #b91c1c;
       --plano-cerrado: #15803d; --plano-resalte: #f59e0b; --plano-normal: #15803d; --plano-alerta: #b91c1c;

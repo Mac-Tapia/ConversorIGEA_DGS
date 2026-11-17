@@ -144,8 +144,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       en verde.
 - [ ] T28. Vínculo del proyecto con los ficheros de su expediente por su contenido, con la evidencia de cada vínculo,
       reutilizando `pide_dataset.py` y el lector común de libros; sus RF entran con la tarea (texto acordado en
-      `plan.md`).
+      `plan.md`). (RF-109, RF-110)
       Hecho cuando: las pruebas sintéticas de vínculos están en verde.
+      Código (2026-11-16, f7): `src/convertersmartgrid/pfd_vinculos.py` y `tests/test_pfd_vinculos.py`.
 - [ ] T29. La web: subir el `.pfd`, el trabajo en el carril `powerfactory` y el informe del diagnóstico; sus RF entran
       con la tarea (texto acordado en `plan.md`).
       Hecho cuando: `pytest -q tests/test_web_api.py`, `npx tsc --noEmit -p .` y `npm run build` en verde.

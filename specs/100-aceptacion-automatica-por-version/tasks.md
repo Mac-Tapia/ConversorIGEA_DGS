@@ -6,5 +6,6 @@
       Hecho cuando: `pytest -q tests/test_aceptacion_version.py -k recorrido` en verde.
 - [ ] T3. Veredicto de la versión y paso de los fallos a comprobación permanente. (RF-6, RF-7)
       Hecho cuando: `pytest -q tests/test_aceptacion_version.py -k veredicto` en verde.
+      Código de T1 a T3 (2026-11-16, f7): `config/aceptacion/matriz.json`, `tools/aceptacion_version.py` y `tests/test_aceptacion_version.py`; los fallos dejan su borrador en `docs/regresiones/pendientes/`.
 - [ ] T4. [DIgSILENT] Primera corrida completa de la matriz sobre una versión candidata, en proyectos de prueba. (Todos)
       Hecho cuando: el informe de la versión da todos los casos aceptados.

@@ -304,10 +304,11 @@ def test_config_sin_datos_de_una_empresa():
     # 086:RF-39 (L5): las vulnerabilidades aceptadas por escrito son de las librerías del lock, no de una empresa.
     # 107:RF-9 (T19b): el mapeo campo → celda es de los formatos de la Norma Tarifas, igual para toda empresa.
     # FIX-NOMBRES-HUELLAS: los sitios de los casos y los códigos VNR van por su huella, como los términos.
+    # 100:RF-1: la matriz de aceptación solo nombra variables ${CSG_...}; sus valores van fuera de git.
     genericos = {'config/vnr_dgs_profile.json', 'config/pide_universal_2017.json', 'config/entrega.json',
                  'config/terminos_huellas.json', 'config/vulnerabilidades_justificadas.json',
                  'config/pit_mapeo_formatos.json', 'config/casos_de_prueba/sitios.json',
-                 'config/vnr/codigos_empresa_vnr.json'}
+                 'config/vnr/codigos_empresa_vnr.json', 'config/aceptacion/matriz.json'}
     malos = [f for f in salida if '.example.' not in f and f not in genericos
              and not (f.startswith('config/perfiles/') and f.endswith('.json'))
              # 020:RF-63: las fichas NTP 370.400 son del conversor (norma técnica nacional), no de una empresa.

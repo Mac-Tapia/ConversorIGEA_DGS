@@ -469,3 +469,302 @@ def test_f101_un_bloque_por_sistema_con_el_fc_en_su_total(monkeypatch):
     assert 'F-101!F8' not in c and 'F-101!G8' not in c, 'el total lleva solo el FC'
     assert c['F-101!A12'] == 'SISTEMA ELÉCTRICO 2' and c['F-101!A19'] == 'SISTEMA ELÉCTRICO 3'
     assert c['F-101!A26'] == 'SISTEMA ELÉCTRICO 4' and llenos['grupos_a_insertar'] == {'sistemas': 1}
+
+
+# --- 107 T29 (paso 3c): la cadena regulatoria F-108 a F-112 -------------------------------------------------------
+# Ventas, factores y redes sintéticos; las pérdidas son las del registro real, de la primera empresa que tenga
+# fijación vigente (sin nombrarla aquí), y la otra empresa no está en ninguna fijación.
+FECHA_FIJACION = '2026-11-16'
+SIN_FIJACION = 'Empresa sintética sin fijación'
+HORIZONTE = 30
+
+
+def _cadena():
+    """El módulo de la 3c: su ausencia es la falla de la aserción, no un error de importación."""
+    import importlib
+    import importlib.util
+    assert importlib.util.find_spec('convertersmartgrid.pit.demanda_cadena') is not None, \
+        'falta convertersmartgrid.pit.demanda_cadena (107 T29, paso 3c)'
+    return importlib.import_module('convertersmartgrid.pit.demanda_cadena')
+
+
+def _registro_real_y_empresa():
+    registro = cargar_registro(NORMATIVA)
+    for empresa in registro.empresas_de('vad.perdidas.factores_expansion'):
+        try:
+            rv = registro.regla_de_empresa('vad.perdidas.factores_expansion', empresa, FECHA_FIJACION)
+        except RegistroError:
+            continue
+        return registro, empresa, rv.regla.valor['empresas'][empresa]
+    raise AssertionError('el registro real no trae ninguna fijación vigente de pérdidas')
+
+
+def _salida_3b(fc=0.5, fcp=0.8, fs=0.6, fpmwhs=(0.75, 0.25)):
+    return {'anio': ANIO,
+            'f102': {'filas': [{'sistema': 'SIS-1', 'set': 'SET-A', 'devanado': 'TA:lv'},
+                               {'sistema': 'SIS-1', 'set': 'SET-B', 'devanado': 'TB:lv'}]},
+            'f101': {'filas': [{'nivel': 'devanado', 'nombre': d, 'fc': fc, 'fcp': fcp, 'fs': fs}
+                               for d in ('TA:lv', 'TB:lv')]},
+            'f103': {'filas': [{'devanado': 'TA:lv', 'fpmwhs': fpmwhs[0]}, {'devanado': 'TB:lv', 'fpmwhs': fpmwhs[1]}]}}
+
+
+def _red_cadena():
+    red = _red([('BA', 'SET-A'), ('BB', 'SET-B')], trafo2=[{'id': 'TA', 'set': 'SET-A', 'hv': 'HA', 'lv': 'BA'},
+                                                          {'id': 'TB', 'set': 'SET-B', 'hv': 'HB', 'lv': 'BB'}])
+    for b in red.de_tipo('barra'):
+        b['kv'] = 10.0
+    return red
+
+
+VENTAS = {'SIS-1': {'at': [100.0] * (HORIZONTE + 1), 'mt': [1000.0] * (HORIZONTE + 1),
+                    'bt': [2000.0 + 10 * i for i in range(HORIZONTE + 1)]}}
+FUENTE_VENTAS = {'nombre': 'ventas sintéticas', 'huella': 'h' * 16}
+
+
+def test_cadena_empresa_de_la_fijacion_con_el_fe_en_cascada_y_no_con_1_mas_p():
+    """107:RF-9 (aclaración, T29 3c) — la energía por barra sube cada nivel con los FE de energía de la fijación
+    vigente de la empresa (MT · PEMT; BT · PEBT · PESED · PEMT; AT sin pérdidas), se reparte con el FPMWHS, y F-110 a
+    F-112 aplican el art. 8.1 con el FC y, según el formato, el FCP o el FS. Con 1+p el resultado sería otro."""
+    mod = _cadena()
+    registro, empresa, tabla = _registro_real_y_empresa()
+    fe, p = tabla['fe'], {k: v / 100 for k, v in tabla['porcentaje'].items()}
+    salida = mod.cadena_regulatoria(registro, empresa, _salida_3b(), _red_cadena(), VENTAS, fecha=FECHA_FIJACION)
+    e0 = 100.0 + 1000.0 * fe['PEMT'] + 2000.0 * fe['PEBT'] * fe['PESED'] * fe['PEMT']
+    con_1p = 100.0 + 1000.0 * (1 + p['PEMT']) + 2000.0 * (1 + p['PEBT']) * (1 + p['PESED']) * (1 + p['PEMT'])
+    assert abs(e0 - con_1p) > 1e-3, 'el caso tiene que distinguir el FE de 1+p'
+    fila = _fila(salida['filas']['F-109'], 'devanado', 'TA:lv')
+    assert fila['energia_mwh'][0] == pytest.approx(0.75 * e0) and fila['energia_mwh'][0] != pytest.approx(0.75 * con_1p)
+    assert fila['barra'] == 'BA' and fila['tension_kv'] == 10.0 and len(fila['energia_mwh']) == HORIZONTE + 1
+    pnc = _fila(salida['filas']['F-110'], 'devanado', 'TA:lv')['potencia_mw'][0]
+    assert pnc == pytest.approx(0.75 * e0 / (8760 * 0.5), rel=1e-6)
+    assert _fila(salida['filas']['F-111'], 'devanado', 'TA:lv')['potencia_mw'][0] == pytest.approx(pnc * 0.8, rel=1e-6)
+    assert _fila(salida['filas']['F-112'], 'devanado', 'TA:lv')['potencia_mw'][0] == pytest.approx(pnc * 0.6, rel=1e-6)
+    assert salida['perdidas']['regla'] == 'vad.perdidas.factores_expansion' and salida['perdidas']['huella']
+    assert salida['f108']['SIS-1'][3]['total_mwh'] == 100.0 + 1000.0 + 2030.0
+
+
+def test_cadena_empresa_sin_fijacion_vigente_queda_no_transcrita_sin_valores_de_otra():
+    """107:RF-9 (aclaración, T29 3c) — sin fijación vigente de la empresa, sus pérdidas quedan «no transcritas»:
+    F-108 (sin pérdidas) se llena y F-109 a F-112 salen vacíos con ese motivo; nunca con los FE de otra empresa."""
+    mod = _cadena()
+    registro, _empresa, _tabla = _registro_real_y_empresa()
+    salida = mod.cadena_regulatoria(registro, SIN_FIJACION, _salida_3b(), _red_cadena(), VENTAS, fecha=FECHA_FIJACION)
+    assert 'no transcritas' in salida['perdidas']['motivo']
+    assert salida['f108']['SIS-1'][0]['total_mwh'] == 3100.0
+    for codigo, campo in (('F-109', 'energia_mwh'), ('F-110', 'potencia_mw'), ('F-111', 'potencia_mw'),
+                          ('F-112', 'potencia_mw')):
+        for fila in salida['filas'][codigo]:
+            assert all(v is None for v in fila[campo]), f'{codigo} tomó valores sin fijación de la empresa'
+            assert 'no transcritas' in fila['_motivos'][campo]
+    celdas = mod.celdas_cadena(registro, salida, FUENTE_VENTAS, FECHA_FIJACION)
+    vacia = next(c for c in celdas['F-109']['celdas'] if c['celda'] == 'F-109!E14')
+    assert vacia['valor'] is None and 'no transcritas' in vacia['traza']['motivo']
+
+
+def test_cadena_medicion_centralizada_que_no_se_separa_lleva_la_marca_aproximado():
+    """107:RF-9 (aclaración, T29 3c) — una SET cuya medición centralizada no separa sus devanados lleva la marca
+    «aproximado» con su motivo en cada fila y en cada celda; la otra SET no la lleva."""
+    mod = _cadena()
+    registro, empresa, _tabla = _registro_real_y_empresa()
+    salida = mod.cadena_regulatoria(registro, empresa, _salida_3b(), _red_cadena(), VENTAS, fecha=FECHA_FIJACION,
+                                    centralizadas={'SET-A': 'medición centralizada de la SET sin separar devanados'})
+    for codigo in ('F-109', 'F-110', 'F-111', 'F-112'):
+        assert _fila(salida['filas'][codigo], 'devanado', 'TA:lv').get('aproximado', '').startswith('aproximado')
+        assert 'aproximado' not in _fila(salida['filas'][codigo], 'devanado', 'TB:lv')
+    celdas = mod.celdas_cadena(registro, salida, FUENTE_VENTAS, FECHA_FIJACION)
+    por_celda = {c['celda']: c for c in celdas['F-112']['celdas']}
+    assert por_celda['F-112!E13']['traza']['marca'] == 'aproximado'
+    assert 'marca' not in por_celda['F-112!E14']['traza'] and por_celda['F-112!E14']['valor'] is not None
+
+
+def test_cadena_aviso_compara_la_regulatoria_con_la_de_diagnostico_por_set_y_anio_sin_corregir():
+    """107:RF-9 (aclaración, T29 3c) — el aviso compara por SET y año la F-112 con la potencia de diagnóstico, con la
+    diferencia en %; ninguna de las dos se corrige."""
+    mod = _cadena()
+    registro, empresa, _tabla = _registro_real_y_empresa()
+    sin = mod.cadena_regulatoria(registro, empresa, _salida_3b(), _red_cadena(), VENTAS, fecha=FECHA_FIJACION)
+    reg = _fila(sin['filas']['F-112'], 'devanado', 'TA:lv')['potencia_mw']
+    con = mod.cadena_regulatoria(registro, empresa, _salida_3b(), _red_cadena(), VENTAS, fecha=FECHA_FIJACION,
+                                 diagnostico_mw={'SET-A': [reg[0] / 1.1] * (HORIZONTE + 1)})
+    assert _fila(con['filas']['F-112'], 'devanado', 'TA:lv')['potencia_mw'] == reg
+    del_anio_0 = [a for a in con['avisos'] if a.startswith('SET SET-A, año 0:')]
+    assert len(del_anio_0) == 1 and '+10.0 %' in del_anio_0[0]
+    assert len([a for a in con['avisos'] if a.startswith('SET SET-A,')]) == HORIZONTE + 1
+    assert not [a for a in con['avisos'] if a.startswith('SET SET-B,')]
+
+
+def test_cadena_f108_ocupa_las_filas_de_sus_anios_sin_insertar_y_f109_a_f112_con_la_plantilla_oficial():
+    """107:RF-9 (T29 3c) — F-108 lleva un año por fila en las 31 filas de la plantilla, sin filas que insertar, y
+    F-109 a F-112 una columna por año desde «AÑO / 0», con el rótulo de cada columna comprobado en la plantilla."""
+    mod = _cadena()
+    registro, empresa, _tabla = _registro_real_y_empresa()
+    salida = mod.cadena_regulatoria(registro, empresa, _salida_3b(), _red_cadena(), VENTAS, fecha=FECHA_FIJACION)
+    celdas = mod.celdas_cadena(registro, salida, FUENTE_VENTAS, FECHA_FIJACION)
+    f108 = celdas['F-108']['SIS-1']
+    assert f108['filas_a_insertar'] == {} and not f108['huecos']
+    c108 = {c['celda']: c['valor'] for c in f108['celdas']}
+    assert c108['F-108!B6'] == 'SIS-1' and c108['F-108!F10'] == 3100.0 and c108['F-108!E40'] == 2300.0
+    for codigo, fila_dato in (('F-109', 14), ('F-110', 13), ('F-111', 13), ('F-112', 13)):
+        c = {x['celda']: x for x in celdas[codigo]['celdas']}
+        assert c[f'{codigo}!B{fila_dato}']['valor'] == 'SET-A' and c[f'{codigo}!AI{fila_dato}']['traza']['anio'] == 30
+        assert not celdas[codigo]['huecos'] and celdas[codigo]['filas_a_insertar'] == {}
+
+
+# --- 107 T30 (paso 3d): historia, modelos comparados y resúmenes ------------------------------------------------------
+def _resumen():
+    """El módulo de la 3d: su ausencia es la falla de la aserción, no un error de importación."""
+    import importlib
+    import importlib.util
+    assert importlib.util.find_spec('convertersmartgrid.pit.demanda_resumen') is not None, \
+        'falta convertersmartgrid.pit.demanda_resumen (107 T30, paso 3d)'
+    return importlib.import_module('convertersmartgrid.pit.demanda_resumen')
+
+
+def _cadena_hecha():
+    registro, empresa, _tabla = _registro_real_y_empresa()
+    return registro, _cadena().cadena_regulatoria(registro, empresa, _salida_3b(), _red_cadena(), VENTAS,
+                                                  fecha=FECHA_FIJACION)
+
+
+def _libres(potencia=2.0, energia=500.0):
+    """Un usuario libre sintético en una barra de 60 kV (AT) y otro en la barra MT de SET-A."""
+    at = {'sistema': 'SIS-1', 'set': 'SET-L', 'barra': 'BL', 'tension_kv': 60.0}
+    mt = {'sistema': 'SIS-1', 'set': 'SET-A', 'barra': 'BA', 'tension_kv': 10.0}
+    serie_p = [potencia] * (HORIZONTE + 1)
+    return {'F-115': [{**at, 'energia_mwh': [energia] * (HORIZONTE + 1)}, {**mt, 'energia_mwh': [energia] * (HORIZONTE + 1)}],
+            **{c: [{**at, 'potencia_mw': serie_p}, {**mt, 'potencia_mw': serie_p}] for c in ('F-116', 'F-117', 'F-118')}}
+
+
+def test_resumen_f119_suma_regulados_y_libres_por_nivel_en_gwh():
+    """107:RF-9 (aclaración, T30 3d) — F-119 suma por nivel (MAT, AT y MT, por la tensión de cada barra según el num.
+    12.1.1) la energía de F-109 (regulados) y la de F-115 (libres), en GWh, con el total del año."""
+    mod = _resumen()
+    registro, cadena = _cadena_hecha()
+    resumen = mod.resumen_demanda(registro, cadena, _libres(), FECHA_FIJACION)
+    regulada = sum(f['energia_mwh'][0] for f in cadena['filas']['F-109'])
+    anio0 = resumen['f119'][0]
+    assert anio0['mt_gwh'] == pytest.approx((regulada + 500.0) / 1000) and anio0['at_gwh'] == pytest.approx(0.5)
+    assert anio0['mat_gwh'] == 0.0 and anio0['total_gwh'] == pytest.approx((regulada + 1000.0) / 1000)
+    celdas = {c['celda']: c['valor'] for c in mod.celdas_resumen(registro, resumen, 'AREA-S', FUENTE_VENTAS,
+                                                                  FECHA_FIJACION)['F-119']['celdas']}
+    assert celdas['F-119!B5'] == 'AREA-S' and celdas['F-119!A8'] == 0 and celdas['F-119!D8'] == pytest.approx(anio0['mt_gwh'])
+    assert celdas['F-119!A38'] == 30
+
+
+def test_resumen_f120_a_f122_suman_por_barra_regulados_y_libres_con_su_tc():
+    """107:RF-9 (aclaración, T30 3d) — F-120, F-121 y F-122 suman por barra F-110/F-116, F-111/F-117 y F-112/F-118; la
+    barra solo de libres entra con su valor, y la TC es la tasa promedio entre el año 0 y el último."""
+    mod = _resumen()
+    registro, cadena = _cadena_hecha()
+    resumen = mod.resumen_demanda(registro, cadena, _libres(), FECHA_FIJACION)
+    for resumen_codigo, regulado in (('F-120', 'F-110'), ('F-121', 'F-111'), ('F-122', 'F-112')):
+        reg = _fila(cadena['filas'][regulado], 'devanado', 'TA:lv')['potencia_mw']
+        fila = _fila(resumen['filas'][resumen_codigo], 'barra', 'BA')
+        assert fila['potencia_mw'][0] == pytest.approx(reg[0] + 2.0) and fila['potencia_mw'][30] == pytest.approx(reg[30] + 2.0)
+        assert fila['tc_pct'] == pytest.approx(((reg[30] + 2.0) / (reg[0] + 2.0)) ** (1 / 30) * 100 - 100)
+        assert _fila(resumen['filas'][resumen_codigo], 'barra', 'BL')['potencia_mw'][0] == 2.0
+    hecho = mod.celdas_resumen(registro, resumen, 'AREA-S', FUENTE_VENTAS, FECHA_FIJACION)['F-122']
+    c = {x['celda']: x['valor'] for x in hecho['celdas']}
+    assert c['F-122!C13'] == 'BA' and isinstance(c['F-122!AJ13'], float)
+    assert any(h['bloque'] == 'totales' for h in hecho['huecos']), 'las filas de totales se nombran como hueco'
+
+
+def test_resumen_sin_proyeccion_de_libres_no_suma_y_lo_dice_salvo_area_sin_libres():
+    """107:RF-9 (aclaración, T30 3d) — sin la proyección de los usuarios libres, los resúmenes no se suman y cada
+    celda dice la causa; si el perfil declara que el área no tiene usuarios libres, van solo los regulados."""
+    mod = _resumen()
+    registro, cadena = _cadena_hecha()
+    sin = mod.resumen_demanda(registro, cadena, None, FECHA_FIJACION)
+    assert all(v is None for f in sin['filas']['F-121'] for v in f['potencia_mw'])
+    assert 'usuarios libres' in sin['motivo'] and sin['f119'][0]['total_gwh'] is None
+    celda = next(c for c in mod.celdas_resumen(registro, sin, 'AREA-S', FUENTE_VENTAS, FECHA_FIJACION)['F-119']['celdas']
+                 if c['celda'] == 'F-119!B8')
+    assert celda['valor'] is None and 'usuarios libres' in celda['traza']['motivo']
+    solo = mod.resumen_demanda(registro, cadena, {'sin_usuarios_libres': 'el área no tiene usuarios libres'},
+                               FECHA_FIJACION)
+    reg = _fila(cadena['filas']['F-110'], 'devanado', 'TA:lv')['potencia_mw']
+    assert _fila(solo['filas']['F-120'], 'barra', 'BA')['potencia_mw'] == reg
+
+
+def test_resumen_historia_f104_y_f105_del_menos_20_al_0_con_sus_tasas_y_desde_las_exogenas_de_la_031():
+    """107:RF-9 (aclaración, T30 3d) — F-104 y F-105 llevan los años −20 a 0 de la plantilla (el 0 es el
+    representativo), la tasa de crecimiento de cada variable y el total de ventas; F-104 sale del registro de exógenas
+    de la 031 con lo publicado hasta el corte, el PBI en millones de soles y los clientes como hueco con su causa."""
+    from datetime import date
+
+    from convertersmartgrid.proyeccion_anual import CifraExogena, RegistroExogenas
+    mod = _resumen()
+    registro = cargar_registro(NORMATIVA)
+    cifras = tuple(CifraExogena(v, 'Región sintética', a, valor, 'nivel', u, 'fuente sintética', date(a + 1, 3, 1), 'x')
+                   for a in range(2000, 2023)
+                   for v, valor, u in (('pbi', 1e9 * (1.03 ** (a - 2000)), 'soles de 2007'),
+                                       ('poblacion', 1e6 + 1000 * (a - 2000), 'habitantes')))
+    exo = RegistroExogenas('exógenas sintéticas', 'e' * 64, cifras)
+    historia = mod.historia_desde_exogenas(exo, 'Región sintética', 2022, '2024-12-31')
+    historia.update(area='AREA-S', ventas={a: {'at': 10.0, 'mt': 20.0 + a - 2002, 'bt': 30.0} for a in range(2002, 2023)})
+    hecho = mod.celdas_historia(registro, historia, FUENTE_VENTAS)
+    c104 = {c['celda']: c for c in hecho['F-104']['celdas']}
+    assert c104['F-104!B29']['valor'] == pytest.approx(1e3 * 1.03 ** 22) and c104['F-104!C29']['valor'] == pytest.approx(3.0)
+    assert c104['F-104!F9']['valor'] == 1e6 + 2000 and c104['F-104!D29']['valor'] is None
+    assert 'clientes' in c104['F-104!D29']['traza']['motivo']
+    c105 = {c['celda']: c['valor'] for c in hecho['F-105']['celdas']}
+    assert c105['F-105!E29'] == 10.0 + 40.0 + 30.0 and c105['F-105!C9'] == 20.0 and c105['F-105!B5'] == 'AREA-S'
+    assert hecho['F-105']['filas_a_insertar'] == {} and not hecho['F-105']['huecos']
+
+
+def test_resumen_modelos_comparados_f106_y_f107_con_su_ecuacion_y_sus_estadisticos():
+    """107:RF-9 (aclaración, T30 3d) — F-106 (tendencias, por sistema) y F-107 (econométrico, del área) llevan la
+    proyección de cada modelo comparado por año, su nombre en la cabecera de su columna, la ecuación, el r², el F y el
+    t (en F-107, el de cada variable) tal como los dio la proyección; un modelo de más se nombra como hueco."""
+    mod = _resumen()
+    registro = cargar_registro(NORMATIVA)
+    modelo = {'nombre': 'lineal', 'proyeccion': [100.0 + i for i in range(HORIZONTE + 1)], 'ecuacion': 'V = a + b·t',
+              'r2': 0.95, 'f': 120.0, 'f_prob': 0.001, 't': {'valor': 8.1, 'prob': 0.002}}
+    f106 = {c['celda']: c['valor'] for c in mod.celdas_modelos(registro, 'F-106', 'SIS-1', [modelo], FUENTE_VENTAS)['celdas']}
+    assert f106['F-106!B5'] == 'SIS-1' and f106['F-106!C8'] == 'lineal' and f106['F-106!C39'] == 130.0
+    assert f106['F-106!C42'] == 'V = a + b·t' and f106['F-106!C44'] == 0.95 and f106['F-106!C48'] == 8.1
+    assert f106['F-106!C52'] == 120.0 and f106['F-106!C53'] == 0.001
+    eco = {**modelo, 'nombre': 'elasticidad', 't': {'pbi': (5.0, 0.01), 'poblacion': (3.0, 0.02)}}
+    hecho = mod.celdas_modelos(registro, 'F-107', 'AREA-S', [eco] * 6, FUENTE_VENTAS)
+    f107 = {c['celda']: c['valor'] for c in hecho['celdas']}
+    assert f107['F-107!A52'] == 'pbi' and f107['F-107!C52'] == 5.0 and f107['F-107!C53'] == 0.01
+    assert f107['F-107!A54'] == 'poblacion' and f107['F-107!G54'] == 3.0 and f107['F-107!C48'] == 120.0
+    assert any('6 modelos' in h['causa'] for h in hecho['huecos'])
+
+
+def test_resumen_llenado_ningun_formato_de_demanda_pendiente_sin_causa_nombrada():
+    """107:RF-9 (aclaración, T30 3d) — `llenado.pendientes_de_mapeo` no lista ningún formato de demanda (F-101 a
+    F-124) sin su causa nombrada, y con sus fuentes los de la 3b, la 3c y la 3d salen llenados."""
+    from convertersmartgrid.pit import llenado
+    registro, cadena = _cadena_hecha()
+    sin_fuentes = llenado.llenar_formatos(registro, {})
+    demanda = [c for c in sin_fuentes['pendientes_de_mapeo'] if c.startswith('F-1')]
+    # PIT-F113-118, PIT-F123 y PIT-F124 (orden de c2: nada queda con una causa): ningún formato de demanda pendiente.
+    assert demanda == [], f'formatos de demanda sin mapeo: {demanda}'
+    salida_3b = {'f102': {'filas': []}, 'f101': {'filas': []}, 'f103': {'filas': []}}
+    fuentes = {'demanda_3b': {'fuente': FUENTE_VENTAS, 'salida': salida_3b, 'red': _red_cadena()},
+               'cadena': {'fuente': FUENTE_VENTAS, 'cadena': cadena},
+               'historia': {'fuente': FUENTE_VENTAS, 'historia': None},
+               'tendencias': {'fuente': FUENTE_VENTAS, 'sistemas': {}},
+               'econometrico': {'fuente': FUENTE_VENTAS, 'area': 'AREA-S', 'modelos': []},
+               'resumen': {'fuente': FUENTE_VENTAS, 'cadena': cadena, 'libres': None, 'area': 'AREA-S'}}
+    con = {f['codigo']: f for f in llenado.llenar_formatos(registro, fuentes, FECHA_FIJACION)['formatos']}
+    llenados = ['F-%d' % n for n in (*range(101, 113), *range(119, 123))]
+    assert [c for c in llenados if con[c]['estado'] != 'llenado'] == []
+
+
+def test_resumen_formato_por_sistema_con_dos_sistemas_pide_su_copia_de_hoja_y_el_libro_no_se_escribe(tmp_path):
+    """107:RF-9 (T30 3d) — F-108 va una hoja por sistema eléctrico: con dos sistemas, el segundo va a «F-108 (2)», el
+    resultado lo pide en ``hojas_a_copiar`` y el plan del libro se detiene diciéndolo en lugar de escribir en una hoja
+    que no existe."""
+    from convertersmartgrid.pit import llenado
+    from convertersmartgrid.pit.cuadros import plan_de_formatos
+    registro, empresa, _tabla = _registro_real_y_empresa()
+    dos = {**VENTAS, 'SIS-2': VENTAS['SIS-1']}
+    cadena = _cadena().cadena_regulatoria(registro, empresa, _salida_3b(), _red_cadena(), dos, fecha=FECHA_FIJACION)
+    hecho = llenado.llenar_formatos(registro, {'cadena': {'fuente': FUENTE_VENTAS, 'cadena': cadena}}, FECHA_FIJACION)
+    f108 = hecho['resultados']['F-108']
+    assert f108['hojas_a_copiar'] == [{'de': 'F-108', 'a': 'F-108 (2)', 'sistema': 'SIS-2'}]
+    assert {c['celda'] for c in f108['celdas']} >= {'F-108!B6', 'F-108 (2)!B6'}
+    with pytest.raises(PitError, match=r'F-108 \(2\)'):
+        plan_de_formatos([f108], modelo=tmp_path / 'm.xlsx', destino=tmp_path / 'd.xlsx')

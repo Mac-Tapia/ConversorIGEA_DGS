@@ -57,6 +57,7 @@ def _politica_interfaz(host: str) -> str:
 RUTAS_ENMARCABLES: tuple[str, ...] = (
     '/api/workspaces/{wid}/mapa-cargas/pagina',  # «Ubicación de las cargas nuevas» (MapaCargas.tsx)
     '/api/workspaces/{wid}/files/{rel:path}',    # la vista previa del alimentador (Modules.tsx)
+    '/api/workspaces/{wid}/plano/pagina',        # «Plano de la red» (PlanoRed.tsx, 111:RF-14)
 )
 
 

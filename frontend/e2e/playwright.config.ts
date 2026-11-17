@@ -24,7 +24,9 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
     viewport: { width: 1440, height: 1000 },
     locale: 'es-PE',
-    serviceWorkers: 'block',
+    // Sin «serviceWorkers: 'block'»: Playwright toca navigator.serviceWorker en cada marco y en el del plano
+    // (sandbox sin allow-same-origin) eso lanza un SecurityError que no es de la web. La web no registra ninguno y
+    // sin_red.ts ya corta toda salida.
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

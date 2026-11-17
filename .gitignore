@@ -123,3 +123,6 @@ config/copia_datos.json
 # 109:RF-2, RF-18: el cliente OAuth de la nube y el cofre DPAPI de sus credenciales, solo en este equipo.
 config/nube.json
 secretos/
+
+# PIT-ANON-ELEMENTOS: la lista local de nombres de los elementos del registro normativo (fuera de git).
+config/normativa_local/

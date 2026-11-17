@@ -11,13 +11,13 @@
     "RCD 112-2024-OS/CD",
     "RCD 149-2024-OS/CD"
    ],
-   "nota": "Ficha: https://busquedas.elperuano.pe/dispositivo/NL/2574534-1. Comprobados su existencia, su objeto (art. 2: el PIT 2025-2029 en el Área de Demanda 9, a partir de las solicitudes de dos titulares) y su publicación. Vigencia: la resolución no tiene cláusula de vigencia propia (leída su parte resolutiva, arts. 1 a 4, en la copia de El Peruano con la huella registrada: ninguno fija ni posterga la vigencia; RN-AMB v2, 2026-11-15). Se aplica la regla general: desde el día siguiente a su publicación (14-11-2026), es decir, el 2026-11-15. Constitución Política del Perú, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte.» El detalle de los elementos modificados está en el IT 655-2026-GRT, sección 6.4, que el art. 4 manda consignar en https://www.osinergmin.gob.pe/Resoluciones/Resoluciones-GRT-2026.aspx y que el 2026-11-14 da HTTP 404 (Informe-Tecnico-655-2026-GRT.pdf): sin él no hay regla de elementos. El art. 3 manda consolidar las modificaciones en una resolución complementaria posterior.",
+   "nota": "Ficha: https://busquedas.elperuano.pe/dispositivo/NL/2574534-1. Comprobados su existencia, su objeto (art. 2: el PIT 2025-2029 en el Área de Demanda 9, a partir de las solicitudes de dos titulares) y su publicación. Vigencia: la resolución no tiene cláusula de vigencia propia (leída su parte resolutiva, arts. 1 a 4, en la copia de El Peruano con la huella registrada: ninguno fija ni posterga la vigencia; RN-AMB v2, 2026-11-15). Se aplica la regla general: desde el día siguiente a su publicación (14-11-2026), es decir, el 2026-11-15. Constitución Política del Perú, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte.» El detalle de los elementos modificados está en el IT 655-2026-GRT, sección 6.4, que el art. 4 manda consignar en https://www.osinergmin.gob.pe/Resoluciones/Resoluciones-GRT-2026.aspx y que el 2026-11-14 daba HTTP 404; el informe se obtuvo después (sha256 aec882cf…, verificable con el código s6CFQ6sbGu) y sus cuadros 6.4 a 6.7 y su sección 6.5 están en las reglas de elementos y de corrección. El art. 3 manda consolidar las modificaciones en una resolución complementaria posterior.",
    "reglas": [
     {
      "articulo_o_anexo": "art. 2",
-     "cita_literal": "Artículo 2.- Modificar el Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución Nº 112-2024-OS/CD y reemplazado con Resolución Nº 149-2024-OS/CD, en lo correspondiente al área de demanda 9, según se detalla en la sección 6.4 (Modificación del Plan de Inversiones 2025-2029) del Informe Técnico Nº 655-2026-GRT, a partir de las solicitudes de Empresa Regional de Servicio Público de Electricidad - Electrosur S.A. y Sociedad Eléctrica del Sur Oeste S.A.",
+     "cita_literal": "Artículo 2.- Modificar el Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución Nº 112-2024-OS/CD y reemplazado con Resolución Nº 149-2024-OS/CD, en lo correspondiente al área de demanda 9, según se detalla en la sección 6.4 (Modificación del Plan de Inversiones 2025-2029) del Informe Técnico Nº 655-2026-GRT, a partir de las solicitudes de [6c9abe7ef0b8f7d4] y [45c1ac13b866e66d]",
      "clave": "pit.modificacion_2025_2029.areas_modificadas",
-     "interpretacion": "el detalle de los elementos está en la sección 6.4 del IT 655-2026-GRT, no transcrita (404)",
+     "interpretacion": "el detalle de los elementos está en la sección 6.4 del IT 655-2026-GRT, transcrita en la regla de elementos",
      "lineas": "128-128",
      "pagina": "2",
      "unidad": "área de demanda",
@@ -98,6 +98,266 @@
       "cambios_condiciones_tecnicas_o_constructivas",
       "otras_razones_debidamente_justificadas"
      ]
+    },
+    {
+     "clave": "pit.modificacion_2025_2029.elementos",
+     "articulo_o_anexo": "art. 2 → IT 655-2026-GRT, sección 6.4",
+     "pagina": "IT 66-67",
+     "unidad": "",
+     "cita_literal": "Como resultado del análisis realizado por Osinergmin, en los siguientes cuadros se detallan, en lo correspondiente al Área de Demanda 9, los Elementos que se agregan, modifican, reprograman, eliminan y se dan de Baja respecto de lo aprobado en el PI 2025-2029.",
+     "interpretacion": "Filas de los cuadros 6.4 (agregan, 2), 6.5 (reprograman, 18), 6.6 (eliminan, 7) y 6.7 (baja, 1), transcritas de la capa de texto del informe (págs. 66 y 67); la primera del 6.6 ocupa dos líneas. Titulares, instalaciones y nombres de la descripción por su huella (sal 086); en claro, en la lista local.",
+     "valor": {
+      "area": 9,
+      "informe": "IT 655-2026-GRT",
+      "informe_sha256": "aec882cfa3c36c4b4febdbebad72e4d128bb1875b0471d8607bbd4af3f9a91cf",
+      "verificacion": "código s6CFQ6sbGu en https://verifica.osinergmin.gob.pe/visor-docs/",
+      "cuadros": {
+       "6.4 agregan": [
+        {
+         "anio": "2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de transformador 138 kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "f61cbf23e0c14355"
+        },
+        {
+         "anio": "2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de medición 33 kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3b49eed98d7ade9e"
+        }
+       ],
+       "6.5 reprograman": [
+        {
+         "anio": "De 2026 a 2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Transformador de Reserva 33/23/10 kV - 25/25/25 MVA",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "746eb672d07c98e1"
+        },
+        {
+         "anio": "De 2025 a 2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Línea-Transformador 60kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "7a3020f725abc055"
+        },
+        {
+         "anio": "De 2025 a 2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de transformador 23 kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "7a3020f725abc055"
+        },
+        {
+         "anio": "De 2025 a 2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de alimentador 23 kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "7a3020f725abc055"
+        },
+        {
+         "anio": "De 2025 a 2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de alimentador 23 kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "7a3020f725abc055"
+        },
+        {
+         "anio": "De 2025 a 2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de alimentador 23 kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "7a3020f725abc055"
+        },
+        {
+         "anio": "De 2025 a 2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de alimentador 23 kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "7a3020f725abc055"
+        },
+        {
+         "anio": "De 2025 a 2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Medición 23kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "7a3020f725abc055"
+        },
+        {
+         "anio": "De 2026 a 2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Banco de Compensación 2x1,2 MVAR",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "7a3020f725abc055"
+        },
+        {
+         "anio": "De 2026 a 2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de BC en 23kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "7a3020f725abc055"
+        },
+        {
+         "anio": "De 2028 a 2029",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Línea-Transformador 138kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "4e7b30f377f1cb13"
+        },
+        {
+         "anio": "De 2028 a 2029",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "TP 138/33kV - 30MVA",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "4e7b30f377f1cb13"
+        },
+        {
+         "anio": "De 2028 a 2029",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Transformador 33kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "4e7b30f377f1cb13"
+        },
+        {
+         "anio": "De 2028 a 2029",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Alimentador 33kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "4e7b30f377f1cb13"
+        },
+        {
+         "anio": "De 2028 a 2029",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Alimentador 33kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "4e7b30f377f1cb13"
+        },
+        {
+         "anio": "De 2028 a 2029",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Alimentador 33kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "4e7b30f377f1cb13"
+        },
+        {
+         "anio": "De 2028 a 2029",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Línea 138kV Hacia {1}",
+         "referencias_huella": [
+          "45c84bfb6af61efe"
+         ],
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "809de275fe3b4531"
+        },
+        {
+         "anio": "De 2028 a 2029",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Línea Transmisión {1} ({2}) - {3}",
+         "referencias_huella": [
+          "d069fed51f00a74f",
+          "d67089b5a9ddd496",
+          "4e7b30f377f1cb13"
+         ],
+         "instalacion_tipo": "Línea"
+        }
+       ],
+       "6.6 eliminan": [
+        {
+         "anio": "2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Línea Transmisión {1} - {2}",
+         "referencias_huella": [
+          "bd6a719615eba716",
+          "ce5a539d9a45fb0b"
+         ],
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "ce5a539d9a45fb0b"
+        },
+        {
+         "anio": "2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Transformador 138kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "ce5a539d9a45fb0b"
+        },
+        {
+         "anio": "2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "TP 138/33kV- 75MVA",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "ce5a539d9a45fb0b"
+        },
+        {
+         "anio": "2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Línea 33kV a {1}",
+         "referencias_huella": [
+          "4eeaa671ea78473a"
+         ],
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "ce5a539d9a45fb0b"
+        },
+        {
+         "anio": "2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Línea 33kV a {1}",
+         "referencias_huella": [
+          "4eeaa671ea78473a"
+         ],
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "ce5a539d9a45fb0b"
+        },
+        {
+         "anio": "2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Transformador 33kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "ce5a539d9a45fb0b"
+        },
+        {
+         "anio": "2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de Medición 33kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "ce5a539d9a45fb0b"
+        }
+       ],
+       "6.7 baja": [
+        {
+         "anio": "2028",
+         "titular_huella": "d919ad937d30f5d5",
+         "elemento": "Celda de transformador 138 kV",
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "f61cbf23e0c14355"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "clave": "pit.modificacion_2025_2029.correccion_error_material",
+     "articulo_o_anexo": "art. 3 → IT 655-2026-GRT, sección 6.5",
+     "pagina": "IT 67-68",
+     "unidad": "",
+     "cita_literal": "el módulo correcto debe ser LT -138COR0PMS0C5240A (Línea de transmisión en 138 kV en costa rural y simple terna).",
+     "interpretacion": "La línea en 138 kV aprobada en el PI 2017-2021 (RCD 191-2016-OS/CD) es de simple terna; su módulo se registró con el de doble terna por un error de digitación. Se corrige en la resolución complementaria (art. 3 de la 199-2026). Los extremos de la línea, por su huella.",
+     "valor": {
+      "informe": "IT 655-2026-GRT",
+      "informe_sha256": "aec882cfa3c36c4b4febdbebad72e4d128bb1875b0471d8607bbd4af3f9a91cf",
+      "verificacion": "código s6CFQ6sbGu en https://verifica.osinergmin.gob.pe/visor-docs/",
+      "seccion": "6.5",
+      "elemento": "Línea en 138 kV {1} - {2}",
+      "referencias_huella": [
+       "d63528e40b0ab238",
+       "dd9d2f6136ddf3ac"
+      ],
+      "aprobada_en": "PI 2017-2021 (RCD 191-2016-OS/CD)",
+      "modulo_registrado": "LT-138COR0PMD0C5240A",
+      "modulo_correcto": "LT-138COR0PMS0C5240A",
+      "motivo": "simple terna, no doble terna"
+     }
     }
    ],
    "sha256": "cde65db34da6b6e616cc67748e57ceb362543a8b7c8392d7c97130e069c0091f",

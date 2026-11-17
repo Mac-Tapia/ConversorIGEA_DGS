@@ -47,7 +47,7 @@ function VnrDiscovery() {
 
   const packages = catalog?.publications.filter((item) => item.convertible) ?? [];
   useEffect(() => {
-    if (catalog && !packages.length && !autoBuscada.current && !active.engine) {
+    if (catalog && !packages.length && !autoBuscada.current && !active.red) {
       autoBuscada.current = true;
       void discover(true);
     }
@@ -81,7 +81,7 @@ function VnrDiscovery() {
     <div className="vnr-discovery">
       <div className="row">
         <strong>Paquete oficial VNR-GIS</strong>
-        <button className="btn btn-sm" disabled={Boolean(active.engine)} onClick={() => discover(true)}>
+        <button className="btn btn-sm" disabled={Boolean(active.red)} onClick={() => discover(true)}>
           Buscar publicaciones
         </button>
       </div>

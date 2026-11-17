@@ -175,6 +175,20 @@ en la misma tarea que lo crea (`tests/test_inventario.py`, spec 009 y 090); el g
   modos (memoria «frontend sin exceso de texto»).
 - Cada prueba cita su requisito: `"""111:RF-n — …"""`.
 
+## Medición de la línea base (T2, 2026-11-16, 4d)
+
+- `medicion_plano.spec.ts` en Chrome real (Playwright 1.62.1, claro y oscuro), semilla 20261116, 40 alimentadores
+  (`CSG_E2E_ALIMENTADORES=40`), con la máquina cargada por una puerta en curso: página de 316 594 bytes; primer
+  dibujo de la red unida en 6,0 a 8,6 s, de los que 6,3 a 8,9 s son del servidor generando la página (la petición
+  sola). El dibujo en el navegador es despreciable. Con 3 alimentadores: 184 015 bytes y 3,1 s.
+- Presupuesto (`PRESUPUESTO` de la prueba, que falla si se supera): página ≤ 2 MB y primer dibujo ≤ 12 s con 40
+  alimentadores.
+- Decisión: basta Leaflet con lienzo; deck.gl no entra. El coste está en el servidor (unos 0,15 a 0,2 s por
+  alimentador), no en el dibujo: si una entrega mayor lo pide, se parte la geometría por alimentador visible.
+- La medición encontró dos defectos, corregidos con su prueba: la ruta de la página no estaba entre las
+  enmarcables (el marco salía en blanco; `seguridad.RUTAS_ENMARCABLES`) y el botón del control de capas plegado
+  quedaba invisible (la política no deja cargar `images/layers.png`; icono `data:` en la página).
+
 ## Riesgos
 
 - **Rendimiento con todos los alimentadores.** Si la página pesa demasiado o tarda en dibujar, se detecta en T2 antes de

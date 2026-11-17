@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 429 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 437 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
-| Herramientas y guiones | `tools/` | 122 |
+| Herramientas y guiones | `tools/` | 123 |
 | Interfaz | `frontend/src/` | 103 |
 | Pruebas de la interfaz | `frontend/test/` | 45 |
-| Pruebas | `tests/` | 567 |
+| Pruebas | `tests/` | 574 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -28,23 +28,23 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 2 |
 | retirada | 1 |
 
-112 specs con 3827 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3830 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 180 |
+| adaptadores | Ada | 187 |
 | aplicacion | Apl | 124 |
-| dominio | Dom | 62 |
+| dominio | Dom | 63 |
 | presentacion | Pre | 48 |
 | puertos | Pue | 4 |
 
-418 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+426 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
-`engine`, `powerfactory`, `asistente`, `control`, `correo`.
+`engine`, `powerfactory`, `asistente`, `control`, `correo`, `red`.
 
 ### Rutas de la API
 
@@ -1023,6 +1023,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/contratos_aprendizaje.py` | Dom | 050, 002 | Identidad, procedencia y tipos puros de muestras y familias. |
 | `src/convertersmartgrid/digital_twin/productor_pinn.py` | Ada | 050, 002 | Vista PINN congelada, con particiones comunes. |
 | `src/convertersmartgrid/dominio/__init__.py` | Dom | 002 | Paquete real de valores y reglas puras, sin lectores ni E/S. |
+| `src/convertersmartgrid/dominio/huellas_terminos.py` | Dom | 107, 086 | La huella de un término, `sha256(sal:texto normalizado)[:16]` con la sal de la lista mínima: un solo cuerpo para la comprobación de la entrega y los… |
 | `src/convertersmartgrid/dominio/numeros_medidos.py` | Dom | 002, 004 | Un único cuerpo de normalización de códigos y números finitos de medición. |
 | `src/convertersmartgrid/evaluacion_harness/__init__.py` | Apl | 043, 044, 047 | Paquete de evaluación integral sin cargar modelos ni motores al importarlo. |
 | `src/convertersmartgrid/evaluacion_harness/adaptadores.py` | Ada | 043, 044, 047 | Adaptación de evaluaciones temporal, eléctrica y de herramientas externas, sin equivaler a aceptación nativa. |
@@ -1035,7 +1036,14 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
 | `src/convertersmartgrid/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
 | `src/convertersmartgrid/obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |
+| `src/convertersmartgrid/pfd_vinculos.py` | Ada | 004, 109, 110 | Vínculos del proyecto de un `.pfd` (nombres de su diagnóstico y las SET) con los ficheros de su expediente por su contenido, con el inventario y la… |
 | `src/convertersmartgrid/pit/armado.py` | Ada | 107 | Armado del expediente del PIT de punta a punta. |
+| `src/convertersmartgrid/pit/demanda_cadena.py` | Ada | 107 | Demanda regulatoria (paso 3c): F-108 (ventas proyectadas por nivel), F-109 (energía por barra con los FE de la fijación vigente de la empresa en… |
+| `src/convertersmartgrid/pit/demanda_resumen.py` | Ada | 107 | Demanda regulatoria (paso 3d): la historia del −20 al 0 (F-104 con las exógenas de la 031 y F-105), los modelos comparados con su ecuación y sus… |
+| `src/convertersmartgrid/pit/densidad.py` | Ada | 107 | F-123: los mapas de densidad de carga de los años de la nota de la plantilla, con la demanda de cada SED crecida con el factor regulatorio de su… |
+| `src/convertersmartgrid/pit/elementos_modificacion.py` | Ada | 107 | Los elementos de las modificaciones del PIT (agregan, reprograman, eliminan, baja) desde el registro, que guarda sus nombres por huella: casa por… |
+| `src/convertersmartgrid/pit/generacion.py` | Ada | 107 | F-124: los datos de generación deducidos del medidor de generación de cada central del perfil (`centrales_termicas`), con el lector de cabecera de la… |
+| `src/convertersmartgrid/pit/usuarios_libres.py` | Ada | 107 | F-113 a F-118: las demandas incorporadas del libro de cargas nuevas y los usuarios libres de `pit.usuarios_libres`, ubicados por su alimentador en la… |
 | `src/convertersmartgrid/planeamiento_etapas.py` | Dom | 087 | Cuándo construir cada obra: árbol de decisión y proceso de decisión de Markov. |
 | `src/convertersmartgrid/productores_aprendizaje.py` | Ada | 050, 002 | Composición real y diferida por familia, con lectores/validadores existentes. |
 | `src/convertersmartgrid/pronostico_demanda.py` | Ada | 089 | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera,… |
@@ -1068,6 +1076,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/web/vad_api.py` | Pre | 108, 070 | Rutas `…/vad/estudios` (listar y crear el estudio con la empresa del perfil y un TdR del registro) y `…/vad/{estudio}/armar` (el caso subido a la… |
 | `src/convertersmartgrid/web/vnr_api.py` | Pre | — | 108 T28: el estudio VNR desde la web (Guía del VNR, RCD 232-2017-OS/CD; 108:RF-21 a RF-25). |
 | `src/vnr_etl.py` | Pre | 002 | Fachada de CLI para python -m vnr_etl y el launcher anterior. |
+| `tools/aceptacion_version.py` | — | 100 | Aceptación automática de una versión: recorre en serie la matriz `config/aceptacion/matriz.json` (cada fuente con un alimentador, varios y un… |
 | `tools/asistente_informes_reales.py` | — | 026 | Anota informes reales etiquetados (Word, PDF con OCR o texto del maestro) para el clasificador, por grupo y sin repetir. |
 | `tools/benchmark_anonimo.py` | — | 112 | Genera en local el benchmark anonimizado de una red (y de las series del 089) con su manifiesto. |
 | `tools/entrenar_alimentadores_gpu.py` | — | 089 | Una red de pronóstico por alimentador, uno tras otro en la GPU, con los libros por argumento. |
@@ -1092,6 +1101,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `.githooks/pre-push` |
 | `.githooks/python.sh` |
 | `.githooks/regenerar.sh` |
+| `config/aceptacion/matriz.json` |
 | `config/archivo.example.json` |
 | `config/casos_de_prueba/sitios.json` |
 | `config/costes_referenciales.example.json` |

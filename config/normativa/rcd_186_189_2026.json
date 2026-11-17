@@ -14,7 +14,7 @@
     "RCD 112-2024-OS/CD",
     "RCD 149-2024-OS/CD"
    ],
-   "nota": "Emitida en Lima el 16-10-2026; publicada en El Peruano el lunes 19-10-2026 (OP 2565621-1; PDF «-EP» sha 4ac0a9041c56794e1682b5b229b1af83789039b93928fcd2acc411d4d0e6340f). Titulares: Electronoroeste S.A., Consorcio Eléctrico de Villacurí S.A.C.. Informe Técnico 599-2026-GRT (sha 34ed9809ea47bf861e31e9ff075362e5cda63baa63933b62eca24b3fdac2f19e) e Informe Legal 600-2026-GRT forman parte integrante. Vigencia: la resolución no tiene cláusula de vigencia propia (leídos su parte resolutiva, arts. 1 a 4, y su edición de El Peruano: ninguno fija ni posterga la vigencia; RN-AMB, 2026-11-15). Se aplica la regla general: desde el día siguiente a su publicación (19-10-2026), es decir, el 2026-10-20. Constitución Política del Perú, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte.» Las modificaciones se consolidarán en resolución complementaria (art. 3).",
+   "nota": "Emitida en Lima el 16-10-2026; publicada en El Peruano el lunes 19-10-2026 (OP 2565621-1; PDF «-EP» sha 4ac0a9041c56794e1682b5b229b1af83789039b93928fcd2acc411d4d0e6340f). Titulares: [f436e021b4abac61] S.A., [9009c9a64aa9752d]. Informe Técnico 599-2026-GRT (sha 34ed9809ea47bf861e31e9ff075362e5cda63baa63933b62eca24b3fdac2f19e) e Informe Legal 600-2026-GRT forman parte integrante. Vigencia: la resolución no tiene cláusula de vigencia propia (leídos su parte resolutiva, arts. 1 a 4, y su edición de El Peruano: ninguno fija ni posterga la vigencia; RN-AMB, 2026-11-15). Se aplica la regla general: desde el día siguiente a su publicación (19-10-2026), es decir, el 2026-10-20. Constitución Política del Perú, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte.» Las modificaciones se consolidarán en resolución complementaria (art. 3).",
    "reglas": [
     {
      "clave": "pit.modificacion_2025_2029.areas_modificadas",
@@ -24,7 +24,7 @@
      "unidad": "área de demanda",
      "articulo_o_anexo": "art. 2",
      "pagina": "2",
-     "cita_literal": "Artículo 2.- Modificar el Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución N° 112-2024-OS/CD y reemplazado con Resolución N° 149-2024-OS/CD, en lo correspondiente al Área de Demanda 1, según se detalla en la sección 6.4 (Modificación del Plan de Inversiones 2025-2029) del Informe Técnico N° 599-2026-GRT, a partir de las solicitudes Electronoroeste S.A. y Consorcio Eléctrico de Villacurí S.A.C.",
+     "cita_literal": "Artículo 2.- Modificar el Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución N° 112-2024-OS/CD y reemplazado con Resolución N° 149-2024-OS/CD, en lo correspondiente al Área de Demanda 1, según se detalla en la sección 6.4 (Modificación del Plan de Inversiones 2025-2029) del Informe Técnico N° 599-2026-GRT, a partir de las solicitudes [f436e021b4abac61] S.A. y [9009c9a64aa9752d]",
      "interpretacion": "Detalle de elementos en la sección 6.4 del IT 599-2026-GRT (regla pit.modificacion_2025_2029.elementos)."
     },
     {
@@ -43,21 +43,24 @@
        "6.7 reprograman": [
         {
          "anio": "De 2025 a 2029",
-         "titular": "ENOSA",
+         "titular_huella": "5b0e9e00454bf2b7",
          "elemento": "Celda de Alimentador 23 kV",
-         "instalacion": "SET Los Ejidos"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "a312e2d060ef27df"
         },
         {
          "anio": "De 2025 a 2027",
-         "titular": "ENOSA",
+         "titular_huella": "5b0e9e00454bf2b7",
          "elemento": "Celda de Alimentador 10 kV",
-         "instalacion": "SET Paita Industrial"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "2491dda40e3bb9ee"
         },
         {
          "anio": "De 2025 a 2029",
-         "titular": "ENOSA",
+         "titular_huella": "5b0e9e00454bf2b7",
          "elemento": "Celda de Alimentador 10 kV",
-         "instalacion": "SET Paita Industrial"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "2491dda40e3bb9ee"
         }
        ]
       }
@@ -82,7 +85,7 @@
     "RCD 112-2024-OS/CD",
     "RCD 149-2024-OS/CD"
    ],
-   "nota": "Emitida en Lima el 16-10-2026; publicada en El Peruano el lunes 19-10-2026 (OP 2565624-1; PDF «-EP» sha f8d23330bc35493adde85f53e5161ec41244409b9ca23ee1c5dea3d847f2d574). Titulares: Hidrandina S.A., Consorcio Eléctrico de Villacurí S.A.C.. Informe Técnico 601-2026-GRT (sha 350b38bbded2bed2e81204c7acdae9900d3f45131a38dde72bde5cce02d868d9) e Informe Legal 602-2026-GRT forman parte integrante. Vigencia: la resolución no tiene cláusula de vigencia propia (leídos su parte resolutiva, arts. 1 a 4, y su edición de El Peruano: ninguno fija ni posterga la vigencia; RN-AMB, 2026-11-15). Se aplica la regla general: desde el día siguiente a su publicación (19-10-2026), es decir, el 2026-10-20. Constitución Política del Perú, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte.» Las modificaciones se consolidarán en resolución complementaria (art. 3).",
+   "nota": "Emitida en Lima el 16-10-2026; publicada en El Peruano el lunes 19-10-2026 (OP 2565624-1; PDF «-EP» sha f8d23330bc35493adde85f53e5161ec41244409b9ca23ee1c5dea3d847f2d574). Titulares: [d8c21c7f8eb56a31] S.A., [9009c9a64aa9752d]. Informe Técnico 601-2026-GRT (sha 350b38bbded2bed2e81204c7acdae9900d3f45131a38dde72bde5cce02d868d9) e Informe Legal 602-2026-GRT forman parte integrante. Vigencia: la resolución no tiene cláusula de vigencia propia (leídos su parte resolutiva, arts. 1 a 4, y su edición de El Peruano: ninguno fija ni posterga la vigencia; RN-AMB, 2026-11-15). Se aplica la regla general: desde el día siguiente a su publicación (19-10-2026), es decir, el 2026-10-20. Constitución Política del Perú, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte.» Las modificaciones se consolidarán en resolución complementaria (art. 3).",
    "reglas": [
     {
      "clave": "pit.modificacion_2025_2029.areas_modificadas",
@@ -92,7 +95,7 @@
      "unidad": "área de demanda",
      "articulo_o_anexo": "art. 2",
      "pagina": "2",
-     "cita_literal": "Artículo 2.- Modificar el Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución N° 112-2024-OS/CD y reemplazado con Resolución N° 149-2024-OS/CD, en lo correspondiente al Área de Demanda 3, según se detalla en la sección 6.4 (Modificación del Plan de Inversiones 2025-2029) del Informe Técnico N° 601-2026-GRT, a partir de las solicitudes de Hidrandina S.A. y Consorcio Eléctrico de Villacurí S.A.C.",
+     "cita_literal": "Artículo 2.- Modificar el Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución N° 112-2024-OS/CD y reemplazado con Resolución N° 149-2024-OS/CD, en lo correspondiente al Área de Demanda 3, según se detalla en la sección 6.4 (Modificación del Plan de Inversiones 2025-2029) del Informe Técnico N° 601-2026-GRT, a partir de las solicitudes de [d8c21c7f8eb56a31] S.A. y [9009c9a64aa9752d]",
      "interpretacion": "Detalle de elementos en la sección 6.4 del IT 601-2026-GRT (regla pit.modificacion_2025_2029.elementos)."
     },
     {
@@ -111,53 +114,61 @@
        "6.5 agregan": [
         {
          "anio": "2029",
-         "titular": "HIDRANDINA",
+         "titular_huella": "d8c21c7f8eb56a31",
          "elemento": "Transformador de reserva compartida de 60/22,9/10 kV de 30 MVA",
-         "instalacion": "SET Huaca del Sol"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "f540a956cf9fadd9"
         }
        ],
        "6.6 reprograman": [
         {
          "anio": "De 2027 a 2029",
-         "titular": "HIDRANDINA",
+         "titular_huella": "d8c21c7f8eb56a31",
          "elemento": "Transformador 30MVA 60/23/10 kV",
-         "instalacion": "SET Cajamarca"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "31030e003b5e19d0"
         },
         {
          "anio": "De 2027 a 2029",
-         "titular": "HIDRANDINA",
+         "titular_huella": "d8c21c7f8eb56a31",
          "elemento": "Celda de Transformador 60 Kv",
-         "instalacion": "SET Cajamarca"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "31030e003b5e19d0"
         },
         {
          "anio": "De 2027 a 2029",
-         "titular": "HIDRANDINA",
+         "titular_huella": "d8c21c7f8eb56a31",
          "elemento": "Celda Transformador 10 kV",
-         "instalacion": "SET Cajamarca"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "31030e003b5e19d0"
         },
         {
          "anio": "De 2027 a 2029",
-         "titular": "HIDRANDINA",
+         "titular_huella": "d8c21c7f8eb56a31",
          "elemento": "Celda Transformador 23 kV",
-         "instalacion": "SET Cajamarca"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "31030e003b5e19d0"
         },
         {
          "anio": "De 2027 a 2029",
-         "titular": "HIDRANDINA",
+         "titular_huella": "d8c21c7f8eb56a31",
          "elemento": "Celda de Medición 23 kV",
-         "instalacion": "SET Cajamarca"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "31030e003b5e19d0"
         },
         {
          "anio": "De 2027 a 2029",
-         "titular": "HIDRANDINA",
+         "titular_huella": "d8c21c7f8eb56a31",
          "elemento": "Celda de Alimentador 23 kV",
-         "instalacion": "SET Cajamarca"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "31030e003b5e19d0"
         },
         {
          "anio": "De 2026 a 2029",
-         "titular": "HIDRANDINA",
+         "titular_huella": "d8c21c7f8eb56a31",
          "elemento": "Celda de Alimentador 10 kV",
-         "instalacion": "SET Porvenir"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "4cf63e2ae6aa466c"
         }
        ]
       }
@@ -178,20 +189,20 @@
    "titulo": "Se pronuncia sobre la solicitud de modificación de el Plan de Inversiones en Transmisión 2025-2029 (RCD 112-2024 reemplazada por la 149-2024), Área de Demanda 12",
    "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2026/Osinergmin-188-2026-OS-CD.pdf",
    "sha256": "193a30bc6aa6acadc4b0649bd9b41eb8f449c4b3b277289e42ff06bf25da4a89",
-   "nota": "Emitida en Lima el 16-10-2026; publicada en El Peruano el lunes 19-10-2026 (OP 2565631-1; PDF «-EP» sha ccdbdcbed3a25dced479fc2f012f9852cd053e1b86ab9640f570f0a0d705f019). Titulares: Consorcio Eléctrico de Villacurí S.A.C.. Informe Técnico 595-2026-GRT (sha cf7ea259d00e7d718055a7eb3f7a6246c8eaeec67374c97fd0e687256d719ca3) e Informe Legal 596-2026-GRT forman parte integrante. Vigencia: la resolución no tiene cláusula de vigencia propia (leídos su parte resolutiva, arts. 1 y 2, y su edición de El Peruano: ninguno fija ni posterga la vigencia; RN-AMB, 2026-11-15). Se aplica la regla general: desde el día siguiente a su publicación (19-10-2026), es decir, el 2026-10-20. Constitución Política del Perú, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte.»",
+   "nota": "Emitida en Lima el 16-10-2026; publicada en El Peruano el lunes 19-10-2026 (OP 2565631-1; PDF «-EP» sha ccdbdcbed3a25dced479fc2f012f9852cd053e1b86ab9640f570f0a0d705f019). Titulares: [9009c9a64aa9752d]. Informe Técnico 595-2026-GRT (sha cf7ea259d00e7d718055a7eb3f7a6246c8eaeec67374c97fd0e687256d719ca3) e Informe Legal 596-2026-GRT forman parte integrante. Vigencia: la resolución no tiene cláusula de vigencia propia (leídos su parte resolutiva, arts. 1 y 2, y su edición de El Peruano: ninguno fija ni posterga la vigencia; RN-AMB, 2026-11-15). Se aplica la regla general: desde el día siguiente a su publicación (19-10-2026), es decir, el 2026-10-20. Constitución Política del Perú, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte.»",
    "reglas": [
     {
      "clave": "pit.modificacion_2025_2029.solicitudes_desestimadas",
      "valor": [
       {
        "area": 12,
-       "titular": "Consorcio Eléctrico de Villacurí S.A.C."
+       "titular_huella": "9009c9a64aa9752d"
       }
      ],
      "articulo_o_anexo": "art. 1",
      "pagina": "2-3",
-     "cita_literal": "Artículo 1.- Desestimar la solicitud de la empresa Consorcio Eléctrico de Villacurí S.A.C. y, en consecuencia, no modificar el Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución N° 112-2024-OS/CD y reemplazado con Resolución N° 149-2024-OS/CD, en lo correspondiente al área de demanda 12.",
-     "interpretacion": "Sin cambios en el PIT del Área 12 (IT 595-2026-GRT, sección 6.4: «se desestima la solicitud de COELVISAC … Sistema Eléctrico Ilo del Área de Demanda 12»)."
+     "cita_literal": "Artículo 1.- Desestimar la solicitud de la empresa [9009c9a64aa9752d] y, en consecuencia, no modificar el Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución N° 112-2024-OS/CD y reemplazado con Resolución N° 149-2024-OS/CD, en lo correspondiente al área de demanda 12.",
+     "interpretacion": "Sin cambios en el PIT del Área 12 (IT 595-2026-GRT, sección 6.4: «se desestima la solicitud de [0e9c75f588780064] … Sistema Eléctrico Ilo del Área de Demanda 12»)."
     }
    ],
    "vigencia_desde": "2026-10-20"
@@ -208,7 +219,7 @@
     "RCD 112-2024-OS/CD",
     "RCD 149-2024-OS/CD"
    ],
-   "nota": "Emitida en Lima el 16-10-2026; publicada en El Peruano el lunes 19-10-2026 (OP 2565640-1; PDF «-EP» sha 7bcc5f07fef968f4b8a726a95138c05e90001ddc9342f642ba8562c121552bc2). Titulares: Electrosur S.A., Consorcio Eléctrico de Villacurí S.A.C.. Informe Técnico 597-2026-GRT (sha ef07122fc18d5ab80b9a65125afa92edfbe5c58ab44ba65017d96e20320638c3) e Informe Legal 598-2026-GRT forman parte integrante. Vigencia: la resolución no tiene cláusula de vigencia propia (leídos su parte resolutiva, arts. 1 a 4, y su edición de El Peruano: ninguno fija ni posterga la vigencia; RN-AMB, 2026-11-15). Se aplica la regla general: desde el día siguiente a su publicación (19-10-2026), es decir, el 2026-10-20. Constitución Política del Perú, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte.» Las modificaciones se consolidarán en resolución complementaria (art. 3).",
+   "nota": "Emitida en Lima el 16-10-2026; publicada en El Peruano el lunes 19-10-2026 (OP 2565640-1; PDF «-EP» sha 7bcc5f07fef968f4b8a726a95138c05e90001ddc9342f642ba8562c121552bc2). Titulares: [755d8708ea474ad9] S.A., [9009c9a64aa9752d]. Informe Técnico 597-2026-GRT (sha ef07122fc18d5ab80b9a65125afa92edfbe5c58ab44ba65017d96e20320638c3) e Informe Legal 598-2026-GRT forman parte integrante. Vigencia: la resolución no tiene cláusula de vigencia propia (leídos su parte resolutiva, arts. 1 a 4, y su edición de El Peruano: ninguno fija ni posterga la vigencia; RN-AMB, 2026-11-15). Se aplica la regla general: desde el día siguiente a su publicación (19-10-2026), es decir, el 2026-10-20. Constitución Política del Perú, art. 109: «La ley es obligatoria desde el día siguiente de su publicación en el diario oficial, salvo disposición contraria de la misma ley que posterga su vigencia en todo o en parte.» Las modificaciones se consolidarán en resolución complementaria (art. 3).",
    "reglas": [
     {
      "clave": "pit.modificacion_2025_2029.areas_modificadas",
@@ -218,7 +229,7 @@
      "unidad": "área de demanda",
      "articulo_o_anexo": "art. 2",
      "pagina": "2",
-     "cita_literal": "Artículo 2.- Modificar el Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución N° 112-2024-OS/CD y reemplazado con Resolución N° 149-2024-OS/CD, en lo correspondiente al área de demanda 13, según se detalla en la sección 6.4 (Modificación del Plan de Inversiones 2025-2029) del Informe Técnico N° 597-2026-GRT, a partir de las solicitudes de Empresa Regional de Servicio Público de Electricidad - Electrosur S.A. y Consorcio Eléctrico de Villacurí S.A.C.",
+     "cita_literal": "Artículo 2.- Modificar el Plan de Inversiones en Transmisión del periodo comprendido entre el 01 de mayo de 2025 al 30 de abril de 2029, aprobado mediante Resolución N° 112-2024-OS/CD y reemplazado con Resolución N° 149-2024-OS/CD, en lo correspondiente al área de demanda 13, según se detalla en la sección 6.4 (Modificación del Plan de Inversiones 2025-2029) del Informe Técnico N° 597-2026-GRT, a partir de las solicitudes de [6c9abe7ef0b8f7d4] y [9009c9a64aa9752d]",
      "interpretacion": "Detalle de elementos en la sección 6.4 del IT 597-2026-GRT (regla pit.modificacion_2025_2029.elementos)."
     },
     {
@@ -237,183 +248,212 @@
        "6.5 agregan": [
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Línea en 33 kV",
-         "instalacion": "SET Caserio Aricota"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "dc27516ca1a76c95"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Línea en 33 kV",
-         "instalacion": "SET Caserio Aricota"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "dc27516ca1a76c95"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Transformador en 33 kV",
-         "instalacion": "SET Caserio Aricota"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "dc27516ca1a76c95"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Transformador en 10 kV",
-         "instalacion": "SET Caserio Aricota"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "dc27516ca1a76c95"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Transformador en 33 kV",
-         "instalacion": "SET Challaguaya"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "962fad068bbd4c02"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Transformador en 10 kV",
-         "instalacion": "SET Challaguaya"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "962fad068bbd4c02"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Línea en 33 kV",
-         "instalacion": "SET Tarata"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3af4d7c1d0adcea6"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Línea en 33 kV",
-         "instalacion": "SET Tarata"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3af4d7c1d0adcea6"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de medición en 33 kV",
-         "instalacion": "SET Tarata"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3af4d7c1d0adcea6"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Transformador en 33 kV",
-         "instalacion": "SET Tarata"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3af4d7c1d0adcea6"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Transformador en 10 kV",
-         "instalacion": "SET Tarata"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3af4d7c1d0adcea6"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Línea - Transformador en 33 kV",
-         "instalacion": "SET El Ayro"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "6d38ddf36c97255a"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Transformador en 10 kV",
-         "instalacion": "SET El Ayro"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "6d38ddf36c97255a"
         }
        ],
        "6.6 reprograman": [
         {
          "anio": "De 2026 a 2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Transformador 2 MVA - 33/22,9/10 kV",
-         "instalacion": "SET Tarata"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3af4d7c1d0adcea6"
         },
         {
          "anio": "De 2026 a 2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Transformador 23 kV",
-         "instalacion": "SET Tarata"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3af4d7c1d0adcea6"
         },
         {
          "anio": "De 2026 a 2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Medición 23 kV",
-         "instalacion": "SET Tarata"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3af4d7c1d0adcea6"
         },
         {
          "anio": "De 2026 a 2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de Alimentador 23 kV",
-         "instalacion": "SET Tarata"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3af4d7c1d0adcea6"
         }
        ],
        "6.7 eliminan": [
         {
          "anio": "2029",
-         "titular": "COELVISAC",
+         "titular_huella": "0e9c75f588780064",
          "elemento": "Transformador 25 MVA - 66/23/10 kV",
-         "instalacion": "SET Viñani"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "bed1a28b77cc911a"
         },
         {
          "anio": "2029",
-         "titular": "COELVISAC",
+         "titular_huella": "0e9c75f588780064",
          "elemento": "Celda de Transformador 66 kV",
-         "instalacion": "SET Viñani"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "bed1a28b77cc911a"
         },
         {
          "anio": "2029",
-         "titular": "COELVISAC",
+         "titular_huella": "0e9c75f588780064",
          "elemento": "Celda de Transformador 22,9kV",
-         "instalacion": "SET Viñani"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "bed1a28b77cc911a"
         },
         {
          "anio": "2029",
-         "titular": "COELVISAC",
+         "titular_huella": "0e9c75f588780064",
          "elemento": "Celda de Transformador 10 kV",
-         "instalacion": "SET Viñani"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "bed1a28b77cc911a"
         },
         {
          "anio": "2029",
-         "titular": "COELVISAC",
+         "titular_huella": "0e9c75f588780064",
          "elemento": "Celda de medición 22,9 kV",
-         "instalacion": "SET Viñani"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "bed1a28b77cc911a"
         }
        ],
        "6.8 dan de baja": [
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de línea-transformador en 33 kV",
-         "instalacion": "SET Caserío Aricota"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "dc27516ca1a76c95"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de transformador en 10 kV",
-         "instalacion": "SET Caserío Aricota"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "dc27516ca1a76c95"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de transformador en 10 kV",
-         "instalacion": "SET Challaguaya"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "962fad068bbd4c02"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de línea-transformador en 33 kV",
-         "instalacion": "SET Tarata"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3af4d7c1d0adcea6"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de transformador en 10 kV",
-         "instalacion": "SET Tarata"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "3af4d7c1d0adcea6"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de línea-transformador en 33 kV",
-         "instalacion": "SET El Ayro"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "6d38ddf36c97255a"
         },
         {
          "anio": "2029",
-         "titular": "ELECTROSUR",
+         "titular_huella": "755d8708ea474ad9",
          "elemento": "Celda de transformador en 10 kV",
-         "instalacion": "SET El Ayro"
+         "instalacion_tipo": "SET",
+         "instalacion_huella": "6d38ddf36c97255a"
         }
        ]
       }
@@ -421,7 +461,7 @@
      "articulo_o_anexo": "art. 2 → IT 597-2026-GRT, sección 6.4",
      "pagina": "IT 58-59 (pdf 58-59)",
      "cita_literal": "Como resultado del análisis realizado por Osinergmin, en los siguientes cuadros se detallan, en lo correspondiente al Área de Demanda 13, los Elementos que se",
-     "interpretacion": "Filas transcritas de la imagen de la sección 6.4 y halladas una a una en la capa de texto del informe. Del original: el pie de página del IT 597-2026-GRT dice «… modificación del Plan de Inversiones 2021-2025», pero el informe trata del 2025-2029; y en sus págs. 58-59 la capa de texto trae mezclada la tabla incrustada del Gráfico 6.5 (F-202 de la SET Viñani), por lo que la primera lectura es la imagen."
+     "interpretacion": "Filas transcritas de la imagen de la sección 6.4 y halladas una a una en la capa de texto del informe. Del original: el pie de página del IT 597-2026-GRT dice «… modificación del Plan de Inversiones 2021-2025», pero el informe trata del 2025-2029; y en sus págs. 58-59 la capa de texto trae mezclada la tabla incrustada del Gráfico 6.5 (F-202 de la [bed1a28b77cc911a]), por lo que la primera lectura es la imagen."
     }
    ],
    "vigencia_desde": "2026-10-20"

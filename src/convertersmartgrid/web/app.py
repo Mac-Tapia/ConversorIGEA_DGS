@@ -1148,7 +1148,8 @@ def create_app(
             ctx.progress(1, 1, 'Catálogo actualizado')
             return {**vnr_publications(), 'refresh': report}
 
-        return submit(ws_or_404(wid), 'vnr_publications', 'Buscar publicación oficial VNR', refresh)
+        # 080:RF-61: en el carril «red», no en el del motor: buscar en internet no bloquea la carga de la entrada.
+        return submit(ws_or_404(wid), 'vnr_publications', 'Buscar publicación oficial VNR', refresh, lane='red')
 
     # ------------------------------------------------------------ espacios
     @app.get('/api/workspaces', response_model=list[ResumenEspacioRespuesta], response_model_exclude_unset=True)

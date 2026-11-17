@@ -94,3 +94,16 @@ def test_111_rf16_la_linea_base_lee_las_pestanas_de_la_web_y_no_una_lista_fija()
     assert 'linea_base_acciones.json' in linea and 'CSG_E2E_FIJAR_LINEA_BASE' in linea
     etiquetas = re.findall(r"label: '([^']+)'", (FRONT / 'src/app/App.tsx').read_text(encoding='utf-8'))
     assert etiquetas and not any(e in linea for e in etiquetas), 'las pestañas no se copian a mano en el recorrido'
+
+
+def test_111_rf16_la_web_de_prueba_no_arranca_nada_al_importarse():
+    """111:RF-16: la conversión abre procesos «spawn» en Windows y cada hijo reimporta ``web_de_prueba.py``. Si el
+    arranque (sesión, web y espacio) estuviera a nivel de módulo, el hijo crearía otra sesión y la del padre daría 401,
+    y la conversión fallaría al arrancar. En el módulo solo hay importaciones, funciones y la guarda ``__main__``."""
+    import ast
+
+    arbol = ast.parse(_texto('web_de_prueba.py'))
+    permitidos = (ast.Import, ast.ImportFrom, ast.FunctionDef)
+    sueltos = [n.lineno for n in arbol.body[1:] if not isinstance(n, permitidos)
+               and not (isinstance(n, ast.If) and "__name__" in ast.unparse(n.test))]
+    assert not sueltos, f'web_de_prueba.py ejecuta código al importarse en las líneas {sueltos}'

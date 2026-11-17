@@ -30,7 +30,8 @@ SIN_CAUSA = 'vad.perdidas.sin_causa_localizada.'
 #: «|»), que no escribe el nombre. Cada huella se calculó sobre la transcripción del registro (config/normativa).
 HUELLA_FE_SIN_CAMBIO = '2b5f15f335ef6d416e8eb66f35dd8d6a9969c8f7b72b4a9439308bfb7490a5c7'  # las 2 de la 223-2023
 HUELLA_CAUSA_IT815 = 'b63ee954fb4c0c6159a812dc996d8737d5c6acfc0592368a6ed8c18ca98626b2'  # la empresa del IT 815
-HUELLA_187_2026_RESERVA = 'fb4ceea839bd146e64f826cb26582dca16539eafd0ceae4050e7fdc81073be3f'  # titular|SET, Cuadro 6.5
+# PIT-ANON-ELEMENTOS: el par de huellas (titular|SET) de la fila del Cuadro 6.5; los nombres, solo en la lista local.
+HUELLA_187_2026_RESERVA = '62e25abd02e5e1b10b6d6ca7c56200859dca1d2fe3103e3be590c32db7b7ffe4'
 
 
 def _huella(*partes: str) -> str:
@@ -92,7 +93,7 @@ def test_registro_real_normas_del_pit_con_su_estado():
 
 def test_modificatoria_199_2026_leida_con_su_objeto():
     """107:RF-7, 107:RF-8 (107 T3) — la 199-2026 comprobada: objeto, área que modifica y consolidación, citados; el
-    detalle de sus elementos (IT 655-2026-GRT) no se supone."""
+    detalle de sus elementos sale del IT 655-2026-GRT, con su huella, y se dice que antes daba 404."""
     registro = cargar_registro(NORMATIVA)
     norma = registro.norma('RCD 199-2026-OS/CD')
     assert norma.estado_juridico == 'vigente_comprobada' and norma.fecha_publicacion
@@ -112,7 +113,7 @@ def test_modificatoria_199_2026_leida_con_su_objeto():
     oportunidad = registro.regla('pit.modificacion_2025_2029.oportunidad_por_area').regla.valor
     areas = sorted(a for tramo in oportunidad for a in tramo['areas'])
     assert areas == list(range(1, 15)), 'cada área de demanda, una sola vez'
-    assert 'IT 655-2026-GRT' in norma.nota and '404' in norma.nota
+    assert 'IT 655-2026-GRT' in norma.nota and '404' in norma.nota and 'aec882cf' in norma.nota
 
 
 def test_reserva_094_2022_transcrita():
@@ -372,7 +373,7 @@ def test_modificaciones_del_pit_2025_2029_se_suman_por_area():
     consolidan = {v.norma.acto for v in _vigentes(registro, MODIF + 'consolidacion', '2026-11-15')}
     assert consolidan == {R186, R187, R189, R199}
     elementos = {v.norma.acto: v.regla.valor['area'] for v in _vigentes(registro, MODIF + 'elementos', '2026-11-15')}
-    assert elementos == {R186: 1, R187: 3, R189: 13}
+    assert elementos == {R186: 1, R187: 3, R189: 13, R199: 9}
     for acto in (R186, R187, R189):
         for modificada in ('RCD 112-2024-OS/CD', 'RCD 149-2024-OS/CD'):
             assert modificada in registro.norma(acto).modifica and acto in registro.norma(modificada).modificada_por
@@ -399,18 +400,20 @@ def test_187_2026_transformador_de_reserva_compartida_del_area_3():
     """107:RF-7, 107:RF-16 (RN-AMB) — la 187-2026 agrega en el Área 3 el transformador de reserva compartida de
     60/22,9/10 kV y 30 MVA en una SET para 2029 (Cuadro 6.5 del IT 601-2026-GRT); la regla anota la incoherencia del
     original (60/23/10 kV en el párrafo) y la de la 189-2026, el pie erróneo del IT 597-2026-GRT. NOMBRES-REG: el
-    titular se coteja con los «Titulares» de la nota de la norma y el par titular|SET se fija por su huella."""
+    titular se coteja con los «Titulares» de la nota de la norma y el par titular|SET se fija por su huella
+    (PIT-ANON-ELEMENTOS: el registro guarda solo las huellas de los nombres)."""
     registro = cargar_registro(NORMATIVA)
     elementos = {v.norma.acto: v.regla for v in _vigentes(registro, MODIF + 'elementos', '2029-01-01')}
     assert R187 in elementos and R189 in elementos
     agregan = elementos[R187].valor['cuadros']['6.5 agregan']
-    assert len(agregan) == 1 and set(agregan[0]) == {'anio', 'titular', 'instalacion', 'elemento'}
+    assert len(agregan) == 1 and set(agregan[0]) == {'anio', 'titular_huella', 'instalacion_tipo', 'instalacion_huella',
+                                                     'elemento'}
     fila = agregan[0]
     assert fila['anio'] == '2029' and fila['elemento'] == 'Transformador de reserva compartida de 60/22,9/10 kV de 30 MVA'
-    assert fila['instalacion'].startswith('SET ') and len(fila['instalacion']) > len('SET ')
+    assert fila['instalacion_tipo'] == 'SET' and len(fila['instalacion_huella']) == 16
     titulares = registro.norma(R187).nota.split('Titulares:', 1)[1].split('Informe', 1)[0]
-    assert fila['titular'].casefold() in titulares.casefold(), 'el titular del cuadro es uno de los de la norma'
-    assert _huella(fila['titular'], fila['instalacion']) == HUELLA_187_2026_RESERVA, 'no es la fila del Cuadro 6.5'
+    assert f'[{fila["titular_huella"]}]' in titulares, 'el titular del cuadro es uno de los de la norma'
+    assert _huella(fila['titular_huella'], fila['instalacion_huella']) == HUELLA_187_2026_RESERVA,         'no es la fila del Cuadro 6.5'
     assert elementos[R187].valor['informe'] == 'IT 601-2026-GRT'
     assert '60/23/10 kV' in elementos[R187].interpretacion
     assert '2021-2025' in elementos[R189].interpretacion

@@ -51,6 +51,9 @@ test('111:RF-16 — todas las pestañas de la web siguen y conservan sus accione
       continue;
     }
     await expect(boton, `falta la pestaña ${p.id}`).toBeVisible();
+    // Un resumen en diálogo (p. ej. el de la carga del espacio sorteado) se cierra con Escape, como lo haría el operador.
+    for (let i = 0; i < 3 && (await page.locator('dialog[open]').count()) > 0; i++) await page.keyboard.press('Escape');
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
     await boton.click();
     await expect(boton).toHaveAttribute('aria-selected', 'true');
     await page.waitForLoadState('networkidle');

@@ -1,0 +1,36 @@
+{
+ "esquema": "aceptacion_matriz_v1",
+ "nota": "Spec 100 (RF-1, RF-5). La matriz de aceptación de una versión: cada fuente por separado (TXT, MDB y VNR-GIS) con un alimentador, varios unidos y un sistema entero. Ningún dato de la distribuidora: los valores ${CSG_...} salen del entorno de quien la corre (o de --variables, un JSON fuera de git); sin uno, el caso queda «sin_datos» con la variable que falta y la versión no se acepta. Cada herramienta dice qué significa su código de salida.",
+ "intentos": 3,
+ "herramientas": {
+  "sistema_web": {
+   "guion": "tools/sistema_web.py",
+   "codigos": {"0": "aceptado", "1": "fallo", "2": "recuperable"},
+   "resumen": "--resumen-json"
+  },
+  "aceptacion_nativa": {
+   "guion": "tools/aceptacion_nativa.py",
+   "codigos": {"0": "aceptado", "2": "recuperable", "3": "recuperable"}
+  }
+ },
+ "casos": [
+  {"id": "txt-alimentador", "fuente": "txt", "alcance": "alimentador", "herramienta": "sistema_web",
+   "argumentos": ["--espacio", "${CSG_ACEPTACION_TXT_ESPACIO}", "--red", "${CSG_ACEPTACION_TXT_ALIMENTADOR}", "--demanda-dir", "${CSG_DEMANDA_DIR}", "--periodo", "${CSG_ACEPTACION_PERIODO}", "--reconvertir"]},
+  {"id": "txt-varios", "fuente": "txt", "alcance": "varios", "herramienta": "sistema_web",
+   "argumentos": ["--espacio", "${CSG_ACEPTACION_TXT_ESPACIO}", "--red", "${CSG_ACEPTACION_TXT_VARIOS}", "--demanda-dir", "${CSG_DEMANDA_DIR}", "--periodo", "${CSG_ACEPTACION_PERIODO}", "--reconvertir"]},
+  {"id": "txt-sistema", "fuente": "txt", "alcance": "sistema", "herramienta": "sistema_web",
+   "argumentos": ["--espacio", "${CSG_ACEPTACION_TXT_ESPACIO}", "--zonal", "${CSG_ACEPTACION_TXT_SISTEMA}", "--demanda-dir", "${CSG_DEMANDA_DIR}", "--periodo", "${CSG_ACEPTACION_PERIODO}", "--reconvertir"]},
+  {"id": "mdb-alimentador", "fuente": "mdb", "alcance": "alimentador", "herramienta": "sistema_web",
+   "argumentos": ["--espacio", "${CSG_ACEPTACION_MDB_ESPACIO}", "--red", "${CSG_ACEPTACION_MDB_ALIMENTADOR}", "--demanda-dir", "${CSG_DEMANDA_DIR}", "--periodo", "${CSG_ACEPTACION_PERIODO}", "--reconvertir"]},
+  {"id": "mdb-varios", "fuente": "mdb", "alcance": "varios", "herramienta": "sistema_web",
+   "argumentos": ["--espacio", "${CSG_ACEPTACION_MDB_ESPACIO}", "--red", "${CSG_ACEPTACION_MDB_VARIOS}", "--demanda-dir", "${CSG_DEMANDA_DIR}", "--periodo", "${CSG_ACEPTACION_PERIODO}", "--reconvertir"]},
+  {"id": "mdb-sistema", "fuente": "mdb", "alcance": "sistema", "herramienta": "sistema_web",
+   "argumentos": ["--espacio", "${CSG_ACEPTACION_MDB_ESPACIO}", "--zonal", "${CSG_ACEPTACION_MDB_SISTEMA}", "--demanda-dir", "${CSG_DEMANDA_DIR}", "--periodo", "${CSG_ACEPTACION_PERIODO}", "--reconvertir"]},
+  {"id": "vnr-alimentador", "fuente": "vnr", "alcance": "alimentador", "herramienta": "sistema_web",
+   "argumentos": ["--espacio", "${CSG_ACEPTACION_VNR_ESPACIO}", "--red", "${CSG_ACEPTACION_VNR_ALIMENTADOR}", "--demanda-dir", "${CSG_DEMANDA_DIR}", "--periodo", "${CSG_ACEPTACION_PERIODO}", "--reconvertir"]},
+  {"id": "vnr-varios", "fuente": "vnr", "alcance": "varios", "herramienta": "sistema_web",
+   "argumentos": ["--espacio", "${CSG_ACEPTACION_VNR_ESPACIO}", "--red", "${CSG_ACEPTACION_VNR_VARIOS}", "--demanda-dir", "${CSG_DEMANDA_DIR}", "--periodo", "${CSG_ACEPTACION_PERIODO}", "--reconvertir"]},
+  {"id": "vnr-sistema", "fuente": "vnr", "alcance": "sistema", "herramienta": "sistema_web",
+   "argumentos": ["--espacio", "${CSG_ACEPTACION_VNR_ESPACIO}", "--zonal", "${CSG_ACEPTACION_VNR_SISTEMA}", "--demanda-dir", "${CSG_DEMANDA_DIR}", "--periodo", "${CSG_ACEPTACION_PERIODO}", "--reconvertir"]}
+ ]
+}

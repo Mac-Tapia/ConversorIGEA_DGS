@@ -157,7 +157,7 @@ módulo de cargas del 2026-10-08 (resumida en el contexto de la spec).
   con el error y la traza, para que un fallo a mitad deje lo leído.
 - Pruebas: `tests/test_pfd_diagnostico.py` con `tests/fake_pf.py` ampliado (`ComPfdimport`, `IntSdel`, `root_id` de las
   copias de etapa, el caso que recuerda cada proyecto al activarlo), con nombres, cargas, casos y fechas sorteados.
-- RF de T28 (a numerar con la tarea): EL SISTEMA vinculará el proyecto con los ficheros de su expediente cuando su
+- RF-109 y RF-110 (T28; `pfd_vinculos.py` con el inventario y la extracción de `pide_dataset`): EL SISTEMA vinculará el proyecto con los ficheros de su expediente cuando su
   contenido nombre sus casos, escenarios, alimentadores, SET o proyectos; y, por separado, cada vínculo llevará su
   evidencia (fichero, hoja o página y texto), sin que un nombre de fichero parecido baste.
 - RF de T29 (a numerar con la tarea): CUANDO el operador suba un `.pfd` en la web, EL SISTEMA lanzará el diagnóstico en

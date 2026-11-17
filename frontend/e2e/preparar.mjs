@@ -9,7 +9,7 @@
  */
 import { spawn } from 'node:child_process';
 import { randomInt } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -31,10 +31,21 @@ function puertoLibre() {
   });
 }
 
+/** El python del servidor: el del checkout o, en un worktree sin .venv, el del checkout primario (como en
+ * `test/e2e/playwright.config.mjs`); nunca el `python` del sistema si hay un .venv del proyecto. */
 function python() {
   if (process.env.CSG_E2E_PYTHON) return process.env.CSG_E2E_PYTHON;
-  for (const r of ['.venv/Scripts/python.exe', '.venv/bin/python']) {
-    if (existsSync(join(RAIZ, r))) return join(RAIZ, r);
+  const raices = [RAIZ];
+  const marca = join(RAIZ, '.git');
+  if (existsSync(marca) && !existsSync(join(marca, 'HEAD'))) {
+    // .git de un worktree: «gitdir: <primario>/.git/worktrees/<nombre>».
+    const gitdir = readFileSync(marca, 'utf8').split(':').slice(1).join(':').trim();
+    raices.push(resolve(gitdir, '..', '..', '..'));
+  }
+  for (const raiz of raices) {
+    for (const r of ['.venv/Scripts/python.exe', '.venv/bin/python']) {
+      if (existsSync(join(raiz, r))) return join(raiz, r);
+    }
   }
   return 'python';
 }

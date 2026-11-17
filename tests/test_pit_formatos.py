@@ -266,8 +266,10 @@ def test_llenado_ningun_formato_exigido_vacio_en_silencio():
     f208 = next(f for f in resultado['formatos'] if f['codigo'] == 'F-208')
     assert f208['estado'] == 'plantilla' and 'sin datos de origen' in f208['causa']
     assert 'F-208' not in resultado['pendientes_de_mapeo']
+    causas = getattr(_llenado(), 'CAUSAS_DE_PENDIENTE', None)
+    assert causas is not None, 'falta llenado.CAUSAS_DE_PENDIENTE: la causa de cada formato aún sin fuente (107 T30)'
     assert set(resultado['pendientes_de_mapeo']) == {
-        f['codigo'] for f in resultado['formatos'] if 'sin mapeo' in f['causa']}
+        f['codigo'] for f in resultado['formatos'] if 'sin mapeo' in f['causa'] or f['causa'] == causas.get(f['codigo'])}
 
 
 def test_llenado_con_la_fuente_del_f208_lo_llena_con_su_traza():

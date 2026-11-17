@@ -859,8 +859,11 @@ def test_086_rf21_una_incrustable_con_sandbox_se_deja_enmarcar_por_la_web():
 
 
 # ------------------------------------------------------------ RF-21, la puerta decide los marcos de toda respuesta
-#: Las dos pantallas que enmarcan una página de la propia web (MapaCargas.tsx y Modules.tsx), por su plantilla.
-_ENMARCADAS = {'/api/workspaces/{wid}/mapa-cargas/pagina', '/api/workspaces/{wid}/files/{rel:path}'}
+#: Las tres pantallas que enmarcan una página de la propia web (MapaCargas.tsx, Modules.tsx y PlanoRed.tsx), por su
+#: plantilla. La del plano faltaba (111:RF-14): su marco salía en blanco en el navegador («frame-ancestors 'none'»),
+#: lo encontró la medición en navegador real de 111 T2.
+_ENMARCADAS = {'/api/workspaces/{wid}/mapa-cargas/pagina', '/api/workspaces/{wid}/files/{rel:path}',
+               '/api/workspaces/{wid}/plano/pagina'}
 _DATOS_MAPA = {'project': 'PRY', 'alimentadores': {'AL1': {'tramos': [['L1', [[-13.49, -76.01], [-13.5, -76.0]]]],
                                                            'cabecera': None}},
                'cargas': [{'sed': 'SE1', 'alimentador': 'AL1', 'kw': 5, 'sola': True,
@@ -913,7 +916,7 @@ def test_086_rf21_toda_otra_ruta_sigue_sin_dejarse_enmarcar(puerta):
     ``SAMEORIGIN``), salen con una sola ``DENY`` y ``frame-ancestors 'none'``: la cabecera de la ruta no cuenta."""
     rutas = _plantillas(puerta.app)
     plantillas = {p for p, _r in rutas}
-    assert _ENMARCADAS <= plantillas, _ENMARCADAS - plantillas        # las dos son rutas que existen
+    assert _ENMARCADAS <= plantillas, _ENMARCADAS - plantillas        # las tres son rutas que existen
     sin_conversor = {re.sub(r':[^}]+\}', '}', p) for p in plantillas}
     assert set(puerta.app.openapi()['paths']) <= sin_conversor
     pagina_que_pide_marco = [(b'content-type', b'text/html; charset=utf-8'),

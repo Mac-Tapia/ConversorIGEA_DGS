@@ -145,6 +145,8 @@ export function FileDrop({
     <div
       className={`drop ${over ? 'drop-over' : ''} ${disabled ? 'drop-disabled' : ''} ${compact ? 'drop-compact' : ''}`}
       role="button"
+      // 086 F-12 (WCAG 4.1.2): deshabilitado también para el lector de pantalla, no solo con la opacidad.
+      aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : 0}
       onClick={() => !disabled && input.current?.click()}
       onKeyDown={(e) => { if (!disabled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); input.current?.click(); } }}

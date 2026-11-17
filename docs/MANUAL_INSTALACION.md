@@ -280,6 +280,12 @@ python tools\construir_candidato.py sumas C:\csg\entrega
 - **La lista local de términos** (`--lista-local` o `CSG_TERMINOS_PROHIBIDOS`), fuera de git, con los nombres, siglas, paquetes,
   corpus y códigos de alimentador de **cada** distribuidora con la que se trabajó. Los comentarios con esos casos se neutralizan en
   el paquete, con sus cifras.
+- **La lista local de los elementos del registro normativo** (`CSG_NORMATIVA_ELEMENTOS`, o `config/normativa_local/`, que
+  está en `.gitignore`), fuera de git. El registro público guarda los titulares, las instalaciones y los nombres de las
+  descripciones de los elementos del PIT solo por su huella (la de la lista de términos). Cada fichero `*.json` es
+  `{"esquema": "normativa_elementos_local_v1", "nombres": ["…"]}`: la huella de cada nombre se calcula al leerlo
+  (`pit/elementos_modificacion.leer_lista_local`). Sin ella el PIT funciona igual: casa por huella con la red del
+  usuario y muestra «elemento <huella>» donde iría el nombre.
 - **El Python oficial**: el `python-3.12.10-embed-amd64.zip` de python.org que fija `config/entrega.json`, con su SHA-256 y la firma
   de la Python Software Foundation en `python.exe`, `pythonw.exe` y `python312.dll`.
 - **pip-audit** sobre el lock, desde un entorno aparte (`CSG_PIP_AUDIT`), nunca en el entorno del desarrollo. Una vulnerabilidad solo

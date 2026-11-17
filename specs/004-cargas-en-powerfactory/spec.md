@@ -403,6 +403,12 @@ desde un DGS; los `.pfd` versionados se renombran y se conservan.
   número de libros de la carpeta y crezca con el de medidores solo en lo compacto; los resultados serán los mismos que
   con todos los libros abiertos y en el orden pedido. Un .xls se lee entero al abrirlo (unas tres veces su tamaño): con
   los cuatro de un caso real abiertos y las curvas en tuplas, buscar sus 233 medidores pasaba de 5 GB (2026-11-15).
+- RF-109: EL SISTEMA vinculará el proyecto de un `.pfd` con los ficheros de su expediente cuando su contenido nombre
+  sus casos, escenarios, variaciones, alimentadores, SET o el propio proyecto, como palabra entera y sin distinguir
+  mayúsculas ni tildes (T28, texto acordado en el plan).
+- RF-110: EL SISTEMA guardará con cada vínculo su evidencia (el fichero con su huella, la hoja o la página y el texto
+  que lo nombra); el nombre de un fichero parecido no bastará, y un fichero que no se pueda leer se dirá aparte con
+  su motivo, nunca vinculado por suposición.
 
 ## Requisitos no funcionales
 

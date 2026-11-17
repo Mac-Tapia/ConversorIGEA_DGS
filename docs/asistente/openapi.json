@@ -6227,7 +6227,8 @@
               "powerfactory",
               "asistente",
               "control",
-              "correo"
+              "correo",
+              "red"
             ],
             "title": "Lane",
             "type": "string"

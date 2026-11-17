@@ -78,9 +78,10 @@ def _capacidad(celdas: Mapping[tuple[int, str], str], bloque: Mapping[str, Any])
     inicio = int(bloque['fila_marca'])
     palabra = str(bloque['marca']).split()[0].lower()
     ultima = inicio
-    filas = sorted({f for f, letra in celdas if letra == 'A' and f > inicio})
+    columna = str(bloque.get('columna_marca', 'A'))  # F-124: la marca «Grupo 1» va en la columna D
+    filas = sorted({f for f, letra in celdas if letra == columna and f > inicio})
     for f in filas:
-        texto = celdas[(f, 'A')].strip()
+        texto = celdas[(f, columna)].strip()
         if (texto.split() or [''])[0].lower() == palabra or _PUNTOS.match(texto):
             ultima = f
         else:
@@ -132,14 +133,23 @@ def _columnas_del_bloque(codigo: str, plantilla: Mapping[tuple[int, str], str], 
     return columnas
 
 
+def _anios_de_serie_filas(b: Mapping[str, Any], horizonte: int | None) -> range:
+    """Los años de una serie en filas: los que declara el mapeo (``desde`` y ``hasta``, p. ej. la historia del −20 al 0
+    de F-104 y F-105, que la plantilla trae escritos) o, si no los declara, del 0 al horizonte de la norma."""
+    serie = b['serie_filas']
+    if 'desde' in serie:
+        return range(int(serie['desde']), int(serie['hasta']) + 1)
+    return range(int(horizonte or 0) + 1)
+
+
 def _comprobar_serie_filas(codigo: str, plantilla: Mapping[tuple[int, str], str], b: Mapping[str, Any],
                            horizonte: int | None) -> None:
-    """Serie en filas: desde ``fila_marca``, una fila por año 0..horizonte con el año en ``serie_filas.columna``."""
+    """Serie en filas: desde ``fila_marca``, una fila por año con el año en ``serie_filas.columna``."""
     columna = str(b['serie_filas'].get('columna', 'A'))
-    for i in range(int(horizonte or 0) + 1):
-        fila = int(b['fila_marca']) + i
-        if plantilla.get((fila, columna), '').strip() != str(i):
-            raise PitError(f'{codigo}: la norma pide {horizonte} años y la plantilla no trae el año {i} en '
+    for k, anio in enumerate(_anios_de_serie_filas(b, horizonte)):
+        fila = int(b['fila_marca']) + k
+        if plantilla.get((fila, columna), '').strip() != str(anio):
+            raise PitError(f'{codigo}: la norma pide {horizonte} años y la plantilla no trae el año {anio} en '
                            f'{columna}{fila} (trae {plantilla.get((fila, columna))!r})')
 
 
@@ -182,7 +192,8 @@ def celdas_de_formato(registro: RegistroNormativo, codigo: str, datos: Mapping[s
         valor = (datos.get('cabecera') or {}).get(c['campo'])
         traza = {**base, 'campo': c['campo'], 'calculo': 'dato de la fuente'}
         if valor is None:
-            traza['motivo'] = f'la fuente no trae «{c["campo"]}»'
+            traza['motivo'] = ((datos.get('_motivos_cabecera') or {}).get(c['campo'])
+                               or f'la fuente no trae «{c["campo"]}»')
         celdas.append({'id': f'{codigo}!cabecera:{c["campo"]}', 'cuadro': codigo, 'bloque': 'cabecera', 'fila': 0,
                        'campo': c['campo'], 'columna': texto, 'celda': f'{codigo}!{c["celda"]}', 'valor': valor,
                        'traza': traza})
@@ -193,7 +204,7 @@ def celdas_de_formato(registro: RegistroNormativo, codigo: str, datos: Mapping[s
         if ('serie_columnas' in definido or 'serie_filas' in definido) and horizonte is None:
             horizonte = horizonte_de_la_norma(registro, fecha)
         b: dict[str, Any] = {**definido, 'columnas': _columnas_del_bloque(codigo, plantilla, definido, horizonte)}
-        _comprobar(codigo, plantilla, int(b['fila_marca']), 'A', str(b['marca']))
+        _comprobar(codigo, plantilla, int(b['fila_marca']), str(b.get('columna_marca', 'A')), str(b['marca']))
         if 'serie_filas' in b:
             _comprobar_serie_filas(codigo, plantilla, b, horizonte)
         for col in b['columnas']:
@@ -205,7 +216,8 @@ def celdas_de_formato(registro: RegistroNormativo, codigo: str, datos: Mapping[s
             huecos.append({'bloque': b['bloque'], 'causa': f'columnas de la plantilla sin campo en el conversor: '
                                                           f'{", ".join(sin_campo)}', 'columnas': sin_campo})
         filas = list((datos.get('bloques') or {}).get(b['bloque']) or ())
-        capacidad = _capacidad(plantilla, b)
+        # Una serie en filas trae en la plantilla una fila por año (comprobadas arriba): esas son sus filas de ejemplo.
+        capacidad = len(_anios_de_serie_filas(b, horizonte)) if 'serie_filas' in b else _capacidad(plantilla, b)
         primera = int(b['fila_marca']) + desplazamiento
         if len(filas) > capacidad:
             insertar[b['bloque']] = len(filas) - capacidad

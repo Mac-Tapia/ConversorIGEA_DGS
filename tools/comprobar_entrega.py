@@ -52,15 +52,14 @@ class EntregaError(ValueError):
     """La lista de la entrega o la de términos no se puede usar."""
 
 
-def normalizar(texto: Any) -> str:
-    """Solo letras y cifras: un guion bajo, una tilde o una mayúscula no esconden un nombre (076:RF-6)."""
-    plano = unicodedata.normalize('NFKD', str(texto or '')).encode('ascii', 'ignore').decode().lower()
-    return ' '.join(_TOKEN.findall(plano))
-
-
-def huella(termino: str, sal: str = '086') -> str:
-    """La misma forma de 076:RF-6: sha256('sal:texto normalizado')[:16]; la lista se versiona sin los nombres."""
-    return hashlib.sha256(f'{sal}:{normalizar(termino)}'.encode()).hexdigest()[:16]
+if str(RAIZ / 'src') not in sys.path:
+    sys.path.insert(0, str(RAIZ / 'src'))
+# La huella y su normalización tienen un solo cuerpo, el del producto (PIT-ANON-ELEMENTOS): el registro normativo
+# guarda los nombres de sus elementos con la misma forma.
+from convertersmartgrid.dominio.huellas_terminos import (  # noqa: F401 (se reexportan)
+    huella,
+    normalizar,
+)
 
 
 # --------------------------------------------------------------------------- manifiesto

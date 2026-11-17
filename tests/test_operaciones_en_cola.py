@@ -120,3 +120,29 @@ def test_zip_sobre_cuota_no_publica_archivo(client, monkeypatch):
     assert job['status'] == 'failed'
     assert 'cuota' in job['error'].lower()
     assert (ws.out_dir / 'A.dgs').is_file()
+
+
+def test_080_rf61_la_busqueda_vnr_va_en_su_carril_y_no_bloquea_la_entrada(client, monkeypatch):
+    """080:RF-61 — la búsqueda de publicaciones espera a la red en el carril «red»: mientras dura, el carril del motor
+    queda libre y un trabajo de la entrada (aquí, el ZIP de salidas) se encola y termina sin esperarla."""
+    import convertersmartgrid.adaptadores.entrada.vnr.discovery.official as official
+    from convertersmartgrid.adaptadores.entrada.vnr.discovery.catalog import PublicationCatalog
+    entered, release = threading.Event(), threading.Event()
+
+    def sin_red(*args, **kw):
+        entered.set()
+        assert release.wait(10)
+        return PublicationCatalog(), {'total': 0}
+    monkeypatch.setattr(official, 'refresh_official_catalog', sin_red)
+    wid = _workspace(client)
+    (client.app.state.store.get(wid).out_dir / 'A.dgs').write_bytes(b'A')
+    try:
+        r = client.post(f'/api/workspaces/{wid}/vnr/publications/refresh')
+        assert r.status_code == 202 and r.json()['lane'] == 'red'
+        assert entered.wait(2)
+        zipjob = client.post(f'/api/workspaces/{wid}/outputs/archive', json={'feeders': ['A']})
+        assert zipjob.status_code == 202 and zipjob.json()['lane'] == 'engine'
+        assert _finished(client, zipjob.json()['id'])['status'] == 'done'
+    finally:
+        release.set()
+    assert _finished(client, r.json()['id'])['status'] == 'done'

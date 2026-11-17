@@ -62,6 +62,12 @@ adaptador VNR (integrador f9).
       el 15-11-2026 por el art. 109 de la Constitución, citado en su nota; ya no se deja sin `vigencia_desde`. Las
       notas que genera `tools/normativa/generar_reconsideraciones.py` citan la RCD 223-2023-OS/CD con su año, y la
       prueba de los actos comprueba que ningún texto del registro cita una RCD sin el año.
+      Avance (2026-11-16, f7/PIT-ANON-ELEMENTOS, aprobada por c2): el IT 655-2026-GRT, ya legible (sha256 aec882cf…,
+      código de verificación s6CFQ6sbGu), da la regla `pit.modificacion_2025_2029.elementos` del Área 9 (cuadros 6.4 a
+      6.7: agregan 2, reprograman 18, eliminan 7, baja 1) y la `correccion_error_material` de su §6.5. Los titulares,
+      las instalaciones y los nombres de las descripciones van por su huella en la 199 y en la 186-189; los nombres en
+      claro, en la lista local (`CSG_NORMATIVA_ELEMENTOS`, fuera de git). `pit/elementos_modificacion.py` casa por
+      huella con la red del usuario; `tests/test_pit_elementos_anonimos.py` es la comprobación permanente.
 - [ ] T4. Perfil `pit.areas` en el esquema del perfil de empresa (área, titulares, SET, correspondencia SET →
       alimentadores, tensión mínima del ámbito y asignación de los elementos compartidos) y `pit/ambito.py`, que reúne
       los elementos de un área sin mezclarla con otra. Dos perfiles sintéticos A y B en `tests/datos_pit.py`.
