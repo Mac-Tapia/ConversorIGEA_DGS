@@ -135,3 +135,21 @@ def test_108_rf20_la_cita_es_literal_y_para_si_falta_la_marca():
     assert c['cita_literal'] == '22.1 El proceso de 7 km de ancho.' and c['lineas'] == '2-4'
     with pytest.raises(SystemExit, match='no está'):
         t.cita('23.1 Falta', '23.2')
+
+
+def test_108_rf20_el_anexo_2_trae_los_equipos_de_proteccion_y_seccionamiento():
+    """108:RF-20 — el componente C de la MT (interruptores, seccionadores, seccionalizadores y reconectadores) lleva
+    códigos de 11 caracteres («RE005041011»); el lector solo aceptaba hasta 9 y el componente entero faltaba."""
+    codigos = json.loads((RAIZ / 'config' / 'vnr' / 'anexo2_codigos.json').read_text(encoding='utf-8'))['codigos']
+    c_mt = [c for c in codigos if c['grupo'].startswith('1') and c['componente'].startswith('C ')]
+    assert {c['subcomponente'].split()[0] for c in c_mt} >= {'C2', 'C3'}
+    assert any(c['codigo'].startswith('RE') and len(c['codigo']) == 11 for c in c_mt)
+    assert any(c['codigo'].startswith('SC') for c in c_mt)
+
+
+def test_108_rf20_un_codigo_repetido_por_la_guia_queda_anotado_y_no_se_pierde():
+    """108:RF-20 — la Guía repite IN063311023 en C1 (la segunda vez «INTEGRADO»): vale la primera fila y la repetición
+    queda anotada en ella con su línea y su descripción."""
+    codigos = json.loads((RAIZ / 'config' / 'vnr' / 'anexo2_codigos.json').read_text(encoding='utf-8'))['codigos']
+    (fila,) = [c for c in codigos if c['codigo'] == 'IN063311023']
+    assert fila['repetido_en'] and 'INTEGRADO' in fila['repetido_en'][0]['descripcion']

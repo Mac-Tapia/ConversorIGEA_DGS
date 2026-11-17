@@ -384,3 +384,44 @@ adaptador VNR (integrador f9).
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_demanda.py -k resumen` en verde, y
        `llenado.pendientes_de_mapeo` ya no lista ningún formato de demanda sin causa aceptada.
       Hecho en 016498fc (LOTE-1); pruebas: tests/test_pit_demanda.py -k resumen.
+- [ ] T31. Entradas del PIT desde las fuentes de la empresa: `/api/pit/diagnostico` y `/api/pit/expediente` aceptan
+       `fuente_red_area`, `fuente_proyeccion` y `fuente_alternativas` (o la ruta, como antes), y sin ninguna toman la
+       vigente de la empresa, salvo las alternativas; la pestaña «Estudio PIT» las elige con `ElegirFuente` y sube por
+       `/fuentes`; `/api/pit/areas` dice la empresa del perfil para el aviso de la red del espacio. (RF-19)
+       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_web.py` en verde; `frontend/test/pitPanel.test.mjs`
+       y `npm test`, `npm run lint`, `npx tsc --noEmit -p .` y `npm run build` sin errores.
+- [ ] T32. La norma del PIT desde el registro: `pit/norma.py` lee los años de la programación, el horizonte, el factor
+       de potencia de las barras de MT, la demanda mínima del N-1 y las reglas de la comparación; `diagnosticar` y
+       `evaluar` las aplican con `registro` y el expediente las cita en `reglas_aplicadas.json`. (RF-20)
+       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_norma.py` y los `tests/test_pit_*.py` en
+       verde.
+- [x] T33. Biblioteca normativa general (`biblioteca_normativa.py`): cargar_biblioteca, huella_biblioteca y
+      ruta_capa_usuario. (RF-21)
+      Hecho cuando: `pytest tests/test_biblioteca_normativa.py` en verde. Hecho en esta entrega (BIBLIOTECA, 4d): 4 passed.
+- [x] T34. La biblioteca con los vínculos entre módulos citados de la norma: el DS 028-2021-EM (VAD sobre la empresa
+      modelo, arts. 63, 64 y 67 de la LCE; PIDE del DL 1208 con sus criterios detrás de la fijación del VAD) y la
+      RCD 242-2021-OS/CD comprobada con su texto de El Peruano (solo las SCT reasignadas por el DS 018-2021-EM). (RF-21)
+      Hecho cuando: `pytest tests/test_biblioteca_normativa.py tests/test_pit_registro.py` en verde. Hecho en esta
+      entrega (DATASET-NORMATIVO-1, 4d).
+- [x] T35. La biblioteca actualizable desde la consola y como dataset: `agregar_norma` (valida y copia a la capa del
+      usuario; lo que no valida no se queda), `exportar_dataset` (normas.jsonl y reglas.jsonl, por huella) y
+      `tools/normativa/biblioteca.py` (listar, agregar, exportar). (RF-21)
+      Hecho cuando: `pytest tests/test_biblioteca_normativa.py` en verde. Hecho en esta entrega (DATASET-NORMATIVO-2, 4d).
+- [x] T36. La pestaña «Biblioteca normativa» en la web: GET /api/normativa (lo que obliga en la fecha),
+      GET /api/normativa/reglas (las reglas con su cita) y POST /api/normativa (a la capa del usuario; lo que no
+      valida no entra). (RF-21)
+      Hecho cuando: `pytest tests/test_normativa_web.py` y `node --test frontend/test/normativaPanel.test.mjs` en
+      verde. Hecho en esta entrega (DATASET-NORMATIVO-3W, 4d).
+- [x] T37. El vínculo VNR → VAD de la LCE en la biblioteca, citado: el art. 70 en la redacción del DL 1221 (TIR de
+      25 años con el VNR, residual cero) y los arts. 71 (banda de 4 puntos) y 77 (VNR cada 4 años). (RF-21)
+      Hecho cuando: `pytest tests/test_biblioteca_normativa.py` en verde. Hecho en esta entrega (DATASET-NORMATIVO-4, 4d).
+- [x] T38. El catálogo técnico nacional e internacional en la biblioteca (CNE Suministro y Utilización, NTP 370.400,
+      IEC 60076, 60287 y 60909, IEEE 1366 y 519): solo de referencia y sin verificar, con quién la usa; no obliga ni
+      da reglas hasta que se registre su texto leído. (RF-21)
+      Hecho cuando: `pytest tests/test_biblioteca_normativa.py` en verde. Hecho en esta entrega (DATASET-NORMATIVO-5, 4d).
+- [x] T39. La base normativa del PIDE en la biblioteca, con su texto oficial y su huella: el DL 1208 (distribuidoras de
+      FONAFE, estudio antes de cada fijación del VAD, PIDE en sus anualidades) y su reglamento, el DS 023-2016-EM
+      (horizonte de 20 años, anualidad con 30 años y la tasa del art. 79 de la LCE, criterios que aprueba el MINEM); el
+      DS 027-2018-EM como derogado (DS 028-2018-EM y DS 029-2018-EM) y la RM 428-2017-MEM/DM como prepublicada.
+      (RF-21; 109:RF-26)
+      Hecho cuando: `pytest tests/test_biblioteca_normativa.py` en verde. Hecho en esta entrega (DSN-6-PIDE, f7).

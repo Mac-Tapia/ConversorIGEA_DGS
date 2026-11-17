@@ -50,6 +50,7 @@ from ..costos_fuentes import CostosError, TablaCostos, leer_modulos_transmision,
 from ..registro_normativo import RegistroNormativo
 from . import PitError
 from .alternativas import evaluar
+from .norma import factor_potencia
 from .ambito import areas_del_perfil, reunir
 from .cuadros import celdas_de_cuadros, definiciones, formatos_aplicables
 from .diagnostico import agregar_demanda, diagnosticar, limites_de_tension, limites_del_estudio
@@ -213,7 +214,7 @@ def armar_expediente(raiz: Path | str, perfil: Mapping[str, Any], registro: Regi
     avance(2, pasos, 'diagnóstico')
     # La tensión, por barra desde la norma (107 T7, PIT-TEN); pit.limites del perfil queda como respaldo explícito.
     diag = diagnosticar(datos_area, red, proyeccion, anios, limites_del_estudio(registro, perfil), motor=motor,
-                        cancel=cancel, tension=limites_de_tension(red, datos_area, registro, perfil))
+                        cancel=cancel, tension=limites_de_tension(red, datos_area, registro, perfil), registro=registro)
     pendientes: list[str] = []
     comparacion = programa = None
     celdas: list[dict[str, Any]] = []
@@ -224,7 +225,9 @@ def armar_expediente(raiz: Path | str, perfil: Mapping[str, Any], registro: Regi
         tablas, faltan = tablas_de_costos(perfil, raiz, fecha_apertura)
         pendientes += faltan
         if tablas:
-            comparacion = evaluar(red, elegidas, agregar_demanda(datos_area, red, proyeccion), anios, registro,
+            comparacion = evaluar(red, elegidas, agregar_demanda(datos_area, red, proyeccion,
+                                                                  factor_potencia=factor_potencia(registro)),
+                                  [a.anio for a in diag.anios] or anios, registro,
                                   tablas, motor=motor, cancel=cancel, ubicacion=datos_area.ubicacion)
             evaluada = next(a for a in comparacion.alternativas if a.nombre == alternativa_elegida)
             if evaluada.completa:

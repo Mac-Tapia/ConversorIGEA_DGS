@@ -38,6 +38,7 @@ CONJUNTOS_RAG: dict[str, tuple[str, ...]] = {
     '077': ('docs/CONJUNTO_ABSTENCION_CALIBRACION_077.json', 'docs/CONJUNTO_ABSTENCION_SELLADO_077.json',
             'docs/CONJUNTO_FUERA_077.json', 'docs/CONJUNTO_MAESTRO_CALIBRACION_077.json',
             'docs/CONJUNTO_MAESTRO_CALIBRACION_097.json',
+            'docs/CONJUNTO_NORMATIVO_SELLADO_077.json',
             'docs/RAG_PREGUNTAS_OPERADOR_097.json'),
 }
 

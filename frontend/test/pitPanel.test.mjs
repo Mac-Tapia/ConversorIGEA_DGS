@@ -123,3 +123,15 @@ test('107 T13 los años: sueltos, por tramos y sin repetir; lo que no es un año
   assert.equal(leerAnios('2029-2027'), null);
   assert.equal(leerAnios('dos mil'), null);
 });
+
+test('107:RF-19 las entradas del PIT salen de las fuentes de la empresa, y lo subido queda en ella', async () => {
+  const { pintar } = await cargar();
+  const html = pintar();
+  for (const e of ['Libro de la red', 'Proyección de la demanda', 'Alternativas (opcional)']) assert.ok(html.includes(e), e);
+  const panel = readFileSync(PANEL, 'utf-8');
+  for (const c of ['red_area', 'proyeccion', 'alternativas']) assert.ok(panel.includes(`<ElegirFuente clase="${c}"`), c);
+  // Con los ids de sus fuentes, nunca con rutas de una subida suelta; lo subido se registra antes en la empresa.
+  assert.ok(panel.includes('fuente_red_area') && panel.includes('fuente_proyeccion') && panel.includes('fuente_alternativas'));
+  assert.ok(panel.includes('fuentes.subir(ws.id, clase, e)') && !panel.includes('pit.entradas('));
+  assert.ok(panel.includes('Red del espacio:') && panel.includes('no es la empresa del perfil'));
+});

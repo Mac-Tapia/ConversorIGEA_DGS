@@ -1,0 +1,156 @@
+{
+  "esquema": "vinculos_modulos_v1",
+  "nota": "Cómo se vinculan los módulos según la norma: todos trabajan sobre el mismo espacio (la empresa y su red convertida por el mismo conversor); cada uno comparte unas entradas, tiene las suyas y da sus propios entregables, y algunos consumen lo que otro produce. Cada vínculo cita su regla del registro normativo (norma y clave) o dice que es una decisión de producto, con su motivo.",
+  "compartidas": {
+    "red_convertida": {"de_donde": "espacio", "descripcion": "La red de la empresa convertida por el conversor (TXT, MDB o VNR-GIS): modelo canónico y dataset que deja la carga.", "cita": {"decision_de_producto": "un solo conversor para todos los módulos (orden del usuario, 17-11)"}},
+    "perfil": {"de_donde": "fuentes", "clase": "perfil", "descripcion": "Perfil de la empresa: sistemas eléctricos, sector típico de cada uno, tensiones y medidores.", "cita": {"decision_de_producto": "la empresa del espacio y su perfil son únicos para todos los módulos"}},
+    "sicodi": {"de_donde": "fuentes", "clase": "sicodi", "descripcion": "Costos estándar de inversión del SICODI de la fijación vigente, por periodo.", "cita": {"norma": "RCD 232-2017-OS/CD", "clave": "vnr.costos_estandar.instalaciones"}},
+    "medicion": {"de_donde": "fuentes", "clase": "medicion", "descripcion": "Medición de cabecera y de las SED: máxima demanda del año (zonificación, calibración, proyección).", "cita": {"norma": "RCD 232-2017-OS/CD", "clave": "vnr.md.anio"}},
+    "proyeccion": {"de_donde": "fuentes", "clase": "proyeccion", "descripcion": "Proyección de la demanda (spec 031): la usan el PIDE (F01) y el PIT (demanda a 30 años del área).", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.horizonte_demanda_anios", "articulo": "art. 3.14"}},
+    "demanda": {"de_donde": "fuentes", "clase": "demanda", "descripcion": "Libros de cabecera, clientes y suministros de la calibración: el PIT (F-103) y el PIDE (análisis del mercado) parten de ellos.", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.demanda.potencia_desde_energia", "articulo": "art. 8.1 (Etapa 3)"}},
+    "cargas_nuevas": {"de_donde": "fuentes", "clase": "cargas_nuevas", "descripcion": "Libro de cargas nuevas de planificación: corto plazo y usuarios libres del PIT (F-113 a F-118).", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.formato.F-113", "articulo": "art. 30 (Título IV)"}},
+    "interrupciones": {"de_donde": "fuentes", "clase": "interrupciones", "descripcion": "Histórico de interrupciones: calidad del VAD (6.11) y F06 del PIDE.", "cita": {"norma": "TdR VAD 2026", "clave": "vad.calidad.indicadores", "articulo": "Numeral 6.11 y Anexo N° 3, apartado 7"}},
+    "catalogo": {"de_donde": "fuentes", "clase": "catalogo", "descripcion": "Costos de las obras (libro CAPEX y módulos) del corto plazo y del PIDE.", "cita": {"decision_de_producto": "el libro CAPEX del perfil (072:RF-18); la norma del PIDE (F13) pide el detalle de costos sin fijar la fuente"}}
+  },
+  "modulos": {
+    "vnr": {
+      "compartidas": [
+        {"clase": "red_convertida", "para": "metrado existente de redes MT y BT, SED y equipos", "cita": {"norma": "RCD 232-2017-OS/CD", "clave": "vnr.valorizacion.metrado_adaptado"}},
+        {"clase": "perfil", "para": "sector típico de cada sistema eléctrico (criterios de adaptación por sector)", "cita": {"norma": "RCD 232-2017-OS/CD", "clave": "vnr.adaptacion.urbano_alta.mt"}},
+        {"clase": "sicodi", "para": "costos estándar CEIE de la valorización", "cita": {"norma": "RCD 232-2017-OS/CD", "clave": "vnr.formula"}},
+        {"clase": "medicion", "para": "máxima demanda por SED en la zonificación por densidad de carga", "cita": {"norma": "RCD 232-2017-OS/CD", "clave": "vnr.md.anio"}}
+      ],
+      "propias": [
+        {"clase": "otro", "nombre": "franja costera de ambiente corrosivo", "formatos": [".geojson", ".gpkg"], "cita": {"norma": "RCD 232-2017-OS/CD", "clave": "vnr.corrosivo.ancho_km"}},
+        {"clase": "otro", "nombre": "inventario VNR del año anterior (altas y bajas)", "formatos": [".json", ".zip", ".bak"], "cita": {"articulo": "RCD 232-2017-OS/CD, art. 18 (Determinación de Altas y Bajas)"}},
+        {"clase": "otro", "nombre": "costos de las instalaciones no eléctricas por rubro (INE)", "formatos": [".xlsx", ".json"], "cita": {"norma": "RCD 232-2017-OS/CD", "clave": "vnr.adaptacion.ine"}}
+      ],
+      "entregables": [
+        {"nombre": "Formatos A1, B1, C1 y D1 de valorización y metrados", "formato": ".xlsx", "cita": {"articulo": "RCD 232-2017-OS/CD, Anexo 5"}},
+        {"nombre": "Mapas de densidad de carga MT y BT", "formato": ".geojson", "cita": {"norma": "RCD 232-2017-OS/CD", "clave": "vnr.zonificacion.mapas"}},
+        {"nombre": "Altas y bajas del año", "formato": ".xlsx", "cita": {"articulo": "RCD 232-2017-OS/CD, art. 18"}}
+      ],
+      "consume_de": [
+      ]
+    },
+    "pit": {
+      "norma": {"acto": "RCD 217-2013-OS/CD", "estado": "modificada (018-2018, 147-2017, 177-2021, 242-2021)", "fuente": "config/normativa/rcd_217_2013.json", "otras": [{"tipo": "norma", "acto": "RCD 112-2024-OS/CD", "para": "procedimiento", "estado": "en config/normativa con 1 regla; ampliar con la del procedimiento"}, {"tipo": "norma", "acto": "RCD 081-2021-OS/CD", "para": "áreas de demanda y año base de la proyección", "estado": "norma aún no transcrita en config/normativa: va como regla nueva con su huella y su cita literal (fila REGISTRO-VINCULOS)"}]},
+      "compartidas": [
+        {"clase": "perfil", "de_donde": "espacio", "para": "áreas de demanda, titulares, SET, sistemas y límites del estudio", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.plan.formatos_exigidos", "articulo": "art. 5.7.2, 5.7.3, 5.7.5 y 5.7.6"}},
+        {"clase": "proyeccion", "de_donde": "fuentes", "para": "la demanda del área a 30 años (formatos F-101 a F-124)", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.horizonte_demanda_anios", "articulo": "art. 3.14"}},
+        {"clase": "demanda", "de_donde": "fuentes", "para": "potencia desde la energía y factores de la demanda (F-103)", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.demanda.potencia_desde_energia", "articulo": "art. 8.1 (Etapa 3)"}},
+        {"clase": "cargas_nuevas", "de_donde": "fuentes", "para": "las demandas incorporadas de los usuarios libres (F-113 a F-118)", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.formato.F-113", "articulo": "art. 30 (Título IV)"}},
+        {"clase": "sicodi", "de_donde": "fuentes", "para": "costos de las alternativas cuando el perfil declara el SICODI como su fuente", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.costo_total", "articulo": "art. 11.3"}}
+      ],
+      "propias": [
+        {"clase": "red_area", "formatos": [".xlsx", ".xlsm", ".xls", ".xlsb"], "para": "la red de transmisión del área (barras, líneas, transformadores)", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.niveles_tension_kv", "articulo": "art. 12.1.1"}},
+        {"clase": "alternativas", "formatos": [".json"], "para": "las alternativas de expansión y la elegida", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.criterio_alternativas", "articulo": "art. 5.9.3"}},
+        {"clase": "pit", "formatos": [".xlsx", ".xlsm"], "para": "el libro modelo de la empresa con los formatos oficiales", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.formato.F-001", "articulo": "art. 30 (Título IV) y art. 4 de la resolución: archivos Excel de los formatos"}}
+      ],
+      "entregables": [
+        {"nombre": "Formatos F-001 a F-003, F-101 a F-124 y F-201 en adelante", "formato": ".xlsx (archivos Excel de los formatos)", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.formatos_217", "articulo": "art. 30.1 (tabla 1)"}},
+        {"nombre": "Tablas de la reserva (1 a 3)", "formato": ".xlsx", "cita": {"norma": "RCD 094-2022-OS/CD", "clave": "pit.reserva.formato.tabla_1"}},
+        {"nombre": "Diagnóstico de trabajo (diagnostico_de_trabajo.json) y resumen del expediente", "formato": ".json", "cita": {"decision_de_producto": "trazabilidad interna del armado; no es un formato de la norma y no se presenta a Osinergmin"}},
+        {"nombre": "Registro de observaciones y sus respuestas", "formato": ".json", "cita": {"norma": "RCD 199-2026-OS/CD", "clave": "pit.modificacion.plazo_pronunciamiento_dias_habiles"}}
+      ],
+      "consume_de": [
+        {"modulo": "pide", "que": "la proyección de la demanda de los alimentadores del área", "para_que": "la demanda de las barras de MT de las SET (F-101 a F-124)", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.horizonte_demanda_anios", "articulo": "art. 3.14"}},
+        {"modulo": "datasets", "que": "la demanda medida de cabecera, clientes y suministros", "para_que": "la potencia desde la energía y los factores (F-103)", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.demanda.definiciones_factores", "articulo": "art. 3.10, 3.11 y 3.12"}}
+      ]
+    },
+    "vad": {
+      "norma": {"acto": "TdR del VAD 2026 (tdr-vad-2026-anexo-r033)", "estado": "vigente para los grupos 1 y 2", "fuente": "config/vad/tdr_vad_2026.json", "ley": [{"tipo": "norma", "acto": "DL 25844 (LCE)", "articulos": "arts. 63 (el VAD en la tarifa), 64 (empresa modelo eficiente) y 67 (criterios de eficiencia de los estudios de costos)", "estado": "norma aún no transcrita en config/normativa: va como regla nueva con su huella y su cita literal (fila REGISTRO-VINCULOS)", "evidencia": [{"documento": "DS 028-2021-MINEM (considerandos y disposiciones)", "fichero": "<fuentes>/vinculos/DS_No_028-2021-MINEM-EM.pdf.pdf", "sha256": "9eda629db4785f902d241719fde844168a27873cec41885dac2be4f78d65f941", "pagina": 1, "tipo": "norma", "pasaje": "considerandos: «el artículo 63 de la LCE… el artículo 64 precisa que el VAD se determina sobre la base de una empresa modelo eficiente, agregando el artículo 67…»"}]}, {"tipo": "norma", "acto": "DS 028-2021-MINEM", "articulos": "Cuarta disposición: los criterios y la metodología del PIDE (art. 3 del Reglamento del DL 1208) se aprueban después de la fijación del VAD 2023-2027", "estado": "norma aún no transcrita en config/normativa: va como regla nueva con su huella y su cita literal (fila REGISTRO-VINCULOS)", "evidencia": [{"documento": "DS 028-2021-MINEM (considerandos y disposiciones)", "fichero": "<fuentes>/vinculos/DS_No_028-2021-MINEM-EM.pdf.pdf", "sha256": "9eda629db4785f902d241719fde844168a27873cec41885dac2be4f78d65f941", "pagina": 5, "tipo": "norma", "pasaje": "«…se publican en un plazo de seis (6) meses, contados a partir de la conclusión… del procedimiento regulatorio de fijación del VAD para el periodo 2023-2027»"}]}]},
+      "compartidas": [
+        {"clase": "perfil", "de_donde": "espacio", "para": "la empresa, su grupo de fijación y su periodo", "cita": {"norma": "TdR VAD 2026", "clave": "vad.empresas_por_grupo", "articulo": "Anexo N° 1"}},
+        {"clase": "red_convertida", "de_donde": "espacio", "para": "el modelo rural sobre las trazas existentes (red del VNR-GIS convertida)", "cita": {"norma": "TdR VAD 2026", "clave": "vad.anexo6.trazas", "articulo": "6.8.2 Optimización de redes rurales"}},
+        {"clase": "sicodi", "de_donde": "fuentes", "para": "el costo estándar de la red dimensionada", "cita": {"norma": "RCD 232-2017-OS/CD", "clave": "vnr.costos_estandar.componentes"}},
+        {"clase": "medicion", "de_donde": "fuentes", "para": "la caracterización de la carga (Anexo 4)", "cita": {"norma": "TdR VAD 2026", "clave": "vad.anexo4.objeto", "articulo": "Anexo N° 4"}},
+        {"clase": "interrupciones", "de_donde": "fuentes", "para": "SAIFI, SAIDI y los cuadros 21 a 23 de calidad", "cita": {"norma": "TdR VAD 2026", "clave": "vad.calidad.indicadores", "articulo": "Numeral 6.11 y Anexo N° 3, apartado 7"}}
+      ],
+      "propias": [
+        {"clase": "vad_caso", "formatos": [".zip (sistemas.json y las tablas del Anexo 2)"], "para": "los sistemas del estudio y su información técnica", "cita": {"norma": "TdR VAD 2026", "clave": "vad.anexos.indice", "articulo": "Índice, Anexos (Anexo N° 2)"}},
+        {"clase": "tdr", "formatos": ["acto del registro normativo"], "para": "la versión del TdR del estudio", "cita": {"norma": "TdR VAD 2026", "clave": "vad.grupo.1.periodo", "articulo": "Cuadro N° 1. Grupos de Fijación VAD"}}
+      ],
+      "entregables": [
+        {"nombre": "Formatos del Anexo 2 (A, de la empresa; B, de la empresa modelo)", "formato": ".xlsx con fórmulas", "cita": {"norma": "TdR VAD 2026", "clave": "vad.moneda_formatos_vnr", "articulo": "Anexo N° 2, A - Formato I-1"}},
+        {"nombre": "Tablas de Informe de los Resultados", "formato": ".xlsx", "cita": {"norma": "TdR VAD 2026", "clave": "vad.tablas_resultados", "articulo": "Numeral 9.1"}},
+        {"nombre": "Informe del Estudio y de Resultados Relevantes", "formato": ".docx (y .pdf)", "cita": {"norma": "TdR VAD 2026", "clave": "vad.informe_estudio.documentos", "articulo": "Numeral 9.1"}},
+        {"nombre": "Informe Definitivo, con las respuestas a las observaciones", "formato": ".docx", "cita": {"norma": "TdR VAD 2026", "clave": "vad.informe_definitivo.documentos", "articulo": "Numeral 9.2"}},
+        {"nombre": "Archivos de sustento de los mapas de densidad", "formato": "según el Anexo 9", "cita": {"norma": "TdR VAD 2026", "clave": "vad.anexo9.tablas", "articulo": "Anexo N° 9, «Tablas»"}}
+      ],
+      "consume_de": [
+        {"modulo": "vnr", "que": "el VNR real y su anualidad (aVNR)", "para_que": "los costos de inversión del VAD con la tasa del art. 79 de la LCE", "cita": {"norma": "TdR VAD 2026", "clave": "vad.frc", "articulo": "5 Criterios a considerar en los reportes (art. 79 de la LCE)"}, "evidencia": [{"tipo": "norma", "acto": "DL 25844 (LCE)", "estado": "norma aún no transcrita en config/normativa: va como regla nueva con su huella y su cita literal (fila REGISTRO-VINCULOS); hoy el registro solo tiene el art. 79"}]},
+        {"modulo": "pide", "que": "el PIDE aprobado (contrato pide_vad_v1)", "para_que": "el cargo adicional del PIDE ajustado", "cita": {"norma": "TdR VAD 2026", "clave": "vad.formula.pide_ajustado", "articulo": "Numeral 7.5 (cargos adicionales, 3. PIDE)"}, "evidencia": [{"tipo": "evidencia_de_practica", "documento": "TdR del PIDE 2025 de una distribuidora estatal (ámbito FONAFE)", "pagina": 1, "sha256": "37793774d68a372e217841d77c85d39e326e13a91d15edf7e86e067de51d2a23", "pasaje": "«…será aprobado por Osinergmin e incorporado en la anualidad de inversión reconocida en la fijación tarifaria del VAD» (Antecedentes, conforme al DL 1208 y su Reglamento)"}, {"tipo": "norma", "acto": "DL 1208 y DS 023-2016-EM (su reglamento)", "estado": "norma aún no transcrita en config/normativa: va como regla nueva con su huella y su cita literal (fila REGISTRO-VINCULOS)"}]},
+        {"modulo": "registro", "que": "los factores de expansión de pérdidas del periodo", "para_que": "el balance y el VAD", "cita": {"norma": "fijación VAD 2026-2030", "clave": "vad.perdidas.factores_expansion"}}
+      ]
+    },
+    "pide": {
+      "norma": {"acto": "RM 428-2017-MEM/DM", "estado": "prepublicada", "fuente": "config/pide_universal_2017.json", "evidencia": [{"documento": "TdR del PIDE 2025 de una distribuidora estatal (ámbito FONAFE)", "fichero": "<fuentes>/vinculos/6783551-tdr_pide-2025-fp-1.pdf", "sha256": "37793774d68a372e217841d77c85d39e326e13a91d15edf7e86e067de51d2a23", "pagina": 2, "tipo": "evidencia_de_practica", "pasaje": "cita como «Norma técnica vigente» la «Norma Criterios y Metodología de Planificación para la Elaboración del PIDE», y la RM 511-2017-MEM/DM para los sistemas de la concesión y de la zona de responsabilidad técnica"}, {"tipo": "norma", "acto": "DS 028-2021-MINEM", "nota": "difiere la aprobación de los criterios y la metodología del PIDE; el registro tiene la RM 428-2017 como proyecto. Antes de presentarla como vigente hay que registrar el acto que la aprobó, si existe, con su huella", "estado": "norma aún no transcrita en config/normativa: va como regla nueva con su huella y su cita literal (fila REGISTRO-VINCULOS)"}], "comprobacion_2026_11_17": {"resultado": "no se halló una norma definitiva publicada después de 2023 que apruebe los criterios y la metodología del PIDE", "fuentes_consultadas": ["https://www.gob.pe/institucion/minem/informes-publicaciones/4721290-resolucion-ministerial-que-aprueba-la-norma-criterios-y-metodologia-de-planificacion-para-la-elaboracion-del-plan-de-inversion-en-distribucion-electrica-pide", "https://cdn.www.gob.pe/uploads/document/file/3242050/DS%20N%C2%B0%20028-2021-MINEM-EM.pdf.pdf"], "pendiente": "un resumen de búsqueda menciona un DS 027-2018-EM que pasaría la aprobación de los criterios a Osinergmin; no se ha verificado con su texto. Antes de registrar nada, bajarlo y comprobarlo con su huella.", "consecuencia": "los vínculos del PIDE y del largo plazo van con estado «prepublicada», y la web lo dice"}},
+      "compartidas": [
+        {"clase": "red_convertida", "de_donde": "espacio", "para": "la red base del planeamiento (proyecto de DIgSILENT calibrado)", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, art. 6, Alcances y etapas del planeamiento de largo plazo"}},
+        {"clase": "demanda", "de_donde": "fuentes", "para": "el análisis del mercado: históricos y clientes", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, art. 7, Análisis del Mercado Eléctrico"}},
+        {"clase": "proyeccion", "de_donde": "fuentes", "para": "el F01 de proyección y la demanda de cada año del horizonte", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F01 Proyección"}},
+        {"clase": "interrupciones", "de_donde": "fuentes", "para": "el F06 de calidad de suministro", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F06 Calidad de suministro"}},
+        {"clase": "catalogo", "de_donde": "fuentes", "para": "los costos de las obras (libro CAPEX y módulos) del F13", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F13 Detalle de costos"}}
+      ],
+      "propias": [
+        {"clase": "anio_presentacion", "formatos": ["dato de la pantalla"], "para": "el ciclo de 4 años y los años 4 a 7 del detalle", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, horizonte"}}
+      ],
+      "entregables": [
+        {"nombre": "F08 a F15 del PIDE (alternativas, evaluación económica, propuestas, costos y fichas)", "formato": ".xlsx", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F08 a F15"}}
+      ],
+      "consume_de": [
+        {"modulo": "corto_plazo", "que": "la obra de corto plazo en «Con proyecto» y el año en que vuelve a fallar", "para_que": "el punto de partida del PIDE", "cita": {"decision_de_producto": "072:RF-33 (pasosDelTipo): la norma del PIDE no fija cómo empalma con la obra inmediata; el producto parte de ella para no repetir la escalera"}},
+        {"modulo": "largo_plazo", "que": "el plan de largo plazo (F01 a F07)", "para_que": "las alternativas del PIDE dentro del plan", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, art. 5, Desarrollo general del estudio y del PIDE (encadenar mercado, diagnóstico, alternativas y plan)"}},
+        {"modulo": "pit", "que": "la demanda de las barras de MT de las SET del área", "para_que": "que el PIDE y el PIT usen la misma demanda", "cita": {"decision_de_producto": "las dos normas piden proyectar la demanda; ninguna obliga a compartirla, pero dos proyecciones distintas para el mismo alimentador serían incoherentes"}},
+        {"modulo": "vad", "que": "la inversión reconocida en el VAD de la empresa modelo para la demanda actual", "para_que": "que el PIDE solo proponga lo que atiende el crecimiento, sin duplicar inversiones", "cita": {"decision_de_producto": "evidencia de práctica de las distribuidoras; ver «evidencia»"}, "evidencia": [{"tipo": "evidencia_de_practica", "documento": "TdR del PIDE 2025 de una distribuidora estatal (ámbito FONAFE)", "pagina": 2, "sha256": "37793774d68a372e217841d77c85d39e326e13a91d15edf7e86e067de51d2a23", "pasaje": "«la propuesta del PIDE debe tomar en consideración la inversión que se reconoce en el VAD de la empresa modelo para la demanda actual o existente a efectos de evitar duplicación de inversiones»"}]},
+        {"modulo": "vad", "que": "criterios_de_costos_del_vad", "para_que": "costos directos e indirectos, COyM y pérdidas técnicas de cada alternativa con los criterios de la fijación del VAD", "cita": {"decision_de_producto": "evidencia de práctica de las distribuidoras; ver «evidencia»"}, "evidencia": [{"tipo": "evidencia_de_practica", "documento": "TdR del PIDE 2025 de una distribuidora estatal (ámbito FONAFE)", "pagina": 3, "sha256": "37793774d68a372e217841d77c85d39e326e13a91d15edf7e86e067de51d2a23", "pasaje": "«…costos totales, siguiendo los mismos criterios considerados en la fijación tarifaria del VAD… costos de pérdidas técnicas… considerando los criterios y metodologías considerados en la fijación tarifaria del VAD»"}]}
+      ],
+      "entregables_en_la_practica": {"evidencia": [{"documento": "TdR del PIDE 2025 de una distribuidora estatal (ámbito FONAFE)", "fichero": "<fuentes>/vinculos/6783551-tdr_pide-2025-fp-1.pdf", "sha256": "37793774d68a372e217841d77c85d39e326e13a91d15edf7e86e067de51d2a23", "pagina": 8, "tipo": "evidencia_de_practica", "pasaje": "7.7 Entregables: 1 resultado del estudio de planeamiento de largo plazo (45 d); 2 diagnóstico de los sistemas de distribución existentes (60 d); 3 formulación de alternativas de inversión (90 d); 4 resultado PIDE (120 d)"}, {"documento": "TdR del PIDE 2025 de una distribuidora estatal (ámbito FONAFE)", "fichero": "<fuentes>/vinculos/6783551-tdr_pide-2025-fp-1.pdf", "sha256": "37793774d68a372e217841d77c85d39e326e13a91d15edf7e86e067de51d2a23", "pagina": 2, "tipo": "evidencia_de_practica", "pasaje": "b) estudio de planeamiento de largo plazo: mercado, diagnóstico, alternativas y sustento; c) estudio del PIDE: ampliaciones y reforzamiento, calidad y pérdidas, remodelación"}], "lectura": "el largo plazo y el PIDE son un solo estudio en dos tramos: el largo plazo (mercado, diagnóstico y alternativas) y su resultado, el PIDE. En el producto: el módulo «Largo plazo» entrega los tramos 1 a 3 y el módulo «PIDE» el 4, sobre las mismas entradas. El corto plazo no aparece en el estudio: sigue como decisión de producto (factibilidad e informes de obra inmediata)."}
+    },
+    "largo_plazo": {
+      "norma": {"acto": "RM 428-2017-MEM/DM", "estado": "prepublicada", "fuente": "config/pide_universal_2017.json"},
+      "compartidas": [
+        {"clase": "red_convertida", "de_donde": "espacio", "para": "la red base del planeamiento (proyecto de DIgSILENT calibrado)", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, art. 6, Alcances y etapas del planeamiento de largo plazo"}},
+        {"clase": "demanda", "de_donde": "fuentes", "para": "el análisis del mercado: históricos y clientes", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, art. 7, Análisis del Mercado Eléctrico"}},
+        {"clase": "proyeccion", "de_donde": "fuentes", "para": "el F01 de proyección y la demanda de cada año del horizonte", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F01 Proyección"}},
+        {"clase": "interrupciones", "de_donde": "fuentes", "para": "el F06 de calidad de suministro", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F06 Calidad de suministro"}},
+        {"clase": "catalogo", "de_donde": "fuentes", "para": "los costos de las obras (libro CAPEX y módulos) del F13", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F13 Detalle de costos"}}
+      ],
+      "propias": [
+      ],
+      "entregables": [
+        {"nombre": "F01 a F07 del plan de largo plazo (proyección, metrados, tensión MT y BT, pérdidas, calidad y alternativas del estudio)", "formato": ".xlsx", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F01 a F07"}}
+      ],
+      "consume_de": [
+        {"modulo": "pide", "que": "el horizonte del largo plazo (4, 8, 12, 16 y 20 años)", "para_que": "los años del plan", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, horizonte"}},
+        {"modulo": "vad", "que": "criterios_de_costos_del_vad", "para_que": "costos directos e indirectos, COyM y pérdidas técnicas de cada alternativa con los criterios de la fijación del VAD", "cita": {"decision_de_producto": "evidencia de práctica de las distribuidoras; ver «evidencia»"}, "evidencia": [{"tipo": "evidencia_de_practica", "documento": "TdR del PIDE 2025 de una distribuidora estatal (ámbito FONAFE)", "pagina": 3, "sha256": "37793774d68a372e217841d77c85d39e326e13a91d15edf7e86e067de51d2a23", "pasaje": "«…costos totales, siguiendo los mismos criterios considerados en la fijación tarifaria del VAD… costos de pérdidas técnicas… considerando los criterios y metodologías considerados en la fijación tarifaria del VAD»"}]}
+      ],
+      "evidencia": [
+        {"documento": "TdR del PIDE 2025 de una distribuidora estatal (ámbito FONAFE)", "fichero": "<fuentes>/vinculos/6783551-tdr_pide-2025-fp-1.pdf", "sha256": "37793774d68a372e217841d77c85d39e326e13a91d15edf7e86e067de51d2a23", "pagina": 8, "tipo": "evidencia_de_practica", "pasaje": "7.7 Entregables: 1 resultado del estudio de planeamiento de largo plazo (45 d); 2 diagnóstico de los sistemas de distribución existentes (60 d); 3 formulación de alternativas de inversión (90 d); 4 resultado PIDE (120 d)"},
+        {"documento": "TdR del PIDE 2025 de una distribuidora estatal (ámbito FONAFE)", "fichero": "<fuentes>/vinculos/6783551-tdr_pide-2025-fp-1.pdf", "sha256": "37793774d68a372e217841d77c85d39e326e13a91d15edf7e86e067de51d2a23", "pagina": 2, "tipo": "evidencia_de_practica", "pasaje": "b) estudio de planeamiento de largo plazo: mercado, diagnóstico, alternativas y sustento; c) estudio del PIDE: ampliaciones y reforzamiento, calidad y pérdidas, remodelación"}
+      ],
+      "nota": "La norma junta el largo plazo y el PIDE en un mismo estudio (art. 5 y 6): el largo plazo comparte las entradas del PIDE y entrega los F01 a F07; sus obras se plantean, no se aplican."
+    },
+    "corto_plazo": {
+      "norma": {"decision_producto": "el corto plazo (factibilidad de cargas nuevas y obras inmediatas) no está en la RM 428-2017: sigue la escalera del producto (bancos, sección, terna) y los informes de estudio y de factibilidad (spec 017, 072:RF-29)"},
+      "compartidas": [
+        {"clase": "red_convertida", "de_donde": "espacio", "para": "el proyecto de DIgSILENT calibrado en «Sin proyecto»", "cita": {"decision_de_producto": "un mismo proyecto calibrado para todos los estudios del espacio (memoria «caso base verificado»)"}},
+        {"clase": "demanda", "de_donde": "fuentes", "para": "la calibración a la máxima de cabecera", "cita": {"decision_de_producto": "spec 015 y 025: calibración con los libros de medición de la empresa"}},
+        {"clase": "catalogo", "de_donde": "fuentes", "para": "el costo de las obras de la escalera", "cita": {"decision_de_producto": "spec 072:RF-18 y el libro CAPEX del perfil"}}
+      ],
+      "propias": [
+        {"clase": "cargas_nuevas", "formatos": [".xlsx"], "para": "las cargas que se integran en «Con proyecto»", "cita": {"decision_de_producto": "spec 004 y 008: el libro de cargas nuevas de planificación"}}
+      ],
+      "entregables": [
+        {"nombre": "Informe de estudio y de factibilidad, cada uno con su libro Excel", "formato": ".docx y .xlsx", "cita": {"decision_de_producto": "spec 017 y los formatos del anexo de la empresa (memoria «informes por módulos»)"}}
+      ],
+      "consume_de": [
+      ],
+      "evidencia": [
+        {"tipo": "evidencia_de_practica", "nota": "ni la RM 428-2017 ni el TdR del PIDE 2025 lo incluyen: sigue como decisión de producto"}
+      ]
+    }
+  },
+  "_evidencia": {"carpeta": "<fuentes>/vinculos/", "sumas": "SHA256SUMS.txt", "pasajes": "pasajes.txt (con su página)", "regla": "norma = artículo de un acto (registrado o a registrar con su huella); evidencia_de_practica = documento de una distribuidora u Osinergmin con su página y huella, distinto de norma"}
+}

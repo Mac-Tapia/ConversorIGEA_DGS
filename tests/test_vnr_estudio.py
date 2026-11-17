@@ -86,3 +86,39 @@ def test_108_t28_sed_sin_demanda_es_hueco_y_el_tramo_con_codigo_desconocido_tamb
     assert any(h.startswith('tramo MT9') for h in e.huecos)
     assert {a.material for a in e.adaptados_mt} == {'CU Desnudo'}  # corrosivo → cobre desnudo
     assert not any('ambiente corrosivo' in h for h in e.huecos)
+
+
+def test_108_rf23_la_red_bt_de_vnr_gis_entra_en_el_estudio():
+    """108:RF-23 — VNR-GIS deja la baja tensión en ``modelo.sections_bt`` (LowVoltageSection, por SED), no en
+    ``sections``: el estudio la zonifica, la adapta y la valoriza con el mapa BT, igual que la MT."""
+    from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import LowVoltageSection
+    m = _modelo()
+    m.sections = [s for s in m.sections if s.section_id != 'BT1']
+    m.sections_bt.append(LowVoltageSection('BT1', sed_id='SED1', conductor_code='CU03513X', length_m=200.0,
+                                           geometry=[[300_600, 8_600_100], [300_600, 8_600_300]]))
+    tabla = _Tabla(1000.0)
+    e = estudio_vnr(m, sector='urbano_alta', sector_sicodi='ST2', tabla_costos=tabla, registro=REG, anexo2=A2, anexo6=A6)
+    assert e.adaptados_bt and sum(a.longitud_m for a in e.adaptados_bt) == pytest.approx(200.0, rel=0.05)
+    assert any(p[1] == 'X' for p in tabla.pedidos)  # la BT de 0,22 kV se valoriza con su letra de la Tabla 9
+    assert not any(h.startswith('tramo BT1') for h in e.huecos)
+
+
+def test_108_rf23_los_equipos_de_proteccion_y_seccionamiento_entran_con_su_codigo_del_anexo_2():
+    """108:RF-23 (arts. 24, 29, 34 y 39; Anexo 2, componente C de la MT) — cada equipo de VNR-GIS lleva por tipo el
+    prefijo de su código VNR (RE, SF, SC, PA, BC…). Las maniobras del modelo, los bancos y los que el lector no modela
+    para el flujo (seccionadores cerrados y pararrayos, contados en ``equipos_no_modelados``) entran en el metrado,
+    adaptados por la Guía cuando ella lo dice, con el código del catálogo a su tensión."""
+    from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import Capacitor, Switch
+    m = _modelo()
+    m.switches += [Switch('R1', 'N2', kind='RE', section_id='MT1'), Switch('F1', 'N2', kind='SF', section_id='MT1')]
+    m.capacitors.append(Capacitor('B1', 'N2', kvar=150.0))
+    m.metadata['equipos_no_modelados'] = {'SC': 2, 'PA': 3}
+    tabla = _Tabla(1000.0)
+    e = estudio_vnr(m, sector='urbano_alta', sector_sicodi='ST2', tabla_costos=tabla, registro=REG, anexo2=A2, anexo6=A6)
+    prefijos = sorted(p[0][:2] for p in tabla.pedidos if len(p[0]) == 11)
+    assert set(prefijos) >= {'RE', 'SF', 'SC', 'PA', 'BC'}
+    cantidades = {q['prefijo']: q['cantidad'] for q in e.equipos}
+    assert cantidades['SC'] == 2 and cantidades['PA'] == 3 and cantidades['RE'] == 1
+    re_ = next(q for q in e.equipos if q['prefijo'] == 'RE')
+    assert re_['adaptado'] == 'Reconectador SF6' and re_['codigo'].startswith('RE')
+    assert any('corriente nominal' in h for h in e.huecos)  # sin In en VNR-GIS, el menor del catálogo, y se dice

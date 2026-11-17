@@ -39,8 +39,11 @@ class PedidoDiagnostico(BaseModel):
     workspace_id: str
     area: str
     anios: list[int] = Field(min_length=1)
-    libro_red: str
-    proyeccion: str
+    #: Cada entrada, por su ruta en el espacio o por su fuente de la empresa (109:RF-25); sin ninguna, la vigente.
+    libro_red: str | None = None
+    proyeccion: str | None = None
+    fuente_red_area: str | None = None
+    fuente_proyeccion: str | None = None
     motor: str | None = None
 
 
@@ -49,9 +52,12 @@ class PedidoExpediente(BaseModel):
     area: str
     periodo: str = Field(min_length=1)
     anios: list[int] = Field(min_length=1)
-    libro_red: str
-    proyeccion: str
+    libro_red: str | None = None
+    proyeccion: str | None = None
     alternativas: str | None = None
+    fuente_red_area: str | None = None
+    fuente_proyeccion: str | None = None
+    fuente_alternativas: str | None = None
     alternativa_elegida: str | None = None
     motor: str | None = None
 
@@ -85,6 +91,27 @@ def _relativa(raiz: Path, ruta: str | Path) -> str | None:
         return None
 
 
+def _entrada(raiz: Path, relativa: str | None, fuente: str | None, clase: str, campo: str, *,
+             vigente: bool = True) -> Path | None:
+    """107:RF-19: una entrada del PIT por su ruta en el espacio, por su fuente de la empresa o, si se pide, la vigente de
+    su clase (109:RF-25). Sin ninguna: ``None`` si es opcional; si no, el error dice qué falta."""
+    from .. import fuentes_empresa as fe
+
+    if relativa:
+        return _dentro(raiz, relativa)
+    try:
+        if fuente:
+            return fe.ruta(raiz, fuente)
+    except fe.FuenteError as exc:
+        raise HTTPException(404, f'{campo}: {exc}') from None
+    vig = fe.vigente(raiz, clase) if vigente else None
+    if vig is not None:
+        return fe.ruta(raiz, vig.id)
+    if not vigente:
+        return None
+    raise PitError(f'{campo}: falta el libro «{clase}» de la empresa: súbalo una vez y lo usan todos los módulos')
+
+
 def crear_router(jobs: Any, espacio: Callable[[str], Path], perfil: Callable[[], Mapping[str, Any]],
                  normativa: Path, *, licencia: Callable[[], bool] = lambda: False,
                  fuentes: Callable[[], Path | None] = lambda: None) -> APIRouter:
@@ -95,8 +122,11 @@ def crear_router(jobs: Any, espacio: Callable[[str], Path], perfil: Callable[[],
     @r.get('/areas')
     def areas() -> dict[str, Any]:
         try:
+            datos = perfil()
+            # 107:RF-19: la empresa del perfil, para avisar si la red convertida del espacio es de otra.
             return {'areas': [{'codigo': a.codigo, 'titulares': list(a.titulares), 'set': list(a.set)}
-                              for a in areas_del_perfil(perfil())]}
+                              for a in areas_del_perfil(datos)],
+                    'empresa': str(datos.get('empresa') or datos.get('perfil') or '')}
         except PitError as exc:
             raise HTTPException(422, str(exc)) from None
 
@@ -131,9 +161,10 @@ def crear_router(jobs: Any, espacio: Callable[[str], Path], perfil: Callable[[],
     @r.post('/diagnostico')
     def diagnostico(p: PedidoDiagnostico) -> dict[str, Any]:
         raiz = espacio(p.workspace_id)
-        libro, proyeccion = _dentro(raiz, p.libro_red), _dentro(raiz, p.proyeccion)
         datos = perfil()
         try:
+            libro = _entrada(raiz, p.libro_red, p.fuente_red_area, 'red_area', 'libro_red')
+            proyeccion = _entrada(raiz, p.proyeccion, p.fuente_proyeccion, 'proyeccion', 'proyeccion')
             motor = elegir_motor(p.motor, licencia())
             area = areas_del_perfil(datos, p.area)[0]
             cfg = (datos.get('pit') or {}).get('libro_red')
@@ -155,7 +186,7 @@ def crear_router(jobs: Any, espacio: Callable[[str], Path], perfil: Callable[[],
             # La tensión, por barra desde la norma; los huecos y las referencias van a la respuesta (107 T7, PIT-TEN).
             diag = diagnosticar(area, red, filas, p.anios, limites, motor=motor, cancel=ctx.cancel,
                                 on_progress=lambda i, n, anio: ctx.progress(i, n, f'año {anio}'),
-                                tension=limites_de_tension(red, area, registro, datos))
+                                tension=limites_de_tension(red, area, registro, datos), registro=registro)
             salida = raiz / 'expedientes_pit' / area.codigo / 'diagnostico_de_trabajo.json'
             salida.parent.mkdir(parents=True, exist_ok=True)
             publicar_duradero(salida, json.dumps(diag.como_dict(), ensure_ascii=False, indent=1, sort_keys=True,
@@ -171,10 +202,13 @@ def crear_router(jobs: Any, espacio: Callable[[str], Path], perfil: Callable[[],
     @r.post('/expediente')
     def expediente(p: PedidoExpediente) -> dict[str, Any]:
         raiz = espacio(p.workspace_id)
-        libro, proyeccion = _dentro(raiz, p.libro_red), _dentro(raiz, p.proyeccion)
-        ruta_alternativas = _dentro(raiz, p.alternativas) if p.alternativas else None
         datos = perfil()
         try:
+            libro = _entrada(raiz, p.libro_red, p.fuente_red_area, 'red_area', 'libro_red')
+            proyeccion = _entrada(raiz, p.proyeccion, p.fuente_proyeccion, 'proyeccion', 'proyeccion')
+            # Las alternativas no se toman solas: solo las que se nombran.
+            ruta_alternativas = _entrada(raiz, p.alternativas, p.fuente_alternativas, 'alternativas', 'alternativas',
+                                         vigente=False)
             motor = elegir_motor(p.motor, licencia())
             area = areas_del_perfil(datos, p.area)[0]
             if not (datos.get('pit') or {}).get('libro_red'):

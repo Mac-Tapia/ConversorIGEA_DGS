@@ -92,6 +92,10 @@ empresa modelo**: esta spec crea ese cálculo separado.
   calculada con los mismos factores del VAD; el aVNR del VAD sigue saliendo de la empresa modelo, nunca del VNR real.
 - RF-25: CUANDO el operador cargue dos inventarios VNR consecutivos de una empresa, EL SISTEMA determinará las altas y
   bajas del año (art. 18) por instalación y su efecto en el VNR.
+- RF-26: EL SISTEMA ofrecerá el estudio del VAD en su pestaña de la web, «Estudio VAD», como el VNR y el PIT: crear el
+  estudio, subir el caso y armar la empresa modelo como trabajo con el estado de cada sistema, registrar y responder las
+  observaciones del regulador, armar el Informe Definitivo como trabajo con cada documento sin fuente nombrado como
+  hueco, y descargar las salidas del estudio. Cada ruta de la web del VAD tendrá su control en la pantalla.
 
 ## Requisitos no funcionales
 - Fidelidad geométrica: el hash de los vértices de cada tramo del modelo rural coincide con el del VNR.

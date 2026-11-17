@@ -1,6 +1,7 @@
 import type { Health } from '../api/types';
 
-export type ClaveBeta = 'asistente' | 'set_nueva' | 'pide' | 'confiabilidad';
+/** 072 (módulos): el PIDE ya no es beta en la 1.0 («si entra todo, entra»): tiene su pestaña como el VNR y el PIT. */
+export type ClaveBeta = 'asistente' | 'set_nueva' | 'confiabilidad';
 type Edicion = Pick<Health, 'edicion'>;
 
 /** 086:RF-16: qué edición es lo dice el servidor (`/api/health`). Desde el 2026-11-13 (usuario: «nada debería estar

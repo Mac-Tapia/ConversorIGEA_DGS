@@ -1,0 +1,427 @@
+{
+ "corpus": "077",
+ "esquema": "csg-conjunto-rag-077-v1",
+ "procedencia": "sintetico_maestro_biblioteca_normativa",
+ "reparto": "sellado",
+ "nota": "Escrito por Claude el 2026-11-17 de una vez, sin medir ningún modelo; lo responde la biblioteca normativa por su API (077:RF-78). El ancla es la clave de la regla y el fichero «normativa» es la fuente normativa:<acto>#<clave>.",
+ "preguntas": [
+  {
+   "id": "norma-001",
+   "pregunta": "que años de la proyeccion pide osinergmin en el plan de inversiones",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.anios_programacion_demanda ="
+    }
+   ]
+  },
+  {
+   "id": "norma-002",
+   "pregunta": "cuantos años abarca la comparacion de alternativas del pit",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.horizonte_alternativas_anios ="
+    }
+   ]
+  },
+  {
+   "id": "norma-003",
+   "pregunta": "desde cuantos megavatios hay que hacer el n-1 en transmision",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.n1_demanda_min_mw ="
+    }
+   ]
+  },
+  {
+   "id": "norma-004",
+   "pregunta": "con que factor de potencia se reparte la demanda en las barras de media tension de las set",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.factor_potencia_barras_mt ="
+    }
+   ]
+  },
+  {
+   "id": "norma-005",
+   "pregunta": "como se elige la mejor alternativa del plan de inversiones",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.criterio_alternativas ="
+    }
+   ]
+  },
+  {
+   "id": "norma-006",
+   "pregunta": "que entra en el costo total de una alternativa del pit",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.costo_total ="
+    }
+   ]
+  },
+  {
+   "id": "norma-007",
+   "pregunta": "como se calcula el coym en el plan de inversiones",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.coym_metodo ="
+    },
+    {
+     "fichero": "normativa",
+     "ancla": "pit.coym_pct ="
+    }
+   ]
+  },
+  {
+   "id": "norma-008",
+   "pregunta": "de donde sale la tasa de descuento del pit",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.tasa_actualizacion_fuente ="
+    },
+    {
+     "fichero": "normativa",
+     "ancla": "pit.tasa_actualizacion ="
+    }
+   ]
+  },
+  {
+   "id": "norma-009",
+   "pregunta": "cual es la vida util que usa el plan de inversiones",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.vida_util_anios ="
+    }
+   ]
+  },
+  {
+   "id": "norma-010",
+   "pregunta": "hasta que cargabilidad puede llegar un transformador segun la norma de tarifas",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.factor_utilizacion_max ="
+    }
+   ]
+  },
+  {
+   "id": "norma-011",
+   "pregunta": "cuantos años tiene el horizonte de la demanda en el pit",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.horizonte_demanda_anios ="
+    }
+   ]
+  },
+  {
+   "id": "norma-012",
+   "pregunta": "en cuantos dias habiles se pronuncia osinergmin sobre una modificacion del plan",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "pit.modificacion.plazo_pronunciamiento_dias_habiles ="
+    }
+   ]
+  },
+  {
+   "id": "norma-013",
+   "pregunta": "cual es la tolerancia de tension de la ntcse",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "calidad.tension.tolerancia_ntcse ="
+    }
+   ]
+  },
+  {
+   "id": "norma-014",
+   "pregunta": "que tolerancia de tension rige en los sistemas electricos rurales",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "calidad.tension.tolerancia_ntcser ="
+    }
+   ]
+  },
+  {
+   "id": "norma-015",
+   "pregunta": "cual es la formula del vnr de distribucion",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vnr.formula ="
+    }
+   ]
+  },
+  {
+   "id": "norma-016",
+   "pregunta": "con que densidad de carga se define la zona muy alta del vnr",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vnr.zonas.densidad ="
+    }
+   ]
+  },
+  {
+   "id": "norma-017",
+   "pregunta": "de que tamaño son las cuadriculas para zonificar el vnr",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vnr.cuadricula.lados_m ="
+    }
+   ]
+  },
+  {
+   "id": "norma-018",
+   "pregunta": "que ancho tiene la franja de ambiente corrosivo en la guia del vnr",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vnr.corrosivo.ancho_km ="
+    }
+   ]
+  },
+  {
+   "id": "norma-019",
+   "pregunta": "que factor de carga lleva el alumbrado publico en el vnr",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vnr.ap.factor_carga ="
+    }
+   ]
+  },
+  {
+   "id": "norma-020",
+   "pregunta": "que componentes forman el costo estandar del vnr",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vnr.costos_estandar.componentes ="
+    }
+   ]
+  },
+  {
+   "id": "norma-021",
+   "pregunta": "que cable se adapta en las zonas historicas",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vnr.adaptacion.zonas_historicas ="
+    }
+   ]
+  },
+  {
+   "id": "norma-022",
+   "pregunta": "con que factor de utilizacion se adaptan las sed urbanas de alta densidad",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vnr.adaptacion.urbano_alta.sed ="
+    }
+   ]
+  },
+  {
+   "id": "norma-023",
+   "pregunta": "que postes van en la baja tension rural del vnr",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vnr.adaptacion.rural_ser.bt ="
+    }
+   ]
+  },
+  {
+   "id": "norma-024",
+   "pregunta": "desde cuando rige la guia del vnr",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vnr.guia.vigencia ="
+    }
+   ]
+  },
+  {
+   "id": "norma-025",
+   "pregunta": "que años del pide se presentan con el vad",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vad.pide.anios ="
+    }
+   ]
+  },
+  {
+   "id": "norma-026",
+   "pregunta": "como se ajusta el vad con el pide",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vad.formula.pide_ajustado ="
+    }
+   ]
+  },
+  {
+   "id": "norma-027",
+   "pregunta": "que tasa de actualizacion usa el pide del vad",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vad.tasa_actualizacion ="
+    }
+   ]
+  },
+  {
+   "id": "norma-028",
+   "pregunta": "cual es la formula del vad de media tension",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vad.formula.VADMT ="
+    }
+   ]
+  },
+  {
+   "id": "norma-029",
+   "pregunta": "que limites de interrupciones exige el estudio del vad",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vad.calidad.limite.interrupciones ="
+    }
+   ]
+  },
+  {
+   "id": "norma-030",
+   "pregunta": "cual es la perdida no tecnica maxima que se reconoce",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vad.perdidas_no_tecnicas.valor_maximo_reconocible ="
+    }
+   ]
+  },
+  {
+   "id": "norma-031",
+   "pregunta": "con que factor de recuperacion de capital se anualiza el vad",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "vad.frc ="
+    }
+   ]
+  },
+  {
+   "id": "norma-032",
+   "pregunta": "cuales son las horas de punta del sein",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "sein.horas_punta ="
+    }
+   ]
+  },
+  {
+   "id": "norma-033",
+   "pregunta": "que dice la ley del procedimiento administrativo sobre suspender un recurso",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "lpag.recurso.no_suspende_ejecucion ="
+    }
+   ]
+  },
+  {
+   "id": "norma-034",
+   "pregunta": "que clase de medidor se toma por defecto en media tension",
+   "tipo": "norma",
+   "fuentes": [
+    {
+     "fichero": "normativa",
+     "ancla": "medida.clase_por_defecto_mt ="
+    }
+   ]
+  },
+  {
+   "id": "norma-035",
+   "pregunta": "cual es el precio del cobre en la bolsa de londres",
+   "sin_respuesta": true,
+   "tipo": "dominio"
+  },
+  {
+   "id": "norma-036",
+   "pregunta": "que tarifa de agua potable fija la sunass",
+   "sin_respuesta": true,
+   "tipo": "dominio"
+  },
+  {
+   "id": "norma-037",
+   "pregunta": "cuanto cobra un contratista por instalar un poste",
+   "sin_respuesta": true,
+   "tipo": "dominio"
+  },
+  {
+   "id": "norma-038",
+   "pregunta": "que dice la norma de telecomunicaciones sobre antenas 5g",
+   "sin_respuesta": true,
+   "tipo": "dominio"
+  },
+  {
+   "id": "norma-039",
+   "pregunta": "quien gano el ultimo concurso de suministro de medidores",
+   "sin_respuesta": true,
+   "tipo": "dominio"
+  },
+  {
+   "id": "norma-040",
+   "pregunta": "cual es la norma de construccion sismorresistente de edificios",
+   "sin_respuesta": true,
+   "tipo": "dominio"
+  }
+ ]
+}

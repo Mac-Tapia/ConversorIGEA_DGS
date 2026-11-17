@@ -3,19 +3,43 @@
  "normas": [
   {
    "acto": "RCD 242-2021-OS/CD",
-   "estado_juridico": "no_verificada",
-   "fecha_consulta": "2026-11-15",
+   "estado_juridico": "vigente_comprobada",
+   "fecha_consulta": "2026-11-17",
    "fecha_publicacion": "2021-12-18",
-   "fichero_local": "rcd_242-2021.txt",
+   "fichero_local": "rcd_242_2021/rcd_242-2021_elperuano.txt",
    "modifica": [
     "RCD 217-2013-OS/CD"
    ],
-   "nota": "Leída solo su parte resolutiva; trata la actualización del CMA de instalaciones reasignadas, que el PIT no calcula. Sin reglas para el PIT. Publicada el 18-12-2021, según la nota del SPIJ en la ficha H1089476 de la 217-2013, que confirma su efecto: modifica el 24.5 e incorpora el 15.7, 17.5, 24.11, 25.4 y 28.6. Su texto propio no está en el SPIJ libre: sigue «no_verificada» (RN-VIG2, 2026-11-15).",
-   "sha256": "3c07b38d4a492eea0f15b65ecc53f850243072acb3ca85611cebdcc086adbc41",
-   "sha256_texto": "3118234940e46855dfd3b428f044ac418f4916ae15675283606030d7aed58a7d",
+   "nota": "Texto completo leído en El Peruano (2022714-1), que confirma la nota del SPIJ en la ficha H1089476 de la 217-2013: modifica el 24.5 e incorpora el 15.7, 17.5, 24.11, 25.4 y 28.6 de la Norma Tarifas, y modifica la Norma de liquidación (RCD 056-2020-OS/CD). Lo que incorpora es SOLO para las instalaciones SCT reasignadas en el marco del DS 018-2021-EM (FAXC): el PIT de una empresa sin proyectos reasignados no cambia. Vigente desde el día siguiente a su publicación (art. 6). Hasta el 17-11-2026 estuvo «no_verificada» (RN-VIG2, 2026-11-15).",
+   "sha256": "ac1a3d42fa5bec7e941b1ad6cd3d51075a0623e5a1c221020204cecc61819593",
+   "sha256_texto": "ba52733f06aca7451bd8d099a24810adc3bed73184448d350749030be64c05af",
    "titulo": "Modifica el numeral 24.5 e incorpora los numerales 15.7, 17.5, 24.11, 25.4 y 28.6 de la Norma de la RCD 217-2013-OS/CD",
-   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2021/Osinergmin-242-2021-OS-CD.pdf",
-   "version": "Lima, 16 de diciembre de 2021"
+   "url": "https://busquedas.elperuano.pe/dispositivo/NL/2022714-1",
+   "version": "Lima, 16 de diciembre de 2021; El Peruano, 18 de diciembre de 2021",
+   "fecha_emision": "2021-12-16",
+   "vigencia_desde": "2021-12-19",
+   "reglas": [
+    {
+     "clave": "pit.reasignadas.alcance",
+     "valor": "solo_sct_reasignadas_ds_018_2021",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 1 (numeral 24.5 de la Norma Tarifas)",
+     "pagina": "El Peruano 2022714-1 (sin paginación)",
+     "lineas": "28",
+     "cita_literal": "En el caso de las instalaciones SCT que fueron reasignadas dentro de los “procesos de reasignación de los proyectos de los Planes de Inversión 2013-2017, 2017-2021 y 2021-2025”, en el marco del Decreto Supremo N° 018-2021-EM, la actualización se realizará anualmente en la oportunidad de la publicación del peaje recalculado o en la fijación tarifaria según corresponda",
+     "interpretacion": "El CMA de las SCT reasignadas se actualiza cada año; el de las demás, en cada fijación con sus fechas reales de puesta en servicio."
+    },
+    {
+     "clave": "pit.reasignadas.faxc",
+     "valor": "valor_maximo_por_faxc",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 2 (numeral 24.11 de la Norma Tarifas)",
+     "pagina": "El Peruano 2022714-1 (sin paginación)",
+     "lineas": "32",
+     "cita_literal": "el CMA es el que se determina luego de aplicar al valor máximo del CMA aprobado por Osinergmin, el factor de ajuste por competencia (FAXC) resultante de dicho proceso. Los valores de la tasa de actualización para el cálculo de la anualidad de la inversión y del periodo de recuperación son los que se encuentren vigentes en la LCE y el Reglamento de la LCE al momento de la presentación de manifestación de interés.",
+     "interpretacion": "Solo para las SCT reasignadas: CMA = valor máximo aprobado × FAXC, con la tasa y el periodo vigentes al manifestar interés."
+    }
+   ]
   }
  ]
 }

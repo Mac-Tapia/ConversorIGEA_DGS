@@ -11,8 +11,10 @@ export interface PeticionVnr {
   resolucion: string;
   anio: number;
   moneda: string;
-  canonical: File;
-  sicodi: File;
+  /** Sin él, la red VNR-GIS que dejó la carga del espacio (109:RF-26). */
+  canonical?: File | null;
+  /** El libro subido, o el id de la fuente de la empresa (109:RF-25); sin ninguno, el vigente. */
+  sicodi?: File | string | null;
 }
 
 const ruta = (id: string) => `/api/workspaces/${encodeURIComponent(id)}/vnr/estudio`;
@@ -26,8 +28,9 @@ export const vnr = {
     fd.append('resolucion', p.resolucion);
     fd.append('anio', String(p.anio));
     fd.append('moneda', p.moneda);
-    fd.append('canonical', p.canonical, p.canonical.name);
-    fd.append('sicodi', p.sicodi, p.sicodi.name);
+    if (p.canonical) fd.append('canonical', p.canonical, p.canonical.name);
+    if (p.sicodi instanceof File) fd.append('sicodi', p.sicodi, p.sicodi.name);
+    else if (p.sicodi) fd.append('fuente_sicodi', p.sicodi);
     return request<Job>(ruta(id), { method: 'POST', body: fd });
   },
 };

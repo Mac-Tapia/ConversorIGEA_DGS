@@ -431,8 +431,46 @@ El oráculo solo ordena y filtra: **toda obra se confirma con DIgSILENT**.
   escribe los formatos del Anexo 5. La pestaña «Estudio VNR» (`features/vnr/EstudioVnr.tsx`) lo encola por
   `web/vnr_api.py` como trabajo del motor. Una regla sin dato deja un hueco nombrado, nunca un valor inventado. El VNR real va
   a la TIR y a contrastar con la empresa modelo; el aVNR del VAD sigue saliendo de la empresa modelo.
+- **La norma del PIT, desde el registro** (`pit/norma.py`; 107:RF-20): los años de la programación, el horizonte de las
+  alternativas, el factor de potencia de las barras de MT y el umbral del N-1 se leen de la norma, no de la entrada; las reglas
+  de la comparación se citan en el expediente. Sin la regla, el cálculo sigue como antes y lo dice.
+- **Línea del VAD** (`vad/linea.py`; 108:RF-26): tras la empresa modelo encadena el modelo rural desde la red del espacio, el
+  dimensionamiento, el costo estándar, los resultados, el PIDE, la calidad, la explotación, las tablas y los informes; cada paso
+  sin entrada lo nombra. Orquesta adaptadores, y por eso es de esa capa.
+- **Biblioteca normativa general** (`biblioteca_normativa.py`, `web/normativa_api.py`, pestaña «Biblioteca normativa»): el
+  registro de la entrega más la capa del usuario, fuera del paquete, que añade normas o sustituye una del programa; actualizable
+  sin perder las versiones anteriores. El asistente la lee por su API (`asistente/corpus_normativo.py`, 077:RF-78 a RF-80): una
+  regla es un fragmento de su índice, la cita se comprueba contra la biblioteca y `consultar_norma` es una lectura más.
 - **Forma oficial**: el PIT, el VAD y el PIDE se entregan con la forma de los formatos de Osinergmin, leída de la norma, y para
   cualquier distribuidora. La empresa sale del perfil (P13).
+
+## Módulos regulatorios y de planeamiento sobre el mismo espacio (109:RF-25, RF-26; ADR-010, ADR-011, ADR-012)
+
+Un solo conversor y una sola empresa por espacio: el VNR, el PIT, el VAD, el corto plazo, el PIDE y el largo plazo son
+vistas de la misma red convertida y de los mismos libros de la empresa, no productos con sus propias cargas.
+
+```
+ Entrada de datos ──► conversor (TXT · MDB · VNR-GIS) ──► red del espacio (derivados/red.json, canonical.json)
+                                                                  │
+ Fuentes de la empresa (fuentes/: SICODI, PIT, VAD, TdR, PIDE,    │   cada módulo: compartidas del espacio
+ perfil, catálogo, .pfd, medición, demanda…; por periodo y huella)│   + sus propias entradas + sus entregables
+          │                                                       ▼
+          ├──► VNR (Guía 232-2017) ──────────────► VNR real ──► TIR del VAD (LCE arts. 70, 71 y 77)
+          ├──► VAD (empresa modelo, TdR) ◄──────── inversiones del PIDE (anualidad; DL 1208 y TdR del PIDE)
+          ├──► PIDE y largo plazo ◄─────────────── lo que el VAD ya reconoce (sin duplicar; TdR del PIDE)
+          ├──► PIT (Norma Tarifas, por área de demanda) ◄── perfil, demanda y proyección compartidas con el PIDE
+          └──► corto plazo (obras en DIgSILENT; decisión de producto: escalera de obras de las specs 017 y 072)
+```
+
+- **Fuentes de la empresa** (`fuentes_empresa.py`, `web/fuentes_api.py`, `shared/ElegirFuente.tsx`): cada libro una vez, con su
+  clase, su periodo y su huella; la nueva de su clase y periodo vigente y las anteriores conservadas. Cada módulo toma la
+  vigente por defecto (`fuente_o_subida`), otra a elección o una subida, que queda para todos (ADR-010).
+- **Red del espacio**: la carga deja la red convertida con su fuente, su empresa y sus alimentadores; el estudio VNR la usa sin
+  pedir el inventario, y los módulos avisan si la empresa de la red no es la del perfil.
+- **Matriz de vínculos** (`config/modulos/vinculos.json`): por módulo, compartidas, propias, entregables y lo que consume de
+  otro, cada vínculo con su cita (registro normativo, artículo, evidencia de práctica con huella o decisión de producto). Una
+  prueba la coteja con el registro (ADR-011). Los criterios del PIDE (RM 428-2017) siguen como proyecto y se dicen así.
+- **Carril «red»**: lo que solo espera a internet no bloquea la entrada (ADR-012).
 
 ## Nube, selector único y correo (109, 110)
 

@@ -137,18 +137,42 @@ def cargar_herramienta(fichero: str, nombre: str | None = None, *,
     return module
 
 
-def esperar_trabajo(client, job: dict, timeout: float = 60.0) -> dict:
-    """Espera a que un trabajo de la API termine y devuelve su estado final."""
+#: Estados en que un trabajo ya no cambia.
+TERMINALES = ('done', 'parcial', 'no_converge', 'failed', 'cancelled', 'interrumpido')
+#: B17: ninguna prueba espera trabajo real con un tope fijo corto, porque una puerta siempre corre con carga. Se espera
+#: por estado y por avance: falla si el trabajo deja de avanzar en ``SIN_AVANCE_S`` o si pasa el tope total.
+SIN_AVANCE_S = 120.0
+TOPE_TRABAJO_S = 900.0
+
+
+def esperar_trabajo(client, job: dict, timeout: float = SIN_AVANCE_S, *, tope: float = TOPE_TRABAJO_S,
+                    pausa: float = 0.05) -> dict:
+    """Espera a que un trabajo de la API termine y devuelve su estado final.
+
+    ``timeout`` es la ventana sin avance: si en ese tiempo no cambian ni su estado ni su progreso, la espera falla y dice
+    en qué se quedó. El tope total es ``tope`` (o ``timeout``, si es mayor), para un trabajo que avanza sin terminar.
+    """
     # La web pudo responder un error en vez de un trabajo: se dice cuál. En la suite completa del 2026-11-10 solo
     # quedó «KeyError: 'id'» y no se supo qué había respondido.
     assert isinstance(job, dict) and 'id' in job, f'la web no devolvió un trabajo: {job!r}'
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+    nombre = job.get('title', job['id'])
+    inicio = ultimo_cambio = time.monotonic()
+    firma = None
+    while True:
         state = client.get(f"/api/jobs/{job['id']}").json()
-        if state['status'] in ('done', 'parcial', 'no_converge', 'failed', 'cancelled'):
+        if state['status'] in TERMINALES:
             return state
-        time.sleep(0.05)
-    raise AssertionError(f"el trabajo {job.get('title', job['id'])} no terminó en {timeout} s")
+        ahora = time.monotonic()
+        actual = (state['status'], repr(state.get('progress')), state.get('started_at'))
+        if actual != firma:
+            firma, ultimo_cambio = actual, ahora
+        if ahora - ultimo_cambio > timeout:
+            raise AssertionError(f'el trabajo {nombre} no avanzó en {timeout} s: sigue «{state["status"]}» con el '
+                                 f'progreso {state.get("progress")!r}')
+        if ahora - inicio > max(tope, timeout):
+            raise AssertionError(f'el trabajo {nombre} avanzaba pero no terminó en {max(tope, timeout)} s: '
+                                 f'«{state["status"]}», {state.get("progress")!r}')
+        time.sleep(pausa)
 
 
 def contrato_fisico() -> dict:

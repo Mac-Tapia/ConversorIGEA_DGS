@@ -14,9 +14,10 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 from ..registro_normativo import RegistroNormativo
-from .vnr_guia import (RAICES_ANEXO2, ItemMetrado, ResultadoVnr, SedZonificable, Tramo, TramoAdaptado, VnrGuiaError,
-                       adaptar_red_bt, adaptar_red_mt, adaptar_sed, calcular_vnr, codigo_de_sed, items_de_red,
-                       kva_adaptado, porciones_por_zona, zonificar)
+from .vnr_guia import (EQUIPO_POR_PREFIJO, RAICES_ANEXO2, ItemMetrado, ResultadoVnr, SedZonificable, Tramo,
+                       TramoAdaptado, VnrGuiaError, adaptar_equipo, adaptar_red_bt, adaptar_red_mt, adaptar_sed,
+                       calcular_vnr, codigo_de_equipo, codigo_de_sed, items_de_red, kva_adaptado, porciones_por_zona,
+                       zonificar)
 
 POSTES = {'urbano_alta': 'C', 'urbano_media_baja': 'C', 'urbano_rural': 'C', 'rural_ser': 'A'}  # Tabla 11: C/A
 _FORMA = re.compile(r'(?<![\d,])(\d)(?:-1)?x(\d+(?:,\d+)?) mm2')
@@ -74,6 +75,7 @@ class EstudioVnr:
     seds: list[dict]
     resultado: ResultadoVnr
     huecos: list[str] = field(default_factory=list)
+    equipos: list[dict] = field(default_factory=list)
 
 
 def estudio_vnr(modelo, *, sector: str, sector_sicodi: str, tabla_costos, registro: RegistroNormativo,
@@ -102,7 +104,8 @@ def estudio_vnr(modelo, *, sector: str, sector_sicodi: str, tabla_costos, regist
     z_mt = zonificar(seds_z, registro, mapa='MT', fecha=fecha)
     z_bt = zonificar(seds_z, registro, mapa='BT', fecha=fecha)
     tramos = {'MT': [], 'BT': []}
-    for s in modelo.sections:
+    # 108:RF-23: VNR-GIS deja la baja tensión aparte (``sections_bt``, por SED): entra igual que la MT, con su SED.
+    for s in [*modelo.sections, *getattr(modelo, 'sections_bt', [])]:
         codigo, letra = (s.conductor_code[:-1], s.conductor_code[-1:]) if s.conductor_code else ('', '')
         try:
             inst = instalacion_de_codigo(anexo2, codigo)
@@ -115,8 +118,10 @@ def estudio_vnr(modelo, *, sector: str, sector_sicodi: str, tabla_costos, regist
         x, y = puntos[len(puntos) // 2] if puntos else (0.0, 0.0)
         for zona, largo in sorted(partes.items()):
             tramos[inst.nivel].append((Tramo(f'{s.section_id}/{zona}', inst.material, inst.seccion_mm2, largo,
-                                             inst.subterranea, zona, corrosivo(x, y), kv=s.nominal_kv,
-                                             fases=inst.conductores if inst.nivel == 'BT' else 3, sed=s.feeder_id),
+                                             inst.subterranea, zona, corrosivo(x, y),
+                                             kv=getattr(s, 'nominal_kv', None),
+                                             fases=inst.conductores if inst.nivel == 'BT' else 3,
+                                             sed=getattr(s, 'sed_id', '') or s.feeder_id),
                                        letra))
     adaptados_mt = adaptar_red_mt([t for t, _ in tramos['MT']], sector, registro, anexo6, fecha=fecha)
     adaptados_bt = adaptar_red_bt([t for t, _ in tramos['BT']], sector, registro, anexo6, fecha=fecha)
@@ -149,5 +154,55 @@ def estudio_vnr(modelo, *, sector: str, sector_sicodi: str, tabla_costos, regist
         seds.append({'sed': t.transformer_id, 'md_kw': md, 'kva_adaptado': kva, 'zona': zona, 'tipo': tipo,
                      'codigo': codigo, 'kva_catalogo': kva_cat, 'regla': cita})
         items.append(ItemMetrado(codigo, 1, letra, bt, f'SED {t.transformer_id}'))
+    equipos = _equipos(modelo, sector, registro, anexo2, items, huecos, fecha)
     resultado = calcular_vnr(items, tabla_costos, sector_sicodi, registro, fecha=fecha)
-    return EstudioVnr(z_mt.resumen(), z_bt.resumen(), adaptados_mt, adaptados_bt, seds, resultado, huecos)
+    return EstudioVnr(z_mt.resumen(), z_bt.resumen(), adaptados_mt, adaptados_bt, seds, resultado, huecos, equipos)
+
+
+def _equipos(modelo, sector: str, registro: RegistroNormativo, anexo2: Mapping, items: list[ItemMetrado],
+             huecos: list[str], fecha: str | None) -> list[dict]:
+    """108:RF-23 — los equipos de protección y seccionamiento y los del componente C4 (bancos, reguladores y
+    pararrayos), por su prefijo del Anexo 2: las maniobras del modelo, los bancos y los reguladores, y los que el lector
+    no modela para el flujo (``equipos_no_modelados``: seccionadores cerrados y pararrayos). La Guía adapta los de
+    EQUIPO_POR_PREFIJO; el resto se conserva. Uno por partida y tensión, con su cantidad."""
+    tramos = {s.section_id: s for s in modelo.sections}
+    tensiones = [s.nominal_kv for s in modelo.sections if s.nominal_kv and s.nominal_kv >= 1.0]  # la de la MT
+    kv_red = max(set(tensiones), key=tensiones.count) if tensiones else None
+    cuenta: dict[tuple[str, float | None, bool], int] = {}
+    for w in modelo.switches:
+        tramo = tramos.get(w.section_id)
+        sub = bool(tramo and tramo.overhead is False)
+        clave = ((w.kind or ('SL' if w.sectionalizer else '')).upper(), (tramo.nominal_kv if tramo else None) or kv_red, sub)
+        cuenta[clave] = cuenta.get(clave, 0) + 1
+    for prefijo, lista in (('BC', getattr(modelo, 'capacitors', [])), ('BR', getattr(modelo, 'regulators', []))):
+        if lista:
+            cuenta[(prefijo, kv_red, False)] = cuenta.get((prefijo, kv_red, False), 0) + len(lista)
+    for prefijo, n in (getattr(modelo, 'metadata', {}) or {}).get('equipos_no_modelados', {}).items():
+        cuenta[(str(prefijo).upper(), kv_red, False)] = cuenta.get((str(prefijo).upper(), kv_red, False), 0) + int(n)
+    salida, notas = [], set()
+    for (prefijo, kv, sub), n in sorted(cuenta.items(), key=lambda x: (x[0][0], x[0][1] or 0, x[0][2])):
+        if not prefijo:
+            huecos.append(f'{n} equipo(s) de maniobra sin tipo en VNR-GIS: no se valorizan')
+            continue
+        adaptado, cita = '', ''
+        if prefijo in EQUIPO_POR_PREFIJO:
+            try:
+                adaptado, cita = adaptar_equipo(EQUIPO_POR_PREFIJO[prefijo], sub, sector, registro, fecha=fecha)
+            except VnrGuiaError as exc:
+                huecos.append(f'{n} equipo(s) {prefijo}: {exc}')
+                continue
+        try:
+            codigo, nota = codigo_de_equipo(anexo2, prefijo, kv, adaptado)
+        except VnrGuiaError as exc:
+            huecos.append(f'{n} equipo(s) {prefijo}: {exc}')
+            continue
+        letra = letra_de_tension(anexo2, kv) if kv else None
+        if letra is None:
+            huecos.append(f'{n} equipo(s) {prefijo}: tensión {kv} kV sin código en la Tabla 9 del Anexo 3; no se valoriza')
+            continue
+        notas.add(nota)
+        items.append(ItemMetrado(codigo, n, letra, 'X' if sub else POSTES[sector], f'{n} equipo(s) {prefijo}'))
+        salida.append({'prefijo': prefijo, 'cantidad': n, 'kv': kv, 'subterraneo': sub, 'adaptado': adaptado,
+                       'codigo': codigo, 'regla': cita})
+    huecos.extend(sorted(notas))
+    return salida

@@ -1,5 +1,5 @@
 {
- "_comentario": "090:RF-1, RF-3. A qué subsistema va cada fichero: lo único del catálogo escrito a mano. Un fichero sin asignar sale en «Sin subsistema asignado», sin fallar.",
+ "_comentario": "090:RF-1, RF-3, RF-23. A qué subsistema va cada fichero: lo único del catálogo escrito a mano. Un fichero sin asignar sale en «Sin subsistema asignado», y una prueba exige que esa sección quede vacía.",
  "grupos": [
   {
    "titulo": "Motor: transversales",
@@ -16,7 +16,13 @@
     "sesion_web.py",
     "registro_rotativo.py",
     "cli.py",
-    "privacidad.py"
+    "privacidad.py",
+    "compat_pf.py",
+    "adaptadores/__init__.py",
+    "adaptadores/entrada/__init__.py",
+    "adaptadores/fuentes_estables.py",
+    "dominio/__init__.py",
+    "dominio/numeros_medidos.py"
    ]
   },
   {
@@ -36,7 +42,8 @@
     "identify.py",
     "study.py",
     "inventory.py",
-    "feeder_metadata.py"
+    "feeder_metadata.py",
+    "dominio/cargas_plantilla.py"
    ]
   },
   {
@@ -161,7 +168,11 @@
     "sitio_set.py",
     "vias.py",
     "madrl_obras.py",
-    "madrl_politica.py"
+    "madrl_politica.py",
+    "medicion_obras.py",
+    "modelo_obras.py",
+    "obras_integrales.py",
+    "seleccion_bayesiana.py"
    ]
   },
   {
@@ -215,7 +226,10 @@
     "metrados.py",
     "formatos_pide.py",
     "informes_planeamiento.py",
-    "registro_normativo.py"
+    "registro_normativo.py",
+    "adaptadores/entrada/capex.py",
+    "pronostico_demanda.py",
+    "planeamiento_etapas.py"
    ]
   },
   {
@@ -241,7 +255,63 @@
     "pit/expediente.py",
     "pit/informe.py",
     "pit/unifilar.py",
-    "web/rutas_pit.py"
+    "web/rutas_pit.py",
+    "pit/armado.py",
+    "pit/demanda_cadena.py",
+    "pit/demanda_resumen.py",
+    "pit/densidad.py",
+    "pit/elementos_modificacion.py",
+    "pit/generacion.py",
+    "pit/norma.py",
+    "pit/usuarios_libres.py"
+   ]
+  },
+  {
+   "titulo": "Motor: VAD y VNR (estudio de costos y Guía del VNR, spec 108)",
+   "base": "src/convertersmartgrid/vad/",
+   "ficheros": [
+    "__init__.py",
+    "anexo2.py",
+    "balance.py",
+    "calidad.py",
+    "caracterizacion.py",
+    "costos.py",
+    "costos_explotacion.py",
+    "coym.py",
+    "dimensionamiento.py",
+    "entregables.py",
+    "estudio.py",
+    "formulas.py",
+    "informes.py",
+    "linea.py",
+    "modelo_rural.py",
+    "modelo_urbano.py",
+    "observaciones.py",
+    "pide_vad.py",
+    "resultados_vad.py",
+    "tablas_resultados.py",
+    "trabajo.py",
+    "vnr_estudio.py",
+    "vnr_formatos.py",
+    "vnr_guia.py"
+   ]
+  },
+  {
+   "titulo": "Motor: biblioteca normativa y fuentes de la empresa (107, 109)",
+   "base": "src/convertersmartgrid/",
+   "ficheros": [
+    "biblioteca_normativa.py",
+    "schemas/registro_normativo_v1.schema.json",
+    "dominio/huellas_terminos.py",
+    "fuentes_empresa.py",
+    "pfd_vinculos.py"
+   ]
+  },
+  {
+   "titulo": "Motor: fachadas fuera del paquete",
+   "base": "src/",
+   "ficheros": [
+    "vnr_etl.py"
    ]
   },
   {
@@ -257,7 +327,19 @@
     "experimentos.py",
     "upstream_ia.py",
     "evaluacion_harness/estadistica.py",
-    "evaluacion_harness/informe_final.py"
+    "evaluacion_harness/informe_final.py",
+    "conjuntos_aprendizaje.py",
+    "contratos_aprendizaje.py",
+    "productores_aprendizaje.py",
+    "puertos_muestras.py",
+    "evaluacion_harness/__init__.py",
+    "evaluacion_harness/adaptadores.py",
+    "evaluacion_harness/cli.py",
+    "evaluacion_harness/contratos.py",
+    "evaluacion_harness/ejecucion.py",
+    "evaluacion_harness/integracion.py",
+    "evaluacion_harness/metricas.py",
+    "evaluacion_harness/publicacion.py"
    ]
   },
   {
@@ -311,7 +393,8 @@
     "series_causales.py",
     "pronostico.py",
     "evaluacion_temporal.py",
-    "adaptador_neuralforecast.py"
+    "adaptador_neuralforecast.py",
+    "productor_pinn.py"
    ]
   },
   {
@@ -377,7 +460,8 @@
     "llm_runtime.py",
     "custodia_corpus.py",
     "reubicacion_corpus.py",
-    "corpus_redaccion.py"
+    "corpus_redaccion.py",
+    "prueba_sellada_107_112.py"
    ]
   },
   {
@@ -392,7 +476,8 @@
     "pregunta_entregada.py",
     "corpus_proyecto.py",
     "lectura_proyecto.py",
-    "ejemplos_pide.py"
+    "ejemplos_pide.py",
+    "corpus_normativo.py"
    ]
   },
   {
@@ -436,7 +521,11 @@
     "evolucion_fijas_api.py",
     "nube_api.py",
     "nube.py",
-    "nube_selector.py"
+    "nube_selector.py",
+    "fuentes_api.py",
+    "normativa_api.py",
+    "vad_api.py",
+    "vnr_api.py"
    ]
   },
   {
@@ -554,7 +643,8 @@
     "pf_cliente.py",
     "restitucion_pf.py",
     "aceptar_restitucion_pf.py",
-    "estadistica_ordenes.py"
+    "estadistica_ordenes.py",
+    "pfd_diagnostico.py"
    ]
   },
   {
@@ -586,7 +676,14 @@
     "costos_cruce.py",
     "construir_dataset_pide.py",
     "corpus_redaccion_pide.py",
-    "copia_datos.py"
+    "copia_datos.py",
+    "aceptacion_version.py",
+    "mudar_carpeta_principal.py",
+    "vad_estudio.py",
+    "vnr_publico_empresa.py",
+    "benchmark_anonimo.py",
+    "normativa/biblioteca.py",
+    "normativa/generar_guia_vnr_232.py"
    ]
   },
   {
@@ -623,7 +720,13 @@
     "madrl_entrenar.py",
     "madrl_obras.py",
     "mcp_conversor.py",
-    "evaluacion_final.py"
+    "evaluacion_final.py",
+    "asistente_informes_reales.py",
+    "entrenar_alimentadores_gpu.py",
+    "evaluar_harness.py",
+    "lanzar_pronostico_pide_gpu.py",
+    "medir_mejora.py",
+    "pronostico_demanda.py"
    ]
   },
   {
@@ -644,62 +747,21 @@
     "verify_architecture_links.py",
     "verify_interactive_architecture.mjs",
     "generar_arquitectura.py",
-    "puerta_calidad.py"
+    "puerta_calidad.py",
+    "rutas_sin_modelo.py",
+    "verificar_entrega_integral.py"
    ]
   },
   {
-   "titulo": "Interfaz: `frontend/src/` y su compilación",
+   "titulo": "Interfaz: compilación, cliente de la API y piezas comunes (`frontend/`)",
    "base": "frontend/",
    "ficheros": [
-    "src/main.tsx",
-    "src/App.tsx",
-    "src/context.tsx",
-    "src/useWorkspace.ts",
-    "src/api.ts",
     "src/api/esquema.ts",
-    "src/types.ts",
-    "src/styles.css",
-    "src/edicion.ts",
-    "src/reconexion.ts",
-    "src/projectBinding.ts",
-    "src/clientesCatalogo.ts",
-    "src/operacionSet.ts",
-    "src/solicitudLeida.ts",
-    "src/asistenteAceptacion.ts",
-    "src/equipoAsistente.ts",
-    "src/components/InputsPanel.tsx",
-    "src/components/OptionsPanel.tsx",
-    "src/components/FeedersPanel.tsx",
-    "src/components/ReconstructionPanel.tsx",
-    "src/components/Modules.tsx",
-    "src/components/CargasTab.tsx",
-    "src/components/DemandaMedida.tsx",
-    "src/components/AjusteCabecera.tsx",
-    "src/components/CurvaCabecera.tsx",
-    "src/components/ObrasPF.tsx",
-    "src/components/EstudiosPF.tsx",
-    "src/components/DatosEmpresaPF.tsx",
     "src/features/powerfactory/EntradasEstudios.tsx",
     "src/features/powerfactory/entradasEstudiosLogica.ts",
     "src/api/entradasEstudios.ts",
     "test/entradasEstudios.test.mjs",
-    "src/components/GuionesPF.tsx",
-    "src/components/TransferenciaPF.tsx",
-    "src/components/InformesPF.tsx",
-    "src/components/OperacionSet.tsx",
-    "src/components/GemeloPIDE.tsx",
-    "src/components/Asistente.tsx",
-    "src/components/Aprendizaje.tsx",
-    "src/components/EquipoAsistente.tsx",
-    "src/components/MonitorAgente.tsx",
-    "src/components/AcercaDe.tsx",
-    "src/components/AvisosDatos.tsx",
     "src/features/powerfactory/AvisosLibros.tsx",
-    "src/components/DescargaZip.tsx",
-    "src/components/JobBar.tsx",
-    "src/components/LogPanel.tsx",
-    "src/components/MarcaBeta.tsx",
-    "src/components/ui.tsx",
     "scripts/build.mjs",
     "scripts/runtime-paths.mjs",
     "test/reconexion.test.mjs",
@@ -732,7 +794,170 @@
     "src/features/clientesfijos/EvolucionFijas.tsx",
     "src/features/clientesfijos/Tablero.tsx",
     "src/features/clientesfijos/Graficos.tsx",
-    "src/features/clientesfijos/datosTablero.ts"
+    "src/features/clientesfijos/datosTablero.ts",
+    "scripts/fronteras.mjs",
+    "src/api/asistenteAceptacion.ts",
+    "src/api/client.ts",
+    "src/api/fuentes.ts",
+    "src/api/normativa.ts",
+    "src/api/nube.ts",
+    "src/api/pit.ts",
+    "src/api/reconexion.ts",
+    "src/api/types.ts",
+    "src/api/vad.ts",
+    "src/api/vnr.ts",
+    "src/app/AcercaDe.tsx",
+    "src/app/App.tsx",
+    "src/app/AvisosDatos.tsx",
+    "src/app/CuentasNube.tsx",
+    "src/app/InstalacionesPowerFactory.tsx",
+    "src/app/JobBar.tsx",
+    "src/app/LogPanel.tsx",
+    "src/app/NubeEnEntradas.tsx",
+    "src/app/Pestanas.tsx",
+    "src/app/main.tsx",
+    "src/app/teclado.ts",
+    "src/shared/AvisosTrabajo.tsx",
+    "src/shared/ElegirFuente.tsx",
+    "src/shared/MarcaBeta.tsx",
+    "src/shared/PfWarning.tsx",
+    "src/shared/SinPantallaEnBlanco.tsx",
+    "src/shared/accionesOperador.tsx",
+    "src/shared/carriles.ts",
+    "src/shared/context.tsx",
+    "src/shared/direcciones.ts",
+    "src/shared/edicion.ts",
+    "src/shared/formato.ts",
+    "src/shared/nubeEntradas.ts",
+    "src/shared/origenes.ts",
+    "src/shared/pasoDeTrabajo.ts",
+    "src/shared/projectBinding.ts",
+    "src/shared/styles.css",
+    "src/shared/ui.tsx",
+    "src/shared/useWorkspace.ts"
+   ]
+  },
+  {
+   "titulo": "Interfaz: asistente",
+   "base": "frontend/",
+   "ficheros": [
+    "src/features/asistente/Aprendizaje.tsx",
+    "src/features/asistente/Asistente.tsx",
+    "src/features/asistente/EquipoAsistente.tsx",
+    "src/features/asistente/MejorasPendientes.tsx",
+    "src/features/asistente/MonitorAgente.tsx",
+    "src/features/asistente/TarjetaOperador.tsx",
+    "src/features/asistente/estadoEquipoAsistente.ts",
+    "src/features/asistente/tarjetaOperadorLogica.ts"
+   ]
+  },
+  {
+   "titulo": "Interfaz: conversión y perfil de la empresa",
+   "base": "frontend/",
+   "ficheros": [
+    "src/features/conversion/DescargaZip.tsx",
+    "src/features/conversion/FeedersPanel.tsx",
+    "src/features/conversion/InputsPanel.tsx",
+    "src/features/conversion/Modules.tsx",
+    "src/features/conversion/OptionsPanel.tsx",
+    "src/features/conversion/PerfilEmpresa.tsx",
+    "src/features/conversion/ReconstructionPanel.tsx"
+   ]
+  },
+  {
+   "titulo": "Interfaz: módulos regulatorios (PIT, VAD, VNR y biblioteca normativa)",
+   "base": "frontend/",
+   "ficheros": [
+    "src/features/normativa/BibliotecaNormativa.tsx",
+    "src/features/pit/EstudioPit.tsx",
+    "src/features/vad/EstudioVad.tsx",
+    "src/features/vnr/EstudioVnr.tsx"
+   ]
+  },
+  {
+   "titulo": "Interfaz: nube y correo",
+   "base": "frontend/",
+   "ficheros": [
+    "src/features/nube/ElegirDeLaNube.tsx",
+    "src/features/nube/PublicarExpediente.tsx",
+    "src/features/nube/VersionesNuevas.tsx",
+    "src/features/nube/logica.ts",
+    "src/features/nube/useSelector.ts"
+   ]
+  },
+  {
+   "titulo": "Interfaz: «Cargas en DIgSILENT», estudios, obras e informes",
+   "base": "frontend/",
+   "ficheros": [
+    "src/features/powerfactory/AjusteCabecera.tsx",
+    "src/features/powerfactory/CargasTab.tsx",
+    "src/features/powerfactory/CurvaCabecera.tsx",
+    "src/features/powerfactory/DatosEmpresaPF.tsx",
+    "src/features/powerfactory/DemandaMedida.tsx",
+    "src/features/powerfactory/DeshacerLotes.tsx",
+    "src/features/powerfactory/EnviarInforme.tsx",
+    "src/features/powerfactory/EstudiosPF.tsx",
+    "src/features/powerfactory/GemeloPIDE.tsx",
+    "src/features/powerfactory/GuionesPF.tsx",
+    "src/features/powerfactory/InformesPF.tsx",
+    "src/features/powerfactory/ObrasPF.tsx",
+    "src/features/powerfactory/OperacionSet.tsx",
+    "src/features/powerfactory/PerfilTension.tsx",
+    "src/features/powerfactory/TipoDeAnalisis.tsx",
+    "src/features/powerfactory/TransferenciaPF.tsx",
+    "src/features/powerfactory/alternativas.ts",
+    "src/features/powerfactory/clientesCatalogo.ts",
+    "src/features/powerfactory/enviarInformeLogica.ts",
+    "src/features/powerfactory/formularioOperacionSet.ts",
+    "src/features/powerfactory/obrasEstadoActual.ts",
+    "src/features/powerfactory/solicitudLeida.ts",
+    "src/features/powerfactory/tensionFuente.ts",
+    "src/features/powerfactory/ubicacionCarga.ts"
+   ]
+  },
+  {
+   "titulo": "Interfaz: pruebas de `frontend/test/`",
+   "base": "frontend/",
+   "ficheros": [
+    "test/accesibilidad.test.mjs",
+    "test/alternativas.test.mjs",
+    "test/avisosEnSuPaso.test.mjs",
+    "test/carriles.test.mjs",
+    "test/contratoNubeCorreo.test.mjs",
+    "test/copiaPrevia.test.mjs",
+    "test/e2e/comun.mjs",
+    "test/e2e/entorno.mjs",
+    "test/e2e/f01_vnr.e2e.mjs",
+    "test/e2e/f02_plano.e2e.mjs",
+    "test/e2e/f03_planificacion.e2e.mjs",
+    "test/e2e/f04_asistente.e2e.mjs",
+    "test/e2e/f05_selector_unico.e2e.mjs",
+    "test/e2e/playwright.config.mjs",
+    "test/e2e/teclado.e2e.mjs",
+    "test/e2e/vnr_sintetico.mjs",
+    "test/edicionTodoActivo.test.mjs",
+    "test/enviarInforme.test.mjs",
+    "test/estudiosCasos.test.mjs",
+    "test/evolucionFijas.test.mjs",
+    "test/fondoMapa.test.mjs",
+    "test/fronteras.test.mjs",
+    "test/letraFija.test.mjs",
+    "test/librosFondo.test.mjs",
+    "test/modulosPlaneamiento.test.mjs",
+    "test/normativaPanel.test.mjs",
+    "test/nube.test.mjs",
+    "test/obrasEstadoActual.test.mjs",
+    "test/pideAnual.test.mjs",
+    "test/pitPanel.test.mjs",
+    "test/relecturaServidor.test.mjs",
+    "test/retomarEspacio.test.mjs",
+    "test/selectorUnico.test.mjs",
+    "test/superficies.test.mjs",
+    "test/tarjetaOperador.test.mjs",
+    "test/tensionFuente.test.mjs",
+    "test/tiposDeAnalisis.test.mjs",
+    "test/ubicacionCarga.test.mjs",
+    "test/vadPanel.test.mjs"
    ]
   }
  ]

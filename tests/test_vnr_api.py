@@ -48,6 +48,9 @@ def cliente(tmp_path, monkeypatch):
     from convertersmartgrid.web.vnr_api import registrar_rutas_vnr
     from convertersmartgrid.web.workspace import WorkspaceStore
 
+    # La copia de leer_sicodi que vad.costos toma al importarse no debe ser la falsa de esta prueba: si vad.costos se
+    # importara por primera vez con el parche activo, las pruebas siguientes (test_vad_linea_b) leerían una tabla falsa.
+    import convertersmartgrid.vad.costos  # noqa: F401
     monkeypatch.setattr(costos_fuentes, 'leer_sicodi', lambda *a, **k: _Tabla())
     ws = WorkspaceStore(tmp_path / 'web').create()
 
@@ -94,3 +97,21 @@ def test_108_t28_web_rechaza_lo_que_no_es_un_estudio_vnr(cliente, cambio, ficher
     ficheros = ficheros or [('canonical', ('c.json', b'{}', 'x')), ('sicodi', ('s.xlsx', b'PK', 'x'))]
     r = c.post(f'/api/workspaces/{ws.id}/vnr/estudio', data={**DATOS, **cambio}, files=ficheros)
     assert r.status_code == 400 and texto in r.json()['detail']
+
+
+def test_109_rf24_el_estudio_vnr_toma_la_red_del_espacio_y_el_sicodi_de_la_empresa(cliente, tmp_path):
+    """109:RF-25 y RF-26 — sin subir nada: el inventario es la red que dejó la carga del espacio (el mismo conversor) y el
+    SICODI es el libro vigente de la empresa. Sin red cargada ni SICODI, el error dice qué falta y dónde se carga."""
+    from convertersmartgrid import fuentes_empresa as fe
+    c, ws = cliente
+    base = f'/api/workspaces/{ws.id}/vnr/estudio'
+    r = c.post(base, data=DATOS)
+    assert r.status_code == 400 and 'red VNR-GIS' in r.json()['detail']
+    fe.guardar_red(ws.root, fuente='vnr', empresa='EMPA', alimentadores=['AL1'], canonical=json.loads(_canonical()))
+    r = c.post(base, data=DATOS)
+    assert r.status_code == 400 and 'sicodi' in r.json()['detail']
+    libro = tmp_path / 'SICODI.xlsx'
+    libro.write_bytes(b'PK')
+    fe.registrar(ws.root, 'sicodi', libro, periodo='RR VAD 2023-2027')
+    r = c.post(base, data=DATOS)
+    assert r.status_code == 202 and c.get(base).json()['completo']

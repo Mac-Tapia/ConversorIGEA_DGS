@@ -24,9 +24,11 @@ const trabajo = async (r: Promise<{ job: string }>) =>
   request<Job>(`/api/jobs/${encodeURIComponent((await r).job)}`);
 
 export const pit = {
-  areas: () => request<{ areas: AreaPit[] }>('/api/pit/areas'),
+  /** Las áreas del perfil y su empresa (107:RF-19: para avisar si la red del espacio es de otra). */
+  areas: () => request<{ areas: AreaPit[]; empresa?: string }>('/api/pit/areas'),
   capacidades: () => request<CapacidadesPit>('/api/pit/capacidades'),
-  /** Sube los ficheros al espacio (`entradas_pit/…`) y devuelve sus rutas, en el mismo orden. */
+  /** Sube los ficheros al espacio (`entradas_pit/…`) y devuelve sus rutas, en el mismo orden. La usa el asistente; la
+   * pestaña sube por las fuentes de la empresa (107:RF-19). */
   entradas: (workspaceId: string, files: File[]) => {
     const fd = new FormData();
     fd.append('workspace_id', workspaceId);

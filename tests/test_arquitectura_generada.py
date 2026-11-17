@@ -77,6 +77,16 @@ def test_fichero_nuevo_sin_subsistema_aparece_y_no_falla():
     assert f'| `{nuevo}` | — | — | Módulo de prueba. |' in texto
 
 
+def test_090_rf18_cada_fichero_del_arbol_tiene_su_subsistema(texto):
+    """090:RF-18 — en el árbol real no queda ningún fichero sin subsistema, y el mapa no nombra ficheros que ya no existen:
+    un módulo nuevo se asigna en la misma fila que lo añade."""
+    assert '### Sin subsistema asignado' not in texto, 'hay ficheros sin subsistema: asígnelos en docs/architecture/subsistemas.json'
+    mapa = json.loads((RAIZ / 'docs' / 'architecture' / 'subsistemas.json').read_text(encoding='utf-8'))
+    nombrados = [g['base'] + f for g in mapa['grupos'] for f in g['ficheros']]
+    assert [f for f in nombrados if not (RAIZ / f).is_file()] == []
+    assert len(nombrados) == len(set(nombrados)), 'un fichero en dos subsistemas'
+
+
 def test_fichero_retirado_desaparece():
     """090:RF-4 — sale del catálogo aunque el mapa lo siga nombrando."""
     assert '| `vias.py` |' in GA.documento(FuenteCon())

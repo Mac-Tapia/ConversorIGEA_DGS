@@ -1,0 +1,29 @@
+{
+ "amplia": "DL 25844",
+ "esquema": "registro_normativo_v1",
+ "nota": "Arts. 71 y 77 de la LCE (vínculo VNR → VAD, 109:RF-26) en la compilación del MINEM «Actualizado a Marzo 2009» (sha256 del PDF 03c022060d76b6d6b4333c1af391b5f79d4752ba6c5a8acfeaf28ecc909cc108, del texto 7ef6a87842876c40b3c9e4b1d9ec712cddd6801699a4b12c04c3f8a63223b32e, fichero lce/lce_minem_2009.txt). El DL 1221 no los modifica (lista de su art. 1); la Comisión de Tarifas de Energía es hoy Osinergmin.",
+ "reglas": [
+  {
+   "clave": "vinculo.vnr_vad.banda_tir",
+   "valor": 4,
+   "unidad": "puntos porcentuales respecto de la tasa del art. 79",
+   "articulo_o_anexo": "art. 71",
+   "pagina": "34 de la compilación del MINEM de 2009",
+   "lineas": "1167-1171",
+   "cita_literal": "Artículo 71°.- Si las tasas, antes calculadas, no difieren en más de cuatro puntos porcentuales de la Tasa de Actualización señalada en el artículo 79° de la presente Ley, los Valores Agregados de Distribución, que les dan origen, serán definitivos. En caso contrario, estos valores deberán ser ajustados proporcionalmente, de modo de alcanzar el límite más próximo superior o inferior.",
+   "interpretacion": "Si la TIR calculada con el VNR se aparta más de 4 puntos de la tasa de actualización, el VAD se ajusta hasta el límite.",
+   "caracter": "obligatoria"
+  },
+  {
+   "clave": "vinculo.vnr_vad.periodo_vnr",
+   "valor": 4,
+   "unidad": "años",
+   "articulo_o_anexo": "art. 77",
+   "pagina": "35 de la compilación del MINEM de 2009",
+   "lineas": "1219-1223",
+   "cita_literal": "Artículo 77°.- Cada cuatro años, la Comisión de Tarifas de Energía procederá a actualizar el Valor Nuevo de Reemplazo de las instalaciones de transmisión y distribución, con la información presentada por los concesionarios. En el caso de obras nuevas o retiros, la Comisión de Tarifas de Energía incorporará o deducirá su respectivo Valor Nuevo de Reemplazo.",
+   "interpretacion": "El VNR se actualiza cada cuatro años con la información de las concesionarias, y se incorporan o deducen las obras nuevas y los retiros.",
+   "caracter": "obligatoria"
+  }
+ ]
+}

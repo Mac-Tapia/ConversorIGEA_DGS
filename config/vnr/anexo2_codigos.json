@@ -1654,6 +1654,792 @@
    "pagina": 70
   },
   {
+   "codigo": "IN063401013",
+   "descripcion": "INTERRUPTOR DE VACIO, TRIPOLAR, In = 630 A, Icc = 40 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3402,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN063311013",
+   "descripcion": "INTERRUPTOR DE VACIO, TRIPOLAR, In= 630 A, Icc = 31,5 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3403,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN063252313",
+   "descripcion": "INTERRUPTOR DE VACIO, TRIPOLAR, In = 630 A, Icc = 25 kA, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3404,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN063311023",
+   "descripcion": "INTERRUPTOR SF6, TRIPOLAR, In = 630 A, Icc = 31,5 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3405,
+   "pagina": 71,
+   "repetido_en": [
+    {
+     "linea": 3417,
+     "pagina": 71,
+     "descripcion": "INTERRUPTOR SF6, TRIPOLAR, INTEGRADO, In = 630 A, Icc = 31,5 kA,10 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "IN040161033",
+   "descripcion": "INTERRUPTOR PEQUENO VOLUMEN DE ACEITE, TRIPOLAR, In = 400 A, Icc = 16 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3406,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN040311033",
+   "descripcion": "INTERRUPTOR PEQUENO VOLUMEN DE ACEITE, TRIPOLAR, In = 400 A, Icc = 31,5 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3407,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN063251033",
+   "descripcion": "INTERRUPTOR PEQUENO VOLUMEN DE ACEITE, TRIPOLAR, In = 630 A, Icc = 25 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3408,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN080251033",
+   "descripcion": "INTERRUPTOR PEQUENO VOLUMEN DE ACEITE, TRIPOLAR, In = 800 A, Icc = 25 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3409,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN125401033",
+   "descripcion": "INTERRUPTOR PEQUENO VOLUMEN DE ACEITE, TRIPOLAR, In = 1250 A, Icc = 40 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3410,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN063122333",
+   "descripcion": "INTERRUPTOR PEQUENO VOLUMEN DE ACEITE, TRIPOLAR, In = 630 A, Icc = 12,5 kA, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3411,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN080162333",
+   "descripcion": "INTERRUPTOR PEQUENO VOLUMEN DE ACEITE, TRIPOLAR, In = 800 A, Icc = 16 kA, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3412,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN125311053",
+   "descripcion": "INTERRUPTOR NEUMATICO, TRIPOLAR, In = 1250 A, Icc = 31,5 kA, 10 KV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3413,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN125401053",
+   "descripcion": "INTERRUPTOR NEUMATICO, TRIPOLAR, In = 1250 A, Icc = 40 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3414,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN040401073",
+   "descripcion": "INTERRUPTOR CORTE EN ACEITE, TRIFASICO, In = 400 A Icc = 40 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3415,
+   "pagina": 71
+  },
+  {
+   "codigo": "IN040312373",
+   "descripcion": "INTERRUPTOR CORTE EN ACEITE, TRIFASICO, In = 400 A Icc = 31,5 kA, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C1 INTERRUPTORES",
+   "linea": 3416,
+   "pagina": 71
+  },
+  {
+   "codigo": "SC040001013",
+   "descripcion": "SECCIONADOR BAJO CARGA, SF6, TRIPOLAR, In = 400 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3430,
+   "pagina": 72
+  },
+  {
+   "codigo": "SC063001013",
+   "descripcion": "SECCIONADOR BAJO CARGA, SF6, TRIPOLAR, In = 630 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3431,
+   "pagina": 72
+  },
+  {
+   "codigo": "SC063001023",
+   "descripcion": "SECCIONADOR BAJO CARGA, SOPLADO AUTONEUMATICO, TRIPOLAR, In = 630 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3432,
+   "pagina": 72
+  },
+  {
+   "codigo": "SE040001011",
+   "descripcion": "SECCIONADOR UNIPOLAR x 1, In = 400 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3433,
+   "pagina": 72
+  },
+  {
+   "codigo": "SE040001012",
+   "descripcion": "SECCIONADOR UNIPOLAR x 2, In = 400 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3434,
+   "pagina": 72
+  },
+  {
+   "codigo": "SE040001013",
+   "descripcion": "SECCIONADOR UNIPOLAR x 3, In = 400 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3435,
+   "pagina": 72
+  },
+  {
+   "codigo": "SE040002311",
+   "descripcion": "SECCIONADOR UNIPOLAR x 1, In = 400 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3436,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF005001011",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 1, In = 50 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3437,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF005001013",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 3, In = 50 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3438,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF010001011",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 1, In = 100 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3439,
+   "pagina": 72,
+   "repetido_en": [
+    {
+     "linea": 3442,
+     "pagina": 72,
+     "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 1, In = 100 A, 10 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "SF010001012",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 2, In = 100 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3440,
+   "pagina": 72,
+   "repetido_en": [
+    {
+     "linea": 3443,
+     "pagina": 72,
+     "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 2, In = 100 A, 10 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "SF010001013",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 3, In = 100 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3441,
+   "pagina": 72,
+   "repetido_en": [
+    {
+     "linea": 3444,
+     "pagina": 72,
+     "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 3, In = 100 A, 10 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "SF010001023",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 3, In = 100 A, 10 kV, CORROSION",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3445,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF020001011",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 1, In = 200 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3446,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF020001012",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 2, In = 200 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3447,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF020001013",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 3, In = 200 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3448,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF005002311",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 1, In = 50 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3449,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF005002312",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 2, In = 50 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3450,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF005002313",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 3, In = 50 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3451,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF010002311",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 1, In = 100 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3452,
+   "pagina": 72,
+   "repetido_en": [
+    {
+     "linea": 3459,
+     "pagina": 72,
+     "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 1, In = 100 A, 22,9 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "SF010002312",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 2, In = 100 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3453,
+   "pagina": 72,
+   "repetido_en": [
+    {
+     "linea": 3460,
+     "pagina": 72,
+     "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 2, In = 100 A, 22,9 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "SF010002313",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 3, In = 100 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3454,
+   "pagina": 72,
+   "repetido_en": [
+    {
+     "linea": 3461,
+     "pagina": 72,
+     "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 3, In = 100 A, 22,9 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "SF020002311",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 1, In = 200 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3455,
+   "pagina": 72,
+   "repetido_en": [
+    {
+     "linea": 3462,
+     "pagina": 72,
+     "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 1, In = 200 A, 22,9 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "SF020002312",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 2, In = 200 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3456,
+   "pagina": 72,
+   "repetido_en": [
+    {
+     "linea": 3463,
+     "pagina": 72,
+     "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 2, In = 200 A, 22,9 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "SF020002313",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 3, In = 200 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3457,
+   "pagina": 72,
+   "repetido_en": [
+    {
+     "linea": 3464,
+     "pagina": 72,
+     "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 3, In = 200 A, 22,9 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "SF020002323",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), UNIPOLAR x 3, In = 200 A, 22,9 kV, CORROSION",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3458,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF010001021",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), BAJO CARGA, UNIPOLAR x 1, In = 100 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3465,
+   "pagina": 72
+  },
+  {
+   "codigo": "SF020002321",
+   "descripcion": "SECCIONADOR FUSIBLE (CUT-OUT), BAJO CARGA, UNIPOLAR x 1, In = 200 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3466,
+   "pagina": 72
+  },
+  {
+   "codigo": "SC063001043",
+   "descripcion": "SECCIONADOR BAJO CARGA, FUSIBLE LIMITADOR, TRIPOLAR, In = 630 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3467,
+   "pagina": 72
+  },
+  {
+   "codigo": "SC063002343",
+   "descripcion": "SECCIONADOR BAJO CARGA, FUSIBLE LIMITADOR, TRIPOLAR, In = 630 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3468,
+   "pagina": 72
+  },
+  {
+   "codigo": "SL005002313",
+   "descripcion": "SECCIONALIZADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 50 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3469,
+   "pagina": 72
+  },
+  {
+   "codigo": "SL020001013",
+   "descripcion": "SECCIONALIZADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 200 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3470,
+   "pagina": 72
+  },
+  {
+   "codigo": "FU010002321",
+   "descripcion": "FUSIBLE EXPULSION, UNIPOLAR, In = 100 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3475,
+   "pagina": 73
+  },
+  {
+   "codigo": "FU020002321",
+   "descripcion": "FUSIBLE EXPULSION, UNIPOLAR, In = 200 A, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3476,
+   "pagina": 73
+  },
+  {
+   "codigo": "CA063001011",
+   "descripcion": "CONECTORES AISLADOS SEPARABLES, 3 VIAS, In = 630 A, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3477,
+   "pagina": 73
+  },
+  {
+   "codigo": "DB000001033",
+   "descripcion": "DERIVACION TIPO BOVEDA 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3478,
+   "pagina": 73
+  },
+  {
+   "codigo": "DP000001043",
+   "descripcion": "DERIVACION TIPO PEDESTAL 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3479,
+   "pagina": 73
+  },
+  {
+   "codigo": "CE000001053",
+   "descripcion": "CELDA EXTERIOR DE PROTECCION Y SECCIONAMIENTO 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C2 SECCIONADORES",
+   "linea": 3480,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE005041011",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, UNIPOLAR, In = 50 A, Icc = 4 kA, 10 KV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3490,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE020041011",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, UNIPOLAR, In = 200 A, Icc = 4 kA, 10 KV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3491,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE063081011",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, UNIPOLAR, In = 630 A, Icc = 8 kA, 10 KV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3492,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE005041013",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 50 A, Icc = 4 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3493,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE010041013",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 100 A, Icc = 4 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3494,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE020041013",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 200 A, Icc = 4 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3495,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE040041013",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 400 A, Icc = 4 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3496,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE040081013",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 400 A, Icc = 8 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3497,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE063081013",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 630 A, Icc = 8 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3498,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE063161013",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 630 A, Icc = 16 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3499,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE125161013",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 1250 A, Icc = 16 kA, 10 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3500,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE063082313",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 630 A, Icc = 8 kA, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3501,
+   "pagina": 73
+  },
+  {
+   "codigo": "RE063122313",
+   "descripcion": "RECONECTADOR HIDRAULICO CORTE EN ACEITE, TRIPOLAR, In = 630 A, Icc = 12,5 kA, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C3 RECONECTADORES",
+   "linea": 3502,
+   "pagina": 73
+  },
+  {
+   "codigo": "PA000002311",
+   "descripcion": "PARARRAYOS TIPO AUTO VALVULA x 1, INCL. ACCES. DE INSTAL, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3530,
+   "pagina": 74
+  },
+  {
+   "codigo": "PA000002312",
+   "descripcion": "PARARRAYOS TIPO AUTO VALVULA x 2, INCL. ACCES. DE INSTAL, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3531,
+   "pagina": 74
+  },
+  {
+   "codigo": "PA000002313",
+   "descripcion": "PARARRAYOS TIPO AUTO VALVULA x 3, INCL. ACCES. DE INSTAL, 22,9 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3532,
+   "pagina": 74
+  },
+  {
+   "codigo": "BC005001061",
+   "descripcion": "BANCO DE CONDENSADORES FIJO, MONOFASICO, 3x50 kVAR, 10-15 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3533,
+   "pagina": 74
+  },
+  {
+   "codigo": "BC010001061",
+   "descripcion": "BANCO DE CONDENSADORES FIJO, MONOFASICO, 3x100 kVAR, 10-15 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3534,
+   "pagina": 74,
+   "repetido_en": [
+    {
+     "linea": 3536,
+     "pagina": 74,
+     "descripcion": "BANCO DE CONDENSADORES FIJO, MONOFASICO, 100 kVAR, 10-15 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "BC015001061",
+   "descripcion": "BANCO DE CONDENSADORES FIJO, MONOFASICO, 3x150 kVAR, 10-15 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3535,
+   "pagina": 74,
+   "repetido_en": [
+    {
+     "linea": 3540,
+     "pagina": 74,
+     "descripcion": "BANCO DE CONDENSADORES FIJO, MONOFASICO, 6x150 kVAR, 10-15 kV"
+    }
+   ]
+  },
+  {
+   "codigo": "BC020001061",
+   "descripcion": "BANCO DE CONDENSADORES FIJO, MONOFASICO, 3x200 kVAR, 10-15 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3537,
+   "pagina": 74
+  },
+  {
+   "codigo": "BC030001061",
+   "descripcion": "BANCO DE CONDENSADORES FIJO, MONOFASICO, 3x300 kVAR, 10-15 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3538,
+   "pagina": 74
+  },
+  {
+   "codigo": "BC040001061",
+   "descripcion": "BANCO DE CONDENSADORES FIJO, MONOFASICO, 3x400 kVAR, 10-15 kV",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3539,
+   "pagina": 74
+  },
+  {
+   "codigo": "BR010001071",
+   "descripcion": "BANCO DE REGULACION DE TENSION x 2, MONOFASICO, In = 100 A, 10 kV CONTROL ELECTRONICO",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3541,
+   "pagina": 74
+  },
+  {
+   "codigo": "BR020001072",
+   "descripcion": "BANCO DE REGULACION DE TENSION x 2, MONOFASICO, In = 200 A, 10 kV, CONTROL ELECTRONICO",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3542,
+   "pagina": 74
+  },
+  {
+   "codigo": "BR020001073",
+   "descripcion": "BANCO DE REGULACION DE TENSION x 3, MONOFASICO, In = 200 A, 10 kV, CONTROL ELECTRONICO",
+   "grupo": "1 MEDIA TENSIÓN",
+   "componente": "C EQUIPOS DE PROTECCIÓN Y SECCIONAMIENTO",
+   "subcomponente": "C4 OTROS",
+   "linea": 3543,
+   "pagina": 74
+  },
+  {
    "codigo": "PX0701",
    "descripcion": "ESTRUCTURA 7 m ALINEAMIENTO",
    "grupo": "1 MEDIA TENSIÓN",

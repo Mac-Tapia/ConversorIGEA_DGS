@@ -633,7 +633,9 @@ def anexo5(t: Texto) -> dict:
             'unidad_costo': 'US$/unidad', 'unidad_subtotal': 'miles de US$'}
 
 
-_CODIGO = re.compile(r'^((?=[A-Z0-9]*\d)[A-Z0-9]{5,9})\s+(\S.*?)\s*$')  # un código lleva al menos una cifra
+#: Un código lleva al menos una cifra; de 5 a 11 caracteres: los de la red son de 7 a 9 y los equipos de protección y
+#: seccionamiento de la MT (componente C: «RE005041011», «SC040001013») son de 11.
+_CODIGO = re.compile(r'^((?=[A-Z0-9]*\d)[A-Z0-9]{5,11})\s+(\S.*?)\s*$')
 
 
 def anexo2(t: Texto) -> list[dict]:
@@ -664,8 +666,14 @@ def anexo2(t: Texto) -> list[dict]:
             codigo, desc = m.group(1), re.sub(r'\s+', ' ', m.group(2))
             clave = (grupo, sub, codigo)
             if clave in vistos:
-                raise GuiaError(f'{ACTO}: Anexo 2, código {codigo} repetido en {grupo} › {sub} (líneas {vistos[clave]} y {k + 1})')
-            vistos[clave] = k + 1
+                # La propia Guía repite un código en el mismo subcomponente (IN063311023 en C1, la segunda vez con
+                # «INTEGRADO»): vale la primera fila, que es la que costea el SICODI por código, y la repetición
+                # queda anotada en ella con su línea y su descripción, nunca descartada en silencio.
+                primera = salida[vistos[clave]]
+                primera.setdefault('repetido_en', []).append({'linea': k + 1, 'pagina': t.pagina_de[k],
+                                                              'descripcion': desc})
+                continue
+            vistos[clave] = len(salida)
             salida.append({'codigo': codigo, 'descripcion': desc, 'grupo': grupo, 'componente': componente,
                            'subcomponente': sub, 'linea': k + 1, 'pagina': t.pagina_de[k]})
     if not salida:

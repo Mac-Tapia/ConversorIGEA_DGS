@@ -3089,6 +3089,11 @@ def create_app(
 
     registrar_rutas_entradas(app, ws_or_404=ws_or_404, submit=submit, guardar_subida=_save_upload)
     # 108 T28: el estudio VNR (Guía del VNR, RCD 232-2017) desde el inventario VNR-GIS y el SICODI subidos.
+    from .fuentes_api import registrar_rutas_fuentes
+    registrar_rutas_fuentes(app, ws_or_404=ws_or_404, guardar_subida=_save_upload)
+    # 107:RF-21: la biblioteca normativa general, la misma para toda empresa, estudio y módulo.
+    from .normativa_api import registrar_rutas_normativa
+    registrar_rutas_normativa(app, guardar_subida=_save_upload, hoy=lambda: date.today().isoformat())
     from .vnr_api import registrar_rutas_vnr
 
     registrar_rutas_vnr(app, ws_or_404=ws_or_404, submit=submit, guardar_subida=_save_upload)
@@ -3105,7 +3110,8 @@ def create_app(
     # 108:RF-1, 070:RF-86: el estudio de costos del VAD (crear el estudio y armar la empresa modelo), en su módulo.
     from .vad_api import registrar_rutas_vad
 
-    registrar_rutas_vad(app, ws_or_404=ws_or_404, submit=submit, raiz_config=project_root() / 'config')
+    registrar_rutas_vad(app, ws_or_404=ws_or_404, submit=submit, raiz_config=project_root() / 'config',
+                        guardar_subida=_save_upload)
 
     # ------------------------------------------------------------ front compilado
     dist = frontend_dist()

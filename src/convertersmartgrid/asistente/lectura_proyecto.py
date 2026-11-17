@@ -1,4 +1,4 @@
-"""Las tres lecturas del proyecto que puede pedir el LLM, y qué puede leer (spec 077).
+"""Las lecturas del proyecto que puede pedir el LLM, y qué puede leer (spec 077).
 
 Una sola lógica para ``pregunta`` y para el servidor MCP: leer un fichero por rango, buscar un texto
 literal y consultar una ruta en el OpenAPI generado. No hay ninguna operación de escritura ni ninguna
@@ -549,6 +549,13 @@ def consultar_api(repo: Path, ruta: str, metodo: str | None = None, *, politica:
             'sha256': hashlib.sha256(texto.encode('utf-8')).hexdigest()}
 
 
+def _consultar_norma(repo: Path, clave: str | None = None, texto: str | None = None, fecha: str | None = None, *,
+                     politica: Politica = RESTRINGIDA) -> dict[str, Any]:
+    """La biblioteca normativa por su API (077:RF-78); el módulo se carga al usarla."""
+    from .corpus_normativo import consultar_norma
+    return consultar_norma(repo, clave, texto, fecha, politica=politica)
+
+
 @dataclass(frozen=True)
 class Herramienta:
     nombre: str
@@ -577,6 +584,11 @@ HERRAMIENTAS: dict[str, Herramienta] = {h.nombre: h for h in (
                 'Consulta una ruta de la API en el OpenAPI generado, sin hacer ninguna petición. Solo lectura.',
                 _objeto({'ruta': {'type': 'string', 'description': 'Por ejemplo /api/jobs/{job_id}.'},
                          'metodo': {'type': 'string'}}, ('ruta',)), consultar_api),
+    Herramienta('consultar_norma',
+                'Consulta la biblioteca normativa: la regla vigente de una clave en una fecha, con su norma, artículo, estado y cita, o las reglas que contienen unas palabras. Solo lectura.',
+                _objeto({'clave': {'type': 'string', 'description': 'Por ejemplo pit.n1_demanda_min_mw.'},
+                         'texto': {'type': 'string', 'minLength': 3, 'maxLength': 200},
+                         'fecha': {'type': 'string', 'description': 'AAAA-MM-DD; sin ella, hoy.'}}, ()), _consultar_norma),
 )}
 
 

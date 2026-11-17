@@ -31,7 +31,7 @@ from typing import Any
 
 from ..runtime_paths import staging_publicacion
 from ..util import publicar_duradero
-from . import almacen, corpus_proyecto, lectura_proyecto
+from . import almacen, corpus_normativo, corpus_proyecto, lectura_proyecto
 from .ollama import MODELO_EMBEDDINGS
 from .sinteticos import normalizar
 
@@ -188,7 +188,14 @@ def huella(repo: Path, corpus: str = CORPUS_047) -> str:
     for p in _ficheros_de(repo, corpus):
         st = p.stat()
         h.update(f'{p.relative_to(repo).as_posix()}|{st.st_mtime_ns}|{st.st_size}\n'.encode())
+    if _con_normativa(corpus):
+        h.update(f'biblioteca|{corpus_normativo.huella(repo)}\n'.encode())  # una norma nueva reindexa (077:RF-78)
     return h.hexdigest()
+
+
+def _con_normativa(corpus: str) -> bool:
+    """El corpus ampliado lleva la biblioteca normativa (077:RF-78); el de la 047 y el de la entrega, no."""
+    return corpus not in (CORPUS_047, CORPUS_ENTREGA)
 
 
 def _de_python(rel: str, texto: str) -> list[tuple[str, str]]:
@@ -280,7 +287,13 @@ def fragmentos(repo: Path, corpus: str = CORPUS_047) -> list[Fragmento]:
     trozos: list[tuple[str, str]] = []
     for p in _ficheros_de(repo, corpus):
         trozos += _trozos_segun(p, p.relative_to(repo).as_posix(), corpus)
-    return _con_vigencia(repo, trozos)
+    frags = _con_vigencia(repo, trozos)
+    if _con_normativa(corpus):
+        # 077:RF-78: cada regla de la biblioteca normativa, leída por su API, con la vigencia de su norma.
+        normativos = corpus_normativo.trozos(corpus_normativo.biblioteca(repo))
+        frags += [Fragmento(len(frags) + i, fuente, texto, vigencia)
+                  for i, (fuente, texto, vigencia) in enumerate(normativos)]
+    return frags
 
 
 def verificables(repo: Path, hallados: Sequence[dict], corpus: str = CORPUS_047) -> list[dict]:
@@ -288,7 +301,15 @@ def verificables(repo: Path, hallados: Sequence[dict], corpus: str = CORPUS_047)
     índice ya cargado, y una cita a un texto que ya no está no se puede comprobar."""
     por_fichero: dict[str, set[tuple[str, str]]] = {}
     out = []
+    registro = None
     for h in hallados:
+        if corpus_normativo.es_normativa(h['fuente']):
+            # 077:RF-78: una cita normativa se comprueba contra la biblioteca, no contra un fichero.
+            if registro is None:
+                registro = corpus_normativo.biblioteca(repo)
+            if corpus_normativo.verificar(registro, h['fuente'], h['texto']):
+                out.append(h)
+            continue
         rel = str(h['fuente']).rsplit(':', 1)[0]
         if rel not in por_fichero:
             p = repo / rel
@@ -685,6 +706,10 @@ def _cita_de_lectura(salida: dict) -> dict | None:
         if not salida.get('existe'):
             return None
         texto = f"API {salida['ruta']}: {json.dumps(salida['operaciones'], ensure_ascii=False, sort_keys=True)}"
+    elif salida['herramienta'] == 'consultar_norma':
+        if not salida.get('existe'):
+            return None
+        texto = '\n'.join(r['texto'] for r in salida['reglas'])
     else:
         if not salida['coincidencias']:
             return None

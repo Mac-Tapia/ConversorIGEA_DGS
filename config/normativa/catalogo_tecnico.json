@@ -1,0 +1,70 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Catálogo de normas técnicas nacionales e internacionales que usan los módulos (orden del usuario del 17-11-2026: «todas las normativas nacionales e internacionales que intervienen»). Entran como solo de referencia y sin verificar: la biblioteca dice que existen y quién las usa, y no obligan. Una versión leída, con su huella y sus reglas citadas, se añade como cualquier otra norma (capa del usuario o el registro).",
+ "normas": [
+  {
+   "acto": "RM 214-2011-MEM/DM",
+   "titulo": "Código Nacional de Electricidad – Suministro 2011",
+   "estado_juridico": "no_verificada",
+   "fecha_consulta": "2026-11-17",
+   "solo_referencia": "norma nacional aún sin su texto leído y con huella en el registro",
+   "nota": "La usan: distancias de seguridad y obras de redes (Obras, Largo plazo, PIDE). Sin texto leído en el registro: no obliga ni da reglas; su versión se comprueba antes de citar un valor de ella."
+  },
+  {
+   "acto": "RM 037-2006-MEM/DM",
+   "titulo": "Código Nacional de Electricidad – Utilización",
+   "estado_juridico": "no_verificada",
+   "fecha_consulta": "2026-11-17",
+   "solo_referencia": "norma nacional aún sin su texto leído y con huella en el registro",
+   "nota": "La usan: instalaciones de los usuarios (cargas nuevas). Sin texto leído en el registro: no obliga ni da reglas; su versión se comprueba antes de citar un valor de ella."
+  },
+  {
+   "acto": "NTP 370.400",
+   "titulo": "Norma Técnica Peruana de transformadores de distribución (límite de carga en la máxima)",
+   "estado_juridico": "no_verificada",
+   "fecha_consulta": "2026-11-17",
+   "solo_referencia": "norma nacional aún sin su texto leído y con huella en el registro",
+   "nota": "La usan: diagnóstico de transformadores en Corto plazo y Cargas en DIgSILENT. Sin texto leído en el registro: no obliga ni da reglas; su versión se comprueba antes de citar un valor de ella."
+  },
+  {
+   "acto": "IEC 60076",
+   "titulo": "Power transformers (partes 1, 5 y 7: potencias normalizadas, cortocircuito y carga)",
+   "estado_juridico": "no_verificada",
+   "fecha_consulta": "2026-11-17",
+   "solo_referencia": "norma técnica bajo licencia: se cita por su número y su versión, sin transcribir su texto",
+   "nota": "La usan: fichas de transformadores del conversor. Sin texto leído en el registro: no obliga ni da reglas; su versión se comprueba antes de citar un valor de ella."
+  },
+  {
+   "acto": "IEC 60287",
+   "titulo": "Electric cables – Calculation of the current rating (parte 1-1: permitividad y capacidad)",
+   "estado_juridico": "no_verificada",
+   "fecha_consulta": "2026-11-17",
+   "solo_referencia": "norma técnica bajo licencia: se cita por su número y su versión, sin transcribir su texto",
+   "nota": "La usan: capacidad de los cables de la 080. Sin texto leído en el registro: no obliga ni da reglas; su versión se comprueba antes de citar un valor de ella."
+  },
+  {
+   "acto": "IEC 60909",
+   "titulo": "Short-circuit currents in three-phase a.c. systems",
+   "estado_juridico": "no_verificada",
+   "fecha_consulta": "2026-11-17",
+   "solo_referencia": "norma técnica bajo licencia: se cita por su número y su versión, sin transcribir su texto",
+   "nota": "La usan: cortocircuito de los estudios con DIgSILENT. Sin texto leído en el registro: no obliga ni da reglas; su versión se comprueba antes de citar un valor de ella."
+  },
+  {
+   "acto": "IEEE 1366",
+   "titulo": "IEEE Guide for Electric Power Distribution Reliability Indices (SAIFI, SAIDI)",
+   "estado_juridico": "no_verificada",
+   "fecha_consulta": "2026-11-17",
+   "solo_referencia": "norma técnica bajo licencia: se cita por su número y su versión, sin transcribir su texto",
+   "nota": "La usan: indicadores de continuidad junto con la NTCSE y la NTCSER. Sin texto leído en el registro: no obliga ni da reglas; su versión se comprueba antes de citar un valor de ella."
+  },
+  {
+   "acto": "IEEE 519",
+   "titulo": "IEEE Standard for Harmonic Control in Electric Power Systems",
+   "estado_juridico": "no_verificada",
+   "fecha_consulta": "2026-11-17",
+   "solo_referencia": "norma técnica bajo licencia: se cita por su número y su versión, sin transcribir su texto",
+   "nota": "La usan: calidad de producto (tensión y armónicos). Sin texto leído en el registro: no obliga ni da reglas; su versión se comprueba antes de citar un valor de ella."
+  }
+ ]
+}

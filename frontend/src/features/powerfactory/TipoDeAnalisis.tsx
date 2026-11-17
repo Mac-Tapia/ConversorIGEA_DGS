@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { createContext, useContext, useEffect, useId, useState } from 'react';
 import { api } from '../../api/client';
 import type { AvanceDisco, ClaveTipoAnalisis, TipoAnalisis, TiposAnalisis } from '../../api/types';
 
@@ -8,6 +8,13 @@ export const DESTINO = {
   estudios: 'paso-estudios', informes: 'paso-informes', planificacion: 'paso-planificacion',
   obrasAutomaticas: 'paso-obras-automaticas',
 } as const;
+
+/**
+ * 072 (módulos): el prefijo de los ids de las secciones. «Cargas en DIgSILENT» no lleva ninguno; cada pestaña de módulo
+ * («Corto plazo», «PIDE», «Largo plazo») lleva el suyo, para que las pestañas montadas a la vez no repitan ids y «Ir al
+ * paso» vaya a la sección de su propia pestaña.
+ */
+export const PrefijoPasos = createContext('');
 
 /** Lo que ya consta del proyecto en la sesión, leído de sus trabajos (072:RF-33). */
 export interface EstadoPasos {
@@ -50,6 +57,7 @@ function irA(destino: string) {
 export function SeguirDondeQuedo({ avance, calibrados, order }: {
   avance: AvanceDisco | null; calibrados: string[]; order: string[];
 }) {
+  const pref = useContext(PrefijoPasos);
   const listos = order.filter((f) => calibrados.includes(f));
   if (!order.length || listos.length < order.length) return null;
   const cargas = (avance?.cargas ?? []).filter((c) => order.includes(c.alimentador));
@@ -69,10 +77,10 @@ export function SeguirDondeQuedo({ avance, calibrados, order }: {
         {informes.length > 0 && <li>Informes ya escritos: {informes.map((i) => i.docx).join(', ')}.</li>}
       </ul>
       <div className="row">
-        <button type="button" className="btn btn-sm" onClick={() => irA(DESTINO.obrasAutomaticas)}>Ir a obras automáticas</button>
-        <button type="button" className="btn btn-sm" onClick={() => irA(DESTINO.estudios)}>Ir a 4.2 · Estudios</button>
+        <button type="button" className="btn btn-sm" onClick={() => irA(pref + DESTINO.obrasAutomaticas)}>Ir a obras automáticas</button>
+        <button type="button" className="btn btn-sm" onClick={() => irA(pref + DESTINO.estudios)}>Ir a 4.2 · Estudios</button>
         <button type="button" className={`btn btn-sm${sinFlujo.length ? ' btn-ghost' : ''}`}
-          onClick={() => irA(DESTINO.informes)}>Ir a 4.4 · Preparar informe</button>
+          onClick={() => irA(pref + DESTINO.informes)}>Ir a 4.4 · Preparar informe</button>
       </div>
       <small className="muted">Para recalibrar o cambiar cargas, los pasos 2 y 3 siguen abajo.</small>
     </div>
@@ -230,23 +238,26 @@ export function textoNorma(norma: TiposAnalisis['norma']): string {
  * El operador elige corto plazo, PIDE o planeamiento de largo plazo; la ficha (horizonte, obras, entregables y norma)
  * la da el servidor, y los pasos llevan a las secciones que ya existen. Nada se oculta: el tipo ordena y explica.
  */
-export function TipoDeAnalisis({ tipo, onTipo, anio, onAnio, tipos, error, estado, planificacion }: {
+export function TipoDeAnalisis({ tipo, onTipo, anio, onAnio, tipos, error, estado, planificacion, fijo = false }: {
   tipo: ClaveTipoAnalisis | null; onTipo: (t: ClaveTipoAnalisis) => void;
   anio: string; onAnio: (a: string) => void;
   tipos: TiposAnalisis | null; error: string; estado: EstadoPasos; planificacion: boolean;
+  /** 072 (módulos): en la pestaña de su módulo el tipo ya está elegido: no se ofrece cambiarlo. */
+  fijo?: boolean;
 }) {
+  const pref = useContext(PrefijoPasos);
   const elegido = tipos?.tipos.find((t) => t.clave === tipo) ?? null;
   const pasos = tipo ? pasosDelTipo(tipo, estado, planificacion) : [];
   const sinAnio = tipo !== null && tipo !== 'corto_plazo' && !anio.trim() && tipos?.anio_presentacion_perfil == null;
   return (
-    <div className="step-box" id="paso-tipo" tabIndex={-1}>
-      <h3>Tipo de análisis</h3>
-      <div className="chips" role="radiogroup" aria-label="Tipo de análisis">
+    <div className="step-box" id={`${pref}paso-tipo`} tabIndex={-1}>
+      <h3>{fijo && elegido ? elegido.titulo : 'Tipo de análisis'}</h3>
+      {!fijo && <div className="chips" role="radiogroup" aria-label="Tipo de análisis">
         {(tipos?.tipos ?? []).map((t) => (
           <button key={t.clave} type="button" role="radio" aria-checked={tipo === t.clave}
             className={`chip${tipo === t.clave ? ' on' : ''}`} onClick={() => onTipo(t.clave)}>{t.titulo}</button>))}
         {tipo === null && tipos && <span className="muted small">Elija uno: cada tipo tiene su horizonte, sus obras y sus entregables.</span>}
-      </div>
+      </div>}
       {error && <p role="alert" className="alert alert-error">{error}</p>}
       {tipo !== null && tipos && <p className="small muted">{textoNorma(tipos.norma)}</p>}
       {tipo !== null && tipo !== 'corto_plazo' && (
@@ -269,7 +280,7 @@ export function TipoDeAnalisis({ tipo, onTipo, anio, onAnio, tipos, error, estad
                 {p.hecho ? 'hecho' : p.hecho === null ? 'opcional' : 'pendiente'}</span>{' '}
               <span>{p.titulo}</span>
               {p.nota && <small className="muted"> — {p.nota}</small>}{' '}
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => irA(p.destino)}>Ir al paso</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => irA(pref + p.destino)}>Ir al paso</button>
             </li>))}
         </ol>
       </>}

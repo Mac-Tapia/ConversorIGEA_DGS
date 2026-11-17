@@ -104,7 +104,7 @@ class Regla:
     @property
     def citada(self) -> bool:
         """Una regla sin cita literal, o sin página ni líneas, no se puede revisar: no es obligatoria."""
-        return bool(self.cita_literal.strip()) and bool(self.pagina.strip() or self.lineas.strip())
+        return bool(str(self.cita_literal).strip()) and bool(str(self.pagina).strip() or str(self.lineas).strip())
 
 
 @dataclass(frozen=True)
@@ -610,6 +610,16 @@ def _ficheros(rutas: Iterable[Path | str]) -> list[tuple[Path, bool]]:
         else:
             raise RegistroError(f'no existe el fichero o la carpeta del registro normativo: {ruta}')
     return out
+
+
+def leer_norma(datos: Mapping[str, Any], origen: str) -> Norma:
+    """Una norma del esquema desde su diccionario (la usa la capa del usuario de la biblioteca normativa)."""
+    return _norma(datos, origen)
+
+
+def leer_regla(datos: Mapping[str, Any], origen: str) -> Regla:
+    """Una regla del esquema desde su diccionario (las ampliaciones de la capa del usuario)."""
+    return _regla(datos, origen)
 
 
 def cargar_registro(*rutas: Path | str) -> RegistroNormativo:

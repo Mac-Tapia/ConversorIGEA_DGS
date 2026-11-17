@@ -284,6 +284,10 @@ GENERICOS_CON_RAZON = {
     'config/vnr/anexo6_equivalencias.json':
         '108 (VNR-232, RF-20): Anexo 6 «Tablas de Equivalencia» de la Guía del VNR de Osinergmin (RCD 232-2017-OS/CD), del PDF '
         'oficial por su generador (la Tabla 14 por OCR); norma pública, ninguna regla de una empresa.',
+    'config/modulos/vinculos.json':
+        '109 (RF-25, RF-26): la matriz de cómo se vinculan los módulos según la norma (qué comparten, qué es propio, qué '
+        'entregan y qué consumen), con la cita de cada vínculo a las normas de Osinergmin, del MINEM y la LCE; universal, '
+        'ningún dato de una empresa.',
 }
 _COMODIN = re.compile(r'[*?\[\]]')
 

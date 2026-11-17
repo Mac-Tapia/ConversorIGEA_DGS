@@ -28,8 +28,9 @@ que pasa al añadir demanda. Se usa desde una página web local, en el propio eq
 - Fuentes y expedientes en la nube (Google Drive y OneDrive) y envío de informes por correo (Gmail y Outlook), desde la web.
 - El editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo.
 
-**En beta**, marcadas en su pantalla y desactivables con `CSG_BETA_APAGADAS`: asistente de órdenes, SET nueva, diagnóstico y borrador
-del PIDE, y confiabilidad (`src/convertersmartgrid/edicion.py`).
+**En beta**, marcadas en su pantalla y desactivables con `CSG_BETA_APAGADAS`: asistente de órdenes, SET nueva y confiabilidad
+(`src/convertersmartgrid/edicion.py`). El PIDE ya no es beta: el corto plazo, el PIDE y el largo plazo tienen cada uno su pestaña
+(`<HASH-L3>`). Su norma de criterios y metodología (RM 428-2017-MEM/DM) sigue publicada como proyecto, y la web lo dice.
 
 Nada está apagado en la edición de producto (usuario, 2026-11-13). La edición solo decide lo que es de seguridad: las salidas a
 la red están apagadas hasta que el operador las encienda, y los datos del cliente se quedan en su equipo.
@@ -188,7 +189,8 @@ calibración por año con bancos y tramos de dos conductores (025 T27); el asist
 **Fuera de la 1.0 o en beta, por diseño:**
 
 - Cortocircuito y protecciones no se venden en la 1.0 (fuera de alcance de la 086); su spec (049) se cerró sin corrida propia.
-- PIDE y planeamiento de largo plazo: en beta; falta su aceptación real y la base de módulos de transmisión (072 T9b, T11, T13, T14).
+- PIDE y planeamiento de largo plazo: activos en su pestaña, con su norma aún en proyecto; falta su aceptación real y la base de
+  módulos de transmisión (072 T9b, T11, T13, T14).
 - Asistente de órdenes: en beta. Faltan el intérprete con codificador preentrenado (069 T7), la búsqueda multilingüe (097 T3) y la
   revisión por roles (047 T4, T7, T8).
 - Pronóstico de demanda: falta la corrida larga real de todos los modelos (089 T7) y la corrida real de la proyección de un

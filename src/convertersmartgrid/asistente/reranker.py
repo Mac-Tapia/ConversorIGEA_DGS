@@ -33,6 +33,9 @@ CALIBRACION_077 = _RAIZ / 'docs' / 'CALIBRACION_ABSTENCION_077.json'
 CONJUNTO_CALIBRACION_077 = _RAIZ / 'docs' / 'CONJUNTO_ABSTENCION_CALIBRACION_077.json'
 CONJUNTO_SELLADO_077 = _RAIZ / 'docs' / 'CONJUNTO_ABSTENCION_SELLADO_077.json'
 MEDICION_077 = _RAIZ / 'docs' / 'EVALUACION_ABSTENCION_077.json'
+#: Las preguntas sobre la biblioteca normativa (077:RF-80), y su sello, fijado al escribirlas y antes de medir nada.
+CONJUNTO_NORMATIVO_077 = _RAIZ / 'docs' / 'CONJUNTO_NORMATIVO_SELLADO_077.json'
+SELLO_NORMATIVO_077 = '31a0aaf21e99a2f435b8eacde7c1838549e9a69ee66f3a762b67da1b770b215c'
 #: Programa instalado (pregunta_entregada): la calibración que hizo el constructor sobre los manuales que se entregan.
 CALIBRACION_ENTREGA = _RAIZ / 'documentos' / 'CALIBRACION_ABSTENCION_ENTREGA.json'
 CONJUNTO_ENTREGA = _RAIZ / 'documentos' / 'CONJUNTO_ABSTENCION_ENTREGA.json'

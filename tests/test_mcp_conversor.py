@@ -178,7 +178,7 @@ asyncio.run(principal())
     diagnostico = r.stderr.decode('utf-8')
     assert "lectura fuera del catálogo: 'escribir_fichero'" in diagnostico
     salida = json.loads(r.stdout.decode('utf-8').strip().splitlines()[-1])
-    assert salida['nombres'] == ['buscar_texto', 'consultar_api', 'leer_fichero']
+    assert salida['nombres'] == ['buscar_texto', 'consultar_api', 'consultar_norma', 'leer_fichero']
     assert all(salida['solo_lectura']) and not any(salida['destructiva'])
     assert salida['bueno'] == 'CLAUDE.md:1' and salida['api'] is True and salida['busca'] == 2
     for clave in ('negra', 'fuera', 'env', 'otra'):

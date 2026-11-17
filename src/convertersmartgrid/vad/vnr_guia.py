@@ -572,6 +572,37 @@ def codigo_de_sed(anexo2: Mapping, tipo_adaptado: str, kva: float) -> tuple[str,
     return validas[0][1], validas[0][0]
 
 
+#: El tipo de un equipo de la MT en VNR-GIS es el prefijo de su código VNR del Anexo 2 (componente C); los que la Guía
+#: adapta (arts. 24, 29, 34 y 39) con el nombre con que los nombra su criterio de protección.
+EQUIPO_POR_PREFIJO = {'IN': 'Interruptor', 'SC': 'Seccionador bajo carga', 'SE': 'Seccionador Unipolar (x1, x2, x3)',
+                      'SF': 'Seccionador fusible (cut-out)', 'RE': 'Reconectador', 'SL': 'Seccionalizador'}
+#: La palabra de la descripción del Anexo 2 que distingue al equipo adaptado («Reconectador SF6» → «SF6»).
+_DISTINTIVO = {'sf6': 'SF6', 'electronico': 'ELECTRONICO', 'vacio': 'VACIO'}
+
+
+def codigo_de_equipo(anexo2: Mapping, prefijo: str, kv: float | None, adaptado: str = '') -> tuple[str, str]:
+    """(código VNR, nota) de un equipo de protección y seccionamiento de la MT o de su componente C4 (bancos,
+    reguladores, pararrayos): el del ``prefijo`` a la tensión ``kv``, con la palabra que distingue al ``adaptado`` si el
+    catálogo la tiene. VNR-GIS no da la corriente nominal: se toma la menor del catálogo y la nota lo dice."""
+    candidatos = [c for c in anexo2['codigos'] if c['grupo'].startswith('1') and c['componente'].startswith('C ')
+                  and c['codigo'].startswith(prefijo)]
+    if not candidatos:
+        raise VnrGuiaError(f'equipo {prefijo}: sin código en el componente C de la MT del Anexo 2')
+    if kv is not None:
+        texto_kv = f'{kv:g}'.replace('.', ',') + ' kV'
+        a_su_tension = [c for c in candidatos if texto_kv.lower() in c['descripcion'].lower()]
+        candidatos = a_su_tension or candidatos
+    palabra = next((v for k, v in _DISTINTIVO.items() if k in _n(adaptado)), '')
+    con_palabra = [c for c in candidatos if palabra and palabra in _n(c['descripcion']).upper()]
+    candidatos = con_palabra or candidatos
+
+    def corriente(c):
+        m = re.search(r'In\s*=\s*(\d+)', c['descripcion'])
+        return (int(m.group(1)) if m else 0, c['codigo'])
+    elegido = min(candidatos, key=corriente)
+    return elegido['codigo'], 'corriente nominal no declarada en VNR-GIS: la menor del catálogo a su tensión'
+
+
 @dataclass(frozen=True)
 class ItemMetrado:
     """Una partida del metrado adaptado: código VNR, cantidad (km para las redes, unidades para el resto) y las claves

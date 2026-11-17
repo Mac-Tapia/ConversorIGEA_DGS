@@ -3,7 +3,6 @@ import { Ayuda } from '../../shared/ui';
 import { useEffect, useId, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
-import { AvisoBeta } from '../../shared/MarcaBeta';
 import { CampoAnioPresentacion, motivoAnio } from './TipoDeAnalisis';
 import type { ClaveTipoAnalisis, EpisodioResumen, ObraPIDE, PideResultado, PideAnualResultado, PideFuentes, PideSolicitud,
   TiposAnalisis } from '../../api/types';
@@ -121,7 +120,6 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
   if (!feeders.length) return <p className="muted">Marque al menos un alimentador en el paso 2.</p>;
   return (
     <div>
-      <AvisoBeta clave="pide" />
       <h4>5.1 · Plan de inversiones (PIDE)</h4>
       <label className="field"><span>Flujo de planeamiento</span>
         <select value={modo} disabled={pfBusy} onChange={(e) => setModo(e.target.value as typeof modo)}>

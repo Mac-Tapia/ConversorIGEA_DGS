@@ -327,6 +327,37 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       y `npm test` en verde; una SED sin demanda y un código desconocido son huecos nombrados; un fichero que no es un
       inventario o un SICODI se rechaza con 400.
       Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: tests/test_vnr_api.py tests/test_vnr_estudio.py.
+- [ ] T29. Pestaña «Estudio VAD» en la web (`frontend/src/features/vad/EstudioVad.tsx` con `frontend/src/api/vad.ts`), con
+      las rutas que le faltaban en `web/vad_api.py`: el detalle del estudio (su armado, sus observaciones, lo que pueden
+      afectar y sus salidas), registrar y responder observaciones, y el Informe Definitivo como trabajo, comprobado antes
+      de encolar con la misma regla que el informe. Sus trabajos avisan en el paso «vad». (RF-26)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_web.py tests/test_asistente_107_112.py` en
+      verde; la matriz de cobertura de `frontend/test/vadPanel.test.mjs` (cada ruta del VAD del contrato con su llamada,
+      su control y su prueba) y `npm test`, `npm run lint`, `npx tsc --noEmit -p .` y `npm run build` sin errores.
+- [ ] T30. La línea del VAD de punta a punta desde el caso: el armado encadena dimensionamiento, costo estándar,
+      resultados (`calcular_vad`), PIDE (`incorporar_pide`), calidad, costos de explotación, tablas (`escribir_tablas`),
+      informes e Informe Definitivo, cada paso con su entrada en `sistemas.json` o en el perfil y su hueco nombrado si
+      falta un dato, como trabajo con progreso y cancelación, y la pestaña enseña el estado de cada paso. Hoy esas
+      funciones solo las llaman las pruebas (auditoría del 2026-11-17, `D:/csg/PM_IMPL/AUDITORIA_LINEAS/`). Se puede
+      dividir por tramos; ninguno queda para después de la 1.0. (RF-1, RF-7, RF-9 a RF-19, RF-26)
+      Hecho cuando: un caso sintético de dos sistemas recorre por la web todos los pasos hasta el Informe Definitivo,
+      con cada documento escrito o su hueco nombrado, y sus pruebas en verde.
+      Avance (2026-11-17, f7), tramo A: `vad/linea.py` encadena tras la empresa modelo los resultados (`calcular_vad`;
+      la tabla 13 y el apartado 9 del Anexo 3), el PIDE (`incorporar_pide`), la calidad (`verificar_calidad`), la
+      explotación (`costear`), las tablas (`escribir_tablas`) y los informes, con las entradas por sistema
+      (`resultados`, `explotacion`) y del estudio (`estudio.pide`, `estudio.calidad`) de `sistemas.json`; cada paso sin
+      su entrada queda «SIN_ENTRADA» con su motivo, y el Informe Definitivo usa lo que la línea deja. Pruebas:
+      `tests/test_vad_linea.py`.
+      Avance (2026-11-17, f7), tramo B: antes del tramo A, la línea arma el modelo rural desde la red convertida del
+      espacio (`fuentes_empresa.red_del_espacio`), dimensiona la empresa modelo con `estudio.dimensionamiento` del caso
+      (rangos, demanda por SED, tabla de potencias, sector, tipo de SED, factor de carga y corrosivos) y la valora con el
+      SICODI vigente de las fuentes de la empresa, firmado tal como llega, y `estudio.costo` (resolución, año, moneda,
+      estructura y código de cada SED); la tabla 2 y el apartado 4 llevan el costo estándar por sistema. Pruebas:
+      `tests/test_vad_linea_b.py`.
 - [x] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
-      Hecho cuando: `grep -rnoE "108:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-25 y la suite está en verde.
+      Hecho cuando: `grep -rnoE "108:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-26 y la suite está en verde.
       Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: las del criterio.
+- [ ] T31. VNR-LINEA: el estudio VNR con la red BT de VNR-GIS (`sections_bt`), los equipos de protección y
+      seccionamiento y los del componente C4 por su prefijo del Anexo 2 (que ahora trae su componente C: códigos de 11
+      caracteres, y el código que la Guía repite anotado), con la red y el SICODI del espacio. (RF-20, RF-23)
+      Hecho cuando: `pytest tests/test_vnr_estudio.py tests/test_vnr_guia_registro.py tests/test_vnr_api.py` en verde.

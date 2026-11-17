@@ -10,3 +10,9 @@
       Hecho cuando: `pytest -q tests/test_arquitectura_generada.py tests/test_preguntas_entregables.py` en verde.
 - [x] T5. `docs/ARQUITECTURA.md` al día con las specs 102 y 107 a 112, y cada paquete explicado. (RF-17)
       Hecho cuando: `pytest -q tests/test_arquitectura_generada.py tests/test_preguntas_entregables.py` en verde.
+- [x] T6. Cada fichero con su subsistema: el VAD y el VNR, el PIT, la biblioteca normativa y las fuentes de la empresa, el
+      gobierno de modelos, la web y las pestañas nuevas; el frontend por carpetas, sin las rutas de antes de `app/`, `shared/` y
+      `features/`. (RF-18)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_arquitectura_generada.py` en verde, sin la sección
+      «Sin subsistema asignado» en `docs/ARQUITECTURA_CATALOGO.md`.
+      Hecho en <HASH-L4> (LOTE-4, ARQ-SUBSISTEMAS); pruebas: tests/test_arquitectura_generada.py.

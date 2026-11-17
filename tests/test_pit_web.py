@@ -203,3 +203,58 @@ def test_107_t13_los_resultados_traen_sus_rutas_dentro_del_espacio(tmp_path):
     assert res.get('salidas_relativas') and all(not v.startswith(('/', '.')) and '\\' not in v and ':' not in v
                                                 for v in res['salidas_relativas'].values())
     assert set(res['salidas_relativas']) == set(res['salidas'])
+
+
+# --- Las entradas del PIT desde las fuentes de la empresa (107 T31) ------------------------------------------------------
+
+def _fuentes(tmp_path, ws='ws1'):
+    """Registra el libro de la red y la proyección del espacio como fuentes de la empresa (109:RF-25)."""
+    from convertersmartgrid import fuentes_empresa as fe
+
+    raiz = tmp_path / ws
+    return (fe.registrar(raiz, 'red_area', raiz / 'red.xlsx', nombre='red.xlsx'),
+            fe.registrar(raiz, 'proyeccion', raiz / 'proyeccion.json', nombre='proyeccion.json'))
+
+
+def test_107_rf19_el_diagnostico_toma_las_fuentes_de_la_empresa(tmp_path):
+    """107:RF-19 — sin rutas, el diagnóstico toma el libro de la red y la proyección vigentes de la empresa; también por su
+    id; sin ninguna fuente ni ruta, 422 con lo que falta; un id que no existe, 404."""
+    caso = perfil_b(15)
+    cliente, cola = _cliente(tmp_path, caso)
+    pedido = {'workspace_id': 'ws1', 'area': caso['area'], 'anios': caso['anios']}
+    r = cliente.post('/api/pit/diagnostico', json=pedido)
+    assert r.status_code == 422 and 'red_area' in r.json()['detail'], r.text
+    red, proy = _fuentes(tmp_path)
+    r = cliente.post('/api/pit/diagnostico', json=pedido)
+    assert r.status_code == 200, r.text
+    r = cliente.post('/api/pit/diagnostico', json={**pedido, 'fuente_red_area': red.id, 'fuente_proyeccion': proy.id})
+    assert r.status_code == 200, r.text
+    assert len(cola.trabajos) == 2 and all(t['resultado'].get('salida_relativa') for t in cola.trabajos)
+    r = cliente.post('/api/pit/diagnostico', json={**pedido, 'fuente_red_area': 'f' * 16})
+    assert r.status_code == 404
+
+
+def test_107_rf19_las_alternativas_solo_si_se_nombran_y_las_areas_dicen_la_empresa(tmp_path):
+    """107:RF-19 — una fuente de alternativas de la empresa no entra en el expediente si no se nombra; nombrada, sí, con
+    su alternativa elegida. Las áreas dicen la empresa del perfil, para avisar si la red del espacio es de otra."""
+    from convertersmartgrid import fuentes_empresa as fe
+    from test_pit_formatos import NORMATIVA
+
+    caso = perfil_a(27)
+    cliente, cola = _cliente(tmp_path, caso, normativa=NORMATIVA)
+    _fuentes(tmp_path)
+    alternativas = tmp_path / 'ws1' / 'alternativas.json'
+    alternativas.write_text(json.dumps({'alternativas': [
+        {'nombre': 'x', 'cambios': [{'accion': 'baja', 'elemento': 'L-1', 'anio': 2030, 'titular': 't',
+                                     'instalacion': 'i', 'descripcion': 'd'}]}]}), encoding='utf-8')
+    alt = fe.registrar(tmp_path / 'ws1', 'alternativas', alternativas, nombre='alternativas.json')
+    base = {'workspace_id': 'ws1', 'area': caso['area'], 'periodo': '2025-2029', 'anios': caso['anios'][:2]}
+    # Las alternativas leídas se ven en los pendientes del armado: solo con ellas busca sus costos (pit.costos).
+    costos = 'sin pit.costos en el perfil: no hay costos con que comparar las alternativas'
+    r = cliente.post('/api/pit/expediente', json=base)
+    assert r.status_code == 200, r.text
+    assert costos not in cola.trabajos[-1]['resultado']['pendientes_del_armado'], 'sin nombrarlas, no entran'
+    r = cliente.post('/api/pit/expediente', json={**base, 'fuente_alternativas': alt.id, 'alternativa_elegida': 'x'})
+    assert r.status_code == 200, r.text
+    assert costos in cola.trabajos[-1]['resultado']['pendientes_del_armado'], 'nombradas, se leen y se buscan sus costos'
+    assert isinstance(cliente.get('/api/pit/areas').json().get('empresa'), str)

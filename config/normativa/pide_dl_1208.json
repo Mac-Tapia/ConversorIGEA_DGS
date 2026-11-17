@@ -1,0 +1,271 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "La base normativa del PIDE (107:RF-21, 109:RF-26; tarea 107 T39): el DL 1208 y su reglamento, el DS 023-2016-EM, con lo que ata el PIDE a la fijación del VAD; el DS 027-2018-EM, que no rige (DS 028-2018-EM y DS 029-2018-EM), y la RM 428-2017-MEM/DM, que solo prepublica los criterios. Las líneas son las de la copia de texto de cada PDF (sha256_texto), leída con pypdf y con las ligaduras «ﬁ» y «ﬂ» escritas como «fi» y «fl».",
+ "normas": [
+  {
+   "acto": "DL 1208",
+   "titulo": "Decreto Legislativo que promueve el desarrollo de planes de inversión en las empresas distribuidoras bajo el ámbito de FONAFE y su financiamiento",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://faolex.fao.org/docs/pdf/per148166.pdf",
+   "fecha_emision": "2015-09-22",
+   "fecha_publicacion": "2015-09-23",
+   "vigencia_desde": "2015-09-24",
+   "fecha_consulta": "2026-11-17",
+   "sha256": "434e6d1830efc3596dc07377fe20d4cc2b1e0ebe84ed6446d246dfd2038ba37f",
+   "sha256_texto": "f5daa1250f1bb4f2aa1c0f2ae4a7cad884b00ae2c9ac445f0313bcd742e4b0d0",
+   "fichero_local": "pide/per148166.txt",
+   "version": "El Peruano, Normas Legales, 23 de setiembre de 2015 (copia de la página de El Peruano en FAOLEX)",
+   "nota": "Sin derogación conocida al 2026-11-17 (FAOLEX: en vigor). El texto es el de su publicación.",
+   "reglas": [
+    {
+     "clave": "vinculo.pide.objeto",
+     "valor": "inversiones_distribuidoras_fonafe",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 1",
+     "pagina": "1",
+     "lineas": "58-65",
+     "cita_literal": "Artículo 1.- Objeto El objeto del presente decreto legislativo es dictar disposiciones destinadas a establecer mecanismos que permitan un mayor monto de inversiones en la mejora de la cobertura y la calidad de los servicios eléctricos, a cargo de las empresas distribuidoras bajo el ámbito del Fondo Nacional de Financiamiento de la Actividad Empresarial del Estado (FONAFE).",
+     "interpretacion": "El PIDE es de las distribuidoras del ámbito de FONAFE: el módulo lo ofrece a esas empresas.",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vinculo.pide.estudio_antes_del_vad",
+     "valor": "antes_de_cada_fijacion_vad",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 2.1",
+     "pagina": "1",
+     "lineas": "69-76",
+     "cita_literal": "2.1 Cada empresa distribuidora bajo el ámbito de FONAFE debe presentar al Organismo Supervisor de Inversión en Energía y Minería (a OSINERGMIN), antes del inicio de cada fijación tarifaria del Valor Agregado de Distribución (VAD), un Estudio de Planeamiento Eléctrico de largo plazo que tenga asociado un Plan de Inversiones en Distribución para el periodo de fijación tarifaria del VAD que corresponda.",
+     "interpretacion": "El estudio de planeamiento de largo plazo con su PIDE se presenta antes de cada fijación del VAD y para su periodo: el PIDE y el VAD de la empresa comparten periodo.",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vinculo.pide.alcance",
+     "valor": [
+      "reforzamiento",
+      "ampliacion",
+      "remodelacion",
+      "ahorro_energetico",
+      "calidad_del_servicio",
+      "seguridad_electrica",
+      "seguridad_de_suministro",
+      "innovacion_tecnologica"
+     ],
+     "unidad": "-",
+     "articulo_o_anexo": "art. 2.2",
+     "pagina": "1",
+     "lineas": "77-83",
+     "cita_literal": "2.2 El Plan de Inversiones en Distribución antes señalado, considera el reforzamiento, ampliación, remodelación, ahorro energético, mejora de la calidad del servicio, seguridad eléctrica, seguridad de suministro, innovación tecnológica y cualquier otra medida que mejore la eficiencia o eficacia de las redes de distribución existentes.",
+     "interpretacion": "Las clases de obra que el PIDE puede proponer sobre la red existente.",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vinculo.pide.anualidades_en_el_vad",
+     "valor": "incorporado_en_las_anualidades_del_vad",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 2.3",
+     "pagina": "1",
+     "lineas": "84-89",
+     "cita_literal": "2.3 El OSINERGMIN aprueba el Plan de Inversiones en Distribución presentado por cada empresa distribuidora bajo el ámbito de FONAFE y lo incorpora en las anualidades de inversión reconocidas en el proceso de fijación tarifaria del VAD que corresponda, conforme lo señala el reglamento.",
+     "interpretacion": "Osinergmin aprueba el PIDE y lo incorpora a las anualidades de inversión del VAD: el VAD de la empresa recibe las inversiones del PIDE aprobado (contrato pide_vad_v1).",
+     "caracter": "obligatoria"
+    }
+   ]
+  },
+  {
+   "acto": "DS 023-2016-EM",
+   "titulo": "Reglamento del Decreto Legislativo N° 1208",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://faolex.fao.org/docs/pdf/per160189.pdf",
+   "fecha_emision": "2016-07-26",
+   "fecha_publicacion": "2016-07-27",
+   "vigencia_desde": "2016-07-28",
+   "fecha_consulta": "2026-11-17",
+   "sha256": "50ff6c2809598a70132dd123a80659cd6b7418a8c8eea527544fa7497bc4fe91",
+   "sha256_texto": "718541a6860f518cb9489fcc9f2dcfadecdc27c01e535a93b1abc33c6b28ff0c",
+   "fichero_local": "pide/per160189.txt",
+   "version": "El Peruano, Normas Legales, miércoles 27 de julio de 2016 (copia de la página de El Peruano en FAOLEX)",
+   "modificada_por": [
+    "DS 027-2018-EM",
+    "DS 029-2018-EM",
+    "DS 028-2021-EM"
+   ],
+   "nota": "El DS 027-2018-EM modificó el num. 3.4 y quedó sin efecto (DS 028-2018-EM); el DS 029-2018-EM precisa que rige el texto de antes, el de esta publicación. El DS 028-2021-EM fija el plazo de los criterios del art. 3 sin cambiar su texto.",
+   "reglas": [
+    {
+     "clave": "vinculo.pide.horizonte_estudio_anios",
+     "valor": 20,
+     "unidad": "años",
+     "articulo_o_anexo": "art. 3.1",
+     "pagina": "2",
+     "lineas": "149-156",
+     "cita_literal": "3.1. Cada Empresa Distribuidora, de acuerdo con los Lineamientos aprobados por FONAFE dentro de sus competencias, debe presentar a OSINERGMIN un Estudio de Planeamiento Eléctrico de largo plazo, asociado a un Plan de Inversión en Distribución para el período de fijación tarifaria del VAD que corresponda. El Estudio de Planeamiento Eléctrico de largo plazo considera un horizonte de veinte (20) años.",
+     "interpretacion": "El estudio de planeamiento de largo plazo que sustenta el PIDE mira 20 años; el PIDE es del periodo de fijación del VAD.",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vinculo.pide.aprobacion_osinergmin",
+     "valor": "procedimiento_y_criterios_de_osinergmin",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 3.2",
+     "pagina": "2",
+     "lineas": "163-170",
+     "cita_literal": "3.2. Para la aprobación del Plan de Inversión en Distribución se seguirá el procedimiento que apruebe OSINERGMIN. Dicho procedimiento incluye la presentación del Estudio de Planeamiento Eléctrico de Largo Plazo incluyendo las Propuestas del Plan de Inversión en Distribución conforme a lo que disponen la LCE y su reglamento; así como, los criterios y metodología establecidos por OSINERGMIN.",
+     "interpretacion": "La aprobación sigue el procedimiento de Osinergmin, con la LCE, su reglamento y los criterios.",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vinculo.pide.anualidad",
+     "valor": {
+      "vida_util_anios": 30,
+      "tasa": "art. 79 de la LCE",
+      "incluye": [
+       "coym_estandar",
+       "demanda_asociada"
+      ]
+     },
+     "unidad": "-",
+     "articulo_o_anexo": "art. 3.3",
+     "pagina": "2",
+     "lineas": "171-181",
+     "cita_literal": "3.3. El OSINERGMIN aprobará el Plan de Inversión en Distribución presentado por cada Empresa Distribuidora y lo incorporará en las anualidades de inversión reconocidas en el proceso de fijación tarifaria del VAD correspondiente. Las anualidades de las inversiones a ser incluidas considerarán una vida útil de treinta (30) años y la tasa de actualización del artículo 79 de la LCE. Asimismo, se incorporarán los costos estándar de operación y mantenimiento; así como, su demanda asociada.",
+     "interpretacion": "La anualidad de cada inversión del PIDE en el VAD: 30 años de vida útil y la tasa del art. 79 de la LCE, con su COyM estándar y su demanda.",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vinculo.pide.participacion_en_el_vad",
+     "valor": "informada_en_la_fijacion",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 3.3",
+     "pagina": "2",
+     "lineas": "182-186",
+     "cita_literal": "En la fecha de fijación tarifaria del VAD, OSINERGMIN deberá determinar e informar a las Empresas Distribuidoras respectivas, la participación en dicho VAD que corresponda a cada inversión contemplada en el Plan de Inversión aprobado.",
+     "interpretacion": "En la fijación del VAD, Osinergmin informa la parte del VAD de cada inversión del PIDE aprobado.",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vinculo.pide.criterios_aprueba_minem",
+     "valor": "osinergmin_estudia_minem_aprueba",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 3.4",
+     "pagina": "2",
+     "lineas": "187-195",
+     "cita_literal": "3.4. OSINERGMIN desarrollará los estudios para establecer los criterios y metodología de plani ficación a ser utilizados en la elaboración del Plan de Inversión en Distribución, los que incluirán, como mínimo, el cumplimiento de las normas de calidad de servicio eléctrico, el nivel de desempeño, los horizontes de planificación y los modelos a emplear. Los criterios y metodología de planificación que resulten de los referidos estudios serán aprobados por el MINEM.",
+     "interpretacion": "Los criterios y la metodología del PIDE (calidad, desempeño, horizontes y modelos) los estudia Osinergmin y los aprueba el MINEM. El DS 027-2018-EM lo cambió y el DS 029-2018-EM restituyó este texto.",
+     "caracter": "obligatoria"
+    }
+   ]
+  },
+  {
+   "acto": "DS 027-2018-EM",
+   "titulo": "Decreto Supremo que perfecciona el marco regulatorio aplicable a la distribución de energía eléctrica",
+   "estado_juridico": "derogada",
+   "url": "https://faolex.fao.org/docs/pdf/per185152.pdf",
+   "fecha_publicacion": "2018-10-04",
+   "vigencia_desde": "2018-10-05",
+   "vigencia_hasta": "2018-10-09",
+   "fecha_consulta": "2026-11-17",
+   "sha256": "0389a112d172dcb36c163f81e0752bbcd391248cf63dcf291c635796069bd7ac",
+   "sha256_texto": "ec3fa89b82146c13337876b8f0832d26952afe4c14d8765870f9ced4efe2e099",
+   "fichero_local": "pide/per185152.txt",
+   "version": "El Peruano, Normas Legales, jueves 4 de octubre de 2018 (copia de la página de El Peruano en FAOLEX)",
+   "vigencia_hasta_motivo": "dejado sin efecto por el DS 028-2018-EM (El Peruano, 9-10-2018), vigente desde el día siguiente a su publicación (art. 109 de la Constitución: el decreto no fija otra fecha)",
+   "modifica": [
+    "DS 009-93-EM",
+    "DS 023-2016-EM"
+   ],
+   "modificada_por": [
+    "DS 028-2018-EM"
+   ],
+   "nota": "Daba a Osinergmin la aprobación de los criterios del PIDE (num. 3.4 del DS 023-2016-EM, líneas 252-257 de la copia); no rige.",
+   "reglas": []
+  },
+  {
+   "acto": "DS 028-2018-EM",
+   "titulo": "Dejan sin efecto el Decreto Supremo N° 027-2018-EM",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://faolex.fao.org/docs/pdf/per185314.pdf",
+   "fecha_emision": "2018-10-08",
+   "fecha_publicacion": "2018-10-09",
+   "vigencia_desde": "2018-10-10",
+   "fecha_consulta": "2026-11-17",
+   "sha256": "96d6b11615818da00193acb17464d40bdc9e9b8db92add0f4328a1227794041a",
+   "sha256_texto": "ebaf4bad9039746198f06dc1b3e6f9379d9dc44f721b9170b69ee7a8512a07a2",
+   "fichero_local": "pide/per185314.txt",
+   "version": "El Peruano, Normas Legales, martes 9 de octubre de 2018 (copia de la página de El Peruano en FAOLEX)",
+   "modifica": [
+    "DS 027-2018-EM"
+   ],
+   "reglas": [
+    {
+     "clave": "vinculo.pide.ds_027_2018_sin_efecto",
+     "valor": "sin_efecto",
+     "unidad": "-",
+     "articulo_o_anexo": "art. único",
+     "pagina": "1",
+     "lineas": "82-93",
+     "cita_literal": "Que, se ha visto por conveniente dejar sin efecto el Decreto Supremo Nº 027-2018-EM en tanto OSINERGMIN culmina el proceso de fijación del Valor Agregado de Distribución que se encuentra en curso; De conformidad con el numeral 8) del artículo 118 de la Constitución Política del Perú y el artículo 11, numeral 3) de la Ley Nº 29158, Ley Orgánica del Poder Ejecutivo; DECRETA: Artículo Único.- Objeto Dejáse sin efecto el Decreto Supremo Nº 027-2018- EM.",
+     "interpretacion": "El DS 027-2018-EM no rige: los criterios del PIDE no pasaron a Osinergmin.",
+     "caracter": "obligatoria"
+    }
+   ]
+  },
+  {
+   "acto": "DS 029-2018-EM",
+   "titulo": "Precisan restitución de textos del literal c) del art. 146 del RLCE y del numeral 3.4 del artículo 3 del Reglamento del D. Leg. N° 1208",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://faolex.fao.org/docs/pdf/per185315.pdf",
+   "fecha_emision": "2018-10-10",
+   "fecha_publicacion": "2018-10-11",
+   "vigencia_desde": "2018-10-12",
+   "fecha_consulta": "2026-11-17",
+   "sha256": "527b9056f3c7b45796388c24f3513e526ecd7c274583a7e98719ad772e52b44a",
+   "sha256_texto": "6f7be429fd8383cbe320d9e763d4a6d0e00c3936eede138ec0bf4e0d9bcea6ba",
+   "fichero_local": "pide/per185315.txt",
+   "version": "El Peruano, Normas Legales, jueves 11 de octubre de 2018 (copia de la página de El Peruano en FAOLEX)",
+   "modifica": [
+    "DS 023-2016-EM"
+   ],
+   "reglas": [
+    {
+     "clave": "vinculo.pide.restitucion_num_3_4",
+     "valor": "texto_de_2016",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 1",
+     "pagina": "1",
+     "lineas": "52-60",
+     "cita_literal": "Precísase la restitución de los textos del literal c) del artículo 146 del Reglamento de la Ley de Concesiones Eléctricas aprobado por el Decreto Supremo N° 009- 93-EM, modificado por Decreto Supremo N° 018-2016- EM, y del numeral 3.4 del artículo 3 del Reglamento del Decreto Legislativo N° 1208 aprobado por el Decreto Supremo N° 023-2016-EM, vigentes antes de la entrada en vigencia del Decreto Supremo N° 027- 2018-EM.",
+     "interpretacion": "Rige el num. 3.4 del DS 023-2016-EM de 2016: el MINEM aprueba los criterios del PIDE.",
+     "caracter": "obligatoria"
+    }
+   ]
+  },
+  {
+   "acto": "RM 428-2017-MEM/DM",
+   "titulo": "Autorizan publicación de proyecto de resolución ministerial que aprueba la norma Criterios y Metodología de Planificación para la Elaboración del Plan de Inversión en Distribución Eléctrica",
+   "estado_juridico": "prepublicada",
+   "url": "https://cdn.www.gob.pe/uploads/document/file/5249517/RM_428_2017_MEM_DM.pdf",
+   "fecha_emision": "2017-10-17",
+   "fecha_publicacion": "2017-10-19",
+   "fecha_consulta": "2026-11-17",
+   "sha256": "e9b61d89a2221810ba199ba2939a9d229d90722cfb80cd1b43d1431ecd25bcdd",
+   "sha256_texto": "2aa5314757cc9727b60c203a8fc805f45730b8b0b831b0c323a5edacacd2fe2c",
+   "fichero_local": "pide/rm_428_2017/RM_428_2017_MEM_DM.txt",
+   "version": "El Peruano, Normas Legales, jueves 19 de octubre de 2017 (publicada por el MINEM en gob.pe)",
+   "nota": "El proyecto (Anexo.pdf, 34 páginas, y PROYECTO_RESOLUCION_MINISTERIAL.pdf) está en la misma carpeta con su huella en SHA256SUMS; ninguna norma posterior que lo apruebe se encontró al 2026-11-17, y el DS 028-2021-EM fija que los criterios se publican tras la fijación del VAD 2023-2027.",
+   "reglas": [
+    {
+     "clave": "vinculo.pide.criterios_en_consulta",
+     "valor": "proyecto_prepublicado",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 1",
+     "pagina": "1",
+     "lineas": "102-109",
+     "cita_literal": "Artículo 1.- Autorizar la publicación del proyecto de Resolución Ministerial que aprueba la norma Criterios y Metodología de Planificación para la Elaboración del Plan de Inversión en Distribución Eléctrica y su Exposición de Motivos, a efectos de recibir las sugerencias y comentarios de la ciudadanía en general, dentro del plazo de diez (10) días hábiles, contados a partir del día siguiente de la publicación de la presente Resolución Ministerial.",
+     "interpretacion": "La RM 428-2017 solo autoriza prepublicar los criterios del PIDE para comentarios: el proyecto (anexo, proyecto de RM y exposición de motivos en gob.pe) no obliga; el módulo PIDE lo usa como referencia y lo dice.",
+     "caracter": "referencia"
+    }
+   ]
+  }
+ ]
+}

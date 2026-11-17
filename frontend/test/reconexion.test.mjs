@@ -46,17 +46,17 @@ test('086:RF-16 en desarrollo no hay betas y todo se ofrece', async () => {
   const { avisoBeta, betaActiva, esProducto } = await cargar('shared/edicion.ts');
   const h = { edicion: { producto: false, beta: [] } };
   assert.equal(esProducto(h), false);
-  assert.equal(betaActiva(h, 'pide'), true);
-  assert.equal(avisoBeta(h, 'pide'), null);
+  assert.equal(betaActiva(h, 'confiabilidad'), true);
+  assert.equal(avisoBeta(h, 'confiabilidad'), null);
 });
 
 test('086:RF-16 en producto una beta dice su aviso y, apagada, no se ofrece', async () => {
   const { avisoBeta, betaActiva, esProducto } = await cargar('shared/edicion.ts');
   const h = { edicion: { producto: true, beta: [
-    { clave: 'pide', nombre: 'P', aviso: 'En beta', activa: false }, { clave: 'asistente', nombre: 'A', aviso: 'x', activa: true },
+    { clave: 'confiabilidad', nombre: 'C', aviso: 'En beta', activa: false }, { clave: 'asistente', nombre: 'A', aviso: 'x', activa: true },
   ] } };
   assert.equal(esProducto(h), true);
-  assert.equal(betaActiva(h, 'pide'), false);
+  assert.equal(betaActiva(h, 'confiabilidad'), false);
   assert.equal(betaActiva(h, 'asistente'), true);
-  assert.equal(avisoBeta(h, 'pide'), 'En beta');
+  assert.equal(avisoBeta(h, 'confiabilidad'), 'En beta');
 });

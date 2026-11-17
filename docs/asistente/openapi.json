@@ -184,6 +184,27 @@
         "title": "AgenteProyectoListaIn",
         "type": "object"
       },
+      "AgregadaRespuesta": {
+        "properties": {
+          "actos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actos",
+            "type": "array"
+          },
+          "huella": {
+            "title": "Huella",
+            "type": "string"
+          }
+        },
+        "required": [
+          "actos",
+          "huella"
+        ],
+        "title": "AgregadaRespuesta",
+        "type": "object"
+      },
       "AjusteIn": {
         "description": "Ajuste a la máxima de cabecera (spec 006): el trabajo de la máxima que se ve.",
         "properties": {
@@ -968,6 +989,36 @@
         "title": "BetaRespuesta",
         "type": "object"
       },
+      "BibliotecaRespuesta": {
+        "properties": {
+          "capa_usuario": {
+            "title": "Capa Usuario",
+            "type": "string"
+          },
+          "fecha": {
+            "title": "Fecha",
+            "type": "string"
+          },
+          "huella": {
+            "title": "Huella",
+            "type": "string"
+          },
+          "normas": {
+            "items": {
+              "$ref": "#/components/schemas/NormaResumen"
+            },
+            "title": "Normas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fecha",
+          "huella",
+          "capa_usuario"
+        ],
+        "title": "BibliotecaRespuesta",
+        "type": "object"
+      },
       "BibliotecasIn": {
         "description": "Lectura de alimentadores y tipos para el formulario de obras (spec 011, RF-88 a RF-94).",
         "properties": {
@@ -1113,6 +1164,30 @@
         "title": "Body_entradas_leer_api_workspaces__wid__pf_entradas_estudios__clave__leer_post",
         "type": "object"
       },
+      "Body_fuentes_subir_api_workspaces__wid__fuentes_post": {
+        "properties": {
+          "clase": {
+            "title": "Clase",
+            "type": "string"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "periodo": {
+            "default": "",
+            "title": "Periodo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clase",
+          "file"
+        ],
+        "title": "Body_fuentes_subir_api_workspaces__wid__fuentes_post",
+        "type": "object"
+      },
       "Body_informes_documentos_api_workspaces__wid__informes_documentos_post": {
         "properties": {
           "files": {
@@ -1244,6 +1319,20 @@
         "title": "Body_lote_plan_api_workspaces__wid__lote_plan_post",
         "type": "object"
       },
+      "Body_normativa_agregar_api_normativa_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_normativa_agregar_api_normativa_post",
+        "type": "object"
+      },
       "Body_perfil_guardar_api_perfil_post": {
         "properties": {
           "estructura": {
@@ -1349,17 +1438,32 @@
       "Body_vad_armar_api_workspaces__wid__vad__estudio__armar_post": {
         "properties": {
           "files": {
-            "items": {
-              "contentMediaType": "application/octet-stream",
-              "type": "string"
-            },
-            "title": "Files",
-            "type": "array"
+            "anyOf": [
+              {
+                "items": {
+                  "contentMediaType": "application/octet-stream",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files"
+          },
+          "fuente_vad_caso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuente Vad Caso"
           }
         },
-        "required": [
-          "files"
-        ],
         "title": "Body_vad_armar_api_workspaces__wid__vad__estudio__armar_post",
         "type": "object"
       },
@@ -1370,9 +1474,27 @@
             "type": "integer"
           },
           "canonical": {
-            "contentMediaType": "application/octet-stream",
-            "title": "Canonical",
-            "type": "string"
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical"
+          },
+          "fuente_sicodi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuente Sicodi"
           },
           "moneda": {
             "title": "Moneda",
@@ -1391,9 +1513,16 @@
             "type": "string"
           },
           "sicodi": {
-            "contentMediaType": "application/octet-stream",
-            "title": "Sicodi",
-            "type": "string"
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sicodi"
           }
         },
         "required": [
@@ -1401,9 +1530,7 @@
           "sector_sicodi",
           "resolucion",
           "anio",
-          "moneda",
-          "canonical",
-          "sicodi"
+          "moneda"
         ],
         "title": "Body_vnr_lanzar_api_workspaces__wid__vnr_estudio_post",
         "type": "object"
@@ -3833,6 +3960,29 @@
         "title": "DescartarNoDisponibleIn",
         "type": "object"
       },
+      "DestinoVad": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "tipo": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "id"
+        ],
+        "title": "DestinoVad",
+        "type": "object"
+      },
       "DiagnosticoRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -5240,6 +5390,85 @@
           "columnas"
         ],
         "title": "FormatoPeticion",
+        "type": "object"
+      },
+      "FuenteRespuesta": {
+        "properties": {
+          "clase": {
+            "title": "Clase",
+            "type": "string"
+          },
+          "huella": {
+            "title": "Huella",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "miembros": {
+            "items": {
+              "$ref": "#/components/schemas/MiembroRespuesta"
+            },
+            "title": "Miembros",
+            "type": "array"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "periodo": {
+            "title": "Periodo",
+            "type": "string"
+          },
+          "registrada": {
+            "title": "Registrada",
+            "type": "string"
+          },
+          "ruta_rel": {
+            "title": "Ruta Rel",
+            "type": "string"
+          },
+          "vigente": {
+            "title": "Vigente",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "clase",
+          "periodo",
+          "nombre",
+          "huella",
+          "ruta_rel",
+          "registrada",
+          "vigente"
+        ],
+        "title": "FuenteRespuesta",
+        "type": "object"
+      },
+      "FuentesRespuesta": {
+        "properties": {
+          "clases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Clases",
+            "type": "array"
+          },
+          "fuentes": {
+            "items": {
+              "$ref": "#/components/schemas/FuenteRespuesta"
+            },
+            "title": "Fuentes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fuentes",
+          "clases"
+        ],
+        "title": "FuentesRespuesta",
         "type": "object"
       },
       "GrupoDgsRespuesta": {
@@ -6952,6 +7181,24 @@
         "title": "MesTotalFijosRespuesta",
         "type": "object"
       },
+      "MiembroRespuesta": {
+        "properties": {
+          "huella": {
+            "title": "Huella",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "huella"
+        ],
+        "title": "MiembroRespuesta",
+        "type": "object"
+      },
       "MotorPlanoRespuesta": {
         "additionalProperties": false,
         "description": "111:RF-17, RF-18: con qué motor se estudiaría ahora y por qué.",
@@ -7008,6 +7255,64 @@
           "ruta"
         ],
         "title": "NoDisponibleRespuesta",
+        "type": "object"
+      },
+      "NormaResumen": {
+        "properties": {
+          "acto": {
+            "title": "Acto",
+            "type": "string"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "obliga": {
+            "title": "Obliga",
+            "type": "boolean"
+          },
+          "reglas": {
+            "title": "Reglas",
+            "type": "integer"
+          },
+          "solo_referencia": {
+            "default": "",
+            "title": "Solo Referencia",
+            "type": "string"
+          },
+          "sustituida_por_el_usuario": {
+            "default": false,
+            "title": "Sustituida Por El Usuario",
+            "type": "boolean"
+          },
+          "titulo": {
+            "title": "Titulo",
+            "type": "string"
+          },
+          "url": {
+            "default": "",
+            "title": "Url",
+            "type": "string"
+          },
+          "vigencia_desde": {
+            "default": "",
+            "title": "Vigencia Desde",
+            "type": "string"
+          },
+          "vigencia_hasta": {
+            "default": "",
+            "title": "Vigencia Hasta",
+            "type": "string"
+          }
+        },
+        "required": [
+          "acto",
+          "titulo",
+          "estado",
+          "obliga",
+          "reglas"
+        ],
+        "title": "NormaResumen",
         "type": "object"
       },
       "NubeAccesoRespuesta": {
@@ -8074,6 +8379,45 @@
         "title": "ObrasIn",
         "type": "object"
       },
+      "ObservacionVad": {
+        "additionalProperties": false,
+        "description": "108:RF-26 (T11): una observación del regulador, con su número, su fecha, su texto y lo que afecta.",
+        "properties": {
+          "afecta": {
+            "items": {
+              "$ref": "#/components/schemas/DestinoVad"
+            },
+            "minItems": 1,
+            "title": "Afecta",
+            "type": "array"
+          },
+          "fecha": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "title": "Fecha",
+            "type": "string"
+          },
+          "numero": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Numero",
+            "type": "string"
+          },
+          "texto": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "numero",
+          "fecha",
+          "texto",
+          "afecta"
+        ],
+        "title": "ObservacionVad",
+        "type": "object"
+      },
       "OpcionesRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -8375,9 +8719,38 @@
             "title": "Area",
             "type": "string"
           },
+          "fuente_proyeccion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuente Proyeccion"
+          },
+          "fuente_red_area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuente Red Area"
+          },
           "libro_red": {
-            "title": "Libro Red",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Libro Red"
           },
           "motor": {
             "anyOf": [
@@ -8391,8 +8764,15 @@
             "title": "Motor"
           },
           "proyeccion": {
-            "title": "Proyeccion",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proyeccion"
           },
           "workspace_id": {
             "title": "Workspace Id",
@@ -8402,9 +8782,7 @@
         "required": [
           "workspace_id",
           "area",
-          "anios",
-          "libro_red",
-          "proyeccion"
+          "anios"
         ],
         "title": "PedidoDiagnostico",
         "type": "object"
@@ -8445,9 +8823,49 @@
             "title": "Area",
             "type": "string"
           },
+          "fuente_alternativas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuente Alternativas"
+          },
+          "fuente_proyeccion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuente Proyeccion"
+          },
+          "fuente_red_area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuente Red Area"
+          },
           "libro_red": {
-            "title": "Libro Red",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Libro Red"
           },
           "motor": {
             "anyOf": [
@@ -8466,8 +8884,15 @@
             "type": "string"
           },
           "proyeccion": {
-            "title": "Proyeccion",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proyeccion"
           },
           "workspace_id": {
             "title": "Workspace Id",
@@ -8478,9 +8903,7 @@
           "workspace_id",
           "area",
           "periodo",
-          "anios",
-          "libro_red",
-          "proyeccion"
+          "anios"
         ],
         "title": "PedidoExpediente",
         "type": "object"
@@ -9640,6 +10063,114 @@
         "title": "ReconstruccionRespuesta",
         "type": "object"
       },
+      "RedDelEspacioRespuesta": {
+        "properties": {
+          "alimentadores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alimentadores",
+            "type": "array"
+          },
+          "canonical": {
+            "default": false,
+            "title": "Canonical",
+            "type": "boolean"
+          },
+          "empresa": {
+            "default": "",
+            "title": "Empresa",
+            "type": "string"
+          },
+          "fuente": {
+            "title": "Fuente",
+            "type": "string"
+          },
+          "huella": {
+            "default": "",
+            "title": "Huella",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fuente"
+        ],
+        "title": "RedDelEspacioRespuesta",
+        "type": "object"
+      },
+      "ReglaRespuesta": {
+        "properties": {
+          "articulo_o_anexo": {
+            "default": "",
+            "title": "Articulo O Anexo",
+            "type": "string"
+          },
+          "cita_literal": {
+            "default": "",
+            "title": "Cita Literal",
+            "type": "string"
+          },
+          "citada": {
+            "default": false,
+            "title": "Citada",
+            "type": "boolean"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "interpretacion": {
+            "default": "",
+            "title": "Interpretacion",
+            "type": "string"
+          },
+          "lineas": {
+            "default": "",
+            "title": "Lineas",
+            "type": "string"
+          },
+          "pagina": {
+            "default": "",
+            "title": "Pagina",
+            "type": "string"
+          },
+          "unidad": {
+            "default": "",
+            "title": "Unidad",
+            "type": "string"
+          },
+          "valor": {
+            "title": "Valor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clave",
+          "valor"
+        ],
+        "title": "ReglaRespuesta",
+        "type": "object"
+      },
+      "ReglasRespuesta": {
+        "properties": {
+          "acto": {
+            "title": "Acto",
+            "type": "string"
+          },
+          "reglas": {
+            "items": {
+              "$ref": "#/components/schemas/ReglaRespuesta"
+            },
+            "title": "Reglas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "acto"
+        ],
+        "title": "ReglasRespuesta",
+        "type": "object"
+      },
       "RenumeracionRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -9669,6 +10200,37 @@
           "alimentador"
         ],
         "title": "RenumeracionRespuesta",
+        "type": "object"
+      },
+      "RespuestaVad": {
+        "additionalProperties": false,
+        "description": "108:RF-26 (T11): la respuesta con su sustento y, por destino afectado, qué cambió.",
+        "properties": {
+          "cambios": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Cambios",
+            "type": "object"
+          },
+          "respuesta": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Respuesta",
+            "type": "string"
+          },
+          "sustento": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Sustento",
+            "type": "string"
+          }
+        },
+        "required": [
+          "respuesta",
+          "sustento"
+        ],
+        "title": "RespuestaVad",
         "type": "object"
       },
       "ResumenEspacioRespuesta": {
@@ -12152,6 +12714,130 @@
           }
         },
         "summary": "Volver Al Modelo Anterior"
+      }
+    },
+    "/api/normativa": {
+      "get": {
+        "description": "107:RF-21: cada norma de la biblioteca, su estado y si obliga en ``fecha`` (hoy, si no se da).",
+        "operationId": "normativa_listar_api_normativa_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "fecha",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fecha"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BibliotecaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Normativa Listar"
+      },
+      "post": {
+        "description": "107:RF-21: añade o actualiza una norma en la capa del usuario; lo que no cumple el esquema no entra.",
+        "operationId": "normativa_agregar_api_normativa_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_normativa_agregar_api_normativa_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgregadaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Normativa Agregar"
+      }
+    },
+    "/api/normativa/reglas": {
+      "get": {
+        "description": "107:RF-21: las reglas de una norma, cada una con su artículo, página, líneas y cita literal.",
+        "operationId": "normativa_reglas_api_normativa_reglas_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "acto",
+            "required": true,
+            "schema": {
+              "title": "Acto",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReglasRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Normativa Reglas"
       }
     },
     "/api/nube/proveedores": {
@@ -17126,6 +17812,150 @@
           }
         },
         "summary": "Get File"
+      }
+    },
+    "/api/workspaces/{wid}/fuentes": {
+      "get": {
+        "description": "109:RF-25: los libros de la empresa del espacio, de una clase o de todas.",
+        "operationId": "fuentes_listar_api_workspaces__wid__fuentes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "clase",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Clase"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FuentesRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fuentes Listar"
+      },
+      "post": {
+        "description": "109:RF-25: registra un libro en la empresa; queda vigente en su clase y periodo y lo ven todos los módulos.",
+        "operationId": "fuentes_subir_api_workspaces__wid__fuentes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_fuentes_subir_api_workspaces__wid__fuentes_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FuenteRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fuentes Subir"
+      }
+    },
+    "/api/workspaces/{wid}/fuentes/red": {
+      "get": {
+        "description": "109:RF-26: la red convertida del espacio, de qué fuente, empresa y alimentadores.",
+        "operationId": "fuentes_red_api_workspaces__wid__fuentes_red_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedDelEspacioRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fuentes Red"
       }
     },
     "/api/workspaces/{wid}/informes": {
@@ -22632,9 +23462,60 @@
         "summary": "Vad Crear"
       }
     },
+    "/api/workspaces/{wid}/vad/{estudio}": {
+      "get": {
+        "description": "108:RF-26 (T29): el estudio, su último armado, sus observaciones, lo que pueden afectar y sus salidas.",
+        "operationId": "vad_detalle_api_workspaces__wid__vad__estudio__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "estudio",
+            "required": true,
+            "schema": {
+              "title": "Estudio",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Vad Detalle Api Workspaces  Wid  Vad  Estudio  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Vad Detalle"
+      }
+    },
     "/api/workspaces/{wid}/vad/{estudio}/armar": {
       "post": {
-        "description": "108:RF-1, RF-5, RF-7: el caso en la carpeta del estudio y el armado de la empresa modelo como trabajo.",
+        "description": "108:RF-1, RF-5, RF-7: el caso en la carpeta del estudio y el armado de la empresa modelo como trabajo.\n\nEl caso llega como sus JSON sueltos, como un .zip (que queda en las fuentes de la empresa, clase «vad_caso») o,\nsin fichero, de las fuentes de la empresa: la que nombra ``fuente_vad_caso`` o la vigente (109:RF-25).",
         "operationId": "vad_armar_api_workspaces__wid__vad__estudio__armar_post",
         "parameters": [
           {
@@ -22663,8 +23544,7 @@
                 "$ref": "#/components/schemas/Body_vad_armar_api_workspaces__wid__vad__estudio__armar_post"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "202": {
@@ -22689,6 +23569,186 @@
           }
         },
         "summary": "Vad Armar"
+      }
+    },
+    "/api/workspaces/{wid}/vad/{estudio}/informe-definitivo": {
+      "post": {
+        "description": "108:RF-26 (T22, T29): el Informe Definitivo como trabajo, con las respuestas registradas. Lo que el estudio\ntodavía no tiene (los contenidos de los informes, el libro de tablas) sale como hueco nombrado.",
+        "operationId": "vad_informe_definitivo_api_workspaces__wid__vad__estudio__informe_definitivo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "estudio",
+            "required": true,
+            "schema": {
+              "title": "Estudio",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Vad Informe Definitivo"
+      }
+    },
+    "/api/workspaces/{wid}/vad/{estudio}/observaciones": {
+      "post": {
+        "description": "108:RF-26 (T11): registra una observación del regulador; lo que afecta tiene que existir en el estudio.",
+        "operationId": "vad_observacion_api_workspaces__wid__vad__estudio__observaciones_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "estudio",
+            "required": true,
+            "schema": {
+              "title": "Estudio",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservacionVad"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Vad Observacion Api Workspaces  Wid  Vad  Estudio  Observaciones Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Vad Observacion"
+      }
+    },
+    "/api/workspaces/{wid}/vad/{estudio}/observaciones/{numero}/respuesta": {
+      "post": {
+        "description": "108:RF-26 (T11): la respuesta con su sustento y lo que cambió en cada destino que la observación afecta.",
+        "operationId": "vad_responder_api_workspaces__wid__vad__estudio__observaciones__numero__respuesta_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "estudio",
+            "required": true,
+            "schema": {
+              "title": "Estudio",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "numero",
+            "required": true,
+            "schema": {
+              "title": "Numero",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespuestaVad"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Vad Responder Api Workspaces  Wid  Vad  Estudio  Observaciones  Numero  Respuesta Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Vad Responder"
       }
     },
     "/api/workspaces/{wid}/vnr/download": {
@@ -22780,7 +23840,7 @@
         "summary": "Vnr Estado"
       },
       "post": {
-        "description": "108 T28: lanza el estudio VNR en un trabajo del motor con los dos ficheros subidos.",
+        "description": "108 T28 y 109:RF-25/25: lanza el estudio VNR en un trabajo del motor. El inventario es, por defecto, la red\nque dejó la carga del espacio (la misma del conversor); el SICODI, el libro de la empresa elegido o el vigente.\nUn fichero subido manda y, si es el SICODI, se registra para todos los módulos.",
         "operationId": "vnr_lanzar_api_workspaces__wid__vnr_estudio_post",
         "parameters": [
           {

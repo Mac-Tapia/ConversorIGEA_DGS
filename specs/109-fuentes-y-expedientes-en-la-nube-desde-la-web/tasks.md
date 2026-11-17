@@ -142,3 +142,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       la e2e en navegador real (`frontend/test/e2e/f05_selector_unico.e2e.mjs`, con la web de
       `tests/e2e_web_nube_simulada.py`) recorre los tres orígenes con la nube simulada.
       Hecho en 016498fc (LOTE-1, con E2E-RED); pruebas: tests/test_nube_selector_unico.py y npm test; e2e en navegador real f05_selector_unico, 10 passed (D:/csg/INTEGRA_54/e2e_086/f01_f05_b.log).
+- [x] T20. Fuentes de la empresa del espacio y red convertida (`fuentes_empresa.py`, `web/fuentes_api.py`,
+      `shared/ElegirFuente.tsx`) y la pestaña VNR sin pedir el inventario ni el SICODI que el espacio ya tiene. (RF-25, RF-26)
+      Hecho cuando: `pytest tests/test_fuentes_empresa.py tests/test_vnr_api.py` en verde, con la matriz de vínculos
+      `config/modulos/vinculos.json` citada por el registro, y `npm test` entero en verde.
+      Hecho en esta entrega (ESPACIO-VNR, 4d): tests/test_fuentes_empresa.py y tests/test_vnr_api.py en verde (213 passed
+      con los del VNR, el inventario y la trazabilidad), `npm test` 268/268; ADR-010 y ADR-011.

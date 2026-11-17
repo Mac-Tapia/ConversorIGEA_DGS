@@ -42,6 +42,7 @@ class VnrSourceAdapter:
         )
         bridge = canonical_to_cymdist(canonical.model, source_path=package,
                                       patron_cable=patron_cable_del_perfil())
+        _guardar_red(snapshot.root, canonical.model, scope.get('company') or '')
         source = provenance(snapshot)
         source.update({
             'company': scope['company'],
@@ -86,6 +87,7 @@ class VnrSourceAdapter:
         if ampliado:
             fichas = fichas_del_catalogo(modelo, catalogo)
         bridge = canonical_to_cymdist(modelo, source_path=bak, patron_cable=patron_cable_del_perfil())
+        _guardar_red(snapshot.root, modelo, alcance.get('company') or '')
         source = provenance(snapshot)
         source.update({
             'company': alcance['company'],
@@ -114,6 +116,19 @@ class VnrSourceAdapter:
 NOMBRE_DEL_ROL = {'tramos_bt': ('tramo de baja tensión', 'tramos de baja tensión'), 'sed': ('SED', 'SED'),
                   'nodos': ('nodo', 'nodos'), 'equipos': ('equipo', 'equipos'),
                   '': ('capa sin reconocer', 'capas sin reconocer')}
+
+
+def _guardar_red(raiz, modelo, empresa: str) -> None:
+    """109:RF-26: la red convertida queda en el espacio para los módulos (estudio VNR, PIT, VAD…), del mismo conversor
+    para todos: no se vuelve a pedir el inventario en cada pestaña."""
+    from pathlib import Path
+    from convertersmartgrid import fuentes_empresa
+    raiz = Path(raiz)
+    if raiz.parent.name == 'runs':  # la carga web trabaja en <espacio>/runs/<id>: la red es del espacio
+        raiz = raiz.parent.parent
+    alimentadores = sorted({s.feeder_id for s in modelo.sections if s.feeder_id})
+    fuentes_empresa.guardar_red(raiz, fuente='vnr', empresa=empresa, alimentadores=alimentadores,
+                                canonical=modelo.to_dict())
 
 
 def _enumerar(partes: list[str]) -> str:

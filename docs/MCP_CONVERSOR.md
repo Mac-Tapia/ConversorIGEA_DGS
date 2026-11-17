@@ -1,6 +1,6 @@
 # Servidor MCP local del conversor
 
-Da a un cliente MCP de esta máquina las mismas tres lecturas que usa el asistente de la web (spec 077). Solo lectura y solo
+Da a un cliente MCP de esta máquina las mismas lecturas que usa el asistente de la web (spec 077). Solo lectura y solo
 por stdio: no abre ningún puerto, no llama a la web, no escribe nada y no necesita GPU ni DIgSILENT.
 
 | Herramienta | Qué hace |
@@ -8,6 +8,7 @@ por stdio: no abre ningún puerto, no llama a la web, no escribe nada y no neces
 | `leer_fichero` | Lee un fichero permitido por rango de líneas, 200 como mucho por lectura. |
 | `buscar_texto` | Busca un texto literal en los ficheros permitidos, 30 resultados como mucho. |
 | `consultar_api` | Consulta una ruta en `docs/asistente/openapi.json`, sin hacer ninguna petición. |
+| `consultar_norma` | Consulta la biblioteca normativa: la regla vigente de una clave en una fecha, o las que contienen unas palabras. |
 
 ## Instalar
 

@@ -122,28 +122,38 @@ def registrar_rutas_vnr(app: FastAPI, *, ws_or_404, submit, guardar_subida: Call
 
     @app.post(ruta, status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def vnr_lanzar(wid: str, sector: str = Form(...), sector_sicodi: str = Form(...), resolucion: str = Form(...),
-                   anio: int = Form(...), moneda: str = Form(...), canonical: UploadFile = File(...),
-                   sicodi: UploadFile = File(...)) -> dict:
-        """108 T28: lanza el estudio VNR en un trabajo del motor con los dos ficheros subidos."""
+                   anio: int = Form(...), moneda: str = Form(...), canonical: UploadFile | None = File(None),
+                   sicodi: UploadFile | None = File(None), fuente_sicodi: str | None = Form(None)) -> dict:
+        """108 T28 y 109:RF-25/25: lanza el estudio VNR en un trabajo del motor. El inventario es, por defecto, la red
+        que dejó la carga del espacio (la misma del conversor); el SICODI, el libro de la empresa elegido o el vigente.
+        Un fichero subido manda y, si es el SICODI, se registra para todos los módulos."""
         ws = ws_or_404(wid)
         if sector not in SECTORES_GUIA:
             raise HTTPException(400, f'Sector típico de la Guía no válido: elija uno de {", ".join(SECTORES_GUIA)}.')
         if not sector_sicodi.strip() or not resolucion.strip() or not moneda.strip():
             raise HTTPException(400, 'Indique el sector típico del SICODI, su resolución y su moneda.')
-        if Path(canonical.filename or '').suffix.lower() != '.json':
+        if canonical is not None and canonical.filename and Path(canonical.filename).suffix.lower() != '.json':
             raise HTTPException(400, 'El inventario es el canonical.json que deja el conversor VNR-GIS.')
-        if Path(sicodi.filename or '').suffix.lower() not in EXT_SICODI:
+        if sicodi is not None and sicodi.filename and Path(sicodi.filename).suffix.lower() not in EXT_SICODI:
             raise HTTPException(400, 'El SICODI es un libro de cálculo (.xlsx, .xlsm, .xls, .xlsb) o su zip.')
+        from .. import fuentes_empresa
+        from .fuentes_api import fuente_o_subida
         temporal = Path(tempfile.mkdtemp(prefix='csg-vnr-'))
         try:
-            ruta_canonical = temporal / 'canonical.json'
-            ruta_sicodi = temporal / f'sicodi{Path(sicodi.filename or "").suffix.lower()}'
-            guardar_subida(ruta_canonical, canonical)
-            guardar_subida(ruta_sicodi, sicodi)
+            if canonical is not None and canonical.filename:
+                ruta_canonical = temporal / 'canonical.json'
+                guardar_subida(ruta_canonical, canonical)
+            else:
+                red = fuentes_empresa.red_del_espacio(Path(ws.root))
+                if not red or not red.get('canonical'):
+                    raise HTTPException(400, 'El espacio no tiene una red VNR-GIS cargada: cárguela en «Entrada de '
+                                             'datos» (o suba su canonical.json).')
+                ruta_canonical = Path(ws.root) / red['canonical']
+            ruta_sicodi = fuente_o_subida(ws, 'sicodi', fuente_sicodi, sicodi, guardar_subida, periodo=resolucion.strip())
         except BaseException:
             shutil.rmtree(temporal, ignore_errors=True)
             raise
-        nombre_sicodi = Path(sicodi.filename or 'sicodi').name
+        nombre_sicodi = ruta_sicodi.name
 
         def trabajo(ctx) -> dict:
             try:

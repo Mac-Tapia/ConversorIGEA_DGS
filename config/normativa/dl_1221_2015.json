@@ -1,0 +1,36 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Vínculo VNR → VAD (109:RF-26): el art. 70 de la LCE en la redacción del DL 1221 (la TIR con el VNR de cada empresa, valor residual cero). Copia del texto de El Peruano del 24-09-2015 publicada por FAOLEX; las líneas son las de la copia de texto (sha256_texto).",
+ "normas": [
+  {
+   "acto": "DL 1221",
+   "titulo": "Decreto Legislativo que mejora la regulación de la distribución de electricidad para promover el acceso a la energía eléctrica en el Perú",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://faolex.fao.org/docs/pdf/per148178.pdf",
+   "fecha_publicacion": "2015-09-24",
+   "fecha_consulta": "2026-11-17",
+   "sha256": "ea36d2fe40f97ddb35c73ca7e380539cdc5d742e4ede599dfdbe6893460c1e75",
+   "sha256_texto": "c52daadd5d5359ab7dce45cf93008d383d3407feb9360c8c6ad7d36ba855b362",
+   "fichero_local": "lce/dl_1221_faolex.txt",
+   "version": "El Peruano, Normas Legales del 24-09-2015 (copia de FAOLEX)",
+   "vigencia_desde": "2015-09-25",
+   "modifica": [
+    "DL 25844"
+   ],
+   "nota": "Modifica, entre otros, los arts. 64, 66, 67 y 70 de la LCE; no toca el 71 ni el 77 (lista de su art. 1).",
+   "reglas": [
+    {
+     "clave": "vinculo.vnr_vad.tir",
+     "valor": "tir_25_anios_con_vnr_residual_cero",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 1 (art. 70 de la LCE)",
+     "pagina": "4",
+     "lineas": "574-592",
+     "cita_literal": "“Artículo 70.- OSINERGMIN calcula la Tasa Interna de Retomo considerando un periodo de análisis de 25 años. Dicho cálculo tiene lugar para cada concesionario que cuente con un estudio individual del VAD conforme se señala en el Artículo 66 de la presenta Ley. En los demás casos dicho cálculo se realiza para el conjunto de concesionarios. La Tasa interna de Retorno se determina evaluando: a) Los ingresos que habrían percibido si se hubiesen aplicado los Precios Básicos a la totalidad de los suministros en el ejercicio inmediato anterior; b) Los costos de operación y mantenimiento exclusivamente del sistema de distribución, para el ejercicio inmediato anterior, incluyendo las pérdidas, y; c) El Valor Nuevo de Reemplazo de las instalaciones de cada empresa, con un valor residual igual a cero. En la evaluación de la Tasa Interna de Retorno se incorporan los beneficios obtenidos por la empresa en los proyectos de innovación tecnológica”.",
+     "interpretacion": "El VNR de la empresa (módulo VNR) entra en la TIR con que Osinergmin comprueba el VAD: 25 años, residual cero, por empresa con estudio individual.",
+     "caracter": "obligatoria"
+    }
+   ]
+  }
+ ]
+}

@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 438 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 445 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
-| Herramientas y guiones | `tools/` | 124 |
-| Interfaz | `frontend/src/` | 106 |
-| Pruebas de la interfaz | `frontend/test/` | 47 |
-| Pruebas | `tests/` | 577 |
+| Herramientas y guiones | `tools/` | 125 |
+| Interfaz | `frontend/src/` | 112 |
+| Pruebas de la interfaz | `frontend/test/` | 50 |
+| Pruebas | `tests/` | 586 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -28,19 +28,19 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3830 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3842 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 187 |
-| aplicacion | Apl | 124 |
-| dominio | Dom | 64 |
-| presentacion | Pre | 48 |
+| adaptadores | Ada | 188 |
+| aplicacion | Apl | 127 |
+| dominio | Dom | 65 |
+| presentacion | Pre | 50 |
 | puertos | Pue | 4 |
 
-427 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+434 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -247,6 +247,12 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `registro_rotativo.py` | Ada | 086 | Registro del programa en ficheros rotativos, fuera de la carpeta del programa. |
 | `cli.py` | Pre | 001, 022 | Orden `convertersmartgrid`: `list`, `convert` y `web`.; `--por-sistema [ZONAL]` y `--estructura`, aparte de `--unir` |
 | `privacidad.py` | Dom | 112, 086 | Patrones que tapan rutas, correos, IP, códigos y nombres, y los términos del perfil de una empresa (un perfil ilegible es un error, nunca «ningún… |
+| `compat_pf.py` | Dom | 103 | Equivalentes de `itertools.pairwise` y `zip(..., strict=True)` para lo que cargan los guiones de DIgSILENT con el Python 3.9 de PowerFactory 2021. |
+| `adaptadores/__init__.py` | Ada | 002 | Adaptadores de fuentes y servicios externos. |
+| `adaptadores/entrada/__init__.py` | Ada | 002 | Adaptadores de entrada. |
+| `adaptadores/fuentes_estables.py` | Ada | 034, 065 | Descriptor readonly identificado y protegido contra escritura/reemplazo durante el lector. |
+| `dominio/__init__.py` | Dom | 002 | Paquete real de valores y reglas puras, sin lectores ni E/S. |
+| `dominio/numeros_medidos.py` | Dom | 002, 004 | Un único cuerpo de normalización de códigos y números finitos de medición. |
 
 ### Motor: entrada de datos
 
@@ -266,6 +272,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `study.py` | Ada | 034 | Estudio de CYMDIST (`.zxst`/`.xst`), entrada opcional que filtra la selección. |
 | `inventory.py` | Apl | 034 | Inventario detallado de un dataset cargado. |
 | `feeder_metadata.py` | Ada | 034, 022 | Procedencia por alimentador de los objetos de una red conjunta.; la red externa de una barra de SET, una vez con sus alimentadores |
+| `dominio/cargas_plantilla.py` | Dom | 004, 002 | Lectura y validación de las filas de los libros de cargas por SED (columnas, potencia y FP), sin E/S: pasó entera de `loads.py` (002 T7, a), y la usa… |
 
 ### Motor: reconstrucción y catálogo
 
@@ -384,6 +391,10 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `vias.py` | Apl | 016 | Trazado de una línea nueva por la vía pública con un enrutador OSRM (OpenStreetMap): ruta con sus curvas, largo con los accesos, metros fuera de vía… |
 | `madrl_obras.py` | Ada | 074 | Entorno multiagente de obras, sus controles, su fidelidad contra DIgSILENT y la puerta del aprendizaje. |
 | `madrl_politica.py` | Ada | 074 | Política GATv2 compartida entre agentes, con crítico central y PPO, del piloto MADRL. |
+| `medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
+| `modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
+| `obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |
+| `seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |
 
 ### Motor: estudios
 
@@ -435,6 +446,9 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `formatos_pide.py` | Apl | 072 | Los formatos 01 a 15 de un estudio con cada hueco nombrado y su motivo. |
 | `informes_planeamiento.py` | Ada | 072 | Los entregables de un estudio, un Word ligero por módulo, desde un mismo cálculo. |
 | `registro_normativo.py` | Dom | 108, 107 | Registro normativo común de las specs 107 y 108 (tarjeta RN, dueña la 108): normas con estado jurídico (vigente_comprobada, modificada, prepublicada,… |
+| `adaptadores/entrada/capex.py` | Ada | 072, 024 | Recibo de la lectura CAPEX efectiva desde descriptor protegido. |
+| `pronostico_demanda.py` | Ada | 089 | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera,… |
+| `planeamiento_etapas.py` | Dom | 087 | Cuándo construir cada obra: árbol de decisión y proceso de decisión de Markov. |
 
 ### Motor: PIT (plan de inversiones en transmisión)
 
@@ -460,6 +474,59 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `pit/informe.py` | Ada | 107 | Resumen ejecutivo del PIT: demanda, alternativa elegida y programa, con cada cifra tomada de los ficheros del expediente y su huella. |
 | `pit/unifilar.py` | Ada | 107 | Unifilar F-212 por alternativa y año: un espacio papel A3 por hoja con marco, rótulo y leyenda, barras con tensión nominal y calculada,… |
 | `web/rutas_pit.py` | Pre | 107 | Rutas /api/pit: áreas, matriz de motores, entradas (los cuatro libros de Excel y JSON), diagnóstico y expediente en cola con sus rutas dentro del… |
+| `pit/armado.py` | Ada | 107 | Armado del expediente del PIT de punta a punta. |
+| `pit/demanda_cadena.py` | Ada | 107 | Demanda regulatoria (paso 3c): F-108 (ventas proyectadas por nivel), F-109 (energía por barra con los FE de la fijación vigente de la empresa en… |
+| `pit/demanda_resumen.py` | Ada | 107 | Demanda regulatoria (paso 3d): la historia del −20 al 0 (F-104 con las exógenas de la 031 y F-105), los modelos comparados con su ecuación y sus… |
+| `pit/densidad.py` | Ada | 107 | F-123: los mapas de densidad de carga de los años de la nota de la plantilla, con la demanda de cada SED crecida con el factor regulatorio de su… |
+| `pit/elementos_modificacion.py` | Ada | 107 | Los elementos de las modificaciones del PIT (agregan, reprograman, eliminan, baja) desde el registro, que guarda sus nombres por huella: casa por… |
+| `pit/generacion.py` | Ada | 107 | F-124: los datos de generación deducidos del medidor de generación de cada central del perfil (`centrales_termicas`), con el lector de cabecera de la… |
+| `pit/norma.py` | Dom | 107 | Lo que la Norma Tarifas fija para el PIT, leído del registro: años de la programación, horizonte, factor de potencia de MT, N-1 y reglas de la… |
+| `pit/usuarios_libres.py` | Ada | 107 | F-113 a F-118: las demandas incorporadas del libro de cargas nuevas y los usuarios libres de `pit.usuarios_libres`, ubicados por su alimentador en la… |
+
+### Motor: VAD y VNR (estudio de costos y Guía del VNR, spec 108)
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `__init__.py` | Apl | 108 | Paquete del estudio de costos del VAD (empresa modelo eficiente), aparte del PIDE y del PIT. |
+| `anexo2.py` | Apl | 108 | Validación de las tablas del estudio contra los formatos del anexo 2 transcritos (tabla, fila, columna, unidad, periodo), sin rellenar nada: huecos… |
+| `balance.py` | Apl | 108 | Balance de potencia y energía (6.10, A-VI) real y adaptado, con las fórmulas del formato transcrito. |
+| `calidad.py` | Apl | 108 | Calidad de servicio de la empresa modelo con el criterio del num. |
+| `caracterizacion.py` | Apl | 108 | Caracterización de la carga del Anexo 4 desde la medición: factor de carga, FCPP y FCFP en su periodo, pérdidas con la corriente y empíricas, y curva… |
+| `costos.py` | Ada | 108 | Costo estándar de la empresa modelo: valora solo la red dimensionada (`CostoEstandar` exige un `Dimensionamiento` con su huella) con el SICODI leído… |
+| `costos_explotacion.py` | Apl | 108 | VNR no eléctrico y costos de explotación por rubro del registro: total estándar solo con partidas dimensionadas y su fuente. |
+| `coym.py` | Apl | 108 | COyM del Anexo 7: cantidades adaptadas × costo unitario estándar por sistema y etapa, con los componentes y unidades del cuadro del registro (sin… |
+| `dimensionamiento.py` | Ada | 108 | Dimensionamiento de la empresa modelo del Anexo 6 sobre el modelo rural, sin tocar un vértice: potencia de cada SED con la tabla de transformadores… |
+| `entregables.py` | Ada | 108 | Entregables del estudio VAD: Formatos A y B del anexo 2 en Excel con una hoja por formato y cada celda calculada con su fórmula de Excel traducida de… |
+| `estudio.py` | Apl | 108 | Registro del estudio VAD (empresa del perfil, grupo, periodo, versión del TdR, estado) en `<espacio>/vad/<id>/estudio.json`, sin tocar las carpetas… |
+| `formulas.py` | Apl | 108 | Intérprete cerrado de las fórmulas del registro normativo del VAD (sin eval): números, variables, + - * / **, paréntesis y suma(n, …) sobre series… |
+| `informes.py` | Ada | 108 | Informe de Resultados Relevantes (anexo 3) e Informe del Estudio (numeral 9) en Word con los apartados del registro, cifras con origen o huecos… |
+| `linea.py` | Ada | 108 | La línea del VAD tras la empresa modelo: el modelo rural desde la red del espacio, el dimensionamiento con el sustento del caso y el costo estándar… |
+| `modelo_rural.py` | Ada | 108 | Modelo georreferenciado rural del Anexo 6: copia en solo lectura las trazas, longitudes y SED reales del VNR canónico o de la vía TXT/MDB… |
+| `modelo_urbano.py` | Ada | 108 | Anexo 5 urbano, las incoherencias del TdR resueltas como decidió 28: TRI_AREA, R_BT y NTRI en forma cerrada desde las fórmulas del registro, con… |
+| `observaciones.py` | Ada | 108 | Observaciones del regulador al estudio VAD en `<espacio>/vad/<id>/observaciones.json`: número, fecha, texto y lo que afectan (tablas del registro,… |
+| `pide_vad.py` | Apl | 108 | Contrato 072 → 108 (pide_vad_v1): lee el PIDE aprobado que entrega la 072 y calcula el VAD ajustado con el FRC de `util.frc`, la tasa de la LCE… |
+| `resultados_vad.py` | Apl | 108 | Cargo fijo y VAD de cada nivel por sistema y ponderado a nivel empresa, con los conceptos, variantes, fórmulas y ponderación del TdR registrado. |
+| `tablas_resultados.py` | Ada | 108 | Las Tablas de Resultados que lista el TdR registrado, en Excel: una hoja por tabla con su título, fuente, filas por sistema y total con =SUM, más el… |
+| `trabajo.py` | Apl | 108 | Armado de la empresa modelo como trabajo en cola (`armar_empresa_modelo(ctx, …)` para `JobManager.submit(..., lane='engine')`): sistema por sistema… |
+| `vnr_estudio.py` | Ada | — | Estudio VNR de una empresa desde su inventario VNR-GIS (modelo canónico del módulo ``vnr``), con la Guía del VNR |
+| `vnr_formatos.py` | Ada | — | Los formatos del Anexo 5 de la Guía del VNR (RCD 232-2017-OS/CD) en un libro Excel: una hoja por formato con sus |
+| `vnr_guia.py` | Apl | — | VNR según la «Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica» (RCD 232-2017-OS/CD; |
+
+### Motor: biblioteca normativa y fuentes de la empresa (107, 109)
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `biblioteca_normativa.py` | Apl | 107 | La biblioteca normativa general: la base del programa más la capa del usuario, actualizable, con su huella para reindexar. |
+| `schemas/registro_normativo_v1.schema.json` | — | 108, 107 | Esquema del registro normativo común: cada norma con su estado jurídico, huella y vigencia, y cada regla con su cita literal y su página o líneas. |
+| `dominio/huellas_terminos.py` | Dom | 107, 086 | La huella de un término, `sha256(sal:texto normalizado)[:16]` con la sal de la lista mínima: un solo cuerpo para la comprobación de la entrega y los… |
+| `fuentes_empresa.py` | Apl | 109 | Los libros de la empresa del espacio, una vez y por periodo, y la red convertida que deja la carga para todos los módulos. |
+| `pfd_vinculos.py` | Ada | 004, 109, 110 | Vínculos del proyecto de un `.pfd` (nombres de su diagnóstico y las SET) con los ficheros de su expediente por su contenido, con el inventario y la… |
+
+### Motor: fachadas fuera del paquete
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `vnr_etl.py` | Pre | 002 | Fachada de CLI para python -m vnr_etl y el launcher anterior. |
 
 ### Motor: gobierno de modelos
 
@@ -475,6 +542,18 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `upstream_ia.py` | Ada | 043 | Verifica origen, commit, licencia y árbol limpio de repositorios reutilizados. |
 | `evaluacion_harness/estadistica.py` | Dom | 044, 069, 047 | Estadística común de la evaluación: Wilson, Holm, McNemar exacto, HAC, Diebold-Mariano con HLN, Wilcoxon con biserial, TOST, Bland-Altman, kappa,… |
 | `evaluacion_harness/informe_final.py` | Apl | 044 | Informe único `docs/EVALUACION_FINAL_1.0.json`: rev, árbol limpio, huellas, IC, prueba, Holm y negativos. |
+| `conjuntos_aprendizaje.py` | Apl | 050, 002 | Lectura verificada del conjunto activo para inferencia, separada de la preparación. |
+| `contratos_aprendizaje.py` | Dom | 050, 002 | Identidad, procedencia y tipos puros de muestras y familias. |
+| `productores_aprendizaje.py` | Ada | 050, 002 | Composición real y diferida por familia, con lectores/validadores existentes. |
+| `puertos_muestras.py` | Pue | 050, 002 | Puerto de productores inyectado en la preparación del ciclo. |
+| `evaluacion_harness/__init__.py` | Apl | 043, 044, 047 | Paquete de evaluación integral sin cargar modelos ni motores al importarlo. |
+| `evaluacion_harness/adaptadores.py` | Ada | 043, 044, 047 | Adaptación de evaluaciones temporal, eléctrica y de herramientas externas, sin equivaler a aceptación nativa. |
+| `evaluacion_harness/cli.py` | Pre | 043, 044, 047 | Interfaz de sellado, replay y comprobación de informes del arnés. |
+| `evaluacion_harness/contratos.py` | Dom | 043, 044 | Sello, política, identidad y particiones de las suites de evaluación. |
+| `evaluacion_harness/ejecucion.py` | Apl | 043, 044 | Ejecución conservadora de suites y revalidación de sus resultados. |
+| `evaluacion_harness/integracion.py` | Ada | 043, 044 | Puente al coordinador y registro, con guardas de identidad y activación explícita. |
+| `evaluacion_harness/metricas.py` | Dom | 043, 044, 047 | Métricas con soporte, abstención y comparación pareada por grupos. |
+| `evaluacion_harness/publicacion.py` | Ada | 043, 044 | Publicación atómica y relectura de informes sellados. |
 
 ### Motor: benchmarks anonimizados
 
@@ -527,6 +606,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `pronostico.py` | Ada | 046 | Contrato multihorizonte: objetivos, conjunto en rejilla común, referencias ingenuo y estacional semanal, calibración de intervalos y filas con la… |
 | `evaluacion_temporal.py` | Ada | 046 | Política predeclarada, pinball y cobertura por horizonte, error de la máxima y de su instante y familias para las puertas. |
 | `adaptador_neuralforecast.py` | Ada | 046 | N-HiTS, TFT y PatchTST de neuralforecast, opcionales y solo en CUDA, con la interfaz común. |
+| `productor_pinn.py` | Ada | 050, 002 | Vista PINN congelada, con particiones comunes. |
 
 ### Asistente: núcleo y operación
 
@@ -590,6 +670,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `custodia_corpus.py` | Apl | 047, 065 | Resolución explícita y verificable de fuentes custodiadas tras su traslado, sin alterar ejemplos ni particiones. |
 | `reubicacion_corpus.py` | Apl | 047, 065 | Nueva custodia externa del corpus LLM con cuotas, hashes, preflight y conservación del original. |
 | `corpus_redaccion.py` | Apl | 072 | Corpus de redacción del PIDE: solo lo que una persona revisó y aprobó para redactar o dar formato, sin cifras ni códigos de otra red, en un registro… |
+| `prueba_sellada_107_112.py` | Apl | 070 | La prueba sellada de las once tareas de las specs 107 a 112 (la nube, el correo, el PIT, el VAD, el plano y el benchmark): seis frases por tarea de… |
 
 ### Asistente: conocimiento y RAG
 
@@ -604,6 +685,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `corpus_proyecto.py` | Apl | 077 | Corpus ampliado del índice: ficheros, troceado sin perder líneas, caché por fichero y medida de tamaño. |
 | `lectura_proyecto.py` | Apl | 077 | Lecturas del proyecto para el LLM y el MCP: leer un fichero, buscar un texto literal y consultar una ruta en el OpenAPI, con política local o… |
 | `ejemplos_pide.py` | Ada | 027 | Ejemplos del agente desde el corpus PIDE entregado: por artículo sus evidencias en cada PIDE (por la ruta y el texto), por formato F01 a F15 sus… |
+| `corpus_normativo.py` | Apl | 077 | La biblioteca normativa en el asistente, leída por su API: un fragmento por regla en el índice ampliado, su huella, la comprobación de una cita… |
 
 ### Web: `web/`
 
@@ -647,6 +729,10 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `nube_api.py` | Pre | 109 | Rutas de la nube (`/api/nube/…`, `…/nube/…` y `/nube/retorno`), con su modelo de respuesta: conectar, importar por la vía de una subida, versiones,… |
 | `nube.py` | Pre | 109 | Vínculos con la nube (`nube/vinculos.json`): aviso de revisión nueva, comparación con la copia vigente y aceptación solo confirmada. |
 | `nube_selector.py` | Pre | 109 | Página del selector de Google Picker y del File Picker v8 de OneDrive, con su propia CSP. |
+| `fuentes_api.py` | Pre | 109 | Las fuentes de la empresa en la web: listar, subir, la red del espacio y la ayuda que usan los módulos para tomar un libro o su subida. |
+| `normativa_api.py` | Pre | 107 | La biblioteca normativa general en la web: las normas con lo que obliga en una fecha, sus reglas con la cita y la subida de una norma a la capa del… |
+| `vad_api.py` | Pre | 108, 070 | Rutas `…/vad/estudios` (listar y crear el estudio con la empresa del perfil y un TdR del registro) y `…/vad/{estudio}/armar` (el caso subido a la… |
+| `vnr_api.py` | Pre | — | 108 T28: el estudio VNR desde la web (Guía del VNR, RCD 232-2017-OS/CD; 108:RF-21 a RF-25). |
 
 ### Nube: Google Drive y OneDrive (spec 109)
 
@@ -762,6 +848,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `restitucion_pf.py` | — | 064 | Órdenes de aceptación de la restitución del servidor: copiar, alterar y fallar, leer y borrar una copia `PRUEBA064_*`. |
 | `aceptar_restitucion_pf.py` | — | 064 | Aceptación nativa de la restitución por el camino de la web y el servidor, con evidencia en JSON. |
 | `estadistica_ordenes.py` | — | 081 | Resumen de las órdenes de DIgSILENT por guion y día, contraste de hipótesis entre dos versiones y fallos repetidos. |
+| `pfd_diagnostico.py` | — | 004, 102 | Importa un `.pfd` con `ComPfdimport` en un proyecto nuevo de la carpeta del conversor, identificado por su huella (reutilizar, versión nueva,… |
 
 ### Herramientas: operación, datos y aceptación
 
@@ -793,6 +880,13 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `construir_dataset_pide.py` | — | 024 | Construye el corpus PIDE universal de una empresa con `pide_dataset`. |
 | `corpus_redaccion_pide.py` | — | 072 | Revisión humana del corpus PIDE para redactar: lista lo pendiente, registra decisiones con su revisor y exporta lo aprobado sin cifras. |
 | `copia_datos.py` | — | 086 | Órdenes de cálculo, copia, verificación, restauración, estado de la copia e identidad de la instalación. |
+| `aceptacion_version.py` | — | 100 | Aceptación automática de una versión: recorre en serie la matriz `config/aceptacion/matriz.json` (cada fuente con un alimentador, varios y un… |
+| `mudar_carpeta_principal.py` | — | 058 | Muda la carpeta principal del entorno de desarrollo a `ConverterSmartGrid`: plan en seco por defecto, y con `--aplicar` renombra, repara los… |
+| `vad_estudio.py` | — | 108 | Guion del estudio VAD sin DIgSILENT ni web: comprueba el estudio con el registro y arma la empresa modelo de un caso (`--caso` o `CSG_VAD_CASO`, con… |
+| `vnr_publico_empresa.py` | — | 112, 080 | Baja bajo demanda el paquete VNR-GIS vigente de una empresa de lo publicado por Osinergmin (`--plan` sin bajar nada), a una carpeta fuera del… |
+| `benchmark_anonimo.py` | — | 112 | Genera en local el benchmark anonimizado de una red (y de las series del 089) con su manifiesto. |
+| `normativa/biblioteca.py` | — | 107 | La biblioteca normativa general desde la consola: listar, añadir una norma a la capa del usuario y exportar el dataset de normas y reglas. |
+| `normativa/generar_guia_vnr_232.py` | — | — | 108 T23 (RF-20): la «Guía de Elaboración del Valor Nuevo de Reemplazo de las Instalaciones de Distribución Eléctrica» |
 
 ### Herramientas: modelos, asistente y MADRL
 
@@ -827,8 +921,14 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `preparar_upstream_ia.py` | — | 043 | Prepara o verifica clones fijados sin instalar ni ejecutar sus programas. |
 | `madrl_entrenar.py` | — | 074 | Entrena el control MaskablePPO del piloto y lo compara con sus referencias. |
 | `madrl_obras.py` | — | 074 | Mide la escalera y NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios. |
-| `mcp_conversor.py` | — | 077 | Servidor MCP local, solo stdio y solo lectura, con las tres lecturas del asistente. |
+| `mcp_conversor.py` | — | 077 | Servidor MCP local, solo stdio y solo lectura, con las lecturas del asistente. |
 | `evaluacion_final.py` | — | 044 | Consolida la evaluación final de la 1.0 en `docs/EVALUACION_FINAL_1.0.json` y, con `--comprobar`, la relee. |
+| `asistente_informes_reales.py` | — | 026 | Anota informes reales etiquetados (Word, PDF con OCR o texto del maestro) para el clasificador, por grupo y sin repetir. |
+| `entrenar_alimentadores_gpu.py` | — | 089 | Una red de pronóstico por alimentador, uno tras otro en la GPU, con los libros por argumento. |
+| `evaluar_harness.py` | — | 043, 044, 047 | Entrada de consola para el arnés integral de evaluación. |
+| `lanzar_pronostico_pide_gpu.py` | — | 031 | El pronóstico del PIDE en la GPU en un paso: comprueba CUDA y memoria y pasa a `proyeccion_anual.py` las redes como candidatos y el quinquenio y… |
+| `medir_mejora.py` | — | 087 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
+| `pronostico_demanda.py` | — | 089 | Dataset y backtest de demanda desde las carpetas que haya. |
 
 ### Herramientas: calidad y entrega
 
@@ -849,8 +949,10 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `verify_interactive_architecture.mjs` | — | 009 | Comprobación en navegador de la página de la arquitectura C4 interactiva (Node.js). |
 | `generar_arquitectura.py` | — | 090 | Genera `docs/ARQUITECTURA_CATALOGO.md` desde el repositorio: ficheros, capas, rutas, tareas del asistente y roles de su equipo. |
 | `puerta_calidad.py` | — | 102 | Puerta de calidad: los ganchos `pre-commit` y `pre-push` de `.githooks/` y GitHub Actions corren con ella las pruebas del commit, la suite completa… |
+| `rutas_sin_modelo.py` | — | 002 | Lista las rutas de /api sin modelo de respuesta y escribe la lista de excepciones, que solo baja. |
+| `verificar_entrega_integral.py` | — | 065, 086 | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. |
 
-### Interfaz: `frontend/src/` y su compilación
+### Interfaz: compilación, cliente de la API y piezas comunes (`frontend/`)
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
@@ -893,210 +995,163 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/clientesfijos/Tablero.tsx` | — | 105 | Tablero: conciliación, buscador, tarjetas, gráficos, variaciones, cabecera, curva y avisos. |
 | `src/features/clientesfijos/Graficos.tsx` | — | 105 | Gráficos de líneas por mes y curva de 15 minutos de un cliente, en SVG. |
 | `src/features/clientesfijos/datosTablero.ts` | — | 105 | Lógica del tablero sin React: series, variaciones, avisos, reducción de la curva y buscador difuso. |
+| `scripts/fronteras.mjs` | — | 002 | Regla AST y resolución TypeScript de fronteras. |
+| `src/api/asistenteAceptacion.ts` | — | 047, 002 | Contrato web de propuestas, observaciones humanas, evaluación y aceptación del agente. |
+| `src/api/client.ts` | — | 001, 011, 021, 022, 025, 039, 061 | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra |
+| `src/api/fuentes.ts` | — | 109 | La API de las fuentes de la empresa del espacio y de su red convertida. |
+| `src/api/normativa.ts` | — | 107 | Cliente de la biblioteca normativa (listar, reglas, agregar) y el filtro por acto o título. |
+| `src/api/nube.ts` | — | 109 | Cliente de la nube: cuentas, conectar y desconectar, selector, importar, versiones, publicar, compartir y recibos. |
+| `src/api/pit.ts` | — | 107 | API del PIT (107 T13) con los tipos del contrato: áreas, motores, subida de entradas, diagnóstico y expediente como trabajos, observaciones y la… |
+| `src/api/reconexion.ts` | — | 086 | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. |
+| `src/api/types.ts` | — | 001, 011, 021, 025, 037, 039, 041, 061 | Tipos de las respuestas de la API. |
+| `src/api/vad.ts` | — | 108 | API del estudio del VAD (108 T29) con los tipos del contrato: estudios, crear, detalle, armar con el caso, observaciones y su respuesta, e Informe… |
+| `src/api/vnr.ts` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `src/app/AcercaDe.tsx` | — | 086 | La versión de la cabecera abre sus notas y el diagnóstico de la instalación. |
+| `src/app/App.tsx` | — | 001, 008, 061, 091, 109 | Marco de la página: paneles, pestañas, resúmenes de trabajos. |
+| `src/app/AvisosDatos.tsx` | — | 086 | Avisos generales de arriba: copia vieja y ficheros no disponibles en una línea, espacio dañado con su botón de restaurar, y los avisos de trabajo sin… |
+| `src/app/CuentasNube.tsx` | — | 109 | Tarjeta de las cuentas de Google Drive y OneDrive del espacio: conectar, desconectar, la vuelta del proveedor y, sin registro, «Sin cuenta conectada». |
+| `src/app/InstalacionesPowerFactory.tsx` | — | 103 | Las PowerFactory encontradas en la máquina, la que se usa y la elección del operador, desde la píldora de la cabecera. |
+| `src/app/JobBar.tsx` | — | 001 | Barra de trabajos en curso. |
+| `src/app/LogPanel.tsx` | — | 001 | Registro. |
+| `src/app/NubeEnEntradas.tsx` | — | 109 | Da a cada entrada los orígenes de la nube con cuenta y trae la copia fija para que entre por su propia subida. |
+| `src/app/Pestanas.tsx` | — | 086, 106 | Las pestañas de los módulos con el patrón de WAI-ARIA (lista, pestaña y panel enlazados) y su manejo por teclado. |
+| `src/app/main.tsx` | — | 001 | Arranque de React. |
+| `src/app/teclado.ts` | — | 086, 106 | El teclado de la web: flechas, Inicio y Fin en pestañas y grupos de opciones, y el separador del Registro con teclado y pulsación. |
+| `src/shared/AvisosTrabajo.tsx` | — | 086 | El aviso de un trabajo interrumpido, fallido o cancelado en su paso, con «Reintentar», «Ver su registro» y «Dar por visto». |
+| `src/shared/ElegirFuente.tsx` | — | 109 | Elegir el libro que ya cargó la empresa del espacio (la vigente de su clase) o subir otro, que queda para todos los módulos. |
+| `src/shared/MarcaBeta.tsx` | — | 086 | La marca y el aviso de una función en beta. |
+| `src/shared/PfWarning.tsx` | — | 002, 008 | Aviso de disponibilidad de PowerFactory común a conversión y operación. |
+| `src/shared/SinPantallaEnBlanco.tsx` | — | 042 | Si una pantalla falla al dibujarse, lo dice y deja recargar |
+| `src/shared/accionesOperador.tsx` | — | 002, 070 | El contrato de lo que la tarjeta de operador del asistente usa de la nube y del correo. |
+| `src/shared/carriles.ts` | — | 080 | El nombre que ve el operador de cada carril de trabajo del servidor («Motor», «DIgSILENT», «Red»…), uno por carril. |
+| `src/shared/context.tsx` | — | 001 | Contexto común de la aplicación. |
+| `src/shared/direcciones.ts` | — | 109, 110 | Separa y limpia las direcciones de correo que escribe el operador, sin repetidas, y nombra las mal escritas. |
+| `src/shared/edicion.ts` | — | 086 | Pregunta a `/api/health` qué edición corre y qué funciones están en beta. |
+| `src/shared/formato.ts` | — | 002, 001 | Formateadores numéricos y tamaños compartidos, extraídos sin cambiar su cuerpo. |
+| `src/shared/nubeEntradas.ts` | — | 109 | Lo que el campo único y el «Guardar en…» saben de la nube. |
+| `src/shared/origenes.ts` | — | 109 | El campo único de cada entrada: los orígenes (el equipo siempre. |
+| `src/shared/pasoDeTrabajo.ts` | — | 086 | Tabla de cada tipo de trabajo del servidor al paso de la web que lo lanza. |
+| `src/shared/projectBinding.ts` | — | 005, 018, 034 | Vínculo del proyecto de DIgSILENT con su ejecución de origen: separa los bloqueos de las advertencias por cambios manuales. |
+| `src/shared/styles.css` | — | 001, 021 | Tokens y estilos, modo claro y oscuro. |
+| `src/shared/ui.tsx` | — | 001 | Piezas comunes: modal, avisos, casillas, ficheros. |
+| `src/shared/useWorkspace.ts` | — | 001, 059 | Espacio de trabajo, Registro en vivo y trabajos por WebSocket. |
 
-### Sin subsistema asignado
-
-Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
+### Interfaz: asistente
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `frontend/scripts/fronteras.mjs` | — | 002 | Regla AST y resolución TypeScript de fronteras. |
-| `frontend/src/api/asistenteAceptacion.ts` | — | 047, 002 | Contrato web de propuestas, observaciones humanas, evaluación y aceptación del agente. |
-| `frontend/src/api/client.ts` | — | 001, 011, 021, 022, 025, 039, 061 | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra |
-| `frontend/src/api/nube.ts` | — | 109 | Cliente de la nube: cuentas, conectar y desconectar, selector, importar, versiones, publicar, compartir y recibos. |
-| `frontend/src/api/pit.ts` | — | 107 | API del PIT (107 T13) con los tipos del contrato: áreas, motores, subida de entradas, diagnóstico y expediente como trabajos, observaciones y la… |
-| `frontend/src/api/reconexion.ts` | — | 086 | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. |
-| `frontend/src/api/types.ts` | — | 001, 011, 021, 025, 037, 039, 041, 061 | Tipos de las respuestas de la API. |
-| `frontend/src/api/vnr.ts` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/src/app/AcercaDe.tsx` | — | 086 | La versión de la cabecera abre sus notas y el diagnóstico de la instalación. |
-| `frontend/src/app/App.tsx` | — | 001, 008, 061, 091, 109 | Marco de la página: paneles, pestañas, resúmenes de trabajos. |
-| `frontend/src/app/AvisosDatos.tsx` | — | 086 | Avisos generales de arriba: copia vieja y ficheros no disponibles en una línea, espacio dañado con su botón de restaurar, y los avisos de trabajo sin… |
-| `frontend/src/app/CuentasNube.tsx` | — | 109 | Tarjeta de las cuentas de Google Drive y OneDrive del espacio: conectar, desconectar, la vuelta del proveedor y, sin registro, «Sin cuenta conectada». |
-| `frontend/src/app/InstalacionesPowerFactory.tsx` | — | 103 | Las PowerFactory encontradas en la máquina, la que se usa y la elección del operador, desde la píldora de la cabecera. |
-| `frontend/src/app/JobBar.tsx` | — | 001 | Barra de trabajos en curso. |
-| `frontend/src/app/LogPanel.tsx` | — | 001 | Registro. |
-| `frontend/src/app/NubeEnEntradas.tsx` | — | 109 | Da a cada entrada los orígenes de la nube con cuenta y trae la copia fija para que entre por su propia subida. |
-| `frontend/src/app/Pestanas.tsx` | — | 086, 106 | Las pestañas de los módulos con el patrón de WAI-ARIA (lista, pestaña y panel enlazados) y su manejo por teclado. |
-| `frontend/src/app/main.tsx` | — | 001 | Arranque de React. |
-| `frontend/src/app/teclado.ts` | — | 086, 106 | El teclado de la web: flechas, Inicio y Fin en pestañas y grupos de opciones, y el separador del Registro con teclado y pulsación. |
-| `frontend/src/features/asistente/Aprendizaje.tsx` | — | 050 | Consulta de las siete fases del ciclo común, versiones y bloqueos. |
-| `frontend/src/features/asistente/Asistente.tsx` | — | 026, 043, 061 | Pestaña «Asistente»: consola de órdenes, plan con datos, pasos, lo que falta, dudas y razonamiento, confirmar y ejecutar, corregir la tarea,… |
-| `frontend/src/features/asistente/EquipoAsistente.tsx` | — | 065 | Roles, permisos y revisión de propuestas en la consola del asistente. |
-| `frontend/src/features/asistente/MejorasPendientes.tsx` | — | 026 | Las mejoras que propone el asistente, sin decisión: su motivo, el resultado de su suite en palabras y las tres decisiones del operador, con… |
-| `frontend/src/features/asistente/MonitorAgente.tsx` | — | 061, 062 | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. |
-| `frontend/src/features/asistente/TarjetaOperador.tsx` | — | 070 | La tarjeta que el asistente deja en su panel: el correo con «Confirmar y enviar» (y su recibo), publicar, compartir, importar y conectar con las… |
-| `frontend/src/features/asistente/estadoEquipoAsistente.ts` | — | 065, 047, 002 | Cliente tipado del estado y las operaciones del equipo del asistente (permisos, acciones y revisiones), sin dependencia de otros flujos. |
-| `frontend/src/features/asistente/tarjetaOperadorLogica.ts` | — | 070 | Las cinco tarjetas posibles, cada una de su tarea y con su forma (borrador y firma). |
-| `frontend/src/features/conversion/DescargaZip.tsx` | — | 065 | Descarga ZIP preparada como trabajo con progreso y cancelación. |
-| `frontend/src/features/conversion/FeedersPanel.tsx` | — | 001, 022, 091 | Tabla de alimentadores y conversión.; conversión por sistema eléctrico con su zonal, aparte de unir, y el tipo de cada DGS unido |
-| `frontend/src/features/conversion/InputsPanel.tsx` | — | 001 | Entrada de datos: TXT, MDB y VNR-GIS. |
-| `frontend/src/features/conversion/Modules.tsx` | — | 001 | Pestañas de resultados, catálogo y sistema completo. |
-| `frontend/src/features/conversion/OptionsPanel.tsx` | — | 001 | Opciones de conversión. |
-| `frontend/src/features/conversion/PerfilEmpresa.tsx` | — | 086 | Carga y validación del perfil de la empresa desde la web. |
-| `frontend/src/features/conversion/ReconstructionPanel.tsx` | — | 001 | Diagnóstico y reconstrucción. |
-| `frontend/src/features/nube/ElegirDeLaNube.tsx` | — | 109 | Ventana para elegir ficheros de la nube y que entren en una casilla o un libro, como una subida. |
-| `frontend/src/features/nube/PublicarExpediente.tsx` | — | 109 | Publicar el expediente en una carpeta de la nube y compartirlo: quién tendrá acceso, aviso del enlace público y bloqueo por datos crudos. |
-| `frontend/src/features/nube/VersionesNuevas.tsx` | — | 109 | Los ficheros vinculados con su estado, comprobar versiones, traer y comparar la nueva y usarla con confirmación. |
-| `frontend/src/features/nube/logica.ts` | — | 109 | Lo que deciden las pantallas de la nube: la vuelta del proveedor, el mensaje del selector, el destino de lo importado, el estado de un vínculo y… |
-| `frontend/src/features/nube/useSelector.ts` | — | 109 | Abre el selector del proveedor en una ventana aparte y acepta solo sus ids del propio origen. |
-| `frontend/src/features/pit/EstudioPit.tsx` | — | 107 | Pestaña «Estudio PIT» (107 T13): área, años, periodo y motor. |
-| `frontend/src/features/powerfactory/AjusteCabecera.tsx` | — | 006, 008, 020, 021, 025, 035, 039, 041, 091 | Paso 2.4: ajuste a la máxima de uno o varios alimentadores. |
-| `frontend/src/features/powerfactory/CargasTab.tsx` | — | 004, 005, 008, 011, 016, 042, 091 | Pestaña «Cargas en DIgSILENT» en cuatro pasos. |
-| `frontend/src/features/powerfactory/CurvaCabecera.tsx` | — | 006, 021 | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo. |
-| `frontend/src/features/powerfactory/DatosEmpresaPF.tsx` | — | 012 | Paso 4.2: libro de la empresa del proyecto (subir, plantilla, lo que trae, aplicar en DIgSILENT). |
-| `frontend/src/features/powerfactory/DemandaMedida.tsx` | — | 004, 008, 013, 021, 022, 025, 035, 038, 039, 091 | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador, en el mes de análisis o en un instante coincidente) y… |
-| `frontend/src/features/powerfactory/DeshacerLotes.tsx` | — | 007 | Deshacer un lote de cargas ya aplicado en DIgSILENT: se ofrece en los lotes aplicados del espacio, confirma lo que se deshace y corre como trabajo de… |
-| `frontend/src/features/powerfactory/EnviarInforme.tsx` | — | 110 | Botón «Enviar por correo» y su ventana: cuenta, para, asunto, vista previa con avisos de validez y de contactos, confirmar, estado e historial. |
-| `frontend/src/features/powerfactory/EstudiosPF.tsx` | — | 011, 012, 037, 049, 091 | Paso 4.2: estudios sobre la red calibrada, límites y resultados. |
-| `frontend/src/features/powerfactory/GemeloPIDE.tsx` | — | 024, 072 | Paso 5 de «Cargas en DIgSILENT»: planificar con el PIDE (CAPEX opcional, aplicar solas las obras que funcionan), tabla de obras con prioridad, estado… |
-| `frontend/src/features/powerfactory/GuionesPF.tsx` | — | 011 | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. |
-| `frontend/src/features/powerfactory/InformesPF.tsx` | — | 017, 100, 102, 104, 125, 110 | Paso 4.4: informe de estudio eléctrico y de factibilidad y punto de diseño con lo ya guardado por la web (flujos de 4.2, obras, cargas nuevas… |
-| `frontend/src/features/powerfactory/ObrasPF.tsx` | — | 011, 016 | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras… |
-| `frontend/src/features/powerfactory/OperacionSet.tsx` | — | 063 | Panel para diagnosticar, evaluar o reforzar una SET existente, sin recrearla. |
-| `frontend/src/features/powerfactory/PerfilTension.tsx` | — | 094 | Perfil de tensión que deja la calibración: barras de media por su distancia a la cabecera, la troncal y el límite del perfil de la empresa. |
-| `frontend/src/features/powerfactory/TipoDeAnalisis.tsx` | — | 072 | Tipo de análisis al principio de «Cargas en DIgSILENT»: corto plazo, PIDE o planeamiento de largo plazo, con su horizonte, obras, entregables y norma… |
-| `frontend/src/features/powerfactory/TransferenciaPF.tsx` | — | 011, 104, 123 | Paso 4.3: transferencia de carga entre dos alimentadores. |
-| `frontend/src/features/powerfactory/alternativas.ts` | — | 042 | Las palabras y el orden de las alternativas por alimentador, las mismas del informe |
-| `frontend/src/features/powerfactory/clientesCatalogo.ts` | — | 004, 008, 025, 091 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |
-| `frontend/src/features/powerfactory/enviarInformeLogica.ts` | — | 110 | Lo que decide la ventana de envío: cuentas, motivo sin cuenta, petición de la vista previa, anulación al cambiar un campo y textos de estado. |
-| `frontend/src/features/powerfactory/formularioOperacionSet.ts` | — | 063 | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. |
-| `frontend/src/features/powerfactory/obrasEstadoActual.ts` | — | 086 | Cuándo la web ofrece obras para el estado actual sin cargas nuevas, y cómo resume su resultado. |
-| `frontend/src/features/powerfactory/solicitudLeida.ts` | — | 063 | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. |
-| `frontend/src/features/powerfactory/tensionFuente.ts` | — | 021 | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. |
-| `frontend/src/features/powerfactory/ubicacionCarga.ts` | — | 004 | La ubicación de una carga nueva en la web: el rechazo con su propuesta junto al formulario, el nodo más cercano y la línea de conexión. |
-| `frontend/src/features/vnr/EstudioVnr.tsx` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/src/shared/AvisosTrabajo.tsx` | — | 086 | El aviso de un trabajo interrumpido, fallido o cancelado en su paso, con «Reintentar», «Ver su registro» y «Dar por visto». |
-| `frontend/src/shared/MarcaBeta.tsx` | — | 086 | La marca y el aviso de una función en beta. |
-| `frontend/src/shared/PfWarning.tsx` | — | 002, 008 | Aviso de disponibilidad de PowerFactory común a conversión y operación. |
-| `frontend/src/shared/SinPantallaEnBlanco.tsx` | — | 042 | Si una pantalla falla al dibujarse, lo dice y deja recargar |
-| `frontend/src/shared/accionesOperador.tsx` | — | 002, 070 | El contrato de lo que la tarjeta de operador del asistente usa de la nube y del correo. |
-| `frontend/src/shared/carriles.ts` | — | 080 | El nombre que ve el operador de cada carril de trabajo del servidor («Motor», «DIgSILENT», «Red»…), uno por carril. |
-| `frontend/src/shared/context.tsx` | — | 001 | Contexto común de la aplicación. |
-| `frontend/src/shared/direcciones.ts` | — | 109, 110 | Separa y limpia las direcciones de correo que escribe el operador, sin repetidas, y nombra las mal escritas. |
-| `frontend/src/shared/edicion.ts` | — | 086 | Pregunta a `/api/health` qué edición corre y qué funciones están en beta. |
-| `frontend/src/shared/formato.ts` | — | 002, 001 | Formateadores numéricos y tamaños compartidos, extraídos sin cambiar su cuerpo. |
-| `frontend/src/shared/nubeEntradas.ts` | — | 109 | Lo que el campo único y el «Guardar en…» saben de la nube. |
-| `frontend/src/shared/origenes.ts` | — | 109 | El campo único de cada entrada: los orígenes (el equipo siempre. |
-| `frontend/src/shared/pasoDeTrabajo.ts` | — | 086 | Tabla de cada tipo de trabajo del servidor al paso de la web que lo lanza. |
-| `frontend/src/shared/projectBinding.ts` | — | 005, 018, 034 | Vínculo del proyecto de DIgSILENT con su ejecución de origen: separa los bloqueos de las advertencias por cambios manuales. |
-| `frontend/src/shared/styles.css` | — | 001, 021 | Tokens y estilos, modo claro y oscuro. |
-| `frontend/src/shared/ui.tsx` | — | 001 | Piezas comunes: modal, avisos, casillas, ficheros. |
-| `frontend/src/shared/useWorkspace.ts` | — | 001, 059 | Espacio de trabajo, Registro en vivo y trabajos por WebSocket. |
-| `frontend/test/accesibilidad.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/avisosEnSuPaso.test.mjs` | — | 086 | Pruebas de los avisos de trabajo en su paso: tabla completa de los `kind` del servidor, render de cada paso, resolución automática y lo que queda… |
-| `frontend/test/carriles.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/contratoNubeCorreo.test.mjs` | — | 109, 110 | Pruebas de que los clientes de la nube y del correo usan el contrato generado: sin tipos provisionales ni interfaces propias, modelos que existen y… |
-| `frontend/test/copiaPrevia.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/e2e/comun.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/e2e/entorno.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/e2e/f01_vnr.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/e2e/f02_plano.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/e2e/f03_planificacion.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/e2e/f04_asistente.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/e2e/f05_selector_unico.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/e2e/playwright.config.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/e2e/teclado.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/e2e/vnr_sintetico.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/edicionTodoActivo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/enviarInforme.test.mjs` | — | 110 | Pruebas de la ventana «Enviar por correo»: sin cuenta, vista previa, avisos, confirmar sin doble envío e historial. |
-| `frontend/test/estudiosCasos.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/evolucionFijas.test.mjs` | — | 105 | Lógica y render real del tablero de la evolución de los clientes fijos y su buscador. |
-| `frontend/test/fondoMapa.test.mjs` | — | 086 | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. |
-| `frontend/test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/letraFija.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/librosFondo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/nube.test.mjs` | — | 109 | Pruebas de la tarjeta de cuentas en la nube, del selector, de la importación, de las versiones y de compartir, pintadas con React. |
-| `frontend/test/obrasEstadoActual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/pitPanel.test.mjs` | — | 107 | Pruebas de la pestaña del PIT sin navegador: matriz de cobertura de las rutas /api/pit (llamada, control y prueba del servidor), los cuatro libros,… |
-| `frontend/test/relecturaServidor.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/retomarEspacio.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/selectorUnico.test.mjs` | — | 109 | Pruebas del campo único por entrada, del filtro de tipo y de guardar una salida en el equipo o en la nube. |
-| `frontend/test/superficies.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/tarjetaOperador.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/tensionFuente.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `frontend/test/tiposDeAnalisis.test.mjs` | — | 072 | Selector explícito, ficha, pasos de cada tipo, aviso del PIDE sin corto plazo y cuerpo de «Planificar» por tipo. |
-| `frontend/test/ubicacionCarga.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
-| `src/convertersmartgrid/adaptadores/__init__.py` | Ada | 002 | Adaptadores de fuentes y servicios externos. |
-| `src/convertersmartgrid/adaptadores/entrada/__init__.py` | Ada | 002 | Adaptadores de entrada. |
-| `src/convertersmartgrid/adaptadores/entrada/capex.py` | Ada | 072, 024 | Recibo de la lectura CAPEX efectiva desde descriptor protegido. |
-| `src/convertersmartgrid/adaptadores/fuentes_estables.py` | Ada | 034, 065 | Descriptor readonly identificado y protegido contra escritura/reemplazo durante el lector. |
-| `src/convertersmartgrid/asistente/prueba_sellada_107_112.py` | Apl | 070 | La prueba sellada de las once tareas de las specs 107 a 112 (la nube, el correo, el PIT, el VAD, el plano y el benchmark): seis frases por tarea de… |
-| `src/convertersmartgrid/compat_pf.py` | Dom | 103 | Equivalentes de `itertools.pairwise` y `zip(..., strict=True)` para lo que cargan los guiones de DIgSILENT con el Python 3.9 de PowerFactory 2021. |
-| `src/convertersmartgrid/conjuntos_aprendizaje.py` | Apl | 050, 002 | Lectura verificada del conjunto activo para inferencia, separada de la preparación. |
-| `src/convertersmartgrid/contratos_aprendizaje.py` | Dom | 050, 002 | Identidad, procedencia y tipos puros de muestras y familias. |
-| `src/convertersmartgrid/digital_twin/productor_pinn.py` | Ada | 050, 002 | Vista PINN congelada, con particiones comunes. |
-| `src/convertersmartgrid/dominio/__init__.py` | Dom | 002 | Paquete real de valores y reglas puras, sin lectores ni E/S. |
-| `src/convertersmartgrid/dominio/cargas_plantilla.py` | Dom | 004, 002 | Lectura y validación de las filas de los libros de cargas por SED (columnas, potencia y FP), sin E/S: pasó entera de `loads.py` (002 T7, a), y la usa… |
-| `src/convertersmartgrid/dominio/huellas_terminos.py` | Dom | 107, 086 | La huella de un término, `sha256(sal:texto normalizado)[:16]` con la sal de la lista mínima: un solo cuerpo para la comprobación de la entrega y los… |
-| `src/convertersmartgrid/dominio/numeros_medidos.py` | Dom | 002, 004 | Un único cuerpo de normalización de códigos y números finitos de medición. |
-| `src/convertersmartgrid/evaluacion_harness/__init__.py` | Apl | 043, 044, 047 | Paquete de evaluación integral sin cargar modelos ni motores al importarlo. |
-| `src/convertersmartgrid/evaluacion_harness/adaptadores.py` | Ada | 043, 044, 047 | Adaptación de evaluaciones temporal, eléctrica y de herramientas externas, sin equivaler a aceptación nativa. |
-| `src/convertersmartgrid/evaluacion_harness/cli.py` | Pre | 043, 044, 047 | Interfaz de sellado, replay y comprobación de informes del arnés. |
-| `src/convertersmartgrid/evaluacion_harness/contratos.py` | Dom | 043, 044 | Sello, política, identidad y particiones de las suites de evaluación. |
-| `src/convertersmartgrid/evaluacion_harness/ejecucion.py` | Apl | 043, 044 | Ejecución conservadora de suites y revalidación de sus resultados. |
-| `src/convertersmartgrid/evaluacion_harness/integracion.py` | Ada | 043, 044 | Puente al coordinador y registro, con guardas de identidad y activación explícita. |
-| `src/convertersmartgrid/evaluacion_harness/metricas.py` | Dom | 043, 044, 047 | Métricas con soporte, abstención y comparación pareada por grupos. |
-| `src/convertersmartgrid/evaluacion_harness/publicacion.py` | Ada | 043, 044 | Publicación atómica y relectura de informes sellados. |
-| `src/convertersmartgrid/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
-| `src/convertersmartgrid/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
-| `src/convertersmartgrid/obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |
-| `src/convertersmartgrid/pfd_vinculos.py` | Ada | 004, 109, 110 | Vínculos del proyecto de un `.pfd` (nombres de su diagnóstico y las SET) con los ficheros de su expediente por su contenido, con el inventario y la… |
-| `src/convertersmartgrid/pit/armado.py` | Ada | 107 | Armado del expediente del PIT de punta a punta. |
-| `src/convertersmartgrid/pit/demanda_cadena.py` | Ada | 107 | Demanda regulatoria (paso 3c): F-108 (ventas proyectadas por nivel), F-109 (energía por barra con los FE de la fijación vigente de la empresa en… |
-| `src/convertersmartgrid/pit/demanda_resumen.py` | Ada | 107 | Demanda regulatoria (paso 3d): la historia del −20 al 0 (F-104 con las exógenas de la 031 y F-105), los modelos comparados con su ecuación y sus… |
-| `src/convertersmartgrid/pit/densidad.py` | Ada | 107 | F-123: los mapas de densidad de carga de los años de la nota de la plantilla, con la demanda de cada SED crecida con el factor regulatorio de su… |
-| `src/convertersmartgrid/pit/elementos_modificacion.py` | Ada | 107 | Los elementos de las modificaciones del PIT (agregan, reprograman, eliminan, baja) desde el registro, que guarda sus nombres por huella: casa por… |
-| `src/convertersmartgrid/pit/generacion.py` | Ada | 107 | F-124: los datos de generación deducidos del medidor de generación de cada central del perfil (`centrales_termicas`), con el lector de cabecera de la… |
-| `src/convertersmartgrid/pit/usuarios_libres.py` | Ada | 107 | F-113 a F-118: las demandas incorporadas del libro de cargas nuevas y los usuarios libres de `pit.usuarios_libres`, ubicados por su alimentador en la… |
-| `src/convertersmartgrid/planeamiento_etapas.py` | Dom | 087 | Cuándo construir cada obra: árbol de decisión y proceso de decisión de Markov. |
-| `src/convertersmartgrid/productores_aprendizaje.py` | Ada | 050, 002 | Composición real y diferida por familia, con lectores/validadores existentes. |
-| `src/convertersmartgrid/pronostico_demanda.py` | Ada | 089 | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera,… |
-| `src/convertersmartgrid/puertos_muestras.py` | Pue | 050, 002 | Puerto de productores inyectado en la preparación del ciclo. |
-| `src/convertersmartgrid/schemas/registro_normativo_v1.schema.json` | — | 108, 107 | Esquema del registro normativo común: cada norma con su estado jurídico, huella y vigencia, y cada regla con su cita literal y su página o líneas. |
-| `src/convertersmartgrid/seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |
-| `src/convertersmartgrid/vad/__init__.py` | Apl | 108 | Paquete del estudio de costos del VAD (empresa modelo eficiente), aparte del PIDE y del PIT. |
-| `src/convertersmartgrid/vad/anexo2.py` | Apl | 108 | Validación de las tablas del estudio contra los formatos del anexo 2 transcritos (tabla, fila, columna, unidad, periodo), sin rellenar nada: huecos… |
-| `src/convertersmartgrid/vad/balance.py` | Apl | 108 | Balance de potencia y energía (6.10, A-VI) real y adaptado, con las fórmulas del formato transcrito. |
-| `src/convertersmartgrid/vad/calidad.py` | Apl | 108 | Calidad de servicio de la empresa modelo con el criterio del num. |
-| `src/convertersmartgrid/vad/caracterizacion.py` | Apl | 108 | Caracterización de la carga del Anexo 4 desde la medición: factor de carga, FCPP y FCFP en su periodo, pérdidas con la corriente y empíricas, y curva… |
-| `src/convertersmartgrid/vad/costos.py` | Ada | 108 | Costo estándar de la empresa modelo: valora solo la red dimensionada (`CostoEstandar` exige un `Dimensionamiento` con su huella) con el SICODI leído… |
-| `src/convertersmartgrid/vad/costos_explotacion.py` | Apl | 108 | VNR no eléctrico y costos de explotación por rubro del registro: total estándar solo con partidas dimensionadas y su fuente. |
-| `src/convertersmartgrid/vad/coym.py` | Apl | 108 | COyM del Anexo 7: cantidades adaptadas × costo unitario estándar por sistema y etapa, con los componentes y unidades del cuadro del registro (sin… |
-| `src/convertersmartgrid/vad/dimensionamiento.py` | Ada | 108 | Dimensionamiento de la empresa modelo del Anexo 6 sobre el modelo rural, sin tocar un vértice: potencia de cada SED con la tabla de transformadores… |
-| `src/convertersmartgrid/vad/entregables.py` | Ada | 108 | Entregables del estudio VAD: Formatos A y B del anexo 2 en Excel con una hoja por formato y cada celda calculada con su fórmula de Excel traducida de… |
-| `src/convertersmartgrid/vad/estudio.py` | Apl | 108 | Registro del estudio VAD (empresa del perfil, grupo, periodo, versión del TdR, estado) en `<espacio>/vad/<id>/estudio.json`, sin tocar las carpetas… |
-| `src/convertersmartgrid/vad/formulas.py` | Apl | 108 | Intérprete cerrado de las fórmulas del registro normativo del VAD (sin eval): números, variables, + - * / **, paréntesis y suma(n, …) sobre series… |
-| `src/convertersmartgrid/vad/informes.py` | Ada | 108 | Informe de Resultados Relevantes (anexo 3) e Informe del Estudio (numeral 9) en Word con los apartados del registro, cifras con origen o huecos… |
-| `src/convertersmartgrid/vad/modelo_rural.py` | Ada | 108 | Modelo georreferenciado rural del Anexo 6: copia en solo lectura las trazas, longitudes y SED reales del VNR canónico o de la vía TXT/MDB… |
-| `src/convertersmartgrid/vad/modelo_urbano.py` | Ada | 108 | Anexo 5 urbano, las incoherencias del TdR resueltas como decidió 28: TRI_AREA, R_BT y NTRI en forma cerrada desde las fórmulas del registro, con… |
-| `src/convertersmartgrid/vad/observaciones.py` | Ada | 108 | Observaciones del regulador al estudio VAD en `<espacio>/vad/<id>/observaciones.json`: número, fecha, texto y lo que afectan (tablas del registro,… |
-| `src/convertersmartgrid/vad/pide_vad.py` | Apl | 108 | Contrato 072 → 108 (pide_vad_v1): lee el PIDE aprobado que entrega la 072 y calcula el VAD ajustado con el FRC de `util.frc`, la tasa de la LCE… |
-| `src/convertersmartgrid/vad/resultados_vad.py` | Apl | 108 | Cargo fijo y VAD de cada nivel por sistema y ponderado a nivel empresa, con los conceptos, variantes, fórmulas y ponderación del TdR registrado. |
-| `src/convertersmartgrid/vad/tablas_resultados.py` | Ada | 108 | Las Tablas de Resultados que lista el TdR registrado, en Excel: una hoja por tabla con su título, fuente, filas por sistema y total con =SUM, más el… |
-| `src/convertersmartgrid/vad/trabajo.py` | Apl | 108 | Armado de la empresa modelo como trabajo en cola (`armar_empresa_modelo(ctx, …)` para `JobManager.submit(..., lane='engine')`): sistema por sistema… |
-| `src/convertersmartgrid/vad/vnr_estudio.py` | Ada | — | Estudio VNR de una empresa desde su inventario VNR-GIS (modelo canónico del módulo ``vnr``), con la Guía del VNR |
-| `src/convertersmartgrid/vad/vnr_formatos.py` | Ada | — | Los formatos del Anexo 5 de la Guía del VNR (RCD 232-2017-OS/CD) en un libro Excel: una hoja por formato con sus |
-| `src/convertersmartgrid/vad/vnr_guia.py` | Apl | — | VNR según la «Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica» (RCD 232-2017-OS/CD; |
-| `src/convertersmartgrid/web/vad_api.py` | Pre | 108, 070 | Rutas `…/vad/estudios` (listar y crear el estudio con la empresa del perfil y un TdR del registro) y `…/vad/{estudio}/armar` (el caso subido a la… |
-| `src/convertersmartgrid/web/vnr_api.py` | Pre | — | 108 T28: el estudio VNR desde la web (Guía del VNR, RCD 232-2017-OS/CD; 108:RF-21 a RF-25). |
-| `src/vnr_etl.py` | Pre | 002 | Fachada de CLI para python -m vnr_etl y el launcher anterior. |
-| `tools/aceptacion_version.py` | — | 100 | Aceptación automática de una versión: recorre en serie la matriz `config/aceptacion/matriz.json` (cada fuente con un alimentador, varios y un… |
-| `tools/asistente_informes_reales.py` | — | 026 | Anota informes reales etiquetados (Word, PDF con OCR o texto del maestro) para el clasificador, por grupo y sin repetir. |
-| `tools/benchmark_anonimo.py` | — | 112 | Genera en local el benchmark anonimizado de una red (y de las series del 089) con su manifiesto. |
-| `tools/entrenar_alimentadores_gpu.py` | — | 089 | Una red de pronóstico por alimentador, uno tras otro en la GPU, con los libros por argumento. |
-| `tools/evaluar_harness.py` | — | 043, 044, 047 | Entrada de consola para el arnés integral de evaluación. |
-| `tools/lanzar_pronostico_pide_gpu.py` | — | 031 | El pronóstico del PIDE en la GPU en un paso: comprueba CUDA y memoria y pasa a `proyeccion_anual.py` las redes como candidatos y el quinquenio y… |
-| `tools/medir_mejora.py` | — | 087 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
-| `tools/mudar_carpeta_principal.py` | — | 058 | Muda la carpeta principal del entorno de desarrollo a `ConverterSmartGrid`: plan en seco por defecto, y con `--aplicar` renombra, repara los… |
-| `tools/normativa/generar_guia_vnr_232.py` | — | — | 108 T23 (RF-20): la «Guía de Elaboración del Valor Nuevo de Reemplazo de las Instalaciones de Distribución Eléctrica» |
-| `tools/pfd_diagnostico.py` | — | 004, 102 | Importa un `.pfd` con `ComPfdimport` en un proyecto nuevo de la carpeta del conversor, identificado por su huella (reutilizar, versión nueva,… |
-| `tools/pronostico_demanda.py` | — | 089 | Dataset y backtest de demanda desde las carpetas que haya. |
-| `tools/rutas_sin_modelo.py` | — | 002 | Lista las rutas de /api sin modelo de respuesta y escribe la lista de excepciones, que solo baja. |
-| `tools/vad_estudio.py` | — | 108 | Guion del estudio VAD sin DIgSILENT ni web: comprueba el estudio con el registro y arma la empresa modelo de un caso (`--caso` o `CSG_VAD_CASO`, con… |
-| `tools/verificar_entrega_integral.py` | — | 065, 086 | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. |
-| `tools/vnr_publico_empresa.py` | — | 112, 080 | Baja bajo demanda el paquete VNR-GIS vigente de una empresa de lo publicado por Osinergmin (`--plan` sin bajar nada), a una carpeta fuera del… |
+| `src/features/asistente/Aprendizaje.tsx` | — | 050 | Consulta de las siete fases del ciclo común, versiones y bloqueos. |
+| `src/features/asistente/Asistente.tsx` | — | 026, 043, 061 | Pestaña «Asistente»: consola de órdenes, plan con datos, pasos, lo que falta, dudas y razonamiento, confirmar y ejecutar, corregir la tarea,… |
+| `src/features/asistente/EquipoAsistente.tsx` | — | 065 | Roles, permisos y revisión de propuestas en la consola del asistente. |
+| `src/features/asistente/MejorasPendientes.tsx` | — | 026 | Las mejoras que propone el asistente, sin decisión: su motivo, el resultado de su suite en palabras y las tres decisiones del operador, con… |
+| `src/features/asistente/MonitorAgente.tsx` | — | 061, 062 | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. |
+| `src/features/asistente/TarjetaOperador.tsx` | — | 070 | La tarjeta que el asistente deja en su panel: el correo con «Confirmar y enviar» (y su recibo), publicar, compartir, importar y conectar con las… |
+| `src/features/asistente/estadoEquipoAsistente.ts` | — | 065, 047, 002 | Cliente tipado del estado y las operaciones del equipo del asistente (permisos, acciones y revisiones), sin dependencia de otros flujos. |
+| `src/features/asistente/tarjetaOperadorLogica.ts` | — | 070 | Las cinco tarjetas posibles, cada una de su tarea y con su forma (borrador y firma). |
+
+### Interfaz: conversión y perfil de la empresa
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `src/features/conversion/DescargaZip.tsx` | — | 065 | Descarga ZIP preparada como trabajo con progreso y cancelación. |
+| `src/features/conversion/FeedersPanel.tsx` | — | 001, 022, 091 | Tabla de alimentadores y conversión.; conversión por sistema eléctrico con su zonal, aparte de unir, y el tipo de cada DGS unido |
+| `src/features/conversion/InputsPanel.tsx` | — | 001 | Entrada de datos: TXT, MDB y VNR-GIS. |
+| `src/features/conversion/Modules.tsx` | — | 001 | Pestañas de resultados, catálogo y sistema completo. |
+| `src/features/conversion/OptionsPanel.tsx` | — | 001 | Opciones de conversión. |
+| `src/features/conversion/PerfilEmpresa.tsx` | — | 086 | Carga y validación del perfil de la empresa desde la web. |
+| `src/features/conversion/ReconstructionPanel.tsx` | — | 001 | Diagnóstico y reconstrucción. |
+
+### Interfaz: módulos regulatorios (PIT, VAD, VNR y biblioteca normativa)
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `src/features/normativa/BibliotecaNormativa.tsx` | — | 107 | Pestaña «Biblioteca normativa»: cada norma con lo que obliga en la fecha, sus reglas con la cita y la subida de una norma. |
+| `src/features/pit/EstudioPit.tsx` | — | 107 | Pestaña «Estudio PIT» (107 T13): área, años, periodo y motor. |
+| `src/features/vad/EstudioVad.tsx` | — | 108 | Pestaña «Estudio VAD» (108 T29): crear o elegir el estudio, subir el caso y armar la empresa modelo con el estado de cada sistema, registrar y… |
+| `src/features/vnr/EstudioVnr.tsx` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+
+### Interfaz: nube y correo
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `src/features/nube/ElegirDeLaNube.tsx` | — | 109 | Ventana para elegir ficheros de la nube y que entren en una casilla o un libro, como una subida. |
+| `src/features/nube/PublicarExpediente.tsx` | — | 109 | Publicar el expediente en una carpeta de la nube y compartirlo: quién tendrá acceso, aviso del enlace público y bloqueo por datos crudos. |
+| `src/features/nube/VersionesNuevas.tsx` | — | 109 | Los ficheros vinculados con su estado, comprobar versiones, traer y comparar la nueva y usarla con confirmación. |
+| `src/features/nube/logica.ts` | — | 109 | Lo que deciden las pantallas de la nube: la vuelta del proveedor, el mensaje del selector, el destino de lo importado, el estado de un vínculo y… |
+| `src/features/nube/useSelector.ts` | — | 109 | Abre el selector del proveedor en una ventana aparte y acepta solo sus ids del propio origen. |
+
+### Interfaz: «Cargas en DIgSILENT», estudios, obras e informes
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `src/features/powerfactory/AjusteCabecera.tsx` | — | 006, 008, 020, 021, 025, 035, 039, 041, 091 | Paso 2.4: ajuste a la máxima de uno o varios alimentadores. |
+| `src/features/powerfactory/CargasTab.tsx` | — | 004, 005, 008, 011, 016, 042, 091 | Pestaña «Cargas en DIgSILENT» en cuatro pasos. |
+| `src/features/powerfactory/CurvaCabecera.tsx` | — | 006, 021 | Paso 2.4: curva del registro del medidor de cabecera, con el mes de la máxima sombreado y zoom por tramo. |
+| `src/features/powerfactory/DatosEmpresaPF.tsx` | — | 012 | Paso 4.2: libro de la empresa del proyecto (subir, plantilla, lo que trae, aplicar en DIgSILENT). |
+| `src/features/powerfactory/DemandaMedida.tsx` | — | 004, 008, 013, 021, 022, 025, 035, 038, 039, 091 | Paso 2: libros de medición, máxima de cabecera (con la central térmica de un alimentador, en el mes de análisis o en un instante coincidente) y… |
+| `src/features/powerfactory/DeshacerLotes.tsx` | — | 007 | Deshacer un lote de cargas ya aplicado en DIgSILENT: se ofrece en los lotes aplicados del espacio, confirma lo que se deshace y corre como trabajo de… |
+| `src/features/powerfactory/EnviarInforme.tsx` | — | 110 | Botón «Enviar por correo» y su ventana: cuenta, para, asunto, vista previa con avisos de validez y de contactos, confirmar, estado e historial. |
+| `src/features/powerfactory/EstudiosPF.tsx` | — | 011, 012, 037, 049, 091 | Paso 4.2: estudios sobre la red calibrada, límites y resultados. |
+| `src/features/powerfactory/GemeloPIDE.tsx` | — | 024, 072 | Paso 5 de «Cargas en DIgSILENT»: planificar con el PIDE (CAPEX opcional, aplicar solas las obras que funcionan), tabla de obras con prioridad, estado… |
+| `src/features/powerfactory/GuionesPF.tsx` | — | 011 | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. |
+| `src/features/powerfactory/InformesPF.tsx` | — | 017, 100, 102, 104, 125, 110 | Paso 4.4: informe de estudio eléctrico y de factibilidad y punto de diseño con lo ya guardado por la web (flujos de 4.2, obras, cargas nuevas… |
+| `src/features/powerfactory/ObrasPF.tsx` | — | 011, 016 | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras… |
+| `src/features/powerfactory/OperacionSet.tsx` | — | 063 | Panel para diagnosticar, evaluar o reforzar una SET existente, sin recrearla. |
+| `src/features/powerfactory/PerfilTension.tsx` | — | 094 | Perfil de tensión que deja la calibración: barras de media por su distancia a la cabecera, la troncal y el límite del perfil de la empresa. |
+| `src/features/powerfactory/TipoDeAnalisis.tsx` | — | 072 | Tipo de análisis al principio de «Cargas en DIgSILENT»: corto plazo, PIDE o planeamiento de largo plazo, con su horizonte, obras, entregables y norma… |
+| `src/features/powerfactory/TransferenciaPF.tsx` | — | 011, 104, 123 | Paso 4.3: transferencia de carga entre dos alimentadores. |
+| `src/features/powerfactory/alternativas.ts` | — | 042 | Las palabras y el orden de las alternativas por alimentador, las mismas del informe |
+| `src/features/powerfactory/clientesCatalogo.ts` | — | 004, 008, 025, 091 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |
+| `src/features/powerfactory/enviarInformeLogica.ts` | — | 110 | Lo que decide la ventana de envío: cuentas, motivo sin cuenta, petición de la vista previa, anulación al cambiar un campo y textos de estado. |
+| `src/features/powerfactory/formularioOperacionSet.ts` | — | 063 | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. |
+| `src/features/powerfactory/obrasEstadoActual.ts` | — | 086 | Cuándo la web ofrece obras para el estado actual sin cargas nuevas, y cómo resume su resultado. |
+| `src/features/powerfactory/solicitudLeida.ts` | — | 063 | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. |
+| `src/features/powerfactory/tensionFuente.ts` | — | 021 | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. |
+| `src/features/powerfactory/ubicacionCarga.ts` | — | 004 | La ubicación de una carga nueva en la web: el rechazo con su propuesta junto al formulario, el nodo más cercano y la línea de conexión. |
+
+### Interfaz: pruebas de `frontend/test/`
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `test/accesibilidad.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/avisosEnSuPaso.test.mjs` | — | 086 | Pruebas de los avisos de trabajo en su paso: tabla completa de los `kind` del servidor, render de cada paso, resolución automática y lo que queda… |
+| `test/carriles.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/contratoNubeCorreo.test.mjs` | — | 109, 110 | Pruebas de que los clientes de la nube y del correo usan el contrato generado: sin tipos provisionales ni interfaces propias, modelos que existen y… |
+| `test/copiaPrevia.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/comun.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/entorno.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/f01_vnr.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/f02_plano.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/f03_planificacion.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/f04_asistente.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/f05_selector_unico.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/playwright.config.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/teclado.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/vnr_sintetico.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/edicionTodoActivo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/enviarInforme.test.mjs` | — | 110 | Pruebas de la ventana «Enviar por correo»: sin cuenta, vista previa, avisos, confirmar sin doble envío e historial. |
+| `test/estudiosCasos.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/evolucionFijas.test.mjs` | — | 105 | Lógica y render real del tablero de la evolución de los clientes fijos y su buscador. |
+| `test/fondoMapa.test.mjs` | — | 086 | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. |
+| `test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/letraFija.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/librosFondo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/modulosPlaneamiento.test.mjs` | — | 072 | Pruebas de las pestañas «Corto plazo», «PIDE» y «Largo plazo» sin navegador: son `CargasTab` con su módulo, la matriz de cobertura por pestaña… |
+| `test/normativaPanel.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/nube.test.mjs` | — | 109 | Pruebas de la tarjeta de cuentas en la nube, del selector, de la importación, de las versiones y de compartir, pintadas con React. |
+| `test/obrasEstadoActual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/pitPanel.test.mjs` | — | 107 | Pruebas de la pestaña del PIT sin navegador: matriz de cobertura de las rutas /api/pit (llamada, control y prueba del servidor), los cuatro libros,… |
+| `test/relecturaServidor.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/retomarEspacio.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/selectorUnico.test.mjs` | — | 109 | Pruebas del campo único por entrada, del filtro de tipo y de guardar una salida en el equipo o en la nube. |
+| `test/superficies.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/tarjetaOperador.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/tensionFuente.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/tiposDeAnalisis.test.mjs` | — | 072 | Selector explícito, ficha, pasos de cada tipo, aviso del PIDE sin corto plazo y cuerpo de «Planificar» por tipo. |
+| `test/ubicacionCarga.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/vadPanel.test.mjs` | — | 108 | Pruebas de la pestaña del VAD sin navegador: matriz de cobertura de las rutas del VAD (llamada, control y prueba del servidor), el panel con un… |
 
 ### Configuración, dependencias y entrega
 
@@ -1124,16 +1179,22 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/licencias_terceros/NVIDIA_cuDNN_SLA.txt` |
 | `config/licencias_terceros/manifest.json` |
 | `config/line_type_aliases.example.json` |
+| `config/modulos/vinculos.json` |
 | `config/modulos_permitidos.example.json` |
+| `config/normativa/catalogo_tecnico.json` |
 | `config/normativa/coes_maxima_demanda_sein.json` |
+| `config/normativa/dl_1221_2015.json` |
 | `config/normativa/dl_25844_lce.json` |
 | `config/normativa/ds_006_2026_jus.json` |
 | `config/normativa/ds_009_99_em.json` |
+| `config/normativa/ds_028_2021_em.json` |
 | `config/normativa/entradas/vad_2023_2027_reconsideraciones.entrada.json` |
 | `config/normativa/it_565_2024_cuadros.json` |
+| `config/normativa/lce_arts_71_77.json` |
 | `config/normativa/medida_clase_precision.json` |
 | `config/normativa/ntcse.json` |
 | `config/normativa/ntcser.json` |
+| `config/normativa/pide_dl_1208.json` |
 | `config/normativa/rcd_018_2018.json` |
 | `config/normativa/rcd_018_2018_diagnostico.json` |
 | `config/normativa/rcd_074_2004.json` |

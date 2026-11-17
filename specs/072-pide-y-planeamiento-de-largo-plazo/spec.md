@@ -59,6 +59,10 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
   SISTEMA la deducirá de su tipo en el modelo canónico (tramo aéreo, subterráneo, de alumbrado, luminaria, SED) con una
   tabla universal, sin condiciones por empresa, y anotará cada valor así obtenido como «subfamilia deducida por el tipo»;
   la ambigüedad solo se nombra cuando el tipo no decide entre varias subfamilias.
+- RF-42: EL SISTEMA ofrecerá el corto plazo, el PIDE y el largo plazo cada uno en su pestaña de la web, como el VNR, el
+  PIT y el VAD, con su flujo de punta a punta: sus entradas y sus pasos, sus trabajos con su progreso, sus resultados, sus
+  informes y sus salidas, y sus avisos. Cada pestaña reutilizará los pasos que ya existen en «Cargas en DIgSILENT», sin
+  copiarlos, y esa pestaña seguirá entera. El PIDE dejará de ser beta en la 1.0.
 
 ### Mercado y años
 

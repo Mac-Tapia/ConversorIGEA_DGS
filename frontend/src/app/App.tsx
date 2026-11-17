@@ -16,6 +16,8 @@ import { AccionesOperadorCtx, type AccionesOperador } from '../shared/accionesOp
 import { AvisosDatos, EspacioNoDisponible } from './AvisosDatos';
 import { EstudioVnr } from '../features/vnr/EstudioVnr';
 import { EstudioPit } from '../features/pit/EstudioPit';
+import { EstudioVad } from '../features/vad/EstudioVad';
+import { BibliotecaNormativa } from '../features/normativa/BibliotecaNormativa';
 import { CargasTab } from '../features/powerfactory/CargasTab';
 import { EvolucionFijas } from '../features/clientesfijos/EvolucionFijas';
 import { FeedersPanel } from '../features/conversion/FeedersPanel';
@@ -49,6 +51,15 @@ const TABS = [
   { id: 'vnr', label: 'Estudio VNR', el: <EstudioVnr />, entradas: false },
   // 107 T13: el diagnóstico y el expediente del PIT por área de demanda; no necesita la red cargada.
   { id: 'pit', label: 'Estudio PIT', el: <EstudioPit />, entradas: false },
+  // 108 T29: el estudio de costos del VAD (empresa modelo, observaciones e Informe Definitivo); no necesita la red cargada.
+  { id: 'vad', label: 'Estudio VAD', el: <EstudioVad />, entradas: false },
+  // 072 (módulos): el corto plazo, el PIDE y el largo plazo, cada uno en su pestaña como el VNR, el PIT y el VAD. Son la
+  // MISMA «Cargas en DIgSILENT» con su tipo fijo y solo sus secciones; la pestaña «Cargas en DIgSILENT» sigue entera.
+  { id: 'corto', label: 'Corto plazo', el: <CargasTab modulo="corto_plazo" />, entradas: false },
+  { id: 'pide', label: 'PIDE', el: <CargasTab modulo="pide" />, entradas: false },
+  { id: 'largo', label: 'Largo plazo', el: <CargasTab modulo="largo_plazo" />, entradas: false },
+  // 107:RF-21: la biblioteca normativa general, la misma para toda empresa, estudio y módulo.
+  { id: 'normativa', label: 'Biblioteca normativa', el: <BibliotecaNormativa />, entradas: false },
   { id: 'catalog', label: 'Catálogo de parámetros', el: <CatalogTab />, entradas: true },
   { id: 'system', label: 'Sistema completo', el: <SystemTab />, entradas: true },
   // Spec 026: la consola de órdenes no necesita la entrega cargada (puede pedir que se cargue).

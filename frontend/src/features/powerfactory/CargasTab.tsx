@@ -2,7 +2,7 @@ import type { Alternativa, AvanceDisco } from '../../api/types';
 import { fmtNum } from '../../shared/formato';
 import { alcanceDe, plazoDe, porCosto, sorteosDe, tensionDe, valleDe } from './alternativas';
 import { aDelNodo, camposDePropuesta, medidaDelFormulario as medida, textoDeLaConexion } from './ubicacionCarga';
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { api, download } from '../../api/client';
 import { useApp } from '../../shared/context';
 import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
@@ -23,7 +23,8 @@ import { InformesPF } from './InformesPF';
 import { OperacionSet } from './OperacionSet';
 import { TransferenciaPF } from './TransferenciaPF';
 import { GemeloPIDE } from './GemeloPIDE';
-import { DESTINO, SeguirDondeQuedo, TipoDeAnalisis, estadoConDisco, guardarTipo, tipoGuardado, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
+import { DESTINO, PrefijoPasos, SeguirDondeQuedo, TipoDeAnalisis, estadoConDisco, guardarTipo, tipoGuardado, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
+import type { ClaveTipoAnalisis } from '../../api/types';
 import { AvisoBeta, MarcaBeta } from '../../shared/MarcaBeta';
 import { betaActiva } from '../../shared/edicion';
 import { Ayuda, FileDrop, Modal, Toggle, useToast } from '../../shared/ui';
@@ -155,8 +156,25 @@ export function estadoFlujo(jobs: Job[], project: string): EstadoFlujo | null {
  * cabecera; 3, verificar que converge e integrar lo nuevo. Qué SED coincide y dónde se
  * conecta cada carga nueva lo decide el guion dentro del proyecto.
  */
-export function CargasTab() {
+/**
+ * «Cargas en DIgSILENT» y, con ``modulo``, las pestañas «Corto plazo», «PIDE» y «Largo plazo» (072, módulos): el MISMO
+ * componente y los mismos pasos, nunca una copia. Con un módulo, el tipo queda fijo y solo se enseñan sus secciones.
+ */
+export function CargasTab({ modulo }: { modulo?: ClaveTipoAnalisis } = {}) {
+  return (
+    <PrefijoPasos.Provider value={modulo ? `${modulo}-` : ''}>
+      <CargasTabCuerpo modulo={modulo} />
+    </PrefijoPasos.Provider>
+  );
+}
+
+function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
   const { ws, run, startJob, active, jobs, health } = useApp();
+  const pref = useContext(PrefijoPasos);
+  // 072 (módulos): lo que enseña cada pestaña, de los pasos de su tipo (pasosDelTipo); sin módulo, todo.
+  const verNuevas = !modulo || modulo === 'corto_plazo';
+  const verObras = !modulo || modulo !== 'largo_plazo';
+  const verPlan = !modulo || modulo !== 'corto_plazo';
   const [project, setProject] = useState('');
   const [buscaProyecto, setBuscaProyecto] = useState('');
   const [order, setOrder] = useState<string[]>([]);
@@ -180,7 +198,7 @@ export function CargasTab() {
     Object.fromEntries([...COSTOS, ...TEC].map(([k, , v]) => [k, v])));
   const toast = useToast();
   // 072:RF-29: corto plazo, PIDE o largo plazo; el último elegido en este navegador, si se puede leer.
-  const [tipo, setTipo] = useState(tipoGuardado);
+  const [tipo, setTipo] = useState<ClaveTipoAnalisis | null>(() => modulo ?? tipoGuardado());
   const [anioPresentacion, setAnioPresentacion] = useState('');
   const { tipos, error: errorTipos } = useTiposAnalisis(anioPresentacion);
 
@@ -441,12 +459,12 @@ export function CargasTab() {
         demandas y cargas nuevas en «Con proyecto», cada carga nueva en su <strong>variación</strong>.</Ayuda>
       <PfWarning />
 
-      <TipoDeAnalisis tipo={tipo} onTipo={(t) => { setTipo(t); guardarTipo(t); }}
+      <TipoDeAnalisis tipo={tipo} onTipo={(t) => { if (!modulo) { setTipo(t); guardarTipo(t); } }} fijo={Boolean(modulo)}
         anio={anioPresentacion} onAnio={setAnioPresentacion} tipos={tipos} error={errorTipos}
-        estado={estadoPasos} planificacion={betaActiva(health, 'pide')} />
+        estado={estadoPasos} planificacion />
       {current && <SeguirDondeQuedo avance={avanceDisco} calibrados={calibrados} order={order} />}
 
-      <div className="step-box" id={DESTINO.proyecto} tabIndex={-1}>
+      <div className="step-box" id={pref + DESTINO.proyecto} tabIndex={-1}>
         <h3>1 · Proyecto de DIgSILENT</h3>
         <div className="row">
           <button className="btn" disabled={pfBusy} onClick={() => startJob(() => api.pfProjects(ws.id))}>
@@ -553,7 +571,7 @@ export function CargasTab() {
       </div>
 
       <fieldset disabled={bindingBlocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-      <div className="step-box" id={DESTINO.calibracion} tabIndex={-1}>
+      <div className="step-box" id={pref + DESTINO.calibracion} tabIndex={-1}>
         <h3>2 · Alimentadores y calibración{current ? ` de ${current.name}` : ''}</h3>
         <AvisosTrabajo paso="pf-calibracion" />
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
@@ -595,7 +613,7 @@ export function CargasTab() {
         </>}
       </div>
 
-      <div className="step-box" id={DESTINO.nuevas} tabIndex={-1}>
+      {verNuevas && <div className="step-box" id={pref + DESTINO.nuevas} tabIndex={-1}>
         <h3>3 · Integración de nuevas</h3>
         <AvisosTrabajo paso="pf-nuevas" />
         {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
@@ -722,7 +740,7 @@ export function CargasTab() {
           </div>
           {porQueNoAplicar && <small className="muted">Se podrá simular; para aplicar: {porQueNoAplicar}</small>}
         </>}
-      </div>
+      </div>}
 
       {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'}
         escalera={escalera} conProyecto={conProyecto} ocupado={pfBusy}
@@ -741,7 +759,7 @@ export function CargasTab() {
       )}
 
       {/* 086:RF-77: sin cargas nuevas integradas, el estado actual calibrado también puede violar límites. */}
-      {ofrecerObrasEstadoActual({ proyecto: current ? project : null, alimentadores: order,
+      {verObras && ofrecerObrasEstadoActual({ proyecto: current ? project : null, alimentadores: order,
         calibrado: estadoPasos.calibrado, proyectoDeCargas: resultado?.informe.project ?? null }) && (
         <ObrasEstadoActual feeders={order} ocupado={pfBusy} conProyecto={conProyecto}
           cargas={avanceDisco?.cargas ?? []}
@@ -749,14 +767,14 @@ export function CargasTab() {
             project, feeders: order, anio_casos: null, tipo_cambio: tipoCambio, capex,
             escalera_primero: true, rehacer_obras: rehacer }))} />)}
 
-      {current && order.length > 0 && betaActiva(health, 'set_nueva') && <>
+      {verObras && current && order.length > 0 && betaActiva(health, 'set_nueva') && <>
         <AvisoBeta clave="set_nueva" />
         <OperacionSet wsId={ws.id} project={project} feeders={order} ocupado={pfBusy}
           jobs={todos} startJob={startJob} />
       </>}
 
       {/* Spec 011, RF-42 y RF-98: con el mismo proyecto y los mismos alimentadores marcados. */}
-      <div className="step-box" id={DESTINO.obras} tabIndex={-1}>
+      {verObras && <div className="step-box" id={pref + DESTINO.obras} tabIndex={-1}>
         <h3>4 · Obras y estudios</h3>
         <div className="row">
           <label className="field"><span>Proyecto que se estudia</span>
@@ -789,7 +807,7 @@ export function CargasTab() {
             <h4>4.1 · Obras de mejora</h4>
             <AvisosTrabajo paso="pf-obras" />
             <ObrasPF project={estudio.proyecto} feeders={estudio.feeders} />
-            <span id={DESTINO.estudios} tabIndex={-1} />
+            <span id={pref + DESTINO.estudios} tabIndex={-1} />
             <h4>4.2 · Estudios</h4>
             <AvisosTrabajo paso="pf-estudios" />
             <EstudiosPF project={estudio.proyecto} feeders={estudio.feeders}
@@ -802,23 +820,23 @@ export function CargasTab() {
             <TransferenciaPF project={estudio.proyecto} feeders={estudio.feeders} />
             {/* Spec 017 (RF-73 cambiado: en 4.4, no en un paso 5): con lo que ya guardó la web. */}
             {/* 072:RF-33: el destino de «Ir al paso» de los informes, sin cambiar su título. */}
-            <span id={DESTINO.informes} tabIndex={-1} />
+            <span id={pref + DESTINO.informes} tabIndex={-1} />
             <h4>4.4 · Informes</h4>
             <AvisosTrabajo paso="pf-informes" />
             <InformesPF project={estudio.proyecto} feeders={estudio.feeders} />
           </>}
-      </div>
+      </div>}
 
       {/* Spec 024: el PIDE y el gemelo digital, con el mismo proyecto y alimentadores. */}
-      {betaActiva(health, 'pide') && <div className="step-box" id={DESTINO.planificacion} tabIndex={-1}>
-        <h3>5 · Planificación PIDE y gemelo digital <MarcaBeta clave="pide" /></h3>
+      {verPlan && <div className="step-box" id={pref + DESTINO.planificacion} tabIndex={-1}>
+        <h3>5 · Planificación PIDE y gemelo digital</h3>
         <AvisosTrabajo paso="pf-planificacion" />
         {!estudio.proyecto ? <p className="muted">Elija un proyecto en el paso 1 o en «Proyecto que se estudia» del paso 4.</p>
           : <GemeloPIDE project={estudio.proyecto} feeders={estudio.feeders} plazo={tipo} anio={anioPresentacion}
             onAnio={setAnioPresentacion} tipos={tipos} />}
       </div>}
       {/* 086:RF-70: con la planificación apagada, un aviso suyo anterior no se pierde. */}
-      {!betaActiva(health, 'pide') && <AvisosTrabajo paso="pf-planificacion" />}
+      {!verPlan && <AvisosTrabajo paso="pf-planificacion" />}
       </fieldset>
 
       {/* WEB-RUTAS (007:RF-38): deshacer un lote ya aplicado, con confirmación y su resumen. */}
@@ -1330,6 +1348,7 @@ function ObrasEstadoActual({ feeders, ocupado, conProyecto, cargas, onCorregir }
   feeders: string[]; ocupado: boolean; conProyecto: ConProyectoResultado | null; cargas: CargaAplicadaEnDisco[];
   onCorregir: (tipoCambio: number | null, capex: string, rehacer: boolean) => void;
 }) {
+  const pref = useContext(PrefijoPasos);
   const textos = textosObras(cargas, feeders);
   const [tipoCambio, setTipoCambio] = useState('');
   const [capex, setCapex] = useState('');
@@ -1337,7 +1356,7 @@ function ObrasEstadoActual({ feeders, ocupado, conProyecto, cargas, onCorregir }
   const tc = Number(tipoCambio.replace(',', '.'));
   const tcValido = tipoCambio.trim() !== '' && Number.isFinite(tc) && tc > 0;
   return (
-    <div className="step-box" id={DESTINO.obrasAutomaticas} tabIndex={-1}>
+    <div className="step-box" id={pref + DESTINO.obrasAutomaticas} tabIndex={-1}>
       <h3>{textos.titulo}</h3>
       <p className="muted small">{lista(feeders)}: {textos.ayuda}</p>
       <div className="row">

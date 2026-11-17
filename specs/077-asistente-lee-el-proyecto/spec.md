@@ -1,6 +1,6 @@
 # Spec 077 — El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura
 
-Estado: cumplida (2026-11-17: todas sus tareas cerradas); antes aprobada · Fecha: 2026-11-02 · Origen: petición del usuario · Ampliada el 2026-11-14 (Plan Maestro v1.6, H10): RF-75 a RF-77, T11
+Estado: cumplida (2026-11-17: todas sus tareas cerradas; ampliada ese día con RF-78 a RF-80 y T12, la biblioteca normativa); antes aprobada · Fecha: 2026-11-02 · Origen: petición del usuario · Ampliada el 2026-11-14 (Plan Maestro v1.6, H10): RF-75 a RF-77, T11
 
 ## Estado del corpus ampliado (2026-11-13)
 
@@ -149,6 +149,20 @@ todas las suites registradas: la puerta del commit corría sin `CSG_MCP_PYTHON` 
 - RF-75: EL SISTEMA fijará en `requirements-mcp.txt` el SDK de MCP y cada paquete que arrastra con su versión exacta y su huella SHA-256, para instalarlos con `pip --require-hashes`.
 - RF-76: SI hay un intérprete del MCP configurado (`CSG_MCP_PYTHON` o el `.venv_mcp` del repositorio) y le falta el paquete, ENTONCES EL SISTEMA dará por fallida la prueba del servidor real; la puerta de `main` y la de un commit que cambie el servidor MCP no aprobarán sin esas pruebas corridas y aprobadas.
 - RF-77: CUANDO el servidor MCP arranque con `--datos-locales`, EL SISTEMA avisará por stderr de que expone los datos locales solo a un cliente local de confianza.
+
+### La biblioteca normativa en el asistente (2026-11-17, DATASET-NORMATIVO parte 3)
+
+La biblioteca normativa (config/normativa, config/vad y la capa del usuario) es una para toda empresa, estudio y módulo. Hasta
+hoy el asistente no la leía: solo veía ficheros, y la capa del usuario está fuera del árbol.
+
+- RF-78: EL SISTEMA llevará al índice ampliado cada regla de la biblioteca normativa, leída por su API y no por una copia fija,
+  con su norma, artículo, valor, estado jurídico, vigencia y cita; la huella del índice incluirá la de la biblioteca, para que
+  una norma añadida entre en la siguiente indexación. Una norma de solo referencia irá sin texto: título, edición y cláusula.
+- RF-79: EL SISTEMA comprobará una cita normativa contra la biblioteca: que la regla siga en ella con el mismo texto. Ofrecerá
+  al LLM y por MCP la lectura `consultar_norma`, de solo lectura: la regla vigente de una clave en una fecha, o las reglas que
+  contienen unas palabras.
+- RF-80: EL SISTEMA tendrá un conjunto sellado de preguntas sobre la biblioteca (PIT, VAD, VNR, calidad y PIDE), con preguntas
+  sin respuesta de control, anclado en la clave de cada regla y con su huella fijada antes de medir.
 
 ## Requisitos no funcionales
 

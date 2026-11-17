@@ -1,0 +1,64 @@
+{
+ "esquema": "registro_normativo_v1",
+ "nota": "Vínculos entre módulos que fija la norma (109:RF-26, orden del usuario del 17-11-2026: «según normativa cómo se vinculan»): el VAD sobre la empresa modelo (arts. 63, 64 y 67 de la LCE, citados en los considerandos) y el PIDE del DL 1208, cuyos criterios se aprueban después de fijar el VAD 2023-2027. Texto leído del PDF de El Peruano (24-11-2021); las líneas son las de la copia de texto (sha256_texto).",
+ "normas": [
+  {
+   "acto": "DS 028-2021-EM",
+   "titulo": "Modifica el Reglamento de la Ley de Concesiones Eléctricas y el Reglamento del DL 1208 (SMI y criterios del PIDE)",
+   "estado_juridico": "vigente_comprobada",
+   "url": "https://busquedas.elperuano.pe/",
+   "fecha_emision": "2021-11-24",
+   "fecha_publicacion": "2021-11-24",
+   "fecha_consulta": "2026-11-17",
+   "sha256": "9eda629db4785f902d241719fde844168a27873cec41885dac2be4f78d65f941",
+   "sha256_texto": "6bcc41c6104011f1764cec5837705a7b9f95d05d03834fa88a764897b7873923",
+   "fichero_local": "vinculos/ds_028-2021-em.txt",
+   "version": "El Peruano, Normas Legales, miércoles 24 de noviembre de 2021",
+   "vigencia_desde": "2021-11-25",
+   "modifica": ["DS 009-93-EM", "DS 023-2016-EM"],
+   "reglas": [
+    {
+     "clave": "vinculo.vad.empresa_modelo",
+     "valor": "empresa_modelo_eficiente",
+     "unidad": "-",
+     "articulo_o_anexo": "considerandos (arts. 63, 64 y 67 de la LCE)",
+     "pagina": "1",
+     "lineas": "103-110",
+     "cita_literal": "Que, el artículo 63 de la LCE, dispone que el Valor Agregado de Distribución (en adelante, VAD) forma parte de las tarifas aplicables a los usuarios regulados, mientras que el artículo 64 precisa que el VAD se determina sobre la base de una empresa modelo eficiente, agregando el artículo 67 que los estudios de costos considerarán criterios de eficiencia de las inversiones y de la gestión de un concesionario operando en el país;",
+     "interpretacion": "El módulo VAD calcula sobre la empresa modelo eficiente; el VNR y los costos que comparte con el PIDE se toman de la misma empresa del espacio."
+    },
+    {
+     "clave": "vinculo.pide.objeto_dl_1208",
+     "valor": "pide_fonafe",
+     "unidad": "-",
+     "articulo_o_anexo": "considerandos (DL 1208 y DS 023-2016-EM)",
+     "pagina": "2-3",
+     "lineas": "199-202, 242-247",
+     "cita_literal": "Que, por otro lado, el Decreto Legislativo N° 1208 crea el denominado Plan de Inversiones en Distribución (en adelante, PIDE) con el objeto de mejorar la cobertura y calidad del servicio de las EDEs bajo el ámbito del Fondo Nacional de Financiamiento de la Actividad Empresarial del Estado (en adelante, Fonafe), estableciéndose en su Reglamento, aprobado por Decreto Supremo N° 023-2016-EM, que los criterios y metodología de planificación para el PIDE serán aprobados por el Ministerio de Energía y Minas;",
+     "interpretacion": "El módulo PIDE aplica a las distribuidoras del ámbito de Fonafe; sus criterios los aprueba el MINEM."
+    },
+    {
+     "clave": "vinculo.pide.criterios_tras_vad",
+     "valor": "seis_meses_tras_vad_2023_2027",
+     "unidad": "-",
+     "articulo_o_anexo": "Cuarta Disposición Complementaria Final",
+     "pagina": "5",
+     "lineas": "469-475",
+     "cita_literal": "La aprobación de los criterios y metodología a que se refiere el artículo 3 del Reglamento del Decreto Legislativo N° 1208, aprobado por Decreto Supremo N° 023-2016-EM, se publican en un plazo de seis (6) meses, contados a partir de la conclusión de forma definitiva del procedimiento regulatorio de fijación del VAD para el periodo 2023-2027.",
+     "interpretacion": "Los criterios del PIDE siguen a la fijación del VAD: el PIDE toma los costos y criterios de la última fijación del VAD de la empresa.",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vinculo.vad.vigencia_ds_028",
+     "valor": "vad_2022_2026_y_2023_2027",
+     "unidad": "-",
+     "articulo_o_anexo": "art. 3",
+     "pagina": "4",
+     "lineas": "401-403",
+     "cita_literal": "Lo dispuesto en los artículos 1 y 2 del presente Decreto Supremo se aplica a partir de los procedimientos tarifarios del VAD de los periodos 2022-2026 y 2023-2027.",
+     "caracter": "obligatoria"
+    }
+   ]
+  }
+ ]
+}

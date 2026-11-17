@@ -4,6 +4,8 @@ import { LIBROS_RED, leerAnios, pit, type AreaPit, type CapacidadesPit } from '.
 import type { Job } from '../../api/types';
 import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import { useApp } from '../../shared/context';
+import { ElegirFuente } from '../../shared/ElegirFuente';
+import { fuentes, type Fuente, type RedDelEspacio } from '../../api/fuentes';
 import { FileDrop, GuardarSalida } from '../../shared/ui';
 
 interface ResultadoDiagnostico { salida_relativa?: string | null; completo?: boolean; avisos?: string[] }
@@ -13,6 +15,8 @@ interface ResultadoExpediente {
 }
 
 const nombre = (rel: string) => rel.split('/').pop() ?? rel;
+/** 107:RF-19: una entrada de la empresa elegida (su fuente) o subida ahora, que queda en la empresa (109:RF-25). */
+type Entrada = Fuente | File | null;
 
 /** El último trabajo terminado de un tipo en este espacio. */
 function ultimo<R>(jobs: Record<string, Job>, wsId: string, kind: string): Job<R> | undefined {
@@ -31,9 +35,11 @@ export function EstudioPit() {
   const [periodo, setPeriodo] = useState('');
   const [aniosTexto, setAniosTexto] = useState('');
   const [motor, setMotor] = useState('abierto');
-  const [libro, setLibro] = useState<File | null>(null);
-  const [proyeccion, setProyeccion] = useState<File | null>(null);
-  const [alternativas, setAlternativas] = useState<File | null>(null);
+  const [libro, setLibro] = useState<Entrada>(null);
+  const [proyeccion, setProyeccion] = useState<Entrada>(null);
+  const [alternativas, setAlternativas] = useState<Entrada>(null);
+  const [empresa, setEmpresa] = useState('');
+  const [red, setRed] = useState<RedDelEspacio | null>(null);
   const [elegida, setElegida] = useState('');
   const [obs, setObs] = useState<File | null>(null);
 
@@ -41,32 +47,34 @@ export function EstudioPit() {
     void run(() => pit.areas()).then((r) => {
       if (!r) return;
       setAreas(r.areas);
+      setEmpresa(r.empresa ?? '');
       setArea((a) => a || r.areas[0]?.codigo || '');
     });
+    // 107:RF-19: la red convertida del espacio, si la hay; sin carga, no hay nada que decir.
+    fuentes.red(ws.id).then(setRed).catch(() => setRed(null));
     void run(() => pit.capacidades()).then((r) => { if (r) setCaps(r); });
-  }, [run]);
+  }, [run, ws.id]);
 
   const ocupado = Boolean(active.engine);
   const anios = leerAnios(aniosTexto);
   const listo = Boolean(area && anios && libro && proyeccion);
   const listoExpediente = listo && Boolean(periodo.trim()) && (!alternativas || Boolean(elegida.trim()));
 
-  /** Sube lo elegido al espacio y devuelve sus rutas: libro, proyección y, si hay, alternativas. */
-  const subir = async () => {
-    const files = [libro!, proyeccion!, ...(alternativas ? [alternativas] : [])];
-    return (await pit.entradas(ws.id, files)).rutas;
-  };
-  const diagnosticar = () => startJob(async () => {
-    const [libroRed, proy] = await subir();
-    return pit.diagnostico({ workspace_id: ws.id, area, anios: anios!, libro_red: libroRed, proyeccion: proy, motor });
-  });
+  /** El id de la fuente de cada entrada; lo subido se registra antes en la empresa y lo usan todos los módulos. */
+  const idDe = async (e: Entrada, clase: string) => (e instanceof File ? (await fuentes.subir(ws.id, clase, e)).id : e?.id ?? null);
+  const diagnosticar = () => startJob(async () => pit.diagnostico({
+    workspace_id: ws.id, area, anios: anios!, motor,
+    fuente_red_area: await idDe(libro, 'red_area'), fuente_proyeccion: await idDe(proyeccion, 'proyeccion'),
+  }));
   const armar = () => startJob(async () => {
-    const [libroRed, proy, alt] = await subir();
+    const alt = await idDe(alternativas, 'alternativas');
     return pit.expediente({
-      workspace_id: ws.id, area, periodo: periodo.trim(), anios: anios!, libro_red: libroRed, proyeccion: proy,
-      alternativas: alt ?? null, alternativa_elegida: alt ? elegida.trim() : null, motor,
+      workspace_id: ws.id, area, periodo: periodo.trim(), anios: anios!, motor,
+      fuente_red_area: await idDe(libro, 'red_area'), fuente_proyeccion: await idDe(proyeccion, 'proyeccion'),
+      fuente_alternativas: alt, alternativa_elegida: alt ? elegida.trim() : null,
     });
   });
+  const otraEmpresa = Boolean(red?.empresa && empresa && red.empresa.trim().toLowerCase() !== empresa.trim().toLowerCase());
 
   const diag = ultimo<ResultadoDiagnostico>(jobs, ws.id, 'pit_diagnostico')?.result;
   const exp = ultimo<ResultadoExpediente>(jobs, ws.id, 'pit_expediente')?.result;
@@ -103,21 +111,11 @@ export function EstudioPit() {
             ))}
           </select>
         </label>
-        <div className="field">
-          <span>Libro de la red</span>
-          <FileDrop entrada="pit-libro-red" compact accept={LIBROS_RED} disabled={ocupado}
-            onFiles={(f) => setLibro(f[0] ?? null)}>{libro ? libro.name : 'Suelte o elija el libro'}</FileDrop>
-        </div>
-        <div className="field">
-          <span>Proyección de la demanda</span>
-          <FileDrop entrada="pit-proyeccion" compact accept=".json" disabled={ocupado}
-            onFiles={(f) => setProyeccion(f[0] ?? null)}>{proyeccion ? proyeccion.name : 'Suelte o elija el JSON'}</FileDrop>
-        </div>
-        <div className="field">
-          <span>Alternativas (opcional)</span>
-          <FileDrop entrada="pit-alternativas" compact accept=".json" disabled={ocupado}
-            onFiles={(f) => setAlternativas(f[0] ?? null)}>{alternativas ? alternativas.name : 'Suelte o elija el JSON'}</FileDrop>
-        </div>
+        <ElegirFuente clase="red_area" etiqueta="Libro de la red" accept={LIBROS_RED} disabled={ocupado} onElegir={setLibro} />
+        <ElegirFuente clase="proyeccion" etiqueta="Proyección de la demanda" accept=".json" disabled={ocupado}
+          onElegir={setProyeccion} />
+        <ElegirFuente clase="alternativas" etiqueta="Alternativas (opcional)" accept=".json" disabled={ocupado}
+          onElegir={setAlternativas} />
         {alternativas && (
           <label className="field">
             <span>Alternativa elegida</span>
@@ -125,6 +123,11 @@ export function EstudioPit() {
           </label>
         )}
       </div>
+      {red && (
+        <p className={otraEmpresa ? 'alert alert-warn' : 'muted small'}>
+          Red del espacio: {red.fuente}{red.empresa ? ` · ${red.empresa}` : ''}
+          {otraEmpresa ? ` — no es la empresa del perfil (${empresa}).` : ''}
+        </p>)}
       <div className="row">
         <button className="btn" onClick={diagnosticar} disabled={ocupado || !listo}>Diagnosticar</button>
         <button className="btn btn-primary" onClick={armar} disabled={ocupado || !listoExpediente}>Armar el expediente</button>

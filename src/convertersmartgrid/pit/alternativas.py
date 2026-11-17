@@ -297,9 +297,12 @@ def evaluar(red: RedArea, alternativas: Iterable[Mapping[str, Any]], demanda: Ma
 
     ``ubicacion`` es la del área en el perfil (``pit.areas[].ubicacion``: costa, sierra o selva), para el cuadro del
     COyM; un elemento que declare la suya la usa en su lugar. Sin ninguna de las dos, el COyM por cuadro es un hueco."""
-    anios = sorted(int(a) for a in anios)
+    from . import norma
+    # 107:RF-20: la comparación dentro del horizonte de la norma (3.14), y sus reglas citadas (5.9.3, 11.3, 17.2, 24.2).
+    anios, avisos_norma = norma.anios_de_alternativas(registro, anios, fecha)
+    citadas, avisos_citadas = norma.reglas_citadas(registro, fecha)
     reglas, ambiguas = {}, {}
-    for c in _REGLAS + _REGLAS_PERDIDAS:
+    for c in _REGLAS + _REGLAS_PERDIDAS + tuple(citadas) + (norma.N1,):
         try:
             r = _regla(registro, c, fecha)
         except ReglaAmbigua as exc:
@@ -308,8 +311,10 @@ def evaluar(red: RedArea, alternativas: Iterable[Mapping[str, Any]], demanda: Ma
         if r is not None:
             reglas[c] = r
     comp = Comparacion(motor, _huella({a: demanda.get(a) for a in anios}), reglas, [], [], [])
+    comp.avisos += avisos_norma + avisos_citadas
+    solo_citadas = set(citadas) | {norma.N1}  # se citan o acotan el N-1; ningún número de la comparación sale de ellas
     for clave, r in sorted(reglas.items()):
-        if not r['obligatoria']:
+        if not r['obligatoria'] and clave not in solo_citadas:
             comp.avisos.append(f'{clave} = {r["valor"]} de {r["norma"]} ({r["estado"]}) se usa como referencia, '
                                'no como obligatoria (107:RF-8)')
     for clave in ('pit.tasa_actualizacion', 'pit.vida_util_anios'):
@@ -355,7 +360,11 @@ def evaluar(red: RedArea, alternativas: Iterable[Mapping[str, Any]], demanda: Ma
             if valorar_perdidas:
                 res.perdidas_valor[anio] = (base.perdidas_mw * float(reglas['pit.horas_perdidas']['valor'])
                                             * float(reglas['pit.precio_perdidas']['valor']))
-            for eid in [e['id'] for t in ('linea', 'trafo2', 'trafo3') for e in red_alt.de_tipo(t)]:
+            candidatos = [e['id'] for t in ('linea', 'trafo2', 'trafo3') for e in red_alt.de_tipo(t)]
+            exigen, aviso_n1 = norma.elementos_con_n1(registro, base.flujos, candidatos, fecha)
+            if aviso_n1 and aviso_n1 not in comp.avisos:
+                comp.avisos.append(aviso_n1)
+            for eid in exigen:
                 r = ejecutar('n_1', red_alt, cargas, motor=motor, fuera=[eid])['resultado']
                 peor = max(peor, r.p_sin_servir_mw if r.converge else float('inf'))
         res.confiabilidad = {'motor': motor, 'alcance': conf.alcance, 'texto': conf.texto,

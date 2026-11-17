@@ -1364,3 +1364,17 @@ El envío de un informe por Gmail o por Outlook usa la cuenta que el operador co
 enviar. El registro de la aplicación OAuth (versión de prueba: Google en «Testing» y Azure con cuentas personales) está
 paso a paso en [`docs/CORREO_OAUTH.md`](CORREO_OAUTH.md). Sin `config\nube.json`, la ventana dice «Sin cuenta
 conectada: configure config/nube.json» y no envía nada.
+
+## Biblioteca normativa (spec 107, RF-21)
+
+Una sola biblioteca de normas, nacionales e internacionales, para toda empresa, estudio y módulo. Las normas que trae el
+programa viven en `config/normativa` y `config/vad`. Las que añade o actualiza el usuario van en su capa propia, fuera
+del programa: `normativa_usuario` en la carpeta local, o la que fije `CSG_NORMATIVA_USUARIO`.
+
+    python tools/normativa/biblioteca.py listar --fecha 2026-11-17     # cada norma, su estado y si obliga ese día
+    python tools/normativa/biblioteca.py agregar <mi_norma.json>       # valida y la copia a la capa del usuario
+    python tools/normativa/biblioteca.py exportar <carpeta>            # normas.jsonl y reglas.jsonl para el asistente
+
+`agregar` rechaza un fichero que no cumple el esquema `registro_normativo_v1` y no deja nada en la capa. Una norma con
+el mismo acto que una del programa la sustituye, y queda anotado. `exportar` solo reescribe si cambió la huella de la
+biblioteca.

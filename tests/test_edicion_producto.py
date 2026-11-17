@@ -408,9 +408,10 @@ def test_un_trabajo_sin_gpu_no_deja_traza_en_el_registro(tmp_path):
 
 
 def test_health_dice_la_edicion(client, producto, monkeypatch):
-    """086:RF-16 — la web sabe qué edición es y qué está en beta, sin decidirlo ella."""
+    """086:RF-16, 072:RF-42 — la web sabe qué edición es y qué está en beta, sin decidirlo ella."""
     e = client.get('/api/health').json()['edicion']
-    assert e['producto'] is True and {b['clave'] for b in e['beta']} == {'asistente', 'set_nueva', 'pide', 'confiabilidad'}
+    # 072 (módulos): el PIDE ya no es beta en la 1.0: tiene su pestaña y la edición lo dice al no listarlo.
+    assert e['producto'] is True and {b['clave'] for b in e['beta']} == {'asistente', 'set_nueva', 'confiabilidad'}
     assert all(b['activa'] and b['aviso'] for b in e['beta'])
     monkeypatch.delenv(edicion.VARIABLE_EDICION)
     assert client.get('/api/health').json()['edicion'] == {'producto': False, 'beta': []}
@@ -421,12 +422,12 @@ def test_una_beta_se_puede_apagar(client, producto, monkeypatch):
     wid = _wid(client)
     assert client.post(f'/api/workspaces/{wid}/pide', json={}).status_code != 403
     monkeypatch.setenv(edicion.VARIABLE_BETA_APAGADAS, 'pide, confiabilidad')
-    r = client.post(f'/api/workspaces/{wid}/pide', json={})
-    assert r.status_code == 403 and 'desactivada' in r.json()['detail']
+    # 072 (módulos): «pide» ya no es una beta: aunque se nombre en la variable, su ruta no se niega.
+    assert client.post(f'/api/workspaces/{wid}/pide', json={}).status_code != 403
     assert client.get(f'/api/workspaces/{wid}/pf/datos-empresa').status_code == 403
     assert client.get(f'/api/workspaces/{wid}/asistente/planes').status_code == 200
     activas = {b['clave']: b['activa'] for b in client.get('/api/health').json()['edicion']['beta']}
-    assert activas == {'asistente': True, 'set_nueva': True, 'pide': False, 'confiabilidad': False}
+    assert activas == {'asistente': True, 'set_nueva': True, 'confiabilidad': False}
 
 
 # ---------------------------------------------------------------- T15: efectos y confirmación

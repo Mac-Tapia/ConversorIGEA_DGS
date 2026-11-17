@@ -198,3 +198,10 @@ existentes. Evidencia externa: `correccion_revision_p17_20261108/HANDOFF.md`, co
 revisión exacta y resultados enfocados. T14/T13/T11/T9b siguen abiertas; esta nota no
 otorga aprobación humana ni aceptación nativa, eléctrica o científica.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_costos_sicodi_libro.py tests/test_estudio_y_costos.py.
+- [ ] T19 Módulos de planeamiento en la web: las pestañas «Corto plazo», «PIDE» y «Largo plazo» son `CargasTab` con su
+      `modulo` (el tipo fijo y solo las secciones que `pasosDelTipo` le da), con los ids de su pestaña; «Cargas en
+      DIgSILENT» sigue entera; el PIDE deja de ser beta en `edicion.py`. Las entradas de libros pasan al selector común de
+      la 109 (ESPACIO-EMPRESA) cuando esté. (RF-42)
+      Hecho cuando: `frontend/test/modulosPlaneamiento.test.mjs` (la matriz de cobertura por pestaña) y `npm test` en verde,
+      `npm run lint`, `npx tsc --noEmit -p .` y `npm run build` sin errores, y `.venv/Scripts/python.exe -m pytest -q
+      tests/test_edicion_producto.py tests/test_gemelo_pide_front.py` en verde.

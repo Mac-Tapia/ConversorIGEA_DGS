@@ -470,9 +470,10 @@ def limites_de_tension(red: RedArea, area: AreaPit, registro: RegistroNormativo 
     return out
 
 
-def agregar_demanda(area: AreaPit, red: RedArea, filas: Iterable[Mapping[str, Any]]
-                    ) -> dict[int, dict[str, tuple[float, float]]]:
-    """Año → barra de carga → (P MW, Q Mvar), sumando los alimentadores de cada SET del área."""
+def agregar_demanda(area: AreaPit, red: RedArea, filas: Iterable[Mapping[str, Any]], *,
+                    factor_potencia: float | None = None) -> dict[int, dict[str, tuple[float, float]]]:
+    """Año → barra de carga → (P MW, Q Mvar), sumando los alimentadores de cada SET del área. Con ``factor_potencia``
+    (el de las barras de MT de la norma, 12.1.8.c), la Q de cada barra sale de su P con ese factor (107:RF-20)."""
     barras = red.barras_de_carga()
     sin_barra = [s for s in area.set_alimentadores if s not in barras]
     if sin_barra:
@@ -486,6 +487,10 @@ def agregar_demanda(area: AreaPit, red: RedArea, filas: Iterable[Mapping[str, An
         pq = out.setdefault(int(f['anio_calendario']), {}).setdefault(barra, [0.0, 0.0])
         pq[0] += float(f['p_kw']) / 1000
         pq[1] += float(f.get('q_kvar') or 0.0) / 1000
+    if factor_potencia is not None:
+        from .norma import q_con_factor
+        return {a: {b: (pq[0], q_con_factor(pq[0], factor_potencia)) for b, pq in sorted(por.items())}
+                for a, por in sorted(out.items())}
     return {a: {b: (pq[0], pq[1]) for b, pq in sorted(por.items())} for a, por in sorted(out.items())}
 
 
@@ -527,6 +532,8 @@ class Diagnostico:
     tension: dict[str, Any] = field(default_factory=dict)
     #: Lo que falta para dar el criterio de tensión de una barra o de un transformador: deja el diagnóstico incompleto.
     huecos_tension: list[dict[str, Any]] = field(default_factory=list)
+    #: Las reglas de la norma que el diagnóstico aplicó (años, factor de potencia, N-1), para citarlas (107:RF-20).
+    reglas: list[str] = field(default_factory=list)
     #: Por barra con regla de referencia: su tensión calculada, su rango y su fuente (aviso visible, no violación).
     referencias: list[dict[str, Any]] = field(default_factory=list)
 
@@ -642,7 +649,7 @@ def diagnosticar(area: AreaPit, red: RedArea, filas: Iterable[Mapping[str, Any]]
                  limites: Mapping[str, Mapping[str, Any]], *, motor: str = 'abierto',
                  cancel: threading.Event | None = None,
                  on_progress: Callable[[int, int, int], None] | None = None,
-                 tension: Mapping[str, Any] | None = None) -> Diagnostico:
+                 tension: Mapping[str, Any] | None = None, registro: Any = None) -> Diagnostico:
     """El diagnóstico del horizonte ``anios`` (los da el estudio, nunca el código). ``tension``: los límites por barra
     de ``limites_de_tension``; sin ellos, los de tensión del perfil para todas las barras (como antes de PIT-TEN)."""
     faltan = [k for k in OBLIGADOS if k not in limites]
@@ -650,10 +657,17 @@ def diagnosticar(area: AreaPit, red: RedArea, filas: Iterable[Mapping[str, Any]]
         faltan += [k for k in ('tension_min_pu', 'tension_max_pu') if k not in limites]
     if faltan:
         raise PitError(f'faltan los límites {faltan} para el diagnóstico')
-    demanda = agregar_demanda(area, red, filas)
-    anios = sorted(set(int(a) for a in anios))
+    from . import norma
+    # 107:RF-20: con el registro, los años de la programación, el factor de potencia de las barras de MT y el N-1 salen
+    # de la norma; sin él, como antes.
+    fp = norma.factor_potencia(registro)
+    demanda = agregar_demanda(area, red, filas, factor_potencia=fp)
+    anios, avisos_anios = norma.anios_de_programacion(registro, anios)
     diag = Diagnostico(area.codigo, motor, {k: dict(v) for k, v in limites.items()},
                        faltantes=list(red.faltantes), incompletos=list(red.incompletos), avisos=list(red.avisos))
+    diag.avisos += avisos_anios
+    diag.reglas = [c for c, v in ((norma.ANIOS, norma.valor(registro, norma.ANIOS)), (norma.FACTOR_POTENCIA, fp),
+                                  (norma.N1, norma.valor(registro, norma.N1))) if v is not None]
     if tension is not None:
         diag.tension = {k: v for k, v in tension.items() if k != 'avisos'}
         diag.huecos_tension = [dict(h) for h in tension.get('huecos') or ()]
@@ -677,7 +691,10 @@ def diagnosticar(area: AreaPit, red: RedArea, filas: Iterable[Mapping[str, Any]]
             tensiones[(anio, 'base')] = dict(base.tensiones_pu) if base.converge else {}
             ad = AnioDiagnostico(anio, sum(p for p, _q in cargas.values()),
                                  _caso('base', base, limites, incompletos, tension))
-            for eid in contingencias:
+            exigen, aviso_n1 = norma.elementos_con_n1(registro, base.flujos, contingencias)
+            if aviso_n1 and aviso_n1 not in diag.avisos:
+                diag.avisos.append(aviso_n1)
+            for eid in exigen:
                 r = ejecutar('n_1', red, cargas, motor=motor, fuera=[eid])['resultado']
                 tensiones[(anio, f'N-1 {eid}')] = dict(r.tensiones_pu) if r.converge else {}
                 ad.contingencias.append(_caso(f'N-1 {eid}', r, limites, incompletos, tension, n_1=True))

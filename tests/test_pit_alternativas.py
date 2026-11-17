@@ -24,7 +24,14 @@ MONEDA = 'XTS'
 def _registro(tmp_path, estado_tasa='no_verificada', perdidas=False):
     def regla(clave, valor):
         return {'clave': clave, 'valor': valor, 'cita_literal': f'«{clave}»', 'pagina': '1'}
-    reglas_v = [regla('pit.vida_util_anios', 25), regla('pit.coym_pct', 3.0)]
+    # 107:RF-20: un registro completo trae también el horizonte, las reglas citadas de la comparación y el umbral del N-1
+    # (aquí 0 MW: el N-1 de todos los elementos con flujo, como antes).
+    reglas_v = [regla('pit.vida_util_anios', 25), regla('pit.coym_pct', 3.0),
+                regla('pit.horizonte_alternativas_anios', 10),
+                regla('pit.criterio_alternativas', 'minimo_costo_total_inversion_coym_perdidas'),
+                regla('pit.costo_total', 'valor_presente(inversion+operacion+mantenimiento+perdidas)'),
+                regla('pit.coym_metodo', 'porcentaje_de_la_inversion'),
+                regla('pit.tasa_actualizacion_fuente', 'art. 79 de la LCE'), regla('pit.n1_demanda_min_mw', 0.0)]
     if perdidas:
         reglas_v += [regla('pit.precio_perdidas', 40.0), regla('pit.horas_perdidas', 3000.0)]
     datos = {'esquema': 'registro_normativo_v1', 'normas': [

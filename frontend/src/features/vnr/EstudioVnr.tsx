@@ -3,7 +3,9 @@ import { api } from '../../api/client';
 import { vnr, type VnrEstudio } from '../../api/vnr';
 import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
 import { useApp } from '../../shared/context';
+import { ElegirFuente } from '../../shared/ElegirFuente';
 import { FileDrop, GuardarSalida } from '../../shared/ui';
+import { fuentes, type Fuente, type RedDelEspacio } from '../../api/fuentes';
 
 const TIPO = 'vnr_estudio';
 const SECTORES: [string, string][] = [
@@ -22,7 +24,9 @@ export function EstudioVnr() {
   const { ws, jobs, active, startJob, run } = useApp();
   const [estado, setEstado] = useState<VnrEstudio | null>(null);
   const [canonical, setCanonical] = useState<File | null>(null);
-  const [sicodi, setSicodi] = useState<File | null>(null);
+  const [sicodi, setSicodi] = useState<Fuente | File | null>(null);
+  const [red, setRed] = useState<RedDelEspacio | null>(null);
+  useEffect(() => { void fuentes.red(ws.id).then(setRed).catch(() => setRed(null)); }, [ws.id]);
   const [sector, setSector] = useState('urbano_media_baja');
   const [sectorSicodi, setSectorSicodi] = useState('');
   const [resolucion, setResolucion] = useState('');
@@ -40,11 +44,12 @@ export function EstudioVnr() {
   const enCurso = Object.values(jobs).some((j) => j.kind === TIPO && j.workspace_id === ws.id
     && ['queued', 'running'].includes(j.status));
   const ocupado = Boolean(active.engine);
-  const listo = Boolean(canonical && sicodi && sectorSicodi.trim() && resolucion.trim() && Number(anio) > 1990
+  const conRed = Boolean(canonical || red?.canonical);
+  const listo = Boolean(conRed && sicodi && sectorSicodi.trim() && resolucion.trim() && Number(anio) > 1990
     && moneda.trim());
-  const lanzar = () => canonical && sicodi && startJob(() => vnr.lanzar(ws.id, {
+  const lanzar = () => conRed && sicodi && startJob(() => vnr.lanzar(ws.id, {
     sector, sector_sicodi: sectorSicodi.trim(), resolucion: resolucion.trim(), anio: Number(anio),
-    moneda: moneda.trim(), canonical, sicodi }));
+    moneda: moneda.trim(), canonical, sicodi: sicodi instanceof File ? sicodi : sicodi.id }));
   const r = estado && estado.libro ? estado : null;
 
   return (
@@ -54,15 +59,13 @@ export function EstudioVnr() {
         valorización del inventario con los costos estándar del SICODI.</p>
       <div className="form-grid">
         <div className="field">
-          <span>Inventario VNR-GIS (canonical.json)</span>
+          <span>Inventario VNR-GIS</span>
+          {red?.canonical && !canonical && <p className="muted">La red cargada en el espacio ({red.alimentadores?.length ?? 0} alimentadores{red.empresa ? `, ${red.empresa}` : ''}).</p>}
           <FileDrop entrada="vnr-inventario" compact accept=".json" disabled={ocupado}
-            onFiles={(f) => setCanonical(f[0] ?? null)}>{canonical ? canonical.name : 'Suelte o elija el fichero'}</FileDrop>
+            onFiles={(f) => setCanonical(f[0] ?? null)}>{canonical ? canonical.name : red?.canonical ? 'O suba otro canonical.json' : 'Suelte o elija el canonical.json'}</FileDrop>
         </div>
-        <div className="field">
-          <span>SICODI de la última fijación</span>
-          <FileDrop entrada="vnr-sicodi" compact accept=".xlsx,.xlsm,.xls,.xlsb,.zip" disabled={ocupado}
-            onFiles={(f) => setSicodi(f[0] ?? null)}>{sicodi ? sicodi.name : 'Suelte o elija el libro o el zip'}</FileDrop>
-        </div>
+        <ElegirFuente clase="sicodi" etiqueta="SICODI de la última fijación" accept=".xlsx,.xlsm,.xls,.xlsb,.zip"
+          disabled={ocupado} onElegir={setSicodi} />
         <label className="field">
           <span>Sector típico (Guía)</span>
           <select value={sector} disabled={ocupado} onChange={(e) => setSector(e.target.value)}>

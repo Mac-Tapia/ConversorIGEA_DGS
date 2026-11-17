@@ -333,12 +333,14 @@ def test_transitorias_177_2021_y_147_2017_agotadas():
     assert 'H1287522' in vigente.url
 
 
-def test_242_2021_con_su_fecha_y_sin_verificar():
-    """107:RF-7, 107:RF-8 (RN-VIG2) — la 242-2021 trae su fecha de publicación (nota del SPIJ en la 217-2013) y sigue
-    «no_verificada»: su texto propio no está en el SPIJ libre."""
+def test_242_2021_comprobada_con_su_texto_y_solo_para_las_reasignadas():
+    """107:RF-7, 107:RF-8 (RN-VIG2) — la 242-2021, leída entera en El Peruano: comprobada, vigente desde el día siguiente
+    a su publicación, y sus reglas solo alcanzan a las SCT reasignadas por el DS 018-2021-EM."""
     norma = _norma('RCD 242-2021-OS/CD')
-    assert norma is not None and norma.fecha_publicacion == '2021-12-18'
-    assert norma.estado_juridico == 'no_verificada' and 'H1089476' in norma.nota
+    assert norma is not None and norma.fecha_publicacion == '2021-12-18' and norma.vigencia_desde == '2021-12-19'
+    assert norma.estado_juridico == 'vigente_comprobada' and 'H1089476' in norma.nota
+    assert {r.clave for r in norma.reglas} == {'pit.reasignadas.alcance', 'pit.reasignadas.faxc'}
+    assert all(r.citada and r.clave.startswith('pit.reasignadas.') for r in norma.reglas)
 
 
 # ------------------------------------------------------------------------ RN-AMB: las modificaciones del PIT 2025-2029

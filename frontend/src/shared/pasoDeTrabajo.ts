@@ -27,6 +27,8 @@ export const PASOS = {
   vnr: { titulo: 'Estudio VNR', pestana: 'vnr' },
   // 107 T13: el diagnóstico y el expediente del PIT, en su pestaña.
   pit: { titulo: 'Estudio PIT', pestana: 'pit' },
+  // 108 T29: el estudio de costos del VAD, en su pestaña.
+  vad: { titulo: 'Estudio VAD', pestana: 'vad' },
   // 111: el estudio de una variación del plano, en su pestaña.
   plano: { titulo: 'Plano de la red', pestana: 'plano' },
 } as const;
@@ -79,9 +81,10 @@ export const PASO_DE_TRABAJO: Record<string, PasoId | null> = {
   asistente: 'asistente', asistente_control: 'asistente', asistente_interpretar: 'asistente',
   asistente_entrenar: 'asistente', asistente_mejora: 'asistente', asistente_indice: 'asistente', asistente_revision: 'asistente',
   agente_proyecto: 'asistente',
-  // 108 (AS-3): la empresa modelo del VAD la lanza el asistente (su tarjeta de operador y POST /api/vad/…): su aviso va a
-  // su pestaña, donde se pidió.
-  vad_empresa_modelo: 'asistente',
+  // 108 T29: la empresa modelo y el Informe Definitivo del VAD se lanzan desde la pestaña «Estudio VAD» (también el
+  // asistente usa la ruta de la empresa modelo); su aviso sale allí.
+  vad_empresa_modelo: 'vad',
+  vad_informe_definitivo: 'vad',
   // Sin botón propio en un paso: los lanza el servidor solo, o van al espacio aparte de VNR-GIS (`_vnr`).
   libros_nuevos: null, aprendizaje: null, download: null, vnr_export_cymdist: null, vnr_export_dgs: null,
   // 086:RF-85: la copia de los datos se lanza desde su aviso, en la zona general de arriba; su fallo sale allí.

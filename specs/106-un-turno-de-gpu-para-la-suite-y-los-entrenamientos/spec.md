@@ -93,6 +93,10 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
 - RF-19: DONDE el equipo tiene un controlador NVIDIA que no pasa de la última versión con el fallo de RF-18 comprobado,
   EL SISTEMA avisará en el doctor de que conviene actualizarlo, sin bloquear nada, y dirá si la protección de RF-18 está
   activa.
+- RF-20: EL SISTEMA esperará en las pruebas el trabajo real por su estado y por su avance, no con un tope fijo corto: una
+  prueba fallará solo si el trabajo falla, deja de avanzar en una ventana (120 s por defecto) o pasa un tope generoso
+  (900 s), y dirá en qué estado y con qué progreso se quedó.
+
 
 ## Requisitos no funcionales
 - Sin GPU (GitHub Actions, 102:RF-17) la sesión no pide turno y nada cambia.

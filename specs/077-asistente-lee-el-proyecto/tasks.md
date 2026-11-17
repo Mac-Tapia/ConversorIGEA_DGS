@@ -21,6 +21,13 @@
 - [x] T11 SDK del MCP fijado con huella, prueba del servidor real obligatoria con su intérprete y aviso de `--datos-locales`. (RF-75, RF-76, RF-77)
       Hecho cuando: con `CSG_MCP_PYTHON` apuntando a un intérprete instalado con `pip install --require-hashes -r requirements-mcp.txt`, `tests/test_mcp_conversor.py` pasa con `-rs` y 0 omitidas, y pasa `tests/test_puerta_calidad.py`.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_mcp_conversor.py tests/test_puerta_calidad.py.
+- [x] T12 La biblioteca normativa en el asistente: `asistente/corpus_normativo.py` la lee por su API, el índice ampliado la
+      lleva con su huella, `verificables` comprueba la cita normativa contra ella, `consultar_norma` entra en el catálogo de
+      lecturas y en el MCP, y `docs/CONJUNTO_NORMATIVO_SELLADO_077.json` queda con su sello. (RF-78, RF-79, RF-80)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_asistente_biblioteca_normativa.py` en verde, y pasan
+      `tests/test_asistente_lectura_proyecto.py`, `tests/test_asistente_corpus_ampliado.py`, `tests/test_mcp_conversor.py`
+      con su intérprete y `tests/test_auditoria_raiz.py`.
+      Hecho en <HASH-L4> (LOTE-4, DATASET-N3); pruebas: tests/test_asistente_biblioteca_normativa.py tests/test_asistente_lectura_proyecto.py tests/test_asistente_corpus_ampliado.py tests/test_mcp_conversor.py tests/test_auditoria_raiz.py.
 - [x] T7 Comprobación en la web real, tras reiniciarla: una pregunta por un skill, por una ruta de la API y por un fichero rechazado.
       Hecho cuando: las tres respuestas se ven en el navegador con su cita o su rechazo.
       Hecho el 2026-11-06: en la web del 8765 reiniciada con `main` 5c4697f4 o posterior (regla de forma de la T10), espacio de

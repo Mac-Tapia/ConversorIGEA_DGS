@@ -164,6 +164,7 @@ def _reglas_aplicadas(diagnostico: Diagnostico | None, comparacion: Comparacion 
     if diagnostico is not None:
         claves |= {v['regla'] for v in diagnostico.limites.values() if v.get('origen', '').startswith('registro')}
         claves |= set(diagnostico.tension.get('reglas') or ())  # la tensión por barra (107 T7, PIT-TEN)
+        claves |= set(getattr(diagnostico, 'reglas', ()) or ())  # años, factor de potencia y N-1 (107:RF-20)
     if comparacion is not None:
         claves |= set(comparacion.reglas)
     claves |= {c['traza']['regla']['clave'] for c in celdas}

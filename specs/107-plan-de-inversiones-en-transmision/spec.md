@@ -178,6 +178,20 @@ común.
   del plan vigente.
 - RF-18: EL SISTEMA llenará el formato de fallas e índices de desempeño (F-208) con la estadística de fallas de las
   fuentes importadas, y nombrará el hueco cuando falte un dato.
+- RF-19: EL SISTEMA tomará las entradas del PIT de las fuentes de la empresa del espacio (109:RF-25): el libro de la red
+  del área, la proyección y las alternativas, sin pedir otra vez lo que la empresa ya cargó; lo que se suba quedará en la
+  empresa para los demás módulos. Las alternativas solo entrarán si se nombran. La pestaña dirá de qué carga y de qué
+  empresa es la red convertida del espacio, y avisará si no es la del perfil.
+- RF-20: EL SISTEMA leerá del registro normativo lo que la Norma Tarifas fija para el PIT, y no de la entrada: los años
+  de la programación de la demanda (art. 5.9.4), con el año 1 en el primero pedido, y el horizonte de las alternativas
+  (art. 3.14); el factor de potencia de las barras de MT de las SET (art. 12.1.8.c) para la Q de la demanda; el N-1
+  solo en los elementos que atienden más de la demanda mínima de la norma en el caso base (art. 12.3.1); y el criterio
+  de la comparación, el costo total, el método del COyM y la fuente de la tasa (5.9.3, 11.3, 17.2 y 24.2). Cada una se
+  citará en las reglas aplicadas del expediente; lo pedido fuera de la norma se avisará, y sin la regla en el registro
+  el cálculo seguirá como antes y lo dirá.
+- RF-21: EL SISTEMA tendrá una sola biblioteca normativa, la del programa más una capa del usuario fuera del paquete,
+  que añade normas o sustituye la versión de una (lo sustituido se dice, nada se borra), para cualquier empresa,
+  estudio y módulo, y con una huella del conjunto que cambia con cualquier fichero. (Orden del usuario, 17-11.)
 
 ## Requisitos no funcionales
 - Universal: cualquier área de demanda y titular. Las pruebas usan al menos dos perfiles sintéticos.
