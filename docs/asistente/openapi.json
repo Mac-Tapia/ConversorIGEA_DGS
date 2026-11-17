@@ -1324,6 +1324,51 @@
         "title": "Body_upload_source_api_vnr_sources_upload_post",
         "type": "object"
       },
+      "Body_vnr_lanzar_api_workspaces__wid__vnr_estudio_post": {
+        "properties": {
+          "anio": {
+            "title": "Anio",
+            "type": "integer"
+          },
+          "canonical": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Canonical",
+            "type": "string"
+          },
+          "moneda": {
+            "title": "Moneda",
+            "type": "string"
+          },
+          "resolucion": {
+            "title": "Resolucion",
+            "type": "string"
+          },
+          "sector": {
+            "title": "Sector",
+            "type": "string"
+          },
+          "sector_sicodi": {
+            "title": "Sector Sicodi",
+            "type": "string"
+          },
+          "sicodi": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Sicodi",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sector",
+          "sector_sicodi",
+          "resolucion",
+          "anio",
+          "moneda",
+          "canonical",
+          "sicodi"
+        ],
+        "title": "Body_vnr_lanzar_api_workspaces__wid__vnr_estudio_post",
+        "type": "object"
+      },
       "CabeceraMesRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -9863,6 +9908,54 @@
         "title": "SedPlanoRespuesta",
         "type": "object"
       },
+      "SedVnrRespuesta": {
+        "properties": {
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "kva_adaptado": {
+            "title": "Kva Adaptado",
+            "type": "number"
+          },
+          "kva_catalogo": {
+            "title": "Kva Catalogo",
+            "type": "number"
+          },
+          "md_kw": {
+            "title": "Md Kw",
+            "type": "number"
+          },
+          "regla": {
+            "title": "Regla",
+            "type": "string"
+          },
+          "sed": {
+            "title": "Sed",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          },
+          "zona": {
+            "title": "Zona",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sed",
+          "md_kw",
+          "kva_adaptado",
+          "zona",
+          "tipo",
+          "codigo",
+          "kva_catalogo",
+          "regla"
+        ],
+        "title": "SedVnrRespuesta",
+        "type": "object"
+      },
       "SelectionIn": {
         "properties": {
           "all": {
@@ -11221,6 +11314,253 @@
           "publication_id"
         ],
         "title": "VnrDownloadIn",
+        "type": "object"
+      },
+      "VnrEstudioRespuesta": {
+        "description": "108 T28: el último estudio VNR del espacio; vacío si aún no hay ninguno.",
+        "properties": {
+          "anualidad_vnr_real": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anualidad Vnr Real"
+          },
+          "completo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completo"
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula"
+          },
+          "huecos": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Huecos"
+          },
+          "huella_sicodi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Huella Sicodi"
+          },
+          "libro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Libro"
+          },
+          "moneda": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moneda"
+          },
+          "partidas_sin_costo": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partidas Sin Costo"
+          },
+          "sector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sector"
+          },
+          "sector_sicodi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sector Sicodi"
+          },
+          "seds": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SedVnrRespuesta"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seds"
+          },
+          "sicodi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sicodi"
+          },
+          "tramos_bt": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tramos Bt"
+          },
+          "tramos_mt": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tramos Mt"
+          },
+          "vnr_ie": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vnr Ie"
+          },
+          "vnr_ine": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vnr Ine"
+          },
+          "vnr_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vnr Total"
+          },
+          "zonas_bt": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zonas Bt"
+          },
+          "zonas_mt": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zonas Mt"
+          }
+        },
+        "title": "VnrEstudioRespuesta",
         "type": "object"
       }
     }
@@ -22133,6 +22473,94 @@
           }
         },
         "summary": "Download Vnr"
+      }
+    },
+    "/api/workspaces/{wid}/vnr/estudio": {
+      "get": {
+        "description": "108 T28: el último estudio VNR del espacio (vacío si no hay).",
+        "operationId": "vnr_estado_api_workspaces__wid__vnr_estudio_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VnrEstudioRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Vnr Estado"
+      },
+      "post": {
+        "description": "108 T28: lanza el estudio VNR en un trabajo del motor con los dos ficheros subidos.",
+        "operationId": "vnr_lanzar_api_workspaces__wid__vnr_estudio_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_vnr_lanzar_api_workspaces__wid__vnr_estudio_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Vnr Lanzar"
       }
     },
     "/api/workspaces/{wid}/vnr/publications/refresh": {

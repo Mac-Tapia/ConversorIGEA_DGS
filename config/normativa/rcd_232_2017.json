@@ -1,0 +1,857 @@
+{
+ "esquema": "registro_normativo_v1",
+ "normas": [
+  {
+   "acto": "RCD 232-2017-OS/CD",
+   "titulo": "Guía de Elaboración del Valor Nuevo de Reemplazo de las Instalaciones de Distribución Eléctrica",
+   "estado_juridico": "vigente_comprobada",
+   "fecha_emision": "2017-12-27",
+   "fecha_publicacion": "2017-12-29",
+   "vigencia_desde": "2017-12-30",
+   "fecha_consulta": "2026-11-16",
+   "fichero_local": "VNR_GUIA_232_2017/rcd_232-2017.txt",
+   "sha256": "c2236182c2032033b7a13bbeef4b4ff5084c38b9075b0a22c5d9b2a07d95a399",
+   "sha256_texto": "118b070600bfd404c2755e5b5445b801c39a4b5698fb4a243996933178e3fedc",
+   "url": "https://www.osinergmin.gob.pe/Resoluciones/pdf/2017/OSINERGMIN%20No.232-2017-OS-CD.pdf",
+   "version": "texto original (Lima, 27 de diciembre de 2017); texto extraído con pypdf 6.21.4",
+   "modifica": [
+    "RCD 329-2004-OS/CD"
+   ],
+   "nota": "Publicación comprobada en la separata especial de El Peruano del viernes 29 de diciembre de 2017, pág. 4 (copia del regulador: https://www.osinergmin.gob.pe/Resoluciones/pdf/2017/R_OSINERGMIN_No.231-2017-OS-CD.pdf, sha256 24a7856025dd1e539c1a9a66980ece26abea4d29913f943e72fde45eb6d41f81). Vigencia por su art. 2: «a partir del día siguiente de su publicación en el diario oficial El Peruano», es decir, el 2017-12-30. Sustituye a la guía de 2004 (RCD 329-2004-OS/CD y sus modificatorias 336-2006 y 167-2012). Sin modificatorias de esta guía halladas al 2026-11-16: las resoluciones posteriores fijan el VNR, no cambian la guía.",
+   "reglas": [
+    {
+     "clave": "vnr.guia.vigencia",
+     "valor": "dia_siguiente_publicacion",
+     "articulo_o_anexo": "art. 2 de la resolución",
+     "cita_literal": "Artículo 2.- La presente resolución y la norma aprobada en el Artículo 1 precedente, entrarán en vigencia a partir del día siguiente de su publicación en el diario oficial El Peruano y deberán ser consignados conjuntamente con los Informes N° 621-2017-GRT y N° 612-2017-GRT en el portal de internet de Osinergmin: http://www2.osinergmin.gob.pe/Resoluciones/Resoluciones2017.aspx.",
+     "lineas": "84-93",
+     "pagina": "2",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.valorizacion.costos_ie",
+     "valor": "costos_estandar_ultima_fijacion",
+     "articulo_o_anexo": "art. 12.1",
+     "cita_literal": "12.1 Para efectos de la entrega de la información, la valorización de las instalaciones eléctricas, se realiza con los costos estándar de inversión de las instalaciones de distribución eléctrica establecidos en la última fijación del VNR. Para el caso de las INE, se realiza con los costos suministrados por las empresas de distribución eléctrica.",
+     "lineas": "498-503",
+     "pagina": "13",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.valorizacion.metrado_adaptado",
+     "valor": "capitulos_sexto_a_decimo_primero",
+     "articulo_o_anexo": "art. 12.3",
+     "cita_literal": "12.3 La valorización de las instalaciones adaptadas toma en cuenta los metrados de las instalaciones adaptadas, obtenidas de acuerdo a los criterios establecidos en la Ley de Concesiones Eléctricas y Resoluciones del Osinergmin. Para efectos de la presentación de la información del VNR, las empresas deben utilizar los criterios de adaptación que se señalan en los capítulos del Sexto al Décimo Primero.",
+     "lineas": "506-512",
+     "pagina": "13",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.costos_estandar.componentes",
+     "valor": [
+      "materiales",
+      "recursos",
+      "ingenieria",
+      "gastos_generales",
+      "interes_intercalario"
+     ],
+     "articulo_o_anexo": "art. 16.2",
+     "cita_literal": "16.2 Dichos costos consideran costos de mercado de materiales y recursos, diseños óptimos de las instalaciones y la información remitida por las empresas de distribución eléctrica en el sistema que el Osinergmin establezca para tal fin. Asimismo, consideran los costos indirectos de la empresa de distribución eléctrica como costos de ingeniería, gastos generales e interés intercalario.",
+     "lineas": "625-631",
+     "pagina": "15",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.costos_estandar.instalaciones",
+     "valor": {
+      "Media Tensión": [
+       "Red Aérea Media Tensión",
+       "Red Subterránea Media Tensión",
+       "Equipos de Protección y Seccionamiento"
+      ],
+      "Subestaciones": [
+       "Subestación Aérea Monoposte",
+       "Subestación Aérea Biposte",
+       "Subestación Convencional",
+       "Subestación Compacta Pedestal",
+       "Subestación Compacta Bóveda"
+      ]
+     },
+     "articulo_o_anexo": "art. 16.4",
+     "cita_literal": "16.4 Los costos estándar de inversión por sector típico deben ser desarrollados para las siguientes instalaciones de distribución eléctrica: 1.- Media Tensión a) Red Aérea Media Tensión. b) Red Subterránea Media Tensión. c) Equipos de Protección y Seccionamiento. 2.- Subestaciones a) Subestación Aérea Monoposte. b) Subestación Aérea Biposte. c) Subestación Convencional. d) Subestación Compacta Pedestal. e) Subestación Compacta Bóveda. 3.- Baja Tensión a) Red Aérea Servicio Particular. b) Red Aérea Servicio Particular – Neutro. c) Red Aérea Servicio Particular – Sobre estructura SP. d) Red Aérea Alumbrado Público – Sobre estructura SP. e) Red Aérea Alumbrado Público – Sobre estructura AP. f) Equipos de Alumbrado Público en Red Aérea. g) Equipos de Control del Alumbrado Público en Red Aérea. h) Red Subterránea Servicio Particular. i) Red Subterránea Servicio Particular – Neutro. j) Red Subterránea Alumbrado Público – En zanja SP. k) Red Subterránea Alumbrado Público – En zanja AP. l) Equipos de Alumbrado Público en Red Subterránea. m) Equipos de Control del Alumbrado Público en Red Subterránea. n) Estructuras de Alumbrado Público en Red Subterránea. 4.- Conexiones a) Costos de Conexión de Suministros Convenciones. b) Costos de Conexión de Suministros No Convenciones.",
+     "lineas": "641-676",
+     "pagina": "16",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.formula",
+     "valor": "VNR = MIE * CEIE + MINE * CINE",
+     "articulo_o_anexo": "art. 17.2",
+     "cita_literal": "17.2 El VNR de las instalaciones de distribución eléctrica adaptadas al 31 de diciembre del año que corresponda se obtiene mediante la siguiente fórmula: VNR = MIE * CEIE + MINE * CINE Dónde: Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 11 de 34 VNR : VNR al 31 de diciembre del año que corresponda. MIE : Metrado de IE, adaptado al 31 de diciembre del año que corresponda. CEIE : Costos Estándar de Inversión de IE al 31 de diciembre del año que corresponda. MINE : Metrado de INE, adaptado al 31 de diciembre del año que corresponda. CINE : Costos de las INE al 31 de diciembre del año que corresponda.",
+     "lineas": "687-704",
+     "pagina": "16-17",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.zonas.densidad",
+     "valor": [
+      {
+       "zona": "Muy Alta",
+       "desde_mw_km2": 4.0,
+       "hasta_mw_km2": null
+      },
+      {
+       "zona": "Alta 1",
+       "desde_mw_km2": 2.5,
+       "hasta_mw_km2": 4.0
+      },
+      {
+       "zona": "Alta 2",
+       "desde_mw_km2": 1.5,
+       "hasta_mw_km2": 2.5
+      },
+      {
+       "zona": "Media",
+       "desde_mw_km2": 0.25,
+       "hasta_mw_km2": 1.5
+      },
+      {
+       "zona": "Baja",
+       "desde_mw_km2": null,
+       "hasta_mw_km2": 0.25
+      }
+     ],
+     "articulo_o_anexo": "art. 22.1",
+     "cita_literal": "22.1 El proceso de adaptación se realiza de acuerdo a las zonas geográficas de densidad de carga (Muy Alta, Alta 1, Alta 2, Media y Baja) y tipo de ambiente (corrosivo y no corrosivo). La zona de ambiente corrosivo es un área adyacente y paralela a la costa de 7 km de ancho. De acuerdo a lo mencionado, los rangos de densidad de carga son los siguientes: Tabla N° 1 Zona Rangos de Densidad de Carga Color Muy Alta Densidad Mayor o igual a 4 MW/km2 Rojo Alta Densidad 1 Mayor o igual a 2,5 MW/km2 y menor a 4 MW/km2 Anaranjado Alta Densidad 2 Mayor o igual a 1,50 MW/km2 y menor a 2,5 MW/km2 Azul Media Densidad Mayor o igual a 0,25 MW/km2 y menor a 1,5 MW/km2 Verde Baja Densidad Menor a 0,25 MW/km2 Amarillo",
+     "lineas": "787-801",
+     "pagina": "19",
+     "caracter": "obligatoria",
+     "unidad": "MW/km2"
+    },
+    {
+     "clave": "vnr.corrosivo.ancho_km",
+     "valor": 7,
+     "articulo_o_anexo": "art. 22.1",
+     "cita_literal": "22.1 El proceso de adaptación se realiza de acuerdo a las zonas geográficas de densidad de carga (Muy Alta, Alta 1, Alta 2, Media y Baja) y tipo de ambiente (corrosivo y no corrosivo). La zona de ambiente corrosivo es un área adyacente y paralela a la costa de 7 km de ancho. De acuerdo a lo mencionado, los rangos de densidad de carga son los siguientes: Tabla N° 1 Zona Rangos de Densidad de Carga Color Muy Alta Densidad Mayor o igual a 4 MW/km2 Rojo Alta Densidad 1 Mayor o igual a 2,5 MW/km2 y menor a 4 MW/km2 Anaranjado Alta Densidad 2 Mayor o igual a 1,50 MW/km2 y menor a 2,5 MW/km2 Azul Media Densidad Mayor o igual a 0,25 MW/km2 y menor a 1,5 MW/km2 Verde Baja Densidad Menor a 0,25 MW/km2 Amarillo",
+     "lineas": "787-801",
+     "pagina": "19",
+     "caracter": "obligatoria",
+     "unidad": "km"
+    },
+    {
+     "clave": "vnr.cuadricula.lados_m",
+     "valor": [
+      1000,
+      500,
+      250
+     ],
+     "articulo_o_anexo": "art. 22.2",
+     "cita_literal": "22.2 Para determinar la densidad de carga se considera una unidad de análisis denominada Cuadrícula que es una superficie cuadrada con l ados de longitud variable. Para los fines respectivos las cuadrículas deben considerar lados de longitud de 1000, 500 y 250 m, alineadas a coordenadas UTM múltiplos de mil y tomando el sistema de coordenadas en el cual la empresa ha reportado su información.",
+     "lineas": "801-807",
+     "pagina": "19",
+     "caracter": "obligatoria",
+     "unidad": "m"
+    },
+    {
+     "clave": "vnr.ap.factor_carga",
+     "valor": 0.5,
+     "articulo_o_anexo": "art. 22.3",
+     "cita_literal": "22.3 Para elaborar la zonificación del mercado, se debe calcular la densidad de carga de cada cuadrícula, para lo cual se debe ubicar medi ante las coordenadas respectivas las SEDs que se encuentran contenidas en cada cuadrícula. La demanda del alumbrado público (AP) es asignada a cada subestación de distribución eléctrica. Se debe considerar un factor de carga igual a 0,5 y un factor de coincidencia igual a 1,0.",
+     "lineas": "807-813",
+     "pagina": "19",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.ap.factor_coincidencia",
+     "valor": 1.0,
+     "articulo_o_anexo": "art. 22.3",
+     "cita_literal": "22.3 Para elaborar la zonificación del mercado, se debe calcular la densidad de carga de cada cuadrícula, para lo cual se debe ubicar medi ante las coordenadas respectivas las SEDs que se encuentran contenidas en cada cuadrícula. La demanda del alumbrado público (AP) es asignada a cada subestación de distribución eléctrica. Se debe considerar un factor de carga igual a 0,5 y un factor de coincidencia igual a 1,0.",
+     "lineas": "807-813",
+     "pagina": "19",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.md.anio",
+     "valor": "previo_a_la_fijacion",
+     "articulo_o_anexo": "art. 22.4",
+     "cita_literal": "22.4 Para calcular la Máxima Demanda de una cuadrícula, se procede a sumar las Máximas Demandas de cada SED (distribuidor y terceros) contenidos en la cuadrícula. La Máxima Demanda corresponde a la del año previo al proceso de fijación del VNR.",
+     "lineas": "813-817",
+     "pagina": "19",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.zonificacion.proceso",
+     "valor": [
+      "1000_muy_alta",
+      "500_muy_alta",
+      "250_todas",
+      "aislada_predominante",
+      "cero_eliminada"
+     ],
+     "articulo_o_anexo": "art. 22.6",
+     "cita_literal": "22.6 El proceso de zonificación se realiza de la siguiente manera: 1.- Se inicia dividiendo el área de concesión en cuadrículas contiguas de 1000 m de lado y se procede al cálculo de la densidad de carga para cada cuadrícula, las cuadrículas con densidad de carga “Muy Alta” quedan definidas (caracterizadas). 2.- Nuevamente, se procede a dividir todas las cuadrículas que no fueron calificadas como “Muy Alta” en cuadrículas de 500 m de lado y se vuelve a calcular la densidad de carga Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 14 de 34 para cada cuadrícula de 500 m, las nuevas cuadrículas con densidad de carga resultantes “Muy Alta” quedan definidas (caracterizadas). 3.- De la misma manera, se procede a dividir todas las cuadrículas que no fueron calificadas como “Muy Alta” en cuadrículas de 250 m de lado y se vuelve a calcular la densidad de carga para cada cuadrícula de 250 m, las nuevas cuadrículas tendrán densidades de carga resultantes Muy Alta, Alta 1, Alta 2, Media y Baja Densidad. Adicionalmente se identifican cuadrículas cuya densidad de carga sea distinta de las que las rodean, en estos casos estas cuadrículas adoptan la densidad de carga predominante de las cuadrículas que la rodean. 4.- Finalmente, toda cuadrícula con densidad de carga igual a cero debe ser eliminada.",
+     "lineas": "821-841",
+     "pagina": "19-20",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.zonificacion.mapas",
+     "valor": {
+      "MT": "todas_las_sed",
+      "BT": "sed_uso_no_industrial"
+     },
+     "articulo_o_anexo": "art. 22.8",
+     "cita_literal": "22.8 Se deben construir dos mapas de densidad de carga correspondientes a la Red de Media y Baja Tensión: 1.- Mapa de Densidad de Carga de MT: Considera la totalidad de las subestaciones de la empresa y las de Terceros. 2.- Mapa de Densidad de Carga de BT: Considera todas las subestaciones de la empresa y las de terceros cuyo uso no sea industrial.",
+     "lineas": "847-855",
+     "pagina": "20",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_alta.mt",
+     "valor": {
+      "tensiones_kv": [
+       10.0,
+       22.9
+      ],
+      "postes": "concreto",
+      "aerea": {
+       "Muy Alta": {
+        "todos": "NA2XSY"
+       },
+       "otras": {
+        "desnudo_por_ambiente": {
+         "corrosivo": "CU Desnudo",
+         "no_corrosivo": "AA Desnudo"
+        },
+        "cambian": [
+         "AA Protegido",
+         "AA Desnudo",
+         "CU Protegido"
+        ],
+        "autoportante": {
+         "zonas": [
+          "Alta 1",
+          "Alta 2"
+         ],
+         "se_mantiene": true,
+         "CU Autoportante": "AL Autoportante"
+        }
+       }
+      },
+      "subterranea": {
+       "NA2XSY_en": [
+        "Muy Alta",
+        "Alta 1",
+        "Alta 2"
+       ],
+       "media_baja": {
+        "NA2XSY_desde_mm2": 95,
+        "menor": "aerea_desnudo_por_ambiente"
+       }
+      }
+     },
+     "articulo_o_anexo": "art. 23",
+     "cita_literal": "Artículo 23.- Criterios de Adaptación para la Red de Media Tensión 23.1 Utilización de postes de concreto para la red aérea y los siguientes niveles de tensión: 10 kV y 22,9 kV. 23.2 La adaptación de los tramos de media tensión debe tener en cuenta los criterios que correspondan a cada porción de dichos tramos, de acuerdo a las zonas donde se encuentren. En el caso de las porciones de tramos de red MT que dado el proceso de construcción de cuadrículas, no resulten incluidos en ninguna cuadr ícula; se asumirá que se encuentran en una Zona de Baja Densidad. 23.3 Para redes aéreas ubicadas en Zona de Muy Alta Densidad, se cambian los conductores de cobre desnudo, cobre protegido, aluminio desnudo, aluminio protegido y cables autoportantes de cobre o aluminio por cables NA2XSY. 23.4 Para redes aéreas ubicadas en Zonas de Alta 1, Alta 2, Media y Baja Densidad y en Ambiente Corrosivo, se cambian todos los conductores de aluminio protegido, aluminio desnudo y cobre protegido por su equivalente en cobre desnudo. 23.5 Para redes aéreas ubicadas en Zonas de Alta 1, Alta 2, Media y Baja Densidad y en Ambiente No Corrosivo, se cambian todos los conductores de aluminio protegido, aluminio desnudo y cobre protegido por su equivalente en aluminio desnudo. 23.6 Para redes aéreas ubicadas en Zonas de Alta Densidad 1 y Alta Densidad 2, los cables autoportantes se mantienen, si son autoportantes de cobre pasan a autoportantes de aluminio siempre y cuando exista la equivalencia respectiva. Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 15 de 34 23.7 Para redes subterráneas ubicadas en Zonas de Muy Alta Densidad, Alta Densidad 1 y Alta Densidad 2, se cambian los cables por cables NA2XSY. 23.8 Para redes subterráneas ubicadas en Zonas de Media y Baja Densidad, se mantiene la longitud de red reportada para los tramos cuyas secciones sean iguales o mayores a 95 mm2 luego de realizar el cambio de tecnología a cables NA2XSY. Las secciones que resulten menores a 95 mm2 serán sustituidas por redes aéreas de cobre o aluminio según el tipo de ambiente (corrosivo y no corrosivo). 23.9 Las tablas de equivalencia para la adaptación por nivel de tensión y por cambio tecnológico se encuentran en el Numeral 1 del Anexo 6.",
+     "lineas": "855-896",
+     "pagina": "20-21",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_media_baja.mt",
+     "valor": {
+      "tensiones_kv": [
+       10.0,
+       13.2,
+       22.9
+      ],
+      "postes": "concreto",
+      "aerea": {
+       "todas": {
+        "desnudo_por_ambiente": {
+         "corrosivo": "CU Desnudo",
+         "no_corrosivo": "AA Desnudo"
+        },
+        "autoportante": {
+         "se_mantiene": true,
+         "CU Autoportante": "AL Autoportante"
+        }
+       }
+      },
+      "subterranea": {
+       "tipo": "NA2XSY",
+       "tope_porcentaje_sistema": 14,
+       "exceso": "aerea_desnudo_por_ambiente",
+       "orden_exceso": "seccion_ascendente"
+      }
+     },
+     "articulo_o_anexo": "art. 28",
+     "cita_literal": "Artículo 28.- Criterios de Adaptación para la Red de Media Tensión 28.1 Se considera principalmente los siguientes niveles de tensión: Tabla N° 6 Tensión de línea (kV) Tipo de conexión 10,0 Delta 13,2 Estrella 22,9 Estrella 28.2 El proceso de adaptación se realiza de acuerdo a las zonas geográficas de tipo de ambiente: corrosivo y no corrosivo. La zona de ambiente corrosivo se detalla en el Numeral 4 del Anexo 6. 28.3 La adaptación de los tramos de media tensión debe tener en cuenta los criterios que correspondan a cada porción de dichos tramos, de acuerdo a las zonas donde se encuentren. 28.4 Las redes aéreas ubicadas en Zonas de Ambiente Corrosivo, se cambian por su equivalente en cobre desnudo. 28.5 Las redes aéreas ubicadas en Zonas de Ambiente No Corrosivo, se cambian por su equivalente en aluminio desnudo. 28.6 Los conductores autoportantes se mantienen, si son autoportantes de cobre pasan a autoportantes de aluminio. 28.7 Si existe red subterránea, se verifica que el porcentaje de la misma con respecto a la longitud total de la red de media tensión no supere el 14% a nivel de sistema eléctrico. Si el porcentaje es mayor se procede al cambio de los cables subterráneos por conductores de cobre o aluminio desnudo, dependiendo de su ubicación en Zona de Ambiente Corrosivo o No Corrosivo respectivamente, comenzando por las secciones más delgadas y así sucesivamente hasta no superar el porcentaje indicado. 28.8 Las redes subterráneas adaptadas son del tipo NA2XSY. 28.9 Las redes aéreas adaptadas utilizan estructuras con postes de concreto. 28.10 Las tablas de equivalencia para la adaptación por nivel de tensión y por cambio tecnológico se encuentran en el Numeral 1 del Anexo 6.",
+     "lineas": "1051-1094",
+     "pagina": "24",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_rural.mt",
+     "valor": {
+      "tensiones_kv": [
+       10.0,
+       13.2,
+       22.9
+      ],
+      "postes": "concreto",
+      "aerea_y_subterranea": {
+       "desnudo_por_ambiente": {
+        "corrosivo": "CU Desnudo",
+        "no_corrosivo": "AA Desnudo"
+       }
+      }
+     },
+     "articulo_o_anexo": "art. 33",
+     "cita_literal": "Artículo 33.- Criterios de Adaptación para la Red de Media Tensión 33.1 Se considera principalmente los siguientes niveles de tensión: Tabla N° 11 Tensión de línea (kV) Tipo de conexión 10,0 Delta 13,2 Estrella 22,9 Estrella 33.2 El proceso de adaptación se realiza de acuerdo a las zonas geográficas de tipo de ambiente: corrosivo y no corrosivo. La zona de ambiente corrosivo se detalla en el Numeral 4 del Anexo 6. 33.3 La adaptación de los tramos de media tensión debe tener en cuenta los criterios que correspondan a cada porción de dichos tramos, de acuerdo a las zonas donde se encuentren. 33.4 Las redes aéreas o subterráneas ubicadas en Zonas de Ambiente Corrosivo, se cambian por su equivalente en cobre desnudo. 33.5 Las redes aéreas o subterráneas ubicadas en Zonas de Ambiente No Corrosivo, se cambian por su equivalente en aluminio desnudo. 33.6 Las redes aéreas adaptadas utilizan estructuras con postes de concreto. 33.7 Las tablas de equivalencia para la adaptación por nivel de tensión y por cambio tecnológico se encuentran en el Numeral 1 del Anexo 6.",
+     "lineas": "1220-1252",
+     "pagina": "27",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.rural_ser.mt",
+     "valor": {
+      "tensiones_kv": [
+       10.0,
+       13.2,
+       22.9
+      ],
+      "postes": "madera",
+      "aerea_y_subterranea": {
+       "desnudo_por_ambiente": {
+        "corrosivo": "CU Desnudo",
+        "no_corrosivo": "AA Desnudo"
+       }
+      }
+     },
+     "articulo_o_anexo": "art. 38",
+     "cita_literal": "Artículo 38.- Criterios de Adaptación para la Red de Media Tensión 38.1 Se considera principalmente los siguientes niveles de tensión: Tabla N° 15 Tensión de línea (kV) Tipo de conexión 10,0 Delta 13,2 Estrella 22,9 Estrella 38.2 El proceso de adaptación se realiza de acuerdo a las zonas geográficas de tipo de ambiente: corrosivo y no corrosivo. La zona de ambiente corrosivo se detalla en el Numeral 4 del Anexo 6. 38.3 La adaptación de los tramos de media tensión debe tener en cuenta los criterios que correspondan a cada porción de dichos tramos, de acuerdo a las zonas donde se encuentren. 38.4 Las redes aéreas o subterráneas ubicadas en Zonas de Ambiente Corrosivo, se cambian por su equivalente en cobre desnudo. 38.5 Las redes aéreas o subterráneas ubicadas en Zonas de Ambiente No Corrosivo, se cambian por su equivalente en aluminio desnudo. 38.6 Las redes aéreas adaptadas utilizan estructuras con postes de madera. Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 24 de 34 38.7 Las tablas de equivalencia para la adaptación por nivel de tensión y por cambio tecnológico se encuentran en el Numeral 1 del Anexo 6.",
+     "lineas": "1351-1384",
+     "pagina": "29-30",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_alta.proteccion",
+     "valor": {
+      "aerea": {
+       "Reconectador": "Reconectador SF6",
+       "Seccionador bajo carga": "Seccionador bajo carga SF6",
+       "Seccionador fusible (cut-out)": null,
+       "Seccionador Unipolar (x1, x2, x3)": null,
+       "Seccionalizador": "Seccionalizador electrónico"
+      },
+      "subterranea": {
+       "Interruptor": "Interruptor SF6",
+       "Seccionador bajo carga": "Seccionador bajo carga SF6",
+       "Seccionador Unipolar (x1, x2, x3)": null
+      },
+      "se_mantienen": [
+       "Pararrayos",
+       "Fusible Limitador",
+       "Fusible expulsión",
+       "Conectores aislados separables",
+       "Banco de Condensadores",
+       "Banco de Regulación de Tensión"
+      ]
+     },
+     "articulo_o_anexo": "art. 24",
+     "cita_literal": "Artículo 24.- Criterios de Adaptación para Equipos de Protección y Seccionamiento 24.1 El reconocimiento de los equipos de protección y seccionamiento de la red de media tensión se realizará mediante evaluación de la información presentada por las empresas y la verificación en campo de una muestra representativa. 24.2 Se procede al reconocimiento de los equipos de acuerdo a los criterios siguientes: 1.- Función que cumplen los mismos en la red (troncales, laterales y enlaces de red MT, atención de clientes en MT, transformación MT/BT). 2.- Criterios de operación para el cumplimiento de la calidad de suministro (SAIFI, SAIDI). 24.3 Para equipos que protegen redes aéreas, se reconocen como equipos adaptados de protección los siguientes: Tabla N° 2 Equipo Existente Equipo Adaptado Reconectador Reconectador SF6 Seccionador bajo carga Seccionador bajo carga SF6 Seccionador fusible (cut-out) Se mantiene el equipo reportado Seccionador Unipolar (x1, x2, x3) Se mantiene el equipo reportado Seccionalizador Seccionalizador electrónico 24.4 Para equipos que protegen redes subterráneas, se reconocen como equipos de protección, los equipos que se encuentran instalados en las SEDs, subestaciones de seccionamiento u otro tipo de infraestructura similar que aloje en su interior equipos de protección, de acuerdo a lo siguiente: Tabla N° 3 Equipo Existente Equipo Adaptado Interruptor Interruptor SF6 Seccionador bajo carga Seccionador bajo carga SF6 Seccionador Unipolar (x1, x2, x3) Se mantiene el equipo reportado 24.5 Para los siguientes equipos: Pararrayos, Fusible Limitador, Fusible expulsión, Conectores aislados separables, Banco de Condensadores, Banco de Regulación de Tensión, Derivación trifásica tipo bóveda, pedestal, Celda exterior de protección y seccionamiento; se mantiene el equipo reportado. Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 16 de 34",
+     "lineas": "896-935",
+     "pagina": "21-22",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_media_baja.proteccion",
+     "valor": {
+      "aerea": {
+       "Reconectador": "Reconectador SF6",
+       "Seccionador bajo carga": "Seccionador bajo carga SF6",
+       "Seccionador fusible (cut-out)": null,
+       "Seccionador Unipolar (x1, x2, x3)": null,
+       "Seccionalizador": "Seccionalizador electrónico"
+      },
+      "subterranea": {
+       "Interruptor": "Interruptor SF6",
+       "Seccionador bajo carga": "Seccionador bajo carga SF6",
+       "Seccionador Unipolar (x1, x2, x3)": null
+      },
+      "se_mantienen": [
+       "Banco de Condensadores",
+       "Banco de Regulación de Tensión"
+      ],
+      "pararrayos": "sierra_selva_isoceraunico"
+     },
+     "articulo_o_anexo": "art. 29",
+     "cita_literal": "Artículo 29.- Criterios de Adaptación para Equipos de Protección y Seccionamiento 29.1 El reconocimiento de los equipos de protección y seccionamiento de la red de media tensión se realiza mediante la verificación de la información presentada por las empresas. 29.2 Se procede al reconocimiento de los equipos de acuerdo a los criterios siguientes: 1.- Función que cumplen los mismos en la red (troncales, laterales y enlaces de red MT, atención de clientes en MT, transformación MT/BT). Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 19 de 34 2.- Criterios de operación para el cumplimiento de la calidad de suministro (SAIFI, SAIDI). 29.3 Para equipos que protegen redes aéreas, se reconocen como equipos adaptados de protección los siguientes: Tabla N° 7 Equipo Existente Equipo Adaptado Reconectador Reconectador SF6 Seccionador bajo carga Seccionador bajo carga SF6 Seccionador fusible (cut-out) Se mantiene el equipo reportado Seccionador Unipolar (x1, x2, x3) Se mantiene el equipo reportado Seccionalizador Seccionalizador electrónico 29.4 Para equipos que protegen redes subterráneas, se reconocen como equipos de protección los equipos que se encuentran instalados en las subestaciones de distribución, subestaciones de seccionamiento u otro tipo de infraestructura similar que aloje en su interior equipos de protección, de acuerdo a lo siguiente: Tabla N° 8 Equipo Existente Equipo Adaptado Interruptor Interruptor SF6 Seccionador bajo carga Seccionador bajo carga SF6 Seccionador Unipolar (x1, x2, x3) Se mantiene el equipo reportado 29.5 Se considera la utilización de pararrayos en aquellas zonas de sierra y selva donde se compruebe la existencia de altos niveles isoceraúnicos. 29.6 Para los siguientes equipos: Banco de Condensadores, Banco de Regulación de Tensión; se mantiene el equipo reportado.",
+     "lineas": "1094-1133",
+     "pagina": "24-25",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_rural.proteccion",
+     "valor": {
+      "aerea": {
+       "Reconectador": "Reconectador SF6",
+       "Seccionador fusible (cut-out)": null,
+       "Seccionador Unipolar (x1, x2, x3)": null,
+       "Seccionalizador": "Seccionalizador electrónico"
+      },
+      "se_mantienen": [
+       "Banco de Condensadores",
+       "Banco de Regulación de Tensión"
+      ],
+      "pararrayos": "sierra_selva_isoceraunico"
+     },
+     "articulo_o_anexo": "art. 34",
+     "cita_literal": "Artículo 34.- Criterios de Adaptación para Equipos de Protección y Seccionamiento 34.1 El reconocimiento de los equipos de protección y seccionamiento de la red de media tensión se realiza mediante la verificación de la información presentada por las empresas. 34.2 Se procede al reconocimiento de los equipos de acuerdo a los criterios siguientes: 1.- Función que cumplen los mismos en la red (troncales, laterales y enlaces de red MT, atención de clientes en MT, transformación MT/BT). 2.- Criterios de operación para el cumplimiento de la calidad de suministro (SAIFI, SAIDI). Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 22 de 34 34.3 Para equipos que protegen redes aéreas, se reconocen como equipos adaptados de protección los siguientes: Tabla N° 12 Equipo Existente Equipo Adaptado Reconectador Reconectador SF6 Seccionador fusible (cut-out) Se mantiene el equipo reportado Seccionador Unipolar (x1, x2, x3) Se mantiene el equipo reportado Seccionalizador Seccionalizador electrónico 34.4 Se considera la utilización de pararrayos en aquellas zonas de sierra y selva donde se compruebe la existencia de altos niveles isoceraúnicos. 34.5 Para los siguientes equipos: Banco de Condensadores, Banco de Regulación de Tensión; se mantiene el equipo reportado.",
+     "lineas": "1252-1282",
+     "pagina": "27-28",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.rural_ser.proteccion",
+     "valor": {
+      "aerea": {
+       "Reconectador": "Reconectador SF6",
+       "Seccionador fusible (cut-out)": null,
+       "Seccionador Unipolar (x1, x2, x3)": null,
+       "Seccionalizador": "Seccionalizador electrónico"
+      },
+      "se_mantienen": [
+       "Banco de Condensadores",
+       "Banco de Regulación de Tensión"
+      ],
+      "pararrayos": "sierra_selva_isoceraunico"
+     },
+     "articulo_o_anexo": "art. 39",
+     "cita_literal": "Artículo 39.- Criterios de Adaptación para Equipos de Protección y Seccionamiento 39.1 El reconocimiento de los equipos de protección y seccionamiento de la red de media tensión se realiza mediante la verificación de la información presentada por las empresas. 39.2 Se procede al reconocimiento de los equipos de acuerdo a los criterios siguientes: 1.- Función que cumplen los mismos en la red (troncales, laterales y enlaces de red MT, atención de clientes en MT, transformación MT/BT). 2.- Criterios de operación para el cumplimiento de la calidad de suministro (SAIFI, SAIDI). 39.3 Para equipos que protegen redes aéreas, se reconocen como equipos adaptados de protección los siguientes: Tabla N° 16 Equipo Existente Equipo Adaptado Reconectador Reconectador SF6 Seccionador fusible (cut-out) Se mantiene el equipo reportado Seccionador Unipolar (x1, x2, x3) Se mantiene el equipo reportado Seccionalizador Seccionalizador electrónico 39.4 Se considera la utilización de pararrayos en aquellas zonas de sierra y selva donde se compruebe la existencia de altos niveles isoceraúnicos. 39.5 Para los siguientes equipos: Banco de Condensadores, Banco de Regulación de Tensión; se mantiene el equipo reportado.",
+     "lineas": "1384-1410",
+     "pagina": "30",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_alta.sed",
+     "valor": {
+      "fp": 0.9,
+      "fu": 0.75,
+      "sin_bancos_monofasicos": true,
+      "tabla": {
+       "Muy Alta": [
+        {
+         "fases": 3,
+         "mayor_que": 640,
+         "existentes": [
+          "Compacta",
+          "Convencional"
+         ],
+         "adaptada": "Convencional 3ø"
+        },
+        {
+         "fases": 3,
+         "hasta": 640,
+         "existentes": [
+          "Compacta Pedestal"
+         ],
+         "adaptada": "Compacta Pedestal 3ø"
+        },
+        {
+         "fases": 3,
+         "hasta": 640,
+         "existentes": [
+          "Compacta Bóveda"
+         ],
+         "adaptada": "Compacta Bóveda 3ø"
+        },
+        {
+         "fases": 3,
+         "hasta": 640,
+         "existentes": [
+          "Convencional"
+         ],
+         "adaptada": "Compacta Pedestal 3ø"
+        },
+        {
+         "fases": 3,
+         "hasta": 640,
+         "existentes": [
+          "SAM",
+          "SAB"
+         ],
+         "adaptada": "Compacta Pedestal 3ø"
+        }
+       ],
+       "otras": [
+        {
+         "fases": 3,
+         "mayor_que": 640,
+         "existentes": [
+          "Compacta",
+          "Convencional"
+         ],
+         "adaptada": "Convencional 3ø"
+        },
+        {
+         "fases": 3,
+         "mayor_que": 250,
+         "hasta": 640,
+         "adaptada": "Compacta Pedestal 3ø"
+        },
+        {
+         "fases": 3,
+         "mayor_que": 75,
+         "hasta": 250,
+         "adaptada": "Biposte 3ø"
+        },
+        {
+         "fases": 3,
+         "hasta": 75,
+         "adaptada": "Monoposte 3ø"
+        },
+        {
+         "fases": 1,
+         "hasta": 37.5,
+         "adaptada": "Monoposte 1ø"
+        },
+        {
+         "fases": 1,
+         "mayor_que": 37.5,
+         "adaptada": "Monoposte 3ø"
+        }
+       ]
+      }
+     },
+     "articulo_o_anexo": "art. 25",
+     "cita_literal": "Artículo 25.- Criterios de Adaptación para Subestaciones de Distribución 25.1 Para la adaptación de las subestaciones de distribución se debe calcular el kVA Adaptado según la siguiente formula: .)...( )( ufxpf kWnSubestacióladeDemandaMáximakVAAdaptado  25.2 La máxima demanda de la subestación debe ser sustentada con un diagrama de carga de 24 horas, con intervalos de 15 minutos. 25.3 El factor de potencia (f.p.) es de 0,9 y el factor de utilización (f.u.) es igual a 0,75. 25.4 Para subestaciones ubicadas en Zonas de Muy Alta Densidad, y usando el valor obtenido de kVA Adaptado y el tipo de subestación, se debe aplicar la siguiente tabla: Tabla N° 4 Zona Muy Alta densidad kVA adaptado y tipo existente SE Existente SE Adaptada > 640 kVA y 3ø Compacta o Convencional Convencional 3ø <= 640 kVA y 3ø Compacta Pedestal Compacta Pedestal 3ø <= 640 kVA y 3ø Compacta Bóveda Compacta Bóveda 3ø <= 640 kVA y 3ø Convencional Compacta Pedestal 3ø <= 640 kVA y 3ø SAM o SAB Compacta Pedestal 3ø 25.5 Para subestaciones ubicadas en Zonas de Alta 1, Alta 2, Media y Baja Densidad, usando el valor obtenido de kVA Adaptado y el tipo de subestación, se debe aplicar la siguiente tabla: Tabla N° 5 Zonas Alta 1, Alta 2, Media y Baja Densidad kVA adaptado y tipo existente SE Existente SE Adaptada > 640 kVA y 3ø Compacta o Convencional Convencional 3ø <= 640 kVA y >250 kVA y 3ø Todas las SE Compacta Pedestal 3ø <= 250 kVA y > 75 kVA y 3ø Todas las SE Biposte 3ø <= 75 kVA y 3ø Todas las SE Monoposte 3ø <= 37,5 kVA y 1ø Todas las SE Monoposte 1ø >37,5 kVA y 1ø Todas las SE Monoposte 3ø 25.6 En el adaptado no está permitido el uso de bancos compuestos por transformadores monofásicos. Se sustituyen por transformador es trifásicos o monofásicos de potencia equivalente según la tabla anterior.",
+     "lineas": "935-980",
+     "pagina": "22",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_media_baja.sed",
+     "valor": {
+      "fp": 0.9,
+      "fu": 0.85,
+      "sin_bancos_monofasicos": true,
+      "tabla": {
+       "todas": [
+        {
+         "fases": 3,
+         "mayor_que": 640,
+         "existentes": [
+          "Compacta",
+          "Convencional"
+         ],
+         "adaptada": "Convencional 3ø"
+        },
+        {
+         "fases": 3,
+         "mayor_que": 250,
+         "hasta": 640,
+         "adaptada": "Compacta Pedestal 3ø"
+        },
+        {
+         "fases": 3,
+         "mayor_que": 75,
+         "hasta": 250,
+         "adaptada": "Biposte 3ø"
+        },
+        {
+         "fases": 3,
+         "hasta": 75,
+         "adaptada": "Monoposte 3ø"
+        },
+        {
+         "fases": 1,
+         "hasta": 37.5,
+         "adaptada": "Monoposte 1ø"
+        },
+        {
+         "fases": 1,
+         "mayor_que": 37.5,
+         "adaptada": "Monoposte 3ø"
+        }
+       ]
+      }
+     },
+     "articulo_o_anexo": "art. 30",
+     "cita_literal": "Artículo 30.- Criterios de Adaptación para Subestaciones de Distribución 30.1 Para la adaptación de las subestaciones de distribución se debe calcular el kVA Adaptado según la siguiente formula: .)...( )( ufxpf kWnSubestacióladeDemandaMáximakVAAdaptado  30.2 La máxima demanda de la subestación debe ser sustentada con un diagrama de carga de 24 horas, con intervalos de 15 minutos. 30.3 El factor de potencia (f.p.) es de 0,9 y el factor de utilización (f.u.) es igual a 0,85. 30.4 Las subestaciones se adaptan usando el valor obtenido de kVA Adaptado y el tipo de subestación, y se debe aplicar la siguiente tabla: Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 20 de 34 Tabla N° 9 kVA adaptado y tipo existente SE Existente SE Adaptada > 640 kVA y 3ø Compacta o Convencional Convencional 3ø <= 640 kVA y >250 kVA y 3ø Todas las SE Compacta Pedestal 3ø <= 250 kVA y > 75 kVA y 3ø Todas las SE Biposte 3ø <= 75 kVA y 3ø Todas las SE Monoposte 3ø <= 37,5 kVA y 1ø Todas las SE Monoposte 1ø >37,5 kVA y 1ø Todas las SE Monoposte 3ø 30.5 En el adaptado no está permitido el uso de bancos compuestos por transformadores monofásicos. Se sustituyen por transformador es trifásicos o monofásicos de potencia equivalente según la tabla anterior.",
+     "lineas": "1133-1167",
+     "pagina": "25-26",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_rural.sed",
+     "valor": {
+      "fp": 0.9,
+      "fu": 0.9,
+      "sin_bancos_monofasicos": true,
+      "tabla": {
+       "todas": [
+        {
+         "fases": 3,
+         "mayor_que": 75,
+         "adaptada": "Biposte 3ø"
+        },
+        {
+         "fases": 3,
+         "hasta": 75,
+         "adaptada": "Monoposte 3ø"
+        },
+        {
+         "fases": 1,
+         "hasta": 37.5,
+         "adaptada": "Monoposte 1ø"
+        },
+        {
+         "fases": 1,
+         "mayor_que": 37.5,
+         "adaptada": "Monoposte 3ø"
+        }
+       ]
+      }
+     },
+     "articulo_o_anexo": "art. 35",
+     "cita_literal": "Artículo 35.- Criterios de Adaptación para Subestaciones de Distribución 35.1 Para la adaptación de las subestaciones de distribución se debe calcular el kVA Adaptado según la siguiente formula: .)...( )( ufxpf kWnSubestacióladeDemandaMáximakVAAdaptado  35.2 La máxima demanda de la subestación debe ser sustentada con un diagrama de carga de 24 horas, con intervalos de 15 minutos. 35.3 El factor de potencia (f.p.) es de 0,9 y el factor de utilización (f.u.) es igual a 0,9. 35.4 Para subestaciones, se adaptan usando el valor obtenido de kVA Adaptado y el tipo de subestación, y se debe aplicar la siguiente tabla: Tabla N° 13 kVA adaptado y tipo existente SE Existente SE Adaptada > 75 kVA 3ø Todas las SED Biposte 3ø <= 75 kVA y 3ø Todas las SED Monoposte 3ø <= 37,5 kVA y 1ø Todas las SED Monoposte 1ø >37,5 kVA y 1ø Todas las SED Monoposte 3ø 35.5 En el adaptado no está permitido el uso de bancos compuestos por transformadores monofásicos. Se sustituyen por transformador es trifásicos o monofásicos de potencia equivalente según la tabla anterior.",
+     "lineas": "1282-1312",
+     "pagina": "28",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.rural_ser.sed",
+     "valor": {
+      "fp": 0.9,
+      "fu": 0.9,
+      "sin_bancos_monofasicos": true,
+      "tabla": {
+       "todas": [
+        {
+         "fases": 3,
+         "mayor_que": 75,
+         "adaptada": "Biposte 3ø"
+        },
+        {
+         "fases": 3,
+         "hasta": 75,
+         "adaptada": "Monoposte 3ø"
+        },
+        {
+         "fases": 1,
+         "hasta": 37.5,
+         "adaptada": "Monoposte 1ø"
+        },
+        {
+         "fases": 1,
+         "mayor_que": 37.5,
+         "adaptada": "Monoposte 3ø"
+        }
+       ]
+      }
+     },
+     "articulo_o_anexo": "art. 40",
+     "cita_literal": "Artículo 40.- Criterios de Adaptación para Subestaciones de Distribución 40.1 Para la adaptación de las subestaciones de distribución se debe calcular el kVA Adaptado según la siguiente formula: .)...( )( ufxpf kWnSubestacióladeDemandaMáximakVAAdaptado  40.2 La máxima demanda de la subestación debe ser sustentada con un diagrama de carga de 24 horas, con intervalos de 15 minutos. 40.3 El factor de potencia (f.p.) es de 0,9 y el factor de utilización (f.u.) es igual a 0,9. 40.4 Para subestaciones, se adaptan usando el valor obtenido de kVA Adaptado y el tipo de subestación, se debe aplicar la siguiente tabla: Tabla N° 17 kVA adaptado y tipo existente SE Existente SE Adaptada > 75 kVA 3ø Todas las SED Biposte 3ø <= 75 kVA y 3ø Todas las SED Monoposte 3ø <= 37,5 kVA y 1ø Todas las SED Monoposte 1ø >37,5 kVA y 1ø Todas las SED Monoposte 3ø Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 25 de 34 40.5 En el adaptado no está permitido el uso de bancos compuestos por transformadores monofásicos. Se sustituyen por transformador es trifásicos o monofásicos de potencia equivalente según la tabla anterior.",
+     "lineas": "1410-1443",
+     "pagina": "30-31",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_alta.bt",
+     "valor": {
+      "tension_v": 220,
+      "postes": "concreto",
+      "Muy Alta": "NA2XY",
+      "aerea_otras": "AL Autoportante",
+      "subterranea_otras": {
+       "sed_aerea": "AL Autoportante",
+       "sed_no_aerea": "NA2XY",
+       "reparto_aereo": {
+        "A.1.1": 71,
+        "A.1.3": 29
+       },
+       "orden_29": "bifasicas_luego_trifasicas"
+      }
+     },
+     "articulo_o_anexo": "art. 26",
+     "cita_literal": "Artículo 26.- Criterios de Adaptación para la Red de Baja Tensión 26.1 La adaptación de los tramos de baja tensión debe tener en cuenta los criterios que correspondan a cada porción de dichos tramos, de acuerdo a las zonas donde se encuentren. En el caso de las porciones de tramos de red BT que no resulten incluidos en ninguna cuadrícula, se asumirá que se encuentran en u na Zona de Baja Densidad. El procedimiento a seguir se describe a continuación: 1.- Para redes aéreas o subterráneas ubicadas en Zona de Muy Alta Densidad, se cambian todos los conductores o cables por su equivalente en cables NA2XY unipolar. Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 17 de 34 2.- Para redes aéreas ubicadas en Zonas Alta 1, Alta 2, Media y Baja Densidad, se cambian todos los conductores por su equivalente en autoportante de aluminio. 3.- Para redes subterráneas ubicadas en Zonas Al ta 1, Alta 2, Media y Baja Densidad se procede de la siguiente manera: a) Si la red pertenece a una subestación Monoposte o Biposte luego de la adaptación, se cambian todos los cables por autoportantes de aluminio. Las redes de Alumbrado Público en la misma zanja del Servicio Particular se cambian por redes aéreas de Alumbrado Público sobre postes del Servicio Particular. Las redes Alumbrado Público en zanja exclusiva se cambian por redes aéreas de Alumbrado Público sobre postes exclusivos de Alumbrado Público. b) Si la red pertenece a una subestación convencional, compacta pedestal o compacta bóveda luego de la adaptación, se realiza el cambio por su equivalente en cables NA2XY unipolar. 26.2 Las tablas de equivalencia de las redes de baja tensión, para la adaptación por cambio tecnológico se encuentra en el Numeral 2 del Anexo 6. 26.3 Cuando se adaptan las redes subterráneas de servicio particular y se cambian por redes aéreas, en cada subestación de distribución, se asigna el 71% al subcomponente “A.1.1: redes aéreas de servicio particular” y el 29% restante al subcomponente “A.1.3: redes aéreas de servicio particular sobre postes del servicio pa rticular”. Para establecer el 29% se toma primero las redes bifásicas de menor a mayor ca libre, luego las redes trifásicas de menor a mayor calibre hasta alcanzar el porcentaje mencionado. 26.4 Para las redes adaptadas de baja tensión, se considera 220 V como nivel de tensión. 26.5 Para las redes adaptadas como aéreas, se consideran estructuras con postes de concreto. 26.6 Para las redes de alumbrado público ubicadas en túneles y pasos a desnivel, que utilizan cables libres de halógeno, se mantiene lo informado por la empresa.",
+     "lineas": "980-1023",
+     "pagina": "22-23",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_media_baja.bt",
+     "valor": {
+      "tensiones_v": [
+       220,
+       380
+      ],
+      "postes": "concreto",
+      "aerea": "AL Autoportante",
+      "subterranea": {
+       "tipo": "NA2XY",
+       "tope_porcentaje_sistema": 2,
+       "exceso": "AL Autoportante",
+       "orden_exceso": "bifasicas_luego_trifasicas"
+      }
+     },
+     "articulo_o_anexo": "art. 31",
+     "cita_literal": "Artículo 31.- Criterios de Adaptación para la Red de Baja Tensión 31.1 Se considera principalmente los siguientes niveles de tensión: Tabla N° 10 Tensión de línea (V) Tipo de conexión 220 Delta 380 Estrella 31.2 Para redes aéreas, se cambian todos los conductores por su equivalente en autoportante de aluminio. 31.3 Para redes subterráneas, se verifica que el porcentaje con respecto a la longitud total de la red de baja tensión no supere el 2% a nivel de sistema eléctrico. Si el porcentaje es mayor se procede al cambio de los cables subterráneos por conductores autoportantes de aluminio comenzando por las redes bifásicas de menor a mayor calibre, luego las redes de trifásicas de menor a mayor calibre y así sucesivamente hasta no superar el porcentaje indicado. 31.4 Las redes subterráneas, se cambian por su equivalente en NA2XY unipolar. 31.5 Las redes aéreas adaptadas utilizan estructuras con postes de concreto.",
+     "lineas": "1167-1193",
+     "pagina": "26",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_rural.bt",
+     "valor": {
+      "tensiones_v": [
+       220,
+       380
+      ],
+      "postes": "concreto",
+      "aerea_y_subterranea": "AL Autoportante"
+     },
+     "articulo_o_anexo": "art. 36",
+     "cita_literal": "Artículo 36.- Criterios de Adaptación para la Red de Baja Tensión 36.1 Se considera principalmente los siguientes niveles de tensión: Tabla N° 14 Tensión de línea (V) Tipo de conexión 220 Delta 380 Estrella Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 23 de 34 36.2 Para redes aéreas y subterráneas, se cambian todos los conductores y cables por su equivalente en autoportante de aluminio. 36.3 Las redes aéreas adaptadas utilizan estructuras con postes de concreto.",
+     "lineas": "1312-1332",
+     "pagina": "28-29",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.rural_ser.bt",
+     "valor": {
+      "tensiones_v": [
+       220,
+       380
+      ],
+      "postes": "madera",
+      "aerea_y_subterranea": "AL Autoportante"
+     },
+     "articulo_o_anexo": "art. 41",
+     "cita_literal": "Artículo 41.- Criterios de Adaptación para la Red de Baja Tensión 41.1 Se considera principalmente los siguientes niveles de tensión: Tabla N° 18 Tensión de línea (V) Tipo de conexión 220 Delta 380 Estrella 41.2 Para redes aéreas y subterráneas, se cambian todos los conductores y cables por su equivalente en autoportante de aluminio. 41.3 Las redes aéreas adaptadas utilizan estructuras con postes de madera.",
+     "lineas": "1443-1461",
+     "pagina": "31",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_alta.ap",
+     "valor": {
+      "tecnologias": [
+       "Sodio",
+       "LED"
+      ],
+      "tabla_anexo6": 10,
+      "pastorales": "metalicos",
+      "vano_postes_ap_m": 33.33,
+      "poste_ap_m": 9
+     },
+     "articulo_o_anexo": "art. 27",
+     "cita_literal": "Artículo 27.- Criterios de Adaptación para Equipos de Alumbrado Público 27.1 Se reconoce como tecnología adaptada, las lámparas de vapor de sodio y LEDs. 27.2 En el caso de lámparas LED se reconocen las que se encuentren instaladas. 27.3 Para la adaptación de los pastorales se reconocen pastorales metálicos. 27.4 La tabla de equivalencia de equipos de alumbrado público se determina de acuerdo al criterio de flujo luminoso y se encuentra en el Numeral 3 del Anexo 6. 27.5 La cantidad de equipos de control de alumbrado público se mantiene según lo reportado, distribuyéndose proporcionalmente a la longitud de red adaptada de alumbrado público aérea y subterránea, por subestación. 27.6 La cantidad de postes exclusivos de la red Subterránea de Alumbrado Público es ajustada según la longitud total de red subter ránea de Alumbrado Público por subestación, considerando postes de concreto de 9 m y un vano promedio de 33,33 m. 27.7 Para el caso de lámparas especiales ubicadas en túneles y pasos a desnivel, se mantiene lo informado por la empresa. Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 18 de 34 CAPÍTULO SÉPTIMO CRITERIOS DE ADAPTACIÓN DE LAS INSTALACIONES ELÉCTRICAS DEL SECTOR TÍPICO URBANO DE MEDIA Y BAJA DENSIDAD",
+     "lineas": "1023-1051",
+     "pagina": "23-24",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_media_baja.ap",
+     "valor": {
+      "tecnologias": [
+       "Sodio",
+       "LED"
+      ],
+      "tabla_anexo6": 11,
+      "pastorales": "metalicos",
+      "vano_postes_ap_m": 33.33,
+      "poste_ap_m": 9
+     },
+     "articulo_o_anexo": "art. 32",
+     "cita_literal": "Artículo 32.- Criterios de Adaptación para Equipos de Alumbrado Público 32.1 Se reconoce como tecnología adaptada, las lámparas de vapor de sodio y LEDs. 32.2 En el caso de Lámparas LED se reconocen las que se encuentren instaladas. 32.3 Para la adaptación de los pastorales se reconoce pastorales metálicos. 32.4 La tabla de equivalencia de equipos de alumbrado público se determina de acuerdo al criterio de flujo luminoso y se encuentra en el Numeral 3 del Anexo 6. 32.5 La cantidad de equipos de control de alumbrado público se mantiene según lo reportado distribuyéndose proporcionalmente a la longitud de red adaptada de alumbrado público aérea y subterránea por subestación. 32.6 La cantidad de postes exclusivos de la red Subterránea de Alumbrado Público es ajustada según la longitud total de red subte rránea de Alumbrado Público por subestación, considerando postes de concreto de 9 m y un vano promedio de 33,33 m. Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 21 de 34 CAPÍTULO OCTAVO CRITERIOS DE ADAPTACIÓN DE LAS INSTALACIONES ELÉCTRICAS DEL SECTOR TÍPICO URBANO RURAL",
+     "lineas": "1193-1220",
+     "pagina": "26-27",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.urbano_rural.ap",
+     "valor": {
+      "tecnologias": [
+       "Sodio",
+       "LED"
+      ],
+      "tabla_anexo6": 12,
+      "sodio_max_w": 70,
+      "led_max_w": 40,
+      "pastorales": "reportados"
+     },
+     "articulo_o_anexo": "art. 37",
+     "cita_literal": "Artículo 37.- Criterios de Adaptación para Equipos de Alumbrado Público 37.1 Se reconoce como tecnología adaptada, las lámparas de vapor de sodio de hasta 70 W y LED. 37.2 En el caso de Lámparas LED se reconocen las que se encuentren instaladas y como potencia máxima 40 W. 37.3 Para la adaptación de los pastorales se reconoce pastorales reportados. 37.4 La tabla de equivalencia de equipos de alumbrado público se determina de acuerdo al criterio de flujo luminoso y se encuentra en el Numeral 3 del Anexo 6. CAPÍTULO NOVENO CRITERIOS DE ADAPTACIÓN DE LAS INSTALACIONES ELÉCTRICAS DE LOS SECTORES TÍPICOS RURAL Y SER",
+     "lineas": "1332-1351",
+     "pagina": "29",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.rural_ser.ap",
+     "valor": {
+      "tecnologias": [
+       "Sodio",
+       "LED"
+      ],
+      "tabla_anexo6": 13,
+      "sodio_max_w": 50,
+      "led_max_w": 40,
+      "pastorales": "reportados"
+     },
+     "articulo_o_anexo": "art. 42",
+     "cita_literal": "Artículo 42.- Criterios de Adaptación para Equipos de Alumbrado Público 42.1 Se reconoce como tecnología adaptada, las lámparas de vapor de sodio de hasta 50 W y LED. 42.2 En el caso de Lámparas LED se reconocen las que se encuentren instaladas y como potencia máxima 40 W. 42.3 Para la adaptación de los pastorales se reconoce pastorales reportados. 42.4 La tabla de equivalencia de equipos de alumbrado público se determina de acuerdo al criterio de flujo luminoso y se encuentra en el Numeral 3 del Anexo 6.",
+     "lineas": "1461-1475",
+     "pagina": "31",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.zonas_historicas",
+     "valor": {
+      "subterranea_solo_si_instalada": true,
+      "mt": "NA2XSY",
+      "bt": "NA2XY",
+      "sed_subterraneas": [
+       "Compacta Pedestal",
+       "Compacta Bóveda"
+      ]
+     },
+     "articulo_o_anexo": "art. 43",
+     "cita_literal": "Artículo 43.- Criterios de Adaptación en Zonas Históricas y Monumentales 43.1 Para redes de Media Tensión, el reconocimiento de redes subterráneas sólo es efectivo cuando éstas se encuentren instaladas. Se realiza el cambio de tecnología a cables NA2XSY. En caso contrario, se reconoce las redes aéreas existentes, adaptadas de acuerdo a los criterios que correspondan según las zonas geográficas indicadas. 43.2 Para subestaciones de distribución, el reconocimiento de subestaciones subterráneas sólo es efectivo cuando éstas se encuentren instaladas. Se considera subestaciones del tipo compacta pedestal y compacta bóveda. En caso contrario, se reconoce las subestaciones aéreas existentes, adaptadas de acuerdo a los criterios que correspondan según las zonas geográficas indicadas. Osinergmin – Gerencia de Regulación de Tarifas División de Distribución Eléctrica Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica Página 26 de 34 43.3 Para Redes de Baja Tensión, el reconocimiento de redes subterráneas sólo es efectivo cuando éstas se encuentren instaladas. Se realiza el cambio de tecnología a cable NA2XY unipolar. En caso contrario, se reconoce las redes aéreas existentes, adaptadas de acuerdo a los criterios de adaptación que correspondan según las zonas geográficas indicadas.",
+     "lineas": "1478-1498",
+     "pagina": "31-32",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.calles_angostas",
+     "valor": {
+      "ancho_calle_max_m": 12,
+      "subterranea_o_autoportante_solo_si_instalada": true,
+      "sed_subterraneas": [
+       "Compacta Pedestal",
+       "Compacta Bóveda"
+      ]
+     },
+     "articulo_o_anexo": "art. 44",
+     "cita_literal": "Artículo 44.- Criterios de Adaptación por Distancias Mínimas de Seguridad 44.1 Los criterios que se indican a continuación se aplican, siempre y cuando, no se pueda cumplir con las distancias mínimas de seguridad en calles con anchos menores o iguales a 12 metros: 44.2 Para redes de Media Tensión, el rec onocimiento de tramos de redes aéreas autoportantes o redes subterráneas, sólo es efectivo cuando éstos se encuentren instalados. Se reconoce la tecnología adaptada que corresponda según las zonas geográficas indicadas. 44.3 Para subestaciones de distribución, el re conocimiento de subestaciones de distribución subterráneas sólo es efectivo cuando éstas se encuentren instaladas. Se considera subestaciones del tipo compacta pedestal y compacta bóveda. En caso contrario, se reconoce las subestaciones aéreas existentes, adaptadas de acuerdo a los criterios que correspondan según las zonas indicadas.",
+     "lineas": "1498-1515",
+     "pagina": "32",
+     "caracter": "obligatoria"
+    },
+    {
+     "clave": "vnr.adaptacion.ine",
+     "valor": {
+      "nivel": "unidad_de_gestion",
+      "tope": "metrado_reportado"
+     },
+     "articulo_o_anexo": "art. 45",
+     "cita_literal": "Artículo 45.- Generalidades 45.1 El dimensionamiento de las INE adaptadas, se realizará a nivel de Unidades de Gestión (UG), considerando la estructura organizacional, número de trabajadores, número de clientes y ratios representativos de dimensionamiento de terrenos, edificaciones y vehículos. En ningún caso, este dimensionamiento debe exceder los metrados de las INE reportadas por las empresas. 45.2 El reconocimiento de los costos asociados a las INE, es determinado a partir de la revisión de la información reportada por las empresas.",
+     "lineas": "1517-1528",
+     "pagina": "32",
+     "caracter": "obligatoria"
+    }
+   ]
+  }
+ ]
+}

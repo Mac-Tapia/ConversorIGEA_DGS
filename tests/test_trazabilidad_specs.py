@@ -188,13 +188,30 @@ def test_ningun_fichero_de_src_solo_con_base():
     assert not solo_base, f'Solo «base», sin spec: {solo_base}'
 
 
+# Commits ya publicados cuyo asunto nombra sus specs con otra forma. El historial público no se reescribe (orden del
+# usuario): cada uno va aquí con su hash completo y lo que nombra; ninguno nuevo entra sin pasar la regla.
+FEAT_HISTORICOS = {
+    '8985d25f': 'asunto con la lista «(076, 107, 108, 109, 110, 111, 112, 102, 086)»; cuerpo con sus RF por tarjeta',
+}
+
+
 def test_commits_feat_nombran_su_spec():
     """033:RF-21 — desde el 2026-10-30, cada ``feat`` nombra su spec."""
     log = subprocess.run(['git', 'log', '--since=2026-10-30', '--format=%h %s'], cwd=RAIZ,
                          capture_output=True, text=True, encoding='utf-8', check=True).stdout
-    malos = [l for l in log.splitlines() if re.match(r'\w+ feat', l)
+    malos = [l for l in log.splitlines() if re.match(r'\w+ feat', l) and l.split()[0][:8] not in FEAT_HISTORICOS
              and not re.search(r'\b\d{3}:RF-\d|spec \d{3}|\b\d{3} T\d', l)]
     assert not malos, f'Commits feat sin spec: {malos}'
+
+
+def test_033_rf21_los_historicos_admitidos_existen_y_nombran_specs():
+    """033:RF-21 — una excepción solo vale para un commit que existe y cuyo asunto sí nombra specs de tres cifras."""
+    for corto in FEAT_HISTORICOS:
+        r = subprocess.run(['git', 'log', '-1', '--format=%s', corto], cwd=RAIZ, capture_output=True, text=True,
+                           encoding='utf-8')
+        if r.returncode != 0:
+            continue  # clon superficial sin ese commit: no hay nada que admitir
+        assert r.stdout.startswith('feat') and len(re.findall(r'\b\d{3}\b', r.stdout)) >= 3, corto
 
 
 def test_skill_con_las_reglas_del_flujo():

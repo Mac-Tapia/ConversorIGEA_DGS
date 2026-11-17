@@ -51,6 +51,35 @@ reescribirlo.
    (red unida, escenario año 0, datos que faltan): con el plan a la vista antes de
    aplicarlo.
 
+Las pestañas de la web son: **Resultados**, **Plano de la red** (spec 111), **Cargas en
+DIgSILENT** (calibración, cargas nuevas, obras, estudios, transferencias, informes y
+planificación), **Evolución de clientes fijos** (spec 105), **Estudio VNR** (spec 108),
+**Catálogo de parámetros**, **Sistema completo** y **Asistente** (spec 026). Cada campo de
+fichero tiene un único selector con el origen: una carpeta local o, si se activan (vienen
+apagadas), Google Drive y OneDrive; las salidas se guardan también en local (spec 109).
+Los informes pueden enviarse por correo desde la web (spec 110).
+
+### Estudio VNR
+
+Calcula el Valor Nuevo de Reemplazo según la «Guía de Elaboración del VNR de las
+Instalaciones de Distribución Eléctrica» de Osinergmin (RCD 232-2017-OS/CD; spec 108,
+RF-20 a RF-25): **VNR = MIE × CEIE + MINE × CINE** (art. 17.2).
+
+- **Entradas**: el `canonical.json` del inventario VNR-GIS que deja el conversor y el libro
+  (o el zip) del SICODI de la última fijación; el sector típico de la Guía y el del SICODI,
+  la resolución, el año y la moneda de los costos (el SICODI va en US$).
+- **Proceso**: zonificación por densidad de carga en cuadrículas UTM de 1000, 500 y 250 m
+  (art. 22); adaptación de cada tramo, SED, equipo y luminaria según su sector típico, su
+  zona y su ambiente (arts. 23 a 44), con las tablas de equivalencia del Anexo 6;
+  codificación con el Anexo 2 y valorización con los costos estándar del SICODI.
+- **Salida**: el resultado con sus huecos nombrados (una partida sin costo o una SED sin
+  demanda nunca cuenta como cero) y el libro de los formatos A1 y C1 del Anexo 5.
+- La Guía está en el registro normativo (`config/normativa/rcd_232_2017.json`) y sus anexos
+  en `config/vnr/`, generados del PDF oficial por `tools/normativa/generar_guia_vnr_232.py`
+  con su huella; la Tabla 14 del Anexo 6, que es una imagen, se lee por OCR.
+- El VNR de las instalaciones reales es la entrada de la TIR de la empresa; el aVNR del VAD
+  sigue saliendo de la empresa modelo.
+
 ### Cargas en DIgSILENT
 
 Esta pestaña trabaja sobre un proyecto que **ya existe** en DIgSILENT, sin convertir
@@ -253,6 +282,10 @@ La fuente de verdad para cada conversión es:
 | Informes de estudio y factibilidad (spec 017) | Estudio probado con IN111 y TA225; factibilidad pendiente, con otro alimentador |
 | Arquitectura por capas (spec 002) | En curso: su estado, en `specs/README.md` |
 | Confiabilidad y capacidad (spec 012) | Implementada: falta su prueba en DIgSILENT |
+| Plan de inversiones en transmisión, PIT (spec 107) | Implementado en la web; su estado, en `specs/README.md` |
+| Estudio de costos del VAD (spec 108) | Implementado por partes; incluye el VNR según la Guía de Osinergmin (RCD 232-2017) y la pestaña «Estudio VNR» |
+| Fuentes en la nube y envío por correo (specs 109 y 110) | Implementados como opciones apagadas por defecto; sin OAuth de Google Cloud en la 1.0 |
+| Plano de la red y editor sobre el plano (spec 111) | Plano en la web; el editor, en curso |
 
 El estado al día de cada spec está en `specs/README.md`.
 

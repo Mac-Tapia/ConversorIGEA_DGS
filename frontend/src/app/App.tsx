@@ -8,6 +8,7 @@ import { Ctx, type AppCtx } from '../shared/context';
 import { betaActiva } from '../shared/edicion';
 import { Asistente } from '../features/asistente/Asistente';
 import { AvisosDatos, EspacioNoDisponible } from './AvisosDatos';
+import { EstudioVnr } from '../features/vnr/EstudioVnr';
 import { CargasTab } from '../features/powerfactory/CargasTab';
 import { EvolucionFijas } from '../features/clientesfijos/EvolucionFijas';
 import { FeedersPanel } from '../features/conversion/FeedersPanel';
@@ -37,6 +38,8 @@ const TABS = [
   { id: 'cargas', label: 'Cargas en DIgSILENT', el: <CargasTab />, entradas: false },
   // Spec 105: con los libros de medición del espacio; no necesita la red cargada.
   { id: 'clientes_fijos', label: 'Evolución de clientes fijos', el: <EvolucionFijas />, entradas: false },
+  // 108 T28: el VNR según la Guía (RCD 232-2017) desde el inventario VNR-GIS y el SICODI; no necesita la red cargada.
+  { id: 'vnr', label: 'Estudio VNR', el: <EstudioVnr />, entradas: false },
   { id: 'catalog', label: 'Catálogo de parámetros', el: <CatalogTab />, entradas: true },
   { id: 'system', label: 'Sistema completo', el: <SystemTab />, entradas: true },
   // Spec 026: la consola de órdenes no necesita la entrega cargada (puede pedir que se cargue).

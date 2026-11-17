@@ -1,0 +1,274 @@
+{
+ "esquema": "vnr_anexo5_v1",
+ "acto": "RCD 232-2017-OS/CD",
+ "anexo": "Anexo 5, Formatos de Valorización y Metrados",
+ "sha256_pdf": "c2236182c2032033b7a13bbeef4b4ff5084c38b9075b0a22c5d9b2a07d95a399",
+ "sha256_texto": "118b070600bfd404c2755e5b5445b801c39a4b5698fb4a243996933178e3fedc",
+ "generado_por": "tools/normativa/generar_guia_vnr_232.py",
+ "formatos": {
+  "A1": "Resumen del VNR a nivel de Empresa",
+  "B1": "Resumen del VNR a nivel de Sector Típico",
+  "C1": "Resumen del VNR a nivel de Sistema Eléctrico",
+  "D1": "Resumen del VNR a nivel de Empresa"
+ },
+ "filas": [
+  {
+   "grupo": "1",
+   "componente": "A",
+   "item": "A1",
+   "descripcion": "Red Aérea",
+   "unidad": "km"
+  },
+  {
+   "grupo": "1",
+   "componente": "A",
+   "item": "A2",
+   "descripcion": "Red Aérea - Neutro",
+   "unidad": "km"
+  },
+  {
+   "grupo": "1",
+   "componente": "B",
+   "item": "B",
+   "descripcion": "Red Subterránea",
+   "unidad": "km"
+  },
+  {
+   "grupo": "1",
+   "componente": "C",
+   "item": "C1",
+   "descripcion": "Interruptores",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "1",
+   "componente": "C",
+   "item": "C2",
+   "descripcion": "Seccionadores",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "1",
+   "componente": "C",
+   "item": "C3",
+   "descripcion": "Reconectadores",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "1",
+   "componente": "C",
+   "item": "C4",
+   "descripcion": "Otros",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "2",
+   "componente": "A",
+   "item": "A1",
+   "descripcion": "SED Aérea Monoposte",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "2",
+   "componente": "A",
+   "item": "A2",
+   "descripcion": "SED Aérea Biposte",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "2",
+   "componente": "A",
+   "item": "A3",
+   "descripcion": "SED Convencional",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "2",
+   "componente": "A",
+   "item": "A4",
+   "descripcion": "SED Compacta Pedestal",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "2",
+   "componente": "A",
+   "item": "A5",
+   "descripcion": "SED Compacta Bóveda",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "2",
+   "componente": "B",
+   "item": "B1",
+   "descripcion": "SE Elevadora/Reductora",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "2",
+   "componente": "B",
+   "item": "B2",
+   "descripcion": "SE de Seccionamiento",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "3",
+   "componente": "A",
+   "item": "A1.1",
+   "descripcion": "Servicio Particular",
+   "unidad": "km"
+  },
+  {
+   "grupo": "3",
+   "componente": "A",
+   "item": "A1.2",
+   "descripcion": "Servicio Particular - Neutro",
+   "unidad": "km"
+  },
+  {
+   "grupo": "3",
+   "componente": "A",
+   "item": "A1.3",
+   "descripcion": "Servicio Particular - Sobre estructura SP",
+   "unidad": "km"
+  },
+  {
+   "grupo": "3",
+   "componente": "A",
+   "item": "A2",
+   "descripcion": "Alumbrado Público - Sobre estructura SP",
+   "unidad": "km"
+  },
+  {
+   "grupo": "3",
+   "componente": "A",
+   "item": "A3",
+   "descripcion": "Alumbrado Público - Sobre estructura AP",
+   "unidad": "km"
+  },
+  {
+   "grupo": "3",
+   "componente": "A",
+   "item": "A4",
+   "descripcion": "Equipos de Alumbrado Público",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "3",
+   "componente": "A",
+   "item": "A5",
+   "descripcion": "Equipos de Control del Alumbrado Público",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "3",
+   "componente": "B",
+   "item": "B1.1",
+   "descripcion": "Servicio Particular",
+   "unidad": "km"
+  },
+  {
+   "grupo": "3",
+   "componente": "B",
+   "item": "B1.2",
+   "descripcion": "Servicio Particular - Neutro",
+   "unidad": "km"
+  },
+  {
+   "grupo": "3",
+   "componente": "B",
+   "item": "B2",
+   "descripcion": "Alumbrado Público - En zanja SP",
+   "unidad": "km"
+  },
+  {
+   "grupo": "3",
+   "componente": "B",
+   "item": "B3",
+   "descripcion": "Alumbrado Público - En zanja AP",
+   "unidad": "km"
+  },
+  {
+   "grupo": "3",
+   "componente": "B",
+   "item": "B4",
+   "descripcion": "Equipos de Alumbrado Público",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "3",
+   "componente": "B",
+   "item": "B5",
+   "descripcion": "Equipos de Control del Alumbrado Público",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "3",
+   "componente": "B",
+   "item": "B6",
+   "descripcion": "Estructuras de la Red Subteránea Alumbrado Público",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "4",
+   "componente": "A",
+   "item": "A",
+   "descripcion": "Terrenos",
+   "unidad": "m2"
+  },
+  {
+   "grupo": "4",
+   "componente": "B",
+   "item": "B",
+   "descripcion": "Edificios y Construcciones",
+   "unidad": "m2"
+  },
+  {
+   "grupo": "4",
+   "componente": "C",
+   "item": "C",
+   "descripcion": "Equipos y Vehículos de Transporte y Carga",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "4",
+   "componente": "D",
+   "item": "D",
+   "descripcion": "Equipos de Almacén, Maestranza, Medición y Control",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "4",
+   "componente": "E",
+   "item": "E",
+   "descripcion": "Equipos de Comunicación",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "4",
+   "componente": "F",
+   "item": "F",
+   "descripcion": "Equipos de Oficina",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "4",
+   "componente": "G",
+   "item": "G",
+   "descripcion": "Equipos de Tecnologías de Información",
+   "unidad": "unidad"
+  },
+  {
+   "grupo": "4",
+   "componente": "H",
+   "item": "H",
+   "descripcion": "Otros Equipos",
+   "unidad": "unidad"
+  }
+ ],
+ "notas": [
+  "(1) Cantidad total de cada item",
+  "(2) Se calcula dividiendo el costo total de cada item entre la cantidad total correspondiente"
+ ],
+ "unidad_costo": "US$/unidad",
+ "unidad_subtotal": "miles de US$"
+}

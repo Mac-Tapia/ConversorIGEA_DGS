@@ -592,3 +592,30 @@ def avnr_ser(costo: CostoEstandar, *, fp: float, registro: RegistroNormativo, ta
     total = None if retribucion is None or reposicion is None else retribucion + reposicion
     return AvnrSer(costo.moneda_anexo, vnr, factor_anualidad, avnr, fp, factor, retribucion, reposicion, total, regla,
                    dict(sorted(criterios.items())), tasa_pasiva, tuple(huecos))
+
+
+@dataclass(frozen=True)
+class AnualidadVnrReal:
+    """La anualidad del VNR de las instalaciones REALES adaptadas (Guía del VNR, RCD 232-2017) con los mismos factores
+    del VAD (108:RF-24): entrada de la TIR de la empresa (arts. 70 y 71 de la LCE) y contraste con la empresa modelo.
+    No es el aVNR del VAD, que sale siempre del costo estándar de la empresa modelo (:func:`avnr_ser`)."""
+
+    vnr: float | None
+    vida_util_anios: int
+    factor_anualidad: float
+    anualidad: float | None
+    criterios: Mapping[str, Mapping[str, str]]
+    huella_costos: str
+    huecos: tuple[str, ...]
+
+
+def anualidad_vnr_real(resultado, *, registro: RegistroNormativo, fecha: str | None = None) -> AnualidadVnrReal:
+    """``resultado`` es un :class:`~convertersmartgrid.vad.vnr_guia.ResultadoVnr`; sin total (huecos), sin anualidad."""
+    from .vnr_guia import ResultadoVnr
+    if not isinstance(resultado, ResultadoVnr):
+        raise VadError('la anualidad del VNR real sale de un cálculo de la Guía del VNR (vnr_guia.calcular_vnr)')
+    vida, factor, criterios = _factores(registro, fecha)
+    huecos = tuple(f'{x.item.codigo}: {x.motivo}' for x in resultado.huecos)
+    vnr = resultado.total
+    return AnualidadVnrReal(vnr, vida, factor, None if vnr is None else vnr * factor, dict(sorted(criterios.items())),
+                            resultado.huella_costos, huecos)

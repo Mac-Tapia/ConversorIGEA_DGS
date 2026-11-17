@@ -280,5 +280,34 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       cálculo que cambió. Empieza cuando la T11 esté integrada. (Aclaración de RF-12; RF-12)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_informe_definitivo.py` en verde; una respuesta
       sin sustento o sin la tabla o el cálculo que cambió se rechaza.
+- [ ] T23. Registro de la Guía del VNR: `config/normativa/rcd_232_2017.json` con la vigencia del art. 2, la Tabla
+      N° 1 y los parámetros del art. 22, la fórmula del art. 17.2 y las instalaciones del art. 16.4, con su cita
+      literal; `tools/extraer_anexo6_vnr.py` saca las tablas de equivalencia del Anexo 6 del PDF oficial a
+      `config/vnr/anexo6_equivalencias.json` con su huella. (RF-20)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_guia_registro.py` en verde; una tabla que no
+      cuadra con el texto oficial se rechaza; el extractor reproduce el JSON byte a byte desde el PDF.
+- [ ] T24. Zonificación del art. 22: `vad/vnr_guia.py` arma las cuadrículas UTM de 1000, 500 y 250 m, su densidad con
+      la máxima demanda de las SED (FC 0,5 y coincidencia 1,0 para el AP), la zona de la Tabla N° 1, la predominante
+      para la aislada y los mapas de MT y BT. (RF-21)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_guia_zonas.py` en verde con dos concesiones
+      sintéticas; una cuadrícula de 1000 m con 4 MW queda «Muy Alta» y no se subdivide; una de densidad cero se elimina.
+- [ ] T25. Adaptación por sector típico (arts. 23 a 44) con las tablas del Anexo 6: metrado existente y adaptado por
+      tramo, con la regla que lo cambió. (RF-22)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_guia_adaptacion.py` en verde; un tramo aéreo
+      de AA protegido en zona Media no corrosiva sale en AA desnudo; uno subterráneo de 70 mm² en zona Baja pasa a aéreo.
+- [ ] T26. Cálculo del VNR (art. 17.2) con el SICODI de `CSG_SICODI` leído por `costos_fuentes.leer_sicodi`, formatos
+      A1, B1, C1 y D1 del Anexo 5, y la anualidad del VNR real con los factores del VAD para la TIR y el contraste
+      con la empresa modelo. (RF-23, RF-24)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_guia_calculo.py` en verde; una instalación
+      sin costo estándar es un hueco nombrado; la anualidad del VNR real cita sus factores y la huella del SICODI.
+- [ ] T27. Altas y bajas del art. 18 entre dos inventarios VNR, con su efecto en el VNR. (RF-25)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_guia_altas_bajas.py` en verde.
+- [ ] T28. Estudio VNR desde el inventario VNR-GIS y la web: `vad/vnr_estudio.py` lee cada código VNR del Anexo 2 al
+      revés, zonifica con las SED del inventario, adapta, codifica y valoriza; `web/vnr_api.py` lo lanza como trabajo
+      del motor con el canonical.json y el SICODI subidos, y la pestaña «Estudio VNR» entrega el libro de formatos.
+      (RF-21, RF-22, RF-23, RF-24)
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vnr_estudio.py tests/test_vnr_api.py` en verde
+      y `npm test` en verde; una SED sin demanda y un código desconocido son huecos nombrados; un fichero que no es un
+      inventario o un SICODI se rechaza con 400.
 - [ ] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
-      Hecho cuando: `grep -rnoE "108:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-19 y la suite está en verde.
+      Hecho cuando: `grep -rnoE "108:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-25 y la suite está en verde.

@@ -73,6 +73,25 @@ empresa modelo**: esta spec crea ese cálculo separado.
   registro normativo, y dirá qué indicador no cumple.
 - RF-19: EL SISTEMA dimensionará el VNR no eléctrico y los costos comerciales, indirectos y adicionales de la empresa
   modelo por los rubros del TdR registrado, y el costo real solo entrará como referencia rotulada.
+- RF-20: EL SISTEMA registrará la «Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica» (RCD
+  232-2017-OS/CD) con su vigencia según su art. 2, y cada regla del cálculo del VNR citará su artículo o anexo; las
+  tablas de equivalencia del Anexo 6 saldrán del texto oficial con su huella, nunca escritas a mano.
+- RF-21: CUANDO el operador pida la zonificación de una concesión, EL SISTEMA calculará la densidad de carga por
+  cuadrículas UTM de 1000, 500 y 250 m con la máxima demanda de las SED del año previo, asignará las zonas de la Tabla
+  N° 1 del art. 22, aplicará la zona predominante a la cuadrícula aislada, eliminará las de densidad cero y dará un
+  mapa de MT (todas las SED) y otro de BT (las SED de uso no industrial).
+- RF-22: EL SISTEMA adaptará el metrado de cada instalación eléctrica con los criterios de su sector típico, su zona y
+  su ambiente (arts. 23 a 44), y con las tablas del Anexo 6 para el cambio de tensión y de tecnología; cada tramo
+  conservará su metrado existente junto al adaptado y la regla que lo cambió.
+- RF-23: EL SISTEMA calculará el VNR al 31 de diciembre del año que corresponda como VNR = MIE × CEIE + MINE × CINE
+  (art. 17.2), con los costos estándar de inversión de la última fijación (art. 12.1) tomados del libro SICODI
+  registrado (`CSG_SICODI`); una instalación sin costo estándar quedará como hueco nombrado, nunca como cero.
+- RF-24: EL SISTEMA entregará el VNR en los formatos de valorización y metrados del Anexo 5 (A1, B1, C1 y D1). El VNR
+  adaptado de las instalaciones reales es la entrada de la verificación de la TIR de la empresa (arts. 70 y 71 de la
+  LCE, citados por la RCD 232-2017) y se contrasta con el costo estándar de la empresa modelo con su anualidad
+  calculada con los mismos factores del VAD; el aVNR del VAD sigue saliendo de la empresa modelo, nunca del VNR real.
+- RF-25: CUANDO el operador cargue dos inventarios VNR consecutivos de una empresa, EL SISTEMA determinará las altas y
+  bajas del año (art. 18) por instalación y su efecto en el VNR.
 
 ## Requisitos no funcionales
 - Fidelidad geométrica: el hash de los vértices de cada tramo del modelo rural coincide con el del VNR.
@@ -129,3 +148,14 @@ Las listas (tablas, apartados, estructura, conceptos, variantes, indicadores y r
 coeficientes salen del registro normativo (RF-9, RF-13): un periodo nuevo cambia el registro, no el código. Lo que el
 TdR no da en forma cerrada (la fórmula de reajuste) o remite a otra norma sin transcribir (los límites de la NTCSE y
 la NTCSER) queda como hueco nombrado con su cita.
+
+## Enmienda del 2026-11-16 (VNR según la Guía, RCD 232-2017-OS/CD)
+Orden del usuario: «debe haber ese módulo, porque es parte y está vinculado al cálculo del VAD». Hasta hoy el conversor
+solo leía el VNR que fija Osinergmin (inventario VNR-GIS, RCD 184-2026-OS/CD) y valoraba la red de la empresa modelo
+con el SICODI; no calculaba el VNR de las instalaciones reales adaptadas. La Guía (texto oficial en
+`CSG_FUENTES_NORMATIVAS`, «OSINERGMIN No.232-2017-OS-CD.pdf», sha256/16 c2236182c2032033) fija la fórmula del art. 17.2,
+la zonificación del art. 22, los criterios de adaptación por sector típico (capítulos sexto a décimo primero) y los
+anexos 2 (códigos VNR), 4 (estructura de datos), 5 (formatos A1, B1, C1 y D1) y 6 (tablas de equivalencia). RF-20 a
+RF-25 amplían esta spec en vez de abrir otra: el VNR adaptado de la empresa real es la entrada de la TIR que decide si
+el VAD es definitivo (arts. 70 y 71 de la LCE); el aVNR del VAD sigue saliendo de la empresa modelo. El VNR que fija
+Osinergmin sirve de referencia para contrastar el cálculo.

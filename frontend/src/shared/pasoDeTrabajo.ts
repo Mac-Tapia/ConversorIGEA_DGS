@@ -24,6 +24,7 @@ export const PASOS = {
   asistente: { titulo: 'Asistente', pestana: 'asistente' },
   // 105: el tablero de la evolución de los clientes fijos, en su propia pestaña.
   'clientes-fijos': { titulo: 'Evolución de clientes fijos', pestana: 'clientes_fijos' },
+  vnr: { titulo: 'Estudio VNR', pestana: 'vnr' },
   // 111: el estudio de una variación del plano, en su pestaña.
   plano: { titulo: 'Plano de la red', pestana: 'plano' },
 } as const;
@@ -45,6 +46,7 @@ export const PASO_DE_TRABAJO: Record<string, PasoId | null> = {
   convert_group: 'alimentadores', archive: 'alimentadores', powerfactory: 'alimentadores',
   catalog: 'catalogo',
   clientes_fijos_evolucion: 'clientes-fijos',
+  vnr_estudio: 'vnr',
   plano_estudiar: 'plano',
   system: 'sistema',
   // Cargas en DIgSILENT.

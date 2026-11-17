@@ -275,6 +275,15 @@ GENERICOS_CON_RAZON = {
         '108 (VAD-A6 T7): Reglamento de la Ley General de Electrificación Rural (DS 018-2020-EM, modificado por el '
         'DS 003-2026-EM), que el costeo del SER de los TdR del VAD de Osinergmin usa para el FFR; norma nacional, '
         'igual para toda distribuidora, con su cita; ninguna regla de una empresa.',
+    'config/vnr/anexo2_codigos.json':
+        '108 (VNR-232, RF-20): Anexo 2 «Lista de Códigos VNR» y tablas 9 y 11 del Anexo 3 de la Guía del VNR de '
+        'Osinergmin (RCD 232-2017-OS/CD), sacados del PDF oficial por su generador con la huella del texto; norma pública del regulador.',
+    'config/vnr/anexo5_formatos.json':
+        '108 (VNR-232, RF-24): Anexo 5 «Formatos de Valorización y Metrados» de la Guía del VNR de Osinergmin (RCD 232-2017-OS/CD), '
+        'sacado del PDF oficial por su generador; igual para toda distribuidora.',
+    'config/vnr/anexo6_equivalencias.json':
+        '108 (VNR-232, RF-20): Anexo 6 «Tablas de Equivalencia» de la Guía del VNR de Osinergmin (RCD 232-2017-OS/CD), del PDF '
+        'oficial por su generador (la Tabla 14 por OCR); norma pública, ninguna regla de una empresa.',
 }
 _COMODIN = re.compile(r'[*?\[\]]')
 

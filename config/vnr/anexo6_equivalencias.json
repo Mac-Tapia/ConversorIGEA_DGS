@@ -1,0 +1,4669 @@
+{
+ "esquema": "vnr_anexo6_v1",
+ "acto": "RCD 232-2017-OS/CD",
+ "anexo": "Anexo 6, Tablas de Equivalencia",
+ "sha256_pdf": "c2236182c2032033b7a13bbeef4b4ff5084c38b9075b0a22c5d9b2a07d95a399",
+ "sha256_texto": "118b070600bfd404c2755e5b5445b801c39a4b5698fb4a243996933178e3fedc",
+ "generado_por": "tools/normativa/generar_guia_vnr_232.py",
+ "tablas": [
+  {
+   "tabla": 1,
+   "nivel": "MT",
+   "pagina": 167,
+   "linea": 7414,
+   "columnas": [
+    "2,3 kV a 10 kV",
+    "5,8 kV a 10 kV"
+   ],
+   "filas": [
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 16,
+     "valores": [
+      16,
+      16
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 25,
+     "valores": [
+      16,
+      16
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 35,
+     "valores": [
+      16,
+      16
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 50,
+     "valores": [
+      16,
+      25
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 70,
+     "valores": [
+      16,
+      35
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 85,
+     "valores": [
+      16,
+      50
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 95,
+     "valores": [
+      25,
+      50
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 120,
+     "valores": [
+      25,
+      70
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 125,
+     "valores": [
+      25,
+      70
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 150,
+     "valores": [
+      35,
+      70
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 185,
+     "valores": [
+      50,
+      95
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 235,
+     "valores": [
+      50,
+      120
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 240,
+     "valores": [
+      50,
+      150
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 35,
+     "valores": [
+      35,
+      35
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 70,
+     "valores": [
+      35,
+      35
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 120,
+     "valores": [
+      35,
+      70
+     ]
+    }
+   ],
+   "tipo": "tension"
+  },
+  {
+   "tabla": 2,
+   "nivel": "MT",
+   "pagina": 168,
+   "linea": 7439,
+   "columnas": [
+    "2,3 kV a 10 kV",
+    "5,8 kV a 10 kV"
+   ],
+   "filas": [
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 10,
+     "valores": [
+      10,
+      10
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 16,
+     "valores": [
+      10,
+      10
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 25,
+     "valores": [
+      10,
+      16
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 35,
+     "valores": [
+      10,
+      16
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 50,
+     "valores": [
+      10,
+      25
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 70,
+     "valores": [
+      16,
+      35
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 95,
+     "valores": [
+      25,
+      50
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 120,
+     "valores": [
+      25,
+      70
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 25,
+     "valores": [
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 35,
+     "valores": [
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 50,
+     "valores": [
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 70,
+     "valores": [
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 10,
+     "valores": [
+      10,
+      10
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 16,
+     "valores": [
+      10,
+      10
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 25,
+     "valores": [
+      10,
+      16
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 35,
+     "valores": [
+      10,
+      16
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 50,
+     "valores": [
+      10,
+      25
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 70,
+     "valores": [
+      16,
+      35
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 85,
+     "valores": [
+      16,
+      50
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 95,
+     "valores": [
+      25,
+      50
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 120,
+     "valores": [
+      25,
+      70
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 125,
+     "valores": [
+      25,
+      70
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 135,
+     "valores": [
+      35,
+      70
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 150,
+     "valores": [
+      35,
+      70
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 185,
+     "valores": [
+      50,
+      95
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 10,
+     "valores": [
+      10,
+      10
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 16,
+     "valores": [
+      10,
+      10
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 25,
+     "valores": [
+      10,
+      16
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 35,
+     "valores": [
+      10,
+      16
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 50,
+     "valores": [
+      10,
+      25
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 70,
+     "valores": [
+      16,
+      35
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 95,
+     "valores": [
+      25,
+      50
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 120,
+     "valores": [
+      25,
+      70
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 150,
+     "valores": [
+      35,
+      70
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 240,
+     "valores": [
+      50,
+      150
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 300,
+     "valores": [
+      70,
+      150
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 400,
+     "valores": [
+      95,
+      240
+     ]
+    }
+   ],
+   "tipo": "tension"
+  },
+  {
+   "tabla": 3,
+   "nivel": "MT",
+   "pagina": 169,
+   "linea": 7487,
+   "columnas": [
+    "2,3 kV a 10 kV",
+    "5,8 kV a 10 kV"
+   ],
+   "filas": [
+    {
+     "origen": "NKY",
+     "seccion_mm2": 10,
+     "valores": [
+      10,
+      10
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 16,
+     "valores": [
+      10,
+      10
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 25,
+     "valores": [
+      10,
+      16
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 35,
+     "valores": [
+      10,
+      16
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 50,
+     "valores": [
+      10,
+      25
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 70,
+     "valores": [
+      16,
+      35
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 95,
+     "valores": [
+      25,
+      50
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 120,
+     "valores": [
+      25,
+      70
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 150,
+     "valores": [
+      35,
+      70
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 185,
+     "valores": [
+      50,
+      95
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 200,
+     "valores": [
+      50,
+      120
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 240,
+     "valores": [
+      50,
+      150
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 300,
+     "valores": [
+      70,
+      185
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 400,
+     "valores": [
+      95,
+      240
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 500,
+     "valores": [
+      120,
+      300
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 25,
+     "valores": [
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 35,
+     "valores": [
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 50,
+     "valores": [
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 70,
+     "valores": [
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 95,
+     "valores": [
+      25,
+      50
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 120,
+     "valores": [
+      25,
+      70
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 150,
+     "valores": [
+      35,
+      70
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 240,
+     "valores": [
+      50,
+      150
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 10,
+     "valores": [
+      16,
+      16
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 16,
+     "valores": [
+      16,
+      16
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 25,
+     "valores": [
+      16,
+      16
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 35,
+     "valores": [
+      16,
+      16
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 50,
+     "valores": [
+      16,
+      25
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 70,
+     "valores": [
+      16,
+      35
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 95,
+     "valores": [
+      25,
+      50
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 120,
+     "valores": [
+      25,
+      70
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 150,
+     "valores": [
+      35,
+      70
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 240,
+     "valores": [
+      50,
+      150
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 10,
+     "valores": [
+      16,
+      16
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 16,
+     "valores": [
+      16,
+      16
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 25,
+     "valores": [
+      16,
+      16
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 35,
+     "valores": [
+      16,
+      16
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 50,
+     "valores": [
+      16,
+      25
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 70,
+     "valores": [
+      16,
+      35
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 95,
+     "valores": [
+      25,
+      50
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 120,
+     "valores": [
+      25,
+      70
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 150,
+     "valores": [
+      35,
+      70
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 240,
+     "valores": [
+      50,
+      150
+     ]
+    }
+   ],
+   "tipo": "tension"
+  },
+  {
+   "tabla": 4,
+   "nivel": "MT",
+   "pagina": 170,
+   "linea": 7547,
+   "columnas": [
+    "AA Desnudo",
+    "CU Desnudo",
+    "N2XSY",
+    "NA2XSY",
+    "Cu Autoportante",
+    "Al Autoportante"
+   ],
+   "filas": [
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 16,
+     "valores": [
+      16,
+      10,
+      16,
+      25,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 25,
+     "valores": [
+      25,
+      16,
+      16,
+      35,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 35,
+     "valores": [
+      35,
+      25,
+      25,
+      50,
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 50,
+     "valores": [
+      50,
+      25,
+      35,
+      70,
+      35,
+      50
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 70,
+     "valores": [
+      70,
+      35,
+      50,
+      95,
+      50,
+      70
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 85,
+     "valores": [
+      95,
+      50,
+      70,
+      150,
+      50,
+      70
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 95,
+     "valores": [
+      95,
+      50,
+      70,
+      150,
+      70,
+      95
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 120,
+     "valores": [
+      120,
+      70,
+      95,
+      185,
+      95,
+      120
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 125,
+     "valores": [
+      120,
+      70,
+      95,
+      185,
+      95,
+      120
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 150,
+     "valores": [
+      150,
+      95,
+      150,
+      240,
+      120,
+      150
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 185,
+     "valores": [
+      185,
+      120,
+      185,
+      400,
+      150,
+      185
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 235,
+     "valores": [
+      240,
+      150,
+      240,
+      500,
+      185,
+      185
+     ]
+    },
+    {
+     "origen": "AA Desnudo",
+     "seccion_mm2": 240,
+     "valores": [
+      240,
+      150,
+      240,
+      500,
+      185,
+      185
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 25,
+     "valores": [
+      25,
+      16,
+      16,
+      25,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 35,
+     "valores": [
+      35,
+      16,
+      25,
+      50,
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 50,
+     "valores": [
+      35,
+      25,
+      35,
+      70,
+      35,
+      50
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 70,
+     "valores": [
+      70,
+      35,
+      50,
+      95,
+      50,
+      70
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 95,
+     "valores": [
+      95,
+      50,
+      70,
+      120,
+      70,
+      95
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 120,
+     "valores": [
+      95,
+      70,
+      95,
+      185,
+      95,
+      120
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 150,
+     "valores": [
+      120,
+      70,
+      120,
+      240,
+      120,
+      150
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 185,
+     "valores": [
+      150,
+      95,
+      150,
+      300,
+      120,
+      185
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 10,
+     "valores": [
+      16,
+      10,
+      16,
+      25,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 16,
+     "valores": [
+      25,
+      16,
+      25,
+      50,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 25,
+     "valores": [
+      50,
+      25,
+      35,
+      70,
+      35,
+      50
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 35,
+     "valores": [
+      70,
+      35,
+      50,
+      95,
+      50,
+      70
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 50,
+     "valores": [
+      95,
+      50,
+      70,
+      150,
+      70,
+      70
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 70,
+     "valores": [
+      120,
+      70,
+      95,
+      240,
+      95,
+      120
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 95,
+     "valores": [
+      150,
+      95,
+      150,
+      400,
+      120,
+      150
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 120,
+     "valores": [
+      185,
+      120,
+      185,
+      500,
+      150,
+      185
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 25,
+     "valores": [
+      35,
+      16,
+      25,
+      50,
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 35,
+     "valores": [
+      50,
+      25,
+      35,
+      70,
+      35,
+      50
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 50,
+     "valores": [
+      70,
+      35,
+      50,
+      95,
+      50,
+      70
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 70,
+     "valores": [
+      95,
+      50,
+      70,
+      150,
+      70,
+      95
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 95,
+     "valores": [
+      120,
+      70,
+      95,
+      185,
+      95,
+      120
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 120,
+     "valores": [
+      150,
+      95,
+      120,
+      240,
+      120,
+      150
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 150,
+     "valores": [
+      185,
+      95,
+      150,
+      400,
+      150,
+      185
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 185,
+     "valores": [
+      240,
+      120,
+      240,
+      500,
+      185,
+      {
+       "material": "CU Autoportante",
+       "seccion_mm2": 185
+      }
+     ]
+    }
+   ],
+   "tipo": "tecnologia"
+  },
+  {
+   "tabla": 5,
+   "nivel": "MT",
+   "pagina": 171,
+   "linea": 7594,
+   "columnas": [
+    "AA Desnudo",
+    "CU Desnudo",
+    "N2XSY",
+    "NA2XSY",
+    "Cu Autoportante",
+    "Al Autoportante"
+   ],
+   "filas": [
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 10,
+     "valores": [
+      16,
+      10,
+      16,
+      25,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 16,
+     "valores": [
+      25,
+      16,
+      25,
+      35,
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 25,
+     "valores": [
+      50,
+      25,
+      35,
+      70,
+      35,
+      50
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 35,
+     "valores": [
+      70,
+      35,
+      50,
+      95,
+      50,
+      70
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 50,
+     "valores": [
+      95,
+      50,
+      70,
+      150,
+      70,
+      95
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 70,
+     "valores": [
+      120,
+      70,
+      95,
+      185,
+      95,
+      120
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 85,
+     "valores": [
+      150,
+      95,
+      120,
+      300,
+      120,
+      150
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 95,
+     "valores": [
+      150,
+      95,
+      150,
+      300,
+      120,
+      185
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 120,
+     "valores": [
+      185,
+      120,
+      185,
+      500,
+      185,
+      {
+       "material": "CU Desnudo",
+       "seccion_mm2": 120
+      }
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 125,
+     "valores": [
+      185,
+      120,
+      185,
+      500,
+      185,
+      {
+       "material": "CU Desnudo",
+       "seccion_mm2": 125
+      }
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 135,
+     "valores": [
+      240,
+      150,
+      240,
+      500,
+      185,
+      {
+       "material": "CU Desnudo",
+       "seccion_mm2": 135
+      }
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 150,
+     "valores": [
+      240,
+      150,
+      240,
+      500,
+      185,
+      {
+       "material": "CU Desnudo",
+       "seccion_mm2": 150
+      }
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 185,
+     "valores": [
+      {
+       "material": "CU Desnudo",
+       "seccion_mm2": 185
+      },
+      185,
+      300,
+      {
+       "material": "CU Desnudo",
+       "seccion_mm2": 185
+      },
+      {
+       "material": "CU Desnudo",
+       "seccion_mm2": 185
+      },
+      {
+       "material": "CU Desnudo",
+       "seccion_mm2": 185
+      }
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 10,
+     "valores": [
+      16,
+      10,
+      10,
+      25,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 16,
+     "valores": [
+      25,
+      16,
+      16,
+      35,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 25,
+     "valores": [
+      35,
+      16,
+      25,
+      50,
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 35,
+     "valores": [
+      50,
+      25,
+      35,
+      70,
+      35,
+      50
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 50,
+     "valores": [
+      70,
+      35,
+      50,
+      95,
+      50,
+      70
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 70,
+     "valores": [
+      95,
+      50,
+      70,
+      120,
+      70,
+      95
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 95,
+     "valores": [
+      120,
+      70,
+      95,
+      185,
+      95,
+      120
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 120,
+     "valores": [
+      150,
+      95,
+      120,
+      240,
+      120,
+      150
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 150,
+     "valores": [
+      185,
+      95,
+      150,
+      300,
+      150,
+      185
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 240,
+     "valores": [
+      240,
+      150,
+      240,
+      500,
+      185,
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 240
+      }
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 300,
+     "valores": [
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 300
+      },
+      150,
+      300,
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 300
+      }
+     ]
+    },
+    {
+     "origen": "N2XSY",
+     "seccion_mm2": 400,
+     "valores": [
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 400
+      },
+      400,
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 400
+      }
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 25,
+     "valores": [
+      16,
+      10,
+      16,
+      25,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 35,
+     "valores": [
+      25,
+      16,
+      16,
+      35,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 50,
+     "valores": [
+      35,
+      16,
+      25,
+      50,
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 70,
+     "valores": [
+      50,
+      25,
+      35,
+      70,
+      35,
+      50
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 95,
+     "valores": [
+      70,
+      35,
+      50,
+      95,
+      50,
+      70
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 120,
+     "valores": [
+      70,
+      50,
+      70,
+      120,
+      70,
+      95
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 150,
+     "valores": [
+      95,
+      50,
+      70,
+      150,
+      70,
+      95
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 185,
+     "valores": [
+      120,
+      70,
+      95,
+      185,
+      95,
+      120
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 240,
+     "valores": [
+      150,
+      70,
+      120,
+      240,
+      120,
+      150
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 300,
+     "valores": [
+      150,
+      95,
+      150,
+      300,
+      150,
+      185
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 400,
+     "valores": [
+      185,
+      120,
+      150,
+      400,
+      150,
+      {
+       "material": "NA2XSY",
+       "seccion_mm2": 400
+      }
+     ]
+    },
+    {
+     "origen": "NA2XSY",
+     "seccion_mm2": 500,
+     "valores": [
+      240,
+      120,
+      240,
+      500,
+      185,
+      {
+       "material": "NA2XSY",
+       "seccion_mm2": 500
+      }
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 10,
+     "valores": [
+      16,
+      10,
+      10,
+      25,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 16,
+     "valores": [
+      25,
+      10,
+      16,
+      25,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 25,
+     "valores": [
+      25,
+      16,
+      25,
+      25,
+      25,
+      25
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 35,
+     "valores": [
+      35,
+      16,
+      25,
+      35,
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 50,
+     "valores": [
+      50,
+      25,
+      35,
+      50,
+      35,
+      50
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 70,
+     "valores": [
+      70,
+      35,
+      50,
+      70,
+      50,
+      70
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 95,
+     "valores": [
+      95,
+      50,
+      70,
+      120,
+      50,
+      95
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 120,
+     "valores": [
+      95,
+      70,
+      70,
+      150,
+      70,
+      120
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 150,
+     "valores": [
+      120,
+      70,
+      95,
+      185,
+      95,
+      120
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 185,
+     "valores": [
+      150,
+      95,
+      120,
+      240,
+      120,
+      150
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 200,
+     "valores": [
+      150,
+      95,
+      150,
+      240,
+      120,
+      150
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 240,
+     "valores": [
+      185,
+      120,
+      150,
+      300,
+      150,
+      185
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 300,
+     "valores": [
+      240,
+      120,
+      185,
+      500,
+      185,
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 185
+      }
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 400,
+     "valores": [
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 300
+      },
+      150,
+      300,
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 300
+      }
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 500,
+     "valores": [
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 400
+      },
+      400,
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "N2XSY",
+       "seccion_mm2": 400
+      }
+     ]
+    }
+   ],
+   "tipo": "tecnologia"
+  },
+  {
+   "tabla": 6,
+   "nivel": "MT",
+   "pagina": 172,
+   "linea": 7656,
+   "columnas": [
+    "AA Desnudo",
+    "CU Desnudo",
+    "N2XSY",
+    "NA2XSY"
+   ],
+   "filas": [
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 25,
+     "valores": [
+      35,
+      16,
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 35,
+     "valores": [
+      50,
+      25,
+      25,
+      50
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 50,
+     "valores": [
+      70,
+      35,
+      35,
+      70
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 70,
+     "valores": [
+      95,
+      50,
+      50,
+      95
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 95,
+     "valores": [
+      120,
+      70,
+      70,
+      150
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 120,
+     "valores": [
+      150,
+      95,
+      95,
+      185
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 150,
+     "valores": [
+      185,
+      120,
+      120,
+      240
+     ]
+    },
+    {
+     "origen": "N2YSEY",
+     "seccion_mm2": 240,
+     "valores": [
+      240,
+      150,
+      185,
+      400
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 10,
+     "valores": [
+      16,
+      10,
+      10,
+      25
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 16,
+     "valores": [
+      25,
+      16,
+      16,
+      25
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 25,
+     "valores": [
+      35,
+      16,
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 35,
+     "valores": [
+      50,
+      25,
+      35,
+      50
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 50,
+     "valores": [
+      70,
+      35,
+      50,
+      70
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 70,
+     "valores": [
+      95,
+      50,
+      70,
+      95
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 95,
+     "valores": [
+      120,
+      70,
+      95,
+      120
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 120,
+     "valores": [
+      150,
+      95,
+      120,
+      185
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 150,
+     "valores": [
+      185,
+      95,
+      150,
+      240
+     ]
+    },
+    {
+     "origen": "NYSY",
+     "seccion_mm2": 240,
+     "valores": [
+      240,
+      150,
+      240,
+      400
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 10,
+     "valores": [
+      16,
+      10,
+      10,
+      25
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 16,
+     "valores": [
+      25,
+      16,
+      16,
+      25
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 25,
+     "valores": [
+      35,
+      16,
+      25,
+      35
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 35,
+     "valores": [
+      50,
+      25,
+      35,
+      70
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 50,
+     "valores": [
+      70,
+      35,
+      50,
+      70
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 70,
+     "valores": [
+      95,
+      50,
+      70,
+      120
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 95,
+     "valores": [
+      120,
+      70,
+      95,
+      150
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 120,
+     "valores": [
+      150,
+      95,
+      120,
+      185
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 150,
+     "valores": [
+      185,
+      95,
+      150,
+      240
+     ]
+    },
+    {
+     "origen": "N2YSY",
+     "seccion_mm2": 240,
+     "valores": [
+      240,
+      120,
+      240,
+      500
+     ]
+    }
+   ],
+   "tipo": "tecnologia"
+  },
+  {
+   "tabla": 7,
+   "nivel": "BT",
+   "pagina": 173,
+   "linea": 7703,
+   "columnas": [
+    "NYY",
+    "NA2XY",
+    "AL Protegido",
+    "CU Protegido",
+    "AL Autoportante",
+    "CU Autoportante"
+   ],
+   "filas": [
+    {
+     "origen": "AL Desnudo",
+     "seccion_mm2": 16,
+     "valores": [
+      10,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "AL Desnudo",
+     "seccion_mm2": 25,
+     "valores": [
+      16,
+      25,
+      25,
+      16,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "AL Desnudo",
+     "seccion_mm2": 35,
+     "valores": [
+      25,
+      35,
+      35,
+      25,
+      35,
+      16
+     ]
+    },
+    {
+     "origen": "AL Desnudo",
+     "seccion_mm2": 50,
+     "valores": [
+      25,
+      50,
+      50,
+      35,
+      50,
+      25
+     ]
+    },
+    {
+     "origen": "AL Desnudo",
+     "seccion_mm2": 70,
+     "valores": [
+      35,
+      70,
+      70,
+      50,
+      70,
+      35
+     ]
+    },
+    {
+     "origen": "AL Desnudo",
+     "seccion_mm2": 95,
+     "valores": [
+      50,
+      70,
+      95,
+      50,
+      70,
+      50
+     ]
+    },
+    {
+     "origen": "AL Desnudo",
+     "seccion_mm2": 120,
+     "valores": [
+      50,
+      95,
+      120,
+      70,
+      95,
+      50
+     ]
+    },
+    {
+     "origen": "AL Desnudo",
+     "seccion_mm2": 150,
+     "valores": [
+      70,
+      95,
+      150,
+      95,
+      95,
+      70
+     ]
+    },
+    {
+     "origen": "AL Desnudo",
+     "seccion_mm2": 185,
+     "valores": [
+      70,
+      120,
+      185,
+      120,
+      120,
+      70
+     ]
+    },
+    {
+     "origen": "AL Desnudo",
+     "seccion_mm2": 240,
+     "valores": [
+      95,
+      150,
+      240,
+      150,
+      120,
+      95
+     ]
+    },
+    {
+     "origen": "AL Protegido",
+     "seccion_mm2": 16,
+     "valores": [
+      10,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "AL Protegido",
+     "seccion_mm2": 25,
+     "valores": [
+      16,
+      25,
+      25,
+      16,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "AL Protegido",
+     "seccion_mm2": 35,
+     "valores": [
+      16,
+      35,
+      35,
+      25,
+      35,
+      16
+     ]
+    },
+    {
+     "origen": "AL Protegido",
+     "seccion_mm2": 50,
+     "valores": [
+      25,
+      50,
+      50,
+      35,
+      50,
+      25
+     ]
+    },
+    {
+     "origen": "AL Protegido",
+     "seccion_mm2": 70,
+     "valores": [
+      35,
+      70,
+      70,
+      50,
+      70,
+      35
+     ]
+    },
+    {
+     "origen": "AL Protegido",
+     "seccion_mm2": 95,
+     "valores": [
+      50,
+      70,
+      95,
+      50,
+      70,
+      50
+     ]
+    },
+    {
+     "origen": "AL Protegido",
+     "seccion_mm2": 120,
+     "valores": [
+      50,
+      95,
+      120,
+      70,
+      95,
+      50
+     ]
+    },
+    {
+     "origen": "AL Protegido",
+     "seccion_mm2": 150,
+     "valores": [
+      70,
+      95,
+      150,
+      95,
+      95,
+      70
+     ]
+    },
+    {
+     "origen": "AL Protegido",
+     "seccion_mm2": 185,
+     "valores": [
+      70,
+      120,
+      185,
+      120,
+      120,
+      70
+     ]
+    },
+    {
+     "origen": "AL Protegido",
+     "seccion_mm2": 240,
+     "valores": [
+      95,
+      150,
+      240,
+      150,
+      120,
+      95
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 16,
+     "valores": [
+      10,
+      16,
+      25,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 25,
+     "valores": [
+      16,
+      25,
+      35,
+      16,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 35,
+     "valores": [
+      25,
+      35,
+      50,
+      25,
+      35,
+      25
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 50,
+     "valores": [
+      35,
+      50,
+      70,
+      35,
+      50,
+      35
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 70,
+     "valores": [
+      50,
+      70,
+      95,
+      50,
+      70,
+      50
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 95,
+     "valores": [
+      50,
+      95,
+      120,
+      70,
+      95,
+      70
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 120,
+     "valores": [
+      70,
+      120,
+      185,
+      95,
+      120,
+      70
+     ]
+    },
+    {
+     "origen": "AL Autoportante",
+     "seccion_mm2": 150,
+     "valores": [
+      95,
+      150,
+      240,
+      120,
+      150,
+      95
+     ]
+    },
+    {
+     "origen": "CU Concéntrico",
+     "seccion_mm2": 4,
+     "valores": [
+      6,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "CU Concéntrico",
+     "seccion_mm2": 6,
+     "valores": [
+      6,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "CU Concéntrico",
+     "seccion_mm2": 10,
+     "valores": [
+      6,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "CU Concéntrico",
+     "seccion_mm2": 16,
+     "valores": [
+      10,
+      16,
+      16,
+      16,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 6,
+     "valores": [
+      6,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 10,
+     "valores": [
+      10,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 16,
+     "valores": [
+      16,
+      25,
+      25,
+      16,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 25,
+     "valores": [
+      25,
+      50,
+      35,
+      25,
+      35,
+      25
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 35,
+     "valores": [
+      35,
+      50,
+      50,
+      35,
+      50,
+      35
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 50,
+     "valores": [
+      35,
+      70,
+      70,
+      50,
+      70,
+      50
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 70,
+     "valores": [
+      50,
+      95,
+      95,
+      70,
+      95,
+      50
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 95,
+     "valores": [
+      70,
+      120,
+      150,
+      95,
+      120,
+      70
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 120,
+     "valores": [
+      70,
+      120,
+      185,
+      120,
+      {
+       "material": "CU Autoportante",
+       "seccion_mm2": 70
+      },
+      70
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 150,
+     "valores": [
+      95,
+      150,
+      240,
+      150,
+      {
+       "material": "CU Autoportante",
+       "seccion_mm2": 95
+      },
+      95
+     ]
+    },
+    {
+     "origen": "CU Desnudo",
+     "seccion_mm2": 185,
+     "valores": [
+      95,
+      185,
+      {
+       "material": "CU Protegido",
+       "seccion_mm2": 185
+      },
+      185,
+      {
+       "material": "CU Autoportante",
+       "seccion_mm2": 120
+      },
+      120
+     ]
+    }
+   ],
+   "tipo": "tecnologia"
+  },
+  {
+   "tabla": 8,
+   "nivel": "BT",
+   "pagina": 174,
+   "linea": 7756,
+   "columnas": [
+    "NYY",
+    "NA2XY",
+    "AL Protegido",
+    "CU Protegido",
+    "AL Autoportante",
+    "CU Autoportante"
+   ],
+   "filas": [
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 6,
+     "valores": [
+      6,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 10,
+     "valores": [
+      10,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 16,
+     "valores": [
+      16,
+      25,
+      25,
+      16,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 25,
+     "valores": [
+      25,
+      50,
+      35,
+      25,
+      35,
+      25
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 33,
+     "valores": [
+      35,
+      50,
+      50,
+      35,
+      50,
+      35
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 35,
+     "valores": [
+      35,
+      50,
+      50,
+      35,
+      50,
+      35
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 50,
+     "valores": [
+      35,
+      70,
+      70,
+      50,
+      70,
+      50
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 70,
+     "valores": [
+      50,
+      95,
+      95,
+      70,
+      95,
+      50
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 95,
+     "valores": [
+      70,
+      120,
+      150,
+      95,
+      120,
+      70
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 120,
+     "valores": [
+      70,
+      120,
+      185,
+      120,
+      {
+       "material": "CU Autoportante",
+       "seccion_mm2": 70
+      },
+      70
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 150,
+     "valores": [
+      95,
+      150,
+      240,
+      150,
+      {
+       "material": "CU Autoportante",
+       "seccion_mm2": 95
+      },
+      95
+     ]
+    },
+    {
+     "origen": "CU Protegido",
+     "seccion_mm2": 185,
+     "valores": [
+      95,
+      185,
+      {
+       "material": "CU Protegido",
+       "seccion_mm2": 185
+      },
+      185,
+      {
+       "material": "CU Autoportante",
+       "seccion_mm2": 120
+      },
+      120
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 6,
+     "valores": [
+      6,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 10,
+     "valores": [
+      10,
+      16,
+      25,
+      16,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 16,
+     "valores": [
+      16,
+      25,
+      35,
+      25,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 25,
+     "valores": [
+      25,
+      50,
+      70,
+      35,
+      50,
+      25
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 35,
+     "valores": [
+      35,
+      70,
+      95,
+      50,
+      70,
+      35
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 50,
+     "valores": [
+      50,
+      70,
+      120,
+      70,
+      95,
+      50
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 70,
+     "valores": [
+      70,
+      120,
+      150,
+      120,
+      95,
+      70
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 75,
+     "valores": [
+      70,
+      120,
+      150,
+      120,
+      95,
+      70
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 95,
+     "valores": [
+      95,
+      150,
+      240,
+      150,
+      120,
+      95
+     ]
+    },
+    {
+     "origen": "CU Autoportante",
+     "seccion_mm2": 120,
+     "valores": [
+      95,
+      185,
+      240,
+      185,
+      {
+       "material": "CU Autoportante",
+       "seccion_mm2": 120
+      },
+      120
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 6,
+     "valores": [
+      6,
+      10,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 10,
+     "valores": [
+      10,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 16,
+     "valores": [
+      16,
+      25,
+      25,
+      16,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 20,
+     "valores": [
+      25,
+      35,
+      35,
+      25,
+      35,
+      16
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 25,
+     "valores": [
+      25,
+      50,
+      50,
+      25,
+      50,
+      25
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 33,
+     "valores": [
+      35,
+      70,
+      70,
+      50,
+      70,
+      35
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 35,
+     "valores": [
+      35,
+      70,
+      70,
+      50,
+      70,
+      35
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 50,
+     "valores": [
+      50,
+      95,
+      120,
+      70,
+      95,
+      50
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 70,
+     "valores": [
+      70,
+      120,
+      185,
+      95,
+      120,
+      70
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 95,
+     "valores": [
+      95,
+      150,
+      240,
+      185,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 150
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 150
+      }
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 120,
+     "valores": [
+      120,
+      185,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      }
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 150,
+     "valores": [
+      150,
+      240,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      }
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 185,
+     "valores": [
+      185,
+      300,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      }
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 200,
+     "valores": [
+      185,
+      400,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      }
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 240,
+     "valores": [
+      240,
+      400,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      }
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 300,
+     "valores": [
+      300,
+      {
+       "material": "NYY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 300
+      }
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 360,
+     "valores": [
+      400,
+      {
+       "material": "NYY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 400
+      }
+     ]
+    },
+    {
+     "origen": "NKY",
+     "seccion_mm2": 500,
+     "valores": [
+      500,
+      {
+       "material": "NYY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 500
+      }
+     ]
+    }
+   ],
+   "tipo": "tecnologia"
+  },
+  {
+   "tabla": 9,
+   "nivel": "BT",
+   "pagina": 175,
+   "linea": 7805,
+   "columnas": [
+    "NYY",
+    "NA2XY",
+    "AL Protegido",
+    "CU Protegido",
+    "AL Autoportante",
+    "CU Autoportante"
+   ],
+   "filas": [
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 6,
+     "valores": [
+      6,
+      10,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 8,
+     "valores": [
+      10,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 10,
+     "valores": [
+      10,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 13,
+     "valores": [
+      16,
+      25,
+      25,
+      16,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 16,
+     "valores": [
+      16,
+      25,
+      25,
+      16,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 20,
+     "valores": [
+      25,
+      25,
+      35,
+      25,
+      35,
+      16
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 25,
+     "valores": [
+      25,
+      50,
+      50,
+      25,
+      50,
+      25
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 33,
+     "valores": [
+      35,
+      70,
+      70,
+      50,
+      70,
+      35
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 35,
+     "valores": [
+      35,
+      70,
+      70,
+      50,
+      70,
+      35
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 50,
+     "valores": [
+      50,
+      95,
+      120,
+      70,
+      95,
+      50
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 70,
+     "valores": [
+      70,
+      120,
+      185,
+      95,
+      120,
+      70
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 95,
+     "valores": [
+      95,
+      150,
+      240,
+      185,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 150
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 150
+      }
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 120,
+     "valores": [
+      120,
+      185,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      }
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 150,
+     "valores": [
+      150,
+      240,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      }
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 185,
+     "valores": [
+      185,
+      300,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      }
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 200,
+     "valores": [
+      185,
+      300,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      }
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 240,
+     "valores": [
+      240,
+      400,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      }
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 300,
+     "valores": [
+      300,
+      {
+       "material": "NYY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 300
+      }
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 360,
+     "valores": [
+      400,
+      {
+       "material": "NYY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 400
+      }
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 500,
+     "valores": [
+      500,
+      {
+       "material": "NYY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 500
+      }
+     ]
+    },
+    {
+     "origen": "NYY - Unipolar o Tripolar",
+     "seccion_mm2": 800,
+     "valores": [
+      800,
+      {
+       "material": "NYY",
+       "seccion_mm2": 800
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 800
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 800
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 800
+      },
+      {
+       "material": "NYY",
+       "seccion_mm2": 800
+      }
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 10,
+     "valores": [
+      6,
+      10,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 16,
+     "valores": [
+      10,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 25,
+     "valores": [
+      16,
+      25,
+      25,
+      16,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 35,
+     "valores": [
+      25,
+      35,
+      35,
+      25,
+      35,
+      25
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 50,
+     "valores": [
+      25,
+      50,
+      50,
+      35,
+      50,
+      25
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 70,
+     "valores": [
+      35,
+      70,
+      95,
+      50,
+      70,
+      50
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 95,
+     "valores": [
+      50,
+      95,
+      120,
+      70,
+      95,
+      70
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 120,
+     "valores": [
+      70,
+      120,
+      185,
+      95,
+      120,
+      70
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 150,
+     "valores": [
+      95,
+      150,
+      240,
+      150,
+      150,
+      95
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 185,
+     "valores": [
+      120,
+      185,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      },
+      185,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      },
+      120
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 240,
+     "valores": [
+      150,
+      240,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      }
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 300,
+     "valores": [
+      185,
+      300,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      }
+     ]
+    },
+    {
+     "origen": "NA2XY",
+     "seccion_mm2": 400,
+     "valores": [
+      240,
+      400,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      }
+     ]
+    },
+    {
+     "origen": "NYBY",
+     "seccion_mm2": 70,
+     "valores": [
+      70,
+      120,
+      185,
+      95,
+      120,
+      70
+     ]
+    },
+    {
+     "origen": "NYBY",
+     "seccion_mm2": 120,
+     "valores": [
+      120,
+      240,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      }
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 6,
+     "valores": [
+      6,
+      10,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 10,
+     "valores": [
+      10,
+      16,
+      16,
+      10,
+      16,
+      10
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 16,
+     "valores": [
+      16,
+      25,
+      25,
+      16,
+      25,
+      16
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 25,
+     "valores": [
+      25,
+      50,
+      50,
+      25,
+      50,
+      25
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 35,
+     "valores": [
+      35,
+      70,
+      70,
+      50,
+      70,
+      35
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 50,
+     "valores": [
+      50,
+      95,
+      120,
+      70,
+      95,
+      70
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 70,
+     "valores": [
+      70,
+      120,
+      185,
+      95,
+      120,
+      70
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 95,
+     "valores": [
+      95,
+      150,
+      240,
+      150,
+      150,
+      95
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 120,
+     "valores": [
+      120,
+      185,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      },
+      185,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 185
+      },
+      120
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 150,
+     "valores": [
+      150,
+      240,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 240
+      }
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 185,
+     "valores": [
+      185,
+      300,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 300
+      }
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 240,
+     "valores": [
+      240,
+      400,
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "NA2XY",
+       "seccion_mm2": 400
+      }
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 300,
+     "valores": [
+      {
+       "material": "N2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 300
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 300
+      }
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 400,
+     "valores": [
+      {
+       "material": "N2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 400
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 400
+      }
+     ]
+    },
+    {
+     "origen": "N2XY",
+     "seccion_mm2": 500,
+     "valores": [
+      {
+       "material": "N2XY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 500
+      },
+      {
+       "material": "N2XY",
+       "seccion_mm2": 500
+      }
+     ]
+    }
+   ],
+   "tipo": "tecnologia"
+  },
+  {
+   "tabla": 10,
+   "nivel": "AP",
+   "pagina": 176,
+   "linea": 7869,
+   "columnas": [
+    "Adaptado"
+   ],
+   "filas": [
+    {
+     "origen": "Incandescente",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Fluorescente",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Luz mixta",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Mercurio",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Sodio",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "LED",
+     "valores": [
+      "LED"
+     ]
+    }
+   ],
+   "tipo": "alumbrado"
+  },
+  {
+   "tabla": 11,
+   "nivel": "AP",
+   "pagina": 177,
+   "linea": 7909,
+   "columnas": [
+    "Adaptado"
+   ],
+   "filas": [
+    {
+     "origen": "Incandescente",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Fluorescente",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Luz mixta",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Mercurio",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Sodio",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "LED",
+     "valores": [
+      "LED"
+     ]
+    }
+   ],
+   "tipo": "alumbrado"
+  },
+  {
+   "tabla": 12,
+   "nivel": "AP",
+   "pagina": 178,
+   "linea": 7949,
+   "columnas": [
+    "Adaptado"
+   ],
+   "filas": [
+    {
+     "origen": "Incandescente",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Fluorescente",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Luz mixta",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Mercurio",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Sodio",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "LED",
+     "valores": [
+      "LED"
+     ]
+    }
+   ],
+   "tipo": "alumbrado"
+  },
+  {
+   "tabla": 13,
+   "nivel": "AP",
+   "pagina": 179,
+   "linea": 7989,
+   "columnas": [
+    "Adaptado"
+   ],
+   "filas": [
+    {
+     "origen": "Incandescente",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Fluorescente",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Luz mixta",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Mercurio",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "Sodio",
+     "valores": [
+      "Sodio"
+     ]
+    },
+    {
+     "origen": "LED",
+     "valores": [
+      "LED"
+     ]
+    }
+   ],
+   "tipo": "alumbrado"
+  },
+  {
+   "tabla": 14,
+   "nivel": "corrosivo",
+   "tipo": "corrosivo_excepciones",
+   "pagina": 180,
+   "columnas": [
+    "Departamento",
+    "Provincia",
+    "Zona de Ambiente Corrosivo"
+   ],
+   "origen_lectura": "OCR celda a celda, tesseract v5.4.0.20240606, página 180 a 400 ppp",
+   "filas": [
+    {
+     "departamento": "Ancash",
+     "provincia": "Santa",
+     "literal_ocr": "0-3km,5-7kmy 10-16 km",
+     "tramos_corrosivos_km": [
+      [
+       0,
+       3
+      ],
+      [
+       5,
+       7
+      ],
+      [
+       10,
+       16
+      ]
+     ]
+    },
+    {
+     "departamento": "La Libertad",
+     "provincia": "Trujillo",
+     "literal_ocr": "O-11km",
+     "tramos_corrosivos_km": [
+      [
+       0,
+       11
+      ]
+     ]
+    },
+    {
+     "departamento": "Lambayeque",
+     "provincia": "Chiclayo",
+     "literal_ocr": "0-14 km",
+     "tramos_corrosivos_km": [
+      [
+       0,
+       14
+      ]
+     ]
+    },
+    {
+     "departamento": "Piura",
+     "provincia": "Sechura",
+     "literal_ocr": "0-6km",
+     "tramos_corrosivos_km": [
+      [
+       0,
+       6
+      ]
+     ]
+    },
+    {
+     "departamento": "Piura",
+     "provincia": "Paita",
+     "literal_ocr": "0 km",
+     "tramos_corrosivos_km": []
+    },
+    {
+     "departamento": "Piura",
+     "provincia": "Talara",
+     "literal_ocr": "0 km",
+     "tramos_corrosivos_km": []
+    },
+    {
+     "departamento": "Tumbes",
+     "provincia": "Contralmirante Villar",
+     "literal_ocr": "O km",
+     "tramos_corrosivos_km": []
+    },
+    {
+     "departamento": "Tumbes",
+     "provincia": "Tumbes",
+     "literal_ocr": "0 km",
+     "tramos_corrosivos_km": []
+    },
+    {
+     "departamento": "Tumbes",
+     "provincia": "Zarumilla",
+     "literal_ocr": "O km",
+     "tramos_corrosivos_km": []
+    }
+   ]
+  }
+ ],
+ "sin_filas_en_el_texto": []
+}

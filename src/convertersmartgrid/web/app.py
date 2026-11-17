@@ -3087,6 +3087,10 @@ def create_app(
     from .entradas_estudios_api import registrar_rutas_entradas
 
     registrar_rutas_entradas(app, ws_or_404=ws_or_404, submit=submit, guardar_subida=_save_upload)
+    # 108 T28: el estudio VNR (Guía del VNR, RCD 232-2017) desde el inventario VNR-GIS y el SICODI subidos.
+    from .vnr_api import registrar_rutas_vnr
+
+    registrar_rutas_vnr(app, ws_or_404=ws_or_404, submit=submit, guardar_subida=_save_upload)
     # 109: la nube (Google Drive y OneDrive), con la misma validación y asignación que una subida (109:RF-4).
     # Antes del front compilado: su `spa` captura `/{full_path:path}` y taparía `GET /nube/retorno`.
     from .nube_api import registrar_rutas_nube

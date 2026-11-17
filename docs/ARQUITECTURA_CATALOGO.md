@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 421 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 425 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 50 |
-| Herramientas y guiones | `tools/` | 121 |
-| Interfaz | `frontend/src/` | 98 |
+| Herramientas y guiones | `tools/` | 122 |
+| Interfaz | `frontend/src/` | 100 |
 | Pruebas de la interfaz | `frontend/test/` | 44 |
-| Pruebas | `tests/` | 555 |
+| Pruebas | `tests/` | 562 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -28,19 +28,19 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 2 |
 | retirada | 1 |
 
-112 specs con 3801 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3807 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 177 |
-| aplicacion | Apl | 122 |
+| adaptadores | Ada | 179 |
+| aplicacion | Apl | 123 |
 | dominio | Dom | 61 |
-| presentacion | Pre | 46 |
+| presentacion | Pre | 47 |
 | puertos | Pue | 4 |
 
-410 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
+414 módulos y 10 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -893,6 +893,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/api/nube.ts` | — | 109 | Cliente de la nube: cuentas, conectar y desconectar, selector, importar, versiones, publicar, compartir y recibos. |
 | `frontend/src/api/reconexion.ts` | — | 086 | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. |
 | `frontend/src/api/types.ts` | — | 001, 011, 021, 025, 037, 039, 041, 061 | Tipos de las respuestas de la API. |
+| `frontend/src/api/vnr.ts` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/src/app/AcercaDe.tsx` | — | 086 | La versión de la cabecera abre sus notas y el diagnóstico de la instalación. |
 | `frontend/src/app/App.tsx` | — | 001, 008, 061, 091, 109 | Marco de la página: paneles, pestañas, resúmenes de trabajos. |
 | `frontend/src/app/AvisosDatos.tsx` | — | 086 | Avisos generales de arriba: copia vieja y ficheros no disponibles en una línea, espacio dañado con su botón de restaurar, y los avisos de trabajo sin… |
@@ -946,6 +947,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `frontend/src/features/powerfactory/solicitudLeida.ts` | — | 063 | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. |
 | `frontend/src/features/powerfactory/tensionFuente.ts` | — | 021 | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. |
 | `frontend/src/features/powerfactory/ubicacionCarga.ts` | — | 004 | La ubicación de una carga nueva en la web: el rechazo con su propuesta junto al formulario, el nodo más cercano y la línea de conexión. |
+| `frontend/src/features/vnr/EstudioVnr.tsx` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `frontend/src/shared/AvisosTrabajo.tsx` | — | 086 | El aviso de un trabajo interrumpido, fallido o cancelado en su paso, con «Reintentar», «Ver su registro» y «Dar por visto». |
 | `frontend/src/shared/MarcaBeta.tsx` | — | 086 | La marca y el aviso de una función en beta. |
 | `frontend/src/shared/PfWarning.tsx` | — | 002, 008 | Aviso de disponibilidad de PowerFactory común a conversión y operación. |
@@ -1042,6 +1044,10 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `src/convertersmartgrid/vad/resultados_vad.py` | Apl | 108 | Cargo fijo y VAD de cada nivel por sistema y ponderado a nivel empresa, con los conceptos, variantes, fórmulas y ponderación del TdR registrado. |
 | `src/convertersmartgrid/vad/tablas_resultados.py` | Ada | 108 | Las Tablas de Resultados que lista el TdR registrado, en Excel: una hoja por tabla con su título, fuente, filas por sistema y total con =SUM, más el… |
 | `src/convertersmartgrid/vad/trabajo.py` | Apl | 108 | Armado de la empresa modelo como trabajo en cola (`armar_empresa_modelo(ctx, …)` para `JobManager.submit(..., lane='engine')`): sistema por sistema… |
+| `src/convertersmartgrid/vad/vnr_estudio.py` | Ada | — | Estudio VNR de una empresa desde su inventario VNR-GIS (modelo canónico del módulo ``vnr``), con la Guía del VNR |
+| `src/convertersmartgrid/vad/vnr_formatos.py` | Ada | — | Los formatos del Anexo 5 de la Guía del VNR (RCD 232-2017-OS/CD) en un libro Excel: una hoja por formato con sus |
+| `src/convertersmartgrid/vad/vnr_guia.py` | Apl | — | VNR según la «Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica» (RCD 232-2017-OS/CD; |
+| `src/convertersmartgrid/web/vnr_api.py` | Pre | — | 108 T28: el estudio VNR desde la web (Guía del VNR, RCD 232-2017-OS/CD; 108:RF-21 a RF-25). |
 | `src/vnr_etl.py` | Pre | 002 | Fachada de CLI para python -m vnr_etl y el launcher anterior. |
 | `tools/asistente_informes_reales.py` | — | 026 | Anota informes reales etiquetados (Word, PDF con OCR o texto del maestro) para el clasificador, por grupo y sin repetir. |
 | `tools/benchmark_anonimo.py` | — | 112 | Genera en local el benchmark anonimizado de una red (y de las series del 089) con su manifiesto. |
@@ -1049,6 +1055,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `tools/evaluar_harness.py` | — | 043, 044, 047 | Entrada de consola para el arnés integral de evaluación. |
 | `tools/lanzar_pronostico_pide_gpu.py` | — | 031 | El pronóstico del PIDE en la GPU en un paso: comprueba CUDA y memoria y pasa a `proyeccion_anual.py` las redes como candidatos y el quinquenio y… |
 | `tools/medir_mejora.py` | — | 087 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
+| `tools/normativa/generar_guia_vnr_232.py` | — | — | 108 T23 (RF-20): la «Guía de Elaboración del Valor Nuevo de Reemplazo de las Instalaciones de Distribución Eléctrica» |
 | `tools/pfd_diagnostico.py` | — | 004, 102 | Importa un `.pfd` con `ComPfdimport` en un proyecto nuevo de la carpeta del conversor, identificado por su huella (reutilizar, versión nueva,… |
 | `tools/pronostico_demanda.py` | — | 089 | Dataset y backtest de demanda desde las carpetas que haya. |
 | `tools/rutas_sin_modelo.py` | — | 002 | Lista las rutas de /api sin modelo de respuesta y escribe la lista de excepciones, que solo baja. |
@@ -1106,6 +1113,7 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/normativa/rcd_217_2013_plan.json` |
 | `config/normativa/rcd_217_2013_transitorias.json` |
 | `config/normativa/rcd_218_2020_manual_costos.json` |
+| `config/normativa/rcd_232_2017.json` |
 | `config/normativa/rcd_242_2021.json` |
 | `config/normativa/rm_129_2009_mem_dm.json` |
 | `config/normativa/vad_2023_2027_perdidas.json` |
@@ -1133,6 +1141,9 @@ Ficheros nuevos: asígnelos en `docs/architecture/subsistemas.json`.
 | `config/vad/tdr_vad_2026_calidad.json` |
 | `config/vad/tdr_vad_2026_requisitos.json` |
 | `config/vad/tdr_vad_2026_resultados.json` |
+| `config/vnr/anexo2_codigos.json` |
+| `config/vnr/anexo5_formatos.json` |
+| `config/vnr/anexo6_equivalencias.json` |
 | `config/vnr/codigos_empresa_vnr.json` |
 | `config/vnr_dgs_profile.json` |
 | `config/vnr_settings.example.yaml` |
