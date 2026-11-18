@@ -12,7 +12,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 126 |
 | Interfaz | `frontend/src/` | 112 |
-| Pruebas de la interfaz | `frontend/test/` | 51 |
+| Pruebas de la interfaz | `frontend/test/` | 52 |
 | Pruebas | `tests/` | 590 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
@@ -1143,6 +1143,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/e2e/f05_selector_unico.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/f06_vad_linea.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/playwright.config.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/sin_omitidas.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/teclado.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/vnr_sintetico.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/edicionTodoActivo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

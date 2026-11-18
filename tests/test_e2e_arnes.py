@@ -123,3 +123,92 @@ def test_070_rf78_los_guiones_de_playwright_comprueban_que_no_hay_citas_a_la_vis
         assert 'revisarAxe(' in texto or 'comprobar_sin_citas(' in texto, guion.name
     assert 'comprobar_sin_citas(' in _texto('linea_base.spec.ts')
     assert 'export async function comprobar_sin_citas' in _texto('sin_red.ts')
+
+
+# ---------------------------------------------------------------- frontend/test/e2e: web aislada y sin omisiones
+E2E_PRUEBA = FRONT / 'test' / 'e2e'
+
+
+def test_086_rf107_la_web_de_los_recorridos_guarda_sus_espacios_en_su_temporal():
+    """086:RF-107 — la web de los recorridos fija su raíz de ejecución y la de los espacios en su carpeta temporal. Con
+    solo LOCALAPPDATA, los espacios iban a <checkout>/../.convertersmartgrid-runtime/<huella>/data/web (runtime_paths),
+    junto a los del operador; lo vio el recorrido del VAD (108 T30) el 17-11."""
+    from convertersmartgrid.dominio.runtime_paths import raiz_datos_web, rutas_runtime
+
+    config = (E2E_PRUEBA / 'playwright.config.mjs').read_text(encoding='utf-8')
+    cuerpo = config.split('function servidor(', 1)[1]
+    for var, sub in (('CSG_RUNTIME_HOME', 'runtime'), ('CSG_WEB_DATA', 'web'), ('CSG_WEB_SESIONES', 'sesiones')):
+        assert re.search(rf"{var}: join\(carpetaDe, '{sub}'\)", cuerpo), f'{var} fuera de la carpeta temporal de la web'
+    assert 'LOCALAPPDATA: carpetaDe' in cuerpo
+    # Las dos variables siguen decidiendo de verdad: si dejaran de leerse, la configuración aislaría en vano.
+    otra = RAIZ.parent / 'csg_e2e_prueba'
+    assert rutas_runtime(environ={'CSG_RUNTIME_HOME': str(otra / 'runtime')}).runtime == (otra / 'runtime').resolve()
+    import os
+    previo = os.environ.get('CSG_WEB_DATA')
+    os.environ['CSG_WEB_DATA'] = str(otra / 'web')
+    try:
+        assert raiz_datos_web() == otra / 'web', 'CSG_WEB_DATA ya no decide dónde van los espacios'
+    finally:
+        if previo is None:
+            os.environ.pop('CSG_WEB_DATA', None)
+        else:
+            os.environ['CSG_WEB_DATA'] = previo
+
+
+_GUION_REPORTERO = r"""
+const { default: Rep } = await import(process.argv[1]);
+const t = (titulo, desenlace, notas = []) => ({ outcome: () => desenlace, titlePath: () => ['', titulo],
+  annotations: notas.map((type) => ({ type })) });
+const correr = (casos, fin = 'passed') => {
+  const r = new Rep();
+  for (const [c, s] of casos) r.onTestEnd(c, { status: s });
+  return r.onEnd({ status: fin }) ?? null;
+};
+console.log(JSON.stringify({
+  todos_pasan: correr([[t('F01', 'expected'), 'passed']]),
+  fixme: correr([[t('F01', 'expected'), 'passed'], [t('F02', 'skipped', ['fixme']), 'skipped']]),
+  skip: correr([[t('F03', 'skipped', ['skip']), 'skipped']]),
+  inestable: correr([[t('F04', 'flaky'), 'passed']]),
+  interrumpida: correr([[t('F05', 'expected'), 'passed']], 'interrupted'),
+}));
+"""
+
+
+def test_086_rf107_un_recorrido_omitido_inestable_o_en_fixme_hace_fallar_la_corrida():
+    """086:RF-107 — sin_omitidas.mjs deja la corrida en fallo con un recorrido omitido (skip o fixme), inestable o
+    interrumpido, y la deja pasar cuando todos pasan: se siembra cada caso en el reportero de verdad, con node."""
+    import shutil
+    import subprocess
+
+    node = shutil.which('node')
+    assert node, 'hace falta node para comprobar el reportero de los recorridos'
+    r = subprocess.run([node, '--input-type=module', '-e', _GUION_REPORTERO, '--',
+                        (E2E_PRUEBA / 'sin_omitidas.mjs').as_uri()],
+                       capture_output=True, text=True, encoding='utf-8', timeout=60)
+    assert r.returncode == 0, r.stderr
+    res = json.loads(r.stdout.strip().splitlines()[-1])
+    assert res['todos_pasan'] is None, res
+    for caso in ('fixme', 'skip', 'inestable', 'interrumpida'):
+        assert res[caso] == {'status': 'failed'}, (caso, res)
+    assert 'F02' in r.stderr and 'fixme' in r.stderr, 'el reportero dice qué recorrido no pasó y por qué'
+
+
+def test_086_rf107_un_recorrido_que_no_puede_correr_no_se_recoge_con_su_motivo():
+    """086:RF-107 — la configuración usa el reportero, y todo recorrido con test.skip o test.fixme queda en testIgnore
+    con su motivo escrito encima; ninguno se recoge para salir omitido."""
+    config = (E2E_PRUEBA / 'playwright.config.mjs').read_text(encoding='utf-8')
+    assert "['./sin_omitidas.mjs']" in config, 'la configuración no usa sin_omitidas.mjs'
+    # Los dos arneses de recorridos (test/e2e y el de la 111 en e2e/) llevan el mismo reportero.
+    assert "['../test/e2e/sin_omitidas.mjs']" in _texto('playwright.config.ts'), 'el arnés de la 111 no usa sin_omitidas.mjs'
+    for spec in sorted(E2E.glob('*.spec.ts')):
+        texto = spec.read_text(encoding='utf-8')
+        assert 'test.skip(' not in texto and 'test.fixme(' not in texto, f'{spec.name}: omitido en el arnés de la 111'
+    ignorados = re.search(r'testIgnore:\s*\[([^\]]*)\]', config)
+    patrones = [re.compile(p) for p in re.findall(r'/(.+?)/', ignorados.group(1))] if ignorados else []
+    for guion in sorted(E2E_PRUEBA.glob('*.e2e.mjs')):
+        texto = guion.read_text(encoding='utf-8')
+        if 'test.skip(' in texto or 'test.fixme(' in texto:
+            assert any(p.search(guion.name) for p in patrones), f'{guion.name} tiene skip o fixme y se recoge'
+    if ignorados:
+        antes = config[:ignorados.start()].rstrip().splitlines()[-1]
+        assert antes.strip().startswith('//'), 'testIgnore sin su motivo escrito encima'

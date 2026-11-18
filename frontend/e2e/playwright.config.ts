@@ -19,7 +19,9 @@ export default defineConfig({
   timeout: 180_000,
   expect: { timeout: 15_000 },
   outputDir: 'resultados/artefactos',
-  reporter: [['list'], ['json', { outputFile: 'resultados/informe.json' }]],
+  // El mismo reportero que test/e2e (086:RF-107): un recorrido omitido, en «fixme», inestable o sin correr deja la corrida
+  // en fallo.
+  reporter: [['list'], ['json', { outputFile: 'resultados/informe.json' }], ['../test/e2e/sin_omitidas.mjs']],
   use: {
     ...devices['Desktop Chrome'],
     viewport: { width: 1440, height: 1000 },

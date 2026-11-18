@@ -352,6 +352,9 @@ instalador recibió `/DVersion` a mano; y «Acerca de» enseñaba las notas del 
 - RF-107: CUANDO se publique un candidato, EL SISTEMA habrá recorrido en un navegador real F01 (VNR), F02 (simulación sobre
   el plano), F03 (planificación) y F04 (asistente) sobre una web aislada y sin red, con axe-core sin infracciones graves ni
   críticas de WCAG 2.2 AA, y guardará las capturas y el resultado por SHA (Plan Maestro V1, F-12; T0c, 2026-11-14).
+  La web aislada guarda también sus espacios en su carpeta temporal; un recorrido omitido, en «fixme», inestable o sin
+  correr no cuenta como recorrido y deja la corrida en fallo, y el que aún no puede correr no se recoge, con su motivo
+  (E2E-AISLADO, 2026-11-17).
 - RF-111: CUANDO se busquen los términos prohibidos en lo que se entrega, EL SISTEMA calculará las sales de las huellas una
   vez por cambio de la lista, y no en cada ventana de palabras.
   (INST-RUEDA, 2026-11-15: al preparar la rueda, el conjunto ordenado de las sales se construía 1,8 millones de veces,

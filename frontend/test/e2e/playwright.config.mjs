@@ -1,5 +1,5 @@
 /**
- * Plan Maestro V1, F-12 (spec 086): recorridos F01–F04 en un navegador real, con axe-core y sin red.
+ * Plan Maestro V1, F-12 (spec 086): recorridos F01–F06 en un navegador real, con axe-core y sin red.
  *
  * Levanta su propia web, aislada: otro puerto (8799 por defecto, nunca el 8765 del operador), su carpeta de
  * espacios y de sesiones en un temporal, y la compilación de este checkout (`npm run build` antes). No reutiliza
@@ -40,6 +40,9 @@ const canal = process.env.CSG_E2E_CANAL || 'msedge';
 export default defineConfig({
   testDir: '.',
   testMatch: /.*\.e2e\.mjs$/,
+  // F02 (f02_plano.e2e.mjs) es un «test.fixme» vacío: su recorrido es 111 T16. Hasta entonces no se recoge, porque una
+  // omisión no es un pase (sin_omitidas.mjs hace fallar la corrida si se cuela alguna).
+  testIgnore: [/f02_plano\.e2e\.mjs$/],
   // Una sola web y un solo carril del motor: los recorridos van en serie.
   workers: 1,
   fullyParallel: false,
@@ -48,7 +51,8 @@ export default defineConfig({
   expect: { timeout: 30_000 },
   forbidOnly: true,
   outputDir: join(evidenciaDe(FRONT), 'playwright'),
-  reporter: [['list'], ['json', { outputFile: join(evidenciaDe(FRONT), 'resultado.json') }]],
+  // sin_omitidas.mjs: un recorrido omitido, en «fixme», inestable o sin correr deja la corrida en fallo.
+  reporter: [['list'], ['json', { outputFile: join(evidenciaDe(FRONT), 'resultado.json') }], ['./sin_omitidas.mjs']],
   use: {
     baseURL: `http://127.0.0.1:${puerto}`,
     ...(canal === 'chromium' ? {} : { channel: canal }),
@@ -79,8 +83,12 @@ function servidor(programa, puertoDe, carpetaDe) {
       PYTHONUTF8: '1',
       CSG_WEB_FRONTEND: join(FRONT, 'dist'),
       CSG_WEB_SESIONES: join(carpetaDe, 'sesiones'),
-      // Espacios, registro y trabajos en el temporal: nada del operador se toca.
+      // Espacios, registro y trabajos en el temporal: nada del operador se toca. LOCALAPPDATA solo lleva las sesiones,
+      // la caché y los trabajos; los espacios iban a <checkout>/../.convertersmartgrid-runtime (runtime_paths), así que
+      // la raíz de ejecución y la de los espacios se fijan también aquí.
       LOCALAPPDATA: carpetaDe,
+      CSG_RUNTIME_HOME: join(carpetaDe, 'runtime'),
+      CSG_WEB_DATA: join(carpetaDe, 'web'),
       // Sin vigilancias de fondo: el recorrido ve solo lo que pide.
       CSG_ASISTENTE_VIGILANCIA: '0',
       CSG_WEB_RELANZAR: '0',
