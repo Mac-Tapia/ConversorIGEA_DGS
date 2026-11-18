@@ -31,11 +31,12 @@ export function TablaElementos({ filas, seleccionado, onElegir }: {
     }
   };
   return (
-    <div ref={caja} className="table-wrap" style={{ maxHeight: ALTO_VENTANA, overflowY: 'auto' }} tabIndex={0}
-      role="grid" aria-label={TEXTOS.tabla} aria-rowcount={filas.length + 1}
-      aria-activedescendant={filas[foco] ? `plano-fila-${foco}` : undefined}
-      onScroll={(e) => setScroll(e.currentTarget.scrollTop)} onKeyDown={mover}>
-      <table className="table">
+    // WAI-ARIA: el grid es la tabla (sus filas son sus hijos); el div solo desplaza. Con el rol en el div, su hijo era
+    // un <table> y axe lo marcaba (aria-required-children).
+    <div ref={caja} className="table-wrap" style={{ maxHeight: ALTO_VENTANA, overflowY: 'auto' }}
+      onScroll={(e) => setScroll(e.currentTarget.scrollTop)}>
+      <table className="table" tabIndex={0} role="grid" aria-label={TEXTOS.tabla} aria-rowcount={filas.length + 1}
+        aria-activedescendant={filas[foco] ? `plano-fila-${foco}` : undefined} onKeyDown={mover}>
         <thead><tr aria-rowindex={1}><th>{TEXTOS.codigo}</th><th>{TEXTOS.clase}</th><th>{TEXTOS.alimentador}</th><th /></tr></thead>
         <tbody>
           {v.antes > 0 && <tr aria-hidden="true" style={{ height: v.antes }} />}

@@ -40,9 +40,8 @@ const canal = process.env.CSG_E2E_CANAL || 'msedge';
 export default defineConfig({
   testDir: '.',
   testMatch: /.*\.e2e\.mjs$/,
-  // F02 (f02_plano.e2e.mjs) es un «test.fixme» vacío: su recorrido es 111 T16. Hasta entonces no se recoge, porque una
-  // omisión no es un pase (sin_omitidas.mjs hace fallar la corrida si se cuela alguna).
-  testIgnore: [/f02_plano\.e2e\.mjs$/],
+  // F02 (simulación sobre el plano) vive en el arnés de la 111: frontend/e2e/plano.spec.ts (111 T16). Un recorrido que
+  // aún no pueda correr iría aquí, en «testIgnore», con su motivo encima; nunca omitido (sin_omitidas.mjs).
   // Una sola web y un solo carril del motor: los recorridos van en serie.
   workers: 1,
   fullyParallel: false,

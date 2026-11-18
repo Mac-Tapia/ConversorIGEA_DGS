@@ -79,6 +79,8 @@
     --shadow: 0 1px 2px rgba(0, 0, 0, .4);
     color-scheme: dark;
   }
+  /* WCAG 1.4.3: el enlace sobre el verde de un hueco cargado daba 4,47:1 (#4c8dff sobre #12301f); así, 5,51:1. */
+  :root:not([data-theme="light"]) .slot-set .link { color: #6aa0ff; }
 }
 
 * { box-sizing: border-box; }

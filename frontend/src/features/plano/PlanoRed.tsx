@@ -135,7 +135,9 @@ export function PlanoRed() {
           </select>
         </label>
         <label>{TEXTOS.buscar}{' '}
-          <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} aria-controls="plano-hallados" />
+          {/* aria-controls solo cuando la lista existe: apuntar a un id que no está es inválido (axe). */}
+          <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
+            aria-controls={busqueda ? 'plano-hallados' : undefined} />
         </label>
       </div>
       {busqueda && (

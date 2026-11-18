@@ -29,6 +29,10 @@ def _entorno(raiz: Path, tmp: Path, puerto: int) -> None:
                      ("CSG_ASISTENTE_DATA", "asistente"), ("CSG_WEB_SESIONES", "sesiones")):
         os.environ[var] = str(tmp / sub)
         (tmp / sub).mkdir(parents=True, exist_ok=True)
+    # El perfil de la empresa también en la carpeta de la prueba: sin esto, «Cargar perfil» escribía el de la prueba en
+    # config/perfil_empresa.json del checkout (en desarrollo, la carpeta local es el repositorio) y la corrida siguiente
+    # estudiaba con los umbrales de la anterior.
+    os.environ["CSG_PERFIL_EMPRESA"] = str(tmp / "perfil_empresa.json")
     os.environ["CSG_WEB_FRONTEND"] = str(raiz / "frontend" / "dist")
     os.environ["CSG_WEB_PUERTO"] = str(puerto)
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"

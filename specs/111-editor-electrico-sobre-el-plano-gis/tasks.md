@@ -90,11 +90,15 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
       Hecho cuando: `npm run lint`, `npm run typecheck`, `npm test` (`test/plano.test.mjs`) y `npm run build` en verde.
       Hecho (`api/plano.ts`, `features/plano/`, la pestaña en `App.tsx` y su paso en `pasoDeTrabajo.ts`): lint,
       typecheck, `test/plano.test.mjs` y `npm run build` en verde (evidencia en la entrega T15 v2, fuera de git).
-- [ ] T16. Recorridos e2e en navegador real: maniobra → flujo con el motor abierto → resultados sobre el plano, y
+- [x] T16. Recorridos e2e en navegador real: maniobra → flujo con el motor abierto → resultados sobre el plano, y
       comparación de dos casos, los dos también solo con teclado; axe sin fallos serios en claro y en oscuro; huellas de
       los vértices de la fuente iguales antes y después. (RF-1, RF-2, RF-3, RF-4, RF-10, RF-11, RF-12, RF-13, RF-14,
       RF-16, RF-17, RF-18, RF-19)
       Hecho cuando: `npx playwright test -c e2e/playwright.config.ts plano.spec.ts` en verde, con la semilla en el registro.
+      Hecho en la fila 111-T16 (f7, 17-11): `frontend/e2e/plano.spec.ts`, en claro y oscuro y solo con el teclado: buscar
+      una maniobra, abrir una variación, cambiar su estado y estudiar con el motor abierto (resultados sobre el plano con
+      el motor dicho), un segundo caso estudiado y la comparación del A con el B; axe sin infracciones graves y las huellas
+      de los vértices de la fuente iguales antes y después. Sustituye al F02 vacío de 086 T79 (086:RF-107).
 - [ ] T17. Revisión a mano en navegador real: solo teclado, lector de pantalla, contraste en claro y oscuro, foco
       visible y microcopia sin exceso de texto. (RF-13, RF-14)
       Hecho cuando: la nota de la revisión, con capturas, está en la evidencia de la entrega (fuera de git) sin

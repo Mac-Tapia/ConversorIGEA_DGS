@@ -119,6 +119,14 @@ test('111:RF-1 la tabla es virtualizada: con miles de elementos pinta solo su ve
   assert.match(html, /aria-rowcount="5001"/);
 });
 
+test('111:RF-1 la rejilla de elementos es la tabla misma: sus filas son hijas del grid (WAI-ARIA, axe)', async () => {
+  const { pintar } = await cargar();
+  const filas = [{ clase: 'tramo', codigo: 'T-1', alimentador: 'A1', detalle: '' }];
+  const html = pintar('TablaElementos', { filas, seleccionado: null, onElegir: nada });
+  assert.match(html, /<table[^>]*role="grid"[^>]*aria-label="Elementos del alimentador"/, 'el grid no es el <table>');
+  assert.doesNotMatch(html, /<div[^>]*role="grid"/, 'el grid envuelve un <table>: aria-required-children');
+});
+
 test('111:RF-2, RF-3 el inspector dice el código, el dato original, lo deducido con su motivo y la calidad', async () => {
   const { pintar, elementosDe, buscarPorCodigo } = await cargar();
   const elementos = elementosDe([vista()]);

@@ -943,7 +943,6 @@
     "test/e2e/comun.mjs",
     "test/e2e/entorno.mjs",
     "test/e2e/f01_vnr.e2e.mjs",
-    "test/e2e/f02_plano.e2e.mjs",
     "test/e2e/f03_planificacion.e2e.mjs",
     "test/e2e/f04_asistente.e2e.mjs",
     "test/e2e/f05_selector_unico.e2e.mjs",

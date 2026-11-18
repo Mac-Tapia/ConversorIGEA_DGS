@@ -68,6 +68,10 @@ def test_111_rf16_preparar_usa_un_espacio_sintetico_sorteado_y_dice_la_semilla()
     assert 'EXIGIR_SEGURIDAD' in web, 'la web de prueba corre con la seguridad real'
     for var in ('CSG_RUNTIME_HOME', 'CSG_CACHE_HOME', 'CSG_WEB_SESIONES'):
         assert var in web, f'{var}: la web de prueba no toca el perfil del usuario'
+    # 111:RF-16 (18-11): «Cargar perfil» escribía el de la prueba en config/perfil_empresa.json del checkout y la corrida
+    # siguiente estudiaba con sus umbrales: el perfil de la empresa también va a la carpeta de la prueba.
+    assert re.search(r'os\.environ\["CSG_PERFIL_EMPRESA"\]\s*=\s*str\(tmp\s*/', web), \
+        'la web de prueba deja el perfil de la empresa en el checkout'
     assert "CUDA_VISIBLE_DEVICES" in web
 
 
@@ -212,3 +216,16 @@ def test_086_rf107_un_recorrido_que_no_puede_correr_no_se_recoge_con_su_motivo()
     if ignorados:
         antes = config[:ignorados.start()].rstrip().splitlines()[-1]
         assert antes.strip().startswith('//'), 'testIgnore sin su motivo escrito encima'
+
+
+def test_111_rf16_el_recorrido_del_plano_cubre_la_t16_y_sustituye_al_f02_vacio():
+    """111:RF-16, 086:RF-107 (111 T16) — `e2e/plano.spec.ts` recorre maniobra → estudio con el motor abierto → resultados
+    sobre el plano y la comparación de dos casos, con el teclado, axe y las huellas de los vértices; F02 deja de ser un
+    «test.fixme» vacío."""
+    ruta = E2E / 'plano.spec.ts'
+    assert ruta.is_file(), 'falta e2e/plano.spec.ts (111 T16)'
+    texto = ruta.read_text(encoding='utf-8')
+    for pieza in ('Cambiar estado', "name: 'Estudiar'", 'Caso A', 'Caso B', "name: 'Comparar'", 'huellaDeVertices',
+                  'AxeBuilder', 'tabularHasta', "keyboard.press('Enter')", "from './sin_red'", 'CSG_E2E_SEMILLA'):
+        assert pieza in texto, f'plano.spec.ts sin «{pieza}»'
+    assert not (FRONT / 'test' / 'e2e' / 'f02_plano.e2e.mjs').exists(), 'el F02 vacío sigue en test/e2e'
