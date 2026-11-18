@@ -1367,7 +1367,7 @@ def create_app(
 
             fuente = fuente_de(path).fuente
             if fuente in (FUENTE_TXT, FUENTE_MDB, 'vnr') and fuente != group:
-                nombres = {'txt': 'un TXT de CYMDIST', 'mdb': 'una base Access',
+                nombres = {'txt': 'un TXT', 'mdb': 'una base Access',
                            'vnr': 'un paquete VNR-GIS'}
                 raise UserError(f'«{path.name}» es {nombres[fuente]} y la casilla '
                                 f'«{spec["etiqueta"]}» es de {nombres[group]}.')

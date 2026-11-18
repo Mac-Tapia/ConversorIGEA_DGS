@@ -1,6 +1,6 @@
 # ConverterSmartGrid
 
-Convierte la red de una distribuidora (TXT de CYMDIST, base Access o paquete VNR-GIS) en archivos DGS para DIgSILENT PowerFactory, y la calibra y estudia allí.
+Convierte la red de una distribuidora (TXT, base Access o paquete VNR-GIS) en archivos DGS para DIgSILENT PowerFactory, y la calibra y estudia allí.
 
 Este README es para quien desarrolla. Para instalar y usar el programa: [manual de instalación](docs/MANUAL_INSTALACION.md), [manual del operador](docs/MANUAL_OPERADOR.md) y [hoja de seguridad y privacidad](docs/SEGURIDAD_Y_PRIVACIDAD.md). El instalador se arma con `tools/construir_candidato.py`.
 
@@ -292,7 +292,7 @@ El estado al día de cada spec está en `specs/README.md`.
 ## Estructura
 
 ```text
-TXT CYMDIST
+TXT
    │
    ├── RED
    ├── CARGA

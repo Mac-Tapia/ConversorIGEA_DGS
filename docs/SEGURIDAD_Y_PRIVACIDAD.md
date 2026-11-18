@@ -76,7 +76,7 @@ Todo en la carpeta de datos del usuario (`%LOCALAPPDATA%\ConverterSmartGrid\dato
   copias de los datos. Una copia restaurada en otro equipo no trae credenciales: se vuelve a conectar.
 - Cada estudio usa una copia fija de lo importado, con su huella (`nube\copias\<sha256>\copia.json`).
 - Compartir exige la previa de quién tendrá acceso y la confirmación del operador en cada envío; solo lectura, a correos
-  concretos; «cualquiera con el enlace» solo con su autorización expresa; y nunca un expediente con TXT de CYMDIST, bases
+  concretos; «cualquiera con el enlace» solo con su autorización expresa; y nunca un expediente con TXT, bases
   Access o paquetes VNR-GIS, que se reconocen por su contenido. El asistente no puede conectar, publicar ni compartir.
 - Desconectar revoca en Google y borra la credencial del equipo; en Microsoft se retira el consentimiento desde la cuenta.
 

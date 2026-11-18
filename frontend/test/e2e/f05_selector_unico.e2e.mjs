@@ -30,9 +30,9 @@ async function abrir(page) {
   return page.locator('.ws-id span[title]').getAttribute('title');
 }
 
-/** La alternativa «Tres TXT de CYMDIST», cuyas casillas usa el recorrido. */
+/** La alternativa «TXT», cuyas casillas usa el recorrido. */
 async function tresTxt(page) {
-  const opcion = page.getByRole('radiogroup', { name: 'Alternativa de entrada' }).getByRole('radio', { name: 'Tres TXT de CYMDIST' });
+  const opcion = page.getByRole('radiogroup', { name: 'Alternativa de entrada' }).getByRole('radio', { name: 'TXT', exact: true });
   await opcion.click();
   await expect(opcion).toHaveAttribute('aria-checked', 'true');
 }

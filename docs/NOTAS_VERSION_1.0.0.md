@@ -10,7 +10,7 @@ que pasa al añadir demanda. Se usa desde una página web local, en el propio eq
 
 **Lo que se entrega en la 1.0** (alcance de la spec 086):
 
-- Cargar la fuente y convertir a DGS: los tres TXT de CYMDIST, una base Access `.mdb` o un paquete VNR-GIS, una fuente por vez.
+- Cargar la fuente y convertir a DGS: los tres TXT, una base Access `.mdb` o un paquete VNR-GIS, una fuente por vez.
 - Importar en DIgSILENT con el «Caso base» verificado por el flujo de carga.
 - Calibrar («Sin proyecto») con los libros de medición de la empresa.
 - Cargas nuevas y «Con proyecto», con la escalera de obras (bancos, sección y terna).

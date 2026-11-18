@@ -321,7 +321,7 @@ export function InputsPanel() {
         {/* 086 F-12, WCAG 2.1.1: aria-disabled y no disabled, para que el foco siga en la opción elegida mientras el motor trabaja. */}
         <div className="segmented" role="radiogroup" aria-label="Alternativa de entrada">
           <button role="radio" aria-checked={mode === 'txt'} className={mode === 'txt' ? 'on' : ''}
-            aria-disabled={Boolean(active.engine) || undefined} onClick={() => !active.engine && setMode('txt')}>Tres TXT de CYMDIST</button>
+            aria-disabled={Boolean(active.engine) || undefined} onClick={() => !active.engine && setMode('txt')}>TXT</button>
           <button role="radio" aria-checked={mode === 'mdb'} className={mode === 'mdb' ? 'on' : ''}
             aria-disabled={Boolean(active.engine) || undefined} onClick={() => !active.engine && setMode('mdb')}>Base Access (.mdb)</button>
           <button role="radio" aria-checked={mode === 'vnr'} className={mode === 'vnr' ? 'on' : ''}

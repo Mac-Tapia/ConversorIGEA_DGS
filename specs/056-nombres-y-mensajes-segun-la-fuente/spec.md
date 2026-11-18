@@ -38,6 +38,9 @@ la spec 005 (RF-2, RF-3) y no entra aquí.
   VNR-GIS, `EtiquetaSalida` de la salida MT (NJA202, no W12882)— en la lista, el DGS, el proyecto
   de DIgSILENT y la calibración; sin etiqueta, o con una repetida, conserva el código interno y
   se anota. El código interno queda en los metadatos para rastrear la salida.
+- RF-8: EL SISTEMA rotulará en la web la entrada de texto como «TXT» y sus mensajes al operador dirán «los tres TXT
+  (RED, CARGA y BD_Equipo)», sin el nombre del programa que los exporta. (Orden del usuario del 17-11: «no debe decir
+  TXT de CYMDIST, solo que diga TXT».)
 
 ## Fuera de alcance
 

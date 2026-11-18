@@ -25,3 +25,6 @@
 - [x] T3. [DIgSILENT] NJA202 importado por la web sin esas palabras. (Todos)
       Hecho cuando: se cumple su criterio de finalización.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T4. La entrada «TXT» en la web y sus mensajes sin el nombre del programa (InputsPanel, app, source_runs y
+      workspace), con los manuales al día. (RF-8)
+      Hecho cuando: `npm test` en verde con projectBinding, que exige el rótulo «TXT». Hecho en esta entrega (UI-TXT, 4d).

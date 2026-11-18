@@ -13,7 +13,7 @@ copia aquí; las órdenes, en [`MANUAL_COMANDOS.md`](MANUAL_COMANDOS.md); el C4 
 
 ## Vista general
 
-ConverterSmartGrid lee la red de una distribuidora (TXT de CYMDIST, base Access o paquete VNR-GIS), la convierte en un `.dgs`
+ConverterSmartGrid lee la red de una distribuidora (TXT, base Access o paquete VNR-GIS), la convierte en un `.dgs`
 y, sobre el proyecto importado en DIgSILENT PowerFactory, la verifica, la calibra, proyecta obras y cargas nuevas, corre estudios
 y escribe informes y entregables de planeamiento. Corre entero en la máquina del operador.
 

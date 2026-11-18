@@ -29,12 +29,22 @@ def test_el_txt_conserva_sus_palabras():
     assert palabras_de('txt')['export'] == 'export CYMDIST'
 
 
-def test_la_web_solo_nombra_cymdist_en_la_entrada_de_los_txt():
-    """056:RF-5 — en la interfaz, CYMDIST solo en la opción de entrada de los TXT (o de la .mdb)."""
+def test_la_web_no_nombra_cymdist_y_la_entrada_se_llama_txt():
+    """056:RF-5 y 056:RF-8 — la interfaz no nombra el programa que exporta los TXT: la entrada se rotula «TXT» y ningún
+    texto de la web dice CYMDIST (orden del usuario del 17-11)."""
     raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
-    lineas = [(f, ln) for f in raiz.rglob('*.ts*') for ln in f.read_text(encoding='utf-8').splitlines()
+    lineas = [(f.name, ln.strip()) for f in raiz.rglob('*.ts*') for ln in f.read_text(encoding='utf-8').splitlines()
               if 'CYMDIST' in ln]
-    assert lineas and all("setMode('txt')" in ln or "setMode('mdb')" in ln for _f, ln in lineas), lineas
+    assert not lineas, lineas
+    panel = (raiz / 'features' / 'conversion' / 'InputsPanel.tsx').read_text(encoding='utf-8')
+    assert "setMode('txt')}>TXT</button>" in panel
+
+
+def test_los_mensajes_al_operador_no_nombran_cymdist():
+    """056:RF-8 — lo que el servidor dice al operador sobre la fuente nombra los TXT sin el programa que los exporta."""
+    from convertersmartgrid.web.workspace import PIDE_FUENTE
+
+    assert 'CYMDIST' not in PIDE_FUENTE and 'TXT' in PIDE_FUENTE
 
 
 def _aceptacion():

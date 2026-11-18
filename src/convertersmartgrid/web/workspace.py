@@ -97,7 +97,7 @@ DEFAULT_OPTIONS: dict[str, Any] = {
 FUENTES = ('txt', 'mdb', 'vnr')
 #: 086:RF-110: sin el «:» de «la fuente:», que tras «Pendientes:» o «Faltan entradas:» encadenaba dos (2026-11-16);
 #: 059:RF-7 sigue: el mensaje nombra la fuente.
-PIDE_FUENTE = 'la fuente (los tres TXT de CYMDIST, una base Access o un paquete VNR-GIS)'
+PIDE_FUENTE = 'la fuente (los tres TXT, una base Access o un paquete VNR-GIS)'
 
 TEXT_OPTIONS = ('input_mode', 'source_company', 'empresa_espacio', 'source_period', 'source_crs', 'target_crs', 'hoja')
 BOOL_OPTIONS = ('include_geography', 'strict', 'write_preview', 'export_xlsx', 'export_tsv')

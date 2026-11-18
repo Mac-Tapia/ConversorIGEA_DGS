@@ -35,7 +35,7 @@ El programa no trae pesos entrenados: los modelos aprenden en su equipo, con sus
 
 ## El recorrido
 
-1. **Cargar la fuente.** Una por vez: los tres TXT de CYMDIST, una base `.mdb` o un paquete VNR-GIS. Se reconocen por su contenido, no
+1. **Cargar la fuente.** Una por vez: los tres TXT, una base `.mdb` o un paquete VNR-GIS. Se reconocen por su contenido, no
    por el nombre. Nunca se mezclan en un espacio de trabajo. Cada espacio es un trabajo: «Nuevo espacio» empieza otro y el anterior se
    conserva.
    En **Empresa del espacio**, escriba el nombre de la distribuidora y pulse **Guardar empresa** si la fuente no lo declara. La empresa de la fuente tiene prioridad. Para retirar el nombre del espacio, vacíe el campo y guarde; si falta en ambos sitios se informa el supuesto. Cambiar este dato no mueve proyectos ya importados. El campo espera mientras se ejecuta un trabajo del motor.

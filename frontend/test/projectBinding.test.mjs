@@ -43,7 +43,7 @@ for (const mode of ['txt', 'mdb', 'vnr']) {
     assert.match(html, /Empresa del espacio/);
     assert.match(html, /<input[^>]*name="empresa_espacio"[^>]*value="Distribuidora de prueba"/);
     assert.match(html, /Guardar empresa/);
-    assert.match(html, /Tres TXT de CYMDIST/);
+    assert.match(html, />TXT<\/button>/);  // 056:RF-8: la entrada se rotula «TXT», sin el nombre del programa
     assert.match(html, /Base Access/);
     assert.match(html, /VNR-GIS/);
   });

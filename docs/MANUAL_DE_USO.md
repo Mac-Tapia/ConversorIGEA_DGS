@@ -76,7 +76,7 @@ Dunas aparece en este libro solo como ejemplo real.
 
 | Concepto | Qué es |
 | --- | --- |
-| **Fuente** | De dónde sale la red: TXT de CYMDIST (RED, CARGA, BD_Equipo), base Access (`.mdb`) o paquete VNR-GIS. Nunca se mezclan. |
+| **Fuente** | De dónde sale la red: TXT (RED, CARGA, BD_Equipo), base Access (`.mdb`) o paquete VNR-GIS. Nunca se mezclan. |
 | **Alimentador** | Una salida de media tensión de una subestación (SET), con sus tramos, barras y SED. |
 | **SED** | Subestación de distribución: un transformador de media a baja con la carga de sus clientes. En DIgSILENT, una carga (`ElmLod`) en la barra de baja de su transformador. |
 | **DGS** | Formato de intercambio de PowerFactory que escribe el conversor. |
@@ -121,7 +121,7 @@ y reciben un plan JSON y devuelven un informe JSON. La web y el CLI son dos cara
 ```mermaid
 flowchart LR
     subgraph Fuentes
-        TXT[TXT CYMDIST<br/>RED · CARGA · BD_Equipo]
+        TXT[TXT<br/>RED · CARGA · BD_Equipo]
         MDB[Base Access .mdb]
         VNR[Paquete VNR-GIS<br/>SQL Server]
     end

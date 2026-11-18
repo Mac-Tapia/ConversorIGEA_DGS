@@ -294,7 +294,7 @@ Funciona también con la entrada por TXT, donde actúa como filtro de selección
 
 ### En la interfaz
 
-El panel **1 · Entrada de datos** tiene tres pestañas: *Tres TXT de CYMDIST*,
+El panel **1 · Entrada de datos** tiene tres pestañas: *TXT*,
 *Base Access (.mdb)* y *VNR-GIS*. Al cambiar, el panel de casillas se sustituye. Con la
 base Access solo la base de red es obligatoria; la base de equipos y el estudio son
 opcionales.

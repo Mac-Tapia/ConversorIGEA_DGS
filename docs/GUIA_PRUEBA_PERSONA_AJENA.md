@@ -13,7 +13,7 @@ el instalador de la versión que se prueba.
       cuenta no debe haber `%LOCALAPPDATA%\Programs\ConverterSmartGrid` ni `%LOCALAPPDATA%\ConverterSmartGrid\datos`.
 - [ ] El instalador `ConverterSmartGrid-<versión>-setup.exe` del candidato que se prueba, y `MANUAL_INSTALACION.md` impreso o en
       otra pantalla.
-- [ ] Una fuente de prueba para convertir, una sola: los tres TXT de CYMDIST, una base `.mdb` o un paquete VNR-GIS, con permiso de
+- [ ] Una fuente de prueba para convertir, una sola: los tres TXT, una base `.mdb` o un paquete VNR-GIS, con permiso de
       la distribuidora para usarla en la prueba. No la saque del equipo ni la suba a internet.
 - [ ] Si la prueba llega a DIgSILENT (paso 9, opcional): DIgSILENT PowerFactory 2021 o posterior, con licencia, y un proyecto de
       prueba nuevo. No use proyectos de trabajo.
@@ -45,7 +45,7 @@ su lugar.
    el título **ConverterSmartGrid** y la tarjeta **1 Entrada de datos**. Arriba puede salir «Aún no hay ninguna copia de sus
    datos.»: es normal en una instalación nueva.
 
-6. **Elegir la fuente y darle los ficheros.** En **1 Entrada de datos**, elegir «Tres TXT de CYMDIST», «Base Access (.mdb)» o
+6. **Elegir la fuente y darle los ficheros.** En **1 Entrada de datos**, elegir «TXT», «Base Access (.mdb)» o
    «VNR-GIS», y soltar o elegir los ficheros. Con los TXT basta soltarlos juntos en «Suelte aquí los TXT de la entrega».
    Debe ver: cada fichero en su casilla y, debajo, «Los tres TXT están listos. Pulse «Cargar / listar alimentadores».» (o «Base de
    datos lista.» o «Paquete VNR-GIS listo.»).
