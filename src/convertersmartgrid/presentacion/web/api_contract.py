@@ -1144,12 +1144,28 @@ class EstudiarPlanoPeticion(BaseModel):
     project: str | None = Field(default=None, max_length=255)
 
 
+class NormaHallazgoRespuesta(Respuesta):
+    """111:RF-21: la norma de la biblioteca que fija el umbral de un hallazgo, o ``falta`` con el motivo de que no la haya."""
+    clave: str | None = None
+    acto: str | None = None
+    articulo: str | None = None
+    pagina: str | None = None
+    cita: str | None = None
+    estado: str | None = None
+    obligatoria: bool | None = None
+    #: El umbral es un criterio de la empresa (su perfil), no una norma: la clave y su origen.
+    criterio_empresa: str | None = None
+    origen: str | None = None
+    falta: str | None = None
+
+
 class IncumplePlanoRespuesta(Respuesta):
-    """111:RF-13: un incumplimiento con texto, icono, valor y umbral, no solo color."""
+    """111:RF-13: un incumplimiento con texto, icono, valor y umbral, no solo color; RF-21: y la norma que lo fija."""
     texto: str
     icono: str
     valor: float
     umbral: float
+    norma: NormaHallazgoRespuesta | None = None
 
 
 class ElementoCapaRespuesta(Respuesta):

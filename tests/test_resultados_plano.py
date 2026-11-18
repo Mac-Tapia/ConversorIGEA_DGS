@@ -336,3 +336,56 @@ def test_111_rf10_capa_sin_tension_si_al_abrir_la_cabecera_nada_queda_alimentado
                  revision='r', caso='c')
     bandas = {e['codigo']: e['banda'] for e in c['capas']['tension']['elementos']}
     assert all(bandas[n] == 'sin_tension' for n in sin)
+
+
+def test_111_rf21_la_norma_de_cada_hallazgo_sale_de_la_biblioteca_y_la_que_falta_se_nombra(tmp_path):
+    """111:RF-21 — cada hallazgo lleva la norma que fija su umbral tal como la da la biblioteca normativa (107:RF-21):
+    acto, artículo y cita de la regla vigente, sin ninguna escrita en el frontend; la cargabilidad de los tramos de
+    distribución, que la biblioteca no trae, dice que falta y de dónde sale el umbral."""
+    rp = _resultados()
+    assert hasattr(rp, 'normas_de_las_capas'), 'falta resultados_plano.normas_de_las_capas (111 T21)'
+    from convertersmartgrid.aplicacion.biblioteca_normativa import cargar_biblioteca
+    from convertersmartgrid.aplicacion.estudios_pf import limites_de_perfil
+
+    registro = cargar_biblioteca()
+    normas = rp.normas_de_las_capas(registro)
+    vigente = registro.regla(rp.REGLA_DE_LA_CAPA['tension'])
+    assert normas['tension']['acto'] == vigente.norma.acto
+    assert normas['tension']['cita'] == vigente.regla.cita_literal and normas['tension']['cita']
+    assert normas['tension']['articulo'] == vigente.regla.articulo_o_anexo
+    # La cargabilidad de distribución no tiene norma publicada: criterio de la empresa, con su origen.
+    assert normas['cargabilidad'] == {'criterio_empresa': 'perfil: estudios.cargabilidad_max_pct',
+                                      'origen': 'por defecto'}
+    from convertersmartgrid.aplicacion.estudios_pf import LIMITES_POR_DEFECTO
+    assert rp.normas_de_las_capas(registro, limites=LIMITES_POR_DEFECTO)['cargabilidad']['origen'] == 'por defecto, 100 %'
+
+    _rp, _modelo, _v, r = _base(tmp_path)
+    perfil = tmp_path / 'perfil.json'
+    perfil.write_text('{"estudios": {"tension_min_pu": 0.9999, "tension_max_pu": 1.00001, '
+                      '"cargabilidad_max_pct": 0.0001}}', encoding='utf-8')
+    normas = rp.normas_de_las_capas(registro, limites=limites_de_perfil(perfil))
+    assert normas['cargabilidad']['origen'] == 'perfil', 'con el umbral del perfil, el origen lo dice'
+    c = rp.capas(r, limites=limites_de_perfil(perfil), revision='rev-1', caso='Caso base', normas=normas)
+    hallazgos = [(n, e) for n in ('tension', 'cargabilidad') for e in c['capas'][n]['elementos'] if e['incumple']]
+    assert hallazgos, 'con estos umbrales algo tiene que incumplir'
+    for capa, e in hallazgos:
+        assert e['incumple']['norma'] == normas[capa], (capa, e['codigo'])
+    sin = rp.capas(r, limites=limites_de_perfil(perfil), revision='rev-1', caso='Caso base')
+    assert all('norma' not in e['incumple'] for n in ('tension', 'cargabilidad') for e in sin['capas'][n]['elementos']
+               if e['incumple']), 'sin normas, el hallazgo no inventa ninguna'
+
+
+def test_111_rf21_una_regla_que_la_biblioteca_no_da_se_nombra_sin_suponerla():
+    """111:RF-21 — si la biblioteca no da la regla (falta o es ambigua), el hallazgo dice por qué; no se cita nada."""
+    rp = _resultados()
+    assert hasattr(rp, 'normas_de_las_capas'), 'falta resultados_plano.normas_de_las_capas (111 T21)'
+
+    class SinRegla:
+        def regla(self, clave, fecha=None):
+            raise LookupError(f'ninguna norma del registro trae la regla {clave!r}')
+
+    normas = rp.normas_de_las_capas(SinRegla())
+    assert set(normas) == set(rp.REGLA_DE_LA_CAPA)
+    assert 'falta' in normas['tension'] and 'acto' not in normas['tension']
+    assert 'calidad.tension.tolerancia_ntcse' in normas['tension']['falta']
+    assert 'criterio_empresa' in normas['cargabilidad'], 'el criterio de la empresa no depende de la biblioteca'

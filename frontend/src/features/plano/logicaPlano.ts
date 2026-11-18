@@ -102,3 +102,101 @@ export function recordarVariacion(almacen: Almacen | null, ws: string, id: strin
     /* sin almacenamiento: la pestaña sigue con la lista del servidor */
   }
 }
+
+// ------------------------------------------------------------------ 111:RF-20 a RF-22: el espacio de ingeniería
+
+/** De dónde viene una selección: la misma regla vale para todas (111:RF-20). */
+export type OrigenSeleccion = 'plano' | 'tabla' | 'buscador' | 'inspector' | 'resultados' | 'hallazgo';
+
+export type Seleccion = {
+  elegido: string | null;
+  /** Lo que se manda a la página del plano: seleccionar (resalta y encuadra) o deseleccionar; `null`, nada. */
+  alPlano: { tipo: 'seleccionar'; codigo: string } | { tipo: 'deseleccionar' } | null;
+  anuncio: string;
+};
+
+/**
+ * 111:RF-20: la selección hecha en cualquier vista, para todas. Un código del plano se selecciona en todas, también
+ * en el plano (que lo resalta y lo encuadra aunque la selección viniera de él); `null` la quita en todas. Un código
+ * que no está en las vistas no cambia la selección y se dice.
+ */
+export function seleccionEnlazada(codigo: string | null, elementos: Elemento[]): Seleccion {
+  if (codigo === null) return { elegido: null, alPlano: { tipo: 'deseleccionar' }, anuncio: 'Selección quitada.' };
+  if (!elementos.some((e) => e.codigo === codigo)) {
+    return { elegido: null, alPlano: null, anuncio: `${codigo} no está en el plano de este alimentador.` };
+  }
+  return { elegido: codigo, alPlano: { tipo: 'seleccionar', codigo }, anuncio: `${codigo} seleccionado.` };
+}
+
+export type NormaHallazgo = { clave?: string | null; acto?: string | null; articulo?: string | null; pagina?: string | null;
+  cita?: string | null; estado?: string | null; obligatoria?: boolean | null; criterio_empresa?: string | null;
+  origen?: string | null; falta?: string | null };
+
+export type Hallazgo = {
+  codigo: string; capa: string; magnitud: string; texto: string; valor: number; umbral: number; unidad: string;
+  norma: NormaHallazgo | null; caso: string; motor: string;
+};
+
+type CapasLike = {
+  pintable: boolean; caso?: string | null;
+  capas: Record<string, { leyenda: { magnitud: string; unidad: string; caso?: string | null; motor_texto?: string | null };
+    elementos: { codigo: string; incumple?: { texto: string; valor: number; umbral: number; norma?: NormaHallazgo | null } | null }[] }>;
+};
+
+/** 111:RF-21: cada hallazgo de los resultados, con lo que el inspector enseña: valor, umbral, norma, caso y motor. */
+export function hallazgosDe(capas: CapasLike | null): Hallazgo[] {
+  if (!capas || !capas.pintable) return [];
+  const salida: Hallazgo[] = [];
+  for (const [clave, capa] of Object.entries(capas.capas)) {
+    for (const e of capa.elementos) {
+      if (!e.incumple) continue;
+      salida.push({ codigo: e.codigo, capa: clave, magnitud: capa.leyenda.magnitud, texto: e.incumple.texto,
+        valor: e.incumple.valor, umbral: e.incumple.umbral, unidad: capa.leyenda.unidad, norma: e.incumple.norma ?? null,
+        caso: capa.leyenda.caso ?? capas.caso ?? '', motor: capa.leyenda.motor_texto ?? '' });
+    }
+  }
+  return salida;
+}
+
+/** 111:RF-22: el reparto de la pantalla de ingeniería, en %: el ancho del plano y el alto de la tabla en su columna. */
+export type Paneles = { plano: number; tabla: number };
+export const PANELES_POR_DEFECTO: Paneles = { plano: 60, tabla: 55 };
+export const LIMITES_PANEL = { min: 25, max: 80, paso: 5 } as const;
+const CLAVE_PANELES = 'convertersmartgrid.plano.paneles';
+
+const acotar = (x: number) => Math.max(LIMITES_PANEL.min, Math.min(LIMITES_PANEL.max, Math.round(x)));
+
+/** Los paneles que este navegador recordaba en ese espacio; si no hay, o no se entienden, los de por defecto. */
+export function panelesRecordados(almacen: Almacen | null, ws: string): Paneles {
+  try {
+    const crudo = almacen?.getItem(`${CLAVE_PANELES}.${ws}`);
+    if (!crudo) return { ...PANELES_POR_DEFECTO };
+    const p = JSON.parse(crudo) as Partial<Paneles>;
+    if (!Number.isFinite(p.plano) || !Number.isFinite(p.tabla)) return { ...PANELES_POR_DEFECTO };
+    return { plano: acotar(p.plano as number), tabla: acotar(p.tabla as number) };
+  } catch {
+    return { ...PANELES_POR_DEFECTO };
+  }
+}
+
+/** Recuerda el reparto en ese espacio; sin almacenamiento, la pantalla sigue con el que tiene. */
+export function recordarPaneles(almacen: Almacen | null, ws: string, p: Paneles): void {
+  try {
+    almacen?.setItem(`${CLAVE_PANELES}.${ws}`, JSON.stringify({ plano: acotar(p.plano), tabla: acotar(p.tabla) }));
+  } catch {
+    /* sin almacenamiento */
+  }
+}
+
+/**
+ * El nuevo tamaño de un panel al pulsar una tecla en su separador (patrón «window splitter» de WAI-ARIA): flechas,
+ * Inicio y Fin; `null` si la tecla no lo mueve. `crece` son las teclas que lo agrandan (derecha o abajo).
+ */
+export function ajustarPanel(actual: number, tecla: string, orientacion: 'vertical' | 'horizontal'): number | null {
+  const [crece, mengua] = orientacion === 'vertical' ? ['ArrowRight', 'ArrowLeft'] : ['ArrowDown', 'ArrowUp'];
+  if (tecla === crece) return acotar(actual + LIMITES_PANEL.paso);
+  if (tecla === mengua) return acotar(actual - LIMITES_PANEL.paso);
+  if (tecla === 'Home') return LIMITES_PANEL.min;
+  if (tecla === 'End') return LIMITES_PANEL.max;
+  return null;
+}

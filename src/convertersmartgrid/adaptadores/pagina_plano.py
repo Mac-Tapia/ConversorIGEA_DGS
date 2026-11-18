@@ -25,7 +25,7 @@ from typing import Any
 
 #: Lo que la pestaña puede pedir a la página: seleccionar o resaltar un código, encender o apagar una capa y mostrar
 #: una propuesta de ajuste (punto y nodo). Cualquier otro mensaje se ignora.
-MENSAJES_ENTRADA = ('seleccionar', 'resaltar', 'capa', 'propuesta')
+MENSAJES_ENTRADA = ('seleccionar', 'resaltar', 'deseleccionar', 'capa', 'propuesta')
 #: Lo que la página manda a la pestaña: que ya está lista, y el elemento que el operador seleccionó en el plano.
 MENSAJES_SALIDA = ('listo', 'seleccionado')
 #: Las capas por vista, con su nombre en el selector.
@@ -217,8 +217,12 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
       if ((m.tipo === 'seleccionar' || m.tipo === 'resaltar') && typeof m.codigo === 'string') {{
         const capa = resaltar(m.codigo);
         if (capa && m.tipo === 'seleccionar') {{
-          if (capa.getBounds) map.fitBounds(capa.getBounds(), {{ maxZoom: 18 }}); else map.setView(capa.getLatLng(), 18);
+          // Encuadre con un zoom que deja el elemento visible entero, con margen alrededor.
+          if (capa.getBounds) map.fitBounds(capa.getBounds(), {{ padding: [48, 48], maxZoom: 18 }});
+          else map.setView(capa.getLatLng(), 18);
         }}
+      }} else if (m.tipo === 'deseleccionar') {{
+        resaltar(null);
       }} else if (m.tipo === 'capa' && typeof m.clave === 'string' && grupos[m.clave] && typeof m.visible === 'boolean') {{
         if (m.visible) grupos[m.clave].addTo(map); else map.removeLayer(grupos[m.clave]);
       }} else if (m.tipo === 'propuesta' && Array.isArray(m.punto) && m.punto.length === 2

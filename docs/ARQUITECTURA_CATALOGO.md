@@ -12,7 +12,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 126 |
 | Interfaz | `frontend/src/` | 112 |
-| Pruebas de la interfaz | `frontend/test/` | 51 |
+| Pruebas de la interfaz | `frontend/test/` | 52 |
 | Pruebas | `tests/` | 590 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3850 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3853 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -1003,6 +1003,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/plano/textosPlano.ts` | — | 111 | Textos cortos de la pestaña del plano. |
 | `src/features/plano/logicaPlano.ts` | — | 111 | Lógica de la pestaña del plano sin reglas eléctricas: elementos, búsqueda por código, teclado, ventana de filas, lectura de vértices y la variación… |
 | `test/plano.test.mjs` | — | 111 | Pruebas de la pestaña del plano sin navegador: tipos del contrato, mensajes, teclado, tabla virtualizada, inspector, capas, comparación, ediciones,… |
+| `test/planoEspacio.test.mjs` | — | 111 | Pruebas del plano en el espacio de ingeniería sin navegador: la selección enlazada entre plano, tabla, inspector y capas, el hallazgo con su norma o… |
 | `test/puntosDeDiseno.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/app/ArchivoInformes.tsx` | — | 105 | Tarjeta para ver, poner y quitar la carpeta de archivo de los informes. |
 | `src/shared/graficos.ts` | — | 105, 006 | Marcas de eje, tramos de línea y colores de serie de las gráficas SVG, compartidos sin librería de gráficos. |

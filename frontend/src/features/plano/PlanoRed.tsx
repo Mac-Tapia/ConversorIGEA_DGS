@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as EventoTeclado,
+  type PointerEvent as EventoPuntero } from 'react';
 
 import { plano, type CapasPlano, type ComparacionPlano, type EdicionPlano, type Plano, type PropuestaAjuste,
   type VariacionesPlano, type VariacionPlano } from '../../api/plano';
@@ -6,8 +7,9 @@ import { useApp } from '../../shared/context';
 import { CapasResultados, Comparacion } from './CapasResultados';
 import { EdicionesPlano } from './EdicionesPlano';
 import { InspectorElemento } from './InspectorElemento';
-import { almacenDelNavegador, buscarPorCodigo, elementosDe, leerVertices, recordarVariacion, variacionRecordada,
-  type Elemento } from './logicaPlano';
+import { ajustarPanel, almacenDelNavegador, buscarPorCodigo, elementosDe, hallazgosDe, leerVertices, panelesRecordados,
+  recordarPaneles, recordarVariacion, seleccionEnlazada, variacionRecordada, type Elemento, type Hallazgo,
+  type Paneles } from './logicaPlano';
 import { leerMensaje, mensajeAlPlano } from './mensajesPlano';
 import { TablaElementos } from './TablaElementos';
 import { TEXTOS } from './textosPlano';
@@ -17,6 +19,10 @@ import { TEXTOS } from './textosPlano';
  * y habla con la pestaña por `postMessage` con un esquema cerrado. Las ediciones van a la API, que valida, versiona y
  * decide toda regla eléctrica; estudiar es un trabajo en su carril. Todo se puede hacer con el teclado: el buscador,
  * la tabla, el inspector y los formularios sustituyen a arrastrar en el plano.
+ *
+ * 111:RF-20 a RF-22: el plano, la tabla y el inspector son una sola pantalla de ingeniería, con separadores que se
+ * mueven con el teclado o el ratón y se recuerdan por espacio; una selección en cualquiera de ellos, o en un hallazgo,
+ * se selecciona en todos y el plano la encuadra; Escape la quita.
  */
 export function PlanoRed() {
   const { ws, feeders, selected, run, startJob, active, jobs } = useApp();
@@ -36,7 +42,11 @@ export function PlanoRed() {
   const [propuesta, setPropuesta] = useState<PropuestaAjuste | null>(null);
   const [anuncio, setAnuncio] = useState('');
   const [refresco, setRefresco] = useState(0);
+  const [hallazgo, setHallazgo] = useState<Hallazgo | null>(null);
+  const [paneles, setPaneles] = useState<Paneles>(() => panelesRecordados(almacenDelNavegador(), ws.id));
   const marco = useRef<HTMLIFrameElement>(null);
+  const espacio = useRef<HTMLDivElement>(null);
+  const lado = useRef<HTMLDivElement>(null);
   const actual = alimentador || opciones[0] || '';
   const ocupado = Boolean(active.engine || active.powerfactory);
 
@@ -65,11 +75,13 @@ export function PlanoRed() {
   useEffect(() => {
     const oir = (e: MessageEvent) => {
       const m = leerMensaje(e, marco.current?.contentWindow);
-      if (m?.tipo === 'seleccionado') { setElegido(m.codigo); setAnuncio(`${m.codigo} seleccionado.`); }
+      if (m?.tipo === 'seleccionado') seleccionarRef.current(m.codigo);
     };
     window.addEventListener('message', oir);
     return () => window.removeEventListener('message', oir);
   }, []);
+
+  useEffect(() => { setPaneles(panelesRecordados(almacenDelNavegador(), ws.id)); }, [ws.id]);
 
   // El estudio termina en el carril de trabajos; al acabar, se piden sus capas.
   const estudio = Object.values(jobs).find((j) => j.kind === 'plano_estudiar' && j.result?.variacion === variacion?.id);
@@ -88,10 +100,48 @@ export function PlanoRed() {
   const seleccion: Elemento | null = elementos.find((e) => e.codigo === elegido) ?? null;
   const enviar = (tipo: Parameters<typeof mensajeAlPlano>[0], campos: Record<string, unknown>) =>
     marco.current?.contentWindow?.postMessage(mensajeAlPlano(tipo, campos), '*');
-  const elegir = (codigo: string) => {
-    setElegido(codigo);
-    enviar('seleccionar', { codigo });
-    setAnuncio(`${codigo} seleccionado.`);
+  /** 111:RF-20: una sola regla para toda selección, venga de donde venga; `null` la quita en todas las vistas. */
+  const seleccionar = (codigo: string | null) => {
+    const s = seleccionEnlazada(codigo, elementos);
+    setAnuncio(s.anuncio);
+    if (!s.alPlano) return;
+    setElegido(s.elegido);
+    enviar(s.alPlano.tipo, s.alPlano.tipo === 'seleccionar' ? { codigo: s.alPlano.codigo } : {});
+    setHallazgo((h) => (h && h.codigo === s.elegido ? h : null));
+  };
+  const seleccionarRef = useRef(seleccionar);
+  seleccionarRef.current = seleccionar;
+  const elegir = (codigo: string) => seleccionar(codigo);
+  /** 111:RF-21: un hallazgo lleva al elemento en el plano y al inspector, con su valor, umbral, norma, caso y motor. */
+  const hallazgos = useMemo(() => hallazgosDe(capas), [capas]);
+  const abrirHallazgo = (codigo: string, capa: string) => {
+    const h = hallazgos.find((x) => x.codigo === codigo && x.capa === capa) ?? null;
+    seleccionar(codigo);
+    setHallazgo(h);
+  };
+  /** 111:RF-22: el reparto se guarda en el navegador para este espacio. */
+  const ponerPaneles = (p: Paneles) => { setPaneles(p); recordarPaneles(almacenDelNavegador(), ws.id, p); };
+  const arrastrar = (eje: 'plano' | 'tabla') => (e: EventoPuntero<HTMLDivElement>) => {
+    const caja = (eje === 'plano' ? espacio : lado).current?.getBoundingClientRect();
+    if (!caja) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const mover = (ev: PointerEvent) => {
+      const pct = eje === 'plano' ? ((ev.clientX - caja.left) / caja.width) * 100 : ((ev.clientY - caja.top) / caja.height) * 100;
+      setPaneles((p) => ({ ...p, [eje]: Math.max(25, Math.min(80, Math.round(pct))) }));
+    };
+    const soltar = () => {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      setPaneles((p) => { recordarPaneles(almacenDelNavegador(), ws.id, p); return p; });
+    };
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+  };
+  const teclaSeparador = (eje: 'plano' | 'tabla') => (e: EventoTeclado<HTMLDivElement>) => {
+    const nuevo = ajustarPanel(paneles[eje], e.key, eje === 'plano' ? 'vertical' : 'horizontal');
+    if (nuevo === null) return;
+    e.preventDefault();
+    ponerPaneles({ ...paneles, [eje]: nuevo });
   };
   const nuevaVersion = (v: VariacionPlano | undefined, texto: string) => {
     if (!v) return;
@@ -125,7 +175,11 @@ export function PlanoRed() {
     : maniobra?.estado;
 
   return (
-    <section className="card" aria-labelledby="plano-titulo">
+    <section className="card" aria-labelledby="plano-titulo" onKeyDown={(e) => {
+      // 111:RF-20: Escape quita la selección en todas las vistas (fuera de un campo, donde Escape es del campo).
+      const campo = (e.target as HTMLElement).closest('input, textarea, select');
+      if (e.key === 'Escape' && elegido && !campo) { e.preventDefault(); seleccionar(null); }
+    }}>
       <h3 id="plano-titulo">{TEXTOS.titulo}</h3>
       <p className="sr-only" aria-live="polite" role="status">{anuncio}</p>
       <div className="toolbar">
@@ -151,14 +205,28 @@ export function PlanoRed() {
       {datos && !datos.fondo.encendido && <p className="muted">{datos.fondo.motivo}</p>}
       {vista?.sin_coordenadas && <p className="alert alert-info">{TEXTOS.sinCoordenadas}</p>}
       {vista && vista.avisos.length > 0 && <div className="alert alert-info">{vista.avisos.slice(0, 3).map((a) => <p key={a}>{a}</p>)}</div>}
-      {actual && (
-        <iframe ref={marco} key={`${actual}|${refresco}|${capas?.variacion ?? ''}`} className="map-frame" title={TEXTOS.marco}
-          src={plano.paginaUrl(ws.id, [actual], capas?.pintable ? capas.variacion ?? null : null)} sandbox="allow-scripts" />
-      )}
-      <div className="plano-columnas">
-        <div>
+      <div className="plano-espacio" ref={espacio}
+        style={{ '--ancho-plano': `${paneles.plano}%`, '--alto-tabla': `${paneles.tabla}%` } as CSSProperties}>
+        <div className="plano-espacio-mapa">
+          {actual && (
+            <iframe ref={marco} key={`${actual}|${refresco}|${capas?.variacion ?? ''}`} className="map-frame" title={TEXTOS.marco}
+              src={plano.paginaUrl(ws.id, [actual], capas?.pintable ? capas.variacion ?? null : null)} sandbox="allow-scripts" />
+          )}
+        </div>
+        <div className="plano-separador plano-separador-v" role="separator" tabIndex={0} aria-orientation="vertical"
+          aria-label={TEXTOS.anchoPlano} aria-valuemin={25} aria-valuemax={80} aria-valuenow={paneles.plano}
+          onKeyDown={teclaSeparador('plano')} onPointerDown={arrastrar('plano')} />
+        <div className="plano-espacio-lado" ref={lado}>
+          <div className="plano-espacio-tabla">
+            <TablaElementos filas={elementos} seleccionado={elegido} onElegir={elegir} />
+          </div>
+          <div className="plano-separador plano-separador-h" role="separator" tabIndex={0} aria-orientation="horizontal"
+            aria-label={TEXTOS.altoTabla} aria-valuemin={25} aria-valuemax={80} aria-valuenow={paneles.tabla}
+            onKeyDown={teclaSeparador('tabla')} onPointerDown={arrastrar('tabla')} />
+          <div className="plano-espacio-inspector">
           <h4>{TEXTOS.inspector}</h4>
-          <InspectorElemento elemento={seleccion} />
+          <InspectorElemento elemento={seleccion} hallazgo={hallazgo && hallazgo.codigo === elegido ? hallazgo : null}
+            onElegir={elegir} onQuitar={() => seleccionar(null)} />
           {maniobra && variacion && variacion.estado === 'abierta' && (
             <button type="button" disabled={ocupado} onClick={() => void editar(
               { tipo: 'maniobra', codigo: maniobra.codigo, estado: estadoActual === 'abierto' ? 'cerrado' : 'abierto' },
@@ -166,9 +234,7 @@ export function PlanoRed() {
               {TEXTOS.maniobra}: {estadoActual === 'abierto' ? 'cerrar' : 'abrir'}
             </button>
           )}
-        </div>
-        <div>
-          <TablaElementos filas={elementos} seleccionado={elegido} onElegir={elegir} />
+          </div>
         </div>
       </div>
       <h4>{TEXTOS.variacion}</h4>
@@ -207,7 +273,7 @@ export function PlanoRed() {
         </>
       )}
       <h4>{TEXTOS.resultados}</h4>
-      {capas ? <CapasResultados capas={capas} onElegir={elegir} /> : <p className="muted">{TEXTOS.sinResultados}</p>}
+      {capas ? <CapasResultados capas={capas} onHallazgo={abrirHallazgo} /> : <p className="muted">{TEXTOS.sinResultados}</p>}
       {lista && lista.estudiadas.length > 1 && (
         <>
           <h4>{TEXTOS.comparar}</h4>

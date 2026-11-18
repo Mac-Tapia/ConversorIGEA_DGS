@@ -6,7 +6,11 @@ const MAGNITUD: Record<string, string> = { tension: 'Tensión', corriente: 'Corr
 
 /** 111:RF-10, RF-13, RF-18: cada capa con su unidad, su umbral, el caso y el motor; un incumplimiento lleva icono y
  * texto, no solo color. Los umbrales y las bandas los da el servidor. */
-export function CapasResultados({ capas, onElegir }: { capas: CapasPlano; onElegir: (codigo: string) => void }) {
+export function CapasResultados({ capas, onHallazgo }: {
+  capas: CapasPlano;
+  /** 111:RF-21: abrir un hallazgo lleva al elemento en el plano y al inspector con su valor, umbral, norma, caso y motor. */
+  onHallazgo: (codigo: string, capa: string) => void;
+}) {
   if (!capas.pintable) {
     return <div className="alert alert-warn" role="status"><p>{capas.motivo}</p>
       {capas.mensajes.length > 0 && <ul className="lista-compacta">{capas.mensajes.slice(0, 5).map((m) => <li key={m}>{m}</li>)}</ul>}</div>;
@@ -27,7 +31,7 @@ export function CapasResultados({ capas, onElegir }: { capas: CapasPlano; onEleg
                 {malos.slice(0, 50).map((e) => (
                   <li key={e.codigo}>
                     <span className="icono-alerta" role="img" aria-label={TEXTOS.incumple}>!</span>{' '}
-                    <button type="button" className="link" onClick={() => onElegir(e.codigo)}>{e.codigo}</button>: {e.incumple?.texto}
+                    <button type="button" className="link" onClick={() => onHallazgo(e.codigo, clave)}>{e.codigo}</button>: {e.incumple?.texto}
                   </li>
                 ))}
               </ul>

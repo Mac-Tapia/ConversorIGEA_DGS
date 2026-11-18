@@ -9,7 +9,7 @@
  * comprueba que viene del padre y con el origen de la web. */
 
 /** Lo que la pestaña puede pedir a la página. */
-export const ENTRADA = ['seleccionar', 'resaltar', 'capa', 'propuesta'] as const;
+export const ENTRADA = ['seleccionar', 'resaltar', 'deseleccionar', 'capa', 'propuesta'] as const;
 /** Lo que la página manda a la pestaña. */
 export const SALIDA = ['listo', 'seleccionado'] as const;
 

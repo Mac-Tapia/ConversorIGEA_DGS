@@ -179,18 +179,53 @@ def _incumple_carga(c: float | None, limites: Limites) -> dict[str, Any] | None:
             'icono': ICONO_INCUMPLE, 'valor': c, 'umbral': umbral}
 
 
+#: 111:RF-21: de dónde sale el umbral de cada capa con hallazgos. La tensión, de una regla de la biblioteca normativa
+#: (107:RF-21). La cargabilidad de los tramos MT y BT de distribución no tiene norma publicada con un umbral (la del PIT,
+#: ``pit.factor_utilizacion_max``, es de líneas MAT y AT y SET): su umbral es un criterio de la empresa, la clave
+#: ``estudios.cargabilidad_max_pct`` de su perfil, y el hallazgo lo dice así, nunca como norma (orden de c2, 17-11).
+CRITERIO_EMPRESA = 'perfil:'
+REGLA_DE_LA_CAPA: dict[str, str] = {'tension': 'calidad.tension.tolerancia_ntcse',
+                                    'cargabilidad': f'{CRITERIO_EMPRESA}estudios.cargabilidad_max_pct'}
+
+
+def normas_de_las_capas(registro: Any, fecha: str | None = None, *, limites: Limites | None = None
+                        ) -> dict[str, dict[str, Any]]:
+    """111:RF-21: la norma de cada capa con hallazgos, leída de la biblioteca (``registro.regla``), o el criterio de la
+    empresa con su origen (``limites.origen``: «perfil» o «por defecto»), o el motivo de que no haya ninguna. Ninguna
+    cita se escribe en el frontend: la pestaña enseña lo que da aquí el servidor."""
+    salida: dict[str, dict[str, Any]] = {}
+    for capa, clave in REGLA_DE_LA_CAPA.items():
+        if clave.startswith(CRITERIO_EMPRESA):
+            origen = limites.origen if limites is not None else 'por defecto'
+            valor = getattr(limites, 'cargabilidad_max_pct', None) if limites is not None else None
+            salida[capa] = {'criterio_empresa': f'perfil: {clave[len(CRITERIO_EMPRESA):]}',
+                            'origen': origen if origen != 'por defecto' or valor is None else f'por defecto, {valor:g} %'}
+            continue
+        try:
+            vigente = registro.regla(clave, fecha)
+        except Exception as exc:  # noqa: BLE001 - una regla que falta o es ambigua se nombra, no se supone
+            salida[capa] = {'falta': f'La biblioteca normativa no da la regla {clave}: {exc}'}
+            continue
+        r, n = vigente.regla, vigente.norma
+        salida[capa] = {'clave': r.clave, 'acto': n.acto, 'articulo': r.articulo_o_anexo, 'pagina': r.pagina,
+                        'cita': r.cita_literal, 'estado': vigente.estado, 'obligatoria': bool(vigente.obligatoria)}
+    return salida
+
+
 def _no_pintable(resultado: Mapping[str, Any], motivo: str) -> dict[str, Any]:
     return {'pintable': False, 'motivo': motivo, 'mensajes': list(resultado.get('mensajes') or ()), 'capas': {},
             'motor': resultado.get('motor'), 'motor_texto': MOTORES.get(resultado.get('motor'), ''),
             'caso': resultado.get('caso'), 'revision': resultado.get('revision')}
 
 
-def capas(resultado: Mapping[str, Any], *, limites: Limites, revision: str, caso: str) -> dict[str, Any]:
+def capas(resultado: Mapping[str, Any], *, limites: Limites, revision: str, caso: str,
+          normas: Mapping[str, Mapping[str, Any]] | None = None) -> dict[str, Any]:
     """Las capas que se pintan sobre las mismas polilíneas, con su leyenda (111:RF-10, RF-13, RF-18).
 
     Solo se pinta lo que el motor calculó para ese caso y esa revisión de la red (RF-11). Un incumplimiento lleva
     texto, icono, valor y umbral además del color. El umbral sale del perfil (``estudios_pf.limites_de_perfil``) o es
-    el de por defecto, y la leyenda dice cuál.
+    el de por defecto, y la leyenda dice cuál. Con ``normas`` (:func:`normas_de_las_capas`), cada incumplimiento lleva
+    también la norma de la biblioteca que fija su umbral, o el motivo de que no la haya (RF-21).
     """
     if resultado.get('revision') != revision:
         return _no_pintable(resultado, 'El resultado es de otra revisión de la red: no se pinta. Vuelva a estudiar.')
@@ -202,9 +237,16 @@ def capas(resultado: Mapping[str, Any], *, limites: Limites, revision: str, caso
     comun = {'caso': caso, 'revision': revision, 'motor': motor, 'motor_texto': MOTORES[motor],
              'origen_umbral': limites.origen}
 
-    def capa(magnitud: str, unidad: str, umbral: dict[str, float] | None, elementos: list[dict[str, Any]]):
+    def capa(magnitud: str, unidad: str, umbral: dict[str, float] | None, elementos: list[dict[str, Any]],
+             clave: str | None = None):
+        norma = dict((normas or {}).get(clave) or {}) if clave else {}
+
+        def con_norma(e: dict[str, Any]) -> dict[str, Any]:
+            if not e.get('incumple') or not norma:
+                return {**e, 'motor': motor}
+            return {**e, 'motor': motor, 'incumple': {**e['incumple'], 'norma': norma}}
         return {'leyenda': {'magnitud': magnitud, 'unidad': unidad, 'umbral': umbral, **comun},
-                'elementos': [{**e, 'motor': motor} for e in elementos]}
+                'elementos': [con_norma(e) for e in elementos]}
 
     tension = [{'codigo': n, 'valor': b['u_pu'], 'kv': b.get('kv'), 'banda': _banda_tension(b['u_pu'], limites),
                 'incumple': _incumple_tension(b['u_pu'], limites)} for n, b in sorted(resultado['barras'].items())]
@@ -217,9 +259,10 @@ def capas(resultado: Mapping[str, Any], *, limites: Limites, revision: str, caso
     return {'pintable': True, 'motivo': '', 'mensajes': list(resultado.get('mensajes') or ()), **comun,
             'capas': {
                 'tension': capa('Tensión por barra', 'p.u.',
-                                {'min': limites.tension_min_pu, 'max': limites.tension_max_pu}, tension),
+                                {'min': limites.tension_min_pu, 'max': limites.tension_max_pu}, tension, 'tension'),
                 'corriente': capa('Corriente por tramo', 'A', None, corriente),
-                'cargabilidad': capa('Cargabilidad por tramo', '%', {'max': limites.cargabilidad_max_pct}, carga),
+                'cargabilidad': capa('Cargabilidad por tramo', '%', {'max': limites.cargabilidad_max_pct}, carga,
+                                     'cargabilidad'),
                 'estado': capa('Estado de cada equipo', '', None, estado)}}
 
 

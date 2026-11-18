@@ -89,7 +89,8 @@ def test_111_rf14_los_mensajes_tienen_un_esquema_cerrado(tmp_path):
     vistas, _seed = _vistas(tmp_path)
     p = _pagina()
     html = p.pagina(vistas)
-    assert set(p.MENSAJES_ENTRADA) == {'seleccionar', 'resaltar', 'capa', 'propuesta'}
+    # 111:RF-20: «deseleccionar» quita el resaltado cuando el operador quita la selección (Escape o su botón).
+    assert set(p.MENSAJES_ENTRADA) == {'seleccionar', 'resaltar', 'deseleccionar', 'capa', 'propuesta'}
     assert set(p.MENSAJES_SALIDA) == {'listo', 'seleccionado'}
     assert f'const ENTRADA = {json.dumps(list(p.MENSAJES_ENTRADA))};' in html
     assert 'event.source !== window.parent' in html
@@ -175,3 +176,32 @@ def test_111_rf14_el_boton_de_capas_se_ve_con_la_politica_de_la_pagina(tmp_path)
     assert any('url("data:image/svg+xml' in r or "url('data:image/svg+xml" in r for r in reglas), reglas
     ultima = [r for r in reglas if 'background-image' in r][-1]
     assert 'data:image/svg+xml' in ultima  # la que vale es la última: la de la página, después de leaflet.css
+
+
+def test_111_rf20_la_pagina_encuadra_lo_seleccionado_entero_y_quita_el_resaltado_al_deseleccionar(tmp_path):
+    """111:RF-20 — al seleccionar, el plano encuadra el elemento con margen (visible entero); al quitar la selección
+    (Escape o su botón en la pestaña), la página deja de resaltarlo."""
+    vistas, _seed = _vistas(tmp_path)
+    html = _pagina().pagina(vistas)
+    assert "map.fitBounds(capa.getBounds(), { padding: [48, 48], maxZoom: 18 })" in html
+    assert "m.tipo === 'deseleccionar'" in html and 'resaltar(null)' in html
+
+
+def test_111_rf22_el_espacio_de_ingenieria_es_una_pantalla_con_tres_vistas_redimensionables_y_recordadas():
+    """111:RF-22 (111 T22) — la pestaña pone el plano, la tabla y el inspector en una sola pantalla, con dos separadores
+    accesibles (rol «separator», orientación y valor) que se recuerdan por espacio, sin quitar ninguna vista; estrecha,
+    se apilan. El recorrido en navegador real los comprueba a 1366×900 y a 1920×1080 (e2e/plano_espacio.spec.ts)."""
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1] / 'frontend'
+    pestana = (raiz / 'src' / 'features' / 'plano' / 'PlanoRed.tsx').read_text(encoding='utf-8')
+    for clase in ('plano-espacio', 'plano-espacio-mapa', 'plano-espacio-tabla', 'plano-espacio-inspector'):
+        assert f'className="{clase}"' in pestana, clase
+    assert pestana.count('role="separator"') == 2 and 'aria-valuenow={paneles.plano}' in pestana
+    assert 'recordarPaneles(' in pestana and 'panelesRecordados(' in pestana
+    for vista in ('<TablaElementos', '<InspectorElemento', 'className="map-frame"', '<CapasResultados', '<Comparacion'):
+        assert vista in pestana, f'{vista} se quitó de la pestaña'
+    estilos = (raiz / 'src' / 'shared' / 'styles.css').read_text(encoding='utf-8')
+    assert '.plano-espacio {' in estilos and '@media (max-width: 900px)' in estilos
+    recorrido = (raiz / 'e2e' / 'plano_espacio.spec.ts').read_text(encoding='utf-8')
+    assert '[1366, 900]' in recorrido and '[1920, 1080]' in recorrido and "name: 'Ancho del plano'" in recorrido

@@ -5991,11 +5991,21 @@
       },
       "IncumplePlanoRespuesta": {
         "additionalProperties": false,
-        "description": "111:RF-13: un incumplimiento con texto, icono, valor y umbral, no solo color.",
+        "description": "111:RF-13: un incumplimiento con texto, icono, valor y umbral, no solo color; RF-21: y la norma que lo fija.",
         "properties": {
           "icono": {
             "title": "Icono",
             "type": "string"
+          },
+          "norma": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NormaHallazgoRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "texto": {
             "title": "Texto",
@@ -7266,6 +7276,124 @@
           "ruta"
         ],
         "title": "NoDisponibleRespuesta",
+        "type": "object"
+      },
+      "NormaHallazgoRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-21: la norma de la biblioteca que fija el umbral de un hallazgo, o ``falta`` con el motivo de que no la haya.",
+        "properties": {
+          "acto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acto"
+          },
+          "articulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Articulo"
+          },
+          "cita": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cita"
+          },
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave"
+          },
+          "criterio_empresa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Criterio Empresa"
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado"
+          },
+          "falta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Falta"
+          },
+          "obligatoria": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obligatoria"
+          },
+          "origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen"
+          },
+          "pagina": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pagina"
+          }
+        },
+        "title": "NormaHallazgoRespuesta",
         "type": "object"
       },
       "NormaResumen": {

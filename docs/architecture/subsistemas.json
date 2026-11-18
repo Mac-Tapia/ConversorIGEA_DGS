@@ -803,6 +803,7 @@
     "src/features/plano/textosPlano.ts",
     "src/features/plano/logicaPlano.ts",
     "test/plano.test.mjs",
+    "test/planoEspacio.test.mjs",
     "test/puntosDeDiseno.test.mjs",
     "src/app/ArchivoInformes.tsx",
     "src/shared/graficos.ts",

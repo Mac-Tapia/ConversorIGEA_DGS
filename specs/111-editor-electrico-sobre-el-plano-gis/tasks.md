@@ -111,3 +111,25 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
 - [x] T19. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "111:RF-[0-9]+" tests frontend/test frontend/e2e | sort -u` lista de RF-1 a RF-19.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: las del criterio.
+- [x] T20. Selección enlazada plano ↔ tabla ↔ inspector con encuadre y zoom al elemento. (RF-20)
+      Hecho cuando: un recorrido e2e en navegador real selecciona en cada vista y comprueba las otras dos y el encuadre,
+      y `npm test` cubre la sincronización sin navegador.
+      Hecho en la fila 111-T20 (f7, 17-11): `seleccionEnlazada` en logicaPlano.ts (una regla para toda selección; la que viene del
+      plano también encuadra con margen), Escape y «Quitar la selección» la quitan en todas las vistas, y el mensaje
+      «deseleccionar» en pagina_plano.py; pruebas: frontend/test/planoEspacio.test.mjs, tests/test_pagina_plano.py y
+      frontend/e2e/plano_espacio.spec.ts.
+- [x] T21. Del hallazgo al elemento: cada fila de hallazgos del informe y de las tablas lleva al plano y al inspector con
+      valor, umbral, norma citada, caso y motor. (RF-21)
+      Hecho cuando: e2e en navegador real desde un hallazgo de cada tipo y prueba del servidor de que la norma citada sale
+      de la biblioteca (ninguna cita escrita en el frontend).
+      Hecho en la fila 111-T21 (f7, 17-11): `resultados_plano.normas_de_las_capas` lee la norma de cada hallazgo de la biblioteca
+      (tensión: calidad.tension.tolerancia_ntcse) y da la cargabilidad de distribución como criterio de la empresa
+      (perfil: estudios.cargabilidad_max_pct, con su origen); el inspector enseña valor, umbral, norma, caso y motor;
+      pruebas: tests/test_resultados_plano.py, frontend/test/planoEspacio.test.mjs y frontend/e2e/plano_espacio.spec.ts.
+- [x] T22. El espacio de trabajo de ingeniería en una pantalla (plano, tabla e inspector redimensionables y recordados).
+      (RF-22)
+      Hecho cuando: e2e en navegador real a 1366×900 y a 1920×1080, en claro y oscuro, y la matriz de la web sin ninguna
+      vista retirada.
+      Hecho en la fila 111-T22 (f7, 17-11): la pestaña es una sola pantalla con el plano, la tabla y el inspector, con dos
+      separadores accesibles (flechas, Inicio y Fin) y el reparto recordado por espacio; estrecha, se apilan sin quitar
+      ninguna vista; pruebas: frontend/test/planoEspacio.test.mjs y frontend/e2e/plano_espacio.spec.ts a 1366×900 y 1920×1080.

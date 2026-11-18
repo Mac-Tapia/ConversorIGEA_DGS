@@ -58,6 +58,14 @@ Todo esto sin tocar nunca el caso base ni la geometría de la fuente.
 - RF-18: EL SISTEMA dirá, en la leyenda y junto a cada resultado pintado, qué motor lo calculó.
 - RF-19: SI los dos casos comparados se calcularon con motores distintos, ENTONCES EL SISTEMA lo dirá junto a la
   diferencia.
+- RF-20: CUANDO el operador seleccione un elemento en el plano, en una tabla de resultados o en el inspector, EL SISTEMA
+  lo seleccionará en las otras vistas abiertas, con el mismo código (RF-2), y encuadrará el plano en él con un zoom que
+  lo deja visible entero; la selección se puede quitar con el teclado (RF-14). (Plan Maestro v1.6, BP-20: «workspace de ingeniería, zoom, selección enlazada, informe explicable, accesibilidad y e2e por rol»; orden del usuario del 17-11.)
+- RF-21: CUANDO el operador abra un hallazgo del informe o de una tabla (una barra fuera de su banda, un tramo
+  sobrecargado, una obra propuesta), EL SISTEMA lo llevará al elemento en el plano y mostrará en el inspector el valor,
+  el umbral, la norma que lo fija (de la biblioteca normativa, 107:RF-21) y el caso y el motor que lo calcularon (RF-18).
+- RF-22: EL SISTEMA mantendrá el espacio de trabajo de ingeniería como una sola pantalla con el plano, la tabla de
+  resultados y el inspector a la vez, redimensionables y recordados por espacio, sin quitar ninguna vista actual (RF-16).
 
 ## Requisitos no funcionales
 - Escala: un plano con todos los alimentadores de la entrega, sin bloquear la página mientras calcula, con capas por

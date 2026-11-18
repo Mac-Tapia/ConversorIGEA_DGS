@@ -51,6 +51,15 @@ export const TEXTOS = {
   incumple: 'Incumple',
   tabla: 'Elementos del alimentador',
   coordenadasMal: 'Escriba cada vértice como «latitud, longitud».',
+  anchoPlano: 'Ancho del plano',
+  altoTabla: 'Alto de la tabla',
+  hallazgo: 'Hallazgo',
+  valor: 'Valor',
+  umbral: 'Umbral',
+  norma: 'Norma',
+  motor: 'Motor',
+  quitarSeleccion: 'Quitar la selección',
+  criterioEmpresa: 'Criterio de la empresa, no norma',
 } as const;
 
 /** Cómo se lee la calidad de un elemento. */

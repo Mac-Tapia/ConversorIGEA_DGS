@@ -194,6 +194,19 @@ def estudiar(fuente, ws, ctx, vid: str, project: str | None) -> dict:
             'mensajes': list(resultado.get('mensajes') or ())}
 
 
+def _normas(limites=None) -> dict:
+    """111:RF-21: la norma de cada capa con hallazgos, de la biblioteca normativa general (107:RF-21) con la capa del
+    usuario; una biblioteca que no se puede leer deja cada hallazgo con su motivo, no tumba los resultados."""
+    from ...aplicacion.biblioteca_normativa import cargar_biblioteca
+
+    try:
+        registro = cargar_biblioteca()
+    except Exception as exc:  # noqa: BLE001 - los resultados se enseñan igual, con el motivo de que falte la norma
+        motivo = f'La biblioteca normativa no se pudo leer: {exc}'
+        return {capa: {'falta': motivo} for capa in resultados_plano.REGLA_DE_LA_CAPA}
+    return resultados_plano.normas_de_las_capas(registro, limites=limites)
+
+
 def _campo(binding: Any, nombre: str) -> Any:
     return binding.get(nombre) if isinstance(binding, dict) else getattr(binding, nombre, None)
 
@@ -242,7 +255,8 @@ def registrar_rutas_plano(app: FastAPI, *, ws_or_404, submit, fuente: Any = None
         if variacion:
             r = _leer_resultado(ws, variacion)
             revision = next((v['revision'] for v in vistas if v['alimentador'] == r['alimentador']), None)
-            capas = resultados_plano.capas(r, limites=fuente.limites(), revision=revision or '', caso=r['caso'])
+            capas = resultados_plano.capas(r, limites=fuente.limites(), revision=revision or '', caso=r['caso'],
+                                           normas=_normas(fuente.limites()))
         return HTMLResponse(pagina_del_plano(vistas, capas=capas),
                             headers={'Content-Security-Policy': politica_pagina_generada()})
 
@@ -309,7 +323,8 @@ def registrar_rutas_plano(app: FastAPI, *, ws_or_404, submit, fuente: Any = None
         ws = ws_or_404(wid)
         r = _leer_resultado(ws, variacion)
         _modelo, _vista, revision = _vista_y_revision(fuente, ws, r['alimentador'])
-        return {**resultados_plano.capas(r, limites=fuente.limites(), revision=revision, caso=r['caso']),
+        return {**resultados_plano.capas(r, limites=fuente.limites(), revision=revision, caso=r['caso'],
+                                         normas=_normas(fuente.limites())),
                 'variacion': variacion}
 
     @app.get(f'{base}/comparar', response_model=ComparacionPlanoRespuesta)

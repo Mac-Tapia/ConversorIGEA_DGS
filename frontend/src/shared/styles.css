@@ -586,6 +586,24 @@ button.link { background: none; border: 0; padding: 0; color: var(--primary); fo
 /* 111: pestaña «Plano de la red». */
 .plano-columnas { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
 .plano-columnas fieldset { border: 1px solid var(--border); border-radius: 8px; display: grid; gap: 6px; }
+/* 111:RF-22: el espacio de ingeniería, una sola pantalla con el plano, la tabla y el inspector; los separadores se
+   mueven con las flechas o el ratón y se recuerdan por espacio. Estrecha, las tres vistas se apilan: ninguna se quita. */
+.plano-espacio { display: grid; grid-template-columns: var(--ancho-plano, 60%) 10px minmax(0, 1fr); height: 72vh;
+  min-height: 520px; gap: 0; margin: 8px 0; }
+.plano-espacio-mapa { min-width: 0; min-height: 0; }
+.plano-espacio-mapa .map-frame { height: 100%; }
+.plano-espacio-lado { display: grid; grid-template-rows: var(--alto-tabla, 55%) 10px minmax(0, 1fr); min-width: 0; min-height: 0; }
+.plano-espacio-tabla, .plano-espacio-inspector { overflow: auto; min-height: 0; padding: 0 4px; }
+.plano-separador { background: var(--border); border-radius: 4px; touch-action: none; }
+.plano-separador-v { cursor: col-resize; margin: 0 3px; }
+.plano-separador-h { cursor: row-resize; margin: 3px 0; }
+.plano-separador:hover, .plano-separador:focus-visible { background: var(--accent, #2684ff); outline: 2px solid var(--accent, #2684ff); outline-offset: 1px; }
+@media (max-width: 900px) {
+  .plano-espacio { grid-template-columns: 1fr; height: auto; }
+  .plano-espacio-mapa { height: 420px; }
+  .plano-espacio-lado { grid-template-rows: auto auto; }
+  .plano-separador { display: none; }
+}
 .lista-compacta { margin: 4px 0; padding-left: 18px; }
 .lista-compacta li { margin: 2px 0; }
 dl.datos { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 4px 0; }
