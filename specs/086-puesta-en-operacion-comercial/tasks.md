@@ -81,13 +81,17 @@
 - [x] T14 Leaflet propio, política de contenido y sin salida a la red por defecto. (RF-21, RF-22) (`v1/seguridad`)
   Hecho cuando: con lo externo cortado en el navegador, cargar, convertir, descargar y abrir el mapa funcionan; una prueba recorre las salidas conocidas.
   Evidencia: `tests/test_seguridad_web.py`; navegador real en el 8791, sin conexiones externas del servidor. El flujo completo con la red cortada de verdad es la T36.
-- [ ] T75 Los marcos los decide la puerta en toda respuesta: los dos mapas que enmarca la interfaz se ven, solo al mismo
+- [x] T75 Los marcos los decide la puerta en toda respuesta: los dos mapas que enmarca la interfaz se ven, solo al mismo
       origen, por una lista de rutas con nombre (`seguridad.RUTAS_ENMARCABLES`) y solo si la respuesta es una página HTML
       aislada que no es descarga; todo lo demás, también el 401, el 403, el 303, un error JSON y una descarga de esas rutas,
       sigue con `DENY` y `frame-ancestors 'none'`; las teselas, por sus servidores exactos. (RF-21) (`v1/seguridad`)
       Hecho cuando: `tests/test_seguridad_web.py` (086:RF-21) en verde, con la prueba que recorre `app.routes` y la coteja
       con el contrato OpenAPI, y en rojo sobre el árbol 9d483349; y la revisión en navegador real enseña los dos mapas dentro
       de la web y niega el marco desde otro origen.
+  Hecho en la fila 086-T75 (f7, 17-11): la revisión en navegador real es `frontend/e2e/marcos.spec.ts`: dentro de la web,
+  el plano de la red y la vista previa del alimentador se ven en un marco de la propia web; desde otro origen (una
+  página en localhost:9, sin la cookie de la sesión) no se pintan, también con el 401. Las cabeceras de cada caso,
+  en tests/test_seguridad_web.py (086:RF-21).
 - [ ] T36 [DIgSILENT] El flujo completo con la red del equipo cortada de verdad: importar, calibrar e informe. (RF-22)
   Hecho cuando: sin red, el flujo termina y cada salida apagada lo dice.
 - [x] T15 Tareas por efecto, guiones con confirmación, reintentos e independencia de GPU. (RF-23, RF-24, RF-25, RF-26, RF-27) (`v1/producto`)

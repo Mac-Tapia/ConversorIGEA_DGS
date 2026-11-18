@@ -123,6 +123,11 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       Hecho cuando: el modo anual, con proyección aceptada y obras físicas, dé la obra
       de cada año encima de la anterior y su restitución se relea; repetir con datos
       y caso nativo autorizado y conectar el flujo del operador antes de cerrarla.
+      Bloqueada por 089 T7 (proyección anual aceptada) y por el ensayo en DIgSILENT sobre copia autorizada (c2, 17-11).
+      Avance (f7, 17-11): el flujo del operador está conectado: «Continuación anual desde corto plazo aceptado» en
+      GemeloPIDE.tsx (FormularioPideAnual: las tres fuentes a POST /pide/fuentes, el corto plazo identificado y las
+      obras por año), POST /pide en modo anual en el carril powerfactory, y VistaPideAnual con el resultado de cada
+      año y la restitución. Sin la proyección anual aceptada, el modo anual se bloquea y lo dice (RF-24).
 - [x] T15 Contrato anual y continuación en copias con pruebas CPU. (RF-23 a RF-28)
       Hecho cuando: `pytest -q tests/test_pide_anual.py` compruebe acumulación,
       proyección P/Q trazable, negativas y restitución, sin abrir motor.

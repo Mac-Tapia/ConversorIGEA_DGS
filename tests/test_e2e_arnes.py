@@ -229,3 +229,13 @@ def test_111_rf16_el_recorrido_del_plano_cubre_la_t16_y_sustituye_al_f02_vacio()
                   'AxeBuilder', 'tabularHasta', "keyboard.press('Enter')", "from './sin_red'", 'CSG_E2E_SEMILLA'):
         assert pieza in texto, f'plano.spec.ts sin «{pieza}»'
     assert not (FRONT / 'test' / 'e2e' / 'f02_plano.e2e.mjs').exists(), 'el F02 vacío sigue en test/e2e'
+
+
+def test_086_rf21_la_revision_en_navegador_de_los_marcos_enmarca_dentro_y_niega_fuera():
+    """086:RF-21 (086 T75) — `e2e/marcos.spec.ts` enmarca el plano y la vista previa desde la propia web y comprueba que
+    desde otro origen no se pintan."""
+    ruta = E2E / 'marcos.spec.ts'
+    assert ruta.is_file(), 'falta e2e/marcos.spec.ts (086 T75)'
+    texto = ruta.read_text(encoding='utf-8')
+    for pieza in ('/plano/pagina', '/files/', 'OTRO_ORIGEN', 'toBe(0)', 'toBeGreaterThan(0)', "from './sin_red'"):
+        assert pieza in texto, f'marcos.spec.ts sin «{pieza}»'
