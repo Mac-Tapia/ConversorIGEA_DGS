@@ -63,6 +63,10 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
   PIT y el VAD, con su flujo de punta a punta: sus entradas y sus pasos, sus trabajos con su progreso, sus resultados, sus
   informes y sus salidas, y sus avisos. Cada pestaña reutilizará los pasos que ya existen en «Cargas en DIgSILENT», sin
   copiarlos, y esa pestaña seguirá entera. El PIDE dejará de ser beta en la 1.0.
+- RF-43: (enmienda RF-29 y RF-42, orden del usuario del 2026-11-18) EL SISTEMA no repetirá en «Cargas en DIgSILENT» la
+  elección del tipo de análisis: el corto plazo, el PIDE y el largo plazo tienen su pestaña, donde el tipo va fijo con su
+  ficha, su norma y sus pasos. «Cargas en DIgSILENT» conserva todas sus secciones y sus ids, y el año de presentación
+  sigue en su paso 5. Ningún otro control de la web llevará el nombre «Tipo de análisis» para elegir otra cosa.
 
 ### Mercado y años
 

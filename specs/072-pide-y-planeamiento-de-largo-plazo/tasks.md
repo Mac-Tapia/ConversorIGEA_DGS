@@ -206,3 +206,12 @@ otorga aprobación humana ni aceptación nativa, eléctrica o científica.
       `npm run lint`, `npx tsc --noEmit -p .` y `npm run build` sin errores, y `.venv/Scripts/python.exe -m pytest -q
       tests/test_edicion_producto.py tests/test_gemelo_pide_front.py` en verde.
       Hecho en ecad83ea (LOTE-4, MODULOS-PLANEAMIENTO); pruebas: frontend/test/modulosPlaneamiento.test.mjs.
+- [x] T20. «Cargas en DIgSILENT» sin el selector del tipo de análisis, que ya tiene su pestaña por tipo; el recuadro del
+      tipo solo en las pestañas de módulo, el paso 5 con su año y «Planificar» sin tipo oculto del navegador (se retira
+      `tipoGuardado`/`guardarTipo`); el selector de dónde se busca la máxima pasa a «Ámbito de la máxima»; F03 recorre las
+      pestañas de módulo. (RF-43)
+      Hecho cuando: `node --test test/modulosPlaneamiento.test.mjs` falla por aserción con el código de antes (la pestaña
+      general ofrecía el selector y otro control se llamaba «Tipo de análisis») y pasa después, con
+      `pytest tests/test_cargas_tres_pasos_front.py -k 072_rf43` en verde; `npm test`, `tsc`, el build,
+      todos los `tests/*_front.py` y el e2e F03 en verde.
+      Hecho en la fila WEB-TIPO-UNICO (f7, 18-11), por la captura del usuario; evidencias en D:/csg/PM_IMPL/WEB_TIPO_UNICO.

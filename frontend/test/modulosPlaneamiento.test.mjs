@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { build } from 'esbuild';
 import { createRequire } from 'node:module';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -92,12 +92,39 @@ test('072:RF-42 matriz de cobertura: cada pestaña enseña sus secciones y no la
   }
 });
 
-test('072:RF-42 «Cargas en DIgSILENT» sigue entera: el selector de tipo, todas sus secciones y sus ids de siempre', async () => {
+test('072:RF-42 y RF-43 «Cargas en DIgSILENT» sigue entera, sin repetir la elección del tipo que ya tiene su pestaña', async () => {
   const { pintar } = await cargar();
   const html = pintar();
-  assert.ok(html.includes('role="radiogroup" aria-label="Tipo de análisis"'));
+  // RF-43 (usuario, 18-11): corto plazo, PIDE y largo plazo son pestañas; aquí no se vuelven a ofrecer.
+  assert.ok(!html.includes('role="radiogroup" aria-label="Tipo de análisis"'), 'repite el selector de tipo de las pestañas');
+  assert.ok(!html.includes('<h3>Tipo de análisis</h3>'), 'repite el recuadro «Tipo de análisis»');
   for (const s of Object.values(SECCIONES)) assert.ok(html.includes(s.titulo), `falta «${s.titulo}»`);
   assert.ok(html.includes('id="paso-proyecto"') && html.includes('id="paso-planificacion"'));
+  // El año de presentación sigue en su paso 5 (072:RF-36): quitar el recuadro no lo quita. Sin proyecto el paso 5 aún
+  // no pinta su formulario, así que se mira el código: la pestaña le pasa el año y GemeloPIDE pinta su campo.
+  const cargas = readFileSync(join(SRC, 'features', 'powerfactory', 'CargasTab.tsx'), 'utf-8');
+  const gemelo = readFileSync(join(SRC, 'features', 'powerfactory', 'GemeloPIDE.tsx'), 'utf-8');
+  assert.match(cargas, /<GemeloPIDE [^>]*anio=\{anioPresentacion\}[\s\S]*?onAnio=\{setAnioPresentacion\}/,
+    'el paso 5 ya no recibe el año de presentación');
+  assert.match(gemelo, /<CampoAnioPresentacion /, 'el paso 5 ya no pinta el campo del año de presentación');
+});
+
+test('072:RF-43 ningún otro control de la web se llama «Tipo de análisis» para elegir otra cosa', () => {
+  // Solo TipoDeAnalisis.tsx (el recuadro de los módulos) puede decir «Tipo de análisis»; el selector de dónde se busca la
+  // máxima (alimentadores, SET o sistema) se llamaba igual y confundía con las pestañas de corto plazo, PIDE y largo plazo.
+  const fuera = [];
+  const recorrer = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const ruta = join(dir, e.name);
+      if (e.isDirectory()) recorrer(ruta);
+      else if (/\.(tsx|ts)$/.test(e.name) && e.name !== 'TipoDeAnalisis.tsx'
+        && /Tipo de análisis/.test(readFileSync(ruta, 'utf-8').replace(/\/\/.*$|\{\/\*[\s\S]*?\*\/\}|\/\*[\s\S]*?\*\//gm, ''))) {
+        fuera.push(ruta.slice(SRC.length + 1));
+      }
+    }
+  };
+  recorrer(SRC);
+  assert.deepEqual(fuera, [], `«Tipo de análisis» fuera del recuadro de los módulos: ${fuera.join(', ')}`);
 });
 
 test('072:RF-42 el PIDE ya no es beta: su paso no lleva la marca y la edición no lo lista', async () => {

@@ -23,7 +23,7 @@ import { InformesPF } from './InformesPF';
 import { OperacionSet } from './OperacionSet';
 import { TransferenciaPF } from './TransferenciaPF';
 import { GemeloPIDE } from './GemeloPIDE';
-import { DESTINO, PrefijoPasos, SeguirDondeQuedo, TipoDeAnalisis, estadoConDisco, guardarTipo, tipoGuardado, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
+import { DESTINO, PrefijoPasos, SeguirDondeQuedo, TipoDeAnalisis, estadoConDisco, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
 import type { ClaveTipoAnalisis } from '../../api/types';
 import { AvisoBeta, MarcaBeta } from '../../shared/MarcaBeta';
 import { betaActiva } from '../../shared/edicion';
@@ -197,8 +197,9 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
   const [eco, setEco] = useState<Record<string, string>>(
     Object.fromEntries([...COSTOS, ...TEC].map(([k, , v]) => [k, v])));
   const toast = useToast();
-  // 072:RF-29: corto plazo, PIDE o largo plazo; el último elegido en este navegador, si se puede leer.
-  const [tipo, setTipo] = useState<ClaveTipoAnalisis | null>(() => modulo ?? tipoGuardado());
+  // 072:RF-29 y RF-43: el tipo es el de la pestaña del módulo; «Cargas en DIgSILENT» no lo vuelve a elegir (ni lo
+  // recuerda del navegador): el corto plazo, el PIDE y el largo plazo tienen su pestaña.
+  const tipo: ClaveTipoAnalisis | null = modulo ?? null;
   const [anioPresentacion, setAnioPresentacion] = useState('');
   const { tipos, error: errorTipos } = useTiposAnalisis(anioPresentacion);
 
@@ -459,9 +460,10 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
         demandas y cargas nuevas en «Con proyecto», cada carga nueva en su <strong>variación</strong>.</Ayuda>
       <PfWarning />
 
-      <TipoDeAnalisis tipo={tipo} onTipo={(t) => { if (!modulo) { setTipo(t); guardarTipo(t); } }} fijo={Boolean(modulo)}
+      {/* 072:RF-43: el recuadro del tipo (fijo, con su ficha, su norma y sus pasos) solo en la pestaña de su módulo. */}
+      {modulo && <TipoDeAnalisis tipo={tipo} onTipo={() => undefined} fijo
         anio={anioPresentacion} onAnio={setAnioPresentacion} tipos={tipos} error={errorTipos}
-        estado={estadoPasos} planificacion />
+        estado={estadoPasos} planificacion />}
       {current && <SeguirDondeQuedo avance={avanceDisco} calibrados={calibrados} order={order} />}
 
       <div className="step-box" id={pref + DESTINO.proyecto} tabIndex={-1}>

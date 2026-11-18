@@ -713,7 +713,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
         <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy || faltaAnio || demasiados} onClick={() => maxima()}>
           Buscar la máxima ({aBuscar.length} medidor{aBuscar.length === 1 ? '' : 'es'})
         </button>
-        <label className="field-inline">Tipo de análisis{' '}
+        {/* 072:RF-43: «Tipo de análisis» es corto plazo, PIDE o largo plazo (sus pestañas); aquí se elige dónde se busca la máxima. */}
+        <label className="field-inline">Ámbito de la máxima{' '}
           <select value={tipoAnalisis} disabled={engineBusy}
             onChange={(e) => setTipoAnalisis(e.target.value as 'alimentadores' | 'set' | 'sistema')}>
             <option value="alimentadores">Alimentadores (1 a 3 juntos): su máxima coincidente</option>

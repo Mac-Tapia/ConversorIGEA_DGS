@@ -176,3 +176,16 @@ def test_cargas_rechazadas_con_su_motivo_en_el_plan():
     lista, aviso = _pos(CARGAS, 'plan.row_errors.slice(0, 30).map((e) => <li key={e}>{e}</li>)',
                         'fila(s) con error: se omiten, el resto se aplica.')
     assert abs(lista - aviso) < 400
+
+
+def test_072_rf43_cargas_no_repite_la_eleccion_del_tipo_de_analisis():
+    """072:RF-43 (usuario, 2026-11-18, con captura) — corto plazo, PIDE y largo plazo tienen su pestaña: «Cargas en
+    DIgSILENT» no vuelve a ofrecer su elección. El recuadro del tipo solo se pinta en la pestaña de su módulo y el tipo
+    sale del módulo, no de lo que el navegador recordaba; y el selector de dónde se busca la máxima ya no se llama
+    «Tipo de análisis». La prueba de render está en frontend/test/modulosPlaneamiento.test.mjs."""
+    assert '{modulo && <TipoDeAnalisis ' in CARGAS, 'el recuadro del tipo se pinta también sin módulo'
+    assert 'const tipo: ClaveTipoAnalisis | null = modulo ?? null;' in CARGAS, 'el tipo no sale solo del módulo'
+    assert 'tipoGuardado' not in CARGAS and 'guardarTipo' not in CARGAS, 'el tipo se recuerda del navegador'
+    etiquetas = re.findall(r'<label className="field-inline">([^{<]+)\{', DEMANDA)
+    assert 'Ámbito de la máxima' in [e.strip() for e in etiquetas], etiquetas
+    assert 'Tipo de análisis' not in [e.strip() for e in etiquetas], etiquetas

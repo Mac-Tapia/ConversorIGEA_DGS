@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3849 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3850 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -1113,7 +1113,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/powerfactory/ObrasPF.tsx` | — | 011, 016 | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras… |
 | `src/features/powerfactory/OperacionSet.tsx` | — | 063 | Panel para diagnosticar, evaluar o reforzar una SET existente, sin recrearla. |
 | `src/features/powerfactory/PerfilTension.tsx` | — | 094 | Perfil de tensión que deja la calibración: barras de media por su distancia a la cabecera, la troncal y el límite del perfil de la empresa. |
-| `src/features/powerfactory/TipoDeAnalisis.tsx` | — | 072 | Tipo de análisis al principio de «Cargas en DIgSILENT»: corto plazo, PIDE o planeamiento de largo plazo, con su horizonte, obras, entregables y norma… |
+| `src/features/powerfactory/TipoDeAnalisis.tsx` | — | 072 | El recuadro del tipo de análisis en la pestaña de su módulo (corto plazo, PIDE o planeamiento de largo plazo), fijo, con su horizonte, obras,… |
 | `src/features/powerfactory/TransferenciaPF.tsx` | — | 011, 104, 123 | Paso 4.3: transferencia de carga entre dos alimentadores. |
 | `src/features/powerfactory/alternativas.ts` | — | 042 | Las palabras y el orden de las alternativas por alimentador, las mismas del informe |
 | `src/features/powerfactory/clientesCatalogo.ts` | — | 004, 008, 025, 091 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |

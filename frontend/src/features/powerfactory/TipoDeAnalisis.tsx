@@ -96,21 +96,6 @@ export interface Paso {
   nota?: string;
 }
 
-const CLAVE_GUARDADA = 'csg.tipoDeAnalisis';
-const CLAVES: readonly ClaveTipoAnalisis[] = ['corto_plazo', 'pide', 'largo_plazo'];
-
-/** El tipo elegido la última vez en este navegador; sin almacenamiento (navegación privada), ninguno. */
-export function tipoGuardado(): ClaveTipoAnalisis | null {
-  try {
-    const v = localStorage.getItem(CLAVE_GUARDADA);
-    return CLAVES.includes(v as ClaveTipoAnalisis) ? (v as ClaveTipoAnalisis) : null;
-  } catch { return null; }
-}
-
-export function guardarTipo(t: ClaveTipoAnalisis): void {
-  try { localStorage.setItem(CLAVE_GUARDADA, t); } catch { /* sin almacenamiento: se elige cada vez */ }
-}
-
 /**
  * 072:RF-33: los pasos de cada tipo, en su orden, con lo que ya consta. Son los pasos que ya existen en la web; aquí
  * solo se ordenan y se enlazan, ninguno se repite. Sin el paso 5 en esta edición, PIDE y largo plazo lo dicen.
