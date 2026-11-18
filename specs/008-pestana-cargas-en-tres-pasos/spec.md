@@ -122,6 +122,10 @@ debe haber para el nombre de la carga nueva»):
   DIgSILENT solo esa carga sobre su alimentador, sin escribir en el proyecto, y mostrará en
   el numeral 3.2 el nodo de media tensión donde se conectaría, a qué distancia y con qué
   criterio (el mismo de 016:RF-78 que usa la aplicación).
+- RF-29: (amplía RF-19, con la regla de 063:RF-43 y RF-44) EL SISTEMA juzgará las tensiones mínima y máxima del
+  flujo entre las barras con tensión, en media tensión si las hay, y dirá aparte las barras sin tensión (islas
+  sin fuente, como la de un tramo fuera de servicio abierto por sus dos extremos, 080:RF-55): una barra a 0 p.u.
+  no es la tensión mínima del alimentador.
 
 ## Casos límite
 

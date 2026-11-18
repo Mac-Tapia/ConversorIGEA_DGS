@@ -2286,6 +2286,12 @@ def _misma(a, b) -> bool:
         return a is b
 
 
+#: Por debajo de esto una barra no tiene tensión: está en una isla sin fuente (063:RF-43, 008:RF-29).
+UMBRAL_SIN_TENSION = 0.1
+#: Desde aquí una barra es de media tensión, en kV (063:RF-44, 008:RF-29).
+KV_MINIMO_MT = 1.0
+
+
 def flujo_de_carga(app, *, extremos: bool = True, monofasicos: bool | None = None) -> dict:
     """``ComLdf`` con lo activo; convergencia y tensiones extremas (RF-18).
 
@@ -2305,13 +2311,19 @@ def flujo_de_carga(app, *, extremos: bool = True, monofasicos: bool | None = Non
         for bus in app.GetCalcRelevantObjects('*.ElmTerm'):
             try:
                 if bus.HasResults():
-                    tensiones.append((bus.GetAttribute('m:u'), bus.loc_name))
+                    tensiones.append((bus.GetAttribute('m:u'), bus.loc_name,
+                                      float(getattr(bus, 'uknom', 0) or 0) >= KV_MINIMO_MT))
             except Exception:  # noqa: BLE001, S110
                 pass
-        if tensiones:
-            tensiones.sort()
-            out.update(vm_min=tensiones[0][0], vm_min_bus=tensiones[0][1],
-                       vm_max=tensiones[-1][0], vm_max_bus=tensiones[-1][1])
+        # 008:RF-29 (la regla de 063:RF-43 y RF-44): una barra a 0 p.u. es una isla sin fuente, no una caída
+        # (un tramo fuera de servicio abierto por sus dos extremos, 080:RF-55, deja la suya así: «vm_min 0,0» en la
+        # copia VNR-GIS del 17-11). La mínima y la máxima, en media tensión entre las barras con tensión.
+        out['sin_tension'] = sorted(n for u, n, _mt in tensiones if u is None or u <= UMBRAL_SIN_TENSION)
+        vivas = [t for t in tensiones if t[0] is not None and t[0] > UMBRAL_SIN_TENSION]
+        juzgadas = sorted([t for t in vivas if t[2]] or vivas)
+        if juzgadas:
+            out.update(vm_min=juzgadas[0][0], vm_min_bus=juzgadas[0][1],
+                       vm_max=juzgadas[-1][0], vm_max_bus=juzgadas[-1][1])
     return out
 
 

@@ -58,8 +58,9 @@ import traceback
 from pathlib import Path
 
 from cargas_pf import (
-    Alimentadores, _num, activar_proyecto, cabecera_de, clave_pf, crear_variacion, error_inesperado,
-    etapas_al_dia, flujo_de_carga, gps_de, leer_cabecera, potencia, trazado_de, variaciones_activas,
+    KV_MINIMO_MT, UMBRAL_SIN_TENSION, Alimentadores, _num, activar_proyecto, cabecera_de, clave_pf,
+    crear_variacion, error_inesperado, etapas_al_dia, flujo_de_carga, gps_de, leer_cabecera, potencia,
+    trazado_de, variaciones_activas,
 )
 from casos_pf import (NOMBRES, _desc, anio_del_plan, casos_del_proyecto, nombre_cargas_nuevas,
                       rol_de, sin_a_con_proyecto)
@@ -160,10 +161,8 @@ def _nodo_de_banco(barra) -> tuple[str | None, list[float] | None]:
     return None, list(gps) if gps else None
 
 
-#: Por debajo de esto una barra no tiene tensión: está en una isla sin fuente (063:RF-43).
-UMBRAL_SIN_TENSION = 0.1
-#: Desde aquí una barra es de media tensión, en kV (063:RF-44).
-KV_MINIMO_MT = 1.0
+#: ``UMBRAL_SIN_TENSION`` (isla sin fuente, 063:RF-43) y ``KV_MINIMO_MT`` (063:RF-44) vienen de ``cargas_pf``,
+#: los mismos que su flujo de verificar (008:RF-29).
 
 
 def medida(elm, app=None) -> dict:

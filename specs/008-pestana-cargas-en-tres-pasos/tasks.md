@@ -21,3 +21,10 @@
       Hecho el 2026-11-08: el usuario confirma los tres pasos de `20261106-065905_CSG_TXT_PRUEBA_007` (TM105 +
       PN103, espacio 35ff5dab8b2b46a6): calibración, cargas del libro (planes `cargas_pf_7f5a264873c2` y
       anteriores) y carga del formulario (`cargas_pf_d331a8d5cd79`). El proyecto de prueba se borra al cerrar.
+- [x] T9. La mínima y la máxima del flujo sin las barras sin tensión, con su lista aparte; los umbrales de 063 de una
+      sola fuente (`cargas_pf.UMBRAL_SIN_TENSION` y `KV_MINIMO_MT`, que `estudios_pf` importa). (RF-29)
+      Hecho cuando: `pytest tests/test_cargas_pf_guion.py -k 008_rf29` falla por aserción con el código de antes (daba
+      `vm_min` 0,0) y pasa después, y `tests/test_cargas_pf_guion.py`, `tests/test_estudios_pf_guion.py` y los vecinos
+      de verificar siguen en verde.
+      Hecho en la fila FLUJO-ISLAS (f7, 17-11): la verificación de la 080 T13 por la web (copia VNR-GIS, Caso base)
+      daba «vm_min 0,0» en la barra de una isla; rojo VALIDO (0,0 frente a 0,97) y verdes en D:/csg/PM_IMPL/FLUJO_ISLAS.

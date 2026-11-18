@@ -396,6 +396,26 @@ def test_simular_no_escribe(guion):
     assert [o['sed'] for o in informe['sin_alimentador']] == ['X']
 
 
+def test_008_rf29_la_tension_minima_no_cuenta_las_barras_sin_tension(guion):
+    """008:RF-29 (como 063:RF-43 y RF-44) — una barra a 0 p.u. es una isla sin fuente, no una caída: la verificación
+    daba «vm_min 0,0» en una barra de un tramo fuera de servicio (080 T13, copia VNR-GIS, 17-11). La mínima y la
+    máxima se juzgan en media tensión entre las barras con tensión, y las que no la tienen se dicen aparte."""
+    app = fake_pf.proyecto()
+    barras = app.proyecto.GetContents('*.ElmTerm', 1)
+    assert len(barras) >= 4, [b.loc_name for b in barras]
+    for b in barras:
+        object.__setattr__(b, 'm_u', 0.99)
+    object.__setattr__(barras[0], 'm_u', 0.0)              # isla sin fuente
+    object.__setattr__(barras[1], 'm_u', 0.97)             # la mínima de verdad en media tensión
+    barras[2].uknom = 0.38                                 # una barra de baja: no juzga si hay de media
+    object.__setattr__(barras[2], 'm_u', 0.90)
+    flujo = guion.flujo_de_carga(app)
+    assert flujo['converged'] is True
+    assert flujo['vm_min'] == pytest.approx(0.97) and flujo['vm_min_bus'] == barras[1].loc_name, flujo
+    assert flujo['vm_max'] == pytest.approx(0.99), flujo
+    assert flujo.get('sin_tension') == [barras[0].loc_name], flujo
+
+
 def test_flujo_final_con_tensiones_extremas(guion):
     """004:RF-18 — tras aplicar, ComLdf con la variación activa; converge y tensiones."""
     app = fake_pf.proyecto()
