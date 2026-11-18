@@ -67,6 +67,9 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
   elección del tipo de análisis: el corto plazo, el PIDE y el largo plazo tienen su pestaña, donde el tipo va fijo con su
   ficha, su norma y sus pasos. «Cargas en DIgSILENT» conserva todas sus secciones y sus ids, y el año de presentación
   sigue en su paso 5. Ningún otro control de la web llevará el nombre «Tipo de análisis» para elegir otra cosa.
+- RF-44: (amplía RF-43, usuario, 2026-11-18) EN la pestaña de su módulo, EL SISTEMA titulará el recuadro del tipo con
+  la etiqueta de esa pestaña (Corto plazo, PIDE o Largo plazo) también mientras llegan los tipos del servidor o si no
+  llegan; nunca «Tipo de análisis».
 
 ### Mercado y años
 

@@ -277,3 +277,18 @@ test('072:RF-18, 072:RF-36 «Planificar» desactivado dice por qué en un texto 
   const libre = gemeloCon({ tipos: conRango, anio: '2031' }).match(/<button[^>]*>Planificar como PIDE<\/button>/)?.[0] ?? '';
   assert.ok(libre && !libre.includes('disabled') && !libre.includes('aria-describedby'), libre);
 });
+
+test('072:RF-44 en la pestaña de su módulo el recuadro se titula como la pestaña, también mientras cargan los tipos o si fallan', async () => {
+  // El usuario se quejó dos veces del recuadro «Tipo de análisis» (18-11): en su pestaña el tipo va fijo y el título es el
+  // de la pestaña desde el primer instante, sin esperar a /api/planeamiento/tipos ni depender de que responda.
+  const { tipo } = await cargar();
+  const etiquetas = { corto_plazo: 'Corto plazo', pide: 'PIDE', largo_plazo: 'Largo plazo' };
+  const estado = { proyecto: false, alimentadores: false, calibrado: false, cargas: false, conProyecto: false, informes: false, pide: false, largo: false };
+  for (const [clave, etiqueta] of Object.entries(etiquetas)) {
+    for (const [caso, extra] of [['cargando', { tipos: null, error: '' }], ['con error', { tipos: null, error: 'No se pudo leer los tipos.' }]]) {
+      const html = tipo({ tipo: clave, anio: '', estado, fijo: true, ...extra });
+      assert.ok(html.includes(`<h3>${etiqueta}</h3>`), `${clave}, ${caso}: el título no es «${etiqueta}»: ${html.slice(0, 160)}`);
+      assert.ok(!html.includes('Tipo de análisis'), `${clave}, ${caso}: sale «Tipo de análisis»`);
+    }
+  }
+});

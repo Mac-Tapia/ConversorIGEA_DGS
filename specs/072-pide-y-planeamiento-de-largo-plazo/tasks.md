@@ -220,3 +220,9 @@ otorga aprobación humana ni aceptación nativa, eléctrica o científica.
       `pytest tests/test_cargas_tres_pasos_front.py -k 072_rf43` en verde; `npm test`, `tsc`, el build,
       todos los `tests/*_front.py` y el e2e F03 en verde.
       Hecho en la fila WEB-TIPO-UNICO (f7, 18-11), por la captura del usuario; evidencias en D:/csg/PM_IMPL/WEB_TIPO_UNICO.
+- [x] T21. El título del recuadro fijo cae en la etiqueta de su pestaña (`ETIQUETA_DEL_MODULO`, la misma de App.tsx)
+      mientras llegan los tipos o si /api/planeamiento/tipos falla. (RF-44)
+      Hecho cuando: `node --test --test-name-pattern="072:RF-44" test/tiposDeAnalisis.test.mjs` falla por aserción con
+      el código de antes (salía «Tipo de análisis» al cargar) y pasa después, con `pytest tests/test_cargas_tres_pasos_front.py
+      -k 072_rf44` en verde; `npm test`, `tsc`, el build, los `tests/*_front.py` y el e2e F03 en verde.
+      Hecho en la fila TITULO-MODULO (f7, 18-11); evidencias en D:/csg/PM_IMPL/TITULO_MODULO.

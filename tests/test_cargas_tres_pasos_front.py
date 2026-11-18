@@ -189,3 +189,14 @@ def test_072_rf43_cargas_no_repite_la_eleccion_del_tipo_de_analisis():
     etiquetas = re.findall(r'<label className="field-inline">([^{<]+)\{', DEMANDA)
     assert 'Ámbito de la máxima' in [e.strip() for e in etiquetas], etiquetas
     assert 'Tipo de análisis' not in [e.strip() for e in etiquetas], etiquetas
+
+
+def test_072_rf44_el_recuadro_del_modulo_se_titula_como_su_pestana():
+    """072:RF-44 (usuario, 2026-11-18) — en la pestaña de su módulo el recuadro del tipo nunca dice «Tipo de análisis»:
+    mientras llegan los tipos o si /api/planeamiento/tipos falla, su título es la etiqueta de la pestaña, la misma de
+    App.tsx. La prueba de render está en frontend/test/tiposDeAnalisis.test.mjs."""
+    tipo = (SRC / 'features' / 'powerfactory' / 'TipoDeAnalisis.tsx').read_text(encoding='utf-8')
+    assert "fijo && tipo ? (elegido?.titulo ?? ETIQUETA_DEL_MODULO[tipo])" in tipo, 'el título fijo no cae en la etiqueta'
+    etiquetas = dict(re.findall(r"(corto_plazo|pide|largo_plazo): '([^']+)'", tipo.split('export const ETIQUETA_DEL_MODULO')[1].split('};')[0]))
+    pestanas = dict(re.findall(r"label: '([^']+)', el: <CargasTab modulo=\"(\w+)\"", APP))
+    assert {v: k for k, v in pestanas.items()} == etiquetas, (etiquetas, pestanas)

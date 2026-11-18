@@ -218,6 +218,14 @@ export function textoNorma(norma: TiposAnalisis['norma']): string {
 }
 
 /**
+ * 072:RF-44: la etiqueta de la pestaña de cada módulo (la misma de App.tsx). Es el título del recuadro fijo mientras
+ * llegan los tipos del servidor o si no llegan: en su pestaña nunca se lee «Tipo de análisis».
+ */
+export const ETIQUETA_DEL_MODULO: Record<ClaveTipoAnalisis, string> = {
+  corto_plazo: 'Corto plazo', pide: 'PIDE', largo_plazo: 'Largo plazo',
+};
+
+/**
  * Tipo de análisis (spec 072, RF-29 a RF-38).
  *
  * El operador elige corto plazo, PIDE o planeamiento de largo plazo; la ficha (horizonte, obras, entregables y norma)
@@ -236,7 +244,7 @@ export function TipoDeAnalisis({ tipo, onTipo, anio, onAnio, tipos, error, estad
   const sinAnio = tipo !== null && tipo !== 'corto_plazo' && !anio.trim() && tipos?.anio_presentacion_perfil == null;
   return (
     <div className="step-box" id={`${pref}paso-tipo`} tabIndex={-1}>
-      <h3>{fijo && elegido ? elegido.titulo : 'Tipo de análisis'}</h3>
+      <h3>{fijo && tipo ? (elegido?.titulo ?? ETIQUETA_DEL_MODULO[tipo]) : 'Tipo de análisis'}</h3>
       {!fijo && <div className="chips" role="radiogroup" aria-label="Tipo de análisis">
         {(tipos?.tipos ?? []).map((t) => (
           <button key={t.clave} type="button" role="radio" aria-checked={tipo === t.clave}
