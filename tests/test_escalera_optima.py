@@ -5,7 +5,7 @@ import random
 
 import pytest
 
-from convertersmartgrid import escalera_optima as eo
+from convertersmartgrid.aplicacion import escalera_optima as eo
 
 SEMILLAS = (3, 17, 41, 88)
 PERFIL = {
@@ -382,7 +382,7 @@ def test_cada_obra_dice_su_nodo_de_mt_o_sus_nodos_de_inicio_y_fin(semilla):
 
 def test_solo_secciones_normalizadas_y_una_por_codigo():
     """042:RF-27 — Pisco: se probaban AA095, AA150 y CU070, cada uno dos veces; ahora solo los normalizados, el de ficha."""
-    from convertersmartgrid.escalera_optima import normalizados
+    from convertersmartgrid.aplicacion.escalera_optima import normalizados
 
     tipos = [{'nombre': n, 'datos': {'uline': 22.9}} for n in
              ('AA09503D_22_9kV', 'AA12003D_22_9kV', 'AA12003D_22_9kV_FICHA', 'CU07003D_22_9kV', 'AA05003D_22_9kV')]
@@ -393,7 +393,7 @@ def test_solo_secciones_normalizadas_y_una_por_codigo():
 
 def test_el_planeamiento_limita_al_80_por_ciento():
     """042:RF-28 — con `cargabilidad_planeamiento_pct` el límite de la escalera es el 80 %, no el de los estudios."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0,
                            'cargabilidad_planeamiento_pct': 80, 'secciones_normalizadas': ['AA12003D']},
@@ -409,8 +409,8 @@ def test_el_planeamiento_limita_al_80_por_ciento():
 def test_el_240_sale_de_su_ficha_y_va_en_doble_terna():
     """042:RF-30 — Pisco: sin tipo AL 240 en la red nunca se probó; ahora se crea de su ficha y la escalera
     propone «sección + terna» solo en el mismo camino, antes que las demás combinaciones."""
-    from convertersmartgrid import escalera_optima as eo
-    from convertersmartgrid.catalog import filas_de_conductores, tipo_de_ficha
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+    from convertersmartgrid.aplicacion.catalog import filas_de_conductores, tipo_de_ficha
 
     t = tipo_de_ficha('AA24003D', 22.9, filas_de_conductores())
     assert t['nombre'] == 'AA24003D_22_9kV_FICHA' and t['datos']['cohl_'] == 1
@@ -437,8 +437,8 @@ def test_el_240_sale_de_su_ficha_y_va_en_doble_terna():
 
 def test_en_linea_larga_el_regulador_no_queda_fuera_del_tope():
     """042:RF-35 — con el camino largo, sección + terna + regulador entran antes del tope; con el corto, no se añaden."""
-    from convertersmartgrid import escalera_optima as eo
-    from convertersmartgrid.catalog import filas_de_conductores, tipo_de_ficha
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+    from convertersmartgrid.aplicacion.catalog import filas_de_conductores, tipo_de_ficha
 
     t = tipo_de_ficha('AA24003D', 22.9, filas_de_conductores())
     tipo = {'nombre': t['nombre'], 'clase': 'TypLne', 'datos': t['datos'], 'origen': 'otro', 'proyecto': eo.BIBLIOTECA_TIPOS}
@@ -461,7 +461,7 @@ def test_en_linea_larga_el_regulador_no_queda_fuera_del_tope():
 
 def test_en_linea_larga_los_bancos_tambien_a_dos_tercios():
     """042:RF-37 — la barra existente a 2/3 del camino, nunca la que crea una carga nueva; en línea corta, no."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     tramos = [{'nombre': f'L{i}', 'largo_m': 3000.0, 'hasta': f'B{i}'} for i in range(5)]
     assert eo.nodo_a_dos_tercios(tramos) == 'B2'
@@ -481,8 +481,8 @@ def test_en_linea_larga_los_bancos_tambien_a_dos_tercios():
 
 def test_las_obras_se_integran_de_tres_y_de_cuatro_sin_repetir():
     """042:RF-38 — bancos + sección + terna + regulador juntos, sección y terna en el mismo camino, ninguna repetida."""
-    from convertersmartgrid import escalera_optima as eo
-    from convertersmartgrid.catalog import filas_de_conductores, tipo_de_ficha
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+    from convertersmartgrid.aplicacion.catalog import filas_de_conductores, tipo_de_ficha
 
     t = tipo_de_ficha('AA24003D', 22.9, filas_de_conductores())
     tipo = {'nombre': t['nombre'], 'clase': 'TypLne', 'datos': t['datos'], 'origen': 'otro', 'proyecto': eo.BIBLIOTECA_TIPOS}
@@ -504,10 +504,10 @@ def test_las_obras_se_integran_de_tres_y_de_cuatro_sin_repetir():
 
 def test_otra_empresa_sin_perfil_y_otra_tension_tiene_todas_las_obras():
     """042:RF-39, 042:RF-40 — sin perfil y a 13,8 kV: bancos, sección, terna y regulador; lo supuesto se dice y lo propio no se pisa."""
-    from convertersmartgrid import escalera_optima as eo
-    from convertersmartgrid import set_nueva as sn
-    from convertersmartgrid.catalog import filas_de_conductores, tipo_de_ficha
-    from convertersmartgrid.perfil_empresa import (BANCOS_KVAR_DE_REFERENCIA, SECCIONES_DE_REFERENCIA,
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+    from convertersmartgrid.aplicacion import set_nueva as sn
+    from convertersmartgrid.aplicacion.catalog import filas_de_conductores, tipo_de_ficha
+    from convertersmartgrid.dominio.perfil_empresa import (BANCOS_KVAR_DE_REFERENCIA, SECCIONES_DE_REFERENCIA,
                                                    completar_planeamiento)
 
     perfil, avisos = completar_planeamiento({})
@@ -529,7 +529,7 @@ def test_otra_empresa_sin_perfil_y_otra_tension_tiene_todas_las_obras():
 
 def test_sin_medicion_las_obras_se_evaluan_en_la_maxima():
     """042:RF-42 — sin ningún instante con todos medidos no hay error: un solo punto, la máxima, y se dice."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     lista, avisos = eo.sorteos_o_maxima([], {'F1': 100.0}, 200, 1)
     assert lista == [{'instante': 'máxima', 'factores': {}}] and 'las obras se evalúan solo en la máxima' in avisos[0]
@@ -541,8 +541,8 @@ def test_cada_variante_refuerza_los_tramos_sobrecargados_de_cualquier_ramal():
     """042:RF-43 — un ramal al 141 %: un refuerzo solo y cada variante con él; sin repetir lo que ya hace la variante."""
     import math
 
-    from convertersmartgrid import escalera_optima as eo
-    from convertersmartgrid.perfil_empresa import completar_planeamiento
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+    from convertersmartgrid.dominio.perfil_empresa import completar_planeamiento
 
     perfil = completar_planeamiento({'escalera': {'cargabilidad_planeamiento_pct': 80, 'max_variantes': 500}})[0]
     troncal = [{'nombre': f'L{i}', 'largo_m': 1000.0, 'corriente_a': 50.0, 'inom_a': 340.0} for i in range(3)]
@@ -597,7 +597,7 @@ def test_el_regulador_va_donde_cae_la_tension():
 
 def test_la_unidad_lleva_la_corriente_bajo_el_limite_de_planeamiento():
     """042:RF-47 — 85 A al 80 % piden 106 A: la unidad de 150 A; las variantes van sobre el camino de la carga."""
-    from convertersmartgrid.perfil_empresa import completar_planeamiento
+    from convertersmartgrid.dominio.perfil_empresa import completar_planeamiento
 
     perfil = completar_planeamiento({'escalera': {'cargabilidad_planeamiento_pct': 80, 'max_variantes': 500, 'regulador_min_km': 0}})[0]
     p = eo.parametros(perfil)
@@ -773,7 +773,7 @@ def test_el_regulador_lleva_el_mismo_margen():
                                                   ({'factor_seguridad_set': 1.0, 'factor_seguridad_set_sin_tasa': 1.25}, 1.25)])
 def test_el_factor_con_y_sin_el_dato_en_el_perfil(planificacion, factor):
     """042:RF-71 — una sola regla: sirve con un perfil parcial, y la SET da el mismo resultado sin contar la tasa."""
-    from convertersmartgrid.set_nueva import Parametros, margen_sin_tasa
+    from convertersmartgrid.aplicacion.set_nueva import Parametros, margen_sin_tasa
 
     p = eo.parametros({**PERFIL, 'planificacion': {**PERFIL['planificacion'], **planificacion}})
     assert p.factor_sin_tasa == factor
@@ -878,8 +878,8 @@ def test_el_refuerzo_de_un_tramo_aereo_es_primero_la_seccion():
     resuelve van con terna."""
     import random
 
-    from convertersmartgrid import escalera_optima as eo
-    from convertersmartgrid.perfil_empresa import completar_planeamiento
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+    from convertersmartgrid.dominio.perfil_empresa import completar_planeamiento
 
     rng = random.Random(42094)
     kv = rng.choice([10.0, 13.2, 22.9])
@@ -911,7 +911,7 @@ def test_las_alternativas_se_miden_de_la_mas_barata_a_la_mas_cara():
     """042:RF-95 — de menor a mayor costo; sin costo al final y, entre iguales, el orden de la escalera."""
     import random
 
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     rng = random.Random(42095)
     costos = [rng.choice([None, 100.0, 250.0, 900.0, 40.0]) for _ in range(rng.randint(8, 20))]

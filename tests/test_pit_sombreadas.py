@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
 
 RAIZ = Path(__file__).resolve().parents[1]
 NORMATIVA = RAIZ / 'config' / 'normativa'
@@ -53,7 +53,7 @@ _ELEMENTOS = {'bloque': 'elementos', 'fila_marca': 14, 'marca': 'Celda de Línea
 
 
 def _llenar(codigo, datos, mapeo):
-    from convertersmartgrid.pit.plantillas import celdas_de_formato
+    from convertersmartgrid.adaptadores.pit.plantillas import celdas_de_formato
     return celdas_de_formato(cargar_registro(NORMATIVA), codigo, {'fuente': FUENTE, **datos}, mapeo=mapeo)
 
 
@@ -100,7 +100,7 @@ def test_f302_sombreada_bajo_una_insercion_se_desplaza_como_las_demas():
 
 
 def _f101_con_fcp_y_fs_en_el_total():
-    from convertersmartgrid.pit.plantillas import cargar_mapeo
+    from convertersmartgrid.adaptadores.pit.plantillas import cargar_mapeo
     mapeo = copy.deepcopy(cargar_mapeo())
     grupo = mapeo['formatos']['F-101']['grupos'][0]
     grupo['total'] = [*grupo['total'], {'letra': 'F', 'campo': 'fcp'}, {'letra': 'G', 'campo': 'fs'}]
@@ -128,7 +128,7 @@ def test_f101_fcp_y_fs_del_total_sistema_no_se_llenan():
 def test_mapeo_real_del_f101_no_pone_nada_en_sus_sombreadas():
     """107:RF-9 (delta20) — el mapeo real del F-101 solo suma el FC en «Total Sistema»: ninguna columna de su total
     cae en una celda sombreada."""
-    from convertersmartgrid.pit.plantillas import cargar_mapeo
+    from convertersmartgrid.adaptadores.pit.plantillas import cargar_mapeo
     valor = cargar_registro(NORMATIVA).regla('pit.formato.F-101').regla.valor
     filas = (valor.get('no_llenar') or {}).get('filas') or {}
     grupo = cargar_mapeo()['formatos']['F-101']['grupos'][0]

@@ -3,7 +3,7 @@
 
 Para cada año pedido escala la demanda con el factor de escala de cargas del ``ComLdf``
 ((1 + tasa)^año), ejecuta el flujo en el caso pedido y diagnostica con la norma del perfil
-(``convertersmartgrid.pide``). Al terminar devuelve el factor a su valor. Con
+(``convertersmartgrid.aplicacion.pide``). Al terminar devuelve el factor a su valor. Con
 ``casos_por_anio`` conserva casos/escenarios propios; ``modo=anual`` continúa las
 copias del corto plazo, con una proyección anual aceptada y obras físicas declaradas.
 Nunca cambia los casos originales ni sustituye un perfil anual ausente por la tasa.
@@ -41,10 +41,10 @@ from casos_pf import caso as caso_del_sistema
 from digital_twin_snapshot_pf import CASOS, _caso, resultados
 from estudios_pf import _num
 
-from convertersmartgrid.digital_twin.native_snapshot import identidad_nativa
-from convertersmartgrid.native_action import native_action_block_report
-from convertersmartgrid.pide import PideError, diagnosticar, leer_json_con_huella, leer_proyeccion_anual
-from convertersmartgrid.comprobacion_flujo import comprobar_tras_flujo, texto_tras_flujo, UMBRAL_PU, UMBRAL_MW
+from convertersmartgrid.adaptadores.digital_twin.native_snapshot import identidad_nativa
+from convertersmartgrid.dominio.native_action import native_action_block_report
+from convertersmartgrid.aplicacion.pide import PideError, diagnosticar, leer_json_con_huella, leer_proyeccion_anual
+from convertersmartgrid.dominio.comprobacion_flujo import comprobar_tras_flujo, texto_tras_flujo, UMBRAL_PU, UMBRAL_MW
 
 
 #: Los casos de cada año del PIDE, con su papel y su nombre (030:RF-1).
@@ -1016,7 +1016,7 @@ def main(argv=None) -> int:
         salida.write_text(json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         print(blocked['error'])
         return 2
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('pide_pf.py')

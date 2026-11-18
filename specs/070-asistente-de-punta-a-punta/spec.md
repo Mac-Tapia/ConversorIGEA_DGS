@@ -135,7 +135,7 @@ DIgSILENT en esta fase: lo que solo se comprueba allí queda en tareas `[DIgSILE
   Aclaración de RF-78 (v2, 2026-11-15): también los avisos y los mensajes que no son excepciones y que la web o el informe
   enseñan: lo que se añade a una lista de avisos y los valores de `mensaje`, `aviso`, `avisos`, `motivo`, `nota` y `texto`.
   Se limpia por grupos de módulos (tarjetas v2a, v2b…), y la prueba recorre los ya limpios hasta cubrir `src/` entero. Lo de
-  la spec 107 (`src/convertersmartgrid/pit/`) lo limpia su dueño.
+  la spec 107 (`src/convertersmartgrid/dominio/pit/`) lo limpia su dueño.
   Aclaración de RF-78 (v3, auditor 0d, 2026-11-15): también el texto de toda excepción de `src/` (`raise X('…')` para
   cualquier X, porque la web enseña el mensaje del trabajo que cae), lo que un guion de `tools/` escribe en su salida
   (`print`) o en sus avisos, y el texto que se arma antes en una variable de la misma función. Lo que el análisis estático

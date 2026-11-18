@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import pytest
 
-from convertersmartgrid.ajuste_cabecera import MedidaConjunta, Objetivo, Reparto, cuadrar_conjunto
-from convertersmartgrid.digital_twin.native_snapshot import identidad_nativa
-from convertersmartgrid.oraculo_calibracion import arranque_con_oraculo
+from convertersmartgrid.dominio.ajuste_cabecera import MedidaConjunta, Objetivo, Reparto, cuadrar_conjunto
+from convertersmartgrid.adaptadores.digital_twin.native_snapshot import identidad_nativa
+from convertersmartgrid.adaptadores.oraculo_calibracion import arranque_con_oraculo
 
 
 def _id(nombre, clase):
@@ -145,7 +145,7 @@ def test_si_casi_cero_converge_no_acusa_a_las_fijas():
 
 def test_un_solo_alimentador_tambien():
     """083:RF-13 — ``cuadrar`` hace lo mismo."""
-    from convertersmartgrid.ajuste_cabecera import Medida, cuadrar
+    from convertersmartgrid.dominio.ajuste_cabecera import Medida, cuadrar
 
     n = {'v': 0}
 
@@ -170,7 +170,7 @@ def test_el_que_ya_cuadro_no_se_mueve():
 
 def test_el_factor_no_se_sale_del_intervalo_conocido():
     """083:RF-11 — con puntos a los dos lados, un salto fuera vuelve al medio; sin los dos, no se toca."""
-    from convertersmartgrid.ajuste_cabecera import _acotar
+    from convertersmartgrid.dominio.ajuste_cabecera import _acotar
 
     assert _acotar(5.0, [(1.0, 90.0), (2.0, 110.0)], 100.0) == (1.5, True)
     assert _acotar(1.2, [(1.0, 90.0), (2.0, 110.0)], 100.0) == (1.2, False)
@@ -179,7 +179,7 @@ def test_el_factor_no_se_sale_del_intervalo_conocido():
 
 def test_broyden_aprende_el_acople_entre_alimentadores():
     """083:RF-12 — resuelve el sistema con su acople tras un par de datos."""
-    from convertersmartgrid.ajuste_cabecera import _Broyden
+    from convertersmartgrid.dominio.ajuste_cabecera import _Broyden
 
     b = _Broyden(('A', 'B'), {'A': 100.0, 'B': 100.0})
     medir = lambda x: [100.0 * x[0] + 30.0 * x[1], 30.0 * x[0] + 100.0 * x[1]]
@@ -220,7 +220,7 @@ def test_registro_del_cliente_sin_maestro_en_las_dos_disposiciones(tmp_path):
     """083:RF-14 — la hoja por su contenido y el registro de la fecha de la barra, en los dos formatos."""
     from datetime import datetime
 
-    from convertersmartgrid import demanda_medida as dm
+    from convertersmartgrid.aplicacion import demanda_medida as dm
 
     ruta = tmp_path / 'c.xlsx'
     _libro(ruta, {
@@ -257,8 +257,8 @@ def test_las_muestras_corren_en_el_oraculo_y_no_en_digsilent():
     """083:RF-20 — DIgSILENT solo confirma el P50; la lectura del oráculo da carga y banda por SED."""
     from apoyo import cargar_herramienta
 
-    from convertersmartgrid.ajuste_cabecera import Probabilistico
-    from convertersmartgrid.oraculo_calibracion import FlujoOraculo
+    from convertersmartgrid.dominio.ajuste_cabecera import Probabilistico
+    from convertersmartgrid.adaptadores.oraculo_calibracion import FlujoOraculo
 
     guion = cargar_herramienta('ajuste_cabecera_pf.py', 'ajuste_oraculo_guion4', tools_en_path=True)
     nodos, ramas = _datos()
@@ -309,7 +309,7 @@ def test_oraculo_para_las_muestras_con_los_factores_cuadrados_y_su_entrada(tmp_p
 
     from apoyo import cargar_herramienta
 
-    from convertersmartgrid.oraculo_calibracion import FlujoOraculo
+    from convertersmartgrid.adaptadores.oraculo_calibracion import FlujoOraculo
 
     guion = cargar_herramienta('ajuste_cabecera_pf.py', 'ajuste_oraculo_guion6', tools_en_path=True)
     nodos, ramas = _datos()
@@ -318,7 +318,7 @@ def test_oraculo_para_las_muestras_con_los_factores_cuadrados_y_su_entrada(tmp_p
     malo = FlujoOraculo(_grafo(r=400.0, x=400.0), nodos, ramas)
     assert guion.oraculo_para_muestras(malo, {'F': _reparto(5.0)}) is None
     assert guion.oraculo_para_muestras(None, {'F': _reparto()}) is None
-    from convertersmartgrid import pf_arnes
+    from convertersmartgrid.adaptadores import pf_arnes
 
     monkeypatch.setattr(pf_arnes, 'ruta_turno', lambda: tmp_path / 'powerfactory.turno')
     ruta = guion.guardar_entrada_del_oraculo(_grafo(), nodos, ramas, {}, {'F': _reparto()}, {'F': Objetivo(1200.0, 200.0, 'M')})
@@ -328,7 +328,7 @@ def test_oraculo_para_las_muestras_con_los_factores_cuadrados_y_su_entrada(tmp_p
 
 def test_las_muestras_en_digsilent_paran_al_tope_de_tiempo():
     """083:RF-25 — con al menos 20 hechas y el tope alcanzado, para, escribe el P50 de las hechas y lo dice."""
-    from convertersmartgrid.ajuste_cabecera import Probabilistico, montecarlo
+    from convertersmartgrid.dominio.ajuste_cabecera import Probabilistico, montecarlo
 
     t = {'v': 0.0}
 
@@ -354,7 +354,7 @@ def test_lo_escrito_por_la_aplicacion_no_es_manual_y_el_ajuste_heredado_vuelve_a
 
     from apoyo import cargar_herramienta
 
-    from convertersmartgrid import pf_arnes
+    from convertersmartgrid.adaptadores import pf_arnes
 
     guion = cargar_herramienta('ajuste_cabecera_pf.py', 'ajuste_oraculo_guion7', tools_en_path=True)
     monkeypatch.setattr(pf_arnes, 'ruta_turno', lambda: tmp_path / 'powerfactory.turno')
@@ -446,7 +446,7 @@ def test_las_variaciones_del_conversor_vuelven_a_estar_activas_en_los_dos_casos(
 
 def test_las_fijas_que_pasan_de_la_medida_se_corrigen_hasta_el_tope():
     """083:RF-30 — PA219: la fija y sus pérdidas pasan de la cabecera. Dentro del tope se baja y queda dicho; las escaladas siguen con carga."""
-    from convertersmartgrid.ajuste_cabecera import fijas_corregidas
+    from convertersmartgrid.dominio.ajuste_cabecera import fijas_corregidas
 
     nodos, ramas = _datos()
     rep = Reparto(fijas={'SA': (820.0, 100.0)}, base={'SB': (500.0, 100.0)}, origen={'SA': 'cliente', 'SB': 'kva'},
@@ -523,7 +523,7 @@ def test_el_informe_dice_que_representacion_uso(fases, esperada, conteo, sin_dat
 def test_la_representacion_cuenta_aparte_las_fases_ilegibles(valor):
     """083:RF-32 (aclaración) — un valor de fases que no es 1, 2 ni 3 no se da por trifásico en silencio ni rompe el
     arranque: la rama cuenta como «sin dato» y la nota lo dice."""
-    from convertersmartgrid.oraculo_calibracion import representacion_del_grafo
+    from convertersmartgrid.adaptadores.oraculo_calibracion import representacion_del_grafo
 
     g = _grafo()
     g['ramas'][0]['fases'] = valor
@@ -535,7 +535,7 @@ def test_la_representacion_cuenta_aparte_las_fases_ilegibles(valor):
 
 def test_la_representacion_de_un_grafo_sin_ramas():
     """083:RF-32 — un grafo sin ramas no tiene nada que aproximar: «equilibrado», sin conteo y sin nota."""
-    from convertersmartgrid.oraculo_calibracion import representacion_del_grafo
+    from convertersmartgrid.adaptadores.oraculo_calibracion import representacion_del_grafo
 
     assert representacion_del_grafo({'nodos': {}, 'ramas': []}) == ('equilibrado', {}, 0, None)
     assert representacion_del_grafo({'nodos': {}}) == ('equilibrado', {}, 0, None)

@@ -26,8 +26,8 @@ from pathlib import Path
 from cargas_pf import _cerrado, activar_proyecto, clave_pf, flujo_de_carga, trazado_de
 from estudios_pf import _num, medida
 
-from convertersmartgrid.compat_pf import zip_estricto
-from convertersmartgrid.digital_twin.contratos_fisicos import (
+from convertersmartgrid.dominio.compat_pf import zip_estricto
+from convertersmartgrid.adaptadores.digital_twin.contratos_fisicos import (
     APROXIMACIONES,
     CLASES_NO_REPRESENTADAS,
     CONTROLES_LDF,
@@ -36,12 +36,12 @@ from convertersmartgrid.digital_twin.contratos_fisicos import (
     UNIDADES,
     VERSION_GRAFO,
 )
-from convertersmartgrid.digital_twin.native_snapshot import (
+from convertersmartgrid.adaptadores.digital_twin.native_snapshot import (
     componentes,
     huella_gps,
     identidad_nativa,
 )
-from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.dominio.native_action import native_action_block_report
 
 #: Caso del episodio → nombre del caso de estudio que deja la spec 011.
 CASOS = {'caso_base': 'Caso base', 'sin_proyecto': 'Sin proyecto', 'con_proyecto': 'Con proyecto',
@@ -463,7 +463,7 @@ def main(argv=None) -> int:
         salida.write_text(json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         print(blocked['error'])
         return 2
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('digital_twin_snapshot_pf.py')

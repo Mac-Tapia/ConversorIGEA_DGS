@@ -4,8 +4,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from convertersmartgrid.asistente import ejemplos_pide as ep
-from convertersmartgrid.pide_dataset import cargar_contrato, clasificar_ruta
+from convertersmartgrid.adaptadores.asistente import ejemplos_pide as ep
+from convertersmartgrid.adaptadores.pide_dataset import cargar_contrato, clasificar_ruta
 
 RAIZ = Path(__file__).resolve().parents[1]
 CONTRATO = cargar_contrato(RAIZ / 'config' / 'pide_universal_2017.json')

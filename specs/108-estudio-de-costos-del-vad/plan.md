@@ -18,16 +18,16 @@ reutiliza tal cual. Todo se comprobó leyendo el código en la revisión `518955
 | Pieza existente | Qué se usa | Cómo |
 | --- | --- | --- |
 | `src/convertersmartgrid/adaptadores/entrada/vnr/` (de f9) | `models/canonical.py` (`Section.geometry`, `length_m`, `conductor_code`, `feeder_id`; `Node`, `Transformer.sn_kva`, `Load`), `gis/geometry.py` (`coords_from_geojson`, `polyline_length_m`), `discovery/fingerprint.py` (huellas) | **Solo lectura**: se importa, no se modifica. Si falta algo, se pide a f9. |
-| `src/convertersmartgrid/geography.py` | `build_geography`, `GeoLine`, `make_transformer`, `exigir_crs_origen` | Trazas cuando la entrada es TXT o MDB, y reproyección **solo** para los mapas (anexo 9), nunca para el modelo. |
-| `src/convertersmartgrid/troncal.py` (spec 016) | `red_de`, `troncal`, `camino_y_ramales` | Troncal por el camino más largo y derivaciones (RF-5). |
-| `src/convertersmartgrid/demanda_medida.py` | `maximas`, `Cabecera`, `curva_de_registros`, `reducir_curva`, `curvas_de_clientes`, `leer_suministros` | Curvas de cabecera y de clientes para la caracterización del anexo 4 (RF-4). |
-| `src/convertersmartgrid/costos_fuentes.py` (spec 072) | `leer_sicodi`, `TablaCostos`, `FuenteCostos`, `valorar_obra`, `cruzar_codigos`, `exigir_ambito`, `partir_codigo_vnr` | Costo estándar de la red **dimensionada**, con la fuente anotada en cada elemento (RF-7, RF-9). Hoy `valorar_obra` solo la usa `tools/costos_cruce.py:79`. |
-| `src/convertersmartgrid/metrados.py` (spec 072) | `metrados_de_lineas`, `valorar_metrados` | Metrado por código de la red dimensionada (RF-7). |
-| `src/convertersmartgrid/oraculo.py` (spec 024/082) | `red_pandapower`, `validar`, `InformeOraculo` | Motor físico para el dimensionamiento, las pérdidas y el balance (RF-7, RF-8). Sin DIgSILENT. |
-| `src/convertersmartgrid/libro_informe.py` (spec 066) | `ERRORES_DE_FORMULA`, el patrón de `comprobar_libro`, y `plan_del_libro` + `rellenar_con_excel` cuando hay libro modelo | Tablas A y B en Excel (RF-11). |
-| `src/convertersmartgrid/pide_dataset.py` | El vocabulario de `estado_juridico` (`vigente`, `proyecto`, `pendiente`, `derogada`, `evidencia_tecnica`) | El registro normativo del VAD usa el mismo vocabulario (RF-9). Solo se lee. |
-| `src/convertersmartgrid/perfil_empresa.py` | El perfil de empresa | Empresa, grupo, CRS de origen, sector típico, moneda: nada en el código (RF-13). |
-| `src/convertersmartgrid/web/jobs.py` | `JobManager.submit(..., lane='engine')`, `JobContext` | El armado es un trabajo en cola, cancelable entre sistemas (P7). |
+| `src/convertersmartgrid/adaptadores/geography.py` | `build_geography`, `GeoLine`, `make_transformer`, `exigir_crs_origen` | Trazas cuando la entrada es TXT o MDB, y reproyección **solo** para los mapas (anexo 9), nunca para el modelo. |
+| `src/convertersmartgrid/dominio/troncal.py` (spec 016) | `red_de`, `troncal`, `camino_y_ramales` | Troncal por el camino más largo y derivaciones (RF-5). |
+| `src/convertersmartgrid/aplicacion/demanda_medida.py` | `maximas`, `Cabecera`, `curva_de_registros`, `reducir_curva`, `curvas_de_clientes`, `leer_suministros` | Curvas de cabecera y de clientes para la caracterización del anexo 4 (RF-4). |
+| `src/convertersmartgrid/aplicacion/costos_fuentes.py` (spec 072) | `leer_sicodi`, `TablaCostos`, `FuenteCostos`, `valorar_obra`, `cruzar_codigos`, `exigir_ambito`, `partir_codigo_vnr` | Costo estándar de la red **dimensionada**, con la fuente anotada en cada elemento (RF-7, RF-9). Hoy `valorar_obra` solo la usa `tools/costos_cruce.py:79`. |
+| `src/convertersmartgrid/aplicacion/metrados.py` (spec 072) | `metrados_de_lineas`, `valorar_metrados` | Metrado por código de la red dimensionada (RF-7). |
+| `src/convertersmartgrid/adaptadores/oraculo.py` (spec 024/082) | `red_pandapower`, `validar`, `InformeOraculo` | Motor físico para el dimensionamiento, las pérdidas y el balance (RF-7, RF-8). Sin DIgSILENT. |
+| `src/convertersmartgrid/adaptadores/libro_informe.py` (spec 066) | `ERRORES_DE_FORMULA`, el patrón de `comprobar_libro`, y `plan_del_libro` + `rellenar_con_excel` cuando hay libro modelo | Tablas A y B en Excel (RF-11). |
+| `src/convertersmartgrid/adaptadores/pide_dataset.py` | El vocabulario de `estado_juridico` (`vigente`, `proyecto`, `pendiente`, `derogada`, `evidencia_tecnica`) | El registro normativo del VAD usa el mismo vocabulario (RF-9). Solo se lee. |
+| `src/convertersmartgrid/dominio/perfil_empresa.py` | El perfil de empresa | Empresa, grupo, CRS de origen, sector típico, moneda: nada en el código (RF-13). |
+| `src/convertersmartgrid/presentacion/web/jobs.py` | `JobManager.submit(..., lane='engine')`, `JobContext` | El armado es un trabajo en cola, cancelable entre sistemas (P7). |
 
 **Fuera del alcance de este plan, sin ningún cambio:** `web/services.py`, `pide_economia.py`,
 `adaptadores/entrada/vnr/**` y `catalog_resolution.py` son del integrador f9. La ruta de la web, si se añade, va en
@@ -35,13 +35,13 @@ reutiliza tal cual. Todo se comprobó leyendo el código en la revisión `518955
 
 ## Diseño por partes
 
-Paquete nuevo `src/convertersmartgrid/vad/`, con funciones puras salvo la escritura de los libros. Los contratos
+Paquete nuevo `src/convertersmartgrid/aplicacion/vad/`, con funciones puras salvo la escritura de los libros. Los contratos
 transcritos del TdR van en `config/vad/` (JSON versionados, con su cita), no en el código.
 
 | Parte | Ficheros (nuevos salvo que se diga) | Cubre |
 | --- | --- | --- |
 | Registro del estudio: grupo, periodo, empresa y su carpeta en el espacio, aparte del PIDE y del PIT | `vad/__init__.py`, `vad/estudio.py` (`EstudioVad`, `crear_estudio`, `cargar_estudio`); se guarda en `<espacio>/vad/<id>/estudio.json` | RF-1 |
-| Registro normativo: cada anexo, fórmula y parámetro con acto, versión, estado jurídico, cita (fichero, líneas), huella, moneda e IGV | registro común `src/convertersmartgrid/registro_normativo.py` (107 T1; un solo sitio, P5), usado desde `vad/` (`exigir_vigente`); `config/vad/tdr_vad_2026.json` | RF-9, RF-10 |
+| Registro normativo: cada anexo, fórmula y parámetro con acto, versión, estado jurídico, cita (fichero, líneas), huella, moneda e IGV | registro común `src/convertersmartgrid/dominio/registro_normativo.py` (107 T1; un solo sitio, P5), usado desde `vad/` (`exigir_vigente`); `config/vad/tdr_vad_2026.json` | RF-9, RF-10 |
 | Formatos del anexo 2: contrato por tabla y campo, con unidades y periodo; validación sin relleno | `vad/anexo2.py` (`validar_tablas`); `config/vad/anexo2_formatos.json` | RF-2, RF-3 |
 | Caracterización de la carga (anexo 4): factor de carga, simultaneidad y curvas MT/BT | `vad/caracterizacion.py`, sobre `demanda_medida` | RF-4 |
 | Modelo georreferenciado rural (anexo 6): trazas, longitudes y SED reales, hash de vértices, troncal y derivaciones | `vad/modelo_rural.py` (`armar_modelo_rural`, `hash_vertices`), sobre el VNR canónico o `geography` y `troncal` | RF-5 |

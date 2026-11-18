@@ -63,9 +63,9 @@ def main(argv: list[str] | None = None) -> int:
     identidad.add_argument('--fijar', action='store_true', help='La deja escrita si aún no lo está.')
     args = parser.parse_args(argv)
 
-    from convertersmartgrid.runtime_paths import fijar_identidad, rutas_runtime
-    from convertersmartgrid.web import copia_datos as copia
-    from convertersmartgrid.web.workspace import data_root
+    from convertersmartgrid.dominio.runtime_paths import fijar_identidad, rutas_runtime
+    from convertersmartgrid.presentacion.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web.workspace import data_root
 
     def salida(datos) -> None:
         print(json.dumps(datos, indent=2, ensure_ascii=False))

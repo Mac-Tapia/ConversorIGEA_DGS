@@ -17,14 +17,14 @@ from test_benchmarks_cohortes import INICIO, _registros
 
 
 def _plan(empresas=('E1', 'E2')):
-    from convertersmartgrid.benchmarks.cohortes import planificar
+    from convertersmartgrid.aplicacion.benchmarks.cohortes import planificar
     return planificar(_registros(21, empresas), corte=INICIO + timedelta(days=70), horizonte=timedelta(days=14))
 
 
 def test_la_prueba_se_sella_una_vez(tmp_path):
     """112:RF-7 — se escribe con apertura exclusiva: un segundo sellado no la sobrescribe."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.evaluacion'), 'falta convertersmartgrid.benchmarks.evaluacion'
-    from convertersmartgrid.benchmarks.evaluacion import sellar_prueba
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.benchmarks.evaluacion'), 'falta convertersmartgrid.adaptadores.benchmarks.evaluacion'
+    from convertersmartgrid.adaptadores.benchmarks.evaluacion import sellar_prueba
     plan = _plan()
     huella = sellar_prueba(plan.cohortes, tmp_path)
     assert len(huella) == 64 and (tmp_path / 'prueba_sellada.json').is_file()
@@ -36,8 +36,8 @@ def test_la_prueba_se_sella_una_vez(tmp_path):
 
 def test_abrir_la_prueba_comprueba_su_huella(tmp_path):
     """112:RF-7 — la huella no cambia después: si alguien toca la prueba sellada, abrirla la rechaza."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.evaluacion'), 'falta convertersmartgrid.benchmarks.evaluacion'
-    from convertersmartgrid.benchmarks.evaluacion import PruebaAlterada, abrir_prueba, sellar_prueba
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.benchmarks.evaluacion'), 'falta convertersmartgrid.adaptadores.benchmarks.evaluacion'
+    from convertersmartgrid.adaptadores.benchmarks.evaluacion import PruebaAlterada, abrir_prueba, sellar_prueba
     plan = _plan()
     huella = sellar_prueba(plan.cohortes, tmp_path)
     prueba = abrir_prueba(tmp_path, huella)
@@ -52,9 +52,9 @@ def test_abrir_la_prueba_comprueba_su_huella(tmp_path):
 
 def test_el_informe_publica_tambien_los_negativos(tmp_path):
     """112:RF-8 — un candidato peor que el ingenuo y otro que no pasa la puerta aparecen en el informe, con su motivo."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.evaluacion'), 'falta convertersmartgrid.benchmarks.evaluacion'
-    from convertersmartgrid.benchmarks.evaluacion import Resultado, informe
-    from convertersmartgrid.evaluacion_harness.publicacion import leer_informe
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.benchmarks.evaluacion'), 'falta convertersmartgrid.adaptadores.benchmarks.evaluacion'
+    from convertersmartgrid.adaptadores.benchmarks.evaluacion import Resultado, informe
+    from convertersmartgrid.adaptadores.evaluacion_harness.publicacion import leer_informe
     plan = _plan()
     resultados = []
     for c in plan.cohortes:
@@ -80,10 +80,10 @@ def test_el_informe_publica_tambien_los_negativos(tmp_path):
 
 def test_el_informe_con_una_empresa_lo_dice(tmp_path):
     """112:RF-9 — con datos de una sola empresa, el informe lleva la frase de que la generalización no está demostrada."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.evaluacion'), 'falta convertersmartgrid.benchmarks.evaluacion'
-    from convertersmartgrid.benchmarks.cohortes import FRASE_UNA_EMPRESA
-    from convertersmartgrid.benchmarks.evaluacion import Resultado, informe
-    from convertersmartgrid.evaluacion_harness.publicacion import leer_informe
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.benchmarks.evaluacion'), 'falta convertersmartgrid.adaptadores.benchmarks.evaluacion'
+    from convertersmartgrid.aplicacion.benchmarks.cohortes import FRASE_UNA_EMPRESA
+    from convertersmartgrid.adaptadores.benchmarks.evaluacion import Resultado, informe
+    from convertersmartgrid.adaptadores.evaluacion_harness.publicacion import leer_informe
     plan = _plan(('E1',))
     c = plan.cohortes[0]
     informe([Resultado(cohorte=c.nombre, candidato='ingenuo', metricas={'wape': .2}, es_base=True)],
@@ -93,8 +93,8 @@ def test_el_informe_con_una_empresa_lo_dice(tmp_path):
 
 def test_el_informe_no_acepta_cohortes_que_no_existen(tmp_path):
     """112:RF-8 — un resultado de una cohorte que no está en el plan no se publica como si lo estuviera."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.evaluacion'), 'falta convertersmartgrid.benchmarks.evaluacion'
-    from convertersmartgrid.benchmarks.evaluacion import Resultado, informe
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.benchmarks.evaluacion'), 'falta convertersmartgrid.adaptadores.benchmarks.evaluacion'
+    from convertersmartgrid.adaptadores.benchmarks.evaluacion import Resultado, informe
     with pytest.raises(ValueError, match='cohorte'):
         informe([Resultado(cohorte='inventada', candidato='x', metricas={'wape': .1})],
                 tmp_path / 'informe.json', plan=_plan(), metrica='wape')

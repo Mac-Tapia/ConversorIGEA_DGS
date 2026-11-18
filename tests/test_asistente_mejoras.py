@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.asistente import mejoras
+from convertersmartgrid.aplicacion.asistente import mejoras
 
 
 def _git(repo: Path, *args: str) -> str:

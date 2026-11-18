@@ -13,19 +13,19 @@ import random
 
 import pytest
 
-from convertersmartgrid import dgs
-from convertersmartgrid.geography import build_geography, geography_to_dict
-from convertersmartgrid.model import build_feeder_model
-from convertersmartgrid.plano_red import revision_red, vista
+from convertersmartgrid.adaptadores import dgs
+from convertersmartgrid.adaptadores.geography import build_geography, geography_to_dict
+from convertersmartgrid.dominio.model import build_feeder_model
+from convertersmartgrid.adaptadores.plano_red import revision_red, vista
 from synthetic_export import CRS_SINTETICO, ExportSpec, load_export
 
 LAYOUTS = ('reducido', 'completo')
 
 
 def _variacion():
-    assert importlib.util.find_spec('convertersmartgrid.variacion_plano') is not None, \
-        'falta convertersmartgrid.variacion_plano'
-    return importlib.import_module('convertersmartgrid.variacion_plano')
+    assert importlib.util.find_spec('convertersmartgrid.aplicacion.variacion_plano') is not None, \
+        'falta convertersmartgrid.aplicacion.variacion_plano'
+    return importlib.import_module('convertersmartgrid.aplicacion.variacion_plano')
 
 
 #: Intentos de sorteo hasta una red que sirva a la prueba (FIX-111-PRUEBAS v3, lección B6 del 2026-11-16).
@@ -276,7 +276,7 @@ def test_111_rf7_ajuste_a_un_nodo_cercano_es_una_propuesta_con_su_distancia(tmp_
 
 def test_111_rf7_el_radio_de_ajuste_es_una_clave_del_perfil():
     """111:RF-7 — ``editor_ajuste_m`` está en el esquema del perfil: positivo, y un valor imposible es un error."""
-    from convertersmartgrid.perfil_esquema import claves_del_esquema, validar_perfil
+    from convertersmartgrid.adaptadores.perfil_esquema import claves_del_esquema, validar_perfil
     assert 'editor_ajuste_m' in claves_del_esquema()
     assert validar_perfil({'editor_ajuste_m': 8}).errores == []
     assert validar_perfil({'editor_ajuste_m': -1}).errores

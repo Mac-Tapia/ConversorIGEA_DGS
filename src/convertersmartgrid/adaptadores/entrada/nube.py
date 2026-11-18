@@ -22,10 +22,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
 
-from ...adaptadores.nube.google_drive import EXPORTACIONES
-from ...adaptadores.nube.proveedor import CambioAMitad, DescargaCortada, ErrorNube, Item, ProveedorNube
-from ...runtime_paths import staging_publicacion
-from ...util import write_json_atomic
+from ..nube.google_drive import EXPORTACIONES
+from ..nube.proveedor import CambioAMitad, DescargaCortada, ErrorNube, Item, ProveedorNube
+from ...dominio.runtime_paths import staging_publicacion
+from ...dominio.util import write_json_atomic
 
 FICHA = 'copia.json'
 _PROHIBIDOS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')

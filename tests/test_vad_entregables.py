@@ -18,10 +18,10 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad import entregables
-from convertersmartgrid.vad.anexo2 import cargar_formatos
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.adaptadores.vad import entregables
+from convertersmartgrid.aplicacion.vad.anexo2 import cargar_formatos
 
 RAIZ = Path(__file__).resolve().parents[1]
 CONFIG = RAIZ / 'config' / 'vad'
@@ -99,7 +99,7 @@ def test_108_rf11_formatos_a_y_b_con_formulas_vivas_y_sin_errores(tmp_path, pref
     ent = _ent()
     from openpyxl import load_workbook
 
-    from convertersmartgrid.vad.balance import calcular_filas
+    from convertersmartgrid.aplicacion.vad.balance import calcular_filas
     formatos = cargar_formatos(FORMATOS)
     tablas = _tablas(formatos, semilla)
     fuentes = {f.id: 'libro contable sintético' for f in formatos.todos()}
@@ -324,7 +324,7 @@ def test_108_rf11_mapas_con_los_campos_del_anexo9_en_orden_y_reproyectados_sobre
     """108:RF-11 — cada entidad va en <Entidad>.geojson con sus campos en el orden del anexo 9 (aunque la entrada
     venga en otro orden) y las coordenadas reproyectadas con geography.make_transformer; la entrada no cambia."""
     ent = _ent()
-    from convertersmartgrid.geography import make_transformer
+    from convertersmartgrid.adaptadores.geography import make_transformer
     registro = cargar_registro(CONFIG)
     entidades, _ = _anexo9(ent, registro)
     rnd = random.Random(f'{crs_origen}-{SEMILLAS[0]}')

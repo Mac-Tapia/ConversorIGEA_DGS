@@ -1,8 +1,8 @@
 """Spec 026, T5: intérprete híbrido y plan con los datos contrastados."""
 from __future__ import annotations
 
-from convertersmartgrid.asistente.interprete import interpretar, periodo_de
-from convertersmartgrid.asistente.plan import parecido, resolver
+from convertersmartgrid.aplicacion.asistente.interprete import interpretar, periodo_de
+from convertersmartgrid.aplicacion.asistente.plan import parecido, resolver
 
 VOCAB = {'alimentadores': ['IN111', 'TA225', 'PA217'], 'proyecto': ['20261015-170359_CSG_IN111_TA225', 'CA101 13'],
          'sistema': ['Pisco', 'Ica']}

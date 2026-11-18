@@ -1,8 +1,8 @@
 """047:RF-42 — la puerta dice el valor medido y de cuántos ejemplos sale, o que la métrica falta."""
 from __future__ import annotations
 
-from convertersmartgrid.asistente.clasificador import _fallos_de_metricas
-from convertersmartgrid.asistente.entrenamiento_dataset import puertas_dataset
+from convertersmartgrid.aplicacion.asistente.clasificador import _fallos_de_metricas
+from convertersmartgrid.aplicacion.asistente.entrenamiento_dataset import puertas_dataset
 
 
 def test_bajo_la_puerta_dice_su_valor_y_ejemplos_y_ausente_lo_dice_aparte():

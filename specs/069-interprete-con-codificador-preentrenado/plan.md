@@ -11,8 +11,8 @@ manejan `pesos.pt` y `modelo.json`. Un modelo nuevo que respete eso no obliga a 
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| Codificador, cabezas, entrenamiento, predicción | `src/convertersmartgrid/asistente/codificador_ordenes.py` | RF-1 a RF-6, RF-9 |
-| Etiquetas y voto por palabra, comunes | `src/convertersmartgrid/asistente/datos_por_palabra.py` | RF-1, RF-31 |
+| Codificador, cabezas, entrenamiento, predicción | `src/convertersmartgrid/aplicacion/asistente/codificador_ordenes.py` | RF-1 a RF-6, RF-9 |
+| Etiquetas y voto por palabra, comunes | `src/convertersmartgrid/aplicacion/asistente/datos_por_palabra.py` | RF-1, RF-31 |
 | Carga de heredados y nuevos | `asistente/transformer.py`, `asistente/destilacion_integral.py` | RF-7, RF-8 |
 | Mensajes `ninguna`: lectura y reparto por hash | `asistente/maestro_real.py` | RF-10, RF-11 |
 | Segunda pasada, corpus y reservados | `asistente/destilacion_integral.py` | RF-10 a RF-14 |

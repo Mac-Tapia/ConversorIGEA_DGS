@@ -18,9 +18,9 @@ from nube_simulada import NubeSimulada, sin_sockets  # noqa: F401
 
 from convertersmartgrid.adaptadores.nube.oauth import PERMISOS
 from convertersmartgrid.adaptadores.nube.proveedor import PermisoCaducado, SinAcceso
-from convertersmartgrid.correo import CuentaNoConectada
+from convertersmartgrid.puertos.correo import CuentaNoConectada
 
-MODULO = 'convertersmartgrid.correo.de_la_109'
+MODULO = 'convertersmartgrid.adaptadores.correo.de_la_109'
 
 
 @pytest.fixture(autouse=True)

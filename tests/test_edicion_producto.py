@@ -13,17 +13,17 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from convertersmartgrid import edicion
-from convertersmartgrid.asistente import almacen, mejoras, vigilancia
-from convertersmartgrid.asistente.equipo import _NATIVAS, inventario_equipo
-from convertersmartgrid.asistente.interprete import Interpretacion
-from convertersmartgrid.asistente.plan import Plan, resolver
-from convertersmartgrid.asistente.tareas import (EFECTOS, ESCRIBE, LEE, LICENCIA, RED, TAREAS, TAREAS_IDEMPOTENTES,
+from convertersmartgrid.dominio import edicion
+from convertersmartgrid.aplicacion.asistente import almacen, mejoras, vigilancia
+from convertersmartgrid.aplicacion.asistente.equipo import _NATIVAS, inventario_equipo
+from convertersmartgrid.aplicacion.asistente.interprete import Interpretacion
+from convertersmartgrid.aplicacion.asistente.plan import Plan, resolver
+from convertersmartgrid.aplicacion.asistente.tareas import (EFECTOS, ESCRIBE, LEE, LICENCIA, RED, TAREAS, TAREAS_IDEMPOTENTES,
                                                  requiere_confirmacion)
-from convertersmartgrid.digital_twin import integration, temporal
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
-from convertersmartgrid.web.jobs import EventLog
+from convertersmartgrid.adaptadores.digital_twin import integration, temporal
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
+from convertersmartgrid.presentacion.web.jobs import EventLog
 
 RAIZ = Path(__file__).resolve().parents[1]
 #: Las rutas que la 1.0 negaba en la edición de producto hasta el 2026-11-13; ahora se atienden.
@@ -208,7 +208,7 @@ def test_en_el_instalado_las_mejoras_dicen_que_son_de_desarrollo(tmp_path, monke
 
 def test_en_el_instalado_la_mejora_falla_sin_traza_en_el_registro(tmp_path, monkeypatch):
     """086:RF-15 — el trabajo de la mejora termina con el aviso y el Registro lo dice en una línea."""
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.jobs import JobManager
 
     _instalado_simulado(tmp_path, monkeypatch)
     eventos = []
@@ -256,7 +256,7 @@ def test_en_desarrollo_las_mejoras_siguen_igual(tmp_path, monkeypatch):
 def test_los_servicios_ya_no_se_niegan_en_producto(producto, monkeypatch, nombre, llamada):
     """086:RF-15 — cada servicio entra en su trabajo: con argumentos vacíos falla por ellos, nunca por la edición.
     Antes, todos respondían «Esta función no forma parte de esta versión del programa»."""
-    from convertersmartgrid.digital_twin import oraculo
+    from convertersmartgrid.adaptadores.digital_twin import oraculo
 
     def sin_gpu(*_a, **_k):                     # el controlador de la GPU no se toca en estas pruebas
         raise oraculo.SinGPU('No hay GPU CUDA para el gemelo digital')
@@ -280,7 +280,7 @@ def test_024_rf1_en_producto_la_captura_sigue_activa_y_solo_la_apaga_el_operador
 
 def test_el_oraculo_usa_la_pinn_promovida_en_producto(tmp_path, monkeypatch, producto):
     """086:RF-15 — en producto decide la PINN promovida, como en desarrollo; antes se ignoraba aunque la hubiera."""
-    from convertersmartgrid.digital_twin import buffer, oraculo
+    from convertersmartgrid.adaptadores.digital_twin import buffer, oraculo
 
     promovida = object()
     monkeypatch.setattr(buffer, 'BuferEpisodios', lambda *_a, **_k: 'búfer')
@@ -293,9 +293,9 @@ def test_el_ciclo_del_050_se_encola_en_producto(tmp_path, monkeypatch, producto)
     import json
     import threading
 
-    from convertersmartgrid import aprendizaje_continuo as ac
-    from convertersmartgrid.web import app as web_app
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.aplicacion import aprendizaje_continuo as ac
+    from convertersmartgrid.presentacion.web import app as web_app
+    from convertersmartgrid.presentacion.web.jobs import JobManager
 
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     monkeypatch.setenv('CSG_AUTOENTRENAMIENTO', '1')
@@ -364,7 +364,7 @@ def test_un_plan_guardado_de_entrenar_se_atiende_en_producto(producto):
 def test_el_doctor_informa_de_la_gpu_cuda_y_su_memoria(monkeypatch):
     """086:RF-40 — entrenar y el gemelo piden una tarjeta NVIDIA con CUDA: el doctor dice cuál, su CUDA y su memoria
     libre, y sin ella qué funciones afecta y cómo arreglarlo, sin trazas."""
-    from convertersmartgrid.web import doctor
+    from convertersmartgrid.presentacion.web import doctor
 
     hay = doctor._gpu(lambda: {'nombre': 'NVIDIA RTX de prueba', 'cuda': '12.6', 'memoria_total_mib': 8192,
                                'memoria_libre_mib': 6144, 'controlador': '560.94'})
@@ -377,7 +377,7 @@ def test_el_doctor_informa_de_la_gpu_cuda_y_su_memoria(monkeypatch):
 
 def test_sin_gpu_el_error_es_para_el_operador():
     """086:RF-15 — sin CUDA, el gemelo no cae a la CPU (regla del proyecto) y lo dice sin órdenes de pip."""
-    from convertersmartgrid.training_coordinator import SinGPU, mensaje_sin_gpu
+    from convertersmartgrid.aplicacion.training_coordinator import SinGPU, mensaje_sin_gpu
 
     texto = mensaje_sin_gpu()
     assert issubclass(SinGPU, RuntimeError) and 'GPU' in texto and 'CUDA' in texto and 'complemento de IA' in texto
@@ -386,8 +386,8 @@ def test_sin_gpu_el_error_es_para_el_operador():
 
 def test_un_trabajo_sin_gpu_no_deja_traza_en_el_registro(tmp_path):
     """086:RF-15 — el trabajo falla con el mensaje, y el Registro lo dice en una línea en lugar de una traza."""
-    from convertersmartgrid.training_coordinator import SinGPU
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.aplicacion.training_coordinator import SinGPU
+    from convertersmartgrid.presentacion.web.jobs import JobManager
 
     eventos = []
     jobs = JobManager(lambda *a: eventos.append(a))
@@ -525,7 +525,7 @@ def test_la_vigilancia_solo_reintenta_lo_idempotente():
 
 def test_los_trabajos_idempotentes_declarados_existen():
     """086:RF-26 — la lista no se queda con nombres que ya no son de ningún trabajo, ni con nada que escriba en DIgSILENT."""
-    fuentes = (RAIZ / 'src/convertersmartgrid/web/app.py').read_text(encoding='utf-8')
+    fuentes = (RAIZ / 'src/convertersmartgrid/presentacion/web/app.py').read_text(encoding='utf-8')
     for kind in vigilancia.TRABAJOS_IDEMPOTENTES:
         assert re.search(rf"submit\(\w+(?:\(\w+\))?, '{kind}'", fuentes), kind
 
@@ -538,7 +538,7 @@ def test_las_tareas_idempotentes_no_escriben_en_digsilent():
 
 def _plan_que_falla(client, wid, tarea, monkeypatch, datos):
     """El plan listo, con cada paso fallando como un 4002, y las veces que se intentó."""
-    from convertersmartgrid.asistente import ejecutor
+    from convertersmartgrid.aplicacion.asistente import ejecutor
 
     vocabulario = {'alimentadores': ['A1'], 'proyecto': ['P'], 'sistema': [], 'set': [], 'periodos': []}
     monkeypatch.setattr(services, 'asistente_vocabulario', lambda _ws: vocabulario)
@@ -580,7 +580,7 @@ def test_el_asistente_si_repite_lo_idempotente(client, monkeypatch):
 
 def _sin_gpu(monkeypatch):
     """Lo que ve el gemelo en un equipo sin CUDA, también si alguien pasa a instalar torch sin ella."""
-    from convertersmartgrid.digital_twin import oraculo
+    from convertersmartgrid.adaptadores.digital_twin import oraculo
 
     def sin(*_a, **_k):
         raise oraculo.SinGPU('No hay GPU CUDA para el gemelo digital')
@@ -662,7 +662,7 @@ def test_los_avisos_de_la_corrida_no_llevan_codigos(tmp_path):
     """086:RF-12 — la web los enseña ahora, y también van al Word: «(086:RF-11)» no le dice nada a quien lo lee."""
     avisos = services._avisos_de_la_corrida(None, {'sin': {'_fichero': 'f.json', 'medidas': {'A1': {}}}}, 'A1')
     assert avisos and 'sin registro' in avisos[0] and not re.search(r'\d{3}:RF-', avisos[0])
-    fuente = (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
     ini = fuente.index('def _avisos_de_la_corrida')
     fin = fuente.index('\ndef ', ini + 10)
     # Los comentarios sí citan el requisito: se comprueba solo lo que va entre comillas.

@@ -14,16 +14,16 @@ torch = pytest.importorskip('torch')
 
 from test_interprete_codificador import CodificadorFalso, _entrenado                   # noqa: E402
 
-from convertersmartgrid.asistente import codificador_ordenes as co                     # noqa: E402
-from convertersmartgrid.asistente import destilacion_integral as di                    # noqa: E402
-from convertersmartgrid.asistente import ordenes_fijas as of                           # noqa: E402
-from convertersmartgrid.asistente import prueba_sellada as ps                          # noqa: E402
-from convertersmartgrid.asistente import transformer as tr                             # noqa: E402
-from convertersmartgrid.asistente import validacion_cruzada as vc                      # noqa: E402
-from convertersmartgrid.asistente.interprete import PUESTO_CHARLA, interpretar         # noqa: E402
-from convertersmartgrid.asistente.maestro_real import CALIDAD, NINGUNA                 # noqa: E402
-from convertersmartgrid.asistente.plan import resolver                                 # noqa: E402
-from convertersmartgrid.asistente.tareas import TAREAS                                 # noqa: E402
+from convertersmartgrid.aplicacion.asistente import codificador_ordenes as co                     # noqa: E402
+from convertersmartgrid.aplicacion.asistente import destilacion_integral as di                    # noqa: E402
+from convertersmartgrid.aplicacion.asistente import ordenes_fijas as of                           # noqa: E402
+from convertersmartgrid.aplicacion.asistente import prueba_sellada as ps                          # noqa: E402
+from convertersmartgrid.aplicacion.asistente import transformer as tr                             # noqa: E402
+from convertersmartgrid.aplicacion.asistente import validacion_cruzada as vc                      # noqa: E402
+from convertersmartgrid.aplicacion.asistente.interprete import PUESTO_CHARLA, interpretar         # noqa: E402
+from convertersmartgrid.aplicacion.asistente.maestro_real import CALIDAD, NINGUNA                 # noqa: E402
+from convertersmartgrid.aplicacion.asistente.plan import resolver                                 # noqa: E402
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS                                 # noqa: E402
 
 RAIZ = Path(__file__).resolve().parents[1]
 CPU = torch.device('cpu')
@@ -71,7 +71,7 @@ def test_familia_clave_marca_datos_codigos_y_tildes():
     assert vc.clave_de_familia('¿Cómo va?') == vc.clave_de_familia('como va')
     assert vc.clave_de_familia('convierte AB101') == vc.clave_de_familia('convierte CD202') == 'convierte #'
     assert vc.clave_de_familia('calibra Ensayo Alfa', [(8, 19, 'proyecto')]) == 'calibra #'
-    from convertersmartgrid.asistente.sinteticos import CORTESIAS
+    from convertersmartgrid.aplicacion.asistente.sinteticos import CORTESIAS
     assert vc.clave_de_familia(f'{CORTESIAS[0]} corre todo') == 'corre todo'
 
 
@@ -282,7 +282,7 @@ def test_independencia_cuenta_en_el_agregado():
 @pytest.fixture(scope='module')
 def corrida(tmp_path_factory):
     """El protocolo real con codificador falso, una vez: varias pruebas leen lo mismo."""
-    import convertersmartgrid.model_registry as mr
+    import convertersmartgrid.aplicacion.model_registry as mr
     tmp = tmp_path_factory.mktemp('cruzada')
     llamadas, decisiones = [], []
     with pytest.MonkeyPatch.context() as mp:
@@ -470,7 +470,7 @@ def test_opcion_solo_si_se_pide(tmp_path, monkeypatch, opcion, esperada):
     monkeypatch.setattr(di, 'entrenar_destilacion', falso_entrenar)
     monkeypatch.setattr(di, 'preparar_corpus', lambda *_a, **_k: ([], {}))
     monkeypatch.setattr(di, 'guardar_corpus', lambda *_a, **_k: None)
-    from convertersmartgrid.asistente import modelos_en_uso
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso
     monkeypatch.setattr(modelos_en_uso, 'aplicar_decision', lambda *_a, **_k: {})
     codigo = _herramienta().main(['--output-json', str(tmp_path / 'salida.json'), '--integral', '--solo', 'ordenes', *opcion])
     assert codigo == 0
@@ -486,7 +486,7 @@ def test_opcion_no_se_combina_con_la_via_antigua(tmp_path):
 
 def test_opcion_sin_pedirla_las_confirmadas_solo_examinan(tmp_path, monkeypatch):
     """075:RF-36 — sin la opción, ninguna confirmada entrena y la medida es la de siempre, sin bloque de vueltas."""
-    import convertersmartgrid.model_registry as mr
+    import convertersmartgrid.aplicacion.model_registry as mr
     llamadas = []
     original = co.entrenar
 
@@ -563,7 +563,7 @@ def test_ollama_se_pregunta_al_operador_con_las_alternativas():
     assert plan.alternativas == [('estado', .4), ('flujo', .1)]
     # Aclaración de 075:RF-38: esa pregunta la ve el operador («Falta …» en Asistente.tsx), así que cada alternativa se
     # nombra por lo que hace y no por su nombre interno (070:RF-51).
-    from convertersmartgrid.asistente.tareas import descripcion_para_operador
+    from convertersmartgrid.aplicacion.asistente.tareas import descripcion_para_operador
 
     estado, flujo = (f'«{descripcion_para_operador(t)}»' for t in ('estado', 'flujo'))
     (pregunta,) = [f for f in plan.faltan if f.startswith('la tarea')]

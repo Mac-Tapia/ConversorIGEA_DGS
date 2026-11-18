@@ -49,11 +49,11 @@ from pathlib import Path
 from cargas_pf import Alimentadores, _num, activar_proyecto, crear_variacion, error_inesperado, nombre_libre
 from casos_pf import NOMBRES, casos_del_proyecto
 
-from convertersmartgrid import datos_empresa as de
-from convertersmartgrid import estudios_red_pf as er
-from convertersmartgrid import historico_interrupciones as hi
-from convertersmartgrid.naming import feeder_short_name
-from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.aplicacion import datos_empresa as de
+from convertersmartgrid.aplicacion import estudios_red_pf as er
+from convertersmartgrid.aplicacion import historico_interrupciones as hi
+from convertersmartgrid.dominio.naming import feeder_short_name
+from convertersmartgrid.dominio.native_action import native_action_block_report
 
 #: Variación propia de la spec 012 (RF-21).
 VARIACION = er.VARIACION_DATOS
@@ -138,7 +138,7 @@ def _tipo_de(obj) -> str:
 # =========================================================================== aplicar datos
 def _carpeta_modelos(app):
     equip = app.GetProjectFolder('equip')
-    from convertersmartgrid.util import NOMBRES_ANTERIORES_PF
+    from convertersmartgrid.dominio.util import NOMBRES_ANTERIORES_PF
 
     carpetas = {c.loc_name: c for c in equip.GetContents('*.IntFolder')}
     carpeta = carpetas.get(CARPETA_MODELOS) or carpetas.get(NOMBRES_ANTERIORES_PF[CARPETA_MODELOS])
@@ -544,7 +544,7 @@ def main(argv=None) -> int:
                                           encoding='utf-8')
         print(blocked['error'])
         return 2
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('confiabilidad_pf.py')

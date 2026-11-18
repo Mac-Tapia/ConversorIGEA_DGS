@@ -12,8 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid import pf_arnes
-from convertersmartgrid.pf_arnes import PFNoDisponible
+from convertersmartgrid.adaptadores import pf_arnes
+from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -139,7 +139,7 @@ def test_liberar_un_muerto_no_borra_el_turno_de_otro(turno):
 def test_cerrar_servidor_solo_por_su_orden(turno, tmp_path, monkeypatch):
     """019:RF-20 — el corte retira su orden de la cola; cierra el servidor si la atendía o si
     no llegó a conectar, y no si atiende la de otro."""
-    from convertersmartgrid import powerfactory_env
+    from convertersmartgrid.adaptadores import powerfactory_env
 
     cola = tmp_path / 'cola'
     cola.mkdir()
@@ -185,7 +185,7 @@ def test_dos_procesos_a_la_vez_se_turnan(turno, tmp_path):
     codigo = textwrap.dedent(f"""
         import sys, time
         sys.path.insert(0, {str(RAIZ / 'src')!r})
-        from convertersmartgrid import pf_arnes
+        from convertersmartgrid.adaptadores import pf_arnes
         with pf_arnes.turno_del_motor(sys.argv[1], abierto=lambda: []):
             print('dentro', sys.argv[1], time.time(), flush=True)
             time.sleep(float(sys.argv[2]))
@@ -294,7 +294,7 @@ def test_la_salida_va_linea_a_linea():
     """019:RF-15 — redirigida a un fichero, la salida del guion no espera a llenar un bloque."""
     codigo = textwrap.dedent('''
         import sys, time
-        from convertersmartgrid import pf_arnes
+        from convertersmartgrid.adaptadores import pf_arnes
         pf_arnes.salida_sin_bufer()
         print('primera')
         time.sleep(30)
@@ -387,7 +387,7 @@ def test_conexion_colgada_de_verdad_termina_con_su_codigo(turno, tmp_path):
         import sys, time
         from types import SimpleNamespace
         sys.path.insert(0, {str(RAIZ / 'src')!r})
-        from convertersmartgrid import pf_arnes
+        from convertersmartgrid.adaptadores import pf_arnes
         colgado = SimpleNamespace(GetApplicationExt=lambda: time.sleep(600))
         pf_arnes.conectar('colgado.py', modulo=colgado, aviso=lambda m: None, abierto=lambda: [],
                           plazo_conexion_s=2)
@@ -422,7 +422,7 @@ def test_borrar_el_turno_tolera_que_otro_lo_este_leyendo(tmp_path, monkeypatch):
     """019:RF-28 — Pisco, 2026-11-03: WinError 32 al borrar el turno de un dueño muerto tumbaba el servidor."""
     from pathlib import Path
 
-    from convertersmartgrid import pf_arnes
+    from convertersmartgrid.adaptadores import pf_arnes
 
     ruta = tmp_path / 'turno'
     ruta.write_text('{}', encoding='utf-8')
@@ -514,7 +514,7 @@ def test_un_rival_que_gana_siempre_termina_en_el_tope_diciendo_quien(turno, monk
     """019:RF-2, 019:RF-4 — si otro se lleva siempre el apartado, se rinde con tope y plazo: nunca un bucle sin fin."""
     import time
 
-    from convertersmartgrid import util
+    from convertersmartgrid.dominio import util
     turno.write_text('{"pid": 4242, "gui', encoding='utf-8')
     _envejecer(turno, 3600)
     reemplazar = util.os.replace

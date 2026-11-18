@@ -21,8 +21,8 @@ import threading
 
 import pytest
 
-from convertersmartgrid.batch import STAGE_PREFIX, convert_selection
-from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.aplicacion.batch import STAGE_PREFIX, convert_selection
+from convertersmartgrid.adaptadores.dataset import CymdistDataset
 
 NETWORK = 'NET_2030_150_NA999'
 SECOND = 'NET_2030_151_NB888'
@@ -129,7 +129,7 @@ class TestSourceOnlyFeeders:
 
     def test_source_only_dgs_contains_only_what_exists(self, tmp_path):
         """No se inventa nada: una barra, su red externa, ni un tramo ni una carga."""
-        from convertersmartgrid.validate import parse_dgs
+        from convertersmartgrid.adaptadores.validate import parse_dgs
 
         ds = _write_source_only(tmp_path)
         out = tmp_path / 'out'
@@ -230,7 +230,7 @@ class TestCancellation:
 
     def test_manifest_is_written_even_when_the_batch_crashes(self, tmp_path, monkeypatch):
         """Un lote sin manifiesto es un lote sin traza, pase lo que pase."""
-        import convertersmartgrid.batch as batch_module
+        import convertersmartgrid.aplicacion.batch as batch_module
 
         ds = _write_two_feeders(tmp_path)
         out = tmp_path / 'out'
@@ -250,7 +250,7 @@ class TestCancellation:
         """001:RF-5 (H14, 2026-11-14): batch_manifest.json se publica con la escritura atómica única. Antes se
         escribía en su sitio con write_text, y un corte a mitad dejaba un JSON truncado que rompía su lectura
         (dataset_entrenamiento)."""
-        from convertersmartgrid import util
+        from convertersmartgrid.dominio import util
 
         ds = _write_two_feeders(tmp_path)
         out = tmp_path / 'out'

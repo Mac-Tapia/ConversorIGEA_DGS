@@ -18,7 +18,7 @@ import pytest
 pytest.importorskip('python_calamine')
 openpyxl = pytest.importorskip('openpyxl')
 
-from convertersmartgrid import demanda_medida as dm  # noqa: E402
+from convertersmartgrid.aplicacion import demanda_medida as dm  # noqa: E402
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 INICIO = datetime(2026, 7, 1)
@@ -315,7 +315,7 @@ def test_varios_medidores_por_separado_sin_sumar(tmp_path):
 def test_reactiva_del_registro_de_la_pot_del_cliente(tmp_path):
     """004:RF-66 — «maestro_lib» lleva a la hoja de 15 minutos de cada cliente; su kVAR es
     el ERI × 4 del registro en que dio su POT; sin hoja, sigue con su ERI/EA del mes."""
-    from convertersmartgrid.ajuste_cabecera import Objetivo, fijas_de
+    from convertersmartgrid.dominio.ajuste_cabecera import Objetivo, fijas_de
 
     rng = random.Random(SEMILLA)
     pico = rng.randint(1, 20)
@@ -978,7 +978,7 @@ def test_set_con_tres_transformadores_suma_los_tres():
     """022:RF-84, 022:RF-87 — tres transformadores en 60 kV (sorteados de 1 a 3 y con
     puntas en registros distintos): el instante es la máxima de la suma, no la de uno; un
     transformador medido solo en 60 kV se avisa."""
-    from convertersmartgrid.estructura import estructura_de_dict
+    from convertersmartgrid.dominio.estructura import estructura_de_dict
 
     rng = random.Random(SEMILLA)
     n = rng.randint(1, 3)
@@ -1026,7 +1026,7 @@ def test_real_barras_de_60_kv_casan_con_su_set_y_llevan_toda_la_set():
     instante de la de 60 kV. Si falla, solo se dicen recuentos y siglas, no medidas."""
     import json
 
-    from convertersmartgrid.estructura import estructura_de_dict
+    from convertersmartgrid.dominio.estructura import estructura_de_dict
 
     raiz = Path(__file__).resolve().parents[1]
     e = estructura_de_dict(json.loads((raiz / 'config' / 'perfiles' / 'electro_dunas.estructura.json')
@@ -1053,7 +1053,7 @@ def test_real_barras_de_60_kv_casan_con_su_set_y_llevan_toda_la_set():
 def test_real_los_dos_formatos_de_clientes_cruzan():
     """004:RF-34 a RF-37, 025:RF-1 — cada libro de clientes, de cada año, cruza casi entero
     con el de suministros."""
-    from convertersmartgrid.libros_por_anio import arbol_de_libros
+    from convertersmartgrid.aplicacion.libros_por_anio import arbol_de_libros
 
     sums, _ = dm.leer_suministros(next(_sub('3.').iterdir()))
     libros = arbol_de_libros(_sub('4.'))
@@ -1395,7 +1395,7 @@ def test_balance_de_la_lt_sin_contar_dos_veces():
 def test_lt_de_cualquier_empresa_por_su_sufijo_y_su_set(tmp_path):
     """028:RF-33, 028:RF-35, 028:RF-37 — «_L» llega y «_S» sale; la misma línea por sus dos extremos no es salida."""
     import openpyxl
-    from convertersmartgrid.estructura import AlimentadorEstructura, Estructura, SetElectrica
+    from convertersmartgrid.dominio.estructura import AlimentadorEstructura, Estructura, SetElectrica
 
     ruta = tmp_path / 'm.xlsx'
     wb = openpyxl.Workbook()
@@ -1421,7 +1421,7 @@ def test_lt_de_cualquier_empresa_por_su_sufijo_y_su_set(tmp_path):
 
 def test_dos_set_sin_salidas_no_se_pueden_repartir():
     """028:RF-37 — lo dice y no fijan el instante."""
-    from convertersmartgrid.estructura import AlimentadorEstructura, Estructura, SetElectrica
+    from convertersmartgrid.dominio.estructura import AlimentadorEstructura, Estructura, SetElectrica
 
     sets = {'SET 1': SetElectrica('SET 1', '', 'Z', ('AA',)), 'SET 2': SetElectrica('SET 2', '', 'Z', ('BB',))}
     alim = {'AA1': AlimentadorEstructura('AA1', 'SET 1', ''), 'BB1': AlimentadorEstructura('BB1', 'SET 2', '')}
@@ -1482,7 +1482,7 @@ def test_sesenta_kv_un_medidor_con_huecos_no_descarta_las_demas_fechas():
 
 def test_los_clientes_de_alta_vienen_del_perfil_local():
     """028:RF-35 — el repositorio es público: los nombres van en el perfil local, no en la estructura."""
-    from convertersmartgrid.estructura import estructura_de_perfil
+    from convertersmartgrid.dominio.estructura import estructura_de_perfil
 
     datos = {'zonales': [{'nombre': 'Z', 'sets': [{'codigo': 'SET 1', 'nombre': 'N', 'siglas': ['A'],
                                                    'alimentadores': [{'codigo': 'A1', 'sistema': 'S'}]}]}]}

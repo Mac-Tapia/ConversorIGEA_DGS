@@ -12,11 +12,11 @@ import requests
 
 from correo_simulado import sin_red  # noqa: F401
 
-from convertersmartgrid.correo import borrador as b
-from convertersmartgrid.correo import envios as e
-from convertersmartgrid.correo import mensaje as m
-from convertersmartgrid.correo import proveedores as p
-from convertersmartgrid.salidas_red import SALIDAS, SalidaApagada
+from convertersmartgrid.adaptadores.correo import borrador as b
+from convertersmartgrid.adaptadores.correo import envios as e
+from convertersmartgrid.adaptadores.correo import mensaje as m
+from convertersmartgrid.adaptadores.correo import proveedores as p
+from convertersmartgrid.dominio.salidas_red import SALIDAS, SalidaApagada
 
 
 @pytest.fixture(autouse=True)
@@ -201,7 +201,7 @@ def test_las_salidas_del_correo_estan_declaradas():
     for nombre, host in (('correo_google', 'gmail'), ('correo_microsoft', 'Graph')):
         s = SALIDAS[nombre]
         assert s.variable == f'CSG_SALIDA_{nombre.upper()}'
-        assert s.modulos == ('src/convertersmartgrid/correo/proveedores.py',) and host in s.destino
+        assert s.modulos == ('src/convertersmartgrid/adaptadores/correo/proveedores.py',) and host in s.destino
 
 
 def test_el_guardian_de_red_niega_lo_de_fuera_y_deja_el_bucle_local():

@@ -15,7 +15,7 @@ if str(REPO/'src') not in sys.path:sys.path.insert(0,str(REPO/'src'))
 
 def cargar_dataset(dataset: Path, *, entrenamiento: bool):
     """043/050: un solo lector para preparación y trabajador del recuperador."""
-    from convertersmartgrid.asistente.embeddings import cargar_dataset_recuperacion
+    from convertersmartgrid.aplicacion.asistente.embeddings import cargar_dataset_recuperacion
     return cargar_dataset_recuperacion(dataset, entrenamiento=entrenamiento)
 
 
@@ -27,18 +27,18 @@ def main(argv=None):
     p.add_argument('--modelo',default='intfloat/multilingual-e5-base')
     p.add_argument('--epocas',type=int,default=1)
     args=p.parse_args(argv)
-    from convertersmartgrid.trabajadores_ml import escribir_informe,fallo,turno_gpu
+    from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe,fallo,turno_gpu
     if args.destino.exists() and (not args.destino.is_dir() or any(args.destino.iterdir())):
         print('Destino existente conservado');return 2
     args.destino.mkdir(parents=True,exist_ok=True)
     try:
         frags,pares=cargar_dataset(args.dataset,entrenamiento=args.accion=='entrenar')
-        from convertersmartgrid.asistente.embeddings import entrenar_recuperador,cargar_encoder,protocolo_encoder,evaluar_recuperador,guardar_indice_versionado,reabrir_indice_versionado
+        from convertersmartgrid.aplicacion.asistente.embeddings import entrenar_recuperador,cargar_encoder,protocolo_encoder,evaluar_recuperador,guardar_indice_versionado,reabrir_indice_versionado
         with turno_gpu('embeddings'):
             if args.accion=='entrenar':resultado=entrenar_recuperador(pares,args.destino,modelo_base=args.modelo,epocas=args.epocas)
             else:
-                from convertersmartgrid.asistente.embeddings import origenes_consultas_reservadas
-                from convertersmartgrid.asistente.indice import Indice
+                from convertersmartgrid.aplicacion.asistente.embeddings import origenes_consultas_reservadas
+                from convertersmartgrid.aplicacion.asistente.indice import Indice
                 modelo=cargar_encoder(args.modelo)
                 protocolo=protocolo_encoder(args.modelo)
                 prefijos=(protocolo['query_prefix'],protocolo['passage_prefix'])

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from convertersmartgrid.asistente.ejecutor import ClienteWeb, PasoFallido
-from convertersmartgrid.asistente.orquestador import ETAPAS, PuntoDeControl, ejecutar_proyecto
+from convertersmartgrid.aplicacion.asistente.ejecutor import ClienteWeb, PasoFallido
+from convertersmartgrid.aplicacion.asistente.orquestador import ETAPAS, PuntoDeControl, ejecutar_proyecto
 
 
 class _Respuesta:
@@ -82,8 +82,8 @@ def test_ruta_de_la_web(tmp_path, monkeypatch):
     from apoyo import esperar_trabajo
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
 
     vistos = []
     monkeypatch.setattr(services, 'agente_proyecto', lambda ws, ctx, datos, base, http=None, reiniciar=False: (

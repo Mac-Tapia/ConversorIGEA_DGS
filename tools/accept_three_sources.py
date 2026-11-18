@@ -19,10 +19,10 @@ SRC = ROOT / 'src'
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from convertersmartgrid.util import sha256_file  # noqa: E402
-from convertersmartgrid.web import services  # noqa: E402
-from convertersmartgrid.web.jobs import Job, JobContext  # noqa: E402
-from convertersmartgrid.web.workspace import Workspace  # noqa: E402
+from convertersmartgrid.dominio.util import sha256_file  # noqa: E402
+from convertersmartgrid.presentacion.web import services  # noqa: E402
+from convertersmartgrid.presentacion.web.jobs import Job, JobContext  # noqa: E402
+from convertersmartgrid.presentacion.web.workspace import Workspace  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -411,8 +411,8 @@ def _accept_mode(config: AcceptanceConfig, mode: str) -> dict[str, Any]:
             return row
 
         if config.reconstruct:
-            from convertersmartgrid.reconstruction import ReconstructionPolicy
-            from convertersmartgrid.web.reconstruction_service import reconstruct_selection
+            from convertersmartgrid.dominio.reconstruction import ReconstructionPolicy
+            from convertersmartgrid.presentacion.web.reconstruction_service import reconstruct_selection
 
             reconstruction = reconstruct_selection(
                 workspace,

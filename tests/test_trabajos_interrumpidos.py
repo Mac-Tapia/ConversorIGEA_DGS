@@ -44,7 +44,7 @@ def _servidor_con_hijo(tmp_path, *, cancelar=False, motor=False, antes_anotar=Fa
     guion.write_text(textwrap.dedent(f'''
         import json, os, time
         from pathlib import Path
-        from convertersmartgrid.web.jobs import JobManager, JobContext
+        from convertersmartgrid.presentacion.web.jobs import JobManager, JobContext
         raiz = Path({str(tmp_path)!r})
         if {antes_anotar!r}:
             def sin_confirmar(self, pid):
@@ -83,7 +83,7 @@ def _servidor_con_hijo(tmp_path, *, cancelar=False, motor=False, antes_anotar=Fa
 def test_identidad_incompleta_de_un_pid_real_muerto_no_bloquea():
     """096:RF-6 — primero comprobar muerte: la ausencia de fecha no mantiene vivo un PID que ya no existe."""
     import psutil
-    from convertersmartgrid.web.jobs import proceso_pendiente
+    from convertersmartgrid.presentacion.web.jobs import proceso_pendiente
 
     proceso = subprocess.Popen([sys.executable, '-c', 'pass'])
     proceso.wait(10)
@@ -95,7 +95,7 @@ def test_identidad_incompleta_de_un_pid_real_muerto_no_bloquea():
 def test_reserva_anterior_al_spawn_se_retira_si_creacion_falla(tmp_path, monkeypatch, motor):
     """096:RF-6 — la reserva existe antes de crear el hijo y un error de creación no la deja bloqueando."""
     import multiprocessing.process
-    from convertersmartgrid.web.jobs import DiarioTrabajos, Job, JobContext
+    from convertersmartgrid.presentacion.web.jobs import DiarioTrabajos, Job, JobContext
 
     diario = DiarioTrabajos(tmp_path / '_trabajos')
     job = Job('k', 't', WID, 'engine', lambda ctx: None)
@@ -120,7 +120,7 @@ def test_reserva_anterior_al_spawn_se_retira_si_creacion_falla(tmp_path, monkeyp
 
 def test_no_crear_hijo_si_no_se_puede_persistir_reserva(tmp_path, monkeypatch):
     """096:RF-6 / 086:RF-9 — un diario no durable no permite crear un trabajador sin recibo previo."""
-    from convertersmartgrid.web.jobs import DiarioTrabajos, Job, JobContext
+    from convertersmartgrid.presentacion.web.jobs import DiarioTrabajos, Job, JobContext
 
     diario = DiarioTrabajos(tmp_path / '_trabajos')
     job = Job('k', 't', WID, 'engine', lambda ctx: None)
@@ -128,7 +128,7 @@ def test_no_crear_hijo_si_no_se_puede_persistir_reserva(tmp_path, monkeypatch):
     ctx = JobContext(job, lambda *a: None, diario)
     def sin_disco(*a, **k):
         raise OSError('sin disco propio')
-    monkeypatch.setattr('convertersmartgrid.util.write_json_atomic', sin_disco)
+    monkeypatch.setattr('convertersmartgrid.dominio.util.write_json_atomic', sin_disco)
     monkeypatch.setattr(subprocess, 'Popen', lambda *a, **k: pytest.fail('se creó un hijo sin reserva durable'))
     with pytest.raises(OSError, match='reserva'):
         ctx.run_process(['solo-ensayo'], env={})
@@ -138,7 +138,7 @@ def test_no_crear_hijo_si_no_se_puede_persistir_reserva(tmp_path, monkeypatch):
 def test_caida_entre_crear_hijo_y_confirmar_identidad_no_autoriza_otro(tmp_path, motor):
     """096:RF-6 — una reserva durable anterior al spawn evita repetir si el servidor muere antes del recibo."""
     import psutil
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.jobs import JobManager
 
     proceso = _servidor_con_hijo(tmp_path, motor=motor, antes_anotar=True)
     hijo = None
@@ -166,7 +166,7 @@ def test_caida_entre_crear_hijo_y_confirmar_identidad_no_autoriza_otro(tmp_path,
 
 def test_trabajo_terminado_no_bloquea_otra_recuperacion(tmp_path):
     """096:RF-6 — una identidad residual de un trabajo ya terminado no bloquea otro interrumpido."""
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.jobs import JobManager
 
     proceso = _servidor_con_hijo(tmp_path, motor=True)
     try:
@@ -186,7 +186,7 @@ def test_trabajo_terminado_no_bloquea_otra_recuperacion(tmp_path):
 def test_caida_tras_finalizar_sucesor_antes_de_marcar_ancestro_no_lo_repite(tmp_path, fallar):
     """096:RF-5 / 096:RF-6 — la muerte entre admitir sucesor y marcar el viejo no repite su efecto ya registrado."""
     import psutil
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.jobs import JobManager
 
     proceso = _servidor_con_hijo(tmp_path, motor=True)
     try:
@@ -198,7 +198,7 @@ def test_caida_tras_finalizar_sucesor_antes_de_marcar_ancestro_no_lo_repite(tmp_
     guion.write_text(textwrap.dedent(f'''
         import os,time,json,threading
         from pathlib import Path
-        from convertersmartgrid.web.jobs import JobManager,FINISHED
+        from convertersmartgrid.presentacion.web.jobs import JobManager,FINISHED
         raiz=Path({str(tmp_path)!r})
         finalizado=threading.Event()
         def emitir(w,k,d):
@@ -244,7 +244,7 @@ def test_caida_tras_finalizar_sucesor_antes_de_marcar_ancestro_no_lo_repite(tmp_
 def test_caida_real_no_relanzar_encima_de_un_trabajador_vivo(tmp_path, motor):
     """096:RF-6 / 086:RF-9 — retirar la identidad del hijo permitiría duplicar una escritura en curso."""
     import psutil
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.jobs import JobManager
 
     proceso = _servidor_con_hijo(tmp_path, motor=motor)
     hijo = None
@@ -275,7 +275,7 @@ def test_caida_real_no_relanzar_encima_de_un_trabajador_vivo(tmp_path, motor):
 
 def test_cancelacion_persistida_impide_reanudar_tras_muerte_real(tmp_path):
     """096:RF-4 / 086:RF-9 — olvidar cancel_requested reactivaría la orden cancelada tras caer la web."""
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.jobs import JobManager
 
     proceso = _servidor_con_hijo(tmp_path, cancelar=True, motor=True)
     try:
@@ -294,9 +294,9 @@ def test_cancelacion_persistida_impide_reanudar_tras_muerte_real(tmp_path):
 @pytest.mark.parametrize('concurrente', [False, True], ids=['rechazo-prevalidacion', 'dos-relanzadores'])
 def test_relanzar_real_es_reintentable_y_exclusivo(tmp_path, monkeypatch, concurrente):
     """096:RF-5 / 096:RF-6 — consumir antes de admitir pierde la orden; dos relanzadores la duplican."""
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     raiz = tmp_path / 'web'
     raiz.mkdir()
@@ -346,7 +346,7 @@ def test_relanzar_real_es_reintentable_y_exclusivo(tmp_path, monkeypatch, concur
 def test_identidad_ambigua_bloquea_y_pid_reutilizado_no_bloquea():
     """096:RF-6 — una fecha ilegible no autoriza repetir ni enviar señales a ese PID."""
     import psutil
-    from convertersmartgrid.web.jobs import proceso_pendiente
+    from convertersmartgrid.presentacion.web.jobs import proceso_pendiente
 
     inicio = psutil.Process(os.getpid()).create_time()
     assert proceso_pendiente({'pid': os.getpid(), 'inicio': inicio})
@@ -360,9 +360,9 @@ def test_identidad_ambigua_bloquea_y_pid_reutilizado_no_bloquea():
 def test_lifecycle_retoma_despues_de_la_muerte_real_del_hijo_y_se_detiene(tmp_path, monkeypatch, rechazar):
     """096:RF-5 / 096:RF-6 — comprobar solo al arrancar abandonaría el trabajo cuyo hijo aún vive."""
     import psutil
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     raiz = tmp_path / 'web'
     raiz.mkdir()
@@ -411,7 +411,7 @@ def test_lifecycle_retoma_despues_de_la_muerte_real_del_hijo_y_se_detiene(tmp_pa
 
 def test_un_emit_roto_no_pierde_cancelacion_persistida(tmp_path):
     """096:RF-4 / 086:RF-9 — el fallo de notificación posterior a cancelar no borra la decisión."""
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.jobs import JobManager
 
     iniciado, seguir = threading.Event(), threading.Event()
     def emitir(_wid, _tipo, datos):
@@ -449,7 +449,7 @@ def _matar_de_golpe(proceso: subprocess.Popen) -> None:
 
 def _esperar(jobs, *trabajos, segundos: float = 10.0) -> None:
     """Hasta que terminen: ``shutdown`` cancela lo que siga corriendo, y esa no es la prueba."""
-    from convertersmartgrid.web.jobs import FINISHED
+    from convertersmartgrid.presentacion.web.jobs import FINISHED
 
     limite = time.monotonic() + segundos
     while time.monotonic() < limite and any(j.status not in FINISHED for j in trabajos):
@@ -463,7 +463,7 @@ def _matar_a_media_corrida(tmp_path, diario: Path) -> tuple[str, str]:
     guion.write_text(textwrap.dedent(f'''
         import time
         from pathlib import Path
-        from convertersmartgrid.web.jobs import JobManager
+        from convertersmartgrid.presentacion.web.jobs import JobManager
         j = JobManager(lambda *a: None, diario=Path({str(diario)!r}))
         listo = []
         def f(ctx):
@@ -492,7 +492,7 @@ def _matar_a_media_corrida(tmp_path, diario: Path) -> tuple[str, str]:
 
 def test_matar_el_proceso_deja_el_trabajo_interrumpido_con_su_registro(tmp_path):
     """086:RF-9 — el proceso muere de golpe: al arrancar otro, se ve interrumpido, con avance y registro."""
-    from convertersmartgrid.web.jobs import FINISHED, INTERRUMPIDO, JobManager
+    from convertersmartgrid.presentacion.web.jobs import FINISHED, INTERRUMPIDO, JobManager
 
     diario = tmp_path / '_trabajos'
     corriendo, cola = _matar_a_media_corrida(tmp_path, diario)
@@ -516,8 +516,8 @@ def test_matar_el_proceso_deja_el_trabajo_interrumpido_con_su_registro(tmp_path)
 
 def test_la_api_lo_muestra_tras_reiniciar(tmp_path):
     """086:RF-9 — por la web: el espacio lo lista, el trabajo se abre y su registro se lee."""
-    from convertersmartgrid.web.app import create_app
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.app import create_app
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     ws = WorkspaceStore(tmp_path / 'web').create()
     diario = tmp_path / 'web' / '_trabajos'
@@ -544,7 +544,7 @@ def test_la_api_lo_muestra_tras_reiniciar(tmp_path):
 
 def test_terminar_con_normalidad_retira_su_diario(tmp_path):
     """086:RF-9 — el diario solo guarda lo que quedó a medias: lo terminado no se acumula."""
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.jobs import JobManager
 
     diario = tmp_path / '_trabajos'
     jobs = JobManager(lambda *a: None, diario=diario)
@@ -575,7 +575,7 @@ def test_terminar_con_normalidad_retira_su_diario(tmp_path):
 
 def test_el_trabajo_de_un_servidor_vivo_no_se_marca_interrumpido(tmp_path):
     """086:RF-9 — otro gestor sobre la misma carpeta no le da por muerto lo que sigue corriendo."""
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.jobs import JobManager
 
     diario = tmp_path / '_trabajos'
     jobs = JobManager(lambda *a: None, diario=diario)
@@ -593,7 +593,7 @@ def test_el_trabajo_de_un_servidor_vivo_no_se_marca_interrumpido(tmp_path):
 
 def test_pid_reutilizado_no_finge_un_trabajo_vivo(tmp_path):
     """086:RF-9 — Windows reutiliza pid: el mismo número con otra hora de arranque es otro proceso."""
-    from convertersmartgrid.web import jobs as modulo
+    from convertersmartgrid.presentacion.web import jobs as modulo
 
     diario = tmp_path / '_trabajos'
     diario.mkdir()
@@ -605,8 +605,8 @@ def test_pid_reutilizado_no_finge_un_trabajo_vivo(tmp_path):
 
 def test_diario_ilegible_o_que_falla_no_impide_arrancar_ni_trabajar(tmp_path, monkeypatch):
     """086:RF-9 — un corte a media escritura o un disco lleno no paran la web ni el trabajo."""
-    from convertersmartgrid.util import write_json_atomic  # noqa: F401 - se sustituye abajo
-    from convertersmartgrid.web import jobs as modulo
+    from convertersmartgrid.dominio.util import write_json_atomic  # noqa: F401 - se sustituye abajo
+    from convertersmartgrid.presentacion.web import jobs as modulo
 
     diario = tmp_path / '_trabajos'
     diario.mkdir()
@@ -619,7 +619,7 @@ def test_diario_ilegible_o_que_falla_no_impide_arrancar_ni_trabajar(tmp_path, mo
     def sin_disco(*_a, **_k):
         raise OSError('disco lleno')
 
-    monkeypatch.setattr('convertersmartgrid.util.write_json_atomic', sin_disco)
+    monkeypatch.setattr('convertersmartgrid.dominio.util.write_json_atomic', sin_disco)
     job = jobs.submit(WID, 'k', 't', lambda c: 7)
     _esperar(jobs, job)
     jobs.shutdown(10)
@@ -628,7 +628,7 @@ def test_diario_ilegible_o_que_falla_no_impide_arrancar_ni_trabajar(tmp_path, mo
 
 def test_el_espacio_ausente_no_impide_arrancar(tmp_path):
     """086:RF-9 — el emisor falla con un trabajo interrumpido de un espacio que ya no está: se arranca igual."""
-    from convertersmartgrid.web.jobs import INTERRUMPIDO, JobManager
+    from convertersmartgrid.presentacion.web.jobs import INTERRUMPIDO, JobManager
 
     diario = tmp_path / '_trabajos'
     diario.mkdir()
@@ -645,7 +645,7 @@ def test_el_espacio_ausente_no_impide_arrancar(tmp_path):
 
 def test_los_interrumpidos_antiguos_no_se_acumulan(tmp_path, monkeypatch):
     """086:RF-9 — quedan los últimos: cada uno lleva su registro, y un servidor que cae mucho llenaría el disco."""
-    from convertersmartgrid.web import jobs as modulo
+    from convertersmartgrid.presentacion.web import jobs as modulo
 
     monkeypatch.setattr(modulo, 'MAX_INTERRUMPIDOS', 2)
     diario = tmp_path / '_trabajos'
@@ -662,7 +662,7 @@ def test_los_interrumpidos_antiguos_no_se_acumulan(tmp_path, monkeypatch):
 
 def test_el_registro_no_crece_sin_limite(tmp_path, monkeypatch):
     """086:RF-9 — un guion que escribe sin parar no llena el disco con su registro."""
-    from convertersmartgrid.web import jobs as modulo
+    from convertersmartgrid.presentacion.web import jobs as modulo
 
     monkeypatch.setattr(modulo, 'LIMITE_REGISTRO_BYTES', 10)
     diario = modulo.DiarioTrabajos(tmp_path / '_trabajos')
@@ -676,8 +676,8 @@ def test_el_registro_no_crece_sin_limite(tmp_path, monkeypatch):
 @pytest.mark.parametrize('estado', ['interrumpido'])
 def test_el_contrato_de_la_api_admite_el_estado(estado):
     """086:RF-9 — la respuesta del trabajo lo admite: sin esto, la API daría un 500."""
-    from convertersmartgrid.web import api_contract
-    from convertersmartgrid.web.jobs import Job
+    from convertersmartgrid.presentacion.web import api_contract
+    from convertersmartgrid.presentacion.web.jobs import Job
 
     job = Job('k', 't', WID, 'engine', lambda c: None, status=estado)
     assert api_contract.JobRespuesta.model_validate(job.public()).status == estado

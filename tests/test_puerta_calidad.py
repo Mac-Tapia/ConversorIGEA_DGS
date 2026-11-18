@@ -161,7 +161,7 @@ def test_github_corre_la_suite_sintetica_y_el_frontend():
 def test_github_tiene_el_entorno_de_desarrollo_y_solo_omite_la_falta_de_gpu(monkeypatch):
     """102:RF-17 — .venv, extra ml y frontend en el flujo; la omisión es solo SinGPU, y fuera de GitHub nunca."""
     import conftest
-    from convertersmartgrid.training_coordinator import SinGPU
+    from convertersmartgrid.aplicacion.training_coordinator import SinGPU
 
     flujo = (RAIZ / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8')
     assert 'python -m venv .venv' in flujo and '-e ".[ml]"' in flujo and 'npm ci' in flujo
@@ -242,7 +242,7 @@ def test_102_rf20_el_entorno_vuelve_como_estaba():
 
 def test_102_rf20_el_cierre_registrado_no_pasa_a_otra_prueba():
     """102:RF-20 — el lanzador registra el cierre de la web; la prueba siguiente empieza sin él (paso 1 de 2)."""
-    from convertersmartgrid.web import app as app_mod
+    from convertersmartgrid.presentacion.web import app as app_mod
 
     app_mod.al_pedir_cierre(lambda: None)
     assert app_mod._cierre
@@ -250,7 +250,7 @@ def test_102_rf20_el_cierre_registrado_no_pasa_a_otra_prueba():
 
 def test_102_rf20_el_cierre_registrado_no_pasa_a_otra_prueba_2():
     """102:RF-20 — paso 2 de 2: sin el cierre de la prueba anterior."""
-    from convertersmartgrid.web import app as app_mod
+    from convertersmartgrid.presentacion.web import app as app_mod
 
     assert app_mod._cierre == []
 
@@ -262,7 +262,7 @@ def test_102_rf21_la_puerta_corre_los_procedimientos():
 
 def test_102_rf22_cada_prueba_con_su_guardia_de_gpu(tmp_path):
     """102:RF-22 — la guardia de la prueba no es la de la máquina: un entrenamiento real no tumba la puerta."""
-    from convertersmartgrid.training_coordinator import ruta_guardia_gpu
+    from convertersmartgrid.aplicacion.training_coordinator import ruta_guardia_gpu
 
     guardia = ruta_guardia_gpu()
     assert guardia == tmp_path / 'gpu.lock'
@@ -296,7 +296,7 @@ def test_lo_comun_a_todas_las_pruebas_corre_la_suite_entera(tmp_path, monkeypatc
     # (en la puerta, un commit solo de capas está en el índice).
     monkeypatch.setattr(puerta, 'pyproject_cambia_solo_capas', lambda raiz=None: False, raising=False)
     assert puerta.pruebas_del_commit(['tests/conftest.py'], raiz) == ['tests']
-    assert puerta.pruebas_del_commit(['pyproject.toml', 'src/convertersmartgrid/naming.py'], raiz) == ['tests']
+    assert puerta.pruebas_del_commit(['pyproject.toml', 'src/convertersmartgrid/dominio/naming.py'], raiz) == ['tests']
     con_fake = puerta.pruebas_del_commit(['tests/fake_pf.py'], raiz)
     propias = [p for p in con_fake if p not in puerta.GOBIERNO]
     assert con_fake != ['tests'] and propias
@@ -436,7 +436,7 @@ def test_102_rf24_github_corre_el_lint_del_frontend():
 
 
 @pytest.mark.parametrize('ficheros,toca', [(['frontend/src/app/App.tsx'], True), (['frontend/package.json'], True),
-                                           (['src/convertersmartgrid/model.py', 'tests/test_x.py'], False), ([], False)])
+                                           (['src/convertersmartgrid/dominio/model.py', 'tests/test_x.py'], False), ([], False)])
 def test_102_rf24_el_commit_que_toca_el_frontend_pasa_sus_fronteras(ficheros, toca):
     """102:RF-24 — la puerta del commit ejecuta el lint de fronteras solo si el commit cambia algo de ``frontend/``."""
     assert PC.toca_el_frontend(ficheros) is toca
@@ -835,7 +835,7 @@ def test_102_rf11_el_veredicto_del_arbol_se_publica_con_la_escritura_atomica(tmp
     """001:RF-5, 102:RF-11 (PUERTA-ESPECULATIVA) — el json del veredicto va por la escritura atómica única del proyecto
     (un corte no deja un veredicto truncado), y se publica después de su junit."""
     _exige_lo_nuevo()
-    from convertersmartgrid import util
+    from convertersmartgrid.dominio import util
 
     raiz = _arbol_para_la_puerta(tmp_path, monkeypatch)
     _pytest_falso(monkeypatch, [])
@@ -1042,7 +1042,7 @@ def test_102_rf5_cada_sesion_repartida_se_juzga_por_su_cuenta(tmp_path, monkeypa
     """102:RF-5, 106:RF-8, 106:RF-16 (PUERTA-XDIST) — sin el turno de GPU la serie no da veredicto y es un fallo con su
     dueño; una sesión sin pruebas que elegir (código 5, junit vacío) no es un fallo; otro código sin fallidas, sí."""
     _exige_lo_nuevo()
-    from convertersmartgrid.trabajadores_ml import SALIDA_SIN_TURNO_GPU
+    from convertersmartgrid.aplicacion.trabajadores_ml import SALIDA_SIN_TURNO_GPU
 
     _memoria(monkeypatch, 64.0)
     monkeypatch.setenv(PC.VARIABLE_PROCESOS, '3')   # FIX-XDIST-UNO: el reparto se pide hasta que la T20 mida

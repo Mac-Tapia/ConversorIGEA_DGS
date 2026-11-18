@@ -50,7 +50,7 @@ def veredicto(registros, *, ordenes_minimas: int = ORDENES_REALES_MINIMAS,
 
 
 def construir(raiz_web: Path, raiz_asistente: Path, raiz_gemelo: Path, destino: Path) -> dict:
-    from convertersmartgrid.asistente.dataset_entrenamiento import (
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import (
         construir_dataset, escribir_particiones, importar_historial_web, particionar_dataset,
     )
 
@@ -71,8 +71,8 @@ def main(argv=None) -> int:
     p.add_argument('--destino', type=Path, help='Carpeta nueva; por defecto, dataset_<fecha> en el almacén')
     p.add_argument('--output-json', type=Path, help='Dónde dejar el informe')
     args = p.parse_args(argv)
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.digital_twin.buffer import raiz_buffer
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.adaptadores.digital_twin.buffer import raiz_buffer
 
     asistente = almacen.raiz()
     try:

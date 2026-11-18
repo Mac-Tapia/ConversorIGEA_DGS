@@ -26,9 +26,9 @@ from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import (
     System,
     Transformer,
 )
-from convertersmartgrid.registro_normativo import RegistroNormativo, cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.modelo_rural import (
+from convertersmartgrid.dominio.registro_normativo import RegistroNormativo, cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.adaptadores.vad.modelo_rural import (
     SIN_MODELAR_URBANO,
     armar_modelo_rural,
     comprobar_trazas,
@@ -267,8 +267,8 @@ def test_las_reglas_del_anexo6_amplian_el_tdr_con_su_cita(registro):
 def _via_txt(tmp_path: Path, layout: str, semilla: int):
     from synthetic_export import CRS_SINTETICO, ExportSpec, load_export
 
-    from convertersmartgrid.geography import build_geography
-    from convertersmartgrid.model import build_feeder_model
+    from convertersmartgrid.adaptadores.geography import build_geography
+    from convertersmartgrid.dominio.model import build_feeder_model
 
     spec = ExportSpec(feeders=3, sections_per_feeder=6, loads_per_feeder=2, intermediate_per_section=3,
                       layout=layout, seed=semilla)

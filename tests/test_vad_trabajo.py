@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.perfil_empresa import PerfilEmpresa
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.estudio import crear_estudio
+from convertersmartgrid.dominio.perfil_empresa import PerfilEmpresa
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.aplicacion.vad.estudio import crear_estudio
 
 RAIZ = Path(__file__).resolve().parents[1]
 EMPRESAS = (PerfilEmpresa(nombre='Distribuidora Sintética Norte'), PerfilEmpresa(nombre='Eléctrica Ficticia del Sur'))
@@ -25,8 +25,8 @@ SEMILLA = 108_12
 
 
 def _trabajo():
-    assert importlib.util.find_spec('convertersmartgrid.vad.trabajo') is not None, 'falta vad/trabajo.py (108 T12)'
-    from convertersmartgrid.vad import trabajo
+    assert importlib.util.find_spec('convertersmartgrid.aplicacion.vad.trabajo') is not None, 'falta vad/trabajo.py (108 T12)'
+    from convertersmartgrid.aplicacion.vad import trabajo
     return trabajo
 
 

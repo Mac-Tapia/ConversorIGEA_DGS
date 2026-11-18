@@ -12,8 +12,8 @@ import sys
 
 import pytest
 
-from convertersmartgrid import compat_gpu as CG
-from convertersmartgrid.web import doctor as DR
+from convertersmartgrid.dominio import compat_gpu as CG
+from convertersmartgrid.presentacion.web import doctor as DR
 
 CARPETA = r'C:\Windows\System32\DriverStore\FileRepository\nvx.inf_amd64_0001'
 
@@ -178,7 +178,7 @@ def test_el_buscador_fija_al_importar_torch_una_sola_vez(monkeypatch):
 
 def test_el_paquete_deja_el_buscador_puesto_en_cada_proceso():
     """106:RF-18 — un hijo que importa el paquete (trabajadores_ml, tools/) lo tiene sin llamarlo; no importa torch."""
-    codigo = ('import sys, convertersmartgrid; from convertersmartgrid import compat_gpu as c; '
+    codigo = ('import sys, convertersmartgrid; from convertersmartgrid.dominio import compat_gpu as c; '
               'print(any(isinstance(b, c._AntesDeTorch) for b in sys.meta_path), "torch" in sys.modules, c.estado_fijado())')
     r = subprocess.run([sys.executable, '-c', codigo], capture_output=True, text=True, timeout=120, env=os.environ.copy())
     assert r.returncode == 0, r.stderr
@@ -239,7 +239,7 @@ def test_con_la_proteccion_iniciar_cuda_no_tumba_el_proceso(tmp_path):
     Sin la protección, el mismo subproceso (``import torch`` sin el paquete) salió con 0xC0000005 en esta máquina
     (D:/csg/NV/rojo_*.log). Va en el turno de la GPU por su marca.
     """
-    codigo = ('import sys, time, convertersmartgrid, torch; from convertersmartgrid import compat_gpu as c; '
+    codigo = ('import sys, time, convertersmartgrid, torch; from convertersmartgrid.dominio import compat_gpu as c; '
               'print("cuda", torch.cuda.is_available(), flush=True); print("estado", c.estado_fijado(), flush=True); '
               f'time.sleep({ESPERA_S}); print("fin sin fallo", flush=True)')
     r = subprocess.run([sys.executable, '-X', 'faulthandler', '-c', codigo], capture_output=True, text=True,

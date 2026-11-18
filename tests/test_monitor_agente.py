@@ -9,7 +9,7 @@ import pytest
 
 def test_diario_reabre_contexto_y_detecta_proceso_no_observado(tmp_path):
     """061:RF-1 / 061:RF-2: el contexto inicial no cambia con el espacio ni se reejecuta."""
-    from convertersmartgrid.asistente.observacion import RegistroOperaciones
+    from convertersmartgrid.aplicacion.asistente.observacion import RegistroOperaciones
     r=RegistroOperaciones(tmp_path/'operaciones.sqlite3','w')
     r.anotar({'id':'j','workspace_id':'w','status':'queued','kind':'convert','lane':'engine','created_at':1},
              {'source_fingerprint':'original'})
@@ -24,14 +24,14 @@ def test_diario_reabre_contexto_y_detecta_proceso_no_observado(tmp_path):
 
 def test_diario_rechaza_espacio_ajeno(tmp_path):
     """061:RF-3: el diario de un espacio no admite el trabajo de otro."""
-    from convertersmartgrid.asistente.observacion import RegistroOperaciones
+    from convertersmartgrid.aplicacion.asistente.observacion import RegistroOperaciones
     with pytest.raises(ValueError,match='espacio'):
         RegistroOperaciones(tmp_path/'o.sqlite3','a').anotar({'id':'j','workspace_id':'b','status':'done'}, {})
 
 
 def test_evidencia_se_custodia_sin_promover(tmp_path):
     """061:RF-8 / 061:RF-9: copiar un informe no lo convierte en un modelo activo."""
-    from convertersmartgrid.asistente.observacion import registrar_evidencia,leer_evidencias
+    from convertersmartgrid.aplicacion.asistente.observacion import registrar_evidencia,leer_evidencias
     p=tmp_path/'entrenamiento.json';p.write_text(json.dumps({'training_completed':True,'promovido':False}))
     raiz=tmp_path/'asistente'
     d=registrar_evidencia(raiz,p,familia='gru',etiqueta='contrato')
@@ -45,7 +45,7 @@ def test_evidencia_se_custodia_sin_promover(tmp_path):
 
 def test_fallo_publicacion_no_deja_trabajo_huerfano():
     """061:RF-10: fallar el diario inicial no reserva un carril para siempre."""
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.jobs import JobManager
     def fallar(*args):raise OSError('disco no disponible')
     m=JobManager(fallar)
     try:
@@ -57,7 +57,7 @@ def test_fallo_publicacion_no_deja_trabajo_huerfano():
 def test_monitor_api_trabajo_real_y_persistencia(tmp_path,monkeypatch):
     """061:RF-1 / 061:RF-2 / 061:RF-3 / 061:RF-9: se observa una operación real de archivos."""
     from fastapi.testclient import TestClient
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     monkeypatch.setenv('CSG_ASISTENTE_DATA',str(tmp_path/'modelos'))
     monkeypatch.setenv('CSG_WEB_FRONTEND',str(tmp_path/'sin_front'))
     root=tmp_path/'web'
@@ -88,7 +88,7 @@ def test_monitor_api_trabajo_real_y_persistencia(tmp_path,monkeypatch):
 
 def test_codigo_uno_no_completa_etapa(tmp_path):
     """061:RF-6: código1 del sistema no permite ejecutar etapas siguientes."""
-    from convertersmartgrid.asistente.orquestador import PuntoDeControl,Etapa,ejecutar_proyecto
+    from convertersmartgrid.aplicacion.asistente.orquestador import PuntoDeControl,Etapa,ejecutar_proyecto
     from types import SimpleNamespace
     control=PuntoDeControl.abrir(tmp_path/'c.json')
     with pytest.raises(RuntimeError,match='código'):
@@ -99,7 +99,7 @@ def test_codigo_uno_no_completa_etapa(tmp_path):
 
 def test_identidad_checkpoint_y_reinicio_conservan_historia(tmp_path):
     """061:RF-7: el checkpoint de otra fuente no se utiliza ni se borra al reiniciar."""
-    from convertersmartgrid.asistente.observacion import preparar_control
+    from convertersmartgrid.aplicacion.asistente.observacion import preparar_control
     p=tmp_path/'control.json'
     c=preparar_control(p,{'source_fingerprint':'a'},reiniciar=False)
     c.marcar('fuente','hecha')
@@ -111,8 +111,8 @@ def test_identidad_checkpoint_y_reinicio_conservan_historia(tmp_path):
 def test_avance_y_cambio_de_fuente_durante_proyecto(tmp_path):
     """061:RF-4 / 061:RF-7: avanza con la fuente cargada por él y para ante un cambio posterior."""
     from types import SimpleNamespace
-    from convertersmartgrid.asistente.observacion import preparar_control
-    from convertersmartgrid.asistente.orquestador import ejecutar_proyecto,Etapa
+    from convertersmartgrid.aplicacion.asistente.observacion import preparar_control
+    from convertersmartgrid.aplicacion.asistente.orquestador import ejecutar_proyecto,Etapa
     identidad={'fuente':None};visto=[]
     c=preparar_control(tmp_path/'p.json',dict(identidad),reiniciar=False)
     c.identidad_actual=lambda:dict(identidad)
@@ -128,7 +128,7 @@ def test_avance_y_cambio_de_fuente_durante_proyecto(tmp_path):
 def test_cancelacion_api_se_refleja_en_monitor(tmp_path,monkeypatch):
     """061:RF-5: cancela por la ruta existente, sin crear otro ejecutor."""
     from fastapi.testclient import TestClient
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     monkeypatch.setenv('CSG_ASISTENTE_DATA',str(tmp_path/'asistente'))
     app=create_app(tmp_path/'web');iniciado=threading.Event()
     with TestClient(app) as cliente:
@@ -149,7 +149,7 @@ def test_cancelacion_api_se_refleja_en_monitor(tmp_path,monkeypatch):
 
 def test_identidad_no_se_modifica_por_tamper_de_metadatos(tmp_path):
     """061:RF-8: la familia declarada también forma parte de la identidad de evidencia."""
-    from convertersmartgrid.asistente.observacion import registrar_evidencia,leer_evidencias
+    from convertersmartgrid.aplicacion.asistente.observacion import registrar_evidencia,leer_evidencias
     p=tmp_path/'i.json';p.write_text('{"status":"RECHAZADO"}')
     meta=registrar_evidencia(tmp_path,p,familia='gru',etiqueta='contrato')
     f=tmp_path/'observacion/evidencias'/f'{meta["id"]}.meta.json'
@@ -160,8 +160,8 @@ def test_identidad_no_se_modifica_por_tamper_de_metadatos(tmp_path):
 def test_api_rechaza_nuevo_trabajo_si_no_hay_diario(tmp_path,monkeypatch):
     """061:RF-10: error503 visible y cero tareas admitidas sin registro inicial."""
     from fastapi.testclient import TestClient
-    from convertersmartgrid.web.app import create_app
-    from convertersmartgrid.asistente.observacion import RegistroOperaciones
+    from convertersmartgrid.presentacion.web.app import create_app
+    from convertersmartgrid.aplicacion.asistente.observacion import RegistroOperaciones
     monkeypatch.setenv('CSG_ASISTENTE_DATA',str(tmp_path/'asistente'))
     def fallo(*a,**k):raise OSError('sin disco')
     monkeypatch.setattr(RegistroOperaciones,'anotar',fallo)
@@ -178,7 +178,7 @@ def test_diario_no_carga_torch_ni_contiene_codigo_ejecutable(tmp_path):
     """061:RF-1 / 061:RF-9: la observación funciona sin iniciar modelos ML."""
     import subprocess,sys
     script=('import sys;from pathlib import Path;'
-        'from convertersmartgrid.asistente.observacion import RegistroOperaciones;'
+        'from convertersmartgrid.aplicacion.asistente.observacion import RegistroOperaciones;'
         'r=RegistroOperaciones(Path(sys.argv[1]),"w");'
         'r.anotar({"id":"j","workspace_id":"w","status":"done"},{});'
         'assert r.leer(vivos=set());assert "torch" not in sys.modules')
@@ -189,9 +189,9 @@ def test_diario_no_carga_torch_ni_contiene_codigo_ejecutable(tmp_path):
 def test_flujo_respeta_el_servidor_que_lo_encolo(tmp_path,monkeypatch):
     """061:RF-3 / 061:RF-5: el proceso no salta a otro servidor/espacio por un puerto fijo."""
     from types import SimpleNamespace
-    from convertersmartgrid.web.workspace import WorkspaceStore
-    from convertersmartgrid.web import services
-    from convertersmartgrid.asistente import orquestador
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.aplicacion.asistente import orquestador
     ws=WorkspaceStore(tmp_path/'web').create();vistas=[]
     ctx=SimpleNamespace(job=SimpleNamespace(id='padre'),cancel=threading.Event(),
         run_process=lambda cmd,**kw:vistas.append(cmd) or 0,log=lambda *a:None,progress=lambda *a:None)

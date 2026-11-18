@@ -7,7 +7,7 @@ import fake_pf
 import pytest
 
 from apoyo import cargar_herramienta, contexto_nativo
-from convertersmartgrid.pide import PideError
+from convertersmartgrid.aplicacion.pide import PideError
 
 
 def _json(path, value):

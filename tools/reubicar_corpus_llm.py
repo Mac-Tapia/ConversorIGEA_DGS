@@ -20,7 +20,7 @@ def main(argv=None):
     parser.add_argument('--max-bytes', type=int, default=1024 ** 3, help='Cuota total de la nueva custodia.')
     args = parser.parse_args(argv)
     try:
-        from convertersmartgrid.asistente.reubicacion_corpus import reubicar_corpus
+        from convertersmartgrid.aplicacion.asistente.reubicacion_corpus import reubicar_corpus
         informe = reubicar_corpus(args.origen, args.destino, args.raiz_anterior, args.raiz_nueva,
                                   ejecutar=args.ejecutar, max_bytes=args.max_bytes)
     except (OSError, ValueError, KeyError, TypeError) as exc:

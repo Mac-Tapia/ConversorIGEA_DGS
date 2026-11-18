@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import CymdistDataset
 
 
 def _equipment(code='C2'):
@@ -57,9 +57,9 @@ def _dataset() -> CymdistDataset:
 
 
 def _workspace(tmp_path, ws=None):
-    from convertersmartgrid.web.readiness import assess_feeder_readiness
-    from convertersmartgrid.web.workspace import Workspace
-    from convertersmartgrid.web.source_runs import create_source_run, guarded_source_run
+    from convertersmartgrid.presentacion.web.readiness import assess_feeder_readiness
+    from convertersmartgrid.presentacion.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run, guarded_source_run
 
     tmp_path.mkdir(parents=True, exist_ok=True)
     dataset = _dataset()
@@ -98,7 +98,7 @@ def _fingerprint(dataset):
 
 
 def test_diagnosis_is_read_only_and_reports_one_many_all(tmp_path):
-    from convertersmartgrid.web.reconstruction_service import diagnose_selection
+    from convertersmartgrid.presentacion.web.reconstruction_service import diagnose_selection
 
     ws = _workspace(tmp_path)
     before = _fingerprint(ws.dataset)
@@ -113,7 +113,7 @@ def test_diagnosis_is_read_only_and_reports_one_many_all(tmp_path):
 
 
 def test_reconstruction_is_atomic_keeps_original_and_persists_report(tmp_path):
-    from convertersmartgrid.web.reconstruction_service import reconstruct_selection
+    from convertersmartgrid.presentacion.web.reconstruction_service import reconstruct_selection
 
     ws = _workspace(tmp_path)
     before = _fingerprint(ws.dataset)
@@ -135,8 +135,8 @@ def test_reconstruction_is_atomic_keeps_original_and_persists_report(tmp_path):
 
 
 def test_reconstruction_rejects_a_stale_loaded_run_before_writing(tmp_path):
-    from convertersmartgrid.web.reconstruction_service import reconstruct_selection
-    from convertersmartgrid.web.services import UserError
+    from convertersmartgrid.presentacion.web.reconstruction_service import reconstruct_selection
+    from convertersmartgrid.presentacion.web.services import UserError
 
     ws = _workspace(tmp_path)
     ws.loaded_run_id = '20261005T120000-bbbbbbbbbbbb'
@@ -149,7 +149,7 @@ def test_reconstruction_rejects_a_stale_loaded_run_before_writing(tmp_path):
 def _client_con_dataset(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'no-frontend'))
     client = TestClient(create_app(tmp_path / 'web'))
@@ -216,9 +216,9 @@ def test_cancelar_la_reconstruccion_conserva_el_dataset_anterior(tmp_path, monke
     """001:RF-9 — cancelar a mitad deja activa la reconstrucción anterior y su informe."""
     import threading
 
-    from convertersmartgrid import reconstruction_pipeline
-    from convertersmartgrid.web.jobs import CANCELLED, JobManager
-    from convertersmartgrid.web.reconstruction_service import reconstruct_selection
+    from convertersmartgrid.aplicacion import reconstruction_pipeline
+    from convertersmartgrid.presentacion.web.jobs import CANCELLED, JobManager
+    from convertersmartgrid.presentacion.web.reconstruction_service import reconstruct_selection
 
     ws = _workspace(tmp_path)
     reconstruct_selection(ws, ['F-A'], all_feeders=False)
@@ -254,7 +254,7 @@ def test_tras_el_punto_sin_retorno_la_cancelacion_no_entra():
     """001:RF-9 — un trabajo que ya publicó no puede acabar «cancelado»."""
     import threading
 
-    from convertersmartgrid.web.jobs import DONE, JobManager
+    from convertersmartgrid.presentacion.web.jobs import DONE, JobManager
 
     publicado, seguir = threading.Event(), threading.Event()
 
@@ -279,8 +279,8 @@ def test_tras_el_punto_sin_retorno_la_cancelacion_no_entra():
 def test_conversion_uses_matching_derived_dataset_and_stamps_evidence(tmp_path, monkeypatch):
     from threading import Event
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.reconstruction_service import reconstruct_selection
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.reconstruction_service import reconstruct_selection
 
     ws = _workspace(tmp_path)
     reconstruct_selection(ws, ['F-A'], all_feeders=False)
@@ -298,7 +298,7 @@ def test_conversion_uses_matching_derived_dataset_and_stamps_evidence(tmp_path, 
             }],
         }
 
-    monkeypatch.setattr('convertersmartgrid.batch.convert_selection', fake_convert)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.batch.convert_selection', fake_convert)
     ctx = SimpleNamespace(log=lambda _text: None, progress=lambda *_args: None, cancel=Event())
 
     result = services.convert(ws, ctx, ['F-A'], False)

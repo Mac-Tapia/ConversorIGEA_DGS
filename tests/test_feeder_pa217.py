@@ -18,9 +18,9 @@ from __future__ import annotations
 from pathlib import Path
 
 
-from convertersmartgrid.batch import convert_selection
-from convertersmartgrid.reglas import SIN_REGLAS
-from convertersmartgrid.validate import parse_dgs
+from convertersmartgrid.aplicacion.batch import convert_selection
+from convertersmartgrid.aplicacion.reglas import SIN_REGLAS
+from convertersmartgrid.adaptadores.validate import parse_dgs
 
 FEEDER = 'PA217'
 
@@ -94,7 +94,7 @@ class TestPa217ConvertsFromBothInputs:
         assert (tsv_dir / 'ElmTerm.tsv').is_file()
 
     def test_output_is_published_atomically(self, dataset_for, tmp_path):
-        from convertersmartgrid.batch import STAGE_PREFIX
+        from convertersmartgrid.aplicacion.batch import STAGE_PREFIX
 
         source, ds = dataset_for
         out = tmp_path / source

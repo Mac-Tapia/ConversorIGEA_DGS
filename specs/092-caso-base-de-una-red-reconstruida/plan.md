@@ -2,7 +2,7 @@
 
 ## Dónde
 
-- `src/convertersmartgrid/web/services.py`, `check_powerfactory_source_run`: con `exigir_red_cargada=False` (leer
+- `src/convertersmartgrid/presentacion/web/services.py`, `check_powerfactory_source_run`: con `exigir_red_cargada=False` (leer
   un proyecto importado, 018:RF-12) la reconstrucción se valida con `verify_reconstruction_contract` y el hash del
   sidecar; la comparación con la reconstrucción de la sesión solo si la sesión tiene una (RF-1 a RF-3). Con
   `exigir_red_cargada=True` (importar) queda igual (RF-4).

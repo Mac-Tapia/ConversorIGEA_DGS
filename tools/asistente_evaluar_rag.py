@@ -180,7 +180,7 @@ def _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_
 
 def _comprobar_conjuntos_077(evaluacion_rag, indice) -> int:
     """Solo cuenta: el conjunto sellado no se enseña ni aquí, que es donde alguien miraría qué falta (077:RF-46)."""
-    from convertersmartgrid.asistente import reranker
+    from convertersmartgrid.aplicacion.asistente import reranker
 
     frags, salida, malo = indice.fragmentos(REPO, indice.CORPUS_AMPLIADO), {}, False
     for nombre, ruta in (('calibracion', reranker.CONJUNTO_CALIBRACION_077), ('sellado', reranker.CONJUNTO_SELLADO_077)):
@@ -197,7 +197,7 @@ def _comprobar_conjuntos_077(evaluacion_rag, indice) -> int:
 
 def _elegir(args) -> int:
     """097:RF-11: la regla declarada con las señales de cada calibración (047 y 077 de cada modelo)."""
-    from convertersmartgrid.asistente import evaluacion_rag
+    from convertersmartgrid.aplicacion.asistente import evaluacion_rag
 
     por_corpus, recursos = {}, {}
     for ruta in args.elegir:
@@ -217,7 +217,7 @@ def _elegir(args) -> int:
     decision = evaluacion_rag.elegir_con_intervalo(por_corpus, resumen, remuestreos=args.remuestreos)
     decision['fuentes'] = [str(r) for r in args.elegir]
     if args.salida:
-        from convertersmartgrid.trabajadores_ml import escribir_informe
+        from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe
 
         escribir_informe(args.salida, decision)
     print(json.dumps({k: decision[k] for k in ('compiten', 'fuera', 'quedan', 'elegido', 'decide', 'recursos')} | {
@@ -228,7 +228,7 @@ def _elegir(args) -> int:
 
 def _poner_en_uso(args) -> int:
     """097:RF-14: comprueba la puerta del elegido frente al en uso y, solo con --aplicar, escribe el puntero."""
-    from convertersmartgrid.asistente import evaluacion_rag, indice, reranker
+    from convertersmartgrid.aplicacion.asistente import evaluacion_rag, indice, reranker
 
     medicion = json.loads(args.sellado_047.read_text(encoding='utf-8'))
     en_uso = json.loads((args.sellado_en_uso or REPO / 'docs' / 'EVALUACION_ABSTENCION_047.json').read_text(encoding='utf-8'))
@@ -279,7 +279,7 @@ def main(argv=None) -> int:
         return _elegir(args)
 
     if args.comparar:
-        from convertersmartgrid.asistente import indice as _indice
+        from convertersmartgrid.aplicacion.asistente import indice as _indice
 
         medidas = {}
         for ruta in args.comparar:
@@ -294,7 +294,7 @@ def main(argv=None) -> int:
     if args.modelo_vectores:
         # 097:RF-4: los vectores de otro modelo se miden en la carpeta propia de --datos, sin tocar los que se sirven.
         os.environ['CSG_ASISTENTE_MODELO_VECTORES'] = args.modelo_vectores
-    from convertersmartgrid.asistente import evaluacion_rag, indice
+    from convertersmartgrid.aplicacion.asistente import evaluacion_rag, indice
 
     if args.corpus == indice.CORPUS_AMPLIADO and args.solo_conjunto:
         return _comprobar_conjuntos_077(evaluacion_rag, indice)
@@ -307,9 +307,9 @@ def main(argv=None) -> int:
                           'preguntas': len(pares), 'con_respuesta': sum(x.answerable for x in pares),
                           'de_codigo': len(codigos), 'sin_ancla': sin_ancla}, ensure_ascii=False, indent=1))
         return 0 if not sin_ancla else 2
-    from convertersmartgrid.asistente import reranker
-    from convertersmartgrid.asistente.ollama import ClienteOllama
-    from convertersmartgrid.trabajadores_ml import escribir_informe, turno_gpu
+    from convertersmartgrid.aplicacion.asistente import reranker
+    from convertersmartgrid.aplicacion.asistente.ollama import ClienteOllama
+    from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe, turno_gpu
 
     if args.poner_en_uso:
         if not args.sellado_047:

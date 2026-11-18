@@ -19,7 +19,7 @@ for _p in (HERE, HERE.parent / 'src'):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from convertersmartgrid import estadistica_ordenes as eo  # noqa: E402
+from convertersmartgrid.dominio import estadistica_ordenes as eo  # noqa: E402
 
 
 def main(argv=None) -> int:
@@ -37,7 +37,7 @@ def main(argv=None) -> int:
     if args.cola:
         cola = Path(args.cola)
     else:
-        from convertersmartgrid import pf_arnes
+        from convertersmartgrid.adaptadores import pf_arnes
         cola = pf_arnes.ruta_cola()
     filas = [f for f in eo.leer(cola) if f['fecha'] >= args.desde and (not args.guion or f['guion'] == args.guion)]
     if not filas:

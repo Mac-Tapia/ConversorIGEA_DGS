@@ -5,8 +5,8 @@ import time
 
 import pytest
 from fastapi.testclient import TestClient
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
 
 
 def raw(value):
@@ -18,9 +18,9 @@ def api(tmp_path, monkeypatch):
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'no_front'))
     monkeypatch.setenv('CSG_AUTOENTRENAMIENTO', '0')
     monkeypatch.setattr(services, 'native_action_context', lambda ws, p, fs, a: {'project': p, 'feeders': fs})
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda: {'estudios': {
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda: {'estudios': {
         'tension_min_pu': .95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}})
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.estructura_empresa', lambda: None)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.estructura_empresa', lambda: None)
     with TestClient(create_app(tmp_path / 'web', host='0.0.0.0')) as c:
         wid = c.post('/api/workspaces', json={'name': 'Prueba anual'}).json()['id']
         yield c, wid

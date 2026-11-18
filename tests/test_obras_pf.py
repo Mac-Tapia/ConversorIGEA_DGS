@@ -7,9 +7,9 @@ import random
 
 import pytest
 
-from convertersmartgrid import obras_pf as op
-from convertersmartgrid.estudios_pf import CON_PROYECTO, SIN_PROYECTO
-from convertersmartgrid.naming import nombre_con_tension
+from convertersmartgrid.aplicacion import obras_pf as op
+from convertersmartgrid.aplicacion.estudios_pf import CON_PROYECTO, SIN_PROYECTO
+from convertersmartgrid.dominio.naming import nombre_con_tension
 
 #: Semillas de los sorteos: alimentadores, tensiones, tramos, tipos y orden de las obras.
 SEMILLAS = (7, 19, 43, 88)

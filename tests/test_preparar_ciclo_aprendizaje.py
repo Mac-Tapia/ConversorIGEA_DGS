@@ -11,13 +11,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid import aprendizaje_continuo as ac
-from convertersmartgrid.asistente.dataset_entrenamiento import escribir_particiones, normalizar_orden
-from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-from convertersmartgrid.digital_twin.episode import leer_episodio
-from convertersmartgrid.digital_twin.productor_pinn import muestras_aprendizaje as muestras_pinn
-from convertersmartgrid.experimentos import ContextoExperimento, clave_contexto
-from convertersmartgrid.productores_aprendizaje import ProductoresReales
+from convertersmartgrid.aplicacion import aprendizaje_continuo as ac
+from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import escribir_particiones, normalizar_orden
+from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+from convertersmartgrid.dominio.digital_twin.episode import leer_episodio
+from convertersmartgrid.adaptadores.digital_twin.productor_pinn import muestras_aprendizaje as muestras_pinn
+from convertersmartgrid.aplicacion.experimentos import ContextoExperimento, clave_contexto
+from convertersmartgrid.adaptadores.productores_aprendizaje import ProductoresReales
 
 from test_digital_twin_episode import _payload
 from test_gemelo_contratos_v2 import _grafo
@@ -227,8 +227,8 @@ def test_referencia_fisica_no_toma_la_fecha_de_sellado(tmp_path):
 
 
 def _objetivos_falsos(monkeypatch, apartados=()):
-    from convertersmartgrid.digital_twin import temporal_entrenamiento as te
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin import temporal_entrenamiento as te
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
     inicio = datetime(2026, 1, 1)
     curva = [(inicio + timedelta(minutes=15 * i), 100. + i % 96) for i in range(84 * 96)]
     objetivo = Objetivo('cabecera', 'L-A1', 'kW', 'kW', curva)
@@ -264,7 +264,7 @@ def test_sin_series_pedidas_lo_apartado_consta_y_el_ciclo_sigue(tmp_path, monkey
 
 def test_con_series_pedidas_la_guarda_sigue_dura(tmp_path, monkeypatch):
     """050:RF-19 — lo pedido que falta bloquea: no se rebaja la guarda."""
-    from convertersmartgrid.digital_twin import temporal_entrenamiento as te
+    from convertersmartgrid.adaptadores.digital_twin import temporal_entrenamiento as te
     _objetivos_falsos(monkeypatch, [{'objetivo': 'cabecera:L-A9', 'motivo': 'L-A9: sin curva'}])
     inst = ac.congelar_instantanea({'cabeceras': _libro(tmp_path)}, tmp_path / 'ac', contexto='a' * 64, versiones={'codigo': 'x'})
     with pytest.raises(ac.CicloBloqueado, match='objetivos apartados'):
@@ -273,8 +273,8 @@ def test_con_series_pedidas_la_guarda_sigue_dura(tmp_path, monkeypatch):
 
 def test_criterio_comun_recorta_al_tramo_y_aparta_con_huecos(tmp_path, monkeypatch):
     """050:RF-22 — fuera del tramo común no se usa, y un kVAR con huecos dentro de él se aparta con su cifra."""
-    from convertersmartgrid.digital_twin import temporal_entrenamiento as te
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin import temporal_entrenamiento as te
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
     inicio = datetime(2026, 1, 1)
     curva = [(inicio + timedelta(minutes=15 * i), 10.) for i in range(200)]
     comunes = [(t.replace(tzinfo=timezone.utc)).isoformat() for t, _ in curva[50:150]]
@@ -395,14 +395,14 @@ def test_unir_datasets_conserva_particiones_y_bloquea_si_mueve(tmp_path, monkeyp
     spec.loader.exec_module(un)
     a, b = tmp_path / 'a', tmp_path / 'b'
     a.mkdir(), b.mkdir()
-    from convertersmartgrid.asistente.dataset_entrenamiento import particionar_dataset
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import particionar_dataset
     filas = [_orden(f'orden numero {i}') for i in range(40)]
     escribir_particiones(particionar_dataset(tuple(filas[:20])), a)
     escribir_particiones(particionar_dataset(tuple(filas[20:])), b)
     informe = un.unir([a, b], tmp_path / 'u')
     assert informe['particiones_conservadas'] is True
     assert sum(sum(v.values()) for v in informe['particiones'].values()) == 40
-    from convertersmartgrid.asistente import dataset_entrenamiento as de
+    from convertersmartgrid.aplicacion.asistente import dataset_entrenamiento as de
     real = de.particionar_dataset
     monkeypatch.setattr(de, 'particionar_dataset', lambda r: {'train': tuple(r), 'validation': (), 'test': ()} if real(r)['test'] or real(r)['validation'] else real(r))
     with pytest.raises(ValueError, match='movería'):
@@ -412,9 +412,9 @@ def test_unir_datasets_conserva_particiones_y_bloquea_si_mueve(tmp_path, monkeyp
 
 def test_episodio_capturado_guarda_su_identidad_sin_complemento(tmp_path):
     """050:RF-23 — con el plan completo, el episodio nuevo basta para la huella 043."""
-    from convertersmartgrid.digital_twin.contratos_fisicos import contexto_fisico
-    from convertersmartgrid.digital_twin.integration import plan_de_lectura
-    from convertersmartgrid.digital_twin.episode import Caso
+    from convertersmartgrid.adaptadores.digital_twin.contratos_fisicos import contexto_fisico
+    from convertersmartgrid.adaptadores.digital_twin.integration import plan_de_lectura
+    from convertersmartgrid.dominio.digital_twin.episode import Caso
     plan = {'project': 'P', 'feeders': ['A1', 'A2'], 'periodo': '2026-07', 'criterio_fijas': 'coincidente', 'profile_hash': 'b' * 64}
     assert plan_de_lectura(plan, Caso.SIN_PROYECTO, {})['profile_hash'] == 'b' * 64
     grafo = _grafo()
@@ -439,8 +439,8 @@ def _espacio_con_escalera(tmp_path, datos, tension_min=0.95):
 
 
 def _casos_con(monkeypatch, tmp_path, perfil, datos, *payloads):
-    from convertersmartgrid import perfil_empresa as pe
-    from convertersmartgrid.digital_twin import integration as ig
+    from convertersmartgrid.dominio import perfil_empresa as pe
+    from convertersmartgrid.adaptadores.digital_twin import integration as ig
     monkeypatch.setattr(pe, 'datos_perfil', lambda *_a, **_k: perfil)
     monkeypatch.setattr(pe, 'estructura_empresa', lambda *_a, **_k: None)
     monkeypatch.setattr(ig, 'normas_de', lambda *_a: ['N'])
@@ -466,7 +466,7 @@ def test_caso_sin_costo_en_el_perfil_dice_el_parametro_que_falta(tmp_path, monke
 
 def test_caso_que_no_converge_no_gasta_el_turno_de_su_particion(tmp_path, monkeypatch):
     """050:RF-28 — otro episodio de la misma parte puede dar el caso; el motivo del primero consta."""
-    from convertersmartgrid.digital_twin.oraculo import muestras_y_particiones  # noqa: F401 - comprueba el import real
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import muestras_y_particiones  # noqa: F401 - comprueba el import real
     rama = next(r['id'] for r in _grafo()['ramas'] if r.get('id'))
     llamadas = []
 
@@ -487,7 +487,7 @@ def test_caso_que_no_converge_no_gasta_el_turno_de_su_particion(tmp_path, monkey
 def test_lectura_de_escenarios_recibe_la_identidad_del_plan():
     """050:RF-23 — los escenarios leen con otro guion, sin contexto: el episodio toma la del plan."""
     from test_digital_twin_capture import _construir, _lectura, _plan
-    from convertersmartgrid.digital_twin.episode import Caso
+    from convertersmartgrid.dominio.digital_twin.episode import Caso
     plan = {**_plan(), 'periodo': '2026-07', 'criterio_fijas': 'coincidente', 'profile_hash': 'b' * 64}
     e = _construir(plan=plan, caso=Caso.SIN_PROYECTO, referencia=None)
     assert (e.contexto_fisico['period'], e.contexto_fisico['criterio_fijas'], e.contexto_fisico['profile_hash']) == (
@@ -500,8 +500,8 @@ def test_lectura_de_escenarios_recibe_la_identidad_del_plan():
 
 def test_identidad_de_captura_da_lo_que_consta(monkeypatch):
     """050:RF-23 — periodo y criterio de la calibración en disco y huella del perfil; lo que no consta, no va."""
-    from convertersmartgrid.web import services as sv
-    from convertersmartgrid.evaluacion_modelos import huella
+    from convertersmartgrid.presentacion.web import services as sv
+    from convertersmartgrid.aplicacion.evaluacion_modelos import huella
     monkeypatch.setattr(sv, 'ajuste_aplicado_en_disco', lambda ws, project: {'informes': [
         {'objetivo': {'fecha': '2026-07-13 10:45:00'}, 'criterio_fijas': 'coincidente'}]})
     ws = SimpleNamespace(criterio_cabecera={})
@@ -512,7 +512,7 @@ def test_identidad_de_captura_da_lo_que_consta(monkeypatch):
 
 def test_consultas_del_maestro_se_cuentan_aparte(tmp_path):
     """050:RF-29 — en la evaluación el maestro y el operador no se suman."""
-    from convertersmartgrid.asistente.embeddings import origenes_consultas_reservadas
+    from convertersmartgrid.aplicacion.asistente.embeddings import origenes_consultas_reservadas
     (tmp_path / 'retrieval_test.jsonl').write_text(''.join(json.dumps(r) + '\n' for r in (
         {'pregunta': 'a', 'origen': 'maestro', 'verification': 'teacher_redacted'},
         {'pregunta': 'b', 'origen': 'maestro', 'verification': 'teacher_redacted'},
@@ -539,7 +539,7 @@ def test_ruta_ausente_queda_pendiente_con_sus_familias(tmp_path):
 
 def test_corpus_con_parte_invalida_conserva_el_motivo(tmp_path, monkeypatch):
     """050:RF-15/17 — una parte que el lector sellado rechaza no recibe referencia; la válida, su sellado."""
-    from convertersmartgrid.asistente import llm_destilacion as ld
+    from convertersmartgrid.aplicacion.asistente import llm_destilacion as ld
     corpus = tmp_path / 'corpus'
     corpus.mkdir()
     (corpus / 'dataset_manifest.json').write_text('{}', encoding='utf-8')
@@ -566,7 +566,7 @@ def _caso(e, contexto):
 
 def test_caso_evolutivo_coherente_prepara_y_uno_ajeno_va_a_cuarentena(tmp_path):
     """050:RF-13/15 — el contexto del caso se contrasta con su episodio antes de referenciarlo."""
-    from convertersmartgrid.digital_twin.evolutivo import casos_aprendizaje
+    from convertersmartgrid.adaptadores.digital_twin.evolutivo import casos_aprendizaje
     twin, (e,) = _bufer(tmp_path, _que_ensena())
     f = e.contexto_fisico
     bueno = ContextoExperimento('run-1', 'txt', e.fuente['source_fingerprint'], 'P', ('A1', 'A2'), f['case_id'],

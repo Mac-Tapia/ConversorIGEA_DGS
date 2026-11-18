@@ -23,15 +23,15 @@ sys.path.insert(0, str(ROOT / 'src'))
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from convertersmartgrid.web import __main__ as lanzador  # noqa: E402
-from convertersmartgrid.web import app as app_mod  # noqa: E402
-from convertersmartgrid.web.runtime import huella_del_codigo  # noqa: E402
+from convertersmartgrid.presentacion.web import __main__ as lanzador  # noqa: E402
+from convertersmartgrid.presentacion.web import app as app_mod  # noqa: E402
+from convertersmartgrid.presentacion.web.runtime import huella_del_codigo  # noqa: E402
 
 
 def test_salida_nativa_con_bytes_no_utf8_no_pierde_el_pid(tmp_path):
     """001:RF-31 — netstat puede usar OEM aunque Python esté en UTF-8; el aviso conserva el PID."""
     import subprocess
-    code = ('import sys,json;from convertersmartgrid.web.__main__ import _salida;'
+    code = ('import sys,json;from convertersmartgrid.presentacion.web.__main__ import _salida;'
             'print(json.dumps(_salida([sys.executable,"-B","-c",'
             '"import sys;sys.stdout.buffer.write(bytes([255])+b\\\" proceso 12345\\\")"])))')
     env = {**os.environ, 'PYTHONPATH':str(ROOT / 'src')}
@@ -175,7 +175,7 @@ def test_conversor_colgado_se_termina(uvicorn_falso, monkeypatch):
     terminados = []
     monkeypatch.setattr(lanzador, 'conversor_en', lambda *_a, **_k: None)
     monkeypatch.setattr(lanzador, 'quien_escucha',
-                        lambda _p: (999_999, 'python.exe -m convertersmartgrid.web --no-browser'))
+                        lambda _p: (999_999, 'python.exe -m convertersmartgrid.presentacion.web --no-browser'))
     monkeypatch.setattr(lanzador, '_terminar', lambda pid: (terminados.append(pid), s.close()))
     monkeypatch.setattr(lanzador, 'ESPERA_SIN_RESPUESTA_S', 0.1)                  # 081:RF-45
     monkeypatch.setattr(lanzador, '_anotar_terminado', lambda *_a: None)
@@ -196,7 +196,7 @@ def _colgado_con_trabajos(monkeypatch, tmp_path, respuesta):
     monkeypatch.setattr(lanzador, 'conversor_en', lambda *_a, **_k: None)
     monkeypatch.setattr(lanzador, 'esperar_respuesta', lambda url, segundos: respuesta)
     monkeypatch.setattr(lanzador, 'quien_escucha',
-                        lambda _p: (999_999, 'python.exe -m convertersmartgrid.web'))
+                        lambda _p: (999_999, 'python.exe -m convertersmartgrid.presentacion.web'))
     monkeypatch.setattr(lanzador, '_terminar', lambda pid: (terminados.append(pid), s.close()))
     return s, terminados
 
@@ -226,7 +226,7 @@ def test_conversor_ocupado_que_responde_al_esperar_se_reutiliza(uvicorn_falso, m
 
 def test_el_servidor_anota_sus_trabajos_en_curso(tmp_path, monkeypatch):
     """001:RF-34 — el registro del proceso dice cuántos trabajos tiene sin terminar."""
-    from convertersmartgrid.web import jobs
+    from convertersmartgrid.presentacion.web import jobs
 
     monkeypatch.setenv(jobs.VARIABLE_REGISTRO, str(tmp_path))
     gestor = jobs.JobManager(lambda *_a: None)
@@ -258,9 +258,9 @@ def test_otro_programa_en_el_puerto_se_usa_el_siguiente(uvicorn_falso, monkeypat
 
 def test_solo_un_servidor_del_conversor_cuenta_como_tal():
     """001:RF-31 — la comprobación de entorno del .bat no es un servidor que terminar."""
-    assert lanzador.es_conversor('"C:\\py\\python.exe" -m convertersmartgrid.web --no-browser')
+    assert lanzador.es_conversor('"C:\\py\\python.exe" -m convertersmartgrid.presentacion.web --no-browser')
     assert lanzador.es_conversor('C:\\venv\\Scripts\\convertersmartgrid-web.exe')
-    assert not lanzador.es_conversor('python -m convertersmartgrid.web.runtime --front')
+    assert not lanzador.es_conversor('python -m convertersmartgrid.presentacion.web.runtime --front')
     assert not lanzador.es_conversor('python -m http.server 8765')
 
 

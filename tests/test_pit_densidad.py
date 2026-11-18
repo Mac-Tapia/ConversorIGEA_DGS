@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
 
 RAIZ = Path(__file__).resolve().parents[1]
 NORMATIVA = RAIZ / 'config' / 'normativa'
@@ -18,9 +18,9 @@ NORMATIVA = RAIZ / 'config' / 'normativa'
 
 def _densidad():
     """El módulo de la tarjeta: su ausencia es la falla de la aserción, no un error de importación."""
-    assert importlib.util.find_spec('convertersmartgrid.pit.densidad') is not None, \
-        'falta convertersmartgrid.pit.densidad (PIT-F123)'
-    return importlib.import_module('convertersmartgrid.pit.densidad')
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.pit.densidad') is not None, \
+        'falta convertersmartgrid.adaptadores.pit.densidad (PIT-F123)'
+    return importlib.import_module('convertersmartgrid.adaptadores.pit.densidad')
 
 
 #: Dos SED en la misma cuadrícula de 1 km (4,5 MW: «Muy Alta») y una sola en otra (0,3 MW: «Media»), y una sin punto.
@@ -63,9 +63,9 @@ def test_107_rf9_densidad_factores_del_f110_y_resultado_con_una_hoja_por_anio(tm
     """107:RF-9 (PIT-F123) — el factor de cada sistema es la F-110 del año entre la del año 0; el F-123 lleva un año por
     hoja con su imagen, pide las copias de la hoja y el plan del libro las nombra en lugar de escribir sin ellas."""
     mod = _densidad()
-    from convertersmartgrid.pit import llenado
-    from convertersmartgrid.pit.ambito import PitError
-    from convertersmartgrid.pit.cuadros import plan_de_formatos
+    from convertersmartgrid.adaptadores.pit import llenado
+    from convertersmartgrid.dominio.pit.ambito import PitError
+    from convertersmartgrid.adaptadores.pit.cuadros import plan_de_formatos
     cadena = {'filas': {'F-110': [{'sistema': 'S', 'potencia_mw': [2.0, 3.0]}, {'sistema': 'S', 'potencia_mw': [2.0, 1.0]}]}}
     assert mod.factores_por_sistema(cadena) == {'S': [1.0, 1.0]}
     registro = cargar_registro(NORMATIVA)

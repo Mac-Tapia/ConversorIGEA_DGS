@@ -36,7 +36,7 @@ def _publication(publication_id: str, url: str, kind: str) -> Publication:
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'no-front'))
     data_root = tmp_path / 'web'

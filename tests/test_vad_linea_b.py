@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.web import services
+from convertersmartgrid.presentacion.web import services
 
 pytest.importorskip('pandapower')
 
@@ -24,8 +24,8 @@ TDR = 'rcd-174-2025-os-cd'
 
 @pytest.fixture
 def web_vad(tmp_path, monkeypatch):
-    import convertersmartgrid.perfil_empresa as perfil_empresa
-    from convertersmartgrid.web.app import create_app
+    import convertersmartgrid.dominio.perfil_empresa as perfil_empresa
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setattr(perfil_empresa, 'cargar_perfil',
                         lambda *a, **k: perfil_empresa.PerfilEmpresa(nombre='Distribuidora Sintética Norte'))
@@ -40,7 +40,7 @@ def web_vad(tmp_path, monkeypatch):
 
 def _exige():
     """Lo nuevo del tramo B: su ausencia es la falla de la aserción, no un error de clave."""
-    from convertersmartgrid.vad import linea
+    from convertersmartgrid.adaptadores.vad import linea
     assert 'modelo_rural' in linea.PASOS_LINEA, 'falta el tramo B de la línea del VAD (108 T30)'
 
 
@@ -63,7 +63,7 @@ def _estudio(cliente) -> tuple[str, str]:
 
 def _empresa(raiz: Path, tmp_path: Path, *, con_red: bool = True) -> bytes:
     """Deja en el espacio la red convertida y el SICODI de la empresa, y devuelve el caso (zip) con su sustento."""
-    from convertersmartgrid import fuentes_empresa as fe
+    from convertersmartgrid.aplicacion import fuentes_empresa as fe
     from test_vad_costos import CODIGO, CODIGO_SED, ESTRUCTURA, FUENTE, _sicodi
     from test_vad_dimensionamiento import NO_NORMALIZADAS, POTENCIAS, RANGOS, SECTORES, SUSTENTO, TIPOS, _entradas, _vnr
 

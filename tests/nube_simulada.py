@@ -604,8 +604,8 @@ def montar_web_nube(tmp_path, sim: NubeSimulada | None = None, config: dict | No
     from fastapi.testclient import TestClient
 
     from convertersmartgrid.adaptadores.nube.cuentas import Cuentas
-    from convertersmartgrid.web.app import create_app
-    from convertersmartgrid.web.nube_api import registrar_rutas_nube
+    from convertersmartgrid.presentacion.web.app import create_app
+    from convertersmartgrid.presentacion.web.nube_api import registrar_rutas_nube
 
     @contextmanager
     def gestor():

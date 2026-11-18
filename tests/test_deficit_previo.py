@@ -9,9 +9,9 @@ import random
 
 import pytest
 
-from convertersmartgrid import escalera_optima as eo
-from convertersmartgrid.estudios_pf import Limites
-from convertersmartgrid.informes import (Caso, Extremo, Potencia, Solicitud, baja_ajena_a_la_carga, bajo_limite,
+from convertersmartgrid.aplicacion import escalera_optima as eo
+from convertersmartgrid.aplicacion.estudios_pf import Limites
+from convertersmartgrid.adaptadores.informes import (Caso, Extremo, Potencia, Solicitud, baja_ajena_a_la_carga, bajo_limite,
                                          clasificar_bajo_limite, conclusion_factibilidad, conclusiones_factibilidad,
                                          frases_bajo_limite, queda_deficit, veredicto_factibilidad)
 

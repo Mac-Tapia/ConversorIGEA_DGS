@@ -34,11 +34,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 
-from convertersmartgrid.carpeta_pf import (  # noqa: E402
+from convertersmartgrid.adaptadores.carpeta_pf import (  # noqa: E402
     CarpetaError, alimentadores_de, buscar_carpeta, nombre_de_perfil, proyectos_de,
     validar_nombre,
 )
-from convertersmartgrid.powerfactory_binding import native_inventory_evidence  # noqa: E402
+from convertersmartgrid.adaptadores.powerfactory_binding import native_inventory_evidence  # noqa: E402
 
 
 def _misma_identidad(a, b):
@@ -145,7 +145,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('pf_proyectos.py')

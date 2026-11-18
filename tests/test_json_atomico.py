@@ -1,6 +1,6 @@
 """001:RF-5 — los JSON del paquete se publican con la escritura atómica única.
 
-``convertersmartgrid.util.write_json_atomic`` y ``publicar_duradero`` preparan el contenido fuera del destino, lo
+``convertersmartgrid.dominio.util.write_json_atomic`` y ``publicar_duradero`` preparan el contenido fuera del destino, lo
 sincronizan y lo sustituyen con ``replace``: un corte a mitad deja el fichero anterior entero. Una escritura directa
 ``ruta.write_text(json.dumps(...))`` deja un JSON truncado que la web, el lote o el siguiente entrenamiento leen roto.
 
@@ -25,40 +25,40 @@ _VERSION_NUEVA = ('carpeta de versión o candidato recién creada; nadie la lee 
 EXCEPCIONES: dict[str, tuple[int, str]] = {
     'adaptadores/entrada/vnr/exporters/dgs.py::DgsExporter.export':
         (2, 'informe y manifiesto dentro de la carpeta de staging_publicacion, que se publica entera con el DGS'),
-    'asistente/clasificador.py::guardar_candidato': (2, _VERSION_NUEVA),
-    'asistente/clasificador_vectores.py::guardar': (2, _VERSION_NUEVA),
-    'asistente/destilacion_integral.py::_guardar_alumno': (1, _VERSION_NUEVA + ' (mkdir exist_ok=False)'),
-    'asistente/destilacion_integral.py::entrenar_destilacion':
+    'aplicacion/asistente/clasificador.py::guardar_candidato': (2, _VERSION_NUEVA),
+    'aplicacion/asistente/clasificador_vectores.py::guardar': (2, _VERSION_NUEVA),
+    'aplicacion/asistente/destilacion_integral.py::_guardar_alumno': (1, _VERSION_NUEVA + ' (mkdir exist_ok=False)'),
+    'aplicacion/asistente/destilacion_integral.py::entrenar_destilacion':
         (1, 'readback.json dentro de la carpeta del alumno candidato, antes de su decisión'),
-    'asistente/evidencias_web.py::custodiar_trabajo':
+    'aplicacion/asistente/evidencias_web.py::custodiar_trabajo':
         (1, 'temporal de staging_publicacion que registrar_evidencia copia de forma exclusiva (open "xb")'),
-    'asistente/llm_destilacion.py::entrenar_epoca.guardar':
+    'aplicacion/asistente/llm_destilacion.py::entrenar_epoca.guardar':
         (1, 'estado.json dentro del checkpoint recién creado; lo publica ultimo_checkpoint.json, atómico'),
-    'asistente/llm_destilacion.py::exportar_fusionado':
+    'aplicacion/asistente/llm_destilacion.py::exportar_fusionado':
         (2, ('config e índice de pesos en la carpeta de exportación recién creada; la valida exportacion.json, '
              'atómico y escrito el último')),
-    'asistente/llm_destilacion.py::sellar_particiones':
+    'aplicacion/asistente/llm_destilacion.py::sellar_particiones':
         (1, 'particiones .jsonl en la carpeta recién creada; las custodia por hash dataset_manifest.json, atómico'),
-    'asistente/transformer.py::guardar_pesos': (1, _VERSION_NUEVA),
-    'digital_twin/adaptador_neuralforecast.py::AdaptadorNeuralForecast.guardar':
+    'aplicacion/asistente/transformer.py::guardar_pesos': (1, _VERSION_NUEVA),
+    'adaptadores/digital_twin/adaptador_neuralforecast.py::AdaptadorNeuralForecast.guardar':
         (1, 'dentro del TemporaryDirectory que _empaquetar comprime en un zip, su único llamador'),
-    'digital_twin/oraculo.py::entrenar': (1, 'readback.json del candidato, antes de _decidir_promocion'),
-    'digital_twin/oraculo.py::guardar': (1, _VERSION_NUEVA),
-    'digital_twin/oraculo.py::guardar_y_reabrir': (1, 'readback.json del candidato, que no se promueve aquí'),
-    'digital_twin/temporal.py::GemeloGRUMultihorizonte.guardar':
+    'adaptadores/digital_twin/oraculo.py::entrenar': (1, 'readback.json del candidato, antes de _decidir_promocion'),
+    'adaptadores/digital_twin/oraculo.py::guardar': (1, _VERSION_NUEVA),
+    'adaptadores/digital_twin/oraculo.py::guardar_y_reabrir': (1, 'readback.json del candidato, que no se promueve aquí'),
+    'adaptadores/digital_twin/temporal.py::GemeloGRUMultihorizonte.guardar':
         (1, 'dentro del TemporaryDirectory que _empaquetar comprime en un zip, su único llamador'),
-    'digital_twin/temporal_entrenamiento.py::comparar_pronosticos':
+    'adaptadores/digital_twin/temporal_entrenamiento.py::comparar_pronosticos':
         (1, 'ajustes.json dentro de candidato_<uuid>, que se registra entero como artefacto'),
-    'libro_informe.py::rellenar_con_excel':
+    'adaptadores/libro_informe.py::rellenar_con_excel':
         (1, 'plan.json en un TemporaryDirectory que solo lee el guion de Excel'),
-    'runtime_paths.py::temporal_administrado':
+    'dominio/runtime_paths.py::temporal_administrado':
         (2, ('owner.json de la carpeta privada del temporal; util importa runtime_paths (ciclo) y '
              'publicar_duradero se apoya en este mismo temporal')),
-    'web/operaciones_lentas.py::preparar_zip':
+    'presentacion/web/operaciones_lentas.py::preparar_zip':
         (2, 'owner.json de la carpeta privada csg-job-* de la descarga, el mismo protocolo que temporal_administrado'),
     # services.py (integrador, H14 2026-11-14): las dos que quedan son excepciones legítimas.
-    'web/services.py::perfil_guardar': (1, 'temporal de prueba en TemporaryDirectory: se valida y se descarta; lo publicado va por write_json_atomic'),
-    'web/services.py::pide_custodiar_fuentes': (1, 'dentro de la carpeta stage que se publica entera con rename'),
+    'presentacion/web/services.py::perfil_guardar': (1, 'temporal de prueba en TemporaryDirectory: se valida y se descarta; lo publicado va por write_json_atomic'),
+    'presentacion/web/services.py::pide_custodiar_fuentes': (1, 'dentro de la carpeta stage que se publica entera con rename'),
 }
 
 
@@ -157,7 +157,7 @@ def escrituras_directas(raiz: Path = PAQUETE) -> Counter[str]:
 
 _MODULO_DE_PRUEBA = '''\
 import json, os
-from convertersmartgrid.util import publicar_duradero, write_json_atomic
+from convertersmartgrid.dominio.util import publicar_duradero, write_json_atomic
 def una(p, d):
     p.write_text(json.dumps(d), encoding="utf-8")
 class C:

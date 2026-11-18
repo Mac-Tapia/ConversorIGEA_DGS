@@ -27,7 +27,7 @@ def _exige_capas():
 @pytest.fixture(autouse=True)
 def _catalogo_de_empresa_aislado(monkeypatch, tmp_path):
     """080:RF-49: el catálogo de cada empresa se crea al cargar; una prueba no toca el real."""
-    monkeypatch.setattr('convertersmartgrid.reglas.project_root', lambda: tmp_path)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.reglas.project_root', lambda: tmp_path)
 
 
 # --------------------------------------------------------------------------- doble del motor
@@ -309,8 +309,8 @@ def test_modelo_canonico_de_una_salida():
 def test_la_fuente_vnr_acepta_la_copia(monkeypatch, tmp_path):
     """023:RF-1 — la casilla VNR-GIS acepta ``.bak`` y la fuente la lleva por la copia de SQL
     Server, buscando sus vecinas donde estaba el original."""
-    from convertersmartgrid.sources.snapshot import snapshot_from_paths
-    from convertersmartgrid.sources.vnr import VnrSourceAdapter
+    from convertersmartgrid.dominio.sources.snapshot import snapshot_from_paths
+    from convertersmartgrid.adaptadores.sources.vnr import VnrSourceAdapter
     from convertersmartgrid.adaptadores.entrada.vnr.connectors.registry import FORMATOS_PAQUETE_VNR
 
     assert '.bak' in FORMATOS_PAQUETE_VNR
@@ -355,8 +355,8 @@ def test_sin_base_de_parametros_la_tension_sale_de_la_tabla_tensiones():
 def test_la_copia_sin_extension_se_reconoce_por_su_cabecera(monkeypatch, tmp_path):
     """023:RF-1 — una copia de SQL Server sin «.bak» (una distribuidora real entregó «<paquete>») se
     reconoce por su cabecera MTF «TAPE»; un fichero sin extensión que no lo es, no."""
-    from convertersmartgrid.sources.snapshot import snapshot_from_paths
-    from convertersmartgrid.sources.vnr import VnrSourceAdapter
+    from convertersmartgrid.dominio.sources.snapshot import snapshot_from_paths
+    from convertersmartgrid.adaptadores.sources.vnr import VnrSourceAdapter
     from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import OfficialDiscoveryError, validate_vnr_package_file
 
     copia = tmp_path / 'ELOR25_V2'
@@ -394,7 +394,7 @@ def test_fichas_del_catalogo_del_proyecto(tmp_path):
     está en el catálogo se dice."""
     from openpyxl import Workbook
 
-    from convertersmartgrid.sources.vnr import fichas_del_catalogo
+    from convertersmartgrid.adaptadores.sources.vnr import fichas_del_catalogo
 
     wb = Workbook()
     hoja = wb.active

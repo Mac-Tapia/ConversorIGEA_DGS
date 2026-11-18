@@ -28,7 +28,7 @@ def _catalogo_de_la_linea_base(monkeypatch):
 
     ruta = os.environ.get('CSG_CATALOGO_PROYECTO', '').strip()
     if ruta and Path(ruta).is_file():
-        from convertersmartgrid import reglas
+        from convertersmartgrid.aplicacion import reglas
 
         monkeypatch.setattr(reglas, 'catalogo_del_proyecto', lambda: Path(ruta))
 

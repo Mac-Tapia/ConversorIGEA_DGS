@@ -12,7 +12,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 ## Skills del proyecto
 
 - `.claude/skills/convertersmartgrid-backend/SKILL.md`: reglas del motor, la escala y la API. **Léelo antes de tocar `src/convertersmartgrid/`.**
-- `.claude/skills/convertersmartgrid-frontend/SKILL.md`: UX y checklist de la interfaz web (React en `frontend/`). Léelo antes de tocar `frontend/src/` o `src/convertersmartgrid/web/`.
+- `.claude/skills/convertersmartgrid-frontend/SKILL.md`: UX y checklist de la interfaz web (React en `frontend/`). Léelo antes de tocar `frontend/src/` o `src/convertersmartgrid/presentacion/web/`.
 - `.claude/skills/convertersmartgrid-spec/SKILL.md`: desarrollo guiado por especificaciones. Toda funcionalidad o reorganización que no sea un arreglo de una línea empieza por `specs/NNN-*/spec.md` (requisitos `RF-n` en EARS), luego plan y tareas; las pruebas citan `NNN:RF-n`.
 - Las copias de `.cursor/skills/` son solo punteros a estas: el texto vigente es uno.
 
@@ -29,7 +29,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | Spec | Estado | Pendiente |
   | --- | --- | --- |
   | 001 Reorganización: una responsabilidad, un sitio | cumplida |  |
-  | 002 Arquitectura por capas y módulos enchufables | aprobada | falta T7, T9, T12, T13 |
+  | 002 Arquitectura por capas y módulos enchufables | cumplida |  |
   | 003 Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | retirada |  |
   | 004 Cargas en un proyecto existente de DIgSILENT | implementada | queda T30 (DIgSILENT) |
   | 005 Carpeta de proyectos importados en DIgSILENT | cumplida |  |
@@ -214,7 +214,7 @@ además `CSG_DEMANDA_DIR`.
   `.venv/Scripts/python.exe tools/sistema_web.py --espacio <id> --zonal Pisco --demanda-dir D:/BaseDatosElectroDunas/referencia_retirada_20261102 --periodo 2026-07`
   (convierte, importa y calibra; retoma lo hecho). Nada de guiones del scratchpad que
   repitan la API.
-- Tras cambiar `src/convertersmartgrid/web/` o `src/convertersmartgrid/*.py` que use la web, reiniciarla: parar
+- Tras cambiar `src/convertersmartgrid/presentacion/web/` o `src/convertersmartgrid/*.py` que use la web, reiniciarla: parar
   el proceso del puerto 8765 y abrir el acceso directo «ConverterSmartGrid» del escritorio.
   Los guiones de `tools/` no: el servidor de DIgSILENT los carga de nuevo en cada orden.
 - Parar un cliente no para el trabajo de la web: cancelarlo con `POST /api/jobs/<id>/cancel`.

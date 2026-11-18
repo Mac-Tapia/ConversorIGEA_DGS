@@ -49,10 +49,10 @@ def _trio(carpeta: Path | None) -> list[Path] | None:
 
 def main(argv: list[str] | None = None) -> int:
     args = _argumentos(argv)
-    from convertersmartgrid.benchmarks import generar_benchmark
-    from convertersmartgrid.benchmarks.reidentificacion import FugaDetectada
-    from convertersmartgrid.benchmarks.reproduccion import ReproduccionFallida
-    from convertersmartgrid.perfil_empresa import PerfilError, cargar_perfil, ruta_perfil_activo
+    from convertersmartgrid.adaptadores.benchmarks import generar_benchmark
+    from convertersmartgrid.adaptadores.benchmarks.reidentificacion import FugaDetectada
+    from convertersmartgrid.adaptadores.benchmarks.reproduccion import ReproduccionFallida
+    from convertersmartgrid.dominio.perfil_empresa import PerfilError, cargar_perfil, ruta_perfil_activo
 
     for ruta in (args.red, args.carga, args.equipo):
         if not ruta.is_file():

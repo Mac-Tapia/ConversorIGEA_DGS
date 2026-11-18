@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid import estructura as es
+from convertersmartgrid.dominio import estructura as es
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
@@ -116,8 +116,8 @@ def test_completar_no_cambia_la_estructura_y_es_determinista():
 def test_las_cabeceras_salen_del_inventario(tmp_path):
     """022:RF-77 — el inventario da la cabecera de cada alimentador, la misma para TXT, MDB y
     VNR-GIS, que llegan como el mismo dataset; en las dos disposiciones del export."""
-    from convertersmartgrid.dataset import CymdistDataset
-    from convertersmartgrid.inventory import build_dataset_inventory
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.aplicacion.inventory import build_dataset_inventory
     from synthetic_export import ExportSpec, write_export
 
     rng = random.Random(SEMILLA)
@@ -133,8 +133,8 @@ def test_las_cabeceras_salen_del_inventario(tmp_path):
 def test_la_web_ve_la_estructura_completada_y_avisa(monkeypatch):
     """022:RF-77, 022:RF-78 — la estructura del espacio ya trae los nuevos: la selección por
     zonal los incluye y el resumen dice cuáles, con su SET, su zonal y la regla."""
-    from convertersmartgrid import perfil_empresa
-    from convertersmartgrid.web import services
+    from convertersmartgrid.dominio import perfil_empresa
+    from convertersmartgrid.presentacion.web import services
 
     e, cab = _estructura(random.Random(SEMILLA))
     cerca = sorted(cab)[0]
@@ -160,8 +160,8 @@ def test_la_web_convierte_una_set_sola(monkeypatch):
     """022:RF-82 — con `sets`, solo los alimentadores de esa SET y un nombre con su zonal y
     su código; el resumen trae cada SET con su rótulo y sus alimentadores; una SET que no
     está en la estructura se rechaza."""
-    from convertersmartgrid import perfil_empresa
-    from convertersmartgrid.web import services
+    from convertersmartgrid.dominio import perfil_empresa
+    from convertersmartgrid.presentacion.web import services
 
     e, cab = _estructura(random.Random(SEMILLA))
     monkeypatch.setattr(perfil_empresa, 'estructura_empresa', lambda *a, **k: e)

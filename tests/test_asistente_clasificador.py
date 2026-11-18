@@ -7,12 +7,12 @@ import pytest
 
 torch = pytest.importorskip('torch')
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.asistente import clasificador as cl
-from convertersmartgrid.asistente.ejecutor import pasos
-from convertersmartgrid.asistente.sinteticos import SUBTIPOS_ESTUDIO
-from convertersmartgrid.asistente.tareas import TAREAS
-from convertersmartgrid.asistente.transformer import Configuracion
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.aplicacion.asistente import clasificador as cl
+from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
+from convertersmartgrid.aplicacion.asistente.sinteticos import SUBTIPOS_ESTUDIO
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
+from convertersmartgrid.aplicacion.asistente.transformer import Configuracion
 
 
 @pytest.fixture(scope='module')
@@ -64,7 +64,7 @@ def test_aprende_de_las_correcciones(entrenado, monkeypatch):
 
 def test_subtipos_del_perfil(monkeypatch):
     """026:RF-16 — dos niveles; los subtipos salen del perfil y, sin él, de la spec."""
-    import convertersmartgrid.perfil_empresa as pe
+    import convertersmartgrid.dominio.perfil_empresa as pe
 
     monkeypatch.setattr(pe, 'datos_perfil', lambda: {'asistente': {'subtipos_estudio': ['a', 'b']}})
     assert cl.subtipos_del_perfil() == ['a', 'b']

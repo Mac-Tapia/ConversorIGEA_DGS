@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad.vnr_guia import SedZonificable as S
-from convertersmartgrid.vad.vnr_guia import (
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.aplicacion.vad.vnr_guia import SedZonificable as S
+from convertersmartgrid.aplicacion.vad.vnr_guia import (
     VnrGuiaError,
     demanda_de_alumbrado,
     zona_de_densidad,

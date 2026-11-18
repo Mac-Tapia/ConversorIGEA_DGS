@@ -25,10 +25,10 @@ import time
 
 import pytest
 
-from convertersmartgrid.batch import convert_selection
-from convertersmartgrid.reglas import SIN_REGLAS
-from convertersmartgrid.naming import feeder_short_name
-from convertersmartgrid.validate import parse_dgs
+from convertersmartgrid.aplicacion.batch import convert_selection
+from convertersmartgrid.aplicacion.reglas import SIN_REGLAS
+from convertersmartgrid.dominio.naming import feeder_short_name
+from convertersmartgrid.adaptadores.validate import parse_dgs
 from synthetic_export import ExportSpec, load_export
 
 
@@ -156,7 +156,7 @@ class TestOutputMatchesInputWhateverTheSize:
 
     def test_phases_present_in_the_txt_survive_into_the_model(self, tmp_path):
         """El generador alterna ABC/AB/A; el modelo debe conservar lo leído."""
-        from convertersmartgrid.model import build_feeder_model
+        from convertersmartgrid.dominio.model import build_feeder_model
 
         spec = ExportSpec(feeders=1, sections_per_feeder=6)
         ds = load_export(spec, tmp_path / 'src')
@@ -325,8 +325,8 @@ class TestNoFullTableScanPerFeeder:
     """
 
     def test_feeder_conversion_uses_only_the_indices(self, tmp_path):
-        from convertersmartgrid.geography import build_geography
-        from convertersmartgrid.model import build_feeder_model
+        from convertersmartgrid.adaptadores.geography import build_geography
+        from convertersmartgrid.dominio.model import build_feeder_model
 
         seed = _scale_seed()
         spec = ExportSpec(feeders=6, sections_per_feeder=8, loads_per_feeder=4,
@@ -407,12 +407,12 @@ class TestParallelWorkers:
         (None, 50, 1), (1, 50, 1), (4, 50, 4), (8, 3, 3), (4, 0, 1),
     ])
     def test_resolve_workers(self, workers, total, expected):
-        from convertersmartgrid.batch import resolve_workers
+        from convertersmartgrid.aplicacion.batch import resolve_workers
 
         assert resolve_workers(workers, total) == expected
 
     def test_zero_workers_is_automatic_and_capped(self):
-        from convertersmartgrid.batch import AUTO_WORKERS_MAX, resolve_workers
+        from convertersmartgrid.aplicacion.batch import AUTO_WORKERS_MAX, resolve_workers
 
         assert resolve_workers(0, 10_000) == min(AUTO_WORKERS_MAX, os.cpu_count() or 1)
         assert resolve_workers(0, 1) == 1

@@ -27,8 +27,8 @@ RAIZ = Path(__file__).resolve().parents[1]
 if str(RAIZ / 'src') not in sys.path:
     sys.path.insert(0, str(RAIZ / 'src'))
 
-from convertersmartgrid.asistente.maestro_real import SUBCARPETA, NINGUNA, clave_texto, datos_a_spans, leer_etiquetas  # noqa: E402
-from convertersmartgrid.asistente.tareas import TAREAS  # noqa: E402
+from convertersmartgrid.aplicacion.asistente.maestro_real import SUBCARPETA, NINGUNA, clave_texto, datos_a_spans, leer_etiquetas  # noqa: E402
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS  # noqa: E402
 
 LARGO_MIN, LARGO_MAX = 5, 400
 COLUMNAS = ('texto', 'tarea propuesta', 'datos propuestos', '¿correcta? (s/n)', 'tarea correcta', 'confianza', 'id')
@@ -341,7 +341,7 @@ def main(argv=None) -> int:
             s.add_argument('--excel', type=Path, help='Libro marcado; por defecto, revision.xlsx del almacén')
     args = p.parse_args(argv)
     if args.almacen is None:
-        from convertersmartgrid.asistente import almacen
+        from convertersmartgrid.aplicacion.asistente import almacen
         args.almacen = almacen.raiz()
     resultado = {'extraer': extraer, 'exportar': exportar, 'importar': importar}[args.accion](args)
     print(json.dumps(resultado, ensure_ascii=True))

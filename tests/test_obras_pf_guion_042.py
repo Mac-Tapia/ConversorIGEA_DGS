@@ -11,7 +11,7 @@ import random
 import pytest
 
 from apoyo import cargar_herramienta
-from convertersmartgrid.obras_pf import ObrasError, validar_obra
+from convertersmartgrid.aplicacion.obras_pf import ObrasError, validar_obra
 from test_obras_pf_guion import CON, SIN, _activas, _barra, _calibrada, _linea, _plan
 
 guion = cargar_herramienta('obras_pf.py', 'obras_042', tools_en_path=True)
@@ -257,7 +257,7 @@ def test_el_tipo_de_regulador_se_crea_activando_la_biblioteca(monkeypatch):
     """042:RF-34 — sin activar, CreateObject da None; se activa la biblioteca y se crea, y no se repite el que hay."""
     from types import SimpleNamespace as N
 
-    from convertersmartgrid.catalogo_reguladores import unidades_para
+    from convertersmartgrid.aplicacion.catalogo_reguladores import unidades_para
 
     guion = cargar_herramienta('obras_pf.py', 'obras_rf34', tools_en_path=True)
     creados = []
@@ -341,7 +341,7 @@ def test_el_tipo_del_proyecto_biblioteca_se_encuentra_por_el_nombre_pedido():
     guion = cargar_herramienta('obras_pf.py', 'obras_rf46', tools_en_path=True)
     tipo = N(loc_name='VR32_10kV_50A', GetClassName=lambda: 'TypVoltreg')
     carpeta = N(GetContents=lambda *_a: [tipo])
-    from convertersmartgrid.util import NOMBRES_ANTERIORES_PF
+    from convertersmartgrid.dominio.util import NOMBRES_ANTERIORES_PF
 
     anterior = NOMBRES_ANTERIORES_PF['CSG_Biblioteca_tipos']
     otro = N(loc_name=anterior, GetContents=lambda *_a: [])

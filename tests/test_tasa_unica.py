@@ -3,7 +3,7 @@ fórmula en el código (107:RF-7, 107:RF-11, 108:RF-9, 108:RF-13, 108:RF-17).
 
 La regla principal es ``pit.tasa_actualizacion`` (DL 25844, la fuente de derecho); ``vad.tasa_actualizacion`` es una
 remisión ``{"mismas_que": "pit.tasa_actualizacion"}`` con la cita del TdR. El FRC (factor de recuperación del capital)
-sale solo de ``convertersmartgrid.util.frc``: lo comprueba un análisis del árbol sintáctico de todo ``src/``. La
+sale solo de ``convertersmartgrid.dominio.util.frc``: lo comprueba un análisis del árbol sintáctico de todo ``src/``. La
 mutación de la tasa se hace en una copia del registro real en ``tmp_path``; la red, la demanda y los costos del PIT son
 los sintéticos y sorteados de ``test_pit_coym_registro`` (ninguna cifra de una empresa).
 """
@@ -18,9 +18,9 @@ import pytest
 
 from test_pit_coym_registro import CI, MONEDA, VIGENTES, _alta, _caso, _una
 
-from convertersmartgrid.registro_normativo import RegistroError, cargar_registro
-from convertersmartgrid.vad import pide_vad
-from convertersmartgrid.vad.pide_vad import CONTRATO, VadNivel, incorporar_pide, pide_desde_dict
+from convertersmartgrid.dominio.registro_normativo import RegistroError, cargar_registro
+from convertersmartgrid.aplicacion.vad import pide_vad
+from convertersmartgrid.aplicacion.vad.pide_vad import CONTRATO, VadNivel, incorporar_pide, pide_desde_dict
 
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'src'
@@ -150,10 +150,11 @@ def test_el_frc_sale_de_una_sola_funcion():
     0,124144 escrito; ``pide_economia.frc`` es la misma función (el PIT la importa de ahí) y la anualidad del libro de
     la empresa y la del VAD salen de ella. El detector no es vacío: encuentra la de ``util.frc``."""
     hallados = _frc_en_src()
-    assert hallados == {'convertersmartgrid/util.py': {'frc'}}, (
+    assert hallados == {'convertersmartgrid/dominio/util.py': {'frc'}}, (
         f'FRC escrito fuera de util.frc (o util.frc no lo tiene): {hallados}')
-    from convertersmartgrid import datos_empresa, pide_economia, util
-    from convertersmartgrid.pit import alternativas
+    from convertersmartgrid.aplicacion import datos_empresa, pide_economia
+    from convertersmartgrid.dominio import util
+    from convertersmartgrid.adaptadores.pit import alternativas
     assert pide_economia.frc is util.frc and alternativas.frc is util.frc and pide_vad.factor_recuperacion is util.frc
     assert util.frc(0.12, 30) == pytest.approx(_frc_a_mano(0.12, 30)) and round(util.frc(0.12, 30), 6) == 0.124144
     assert util.frc(0.0, 30) == pytest.approx(1 / 30)
@@ -234,14 +235,15 @@ def test_la_remision_se_resuelve_en_un_solo_sitio():
     """107:RF-7, 108:RF-9 — la remisión «mismas_que» la resuelve SOLO el registro (``regla_remitida`` de
     ``registro_normativo``): ningún otro módulo de ``src/`` lee esa clave, y el PIDE del VAD, el aVNR del SER, el
     capital de trabajo y la tasa «i» del Anexo 5 usan esa misma función, no una copia."""
-    from convertersmartgrid import registro_normativo as rn
-    from convertersmartgrid.vad import costos, coym, modelo_urbano
+    from convertersmartgrid.dominio import registro_normativo as rn
+    from convertersmartgrid.adaptadores.vad import costos, modelo_urbano
+    from convertersmartgrid.aplicacion.vad import coym
     lectores = set()
     for ruta in sorted(SRC.rglob('*.py')):
         arbol = ast.parse(ruta.read_text(encoding='utf-8'), filename=str(ruta))
         if any(isinstance(n, ast.Constant) and n.value == 'mismas_que' for n in ast.walk(arbol)):
             lectores.add(ruta.relative_to(SRC).as_posix())
-    assert lectores == {'convertersmartgrid/registro_normativo.py'}, (
+    assert lectores == {'convertersmartgrid/dominio/registro_normativo.py'}, (
         f'la remisión «mismas_que» se resuelve en más de un sitio, o fuera del registro: {sorted(lectores)}')
     unico = getattr(rn, 'regla_remitida', None)
     distintos = sorted(m.__name__ for m in (pide_vad, costos, coym, modelo_urbano)
@@ -257,7 +259,8 @@ def test_el_vad_entero_sigue_la_tasa_de_la_lce(tmp_path):
     el registro real, los tres leen el 12 % de la LCE, sin aviso, y el aVNR cita la regla de la LCE."""
     from datetime import date
 
-    from convertersmartgrid.vad import VadError, costos, coym, modelo_urbano
+    from convertersmartgrid.aplicacion.vad import VadError, coym
+    from convertersmartgrid.adaptadores.vad import costos, modelo_urbano
     normativa, vad = _copia_del_registro(tmp_path / 'r12')
     con_12 = cargar_registro(normativa, vad)
     normativa, vad = _copia_del_registro(tmp_path / 'r10', tasa=0.10)

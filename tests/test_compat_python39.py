@@ -86,7 +86,7 @@ def test_103_rf5_ningun_modulo_usa_sintaxis_posterior_a_python_39():
 def _guiones_de_digsilent() -> list[Path]:
     """Los guiones de ``tools/`` que corren dentro de DIgSILENT, del MISMO registro que usa el lanzador (los que atiende
     el servidor y los que van en su propio proceso, ``pf_arnes``), y los de ``tools/`` que ellos importan."""
-    from convertersmartgrid.pf_arnes import GUIONES_EN_SU_PROCESO, GUIONES_SERVIBLES
+    from convertersmartgrid.adaptadores.pf_arnes import GUIONES_EN_SU_PROCESO, GUIONES_SERVIBLES
 
     herramientas = RAIZ / 'tools'
     pendientes = [herramientas / nombre for nombre in sorted(GUIONES_SERVIBLES | GUIONES_EN_SU_PROCESO)]

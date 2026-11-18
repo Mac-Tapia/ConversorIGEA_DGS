@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.dgs import (
+from convertersmartgrid.adaptadores.dgs import (
     REF_DIAGRAM_UNITS_PER_METER,
     REF_SED_LV_KV,
     REF_SED_SIZE,
@@ -19,8 +19,8 @@ from convertersmartgrid.dgs import (
     visible_pointterm_nodes,
     write_dgs,
 )
-from convertersmartgrid.geography import GeoLine, GeoPoint, GeographyManifest
-from convertersmartgrid.model import (
+from convertersmartgrid.adaptadores.geography import GeoLine, GeoPoint, GeographyManifest
+from convertersmartgrid.dominio.model import (
     FeederModel,
     Line,
     LineType,
@@ -31,7 +31,7 @@ from convertersmartgrid.model import (
     extract_sed_code,
     sed_loc_name,
 )
-from convertersmartgrid.validate import parse_dgs, validate_dgs
+from convertersmartgrid.adaptadores.validate import parse_dgs, validate_dgs
 
 
 def test_extract_equipment_suffix_from_identifiers():
@@ -51,7 +51,7 @@ def test_line_irot_follows_geometry():
 
 
 def test_ug_parallel_rail_paths_taper_to_shared_endpoints():
-    from convertersmartgrid.dgs import ug_parallel_rail_paths
+    from convertersmartgrid.adaptadores.dgs import ug_parallel_rail_paths
 
     center = [(0.0, 0.0), (10.0, 0.0), (20.0, 0.0)]
     left, right = ug_parallel_rail_paths(center, offset=2.0)
@@ -127,7 +127,7 @@ def test_underground_span_single_d_lin_and_inair(tmp_path: Path):
 
 
 def test_parallel_circuit_offsets_two_abc_same_span():
-    from convertersmartgrid.dgs import parallel_circuit_graphic_offsets
+    from convertersmartgrid.adaptadores.dgs import parallel_circuit_graphic_offsets
 
     nodes = {
         'A': Node('A', 0, 0),
@@ -202,7 +202,7 @@ def test_los_vertices_intermedios_cuentan_para_la_hoja():
     es que los puntos intermedios entran en el cálculo; ya no que encojan la escala,
     porque ahora lo que crece es la hoja.
     """
-    from convertersmartgrid.dgs import DIAGRAM_SHEET_MARGIN_DU
+    from convertersmartgrid.adaptadores.dgs import DIAGRAM_SHEET_MARGIN_DU
 
     meter_xy = {'A': (0.0, 0.0), 'B': (100.0, 0.0)}
     lejano = 80_000.0

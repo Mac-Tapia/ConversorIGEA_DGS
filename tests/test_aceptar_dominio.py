@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.asistente.llm_destilacion import custodiar
-from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
-from convertersmartgrid.sources.snapshot import snapshot_from_paths
+from convertersmartgrid.aplicacion.asistente.llm_destilacion import custodiar
+from convertersmartgrid.adaptadores.powerfactory_binding import PowerFactoryProjectBinding
+from convertersmartgrid.dominio.sources.snapshot import snapshot_from_paths
 from tools.aceptar_dominio import preaceptar
 
 
@@ -93,7 +93,7 @@ def test_artefacto_ausente_impide_replay(caso):
 
 def test_recursos_bajos_bloquean_ml(caso, monkeypatch):
     """065:RF-21: el control comparte el umbral ML vigente, sin cargar pesos."""
-    monkeypatch.setattr('convertersmartgrid.training_coordinator._memoria_sistema',
+    monkeypatch.setattr('convertersmartgrid.aplicacion.training_coordinator._memoria_sistema',
                         lambda: {'fisica_gib': 1., 'commit_gib': 2.})
     resultado = ejecutar(caso, requiere_ml=True)
     assert resultado['listo_diagnostico'] is False
@@ -138,8 +138,8 @@ def test_version_de_manifiesto_no_admitida_bloquea(caso, version):
 
 def test_registro_compartido_tiene_precedencia(caso):
     """065:RF-21: la copia privada no oculta un vínculo compartido alterado."""
-    from convertersmartgrid.powerfactory_binding import REGISTRO_SCHEMA
-    from convertersmartgrid.web.workspace import REGISTRO_VINCULOS_FILE
+    from convertersmartgrid.adaptadores.powerfactory_binding import REGISTRO_SCHEMA
+    from convertersmartgrid.presentacion.web.workspace import REGISTRO_VINCULOS_FILE
     root, ws, _, _ = caso
     vinculo = dict(ws['pf_project_bindings']['Proyecto'])
     vinculo['source_mode'] = 'mdb'
@@ -155,7 +155,7 @@ def test_manifiesto_nuevas_solo_en_operaciones_que_lo_consumen(tmp_path, monkeyp
     """065:RF-21: el inventario estructural es independiente de demandas históricas ausentes."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     llamadas, planes = [], []
     def nuevas(*_):

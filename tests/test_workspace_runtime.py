@@ -5,7 +5,7 @@ from pathlib import Path
 
 def test_espacios_nuevos_fuera_del_codigo_y_antiguos_accesibles(tmp_path, monkeypatch):
     """065:RF-10 / 065:RF-12 — cambiar la raíz no abandona sesiones ni sus vínculos."""
-    from convertersmartgrid.web import workspace
+    from convertersmartgrid.presentacion.web import workspace
     root = tmp_path / 'codigo'
     (root / '.git').mkdir(parents=True)
     external = tmp_path / 'ejecucion'
@@ -28,7 +28,7 @@ def test_espacios_nuevos_fuera_del_codigo_y_antiguos_accesibles(tmp_path, monkey
 
 def test_override_explicito_no_descubre_otros_espacios(tmp_path, monkeypatch):
     """065:RF-12 — una instancia aislada no descubre datos de otra sesión por omisión."""
-    from convertersmartgrid.web import workspace
+    from convertersmartgrid.presentacion.web import workspace
     root = tmp_path / 'codigo'
     monkeypatch.setattr(workspace, 'project_root', lambda: root)
     wid = 'b' * 16
@@ -42,10 +42,10 @@ def test_override_explicito_no_descubre_otros_espacios(tmp_path, monkeypatch):
 
 def test_modelos_y_episodios_heredados_siguen_disponibles(tmp_path, monkeypatch):
     """065:RF-12 — una raíz nueva de espacios no abandona al asistente ya entrenado."""
-    from convertersmartgrid.web import workspace
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid import runtime_paths
-    from convertersmartgrid.digital_twin.buffer import raiz_buffer
+    from convertersmartgrid.presentacion.web import workspace
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.dominio import runtime_paths
+    from convertersmartgrid.adaptadores.digital_twin.buffer import raiz_buffer
     root = tmp_path / 'codigo'
     (root / '.git').mkdir(parents=True)
     monkeypatch.setattr(workspace, 'project_root', lambda: root)

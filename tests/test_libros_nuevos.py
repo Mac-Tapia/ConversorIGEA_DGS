@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import demanda_medida as dm
+from convertersmartgrid.aplicacion import demanda_medida as dm
 from test_pronostico_demanda import _libro_clientes, _libro_dia_hora, _serie, _suministros
 
 PASO = timedelta(minutes=15)
@@ -63,7 +63,7 @@ def _copia_al_mes(curva, anio: int, mes: int):
 def test_mes_repetido_se_detecta_y_uno_distinto_no():
     """104:RF-15 — ≥ 95 % de registros iguales en más de la mitad de las series: repite; otro mes medido, no;
     los clientes en cero no cuentan como iguales."""
-    from convertersmartgrid import libros_nuevos as ln
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
 
     marzo = {c: _mes_completo(2026, 3, base, ruido=i) for i, (c, base) in enumerate((('1', 30.), ('2', 80.), ('3', 5.)))}
     abril_copia = {c: _copia_al_mes(v, 2026, 4) for c, v in marzo.items()}
@@ -77,7 +77,7 @@ def test_mes_repetido_se_detecta_y_uno_distinto_no():
 def test_ficha_y_aviso_del_libro_nuevo_como_la_revision_manual(tmp_path):
     """104:RF-7, 104:RF-10, 104:RF-11, 104:RF-12, 104:RF-13, 104:RF-20 — mes y cómo, completo, periodo, nuevos y faltan, sin suministro, en cero y el
     libro de suministros de otro mes, en el texto de la revisión manual."""
-    from convertersmartgrid import libros_nuevos as ln
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
 
     sep = {c: _mes_completo(2026, 9, 20., ruido=i) for i, c in enumerate(('111', '222', '444'))}
     octubre = {'111': _mes_completo(2026, 10, 20., ruido=7), '222': _mes_completo(2026, 10, 30., ruido=8),
@@ -100,7 +100,7 @@ def test_ficha_y_aviso_del_libro_nuevo_como_la_revision_manual(tmp_path):
 def test_mes_incompleto_en_cero_y_solape_se_dicen(tmp_path):
     """104:RF-8, 104:RF-9, 104:RF-13, 104:RF-14 — un mes con días de menos, un cliente apagado y registros de un mes
     que ya da otro libro."""
-    from convertersmartgrid import libros_nuevos as ln
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
 
     corto = _mes_completo(2026, 10)[:10 * 96]
     apagado = [(t, 0.0, 0.0) for t, _p, _q in _mes_completo(2026, 10)]
@@ -116,7 +116,7 @@ def test_mes_incompleto_en_cero_y_solape_se_dicen(tmp_path):
 
 def test_libro_que_no_se_lee_se_dice(tmp_path):
     """104:RF-18 — un libro roto da su motivo; no lanza."""
-    from convertersmartgrid import libros_nuevos as ln
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
 
     roto = tmp_path / 'roto.xlsx'
     roto.write_bytes(b'no es un libro')
@@ -128,7 +128,7 @@ def test_libro_que_no_se_lee_se_dice(tmp_path):
 def test_mes_repetido_en_una_hoja_de_cabecera(tmp_path):
     """104:RF-17 — en el libro de cabecera, la hoja cuyo abril repite marzo se dice con la hoja y los dos meses; un
     medidor congelado no."""
-    from convertersmartgrid import libros_nuevos as ln
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
     from test_pronostico_demanda import _libro_cabecera
 
     marzo = _mes_completo(2026, 3, 500., ruido=1)
@@ -144,7 +144,7 @@ def test_mes_repetido_en_una_hoja_de_cabecera(tmp_path):
 
 def test_foto_y_cambios_sin_abrir_libros(tmp_path, monkeypatch):
     """104:RF-1, 104:RF-3 — la foto lista libros sin abrirlos; nuevos, cambiados y retirados."""
-    from convertersmartgrid import libros_nuevos as ln
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
 
     (tmp_path / '2026').mkdir()
     (tmp_path / '2026/a.xlsx').write_bytes(b'1')
@@ -162,7 +162,7 @@ def test_el_dataset_aparta_el_libro_que_repite_el_mes_anterior(tmp_path):
     """104:RF-26 — fuera de la web también: el libro copiado no entra y su motivo queda en los apartados."""
     import numpy as np
 
-    from convertersmartgrid import pronostico_demanda as pd_
+    from convertersmartgrid.adaptadores import pronostico_demanda as pd_
     from test_pronostico_demanda import _equivalencia, _libro_cabecera
 
     enero = {'111': _mes_completo(2026, 1, 30., ruido=1), '222': _mes_completo(2026, 1, 50., ruido=2)}
@@ -205,10 +205,10 @@ def test_la_herramienta_guarda_el_perfil_con_el_dataset(tmp_path):
 def test_el_estado_se_guarda_aunque_windows_niegue_un_instante_el_reemplazo(tmp_path, monkeypatch):
     """104:RF-48. Si la web lee el estado mientras se publica, Windows niega el ``replace`` con WinError 5 y el guardado
     se perdía entero (rep_fichero_9, 2026-11-14). Ahora se reintenta, y sigue siendo atómico."""
-    from convertersmartgrid import libros_nuevos as ln
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
 
-    monkeypatch.setattr('convertersmartgrid.util.os.name', 'nt')
-    monkeypatch.setattr('convertersmartgrid.util.ESPERAS_SUSTITUIR_S', (0, 0, 0))
+    monkeypatch.setattr('convertersmartgrid.dominio.util.os.name', 'nt')
+    monkeypatch.setattr('convertersmartgrid.dominio.util.ESPERAS_SUSTITUIR_S', (0, 0, 0))
     ln.guardar_estado(tmp_path, {'dataset': {'estado': 'anterior'}})
     original = Path.replace
     negados = []
@@ -228,10 +228,10 @@ def test_el_estado_se_guarda_aunque_windows_niegue_un_instante_el_reemplazo(tmp_
 
 def test_el_estado_no_se_da_por_guardado_si_windows_lo_niega_siempre(tmp_path, monkeypatch):
     """104:RF-48. Pasados los reintentos, el error sube y el estado anterior queda entero."""
-    from convertersmartgrid import libros_nuevos as ln
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
 
-    monkeypatch.setattr('convertersmartgrid.util.os.name', 'nt')
-    monkeypatch.setattr('convertersmartgrid.util.ESPERAS_SUSTITUIR_S', (0, 0, 0))
+    monkeypatch.setattr('convertersmartgrid.dominio.util.os.name', 'nt')
+    monkeypatch.setattr('convertersmartgrid.dominio.util.ESPERAS_SUSTITUIR_S', (0, 0, 0))
     ln.guardar_estado(tmp_path, {'dataset': {'estado': 'anterior'}})
 
     def replace_negado(self, destino):

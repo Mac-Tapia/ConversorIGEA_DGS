@@ -11,9 +11,9 @@ from pathlib import Path
 import pytest
 from docx import Document
 
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.informes import (Cifra, apartados, escribir_informe_estudio,
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.adaptadores.vad.informes import (Cifra, apartados, escribir_informe_estudio,
                                              escribir_resultados_relevantes)
 
 RAIZ = Path(__file__).resolve().parents[1]

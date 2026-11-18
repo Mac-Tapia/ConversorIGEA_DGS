@@ -14,8 +14,8 @@ import pytest
 
 import fake_pf
 from apoyo import cargar_herramienta, contexto_nativo
-from convertersmartgrid import protecciones as pr
-from convertersmartgrid.experimentos import ContextoExperimento
+from convertersmartgrid.aplicacion import protecciones as pr
+from convertersmartgrid.aplicacion.experimentos import ContextoExperimento
 
 guion = cargar_herramienta('protecciones_pf.py', 'protecciones_049', tools_en_path=True)
 

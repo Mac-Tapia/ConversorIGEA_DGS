@@ -2,7 +2,7 @@
 
 ## Dónde
 
-- `src/convertersmartgrid/cargas_pf.py`: alias `siglasdecarga`, `siglas` y `sigla` → `sigla`; en
+- `src/convertersmartgrid/aplicacion/cargas_pf.py`: alias `siglasdecarga`, `siglas` y `sigla` → `sigla`; en
   `leer_hoja_nuevas`, el nombre es la SED, si no la sigla y, si no, la descripción (RF-1, RF-2); `CargaNueva` guarda
   la descripción en `descripcion` y `a_dict` la lleva al plan (RF-3).
 

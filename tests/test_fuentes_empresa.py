@@ -6,7 +6,7 @@ import zipfile
 
 import pytest
 
-from convertersmartgrid import fuentes_empresa as fe
+from convertersmartgrid.aplicacion import fuentes_empresa as fe
 
 
 def _libro(tmp_path, nombre, contenido):
@@ -57,7 +57,7 @@ def test_109_rf24_la_matriz_de_vinculos_cita_cada_vinculo():
     """Cada entrada compartida, propia o entregable de config/modulos/vinculos.json lleva su cita (norma y clave del
     registro, artículo) o dice que es una decisión de producto; cada clave citada existe en el registro."""
     from pathlib import Path
-    from convertersmartgrid.registro_normativo import cargar_registro
+    from convertersmartgrid.dominio.registro_normativo import cargar_registro
     raiz = Path(__file__).resolve().parents[1]
     v = json.loads((raiz / 'config' / 'modulos' / 'vinculos.json').read_text(encoding='utf-8'))
     # El registro de las normas y el del TdR del VAD (config/vad): las citas del VAD son claves de ese.
@@ -78,7 +78,7 @@ def test_109_rf24_la_matriz_de_vinculos_cita_cada_vinculo():
 def test_109_rf25_la_carga_de_un_paquete_vnr_gis_deja_la_red_en_el_espacio(tmp_path):
     """109:RF-26 — la carga web trabaja en <espacio>/runs/<id>; la red convertida queda en el espacio, no en la corrida."""
     from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import CanonicalModel, Section
-    from convertersmartgrid.sources.vnr import _guardar_red
+    from convertersmartgrid.adaptadores.sources.vnr import _guardar_red
     m = CanonicalModel()
     m.sections.append(Section('T1', 'A', 'B', feeder_id='AL01'))
     corrida = tmp_path / 'espacio' / 'runs' / 'r1'

@@ -11,12 +11,12 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.web import services
+from convertersmartgrid.presentacion.web import services
 
 
 @pytest.fixture
 def web(tmp_path, monkeypatch):
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     for nombre, valor in (('CSG_ASISTENTE_DATA', tmp_path / 'asistente'), ('CSG_TWIN_DATA', tmp_path / 'gemelo'),
                           ('CSG_WEB_FRONTEND', tmp_path / 'sin_front'), ('CSG_ML_GPU_LOCK', tmp_path / 'gpu.lock')):

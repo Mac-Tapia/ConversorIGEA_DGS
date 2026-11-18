@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.dataset import CymdistDataset
-from convertersmartgrid.dgs import _ORIGEN_DGS
-from convertersmartgrid.model import FeederModel
+from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dgs import _ORIGEN_DGS
+from convertersmartgrid.dominio.model import FeederModel
 
 
 def test_el_txt_sigue_diciendo_cymdist_y_las_otras_fuentes_no():
@@ -24,7 +24,7 @@ def test_el_dataset_y_el_modelo_traen_su_fuente_con_txt_por_defecto():
     assert {f.name: f.default for f in fields(FeederModel)}['fuente'] == 'txt'
 
 
-@pytest.mark.parametrize('modulo, fuente', [('convertersmartgrid/access.py', 'mdb'),
+@pytest.mark.parametrize('modulo, fuente', [('convertersmartgrid/adaptadores/access.py', 'mdb'),
                                             ('convertersmartgrid/adaptadores/entrada/vnr/application/cymdist_bridge.py', 'vnr')])
 def test_cada_lector_declara_su_fuente(modulo, fuente):
     """056:RF-6 — el lector de Access y el puente de VNR-GIS no dejan la fuente en TXT."""

@@ -8,7 +8,7 @@ Qué hace, en orden:
 
 1. Une los 96 alimentadores en una sola grid, con la tensión de cada uno, su fuente
    tomada del ``SOURCE`` de su TXT, y los enlaces entre alimentadores como
-   interruptores **normalmente abiertos** (ver :mod:`convertersmartgrid.combine`).
+   interruptores **normalmente abiertos** (ver :mod:`convertersmartgrid.aplicacion.combine`).
 2. La importa en PowerFactory como proyecto nuevo y crea el caso de estudio
    **AÑO_0_BASE** con su escenario de operación.
 3. Hace converger el flujo de potencia y comprueba que el resultado es utilizable:
@@ -46,9 +46,9 @@ for _flujo in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # pragma: no cover
         pass
 
-from convertersmartgrid.combine import build_combined  # noqa: E402
-from convertersmartgrid.dgs import write_dgs  # noqa: E402
-from convertersmartgrid.studies import (  # noqa: E402
+from convertersmartgrid.aplicacion.combine import build_combined  # noqa: E402
+from convertersmartgrid.adaptadores.dgs import write_dgs  # noqa: E402
+from convertersmartgrid.aplicacion.studies import (  # noqa: E402
     ESTUDIOS,
     PESADO,
     auditar_datos,
@@ -74,9 +74,9 @@ LIMITE_CARGABILIDAD = 80.0
 
 def _cargar_dataset(args):
     if args.mdb:
-        from convertersmartgrid.access import read_access_dataset
+        from convertersmartgrid.adaptadores.access import read_access_dataset
         return read_access_dataset(args.mdb, equipment_db=args.equipment_mdb)
-    from convertersmartgrid.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
     return CymdistDataset.from_files(args.red, args.cargas, args.equipos)
 
 
@@ -275,8 +275,8 @@ def main(argv: list[str] | None = None) -> int:
 
     geografia = None
     if not args.sin_geografia:
-        from convertersmartgrid.geography import assert_metre_source_crs, build_geography, exigir_crs_origen
-        from convertersmartgrid.perfil_empresa import crs_o_perfil
+        from convertersmartgrid.adaptadores.geography import assert_metre_source_crs, build_geography, exigir_crs_origen
+        from convertersmartgrid.dominio.perfil_empresa import crs_o_perfil
         args.source_crs = exigir_crs_origen(crs_o_perfil(args.source_crs))
         assert_metre_source_crs(args.source_crs)
         geografia = build_geography(ds, modelo, source_crs=args.source_crs)

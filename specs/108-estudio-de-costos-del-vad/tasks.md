@@ -8,7 +8,7 @@ empieza hasta que la T13 esté cerrada. Ninguna tarea modifica `web/services.py`
 leído: las tareas que la necesitan empiezan por leer el anexo y transcribirlo con su cita (fichero y líneas de la
 copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la página del PDF oficial).
 
-- [x] T1. Paquete `src/convertersmartgrid/vad/` y registro del estudio: `vad/estudio.py` con `EstudioVad` (empresa
+- [x] T1. Paquete `src/convertersmartgrid/aplicacion/vad/` y registro del estudio: `vad/estudio.py` con `EstudioVad` (empresa
       del perfil, grupo, periodo, versión del TdR y estado), guardado en `<espacio>/vad/<id>/estudio.json`, aparte del
       PIDE y del PIT. Un estudio no lee ni escribe en las carpetas del PIDE. (RF-1)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_estudio.py` en verde, con dos empresas
@@ -17,7 +17,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       RCD 033-2026-OS/CD y el índice de anexos del texto modificado (copia local, líneas 142-150), cada entrada con
       acto, anexo, versión, `estado_juridico` (vocabulario del registro común `registro_normativo.py`, 107 T1: vigente_comprobada, modificada, prepublicada, no_verificada…), URL, fichero local, líneas, SHA-256,
       fecha de lectura, moneda e IGV. Leer el anexo 1 y comprobar a qué grupo pertenece cada empresa del caso, porque
-      G0 solo lo dedujo de los considerandos. Las entradas del TdR VAD se cargan en el registro normativo común `src/convertersmartgrid/registro_normativo.py` (lo crea la 107 T1; si la 108 va antes, lo crea esta tarea con ese mismo contrato); `vad/` solo lo usa, sin un registro propio (P5). (RF-9,
+      G0 solo lo dedujo de los considerandos. Las entradas del TdR VAD se cargan en el registro normativo común `src/convertersmartgrid/dominio/registro_normativo.py` (lo crea la 107 T1; si la 108 va antes, lo crea esta tarea con ese mismo contrato); `vad/` solo lo usa, sin un registro propio (P5). (RF-9,
       RF-10)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_normativa.py` en verde. Las pruebas cubren
       un TdR `proyecto` o `pendiente`, un `igv: sin_leer` y una entrada sin cita, y en los tres casos el estudio queda
@@ -179,7 +179,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       `JobManager.submit(..., lane='engine')`: cancelable entre sistemas, independiente por sistema y con el
       manifiesto escrito siempre, también al cancelar. `tools/vad_estudio.py`, con docstring y `--help` sin
       DIgSILENT. Una fila por fichero nuevo en `CODIGO_FUENTE.md`, con «108». `tests/test_vad_universal.py` falla si
-      `src/convertersmartgrid/vad/`, `config/vad/` o `tests/test_vad_*` contienen el nombre, un código, un CRS o un
+      `src/convertersmartgrid/aplicacion/vad/`, `config/vad/` o `tests/test_vad_*` contienen el nombre, un código, un CRS o un
       periodo de una empresa. (RF-13, RF-1, RF-5, RF-7)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_vad_trabajo.py tests/test_vad_universal.py` en
       verde, la prueba del inventario de la spec 009 en verde y `.venv/Scripts/python.exe tools/vad_estudio.py --help`

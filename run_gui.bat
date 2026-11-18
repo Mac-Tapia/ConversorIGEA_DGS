@@ -14,14 +14,14 @@ set PYTHONPATH=src
 set PYTHONDONTWRITEBYTECODE=1
 rem 086:RF-39: arrancar nunca instala. Instalaba de internet lo que faltara, y un paquete mas nuevo o una red
 rem cortada cambiaba el programa o lo dejaba a medias en mitad de un arranque.
-"%PY%" -m convertersmartgrid.web.runtime
+"%PY%" -m convertersmartgrid.presentacion.web.runtime
 if errorlevel 1 goto :dependency_error
 
 rem El front se compila si falta o si su codigo es mas reciente que la compilacion
 rem (spec 001, RF-27): antes solo si faltaba, y tras un cambio se seguia sirviendo
 rem la version anterior sin avisar. Node.js solo hace falta para compilar, y sus paquetes
 rem se instalan aparte: compilar no sale a internet (086:RF-39).
-"%PY%" -m convertersmartgrid.web.runtime --front
+"%PY%" -m convertersmartgrid.presentacion.web.runtime --front
 if errorlevel 1 (
   where npm 1>nul 2>nul
   if errorlevel 1 (
@@ -43,17 +43,17 @@ if errorlevel 1 (
       goto :front_error
     )
     popd
-    "%PY%" -m convertersmartgrid.web.runtime --front-integrity
+    "%PY%" -m convertersmartgrid.presentacion.web.runtime --front-integrity
     if errorlevel 1 goto :front_error
   )
 )
 
 echo Abriendo la interfaz web en el navegador...
-rem Con el puerto ocupado, convertersmartgrid.web reutiliza el Conversor abierto, reemplaza el de
+rem Con el puerto ocupado, convertersmartgrid.presentacion.web reutiliza el Conversor abierto, reemplaza el de
 rem otra version o cambia de puerto (spec 001, RF-28 a RF-31): ya no hace falta pausa.
 rem 3 = otra version con trabajos en curso, abierta en el navegador: se deja leer el
 rem aviso y la ventana se cierra sola.
-"%PY%" -m convertersmartgrid.web
+"%PY%" -m convertersmartgrid.presentacion.web
 set "WEB_EXITCODE=%ERRORLEVEL%"
 if "%WEB_EXITCODE%"=="3" (
   call timeout /t 20

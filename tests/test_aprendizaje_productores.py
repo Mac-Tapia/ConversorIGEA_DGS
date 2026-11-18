@@ -11,10 +11,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid import aprendizaje_continuo as ac
-from convertersmartgrid.productores_aprendizaje import ProductoresReales
-from convertersmartgrid.trabajadores_ml import leer_dataset_v2
-from convertersmartgrid.asistente.dataset_entrenamiento import (
+from convertersmartgrid.aplicacion import aprendizaje_continuo as ac
+from convertersmartgrid.adaptadores.productores_aprendizaje import ProductoresReales
+from convertersmartgrid.aplicacion.trabajadores_ml import leer_dataset_v2
+from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import (
     escribir_particiones, normalizar_orden,
 )
 
@@ -111,9 +111,9 @@ def test_productor_buffer_lee_objetos_sin_tocar_indice_y_respeta_partes(tmp_path
     """050:RF-2/3 — episodios validados, identidad fuente y particiones del oráculo, sin entrenar."""
     from test_digital_twin_episode import _payload
     from test_gemelo_contratos_v2 import _grafo
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-    from convertersmartgrid.digital_twin.productor_pinn import muestras_aprendizaje
-    from convertersmartgrid.digital_twin.episode import leer_episodio, episodio_a_dict
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.adaptadores.digital_twin.productor_pinn import muestras_aprendizaje
+    from convertersmartgrid.dominio.digital_twin.episode import leer_episodio, episodio_a_dict
 
     fuente = tmp_path / 'fuente.txt'
     fuente.write_text('fuente nativa custodiada', encoding='utf-8')
@@ -145,9 +145,9 @@ def test_productor_buffer_lee_objetos_sin_tocar_indice_y_respeta_partes(tmp_path
 def test_productor_temporal_conserva_las_ventanas_reales_sin_gpu(tmp_path):
     """050:RF-2/3 — partición por día y referencias por ventana que consumirá la GRU."""
     from datetime import datetime, timedelta, timezone
-    from convertersmartgrid.digital_twin.pronostico import Objetivo, construir_conjunto
-    from convertersmartgrid.digital_twin.evaluacion_temporal import POLITICA_TEMPORAL
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import muestras_de_ventanas
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo, construir_conjunto
+    from convertersmartgrid.adaptadores.digital_twin.evaluacion_temporal import POLITICA_TEMPORAL
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import muestras_de_ventanas
 
     fuente = tmp_path / 'medida.csv'
     fuente.write_text('medidas de contrato', encoding='utf-8')
@@ -181,7 +181,7 @@ def test_productor_temporal_conserva_las_ventanas_reales_sin_gpu(tmp_path):
 
 def test_productor_generativo_no_convierte_maestro_en_humano(tmp_path):
     """050:RF-2/3/8 — el lector sellado rechaza el corpus incompleto antes de entrenar."""
-    from convertersmartgrid.asistente.llm_destilacion import muestras_aprendizaje
+    from convertersmartgrid.aplicacion.asistente.llm_destilacion import muestras_aprendizaje
     corpus = tmp_path / 'corpus'
     corpus.mkdir()
     (corpus / 'dataset_manifest.json').write_text('{}', encoding='utf-8')
@@ -195,7 +195,7 @@ def test_productor_generativo_no_convierte_maestro_en_humano(tmp_path):
 def test_embeddings_emite_consultas_consumidas_con_reserva_independiente(tmp_path):
     """050:RF-2/3/6 — el productor usa consultas reales del lector compartido y sus partes."""
     from dataclasses import replace
-    from convertersmartgrid.asistente.dataset_entrenamiento import muestras_aprendizaje
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import muestras_aprendizaje
     inst, fila, _ = _captura(tmp_path)
     fragmento = replace(fila, record_id='contexto1', group_id='grupo_contexto1',
         tipo='artefacto_contexto', quality='context',
@@ -241,11 +241,11 @@ def test_evolutivos_consume_caso_con_contexto_043_declarado(tmp_path):
     """050:RF-2/3/8, 048:RF-1 — el problema usa el episodio congelado; no anuncia aceptación nativa."""
     from test_digital_twin_episode import _payload
     from test_gemelo_contratos_v2 import _grafo
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-    from convertersmartgrid.digital_twin.episode import leer_episodio
-    from convertersmartgrid.digital_twin.evolutivo import casos_aprendizaje
-    from convertersmartgrid.digital_twin.problema_optimizacion import evaluar_vector
-    from convertersmartgrid.experimentos import ContextoExperimento, clave_contexto
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.dominio.digital_twin.episode import leer_episodio
+    from convertersmartgrid.adaptadores.digital_twin.evolutivo import casos_aprendizaje
+    from convertersmartgrid.adaptadores.digital_twin.problema_optimizacion import evaluar_vector
+    from convertersmartgrid.aplicacion.experimentos import ContextoExperimento, clave_contexto
 
     fuente = tmp_path / 'fuente.txt'
     fuente.write_text('fuente del grafo de contrato', encoding='utf-8')
@@ -295,7 +295,7 @@ def test_evolutivos_consume_caso_con_contexto_043_declarado(tmp_path):
     resultado = json.loads(reporte.read_text(encoding='utf-8'))
     assert resultado['status'] == 'RECHAZADO' and resultado['evaluation_completed'] is True
     assert resultado['training_completed'] is False and resultado['promovido'] is False
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     reg = RegistroModelo(registro)
     assert reg.detalle('evolutivos', resultado['candidate_id'])['decision']['status'] == 'RECHAZADO'
     assert reg.activo('evolutivos') is None
@@ -370,7 +370,7 @@ def test_verificar_snapshot_v1_previo_no_reinterpreta_sus_archivos(tmp_path):
 def test_referencia_pinn_ausente_no_se_convierte_en_mejora(tmp_path):
     """050:RF-6/7/8 — primer candidato posible, pero un previo individual no se pierde por usar vista."""
     from test_aprendizaje_continuo import _instantanea, _candidato
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     inst = _instantanea(tmp_path)
     reg = RegistroModelo(tmp_path / 'registro')
     primera = ac.referencia_pinn_ciclo(inst, registro=reg)
@@ -384,7 +384,7 @@ def test_referencia_pinn_ausente_no_se_convierte_en_mejora(tmp_path):
 def test_referencia_pinn_declarada_exige_conjunto_e_identidad_exactos(tmp_path):
     """050:RF-6/7/8 — una referencia sellada ausente o distinta bloquea, sin modelo inicial implícito."""
     from test_aprendizaje_continuo import _ciclo_terminado, CTX
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     reg = RegistroModelo(tmp_path / 'registro')
     ciclo = _ciclo_terminado(tmp_path, reg)
     publicado = ac.publicar_conjunto(tmp_path / 'aprendizaje', reg, ciclo,

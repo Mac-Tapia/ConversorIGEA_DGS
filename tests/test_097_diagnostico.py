@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.asistente import evaluacion_rag as er
+from convertersmartgrid.aplicacion.asistente import evaluacion_rag as er
 
 RAIZ = Path(__file__).resolve().parents[1]
 

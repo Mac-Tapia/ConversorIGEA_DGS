@@ -16,9 +16,9 @@ from apoyo import contrato_fisico
 # pasadas (Windows, 2026-11-03), dentro de la carga de módulos de pandapower.
 pp = pytest.importorskip('pandapower')
 
-from convertersmartgrid.digital_twin import oraculo as orc
-from convertersmartgrid.digital_twin.contratos_fisicos import VERSION_GRAFO, validar_alcance_fisico
-from convertersmartgrid.digital_twin.flujo import Z_ACOPLADOR
+from convertersmartgrid.adaptadores.digital_twin import oraculo as orc
+from convertersmartgrid.adaptadores.digital_twin.contratos_fisicos import VERSION_GRAFO, validar_alcance_fisico
+from convertersmartgrid.adaptadores.digital_twin.flujo import Z_ACOPLADOR
 
 
 def _grafo(nodos, ramas, **extra) -> dict:
@@ -207,7 +207,7 @@ def test_sin_relaciones_el_flujo_no_cambia():
     ramas = [_linea(f'L{i}', 'S' if i == 0 else f'N{i - 1}', f'N{i}', rnd.uniform(0.2, 0.6), rnd.uniform(0.2, 0.5)) for i in range(8)]
     m = orc.muestra(_grafo(nodos, ramas))
     assert (m.ru == 1.0).all() and (m.rw == 1.0).all() and (m.s_shunt == 0).all()
-    from convertersmartgrid.digital_twin.flujo import SistemaMallado
+    from convertersmartgrid.adaptadores.digital_twin.flujo import SistemaMallado
 
     sin = SistemaMallado(m.aristas, m.z, m.fuente, m.x[:, 4], m.alimentado).resolver(m.s_carga)
     con = orc.sistema_de(m).resolver(m.s_carga)

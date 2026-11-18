@@ -29,9 +29,9 @@ OTROS = ('config/', 'instalador/', '.githooks/')
 S = 'src/convertersmartgrid/'
 #: Lo que el generador necesita leer, también para copiarlo a un repositorio de prueba.
 FUENTES = ('pyproject.toml', 'CODIGO_FUENTE.md', MAPA, 'docs/implementacion065/deuda_arquitectura.json',
-           S + 'asistente/tareas.py', S + 'asistente/equipo.py', S + 'asistente/revision_roles.py',
-           S + 'asistente/orquestador.py', S + 'asistente/interprete.py', S + 'asistente/transformer.py',
-           S + 'contratos_aprendizaje.py', S + 'edicion.py', S + 'web/jobs.py', S + 'web/app.py', S + 'web/services.py',
+           S + 'aplicacion/asistente/tareas.py', S + 'aplicacion/asistente/equipo.py', S + 'aplicacion/asistente/revision_roles.py',
+           S + 'aplicacion/asistente/orquestador.py', S + 'aplicacion/asistente/interprete.py', S + 'aplicacion/asistente/transformer.py',
+           S + 'dominio/contratos_aprendizaje.py', S + 'dominio/edicion.py', S + 'presentacion/web/jobs.py', S + 'presentacion/web/app.py', S + 'presentacion/web/services.py',
            'src/convertersmartgrid/adaptadores/entrada/vnr/web/app.py')
 _RUTA = re.compile(r'@(?:router|app)\.(?:get|post|put|patch|delete|websocket)\(\s*f?[\'"]([^\'"]+)')
 _FILA = re.compile(r'^\| `([^`]+)` \| (.*) \| ([^|]*) \|\s*$', re.M)
@@ -233,7 +233,7 @@ def documento(fuente: Fuente) -> str:
                      ('Pruebas', 'tests/'), ('Pruebas de modelos', 'tests_ml/'), ('Specs', 'specs/'))
     salida += _tabla(('Parte', 'Carpeta', 'Ficheros'),
                      [(t, f'`{p}`', sum(f.startswith(p) for f in todos)) for t, p in grupos_tamano])
-    servicios = fuente.leer(S + 'web/services.py')
+    servicios = fuente.leer(S + 'presentacion/web/services.py')
     funciones = sum(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) for n in ast.parse(servicios).body)
     salida += ['', f'`web/services.py` tiene {len(servicios.splitlines())} líneas y {funciones} funciones, pendiente de partir (002).', '']
 
@@ -253,9 +253,9 @@ def documento(fuente: Fuente) -> str:
     salida += _tabla(('Capa', 'Abrev.', 'Módulos'), [(c, NOMBRES_CAPA.get(c, '—'), n) for c, n in sorted(reparto.items(), key=lambda e: (-e[1], e[0]))])
     salida += ['', f'{len(modulos)} módulos y {len(deuda["excepciones"])} excepciones en la deuda de `tools/arquitectura.py`.', '']
 
-    salida += ['### Carriles de trabajos', '', ', '.join(f'`{c}`' for c in constante(fuente.leer(S + 'web/jobs.py'), 'LANES')) + '.', '']
+    salida += ['### Carriles de trabajos', '', ', '.join(f'`{c}`' for c in constante(fuente.leer(S + 'presentacion/web/jobs.py'), 'LANES')) + '.', '']
 
-    familias = rutas(fuente.leer(S + 'web/app.py'))
+    familias = rutas(fuente.leer(S + 'presentacion/web/app.py'))
     vnr = len(_RUTA.findall(fuente.leer('src/convertersmartgrid/adaptadores/entrada/vnr/web/app.py')))
     salida += ['### Rutas de la API', '', f'{sum(familias.values())} en `web/app.py`, y {vnr} bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.', '']
     salida += _tabla(('Familia', 'Ámbito', 'Rutas'), [(f'`{n}`', a, c) for (a, n), c in sorted(familias.items(), key=lambda e: (-e[1], e[0]))])
@@ -296,17 +296,17 @@ def documento(fuente: Fuente) -> str:
 
 
 def _asistente(fuente: Fuente) -> list[str]:
-    catalogo = tareas(fuente.leer(S + 'asistente/tareas.py'))
-    equipo = fuente.leer(S + 'asistente/equipo.py')
+    catalogo = tareas(fuente.leer(S + 'aplicacion/asistente/tareas.py'))
+    equipo = fuente.leer(S + 'aplicacion/asistente/equipo.py')
     nativas = constante(equipo, '_NATIVAS')
-    interprete = fuente.leer(S + 'asistente/interprete.py')
-    orquestador = fuente.leer(S + 'asistente/orquestador.py')
+    interprete = fuente.leer(S + 'aplicacion/asistente/interprete.py')
+    orquestador = fuente.leer(S + 'aplicacion/asistente/orquestador.py')
     salida = ['', '## El asistente y su equipo', '',
               f"El intérprete acepta al modelo de órdenes con confianza {constante(interprete, 'UMBRAL_TRANSFORMER')}, salvo que traiga su umbral calibrado, "
               f"y a Ollama con {constante(interprete, 'UMBRAL_OLLAMA')}.", '', '### Equipo', '']
     salida += _tabla(('Rol', 'Ejecuta', 'Lee el proyecto', 'Encargo'),
                      [(f"`{r['rol']}`", _si(r['ejecuta']), _si(r['lee']), r['encargo'])
-                      for r in roles(equipo, fuente.leer(S + 'asistente/revision_roles.py'))])
+                      for r in roles(equipo, fuente.leer(S + 'aplicacion/asistente/revision_roles.py'))])
     salida += ['', f'### Tareas ({len(catalogo)})', '',
                'Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. Todas están en las dos ediciones (086:RF-15).', '']
     salida += _tabla(('Tarea', 'Modo', 'Escribe', 'Carril', 'Función', 'Datos', 'Qué hace'), [
@@ -322,8 +322,8 @@ def _asistente(fuente: Fuente) -> list[str]:
 
     salida += ['', '### Etapas del proyecto entero', '', *tabla_etapas('ETAPAS')]
     salida += ['', '### Etapas de una carga nueva', '', *tabla_etapas('ETAPAS_CARGA')]
-    familias = constante(fuente.leer(S + 'asistente/transformer.py'), 'FAMILIAS_MODELOS')
-    orden = constante(fuente.leer(S + 'contratos_aprendizaje.py'), 'ORDEN_MODELOS')
+    familias = constante(fuente.leer(S + 'aplicacion/asistente/transformer.py'), 'FAMILIAS_MODELOS')
+    orden = constante(fuente.leer(S + 'dominio/contratos_aprendizaje.py'), 'ORDEN_MODELOS')
     salida += ['', '### Familias de modelos', '', 'Orden de entrenamiento: ' + ', '.join(f'`{m}`' for m in orden) + '.', '',
                'Con puntero en uso gobernado por `asistente/modelos_en_uso.py`: ' + ', '.join(f'`{k}` ({v})' for k, v in sorted(familias.items())) + '.',
                'Qué modelo está en uso vive en `output/`, fuera de git: ver [`ARQUITECTURA.md`](ARQUITECTURA.md#modelos-024-026-043-045-046-060-069-075-079-085).']

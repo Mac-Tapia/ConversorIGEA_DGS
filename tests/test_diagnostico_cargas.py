@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from convertersmartgrid.estudios_pf import Limites
-from convertersmartgrid.informes import diagnostico_de_cargas
+from convertersmartgrid.aplicacion.estudios_pf import Limites
+from convertersmartgrid.adaptadores.informes import diagnostico_de_cargas
 
 LIM = Limites(tension_min_pu=0.95, tension_max_pu=1.05, cargabilidad_max_pct=100.0)
 
@@ -61,12 +61,12 @@ def test_sin_flujo_de_cargas_no_se_evalua():
 def test_el_diagnostico_de_42_sale_de_los_flujos_guardados(monkeypatch):
     """017:RF-106 ampliada — 4.2 muestra el diagnóstico con los flujos guardados de la última corrida de cada
     alimentador; sin flujo de «Cargas nuevas» no hay diagnóstico para ese alimentador."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     flujos = {'sin': {'medidas': {'AL01': SIN, 'AL02': SIN}, 'geo': {'AL01': GEO}},
               'cargas': {'medidas': {'AL01': CARGAS}, 'geo': {'AL01': GEO}}, 'con': None}
     monkeypatch.setattr(services, '_corridas_de_estudios', lambda _ws, _p: [])
     monkeypatch.setattr(services, '_ultimo_estudio', lambda _ws, rol, *_a: flujos[rol])
-    monkeypatch.setattr('convertersmartgrid.estudios_pf.limites_de_perfil', lambda: LIM)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.estudios_pf.limites_de_perfil', lambda: LIM)
     d = services.diagnostico_cargas(None, 'P', ['AL01', 'AL02'])['diagnosticos']
     assert list(d) == ['AL01'] and d['AL01']['provocados'] == 3 and d['AL01']['trechos'][0]['desde'] == 'C'

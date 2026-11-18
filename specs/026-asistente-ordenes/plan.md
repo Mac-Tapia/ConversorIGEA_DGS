@@ -4,7 +4,7 @@ Lee: `docs/constitution.md` y `specs/026-asistente-ordenes/spec.md`.
 
 ## Contexto técnico
 
-- Paquete nuevo `src/convertersmartgrid/asistente/`, sin importar PowerFactory. PyTorch (extra `ml`) para
+- Paquete nuevo `src/convertersmartgrid/aplicacion/asistente/`, sin importar PowerFactory. PyTorch (extra `ml`) para
   el Transformer y el clasificador, en la GPU como la PINN (024); Ollama por su API local
   (`http://127.0.0.1:11434`) con `urllib` de la biblioteca estándar, sin dependencias nuevas.
 - La ejecución pasa por las funciones de `web/services.py` que ya lanzan las pestañas

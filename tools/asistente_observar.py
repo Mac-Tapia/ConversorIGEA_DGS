@@ -9,8 +9,8 @@ from pathlib import Path
 
 
 def main(argv=None):
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.training_coordinator import ORDEN_MODELOS
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.aplicacion.training_coordinator import ORDEN_MODELOS
     p=argparse.ArgumentParser(description=__doc__)
     sub=p.add_subparsers(dest='accion',required=True)
     a=sub.add_parser('registrar')
@@ -20,7 +20,7 @@ def main(argv=None):
     a.add_argument('--raiz',type=Path)
     a=sub.add_parser('listar');a.add_argument('--raiz',type=Path)
     args=p.parse_args(argv)
-    from convertersmartgrid.asistente.observacion import registrar_evidencia,leer_evidencias
+    from convertersmartgrid.aplicacion.asistente.observacion import registrar_evidencia,leer_evidencias
     try:
         raiz=args.raiz or almacen.raiz()
         r=(registrar_evidencia(raiz,args.informe,familia=args.familia,etiqueta=args.etiqueta)

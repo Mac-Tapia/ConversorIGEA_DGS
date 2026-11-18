@@ -12,8 +12,8 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from ... import nube_cofre
-from ...salidas_red import SalidaApagada, motivo_apagada, salida_permitida
+from .. import nube_cofre
+from ...dominio.salidas_red import SalidaApagada, motivo_apagada, salida_permitida
 from .google_drive import HOSTS as HOSTS_GOOGLE
 from .google_drive import GoogleDrive
 from .http import Transporte

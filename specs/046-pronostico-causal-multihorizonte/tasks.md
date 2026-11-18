@@ -42,7 +42,7 @@ Fase 1, 2026-11-02, sin GPU (ningún modelo neuronal se ha entrenado ni cargado 
 - Pruebas sin GPU, en verde: `test_pronostico_objetivos`, `test_evaluacion_temporal`,
   `test_pronostico_multihorizonte`, `test_pronostico_competicion`, `test_pronostico_integracion`. Ciclo de
   fallo previo: antes de implementar, las cinco fallaban en la recogida con
-  `ModuleNotFoundError: convertersmartgrid.digital_twin.pronostico`.
+  `ModuleNotFoundError: convertersmartgrid.adaptadores.digital_twin.pronostico`.
 - Prueba de datos reales de T4 con `CSG_DEMANDA_DIR`: un libro mensual de clientes da curvas de 15 minutos.
 - Inventario real de 2026 con `--inventario`, solo lectura, informes en `output/inventario` (fuera de git).
   Cabecera, cuatro libros de sistema: del 1 de enero al 27 de octubre, 299 días, cadencia de 15 minutos en todos los

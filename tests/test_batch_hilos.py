@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 
-from convertersmartgrid.batch import _HILOS_DE_CALCULO, _un_hilo_de_calculo
+from convertersmartgrid.aplicacion.batch import _HILOS_DE_CALCULO, _un_hilo_de_calculo
 
 
 def test_un_hilo_mientras_dura_y_entorno_restituido(monkeypatch):

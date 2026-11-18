@@ -5,9 +5,9 @@ Un flujo que no converge no se acepta: se busca la causa y se corrige.
 ## Antes de importar en DIgSILENT
 
 1. Si el flujo del oráculo no converge, el sistema busca la causa antes de importar (057:RF-1) con
-   `corregir_para_converger` (`src/convertersmartgrid/oraculo.py:717` («def corregir_para_converger»)).
+   `corregir_para_converger` (`src/convertersmartgrid/adaptadores/oraculo.py:717` («def corregir_para_converger»)).
 2. Solo corrige las SED cuya demanda es de relleno o mayor que su potencia (057:RF-2); la corrección queda en el informe de
-   reglas del alimentador (`src/convertersmartgrid/reglas.py:261` («def _corregir_con_oraculo»)).
+   reglas del alimentador (`src/convertersmartgrid/aplicacion/reglas.py:261` («def _corregir_con_oraculo»)).
 3. A DIgSILENT solo llega la red que converge en el oráculo (057:RF-5). Si ni así converge, ese alimentador no se importa, se
    dice qué elementos lo impiden y el lote sigue con los demás (057:RF-6).
 

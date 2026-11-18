@@ -21,7 +21,7 @@ class _Ctx:
 
 
 def _sin_cargas(monkeypatch, tmp_path, bajas):
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setattr(services, '_ruta_de_medicion', lambda nombre: tmp_path / nombre)
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: [])
@@ -75,8 +75,8 @@ def test_cargas_pedidas_que_no_estan_aplicadas_se_rechazan_diciendo_cuales(monke
 
 def test_optimizar_sin_cargas_va_a_la_escalera_por_alimentador(monkeypatch, tmp_path):
     """086:RF-76 — el botón de la web pide «Con proyecto»; sin cargas no hay bisección ni SET nueva que proponer."""
-    from convertersmartgrid import perfil_empresa
-    from convertersmartgrid.web import services
+    from convertersmartgrid.dominio import perfil_empresa
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: [])
     monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {'planificacion': {}})

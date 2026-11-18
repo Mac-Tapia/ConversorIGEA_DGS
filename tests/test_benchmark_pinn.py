@@ -16,14 +16,14 @@ import pytest
 from apoyo import contrato_fisico
 from test_digital_twin_episode import _payload
 
-from convertersmartgrid.digital_twin import benchmark_fisico as bf
-from convertersmartgrid.digital_twin import oraculo as orc
-from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-from convertersmartgrid.digital_twin.contratos_fisicos import VERSION_GRAFO
-from convertersmartgrid.digital_twin.episode import leer_episodio
-from convertersmartgrid.digital_twin.evolutivo import verificar_top_k
-from convertersmartgrid.evaluacion_modelos import Particiones
-from convertersmartgrid.experimentos import ContextoExperimento, ExperimentoSpec
+from convertersmartgrid.adaptadores.digital_twin import benchmark_fisico as bf
+from convertersmartgrid.adaptadores.digital_twin import oraculo as orc
+from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+from convertersmartgrid.adaptadores.digital_twin.contratos_fisicos import VERSION_GRAFO
+from convertersmartgrid.dominio.digital_twin.episode import leer_episodio
+from convertersmartgrid.adaptadores.digital_twin.evolutivo import verificar_top_k
+from convertersmartgrid.aplicacion.evaluacion_modelos import Particiones
+from convertersmartgrid.aplicacion.experimentos import ContextoExperimento, ExperimentoSpec
 
 H = 'a' * 64
 RAIZ = Path(__file__).resolve().parents[1]
@@ -135,7 +135,7 @@ def test_pyg_ausente_no_rompe_base(bufer, monkeypatch):
 
 def test_el_nucleo_no_necesita_pyg_ni_torch():
     """045:RF-8 — importar el gemelo y sus ablaciones no carga PyTorch ni PyG."""
-    programa = ('import sys\nimport convertersmartgrid.digital_twin.benchmark_fisico\n'
+    programa = ('import sys\nimport convertersmartgrid.adaptadores.digital_twin.benchmark_fisico\n'
                 "assert not ({'torch', 'torch_geometric'} & sys.modules.keys())\n")
     r = subprocess.run([sys.executable, '-c', programa], capture_output=True, text=True, timeout=120,
                        env={**__import__('os').environ, 'PYTHONPATH': str(RAIZ / 'src')})
@@ -173,7 +173,7 @@ def test_guardar_y_reabrir_deja_la_sonda_sin_tocar_el_puntero(bufer, tmp_path):
     pytest.importorskip('torch')
     import json as _json
 
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios as Bufer
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios as Bufer
 
     destino = Bufer(tmp_path / 'b')
     muestras, _ids = orc._muestras(bufer, orc.Consulta())

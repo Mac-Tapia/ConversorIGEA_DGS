@@ -1,7 +1,7 @@
 """044:RF-8 047:RF-4 — métricas con soporte y recuperación, sin ejecutar modelos."""
 import unittest
 
-from convertersmartgrid.evaluacion_harness.metricas import (
+from convertersmartgrid.dominio.evaluacion_harness.metricas import (
     clasificacion,
     comparar_pareado,
     conteos,

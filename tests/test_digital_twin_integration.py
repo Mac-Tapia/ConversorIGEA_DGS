@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 from test_digital_twin_capture import _con_caso, _flujo, _lectura
 
-from convertersmartgrid.digital_twin import integration as it
-from convertersmartgrid.digital_twin.buffer import BuferEpisodios, Consulta
-from convertersmartgrid.digital_twin.episode import Caso
-from convertersmartgrid.estructura import AlimentadorEstructura, Estructura, Sistema
-from convertersmartgrid.native_action import build_native_action_context
+from convertersmartgrid.adaptadores.digital_twin import integration as it
+from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios, Consulta
+from convertersmartgrid.dominio.digital_twin.episode import Caso
+from convertersmartgrid.dominio.estructura import AlimentadorEstructura, Estructura, Sistema
+from convertersmartgrid.dominio.native_action import build_native_action_context
 
 RAIZ = Path(__file__).resolve().parents[1]
 H = 'e' * 64
@@ -82,7 +82,7 @@ def test_gemelo_no_relee_si_el_trabajo_se_cancelo(tmp_path, monkeypatch):
     """024:RF-9 — cancelado el trabajo, la lectura se lanzaba igual y se cortaba al empezar."""
     import threading
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setenv(it.VARIABLE_CAPTURA, '1')
     pedidos, registro = [], []
@@ -176,7 +176,7 @@ def test_captura_se_apaga_con_su_variable(monkeypatch):
                                      'guion_ejecutar'])
 def test_cada_accion_nativa_de_la_web_registra_su_episodio(funcion):
     """024:RF-1 — toda acción nativa de la web pasa por el único punto de captura."""
-    arbol = ast.parse((RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8'))
+    arbol = ast.parse((RAIZ / 'src' / 'convertersmartgrid' / 'presentacion' / 'web' / 'services.py').read_text(encoding='utf-8'))
     definicion = next(n for n in arbol.body if isinstance(n, ast.FunctionDef) and n.name == funcion)
     llamadas = {n.func.id for n in ast.walk(definicion)
                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
@@ -186,7 +186,7 @@ def test_cada_accion_nativa_de_la_web_registra_su_episodio(funcion):
 def test_gemelo_de_la_web_con_la_lectura_del_guion(tmp_path, monkeypatch):
     """024:RF-1 — ``_gemelo`` lanza la lectura con el guion y deja el episodio en el búfer de
     ``CSG_TWIN_DATA``."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setenv(it.VARIABLE_CAPTURA, '1')
     pedidos = []
@@ -220,8 +220,8 @@ def test_lectura_del_gemelo_con_su_limite_propio(tmp_path, monkeypatch, ajustes,
     """024:RF-1 — la lectura del gemelo no hereda el límite de un estudio (PA217 esperó 26 min
     a DIgSILENT): 5 min por defecto o ``gemelo.lectura_s`` del perfil; ``gemelo.captura: false``
     la apaga sin llamar a DIgSILENT."""
-    from convertersmartgrid import perfil_empresa
-    from convertersmartgrid.web import services
+    from convertersmartgrid.dominio import perfil_empresa
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setenv(it.VARIABLE_CAPTURA, '1')
     monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {**PERFIL, 'gemelo': ajustes})

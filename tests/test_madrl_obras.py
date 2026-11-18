@@ -7,8 +7,8 @@ import itertools
 import numpy as np
 import pytest
 
-from convertersmartgrid.digital_twin.oraculo import ModeloRadial, muestra
-from convertersmartgrid.madrl_obras import (
+from convertersmartgrid.adaptadores.digital_twin.oraculo import ModeloRadial, muestra
+from convertersmartgrid.adaptadores.madrl_obras import (
     NINGUNA,
     EntornoError,
     EntornoObras,

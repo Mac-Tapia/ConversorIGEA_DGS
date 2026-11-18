@@ -10,13 +10,13 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import registro_normativo as rn
-from convertersmartgrid.perfil_empresa import PerfilEmpresa
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid import util
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.estudio import cargar_estudio, crear_estudio
-from convertersmartgrid.vad.pide_vad import CONTRATO, VadNivel, incorporar_pide, pide_desde_dict
+from convertersmartgrid.dominio import registro_normativo as rn
+from convertersmartgrid.dominio.perfil_empresa import PerfilEmpresa
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.dominio import util
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.aplicacion.vad.estudio import cargar_estudio, crear_estudio
+from convertersmartgrid.aplicacion.vad.pide_vad import CONTRATO, VadNivel, incorporar_pide, pide_desde_dict
 
 RAIZ = Path(__file__).resolve().parents[1]
 FORMULA = ('(aVNR0 + OyM0 + suma(n, aDVNR / (1 + i) ** (n - 1) + DOyM / 2)) / '

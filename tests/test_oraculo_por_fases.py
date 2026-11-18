@@ -14,8 +14,8 @@ import pytest
 
 pytest.importorskip('pandapower')
 
-from convertersmartgrid import oraculo  # noqa: E402
-from convertersmartgrid.model import CapacitorBank, Coupler, DatosRegulador, SwitchingDevice, build_feeder_model  # noqa: E402
+from convertersmartgrid.adaptadores import oraculo  # noqa: E402
+from convertersmartgrid.dominio.model import CapacitorBank, Coupler, DatosRegulador, SwitchingDevice, build_feeder_model  # noqa: E402
 from synthetic_export import ExportSpec, load_export  # noqa: E402
 from test_oraculo_unido import _red  # noqa: E402
 

@@ -24,7 +24,7 @@ servibles (importan proyectos, como la aceptación): siguen en su propio proceso
 
 ## 3. El estado de cada orden (RF-4 a RF-7)
 
-`src/convertersmartgrid/pf_estado.py`:
+`src/convertersmartgrid/adaptadores/pf_estado.py`:
 
 - `Foto` (dataclass): proyecto, caso, hora, escenario y variaciones activas.
 - `fotografiar(app) -> Foto | None`.

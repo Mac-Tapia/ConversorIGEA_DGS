@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
-from convertersmartgrid.util import finite_or_none
+from convertersmartgrid.dominio.util import finite_or_none
 from convertersmartgrid.adaptadores.entrada.vnr.models import ConductorType
 
 

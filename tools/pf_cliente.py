@@ -24,7 +24,7 @@ HERE = Path(__file__).resolve().parent
 if str(HERE.parent / 'src') not in sys.path:
     sys.path.insert(0, str(HERE.parent / 'src'))
 
-from convertersmartgrid import pf_arnes  # noqa: E402
+from convertersmartgrid.adaptadores import pf_arnes  # noqa: E402
 
 
 #: Lanzador intermedio: arranca el servidor, escribe su pid y sale. Así el servidor no

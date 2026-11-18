@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.asistente import lectura_proyecto as lp
-from convertersmartgrid.asistente.equipo import (
+from convertersmartgrid.aplicacion.asistente import lectura_proyecto as lp
+from convertersmartgrid.aplicacion.asistente.equipo import (
     ROLES_LECTURA,
     LecturaGobernada,
     PermisoDenegado,
@@ -228,7 +228,7 @@ def test_trucos_de_ntfs(tmp_path, ruta):
 
 def test_sin_ninguna_escritura_ni_red():
     """077:RF-25 — el módulo no escribe, no borra y no abre la red: se comprueba sobre su código."""
-    arbol = ast.parse((RAIZ / 'src/convertersmartgrid/asistente/lectura_proyecto.py').read_text(encoding='utf-8'))
+    arbol = ast.parse((RAIZ / 'src/convertersmartgrid/aplicacion/asistente/lectura_proyecto.py').read_text(encoding='utf-8'))
     prohibidas = {'write', 'write_text', 'write_bytes', 'unlink', 'rmdir', 'mkdir', 'rename', 'replace', 'touch', 'remove',
                   'makedirs', 'system', 'popen', 'urlopen', 'request', 'get', 'post'}
     llamadas = {n.func.attr for n in ast.walk(arbol) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
@@ -315,8 +315,8 @@ def test_inventario_declara_las_lecturas():
 
 def test_catalogo_de_ordenes_sin_tareas_nuevas():
     """077:RF-36 — ninguna lectura es una tarea: el catálogo de órdenes no crece."""
-    from convertersmartgrid.asistente.prueba_sellada import selladas
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.prueba_sellada import selladas
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
     assert not set(lp.HERRAMIENTAS) & set(TAREAS)
     assert selladas()                                       # con su huella: lanza si el catálogo cambió
@@ -359,8 +359,8 @@ CASOS_REALES = (
 def test_pregunta_con_fichero_o_api_llega_a_pregunta(texto, tarea, confianza):
     """077:RF-69 / 077:RF-74 — los tres casos de la web del 2026-11-06 van a `pregunta` sin consultar a ningún modelo,
     lo dicen en lo consultado y en el plan, y no marcan `texto`: la pregunta es el mensaje entero."""
-    from convertersmartgrid.asistente.interprete import interpretar
-    from convertersmartgrid.asistente.plan import resolver
+    from convertersmartgrid.aplicacion.asistente.interprete import interpretar
+    from convertersmartgrid.aplicacion.asistente.plan import resolver
 
     modelo, ollama = _Modelo(tarea, confianza), _Ollama()
     i = interpretar(texto, transformer=modelo, ollama=ollama)
@@ -374,7 +374,7 @@ def test_pregunta_con_fichero_o_api_llega_a_pregunta(texto, tarea, confianza):
 
 def test_la_ruta_que_sale_del_repositorio_se_rechaza_dentro_de_pregunta(tmp_path):
     """077:RF-69 / 077:RF-27 — «../../Windows/win.ini» ya llega a `pregunta`, y allí se rechaza sin leer nada."""
-    from convertersmartgrid.asistente.interprete import interpretar
+    from convertersmartgrid.aplicacion.asistente.interprete import interpretar
 
     texto = CASOS_REALES[2][0]
     assert interpretar(texto, transformer=_Modelo('episodios', 0.32)).tarea == 'pregunta'
@@ -394,7 +394,7 @@ def test_la_ruta_que_sale_del_repositorio_se_rechaza_dentro_de_pregunta(tmp_path
 def test_formas_de_pregunta_con_ruta(texto):
     """077:RF-70 / 077:RF-71 — palabra interrogativa con o sin signos, o signos sin petición de acción; ruta con
     separador y extensión, `SKILL.md`, `..` o `/api/…`."""
-    from convertersmartgrid.asistente.interprete import pregunta_al_proyecto
+    from convertersmartgrid.aplicacion.asistente.interprete import pregunta_al_proyecto
 
     assert pregunta_al_proyecto(texto), texto
 
@@ -411,7 +411,7 @@ def test_formas_de_pregunta_con_ruta(texto):
 ])
 def test_no_desvia_ordenes_ni_preguntas_sin_ruta(texto):
     """077:RF-72 / 077:RF-73 — ni órdenes de acción, ni preguntas sin fichero, ni las tareas que se piden preguntando."""
-    from convertersmartgrid.asistente.interprete import pregunta_al_proyecto
+    from convertersmartgrid.aplicacion.asistente.interprete import pregunta_al_proyecto
 
     assert not pregunta_al_proyecto(texto), texto
 
@@ -422,7 +422,7 @@ def test_no_desvia_ordenes_ni_preguntas_sin_ruta(texto):
 ])
 def test_ordenes_de_accion_las_decide_el_modelo(texto, tarea):
     """077:RF-73 — una orden de acción con ruta la sigue decidiendo el Transformer."""
-    from convertersmartgrid.asistente.interprete import interpretar
+    from convertersmartgrid.aplicacion.asistente.interprete import interpretar
 
     modelo = _Modelo(tarea, 0.97)
     i = interpretar(texto, transformer=modelo, ollama=_Ollama())
@@ -431,7 +431,7 @@ def test_ordenes_de_accion_las_decide_el_modelo(texto, tarea):
 
 def test_pregunta_de_control_la_decide_el_modelo():
     """077:RF-73 — «¿cómo se calibra una barra sin medidor?» no tiene ruta: llega a `pregunta` por el Transformer, como en la web."""
-    from convertersmartgrid.asistente.interprete import interpretar
+    from convertersmartgrid.aplicacion.asistente.interprete import interpretar
 
     modelo = _Modelo('pregunta', 0.97)
     i = interpretar('¿cómo se calibra una barra sin medidor?', transformer=modelo)

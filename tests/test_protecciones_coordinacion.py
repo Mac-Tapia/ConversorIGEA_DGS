@@ -10,7 +10,7 @@ import random
 
 import pytest
 
-from convertersmartgrid import protecciones as pr
+from convertersmartgrid.aplicacion import protecciones as pr
 
 SEMILLAS = [random.randrange(10**6) for _ in range(4)]
 

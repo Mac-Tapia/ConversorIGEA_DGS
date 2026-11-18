@@ -34,7 +34,10 @@ RAIZ = PE.RAIZ
 #: 2026-11-16: el aviso de pide_ejecutar «solo el diagnóstico del año 00» deja de citar el requisito (070:RF-78). La
 #: fuente de planeamiento_pide-008, sellada, acorta su ancla a «diagnóstico del año 00», que está en la línea 4650 de la
 #: revisión fijada y en el árbol; la respuesta no cambia (sin tasa, solo el año 00). Cambia la huella de lo sellado.
-HUELLA_CONJUNTO = '3ec25dd399d3b0d15eb3310a0a136b264cc09e87992c46566619a1aedf66e627'
+#: 2026-11-17: 002 T7 crea los paquetes por capa; arquitectura-019 («¿Ya hay paquetes por capa…?» → «Aún no»)
+#: deja de ser cierta y se reescribe en su grupo («¿Dónde se declara la capa de cada módulo?»), con su fuente en la
+#: línea 45 de la revisión fijada y en el árbol. Es del corpus: lo sellado no cambia.
+HUELLA_CONJUNTO = '41cbeb83947ee95414efc1ece68d78dbb890fce903b3670f5727dd95f43f88b1'
 HUELLA_SELLADO = '98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce'
 HUELLA_HECHOS = 'cf9e05488d73c44b2c2a16f033edb41588779968ea419d9fe81e5f6c41b7b50d'
 
@@ -682,7 +685,7 @@ def test_corpus_entra_al_ampliado_y_no_al_de_la_047():
 
     Decisión del usuario del 2026-11-04 (076 T8, «sí entran»), confirmada el 2026-11-13 tras la fuga de la calibración del
     077 (opción A): el documento se queda; lo que cambia es de dónde salen las preguntas que miden ese corpus (097:RF-19)."""
-    from convertersmartgrid.asistente import indice
+    from convertersmartgrid.aplicacion.asistente import indice
 
     assert PE.CORPUS_MAESTRO in indice._ficheros_de(RAIZ, indice.CORPUS_AMPLIADO)
     assert PE.CORPUS_MAESTRO not in indice._ficheros_de(RAIZ, indice.CORPUS_047)

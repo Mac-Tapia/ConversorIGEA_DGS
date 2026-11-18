@@ -5,8 +5,8 @@
 - Specs: 109:RF-25, 109:RF-26
 - Elementos C4: fuentes, workspaceStore, vnr, pit, vad, planning, frontend
 - Tareas: 109 T20
-- Evidencia: `src/convertersmartgrid/fuentes_empresa.py::registrar`, `src/convertersmartgrid/fuentes_empresa.py::vigente`, `src/convertersmartgrid/fuentes_empresa.py::red_del_espacio`, `src/convertersmartgrid/web/fuentes_api.py::fuente_o_subida`
-- Consumidores: `src/convertersmartgrid/web/vnr_api.py::fuente_o_subida`, `src/convertersmartgrid/sources/vnr.py::fuentes_empresa`
+- Evidencia: `src/convertersmartgrid/aplicacion/fuentes_empresa.py::registrar`, `src/convertersmartgrid/aplicacion/fuentes_empresa.py::vigente`, `src/convertersmartgrid/aplicacion/fuentes_empresa.py::red_del_espacio`, `src/convertersmartgrid/presentacion/web/fuentes_api.py::fuente_o_subida`
+- Consumidores: `src/convertersmartgrid/presentacion/web/vnr_api.py::fuente_o_subida`, `src/convertersmartgrid/adaptadores/sources/vnr.py::fuentes_empresa`
 
 ## Contexto
 

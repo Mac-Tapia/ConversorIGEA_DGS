@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from apoyo import cargar_herramienta
-from convertersmartgrid.asistente import indice, pregunta_entregada as PE, reranker
+from convertersmartgrid.aplicacion.asistente import indice, pregunta_entregada as PE, reranker
 
 CC = cargar_herramienta('construir_candidato.py')
 REPO = Path(__file__).resolve().parents[1]

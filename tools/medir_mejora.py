@@ -21,15 +21,15 @@ for _p in (HERE, HERE.parent / 'src'):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from convertersmartgrid import estadistica_ordenes as eo  # noqa: E402
-from convertersmartgrid import medicion_obras as mo  # noqa: E402
-from convertersmartgrid.perfil_empresa import completar_planeamiento, datos_perfil  # noqa: E402
+from convertersmartgrid.dominio import estadistica_ordenes as eo  # noqa: E402
+from convertersmartgrid.dominio import medicion_obras as mo  # noqa: E402
+from convertersmartgrid.dominio.perfil_empresa import completar_planeamiento, datos_perfil  # noqa: E402
 
 
 def _ruta(args) -> Path:
     if args.registro:
         return Path(args.registro)
-    from convertersmartgrid import pf_arnes
+    from convertersmartgrid.adaptadores import pf_arnes
 
     return pf_arnes.ruta_cola().parent / mo.REGISTRO
 
@@ -42,7 +42,7 @@ def registrar(args) -> int:
     if args.cola:
         cola = Path(args.cola)
     else:
-        from convertersmartgrid import pf_arnes
+        from convertersmartgrid.adaptadores import pf_arnes
         cola = pf_arnes.ruta_cola()
     ordenes = [o for o in eo.leer(cola) if desde <= o['fecha'] <= hasta]
     perfil = completar_planeamiento(datos_perfil())[0]

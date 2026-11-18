@@ -5,8 +5,8 @@ import json
 
 from apoyo import cargar_herramienta
 
-from convertersmartgrid import medicion_obras as mo
-from convertersmartgrid.web import services
+from convertersmartgrid.dominio import medicion_obras as mo
+from convertersmartgrid.presentacion.web import services
 
 
 def _resultado():

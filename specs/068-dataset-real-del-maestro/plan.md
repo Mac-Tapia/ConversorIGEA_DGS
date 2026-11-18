@@ -13,7 +13,7 @@ que sean cuatro y la cuarta es la prueba sellada.
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
 | Extraer, exportar, importar | `tools/asistente_ordenes_reales.py` | RF-1 a RF-20 |
-| Lectura y validación de etiquetas, claves de fuga, erratas | `src/convertersmartgrid/asistente/maestro_real.py` | RF-21 a RF-24, RF-38, RF-39 |
+| Lectura y validación de etiquetas, claves de fuga, erratas | `src/convertersmartgrid/aplicacion/asistente/maestro_real.py` | RF-21 a RF-24, RF-38, RF-39 |
 | Segunda pasada del corpus | `asistente/destilacion_integral.py` | RF-25 a RF-34, RF-40 |
 | Frases de estilo real | `asistente/curriculo_maestro.py` | RF-35 a RF-37 |
 | Herramientas que preparan el corpus | `tools/asistente_destilar.py`, `tools/asistente_entrenar.py` | RF-33 |

@@ -82,8 +82,11 @@ es el núcleo de la entrega, con huellas; `requirements-complemento-ia.txt`, el 
 
 ## Capas
 
-Aún no hay paquetes por capa (spec 002), con sus T7 a T12 abiertas, pero cada módulo de `src/` tiene su capa declarada en
-`[tool.convertersmartgrid.capas.modulos]` de `pyproject.toml`. `tools/arquitectura.py` lo comprueba sobre el código sin importarlo
+Cada módulo vive en el paquete de su capa (002 T7): `dominio/`, `puertos/`, `aplicacion/`, `adaptadores/` (con `entrada/`
+para lo que se lee, `vnr/` incluido, `salida/` para lo que se escribe y `nube/` para las cuentas) y `presentacion/`; su capa
+sigue declarada en `[tool.convertersmartgrid.capas.modulos]` de `pyproject.toml` y `tests/test_capas.py` exige que paquete y
+capa coincidan. Las rutas de antes, que siguen en los conjuntos sellados y los documentos fechados, se leen con
+`docs/architecture/rutas_antes_002.json`. `tools/arquitectura.py` lo comprueba sobre el código sin importarlo
 (capas, ciclos, accesos privados y drivers en el dominio), y `tests/test_capas.py` falla ante una violación nueva. La deuda está en
 `docs/implementacion065/deuda_arquitectura.json`, no puede crecer y una excepción retirada también falla; cuántas quedan lo dice el
 catálogo. No detecta accesos privados sobre instancias.

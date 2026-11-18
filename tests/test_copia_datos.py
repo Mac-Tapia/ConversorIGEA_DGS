@@ -32,7 +32,7 @@ def _entorno(tmp_path, monkeypatch):
 
 def _crear_datos(tmp_path) -> tuple[Path, str]:
     """Un espacio con de todo: lo que hay que conservar y lo que la limpieza retiraría."""
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     raiz = tmp_path / 'web'
     ws = WorkspaceStore(raiz).create()
@@ -76,7 +76,7 @@ def _estado(raiz: Path) -> dict[str, str]:
 
 
 def _configurar_raices_externas(tmp_path, monkeypatch):
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
     program = tmp_path / 'programa'
     program.mkdir()
     local = tmp_path / 'local'
@@ -116,7 +116,7 @@ def test_copia_y_restauracion_incluyen_raices_externas_y_perfil_archivo(tmp_path
 
 def test_fallo_intermedio_de_restauracion_recupera_configuracion_y_datos(tmp_path, monkeypatch):
     """086:RF-38 — un error al publicar la segunda raíz no deja la configuración de otra versión."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
     data, config = tmp_path / 'web', tmp_path / 'config'
     data.mkdir(); config.mkdir()
     file, profile = data / 'dato.txt', config / 'perfil_empresa.json'
@@ -199,7 +199,7 @@ def test_perfil_que_desaparece_no_actualiza_el_registro_de_copia_valida(tmp_path
 @pytest.mark.parametrize('case', ['fila', 'ruta', 'raiz', 'bytes', 'sha256'])
 def test_manifiesto_mal_formado_se_rechaza_con_error_controlado(tmp_path, case):
     """086:RF-47 — tipos JSON inválidos no causan excepciones de implementación ni restauraciones."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
     source = tmp_path / 'web'; source.mkdir()
     original = source / 'dato.txt'; original.write_bytes(b'original')
     folder = Path(copia.crear_copia(tmp_path / 'copias', raices={'datos':source})['ruta'])
@@ -230,7 +230,7 @@ def test_dos_archivos_no_pueden_restaurarse_sobre_el_mismo_destino(tmp_path, mon
 
 def test_lector_nuevo_conserva_restauracion_de_manifiesto_v1(tmp_path):
     """086:RF-38 — actualizar el formato no invalida las copias previas del operador."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
     source = tmp_path / 'web'; source.mkdir()
     (source / 'dato.txt').write_bytes(b'original')
     manifest = copia.crear_copia(tmp_path / 'copias', raices={'datos':source})
@@ -246,7 +246,7 @@ def test_lector_nuevo_conserva_restauracion_de_manifiesto_v1(tmp_path):
 
 def test_directorios_de_restauracion_solapados_se_rechazan_antes_de_escribir(tmp_path):
     """086:RF-38 — raíces ambiguas no pueden producir movimientos que invaliden otra raíz."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
     data = tmp_path / 'web'; child = data / 'modelos'; child.mkdir(parents=True)
     (child / 'pesos.pt').write_bytes(b'original')
     output = tmp_path / 'copia'
@@ -266,7 +266,7 @@ def test_sin_modelos_tambien_filtra_raices_externas_sin_perder_registros(tmp_pat
 
 def test_la_copia_lleva_lo_valioso_y_no_lo_que_retiraria_la_limpieza(tmp_path):
     """086:RF-10 — misma regla que la retención; el manifiesto dice qué lleva, qué no y qué queda fuera."""
-    from convertersmartgrid.web.copia_datos import crear_copia
+    from convertersmartgrid.presentacion.web.copia_datos import crear_copia
 
     raiz, wid = _crear_datos(tmp_path)
     m = crear_copia(tmp_path / 'copias', raices={'datos': raiz})
@@ -290,7 +290,7 @@ def test_la_copia_lleva_lo_valioso_y_no_lo_que_retiraria_la_limpieza(tmp_path):
 
 def test_sin_modelos_y_enlaces(tmp_path):
     """086:RF-10 — los pesos se pueden dejar fuera, y un enlace no saca la copia de los datos."""
-    from convertersmartgrid.web.copia_datos import crear_copia
+    from convertersmartgrid.presentacion.web.copia_datos import crear_copia
 
     raiz, _ = _crear_datos(tmp_path)
     m = crear_copia(tmp_path / 'copias', raices={'datos': raiz}, sin_modelos=True)
@@ -300,8 +300,8 @@ def test_sin_modelos_y_enlaces(tmp_path):
 
 def test_restaurar_devuelve_el_mismo_estado(tmp_path):
     """086:RF-10 — se estropea todo, se restaura y cada fichero copiado vuelve igual; lo de antes queda aparte."""
-    from convertersmartgrid.web.copia_datos import crear_copia, restaurar_copia, verificar_copia
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.copia_datos import crear_copia, restaurar_copia, verificar_copia
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     raiz, wid = _crear_datos(tmp_path)
     m = crear_copia(tmp_path / 'copias', raices={'datos': raiz})
@@ -325,8 +325,8 @@ def test_restaurar_devuelve_el_mismo_estado(tmp_path):
 
 def test_restaurar_en_otra_carpeta_resuelve_las_rutas_alli(tmp_path):
     """086:RF-10, 086:RF-6 — restaurar en otro disco funciona, gracias a las rutas relativas."""
-    from convertersmartgrid.web.copia_datos import crear_copia, restaurar_copia
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.copia_datos import crear_copia, restaurar_copia
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     raiz, wid = _crear_datos(tmp_path)
     m = crear_copia(tmp_path / 'copias', raices={'datos': raiz})
@@ -341,7 +341,7 @@ def test_restaurar_en_otra_carpeta_resuelve_las_rutas_alli(tmp_path):
 @pytest.mark.parametrize('dano', ['borrado', 'alterado', 'ruta_que_sale', 'manifiesto'])
 def test_una_copia_danada_no_se_restaura_y_no_toca_nada(tmp_path, dano):
     """086:RF-10 — se comprueba cada huella antes de empezar; una copia mala no arruina lo que hay."""
-    from convertersmartgrid.web.copia_datos import CopiaNoValida, crear_copia, restaurar_copia, verificar_copia
+    from convertersmartgrid.presentacion.web.copia_datos import CopiaNoValida, crear_copia, restaurar_copia, verificar_copia
 
     raiz, wid = _crear_datos(tmp_path)
     m = crear_copia(tmp_path / 'copias', raices={'datos': raiz})
@@ -367,7 +367,7 @@ def test_una_copia_danada_no_se_restaura_y_no_toca_nada(tmp_path, dano):
 
 def test_manifiesto_de_version_futura_no_se_restaura(tmp_path):
     """086:RF-10 — igual que un espacio: una copia de un programa más nuevo no se interpreta a ciegas."""
-    from convertersmartgrid.web.copia_datos import CopiaNoValida, crear_copia, restaurar_copia
+    from convertersmartgrid.presentacion.web.copia_datos import CopiaNoValida, crear_copia, restaurar_copia
 
     raiz, _ = _crear_datos(tmp_path)
     copia = Path(crear_copia(tmp_path / 'copias', raices={'datos': raiz})['ruta'])
@@ -380,7 +380,7 @@ def test_manifiesto_de_version_futura_no_se_restaura(tmp_path):
 
 def test_el_destino_no_puede_estar_dentro_de_los_datos(tmp_path):
     """086:RF-10 — la copia se copiaría a sí misma, y un disco que falla se lleva ambas."""
-    from convertersmartgrid.web.copia_datos import crear_copia
+    from convertersmartgrid.presentacion.web.copia_datos import crear_copia
 
     raiz, _ = _crear_datos(tmp_path)
     with pytest.raises(ValueError, match='dentro de los datos'):
@@ -389,7 +389,7 @@ def test_el_destino_no_puede_estar_dentro_de_los_datos(tmp_path):
 
 def test_un_fallo_de_lectura_queda_en_la_copia_y_no_cuenta_como_buena(tmp_path, monkeypatch):
     """086:RF-10, 086:RF-47 — con errores no se restaura ni calla el aviso de que falta copia."""
-    from convertersmartgrid.web import copia_datos as modulo
+    from convertersmartgrid.presentacion.web import copia_datos as modulo
 
     raiz, wid = _crear_datos(tmp_path)
     original = modulo._copiar_con_huella
@@ -410,7 +410,7 @@ def test_un_fallo_de_lectura_queda_en_la_copia_y_no_cuenta_como_buena(tmp_path, 
 
 def test_copia_tambien_la_raiz_heredada_y_la_configuracion_local(tmp_path):
     """086:RF-10 — los espacios de ``output/web`` y el perfil local no están en git: si se pierden, no vuelven."""
-    from convertersmartgrid.web import copia_datos as modulo
+    from convertersmartgrid.presentacion.web import copia_datos as modulo
 
     programa = tmp_path / 'programa'
     heredada = programa / 'output' / 'web'
@@ -436,7 +436,7 @@ def test_copia_tambien_la_raiz_heredada_y_la_configuracion_local(tmp_path):
 
 def test_un_espacio_danado_entra_entero(tmp_path):
     """086:RF-10 — sin poder leer sus referencias, ninguna ejecución se da por prescindible."""
-    from convertersmartgrid.web.copia_datos import crear_copia
+    from convertersmartgrid.presentacion.web.copia_datos import crear_copia
 
     raiz, wid = _crear_datos(tmp_path)
     (raiz / wid / 'workspace.json').write_text('{roto', encoding='utf-8')
@@ -506,7 +506,7 @@ def test_la_orden_de_identidad_la_fija_antes_de_renombrar(tmp_path):
 # ---------------------------------------------------------------- RF-47
 def test_aviso_sin_copia_y_con_copia_vieja(tmp_path, monkeypatch):
     """086:RF-47 — sin ninguna, avisa; reciente, calla; pasada la antigüedad configurada, avisa."""
-    from convertersmartgrid.web.copia_datos import crear_copia, estado_copia
+    from convertersmartgrid.presentacion.web.copia_datos import crear_copia, estado_copia
 
     raiz, _ = _crear_datos(tmp_path)
     nunca = estado_copia(raiz)
@@ -527,8 +527,8 @@ def test_aviso_sin_copia_y_con_copia_vieja(tmp_path, monkeypatch):
 
 def test_la_web_avisa_de_la_copia(tmp_path):
     """086:RF-47 — el aviso llega por la API; tras copiar deja de avisar."""
-    from convertersmartgrid.web.app import create_app
-    from convertersmartgrid.web.copia_datos import crear_copia
+    from convertersmartgrid.presentacion.web.app import create_app
+    from convertersmartgrid.presentacion.web.copia_datos import crear_copia
 
     raiz, _ = _crear_datos(tmp_path)
     with TestClient(create_app(raiz, host='127.0.0.1')) as cliente:
@@ -562,7 +562,7 @@ _RUTAS_PAQUETE = ['original/ELOR25_V2.zip', 'otra/mismo_contenido.zip',
 
 def test_la_copia_guarda_una_vez_cada_fichero_fisico_con_todos_sus_nombres(tmp_path):
     """086:RF-78, 086:RF-79 — cinco enlaces duros y una copia idéntica ocupan una vez; el manifiesto los nombra a todos."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
 
     raiz, contenido = _datos_con_enlaces(tmp_path)
     m = copia.crear_copia(tmp_path / 'copias', raices={'datos': raiz})
@@ -580,7 +580,7 @@ def test_la_copia_guarda_una_vez_cada_fichero_fisico_con_todos_sus_nombres(tmp_p
 def test_restaurar_recrea_los_nombres_como_enlaces_duros_en_la_misma_unidad(tmp_path):
     """086:RF-80 — en la misma unidad cada enlace duro vuelve como enlace del primero; el fichero aparte con el mismo
     contenido vuelve como copia suya, no enlazado (antes volvían los seis enlazados)."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
 
     raiz, contenido = _datos_con_enlaces(tmp_path)
     m = copia.crear_copia(tmp_path / 'copias', raices={'datos': raiz})
@@ -597,7 +597,7 @@ def test_restaurar_recrea_los_nombres_como_enlaces_duros_en_la_misma_unidad(tmp_
 
 def test_sin_enlaces_duros_en_el_destino_cada_nombre_vuelve_como_copia(tmp_path, monkeypatch):
     """086:RF-80 — otra unidad (o Drive, sin enlaces duros): cada nombre se copia y se comprueba su huella."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
 
     raiz, contenido = _datos_con_enlaces(tmp_path)
     m = copia.crear_copia(tmp_path / 'copias', raices={'datos': raiz})
@@ -614,7 +614,7 @@ def test_sin_enlaces_duros_en_el_destino_cada_nombre_vuelve_como_copia(tmp_path,
 
 def test_la_verificacion_detecta_un_fichero_alterado_y_no_restaura(tmp_path):
     """086:RF-79, 086:RF-10 — la huella del fichero guardado una vez sigue mandando: alterado, no se restaura."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
 
     raiz, contenido = _datos_con_enlaces(tmp_path)
     m = copia.crear_copia(tmp_path / 'copias', raices={'datos': raiz})
@@ -630,7 +630,7 @@ def test_la_verificacion_detecta_un_fichero_alterado_y_no_restaura(tmp_path):
 
 def test_un_nombre_que_sale_de_la_copia_no_se_sigue(tmp_path):
     """086:RF-79 — los otros nombres del manifiesto también son una entrada: uno con «..» invalida la copia."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
 
     raiz, _ = _datos_con_enlaces(tmp_path)
     folder = Path(copia.crear_copia(tmp_path / 'copias', raices={'datos': raiz})['ruta'])
@@ -646,7 +646,7 @@ def test_un_nombre_que_sale_de_la_copia_no_se_sigue(tmp_path):
 
 def test_un_manifiesto_de_version_2_se_sigue_restaurando(tmp_path):
     """086:RF-79 — una copia hecha antes de la versión 3, con un fichero por nombre, se verifica y restaura igual."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
 
     raiz, contenido = _datos_con_enlaces(tmp_path)
     folder = Path(copia.crear_copia(tmp_path / 'copias', raices={'datos': raiz})['ruta'])
@@ -672,7 +672,7 @@ def test_antes_de_copiar_se_dice_cuanto_ocupa_y_si_no_cabe_no_se_empieza(tmp_pat
     """086:RF-82, 086:RF-83 — bytes físicos únicos frente al libre del destino; sin sitio, ni la «.parcial»."""
     import shutil as _shutil
 
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
 
     raiz, contenido = _datos_con_enlaces(tmp_path)
     destino = tmp_path / 'drive' / 'copias_de_datos'
@@ -705,7 +705,7 @@ def test_la_orden_calcular_y_crear_dicen_lo_que_ocupara(tmp_path):
 
 def test_un_destino_que_bloquea_se_reintenta_y_la_copia_sale_buena(tmp_path, monkeypatch):
     """086:RF-81 — Drive bloquea un fichero al sincronizar: se repite con espera y la copia queda entera."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
 
     raiz, _ = _datos_con_enlaces(tmp_path)
     original = copia._copiar_con_huella
@@ -732,7 +732,7 @@ def test_un_destino_que_bloquea_se_reintenta_y_la_copia_sale_buena(tmp_path, mon
 
 def test_una_copia_cancelada_no_deja_nada_con_aspecto_de_buena(tmp_path):
     """086:RF-84 — cancelada a media copia, se retira la «.parcial» y no aparece ninguna «csg-copia-…»."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
 
     raiz, _ = _datos_con_enlaces(tmp_path)
     destino = tmp_path / 'copias'
@@ -773,8 +773,8 @@ def _solo_estos_datos(monkeypatch, copia, raiz: Path) -> None:
 
 def test_la_web_recuerda_la_carpeta_y_copia_como_trabajo(tmp_path, monkeypatch):
     """086:RF-85, 086:RF-86 — «Hacer una copia ahora»: carpeta recordada, trabajo con progreso, y el aviso calla."""
-    from convertersmartgrid.web import copia_datos as copia
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setattr(copia, 'raiz_local', lambda _p=None: tmp_path / 'local')
     raiz, wid = _crear_datos(tmp_path)
@@ -805,9 +805,9 @@ def test_la_copia_de_la_web_se_cancela_y_bloquea_otros_trabajos(tmp_path, monkey
     """086:RF-86, 086:RF-84 — con otro trabajo no empieza; mientras copia no entra otro; cancelada, no queda copia."""
     import threading
 
-    from convertersmartgrid.web import copia_datos as copia
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setattr(copia, 'raiz_local', lambda _p=None: tmp_path / 'local')
     monkeypatch.setattr(services, 'check_ready', lambda _ws: None)
@@ -843,7 +843,7 @@ def test_los_ficheros_de_igual_contenido_vuelven_independientes(tmp_path):
     """086:RF-80 — solo vuelven enlazados los nombres que eran enlaces duros; dos ficheros distintos con el mismo
     contenido vuelven separados. Dos registros vacíos (``historial.jsonl``) se guardan una vez por su huella, y
     restaurados como enlaces, lo que se añadiera a uno salía también en el otro."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
 
     raiz = tmp_path / 'web'
     for carpeta in ('a', 'b'):
@@ -865,7 +865,7 @@ def test_los_ficheros_de_igual_contenido_vuelven_independientes(tmp_path):
 def test_una_parcial_que_bloquea_la_sincronizacion_se_retira_igual(tmp_path, monkeypatch):
     """086:RF-84, 086:RF-81 — cancelada, la «.parcial» se retira aunque Drive la tenga bloqueada un momento:
     ``shutil.rmtree`` para en el primer fallo, y callarlo dejaba la carpeta ocupando el destino."""
-    from convertersmartgrid.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web import copia_datos as copia
 
     raiz, _ = _datos_con_enlaces(tmp_path)
     destino = tmp_path / 'copias'
@@ -894,7 +894,7 @@ def test_mientras_se_copia_no_entra_ningun_trabajo_tampoco_los_del_servidor():
     comprobación de la ruta de la web, y la copia guardaba una mezcla de antes y de después."""
     import threading
 
-    from convertersmartgrid.web.jobs import JobManager, TrabajoRechazado
+    from convertersmartgrid.presentacion.web.jobs import JobManager, TrabajoRechazado
 
     jobs = JobManager(lambda *_a: None)
     dentro, soltar = threading.Event(), threading.Event()
@@ -930,8 +930,8 @@ def test_mientras_se_copia_no_entra_ningun_trabajo_tampoco_los_del_servidor():
 # ninguna copia» con una de 19,8 GB en la carpeta.
 def _web_de_copia(tmp_path, monkeypatch):
     """La web con solo los datos de la prueba y la configuración del equipo en tmp: nada sale de ``tmp_path``."""
-    from convertersmartgrid.web import copia_datos as copia
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import copia_datos as copia
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setattr(copia, 'raiz_local', lambda _p=None: tmp_path / 'local')
     raiz, wid = _crear_datos(tmp_path)
@@ -974,7 +974,7 @@ def test_la_previa_dice_lo_que_ocupara_lo_libre_y_lo_que_se_copia_sin_escribir(t
 
 def _app_de_red(raiz: Path):
     """La web escuchando en la red: sin rutas locales, ni previa ni copia."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     return create_app(raiz, host='0.0.0.0')
 

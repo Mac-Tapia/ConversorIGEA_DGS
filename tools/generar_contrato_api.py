@@ -18,7 +18,7 @@ import sys
 def esquema_publico(raiz: Path, datos: Path) -> dict:
     """Construye rutas sin lifespan ni lectura de los espacios reales del usuario."""
     sys.path.insert(0, str(raiz / 'src'))
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     return create_app(datos).openapi()
 
@@ -72,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--solo-openapi', action='store_true', help='Escribe docs/asistente/openapi.json, sin Node.')
     args = parser.parse_args(argv)
     sys.path.insert(0, str(args.raiz / 'src'))
-    from convertersmartgrid.runtime_paths import temporal_administrado, rutas_runtime
+    from convertersmartgrid.dominio.runtime_paths import temporal_administrado, rutas_runtime
 
     destino = args.raiz / 'frontend/src/api/esquema.ts'
     legible = args.raiz / 'docs/asistente/openapi.json'

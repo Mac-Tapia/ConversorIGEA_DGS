@@ -10,11 +10,11 @@ import sys
 import numpy as np
 import pytest
 
-from convertersmartgrid import proyeccion_anual as pa
-from convertersmartgrid.digital_twin.pronostico import Objetivo
-from convertersmartgrid.pide import PideError, leer_proyeccion_anual
-from convertersmartgrid.pronostico_demanda import CurvaCompacta, Dataset
-from convertersmartgrid.proyeccion_mercado import REFERENCIA, SerieMercado, leer_formato_01
+from convertersmartgrid.adaptadores import proyeccion_anual as pa
+from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
+from convertersmartgrid.aplicacion.pide import PideError, leer_proyeccion_anual
+from convertersmartgrid.adaptadores.pronostico_demanda import CurvaCompacta, Dataset
+from convertersmartgrid.aplicacion.proyeccion_mercado import REFERENCIA, SerieMercado, leer_formato_01
 
 sys.path.insert(0, str(Path(__file__).parent))
 from pronostico_sintetico import SEMILLA  # noqa: E402
@@ -159,7 +159,7 @@ def test_competicion_determinista_y_sin_nombres_fijos():
     uno = pa.competir(d, candidatos=['tasa_de_un_anio', 'perfil_anclado'], paso_meses=6, semilla=3, clases=['cliente'])
     dos = pa.competir(d, candidatos=['tasa_de_un_anio', 'perfil_anclado'], paso_meses=6, semilla=3, clases=['cliente'])
     assert json.dumps(uno, sort_keys=True) == json.dumps(dos, sort_keys=True)
-    for rel in ('src/convertersmartgrid/proyeccion_anual.py', 'tools/proyeccion_anual.py'):
+    for rel in ('src/convertersmartgrid/adaptadores/proyeccion_anual.py', 'tools/proyeccion_anual.py'):
         fuente = (RAIZ / rel).read_text(encoding='utf-8')
         assert not re.search(r'electro|dunas|pisco|osinergmin|\.xlsx?\b(?!\')', fuente.replace('formato_01_construido.xlsx', ''), re.I)
         assert not re.search(r'\b20[0-9]{2}\b', fuente.replace('--anio-base 2030', ''))
@@ -201,7 +201,7 @@ def test_formato_un_unico_anio_incompleto_no_se_presenta(tmp_path):
     """031:RF-15 — sin otro año con que compararlo, un año incompleto no da un histórico que parezca un año entero."""
     o = _objetivo('cabecera', 'F0', 'kW', '2026-01-01', '2026-11-01', 1000.0, 0.0, 0)
     ruta = pa.escribir_formato_01(tmp_path / 'f.xlsx', pa.formato_01_de_cabecera([o], sistema_de={'F0': 'S1'}, empresa='E'))
-    from convertersmartgrid.proyeccion_mercado import MercadoError
+    from convertersmartgrid.aplicacion.proyeccion_mercado import MercadoError
     with pytest.raises(MercadoError):
         leer_formato_01(ruta)
     assert 'sin otro con que compararlo' in pa.leer_meses_formato_01(ruta)['S1'][2026]['base']
@@ -453,7 +453,7 @@ def test_obras_leen_la_proyeccion_aceptada_y_sin_ella_la_tasa_del_perfil(crece, 
 
 def test_obras_los_tres_sitios_del_alcance_pasan_por_la_proyeccion():
     """031:RF-11 — el alcance de las obras y el año en que vuelve a fallar leen la misma tasa, no la del perfil directamente."""
-    fuente = (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
     assert 'plan_de_corto_plazo(f, p.tasa_largo_plazo' not in fuente
     assert "alt['tasa_horizonte'] = p.tasa_largo_plazo" not in fuente
     assert 'tasa, horizonte = p.tasa_largo_plazo' not in fuente
@@ -464,8 +464,8 @@ def test_pide_pronostica_primero_antes_de_abrir_los_casos(tmp_path, monkeypatch)
     """031:RF-1 — el pronóstico corre antes del guion de los años; sin aceptar, no cambia la tasa del estudio y lo dice."""
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as cliente:
@@ -476,8 +476,8 @@ def test_pide_pronostica_primero_antes_de_abrir_los_casos(tmp_path, monkeypatch)
         perfil = {'planificacion': {'crecimiento_demanda_anual': .03, 'tasa_regulada': .12, 'vida_util_anios': 30, 'anios_horizonte': [4, 8], 'anios_pide': [4]},
                   'estudios': {'tension_min_pu': .95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}, 'empresa': 'E'}
         monkeypatch.setattr(services, 'native_action_context', lambda _ws, project, feeders, action: {'feeders': ['F0'], 'project': project})
-        monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
-        monkeypatch.setattr('convertersmartgrid.perfil_empresa.estructura_empresa', lambda *a, **k: None)
+        monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
+        monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.estructura_empresa', lambda *a, **k: None)
         monkeypatch.setattr(services, '_fuentes_de_demanda', lambda _ws, _f: object())
 
         def guion(_ws, _ctx, _nombre, plan, **_k):
@@ -508,8 +508,8 @@ def test_pide_usa_la_proyeccion_aceptada_en_cada_anio(crece, tmp_path, monkeypat
     """031:RF-1, 031:RF-6, 031:RF-7, 031:RF-11 — aceptada, la tasa de cada alimentador sale de ella y los avisos dicen lo validado y lo pronosticado."""
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
 
     d, c = crece
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
@@ -531,8 +531,8 @@ def test_pide_sin_libros_ni_estudio_sigue_con_la_tasa_y_lo_dice(tmp_path, monkey
     """031:RF-1, 031:RF-11 — sin año de presentación o sin libros no se pronostica ni se para: se dice."""
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as cliente:
@@ -678,7 +678,7 @@ def test_ciclo_ilegible_o_sin_emision_no_inventa_una_version(tmp_path):
     """031:RF-10 — un conjunto que no se lee, o un ganador sin su emisión, no se usa: se dice por qué y el año base
     parte de lo medido; sin emisión, la versión que se intentó queda anotada."""
     _exige_ciclo()
-    from convertersmartgrid.contratos_aprendizaje import CicloBloqueado
+    from convertersmartgrid.dominio.contratos_aprendizaje import CicloBloqueado
 
     def roto(familia):
         raise CicloBloqueado('conjunto activo ilegible: x')

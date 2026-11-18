@@ -13,7 +13,7 @@ import pytest
 
 import fake_pf
 from apoyo import cargar_herramienta, contexto_nativo
-from convertersmartgrid import datos_empresa as de
+from convertersmartgrid.aplicacion import datos_empresa as de
 
 casos_pf = cargar_herramienta('casos_pf.py', 'casos_012', tools_en_path=True)
 conf = cargar_herramienta('confiabilidad_pf.py', 'confiabilidad_012', tools_en_path=True)
@@ -425,7 +425,7 @@ def test_datos_historico_con_tasas_no_relee_la_exposicion(tmp_path):
 def test_datos_historico_sin_causa_no_escribe_nada_y_lo_dice(tmp_path):
     """012:RF-89 — si con la exposición del proyecto el histórico no da ninguna tasa (sin columna de
     causa), no se escribe nada y se dice en una frase qué revisar del histórico."""
-    from convertersmartgrid import historico_interrupciones as hi
+    from convertersmartgrid.aplicacion import historico_interrupciones as hi
 
     rng = random.Random(32)
     app, alims, clases = _red(rng)

@@ -16,20 +16,20 @@ import pytest
 
 pytest.importorskip('pandapower')
 
-from convertersmartgrid import oraculo  # noqa: E402
-from convertersmartgrid import variacion_plano as vp  # noqa: E402
-from convertersmartgrid.geography import build_geography, geography_to_dict  # noqa: E402
-from convertersmartgrid.model import build_feeder_model  # noqa: E402
-from convertersmartgrid.plano_red import vista  # noqa: E402
+from convertersmartgrid.adaptadores import oraculo  # noqa: E402
+from convertersmartgrid.aplicacion import variacion_plano as vp  # noqa: E402
+from convertersmartgrid.adaptadores.geography import build_geography, geography_to_dict  # noqa: E402
+from convertersmartgrid.dominio.model import build_feeder_model  # noqa: E402
+from convertersmartgrid.adaptadores.plano_red import vista  # noqa: E402
 from synthetic_export import CRS_SINTETICO, ExportSpec, load_export  # noqa: E402
 
 LAYOUTS = ('reducido', 'completo')
 
 
 def _resultados():
-    assert importlib.util.find_spec('convertersmartgrid.resultados_plano') is not None, \
-        'falta convertersmartgrid.resultados_plano'
-    return importlib.import_module('convertersmartgrid.resultados_plano')
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.resultados_plano') is not None, \
+        'falta convertersmartgrid.adaptadores.resultados_plano'
+    return importlib.import_module('convertersmartgrid.adaptadores.resultados_plano')
 
 
 def _red(tmp_path, layout='reducido'):
@@ -155,7 +155,7 @@ def test_111_rf10_cada_capa_lleva_su_unidad_umbral_caso_y_motor(tmp_path, layout
     leyenda: magnitud, unidad, umbral y su origen, caso, revisión y motor; junto a cada valor, el motor."""
     rp = _resultados()
     assert hasattr(rp, 'capas'), 'falta resultados_plano.capas'
-    from convertersmartgrid.estudios_pf import LIMITES_POR_DEFECTO
+    from convertersmartgrid.aplicacion.estudios_pf import LIMITES_POR_DEFECTO
     _rp, _modelo, _v, r = _base(tmp_path, layout)
     c = rp.capas(r, limites=LIMITES_POR_DEFECTO, revision='rev-1', caso='Caso base')
     assert c['pintable'] and set(c['capas']) == {'tension', 'corriente', 'cargabilidad', 'estado'}
@@ -184,7 +184,7 @@ def test_111_rf13_un_incumplimiento_lleva_texto_icono_valor_y_umbral(tmp_path):
     con color; dentro, no lleva aviso. El umbral sale del perfil y la leyenda lo dice."""
     rp = _resultados()
     assert hasattr(rp, 'capas'), 'falta resultados_plano.capas'
-    from convertersmartgrid.estudios_pf import limites_de_perfil
+    from convertersmartgrid.aplicacion.estudios_pf import limites_de_perfil
     _rp, _modelo, _v, r = _base(tmp_path)
     perfil = tmp_path / 'perfil.json'
     perfil.write_text('{"estudios": {"tension_min_pu": 0.9999, "tension_max_pu": 1.00001, '
@@ -215,7 +215,7 @@ def test_111_rf11_una_capa_de_otra_revision_o_otro_caso_o_sin_convergencia_no_se
     """111:RF-11 — solo se pinta lo que el motor calculó para ese caso y esa revisión; si no, se dice por qué."""
     rp = _resultados()
     assert hasattr(rp, 'capas'), 'falta resultados_plano.capas'
-    from convertersmartgrid.estudios_pf import LIMITES_POR_DEFECTO
+    from convertersmartgrid.aplicacion.estudios_pf import LIMITES_POR_DEFECTO
     _rp, _modelo, _v, r = _base(tmp_path)
     for kw, motivo in (({'revision': 'rev-2', 'caso': 'Caso base'}, 'revisión'),
                        ({'revision': 'rev-1', 'caso': 'Otro caso'}, 'caso')):
@@ -228,7 +228,7 @@ def test_111_rf11_una_capa_de_otra_revision_o_otro_caso_o_sin_convergencia_no_se
 
 def _de_digsilent(modelo, r, *, extra=True):
     """Lo que guardaría ``tools/estudios_pf.geografia`` de ese mismo caso: nombres de DIgSILENT, no códigos."""
-    from convertersmartgrid.dgs import nombre_en_pf
+    from convertersmartgrid.adaptadores.dgs import nombre_en_pf
     barras = [[nombre_en_pf(n), -12.0, -77.0, (b['u_pu'] or 1.0) - 0.001, b['kv']] for n, b in r['barras'].items()]
     tramos = [[nombre_en_pf(s), [[-12.0, -77.0], [-12.001, -77.0]], (t['carga_pct'] or 0.0) + 1.0, 'b1', 'b2', 'tipo', 0.1]
               for s, t in r['tramos'].items()]
@@ -242,8 +242,8 @@ def test_111_rf18_la_capa_de_digsilent_se_traduce_por_la_identidad(tmp_path):
     que no está, o que comparten dos códigos, no se pinta y se cuenta; la capa dice que los calculó DIgSILENT."""
     rp = _resultados()
     assert hasattr(rp, 'traducir_resultados_pf'), 'falta resultados_plano.traducir_resultados_pf'
-    from convertersmartgrid.estudios_pf import LIMITES_POR_DEFECTO
-    from convertersmartgrid.plano_red import identidad
+    from convertersmartgrid.aplicacion.estudios_pf import LIMITES_POR_DEFECTO
+    from convertersmartgrid.adaptadores.plano_red import identidad
     _rp, modelo, _v, r = _base(tmp_path)
     t = rp.traducir_resultados_pf(_de_digsilent(modelo, r), identidad(modelo), caso='Caso base', revision='rev-1')
     assert t['motor'] == 'DIgSILENT' and t['convergio'] and t['caso'] == 'Caso base' and t['revision'] == 'rev-1'
@@ -271,7 +271,7 @@ def test_111_rf12_comparar_dos_casos_elemento_a_elemento_sobre_el_mismo_plano(tm
     """111:RF-12 — la diferencia de cada magnitud por elemento (B menos A), con la banda de cada caso."""
     rp = _resultados()
     assert hasattr(rp, 'comparar'), 'falta resultados_plano.comparar'
-    from convertersmartgrid.estudios_pf import LIMITES_POR_DEFECTO
+    from convertersmartgrid.aplicacion.estudios_pf import LIMITES_POR_DEFECTO
     _rp, modelo, v, a = _base(tmp_path)
     b, maniobra = _variante(rp, modelo, v, tmp_path)
     d = rp.comparar(a, b, limites=LIMITES_POR_DEFECTO)
@@ -293,8 +293,8 @@ def test_111_rf19_comparar_dos_casos_de_motores_distintos_lo_dice(tmp_path):
     """111:RF-19 — si un caso se calculó con DIgSILENT y el otro con el motor abierto, la comparación lo dice."""
     rp = _resultados()
     assert hasattr(rp, 'comparar'), 'falta resultados_plano.comparar'
-    from convertersmartgrid.estudios_pf import LIMITES_POR_DEFECTO
-    from convertersmartgrid.plano_red import identidad
+    from convertersmartgrid.aplicacion.estudios_pf import LIMITES_POR_DEFECTO
+    from convertersmartgrid.adaptadores.plano_red import identidad
     _rp, modelo, _v, a = _base(tmp_path)
     b = rp.traducir_resultados_pf(_de_digsilent(modelo, a, extra=False), identidad(modelo), caso='Caso base',
                                   revision='rev-1')
@@ -307,7 +307,7 @@ def test_111_rf12_comparar_casos_de_otra_revision_o_sin_convergencia_no_es_compa
     """111:RF-12, 111:RF-11 — dos casos de revisiones distintas de la red, o uno que no convergió, no se comparan."""
     rp = _resultados()
     assert hasattr(rp, 'comparar'), 'falta resultados_plano.comparar'
-    from convertersmartgrid.estudios_pf import LIMITES_POR_DEFECTO
+    from convertersmartgrid.aplicacion.estudios_pf import LIMITES_POR_DEFECTO
     _rp, _modelo, _v, a = _base(tmp_path)
     d = rp.comparar(a, {**a, 'revision': 'rev-2'}, limites=LIMITES_POR_DEFECTO)
     assert d['comparable'] is False and 'revisión' in d['motivo'] and d['elementos'] == []
@@ -320,7 +320,7 @@ def test_111_rf10_capa_sin_tension_si_al_abrir_la_cabecera_nada_queda_alimentado
     (salvo la fuente, a su consigna) y la capa lo pinta así, con el motivo."""
     rp = _resultados()
     assert hasattr(rp, 'capas'), 'falta resultados_plano.capas'
-    from convertersmartgrid.estudios_pf import LIMITES_POR_DEFECTO
+    from convertersmartgrid.aplicacion.estudios_pf import LIMITES_POR_DEFECTO
     modelo, _v, seed = _red(tmp_path)
     cabecera = next((ln for ln in modelo.lines if ln.from_node == modelo.source_node), None)
     assert cabecera is not None, f'la red sorteada no tiene un tramo que salga de la fuente: semilla={seed}'

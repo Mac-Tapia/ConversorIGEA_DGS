@@ -1,0 +1,321 @@
+"""Reranker local por cross-encoder, solo si la evaluación sellada lo adoptó (047:RF-4, RF-27, RF-30).
+
+Solo CUDA: en CPU, con 16 GB compartidos, el modelo grande dejaría sin memoria a la web y a los
+entrenamientos. Sin GPU no se cae a CPU; se aparta y queda el orden sin reranker, dicho en la
+respuesta. Se carga, puntúa y descarga en cada respuesta: la GPU de 8 GB la comparten Ollama y los
+entrenamientos, y retenerlo ocuparía justo lo que el reentrenamiento necesita.
+"""
+from __future__ import annotations
+
+import contextlib
+import gc
+import hashlib
+import json
+import logging
+import os
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
+from typing import Any
+
+from .indice import (CORPUS_047, CORPUS_AMPLIADO, CORPUS_ENTREGA, Abstencion, RerankerNoDisponible, mismo_modelo,
+                     modelo_vectores, puntero_vectores)
+from ...dominio.runtime_paths import es_programa_instalado, raiz_programa
+
+_RAIZ = raiz_programa()
+_LOG = logging.getLogger(__name__)
+CATALOGO = _RAIZ / 'docs' / 'MODELOS_IA_LOCK.json'
+INFORME = _RAIZ / 'docs' / 'EVALUACION_RAG_047.json'
+CONJUNTO = _RAIZ / 'docs' / 'RAG_PREGUNTAS_SINTETICAS_047.json'
+CALIBRACION = _RAIZ / 'docs' / 'CALIBRACION_ABSTENCION_047.json'
+CONJUNTO_CALIBRACION = _RAIZ / 'docs' / 'RAG_ABSTENCION_CALIBRACION_047.json'
+#: Lo del corpus ampliado (spec 077): otros conjuntos, otros umbrales y otra medición.
+CALIBRACION_077 = _RAIZ / 'docs' / 'CALIBRACION_ABSTENCION_077.json'
+CONJUNTO_CALIBRACION_077 = _RAIZ / 'docs' / 'CONJUNTO_ABSTENCION_CALIBRACION_077.json'
+CONJUNTO_SELLADO_077 = _RAIZ / 'docs' / 'CONJUNTO_ABSTENCION_SELLADO_077.json'
+MEDICION_077 = _RAIZ / 'docs' / 'EVALUACION_ABSTENCION_077.json'
+#: Las preguntas sobre la biblioteca normativa (077:RF-80), y su sello, fijado al escribirlas y antes de medir nada.
+CONJUNTO_NORMATIVO_077 = _RAIZ / 'docs' / 'CONJUNTO_NORMATIVO_SELLADO_077.json'
+SELLO_NORMATIVO_077 = '31a0aaf21e99a2f435b8eacde7c1838549e9a69ee66f3a762b67da1b770b215c'
+#: Programa instalado (pregunta_entregada): la calibración que hizo el constructor sobre los manuales que se entregan.
+CALIBRACION_ENTREGA = _RAIZ / 'documentos' / 'CALIBRACION_ABSTENCION_ENTREGA.json'
+CONJUNTO_ENTREGA = _RAIZ / 'documentos' / 'CONJUNTO_ABSTENCION_ENTREGA.json'
+#: La puerta declarada en el plan de la 047 antes de medir; la 077 no la baja (077:RF-42).
+ABSTENCION_MINIMA = 0.90
+#: Candidatos de la evaluación, ambos con revisión fijada en el catálogo.
+MODELOS = ('BAAI/bge-reranker-v2-m3', 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1')
+MAX_LARGO = 256
+LOTE = 4
+
+
+def sha256_de(ruta: Path) -> str:
+    """El sello del conjunto, sin el final de línea: Git en Windows lo pasa a CRLF al sacarlo a otro
+    worktree, y el mismo conjunto no puede dejar de valer por eso."""
+    return hashlib.sha256(Path(ruta).read_bytes().replace(b'\r\n', b'\n')).hexdigest()
+
+
+def ficha_modelo(modelo: str) -> dict[str, Any]:
+    """La ficha del catálogo: revisión, licencia y huellas. Un modelo sin ficha no se carga."""
+    catalogo = json.loads(CATALOGO.read_text(encoding='utf-8'))
+    ficha = next((m for m in catalogo['modelos'] if m['id'] == modelo and m['backend'] == 'huggingface'), None)
+    if ficha is None:
+        raise ValueError(f'reranker no fijado en el catálogo: {modelo}')
+    return ficha
+
+
+class Puntuador:
+    """El modelo cargado en la GPU: ``(consulta, textos) -> puntuaciones``."""
+
+    def __init__(self, modelo: Any, torch: Any, lote: int = LOTE):
+        self._modelo, self._torch, self._lote = modelo, torch, lote
+
+    def __call__(self, consulta: str, textos: Sequence[str]) -> list[float]:
+        try:
+            puntos = self._modelo.predict([(consulta, t) for t in textos], batch_size=self._lote,
+                                          show_progress_bar=False)
+        except RuntimeError as exc:                                     # incluye la falta de memoria de CUDA
+            raise RerankerNoDisponible(f'el reranker falló en CUDA: {exc}') from exc
+        return [float(x) for x in puntos]
+
+    def liberar(self) -> None:
+        # El modelo guarda ciclos de referencias: sin recolectar, la Fase 2 mantuvo 2,3 GB de la GPU tras
+        # descargar bge-reranker, y empty_cache no devuelve lo que aún tiene dueño.
+        self._modelo = None
+        gc.collect()
+        self._torch.cuda.empty_cache()
+
+
+def cargar_puntuador(modelo: str, revision: str) -> Puntuador:
+    """Carga la revisión fijada, con sus huellas comprobadas, en CUDA y sin red; si no, dice por qué."""
+    ficha = ficha_modelo(modelo)
+    if revision != ficha['revision']:
+        raise RerankerNoDisponible(f'la revisión de {modelo} no es la fijada en el catálogo')
+    # Con local_files_only, CrossEncoder aún consultó el Hub en la Fase 2 (aviso de peticiones sin token).
+    os.environ['HF_HUB_OFFLINE'] = '1'
+    from ..training_coordinator import MemoriaMLInsuficiente, exigir_memoria_ml
+
+    try:
+        exigir_memoria_ml(1.0, minimo_commit_gib=4.0)
+    except MemoriaMLInsuficiente as exc:
+        raise RerankerNoDisponible(str(exc)) from exc
+    try:
+        import torch
+    except ImportError as exc:
+        raise RerankerNoDisponible('sin torch no hay CUDA para el reranker') from exc
+    if not torch.cuda.is_available():
+        raise RerankerNoDisponible('CUDA no disponible: el reranker no corre en CPU')
+    from .embeddings import identidad_encoder
+
+    try:
+        identidad_encoder(modelo)                                       # pesos iguales al catálogo
+        from sentence_transformers import CrossEncoder
+
+        cargado = CrossEncoder(modelo, revision=revision, device='cuda', local_files_only=True, max_length=MAX_LARGO)
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
+        raise RerankerNoDisponible(f'no se pudo cargar {modelo}: {exc}') from exc
+    return Puntuador(cargado, torch)
+
+
+class PuntuadorPerezoso:
+    """Carga al primer uso y descarga al terminar: la medición pasa un modelo tras otro por la GPU."""
+
+    def __init__(self, modelo: str, revision: str):
+        self.modelo, self.revision, self._cargado = modelo, revision, None
+
+    def __call__(self, consulta: str, textos: Sequence[str]) -> list[float]:
+        if self._cargado is None:
+            self._cargado = cargar_puntuador(self.modelo, self.revision)
+        return self._cargado(consulta, textos)
+
+    def liberar(self) -> None:
+        if self._cargado is not None:
+            self._cargado.liberar()
+            self._cargado = None
+
+
+def reordenar(consulta: str, candidatos: Sequence[Mapping], *, modelo: str, revision: str,
+              puntuar: Callable[[str, Sequence[str]], Sequence[float]] | None = None) -> list[dict]:
+    """Los mismos candidatos, con su id, fuente y fragmento intactos, por la puntuación del modelo."""
+    propio = None
+    if puntuar is None:
+        puntuar = propio = cargar_puntuador(modelo, revision)
+    try:
+        puntos = list(puntuar(consulta, [str(c['texto']) for c in candidatos]))
+    finally:
+        if propio is not None:
+            propio.liberar()
+    if len(puntos) != len(candidatos):
+        raise RerankerNoDisponible('el reranker no puntuó todos los candidatos')
+    orden = sorted(range(len(candidatos)), key=lambda i: -puntos[i])     # estable: un empate no reordena
+    return [{**candidatos[i], 'reranker': float(puntos[i])} for i in orden]
+
+
+def politica(informe: Path = INFORME, conjunto: Path = CONJUNTO) -> dict[str, Any]:
+    """Qué métodos autoriza la evaluación guardada (047:RF-27). Sin informe válido, ningún reranker."""
+    apagado = {'hibrido': True, 'modelo': None, 'revision': None}
+    if not informe.is_file() or not conjunto.is_file():
+        return {**apagado, 'motivo': 'sin evaluación sellada'}
+    try:
+        datos = json.loads(informe.read_text(encoding='utf-8'))
+        decision = datos['decision']
+    except (ValueError, KeyError, TypeError):
+        return {**apagado, 'motivo': 'informe de evaluación ilegible'}
+    if datos.get('conjunto_sha256') != sha256_de(conjunto):
+        return {**apagado, 'motivo': 'el conjunto sellado cambió desde la evaluación'}
+    salida = {**apagado, 'hibrido': (decision.get('hibrido') or {}).get('adoptado') is True,
+              'motivo': 'la evaluación no adoptó ningún reranker'}
+    elegido = decision.get('reranker') or {}
+    if elegido.get('adoptado') is True:
+        try:
+            fijada = ficha_modelo(str(elegido.get('modelo')))['revision']
+        except ValueError:
+            return {**salida, 'motivo': 'el modelo adoptado no está en el catálogo'}
+        if elegido.get('revision') == fijada:
+            return {**salida, 'modelo': elegido['modelo'], 'revision': fijada, 'motivo': ''}
+        return {**salida, 'motivo': 'la revisión adoptada no es la del catálogo'}
+    return salida
+
+
+def abstencion(calibracion: Path | None = None, conjunto: Path = CONJUNTO_CALIBRACION) -> Abstencion:
+    """Los umbrales guardados, solo si salen del conjunto de calibración de hoy (047:RF-33, RF-34) y del modelo de
+    vectores en uso (097:RF-13). Sin ellos, una ``Abstencion`` sin calibrar: «No lo sé» antes que una cita que no apoya.
+
+    Sin ruta, la del puntero del modelo en uso (097:RF-14) o la de la 047."""
+    if calibracion is None:
+        calibracion = Path((puntero_vectores().get('calibraciones') or {}).get(CORPUS_047) or CALIBRACION)
+    try:
+        datos = json.loads(calibracion.read_text(encoding='utf-8'))
+        if datos['conjunto_sha256'] != sha256_de(conjunto):
+            return Abstencion()
+        # 097:RF-13: el umbral del coseno de bge-m3 (0,56) no vale para nomic ni al revés. Sin modelo anotado, la
+        # calibración es la histórica de la 047, hecha con nomic-embed-text.
+        if not mismo_modelo(datos.get('modelo_vectores'), modelo_vectores()):
+            return Abstencion()
+        umbrales, modelo = datos['umbrales'], datos.get('modelo_reranker')
+        valido = bool(modelo) and ficha_modelo(modelo)['revision'] == datos.get('revision')
+    except (OSError, ValueError, KeyError, TypeError):
+        return Abstencion()
+    return Abstencion(calibrada=True, modelo_reranker=modelo if valido else None,
+                      umbral_reranker=umbrales.get('reranker') if valido else None,
+                      umbral_coseno=umbrales.get('coseno'), umbral_bm25=umbrales.get('bm25'),
+                      umbral_bm25_solo=umbrales.get('bm25_solo'))
+
+
+def _medicion_aprobada(medicion: Path, conjunto: Path) -> dict[str, Any] | None:
+    """La medición del corpus ampliado, solo si es de su conjunto sellado y pasa la regla de la 047, la que aceptó el
+    usuario el 2026-11-02: reranker con la puerta completa, e híbrido y BM25 con la abstención mínima (077:RF-47, RF-48)."""
+    try:
+        datos = json.loads(medicion.read_text(encoding='utf-8'))
+        if datos['corpus'] != CORPUS_AMPLIADO or datos['conjunto_sha256'] != sha256_de(conjunto):
+            return None
+        if datos['puerta']['reranker']['cumple'] is not True:
+            return None
+        if any(float(datos['metodos'][m]['abstention_accuracy']) < ABSTENCION_MINIMA for m in ('hibrido', 'bm25')):
+            return None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return datos
+
+
+def servicio(medicion: Path | None = None, conjunto: Path | None = None, calibracion: Path | None = None,
+             conjunto_calibracion: Path | None = None) -> dict[str, Any]:
+    """Qué corpus, política y umbrales sirve la web. Sin una medición aprobada del corpus ampliado, los de la 047: seguir
+    con sus umbrales sobre un índice mayor daría una abstención sin medir (077:RF-47).
+
+    En el programa instalado no van ni las specs ni CODIGO_FUENTE que indexa la 047: se sirve el corpus entregado (los
+    manuales y notas) con la abstención que calibró el constructor, solo BM25 (decisión del usuario, 2026-11-13)."""
+    if medicion is None and es_programa_instalado(_RAIZ):
+        return servicio_entregado()
+    base = {'corpus': CORPUS_047, 'politica': politica(), 'abstencion': abstencion()}
+    puntero = puntero_vectores()                                       # 097:RF-14: las del modelo en uso
+    datos = _medicion_aprobada(medicion or Path((puntero.get('mediciones') or {}).get(CORPUS_AMPLIADO) or MEDICION_077),
+                               conjunto or CONJUNTO_SELLADO_077)
+    if datos is not None and not mismo_modelo(datos.get('modelo_vectores'), modelo_vectores()):
+        datos = None                                                   # 097:RF-13: medida con otros vectores
+    if datos is None:
+        return base
+    en_uso = puntero.get('calibraciones') or {}
+    umbrales = abstencion(calibracion or Path(en_uso.get(CORPUS_AMPLIADO) or CALIBRACION_077),
+                          conjunto_calibracion or CONJUNTO_CALIBRACION_077)
+    if not umbrales.calibrada or umbrales.modelo_reranker != datos.get('modelo_reranker'):
+        return base
+    revision = ficha_modelo(umbrales.modelo_reranker)['revision']
+    return {'corpus': CORPUS_AMPLIADO, 'abstencion': umbrales,
+            'politica': {'hibrido': True, 'modelo': umbrales.modelo_reranker, 'revision': revision, 'motivo': ''}}
+
+
+def servicio_entregado(calibracion: Path = CALIBRACION_ENTREGA, conjunto: Path = CONJUNTO_ENTREGA) -> dict[str, Any]:
+    """«Pregunta» del programa instalado: el corpus de sus documentos, sin reranker ni vectores, y su abstención.
+
+    Si la calibración falta o no es de su conjunto, la abstención queda sin calibrar y responde «No lo sé». Solo decide
+    BM25, así que no depende del modelo de vectores en uso (097:RF-13 mira el coseno, que aquí no se usa)."""
+    politica: dict[str, Any] = {
+        'hibrido': False, 'modelo': None, 'revision': None,
+        'motivo': 'programa instalado: BM25 sobre los manuales y notas, con la abstención calibrada al construir'}
+    try:
+        umbrales = Abstencion(calibrada=True, umbral_bm25_solo=_umbral_entregado(calibracion, conjunto))
+    except CalibracionNoValida as exc:
+        # Responder «No lo sé» es lo prudente, pero no en silencio: el operador tiene que saber por qué no responde.
+        umbrales = Abstencion()
+        politica['abstencion_sin_calibrar'] = str(exc)
+        _LOG.warning('«Pregunta» del programa instalado sin calibrar; responderá «No lo sé»: %s', exc)
+    return {'corpus': CORPUS_ENTREGA, 'abstencion': umbrales, 'politica': politica}
+
+
+class CalibracionNoValida(ValueError):
+    """La calibración del corpus entregado falta, no se lee o no es la de su conjunto; el mensaje dice cuál."""
+
+
+def _umbral_entregado(calibracion: Path, conjunto: Path) -> float:
+    """El umbral BM25 que calibró el constructor, o ``CalibracionNoValida`` con la causa concreta."""
+    try:
+        texto = calibracion.read_text(encoding='utf-8')
+    except FileNotFoundError:
+        raise CalibracionNoValida(f'la calibración {calibracion} no existe') from None
+    except (OSError, UnicodeDecodeError) as exc:
+        raise CalibracionNoValida(f'la calibración {calibracion} no se puede leer: {exc}') from exc
+    try:
+        datos = json.loads(texto)
+    except ValueError as exc:
+        raise CalibracionNoValida(f'la calibración {calibracion} es ilegible: {exc}') from exc
+    if not isinstance(datos, dict):
+        raise CalibracionNoValida(f'la calibración {calibracion} no es un objeto JSON')
+    for clave in ('corpus', 'conjunto_sha256', 'umbrales'):
+        if clave not in datos:
+            raise CalibracionNoValida(f'a la calibración {calibracion} le falta {clave!r}')
+    if datos['corpus'] != CORPUS_ENTREGA:
+        raise CalibracionNoValida(f'la calibración {calibracion} es de otro corpus ({datos["corpus"]!r}, no '
+                                  f'{CORPUS_ENTREGA!r})')
+    try:
+        sello = sha256_de(conjunto)
+    except OSError as exc:
+        raise CalibracionNoValida(f'no se puede leer el conjunto {conjunto} que la calibración sella: {exc}') from exc
+    if datos['conjunto_sha256'] != sello:
+        raise CalibracionNoValida(f'la calibración {calibracion} es de otro conjunto (sello '
+                                  f'{str(datos["conjunto_sha256"])[:12]}, el de {conjunto.name} es {sello[:12]})')
+    umbrales = datos['umbrales']
+    valor = umbrales.get('bm25_solo') if isinstance(umbrales, dict) else None
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)) or valor != valor:
+        raise CalibracionNoValida(f'la calibración {calibracion} no trae un umbral bm25_solo numérico ({valor!r})')
+    return float(valor)
+
+
+def reordenador_de(pol: Mapping[str, Any], turno: Callable[[], Any] = contextlib.nullcontext
+                   ) -> Callable[[str, Sequence[Mapping]], list[dict]] | None:
+    """La función que espera ``indice.responder``, o ``None`` si la política no adoptó ninguno.
+
+    ``turno`` es la guardia de la GPU: si otro la tiene, salta y queda el orden sin reranker."""
+    modelo, revision = pol.get('modelo'), pol.get('revision')
+    if not modelo:
+        return None
+
+    def reordenador(consulta: str, candidatos: Sequence[Mapping]) -> list[dict]:
+        try:
+            with turno():
+                return reordenar(consulta, candidatos, modelo=modelo, revision=revision)
+        except RerankerNoDisponible:
+            raise
+        except (OSError, RuntimeError, ValueError) as exc:             # la guardia de la GPU: otro la tiene
+            raise RerankerNoDisponible(f'GPU sin turno para el reranker: {exc}') from exc
+
+    reordenador.etiqueta = f'reranker:{modelo}'
+    return reordenador

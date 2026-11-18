@@ -44,7 +44,7 @@ def evidencia_nativa(etapa: str):
 
 def contexto_nativo(project: str, feeders: list[str] | tuple[str, ...], action: str) -> dict:
     """Contexto mínimo pero firmado para planes unitarios que llegan al ``main``."""
-    from convertersmartgrid.native_action import build_native_action_context
+    from convertersmartgrid.dominio.native_action import build_native_action_context
 
     return build_native_action_context({'project': project}, project, feeders, action)
 
@@ -60,8 +60,8 @@ def espacio_txt_custodiado(raiz: Path, *, seed: int = 7801,
     from types import SimpleNamespace
     import threading
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
     from synthetic_export import ExportSpec, write_export
 
     spec = ExportSpec(feeders=1, sections_per_feeder=6, loads_per_feeder=3, seed=seed)
@@ -88,7 +88,7 @@ def vincular_proyecto(client, wid: str, project: str, feeders, *,
     Con el «Caso base» de cada alimentador verificado (spec 015), salvo los de
     ``sin_verificar``.
     """
-    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
+    from convertersmartgrid.adaptadores.powerfactory_binding import PowerFactoryProjectBinding
 
     project = str(project or '').strip()
     if not project:
@@ -177,7 +177,7 @@ def esperar_trabajo(client, job: dict, timeout: float = SIN_AVANCE_S, *, tope: f
 
 def contrato_fisico() -> dict:
     """Lo que un grafo versión 3 declara de su física (045:RF-3), para las redes sintéticas."""
-    from convertersmartgrid.digital_twin.contratos_fisicos import CONTROLES_LDF, REPRESENTACION
+    from convertersmartgrid.adaptadores.digital_twin.contratos_fisicos import CONTROLES_LDF, REPRESENTACION
 
     return {'alcance_fisico': {'representacion': REPRESENTACION, 'no_representados': {}},
             'controles': {'comldf': dict.fromkeys(CONTROLES_LDF, 0)}}
@@ -196,7 +196,7 @@ def turno_gpu_esperando(nombre: str, limite_s: float | None = None, pausa_s: flo
     seis pruebas fallaban sin decir por qué (2026-11-03). Como un lanzador de ``tools/``, la prueba toma el
     turno y el hijo lo hereda; si no llega en ``limite_s`` (``CSG_GPU_ESPERA_S``), falla con «GPU ocupada».
     """
-    from convertersmartgrid.trabajadores_ml import turno_gpu
+    from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
 
     limite = float(os.environ.get('CSG_GPU_ESPERA_S', ESPERA_TURNO_GPU_S)) if limite_s is None else limite_s
     fin = time.monotonic() + limite

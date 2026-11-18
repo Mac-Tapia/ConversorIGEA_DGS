@@ -2,7 +2,7 @@
 
 Generado con `tools/preguntas_entregables.py informe` (spec 076), sobre la revisión `10fd3e1d`. No editar a mano.
 
-Filas: 441. Huella del contenido: `3ec25dd399d3b0d15eb3310a0a136b264cc09e87992c46566619a1aedf66e627`.
+Filas: 441. Huella del contenido: `41cbeb83947ee95414efc1ece68d78dbb890fce903b3670f5727dd95f43f88b1`.
 Huella de lo sellado: `98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce`.
 
 | Entregable o tema | Filas | Con respuesta | Sin respuesta | Corpus | Sellado | Revisadas |
@@ -213,12 +213,12 @@ Huecos encontrados:
 
 Manda el código; se anotan y no se corrigen aquí.
 
-- La arquitectura dice que el estudio de planeamiento está sin implementar, y el código genera sus siete módulos. Documento: `docs/ARQUITECTURA.md:266`. Código: `src/convertersmartgrid/informes_planeamiento.py:250`.
-- La arquitectura dice que el RAG no tiene reranker, y el índice lo usa con su abstención. Documento: `docs/ARQUITECTURA.md:184`. Código: `src/convertersmartgrid/asistente/indice.py:72`.
-- La arquitectura dice que el pronóstico multihorizonte no tiene código, y la spec 046 está cumplida con su código. Documento: `docs/ARQUITECTURA.md:240`. Código: `src/convertersmartgrid/digital_twin/pronostico.py:328`.
-- La arquitectura dice que N-HiTS, TFT y PatchTST solo están especificados, y hay adaptadores en CUDA. Documento: `docs/ARQUITECTURA.md:212`. Código: `src/convertersmartgrid/digital_twin/adaptador_neuralforecast.py:1`.
-- La arquitectura habla de tres carriles y el código tiene cuatro, con «control». Hoy son cinco: la 110 añade «correo». Documento: `docs/ARQUITECTURA.md:118`. Código: `src/convertersmartgrid/web/jobs.py:40`.
+- La arquitectura dice que el estudio de planeamiento está sin implementar, y el código genera sus siete módulos. Documento: `docs/ARQUITECTURA.md:266`. Código: `src/convertersmartgrid/adaptadores/informes_planeamiento.py:250`.
+- La arquitectura dice que el RAG no tiene reranker, y el índice lo usa con su abstención. Documento: `docs/ARQUITECTURA.md:184`. Código: `src/convertersmartgrid/aplicacion/asistente/indice.py:72`.
+- La arquitectura dice que el pronóstico multihorizonte no tiene código, y la spec 046 está cumplida con su código. Documento: `docs/ARQUITECTURA.md:240`. Código: `src/convertersmartgrid/adaptadores/digital_twin/pronostico.py:328`.
+- La arquitectura dice que N-HiTS, TFT y PatchTST solo están especificados, y hay adaptadores en CUDA. Documento: `docs/ARQUITECTURA.md:212`. Código: `src/convertersmartgrid/adaptadores/digital_twin/adaptador_neuralforecast.py:1`.
+- La arquitectura habla de tres carriles y el código tiene cuatro, con «control». Hoy son cinco: la 110 añade «correo». Documento: `docs/ARQUITECTURA.md:118`. Código: `src/convertersmartgrid/presentacion/web/jobs.py:40`.
 - La arquitectura cuenta 210 módulos con capa y pyproject.toml declara 230. Documento: `docs/ARQUITECTURA.md:47`. Código: `pyproject.toml:109`.
-- La cifra de acierto del Transformer en uso no sale de ningún fichero del repositorio y el puntero del almacén de esta revisión no existe: hay que medirla de nuevo. Documento: `docs/ARQUITECTURA.md:202`. Código: `src/convertersmartgrid/asistente/modelos_en_uso.py:4`.
-- La spec pide el informe de estudio de uno o varios alimentadores y el código lo hace de uno. Documento: `specs/017-informes-de-estudio-y-factibilidad/spec.md:137`. Código: `src/convertersmartgrid/web/services.py:6926`.
-- El docstring del informe de factibilidad dice que las pérdidas reconocidas vienen del formulario, y el código ya las lee del libro de pérdidas. Documento: `src/convertersmartgrid/web/services.py:7545`. Código: `src/convertersmartgrid/web/services.py:7631`.
+- La cifra de acierto del Transformer en uso no sale de ningún fichero del repositorio y el puntero del almacén de esta revisión no existe: hay que medirla de nuevo. Documento: `docs/ARQUITECTURA.md:202`. Código: `src/convertersmartgrid/aplicacion/asistente/modelos_en_uso.py:4`.
+- La spec pide el informe de estudio de uno o varios alimentadores y el código lo hace de uno. Documento: `specs/017-informes-de-estudio-y-factibilidad/spec.md:137`. Código: `src/convertersmartgrid/presentacion/web/services.py:6926`.
+- El docstring del informe de factibilidad dice que las pérdidas reconocidas vienen del formulario, y el código ya las lee del libro de pérdidas. Documento: `src/convertersmartgrid/presentacion/web/services.py:7545`. Código: `src/convertersmartgrid/presentacion/web/services.py:7631`.

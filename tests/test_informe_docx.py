@@ -11,12 +11,12 @@ from pathlib import Path
 import docx
 import pytest
 
-from convertersmartgrid.informe_docx import (
+from convertersmartgrid.adaptadores.informe_docx import (
     DatosEstudio, DatosFactibilidad, abrir_modelo, escribir_informe_estudio, escribir_informe_factibilidad)
-from convertersmartgrid.informes import (
+from convertersmartgrid.adaptadores.informes import (
     Caso, ConfigInforme, Devanado, Encabezado, Etapa, Extremo, InformeError, Potencia, Solicitud,
     perdidas_anuales)
-from convertersmartgrid.libros_informe import DatosPerdidas
+from convertersmartgrid.adaptadores.libros_informe import DatosPerdidas
 
 #: Datos del modelo que no pueden aparecer en ningún informe generado.
 DEL_MODELO = ('GT-019-PR', 'CAIDA DE TENSIÓN DEL MODELO', '9999', '3 de 6', 'JAVIER')
@@ -212,7 +212,7 @@ def _factibilidad_con_baja(tmp_path, bajas, **extra):
 
 def test_factibilidad_lista_el_deficit_previo_con_su_barra_y_tension(tmp_path):
     """086:RF-48, 086:RF-50 — SI112: la obra basta para la carga, y el ramal figura como déficit previo."""
-    from convertersmartgrid.libro_informe import conclusiones_del_word
+    from convertersmartgrid.adaptadores.libro_informe import conclusiones_del_word
 
     destino, resumen = _factibilidad_con_baja(tmp_path, BAJA_PREVIA)
     assert resumen['factible'] and resumen['conclusion_conexion']['clave'] == 'con_obras_deficit'
@@ -479,7 +479,7 @@ def test_json_con_los_valores_junto_al_word(tmp_path):
 
 def test_un_fallo_no_deja_word_a_medias(tmp_path, monkeypatch):
     """017:RF-27 — si la escritura falla, ni .docx ni .tmp en la carpeta."""
-    import convertersmartgrid.informe_docx as modulo
+    import convertersmartgrid.adaptadores.informe_docx as modulo
 
     def revienta(*_a, **_k):
         raise RuntimeError('cancelado')
@@ -685,8 +685,8 @@ def _resultado_sorteado(semilla):
 def test_resumen_ejecutivo_con_sus_cifras(tmp_path, semilla):
     """017:RF-142 — el resumen dice cada caso con sus violaciones, alimentadores y tensión mínima, y lleva las tablas
     hasta su tope diciendo cuántas filas quedan fuera; sin calibración, lo avisa."""
-    from convertersmartgrid.informe_docx import escribir_resumen_estudios
-    from convertersmartgrid.informes import numero
+    from convertersmartgrid.adaptadores.informe_docx import escribir_resumen_estudios
+    from convertersmartgrid.adaptadores.informes import numero
 
     r = _resultado_sorteado(semilla)
     hecho = escribir_resumen_estudios(tmp_path / 'resumen.docx', r)
@@ -711,7 +711,7 @@ def test_resumen_ejecutivo_con_su_libro_si_el_perfil_lo_pide(tmp_path, semilla):
     """017:RF-143 — con el libro que declara el perfil, el Excel lleva todas las filas, sin el tope del Word."""
     import openpyxl
 
-    from convertersmartgrid.informe_docx import escribir_resumen_estudios
+    from convertersmartgrid.adaptadores.informe_docx import escribir_resumen_estudios
 
     r = _resultado_sorteado(semilla)
     hecho = escribir_resumen_estudios(tmp_path / 'resumen.docx', r, libro=True, tope=1)
@@ -731,8 +731,8 @@ def _lineas_de_texto(d) -> int:
 def test_resumen_ejecutivo_en_una_hoja_con_la_cabecera_del_modelo(tmp_path, semilla):
     """017:RF-142 — decisión del usuario (2026-11-13): el resumen ejecutivo lleva del informe modelo de la empresa
     solo una hoja: su cabecera y su pie, y un cuerpo que cabe en una página, sin saltos; el detalle, en el libro."""
-    from convertersmartgrid.informe_docx import LINEAS_POR_HOJA, escribir_resumen_estudios
-    from convertersmartgrid.informes import numero
+    from convertersmartgrid.adaptadores.informe_docx import LINEAS_POR_HOJA, escribir_resumen_estudios
+    from convertersmartgrid.adaptadores.informes import numero
 
     r = _resultado_sorteado(semilla)
     for i in range(semilla * 9):                               # más violaciones de las que caben en una hoja
@@ -757,8 +757,8 @@ def test_factibilidad_recoge_lo_que_ocasiona_la_carga_y_si_las_obras_lo_corrigen
     """017:RF-106 ampliada — 2.3.5 compara «Sin proyecto», con las cargas sin obras y «Con proyecto»: las barras que la
     carga deja bajo el límite, los trechos sobrecargados de nodo a nodo y su estado con las obras; y las conclusiones lo
     resumen (CA101 con SECA001, 2026-11-13)."""
-    from convertersmartgrid.estudios_pf import Limites
-    from convertersmartgrid.informes import diagnostico_de_cargas
+    from convertersmartgrid.aplicacion.estudios_pf import Limites
+    from convertersmartgrid.adaptadores.informes import diagnostico_de_cargas
     from test_diagnostico_cargas import CARGAS, GEO, SIN, _medida
 
     con = _medida({'C': 1.0, 'B1': 0.98, 'B2': 0.94, 'B3': 0.96}, {'L1': 70.0, 'L2': 65.0, 'L3': 50.0})
@@ -782,8 +782,8 @@ def test_factibilidad_recoge_lo_que_ocasiona_la_carga_y_si_las_obras_lo_corrigen
 def test_estudio_recoge_por_alimentador_lo_que_ocasionan_las_cargas(tmp_path):
     """017:RF-106 ampliada — el informe de estudio (cargas en bloque) trae, tras el escenario actual y proyectado, el
     diagnóstico de cada alimentador con su estado en «Con proyecto»."""
-    from convertersmartgrid.estudios_pf import Limites
-    from convertersmartgrid.informes import diagnostico_de_cargas
+    from convertersmartgrid.aplicacion.estudios_pf import Limites
+    from convertersmartgrid.adaptadores.informes import diagnostico_de_cargas
     from test_diagnostico_cargas import CARGAS, GEO, SIN
 
     d = diagnostico_de_cargas(SIN, CARGAS, None, Limites(0.95, 1.05, 100.0), GEO)

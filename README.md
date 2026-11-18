@@ -30,7 +30,7 @@ Doble clic en `run_gui.bat`, o:
 
 ```bash
 set PYTHONPATH=src
-python -m convertersmartgrid.web          # o: convertersmartgrid-web  /  convertersmartgrid web
+python -m convertersmartgrid.presentacion.web          # o: convertersmartgrid-web  /  convertersmartgrid web
 ```
 
 Abre el navegador en `http://127.0.0.1:8765/`. Es una API **FastAPI** que sirve un
@@ -149,7 +149,7 @@ PowerFactory mientras corren. Cada navegador trabaja en su **espacio de trabajo*
 **Desarrollo del front** (recarga en caliente):
 
 ```bash
-python -m convertersmartgrid.web --no-browser     # API en :8765
+python -m convertersmartgrid.presentacion.web --no-browser     # API en :8765
 cd frontend && npm ci && npm run dev   # front en :5173, reenvía /api a :8765
 ```
 
@@ -175,7 +175,7 @@ están en la web, y `run_gui.bat` conserva el nombre por los accesos directos ya
 ## Reglas del proyecto (se aplican a toda conversión)
 
 Cada entrada —los tres TXT, la base Access `.mdb` o el paquete VNR-GIS— y cada vía
-—interfaz web, CLI, red unida— convierte con las mismas reglas (`src/convertersmartgrid/reglas.py`):
+—interfaz web, CLI, red unida— convierte con las mismas reglas (`src/convertersmartgrid/aplicacion/reglas.py`):
 
 | Regla | Qué hace |
 |---|---|
@@ -269,7 +269,7 @@ La fuente de verdad para cada conversión es:
 | ---- | ------ |
 | Motor de conversión (dataset → model → DGS → validate) | Listo |
 | CLI `list` / `convert` / `web` (TXT, Access y VNR-GIS) | Listo |
-| Interfaz web (FastAPI + React) | Listo (`src/convertersmartgrid/web/` + `frontend/` + `run_gui.bat`) |
+| Interfaz web (FastAPI + React) | Listo (`src/convertersmartgrid/presentacion/web/` + `frontend/` + `run_gui.bat`) |
 | Instalador sin internet (spec 086) | Candidato y guion listos; instalador compilado y máquina limpia pendientes (T37) |
 | Interfaz de escritorio Tkinter | Retirada (spec 001, RF-16) |
 | Empaquetado `pyproject.toml` | Listo |
@@ -320,7 +320,7 @@ Validador estricto
 Listar alimentadores:
 
 ```bash
-PYTHONPATH=src python -m convertersmartgrid.cli list \
+PYTHONPATH=src python -m convertersmartgrid.presentacion.cli list \
   --red RED_030826.txt \
   --loads CARGA_030826.txt \
   --equipment BD_Equipo.txt
@@ -329,7 +329,7 @@ PYTHONPATH=src python -m convertersmartgrid.cli list \
 Convertir un alimentador (use el nombre corto que aparezca en `list`, el de su export):
 
 ```bash
-PYTHONPATH=src python -m convertersmartgrid.cli convert \
+PYTHONPATH=src python -m convertersmartgrid.presentacion.cli convert \
   --red RED_export.txt \
   --loads CARGA_export.txt \
   --equipment BD_Equipo.txt \
@@ -341,7 +341,7 @@ PYTHONPATH=src python -m convertersmartgrid.cli convert \
 Convertir todos los alimentadores del lote cargado:
 
 ```bash
-PYTHONPATH=src python -m convertersmartgrid.cli convert \
+PYTHONPATH=src python -m convertersmartgrid.presentacion.cli convert \
   --red RED_export.txt \
   --loads CARGA_export.txt \
   --equipment BD_Equipo.txt \

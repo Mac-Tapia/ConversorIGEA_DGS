@@ -43,8 +43,8 @@ def _package(tmp_path: Path, *, companies: tuple[str, ...], periods: tuple[int, 
 
 
 def _snapshot(tmp_path: Path, package: Path):
-    from convertersmartgrid.web.source_runs import create_source_run
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='scope-test', root=tmp_path / 'workspace')
     ws.options['input_mode'] = 'vnr'
@@ -53,7 +53,7 @@ def _snapshot(tmp_path: Path, package: Path):
 
 
 def test_vnr_single_scope_is_detected_without_company_default(tmp_path):
-    from convertersmartgrid.web.source_scope import inspect_source_scope
+    from convertersmartgrid.presentacion.web.source_scope import inspect_source_scope
 
     scope = inspect_source_scope(_snapshot(
         tmp_path, _package(tmp_path, companies=('GENERIC_CO',), periods=(2031,)),
@@ -67,7 +67,7 @@ def test_vnr_single_scope_is_detected_without_company_default(tmp_path):
 
 
 def test_vnr_multiple_companies_requires_explicit_selection(tmp_path):
-    from convertersmartgrid.web.source_scope import inspect_source_scope
+    from convertersmartgrid.presentacion.web.source_scope import inspect_source_scope
 
     scope = inspect_source_scope(_snapshot(
         tmp_path, _package(tmp_path, companies=('UTILITY_A', 'UTILITY_B'), periods=(2030,)),
@@ -80,7 +80,7 @@ def test_vnr_multiple_companies_requires_explicit_selection(tmp_path):
 
 
 def test_pipeline_and_adapter_have_no_company_specific_default():
-    from convertersmartgrid.web.sources.vnr import VnrSourceAdapter
+    from convertersmartgrid.adaptadores.sources.vnr import VnrSourceAdapter
     from convertersmartgrid.adaptadores.entrada.vnr.pipeline import canonicalize_vnr_package
 
     assert inspect.signature(canonicalize_vnr_package).parameters['company'].default is None
@@ -88,7 +88,7 @@ def test_pipeline_and_adapter_have_no_company_specific_default():
 
 
 def test_source_scope_api_exposes_options_and_selection_invalidates_run(tmp_path):
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     app = create_app(tmp_path / 'web')
     with TestClient(app) as client:

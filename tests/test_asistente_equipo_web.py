@@ -6,9 +6,9 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
 
 
 class InterpreteLocalDePrueba:
@@ -110,11 +110,11 @@ def test_revision_local_con_informe_real_custodiado_sin_ejecutar(api, tmp_path, 
     """047:RF-5/6/7 / 065:RF-23 — custodia real, adaptador LLM con transporte simulado explícito."""
     import io
     import json
-    from convertersmartgrid.asistente.equipo import GobiernoEquipo
-    from convertersmartgrid.asistente.plan import Plan
-    from convertersmartgrid.asistente.observacion import registrar_evidencia
-    from convertersmartgrid.asistente.ollama import ClienteOllama
-    from convertersmartgrid.asistente import ollama
+    from convertersmartgrid.aplicacion.asistente.equipo import GobiernoEquipo
+    from convertersmartgrid.aplicacion.asistente.plan import Plan
+    from convertersmartgrid.aplicacion.asistente.observacion import registrar_evidencia
+    from convertersmartgrid.aplicacion.asistente.ollama import ClienteOllama
+    from convertersmartgrid.aplicacion.asistente import ollama
     cliente, _ = api
     wid = cliente.post('/api/workspaces', json={'name': 'equipo'}).json()['id']
     previo = proponer(cliente, wid)

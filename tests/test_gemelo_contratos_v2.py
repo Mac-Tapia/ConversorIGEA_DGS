@@ -11,21 +11,21 @@ import pytest
 from apoyo import cargar_herramienta, contexto_nativo, contrato_fisico
 from test_digital_twin_episode import H, _payload, _payload_v1
 
-from convertersmartgrid.digital_twin import episode as ep
-from convertersmartgrid.digital_twin.buffer import BuferEpisodios, Consulta
-from convertersmartgrid.digital_twin.capture import construir_episodio
-from convertersmartgrid.digital_twin.contratos_fisicos import (
+from convertersmartgrid.dominio.digital_twin import episode as ep
+from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios, Consulta
+from convertersmartgrid.adaptadores.digital_twin.capture import construir_episodio
+from convertersmartgrid.adaptadores.digital_twin.contratos_fisicos import (
     REPRESENTACION,
     VERSION_GRAFO,
     contexto_fisico,
     validar_alcance_fisico,
 )
-from convertersmartgrid.digital_twin.episode import Caso, Clase
-from convertersmartgrid.digital_twin.evaluacion import evaluar
-from convertersmartgrid.digital_twin.integration import plan_de_lectura
-from convertersmartgrid.digital_twin.oraculo import muestra_de_episodio, por_que_no_ensena
-from convertersmartgrid.experimentos import ContextoExperimento, clave_contexto
-from convertersmartgrid.native_action import build_native_action_context
+from convertersmartgrid.dominio.digital_twin.episode import Caso, Clase
+from convertersmartgrid.adaptadores.digital_twin.evaluacion import evaluar
+from convertersmartgrid.adaptadores.digital_twin.integration import plan_de_lectura
+from convertersmartgrid.adaptadores.digital_twin.oraculo import muestra_de_episodio, por_que_no_ensena
+from convertersmartgrid.aplicacion.experimentos import ContextoExperimento, clave_contexto
+from convertersmartgrid.dominio.native_action import build_native_action_context
 
 RAIZ = Path(__file__).resolve().parents[1]
 ESQUEMAS = RAIZ / 'src' / 'convertersmartgrid' / 'schemas'
@@ -92,7 +92,7 @@ def test_v1_lectura_no_cambia_hash(tmp_path):
 
 def test_v1_con_el_prefijo_anterior_conserva_su_huella():
     """045:RF-2 — un v1 escrito con el prefijo de esquema anterior a la 058 tampoco cambia de identidad."""
-    from convertersmartgrid.util import PREFIJO_ESQUEMA_ANTERIOR
+    from convertersmartgrid.dominio.util import PREFIJO_ESQUEMA_ANTERIOR
 
     payload = _payload_v1(schema=PREFIJO_ESQUEMA_ANTERIOR + 'digital-twin-episode-v1')
     e = ep.leer_episodio(payload)

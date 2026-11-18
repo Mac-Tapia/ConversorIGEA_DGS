@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import aprendizaje_continuo as ac
-from convertersmartgrid.web import app
-from convertersmartgrid.web.jobs import JobManager
+from convertersmartgrid.aplicacion import aprendizaje_continuo as ac
+from convertersmartgrid.presentacion.web import app
+from convertersmartgrid.presentacion.web.jobs import JobManager
 
 
 def _plan(tmp_path):
@@ -42,8 +42,8 @@ def test_vigilancia_comun_activa_por_defecto_y_sin_plan_bloquea(tmp_path, monkey
     """050:RF-4/8, 071:RF-6 — sin ninguna variable la vigilancia ve los datos nuevos y pide el ciclo (usuario,
     2026-11-13: el reentreno automático va siempre). Sin plan del ciclo en el equipo, el bloqueo queda a la vista
     y no se encola nada: faltar el plan es un dato que falta (RF-8), no un permiso."""
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.asistente.vigilancia import Vigilante
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.aplicacion.asistente.vigilancia import Vigilante
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     monkeypatch.delenv('CSG_AUTOENTRENAMIENTO', raising=False)
     monkeypatch.delenv('CSG_APRENDIZAJE_PLAN', raising=False)
@@ -78,7 +78,7 @@ def _con_carril_ocupado(jobs):
 def test_sin_ninguna_variable_el_ciclo_arranca_con_el_plan_del_equipo(tmp_path, monkeypatch):
     """050:RF-4; 071:RF-6 — ni CSG_AUTOENTRENAMIENTO ni CSG_APRENDIZAJE_PLAN: con el plan guardado en los datos del
     asistente, el ciclo se encola en el carril de fondo. Antes devolvía None sin la variable a «1»."""
-    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.aplicacion.asistente import almacen
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     monkeypatch.delenv('CSG_AUTOENTRENAMIENTO', raising=False)
     monkeypatch.delenv('CSG_APRENDIZAJE_PLAN', raising=False)
@@ -99,7 +99,7 @@ def test_sin_ninguna_variable_el_ciclo_arranca_con_el_plan_del_equipo(tmp_path, 
 def test_con_la_orden_de_parar_no_arranca(tmp_path, monkeypatch):
     """050:RF-4; 071:RF-6 — el operador lo para con una orden explícita, ``CSG_AUTOENTRENAMIENTO=0``, como la captura
     del gemelo con ``CSG_TWIN_CAPTURA=0``: ni se encola ni la vigilancia cuenta datos nuevos."""
-    from convertersmartgrid.asistente.vigilancia import Vigilante
+    from convertersmartgrid.aplicacion.asistente.vigilancia import Vigilante
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     monkeypatch.setenv('CSG_AUTOENTRENAMIENTO', '0')
     monkeypatch.setenv('CSG_APRENDIZAJE_PLAN', str(_plan(tmp_path)))
@@ -143,8 +143,8 @@ def test_cola_deduplica_plan_vivo_y_admite_cancelacion_publica(tmp_path, monkeyp
 def test_cancelacion_de_cola_impide_primera_etapa(tmp_path):
     """050:RF-4 — cancelar antes de comenzar conserva diario y nunca ejecuta una etapa."""
     from test_aprendizaje_continuo import _instantanea, CTX
-    from convertersmartgrid.model_registry import RegistroModelo
-    from convertersmartgrid.training_coordinator import TrainingStage
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.training_coordinator import TrainingStage
     inst = _instantanea(tmp_path)
     llamadas = []
     resultado = ac.ejecutar_ciclo(tmp_path / 'ap', inst,
@@ -158,7 +158,7 @@ def test_cancelacion_de_cola_impide_primera_etapa(tmp_path):
 def test_vigilancia_no_anuncia_entrenamiento_y_reintenta_solicitud_no_admitida(tmp_path, monkeypatch):
     """050:RF-4/8/10 — faltar un plan no sella como entrenados ni atendidos los datos nuevos."""
     from datetime import datetime
-    from convertersmartgrid.asistente.vigilancia import Vigilante, revisar_modelos
+    from convertersmartgrid.aplicacion.asistente.vigilancia import Vigilante, revisar_modelos
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     avisos = revisar_modelos(episodios_nuevos=20, ordenes_nuevas=30)
     assert all('se reentrena' not in aviso.texto for aviso in avisos)
@@ -178,7 +178,7 @@ def test_vigilancia_no_anuncia_entrenamiento_y_reintenta_solicitud_no_admitida(t
 def test_trabajo_real_mantiene_bloqueo_de_fuentes_sin_lanzar_modelos(tmp_path, monkeypatch):
     """050:RF-4/8/10 — cola y proceso CLI reales conservan un bloqueo anterior a entrenamiento."""
     import time
-    from convertersmartgrid.web.jobs import FINISHED
+    from convertersmartgrid.presentacion.web.jobs import FINISHED
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     monkeypatch.setenv('CSG_AUTOENTRENAMIENTO', '1')
     monkeypatch.setenv('CSG_APRENDIZAJE_PLAN', str(_plan(tmp_path)))
@@ -220,7 +220,7 @@ def test_067_rf41_el_reentreno_automatico_deja_su_recibo_y_sigue_activo(tmp_path
     vigilancia como responsable, y su resultado no cambia."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.aplicacion.asistente import almacen
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     monkeypatch.delenv('CSG_AUTOENTRENAMIENTO', raising=False)
     monkeypatch.setenv('CSG_APRENDIZAJE_PLAN', str(_plan(tmp_path)))

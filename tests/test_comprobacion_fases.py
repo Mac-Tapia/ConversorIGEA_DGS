@@ -6,11 +6,11 @@ from dataclasses import replace
 import pytest
 
 from apoyo import cargar_herramienta
-from convertersmartgrid.comprobacion_fases import (
+from convertersmartgrid.dominio.comprobacion_fases import (
     MAS_FASES, NO_LLEGAN, Barra, Elemento, comprobar, comprobar_modelo, reconstruir_bancos, ubicar_nuevo,
 )
-from convertersmartgrid.model import CapacitorBank, Coupler, FeederModel, Line, Load, Sed
-from convertersmartgrid.reglas import SIN_REGLAS, aplicar_reglas
+from convertersmartgrid.dominio.model import CapacitorBank, Coupler, FeederModel, Line, Load, Sed
+from convertersmartgrid.aplicacion.reglas import SIN_REGLAS, aplicar_reglas
 
 
 def _linea(i, a, b, fase):
@@ -75,7 +75,7 @@ def test_el_banco_de_la_fuente_toma_las_fases_de_su_barra():
     assert 'FASE_RECONSTRUIDA' in informe['fases_reconstruidas'][0] and 'ABC → AB' in informe['fases_reconstruidas'][0]
     assert any('FASE_RECONSTRUIDA' in a for a in m.warnings)
     assert comprobar_modelo(m).hallazgos == []
-    from convertersmartgrid.dgs import _capacitor_technology
+    from convertersmartgrid.adaptadores.dgs import _capacitor_technology
 
     assert _capacitor_technology(banco.phases)[0] == 3         # el DGS le da la tecnología de dos fases
     # Una vez reconstruido, repetir no cambia nada.
@@ -99,8 +99,9 @@ def test_el_preflight_lo_dice_y_la_importacion_sigue(tmp_path, monkeypatch):
     """081:RF-4, 081:RF-3 — lo que no cuadra no impide importar: va al Registro y al informe, por elemento."""
     from types import SimpleNamespace
 
-    from convertersmartgrid import oraculo, preflight_contract
-    from convertersmartgrid.web import services
+    from convertersmartgrid.adaptadores import oraculo
+    from convertersmartgrid.aplicacion import preflight_contract
+    from convertersmartgrid.presentacion.web import services
 
     carga, sed = _sed('S1', 'N2', 'C')
     m = _modelo([_linea('T0', 'H', 'N1', 'ABC'), _linea('R1', 'N1', 'N2', 'AB')], cargas=[carga], seds=[sed])

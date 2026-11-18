@@ -14,10 +14,10 @@ from fastapi.testclient import TestClient
 from correo_simulado import CompartidorSimulado, CredencialesSimuladas, ProveedorSimulado, sin_red  # noqa: F401
 from test_correo_borrador import _informe_cerrado
 
-from convertersmartgrid.asistente.equipo import PermisoDenegado
-from convertersmartgrid.web import correo_api
-from convertersmartgrid.web.jobs import LANES
-from convertersmartgrid.web.seguridad import _SinCorreoEnElRegistro, enmascarar_correo
+from convertersmartgrid.aplicacion.asistente.equipo import PermisoDenegado
+from convertersmartgrid.presentacion.web import correo_api
+from convertersmartgrid.presentacion.web.jobs import LANES
+from convertersmartgrid.presentacion.web.seguridad import _SinCorreoEnElRegistro, enmascarar_correo
 
 ORIGEN = {'Origin': 'http://testserver'}
 _DIRECCION = re.compile(r'[a-z0-9._%+-]{2,}@[a-z0-9.-]+\.[a-z]{2,}')
@@ -151,7 +151,7 @@ def test_ningun_paso_del_asistente_alcanza_la_confirmacion(tmp_path, monkeypatch
     import re
 
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'equipo'))
-    raiz = Path(__file__).resolve().parents[1] / 'src' / 'convertersmartgrid' / 'asistente'
+    raiz = Path(__file__).resolve().parents[1] / 'src' / 'convertersmartgrid' / 'aplicacion' / 'asistente'
     for fichero in raiz.rglob('*.py'):
         rutas = re.findall(r"/correo/[\w{}\-/]*", fichero.read_text(encoding='utf-8'))
         assert set(rutas) <= {'/correo/vista-previa'}, (fichero, rutas)
@@ -284,8 +284,8 @@ def test_create_app_sirve_el_correo_y_sin_cuentas_de_la_109_no_envia(tmp_path, m
     from apoyo import esperar_trabajo
     from test_informe_docx import _config, _factibilidad
 
-    from convertersmartgrid.informe_docx import escribir_informe_factibilidad
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.adaptadores.informe_docx import escribir_informe_factibilidad
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     app = create_app(tmp_path / 'web')
@@ -332,7 +332,7 @@ def test_el_registro_no_escribe_el_token_bearer_dado_como_argumento():
     un handler propio sobre un registrador propio, con los dos filtros que la web pone en uvicorn.access."""
     import io
 
-    from convertersmartgrid.web import seguridad
+    from convertersmartgrid.presentacion.web import seguridad
 
     salida = io.StringIO()
     manejador = logging.StreamHandler(salida)

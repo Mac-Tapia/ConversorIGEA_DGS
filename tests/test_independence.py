@@ -12,7 +12,7 @@ def test_production_source_has_no_fixed_reference_dgs_dependency():
 def test_schema_profile_defines_32_versioned_dgs_tables():
     """Las 30 del perfil, ``Matrix``, que lleva el trazado GPS de las líneas (010:RF-1), y
     ``ElmZone``, los sistemas eléctricos de la red unida por SET (022:RF-15)."""
-    from convertersmartgrid.schema import load_schema
+    from convertersmartgrid.adaptadores.schema import load_schema
     schema = load_schema()
     assert len(schema.tables) == 32 and 'ElmZone' in schema.tables
     assert len(schema.table_order) == 32

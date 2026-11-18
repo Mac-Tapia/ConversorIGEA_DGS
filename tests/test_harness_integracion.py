@@ -7,14 +7,14 @@ from pathlib import Path
 
 from test_harness_ejecucion import evaluadores, preparar, proveedor
 
-from convertersmartgrid.evaluacion_harness.contratos import huella, sellar
-from convertersmartgrid.evaluacion_harness.ejecucion import ejecutar
-from convertersmartgrid.evaluacion_harness.integracion import (
+from convertersmartgrid.dominio.evaluacion_harness.contratos import huella, sellar
+from convertersmartgrid.aplicacion.evaluacion_harness.ejecucion import ejecutar
+from convertersmartgrid.adaptadores.evaluacion_harness.integracion import (
     crear_etapa,
     registrar_resultado,
 )
-from convertersmartgrid.model_registry import RegistroModelo
-from convertersmartgrid.training_coordinator import TrainingCoordinator
+from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+from convertersmartgrid.aplicacion.training_coordinator import TrainingCoordinator
 
 
 def declaracion(cfg, artefacto):

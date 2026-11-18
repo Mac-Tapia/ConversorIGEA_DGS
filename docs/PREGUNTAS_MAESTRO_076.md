@@ -96,11 +96,11 @@ Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.
 
 ## arquitectura-019
 
-Pregunta: ¿Ya hay paquetes por capa y módulos enchufables?
+Pregunta: ¿Dónde se declara la capa de cada módulo?
 
-Respuesta: Aún no: la spec de capas está aprobada con tareas pendientes.
+Respuesta: En `[tool.convertersmartgrid.capas.modulos]` de `pyproject.toml`; `tools/arquitectura.py` lo comprueba sobre el código sin importarlo.
 
-Fuentes: docs/ARQUITECTURA.md:44.
+Fuentes: docs/ARQUITECTURA.md:45.
 Origen: sintetico_maestro. Marcó: maestro, no es una revisión humana.
 
 ## arquitectura-020

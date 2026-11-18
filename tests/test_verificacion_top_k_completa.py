@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.digital_twin.evaluacion import Limites
-from convertersmartgrid.digital_twin.evolutivo import verificar_top_k
-from convertersmartgrid.evaluacion_modelos import validar_medicion_nativa
-from convertersmartgrid.experimentos import ContextoExperimento
+from convertersmartgrid.adaptadores.digital_twin.evaluacion import Limites
+from convertersmartgrid.adaptadores.digital_twin.evolutivo import verificar_top_k
+from convertersmartgrid.aplicacion.evaluacion_modelos import validar_medicion_nativa
+from convertersmartgrid.aplicacion.experimentos import ContextoExperimento
 
 RAIZ = Path(__file__).resolve().parents[1]
 #: Limites holgados: aquí se comprueba la completitud; la norma se prueba con los suyos abajo.

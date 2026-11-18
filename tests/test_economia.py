@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from convertersmartgrid.economia import (
+from convertersmartgrid.dominio.economia import (
     CostosUnitarios,
     EconomiaError,
     ParametrosTec,

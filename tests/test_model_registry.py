@@ -19,7 +19,7 @@ def _payload(tmp_path, status='PROMOVIDO', contenido=b'pesos'):
 
 
 def test_cuatro_estados_y_promocion_reversion_atomicas(tmp_path):
-    from convertersmartgrid.model_registry import EstadoModelo, RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import EstadoModelo, RegistroModelo
 
     assert {e.value for e in EstadoModelo} == {
         'PROMOVIDO', 'RECHAZADO', 'BLOQUEADO_POR_DATOS', 'ERROR_ENTORNO'}
@@ -35,7 +35,7 @@ def test_cuatro_estados_y_promocion_reversion_atomicas(tmp_path):
 
 
 def test_fallo_entre_candidato_y_puntero_no_cambia_activo(tmp_path, monkeypatch):
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
 
     registro = RegistroModelo(tmp_path / 'registro')
     candidato = registro.registrar_candidato('transformer', **_payload(tmp_path))
@@ -49,7 +49,7 @@ def test_fallo_entre_candidato_y_puntero_no_cambia_activo(tmp_path, monkeypatch)
 
 
 def test_reapertura_ocurre_en_subproceso_y_falla_cerrado(tmp_path):
-    from convertersmartgrid.model_registry import reabrir_en_subproceso
+    from convertersmartgrid.aplicacion.model_registry import reabrir_en_subproceso
 
     ok = reabrir_en_subproceso([sys.executable, '-c', 'print("{\\"ok\\": true}")'])
     mal = reabrir_en_subproceso([sys.executable, '-c', 'raise SystemExit(3)'])
@@ -59,7 +59,7 @@ def test_reapertura_ocurre_en_subproceso_y_falla_cerrado(tmp_path):
 
 def test_artefacto_modificado_no_promueve(tmp_path):
     """043:RF-5 — los bytes copiados deben seguir coincidiendo con su huella."""
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     registro = RegistroModelo(tmp_path / 'registro')
     candidato = registro.registrar_candidato('gru', **_payload(tmp_path))
     from pathlib import Path
@@ -72,14 +72,14 @@ def test_artefacto_modificado_no_promueve(tmp_path):
 @pytest.mark.parametrize('modelo', ['../otro', '/absoluto', 'a/b', 'a\\b'])
 def test_identidad_modelo_no_es_ruta(tmp_path, modelo):
     """043:RF-1 — los modelos no pueden salir del registro de candidatos."""
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     with pytest.raises(ValueError):
         RegistroModelo(tmp_path / 'registro').registrar_candidato(modelo, **_payload(tmp_path))
 
 
 def test_reversion_no_activa_candidato_rechazado(tmp_path):
     """043:RF-5 — un puntero anterior corrupto no evita las puertas al revertir."""
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     registro = RegistroModelo(tmp_path / 'registro')
     candidato = registro.registrar_candidato('gru', **_payload(tmp_path, status='RECHAZADO'))
     (registro.raiz / 'gru/previous.json').write_text(json.dumps({
@@ -93,7 +93,7 @@ def test_reversion_no_activa_candidato_rechazado(tmp_path):
 @pytest.mark.parametrize('valor', ['false', 1])
 def test_promocion_exige_booleanos_reales(tmp_path, campo, valor):
     """043:RF-5 — una cadena no vacía o un entero no certifica puertas/reapertura."""
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     payload = _payload(tmp_path)
     if campo == 'puertas':
         payload['decision']['gates']['approved'] = valor
@@ -105,7 +105,7 @@ def test_promocion_exige_booleanos_reales(tmp_path, campo, valor):
 
 def test_estados_terminales(tmp_path):
     """043:RF-1 — el vocabulario son exactamente cuatro estados; otro no se registra."""
-    from convertersmartgrid.model_registry import EstadoModelo, RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import EstadoModelo, RegistroModelo
     assert {e.value for e in EstadoModelo} == {'PROMOVIDO', 'RECHAZADO', 'BLOQUEADO_POR_DATOS', 'ERROR_ENTORNO'}
     registro = RegistroModelo(tmp_path / 'registro')
     for estado in EstadoModelo:
@@ -120,7 +120,7 @@ def test_estados_terminales(tmp_path):
 
 def test_publicar_conserva_el_candidato_anterior(tmp_path):
     """043:RF-1 — el reemplazo solo mueve el puntero: el candidato anterior sigue íntegro en disco."""
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     registro = RegistroModelo(tmp_path / 'registro')
     a = registro.registrar_candidato('gru', **_payload(tmp_path))
     registro.promover('gru', a['candidate_id'])
@@ -132,7 +132,7 @@ def test_publicar_conserva_el_candidato_anterior(tmp_path):
 
 def test_repetir_la_promocion_no_pierde_el_anterior(tmp_path):
     """043:RF-1 — promover dos veces el activo dejaba el anterior apuntando a sí mismo."""
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     registro = RegistroModelo(tmp_path / 'registro')
     a = registro.registrar_candidato('gru', **_payload(tmp_path))
     b = registro.registrar_candidato('gru', **_payload(tmp_path, contenido=b'otros pesos'))

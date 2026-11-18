@@ -5,7 +5,7 @@ import hashlib
 import json
 from types import SimpleNamespace
 
-from convertersmartgrid.web import services
+from convertersmartgrid.presentacion.web import services
 from test_pide_economia import CONFIG, _capex
 
 
@@ -17,8 +17,9 @@ def perfil():
 
 def test_pide_guarda_plan_y_resultado_con_recibo_de_su_lectura(tmp_path, monkeypatch):
     """072:RF-28: fuente efectiva en plan/resultado; diagnóstico doble, sin motor ni ML."""
-    from convertersmartgrid import perfil_empresa as pe, pide_economia as ec
-    from convertersmartgrid.asistente import ejemplos_pide
+    from convertersmartgrid.dominio import perfil_empresa as pe
+    from convertersmartgrid.aplicacion import pide_economia as ec
+    from convertersmartgrid.adaptadores.asistente import ejemplos_pide
     ruta = _capex(tmp_path)
     p = perfil()
     p['estudios'] = {'tension_min_pu': .95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}
@@ -70,7 +71,7 @@ def test_pide_guarda_plan_y_resultado_con_recibo_de_su_lectura(tmp_path, monkeyp
 def test_pide_sin_escala_del_libro_en_el_perfil_lo_dice_y_no_supone_1(tmp_path, monkeypatch):
     """025:RF-77 (H1): con costos en el libro y sin ``escalera.escala_capex`` el PIDE no sigue con escala 1."""
     import pytest
-    from convertersmartgrid import perfil_empresa as pe
+    from convertersmartgrid.dominio import perfil_empresa as pe
     p = perfil()
     del p['escalera']['escala_capex']
     p['estudios'] = {'tension_min_pu': .95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}
@@ -89,8 +90,8 @@ def test_pide_sin_escala_del_libro_en_el_perfil_lo_dice_y_no_supone_1(tmp_path, 
 def test_pide_con_tarifas_en_soles_y_sin_tipo_de_cambio_lo_dice_en_el_resultado(tmp_path, monkeypatch):
     """025:RF-68 / 025:RF-77 (H4): tarifas y precio de compra en PEN, CAPEX en USD y sin tipo de cambio: el
     resultado que ve la web trae el aviso y ninguna obra lleva VAN privada."""
-    from convertersmartgrid import perfil_empresa as pe
-    from convertersmartgrid.asistente import ejemplos_pide
+    from convertersmartgrid.dominio import perfil_empresa as pe
+    from convertersmartgrid.adaptadores.asistente import ejemplos_pide
     p = perfil()
     p['planificacion'].update(tarifas={'moneda': 'PEN', 'MT3': {'energia_kwh': 0.29}}, tasa_privada=.12,
                               factor_carga=.6, precio_compra_kwh=.20)
@@ -129,7 +130,7 @@ def test_expresso_preserva_costo_y_enlaza_recibo_real(tmp_path):
 
 def test_memo_no_mezcla_rutas_y_conserva_costos_con_su_primera_lectura(tmp_path, monkeypatch):
     """072:RF-17/28: memo costos/recibo emparejado, no sello de otra lectura actual."""
-    from convertersmartgrid import perfil_empresa as pe
+    from convertersmartgrid.dominio import perfil_empresa as pe
     a, b = tmp_path / 'a', tmp_path / 'b'
     a.mkdir(); b.mkdir()
     ra, rb = _capex(a), _capex(b)
@@ -165,7 +166,7 @@ def test_memo_no_mezcla_rutas_y_conserva_costos_con_su_primera_lectura(tmp_path,
 def test_obra_nueva_persiste_recibo_y_conserva_historica_sin_atribucion(tmp_path, monkeypatch):
     """072:RF-28: registro real del espacio releído; obra física solo doble del guion."""
     from convertersmartgrid.adaptadores.entrada.capex import leer_capex_con_procedencia
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
     ruta = _capex(tmp_path)
     _, _, recibo = leer_capex_con_procedencia(ruta, CONFIG, contexto_unidades={'moneda': 'USD', 'escala_aplicada': 1000})
     raiz = tmp_path / 'espacios'

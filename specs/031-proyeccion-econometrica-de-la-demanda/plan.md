@@ -2,9 +2,9 @@
 
 ## Dónde
 
-- `src/convertersmartgrid/proyeccion_anual.py`, nuevo: competición, métricas, elección, emisión y evaluación (RF-2 a RF-9, RF-12 a RF-14). Reutiliza `pronostico_demanda` (dataset, objetivos, métricas, modelos) y `proyeccion_mercado` (métodos anuales y errores contra lo ocurrido), sin duplicarlos.
+- `src/convertersmartgrid/adaptadores/proyeccion_anual.py`, nuevo: competición, métricas, elección, emisión y evaluación (RF-2 a RF-9, RF-12 a RF-14). Reutiliza `pronostico_demanda` (dataset, objetivos, métricas, modelos) y `proyeccion_mercado` (métodos anuales y errores contra lo ocurrido), sin duplicarlos.
 - `tools/proyeccion_anual.py`, nueva: la orden, con su `--help` y el manual.
-- `src/convertersmartgrid/web/services.py` y `web/app.py`: el PIDE pronostica primero y pasa la referencia con huella al plan (RF-1); las obras leen la proyección aceptada (RF-11).
+- `src/convertersmartgrid/presentacion/web/services.py` y `web/app.py`: el PIDE pronostica primero y pasa la referencia con huella al plan (RF-1); las obras leen la proyección aceptada (RF-11).
 - `tools/reentrenar_modelos.py` y `aprendizaje_continuo.py`: N-HiTS, TFT y PatchTST compiten dentro de la etapa `gru` del ciclo común (RF-2, RF-10).
 
 - `proyeccion_anual.py`, sección de exógenas anuales (RF-19 a RF-23): `leer_exogenas_anuales` (CSV, JSON y los libros del lector común, todas las hojas), `exogenas_al_corte` (as-of), `metodo_exogeno` y su paso por `competir`, `medir_formato_01`, `proyectar` y `pronosticar_estudio`. Pruebas en `tests/test_proyeccion_anual_exogenas.py`.

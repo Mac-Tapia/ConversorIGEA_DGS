@@ -9,7 +9,7 @@ from pathlib import Path
 
 import jsonschema
 import pytest
-from convertersmartgrid.registro_normativo import (
+from convertersmartgrid.dominio.registro_normativo import (
     ESTADOS,
     RegistroError,
     ReglaAmbigua,

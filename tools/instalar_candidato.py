@@ -81,7 +81,7 @@ cd /d "%CSG_DATOS_HOME%"
 # -P: con «-m», Python añade a su ruta la carpeta de trabajo, y aquí es la de datos: un json.py suelto se importaría.
 _PIE_WEB = """rem Ollama del complemento, si no hay otro escuchando en el puerto: si ya lo hay, este termina solo.
 if exist "%IADIR%\\ollama\\ollama.exe" start "" /min "%IADIR%\\ollama\\ollama.exe" serve
-"%PY%" -P -m convertersmartgrid.web %*
+"%PY%" -P -m convertersmartgrid.presentacion.web %*
 set "CODIGO=%ERRORLEVEL%"
 if "%CODIGO%"=="3" (
   call timeout /t 20
@@ -92,7 +92,7 @@ if "%CODIGO%"=="3" (
 )
 endlocal & exit /b %CODIGO%
 """
-_PIE_ORDEN = """"%PY%" -P -m convertersmartgrid.cli %*
+_PIE_ORDEN = """"%PY%" -P -m convertersmartgrid.presentacion.cli %*
 endlocal & exit /b %ERRORLEVEL%
 """
 _TOOLS = '%PYDIR%\\Lib\\site-packages\\convertersmartgrid\\_programa\\tools'
@@ -316,7 +316,7 @@ def _preparar_version(candidato: Path, destino: Path, manifiesto: dict) -> Path:
 def _doctor(python: Path) -> dict:
     """La versión nueva tiene que responder antes de dejarla como la que se usa."""
     entorno = {**_entorno_limpio(python), 'CSG_EDICION': 'producto'}
-    r = subprocess.run([str(python), '-m', 'convertersmartgrid.cli', 'doctor', '--json'], env=entorno, capture_output=True,
+    r = subprocess.run([str(python), '-m', 'convertersmartgrid.presentacion.cli', 'doctor', '--json'], env=entorno, capture_output=True,
                        text=True, encoding='utf-8', errors='replace', check=False)
     try:
         informe = json.loads(r.stdout)
@@ -605,7 +605,7 @@ def _configurar_ollama(python: Path, manifiesto: dict) -> None:
     elegido = next((m['id'] for m in manifiesto.get('modelos') or [] if m.get('backend') == 'ollama'), None)
     if not elegido:
         return
-    codigo = ('import json,sys\nfrom convertersmartgrid.asistente import almacen\n'
+    codigo = ('import json,sys\nfrom convertersmartgrid.aplicacion.asistente import almacen\n'
               'r=almacen.raiz()/"ollama.json"\n'
               'r.parent.mkdir(parents=True,exist_ok=True)\n'
               'r.exists() or r.write_text(json.dumps({"modelo":sys.argv[1]}),encoding="utf-8")\n')

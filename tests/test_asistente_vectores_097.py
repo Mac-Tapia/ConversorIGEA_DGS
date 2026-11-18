@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import random
 
-from convertersmartgrid.asistente import indice
+from convertersmartgrid.aplicacion.asistente import indice
 
 
 def test_prefijos_por_ficha_y_modelo_elegible(monkeypatch):

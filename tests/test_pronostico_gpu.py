@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from pronostico_sintetico import CADENCIA, PUNTOS_DIA, objetivos
 
-from convertersmartgrid.digital_twin import pronostico as pr
+from convertersmartgrid.adaptadores.digital_twin import pronostico as pr
 
 H = 8
 
@@ -24,7 +24,7 @@ def test_tramo_comun_sin_rellenar_huecos():
     """046:RF-26 — sin GPU: el multivariante entrena con el tramo en que todas las series tienen dato."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.digital_twin.adaptador_neuralforecast import tramo_comun
+    from convertersmartgrid.adaptadores.digital_twin.adaptador_neuralforecast import tramo_comun
 
     a = np.arange(20, dtype=float)
     b = a.copy()
@@ -38,7 +38,7 @@ def test_tramo_comun_sin_rellenar_huecos():
 
 def test_el_multivariante_no_predice_una_emision_con_hueco():
     """046:RF-26, 046:RF-1 — sin GPU: si a una serie le falta un dato en esa emisión, lo dice y no rellena."""
-    from convertersmartgrid.digital_twin.adaptador_neuralforecast import AdaptadorNeuralForecast
+    from convertersmartgrid.adaptadores.digital_twin.adaptador_neuralforecast import AdaptadorNeuralForecast
 
     c, _lote = _datos()
     nombre = c.nombres[0]
@@ -60,7 +60,7 @@ def test_adaptador_real_entrena_predice_y_reabre(tmp_path, algoritmo):
     """046:RF-13 — todos los de ``NEURONALES`` cargan de verdad, en CUDA, con la misma salida y reapertura."""
     d = pr.disponibilidad(algoritmo)
     if d.get('sin_gpu'):
-        from convertersmartgrid.training_coordinator import SinGPU
+        from convertersmartgrid.aplicacion.training_coordinator import SinGPU
 
         raise SinGPU(d['motivo'])       # en GitHub, omitida (102:RF-17); aquí, un fallo
     assert d['disponible'], d

@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from apoyo import vincular_proyecto
 from apoyo_pf_web import guion_falso  # noqa: F401
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.presentacion.web.app import create_app
 
 RAIZ = Path(__file__).resolve().parents[1]
 OBRAS = (RAIZ / 'frontend' / 'src' / 'features' / 'powerfactory' / 'ObrasPF.tsx').read_text(encoding='utf-8')

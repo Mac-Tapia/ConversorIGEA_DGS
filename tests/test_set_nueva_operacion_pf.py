@@ -5,7 +5,7 @@ import fake_pf
 import pytest
 from apoyo import cargar_herramienta
 
-from convertersmartgrid.native_action import build_native_action_context
+from convertersmartgrid.dominio.native_action import build_native_action_context
 
 g = cargar_herramienta('set_nueva_operacion_pf.py', 'operacion_set_prueba', tools_en_path=True)
 

@@ -775,7 +775,7 @@ def test_086_rf34_una_sintetica_que_coincide_con_un_termino_se_resortea(tmp_path
     y el corpus conserva su tamaño. Una orden fija con un término sí la rechaza."""
     import importlib.util as iu
     from types import SimpleNamespace
-    from convertersmartgrid.asistente import ordenes_fijas, sinteticos
+    from convertersmartgrid.aplicacion.asistente import ordenes_fijas, sinteticos
     raiz = Path(__file__).resolve().parents[1]
     spec = iu.spec_from_file_location('construir_candidato_resorteo', raiz / 'tools' / 'construir_candidato.py')
     cc = iu.module_from_spec(spec)

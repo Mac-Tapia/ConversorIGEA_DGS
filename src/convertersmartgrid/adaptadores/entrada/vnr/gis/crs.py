@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from convertersmartgrid.geography import make_transformer
-from convertersmartgrid.util import importar_opcional
+from convertersmartgrid.adaptadores.geography import make_transformer
+from convertersmartgrid.dominio.util import importar_opcional
 
 
 class CRSError(RuntimeError):

@@ -3,7 +3,7 @@
 
 Recibe el plan de ``services.ajuste_plan``: el proyecto, el alimentador, el objetivo (la
 máxima medida), los clientes importantes cruzados de ese alimentador y el kVA de cada
-SED en la entrada original. El reparto y el cuadre son de ``convertersmartgrid.ajuste_cabecera``;
+SED en la entrada original. El reparto y el cuadre son de ``convertersmartgrid.dominio.ajuste_cabecera``;
 aquí está lo que toca DIgSILENT:
 
 - Las cargas de SED del alimentador y el kVA de cada una: el de los transformadores
@@ -70,9 +70,9 @@ from casos_pf import anio_del_plan, caso_cargas_nuevas, nombre_caso
 from casos_pf import caso as caso_del_sistema
 import transferencia_operador_pf as transferencia_pf
 
-from convertersmartgrid.comprobacion_flujo import huella_de_caso
-from convertersmartgrid.demanda_medida import BANDA_TENSION_FUENTE_PU, origen_de_la_tension
-from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.dominio.comprobacion_flujo import huella_de_caso
+from convertersmartgrid.aplicacion.demanda_medida import BANDA_TENSION_FUENTE_PU, origen_de_la_tension
+from convertersmartgrid.dominio.native_action import native_action_block_report
 
 #: Tensión (p.u.) por debajo de la cual una barra cuenta como caída en el diagnóstico.
 TENSION_CAIDA = 0.5
@@ -137,7 +137,7 @@ def cargas_sed(alims: Alimentadores, feeder: str, *, audit: dict | None = None) 
     168 ``ElmLod`` con ``p:alimentador=CA101``. La topología sigue admitiendo proyectos
     antiguos sin esa columna, pero una etiqueta no vacía y contradictoria excluye el objeto.
     """
-    from convertersmartgrid.demanda_medida import clave_codigo
+    from convertersmartgrid.aplicacion.demanda_medida import clave_codigo
 
     clave_feeder = clave_codigo(feeder)
     candidatos: dict[tuple[str, object], object] = {}
@@ -188,7 +188,7 @@ def cargas_sed(alims: Alimentadores, feeder: str, *, audit: dict | None = None) 
 
 def kva_por_sed(cargas: dict, kva_entrada: dict) -> tuple[dict, dict]:
     """kVA de cada SED y de dónde salió: ``pf`` o ``entrada`` (RF-10)."""
-    from convertersmartgrid.demanda_medida import clave_codigo
+    from convertersmartgrid.aplicacion.demanda_medida import clave_codigo
 
     entrada = {clave_codigo(k): v for k, v in (kva_entrada or {}).items()}
     kva, origen = {}, {}
@@ -294,7 +294,7 @@ def diagnostico(alims: Alimentadores, feeder: str, cargas: dict, kva: dict,
 # =========================================================================== spec 014
 def _ruta_de_lo_escrito(proyecto: str) -> Path:
     """Dónde queda lo que la aplicación escribió en cada carga de un proyecto (083:RF-27)."""
-    from convertersmartgrid.pf_arnes import ruta_turno
+    from convertersmartgrid.adaptadores.pf_arnes import ruta_turno
 
     nombre = ''.join(c if c.isalnum() or c in '-_' else '_' for c in proyecto)
     return ruta_turno().parent / 'escrito' / f'{nombre}.json'
@@ -493,7 +493,7 @@ def informe_de_la_q(rep, med, objetivo, q_estado: str | None, bancos: list[dict]
     Con la medida incoherente, la Q de cabecera es la que dio DIgSILENT con las escaladas a su
     FP de perfil, y el informe dice el flujo del extremo que lo demostró.
     """
-    from convertersmartgrid.ajuste_cabecera import Q_INCOHERENTE_ALTA, Q_INCOHERENTES
+    from convertersmartgrid.dominio.ajuste_cabecera import Q_INCOHERENTE_ALTA, Q_INCOHERENTES
 
     kvar = med.kvar if med is not None else None
     diferencia = kvar - objetivo.kvar if q_estado in Q_INCOHERENTES and kvar is not None else None
@@ -547,7 +547,7 @@ def preparar_probabilistico(plan: dict, rep):
     De las fijas del mismo alimentador si hay bastantes; si no, los del perfil que manda la
     web; sin ninguno, nada, y se dice.
     """
-    from convertersmartgrid.ajuste_cabecera import (MINIMO_FIJAS_PROBABILISTICO, N_PROBABILISTICO,
+    from convertersmartgrid.dominio.ajuste_cabecera import (MINIMO_FIJAS_PROBABILISTICO, N_PROBABILISTICO,
                                           Probabilistico, probabilistico_de_fijas)
 
     cfg = plan.get('probabilistico') or {}
@@ -578,7 +578,7 @@ def probabilistico_de_un_alimentador(res, objetivo, flujo, leer, prob, *, tolera
     determinista; el P50 se cuadra como cualquier calibración (P y, si la medida es coherente,
     Q). Si el P50 no cuadra, la red vuelve al determinista y se dice.
     """
-    from convertersmartgrid.ajuste_cabecera import Medida, cuadrar, montecarlo
+    from convertersmartgrid.dominio.ajuste_cabecera import Medida, cuadrar, montecarlo
 
     def cuadrar_muestra(m):
         if oraculo is not None:                                       # 083:RF-20
@@ -617,7 +617,7 @@ def revision_de_bancos(feeder: str, med, objetivo, con_q: bool,
     debe validar». También cuando, al recalibrar, la medida de cabecera no es coherente con la
     red (035:RF-28, RF-31).
     """
-    from convertersmartgrid.ajuste_cabecera import Q_INCOHERENTES, TOLERANCIA_Q, cuadrado_kvar
+    from convertersmartgrid.dominio.ajuste_cabecera import Q_INCOHERENTES, TOLERANCIA_Q, cuadrado_kvar
 
     kvar = med.kvar if med is not None and med.converge else None
     if kvar is None or (con_q and q_estado not in Q_INCOHERENTES):
@@ -850,7 +850,7 @@ def cambios_en_la_red(informe: dict) -> list[dict]:
 
 def _objetos_banco(alims: Alimentadores, feeder: str) -> list:
     """Los ``ElmShnt`` del alimentador en el proyecto (los de :func:`bancos_instalados`)."""
-    from convertersmartgrid.demanda_medida import clave_codigo
+    from convertersmartgrid.aplicacion.demanda_medida import clave_codigo
 
     clave = clave_codigo(feeder)
     candidatos = {_clave_objeto_nativo(o): o for o in alims.objetos(feeder, 'ElmShnt')}
@@ -912,7 +912,7 @@ def fichas_del_plan(plan: dict) -> tuple[dict | None, str | None]:
     """Las tablas de fichas de transformador del perfil que manda la web, validadas (020:RF-31)."""
     if plan.get('transformadores_sed') is None:
         return None, None
-    from convertersmartgrid.perfil_empresa import PerfilError, transformadores_sed
+    from convertersmartgrid.dominio.perfil_empresa import PerfilError, transformadores_sed
     try:
         return transformadores_sed(
             {'calibracion': {'transformadores_sed': plan['transformadores_sed']}}), None
@@ -928,7 +928,7 @@ def sed_sobre_el_umbral(plan: dict, cargas: dict, kva: dict, fijas: dict, apagar
     factor de escala, que en las escaladas solo da el flujo (scale0). Sin tablas en el perfil
     el umbral es el 100 % y se listan sin propuesta.
     """
-    from convertersmartgrid.trafos_sed import sed_sobre_umbral
+    from convertersmartgrid.aplicacion.trafos_sed import sed_sobre_umbral
 
     fichas, motivo = fichas_del_plan(plan)
     umbral = float(fichas['umbral_carga_pct']) if fichas else 100.0
@@ -946,7 +946,7 @@ def sed_sobre_el_umbral(plan: dict, cargas: dict, kva: dict, fijas: dict, apagar
 def proponer_transformadores(sobre: list[dict], cargas: dict, fichas: dict | None,
                              motivo_sin_fichas: str | None = None) -> None:
     """Pone en cada SED sobrecargada sus transformadores y la propuesta (020:RF-6 a RF-12)."""
-    from convertersmartgrid.trafos_sed import nombre_tipo, proponer
+    from convertersmartgrid.aplicacion.trafos_sed import nombre_tipo, proponer
 
     for x in sobre:
         trs = transformadores_de(cargas[x['sed']]) if x['sed'] in cargas else []
@@ -1016,8 +1016,8 @@ def implementar_transformadores(app, cargas: dict, cambios: list[dict],
 
 
 def _implementar_transformadores(app, cargas: dict, cambios: list[dict], proyecto: str) -> dict:
-    from convertersmartgrid.demanda_medida import clave_codigo
-    from convertersmartgrid.trafos_sed import nombre_tipo
+    from convertersmartgrid.aplicacion.demanda_medida import clave_codigo
+    from convertersmartgrid.aplicacion.trafos_sed import nombre_tipo
 
     variacion = None
     avisos: list[str] = []
@@ -1608,8 +1608,8 @@ def barra_de_la_central(app, elm, nodo: str):
     """
     from cargas_pf import cabecera_de, leer_red
 
-    from convertersmartgrid.troncal import TroncalError, aguas_abajo
-    from convertersmartgrid.troncal import troncal as troncal_de
+    from convertersmartgrid.dominio.troncal import TroncalError, aguas_abajo
+    from convertersmartgrid.dominio.troncal import troncal as troncal_de
 
     app.GetFromStudyCase('ComLdf').Execute()
     cabecera = cabecera_de(elm)
@@ -1758,7 +1758,7 @@ def nombre_de_la_propia(app, prefijo: str, proyecto: str, avisos: list | None = 
 
 def _etapa_ajena(app):
     """La etapa que graba si no es de una variación del conversor (032:RF-12), o ``None``."""
-    from convertersmartgrid.escaneo import origen_de
+    from convertersmartgrid.aplicacion.escaneo import origen_de
 
     etapa = app.GetRecordingStage()
     if etapa is None:
@@ -1897,8 +1897,8 @@ def poner_fichas(app, proyecto: str, lineas, fichas: dict) -> dict:
     también el «Caso base» (032:RF-9). Código, material, sección y qué tramo usa qué
     conductor no cambian (RF-15). Devuelve el informe de RF-16 a RF-19.
     """
-    from convertersmartgrid.catalog import cambios_de_ficha
-    from convertersmartgrid.naming import codigo_de_tipo_linea
+    from convertersmartgrid.aplicacion.catalog import cambios_de_ficha
+    from convertersmartgrid.dominio.naming import codigo_de_tipo_linea
 
     out: dict[str, Any] = {'variacion': None, 'cambios': [], 'sin_ficha': [], 'omitidos': [],
                            'rechazos': [], 'tramos_reasignados': 0}
@@ -2053,7 +2053,7 @@ def _conductores_con_ficha(app, plan: dict, feeders: list[str], alims, informes:
 
 def generador_del_operador(app, barra):
     """Un generador en servicio que no creó el conversor, conectado a ``barra`` (028:RF-13)."""
-    from convertersmartgrid.escaneo import CLASES_GENERADOR, origen_de
+    from convertersmartgrid.aplicacion.escaneo import CLASES_GENERADOR, origen_de
 
     for clase in CLASES_GENERADOR:
         for o in app.GetCalcRelevantObjects(f'*.{clase}') or []:
@@ -2179,7 +2179,7 @@ def medir_zonas(app, elm, barra, entrada: str):
 def leer_zonas(cab, barra, entrada: str):
     """Las zonas de :func:`medir_zonas` con el último flujo y la cabecera ya leída: en
     el ajuste de un proyecto (021:RF-54) un flujo sirve a todos los alimentadores."""
-    from convertersmartgrid.ajuste_cabecera import MedidaZonas
+    from convertersmartgrid.dominio.ajuste_cabecera import MedidaZonas
 
     if not cab.converge:
         return MedidaZonas(False, motivo=cab.motivo)
@@ -2216,8 +2216,8 @@ def _preparar_central(app, plan: dict, informe: dict, *, elm, feeder: str, carga
     el registro de la máxima de demanda (RF-35). Devuelve lo que necesita el cuadre o
     ``(informe, código)`` si no se puede.
     """
-    from convertersmartgrid.ajuste_cabecera import AjusteError, objetivo_zonas_de, reparto_inicial
-    from convertersmartgrid.demanda_medida import clave_codigo
+    from convertersmartgrid.dominio.ajuste_cabecera import AjusteError, objetivo_zonas_de, reparto_inicial
+    from convertersmartgrid.aplicacion.demanda_medida import clave_codigo
 
     central = plan['central']
     try:
@@ -2274,7 +2274,7 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
 
     Sin central, :func:`_ejecutar` sigue como siempre (RF-46).
     """
-    from convertersmartgrid.ajuste_cabecera import MAX_FLUJOS, Medida, cuadrar_zonas
+    from convertersmartgrid.dominio.ajuste_cabecera import MAX_FLUJOS, Medida, cuadrar_zonas
 
     zc = _preparar_central(app, plan, informe, elm=elm, feeder=feeder, cargas=cargas, kva=kva,
                            fijas_libro=fijas_libro, fp_cargas=fp_cargas, ambiguas=ambiguas)
@@ -2566,8 +2566,8 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     proyecto a la vez (:func:`ejecutar_proyecto`, 021:RF-54). Devuelve ``(informe,
     código)`` si el alimentador no se puede calibrar.
     """
-    from convertersmartgrid.ajuste_cabecera import AjusteError, Fija, Objetivo, fijas_de, reparto_inicial, sed_desconectadas
-    from convertersmartgrid.demanda_medida import clave_codigo
+    from convertersmartgrid.dominio.ajuste_cabecera import AjusteError, Fija, Objetivo, fijas_de, reparto_inicial, sed_desconectadas
+    from convertersmartgrid.aplicacion.demanda_medida import clave_codigo
 
     cargas, ambiguas = cargas_sed(alims, feeder)
     poblacion_nativa = dict(getattr(cargas_sed, 'last_audit', {}) or {
@@ -2755,7 +2755,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
 
 
 def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tuple[dict, int]:
-    from convertersmartgrid.ajuste_cabecera import (
+    from convertersmartgrid.dominio.ajuste_cabecera import (
         MAX_FLUJOS,
         cuadrado_kvar,
         cuadrar,
@@ -2802,7 +2802,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         return {**informe, 'error': error_de_unidades(informe['unidades'])}, 2
     if not plan.get('central'):
         # 028:RF-18: un generador del operador sin central declarada se calibra tal como está.
-        from convertersmartgrid.escaneo import CLASES_GENERADOR, origen_de
+        from convertersmartgrid.aplicacion.escaneo import CLASES_GENERADOR, origen_de
 
         propios = [g for c in CLASES_GENERADOR for g in alims.objetos(feeder, c)
                    if not int(getattr(g, 'outserv', 0) or 0) and origen_de(g.loc_name)['origen'] == 'operador']
@@ -3028,7 +3028,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                       progreso=lambda n, m, t: print(f'  {t}'), con_q=con_q,
                       fp_minimo_escaladas=plan.get('factor_potencia_minimo_escaladas'))
         informe['cuadre_metodos'] = {**res.metodos, 'fijas_sospechosas': res.fijas_sospechosas}  # 083:RF-13
-        from convertersmartgrid.ajuste_cabecera import fijas_corregidas
+        from convertersmartgrid.dominio.ajuste_cabecera import fijas_corregidas
 
         if res.reparto is not None and fijas_corregidas(reparto, res.reparto):              # 083:RF-30
             informe['fijas_corregidas'] = fijas_corregidas(reparto, res.reparto)
@@ -3383,8 +3383,8 @@ def barras_para_bancos(red, cabecera: str, n: int, validas: set[str] | None = No
     """Las barras de la troncal más cercanas a 2k/(2n+1) de su largo (021:RF-66); una barra
     no se repite. Con ``validas``, solo esas: un banco trifásico no cabe en una barra de menos
     fases (054:RF-10), y los que faltan los pone ``poner_bancos`` en otras (081:RF-68)."""
-    from convertersmartgrid.ajuste_cabecera import distancias_de_bancos
-    from convertersmartgrid.troncal import troncal as troncal_de
+    from convertersmartgrid.dominio.ajuste_cabecera import distancias_de_bancos
+    from convertersmartgrid.dominio.troncal import troncal as troncal_de
 
     t = troncal_de(red, cabecera)
     tramos = red.por_nombre()
@@ -3501,8 +3501,8 @@ def trasladar_transformadores_de_la_primera(primera: dict, segunda: dict) -> Non
 
 def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) -> list[tuple[dict, int]]:
     """Calibra, pone los bancos que faltan y recalibra, en la misma ejecución (021:RF-64 a RF-68)."""
-    from convertersmartgrid.ajuste_cabecera import bancos_que_faltan, tamano_de_banco
-    from convertersmartgrid.escaneo import origen_de
+    from convertersmartgrid.dominio.ajuste_cabecera import bancos_que_faltan, tamano_de_banco
+    from convertersmartgrid.aplicacion.escaneo import origen_de
 
     primera = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado, solo_medir=True)
     # 014:RF-10: los cambios a mano son los que vio la primera pasada. Ella escribe el reparto
@@ -3598,7 +3598,7 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
 
 def _nombre_barra_set(set_codigo: str, kv: float) -> str:
     """El nombre de la barra de SET en el DGS unido por SET (``combine.estructurar``)."""
-    from convertersmartgrid.naming import sufijo_tension
+    from convertersmartgrid.dominio.naming import sufijo_tension
 
     return f"B_{set_codigo.replace(' ', '')}_{sufijo_tension(kv)}"
 
@@ -3702,7 +3702,7 @@ def guardar_entrada_del_oraculo(grafo, nodos, ramas, trafos, repartos, objetivos
     Junto a la cola de DIgSILENT (``pf_arnes.ruta_turno``), que este mismo proceso ya escribe: en la carpeta temporal no
     quedaba (Pisco, 2026-11-03) y no lo decía. Se relee al escribir y la ruta va al registro.
     """
-    from convertersmartgrid.pf_arnes import ruta_turno
+    from convertersmartgrid.adaptadores.pf_arnes import ruta_turno
 
     ruta = ruta_turno().parent / 'oraculo' / 'entrada_oraculo.json'
     try:
@@ -3724,7 +3724,7 @@ def guardar_entrada_del_oraculo(grafo, nodos, ramas, trafos, repartos, objetivos
 
 def tope_de_muestras(plan: dict) -> float:
     """Los segundos que pueden ir a DIgSILENT las muestras de un alimentador (083:RF-25): el del perfil o el de por defecto."""
-    from convertersmartgrid.ajuste_cabecera import TOPE_MUESTRAS_S
+    from convertersmartgrid.dominio.ajuste_cabecera import TOPE_MUESTRAS_S
 
     valor = (plan.get('probabilistico') or {}).get('tope_s')
     try:
@@ -3755,7 +3755,7 @@ def perfil_de_tension(app, alims, feeder: str, informe: dict, banda=None) -> Non
         import importlib.util
         import sys
 
-        from convertersmartgrid.perfil_tension import RAMAL_LARGO_KM, ejes, perfil
+        from convertersmartgrid.aplicacion.perfil_tension import RAMAL_LARGO_KM, ejes, perfil
 
         # El lector del grafo es un guion hermano. Cargado desde la suite, su carpeta no está en la ruta: se carga por
         # su fichero, sin dejar la carpeta en la ruta ni su nombre registrado. Dejarla cambiaba el arranque del oráculo
@@ -3818,7 +3818,7 @@ def _arranque_del_oraculo(app, alims, preps: dict, repartos: dict, objetivos: di
     if any(p['central'] for p in preps.values()):
         return repartos, {'modelo': None, 'motivo': 'hay central en un tramo: arranque de siempre'}
     try:
-        from convertersmartgrid.oraculo_calibracion import arranque_con_oraculo
+        from convertersmartgrid.adaptadores.oraculo_calibracion import arranque_con_oraculo
         from digital_twin_snapshot_pf import _barra, _id, clave_pf
         from digital_twin_snapshot_pf import grafo as leer_grafo
 
@@ -3830,8 +3830,8 @@ def _arranque_del_oraculo(app, alims, preps: dict, repartos: dict, objetivos: di
         ramas = {f: [_id(o, raiz) for clase in ('ElmLne', 'ElmTr2') for o in alims.objetos(f, clase)] for f in preps}
         pinn = None
         try:
-            from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-            from convertersmartgrid.digital_twin.oraculo import cargar
+            from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+            from convertersmartgrid.adaptadores.digital_twin.oraculo import cargar
 
             pinn = cargar(BuferEpisodios())             # 083:RF-3, 071:RF-2: fuera de su dominio decide el físico
         except Exception as exc:  # noqa: BLE001 - sin PINN decide el flujo físico
@@ -3859,7 +3859,7 @@ def _arranque_del_oraculo(app, alims, preps: dict, repartos: dict, objetivos: di
 def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                        solo_medir: bool = False) -> list[tuple[dict, int]]:
     """``solo_medir``: cuadra y mide sin guardar nada (la primera pasada de 021:RF-64)."""
-    from convertersmartgrid.ajuste_cabecera import (
+    from convertersmartgrid.dominio.ajuste_cabecera import (
         MAX_FLUJOS, ZONAS, AjusteError, Medida, MedidaConjunta, avisos_de_zonas,
         cuadrar_conjunto, fijas_corregidas, kvar_difference, preparar_zonas)
 
@@ -4291,7 +4291,7 @@ def _probabilistico_del_proyecto(res, preps: dict, informes: dict, objetivos, fl
     Con ``oraculo``, las muestras corren en él y DIgSILENT confirma los P50 (083:RF-20): en Pisco
     eran 200 flujos por alimentador, a unos 8 s cada uno.
     """
-    from convertersmartgrid.ajuste_cabecera import cuadrar_conjunto, montecarlo
+    from convertersmartgrid.dominio.ajuste_cabecera import cuadrar_conjunto, montecarlo
 
     p50s = {}
     for f, p in preps.items():
@@ -4535,7 +4535,7 @@ def main(argv=None) -> int:
         return max(codigos)
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('ajuste_cabecera_pf.py')

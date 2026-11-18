@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from apoyo import cargar_herramienta
-from convertersmartgrid import cargas_pf as cp
+from convertersmartgrid.aplicacion import cargas_pf as cp
 from test_cargas_pf_guion import _nueva, _plan
 from test_cargas_pf_guion_040 import _app, _punto, _variacion_con, _variaciones
 
@@ -99,7 +99,7 @@ def test_la_web_ensena_las_repetidas_de_los_alimentadores_marcados():
     assert (r['sed'], r['cuenta'], r['kw'], r['cuenta_kw'], r['motivo']) == ('CH_20', 'CH_23', 1770.0, 1390.0,
                                                                           'mismo cliente')
     assert {x['motivo'] for x in cp.repetidas_del_libro(filas)} == {'mismo cliente', 'mismo punto'}
-    fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
     assert "repetidas = repetidas_del_libro(plan['nuevas'], feeders)" in fuente and "'repetidas': plan['repetidas']" in fuente
     web = (Path(__file__).resolve().parents[1] / 'frontend/src/features/powerfactory/CargasTab.tsx').read_text(encoding='utf-8')
     assert 'plan.repetidas' in web and 'Cuenta' in web
@@ -126,5 +126,5 @@ def test_lo_repetido_no_llega_a_digsilent_y_su_variacion_se_borra_por_el_punto(g
     assert {c['sed'] for c in informe['cargas']} == {'CH_23'}
     assert [x['variacion'] for x in informe['eliminadas']] == [vieja.loc_name]
     assert vieja.loc_name not in _variaciones(app)
-    fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
     assert "plan['nuevas'] = [f for f in plan['nuevas'] if f['sed'] not in apartadas" in fuente

@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     monkeypatch.setenv('CSG_RUNTIME_HOME', str(tmp_path / 'runtime'))
@@ -35,7 +35,7 @@ def _finished(client, job_id):
 
 def test_inferencia_puede_esperar_sin_retener_la_peticion(client, monkeypatch):
     """065:RF-18 — mientras el modelo espera, HTTP admite health y cancelación."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
     entered, release = threading.Event(), threading.Event()
     def slow(ws, texto, trabajos):
         entered.set()

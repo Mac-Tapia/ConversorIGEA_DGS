@@ -316,7 +316,7 @@ def _escribir_capa(stage: Path, capa: str, filas: list[dict], geometrias: list, 
 
 def exportar_canonico_a_capas(modelo: CanonicalModel, destino: Path | str) -> Path:
     """Escribe el canónico como GeoPackage en ``destino`` (``.gpkg``), con publicación atómica (001:RF-5)."""
-    from convertersmartgrid.runtime_paths import staging_publicacion
+    from convertersmartgrid.dominio.runtime_paths import staging_publicacion
 
     destino = Path(destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
@@ -632,7 +632,7 @@ def exportar_base_a_capas_en_flujo(base_red: str, base_parametros: str | None, d
     import gc
 
     from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
-    from convertersmartgrid.runtime_paths import staging_publicacion
+    from convertersmartgrid.dominio.runtime_paths import staging_publicacion
 
     lote_salidas = sv.LOTE_SALIDAS if lote_salidas is None else int(lote_salidas)
     if lote_salidas < 1:

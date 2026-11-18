@@ -50,10 +50,10 @@ def _log(mensaje: str) -> None:
 
 def _reabrir(carpeta: Path) -> int:
     """La última línea es el JSON que lee ``reabrir_en_subproceso``; un fallo también la deja."""
-    from convertersmartgrid.trabajadores_ml import fallo, turno_gpu
+    from convertersmartgrid.aplicacion.trabajadores_ml import fallo, turno_gpu
 
     try:
-        from convertersmartgrid.digital_twin.oraculo import verificar_reapertura
+        from convertersmartgrid.adaptadores.digital_twin.oraculo import verificar_reapertura
 
         with turno_gpu('pinn-reapertura'):
             resultado = verificar_reapertura(carpeta)
@@ -96,25 +96,25 @@ def main(argv=None) -> int:
         p.error('indique --output-json')
     salida = Path(args.output_json)
 
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
 
     try:
-        from convertersmartgrid.digital_twin import oraculo
+        from convertersmartgrid.adaptadores.digital_twin import oraculo
         oraculo.dispositivo()
     except ImportError as exc:
         salida.write_text(json.dumps({'entrenado': False, 'motivo': str(exc)}, ensure_ascii=False),
                           encoding='utf-8')
         print(f'ERROR: {exc}')
         return 2
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.model_registry import RegistroModelo
-    from convertersmartgrid.trabajadores_ml import turno_gpu
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
 
     registro = RegistroModelo(almacen.raiz() / 'model_registry')                 # 043:RF-1
     bufer = BuferEpisodios(args.raiz)
     if not (args.evaluar or args.deriva) or args.curva:
         # 026: la GPU de 8 GB la comparte con Ollama, que retiene su modelo tras responder.
-        from convertersmartgrid.asistente.ollama import liberar_gpu_para_entrenar
+        from convertersmartgrid.aplicacion.asistente.ollama import liberar_gpu_para_entrenar
 
         liberar_gpu_para_entrenar()
     try:
@@ -122,8 +122,8 @@ def main(argv=None) -> int:
         # 071:RF-7: el mismo turno que los demás entrenamientos; ocupado, no entrena y lo dice.
         with (turno_gpu('pinn-gemelo') if entrena else nullcontext()):
             if args.curva:
-                from convertersmartgrid.digital_twin.buffer import Consulta
-                from convertersmartgrid.digital_twin.curva import informe
+                from convertersmartgrid.adaptadores.digital_twin.buffer import Consulta
+                from convertersmartgrid.adaptadores.digital_twin.curva import informe
 
                 muestras, ids = oraculo._muestras(bufer, Consulta())
                 r = informe(muestras, ids, log=_log)
@@ -143,8 +143,8 @@ def main(argv=None) -> int:
                 salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
                 return 0
             if args.ablaciones:
-                from convertersmartgrid.digital_twin.benchmark_fisico import comparar_fisicas
-                from convertersmartgrid.experimentos import cargar_experimento
+                from convertersmartgrid.adaptadores.digital_twin.benchmark_fisico import comparar_fisicas
+                from convertersmartgrid.aplicacion.experimentos import cargar_experimento
 
                 experimento = cargar_experimento(args.ablaciones)
                 r = comparar_fisicas(experimento, oraculo.particiones_del_bufer(bufer), bufer=bufer, log=_log)
@@ -164,8 +164,8 @@ def main(argv=None) -> int:
                 salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
                 return 0
             if args.buscar:
-                from convertersmartgrid.digital_twin.buffer import Consulta
-                from convertersmartgrid.digital_twin.hiperparametros import buscar
+                from convertersmartgrid.adaptadores.digital_twin.buffer import Consulta
+                from convertersmartgrid.adaptadores.digital_twin.hiperparametros import buscar
 
                 muestras, _ids = oraculo._muestras(bufer, Consulta())
                 b = buscar(muestras, ensayos=args.ensayos, limite_s=args.limite_s,

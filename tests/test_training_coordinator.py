@@ -18,7 +18,7 @@ def lock_de_ensayo_aislado(tmp_path, monkeypatch):
 
 
 def test_lock_rechaza_pid_vivo_y_recupera_pid_muerto(tmp_path):
-    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
 
     ruta = tmp_path / 'gpu.lock'
     ruta.write_text(json.dumps({'pid': os.getpid(), 'model': 'otro'}), encoding='utf-8')
@@ -32,11 +32,11 @@ def test_lock_rechaza_pid_vivo_y_recupera_pid_muerto(tmp_path):
 
 
 def test_dos_procesos_reales_no_adquieren_el_mismo_lock(tmp_path):
-    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
 
     lock = tmp_path / 'gpu.lock'
     script = ('import sys,time; sys.path.insert(0,sys.argv[2]); '
-              'from convertersmartgrid.training_coordinator import BloqueoGPU; '
+              'from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU; '
               'b=BloqueoGPU(sys.argv[1],"p1"); b.__enter__(); print("LOCKED",flush=True); '
               'time.sleep(2); b.__exit__(None,None,None)')
     src = Path(__file__).resolve().parents[1] / 'src'
@@ -55,7 +55,7 @@ def test_dos_procesos_reales_no_adquieren_el_mismo_lock(tmp_path):
 def test_pid_reutilizado_no_conserva_bloqueo_ni_se_termina_el_proceso(tmp_path):
     """043:RF-6 — fecha distinta permite recuperar el lock sin señalar al proceso real ajeno."""
     import psutil
-    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
 
     script = 'import os,json,psutil,sys;print(json.dumps({"pid":os.getpid(),"creado":psutil.Process().create_time()}),flush=True);sys.stdin.readline()'
     process = subprocess.Popen([sys.executable,'-B','-c',script],stdin=subprocess.PIPE,stdout=subprocess.PIPE,
@@ -85,7 +85,7 @@ def test_temporales_distintos_no_habilitan_dos_guardias_gpu(tmp_path):
     script = '''import sys
 from pathlib import Path
 sys.path.insert(0,sys.argv[1])
-from convertersmartgrid.training_coordinator import BloqueoGPU,TrainingCoordinator
+from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU,TrainingCoordinator
 lock=TrainingCoordinator([],Path(sys.argv[2])).gpu_lock
 with BloqueoGPU(lock,'ensayo sin CUDA'):
     print('LOCKED',flush=True)
@@ -108,14 +108,14 @@ with BloqueoGPU(lock,'ensayo sin CUDA'):
 def test_lanzadores_no_duplican_la_ruta_del_turno_gpu():
     """043:RF-6 — todos resuelven el turno común; un fallback por TEMP rompe la exclusión."""
     root=Path(__file__).resolve().parents[1]
-    paths=['src/convertersmartgrid/trabajadores_ml.py','tools/aceptar_agente.py',
+    paths=['src/convertersmartgrid/aplicacion/trabajadores_ml.py','tools/aceptar_agente.py',
            'tools/asistente_entrenar.py','tools/asistente_destilar.py','tools/reentrenar_modelos.py']
     duplicated=[p for p in paths if 'convertersmartgrid-gpu.lock' in (root/p).read_text(encoding='utf-8')]
     assert duplicated==[],duplicated
 
 
 def test_orden_reanudacion_y_liberacion_entre_fases(tmp_path):
-    from convertersmartgrid.training_coordinator import ORDEN_MODELOS, TrainingCoordinator, TrainingStage
+    from convertersmartgrid.aplicacion.training_coordinator import ORDEN_MODELOS, TrainingCoordinator, TrainingStage
 
     llamadas = []
     etapas = [TrainingStage(nombre, lambda n=nombre: llamadas.append(n) or {
@@ -134,7 +134,7 @@ def test_orden_reanudacion_y_liberacion_entre_fases(tmp_path):
 @pytest.mark.parametrize('contenido', ['{roto', '{}', '{"pid": null}', '[]'])
 def test_lock_ilegible_bloquea(tmp_path, contenido):
     """043:RF-6 — un lock sin propietario válido no se borra en silencio."""
-    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
     ruta = tmp_path / 'gpu.lock'
     ruta.write_text(contenido, encoding='utf-8')
     with pytest.raises(RuntimeError, match='lock'):
@@ -145,7 +145,7 @@ def test_lock_ilegible_bloquea(tmp_path, contenido):
 
 def test_dos_ejecuciones_comparten_bloqueo(tmp_path, monkeypatch):
     """043:RF-6 — directorios de ejecución distintos no habilitan dos etapas CUDA."""
-    from convertersmartgrid.training_coordinator import TrainingCoordinator, TrainingStage
+    from convertersmartgrid.aplicacion.training_coordinator import TrainingCoordinator, TrainingStage
     monkeypatch.setenv('CSG_ML_GPU_LOCK', str(tmp_path / 'global.lock'))
     llamadas = []
     def segunda():
@@ -159,7 +159,7 @@ def test_dos_ejecuciones_comparten_bloqueo(tmp_path, monkeypatch):
 
 def test_guardia_no_recupera_metadatos_obsoletos_mientras_hay_propietario(tmp_path):
     """043:RF-6 — la exclusión no depende de releer un PID antes de un unlink."""
-    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
     ruta = tmp_path / 'gpu.lock'
     with BloqueoGPU(ruta, 'propietario'):
         ruta.write_text(json.dumps({'pid': 99999999, 'model': 'obsoleto'}), encoding='utf-8')
@@ -170,7 +170,7 @@ def test_guardia_no_recupera_metadatos_obsoletos_mientras_hay_propietario(tmp_pa
 
 def test_corrida_sin_gpu_no_libera_recursos_del_propietario(tmp_path, monkeypatch):
     """043:RF-6 — fallar al adquirir GPU no autoriza descargar recursos de otra etapa."""
-    from convertersmartgrid.training_coordinator import BloqueoGPU, TrainingCoordinator, TrainingStage
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU, TrainingCoordinator, TrainingStage
     ruta = tmp_path / 'global.lock'
     monkeypatch.setenv('CSG_ML_GPU_LOCK', str(ruta))
     llamadas = []
@@ -191,7 +191,7 @@ def test_corrida_sin_gpu_no_libera_recursos_del_propietario(tmp_path, monkeypatc
 ])
 def test_memoria_windows_distingue_ram_y_compromiso(monkeypatch, fisica, commit, minimo, permitido):
     """043:RF-12: memoria comprometible suficiente no es igual a RAM fisica libre."""
-    import convertersmartgrid.training_coordinator as m
+    import convertersmartgrid.aplicacion.training_coordinator as m
     assert callable(getattr(m, 'exigir_memoria_ml', None)), 'Falta el control de memoria comprometible'
     monkeypatch.setattr(m, '_memoria_sistema', lambda: {'fisica_gib': fisica, 'commit_gib': commit})
     if permitido:
@@ -203,13 +203,13 @@ def test_memoria_windows_distingue_ram_y_compromiso(monkeypatch, fisica, commit,
 
 def test_token_inventado_no_hereda_la_guardia(tmp_path, monkeypatch):
     """043:RF-6 — un hijo real solo entra con el token del dueño vivo que es su ancestro: no basta una variable."""
-    from convertersmartgrid.training_coordinator import BloqueoGPU
-    from convertersmartgrid.trabajadores_ml import entorno_hijo_gpu
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
+    from convertersmartgrid.aplicacion.trabajadores_ml import entorno_hijo_gpu
     lock = tmp_path / 'gpu.lock'
     monkeypatch.setenv('CSG_ML_GPU_LOCK', str(lock))
     src = Path(__file__).resolve().parents[1] / 'src'
     script = ('import sys; sys.path.insert(0, sys.argv[1]); '
-              'from convertersmartgrid.trabajadores_ml import turno_gpu\n'
+              'from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu\n'
               'with turno_gpu("hijo"):\n    print("ENTRO")')
 
     def hijo(env):
@@ -278,7 +278,7 @@ def _llamadas_sin_turno(ruta):
 def test_todo_lanzador_de_entrenamiento_toma_la_guardia():
     """043:RF-6 — cada guion y cada vía a la GPU que entrena lo hace dentro del turno común, sin excepciones."""
     raiz = Path(__file__).resolve().parents[1]
-    rutas = [*sorted((raiz / 'tools').glob('*.py')), raiz / 'src/convertersmartgrid/asistente/entrenamiento_dataset.py']
+    rutas = [*sorted((raiz / 'tools').glob('*.py')), raiz / 'src/convertersmartgrid/aplicacion/asistente/entrenamiento_dataset.py']
     entrenan, sin_turno = [], {}
     for ruta in rutas:
         llamadas, malas = _llamadas_sin_turno(ruta)
@@ -304,7 +304,7 @@ def test_la_comprobacion_de_lanzadores_detecta_uno_sin_turno(tmp_path):
 
 def test_el_presupuesto_del_ciclo_mide_como_los_trabajadores(monkeypatch):
     """050:RF-31 — en Windows cuenta el margen comprometible; sin 0,5 GiB físicos no hay margen; fuera, la física."""
-    import convertersmartgrid.training_coordinator as tc
+    import convertersmartgrid.aplicacion.training_coordinator as tc
 
     for fisica, commit, esperado in ((3.9, 30.0, 30.0), (.4, 30.0, 0.0), (8.0, None, 8.0)):
         monkeypatch.setattr(tc, '_memoria_sistema', lambda f=fisica, c=commit: {'fisica_gib': f, 'commit_gib': c})
@@ -320,7 +320,7 @@ def _envejecer(ruta, segundos):
 @pytest.mark.parametrize('contenido', ['{"pid": 4', '{}', '[]'])
 def test_lock_ilegible_y_antiguo_se_libera_con_aviso(tmp_path, contenido):
     """106:RF-2 — antes quedaba tomado para siempre: pasada la gracia se libera diciéndolo y se toma."""
-    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
     ruta = tmp_path / 'gpu.lock'
     ruta.write_text(contenido, encoding='utf-8')
     _envejecer(ruta, 3600)
@@ -334,7 +334,7 @@ def test_lock_ilegible_y_antiguo_se_libera_con_aviso(tmp_path, contenido):
 
 def test_lock_de_dueno_vivo_y_antiguo_no_se_libera(tmp_path):
     """106:RF-2 — un dueño legible y vivo nunca se libera, por antiguo que sea su lock."""
-    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
     ruta = tmp_path / 'gpu.lock'
     contenido = json.dumps({'pid': os.getpid(), 'model': 'otro'})
     ruta.write_text(contenido, encoding='utf-8')
@@ -348,7 +348,7 @@ def test_dos_hilos_a_la_vez_solo_uno_toma_la_gpu(tmp_path):
     """106:RF-2 — dos adquisiciones concurrentes en hilos: una entra y la otra dice que está ocupada."""
     import threading
 
-    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
     ruta = tmp_path / 'gpu.lock'
     salida, soltar = threading.Barrier(2), threading.Event()
     resultados = []
@@ -377,8 +377,8 @@ def test_un_rival_que_gana_siempre_termina_en_el_tope_diciendo_quien(tmp_path, m
     """106:RF-2 — si otro se lleva siempre el apartado, BloqueoGPU se rinde tras el tope diciendo quién lo tiene."""
     import time
 
-    from convertersmartgrid import util
-    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from convertersmartgrid.dominio import util
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
     ruta = tmp_path / 'gpu.lock'
     ruta.write_text('{"pid": 4', encoding='utf-8')
     _envejecer(ruta, 3600)

@@ -15,8 +15,8 @@ from apoyo import esperar_trabajo  # noqa: E402
 from test_evolucion_clientes_fijos import _mes  # noqa: E402
 from test_pronostico_demanda import _libro_clientes, _suministros  # noqa: E402
 
-from convertersmartgrid import archivo_informes as ar  # noqa: E402
-from convertersmartgrid.web.app import create_app  # noqa: E402
+from convertersmartgrid.adaptadores import archivo_informes as ar  # noqa: E402
+from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 
 
 @pytest.fixture()

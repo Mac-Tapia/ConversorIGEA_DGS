@@ -19,8 +19,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from convertersmartgrid.digital_twin.pronostico import Objetivo
-from convertersmartgrid.pronostico_demanda import METODOS, CurvaCompacta, Dataset, Exogenas
+from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
+from convertersmartgrid.adaptadores.pronostico_demanda import METODOS, CurvaCompacta, Dataset, Exogenas
 
 INICIO = datetime(2025, 3, 3)      # un lunes cualquiera
 DIAS = 126
@@ -54,8 +54,8 @@ def _dataset(semilla: int = 5) -> Dataset:
 
 
 def _escribir(dataset: Dataset, destino: Path, semilla: int = 77):
-    from convertersmartgrid.benchmarks import series as S
-    from convertersmartgrid.benchmarks.seudonimos import Mapa
+    from convertersmartgrid.adaptadores.benchmarks import series as S
+    from convertersmartgrid.dominio.benchmarks.seudonimos import Mapa
     mapa = Mapa(semilla)
     S.registrar(dataset, mapa)
     mapa.congelar()
@@ -140,7 +140,7 @@ def test_csv_determinista(tmp_path):
 
 def test_las_metricas_de_base_se_reproducen(tmp_path):
     """112:RF-11, RF-3 — WAPE y MASE de cada método de base, en el original y en el benchmark, dentro del 1 %."""
-    from convertersmartgrid.benchmarks.reproduccion import reproducir_series
+    from convertersmartgrid.adaptadores.benchmarks.reproduccion import reproducir_series
     ds = _dataset()
     mapa, _ = _escribir(ds, tmp_path / 'b')
     rep = reproducir_series(ds, tmp_path / 'b', mapa=mapa)
@@ -155,7 +155,7 @@ def test_las_metricas_de_base_se_reproducen(tmp_path):
 
 def test_series_leidas_del_benchmark(tmp_path):
     """112:RF-11 — lo escrito se vuelve a leer como objetivos y exógenas del 089, sin el calendario real."""
-    from convertersmartgrid.benchmarks import series as S
+    from convertersmartgrid.adaptadores.benchmarks import series as S
     ds = _dataset()
     _escribir(ds, tmp_path / 'b')
     objetivos, exogenas = S.leer(tmp_path / 'b')
@@ -167,8 +167,8 @@ def test_series_leidas_del_benchmark(tmp_path):
 
 def test_desde_la_carpeta_del_089_sin_modificarla(tmp_path):
     """112:RF-11 — se lee lo que emite el 089 (``abrir_dataset``) y su carpeta queda igual, byte a byte."""
-    from convertersmartgrid.benchmarks import series as S
-    from convertersmartgrid.pronostico_demanda import guardar_dataset
+    from convertersmartgrid.adaptadores.benchmarks import series as S
+    from convertersmartgrid.adaptadores.pronostico_demanda import guardar_dataset
     ds = _dataset()
     ds.exogenas = None
     carpeta = tmp_path / '089'
@@ -183,13 +183,13 @@ def test_desde_la_carpeta_del_089_sin_modificarla(tmp_path):
 
 def test_manifiesto_con_las_series_del_089(tmp_path):
     """112:RF-5, RF-11 — con el dataset del 089, el manifiesto lleva su huella y las métricas de base de los dos lados."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.manifiesto'), 'falta convertersmartgrid.benchmarks.manifiesto'
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.benchmarks.manifiesto'), 'falta convertersmartgrid.adaptadores.benchmarks.manifiesto'
     pytest.importorskip('pyarrow')
     pytest.importorskip('pandapower')
     import json
 
-    from convertersmartgrid.benchmarks import generar_benchmark
-    from convertersmartgrid.pronostico_demanda import guardar_dataset
+    from convertersmartgrid.adaptadores.benchmarks import generar_benchmark
+    from convertersmartgrid.adaptadores.pronostico_demanda import guardar_dataset
     from synthetic_export import ExportSpec, write_export
     ds = _dataset()
     ds.exogenas = None

@@ -6,9 +6,9 @@ from types import SimpleNamespace
 import openpyxl
 import pytest
 
-from convertersmartgrid import demanda_medida as dm
-from convertersmartgrid.web import services
-from convertersmartgrid.web.workspace import Workspace
+from convertersmartgrid.aplicacion import demanda_medida as dm
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.workspace import Workspace
 
 
 def test_un_propietario_corrige_sin_agrupar_sufijos():

@@ -5,7 +5,7 @@ import math
 
 import pytest
 
-from convertersmartgrid import planeamiento_etapas as pe
+from convertersmartgrid.dominio import planeamiento_etapas as pe
 
 UNA = [{'nombre': 'media', 'tasa': 0.05, 'probabilidad': 1.0}]
 

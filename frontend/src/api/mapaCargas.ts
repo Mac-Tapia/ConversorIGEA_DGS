@@ -1,7 +1,7 @@
 /** 017:RF-109, RF-124: la API del mapa de las cargas nuevas y de su punto de diseño leído en DIgSILENT.
  *
  * Los tipos van aquí, escritos a mano, mientras `esquema.ts` no se regenere con estas rutas: son los de
- * `src/convertersmartgrid/mapa_cargas.py` (`datos_del_mapa`, `comparar`) y `web/mapa_cargas_api.py`. */
+ * `src/convertersmartgrid/adaptadores/mapa_cargas.py` (`datos_del_mapa`, `comparar`) y `web/mapa_cargas_api.py`. */
 import { json, request } from './client';
 import type { Job } from './types';
 

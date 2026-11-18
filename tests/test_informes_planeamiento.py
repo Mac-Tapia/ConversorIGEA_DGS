@@ -7,10 +7,10 @@ from pathlib import Path
 import docx
 import pytest
 
-from convertersmartgrid.estudio_planeamiento import estudio_de
-from convertersmartgrid.formatos_pide import formatos_del_estudio
-from convertersmartgrid.informes import InformeError
-from convertersmartgrid.informes_planeamiento import (
+from convertersmartgrid.dominio.estudio_planeamiento import estudio_de
+from convertersmartgrid.aplicacion.formatos_pide import formatos_del_estudio
+from convertersmartgrid.adaptadores.informes import InformeError
+from convertersmartgrid.adaptadores.informes_planeamiento import (
     MODULOS,
     TAMANO_DE_TABLA,
     TOPE_DE_FILAS,
@@ -18,8 +18,8 @@ from convertersmartgrid.informes_planeamiento import (
     escribir_modulo,
     escribir_modulos,
 )
-from convertersmartgrid.pide import FORMATOS
-from convertersmartgrid.proyeccion_mercado import SerieMercado
+from convertersmartgrid.aplicacion.pide import FORMATOS
+from convertersmartgrid.aplicacion.proyeccion_mercado import SerieMercado
 
 METODOLOGIA = json.loads((Path(__file__).resolve().parent.parent / 'config/pide_universal_2017.json').read_text(encoding='utf-8'))
 HORIZONTE = {'ciclo_anios': 4, 'largo_plazo': [4, 8], 'detalle_pide': [4, 5]}
@@ -194,7 +194,7 @@ ALTERNATIVAS = {'F1': [{'numero': 2, 'nombre': 'terna', 'inversion': 900.0, 'cos
 
 def test_alternativas_por_alimentador_de_menor_a_mayor_en_la_tabla():
     """042:RF-58 — numeradas por costo anual, con cuál se aplica y lo que no se sorteó."""
-    from convertersmartgrid.informes import filas_alternativas_escalera
+    from convertersmartgrid.adaptadores.informes import filas_alternativas_escalera
 
     cabecera, filas = filas_alternativas_escalera(ALTERNATIVAS)
     assert 'Costo anual US$' in cabecera
@@ -203,7 +203,7 @@ def test_alternativas_por_alimentador_de_menor_a_mayor_en_la_tabla():
 
 def test_el_plan_y_el_pide_traen_las_alternativas_por_alimentador():
     """042:RF-58 — en los dos módulos, y sin datos no se escribe la sección."""
-    from convertersmartgrid import informes_planeamiento as ip
+    from convertersmartgrid.adaptadores import informes_planeamiento as ip
 
     class E:
         def __init__(self):
@@ -228,7 +228,7 @@ def test_el_plan_y_el_pide_traen_las_alternativas_por_alimentador():
 
 def test_el_informe_dice_que_la_obra_del_deficit_no_esta_en_los_flujos():
     """042:RF-67, 042:RF-69 — con esas filas, la nota; sin ellas, ninguna; y cada fila dice su valle."""
-    from convertersmartgrid.informes import filas_alternativas_escalera, notas_alternativas_escalera
+    from convertersmartgrid.adaptadores.informes import filas_alternativas_escalera, notas_alternativas_escalera
 
     assert notas_alternativas_escalera(ALTERNATIVAS) == []
     (nota,) = notas_alternativas_escalera({**ALTERNATIVAS, 'F1 · déficit previo': ALTERNATIVAS['F1'],
@@ -241,7 +241,7 @@ def test_el_informe_dice_que_la_obra_del_deficit_no_esta_en_los_flujos():
 
 def test_el_informe_dice_el_factor_del_dimensionado():
     """042:RF-72 — se ve el factor usado; sin regulador ni elevador, no se menciona."""
-    from convertersmartgrid.informes import notas_alternativas_escalera
+    from convertersmartgrid.adaptadores.informes import notas_alternativas_escalera
 
     (nota,) = notas_alternativas_escalera({'F1': [{'nombre': 'regulador', 'factor': 1.25}, {'nombre': 'terna', 'factor': None}]})
     assert 'factor de 1,25' in nota
@@ -250,7 +250,7 @@ def test_el_informe_dice_el_factor_del_dimensionado():
 
 def test_la_tabla_dice_el_alcance_de_cada_alternativa():
     """042:RF-75 — definitiva, temporal con sus años, o sin medir; y la nota dice qué significa."""
-    from convertersmartgrid.informes import filas_alternativas_escalera, notas_alternativas_escalera
+    from convertersmartgrid.adaptadores.informes import filas_alternativas_escalera, notas_alternativas_escalera
 
     lista = {'F1': [{'numero': 1, 'nombre': 'a', 'costo_anual': 1.0, 'definitiva': False, 'aguanta_anios': 5},
                     {'numero': 2, 'nombre': 'b', 'costo_anual': 2.0, 'definitiva': True, 'aguanta_anios': 20},
@@ -264,7 +264,7 @@ def test_la_tabla_dice_el_alcance_de_cada_alternativa():
 def test_la_evaluacion_economica_marca_el_flujo_privado_incompleto(tmp_path):
     """072:RF-16 (H5, auditor b4) — el módulo con F09 nombra la VAN y la TIR de un flujo privado sin COyM o sin el costo
     de las pérdidas, solo de las obras de su periodo: la de largo plazo no cuenta."""
-    from convertersmartgrid.formatos_pide import ALCANCE_DEL_FLUJO_PRIVADO
+    from convertersmartgrid.aplicacion.formatos_pide import ALCANCE_DEL_FLUJO_PRIVADO
 
     incompleta = {'van': -10.0, 'tir': None, 'completo': False, 'falta': ['COyM', 'pérdidas']}
     obras = [_obra('AL01', 4, privada=incompleta), _obra('AL02', 8, prioridad=2, privada=incompleta)]

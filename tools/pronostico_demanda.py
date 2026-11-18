@@ -34,8 +34,8 @@ def _dataset(args, pd_):
 
 
 def _modelos(args, dataset, pd_):
-    from convertersmartgrid.training_coordinator import exigir_memoria_ml
-    from convertersmartgrid.trabajadores_ml import turno_gpu
+    from convertersmartgrid.aplicacion.training_coordinator import exigir_memoria_ml
+    from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
 
     nombres = [x.strip() for x in args.modelos.split(',') if x.strip()]
     objetivos = [o for o in dataset.objetivos if o.clase == args.clase and o.magnitud == args.magnitud and o.curva]
@@ -76,8 +76,8 @@ def main(argv=None) -> int:
     p.add_argument('--output-json', type=Path, required=True)
     args = p.parse_args(argv)
 
-    from convertersmartgrid import pronostico_demanda as pd_
-    from convertersmartgrid.trabajadores_ml import escribir_informe
+    from convertersmartgrid.adaptadores import pronostico_demanda as pd_
+    from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe
 
     if args.output_json.exists():
         print('Informe existente conservado')

@@ -27,14 +27,14 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from convertersmartgrid import sesion_web
-from convertersmartgrid.edicion import VARIABLE_EDICION, es_edicion_producto
-from convertersmartgrid.salidas_red import (SALIDAS, SalidaApagada, contraer, exigir_salida, motivo_apagada,
+from convertersmartgrid.dominio import sesion_web
+from convertersmartgrid.dominio.edicion import VARIABLE_EDICION, es_edicion_producto
+from convertersmartgrid.dominio.salidas_red import (SALIDAS, SalidaApagada, contraer, exigir_salida, motivo_apagada,
                                             preparar_entorno_sin_red, salida_permitida)
-from convertersmartgrid.web import __main__ as lanzador
-from convertersmartgrid.web import seguridad
-from convertersmartgrid.web.app import create_app
-from convertersmartgrid.web.jobs import EventLog
+from convertersmartgrid.presentacion.web import __main__ as lanzador
+from convertersmartgrid.presentacion.web import seguridad
+from convertersmartgrid.presentacion.web.app import create_app
+from convertersmartgrid.presentacion.web.jobs import EventLog
 
 RAIZ = Path(__file__).resolve().parents[1]
 PUERTO = 8791
@@ -355,7 +355,7 @@ def test_ningun_registro_guarda_secretos_en_el_mensaje():
     programa.setLevel(logging.INFO)
     try:
         seguridad._instalar_filtro_registro()
-        registro = logging.getLogger('convertersmartgrid.asistente')
+        registro = logging.getLogger('convertersmartgrid.aplicacion.asistente')
         registro.info('orden «%s» con acceso=secreto1 y Authorization: Bearer secreto2abc', 'convierte AL101')
         registro.info('token=secreto3&x=1 contraseña: secreto4 "password": "secreto5"')
         registro.info('cabecera %s: %s', 'X-CSG-Token', 'secreto6')
@@ -403,7 +403,7 @@ def test_el_lanzador_sigue_viendo_y_cerrando_la_web(servidor_real, monkeypatch):
     assert lanzador.trabajos_en_curso(url, {}) == 0
     assert lanzador.es_web_de_otra_sesion(url) is False
     cierres = []
-    from convertersmartgrid.web import app as app_mod
+    from convertersmartgrid.presentacion.web import app as app_mod
     monkeypatch.setattr(app_mod, '_cierre', [lambda: cierres.append(1)])
     monkeypatch.setattr(app_mod, '_motivo_cierre', [])
     assert lanzador.pedir_cierre(url, 'prueba') is True
@@ -432,7 +432,7 @@ def test_sistema_web_y_cliente_del_asistente_con_token(servidor_real):
     sys.path.insert(0, str(RAIZ / 'tools'))
     from sistema_web import Web
 
-    from convertersmartgrid.asistente.ejecutor import ClienteWeb
+    from convertersmartgrid.aplicacion.asistente.ejecutor import ClienteWeb
 
     with urllib.request.urlopen(urllib.request.Request(
             servidor_real.url + '/api/workspaces', data=b'', method='POST',
@@ -479,7 +479,7 @@ def test_fuera_de_esta_maquina_se_niega_y_dice_por_que(host, monkeypatch, capsys
 
 def test_la_orden_de_la_cli_tambien_se_niega(monkeypatch, capsys):
     """086:RF-20 — ``convertersmartgrid web --host`` va por el mismo lanzador."""
-    from convertersmartgrid.cli import main as cli
+    from convertersmartgrid.presentacion.cli import main as cli
 
     assert cli(['web', '--host', '0.0.0.0', '--no-browser']) == 1
     assert 'TLS' in capsys.readouterr().err
@@ -532,7 +532,7 @@ def test_el_navegador_se_abre_con_la_sesion(tmp_path, monkeypatch):
 @pytest.mark.parametrize('nombre', ['leaflet.js', 'leaflet.css'])
 def test_leaflet_propio_con_su_huella_y_licencia(nombre):
     """086:RF-21 — la misma copia que publica Leaflet, sin nada que se haya cambiado en el camino."""
-    from convertersmartgrid.preview import CARPETA_LEAFLET, HUELLAS_LEAFLET
+    from convertersmartgrid.adaptadores.preview import CARPETA_LEAFLET, HUELLAS_LEAFLET
 
     huella = base64.b64encode(hashlib.sha256((CARPETA_LEAFLET / nombre).read_bytes()).digest()).decode()
     assert f'sha256-{huella}' == HUELLAS_LEAFLET[nombre]
@@ -548,7 +548,7 @@ def _modelo_de_vista_previa():
 
 def test_la_vista_previa_no_pide_nada_de_fuera(tmp_path, monkeypatch):
     """086:RF-21 — ni script ni estilo de un CDN; con la salida apagada, tampoco teselas, y lo dice."""
-    from convertersmartgrid.preview import write_preview_html
+    from convertersmartgrid.adaptadores.preview import write_preview_html
 
     monkeypatch.setenv(VARIABLE_EDICION, 'producto')
     monkeypatch.delenv(SALIDAS['teselas'].variable, raising=False)
@@ -565,7 +565,7 @@ def test_la_vista_previa_no_pide_nada_de_fuera(tmp_path, monkeypatch):
 
 def test_vista_previa_no_ejecuta_nombres_de_la_entrega(tmp_path):
     """086:RF-21 — un nombre con «</script>» cerraba el guion y lo que siguiera se ejecutaba."""
-    from convertersmartgrid.preview import write_preview_html
+    from convertersmartgrid.adaptadores.preview import write_preview_html
 
     modelo, geo = _modelo_de_vista_previa()
     modelo.network_name = 'A</script><img src=x onerror=alert(1)>'
@@ -577,7 +577,7 @@ def test_vista_previa_no_ejecuta_nombres_de_la_entrega(tmp_path):
 
 def test_con_teselas_encendidas_abre_y_dice_si_no_llega(tmp_path, monkeypatch):
     """086:RF-22 — encendidas de forma explícita en producto: la capa, su política y el aviso sin red."""
-    from convertersmartgrid.preview import ORIGEN_TESELAS, politica_pagina_generada, write_preview_html
+    from convertersmartgrid.adaptadores.preview import ORIGEN_TESELAS, politica_pagina_generada, write_preview_html
 
     monkeypatch.setenv(VARIABLE_EDICION, 'producto')
     monkeypatch.setenv(SALIDAS['teselas'].variable, '1')
@@ -595,7 +595,7 @@ _TESELAS_EN_HTML = re.compile(r'tile\.openstreetmap\.org|arcgisonline\.com|World
 
 def test_086_rf63_calles_y_satelite_con_su_selector(tmp_path, monkeypatch):
     """086:RF-63 — dos fondos con su atribución, el selector de capas y calles al abrir; Leaflet sigue dentro (RF-65)."""
-    from convertersmartgrid.preview import (ORIGEN_SATELITE, ORIGEN_TESELAS, URL_SATELITE, URL_TESELAS,
+    from convertersmartgrid.adaptadores.preview import (ORIGEN_SATELITE, ORIGEN_TESELAS, URL_SATELITE, URL_TESELAS,
                                             politica_pagina_generada, write_preview_html)
 
     monkeypatch.setenv(VARIABLE_EDICION, 'producto')
@@ -619,7 +619,7 @@ def test_086_rf63_calles_y_satelite_con_su_selector(tmp_path, monkeypatch):
 
 def test_086_rf64_el_aviso_va_por_capa(tmp_path, monkeypatch):
     """086:RF-64 — cada fondo avisa una vez con su nombre si no llega; la red se dibuja igual."""
-    from convertersmartgrid.preview import write_preview_html
+    from convertersmartgrid.adaptadores.preview import write_preview_html
 
     monkeypatch.setenv(SALIDAS['teselas'].variable, '1')
     modelo, geo = _modelo_de_vista_previa()
@@ -631,8 +631,8 @@ def test_086_rf64_el_aviso_va_por_capa(tmp_path, monkeypatch):
 
 def test_086_rf65_sin_la_salida_ni_una_direccion_de_teselas(tmp_path, monkeypatch):
     """086:RF-65 — apagada por la edición, por la variable o por lo guardado: ninguna tesela en el HTML."""
-    from convertersmartgrid.preview import politica_pagina_generada, write_preview_html
-    from convertersmartgrid.salidas_red import guardar_salida
+    from convertersmartgrid.adaptadores.preview import politica_pagina_generada, write_preview_html
+    from convertersmartgrid.dominio.salidas_red import guardar_salida
 
     modelo, geo = _modelo_de_vista_previa()
     monkeypatch.delenv(SALIDAS['teselas'].variable, raising=False)
@@ -655,7 +655,7 @@ def test_086_rf65_sin_la_salida_ni_una_direccion_de_teselas(tmp_path, monkeypatc
 
 def test_086_rf66_la_variable_manda_luego_el_equipo_luego_la_edicion(tmp_path, monkeypatch):
     """086:RF-66 — precedencia de la salida: variable, lo guardado en el equipo y, sin nada, la edición."""
-    from convertersmartgrid.salidas_red import (VARIABLE_RUTA_GUARDADAS, estado_salida, guardar_salida,
+    from convertersmartgrid.dominio.salidas_red import (VARIABLE_RUTA_GUARDADAS, estado_salida, guardar_salida,
                                                 ruta_guardadas, salidas_guardadas)
 
     variable = SALIDAS['teselas'].variable
@@ -687,8 +687,8 @@ def test_086_rf66_la_variable_manda_luego_el_equipo_luego_la_edicion(tmp_path, m
 
 def test_086_rf67_lo_guardado_va_en_la_carpeta_local_fuera_de_git(tmp_path, monkeypatch):
     """086:RF-67 — junto a ``config/powerfactory.json``, en la carpeta local, y ``.gitignore`` lo deja fuera."""
-    from convertersmartgrid import runtime_paths
-    from convertersmartgrid.salidas_red import VARIABLE_RUTA_GUARDADAS, ruta_guardadas
+    from convertersmartgrid.dominio import runtime_paths
+    from convertersmartgrid.dominio.salidas_red import VARIABLE_RUTA_GUARDADAS, ruta_guardadas
 
     monkeypatch.delenv(VARIABLE_RUTA_GUARDADAS)
     monkeypatch.setattr(runtime_paths, 'raiz_local', lambda programa=None, environ=None: tmp_path / 'datos')
@@ -844,7 +844,7 @@ def test_086_rf21_una_incrustable_sin_sandbox_no_se_deja_enmarcar():
 
 def test_086_rf21_una_incrustable_con_sandbox_se_deja_enmarcar_por_la_web():
     """086:RF-21 — la que sí pone «sandbox» como directiva sigue con SAMEORIGIN y frame-ancestors 'self', y aislada."""
-    from convertersmartgrid.preview import politica_pagina_generada
+    from convertersmartgrid.adaptadores.preview import politica_pagina_generada
 
     cliente, cookie = _puerta_sobre({'/api/workspaces/w1/mapa-cargas/pagina': politica_pagina_generada(),
                                      '/api/workspaces/w1/files/vista.html': 'SANDBOX allow-scripts; default-src \'none\''})
@@ -946,7 +946,7 @@ def test_086_rf21_toda_otra_ruta_sigue_sin_dejarse_enmarcar(puerta):
 def test_086_rf21_un_error_o_una_descarga_de_las_enmarcables_no_se_enmarca(puerta, monkeypatch):
     """086:RF-21 — en las dos rutas de la lista solo se enmarca una página HTML aislada que se abre en el sitio. Un error
     JSON (aunque traiga la política aislada) o la misma página servida como descarga (``attachment``) llevan ``DENY``."""
-    from convertersmartgrid.web import mapa_cargas_api
+    from convertersmartgrid.presentacion.web import mapa_cargas_api
 
     vista = '/api/workspaces/w1/files/carpeta/vista.html'
     casos = {
@@ -990,8 +990,8 @@ def test_086_rf21_las_teselas_por_sus_servidores_exactos(tmp_path, monkeypatch):
     """086:RF-21 — las páginas enmarcadas no piden nada de fuera salvo las teselas, y la política nombra cada servidor
     sin comodín: los que salen de la dirección de cada fondo con los subdominios de Leaflet. Comprobado en el HTML
     generado de las dos páginas, no en las constantes."""
-    from convertersmartgrid import mapa_cargas as mc
-    from convertersmartgrid.preview import (CARPETA_LEAFLET, FONDOS_MAPA, politica_pagina_generada, recurso_leaflet,
+    from convertersmartgrid.adaptadores import mapa_cargas as mc
+    from convertersmartgrid.adaptadores.preview import (CARPETA_LEAFLET, FONDOS_MAPA, politica_pagina_generada, recurso_leaflet,
                                             write_preview_html)
 
     monkeypatch.setenv('CSG_SALIDA_TESELAS', '1')
@@ -1019,7 +1019,7 @@ def test_086_rf21_las_teselas_por_sus_servidores_exactos(tmp_path, monkeypatch):
 
 def test_086_rf21_la_hoja_de_seguridad_dice_que_se_enmarca_y_que_sale():
     """086:RF-21 — el responsable de sistemas lee en la hoja qué páginas se enmarcan y a qué servidores piden teselas."""
-    from convertersmartgrid.preview import ORIGEN_SATELITE, ORIGEN_TESELAS
+    from convertersmartgrid.adaptadores.preview import ORIGEN_SATELITE, ORIGEN_TESELAS
 
     hoja = (RAIZ / 'docs/SEGURIDAD_Y_PRIVACIDAD.md').read_text(encoding='utf-8')
     for texto in ('SAMEORIGIN', "frame-ancestors 'self'", "frame-ancestors 'none'", 'DENY',
@@ -1042,11 +1042,11 @@ _PRIMITIVAS_RED = re.compile(
     r'|hf_hub_download\(|snapshot_download\(|socket\.create_connection|shutil\.which\(.codex.\)')
 #: Lo que abre una conexión, pero no sale de la máquina o no se entrega.
 _SIN_SALIDA = {
-    'src/convertersmartgrid/web/__main__.py': 'el lanzador, a su propia web de 127.0.0.1',
-    'src/convertersmartgrid/asistente/ejecutor.py': 'la API de la web, solo local (asistente/equipo.py)',
-    'src/convertersmartgrid/web/services.py': 'el cliente del asistente, a la propia web',
-    'src/convertersmartgrid/asistente/ollama.py': 'Ollama en esta máquina (LOCALES)',
-    'src/convertersmartgrid/asistente/embeddings.py': 'local_files_only: lee la caché de modelos',
+    'src/convertersmartgrid/presentacion/web/__main__.py': 'el lanzador, a su propia web de 127.0.0.1',
+    'src/convertersmartgrid/aplicacion/asistente/ejecutor.py': 'la API de la web, solo local (asistente/equipo.py)',
+    'src/convertersmartgrid/presentacion/web/services.py': 'el cliente del asistente, a la propia web',
+    'src/convertersmartgrid/aplicacion/asistente/ollama.py': 'Ollama en esta máquina (LOCALES)',
+    'src/convertersmartgrid/aplicacion/asistente/embeddings.py': 'local_files_only: lee la caché de modelos',
     'tools/sistema_web.py': 'a la propia web',
     'tools/validar_totalidad_vnr.py': 'a la propia web',
     'tools/verify_architecture_links.py': 'herramienta de desarrollo, no se entrega (T19)',
@@ -1061,7 +1061,7 @@ def test_toda_salida_a_la_red_esta_declarada():
     for carpeta in ('src', 'tools'):
         for fichero in (RAIZ / carpeta).rglob('*.py'):
             rel = fichero.relative_to(RAIZ).as_posix()
-            if rel in ('src/convertersmartgrid/salidas_red.py',):
+            if rel in ('src/convertersmartgrid/dominio/salidas_red.py',):
                 continue
             if _PRIMITIVAS_RED.search(fichero.read_text(encoding='utf-8', errors='replace')):
                 encontradas.add(rel)
@@ -1108,7 +1108,7 @@ def _no_debe_salir(*_a, **_k):
 
 def test_internet_apagado_no_consulta(producto):
     """086:RF-22 — búsquedas del asistente: ni GitHub, ni PyPI, ni arXiv."""
-    from convertersmartgrid.asistente.internet import Buscador
+    from convertersmartgrid.aplicacion.asistente.internet import Buscador
 
     r = Buscador(abrir=_no_debe_salir)._consultar('github', 'pandas', 'prueba', _no_debe_salir)
     assert r['resultados'] == [] and SALIDAS['internet'].variable in r['bloqueada']
@@ -1116,7 +1116,7 @@ def test_internet_apagado_no_consulta(producto):
 
 def test_vias_apagado_va_en_recta_y_lo_dice(producto):
     """086:RF-22 — OSRM: el enlace sale en recta, con el aviso de cómo se activa."""
-    from convertersmartgrid.vias import ruta_por_vias
+    from convertersmartgrid.aplicacion.vias import ruta_por_vias
 
     ruta = ruta_por_vias((-14.0, -75.7), (-14.1, -75.8), {'servicio': 'osrm', 'url': 'http://osrm.example'},
                          pedir=_no_debe_salir)
@@ -1125,7 +1125,7 @@ def test_vias_apagado_va_en_recta_y_lo_dice(producto):
 
 def test_vias_encendido_de_forma_explicita(producto, monkeypatch):
     """086:RF-22 — con su variable, en producto, sí consulta."""
-    from convertersmartgrid.vias import ruta_por_vias
+    from convertersmartgrid.aplicacion.vias import ruta_por_vias
 
     monkeypatch.setenv(SALIDAS['vias'].variable, '1')
     llamadas = []
@@ -1142,7 +1142,7 @@ def test_vias_encendido_de_forma_explicita(producto, monkeypatch):
 def test_codex_apagado_no_lo_lanza(producto, monkeypatch):
     """086:RF-22 — el maestro de destilación, ni anotando una consulta que no sale."""
     import shutil
-    from convertersmartgrid.asistente import destilacion
+    from convertersmartgrid.aplicacion.asistente import destilacion
 
     monkeypatch.setattr(shutil, 'which', _no_debe_salir)
     monkeypatch.setattr(destilacion.almacen, 'anotar', _no_debe_salir)
@@ -1274,7 +1274,7 @@ def test_arcgis_conecta_a_la_ip_validada_aunque_el_dns_cambie(monkeypatch):
 
 def test_vias_conecta_a_la_ip_validada_aunque_el_dns_cambie(monkeypatch):
     """086:RF-22 (b4, rebinding) — OSRM por la misma función: la conexión no va a la IP que el DNS da al conectar."""
-    from convertersmartgrid import vias
+    from convertersmartgrid.aplicacion import vias
 
     conectadas = _dns_que_cambia(monkeypatch, al_validar='93.184.216.34', al_conectar='127.0.0.1')
     with pytest.raises(OSError):
@@ -1313,8 +1313,8 @@ def test_vias_rechaza_destinos_locales_y_otros_protocolos(url, monkeypatch):
     """086:RF-22 — OSRM tenía el mismo defecto: la URL del perfil iba tal cual a ``urlopen``."""
     import urllib3
 
-    from convertersmartgrid import vias
-    from convertersmartgrid.salidas_red import DestinoNoPermitido
+    from convertersmartgrid.aplicacion import vias
+    from convertersmartgrid.dominio.salidas_red import DestinoNoPermitido
 
     _resuelve_a(monkeypatch, '93.184.216.34')
     monkeypatch.setattr(urllib3.connectionpool.HTTPConnectionPool, 'urlopen', _no_debe_salir)
@@ -1326,7 +1326,7 @@ def test_vias_con_destino_vedado_va_en_recta_y_dice_por_que(monkeypatch):
     """086:RF-22 y 016:RF-85 — el enlace no se bloquea: va en recta, con el motivo del destino."""
     import urllib3
 
-    from convertersmartgrid.vias import ruta_por_vias
+    from convertersmartgrid.aplicacion.vias import ruta_por_vias
 
     monkeypatch.setenv(SALIDAS['vias'].variable, '1')
     _resuelve_a(monkeypatch, '10.0.0.5')
@@ -1337,8 +1337,8 @@ def test_vias_con_destino_vedado_va_en_recta_y_dice_por_que(monkeypatch):
 
 def test_vias_no_sigue_redirecciones(monkeypatch):
     """086:RF-22 — un 302 del enrutador hacia una IP privada corta la consulta en vez de seguirla."""
-    from convertersmartgrid import vias
-    from convertersmartgrid.salidas_red import DestinoNoPermitido
+    from convertersmartgrid.aplicacion import vias
+    from convertersmartgrid.dominio.salidas_red import DestinoNoPermitido
 
     _resuelve_a(monkeypatch, '93.184.216.34')
     pedidas = _servidor_falso(monkeypatch, (302, b'', {'Location': 'http://10.0.0.5/route'}))
@@ -1349,7 +1349,7 @@ def test_vias_no_sigue_redirecciones(monkeypatch):
 
 def test_sin_requests_osrm_va_en_recta(monkeypatch):
     """103:RF-2 y 016:RF-85 — el Python 3.9 de DIgSILENT 2021 puede no tener requests: el enlace va en recta, no cae."""
-    from convertersmartgrid import vias
+    from convertersmartgrid.aplicacion import vias
 
     monkeypatch.setenv(SALIDAS['vias'].variable, '1')
     _resuelve_a(monkeypatch, '93.184.216.34')
@@ -1397,7 +1397,7 @@ def test_la_guarda_de_las_pruebas_para_cualquier_conexion_real():
 def test_la_via_de_red_sin_simular_la_para_la_guarda(monkeypatch):
     """086:RF-22 (H8H5 v3) — OSRM y ArcGIS sin red simulada: resolver el servidor para validarlo ya es salir a la red, y
     la guarda lo para antes de cualquier conexión. Si el código no resolviera ni validara, no habría nada que parar."""
-    from convertersmartgrid import vias
+    from convertersmartgrid.aplicacion import vias
     from convertersmartgrid.adaptadores.entrada.vnr.connectors.arcgis import ArcGISLayer
 
     _guarda_de_red_activa()
@@ -1410,7 +1410,7 @@ def test_la_via_de_red_sin_simular_la_para_la_guarda(monkeypatch):
 
 def test_la_red_privada_solo_con_permiso_expreso(monkeypatch):
     """086:RF-22 — el permiso de intranet abre 10/8, 172.16/12 y 192.168/16; nunca la máquina ni los metadatos."""
-    from convertersmartgrid.salidas_red import DestinoNoPermitido, validar_destino
+    from convertersmartgrid.dominio.salidas_red import DestinoNoPermitido, validar_destino
 
     _resuelve_a(monkeypatch, '10.0.0.5')
     with pytest.raises(DestinoNoPermitido):
@@ -1457,10 +1457,10 @@ def test_conversion_y_reapertura_en_proceso_sin_sockets_externos(tmp_path):
     guion.write_text(
         'import os,json,socket,hashlib\nfrom pathlib import Path\n'
         'from fastapi.testclient import TestClient\n'
-        'from convertersmartgrid.salidas_red import SALIDAS,exigir_salida,SalidaApagada,preparar_entorno_sin_red\n'
-        'from convertersmartgrid import sesion_web\n'
-        'from convertersmartgrid.web.app import create_app\n'
-        'from convertersmartgrid.web.workspace import WorkspaceStore\n'
+        'from convertersmartgrid.dominio.salidas_red import SALIDAS,exigir_salida,SalidaApagada,preparar_entorno_sin_red\n'
+        'from convertersmartgrid.dominio import sesion_web\n'
+        'from convertersmartgrid.presentacion.web.app import create_app\n'
+        'from convertersmartgrid.presentacion.web.workspace import WorkspaceStore\n'
         'from test_web_api import _loaded\n'
         'from apoyo import esperar_trabajo\n'
         'from synthetic_export import ExportSpec,write_export\n'
@@ -1550,7 +1550,7 @@ def test_086_rf61_contraer(texto, sale):
 def test_el_filtro_de_secretos_falla_cerrado_si_la_depuracion_falla(monkeypatch):
     """086:RF-19 — si depurar falla, el registro no sale crudo: se sustituye por un texto fijo y el fallo se cuenta
     (pre-auditoría de 7e, 2026-11-14: el ``except`` devolvía el registro sin depurar)."""
-    from convertersmartgrid import sesion_web
+    from convertersmartgrid.dominio import sesion_web
 
     def depurar_roto(_texto):
         raise RuntimeError('fallo dentro de la depuración')
@@ -1567,7 +1567,7 @@ def test_el_filtro_de_secretos_falla_cerrado_si_la_depuracion_falla(monkeypatch)
 def test_un_registro_mal_formado_sale_depurado_y_sin_romper():
     """086:RF-19 — un mensaje que no casa con sus argumentos ya no llega crudo a ``handleError``, que lo imprimía
     entero en stderr con el secreto."""
-    from convertersmartgrid import sesion_web
+    from convertersmartgrid.dominio import sesion_web
 
     filtro = sesion_web.FiltroSecretos()
     registro = logging.LogRecord('convertersmartgrid', logging.INFO, '', 0, 'token=secreto9 %s %s', ('solo',), None)

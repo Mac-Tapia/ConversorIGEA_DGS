@@ -2,13 +2,13 @@
 import pytest
 
 from apoyo import cargar_herramienta
-from convertersmartgrid import aprendizaje_continuo as ac
+from convertersmartgrid.aplicacion import aprendizaje_continuo as ac
 
 
 def test_muestra_y_error_tienen_un_dueno_puro():
     """002:RF-3; 050:RF-2: todos los productores comparten tipos sin importar el coordinador."""
-    assert ac.Muestra.__module__ == 'convertersmartgrid.contratos_aprendizaje'
-    assert ac.CicloBloqueado.__module__ == 'convertersmartgrid.contratos_aprendizaje'
+    assert ac.Muestra.__module__ == 'convertersmartgrid.dominio.contratos_aprendizaje'
+    assert ac.CicloBloqueado.__module__ == 'convertersmartgrid.dominio.contratos_aprendizaje'
 
 
 @pytest.mark.parametrize('modo', ['ciclo', 'plan'])
@@ -44,18 +44,23 @@ def test_contrato_puro_y_lector_no_importan_preparacion_en_otro_proceso(tmp_path
     import sys
     script = '''
 import sys,pickle
-from convertersmartgrid import contratos_aprendizaje as c
-assert 'convertersmartgrid.aprendizaje_continuo' not in sys.modules
-assert 'convertersmartgrid.training_coordinator' not in sys.modules
+from convertersmartgrid.dominio import contratos_aprendizaje as c
+assert 'convertersmartgrid.aplicacion.aprendizaje_continuo' not in sys.modules
+assert 'convertersmartgrid.aplicacion.training_coordinator' not in sys.modules
 assert 'torch' not in sys.modules
-from convertersmartgrid.conjuntos_aprendizaje import miembro_en_uso
+from convertersmartgrid.aplicacion.conjuntos_aprendizaje import miembro_en_uso
 assert miembro_en_uso('pinn') is None
-assert 'convertersmartgrid.aprendizaje_continuo' not in sys.modules
-from convertersmartgrid import aprendizaje_continuo as ac
+assert 'convertersmartgrid.aplicacion.aprendizaje_continuo' not in sys.modules
+from convertersmartgrid.aplicacion import aprendizaje_continuo as ac
 assert ac.Muestra is c.Muestra and ac.CicloBloqueado is c.CicloBloqueado
 m=c.Muestra('observada','transformer','a'*64,'observado','operador','entrenamiento')
 assert pickle.loads(pickle.dumps(m))==m
-assert pickle.loads(b'cconvertersmartgrid.aprendizaje_continuo\\nMuestra\\n.') is c.Muestra
+try:
+    pickle.loads(b'cconvertersmartgrid.aprendizaje_continuo\\nMuestra\\n.')
+except ModuleNotFoundError:
+    pass
+else:
+    raise AssertionError('la ruta de antes aún carga: 002:RF-21 la retira')
 '''
     env = dict(os.environ, CSG_ASISTENTE_DATA=str(tmp_path / 'asistente'))
     result = subprocess.run([sys.executable, '-B', '-c', script], env=env, cwd=tmp_path,

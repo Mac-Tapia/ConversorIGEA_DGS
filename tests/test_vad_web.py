@@ -13,15 +13,15 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.web import services
+from convertersmartgrid.presentacion.web import services
 
 TDR = 'rcd-174-2025-os-cd'
 
 
 @pytest.fixture
 def web_vad(tmp_path, monkeypatch):
-    import convertersmartgrid.perfil_empresa as perfil_empresa
-    from convertersmartgrid.web.app import create_app
+    import convertersmartgrid.dominio.perfil_empresa as perfil_empresa
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setattr(perfil_empresa, 'cargar_perfil',
                         lambda *a, **k: perfil_empresa.PerfilEmpresa(nombre='Distribuidora Sintética Norte'))

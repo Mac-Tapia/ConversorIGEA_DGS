@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from convertersmartgrid.asistente.ajuste_condicionado import decidir_ajuste, evaluar_puertas_reales
+from convertersmartgrid.aplicacion.asistente.ajuste_condicionado import decidir_ajuste, evaluar_puertas_reales
 
 
 def metricas(acierto=.99, f1=.97, ejemplos=200, **extra):
@@ -66,8 +66,8 @@ def test_mezclar_propuestas_con_reales_no_las_vuelve_reales():
 
 def test_las_puertas_son_las_de_027_y_no_se_copian():
     """047:RF-9 — 027:RF-18 en un solo sitio: si alguien las cambia, aquí se ven; y siguen en 0,98 y 0,95."""
-    from convertersmartgrid.asistente.transformer import Puertas
-    from convertersmartgrid.digital_twin.auditoria import Umbrales
+    from convertersmartgrid.aplicacion.asistente.transformer import Puertas
+    from convertersmartgrid.adaptadores.digital_twin.auditoria import Umbrales
     p = evaluar_puertas_reales(metricas(), manifiesto())
     assert p['puertas'] == {'acierto_tarea': Puertas().acierto_real, 'f1_datos': Puertas().f1_real}
     assert (Puertas().acierto_real, Puertas().f1_real) == (.98, .95)
@@ -76,7 +76,7 @@ def test_las_puertas_son_las_de_027_y_no_se_copian():
 
 def _propuestas():
     """Un informe de las 200 que aprueba todas sus puertas: lo real se decide aparte."""
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
     nombres = sorted(TAREAS)
     casos = [{'record_id': f'{i:064x}', 'esperado': nombres[i % len(nombres)], 'obtenido': nombres[i % len(nombres)],
               'correcto': True, 'confirmacion': True, 'vp': 1, 'fp': 0, 'fn': 0} for i in range(200)]
@@ -87,7 +87,7 @@ def _propuestas():
 
 def test_la_aceptacion_publica_las_puertas_reales_y_no_presta_las_propuestas():
     """047:RF-9 / 047:RF-17 — las 200 aprueban la asistida y, con pocas humanas, lo real sigue bloqueado."""
-    from convertersmartgrid.asistente.aceptacion import decidir_aceptacion
+    from convertersmartgrid.aplicacion.asistente.aceptacion import decidir_aceptacion
     r = decidir_aceptacion(_propuestas(), {'ejemplos': 3, 'unicos': 3, 'acierto_tarea': 1., 'f1_datos': 1.})
     assert r['asistida']['aprobada'] is True
     assert r['puertas_reales']['aprobada'] is False and r['puertas_reales']['ordenes_reales'] == 3
@@ -97,7 +97,7 @@ def test_la_aceptacion_publica_las_puertas_reales_y_no_presta_las_propuestas():
 
 def test_con_200_humanas_independientes_decide_el_incumplimiento():
     """047:RF-8 / 047:RF-9 — el informe humano real, sellado y sin fuga, llega a una decisión por sus cifras."""
-    from convertersmartgrid.asistente.aceptacion import decidir_aceptacion
+    from convertersmartgrid.aplicacion.asistente.aceptacion import decidir_aceptacion
     humanas = {'ejemplos': 200, 'unicos': 200, 'acierto_tarea': .9, 'f1_datos': .97, 'sin_fuga': True, 'dataset_hash': 'b' * 64}
     r = decidir_aceptacion(_propuestas(), humanas)
     assert r['ajuste']['decision'] == 'necesaria' and r['puertas_reales']['suficiente']

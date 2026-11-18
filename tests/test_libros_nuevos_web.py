@@ -18,7 +18,7 @@ pytest.importorskip('python_calamine')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo  # noqa: E402
-from convertersmartgrid.web.app import create_app  # noqa: E402
+from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 from test_libros_nuevos import _copia_al_mes, _mes_completo  # noqa: E402
 from test_pronostico_demanda import _equivalencia, _libro_cabecera, _libro_clientes, _serie, _suministros  # noqa: E402
 
@@ -145,7 +145,7 @@ def test_con_el_motor_ocupado_se_espera(app, client, tmp_path):
 
 def test_intervalo_configurable_y_apagado(monkeypatch):
     """104:RF-2 — 10 minutos por defecto; la variable lo cambia y 0 apaga la revisión periódica."""
-    from convertersmartgrid.web import libros_nuevos as wl
+    from convertersmartgrid.presentacion.web import libros_nuevos as wl
 
     monkeypatch.delenv(wl.VARIABLE_INTERVALO, raising=False)
     assert wl.intervalo_min() == 10.0
@@ -237,8 +237,8 @@ def test_el_operador_arranca_enseguida_y_el_fondo_cede_sin_perder_lo_hecho(app, 
     """104:RF-30, 104:RF-32, 104:RF-33 — con la verificación de un libro en marcha (lenta, en su proceso), un trabajo
     del operador lanzado desde la web arranca enseguida, el proceso de fondo se termina en menos de 2 s, y al quedar
     libre el motor se verifica el libro sin volver a reindexar."""
-    from convertersmartgrid.web import libros_nuevos as wl
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import libros_nuevos as wl
+    from convertersmartgrid.presentacion.web import services
 
     wid, cli = _espacio_con_septiembre(client, tmp_path)
     _libro_clientes(cli / '2026/1026clientes.xlsx', {'111': _mes_completo(2026, 10, ruido=3)})
@@ -288,7 +288,7 @@ def test_el_operador_arranca_enseguida_y_el_fondo_cede_sin_perder_lo_hecho(app, 
 def test_cortar_un_libro_tarda_menos_de_2_s_y_el_proceso_va_en_prioridad_baja(app):
     """104:RF-32, 104:RF-33 — terminar a mitad de un libro no espera a que acabe (cancelar tardó 40 s el 2026-11-12),
     el proceso de fondo corre en prioridad baja y apagar la web no espera al carril."""
-    from convertersmartgrid.web.fondo import Cedido, ejecutar_en_proceso, prioridad_del_proceso
+    from convertersmartgrid.presentacion.web.fondo import Cedido, ejecutar_en_proceso, prioridad_del_proceso
 
     assert ejecutar_en_proceso(prioridad_del_proceso, ceder=lambda: False) == 'baja'
     corte = threading.Event()
@@ -316,8 +316,8 @@ def test_cortar_un_libro_tarda_menos_de_2_s_y_el_proceso_va_en_prioridad_baja(ap
 def test_primera_revision_sin_indice_solo_toma_la_foto(app, client, tmp_path, monkeypatch):
     """104:RF-34, 104:RF-35 — sin foto ni índice anteriores no se abre ningún libro; después solo se verifica el que
     llega, y «Verificar todos ahora» verifica todos."""
-    from convertersmartgrid import demanda_medida as dm
-    from convertersmartgrid import libros_nuevos as ln
+    from convertersmartgrid.aplicacion import demanda_medida as dm
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
 
     wid = client.post('/api/workspaces').json()['id']
     cli = tmp_path / 'clientes'
@@ -354,7 +354,7 @@ def test_primera_revision_sin_indice_solo_toma_la_foto(app, client, tmp_path, mo
 def test_el_dataset_no_se_regenera_con_el_motor_ocupado_y_dice_cuando(app, client, tmp_path, monkeypatch):
     """104:RF-36, 104:RF-37, 104:RF-38 — desactualizado, el dataset espera al reposo del motor y lo dice; si el
     operador lanza algo mientras se regenera, su proceso se termina y vuelve a desactualizado."""
-    from convertersmartgrid.web import libros_nuevos as wl
+    from convertersmartgrid.presentacion.web import libros_nuevos as wl
 
     wid, cli = _espacio_con_septiembre(client, tmp_path)
     _libro_cabecera(tmp_path / 'cab/2026/s.xlsx', {'M1': _serie(60, 200.0, inicio=_mes_completo(2026, 9)[0][0])})
@@ -408,7 +408,7 @@ def test_solo_espacios_recientes_y_sin_leer_los_que_no_estan_abiertos(app, clien
     """104:RF-40, 104:RF-41, 104:RF-32 — la revisión periódica no recorre los espacios viejos, de un espacio cerrado solo
     mira la foto, y del abierto lee los libros sin encolar nada en el motor común: el «Cargar / listar» de otro espacio
     arranca enseguida (2026-11-12: quedó en cola detrás de la revisión de otro espacio)."""
-    from convertersmartgrid import libros_nuevos as ln
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
 
     vigilancia = app.state.libros_nuevos
     espacios = {}
@@ -455,16 +455,16 @@ def _espacio_con_dataset(client, tmp_path):
 
 
 def _estado_guardado(app, wid) -> dict:
-    from convertersmartgrid import libros_nuevos as ln
-    from convertersmartgrid.web import libros_nuevos as wl
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
+    from convertersmartgrid.presentacion.web import libros_nuevos as wl
 
     return ln.leer_estado(wl.carpeta_estado(app.state.store.get(wid)))
 
 
 def _poner_regenerando(app, wid, **dataset):
     """El estado que dejó en disco una web que se cerró de golpe con el dataset a medias (el del 2026-11-12)."""
-    from convertersmartgrid import libros_nuevos as ln
-    from convertersmartgrid.web import libros_nuevos as wl
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
+    from convertersmartgrid.presentacion.web import libros_nuevos as wl
 
     carpeta = wl.carpeta_estado(app.state.store.get(wid))
     estado = ln.leer_estado(carpeta)
@@ -547,7 +547,7 @@ def test_el_dataset_que_pasa_su_plazo_se_termina_y_se_avisa(app, client, tmp_pat
     """104:RF-42, 104:RF-45 — al lanzarse guarda la identidad de su proceso y de la web; el proceso propio que lleva más
     de su plazo (`CSG_DATASET_PLAZO_MIN`) sin terminar se termina, el dataset vuelve a desactualizado con el motivo y
     se avisa."""
-    from convertersmartgrid.web import libros_nuevos as wl
+    from convertersmartgrid.presentacion.web import libros_nuevos as wl
 
     wid = _espacio_con_dataset(client, tmp_path)
     lanzados = []
@@ -579,7 +579,7 @@ def test_el_dataset_que_pasa_su_plazo_se_termina_y_se_avisa(app, client, tmp_pat
 def test_al_cerrar_la_web_y_al_arrancar_el_dataset_no_queda_regenerando(app, client, tmp_path, monkeypatch):
     """104:RF-46 — al apagarse, la web deja interrumpido el dataset que regeneraba; y al arrancar, aun con la vigilancia
     apagada (`CSG_LIBROS_NUEVOS=0`, como el 2026-11-12), revisa los «regenerando» de los espacios recientes."""
-    from convertersmartgrid.web import libros_nuevos as wl
+    from convertersmartgrid.presentacion.web import libros_nuevos as wl
 
     wid = _espacio_con_dataset(client, tmp_path)
     lanzados = []
@@ -609,7 +609,7 @@ def test_libro_apartado_y_formato_salen_como_aviso_y_la_regla_se_confirma_una_ve
     """104:RF-47, 089:RF-109, 089:RF-110 — el 2026-11-12 dos libros quedaron fuera del dataset y solo constaban en la
     cuenta de «motivos_apartados». Ahora cada libro apartado y cada formato leído por su contenido salen como aviso de
     los libros de demanda, con su nombre; el operador confirma la columna que faltaba y la regla queda guardada."""
-    from convertersmartgrid import demanda_medida as dm
+    from convertersmartgrid.aplicacion import demanda_medida as dm
     from test_libros_formas import _libro_desconocido, _libro_sin_textos
 
     wid = _espacio_con_dataset(client, tmp_path)
@@ -645,7 +645,7 @@ def test_104_rf20_rf21_el_aviso_es_una_linea_lo_visto_se_borra_y_no_vuelve():
     """104:RF-20, 104:RF-21, 104:RF-47 — usuario (2026-11-14): «eso no debe ir en la web así». Un aviso de un libro
     apartado tenía 22 105 caracteres, una entrada por hoja; el estado guarda una línea (el detalle va al Registro), lo
     dado por visto se borra y queda su huella, y el mismo aviso no vuelve a salir al regenerarse el dataset."""
-    from convertersmartgrid.web.libros_nuevos import clave_de_aviso, compactar_avisos, resumen_de_aviso
+    from convertersmartgrid.presentacion.web.libros_nuevos import clave_de_aviso, compactar_avisos, resumen_de_aviso
 
     largo = '0226clientesImportantes.xlsb: queda fuera del dataset del pronóstico: ' + '; '.join(
         f'18100{i}: 288 registro(s) de la hoja «h{i}» sin fecha o sin EA.' for i in range(76))
@@ -667,7 +667,7 @@ def test_104_rf20_al_compactar_no_se_pierde_nada(tmp_path):
     por visto sigue a la vista."""
     import json as _json
 
-    from convertersmartgrid.web.libros_nuevos import FICHERO_ARCHIVO, archivar_en, compactar_avisos
+    from convertersmartgrid.presentacion.web.libros_nuevos import FICHERO_ARCHIVO, archivar_en, compactar_avisos
 
     largo = 'Libro.xlsb: queda fuera del dataset: ' + '; '.join(f'h{i}: sin fecha' for i in range(40))
     estado = {'avisos': [{'id': 'a', 'tipo': 'apartado', 'texto': largo},
@@ -701,7 +701,7 @@ def test_104_rf45_al_terminar_el_proceso_ninguna_lectura_lo_da_por_muerto(app, c
     web consulta a menudo) veía «regenerando» sin proceso propio, lo daba por «sin proceso vivo» y dejaba un segundo
     aviso con el motivo falso. Se fuerza esa lectura justo cuando se escribe el estado: el motivo es el bueno y hay un
     solo aviso."""
-    from convertersmartgrid.web import libros_nuevos as wl
+    from convertersmartgrid.presentacion.web import libros_nuevos as wl
 
     vig = app.state.libros_nuevos
     wid = _espacio_con_dataset(client, tmp_path)
@@ -761,7 +761,7 @@ def _espiar_guardados(monkeypatch) -> list[dict]:
     """Cada estado que se guarda, copiado en el instante del guardado (el espía no depende del tiempo)."""
     import copy
 
-    from convertersmartgrid import libros_nuevos as ln
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
 
     guardados: list[dict] = []
     original = ln.guardar_estado
@@ -831,7 +831,7 @@ def test_104_si_falla_el_aviso_el_estado_se_guarda_igual_con_un_aviso_generico(a
     primero el estado; si el aviso falla, la traza va al Registro (ERROR) y queda un aviso genérico, nunca en silencio."""
     import logging
 
-    from convertersmartgrid.web import libros_nuevos as wl
+    from convertersmartgrid.presentacion.web import libros_nuevos as wl
 
     def falla(*_a, **_k):
         raise RuntimeError('aviso roto a propósito')
@@ -841,7 +841,7 @@ def test_104_si_falla_el_aviso_el_estado_se_guarda_igual_con_un_aviso_generico(a
     ws = app.state.store.get(wid)
     _poner_regenerando(app, wid, inicio=time.time() - 3600)
     monkeypatch.setattr(wl, 'resumen_de_aviso', falla)
-    caplog.set_level(logging.ERROR, logger='convertersmartgrid.web.libros_nuevos')
+    caplog.set_level(logging.ERROR, logger='convertersmartgrid.presentacion.web.libros_nuevos')
     if camino == 'interrumpir':
         vig._interrumpir(ws, 'motivo de prueba', retomar=False)
         esperado, tipo = 'desactualizado', 'dataset'

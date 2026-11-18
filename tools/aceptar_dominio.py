@@ -22,11 +22,11 @@ if str(ROOT / 'src') not in sys.path:
 def preaceptar(workspace: Path, project: str, feeders: list[str], *, caso: str,
               periodo: str, evidencias: list[dict], requiere_ml: bool = False) -> dict:
     """Exige replay exacto sin alterar la política operativa flexible del vínculo."""
-    from convertersmartgrid.asistente.llm_destilacion import custodiar, verificar_fuente
-    from convertersmartgrid.powerfactory_binding import require_project_binding
-    from convertersmartgrid.sources.snapshot import fingerprint
-    from convertersmartgrid.web.source_runs import load_source_run
-    from convertersmartgrid.web.workspace import REGISTRO_VINCULOS_FILE
+    from convertersmartgrid.aplicacion.asistente.llm_destilacion import custodiar, verificar_fuente
+    from convertersmartgrid.adaptadores.powerfactory_binding import require_project_binding
+    from convertersmartgrid.dominio.sources.snapshot import fingerprint
+    from convertersmartgrid.presentacion.web.source_runs import load_source_run
+    from convertersmartgrid.presentacion.web.workspace import REGISTRO_VINCULOS_FILE
 
     bloqueos: list[str] = []
     resultado = {'schema_version': 1, 'proyecto': project, 'alimentadores': feeders,
@@ -79,7 +79,7 @@ def preaceptar(workspace: Path, project: str, feeders: list[str], *, caso: str,
         except (OSError, ValueError, KeyError, TypeError) as exc:
             bloqueos.append(str(exc))
     if requiere_ml:
-        from convertersmartgrid.training_coordinator import exigir_memoria_ml
+        from convertersmartgrid.aplicacion.training_coordinator import exigir_memoria_ml
         try:
             resultado['recursos_ml'] = exigir_memoria_ml(6., minimo_commit_gib=8.)
         except (OSError, ValueError, RuntimeError) as exc:

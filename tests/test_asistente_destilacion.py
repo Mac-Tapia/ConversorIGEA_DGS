@@ -10,10 +10,10 @@ import random
 
 import pytest
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.asistente import destilacion as dst
-from convertersmartgrid.asistente.sinteticos import generar
-from convertersmartgrid.asistente.tareas import TAREAS
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.aplicacion.asistente import destilacion as dst
+from convertersmartgrid.aplicacion.asistente.sinteticos import generar
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
 SEMILLA = random.randrange(1 << 30)
 VOCAB = {'alimentadores': ['IN111', 'TA225', 'NA203'], 'proyecto': ['CA101 13'], 'sistema': ['Pisco', 'Nasca']}
@@ -101,7 +101,7 @@ def test_el_alumno_se_entrena_con_el_maestro_y_solo_se_usa_si_no_empeora(con_ord
     """027:RF-58 / 027:RF-60 / 027:RF-62 — el alumno aprende con α·CE + (1 − α)·T²·KL; se
     entrena también sin destilar con la misma semilla, se guardan las dos métricas y se usa
     el destilado solo si acierta al menos lo mismo."""
-    from convertersmartgrid.asistente import transformer as tr
+    from convertersmartgrid.aplicacion.asistente import transformer as tr
 
     llamadas = []
     original = tr.entrenar
@@ -126,7 +126,7 @@ def test_el_alumno_se_entrena_con_el_maestro_y_solo_se_usa_si_no_empeora(con_ord
 
 def test_sin_maestro_se_entrena_sin_destilar(con_ordenes):
     """027:RF-61 — con el maestro mudo, un solo entrenamiento y el registro lo dice."""
-    from convertersmartgrid.asistente import transformer as tr
+    from convertersmartgrid.aplicacion.asistente import transformer as tr
 
     r = tr.entrenar_y_promover(VOCAB, cfg=tr.Configuracion(epocas=1, por_tarea=5),
                                puertas=tr.Puertas(acierto_tarea=0.0, f1_datos=0.0),

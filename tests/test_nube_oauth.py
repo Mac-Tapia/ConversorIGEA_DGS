@@ -25,7 +25,7 @@ pytestmark = pytest.mark.usefixtures('sin_sockets')
 RAIZ = Path(__file__).resolve().parents[1]
 OAUTH = 'convertersmartgrid.adaptadores.nube.oauth'
 CUENTAS = 'convertersmartgrid.adaptadores.nube.cuentas'
-NUBE_API = 'convertersmartgrid.web.nube_api'
+NUBE_API = 'convertersmartgrid.presentacion.web.nube_api'
 
 CONFIG_COMPLETA = {
     'google': {'id_cliente': 'cliente-prueba.apps.googleusercontent.com', 'secreto': 'GOCSPX-solo-de-prueba',
@@ -51,7 +51,7 @@ def _config(tmp_path: Path, datos) -> Path:
 
 
 def _app(tmp_path: Path, config: Path, sim: NubeSimulada | None = None, **kw):
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     Cuentas = _mod(CUENTAS).Cuentas
     registrar_rutas_nube = _mod(NUBE_API).registrar_rutas_nube
@@ -174,7 +174,7 @@ def _conectado(tmp_path, proveedor='google', cuenta='ana@ejemplo.org'):
 
 
 def _cofre():
-    return _mod('convertersmartgrid.nube_cofre')
+    return _mod('convertersmartgrid.adaptadores.nube_cofre')
 
 
 def test_la_url_pide_solo_los_permisos_de_la_tarea(tmp_path):

@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from convertersmartgrid.correo import ResultadoEnvio
+from convertersmartgrid.puertos.correo import ResultadoEnvio
 
 #: Modo → (estado, código HTTP, motivo). Lo mismo que traduce la tabla del adaptador real (plan de la 110).
 MODOS: dict[str, tuple[str, int | None, str]] = {
@@ -62,7 +62,7 @@ class CredencialesSimuladas:
     def token(self, proveedor: str, cuenta: str, alcance: str) -> str:
         self.pedidos.append((proveedor, cuenta, alcance))
         if self.revocada:
-            from convertersmartgrid.correo import CuentaNoConectada
+            from convertersmartgrid.puertos.correo import CuentaNoConectada
             raise CuentaNoConectada('Vuelva a conectar la cuenta.')
         return f'tok-simulado-{proveedor}'
 

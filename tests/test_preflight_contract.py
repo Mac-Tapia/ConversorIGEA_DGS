@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid.web import services
+from convertersmartgrid.presentacion.web import services
 from synthetic_export import ExportSpec, load_export
 
 
@@ -21,7 +21,7 @@ def _contexto():
 @pytest.mark.parametrize('fallos', [('A',), ('A', 'B')])
 def test_grupo_avisa_de_cualquier_miembro_y_se_importa(tmp_path, monkeypatch, fallos):
     """065:RF-5, 081:RF-57 — el aviso por miembro se propaga al DGS unido; antes impedía importarlo."""
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='grupo', root=tmp_path)
     ws.out_dir.mkdir(parents=True)
@@ -48,12 +48,12 @@ def test_grupo_avisa_de_cualquier_miembro_y_se_importa(tmp_path, monkeypatch, fa
 @pytest.mark.parametrize('unida', [False, True])
 def test_snapshot_es_el_modelo_escrito_y_no_reconstruye(tmp_path, monkeypatch, layout, unida):
     """065:RF-6 — el control lee el modelo post-reglas exacto, sin entradas actuales."""
-    from convertersmartgrid import batch, preflight_contract
-    from convertersmartgrid.estructura import estructura_de_dict
-    from convertersmartgrid.naming import feeder_short_name
-    from convertersmartgrid.perfil_empresa import PerfilEmpresa
-    from convertersmartgrid.reglas import REGLAS_PROYECTO
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.aplicacion import batch, preflight_contract
+    from convertersmartgrid.dominio.estructura import estructura_de_dict
+    from convertersmartgrid.dominio.naming import feeder_short_name
+    from convertersmartgrid.dominio.perfil_empresa import PerfilEmpresa
+    from convertersmartgrid.aplicacion.reglas import REGLAS_PROYECTO
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     rng = random.Random(6506)
     ds = load_export(ExportSpec(feeders=rng.randint(2, 4), sections_per_feeder=rng.randint(5, 9),
@@ -92,7 +92,7 @@ def test_snapshot_es_el_modelo_escrito_y_no_reconstruye(tmp_path, monkeypatch, l
     ws.dataset = object()
     monkeypatch.setattr(services, 'perfil_de', lambda *_: pytest.fail('No releer perfil'))
     monkeypatch.setattr(services, 'reglas_de', lambda *_: pytest.fail('No reaplicar reglas'))
-    from convertersmartgrid import model
+    from convertersmartgrid.dominio import model
     monkeypatch.setattr(model, 'build_feeder_model', lambda *_a, **_k: pytest.fail('No reconstruir modelo'))
     monkeypatch.setattr(batch, 'load_aliases', lambda *_: pytest.fail('No releer alias actuales'))
     for target in targets:
@@ -113,8 +113,9 @@ def test_snapshot_es_el_modelo_escrito_y_no_reconstruye(tmp_path, monkeypatch, l
 @pytest.mark.parametrize('falla', ['ausente', 'dgs_modificado', 'modelo_modificado', 'calculo', 'indisponible'])
 def test_control_requerido_falla_cerrado(tmp_path, monkeypatch, falla):
     """065:RF-7, 081:RF-57 — ausencias, corrupción o cálculo fallido quedan como motivo del target."""
-    from convertersmartgrid import batch, oraculo
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.aplicacion import batch
+    from convertersmartgrid.adaptadores import oraculo
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ds = load_export(ExportSpec(feeders=1, sections_per_feeder=5, loads_per_feeder=2, seed=6507),
                      tmp_path / 'fuente')
@@ -145,8 +146,9 @@ def test_control_requerido_falla_cerrado(tmp_path, monkeypatch, falla):
 @pytest.mark.parametrize('estado', ['converge', 'miembro', 'ambos', 'unida', 'calculo', 'cambio_miembros'])
 def test_grupo_calcula_miembros_y_union_publicada(tmp_path, monkeypatch, estado):
     """065:RF-5, 065:RF-6, 065:RF-7 — se calculan cada miembro y el unido; el fallo de cualquiera llega al grupo."""
-    from convertersmartgrid import batch, oraculo
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.aplicacion import batch
+    from convertersmartgrid.adaptadores import oraculo
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ds = load_export(ExportSpec(feeders=3, sections_per_feeder=5, loads_per_feeder=2, seed=6515),
                      tmp_path / 'fuente')
@@ -185,7 +187,7 @@ def test_grupo_calcula_miembros_y_union_publicada(tmp_path, monkeypatch, estado)
 
 def test_reconstruccion_real_conserva_snapshot_tras_cambiar_la_fuente(tmp_path, monkeypatch):
     """065:RF-6 — la reparación automática se captura; nunca se valida el original incompleto."""
-    from convertersmartgrid.preflight_contract import load_contract
+    from convertersmartgrid.aplicacion.preflight_contract import load_contract
     from test_web_reconstruction import _workspace
 
     ws = _workspace(tmp_path)
@@ -194,7 +196,7 @@ def test_reconstruccion_real_conserva_snapshot_tras_cambiar_la_fuente(tmp_path, 
     resultado = services.convert(ws, _contexto(), ['F-A'], False)
     assert resultado['summary']['ok'] == 1
     assert 'N1' not in ws.dataset.nodes
-    from convertersmartgrid.naming import feeder_short_name
+    from convertersmartgrid.dominio.naming import feeder_short_name
     target = feeder_short_name('F-A')
     contrato = load_contract(ws.out_dir / f'{target}.dgs')
     assert 'N1' in contrato['model'].nodes
@@ -209,9 +211,9 @@ def test_reconstruccion_real_conserva_snapshot_tras_cambiar_la_fuente(tmp_path, 
 
 def test_cancelacion_del_control_no_se_convierte_en_aviso(tmp_path, monkeypatch):
     """065:RF-7 — una cancelación interrumpe antes de autorizar una importación."""
-    from convertersmartgrid import batch
-    from convertersmartgrid.web.jobs import JobCancelled
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.aplicacion import batch
+    from convertersmartgrid.presentacion.web.jobs import JobCancelled
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ds = load_export(ExportSpec(feeders=1, sections_per_feeder=5, loads_per_feeder=2, seed=6527),
                      tmp_path / 'fuente')
@@ -234,9 +236,9 @@ def test_cancelacion_del_control_no_se_convierte_en_aviso(tmp_path, monkeypatch)
 def test_importacion_fija_entrada_por_trabajo_y_limpia_solo_su_copia(tmp_path, monkeypatch, terminacion):
     """065:RF-6, 065:RF-7 — una reconversión tras el control nunca sustituye la entrada nativa."""
     from pathlib import Path
-    from convertersmartgrid import batch
-    from convertersmartgrid.web.jobs import JobCancelled
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.aplicacion import batch
+    from convertersmartgrid.presentacion.web.jobs import JobCancelled
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ds = load_export(ExportSpec(feeders=1, sections_per_feeder=6, loads_per_feeder=3, seed=6536),
                      tmp_path / 'fuente')
@@ -337,8 +339,9 @@ def test_importacion_fija_entrada_por_trabajo_y_limpia_solo_su_copia(tmp_path, m
 
 def test_red_vacia_y_copia_sin_fijar_no_se_importan(tmp_path, monkeypatch):
     """081:RF-59, 081:RF-60 — lo único que para: sin tramos no hay red, y sin copia no hay fichero. Los demás siguen."""
-    from convertersmartgrid import oraculo, preflight_contract
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.adaptadores import oraculo
+    from convertersmartgrid.aplicacion import preflight_contract
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='vacia', root=tmp_path)
     ws.out_dir.mkdir(parents=True)

@@ -42,7 +42,7 @@
   está en verde con las pruebas de cada módulo.
   Avance del 2026-11-15, rojo y verde de cada tarjeta en `D:/csg/PM_IMPL/PISTA3/MENSAJES-SIN-RF/<tarjeta>/`: v2a (13
   módulos), v2b (4), v2c (2), v2d (2), v2e (`web/services.py`) y la final (src/ entero; también los avisos por `avisar(…)`).
-  Falta solo `src/convertersmartgrid/pit/` (7 avisos con «107:RF-8/12»), que quita la 107. Está en `EN_VUELO`, y
+  Falta solo `src/convertersmartgrid/dominio/pit/` (7 avisos con «107:RF-8/12»), que quita la 107. Está en `EN_VUELO`, y
   `test_la_lista_de_en_vuelo_no_esconde_nada` obliga a sacarla de la lista en cuanto quede limpia: entonces se marca.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_textos_sin_requisitos.py.
 - [x] T15 Excepciones de cualquier clase, salida de los guiones y textos en variables sin citas, por tarjetas. (RF-78)
@@ -52,7 +52,7 @@
   enganchada a los guiones de MAPA-IFRAME, F1 y web_rutas), en `D:/csg/PM_IMPL/PISTA3/MENSAJES-SIN-RF/v3/`. Quedan los
   19 guiones de tools/ de `PENDIENTES_V3` (v3b a v3e). v3b: los 16 guiones pequeños, la prueba de que ningún código decide
   por una cita y los 4 filtros que lo hacían, ahora por el sentido del aviso (tools/cabecera_ancha.py,
-  tools/aceptar_restitucion_pf.py, tools/sistema_web.py y src/convertersmartgrid/pronostico_demanda.py); la lista explícita
+  tools/aceptar_restitucion_pf.py, tools/sistema_web.py y src/convertersmartgrid/adaptadores/pronostico_demanda.py); la lista explícita
   de «T<n>» permitidos en `sin_citas.py`. v3c: tools/cargas_pf.py (56 líneas). v3d: tools/obras_pf.py (64 líneas). v3e: tools/ajuste_cabecera_pf.py (107 líneas) y su filtro por «(083:RF-31)», ahora por el sentido: PENDIENTES_V3 queda vacío. v3f: el detector ve también el texto que devuelve una función (`return`) y las claves `error`, `origen` y `fuente`; se quitan sus 72 textos en 25 ficheros (los 137 medidos al cerrar v3e, contados una vez por línea y texto). Solo falta la parte del navegador.
   Cerrada (2026-11-17, 4d): `comprobar_sin_citas` en `frontend/test/e2e/comun.mjs` (la llama `revisarAxe`, en cada
   estado de cada recorrido) y en `frontend/e2e/sin_red.ts` (la línea base, en cada pestaña); las fuentes literales

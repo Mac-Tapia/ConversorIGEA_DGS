@@ -30,11 +30,11 @@ from test_vad_dimensionamiento import (
     _vnr,
 )
 
-from convertersmartgrid.costos_fuentes import leer_sicodi
-from convertersmartgrid import registro_normativo as rn
-from convertersmartgrid.registro_normativo import RegistroNormativo, cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.costos import (
+from convertersmartgrid.aplicacion.costos_fuentes import leer_sicodi
+from convertersmartgrid.dominio import registro_normativo as rn
+from convertersmartgrid.dominio.registro_normativo import RegistroNormativo, cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.adaptadores.vad.costos import (
     CostoEstandar,
     TasaPasiva,
     avnr_ser,
@@ -43,12 +43,12 @@ from convertersmartgrid.vad.costos import (
     firmar_sicodi,
     leer_sicodi_del_periodo,
 )
-from convertersmartgrid.vad.dimensionamiento import (
+from convertersmartgrid.adaptadores.vad.dimensionamiento import (
     RangoEconomico,
     TablaTransformadores,
     dimensionar,
 )
-from convertersmartgrid.vad.modelo_rural import armar_modelo_rural
+from convertersmartgrid.adaptadores.vad.modelo_rural import armar_modelo_rural
 
 pytest.importorskip('pandapower')
 

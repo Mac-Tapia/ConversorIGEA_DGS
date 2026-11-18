@@ -84,7 +84,7 @@ def test_los_proyectos_nuevos_de_digsilent_llevan_la_sigla_csg():
 
 def test_la_carpeta_por_defecto_es_convertersmartgrid():
     """058:RF-5 — sin carpeta en el perfil, «ConverterSmartGrid» (cambia 005:RF-3)."""
-    from convertersmartgrid.carpeta_pf import NOMBRE_POR_DEFECTO
+    from convertersmartgrid.adaptadores.carpeta_pf import NOMBRE_POR_DEFECTO
 
     assert NOMBRE_POR_DEFECTO == 'ConverterSmartGrid'
 
@@ -94,10 +94,10 @@ def test_lo_guardado_con_el_nombre_anterior_se_sigue_leyendo(tmp_path):
     leen; el 2026-11-01 la importación de NJA202 falló por el esquema anterior del registro."""
     import json
 
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         BINDING_SCHEMA, PowerFactoryProjectBinding, _leer_registro,
     )
-    from convertersmartgrid.util import PREFIJO_ESQUEMA_ANTERIOR, esquema_vigente
+    from convertersmartgrid.dominio.util import PREFIJO_ESQUEMA_ANTERIOR, esquema_vigente
 
     anterior = PREFIJO_ESQUEMA_ANTERIOR + 'powerfactory-vinculos-v1'
     registro = tmp_path / 'vinculos_pf.json'
@@ -123,7 +123,7 @@ def test_casos_y_biblioteca_de_antes_del_cambio_de_nombre():
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
     import casos_pf
-    from convertersmartgrid.util import NOMBRES_ANTERIORES_PF
+    from convertersmartgrid.dominio.util import NOMBRES_ANTERIORES_PF
 
     class Caso:
         loc_name = 'Con proyecto'

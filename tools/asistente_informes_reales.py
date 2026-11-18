@@ -19,15 +19,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 
-from convertersmartgrid.asistente import almacen, clasificador
-from convertersmartgrid.contratos_aprendizaje import TIPOS_INFORME
+from convertersmartgrid.aplicacion.asistente import almacen, clasificador
+from convertersmartgrid.dominio.contratos_aprendizaje import TIPOS_INFORME
 
 
 def texto_de(ruta: Path) -> str:
     if ruta.suffix.lower() == '.docx':
         return clasificador.texto_de_docx(ruta)
     if ruta.suffix.lower() == '.pdf':
-        from convertersmartgrid.documentos_solicitud import texto_pdf
+        from convertersmartgrid.adaptadores.documentos_solicitud import texto_pdf
         return texto_pdf(ruta)[0]
     raise ValueError(f'{ruta.name}: solo se leen .docx y .pdf')
 

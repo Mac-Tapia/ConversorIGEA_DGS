@@ -8,7 +8,7 @@ import pytest
 
 def test_resume_config_distinta_rechaza(tmp_path):
     """043:RF-7 — no reutilizar una ejecución de otras semillas/datos/configuración."""
-    from convertersmartgrid.training_coordinator import TrainingCoordinator, TrainingStage
+    from convertersmartgrid.aplicacion.training_coordinator import TrainingCoordinator, TrainingStage
     etapas = [TrainingStage('gru', lambda: {'status': 'RECHAZADO'}, uses_gpu=False)]
     TrainingCoordinator(etapas, tmp_path, config_hash='a' * 64).run()
     with pytest.raises(ValueError, match='configuraci'):
@@ -63,7 +63,7 @@ def test_huella_twin_cambia_con_objetos(tmp_path):
 def test_verify_rechazo_sin_entrenamiento_no_cierra(tmp_path):
     """043:RF-7 — rechazar promoción no demuestra haber entrenado una familia."""
     from tools.reentrenar_modelos import verificar
-    from convertersmartgrid.training_coordinator import ORDEN_MODELOS
+    from convertersmartgrid.aplicacion.training_coordinator import ORDEN_MODELOS
     ruta = tmp_path / 'report.json'
     ruta.write_text(json.dumps({'complete': True, 'stages': [
         {'model': n, 'status': 'RECHAZADO'} for n in ORDEN_MODELOS]}), encoding='utf-8')
@@ -110,7 +110,7 @@ REAPERTURAS = {
 @pytest.mark.parametrize('familia', REAPERTURAS)
 def test_smoke_fallido_no_promueve(tmp_path, familia):
     """043:RF-5 — el proceso real de la familia no reabre un artefacto ilegible, y el activo sigue siendo el anterior."""
-    from convertersmartgrid.model_registry import RegistroModelo, reabrir_en_subproceso
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo, reabrir_en_subproceso
     herramienta, *opciones = REAPERTURAS[familia]
     smoke = reabrir_en_subproceso([sys.executable, str(RAIZ / herramienta), *opciones, str(_carpeta_ilegible(tmp_path))],
                                   timeout_s=300.)
@@ -128,12 +128,12 @@ def test_smoke_fallido_no_promueve(tmp_path, familia):
 def test_reapertura_del_indice_en_otro_proceso(tmp_path):
     """043:RF-5 — la familia sin GPU, reabierta de verdad en otro proceso; alterada, deja de abrir."""
     from types import SimpleNamespace
-    from convertersmartgrid.asistente.embeddings import guardar_indice_versionado
-    from convertersmartgrid.model_registry import reabrir_en_subproceso
+    from convertersmartgrid.aplicacion.asistente.embeddings import guardar_indice_versionado
+    from convertersmartgrid.aplicacion.model_registry import reabrir_en_subproceso
     frags = [SimpleNamespace(id='a', fuente='f', texto='texto del fragmento')]
     guardar_indice_versionado(frags, [[1.0, 0.0]], tmp_path / 'indice', modelo='base', segmentacion={'dataset': 'v2'})
     orden = [sys.executable, '-c',
-             'import json,sys; from convertersmartgrid.asistente.embeddings import reabrir_indice_versionado as r; '
+             'import json,sys; from convertersmartgrid.aplicacion.asistente.embeddings import reabrir_indice_versionado as r; '
              'print(json.dumps({"ok": len(r(sys.argv[1]).buscar("texto", 1, [1.0, 0.0])) == 1}))', str(tmp_path / 'indice')]
     assert reabrir_en_subproceso(orden, timeout_s=300.)['ok'] is True
     (tmp_path / 'indice/vectores.json').write_text('[[0.0, 1.0]]', encoding='utf-8')
@@ -141,7 +141,7 @@ def test_reapertura_del_indice_en_otro_proceso(tmp_path):
 
 
 def _candidato_pinn(tmp_path, contenido=b'{"miembros": 0}'):
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
     bufer = BuferEpisodios(tmp_path / 'bufer')
     carpeta = tmp_path / 'bufer/modelos/20261103-nuevo'
     carpeta.mkdir(parents=True)
@@ -151,7 +151,7 @@ def _candidato_pinn(tmp_path, contenido=b'{"miembros": 0}'):
 
 
 def _puntero_pinn(bufer):
-    from convertersmartgrid.digital_twin.oraculo import promover
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import promover
     (bufer.raiz / 'modelos/anterior').mkdir(parents=True, exist_ok=True)
     promover(bufer, 'anterior', 'el modelo en uso')
     return json.loads((bufer.raiz / 'modelos/promovido.json').read_text(encoding='utf-8'))['version']
@@ -159,8 +159,8 @@ def _puntero_pinn(bufer):
 
 def test_pinn_no_reabierta_no_se_promueve(tmp_path):
     """043:RF-5 — la PINN se promovía con solo sus puertas; ahora la herramienta real la reabre y el puntero no se mueve."""
-    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import _decidir_promocion
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     bufer, carpeta = _candidato_pinn(tmp_path)        # sin readback.json: no se puede comprobar, luego no entra
     assert _puntero_pinn(bufer) == 'anterior'
     registro = RegistroModelo(tmp_path / 'registro')
@@ -174,8 +174,8 @@ def test_pinn_no_reabierta_no_se_promueve(tmp_path):
 
 def test_pinn_aprobada_queda_en_el_registro_y_en_su_puntero(tmp_path):
     """043:RF-1 — la decisión consta en el registro común y lo que la pone en uso sigue siendo un puntero (071:RF-5)."""
-    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import _decidir_promocion
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     bufer, carpeta = _candidato_pinn(tmp_path)
     registro = RegistroModelo(tmp_path / 'registro')
     r = _decidir_promocion(bufer, carpeta, {'cfg': {'ocultas': 8}}, [], 'mae 0.001', registro=registro,
@@ -189,8 +189,8 @@ def test_pinn_aprobada_queda_en_el_registro_y_en_su_puntero(tmp_path):
 
 def test_pinn_del_ciclo_registra_sin_publicar_individual(tmp_path):
     """050:RF-4, 050:RF-7 — el candidato aprobado no cambia el modelo en uso."""
-    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import _decidir_promocion
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     bufer, carpeta = _candidato_pinn(tmp_path)
     assert _puntero_pinn(bufer) == 'anterior'
     registro = RegistroModelo(tmp_path / 'registro')
@@ -208,7 +208,7 @@ def test_pinn_del_ciclo_registra_sin_publicar_individual(tmp_path):
 
 def test_pinn_del_ciclo_exige_registro(tmp_path):
     """050:RF-7, 050:RF-8 — sin candidato registrado no se declara publicable."""
-    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import _decidir_promocion
     bufer, carpeta = _candidato_pinn(tmp_path)
     with pytest.raises(ValueError, match='registro'):
         _decidir_promocion(bufer, carpeta, {}, [], 'ciclo común', publicar_individual=False)
@@ -217,8 +217,8 @@ def test_pinn_del_ciclo_exige_registro(tmp_path):
 @pytest.mark.parametrize('caso', ['puertas', 'sin_anotar'])
 def test_pinn_sin_puertas_o_sin_anotar_no_toca_el_puntero(tmp_path, caso):
     """043:RF-5 — con puertas falladas ni se reabre; sin decisión anotada tampoco hay promoción."""
-    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import _decidir_promocion
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     bufer, carpeta = _candidato_pinn(tmp_path)
     _puntero_pinn(bufer)
     fallos = ['error de tensión sobre el umbral'] if caso == 'puertas' else []
@@ -242,7 +242,7 @@ def _config(ruta, semillas, algoritmo='gru'):
 def _main_sin_entrenar(monkeypatch, llamadas, status='RECHAZADO'):
     """El ``main`` real con etapas que no tocan la GPU: se cuenta qué etapas corren de verdad."""
     import tools.reentrenar_modelos as m
-    from convertersmartgrid.training_coordinator import ORDEN_MODELOS, TrainingStage
+    from convertersmartgrid.aplicacion.training_coordinator import ORDEN_MODELOS, TrainingStage
 
     def etapas(_args, _run_dir):
         return [TrainingStage(n, lambda n=n: llamadas.append(n) or {'status': status, 'metrica': len(llamadas)}, uses_gpu=False)
@@ -270,7 +270,7 @@ def test_resume_otra_semilla_no_reutiliza_metricas(tmp_path, monkeypatch, capsys
 
 def test_resume_compatible_preserva_las_terminales(tmp_path):
     """043:RF-7 — tras un corte se conservan las etapas terminales y solo corre lo que faltaba."""
-    from convertersmartgrid.training_coordinator import TrainingCoordinator, TrainingStage
+    from convertersmartgrid.aplicacion.training_coordinator import TrainingCoordinator, TrainingStage
     llamadas = []
     def etapa(nombre, cae=False):
         def correr():
@@ -296,7 +296,7 @@ def test_etapa_temporal_conserva_alias_gru(tmp_path, monkeypatch, capsys):
         vistas.append((comando, modelo))
         return {'status': 'RECHAZADO', 'training_completed': True, 'report': str(reporte)}
     monkeypatch.setattr(m, '_subproceso', subproceso)
-    monkeypatch.setattr('convertersmartgrid.asistente.ollama.liberar_gpu_para_entrenar', lambda: None)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.asistente.ollama.liberar_gpu_para_entrenar', lambda: None)
     run = tmp_path / 'run'
     assert m.main(['run', '--config', str(_config(tmp_path / 'c.json', [11], 'patchtst')), '--run-dir', str(run),
                    '--dataset', str(tmp_path / 'd'), '--vocabulario', str(tmp_path / 'v'), '--twin', str(tmp_path / 't'),
@@ -329,7 +329,7 @@ def _guardia_en_otro_proceso(lock, segundos: float | None = None):
 
     espera = f'time.sleep({segundos})' if segundos is not None else 'sys.stdin.read()'
     codigo = ('import sys,time; sys.path.insert(0,sys.argv[2]); '
-              'from convertersmartgrid.training_coordinator import BloqueoGPU; '
+              'from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU; '
               'b=BloqueoGPU(sys.argv[1],"otra-sesion"); b.__enter__(); print("LOCKED",flush=True); '
               f'{espera}; b.__exit__(None,None,None)')
     src = Path(__file__).resolve().parents[1] / 'src'
@@ -342,7 +342,7 @@ def _guardia_en_otro_proceso(lock, segundos: float | None = None):
 def test_reapertura_con_la_gpu_de_otro_dice_gpu_ocupada(tmp_path, monkeypatch):
     """043:RF-5, 043:RF-6 — entrenar sin turno y con otra sesión en la GPU: la reapertura real no se hace,
     nada se promueve y el motivo dice «GPU ocupada», no un código de salida (2026-11-03)."""
-    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import _decidir_promocion
     lock = tmp_path / 'gpu.lock'
     monkeypatch.setenv('CSG_ML_GPU_LOCK', str(lock))
     monkeypatch.delenv('CSG_GPU_PARENT_TOKEN', raising=False)
@@ -361,7 +361,7 @@ def test_con_el_turno_tomado_la_reapertura_lo_hereda(tmp_path, monkeypatch):
     """043:RF-5, 043:RF-6 — quien entrena con el turno lo pasa al hijo que reabre: el hijo llega a abrir el
     candidato (aquí sin ``readback.json``, luego falla por eso) y no por la GPU."""
     from apoyo import turno_gpu_esperando
-    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import _decidir_promocion
     lock = tmp_path / 'gpu.lock'
     monkeypatch.setenv('CSG_ML_GPU_LOCK', str(lock))
     monkeypatch.delenv('CSG_GPU_PARENT_TOKEN', raising=False)

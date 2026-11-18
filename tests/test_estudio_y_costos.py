@@ -9,10 +9,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid.costos_fuentes import (CostosError, FuenteCostos, cruzar_codigos, leer_sicodi,
+from convertersmartgrid.aplicacion.costos_fuentes import (CostosError, FuenteCostos, cruzar_codigos, leer_sicodi,
                                                partir_codigo_vnr)
-from convertersmartgrid.estudio_planeamiento import EstudioError, aviso_del_anio_medido, estudio_de
-from convertersmartgrid.metrados import metrados_de_lineas, valorar_metrados
+from convertersmartgrid.dominio.estudio_planeamiento import EstudioError, aviso_del_anio_medido, estudio_de
+from convertersmartgrid.aplicacion.metrados import metrados_de_lineas, valorar_metrados
 
 RAIZ = Path(__file__).resolve().parents[1]
 HORIZONTE = json.loads((RAIZ / 'config/pide_universal_2017.json').read_text(encoding='utf-8'))['horizonte']
@@ -59,7 +59,7 @@ def test_el_caso_de_2027_es_el_del_usuario():
 
 def test_sin_anio_escrito_en_el_codigo():
     """072:RF-1 — ningún año de calendario fijo en el módulo del estudio, salvo su procedencia."""
-    codigo = (RAIZ / 'src/convertersmartgrid/estudio_planeamiento.py').read_text(encoding='utf-8')
+    codigo = (RAIZ / 'src/convertersmartgrid/dominio/estudio_planeamiento.py').read_text(encoding='utf-8')
     cuerpo = codigo.split('"""', 2)[2]
     assert not re.search(r'\b20\d\d\b', cuerpo)
 
@@ -166,7 +166,7 @@ def test_componente_en_blanco_es_sin_dato_no_cero(tmp_path):
 
 def test_datos_del_plan_activan_el_estudio():
     """072:RF-1 — el servicio del PIDE forma los años desde el plan, no de una lista fija."""
-    fuente = (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
     assert "estudio_de(plan_pide['anio_presentacion']" in fuente
 
 
@@ -209,8 +209,8 @@ def test_metrados_de_un_alimentador_real():
     """072:RF-15 — con datos reales: cuadra con el largo de todos los tramos del modelo."""
     import os
 
-    from convertersmartgrid.dataset import CymdistDataset
-    from convertersmartgrid.model import build_feeder_model
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.dominio.model import build_feeder_model
 
     rutas = [os.environ.get(k) for k in ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT')]
     if not all(rutas):

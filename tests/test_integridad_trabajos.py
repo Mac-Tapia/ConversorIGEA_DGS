@@ -11,7 +11,7 @@ import threading
 
 import pytest
 
-from convertersmartgrid.web import jobs as modulo
+from convertersmartgrid.presentacion.web import jobs as modulo
 
 
 @pytest.mark.parametrize('etapa', ['avance', 'proceso'])
@@ -21,8 +21,8 @@ def test_cancelacion_no_retrocede_tras_escritura_en_vuelo_y_caida_real(tmp_path,
     guion.write_text(textwrap.dedent(f'''
         import json,os,threading
         from pathlib import Path
-        from convertersmartgrid import util
-        from convertersmartgrid.web.jobs import JobManager
+        from convertersmartgrid.dominio import util
+        from convertersmartgrid.presentacion.web.jobs import JobManager
         raiz=Path({str(tmp_path)!r})
         real=util.write_json_atomic
         pendiente,continuar,escrito=threading.Event(),threading.Event(),threading.Event()
@@ -77,7 +77,7 @@ def test_cancelacion_no_retrocede_tras_escritura_en_vuelo_y_caida_real(tmp_path,
 @pytest.mark.parametrize('sucesor', [False, True])
 def test_estado_terminal_no_retrocede_por_una_anotacion_previa(tmp_path, monkeypatch, sucesor):
     """096:RF-6 — un recibo terminal no vuelve a running por publicarse después un avance anterior."""
-    from convertersmartgrid import util
+    from convertersmartgrid.dominio import util
     diario = modulo.DiarioTrabajos(tmp_path / 'diario')
     job = modulo.Job('k', 't', 'W', 'engine', lambda _: None,
         status=modulo.RUNNING, relanzado_de='ancestro' if sucesor else None)
@@ -209,7 +209,7 @@ def test_shutdown_espera_admision_anterior_y_no_deja_jobs_detras_del_sentinel(tm
 
 def test_fallo_del_recibo_no_anuncia_relanzamiento_durable(tmp_path, monkeypatch):
     """096:RF-5, 096:RF-6 — un fallo de escritura no sella en memoria una recuperación no persistida."""
-    from convertersmartgrid import util
+    from convertersmartgrid.dominio import util
     diario = modulo.DiarioTrabajos(tmp_path / 'diario')
     job = _recibo(diario, 'ancestro', fecha=1.)
     diario._cerrar_registro(job.id)
@@ -226,7 +226,7 @@ def test_fallo_del_recibo_no_anuncia_relanzamiento_durable(tmp_path, monkeypatch
 
 def test_no_admitir_sucesor_sin_su_recibo_durable(tmp_path, monkeypatch):
     """096:RF-5, 096:RF-6 — un sucesor sin persistir no se acepta ni ejecuta efectos directos sin spawn."""
-    from convertersmartgrid import util
+    from convertersmartgrid.dominio import util
     jobs = modulo.JobManager(lambda *_: None, diario=tmp_path / 'diario')
     efectos = []
     def sin_disco(*a, **kw):
@@ -243,7 +243,7 @@ def test_no_admitir_sucesor_sin_su_recibo_durable(tmp_path, monkeypatch):
 
 def test_cancelacion_avisa_si_no_puede_persistirse(tmp_path, monkeypatch):
     """096:RF-4, 086:RF-9 — la cancelación cooperativa sigue pedida, pero un disco fallido no se confirma."""
-    from convertersmartgrid import util
+    from convertersmartgrid.dominio import util
     jobs = modulo.JobManager(lambda *_: None, diario=tmp_path / 'diario')
     ocupado, liberar = threading.Event(), threading.Event()
     def f(ctx):

@@ -6,16 +6,16 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.asistente.vigilancia import revisar_calidad
-from convertersmartgrid.comprobacion_flujo import (
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.aplicacion.asistente.vigilancia import revisar_calidad
+from convertersmartgrid.dominio.comprobacion_flujo import (
     comparar_huellas, comprobar_tras_flujo, huella_de_caso, motivo_de_informe, revisar_huellas, veredicto_calibracion,
     veredicto_importacion,
 )
-from convertersmartgrid.powerfactory_binding import fusionar_caso_base
-from convertersmartgrid.powerfactory_metadata import CASO_BASE_CALIBRABLE, classify_convergence, estado_caso_base, estado_flujo
-from convertersmartgrid.web import services
-from convertersmartgrid.web.jobs import CON_RESULTADO, FINISHED, NO_CONVERGE, PARCIAL, JobManager
+from convertersmartgrid.adaptadores.powerfactory_binding import fusionar_caso_base
+from convertersmartgrid.adaptadores.powerfactory_metadata import CASO_BASE_CALIBRABLE, classify_convergence, estado_caso_base, estado_flujo
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.jobs import CON_RESULTADO, FINISHED, NO_CONVERGE, PARCIAL, JobManager
 
 RAIZ = Path(__file__).resolve().parents[1]
 BUENO = {'load_flow': {'requested': True, 'pass': True, 'return_code': 0, 'ldf_valid': True}}
@@ -68,7 +68,7 @@ def test_caso_base_limpio_y_sin_servir():
 
 def test_el_limpio_se_arrastra_al_volver_a_verificar():
     """081:RF-15 — volver a verificar no corre el flujo: lo no servido sigue valiendo hasta el siguiente."""
-    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
+    from convertersmartgrid.adaptadores.powerfactory_binding import PowerFactoryProjectBinding
 
     previo = {'source_fingerprint': 'f', 'feeders': ['A'], 'dgs_sha256': {},
               'native_reread': {'caso_base': {'A': {'status': 'CONVERGE_SIN_SERVIR', 'comprobaciones': {'gps': True, 'flujo': True},
@@ -159,7 +159,7 @@ def test_trabajo_termina_con_su_estado_y_su_resultado():
     assert _terminar(None).status == 'done'
     assert {PARCIAL, NO_CONVERGE} < set(CON_RESULTADO) and set(CON_RESULTADO) < set(FINISHED)
     # Los que esperan a un trabajo lo ven terminado: si no, esperaban horas.
-    for fichero in ('tools/sistema_web.py', 'src/convertersmartgrid/asistente/ejecutor.py'):
+    for fichero in ('tools/sistema_web.py', 'src/convertersmartgrid/aplicacion/asistente/ejecutor.py'):
         assert "'parcial', 'no_converge', 'failed', 'cancelled'" in (RAIZ / fichero).read_text(encoding='utf-8')
     fuente = (RAIZ / 'frontend/src/shared/useWorkspace.ts').read_text(encoding='utf-8')
     assert "'done', 'parcial', 'no_converge', 'failed', 'cancelled'" in fuente

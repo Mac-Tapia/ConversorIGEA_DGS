@@ -305,7 +305,7 @@ def test_revision_importar_dos_veces_no_duplica(herramienta, tmp_path):
 
 def test_etiqueta_valida_y_sus_campos(tmp_path):
     """068:RF-21 — la calidad nueva, su maestro y su confianza llegan al ejemplo."""
-    from convertersmartgrid.asistente.maestro_real import CALIDAD, leer_etiquetas
+    from convertersmartgrid.aplicacion.asistente.maestro_real import CALIDAD, leer_etiquetas
     _etiquetas(tmp_path, [ETIQUETA_OK])
     filas, cuenta = leer_etiquetas(tmp_path)
     assert CALIDAD == 'silver_maestro_texto_real'
@@ -316,7 +316,7 @@ def test_etiqueta_valida_y_sus_campos(tmp_path):
 
 def test_etiqueta_de_calidad_ajena_se_rechaza(tmp_path):
     """068:RF-21 — este fichero no puede colar un oro humano."""
-    from convertersmartgrid.asistente.maestro_real import leer_etiquetas
+    from convertersmartgrid.aplicacion.asistente.maestro_real import leer_etiquetas
     _etiquetas(tmp_path, [{**ETIQUETA_OK, 'quality': 'gold_human'}])
     filas, cuenta = leer_etiquetas(tmp_path)
     assert not filas and cuenta['rechazadas_calidad'] == 1
@@ -324,7 +324,7 @@ def test_etiqueta_de_calidad_ajena_se_rechaza(tmp_path):
 
 def test_etiqueta_con_tarea_desconocida_se_rechaza(tmp_path):
     """068:RF-22 — una tarea fuera del catálogo se cuenta, no se fuerza."""
-    from convertersmartgrid.asistente.maestro_real import leer_etiquetas
+    from convertersmartgrid.aplicacion.asistente.maestro_real import leer_etiquetas
     _etiquetas(tmp_path, [{**ETIQUETA_OK, 'tarea': 'hacer_cafe'}])
     filas, cuenta = leer_etiquetas(tmp_path)
     assert not filas and cuenta['rechazadas_tarea'] == 1
@@ -332,7 +332,7 @@ def test_etiqueta_con_tarea_desconocida_se_rechaza(tmp_path):
 
 def test_etiqueta_con_dato_que_no_esta_en_el_texto_se_rechaza(tmp_path):
     """068:RF-23 — un dato inventado no se etiqueta."""
-    from convertersmartgrid.asistente.maestro_real import leer_etiquetas
+    from convertersmartgrid.aplicacion.asistente.maestro_real import leer_etiquetas
     _etiquetas(tmp_path, [{**ETIQUETA_OK, 'datos': {'alimentadores': ['ZZ999']}}])
     filas, cuenta = leer_etiquetas(tmp_path)
     assert not filas and cuenta['rechazadas_datos'] == 1
@@ -340,8 +340,8 @@ def test_etiqueta_con_dato_que_no_esta_en_el_texto_se_rechaza(tmp_path):
 
 def test_etiqueta_ninguna_o_dudosa_no_entra_al_corpus(tmp_path):
     """068:RF-24 — «ninguna» y las dudosas no enseñan al modelo."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
-    from convertersmartgrid.asistente.maestro_real import leer_etiquetas
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.maestro_real import leer_etiquetas
     _etiquetas(tmp_path, [_etiqueta('xq no sale esto todavia', 'ninguna'), _etiqueta('dudosa QW111 quiza', 'convertir', confianza=.5)])
     filas, cuenta = leer_etiquetas(tmp_path)
     assert cuenta['ninguna'] == 1 and cuenta['dudosas'] == 1
@@ -355,7 +355,7 @@ REAL = 'porfa calibra rapido ZX123 pues'
 
 
 def _real(texto=REAL, tarea='convertir', valor='ZX123'):
-    from convertersmartgrid.asistente.maestro_real import datos_a_spans
+    from convertersmartgrid.aplicacion.asistente.maestro_real import datos_a_spans
     return {'texto': texto, 'tarea': tarea, 'spans': datos_a_spans(texto, {'alimentadores': [valor]} if valor else {}),
             'confianza': .9, 'maestro': 'claude'}
 
@@ -366,8 +366,8 @@ def _sellado(filas):
 
 def test_corpus_etiquetas_solo_en_entrenamiento(tmp_path):
     """068:RF-25 — plata real al ajuste, como respuesta del maestro."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
-    from convertersmartgrid.asistente.maestro_real import CALIDAD
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.maestro_real import CALIDAD
     filas, _ = preparar_corpus({}, [], por_familia=1, etiquetas_reales=[_real()])
     reales = [r for r in filas if r['quality'] == CALIDAD]
     assert reales and all(r['particion'] == 'entrenamiento' and r['del_maestro'] for r in reales)
@@ -379,11 +379,11 @@ def test_corpus_etiquetas_solo_en_entrenamiento(tmp_path):
 
 def test_corpus_sin_fuga_por_texto_normalizado():
     """068:RF-26 — una frase de prueba, de selección, humana o fija no entra, con tildes o signos distintos."""
-    from convertersmartgrid.asistente.curriculo_maestro import FAMILIAS
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
-    from convertersmartgrid.asistente.maestro_real import CALIDAD
-    from convertersmartgrid.asistente.ordenes_fijas import generar, repartir
-    from convertersmartgrid.evaluacion_modelos import texto_canonico
+    from convertersmartgrid.aplicacion.asistente.curriculo_maestro import FAMILIAS
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.maestro_real import CALIDAD
+    from convertersmartgrid.aplicacion.asistente.ordenes_fijas import generar, repartir
+    from convertersmartgrid.aplicacion.evaluacion_modelos import texto_canonico
     base, _ = preparar_corpus({}, [], por_familia=2)
     prueba = next(r for r in base if r['particion'] == 'prueba' and not r['datos'])
     seleccion = next(r for r in base if r['particion'] == 'seleccion' and not r['datos'])
@@ -400,8 +400,8 @@ def test_corpus_sin_fuga_por_texto_normalizado():
 
 def test_corpus_sin_fuga_por_familia():
     """068:RF-27 — la misma frase con otro código es la misma familia."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
-    from convertersmartgrid.asistente.maestro_real import CALIDAD, firma_familia
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.maestro_real import CALIDAD, firma_familia
     base, _ = preparar_corpus({}, [], por_familia=2)
     fila = next(r for r in base if r['particion'] == 'prueba' and len(r['datos']) == 1 and r['datos'][0][2] == 'alimentadores')
     a, b, _t = fila['datos'][0]
@@ -414,7 +414,7 @@ def test_corpus_sin_fuga_por_familia():
 
 def test_corpus_deja_identica_la_prueba_sellada():
     """068:RF-28 — con todo lo nuevo, selección, calibración y prueba son las mismas filas, sin más cuarentena."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
     humanas = [{'texto': 'carga la fuente', 'tarea': 'cargar_fuente', 'datos': [], 'origen': 'confirmado'}]
     vocab = {'alimentadores': ['AB101', 'CD202'], 'proyecto': ['Proyecto X'], 'sistema': ['Valle']}
     sin, meta_sin = preparar_corpus(vocab, humanas, por_familia=4, ampliar=False)
@@ -426,8 +426,8 @@ def test_corpus_deja_identica_la_prueba_sellada():
 
 def test_corpus_nada_nuevo_coincide_con_lo_apartado():
     """068:RF-26 / 068:RF-27 — ninguna fila añadida, tampoco una variante con erratas, repite lo sellado."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
-    from convertersmartgrid.asistente.maestro_real import clave_texto, firma_familia
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.maestro_real import clave_texto, firma_familia
     vocab = {'alimentadores': ['AB101', 'CD202'], 'proyecto': ['Proyecto X'], 'sistema': ['Valle']}
     filas, _ = preparar_corpus(vocab, [], por_familia=6, etiquetas_reales=[_real()])
     apartadas = [r for r in filas if r['particion'] != 'entrenamiento']
@@ -439,18 +439,18 @@ def test_corpus_nada_nuevo_coincide_con_lo_apartado():
 
 def test_corpus_prueba_sellada_de_la_linea_base():
     """068:RF-28 — la huella de lo sellado antes de esta spec, con un vocabulario fijo, no cambia."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
-    from convertersmartgrid.evaluacion_modelos import huella
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.evaluacion_modelos import huella
     filas, _ = preparar_corpus({}, [], por_familia=5, etiquetas_reales=[_real()])
     # 070:RF-72: con las tareas nuevas, lo sellado antes de esa spec es la parte histórica.
-    from convertersmartgrid.asistente.destilacion_integral import es_historica
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import es_historica
     assert huella(sorted(r['record_id'] for r in filas if es_historica(r))) == HUELLA_PRUEBA_VACIA
 
 
 def test_corpus_denominadores_separados():
     """068:RF-29 — cada calidad con su cuenta en cada partición (047:RF-13)."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
-    from convertersmartgrid.asistente.maestro_real import CALIDAD
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.maestro_real import CALIDAD
     filas, meta = preparar_corpus({}, [], por_familia=2, etiquetas_reales=[_real()])
     denominadores = meta['denominadores']
     assert denominadores['entrenamiento'][CALIDAD] == sum(
@@ -462,7 +462,7 @@ def test_corpus_denominadores_separados():
 
 def test_corpus_plata_no_cuenta_como_humana():
     """068:RF-30 — plata del maestro no es oro humano (027:RF-67, 047:RF-11)."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
     _, meta = preparar_corpus({}, [], por_familia=1, etiquetas_reales=[_real()])
     assert meta['ordenes_humanas_independientes'] == 0
     assert 'gold_human' not in meta['calidades']
@@ -470,9 +470,9 @@ def test_corpus_plata_no_cuenta_como_humana():
 
 def test_corpus_las_escrituras_siguen_pidiendo_confirmacion(tmp_path, monkeypatch):
     """068:RF-31 — las etiquetas no entran en ``ejemplos``, de donde se cuentan las confirmadas (027:RF-19)."""
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.asistente.interprete import Interpretacion
-    from convertersmartgrid.asistente.plan import resolver
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.aplicacion.asistente.interprete import Interpretacion
+    from convertersmartgrid.aplicacion.asistente.plan import resolver
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     _etiquetas(tmp_path, [_etiqueta(f'convierte XX{i:03d}', 'convertir') for i in range(300)])
     assert almacen.leer('ejemplos') == []
@@ -483,7 +483,7 @@ def test_corpus_las_escrituras_siguen_pidiendo_confirmacion(tmp_path, monkeypatc
 
 def test_corpus_guardado_se_relee_con_la_calidad_nueva(tmp_path):
     """068:RF-32 — ``leer_corpus`` no rechaza lo que ``preparar_corpus`` acaba de escribir."""
-    from convertersmartgrid.asistente.destilacion_integral import guardar_corpus, leer_corpus, preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import guardar_corpus, leer_corpus, preparar_corpus
     filas, meta = preparar_corpus({}, [], por_familia=1, etiquetas_reales=[_real()])
     guardar_corpus(tmp_path, filas, meta)
     assert leer_corpus(tmp_path)[1]['dataset_hash'] == meta['dataset_hash']
@@ -507,7 +507,7 @@ def test_corpus_las_herramientas_leen_las_etiquetas(tmp_path):
 
 def test_corpus_determinista():
     """068:RF-34 — mismas entradas, mismo corpus."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
     a = preparar_corpus({'alimentadores': ['AB101']}, [], por_familia=2, etiquetas_reales=[_real()])
     b = preparar_corpus({'alimentadores': ['AB101']}, [], por_familia=2, etiquetas_reales=[_real()])
     assert a[1]['dataset_hash'] == b[1]['dataset_hash']
@@ -517,9 +517,9 @@ def test_corpus_determinista():
 
 def test_curriculo_estilo_real_cubre_cada_tarea():
     """068:RF-35 — al menos doce frases por tarea, y solo entrenan."""
-    from convertersmartgrid.asistente.curriculo_maestro import ESTILO_REAL
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.curriculo_maestro import ESTILO_REAL
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
     assert set(ESTILO_REAL) == set(TAREAS)
     assert all(len(set(v)) >= 12 for v in ESTILO_REAL.values())
     filas, _ = preparar_corpus({}, [], por_familia=2)
@@ -529,8 +529,8 @@ def test_curriculo_estilo_real_cubre_cada_tarea():
 
 def test_curriculo_estilo_real_sin_nombres_reales():
     """068:RF-36 — los datos van entre llaves; ningún código con forma de alimentador en el código versionado."""
-    from convertersmartgrid.asistente.curriculo_maestro import ESTILO_REAL
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.curriculo_maestro import ESTILO_REAL
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
     for tarea, frases in ESTILO_REAL.items():
         for frase in frases:
             assert not re.search(r'\b[A-Za-z]{2,3}\d{3}\b', frase), frase
@@ -539,9 +539,9 @@ def test_curriculo_estilo_real_sin_nombres_reales():
 
 def test_curriculo_familias_siguen_con_sus_cuatro_columnas():
     """068:RF-37 — la posición en ``FAMILIAS`` decide la partición; alargarla cambiaría la prueba."""
-    from convertersmartgrid.asistente.curriculo_maestro import FAMILIAS
-    from convertersmartgrid.evaluacion_modelos import huella
-    from convertersmartgrid.asistente.tareas import TAREAS_HASTA_069
+    from convertersmartgrid.aplicacion.asistente.curriculo_maestro import FAMILIAS
+    from convertersmartgrid.aplicacion.evaluacion_modelos import huella
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS_HASTA_069
     assert all(len(v) == 4 for v in FAMILIAS.values())
     # 070:RF-72, RF-74: solo cambió una frase de entrenar; ni la selección, ni la calibración, ni la prueba.
     assert huella({t: FAMILIAS[t][1:] for t in TAREAS_HASTA_069}) == HUELLA_FAMILIAS_APARTADAS
@@ -550,8 +550,8 @@ def test_curriculo_familias_siguen_con_sus_cuatro_columnas():
 def test_curriculo_erratas_deterministas_y_observadas():
     """068:RF-38 — misma semilla, misma variante; hay erratas de las reales, como «has» por «haz»."""
     import random
-    from convertersmartgrid.asistente.maestro_real import con_erratas
-    from convertersmartgrid.asistente.sinteticos import Ejemplo
+    from convertersmartgrid.aplicacion.asistente.maestro_real import con_erratas
+    from convertersmartgrid.aplicacion.asistente.sinteticos import Ejemplo
     e = Ejemplo('haz el dgs del sistema electrico', 'convertir', [])
     a = [con_erratas(e, random.Random(i)).texto for i in range(200)]
     b = [con_erratas(e, random.Random(i)).texto for i in range(200)]
@@ -564,8 +564,8 @@ def test_curriculo_erratas_deterministas_y_observadas():
 def test_curriculo_erratas_con_el_espacio_corrido():
     """068:RF-38 — «d etension», como en los mensajes reales, sin tocar el dato de al lado."""
     import random
-    from convertersmartgrid.asistente.maestro_real import con_erratas
-    from convertersmartgrid.asistente.sinteticos import Ejemplo
+    from convertersmartgrid.aplicacion.asistente.maestro_real import con_erratas
+    from convertersmartgrid.aplicacion.asistente.sinteticos import Ejemplo
     e = Ejemplo('revisa de tension en AB101', 'flujo', [(21, 26, 'alimentadores')])
     variantes = [con_erratas(e, random.Random(i), prob=.6) for i in range(400)]
     assert any(' etension' in v.texto or 'd e' in v.texto for v in variantes)
@@ -575,8 +575,8 @@ def test_curriculo_erratas_con_el_espacio_corrido():
 def test_curriculo_erratas_no_mueven_los_datos():
     """068:RF-39 — cada dato sigue señalando su valor, intacto."""
     import random
-    from convertersmartgrid.asistente.maestro_real import con_erratas
-    from convertersmartgrid.asistente.sinteticos import Ejemplo
+    from convertersmartgrid.aplicacion.asistente.maestro_real import con_erratas
+    from convertersmartgrid.aplicacion.asistente.sinteticos import Ejemplo
     texto = 'calibra el sistema Valle Alto con las mediciones de 2026-07 en el proyecto AB101_CD202'
     e = Ejemplo(texto, 'sistema_completo', [(19, 29, 'sistema'), (52, 59, 'periodo'), (75, 86, 'proyecto')])
     assert [e.texto[a:b] for a, b, _t in e.datos] == ['Valle Alto', '2026-07', 'AB101_CD202']
@@ -588,7 +588,7 @@ def test_curriculo_erratas_no_mueven_los_datos():
 
 def test_curriculo_erratas_solo_en_entrenamiento():
     """068:RF-40 — ni selección ni calibración ni prueba reciben variantes."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
     filas, _ = preparar_corpus({}, [], por_familia=2, etiquetas_reales=[_real()])
     con_errata = [r for r in filas if r.get('aumentado') == 'erratas']
     assert con_errata and all(r['particion'] == 'entrenamiento' for r in con_errata)
@@ -597,7 +597,7 @@ def test_curriculo_erratas_solo_en_entrenamiento():
 
 def test_curriculo_fijas_con_su_huella():
     """068:RF-41 — las 200 fijas y su prueba, con los valores anteriores a esta spec (027:RF-65, RF-66)."""
-    from convertersmartgrid.asistente import ordenes_fijas as of
+    from convertersmartgrid.aplicacion.asistente import ordenes_fijas as of
     fijas = of.generar({})
     assert of.huella(fijas) == '41f7ab110ac35c0b' and len(fijas) == 200
     assert of.huella(of.repartir(fijas)[1]) == HUELLA_FIJAS_PRUEBA
@@ -605,7 +605,7 @@ def test_curriculo_fijas_con_su_huella():
 
 def test_curriculo_puertas_intactas():
     """068:RF-42 — ni política ni puertas se tocan para llegar."""
-    from convertersmartgrid.evaluacion_modelos import PoliticaEvaluacion
+    from convertersmartgrid.aplicacion.evaluacion_modelos import PoliticaEvaluacion
     p = PoliticaEvaluacion(modo='agente')
     assert dict(p.puertas_por_familia) == {'acierto_tarea': .95, 'f1_datos': .85}
     assert p.hash == HUELLA_POLITICA

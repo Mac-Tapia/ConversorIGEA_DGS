@@ -99,13 +99,13 @@ def main(argv=None) -> int:
         p.error('las opciones de --afinar deben ser positivas')
 
     if args.dataset_v2:
-        from convertersmartgrid.trabajadores_ml import fallo,escribir_informe,semillas_de
+        from convertersmartgrid.aplicacion.trabajadores_ml import fallo,escribir_informe,semillas_de
         if salida.exists():print('Informe existente conservado');return 2
         try:
             if args.integral or args.destilar or args.evaluar or args.solo is None:
                 raise ValueError('--dataset-v2 requiere --solo y no combina modos legacy')
-            from convertersmartgrid.asistente.entrenamiento_dataset import entrenar_dataset
-            from convertersmartgrid.model_registry import RegistroModelo
+            from convertersmartgrid.aplicacion.asistente.entrenamiento_dataset import entrenar_dataset
+            from convertersmartgrid.aplicacion.model_registry import RegistroModelo
             resultado=entrenar_dataset(args.dataset_v2,salida.parent,solo=args.solo,
                 semillas=semillas_de(args.semillas),epocas=args.epocas,
                 registro=RegistroModelo(args.registro) if args.registro else None)
@@ -120,23 +120,23 @@ def main(argv=None) -> int:
                 raise ValueError('--integral usa el currículo local del maestro Codex; no combine con otros maestros/modos')
             if args.epocas < 1:
                 raise ValueError('épocas positivas obligatorias')
-            from convertersmartgrid.asistente import almacen, clasificador, transformer
-            from convertersmartgrid.asistente.destilacion_integral import preparar_corpus, guardar_corpus, entrenar_destilacion
-            from convertersmartgrid.training_coordinator import BloqueoGPU, ruta_guardia_gpu
+            from convertersmartgrid.aplicacion.asistente import almacen, clasificador, transformer
+            from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus, guardar_corpus, entrenar_destilacion
+            from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU, ruta_guardia_gpu
             destino = salida.parent / (salida.stem + '_integral')
             vocab = (json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario
                      else almacen.leer_json('vocabulario') or {})
-            from convertersmartgrid.asistente import codificador_ordenes
-            from convertersmartgrid.asistente.maestro_real import leer_etiquetas, leer_ninguna
+            from convertersmartgrid.aplicacion.asistente import codificador_ordenes
+            from convertersmartgrid.aplicacion.asistente.maestro_real import leer_etiquetas, leer_ninguna
             ninguna, reservados = leer_ninguna(almacen.raiz())                             # 069:RF-28
-            from convertersmartgrid.asistente import ordenes_maestro
+            from convertersmartgrid.aplicacion.asistente import ordenes_maestro
             filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'),                 # 068:RF-33
                                           etiquetas_reales=leer_etiquetas(almacen.raiz())[0],
                                           ninguna=ninguna, ninguna_reservada=reservados,
                                           ordenes_maestro=ordenes_maestro.leer(almacen.raiz())[0])   # 085:RF-1
             guardar_corpus(destino / 'corpus', filas, meta, reservados)
             # 075:RF-28: una confirmada igual a una fija de prueba no entrena, como la plata (027:RF-66).
-            from convertersmartgrid.asistente.ordenes_fijas import generar as generar_fijas, repartir as repartir_fijas
+            from convertersmartgrid.aplicacion.asistente.ordenes_fijas import generar as generar_fijas, repartir as repartir_fijas
             fijas_de_prueba = [e.texto for e in repartir_fijas(generar_fijas(vocab))[1]] if args.validacion_cruzada else []
             lock = ruta_guardia_gpu()
             with BloqueoGPU(lock, 'asistente-integral-web'):
@@ -149,8 +149,8 @@ def main(argv=None) -> int:
                     registro=almacen.raiz() / 'model_registry',
                     validacion_cruzada=args.validacion_cruzada, vedadas_extra=fijas_de_prueba)
                 # 067:RF-20, RF-24: lo que el registro aprobó pasa a uso; lo demás deja el modelo actual.
-                from convertersmartgrid.asistente.modelos_en_uso import aplicar_decision
-                from convertersmartgrid.model_registry import RegistroModelo
+                from convertersmartgrid.aplicacion.asistente.modelos_en_uso import aplicar_decision
+                from convertersmartgrid.aplicacion.model_registry import RegistroModelo
                 uso = aplicar_decision('transformer', resultado['candidato'])
                 resultado = {**resultado, **uso}
                 informe = {'ordenes': resultado, 'training_completed': True}
@@ -165,9 +165,9 @@ def main(argv=None) -> int:
         return codigo
 
     try:
-        from convertersmartgrid.asistente import almacen, clasificador, transformer
-        from convertersmartgrid.digital_twin.oraculo import dispositivo
-        from convertersmartgrid.training_coordinator import PIDE_INTERPRETE
+        from convertersmartgrid.aplicacion.asistente import almacen, clasificador, transformer
+        from convertersmartgrid.adaptadores.digital_twin.oraculo import dispositivo
+        from convertersmartgrid.aplicacion.training_coordinator import PIDE_INTERPRETE
 
         dispositivo(PIDE_INTERPRETE)                    # 067:RF-9: sin GPU, el mensaje nombra al intérprete, no al gemelo
     except (ImportError, RuntimeError) as exc:
@@ -181,7 +181,7 @@ def main(argv=None) -> int:
     out: dict = {}
     try:
         if args.evaluar:
-            from convertersmartgrid.asistente.sinteticos import generar
+            from convertersmartgrid.aplicacion.asistente.sinteticos import generar
 
             m = transformer.cargar()
             prueba = generar(vocab, por_tarea=20, semilla=transformer.SEMILLA_PRUEBA) + transformer.ejemplos_reales()[1]
@@ -195,10 +195,10 @@ def main(argv=None) -> int:
             if args.solo in (None, 'ordenes'):
                 kw = {}
                 if args.destilar:
-                    from convertersmartgrid.asistente.destilacion import Destilacion
-                    from convertersmartgrid.asistente.ollama import cliente_configurado
+                    from convertersmartgrid.aplicacion.asistente.destilacion import Destilacion
+                    from convertersmartgrid.aplicacion.asistente.ollama import cliente_configurado
 
-                    from convertersmartgrid.asistente.destilacion import MaestroArchivo, MaestroCodex
+                    from convertersmartgrid.aplicacion.asistente.destilacion import MaestroArchivo, MaestroCodex
 
                     maestro_nombre = args.maestro or 'claude'
                     maestro = {'claude': lambda: MaestroArchivo(), 'codex': lambda: MaestroCodex(vocab, modelo=args.modelo_codex),
@@ -206,8 +206,8 @@ def main(argv=None) -> int:
                     # Codex fuera de la máquina: menos votos, cada uno es una llamada (RF-63).
                     kw = {'destilar': Destilacion(k=3 if maestro_nombre == 'codex' else 5), 'maestro': maestro}
                 # 070:RF-63, RF-64: con su turno de GPU y sin tocar el puntero; la decisión queda en el registro.
-                from convertersmartgrid.model_registry import RegistroModelo
-                from convertersmartgrid.trabajadores_ml import turno_gpu
+                from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+                from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
 
                 registro = RegistroModelo(almacen.raiz() / 'model_registry')
                 with turno_gpu('asistente-via-antigua'):
@@ -221,8 +221,8 @@ def main(argv=None) -> int:
                     smoke_reload={'ok': False, 'motivo': 'la vía antigua no se reabre: no se pone en uso'})
                 out['ordenes'] = {**r, 'promovido': False, 'candidato': c}
             if args.solo in (None, 'informes'):
-                from convertersmartgrid.model_registry import RegistroModelo
-                from convertersmartgrid.trabajadores_ml import turno_gpu
+                from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+                from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
 
                 with turno_gpu('asistente-via-antigua'):
                     out['informes'] = clasificador.entrenar_gobernado(

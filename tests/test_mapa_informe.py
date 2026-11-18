@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from PIL import Image
 
-from convertersmartgrid.mapa_informe import MapaError, dibujar, imagenes_del_estado
+from convertersmartgrid.adaptadores.mapa_informe import MapaError, dibujar, imagenes_del_estado
 
 GEO = {'cabecera': 'CAB',
        'barras': [['CAB', -14.0, -75.70, 1.0, 10.0], ['N1', -14.01, -75.69, 0.97, 10.0],
@@ -272,7 +272,7 @@ ESQUEMA = {'cabecera': 'CAB', 'barras': [], 'tramos': [], 'acoples': [['S1', 'N2
 
 def test_sin_gps_se_dibuja_el_esquematico_y_lo_dice_el_pie(tmp_path):
     """017:RF-12 — sin diagrama geográfico, el esquemático con el mismo coloreado y su pie."""
-    from convertersmartgrid.mapa_informe import PIE_ESQUEMATICO, esquematico
+    from convertersmartgrid.adaptadores.mapa_informe import PIE_ESQUEMATICO, esquematico
 
     geo = esquematico(ESQUEMA)
     pos = {b[0]: (b[1], b[2]) for b in geo['barras']}
@@ -298,7 +298,7 @@ def test_sin_gps_se_dibuja_el_esquematico_y_lo_dice_el_pie(tmp_path):
 
 def test_la_ubicacion_sin_fondo_lo_dice_el_pie(tmp_path):
     """017:RF-109, 017:RF-112 — la vista de ubicación sin mapa de fondo lo dice al pie."""
-    from convertersmartgrid.mapa_informe import PIE_SIN_FONDO, ubicacion_del_cliente
+    from convertersmartgrid.adaptadores.mapa_informe import PIE_SIN_FONDO, ubicacion_del_cliente
 
     otro = {'cabecera': 'X', 'barras': [['X', -14.012, -75.692, 1.0, 10.0]],
             'tramos': [['LX', [[-14.012, -75.692], [-14.013, -75.691]], 10.0]]}
@@ -313,7 +313,7 @@ def test_la_ubicacion_sin_fondo_lo_dice_el_pie(tmp_path):
 def test_unifilar_del_transformador_con_la_cargabilidad_de_cada_devanado(tmp_path):
     """017:RF-69, 017:RF-119 — la imagen del transformador de la SET con un rótulo por
     devanado; sin ningún devanado no se inventa."""
-    from convertersmartgrid.mapa_informe import transformador_de_la_set
+    from convertersmartgrid.adaptadores.mapa_informe import transformador_de_la_set
 
     ruta = transformador_de_la_set('TR1', 'SET1', [(10.0, 42.27), (22.9, 110.0)], tmp_path / 't.png',
                                    titulo='Transformador de la SET')

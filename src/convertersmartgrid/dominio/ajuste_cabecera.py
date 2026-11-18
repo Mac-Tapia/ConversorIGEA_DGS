@@ -1,0 +1,1357 @@
+"""Ajuste de las demandas de un alimentador a su máxima de cabecera (spec 006).
+
+La demanda medida (spec 004) da la máxima de cabecera y los clientes importantes con su
+SED, pero el operador la repartía a mano entre las SED del alimentador modelado en
+DIgSILENT, a prueba y error hasta que el flujo de carga diera en la cabecera la máxima
+medida. Aquí está el reparto, sin DIgSILENT, para poder probarlo:
+
+- Las SED con clientes importantes llevan la suma de la potencia de sus clientes, en
+  lugar de la demanda que tengan en el modelo (RF-5, RF-6).
+- Las demás se reparten lo que falta, todas con los mismos kW y kVAR por kVA instalado
+  (RF-8): una SED de 630 kVA lleva lo mismo por kVA que una de 50, sea cual sea la
+  demanda que tenía.
+
+Las pérdidas no se conocen hasta ejecutar el flujo: el reparto inicial cuadra sin ellas,
+y el cuadre las va añadiendo cambiando solo los dos factores (``a`` para kW, ``b`` para
+kVAR) de las SED que escalan.
+"""
+
+from __future__ import annotations
+
+import math
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, field, replace
+from typing import Any
+
+from .compat_pf import zip_estricto
+from .numeros_medidos import clave_codigo, numero
+
+
+class AjusteError(ValueError):
+    """No se puede ajustar: falta el objetivo o un dato de una SED (RF-3, RF-24)."""
+
+
+@dataclass(frozen=True)
+class Objetivo:
+    """Lo que tiene que entrar por la cabecera: el registro de la máxima (RF-1)."""
+
+    kw: float
+    kvar: float
+    medidor: str
+    alimentador: str = ''
+    fecha: str | None = None
+
+    @property
+    def tan_phi(self) -> float:
+        return self.kvar / self.kw
+
+    @property
+    def fp(self) -> float:
+        return self.kw / math.hypot(self.kw, self.kvar)
+
+
+def objetivo_de(maxima: Mapping[str, Any]) -> Objetivo:
+    """El objetivo desde una fila de la máxima de cabecera (``MaximaCabecera.to_dict``)."""
+    medidor = str(maxima.get('medidor') or '')
+    if maxima.get('error'):
+        raise AjusteError(f'{medidor}: sin máxima de cabecera ({maxima["error"]}).')
+    kw = numero(maxima.get('kw'))
+    if kw is None or kw <= 0:
+        raise AjusteError(f'{medidor}: la máxima de cabecera no tiene un kW positivo.')
+    kvar = numero(maxima.get('kvar'))
+    if kvar is None:
+        # Hay medidores que exportan el FP y no el kVAR: el del mismo registro sirve.
+        fp = numero(maxima.get('fp'))
+        if fp is None or not 0 < abs(fp) <= 1:
+            raise AjusteError(f'{medidor}: la máxima de cabecera no trae kVAR ni FP.')
+        kvar = kw * math.tan(math.acos(abs(fp)))
+    return Objetivo(kw=kw, kvar=kvar, medidor=medidor,
+                    alimentador=str(maxima.get('alimentador') or ''), fecha=maxima.get('fecha'))
+
+
+@dataclass
+class Fija:
+    """SED con clientes importantes: su demanda es la de ellos (RF-5)."""
+
+    sed: str
+    kw: float = 0.0
+    kvar: float = 0.0
+    clientes: list[str] = field(default_factory=list)
+    avisos: list[str] = field(default_factory=list)
+    derivaciones: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def fp(self) -> float:
+        apparent = math.hypot(self.kw, self.kvar)
+        return abs(self.kw) / apparent if apparent else 1.0
+
+
+def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo,
+             fp_minimo: float | None = None) -> dict[str, Fija]:
+    """Suma por SED de los clientes cruzados (``ClienteImportante.to_dict``).
+
+    El kVAR de cada cliente sale de su energía reactiva y activa del mes (RF-6): es su
+    factor de potencia medio, que es lo que se conoce de él. Sin una de las dos, el del
+    objetivo (RF-7). El factor de las escaladas del perfil no las toca (015:RF-53).
+
+    Con ``fp_minimo`` (perfil de empresa, 015:RF-62 a RF-64), el cliente cuyo EA/ERI da un
+    factor menor se escribe con ese mínimo, como compensado por su banco propio, y queda
+    dicho en su derivación y en un aviso. En CA101 (2026-10-15) el EA/ERI daba factores
+    de 0,43 a 0,98 y la cabecera 3036 kvar frente a 302 medidos.
+    """
+    por_clave: dict[str, Fija] = {}
+    for c in cruzados:
+        sed = str(c.get('sed') or '').strip()
+        derivacion = derivacion_cliente(c, objetivo.tan_phi, objetivo.fp, fp_minimo)
+        if not sed or derivacion is None:
+            continue
+        f = por_clave.setdefault(clave_codigo(sed), Fija(sed))
+        aviso = derivacion.pop('aviso', None)
+        if aviso:
+            f.avisos.append(aviso)
+        f.kw += derivacion['p_kw']
+        f.kvar += derivacion['q_kvar']
+        f.clientes.append(derivacion['cliente'])
+        f.derivaciones.append(derivacion)
+    return {f.sed: f for f in por_clave.values()}
+
+
+def derivacion_cliente(c: Mapping[str, Any], tan_objetivo: float, fp_objetivo: float,
+                       fp_minimo: float | None = None) -> dict[str, Any] | None:
+    """La P y la Q que se escriben de un cliente fijo, y de dónde salen (035:RF-2 a RF-4).
+
+    Una sola cuenta para la tabla de la web y para el ajuste: antes la tabla enseñaba la POT
+    de cada cliente, cada una de su día, y el ajuste escribía la P del instante de la máxima
+    de su alimentador (004:RF-67); el operador no veía lo que iba a DIgSILENT (2026-10-29).
+    ``None`` si el cliente no trae potencia. ``aviso``, si lo hay, es para el informe.
+    """
+    kw = numero(c.get('pot'))
+    if kw is None:
+        return None
+    ea, eri = numero(c.get('ea')), numero(c.get('eri'))
+    codigo = str(c.get('codigo') or '')
+    q_registro = numero(c.get('q_registro_kvar'))
+    p_registro = numero(c.get('p_registro_kw'))
+    fecha = str(c.get('fecha_registro') or '').strip() or None
+    aviso = None
+    if p_registro is not None:
+        # 004:RF-67: P y Q del cliente en el instante de su alimentador, coincidentes.
+        kw = p_registro
+    if q_registro is not None and kw:
+        # 004:RF-66: la reactiva del registro de 15 minutos (el del instante o el de su POT).
+        tan = q_registro / kw
+        metodo = ('REGISTRO_DEL_INSTANTE' if p_registro is not None
+                  else f"ERI_DEL_REGISTRO {fecha or ''}".strip())
+    elif ea is None or eri is None or ea == 0:
+        tan = tan_objetivo
+        metodo = 'FP_CABECERA_FALLBACK'
+        aviso = f'{codigo}: sin EA o ERI; su kVAR con el FP del objetivo ({fp_objetivo:.3f}).'
+    else:
+        tan = eri / ea
+        metodo = 'ERI/EA'
+    q_kvar = kw * tan
+    fp_libro = abs(kw) / math.hypot(kw, q_kvar) if (kw or q_kvar) else 1.0
+    compensado = None
+    # 004:RF-66: con su registro, su FP es el de su EA y ERI en esa fecha y hora, sin
+    # llevarlo al mínimo: la compensación de 015:RF-62 era para el cociente del mes
+    # (usuario, 2026-10-28).
+    if fp_minimo is not None and fp_libro < fp_minimo and kw > 0 and q_registro is None:
+        q_libro = q_kvar
+        q_kvar = kw * math.tan(math.acos(fp_minimo))
+        compensado = {'fp_ea_eri': fp_libro, 'fp_escrito': fp_minimo,
+                      'q_ea_eri_kvar': q_libro, 'q_escrita_kvar': q_kvar}
+        aviso = (f'{codigo}: FP {fp_libro:.3f} de su EA/ERI llevado a {fp_minimo:.3f} por su '
+                 f'banco propio; Q {q_libro:,.1f} → {q_kvar:,.1f} kvar.')
+    derivacion: dict[str, Any] = {
+        'cliente': codigo,
+        'p_kw': kw,
+        'q_kvar': q_kvar,
+        'fp': abs(kw) / math.hypot(kw, q_kvar) if (kw or q_kvar) else 1.0,
+        'metodo': metodo,
+        'ea': ea,
+        'eri': eri,
+    }
+    if q_registro is not None and fecha:
+        derivacion['fecha'] = fecha                 # 035:RF-2: de qué registro sale
+    if compensado:
+        derivacion['compensado'] = compensado
+    if aviso:
+        derivacion['aviso'] = aviso
+    return derivacion
+
+
+def sed_desconectadas(desconectados: Iterable[Mapping[str, Any]],
+                      conectados: Iterable[Mapping[str, Any]]) -> dict[str, list[str]]:
+    """SED cuyos clientes importantes desmarcó todos el operador (RF-26): SED → sus Nis.
+
+    Una SED con un cliente desmarcado y otro conectado sigue en servicio con la potencia
+    del conectado: la carga de DIgSILENT es la de la SED entera, no la de cada cliente.
+    """
+    siguen = {clave_codigo(str(c.get('sed') or '')) for c in conectados}
+    por_clave: dict[str, tuple[str, list[str]]] = {}
+    for c in desconectados:
+        sed = str(c.get('sed') or '').strip()
+        if not sed or clave_codigo(sed) in siguen:
+            continue
+        por_clave.setdefault(clave_codigo(sed), (sed, []))[1].append(str(c.get('codigo') or ''))
+    return dict(por_clave.values())
+
+
+@dataclass(frozen=True)
+class DemandaSed:
+    sed: str
+    kw: float
+    kvar: float
+    origen: str                 # 'cliente' | 'kva'
+    kva: float | None
+
+
+@dataclass
+class Reparto:
+    """Demandas por SED. Las que escalan valen ``a × base_kw`` y ``b × base_kvar``."""
+
+    fijas: dict[str, tuple[float, float]]           # SED → (kW, kVAR) que no escalan
+    base: dict[str, tuple[float, float]]            # SED → base (kW, kVAR) de las que escalan
+    origen: dict[str, str]
+    kva: dict[str, float | None]
+    a: float
+    b: float
+    todo_escala: bool = False
+    solo_kw: bool = False
+    omitidas: list[dict[str, str]] = field(default_factory=list)
+    avisos: list[str] = field(default_factory=list)
+
+    def con_factores(self, a: float, b: float | None = None) -> Reparto:
+        """El mismo reparto con otros factores; en «solo kW» el kVAR sigue al kW (RF-14)."""
+        b = a if self.solo_kw else (self.b if b is None else b)
+        return Reparto(**{**self.__dict__, 'a': a, 'b': b})
+
+    def con_q(self) -> Reparto:
+        """El mismo reparto con la Q de las escaladas libre de su P (035:RF-6)."""
+        return replace(self, solo_kw=False)
+
+    def al_perfil(self) -> Reparto:
+        """Las escaladas otra vez con el FP de su base, la Q siguiendo a la P (035:RF-29).
+
+        Es como quedan en la calibración: con una medida de cabecera que no es coherente, su
+        Q es la que dé DIgSILENT con ese FP, no una forzada a la medida.
+        """
+        return replace(self, solo_kw=True, b=self.a)
+
+    def factor_q_maximo(self, fp_minimo: float | None) -> float:
+        """El factor de Q de las escaladas con su FP en ``fp_minimo`` (035:RF-28).
+
+        Sin mínimo, el FP de su base: el factor de Q no pasa del de P.
+        """
+        bp = sum(p for p, _ in self.base.values())
+        bq = sum(q for _, q in self.base.values())
+        if fp_minimo is None or bp <= 0 or bq <= 0:
+            return self.a
+        return max(self.a, self.a * math.tan(math.acos(fp_minimo)) / (bq / bp))
+
+    def fp_escaladas(self) -> float | None:
+        """FP de las escaladas con los factores actuales: el de su base si ``b == a`` (035:RF-12)."""
+        bp = sum(p for p, _ in self.base.values())
+        bq = sum(q for _, q in self.base.values())
+        if bp <= 0 or self.a <= 0:
+            return None
+        tan = bq / bp * self.b / self.a
+        return 1.0 / math.hypot(1.0, tan)
+
+    def a_solo_kw(self, objetivo: Objetivo) -> Reparto:
+        """Pasa a «solo kW» (RF-14): el kVAR de las que escalan, con el FP del objetivo."""
+        if self.solo_kw:
+            return self
+        base = {s: (p, p * objetivo.tan_phi) for s, (p, _) in self.base.items()}
+        return Reparto(**{**self.__dict__, 'base': base, 'b': self.a, 'solo_kw': True})
+
+    @property
+    def demandas(self) -> dict[str, DemandaSed]:
+        out = {}
+        for sed in self.origen:
+            if sed in self.base:
+                bp, bq = self.base[sed]
+                kw, kvar = self.a * bp, self.b * bq
+            else:
+                kw, kvar = self.fijas[sed]
+            out[sed] = DemandaSed(sed, kw, kvar, self.origen[sed], self.kva.get(sed))
+        return out
+
+    def totales(self) -> tuple[float, float]:
+        ds = self.demandas.values()
+        return sum(d.kw for d in ds), sum(d.kvar for d in ds)
+
+
+def _kva_valido(v: Any) -> float | None:
+    x = numero(v)
+    return x if x is not None and x > 0 else None
+
+
+def reparto_inicial(objetivo: Objetivo, fijas: Mapping[str, Fija],
+                    cargas: Mapping[str, tuple[float, float]],
+                    kva: Mapping[str, Any] | None = None,
+                    fp: float | None = None) -> Reparto:
+    """El reparto que da el objetivo sin pérdidas, con el factor de escala de DIgSILENT.
+
+    ``cargas`` tiene una entrada por cada carga de SED del alimentador en DIgSILENT, con el
+    nombre que tiene allí y su P y Q (kW, kVAR): es la lista de SED. Las fijas (clientes
+    importantes) se buscan en ella por su código y llevan su P y Q (015:RF-43).
+
+    Las demás escalan según su potencia instalada (015:RF-44): P base = kVA × FP, Q base con
+    ese mismo FP, y un solo factor de escala, el ``scale0`` de DIgSILENT, que es así la
+    fracción de carga de sus transformadores. El usuario, el 2026-10-15: «el escalado se
+    debe hacer a sus potencias instaladas de cada SED escalada». Con la P del archivo, en
+    CA101 98 de 160 escaladas (11 057 kVA) tenían demanda cero y los 6 MW caían en 62 SED.
+    El FP es el del perfil de empresa (``fp``, 015:RF-54) o, sin él, el de la máxima de
+    cabecera (RF-55). Una SED sin kVA conocido queda en cero, con aviso (RF-45). Las fijas
+    conservan la Q de su EA/ERI y las cambiadas a mano la que tienen (RF-53, RF-58).
+    """
+    por_clave = {clave_codigo(s): s for s in cargas}
+    kvas = {s: _kva_valido((kva or {}).get(s)) for s in cargas}
+    fijas_pf: dict[str, tuple[float, float]] = {}
+    omitidas, avisos = [], []
+    for f in fijas.values():
+        sed = por_clave.get(clave_codigo(f.sed))
+        if sed is None:
+            omitidas.append({'sed': f.sed, 'motivo': 'no está en el alimentador del proyecto',
+                             'clientes': ', '.join(f.clientes)})
+            continue
+        fijas_pf[sed] = (f.kw, f.kvar)
+        avisos += [f'{sed}: {a}' for a in f.avisos]
+    fp_escaladas = objetivo.fp if fp is None else fp
+    tan = math.tan(math.acos(fp_escaladas))
+    base = {s: ((kvas[s] or 0.0) * fp_escaladas, (kvas[s] or 0.0) * fp_escaladas * tan)
+            for s in cargas if s not in fijas_pf}
+    ceros = sorted(s for s in base if not kvas[s])
+    if ceros:
+        # 015:RF-45: sin potencia instalada conocida, el factor de escala la deja en cero.
+        avisos.append(f'{len(ceros)} SED escaladas sin potencia instalada conocida: quedan '
+                      'en cero: ' + ', '.join(ceros[:50]))
+    origen = {s: ('cliente' if s in fijas_pf else 'escala') for s in cargas}
+    p_fijas = sum(p for p, _ in fijas_pf.values())
+    p_base = sum(p for p, _ in base.values())
+    p_falta = objetivo.kw - p_fijas
+    if p_falta > 0 and p_base > 0:
+        a = p_falta / p_base
+        return Reparto(fijas=fijas_pf, base=base, origen=origen, kva=kvas, a=a, b=a,
+                       solo_kw=True, omitidas=omitidas, avisos=avisos)
+
+    # Los clientes ya llenan la cabecera, o no queda demanda que escalar: escala todo
+    # (RF-13), las fijas con su P y Q como punto de partida.
+    todo = {**base, **fijas_pf}
+    bp = sum(p for p, _ in todo.values())
+    if bp <= 0:
+        raise AjusteError('No hay demanda que escalar: ninguna SED tiene demanda en el archivo '
+                          'original ni clientes importantes con potencia.')
+    avisos.append(
+        f'Los clientes importantes suman {p_fijas:,.1f} kW frente a un objetivo de '
+        f'{objetivo.kw:,.1f} kW: se escalan todas las SED, también las suyas.'
+        if base else
+        'Todas las SED del alimentador tienen clientes importantes: se escalan sus demandas.')
+    a = objetivo.kw / bp
+    return Reparto(fijas={}, base=todo, origen=origen, kva=kvas, a=a, b=a, todo_escala=True,
+                   solo_kw=True, omitidas=omitidas, avisos=avisos)
+
+
+# =========================================================================== cuadre
+@dataclass(frozen=True)
+class Medida:
+    """Lo que entra por la cabecera en un flujo de carga; sin valores si no converge."""
+
+    converge: bool
+    kw: float | None = None
+    kvar: float | None = None
+    motivo: str = ''
+    carga_kw: float | None = None       # consumo efectivo nativo de las cargas
+    carga_kvar: float | None = None
+
+
+#: Remedios de RF-16, por orden. El primero no toca el flujo de carga: se acerca al
+#: objetivo desde el último reparto que convergió. Los demás son ajustes del ``ComLdf``;
+#: ``('x', n)`` multiplica el valor que tenga. Son datos para que el informe diga qué
+#: cambió (RF-17) y el guion los deshaga al final.
+ESCALERA: tuple[tuple[str, dict[str, Any]], ...] = (
+    ('acercarse en pasos', {}),
+    ('más iteraciones', {'itrlx': ('x', 3)}),
+    ('paso automático', {'iStepAdapt': 1}),
+    # 015:RF-42: las cargas son PQ; no se activa su dependencia de la tensión (iopt_pq).
+    ('adaptación automática del modelo', {'iopt_lev': 1}),
+)
+#: Flujos que no convergen con cada remedio antes de pasar al siguiente; con cada uno se
+#: parte el paso a la mitad.
+MITADES = 4
+#: Flujos de carga como mucho: 3 a 5 bastan si converge; los remedios piden más.
+MAX_FLUJOS = 30
+
+
+@dataclass
+class Cuadre:
+    """Resultado del cuadre: el último reparto que convergió y cómo se llegó a él."""
+
+    cuadrado: bool
+    reparto: Reparto | None              # el último que convergió (RF-18)
+    medida: Medida | None                # su cabecera
+    objetivo: Objetivo
+    tolerancia: float
+    flujos: int = 0
+    remedios: list[dict[str, Any]] = field(default_factory=list)
+    historial: list[dict[str, Any]] = field(default_factory=list)
+    avisos: list[str] = field(default_factory=list)
+    motivo: str = ''
+    cancelado: bool = False
+    con_q: bool = False                  # 035:RF-5: también la Q de cabecera
+    q_estado: str | None = None          # Q_CUADRADA, Q_INCOHERENTE_* o Q_SIN_BASE
+    q_extremo: dict[str, Any] | None = None   # 035:RF-30: el flujo que lo demostró
+    metodos: dict[str, int] = field(default_factory=dict)       # 083:RF-13
+    fijas_sospechosas: bool = False                              # 083:RF-7
+
+    def errores(self) -> tuple[float | None, float | None]:
+        """Error relativo de kW y kVAR en la cabecera, con signo (medido − objetivo)."""
+        m = self.medida
+        if m is None or not m.converge or m.kw is None:
+            return None, None
+        q_error = (None if m.kvar is None else
+                   _rel(m.kvar, self.objetivo.kvar, self.objetivo.kw))
+        return _rel(m.kw, self.objetivo.kw), q_error
+
+    def perdidas(self) -> tuple[float | None, float | None]:
+        """Lo que entra por la cabecera menos lo que consumen las SED."""
+        m = self.medida
+        if self.reparto is None or m is None or m.kw is None or m.kvar is None:
+            return None, None
+        nominal_p, nominal_q = self.reparto.totales()
+        p = nominal_p if m.carga_kw is None else m.carga_kw
+        q = nominal_q if m.carga_kvar is None else m.carga_kvar
+        return m.kw - p, m.kvar - q
+
+
+def _rel(medido: float, objetivo: float, respaldo: float | None = None) -> float:
+    # Un objetivo de kVAR casi nulo haría enorme cualquier error: se mide contra el kW.
+    den = abs(objetivo) if abs(objetivo) > 1e-9 else abs(respaldo or 1.0)
+    return (medido - objetivo) / den
+
+
+def cuadrado_kw(medida: Medida, objetivo: Objetivo, tolerancia: float) -> bool:
+    """Aceptación universal: flujo convergente y kW dentro de tolerancia.
+
+    El kVAR es un resultado físico de la red nativa —incluidos sus bancos— y se informa
+    por separado; nunca decide si el ajuste puede continuar.
+    """
+    return bool(
+        medida.converge and medida.kw is not None
+        and abs(_rel(medida.kw, objetivo.kw)) <= tolerancia
+    )
+
+
+def kvar_difference(medida: Medida, objetivo: Objetivo, tolerancia: float) -> dict[str, Any]:
+    """Diferencia reactiva informativa, completa y explícitamente no bloqueante."""
+    native = medida.kvar if medida.converge else None
+    if native is None:
+        return {
+            'status': 'AVISO_KVAR', 'objetivo_kvar': objetivo.kvar,
+            'red_nativa_kvar': None, 'diferencia_kvar': None,
+            'diferencia_relativa': None, 'tolerancia': tolerancia,
+            'supera_tolerancia': True, 'bloquea': False,
+        }
+    difference = native - objetivo.kvar
+    relative = _rel(native, objetivo.kvar, objetivo.kw)
+    exceeded = abs(relative) > tolerancia
+    return {
+        'status': 'AVISO_KVAR' if exceeded else 'OK',
+        'objetivo_kvar': objetivo.kvar,
+        'red_nativa_kvar': native,
+        'diferencia_kvar': difference,
+        'diferencia_relativa': relative,
+        'tolerancia': tolerancia,
+        'supera_tolerancia': exceeded,
+        'bloquea': False,
+    }
+
+
+#: Cómo quedó la Q de cabecera cuando se cuadra (035:RF-5, RF-9, RF-28 a RF-30). Una medida
+#: es incoherente si ni con las escaladas en un extremo de su FP la cabecera la alcanza: por
+#: encima con FP 1 (le haría falta reactiva negativa) o por debajo con su FP mínimo.
+Q_CUADRADA, Q_SIN_BASE = 'CUADRADA', 'SIN_BASE'
+Q_INCOHERENTE_ALTA, Q_INCOHERENTE_BAJA = 'MEDIDA_INCOHERENTE_ALTA', 'MEDIDA_INCOHERENTE_BAJA'
+Q_INCOHERENTES = (Q_INCOHERENTE_ALTA, Q_INCOHERENTE_BAJA)
+#: Precisión de la Q de cabecera al recalibrar (035:RF-25). El usuario, el 2026-10-29, primero
+#: «± 2 %» y después «la precisión debe ser 1 %».
+TOLERANCIA_Q = 0.01
+
+
+def cuadrado_kvar(kvar: float | None, objetivo: Objetivo, tolerancia: float = TOLERANCIA_Q) -> bool:
+    """La Q de cabecera dentro de la tolerancia, medida como el aviso de kVAR (RF-14)."""
+    return kvar is not None and abs(_rel(kvar, objetivo.kvar, objetivo.kw)) <= tolerancia
+
+
+def _paso_q(rep: Reparto, kvar: float, objetivo: Objetivo, puntos: list[tuple[float, float]],
+            b_maximo: float, tolerancia: float = TOLERANCIA_Q) -> tuple[float | None, str | None]:
+    """El siguiente factor de Q de las escaladas o por qué la medida no es coherente (035:RF-6).
+
+    La Q de las fijas es la de su registro y los bancos son la red: lo único libre es la Q de
+    las escaladas, con su FP entre 1 (factor 0) y su mínimo (``b_maximo``). Solo un flujo en
+    el extremo decide que la medida no se alcanza (035:RF-28). El usuario, el 2026-10-31:
+    «las mediciones en cabecera que no sean coherentes como de NA203» quedan con la Q real de
+    DIgSILENT, y «en las que sí tienen coherencia se debe hacer cuadre». NA203 daba 3 447 kvar
+    con las escaladas a FP 1 frente a 1 711 medidos: le hacía falta reactiva negativa, y una
+    escalada con reactiva negativa no es una carga.
+    """
+    bq = sum(q for _, q in rep.base.values())
+    if bq <= 0:
+        return None, Q_SIN_BASE                                         # RF-9
+    fuera = not cuadrado_kvar(kvar, objetivo, tolerancia)
+    if fuera and kvar > objetivo.kvar and rep.b <= 1e-12:
+        return None, Q_INCOHERENTE_ALTA                                 # RF-28
+    if fuera and kvar < objetivo.kvar and rep.b >= b_maximo * (1 - 1e-9):
+        return None, Q_INCOHERENTE_BAJA                                 # RF-28
+    puntos.append((rep.b, kvar))
+    return min(b_maximo, max(0.0, _siguiente(rep.b, kvar, objetivo.kvar, puntos, bq))), None
+
+
+def _extremo_q(rep: Reparto, kvar: float, estado: str) -> dict[str, Any]:
+    """El flujo que demostró que la medida no es coherente, para el informe (035:RF-30)."""
+    return {'estado': estado, 'fp_escaladas': rep.fp_escaladas() if rep.b > 0 else 1.0,
+            'factor_q': rep.b, 'cabecera_kvar': kvar}
+
+
+def cuadrado(medida: Medida, objetivo: Objetivo, tolerancia: float,
+             solo_kw: bool = True) -> bool:
+    """Compatibilidad del API histórico; ``solo_kw`` ya no cambia la aceptación."""
+    del solo_kw
+    return cuadrado_kw(medida, objetivo, tolerancia)
+
+
+#: Cuánto queda de las escaladas al probar «casi en cero» (083:RF-7).
+FACTOR_CASI_CERO = 1e-3
+#: Por debajo de esta fracción de su factor inicial, las escaladas ya no pueden bajar más; y lo que se
+#: corrige de las fijas como mucho: más que eso no es incoherencia de medida, es un dato mal (083:RF-30).
+ESCALADAS_AL_MINIMO = 0.05
+TOPE_CORRECCION_FIJAS = 0.10
+#: El error conjunto que no baja de esta fracción del de dos flujos antes es oscilación (083:RF-12).
+SIN_MEJORA = 0.9
+
+
+def _acotar(a: float, puntos: list[tuple[float, float]], objetivo: float) -> tuple[float, bool]:
+    """El factor dentro del intervalo donde ya se sabe que está la solución (083:RF-11); ``True`` si hubo que corregirlo."""
+    debajo = [x for x, y in puntos if y < objetivo]
+    encima = [x for x, y in puntos if y > objetivo]
+    if debajo and encima:
+        lo, hi = max(debajo), min(encima)
+        if lo < hi and not lo < a < hi:
+            return (lo + hi) / 2, True
+    return a, False
+
+
+class _Broyden:
+    """Paso conjunto que aprende cómo un alimentador afecta a otro (083:RF-12); sin dependencias, con pocas claves."""
+
+    def __init__(self, claves: tuple[str, ...], pendiente: Mapping[str, float]) -> None:
+        self.claves = claves
+        self.b = [[float(pendiente[k]) if i == j else 0.0 for j in range(len(claves))] for i, k in enumerate(claves)]
+        self.x: list[float] | None = None
+        self.y: list[float] | None = None
+
+    def actualizar(self, x: list[float], y: list[float]) -> None:
+        if self.x is not None and self.y is not None:
+            dx = [p - q for p, q in zip_estricto(x, self.x)]
+            dy = [p - q for p, q in zip_estricto(y, self.y)]
+            nn = sum(v * v for v in dx)
+            if nn > 1e-24:
+                prod = [sum(f * v for f, v in zip_estricto(fila, dx)) for fila in self.b]
+                for i, fila in enumerate(self.b):
+                    for j in range(len(fila)):
+                        fila[j] += (dy[i] - prod[i]) * dx[j] / nn
+        self.x, self.y = x, y
+
+    def paso(self, residuo: list[float]) -> list[float] | None:
+        """El incremento de los factores, por eliminación con pivote; ``None`` si la matriz no sirve."""
+        n = len(residuo)
+        m = [list(f) + [r] for f, r in zip_estricto(self.b, residuo)]
+        for c in range(n):
+            p = max(range(c, n), key=lambda i: abs(m[i][c]))
+            if abs(m[p][c]) < 1e-12:
+                return None
+            m[c], m[p] = m[p], m[c]
+            for i in range(n):
+                if i != c:
+                    f = m[i][c] / m[c][c]
+                    for j in range(c, n + 1):
+                        m[i][j] -= f * m[c][j]
+        return [m[i][n] / m[i][i] for i in range(n)]
+
+
+def _siguiente(x: float, y: float, objetivo: float, puntos: list[tuple[float, float]],
+               pendiente: float) -> float:
+    """Secante con los dos últimos puntos que convergieron; sin dos, la pendiente sin
+    pérdidas (lo que suben las SED que escalan por unidad de factor)."""
+    if len(puntos) >= 2:
+        (x0, y0), (x1, y1) = puntos[-2], puntos[-1]
+        if abs(y1 - y0) > 1e-12 and abs(x1 - x0) > 1e-15:
+            pendiente = (y1 - y0) / (x1 - x0)
+    return x + (objetivo - y) / pendiente if pendiente else x
+
+
+def cuadrar(
+    reparto: Reparto,
+    objetivo: Objetivo,
+    flujo: Callable[[Reparto], Medida],
+    *,
+    tolerancia: float = 0.01,
+    max_flujos: int = MAX_FLUJOS,
+    remedio: Callable[[str, dict[str, Any]], list[str]] = lambda nombre, ajustes: [],
+    cancelado: Callable[[], bool] = lambda: False,
+    progreso: Callable[[int, int, str], None] = lambda n, maximo, texto: None,
+    con_q: bool = False,
+    tolerancia_q: float = TOLERANCIA_Q,
+    fp_minimo_escaladas: float | None = None,
+) -> Cuadre:
+    """Ajusta los factores del reparto hasta que la cabecera dé el objetivo (RF-11, RF-12).
+
+    ``flujo(reparto)`` escribe las demandas y ejecuta el flujo de carga. ``remedio(nombre,
+    ajustes)`` aplica un remedio de :data:`ESCALERA` y dice qué cambió. Si no cuadra, el
+    resultado lleva el último reparto que convergió, y el flujo queda ejecutado con él
+    (RF-18, RF-22). Con ``con_q`` (bancos en servicio, 035:RF-5) también la Q de cabecera,
+    moviendo solo la Q de las escaladas.
+    """
+    res = Cuadre(cuadrado=False, reparto=None, medida=None, objetivo=objetivo,
+                 tolerancia=tolerancia, avisos=list(reparto.avisos), con_q=con_q)
+    puntos_p: list[tuple[float, float]] = []
+    puntos_q: list[tuple[float, float]] = []
+    if con_q:
+        reparto = reparto.con_q()
+    actual = meta = reparto      # meta: adonde se quería llegar cuando dejó de converger
+    escalon = mitades = 0
+    casi_cero = False
+    ultimo_flujo: Reparto | None = None
+
+    while res.flujos < max_flujos:
+        if cancelado():
+            res.cancelado, res.motivo = True, 'cancelado por el operador'
+            break
+        m = flujo(actual)
+        res.flujos += 1
+        ultimo_flujo = actual
+        res.historial.append({'flujo': res.flujos, 'a': actual.a, 'b': actual.b,
+                              'converge': m.converge, 'kw': m.kw, 'kvar': m.kvar,
+                              'carga_kw': m.carga_kw, 'carga_kvar': m.carga_kvar,
+                              'motivo': m.motivo})
+        progreso(res.flujos, max_flujos, f'flujo {res.flujos}: ' + (
+            f'{m.kw:,.1f} kW / {m.kvar:,.1f} kVAR en la cabecera'
+            if m.converge and m.kw is not None and m.kvar is not None else 'no converge'))
+        medido = m.converge and m.kw is not None
+        if medido:
+            res.reparto, res.medida = actual, m
+        # 006:RF-22: la solicitud puede llegar durante el flujo que ya cumple.
+        # Primero se conserva lo medido; no se acepta ni se inicia otro ajuste.
+        if cancelado():
+            res.cancelado, res.motivo = True, 'cancelado por el operador'
+            break
+        if medido:
+            # ``mitades`` no vuelve a cero aquí: tras un medio camino que converge, la
+            # secante vuelve a saltar al objetivo, y si allí no converge se repetía sin
+            # llegar nunca a los remedios del flujo de carga.
+            q_lista = (not con_q or res.q_estado is not None
+                       or cuadrado_kvar(m.kvar, objetivo, tolerancia_q))
+            if cuadrado_kw(m, objetivo, tolerancia) and q_lista:
+                p_nominal, _q_nominal = actual.totales()
+                p_cargas = p_nominal if m.carga_kw is None else m.carga_kw
+                perdida_p = m.kw - p_cargas
+                # Una red pasiva no puede entregar en su cabecera menos potencia activa
+                # que el consumo efectivo de sus cargas (o el nominal, si el motor no da
+                # resultados). CA101 llegó a aparentar -6.684 MW porque el ElmFeeder
+                # medía solo una de sus dos troncales.
+                # Se admite únicamente ruido numérico pequeño (0,01 % del objetivo).
+                tolerancia_perdida = max(0.1, abs(objetivo.kw) * 1e-4)
+                if perdida_p < -tolerancia_perdida:
+                    res.motivo = (
+                        f'pérdidas activas negativas ({perdida_p:,.1f} kW): la frontera '
+                        'de medición puede estar omitiendo una troncal o parte de las cargas')
+                    return res
+                if con_q and res.q_estado is None:
+                    res.q_estado = Q_CUADRADA
+                res.cuadrado = True
+                return res
+            puntos_p.append((actual.a, m.kw))
+            a = _siguiente(actual.a, m.kw, objetivo.kw, puntos_p,
+                           sum(p for p, _ in actual.base.values()))
+            if a <= 0:
+                # Las pérdidas y las fijas ya pasan del objetivo: no se cruza el cero de un salto.
+                a = actual.a / 2
+            a, acotado = _acotar(a, puntos_p, objetivo.kw)          # 083:RF-11
+            res.metodos['acotados'] = res.metodos.get('acotados', 0) + int(acotado)
+            # Sin bancos, la asignación inicial de Q se conserva y solo P se itera (RF-12); con
+            # ellos, también la Q de las escaladas hasta la medida (035:RF-5, RF-6).
+            b = None
+            if con_q and res.q_estado is None and m.kvar is not None and not q_lista:
+                b, res.q_estado = _paso_q(actual, m.kvar, objetivo, puntos_q,
+                                          actual.factor_q_maximo(fp_minimo_escaladas), tolerancia_q)
+                if res.q_estado in Q_INCOHERENTES:
+                    # 035:RF-29: la Q, la que dé la red con las escaladas a su FP de perfil.
+                    res.q_extremo = _extremo_q(actual, m.kvar, res.q_estado)
+                    actual = actual.al_perfil()
+            actual = meta = actual.con_factores(a, b)
+            continue
+
+        # 083:RF-7: sin ningún flujo bueno, primero las escaladas casi en cero. Si ni así, no son ellas.
+        if res.reparto is None:
+            if not casi_cero:
+                if not res.remedios:
+                    res.remedios.append({'remedio': ESCALERA[0][0], 'cambios': []})
+                casi_cero = True
+                actual = actual.con_factores(actual.a * FACTOR_CASI_CERO, actual.b * FACTOR_CASI_CERO)
+                continue
+            res.fijas_sospechosas = True
+            mitades = MITADES
+        # No converge: acercarse a medio camino desde el último reparto que convergió
+        # (o desde cero, si ninguno ha convergido todavía), con el ajuste que haya.
+        if mitades < MITADES:
+            if not res.remedios:
+                res.remedios.append({'remedio': ESCALERA[0][0], 'cambios': []})
+            mitades += 1
+            a0 = res.reparto.a if res.reparto is not None else 0.0
+            b0 = res.reparto.b if res.reparto is not None else 0.0
+            actual = actual.con_factores((a0 + actual.a) / 2, (b0 + actual.b) / 2)
+            continue
+        escalon += 1
+        if escalon >= len(ESCALERA):
+            break
+        nombre, ajustes = ESCALERA[escalon]
+        res.remedios.append({'remedio': nombre, 'cambios': list(remedio(nombre, ajustes))})
+        mitades = 0
+        casi_cero = False
+        puntos_p.clear()           # 083:RF-11: otra red, otro intervalo
+        actual = meta              # con el flujo más tolerante, otra vez a por el objetivo
+
+    if not res.cuadrado and not res.motivo:
+        res.motivo = (f'sin cuadrar al {tolerancia:.1%} tras {res.flujos} flujos'
+                      if res.reparto is not None else
+                      'el flujo de carga no converge con ningún reparto, ni con los remedios')
+    if res.reparto is not None and ultimo_flujo is not res.reparto:
+        # La red queda con el último reparto que convergió y con sus resultados (RF-18).
+        res.medida = flujo(res.reparto)
+    return res
+
+
+# =========================================================================== dos zonas
+@dataclass(frozen=True)
+class ObjetivoZonas:
+    """El objetivo de un alimentador con una central en su troncal (spec 021, RF-33).
+
+    En NA205 la cabecera solo ve lo que entra desde la SET: con la central generando, 1 123
+    kW de una demanda de 10 753 kW. Se calibra por zonas: aguas arriba de la central
+    (cabecera + llegada) y aguas abajo (la salida), cada una con su factor de escala, y
+    la central con la P y Q que medía en el mismo registro (RF-35).
+    """
+
+    arriba: Objetivo
+    abajo: Objetivo
+    generacion_kw: float
+    generacion_kvar: float
+    cabecera_kw: float | None = None
+    cabecera_kvar: float | None = None
+    alimentador: str = ''
+    fecha: str | None = None
+
+
+def objetivo_zonas_de(maxima: Mapping[str, Any]) -> ObjetivoZonas:
+    """El objetivo desde la máxima con central de la web (``MaximaConCentral.to_dict``)."""
+    alimentador = str(maxima.get('alimentador') or '')
+    if maxima.get('error'):
+        raise AjusteError(f'{alimentador}: sin máxima con central ({maxima["error"]}).')
+    valores = {k: numero(maxima.get(k)) for k in (
+        'arriba_kw', 'arriba_kvar', 'abajo_kw', 'abajo_kvar', 'generacion_kw', 'generacion_kvar',
+        'cabecera_kw', 'cabecera_kvar')}
+    for k in ('arriba_kw', 'abajo_kw', 'generacion_kw'):
+        if valores[k] is None:
+            raise AjusteError(f'{alimentador}: la máxima con central no trae {k}.')
+    for k, nombre in (('arriba_kw', 'aguas arriba'), ('abajo_kw', 'aguas abajo')):
+        if valores[k] <= 0:   # type: ignore[operator]
+            raise AjusteError(f'{alimentador}: la zona {nombre} no tiene demanda en la máxima '
+                              f'({valores[k]:,.1f} kW).')
+    fecha = maxima.get('fecha')
+
+    def zona(kw: str, kvar: str, nombre: str) -> Objetivo:
+        return Objetivo(kw=valores[kw], kvar=valores[kvar] or 0.0,  # type: ignore[arg-type]
+                        medidor=nombre, alimentador=alimentador, fecha=fecha)
+
+    return ObjetivoZonas(
+        arriba=zona('arriba_kw', 'arriba_kvar', 'aguas arriba de la central'),
+        abajo=zona('abajo_kw', 'abajo_kvar', 'aguas abajo de la central'),
+        generacion_kw=valores['generacion_kw'],  # type: ignore[arg-type]
+        generacion_kvar=valores['generacion_kvar'] or 0.0,
+        cabecera_kw=valores['cabecera_kw'], cabecera_kvar=valores['cabecera_kvar'],
+        alimentador=alimentador, fecha=fecha)
+
+
+@dataclass(frozen=True)
+class MedidaZonas:
+    """Lo que da el flujo en cada zona: aguas arriba, cabecera + llegada; aguas abajo, la
+    salida de la central. La cabecera se informa frente a la medida (RF-44)."""
+
+    converge: bool
+    arriba_kw: float | None = None
+    arriba_kvar: float | None = None
+    abajo_kw: float | None = None
+    abajo_kvar: float | None = None
+    cabecera_kw: float | None = None
+    cabecera_kvar: float | None = None
+    motivo: str = ''
+
+
+ZONAS = ('arriba', 'abajo')
+NOMBRE_ZONA = {'arriba': 'aguas arriba', 'abajo': 'aguas abajo'}
+
+
+@dataclass
+class CuadreZonas:
+    """Resultado del cuadre por zonas: los dos repartos que convergieron y su medida."""
+
+    cuadrado: bool
+    arriba: Reparto | None
+    abajo: Reparto | None
+    medida: MedidaZonas | None
+    objetivo: ObjetivoZonas
+    tolerancia: float
+    flujos: int = 0
+    remedios: list[dict[str, Any]] = field(default_factory=list)
+    historial: list[dict[str, Any]] = field(default_factory=list)
+    avisos: list[str] = field(default_factory=list)
+    motivo: str = ''
+    cancelado: bool = False
+    ajustables: tuple[str, ...] = ZONAS
+
+    def resumen(self) -> dict[str, Any]:
+        """Lo que va al informe de la calibración (021:RF-44)."""
+        m, o = self.medida, self.objetivo
+        return {
+            'factor_arriba': self.arriba.a if self.arriba else None,
+            'factor_abajo': self.abajo.a if self.abajo else None,
+            'arriba_kw': m.arriba_kw if m else None, 'arriba_objetivo_kw': o.arriba.kw,
+            'abajo_kw': m.abajo_kw if m else None, 'abajo_objetivo_kw': o.abajo.kw,
+            'cabecera_calculada_kw': m.cabecera_kw if m else None,
+            'cabecera_medida_kw': o.cabecera_kw,
+            'generacion_kw': o.generacion_kw, 'generacion_kvar': o.generacion_kvar,
+            'zonas_ajustadas': list(self.ajustables),
+        }
+
+
+def cuadrar_zonas(
+    arriba: Reparto,
+    abajo: Reparto,
+    objetivo: ObjetivoZonas,
+    flujo: Callable[[Reparto, Reparto], MedidaZonas],
+    *,
+    tolerancia: float = 0.01,
+    max_flujos: int = MAX_FLUJOS,
+    remedio: Callable[[str, dict[str, Any]], list[str]] = lambda nombre, ajustes: [],
+    cancelado: Callable[[], bool] = lambda: False,
+    progreso: Callable[[int, int, str], None] = lambda n, maximo, texto: None,
+) -> CuadreZonas:
+    """Ajusta el factor de cada zona hasta que dé su medida (021:RF-40, RF-41, RF-43).
+
+    Es :func:`cuadrar_conjunto` con las dos zonas por claves. Una zona sin cargas escaladas
+    no se puede ajustar: sus fijas quedan como están, se avisa y no decide el cuadre (RF-45).
+    """
+    repartos, quietas = preparar_zonas(arriba, abajo)
+    medidas: list[MedidaZonas] = []
+
+    def f(reps: Mapping[str, Reparto]) -> MedidaConjunta:
+        m = flujo(reps['arriba'], reps['abajo'])
+        medidas.append(m)
+        return medida_de_zonas(m)
+
+    def fila(reps: Mapping[str, Reparto], _m: MedidaConjunta) -> dict[str, Any]:
+        mz = medidas[-1]
+        return {'a_arriba': reps['arriba'].a, 'a_abajo': reps['abajo'].a,
+                'arriba_kw': mz.arriba_kw, 'abajo_kw': mz.abajo_kw,
+                'cabecera_kw': mz.cabecera_kw}
+
+    res = cuadrar_conjunto(repartos, {'arriba': objetivo.arriba, 'abajo': objetivo.abajo}, f,
+                           quietas=quietas, tolerancia=tolerancia, max_flujos=max_flujos,
+                           remedio=remedio, cancelado=cancelado, progreso=progreso, fila=fila)
+    reps = res.repartos or {}
+    return CuadreZonas(
+        cuadrado=res.cuadrado, arriba=reps.get('arriba'), abajo=reps.get('abajo'),
+        medida=res.medida.extra if res.medida is not None else None, objetivo=objetivo,
+        tolerancia=tolerancia, flujos=res.flujos, remedios=res.remedios,
+        historial=res.historial,
+        avisos=list(arriba.avisos) + list(abajo.avisos) + avisos_de_zonas(quietas),
+        motivo=res.motivo.replace('sin cuadrar todos', 'sin cuadrar las dos zonas'),
+        cancelado=res.cancelado, ajustables=res.ajustables)
+
+
+def preparar_zonas(arriba: Reparto, abajo: Reparto) -> tuple[dict[str, Reparto], set[str]]:
+    """Los repartos de las dos zonas y las que no se ajustan (021:RF-45).
+
+    Una zona con solo clientes fijos: ``reparto_inicial`` la pasa a «escalar todo»
+    (006:RF-13), pero en una zona eso movería las fijas. Factor 1: su P y Q.
+    """
+    repartos = {'arriba': arriba, 'abajo': abajo}
+    quietas = set()
+    for z, r in repartos.items():
+        if r.origen and all(o == 'cliente' for o in r.origen.values()):
+            repartos[z] = r.con_factores(1.0, 1.0)
+            quietas.add(z)
+    if len(quietas) == len(ZONAS):
+        raise AjusteError('Ninguna de las dos zonas de la central tiene cargas que escalar.')
+    return repartos, quietas
+
+
+def avisos_de_zonas(quietas: Iterable[str]) -> list[str]:
+    quietas = set(quietas)
+    return [f'La zona {NOMBRE_ZONA[z]} de la central no tiene cargas escaladas: sus fijas '
+            'quedan como están y no se puede ajustar.' for z in ZONAS if z in quietas]
+
+
+def medida_de_zonas(m: MedidaZonas) -> MedidaConjunta:
+    return MedidaConjunta(m.converge, kw={'arriba': m.arriba_kw, 'abajo': m.abajo_kw},
+                          kvar={'arriba': m.arriba_kvar, 'abajo': m.abajo_kvar},
+                          motivo=m.motivo, extra=m)
+
+
+# =========================================================================== conjunto
+@dataclass(frozen=True)
+class MedidaConjunta:
+    """Lo que da un flujo en cada clave: un alimentador o una zona de su central.
+
+    ``carga_kw`` es el consumo efectivo de sus cargas, si el guion lo lee: con él se
+    comprueba que las pérdidas no salgan negativas (como en :func:`cuadrar`). ``extra``
+    guarda lo que el guion quiera del flujo (las medidas de cada alimentador).
+    """
+
+    converge: bool
+    kw: Mapping[str, float | None] = field(default_factory=dict)
+    kvar: Mapping[str, float | None] = field(default_factory=dict)
+    motivo: str = ''
+    carga_kw: Mapping[str, float | None] = field(default_factory=dict)
+    extra: Any = None
+
+
+@dataclass
+class CuadreConjunto:
+    """Resultado del cuadre conjunto: los repartos del último flujo común que convergió."""
+
+    cuadrado: bool
+    repartos: dict[str, Reparto] | None
+    medida: MedidaConjunta | None
+    objetivos: Mapping[str, Objetivo]
+    tolerancia: float
+    flujos: int = 0
+    remedios: list[dict[str, Any]] = field(default_factory=list)
+    historial: list[dict[str, Any]] = field(default_factory=list)
+    motivo: str = ''
+    cancelado: bool = False
+    ajustables: tuple[str, ...] = ()
+    q_estado: dict[str, str] = field(default_factory=dict)     # 035:RF-5, por clave con Q
+    q_extremo: dict[str, dict[str, Any]] = field(default_factory=dict)   # 035:RF-30
+    metodos: dict[str, int] = field(default_factory=dict)       # 083:RF-13
+    fijas_sospechosas: bool = False                              # 083:RF-7
+
+    def desvio(self, clave: str) -> float | None:
+        """Error relativo de kW de una clave en el último flujo común que convergió."""
+        m = self.medida
+        if m is None or not m.converge or m.kw.get(clave) is None:
+            return None
+        return _rel(m.kw[clave], self.objetivos[clave].kw)  # type: ignore[arg-type]
+
+
+def cuadrar_conjunto(
+    repartos: Mapping[str, Reparto],
+    objetivos: Mapping[str, Objetivo],
+    flujo: Callable[[Mapping[str, Reparto]], MedidaConjunta],
+    *,
+    quietas: Iterable[str] = (),
+    tolerancia: float = 0.01,
+    max_flujos: int = MAX_FLUJOS,
+    remedio: Callable[[str, dict[str, Any]], list[str]] = lambda nombre, ajustes: [],
+    cancelado: Callable[[], bool] = lambda: False,
+    progreso: Callable[[int, int, str], None] = lambda n, maximo, texto: None,
+    fila: Callable[[Mapping[str, Reparto], MedidaConjunta], dict[str, Any]] | None = None,
+    con_q: Iterable[str] = (),
+    tolerancia_q: float = TOLERANCIA_Q,
+    fp_minimo_escaladas: float | None = None,
+) -> CuadreConjunto:
+    """Ajusta a la vez un factor por clave hasta que todas den su objetivo (021:RF-54 a RF-58).
+
+    Las claves son los alimentadores de un proyecto, o las zonas de uno con central: en el
+    proyecto de NA203 y NA205 (2026-10-17) se iba a calibrar uno y después el otro, y el
+    usuario pidió calibrar por proyecto, todos en el mismo flujo. ``flujo(repartos)``
+    escribe todas las demandas, ejecuta **un** flujo de carga y mide cada clave. Cada
+    factor sigue su secante con la medida de su clave; solo cuadra cuando todas cumplen en
+    el mismo flujo (RF-55). Si no converge, los pasos de :func:`cuadrar` para todas: medio
+    camino desde el último flujo común que convergió y luego los remedios de
+    :data:`ESCALERA`, una vez para el proyecto (RF-56). Una clave en ``quietas`` (una zona
+    solo con clientes fijos, 021:RF-45) se escribe pero no se ajusta ni decide. Las de
+    ``con_q`` (alimentadores con bancos en servicio, 035:RF-5) cuadran también su Q.
+    """
+    quietas = set(quietas)
+    claves = tuple(repartos)
+    pendiente = {k: (0.0 if k in quietas else sum(p for p, _ in r.base.values()))
+                 for k, r in repartos.items()}
+    ajustables = tuple(k for k in claves if pendiente[k] > 0)
+    res = CuadreConjunto(cuadrado=False, repartos=None, medida=None, objetivos=objetivos,
+                         tolerancia=tolerancia, ajustables=ajustables)
+    if not ajustables:
+        raise AjusteError('Ninguno de los alimentadores tiene cargas que escalar.')
+    puntos: dict[str, list[tuple[float, float]]] = {k: [] for k in claves}
+    con_q = tuple(k for k in con_q if k in ajustables)
+    puntos_q: dict[str, list[tuple[float, float]]] = {k: [] for k in con_q}
+    actual = meta = {k: (r.con_q() if k in con_q else r) for k, r in repartos.items()}
+    escalon = mitades = 0
+    casi_cero = False
+    errores: list[float] = []                      # 083:RF-12: el error conjunto de cada flujo bueno
+    broyden = _Broyden(ajustables, pendiente)
+    ultimo: dict[str, Reparto] | None = None
+    while res.flujos < max_flujos:
+        if cancelado():
+            res.cancelado, res.motivo = True, 'cancelado por el operador'
+            break
+        m = flujo(actual)
+        res.flujos += 1
+        ultimo = actual
+        res.historial.append({'flujo': res.flujos, 'converge': m.converge, 'motivo': m.motivo,
+                              **(fila(actual, m) if fila else {
+                                  'a': {k: r.a for k, r in actual.items()},
+                                  'kw': dict(m.kw), 'kvar': dict(m.kvar)})})
+        medido = m.converge and all(m.kw.get(k) is not None for k in ajustables)
+        progreso(res.flujos, max_flujos, f'flujo {res.flujos}: ' + (
+            ', '.join(f'{k} {m.kw[k]:,.1f} kW' for k in ajustables) if medido
+            else 'no converge'))
+        if medido:
+            res.repartos, res.medida = dict(actual), m
+        # 021:RF-58: un flujo final común válido también puede recibirse cancelado.
+        if cancelado():
+            res.cancelado, res.motivo = True, 'cancelado por el operador'
+            break
+        if medido:
+            q_listas = {k: k in res.q_estado or cuadrado_kvar(m.kvar.get(k), objetivos[k], tolerancia_q)
+                        for k in con_q}
+            if all(abs(_rel(m.kw[k], objetivos[k].kw)) <= tolerancia  # type: ignore[arg-type]
+                   for k in ajustables) and all(q_listas.values()):
+                negativas = [
+                    f'{k} ({m.kw[k] - m.carga_kw[k]:,.1f} kW)'  # type: ignore[operator]
+                    for k in ajustables if m.carga_kw.get(k) is not None
+                    and m.kw[k] - m.carga_kw[k] < -max(0.1, abs(objetivos[k].kw) * 1e-4)]  # type: ignore[operator]
+                if negativas:
+                    # Como en :func:`cuadrar`: una red pasiva no entrega menos de lo que
+                    # consumen sus cargas; la frontera de medición omite una troncal.
+                    res.motivo = ('pérdidas activas negativas en ' + ', '.join(negativas)
+                                  + ': la frontera de medición puede estar omitiendo una '
+                                  'troncal o parte de las cargas')
+                    return res
+                for k in con_q:
+                    res.q_estado.setdefault(k, Q_CUADRADA)
+                res.cuadrado = True
+                return res
+            nuevo = dict(actual)
+            errores.append(max(abs(_rel(m.kw[k], objetivos[k].kw)) for k in ajustables))  # type: ignore[arg-type]
+            broyden.actualizar([actual[k].a for k in ajustables], [float(m.kw[k]) for k in ajustables])  # type: ignore[arg-type]
+            oscila = len(ajustables) > 1 and len(errores) >= 3 and errores[-1] >= SIN_MEJORA * errores[-3]
+            paso = broyden.paso([objetivos[k].kw - float(m.kw[k]) for k in ajustables]) if oscila else None  # type: ignore[arg-type]
+            if paso is not None:
+                res.metodos['broyden'] = res.metodos.get('broyden', 0) + 1
+            for n_k, k in enumerate(ajustables):
+                r, y = actual[k], m.kw[k]
+                puntos[k].append((r.a, y))  # type: ignore[arg-type]
+                if abs(_rel(y, objetivos[k].kw)) <= tolerancia and (k not in con_q or q_listas[k]):  # type: ignore[arg-type]
+                    # 083:RF-10: el que ya cumple no se mueve: volver a calcularlo lo sacaba de tolerancia.
+                    res.metodos['quietos'] = res.metodos.get('quietos', 0) + 1
+                    continue
+                # 083:RF-30: con las escaladas al mínimo, lo que sobra solo puede salir de las fijas.
+                suma_fijas = sum(p for p, _q in r.fijas.values())
+                exceso = float(y) - objetivos[k].kw
+                if (exceso > tolerancia * objetivos[k].kw and r.a <= ESCALADAS_AL_MINIMO * repartos[k].a
+                        and exceso <= TOPE_CORRECCION_FIJAS * suma_fijas):
+                    factor = 1 - exceso / suma_fijas
+                    nuevo[k] = replace(r, fijas={s: (p * factor, q * factor) for s, (p, q) in r.fijas.items()})
+                    res.metodos['fijas_corregidas'] = res.metodos.get('fijas_corregidas', 0) + 1
+                    puntos[k].clear()
+                    continue
+                a = (r.a + paso[n_k]) if paso is not None else _siguiente(  # 083:RF-12
+                    r.a, y, objetivos[k].kw, puntos[k], pendiente[k])  # type: ignore[arg-type]
+                if a > 0:
+                    a, acotado = _acotar(a, puntos[k], objetivos[k].kw)   # 083:RF-11
+                    res.metodos['acotados'] = res.metodos.get('acotados', 0) + int(acotado)
+                b = None
+                if k in con_q and not q_listas[k] and m.kvar.get(k) is not None:
+                    b, estado = _paso_q(r, m.kvar[k], objetivos[k], puntos_q[k],  # type: ignore[arg-type]
+                                        r.factor_q_maximo(fp_minimo_escaladas), tolerancia_q)
+                    if estado:
+                        res.q_estado[k] = estado
+                    if estado in Q_INCOHERENTES:
+                        res.q_extremo[k] = _extremo_q(r, m.kvar[k], estado)  # type: ignore[arg-type]
+                        r = r.al_perfil()                                    # 035:RF-29
+                nuevo[k] = r.con_factores(a if a > 0 else r.a / 2, b)
+            actual = meta = nuevo
+            continue
+        # 083:RF-7: sin ningún flujo bueno, primero las escaladas casi en cero. Si ni así, no son ellas.
+        if res.repartos is None:
+            if not casi_cero:
+                if not res.remedios:
+                    res.remedios.append({'remedio': ESCALERA[0][0], 'cambios': []})
+                casi_cero = True
+                actual = {k: (actual[k].con_factores(actual[k].a * FACTOR_CASI_CERO, actual[k].b * FACTOR_CASI_CERO)
+                              if k in ajustables else actual[k]) for k in claves}
+                continue
+            res.fijas_sospechosas = True
+            mitades = MITADES
+        if mitades < MITADES:
+            if not res.remedios:
+                res.remedios.append({'remedio': ESCALERA[0][0], 'cambios': []})
+            mitades += 1
+            nuevo = dict(actual)
+            for k in ajustables:
+                bueno = (res.repartos or {}).get(k)
+                a0 = bueno.a if bueno is not None else 0.0
+                b0 = bueno.b if bueno is not None else 0.0
+                nuevo[k] = actual[k].con_factores((a0 + actual[k].a) / 2, (b0 + actual[k].b) / 2)
+            actual = nuevo
+            continue
+        escalon += 1
+        if escalon >= len(ESCALERA):
+            break
+        nombre, ajustes = ESCALERA[escalon]
+        res.remedios.append({'remedio': nombre, 'cambios': list(remedio(nombre, ajustes))})
+        mitades = 0
+        casi_cero = False
+        errores.clear()
+        broyden = _Broyden(ajustables, pendiente)
+        for k in puntos:
+            puntos[k].clear()      # 083:RF-11: otra red, otro intervalo
+        actual = meta
+
+    if not res.cuadrado and not res.motivo:
+        res.motivo = (f'sin cuadrar todos al {tolerancia:.1%} tras {res.flujos} flujos'
+                      if res.repartos is not None else
+                      'el flujo de carga no converge con ningún reparto, ni con los remedios')
+    if (res.repartos is not None and ultimo is not None
+            and any(ultimo[k] is not res.repartos[k] for k in claves)):
+        # La red queda con los últimos repartos que convergieron (006:RF-18, RF-56).
+        res.medida = flujo(res.repartos)
+    return res
+
+
+def fijas_corregidas(antes: Reparto, despues: Reparto) -> list[dict[str, Any]]:
+    """Las fijas que el cuadre bajó, con lo que tenían y lo que quedan (083:RF-30)."""
+    return [{'sed': s, 'antes_kw': round(p, 1), 'despues_kw': round(despues.fijas[s][0], 1)}
+            for s, (p, _q) in sorted(antes.fijas.items())
+            if s in despues.fijas and abs(despues.fijas[s][0] - p) > max(1e-6, 1e-6 * abs(p))]
+
+
+# =========================================================================== bancos que faltan
+def bancos_que_faltan(q_red_kvar: float | None, q_medido_kvar: float | None,
+                      tamano_kvar: float | None) -> int:
+    """Cuántos bancos de ``tamano_kvar`` cubren el déficit reactivo (021:RF-64, RF-65).
+
+    El déficit es lo que da la red en la cabecera menos lo medido: en NA203 (2026-10-17)
+    2 645 kVAR frente a 1 560, sin ningún banco en el modelo; el usuario: «coloca los
+    bancos necesarios en cada alimentador». Sin déficit, sin tamaño o sin medida, ninguno.
+    """
+    if q_red_kvar is None or q_medido_kvar is None or not tamano_kvar or tamano_kvar <= 0:
+        return 0
+    return max(0, round((q_red_kvar - q_medido_kvar) / tamano_kvar))
+
+
+def distancias_de_bancos(largo_m: float, n: int) -> list[float]:
+    """Dónde poner ``n`` bancos en una troncal de ``largo_m`` (021:RF-66).
+
+    La regla de los 2k/(2n+1): con la carga repartida a lo largo de la troncal, las
+    pérdidas son mínimas con el banco k a 2k/(2n+1) del largo (2/3 con uno solo).
+    """
+    return [largo_m * 2 * k / (2 * n + 1) for k in range(1, n + 1)]
+
+
+def tamano_de_banco(por_tension: Mapping[float, float] | None, kv: float | None) -> float | None:
+    """El tamaño de banco del perfil para la tensión ``kv``: la entrada más cercana, si está
+    a menos del 10 % (22,9 kV no es 23); si no, ``None`` (021:RF-65, P13)."""
+    if not por_tension or not kv:
+        return None
+    tension, kvar = min(por_tension.items(), key=lambda par: abs(par[0] - kv))
+    return kvar if abs(tension - kv) <= 0.1 * kv else None
+
+
+# =========================================================================== spec 041
+#: Repartos por defecto (041) y mínimo de fijas para estimar de ellas la dispersión (RF-3).
+N_PROBABILISTICO = 200
+MINIMO_FIJAS_PROBABILISTICO = 5
+
+
+@dataclass(frozen=True)
+class Probabilistico:
+    """Cómo varía la utilización de cada SED escalada (041:RF-1 a RF-3, RF-7).
+
+    La utilización de una escalada es ``factor común × (kVA / kVA medio)^pendiente × ruido``,
+    con el ruido lognormal de media 1 y desviación ``dispersion`` en su logaritmo: siempre
+    positiva y, con la pendiente, mayor cuanto mayor la potencia (el usuario, 2026-10-31: «la
+    probabilidad debe ser de acuerdo de la mayor potencia a menos de las escaladas»).
+    """
+
+    dispersion: float
+    pendiente: float
+    n: int = N_PROBABILISTICO
+    semilla: int = 0
+    fuente: str = ''
+
+    def a_dict(self) -> dict[str, Any]:
+        return {'dispersion': self.dispersion, 'pendiente': self.pendiente, 'n': self.n,
+                'semilla': self.semilla, 'fuente': self.fuente}
+
+
+def probabilistico_de_fijas(rep: Reparto, *, n: int = N_PROBABILISTICO, semilla: int = 0,
+                            minimo: int = MINIMO_FIJAS_PROBABILISTICO) -> Probabilistico | None:
+    """La dispersión y la pendiente con la potencia, de las fijas del mismo reparto (041:RF-3).
+
+    Las fijas son las únicas SED con su potencia medida en el instante: su utilización
+    (kW / kVA) frente a su kVA, en logaritmos, da por mínimos cuadrados la pendiente y, de lo
+    que queda, la dispersión. La pendiente no baja de cero (RF-2). Con menos de ``minimo``
+    fijas con kVA y potencia, ``None``.
+    """
+    pares = []
+    for s, (p, _q) in rep.fijas.items():
+        k = _kva_valido(rep.kva.get(s))
+        if k and p > 0:
+            pares.append((math.log(k), math.log(p / k)))
+    if len(pares) < max(3, minimo):
+        return None
+    # 095:RF-1, RF-2: de las fijas solo la dispersión de su utilización alrededor de su media, sin pendiente con
+    # la potencia. AL209 (2026-11-06): con la pendiente de 0,306 las SED de 5 kVA quedaban al 2 % de su kVA frente
+    # al 10 % de media; el usuario pidió escaladas proporcionales a su potencia instalada.
+    my = sum(y for _, y in pares) / len(pares)
+    dispersion = math.sqrt(sum((y - my) ** 2 for _, y in pares) / (len(pares) - 1))
+    return Probabilistico(dispersion=dispersion, pendiente=0.0, n=n,
+                          semilla=semilla, fuente=f'fijas ({len(pares)})')
+
+
+def probabilistico_del_perfil(datos: Mapping[str, Any] | None, *, n: int | None = None,
+                              semilla: int = 0) -> Probabilistico | None:
+    """``calibracion.reparto_probabilistico`` del perfil: ``dispersion`` y ``pendiente``, y
+    opcionalmente ``n`` (041:RF-3). Sin la sección, ``None``: no se supone nada (P13)."""
+    sec = ((datos or {}).get('calibracion') or {}).get('reparto_probabilistico')
+    if not isinstance(sec, Mapping):
+        return None
+    disp, pend = numero(sec.get('dispersion')), numero(sec.get('pendiente'))
+    if disp is None or disp < 0 or pend is None:
+        raise AjusteError('calibracion.reparto_probabilistico necesita «dispersion» (≥ 0) y '
+                          '«pendiente» numéricas.')
+    # 095:RF-3: del perfil solo la dispersión; su pendiente se ignora y se dice.
+    return Probabilistico(dispersion=disp, pendiente=0.0,
+                          n=int(n or numero(sec.get('n')) or N_PROBABILISTICO), semilla=semilla,
+                          fuente='perfil de empresa' + (f' (pendiente {pend:g} ignorada)' if pend else ''))
+
+
+def muestra_de_reparto(rep: Reparto, prob: Probabilistico, azar) -> Reparto:
+    """Un reparto posible: cada escalada con su multiplicador y la misma P base total (041:RF-1, RF-2).
+
+    ``azar`` es un ``random.Random`` con la semilla del informe (RF-7). Se conserva la P base
+    total de las escaladas, así que el factor común ``a`` sigue casi igual y el cuadre de cada
+    muestra parte de cerca; la Q de cada SED sigue a su P con su mismo FP.
+    """
+    kvas = [k for s in rep.base if (k := _kva_valido(rep.kva.get(s)))]
+    k_medio = math.exp(sum(math.log(k) for k in kvas) / len(kvas)) if kvas else 1.0
+    s2 = prob.dispersion ** 2
+    mult = {}
+    for s in sorted(rep.base):                       # orden fijo: misma semilla, misma muestra
+        k = _kva_valido(rep.kva.get(s))
+        ruido = math.exp(prob.dispersion * azar.gauss(0.0, 1.0) - s2 / 2)
+        mult[s] = ((k / k_medio) ** prob.pendiente if k else 1.0) * ruido
+    total = sum(p for p, _ in rep.base.values())
+    nuevo = sum(rep.base[s][0] * m for s, m in mult.items())
+    norma = total / nuevo if nuevo > 0 else 1.0
+    base = {s: (p * mult[s] * norma, q * mult[s] * norma) for s, (p, q) in rep.base.items()}
+    return replace(rep, base=base)
+
+
+def percentil(valores: Iterable[float], q: float) -> float | None:
+    """Percentil ``q`` (0 a 1) con interpolación lineal; ``None`` sin valores."""
+    xs = sorted(valores)
+    if not xs:
+        return None
+    pos = q * (len(xs) - 1)
+    i = int(math.floor(pos))
+    return xs[i] if i + 1 >= len(xs) else xs[i] + (xs[i + 1] - xs[i]) * (pos - i)
+
+
+def reparto_p50(rep: Reparto, kw_por_sed: Mapping[str, list[float]]) -> Reparto:
+    """El reparto de las medianas (041:RF-5): por escalada, la mediana de su P en las muestras,
+    con su Q a su mismo FP; se cuadra después a la cabecera como cualquiera."""
+    base = {}
+    for s, (p, q) in rep.base.items():
+        med = percentil(kw_por_sed.get(s) or [], 0.5)
+        actual = rep.a * p
+        if med is None or actual <= 0:
+            base[s] = (p, q)
+            continue
+        base[s] = (p * med / actual, q * med / actual)
+    return replace(rep, base=base)
+
+
+def resumen_probabilistico(rep: Reparto, muestras: list[dict[str, Any]],
+                           prob: Probabilistico) -> dict[str, Any]:
+    """Por escalada, de mayor a menor potencia, sus percentiles de kW y de cargabilidad y la
+    probabilidad de pasar del 100 %; y la de una barra fuera de banda (041:RF-6).
+
+    Cada muestra es ``{'kw': {sed: kW}, 'carga': {sed: % o None}, 'fuera_de_banda': bool o
+    None}``; solo cuentan las que cuadraron.
+    """
+    validas = [m for m in muestras if m.get('kw')]
+    sed = []
+    for s in sorted(rep.base, key=lambda x: (-(_kva_valido(rep.kva.get(x)) or 0.0), x)):
+        kw = [m['kw'][s] for m in validas if s in m['kw']]
+        carga = [c for m in validas if (c := (m.get('carga') or {}).get(s)) is not None]
+        sed.append({
+            'sed': s, 'kva': _kva_valido(rep.kva.get(s)),
+            'kw_p05': percentil(kw, 0.05), 'kw_p50': percentil(kw, 0.5), 'kw_p95': percentil(kw, 0.95),
+            'carga_p05': percentil(carga, 0.05), 'carga_p50': percentil(carga, 0.5),
+            'carga_p95': percentil(carga, 0.95),
+            'prob_sobrecarga': (sum(c > 100.0 for c in carga) / len(carga)) if carga else None,
+        })
+    bandas = [m['fuera_de_banda'] for m in validas if m.get('fuera_de_banda') is not None]
+    return {**prob.a_dict(), 'muestras': len(muestras), 'validas': len(validas), 'sed': sed,
+            'prob_tension_fuera': (sum(bandas) / len(bandas)) if bandas else None}
+
+
+#: Muestras mínimas antes de cortar por tiempo, y tope por alimentador sin perfil (083:RF-25).
+MUESTRAS_MINIMAS = 20
+TOPE_MUESTRAS_S = 180.0
+
+
+def montecarlo(rep: Reparto, prob: Probabilistico,
+               cuadrar_muestra: Callable[[Reparto], tuple[Reparto | None, dict[str, Any]]],
+               *, cancelado: Callable[[], bool] = lambda: False,
+               progreso: Callable[[int, int, str], None] = lambda n, maximo, texto: None,
+               tope_s: float | None = None, reloj: Callable[[], float] | None = None,
+               ) -> tuple[dict[str, Any], Reparto]:
+    """Los N repartos posibles cuadrados a la cabecera, su resumen y el reparto P50 (041:RF-1 a RF-7).
+
+    ``cuadrar_muestra(muestra)`` la cuadra en DIgSILENT y devuelve el reparto cuadrado (o
+    ``None``) con lo que se leyó del flujo (``carga`` por SED, ``fuera_de_banda``).
+    """
+    import random
+    import time
+
+    reloj = reloj or time.perf_counter
+    azar = random.Random(prob.semilla)
+    muestras: list[dict[str, Any]] = []
+    inicio = reloj()
+    cortado = None
+    for i in range(prob.n):
+        if cancelado():
+            break
+        if tope_s is not None and i >= MUESTRAS_MINIMAS and reloj() - inicio >= tope_s:
+            cortado = (i, reloj() - inicio)                                   # 083:RF-25
+            break
+        cuadrada, leido = cuadrar_muestra(muestra_de_reparto(rep, prob, azar))
+        progreso(i + 1, prob.n, f'reparto probabilístico {i + 1}/{prob.n}')
+        kw = ({s: d.kw for s, d in cuadrada.demandas.items() if s in cuadrada.base}
+              if cuadrada is not None else {})
+        muestras.append({'kw': kw, **(leido or {})})
+    kw_por_sed: dict[str, list[float]] = {}
+    for m in muestras:
+        for s, v in m['kw'].items():
+            kw_por_sed.setdefault(s, []).append(v)
+    resumen = resumen_probabilistico(rep, muestras, prob)
+    if cortado is not None:
+        resumen['muestras_hechas'] = cortado[0]
+        resumen['aviso_tope'] = (f'{cortado[0]} de {prob.n} repartos: el tope de {tope_s:.0f} s de las muestras en DIgSILENT se '
+                                 f'alcanzó en {cortado[1]:.0f} s; el P50 es de las hechas (083:RF-25).')
+    return resumen, reparto_p50(rep, kw_por_sed)

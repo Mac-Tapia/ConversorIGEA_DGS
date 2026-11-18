@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from ... import pide_economia
+from ...aplicacion import pide_economia
 from ..fuentes_estables import abrir_fuente_estable
 
 

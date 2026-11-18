@@ -38,9 +38,9 @@ import traceback
 from pathlib import Path
 
 from cargas_pf import activar_proyecto, error_inesperado, etapas_al_dia, nombre_pf
-from convertersmartgrid.native_action import native_action_block_report
-from convertersmartgrid.obras_pf import PREFIJO_VARIACION
-from convertersmartgrid.valle import nombre_caso_valle
+from convertersmartgrid.dominio.native_action import native_action_block_report
+from convertersmartgrid.aplicacion.obras_pf import PREFIJO_VARIACION
+from convertersmartgrid.aplicacion.valle import nombre_caso_valle
 
 #: Rol → nombre del caso. Fijos y reutilizados (usuario, 2026-10-11).
 NOMBRES = {'base': 'Caso base', 'sin': 'Sin proyecto', 'con': 'Con proyecto'}
@@ -175,7 +175,7 @@ def es_de_carga_nueva(variacion) -> bool:
 
 def es_del_catalogo(variacion) -> bool:
     """Variación de los conductores con su ficha o de los transformadores de SED (spec 032)."""
-    from convertersmartgrid.escaneo import PREFIJOS_CATALOGO
+    from convertersmartgrid.aplicacion.escaneo import PREFIJOS_CATALOGO
 
     return variacion.loc_name.startswith(PREFIJOS_CATALOGO)
 
@@ -1265,7 +1265,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('casos_pf.py')

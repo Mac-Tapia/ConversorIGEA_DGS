@@ -11,7 +11,7 @@ import sys
 
 import pytest
 
-from convertersmartgrid import pide_economia as ec
+from convertersmartgrid.aplicacion import pide_economia as ec
 from test_pide_economia import CONFIG, _capex
 
 
@@ -170,7 +170,7 @@ def test_guiones_conservan_recibo_en_informe_bloqueado_sin_abrir_motor(tmp_path,
 def test_documento_y_json_conservan_recibo_opcional_y_no_sellan_historico(tmp_path):
     """072:RF-14/21/28: documento real y par JSON con identidad, o hueco explícito."""
     from test_informes_planeamiento import _datos, MODULO
-    from convertersmartgrid.informes_planeamiento import escribir_modulo
+    from convertersmartgrid.adaptadores.informes_planeamiento import escribir_modulo
     from docx import Document
     recibo = {'fuente': {'ruta': 'capex_propio.xlsx', 'sha256': 'b' * 64}, 'hoja': CONFIG['hoja'],
               'contexto_unidades': {'moneda': 'USD', 'escala_aplicada': 1000}, 'lectura_utc': '2026-11-08T00:00:00+00:00'}

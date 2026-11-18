@@ -16,10 +16,10 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.asistente import evaluacion_rag, indice, reranker
-from convertersmartgrid.asistente.indice import Fragmento, Indice
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.aplicacion.asistente import evaluacion_rag, indice, reranker
+from convertersmartgrid.aplicacion.asistente.indice import Fragmento, Indice
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
 
 RAIZ = Path(__file__).resolve().parents[1]
 CONJUNTO = RAIZ / 'docs' / 'RAG_PREGUNTAS_SINTETICAS_047.json'
@@ -137,7 +137,7 @@ def test_la_web_dice_los_metodos_en_el_texto(tmp_path, monkeypatch):
     no lleva la jerga del motor (aclaración de 047:RF-26, usuario, 2026-11-14)."""
     repo = _repo(tmp_path)
     monkeypatch.setattr(services, 'project_root', lambda: repo)
-    monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado',
+    monkeypatch.setattr('convertersmartgrid.aplicacion.asistente.ollama.cliente_configurado',
                         lambda: SimpleNamespace(modelos=lambda: None))
     # El informe del repositorio adopta un reranker: esta prueba no debe cargarlo en la GPU.
     monkeypatch.setattr(reranker, 'politica', lambda: {'hibrido': True, 'modelo': None, 'revision': None, 'motivo': ''})
@@ -250,7 +250,7 @@ def _trabajos(client, wid):
 def test_la_web_programa_los_vectores_sola(tmp_path, monkeypatch):
     """047:RF-22 — tras una pregunta y sin paso manual, un trabajo del carril del asistente los calcula."""
     repo, o = _repo(tmp_path), Ollama()
-    monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado', lambda: o)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.asistente.ollama.cliente_configurado', lambda: o)
     with TestClient(_cliente_con_orden(tmp_path, monkeypatch, repo)) as c:
         wid = c.post('/api/workspaces', json={'name': 'rag'}).json()['id']
         orden = c.post(f'/api/workspaces/{wid}/asistente/orden', json={'texto': '¿cómo se reparte?'}).json()
@@ -266,7 +266,7 @@ def test_en_producto_tambien_programa_los_vectores(tmp_path, monkeypatch):
     Hasta el 2026-11-13 la edición de producto no los calculaba ni dejaba al lanzador pedirlos."""
     repo, o = _repo(tmp_path), Ollama()
     monkeypatch.setenv('CSG_EDICION', 'producto')
-    monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado', lambda: o)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.asistente.ollama.cliente_configurado', lambda: o)
     with TestClient(_cliente_con_orden(tmp_path, monkeypatch, repo)) as c:
         wid = c.post('/api/workspaces', json={'name': 'rag'}).json()['id']
         orden = c.post(f'/api/workspaces/{wid}/asistente/orden', json={'texto': '¿cómo se reparte?'}).json()
@@ -279,7 +279,7 @@ def test_en_producto_tambien_programa_los_vectores(tmp_path, monkeypatch):
 def test_pruebas_y_app_sin_variable_no_programan(tmp_path, monkeypatch):
     """047:RF-22 — fuera del servidor real no hay trabajo que use Ollama por su cuenta."""
     repo, o = _repo(tmp_path), Ollama()
-    monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado', lambda: o)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.asistente.ollama.cliente_configurado', lambda: o)
     app = _cliente_con_orden(tmp_path, monkeypatch, repo)
     monkeypatch.delenv('CSG_ASISTENTE_VECTORES')
     with TestClient(app) as c:
@@ -331,7 +331,7 @@ def test_cancelar_el_trabajo_de_vectores_desde_la_web(tmp_path, monkeypatch):
         return original(textos, modelo)
 
     o.embeddings = lento
-    monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado', lambda: o)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.asistente.ollama.cliente_configurado', lambda: o)
     with TestClient(_cliente_con_orden(tmp_path, monkeypatch, repo)) as c:
         wid = c.post('/api/workspaces', json={'name': 'rag'}).json()['id']
         orden = c.post(f'/api/workspaces/{wid}/asistente/orden', json={'texto': 'una'}).json()
@@ -426,7 +426,7 @@ def test_codigo_exacto_se_conserva(tmp_path):
 
 def test_sin_cuda_queda_el_orden_hibrido_y_lo_dice(monkeypatch):
     """047:RF-30 — sin CUDA, sin memoria o con la GPU ocupada: error claro, sin CPU, y queda el orden."""
-    monkeypatch.setattr('convertersmartgrid.training_coordinator.exigir_memoria_ml', lambda *a, **k: {})
+    monkeypatch.setattr('convertersmartgrid.aplicacion.training_coordinator.exigir_memoria_ml', lambda *a, **k: {})
     monkeypatch.setitem(sys.modules, 'torch', SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: False)))
     monkeypatch.setenv('HF_HUB_OFFLINE', '0')
     with pytest.raises(indice.RerankerNoDisponible, match='CUDA'):
@@ -445,12 +445,12 @@ def test_sin_cuda_queda_el_orden_hibrido_y_lo_dice(monkeypatch):
 
 def test_sin_memoria_no_llega_a_cargar(monkeypatch):
     """047:RF-30 — memoria insuficiente es un motivo dicho, no una caída."""
-    from convertersmartgrid.training_coordinator import MemoriaMLInsuficiente
+    from convertersmartgrid.aplicacion.training_coordinator import MemoriaMLInsuficiente
 
     def falta(*_a, **_k):
         raise MemoriaMLInsuficiente('Memoria insuficiente')
 
-    monkeypatch.setattr('convertersmartgrid.training_coordinator.exigir_memoria_ml', falta)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.training_coordinator.exigir_memoria_ml', falta)
     with pytest.raises(indice.RerankerNoDisponible, match='Memoria'):
         reranker.cargar_puntuador(reranker.MODELOS[0], reranker.ficha_modelo(reranker.MODELOS[0])['revision'])
 
@@ -747,7 +747,7 @@ def test_la_web_pasa_la_abstencion_y_sin_calibrar_no_cita(tmp_path, monkeypatch)
     """047:RF-33 — la vía de la web usa la calibración guardada; sin ella, ninguna cita."""
     repo = _repo(tmp_path)
     monkeypatch.setattr(services, 'project_root', lambda: repo)
-    monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado',
+    monkeypatch.setattr('convertersmartgrid.aplicacion.asistente.ollama.cliente_configurado',
                         lambda: SimpleNamespace(modelos=lambda: None))
     monkeypatch.setattr(reranker, 'politica', lambda: {'hibrido': True, 'modelo': None, 'revision': None, 'motivo': ''})
     monkeypatch.setattr(reranker, 'abstencion', lambda: indice.Abstencion())

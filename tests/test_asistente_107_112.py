@@ -15,9 +15,9 @@ from fastapi.testclient import TestClient
 
 from datos_pit import perfil_b
 
-from convertersmartgrid.asistente import tareas
-from convertersmartgrid.asistente.interprete import _por_frase_literal
-from convertersmartgrid.web import services
+from convertersmartgrid.aplicacion.asistente import tareas
+from convertersmartgrid.aplicacion.asistente.interprete import _por_frase_literal
+from convertersmartgrid.presentacion.web import services
 
 PIT = ('pit_diagnostico', 'pit_expediente')
 
@@ -53,8 +53,8 @@ def _ficheros(tmp_path: Path, caso: dict) -> tuple[Path, Path]:
 
 @pytest.fixture
 def web(tmp_path, monkeypatch):
-    import convertersmartgrid.perfil_empresa as perfil_empresa
-    from convertersmartgrid.web.app import create_app
+    import convertersmartgrid.dominio.perfil_empresa as perfil_empresa
+    from convertersmartgrid.presentacion.web.app import create_app
 
     caso = perfil_b(15)
     claves = sorted({k for e in caso['elementos'] for k in e})
@@ -154,8 +154,8 @@ def test_070_rf86_vad_dos_tareas_que_escriben_y_se_reconocen_por_su_frase():
 
 @pytest.fixture
 def web_vad(tmp_path, monkeypatch):
-    import convertersmartgrid.perfil_empresa as perfil_empresa
-    from convertersmartgrid.web.app import create_app
+    import convertersmartgrid.dominio.perfil_empresa as perfil_empresa
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setattr(perfil_empresa, 'cargar_perfil',
                         lambda *a, **k: perfil_empresa.PerfilEmpresa(nombre='Distribuidora Sintética Norte'))
@@ -247,7 +247,7 @@ def test_070_rf79_plano_la_orden_da_la_maniobra_el_estado_y_el_caso():
     """070:RF-79 — de la orden salen la maniobra, abrir o cerrar y el caso; sin ellos, el plan dice qué falta."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import asistente_operacion as ao
+    from convertersmartgrid.presentacion.web import asistente_operacion as ao
 
     assert hasattr(ao, '_plano'), 'falta lo que saca de la orden la maniobra, el estado y el caso'
     plan = SimpleNamespace(texto='abre el seccionador S-104 de AL01, caso «Máxima 2027», y estúdialo',
@@ -267,7 +267,7 @@ def test_070_rf79_plano_abre_una_variacion_cambia_la_maniobra_y_la_estudia(tmp_p
     pytest.importorskip('pandapower')
     from test_plano_api import BASE, _montar
 
-    from convertersmartgrid.asistente.ejecutor import ClienteWeb, PasoFallido, ejecutar, pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import ClienteWeb, PasoFallido, ejecutar, pasos
 
     assert 'plano_maniobra' in tareas.TAREAS, 'falta la tarea del plano'
     cliente, ws, _fuente, trabajos, alimentador, seed = _montar(tmp_path)
@@ -307,7 +307,7 @@ def test_070_rf79_benchmark_sin_la_fuente_txt_lo_dice_el_plan_y_con_ella_corre_s
     tools/benchmark_anonimo.py en local con esos ficheros, y «no se emite» (código 2) se dice como tal."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import asistente_operacion as ao
+    from convertersmartgrid.presentacion.web import asistente_operacion as ao
 
     assert hasattr(ao, '_benchmark') and hasattr(services, '_asistente_benchmark'), 'falta el benchmark del asistente'
     rutas = {}

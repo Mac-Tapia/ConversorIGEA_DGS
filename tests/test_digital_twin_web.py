@@ -12,9 +12,9 @@ from apoyo import cargar_herramienta, vincular_proyecto
 from fastapi.testclient import TestClient
 from test_digital_twin_episode import _payload
 
-from convertersmartgrid.digital_twin import episode as ep
-from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.dominio.digital_twin import episode as ep
+from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+from convertersmartgrid.presentacion.web.app import create_app
 
 
 def _episodio(proyecto='P', caso='sin_proyecto', clase='accepted', feeders=('A1', 'A2')):

@@ -5,8 +5,8 @@ import pytest
 
 from datos_pit import perfil_b
 
-from convertersmartgrid.pit.ambito import PitError
-from convertersmartgrid.pit.observaciones import escribir_observaciones, leer_observaciones, registrar
+from convertersmartgrid.dominio.pit.ambito import PitError
+from convertersmartgrid.dominio.pit.observaciones import escribir_observaciones, leer_observaciones, registrar
 
 
 def _referencias(caso):
@@ -68,7 +68,7 @@ def test_absolucion_con_objeto_respuesta_y_traza_de_lo_que_cambio(tmp_path):
     la celda observada cambió (huella antes y después) y el elemento no, y se dice."""
     import json
 
-    from convertersmartgrid.pit.observaciones import absolucion, escribir_absolucion
+    from convertersmartgrid.dominio.pit.observaciones import absolucion, escribir_absolucion
 
     caso = perfil_b(12)
     antes, celda = _referencias(caso)
@@ -90,7 +90,7 @@ def test_absolucion_con_objeto_respuesta_y_traza_de_lo_que_cambio(tmp_path):
 
 def test_absolucion_de_un_objeto_retirado_del_expediente(tmp_path):
     """107:RF-10 — si lo observado ya no está en el expediente, la absolución lo dice: no se calla ni se inventa."""
-    from convertersmartgrid.pit.observaciones import absolucion
+    from convertersmartgrid.dominio.pit.observaciones import absolucion
 
     caso = perfil_b(12)
     antes, celda = _referencias(caso)
@@ -105,7 +105,7 @@ def test_absolucion_de_un_objeto_retirado_del_expediente(tmp_path):
 ])
 def test_absolucion_sin_objeto_conocido_o_sin_respuesta_es_un_error(cambio, error):
     """107:RF-10 — una absolución con una referencia desconocida, o sin respuesta, no se emite."""
-    from convertersmartgrid.pit.observaciones import absolucion
+    from convertersmartgrid.dominio.pit.observaciones import absolucion
 
     caso = perfil_b(12)
     antes, celda = _referencias(caso)
@@ -148,7 +148,7 @@ def test_documento_absolucion_conserva_numeracion_y_orden_generales_primero(tmp_
     """107:RF-10 — las respuestas siguen la organización y la secuencia del oficio: las generales primero y, dentro de
     cada clase, el orden del oficio con su número literal (1.2 antes que 1.10); el orden en que llegan las respuestas
     no cambia el documento."""
-    from convertersmartgrid.pit.observaciones import documento_absolucion, escribir_documento_absolucion
+    from convertersmartgrid.dominio.pit.observaciones import documento_absolucion, escribir_documento_absolucion
 
     doc = documento_absolucion(_oficio(), _respuestas())
     assert [s['tipo'] for s in doc['secciones']] == ['general', 'especifica']
@@ -164,7 +164,7 @@ def test_documento_absolucion_conserva_numeracion_y_orden_generales_primero(tmp_
 def test_documento_absolucion_enlaza_cada_respuesta_con_el_lugar_corregido():
     """107:RF-10 — cada respuesta lleva el lugar corregido del Estudio: la sección, o el fichero y la celda con la
     huella del Estudio corregido; una huella que no es la del fichero se rechaza."""
-    from convertersmartgrid.pit.observaciones import documento_absolucion
+    from convertersmartgrid.dominio.pit.observaciones import documento_absolucion
 
     huellas = {'sustento.xlsx': 'b' * 64}
     por = {o['numero']: o for o in _planas(documento_absolucion(_oficio(), _respuestas(), huellas))}
@@ -184,7 +184,7 @@ def test_documento_absolucion_enlaza_cada_respuesta_con_el_lugar_corregido():
 def test_documento_absolucion_observacion_sin_respuesta_es_un_hueco_nombrado():
     """107:RF-10 — una observación sin respuesta queda en el documento sin texto inventado y se nombra como hueco, y
     una respuesta a una observación que el oficio no tiene es un error."""
-    from convertersmartgrid.pit.observaciones import documento_absolucion
+    from convertersmartgrid.dominio.pit.observaciones import documento_absolucion
 
     respuestas = [r for r in _respuestas() if r['numero'] != '2.1']
     doc = documento_absolucion(_oficio(), respuestas)
@@ -199,7 +199,7 @@ def test_documento_absolucion_observacion_sin_respuesta_es_un_hueco_nombrado():
 def test_documento_absolucion_deja_la_evaluacion_del_regulador_vacia_con_su_estructura():
     """107:RF-10 — cada observación trae el sitio de la evaluación del regulador, «Análisis» y «Conclusión», vacío, y
     el documento nombra las conclusiones admitidas (subsanada, parcialmente subsanada, no subsanada)."""
-    from convertersmartgrid.pit.observaciones import documento_absolucion
+    from convertersmartgrid.dominio.pit.observaciones import documento_absolucion
 
     doc = documento_absolucion(_oficio(), _respuestas())
     assert doc['conclusiones_admitidas'] == ['subsanada', 'parcialmente subsanada', 'no subsanada']
@@ -210,7 +210,7 @@ def test_documento_absolucion_dice_que_reagrupa_y_nombra_las_observaciones_movid
     """107:RF-10 — si el oficio intercala generales y específicas, el documento las reagrupa con las generales primero
     y lo dice literalmente, con la lista de las que se movieron; cada una conserva su número, la referencia del oficio y
     su posición en él. Si el oficio ya venía con las generales primero, la lista va vacía."""
-    from convertersmartgrid.pit.observaciones import documento_absolucion
+    from convertersmartgrid.dominio.pit.observaciones import documento_absolucion
 
     doc = documento_absolucion(_oficio(), _respuestas())
     orden = doc.get('orden') or {}
@@ -232,7 +232,7 @@ def test_documento_absolucion_dice_que_reagrupa_y_nombra_las_observaciones_movid
 def test_documento_absolucion_respuesta_sin_lugar_corregido_es_un_hueco_legible():
     """107:RF-10 — una respuesta que no cita el lugar corregido del Estudio se ve como «lugar corregido: no indicado»,
     sin inventar el lugar, y sale en la lista de huecos con campos fijos que el expediente puede leer después."""
-    from convertersmartgrid.pit.observaciones import documento_absolucion
+    from convertersmartgrid.dominio.pit.observaciones import documento_absolucion
 
     respuestas = [{**r, 'correcciones': []} if r['numero'] == '1.10' else r for r in _respuestas()]
     doc = documento_absolucion(_oficio(), respuestas)

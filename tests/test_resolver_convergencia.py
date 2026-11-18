@@ -7,8 +7,8 @@ from __future__ import annotations
 import pytest
 
 from apoyo import cargar_herramienta
-from convertersmartgrid.powerfactory_metadata import estado_flujo
-from convertersmartgrid.resolver_convergencia import (
+from convertersmartgrid.adaptadores.powerfactory_metadata import estado_flujo
+from convertersmartgrid.dominio.resolver_convergencia import (
     DEMANDA, DESCONOCIDA, FASES, ISLA, QUE_HACER, clasificar_causas, resolver, texto_de_resolucion,
 )
 
@@ -130,7 +130,7 @@ def test_banco_trifasico_en_barra_de_dos_fases(guion):
 
 def test_lectura_de_fases_sin_escribir(guion):
     """081:RF-10 — la misma comprobación sobre un proyecto, y sin una sola escritura."""
-    from convertersmartgrid.comprobacion_fases import comprobar
+    from convertersmartgrid.dominio.comprobacion_fases import comprobar
 
     app, acoplador = _app_con_acoplador()
     fuera = Obj('ElmCoup', 'CP2', nphase=3, bus1=acoplador.bus1, bus2=acoplador.bus2, outserv=1)
@@ -231,7 +231,7 @@ def test_lectura_sin_ningun_resultado_no_saca_conclusiones(guion):
 
 def test_causas_por_alimentador_en_la_web():
     """081:RF-25, 081:RF-29 — en la web también: lo que dice el flujo y lo que halló el oráculo de ese alimentador."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     flujo = {'motivo': 'DIgSILENT devolvió return_code 1.', 'fallos': []}
     preflight = {'feeders': [{'feeder': 'A', 'hallazgos': [{'texto': 'isla sin camino a la fuente'}]},

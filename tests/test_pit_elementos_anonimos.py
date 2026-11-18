@@ -15,8 +15,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from convertersmartgrid.pit import PitError
-from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid.dominio.pit import PitError
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
 
 RAIZ = Path(__file__).resolve().parents[1]
 NORMATIVA = RAIZ / 'config' / 'normativa'
@@ -41,9 +41,9 @@ def normalizar(texto):
 
 def _modulo():
     """El módulo de la pieza: su ausencia es la falla de la aserción, no un error de importación."""
-    assert importlib.util.find_spec('convertersmartgrid.pit.elementos_modificacion') is not None, \
-        'falta convertersmartgrid.pit.elementos_modificacion (PIT-ANON-ELEMENTOS)'
-    return importlib.import_module('convertersmartgrid.pit.elementos_modificacion')
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.pit.elementos_modificacion') is not None, \
+        'falta convertersmartgrid.adaptadores.pit.elementos_modificacion (PIT-ANON-ELEMENTOS)'
+    return importlib.import_module('convertersmartgrid.adaptadores.pit.elementos_modificacion')
 
 
 def _huellas_del_fichero(datos):

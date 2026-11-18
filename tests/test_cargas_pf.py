@@ -7,7 +7,7 @@ from datetime import datetime
 
 import pytest
 
-from convertersmartgrid.cargas_pf import (
+from convertersmartgrid.aplicacion.cargas_pf import (
     DEMANDA_COLUMNS, NUEVA_COLUMNS, armar_plan, escribir_plantilla, leer_demandas,
     kva_normalizado, leer_hoja_nuevas, leer_nuevas,
 )
@@ -180,7 +180,7 @@ def test_plantillas_vacias_se_vuelven_a_leer(tmp_path, tipo, columnas, ext):
     assert cabecera == list(columnas)
     lector = leer_demandas if tipo == 'demandas' else leer_nuevas
     if ext == '.xlsx':
-        from convertersmartgrid.loads import LoadTemplateError
+        from convertersmartgrid.adaptadores.loads import LoadTemplateError
 
         with pytest.raises(LoadTemplateError, match='ninguna hoja con datos'):
             lector(ruta)
@@ -364,7 +364,7 @@ def test_carga_nueva_solo_con_kw_toma_el_fp_del_perfil():
     import math
     import random
 
-    from convertersmartgrid.cargas_pf import leer_hoja_nuevas
+    from convertersmartgrid.aplicacion.cargas_pf import leer_hoja_nuevas
 
     rnd = random.Random(470)
     kw = rnd.uniform(50.0, 900.0)

@@ -10,10 +10,10 @@ pytest.importorskip('httpx2')
 
 from fastapi.testclient import TestClient
 
-from convertersmartgrid import catalog
-from convertersmartgrid.reglas import REGLAS_PROYECTO, Reglas
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.aplicacion import catalog
+from convertersmartgrid.aplicacion.reglas import REGLAS_PROYECTO, Reglas
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
 
 RAIZ = Path(__file__).resolve().parents[1]
 

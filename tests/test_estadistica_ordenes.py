@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import random
 
-from convertersmartgrid import estadistica_ordenes as eo
+from convertersmartgrid.dominio import estadistica_ordenes as eo
 
 
 def _filas(n, media, fallos, guion='obras_pf.py', dia='2026-11-03', causa='ERROR: no converge en la barra 12'):

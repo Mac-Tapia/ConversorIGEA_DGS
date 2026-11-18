@@ -16,9 +16,9 @@ from pathlib import Path
 import ezdxf
 import pytest
 
-from convertersmartgrid.pit import unifilar as U
-from convertersmartgrid.pit.red_area import RedArea
-from convertersmartgrid.pit.red_pandapower import ResultadoFlujo, calcular
+from convertersmartgrid.adaptadores.pit import unifilar as U
+from convertersmartgrid.aplicacion.pit.red_area import RedArea
+from convertersmartgrid.adaptadores.pit.red_pandapower import ResultadoFlujo, calcular
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -312,7 +312,7 @@ def test_reemitir_sin_convertidor_no_deja_el_dwg_anterior(tmp_path):
 def test_la_ruta_del_convertidor_sale_del_perfil_o_del_path_y_no_del_codigo(tmp_path):
     """107:RF-15 — el convertidor se detecta y nunca se distribuye: su ruta sale del perfil o del PATH (por su
     nombre), ninguna ruta de la máquina está en el código y ningún ejecutable del convertidor va en el paquete."""
-    fuente = (RAIZ / 'src' / 'convertersmartgrid' / 'pit' / 'unifilar.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src' / 'convertersmartgrid' / 'adaptadores' / 'pit' / 'unifilar.py').read_text(encoding='utf-8')
     assert not re.search(r'[A-Za-z]:[\\/]', fuente)
     assert 'Program Files' not in fuente and 'ODA\\' not in fuente
     pedidos = []

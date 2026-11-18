@@ -34,7 +34,7 @@ def main(argv=None) -> int:
     # 064:RF-1: el turno del motor, el vigía y el reintento del 4002 del arnés; sin
     # él, este guion conectaba por su cuenta y otro proceso recibía «error 4002».
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
     try:
         app = conectar('show_pf_diagram.py')
     except PFNoDisponible as exc:

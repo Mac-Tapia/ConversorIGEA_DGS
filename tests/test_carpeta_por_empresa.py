@@ -10,11 +10,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid.carpeta_pf import (
+from convertersmartgrid.adaptadores.carpeta_pf import (
     LARGO_MAXIMO, NOMBRE_POR_DEFECTO, asegurar_carpeta, carpeta_de_empresa, decidir_carpeta, nombre_libre, validar_nombre,
 )
-from convertersmartgrid.powerfactory_binding import ProjectBindingError
-from convertersmartgrid.web import services
+from convertersmartgrid.adaptadores.powerfactory_binding import ProjectBindingError
+from convertersmartgrid.presentacion.web import services
 
 RAIZ = Path(__file__).resolve().parents[1]
 _AZAR = random.Random(81)
@@ -36,7 +36,7 @@ def _espacio(fuente=None, operador=None, vinculos=None):
 @pytest.fixture
 def perfil(monkeypatch):
     def poner(datos):
-        monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: datos)
+        monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda *a, **k: datos)
         monkeypatch.setattr(services, 'carpeta_pf', _perfil_carpeta)
     return poner
 
@@ -80,12 +80,12 @@ def test_sin_saber_la_empresa_no_bloquea():
 
 def test_perfil_roto_no_afecta_a_otra_empresa(monkeypatch):
     """081:RF-52 — con el perfil ilegible y una empresa conocida, su carpeta y sin error."""
-    from convertersmartgrid.perfil_empresa import PerfilError
+    from convertersmartgrid.dominio.perfil_empresa import PerfilError
 
     def roto(*_a, **_k):
         raise PerfilError('roto')
 
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', roto)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', roto)
     monkeypatch.setattr(services, 'carpeta_pf', lambda: pytest.fail('no hace falta la del perfil'))
     nombre = _nombre()
     assert services.carpeta_de(_espacio(nombre)) == nombre
@@ -93,7 +93,7 @@ def test_perfil_roto_no_afecta_a_otra_empresa(monkeypatch):
 
 def test_carpeta_mal_escrita_no_da_error():
     """081:RF-61 — empresa desconocida: la neutra y el aviso con lo que está mal; empresa conocida: la de su nombre."""
-    from convertersmartgrid.carpeta_pf import CarpetaError
+    from convertersmartgrid.adaptadores.carpeta_pf import CarpetaError
 
     def mal():
         raise CarpetaError("carpeta 'a/b' mal escrita")
@@ -107,7 +107,7 @@ def test_el_espacio_guarda_la_empresa_aparte_de_la_fuente(tmp_path, perfil):
     """081:RF-51 — por la ruta de opciones; un TXT sin empresa va a la que indicó. No se confunde con ``source_company``."""
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import app as app_mod
+    from convertersmartgrid.presentacion.web import app as app_mod
 
     perfil({'codigo_empresa': 'PROPIA'})
     cliente = TestClient(app_mod.create_app(tmp_path))
@@ -134,7 +134,7 @@ def test_lo_ya_importado_se_lee_de_su_vinculo(perfil):
 def test_el_espacio_retira_empresa_explicita_sin_borrar_otras_opciones(tmp_path, perfil):
     """081:RF-51, 081:RF-53 — null explícito retira la empresa; omitirla la conserva."""
     from fastapi.testclient import TestClient
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     perfil({})
     with TestClient(create_app(tmp_path)) as cliente:
         wid = cliente.post('/api/workspaces').json()['id']
@@ -160,16 +160,16 @@ def test_vinculo_ilegible_no_bloquea(perfil, monkeypatch):
     def falla(*_a):
         raise ProjectBindingError('X', 'ilegible')
 
-    monkeypatch.setattr('convertersmartgrid.powerfactory_binding.vinculo_guardado', falla)
+    monkeypatch.setattr('convertersmartgrid.adaptadores.powerfactory_binding.vinculo_guardado', falla)
     assert services.carpeta_de(_espacio('Empresa Nueva'), 'P') == 'Empresa Nueva'
 
 
 def test_ningun_plan_sale_sin_la_carpeta_de_su_vinculo():
     """081:RF-54 — todo plan con proyecto pasa por ``carpeta_de(ws, proyecto)``; ``carpeta_pf`` solo la usa la regla."""
-    fuente = (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
     assert not re.findall(r"'project': (?:project|proyecto)[^\n]*'folder': carpeta_de\(ws\)", fuente)
     assert "'--pf-carpeta', carpeta_de(ws, project), '--source-dgs'" in fuente
-    usos = [m for m in re.findall(r'^.*\bcarpeta_pf\b(?!\.py).*$', fuente, re.M) if 'from ..carpeta_pf' not in m]
+    usos = [m for m in re.findall(r'^.*\bcarpeta_pf\b(?!\.py).*$', fuente, re.M) if not re.search(r'from \.+(?:\w+\.)*carpeta_pf import', m)]
     assert [u for u in usos if 'def carpeta_pf' not in u and u.strip() != 'return carpeta_pf()'] == []
 
 
@@ -215,7 +215,7 @@ def test_crea_su_carpeta_y_no_mueve_nada():
 
 def test_se_dice_en_la_estructura_y_al_importar():
     """081:RF-53 — en el plan a la vista y en el resultado de la importación, también el supuesto."""
-    fuente = (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
     assert "perfil_no_aplicado['carpeta_destino'] = asdict(destino)" in fuente and "'carpeta': asdict(destino)," in fuente
     assert 'ctx.log(destino.aviso)' in fuente
     assert 'estructura?.carpeta_destino?.aviso' in (RAIZ / 'frontend/src/features/conversion/FeedersPanel.tsx').read_text(encoding='utf-8')

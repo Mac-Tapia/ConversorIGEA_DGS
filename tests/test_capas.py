@@ -128,3 +128,29 @@ def test_no_quedan_ciclos_entre_modulos():
     h = herramienta()
     informe = h.comprobar(RAIZ)
     assert not [v for v in informe.violaciones if v.startswith('ciclo|')]
+
+
+def test_002_rf1_cada_modulo_vive_en_el_paquete_de_su_capa():
+    """002:RF-1 — cada módulo de la tabla de capas está bajo ``convertersmartgrid.<su capa>``, y su fichero existe.
+
+    002:RF-6: el paquete VNR-GIS entra entero como adaptador de entrada; dentro de él, su CLI, su web y sus reglas
+    conservan la capa que declaran, sin salir de ``adaptadores``."""
+    import tomllib
+
+    tabla = tomllib.loads((RAIZ / 'pyproject.toml').read_text(encoding='utf-8'))['tool']['convertersmartgrid']['capas']['modulos']
+    vnr = 'convertersmartgrid.adaptadores.entrada.vnr'
+    fuera = [m for m, c in tabla.items() if m.startswith('convertersmartgrid.') and m.split('.')[1] != c
+             and not (m == vnr or m.startswith(vnr + '.'))]
+    assert not fuera, fuera
+    src = RAIZ / 'src'
+    sin_fichero = [m for m in tabla if m.startswith('convertersmartgrid.') and not (
+        (src / Path(*m.split('.'))).with_suffix('.py').is_file() or (src / Path(*m.split('.')) / '__init__.py').is_file())]
+    assert not sin_fichero, sin_fichero
+
+
+def test_002_rf21_las_rutas_de_antes_se_leen_con_las_de_hoy():
+    """002:RF-21 — los conjuntos sellados no se reescriben: sus rutas viejas se traducen al leerlas."""
+    from convertersmartgrid.aplicacion.asistente.rutas_historicas import ruta_vigente
+
+    assert ruta_vigente('src/convertersmartgrid/web/app.py:343') == 'src/convertersmartgrid/presentacion/web/app.py:343'
+    assert ruta_vigente('docs/otra.md') == 'docs/otra.md'

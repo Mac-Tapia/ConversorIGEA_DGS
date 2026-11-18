@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
 from apoyo_pf_web import guion_falso  # noqa: E402,F401
-from convertersmartgrid.web.app import create_app  # noqa: E402
+from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 
 TERNA = {'clase': 'terna', 'alimentador': 'A1', 'casos': ['Sin proyecto', 'Con proyecto'],
          'tramos': ['L1']}
@@ -127,7 +127,7 @@ def test_sin_obras_no_hay_nada_que_aplicar(client):
 def test_escalera_es_un_trabajo_de_digsilent_con_su_anio(client, monkeypatch):
     """025:RF-44 — la escalera va al carril de DIgSILENT con el año de los casos; un año
     fuera de rango se rechaza antes de empezar."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     vistos = []
 
@@ -153,14 +153,14 @@ def test_escalera_es_un_trabajo_de_digsilent_con_su_anio(client, monkeypatch):
 def test_escalera_sin_tipo_de_cambio_no_empieza(client, monkeypatch):
     """042:RF-39 (en la web sustituye a 025:RF-68) — sin tipo de cambio no se valoran las pérdidas, pero ya no es
     lo que para la escalera: aquí se detiene porque el proyecto no está calibrado."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005,
                            'tolerancia_carga_pct': 1, 'moneda': 'USD', 'moneda_precios_perdidas': 'PEN',
                            'precio_perdidas_kwh': 0.14},
               'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
               'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
     tocado = []
     monkeypatch.setattr(services, 'obras_bibliotecas', lambda *a, **k: tocado.append(1) or {'informe': {}})
     wid = _espacio(client)

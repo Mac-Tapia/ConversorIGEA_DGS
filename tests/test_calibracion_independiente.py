@@ -12,10 +12,10 @@ import numpy as np
 import pytest
 
 from apoyo import contrato_fisico
-from convertersmartgrid.digital_twin import hiperparametros as hp
-from convertersmartgrid.digital_twin import oraculo as orc
-from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-from convertersmartgrid.evaluacion_modelos import PoliticaDeError, evaluar_candidato
+from convertersmartgrid.adaptadores.digital_twin import hiperparametros as hp
+from convertersmartgrid.adaptadores.digital_twin import oraculo as orc
+from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+from convertersmartgrid.aplicacion.evaluacion_modelos import PoliticaDeError, evaluar_candidato
 
 SEMILLA = random.randrange(1_000_000)
 
@@ -209,7 +209,7 @@ def test_sin_medida_o_sin_denominador_no_se_aprueba():
 
 def test_evaluar_candidato_respeta_las_politicas_de_minimos():
     """044:RF-5 — con una política de mínimos, como la del asistente, decide ``verificar_familias``."""
-    from convertersmartgrid.evaluacion_modelos import PoliticaEvaluacion
+    from convertersmartgrid.aplicacion.evaluacion_modelos import PoliticaEvaluacion
 
     politica = PoliticaEvaluacion(modo='agente', puertas_por_familia=(('acierto', .9),))
     v = evaluar_candidato({'familias': {'a': {'ejemplos': 5, 'acierto': .95}, 'b': {'ejemplos': 5, 'acierto': .5}}}, politica)
@@ -221,7 +221,7 @@ def test_las_politicas_selladas_conservan_su_huella():
     """044:RF-3 — añadir las puertas de error no cambia lo ya sellado por el asistente y el pronóstico."""
     from dataclasses import fields
 
-    from convertersmartgrid.evaluacion_modelos import PoliticaEvaluacion
+    from convertersmartgrid.aplicacion.evaluacion_modelos import PoliticaEvaluacion
 
     assert {f.name for f in fields(PoliticaEvaluacion)} == {
         'modo', 'schema_version', 'min_calibracion_grupos', 'cobertura_objetivo', 'puertas_por_familia', 'semillas', 'minimos'}
@@ -283,7 +283,7 @@ def test_cobertura_empirica_es_la_de_la_prueba():
 
 def test_la_prediccion_no_afirma_cobertura_sin_justificar():
     """044:RF-8 — el intervalo sirve para negar (027:RF-13); el 90 % solo se dice si está sostenido."""
-    from convertersmartgrid.digital_twin.oraculo import OraculoPINN
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import OraculoPINN
 
     assert OraculoPINN([], orc.Entrenamiento(), {}).cobertura_justificada is False
 
@@ -320,7 +320,7 @@ def _hermanos(familias: int, variantes: int):
 
 def test_con_sistema_los_hermanos_no_cruzan_particiones():
     """044:RF-1 — por la huella de cada episodio, las variantes de una familia caían a los dos lados."""
-    from convertersmartgrid.digital_twin.curva import reparto_del_sistema
+    from convertersmartgrid.adaptadores.digital_twin.curva import reparto_del_sistema
 
     muestras, ids = _hermanos(30, 6)
     por_episodio = reparto_del_sistema(ids)

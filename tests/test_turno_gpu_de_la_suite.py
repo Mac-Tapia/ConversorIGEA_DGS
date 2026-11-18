@@ -39,7 +39,7 @@ class _Reloj:
 @pytest.fixture(scope='module')
 def ruta_vista_por_un_fixture_de_modulo():
     """Como el ``turno`` de test_digital_twin_oraculo: un fixture de módulo, preparado antes que los de cada prueba."""
-    from convertersmartgrid.training_coordinator import ruta_guardia_gpu
+    from convertersmartgrid.aplicacion.training_coordinator import ruta_guardia_gpu
 
     return ruta_guardia_gpu()
 
@@ -52,7 +52,7 @@ def test_un_fixture_de_modulo_no_ve_la_guardia_de_la_maquina(ruta_vista_por_un_f
 
 def test_la_espera_dice_quien_tiene_la_gpu_y_vence_con_su_dueno(tmp_path):
     """106:RF-2, 106:RF-3 — con otro proceso en el turno, se avisa de su PID y su orden; al vencer, error con ese dueño."""
-    from convertersmartgrid.trabajadores_ml import turno_gpu_con_plazo
+    from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu_con_plazo
 
     lock = tmp_path / 'gpu.lock'
     otra = _guardia_en_otro_proceso(lock)
@@ -73,7 +73,7 @@ def test_cuando_el_otro_suelta_la_gpu_la_toma(tmp_path):
     """106:RF-2 — el turno libre se toma, queda a nombre de este proceso y se suelta al salir."""
     import json
 
-    from convertersmartgrid.trabajadores_ml import turno_gpu_con_plazo
+    from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu_con_plazo
 
     lock = tmp_path / 'gpu.lock'
     otra = _guardia_en_otro_proceso(lock, segundos=1.0)
@@ -106,7 +106,7 @@ def _maquina(tmp_path, monkeypatch, nombre='maquina.lock'):
 
 def test_la_sesion_sin_gpu_libre_sale_sin_veredicto(tmp_path, monkeypatch):
     """106:RF-4 — si el plazo vence, pytest sale con SALIDA_SIN_TURNO_GPU y el dueño; no omite ni juzga nada."""
-    from convertersmartgrid.trabajadores_ml import SALIDA_SIN_TURNO_GPU
+    from convertersmartgrid.aplicacion.trabajadores_ml import SALIDA_SIN_TURNO_GPU
 
     lock = _maquina(tmp_path, monkeypatch)
     monkeypatch.setenv(conftest.VARIABLE_ESPERA_GPU_SUITE, '0')
@@ -201,7 +201,7 @@ def test_la_puerta_trata_la_salida_sin_turno_como_fallo_con_su_dueno(tmp_path, m
     import subprocess
 
     from apoyo import cargar_herramienta
-    from convertersmartgrid.trabajadores_ml import SALIDA_SIN_TURNO_GPU
+    from convertersmartgrid.aplicacion.trabajadores_ml import SALIDA_SIN_TURNO_GPU
 
     puerta = cargar_herramienta('puerta_calidad.py', 'puerta_turno_gpu', tools_en_path=True)
     lock = tmp_path / 'maquina.lock'
@@ -223,7 +223,7 @@ def test_una_prueba_sin_marca_que_usa_cuda_falla_diciendolo():
     torch = pytest.importorskip('torch')
     if not torch.cuda.is_available():
         # En GitHub Actions (sin GPU) el conftest la omite con su motivo; en local, SinGPU es un fallo (102:RF-17).
-        from convertersmartgrid.training_coordinator import SinGPU
+        from convertersmartgrid.aplicacion.training_coordinator import SinGPU
         raise SinGPU('esta prueba necesita CUDA, como el resto de pruebas de GPU de la suite')
 
     class Item:
@@ -259,7 +259,7 @@ def test_la_puerta_importa_el_codigo_del_arbol_que_juzga():
 
     raiz = Path(__file__).resolve().parents[1]
     codigo = ('import runpy, sys; runpy.run_path(sys.argv[1], run_name="no_main"); '
-              'import convertersmartgrid.trabajadores_ml as m; print(m.__file__)')
+              'import convertersmartgrid.aplicacion.trabajadores_ml as m; print(m.__file__)')
     salida = subprocess.run([sys.executable, '-c', codigo, str(raiz / 'tools' / 'puerta_calidad.py')],
                             capture_output=True, text=True, encoding='utf-8', env={**os.environ, 'PYTHONPATH': ''},
                             cwd=raiz.parent, check=True).stdout.strip()
@@ -281,7 +281,7 @@ def test_un_hijo_de_una_prueba_carga_el_src_de_este_arbol():
 def test_el_entorno_de_digsilent_no_hereda_otro_paquete(tmp_path, monkeypatch):
     """106:RF-14, 103:RF-6 — con un PYTHONPATH heredado que trae otro src del conversor, el entorno de DIgSILENT no lo
     pasa; las rutas heredadas sin el paquete siguen detrás."""
-    from convertersmartgrid import powerfactory_env as pe
+    from convertersmartgrid.adaptadores import powerfactory_env as pe
 
     otro_src = tmp_path / 'otro_arbol' / 'src'
     (otro_src / 'convertersmartgrid').mkdir(parents=True)
@@ -318,7 +318,7 @@ def _dentro_de_tmp(ruta: Path) -> bool:
 
 def test_el_runtime_de_la_suite_es_de_la_sesion():
     """106:RF-16 — el runtime (y con él registros/web.log) es una carpeta temporal de la sesión, no el del usuario."""
-    from convertersmartgrid.registro_rotativo import carpeta_de_registros
+    from convertersmartgrid.adaptadores.registro_rotativo import carpeta_de_registros
 
     runtime = Path(os.environ['CSG_RUNTIME_HOME'])
     assert _dentro_de_tmp(runtime), runtime
@@ -346,8 +346,8 @@ def test_las_lineas_de_pruebas_en_un_registro_real_se_detectan(tmp_path):
 def test_los_almacenes_del_asistente_y_del_gemelo_son_de_la_sesion():
     """106:RF-17 — sin fijar nada en la prueba, el almacén del asistente y el del gemelo caen en la carpeta de la
     sesión, nunca en output/web/_asistente ni en output/web/_digital_twin del checkout."""
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.digital_twin import buffer
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.adaptadores.digital_twin import buffer
 
     for raiz, heredado in ((almacen.raiz(), RAIZ / 'output' / 'web' / '_asistente'),
                            (buffer.raiz_buffer(), RAIZ / 'output' / 'web' / '_digital_twin')):

@@ -44,7 +44,7 @@ def main(argv=None) -> int:
     p.add_argument('--exportar', type=Path, help='JSONL con los ejemplos aprobados, sin cifras')
     args = p.parse_args(argv)
 
-    from convertersmartgrid.asistente.corpus_redaccion import (
+    from convertersmartgrid.aplicacion.asistente.corpus_redaccion import (
         CorpusRedaccionError,
         ejemplos_para_entrenar,
         pendientes,

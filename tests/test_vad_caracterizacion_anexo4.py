@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.demanda_medida import Registro
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad.caracterizacion import caracterizar
+from convertersmartgrid.aplicacion.demanda_medida import Registro
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.aplicacion.vad.caracterizacion import caracterizar
 
 RAIZ = Path(__file__).resolve().parents[1]
 VAD = RAIZ / 'config' / 'vad'

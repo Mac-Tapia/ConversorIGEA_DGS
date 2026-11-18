@@ -30,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     if str(RAIZ / 'src') not in sys.path:
         sys.path.insert(0, str(RAIZ / 'src'))
-    from convertersmartgrid.evaluacion_harness import informe_final as inf
+    from convertersmartgrid.aplicacion.evaluacion_harness import informe_final as inf
 
     repo = Path(args.repo)
     try:

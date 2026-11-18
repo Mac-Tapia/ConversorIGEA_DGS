@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 from scipy import stats
 
-from convertersmartgrid.evaluacion_harness import estadistica as es
+from convertersmartgrid.dominio.evaluacion_harness import estadistica as es
 
 #: Las salidas versionadas del guion de referencia.
 REFERENCIAS = Path(__file__).resolve().parent / 'fixtures' / 'estadistica'
@@ -41,7 +41,7 @@ def test_wilson_reproduce_newcombe_y_statsmodels():
 
 def test_wilson_del_asistente_es_el_comun():
     """044:RF-12: el límite de Wilson de la 069:RF-37 sale del módulo común, sin una copia propia."""
-    from convertersmartgrid.asistente import destilacion_integral as di
+    from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
     assert di.limite_inferior_wilson(1373, 1400) == es.intervalo_wilson(1373, 1400, z=1.96)[0]
     assert di.limite_inferior_wilson(0, 0) == 0.
 
@@ -51,7 +51,7 @@ def test_holm_como_statsmodels():
     p = {'a': 0.01, 'b': 0.04, 'c': 0.03, 'd': 0.005, 'e': 0.2}
     ajustado = es.ajustar_holm(p)
     assert [ajustado[k] for k in 'abcde'] == pytest.approx([0.04, 0.09, 0.09, 0.025, 0.2])
-    from convertersmartgrid.asistente import embeddings
+    from convertersmartgrid.aplicacion.asistente import embeddings
     assert embeddings.ajustar_holm is es.ajustar_holm
 
 

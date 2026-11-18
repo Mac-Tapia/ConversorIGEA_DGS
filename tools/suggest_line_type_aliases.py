@@ -25,8 +25,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 
-from convertersmartgrid.dataset import CymdistDataset  # noqa: E402
-from convertersmartgrid.model import suggest_catalog_code  # noqa: E402
+from convertersmartgrid.adaptadores.dataset import CymdistDataset  # noqa: E402
+from convertersmartgrid.dominio.model import suggest_catalog_code  # noqa: E402
 
 
 def _paths(args: argparse.Namespace) -> tuple[Path, Path, Path]:

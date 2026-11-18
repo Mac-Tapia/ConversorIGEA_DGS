@@ -1,9 +1,9 @@
 """Puerta selectiva del intérprete y plan robusto (spec 069, RF-35 y RF-36)."""
 from __future__ import annotations
 
-from convertersmartgrid.asistente import destilacion_integral as di
-from convertersmartgrid.asistente import plan as pl
-from convertersmartgrid.asistente.interprete import Interpretacion
+from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
+from convertersmartgrid.aplicacion.asistente import plan as pl
+from convertersmartgrid.aplicacion.asistente.interprete import Interpretacion
 
 
 class _Modelo:

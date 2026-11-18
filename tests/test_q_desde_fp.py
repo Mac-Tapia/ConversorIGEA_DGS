@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook
 
-from convertersmartgrid.demanda_medida import Cabecera
+from convertersmartgrid.aplicacion.demanda_medida import Cabecera
 
 RAIZ = Path(__file__).resolve().parents[1]
 T0 = datetime(2026, 3, 6, 18, 0)
@@ -111,7 +111,7 @@ def test_las_columnas_dicen_que_la_q_es_calculada(tmp_path):
 
 def test_sin_medidores_de_una_empresa_en_el_codigo():
     """088:RF-11 — la regla vale para cualquier medidor: el código no nombra ninguno."""
-    for modulo in ('demanda_medida.py',):
+    for modulo in ('aplicacion/demanda_medida.py',):
         assert not re.search('CHB2T1|L6616|L2130', (RAIZ / 'src/convertersmartgrid' / modulo).read_text(encoding='utf-8'))
 
 

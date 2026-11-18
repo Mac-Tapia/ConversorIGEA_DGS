@@ -7,8 +7,8 @@ import random
 import pytest
 from test_digital_twin_episode import _payload
 
-from convertersmartgrid.digital_twin import buffer as bf
-from convertersmartgrid.digital_twin import episode as ep
+from convertersmartgrid.adaptadores.digital_twin import buffer as bf
+from convertersmartgrid.dominio.digital_twin import episode as ep
 
 
 def _episodio(**cambios) -> ep.Episodio:

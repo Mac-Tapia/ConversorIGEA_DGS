@@ -16,7 +16,7 @@ import pytest
 from apoyo import cargar_herramienta, contexto_nativo
 from test_ajuste_cabecera_guion import _plan
 
-from convertersmartgrid import transferencia_operador as to
+from convertersmartgrid.dominio import transferencia_operador as to
 
 
 @pytest.fixture(scope='module')
@@ -361,7 +361,7 @@ def test_la_web_lleva_al_plan_la_red_de_la_fuente(tmp_path):
     import time as _time
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     salida = tmp_path / 'runs' / 'r1' / 'salida'
     salida.mkdir(parents=True)
@@ -396,7 +396,7 @@ def _tramo(nombre, desde, hasta, u, maniobra=None, puente=False):
 def test_la_escalera_solo_transfiere_donde_hay_maniobra():
     """098:RF-11 — de las barras de la troncal, solo las que tienen un seccionador en su tramo de entrada o un acoplador
     antes; el acoplador del camino separa desde su barra de llegada."""
-    from convertersmartgrid import obras_integrales as oi
+    from convertersmartgrid.aplicacion import obras_integrales as oi
 
     camino = oi.con_maniobras([_tramo('T1', 'CAB', 'B1', 0.94), _tramo('T2', 'B1', 'B2', 0.94, 'SW2'),
                                _tramo('ACOPLE', 'B2', 'B2b', 0.94, 'ACOPLE', puente=True), _tramo('T3', 'B2b', 'B3', 0.94),
@@ -411,8 +411,8 @@ def test_la_escalera_solo_transfiere_donde_hay_maniobra():
 def test_sin_maniobra_no_se_propone_la_transferencia_y_se_avisa():
     """098:RF-13 — ninguna barra candidata con maniobra: ni transferencia ni traslado, con su aviso; los demás
     escalones siguen (las variantes que quedan son las que hay)."""
-    from convertersmartgrid import escalera_optima as eo
-    from convertersmartgrid import obras_integrales as oi
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+    from convertersmartgrid.aplicacion import obras_integrales as oi
 
     perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'semilla': 7, 'tolerancia_pu': 0.005,
                            'tolerancia_carga_pct': 1.0},
@@ -678,7 +678,7 @@ def _grafo_dos():
 
 
 def _p_098():
-    from convertersmartgrid.escalera_optima import Parametros
+    from convertersmartgrid.aplicacion.escalera_optima import Parametros
 
     return Parametros(cumplimiento=0.95, sorteos=4, semilla=7, tolerancia_pu=0.001, tolerancia_carga_pct=1.0,
                       max_variantes=40, tasa=0.12, vida=20, tension_min_pu=0.95, tension_max_pu=1.05,
@@ -694,7 +694,7 @@ def _enlace_x():
 
 
 def _bancos_x():
-    from convertersmartgrid.escalera_optima import Variante
+    from convertersmartgrid.aplicacion.escalera_optima import Variante
 
     return [Variante(f'{n}×450 kvar en A4', ('bancos',), [{'clase': 'condensador', 'alimentador': 'X', 'barra': 'A4',
                                                           'q_kvar': 450.0 * n, 'escalones': n}], {'bancos': n})
@@ -708,7 +708,7 @@ def _costo(v, perdidas_kw):
 def test_transferencias_por_el_enlace_de_la_mas_cercana_a_la_cabecera():
     """098:RF-21, 098:RF-22 — sin línea nueva ni km: de la maniobra más cercana al enlace hacia la cabecera; abre la
     maniobra y cierra el enlace; un vecino con poco margen se mide igual y se avisa (098:RF-47)."""
-    from convertersmartgrid import obras_integrales as oi
+    from convertersmartgrid.aplicacion import obras_integrales as oi
 
     vs, avisos = oi.variantes_por_enlace('X', [_enlace_x()], _p_098())
     assert [v.obras[0]['maniobra'] for v in vs] == ['SW_LA2A3', 'SW_LA1A2', 'SW_LS1A1'] and not avisos
@@ -724,8 +724,8 @@ def test_la_transferencia_sola_no_basta_y_con_bancos_si(monkeypatch):
     vuelve a probar los bancos y elige «transferencia + bancos», más barata que los bancos solos; su costo y su
     tensión salen en la tabla."""
     pytest.importorskip('scipy')
-    from convertersmartgrid import obras_integrales as oi
-    from convertersmartgrid import optimizacion_oraculo as oo
+    from convertersmartgrid.aplicacion import obras_integrales as oi
+    from convertersmartgrid.adaptadores import optimizacion_oraculo as oo
 
     p = _p_098()
     nueva = {'variacion': 'C1', 'nodo': _gid('A4', 'ElmTerm'), 'p_mw': 1.2, 'q_mvar': 0.36, 'alimentador': 'X',
@@ -753,8 +753,8 @@ def test_el_oraculo_filtra_y_solo_las_mejores_van_a_digsilent():
     """098:RF-26 — de una cadena de maniobras, el oráculo juzga cada una con un flujo; a DIgSILENT van solo las que
     da por buenas y una tanda más (087:RF-39), no todas."""
     pytest.importorskip('scipy')
-    from convertersmartgrid import obras_integrales as oi
-    from convertersmartgrid import optimizacion_oraculo as oo
+    from convertersmartgrid.aplicacion import obras_integrales as oi
+    from convertersmartgrid.adaptadores import optimizacion_oraculo as oo
 
     p = _p_098()
     nueva = {'variacion': 'C1', 'nodo': _gid('A4', 'ElmTerm'), 'p_mw': 1.2, 'q_mvar': 0.36, 'alimentador': 'X',
@@ -877,8 +877,8 @@ def test_la_orden_que_muere_reabre_el_enlace_que_cerro(tmp_path):
 def test_transferir_se_prueba_antes_que_el_nivel(monkeypatch, tmp_path):
     """098:RF-23, 098:RF-26 — con el oráculo, la transferencia (y la de un enlace nuevo) se mide antes del paso a 22,9 kV;
     las del enlace existente ya las juzgó el oráculo y no se repiten; si no cumple, entonces el nivel."""
-    from convertersmartgrid import escalera_optima as eo
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setattr(services, '_ruta_de_medicion', lambda nombre: tmp_path / nombre)
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas',
@@ -1001,8 +1001,8 @@ def test_la_lectura_da_las_barras_bajas_de_cada_alimentador():
 def test_el_alimentador_sin_cargas_que_viola_limites_lleva_su_escalera(monkeypatch, tmp_path):
     """098:RF-29 — CHN102 (2026-11-07) en 0,73 p.u. sin cargas nuevas no se trataba: ahora, antes que los demás, sube su
     escalera con sus barras bajas, primero transfiriendo y después desde los bancos, y lo elegido se aplica."""
-    from convertersmartgrid import escalera_optima as eo
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setattr(services, '_ruta_de_medicion', lambda nombre: tmp_path / nombre)
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas',
@@ -1046,7 +1046,7 @@ def test_el_oraculo_se_corrige_con_lo_que_midio_digsilent():
     """098:RF-30 — CA101 + CHN102: el oráculo equilibrado daba 0,888 donde DIgSILENT medía 0,829. Con la tensión de
     DIgSILENT en el grafo, cada barra se lleva a lo medido y una obra mueve la caída en la misma proporción."""
     pytest.importorskip('scipy')
-    from convertersmartgrid import optimizacion_oraculo as oo
+    from convertersmartgrid.adaptadores import optimizacion_oraculo as oo
 
     nueva = {'variacion': 'C1', 'nodo': _gid('A4', 'ElmTerm'), 'p_mw': 1.2, 'q_mvar': 0.36, 'alimentador': 'X', 'barra': 'A4'}
     crudo = oo.Oraculo(_grafo_dos(), [nueva])
@@ -1085,7 +1085,7 @@ def test_las_obras_de_linea_de_dos_caminos_van_juntas():
     """098:RF-31 — CA101 (2026-11-07): la cola de CH_23 y la rama de CH_10 y CH_18, cada una con su camino; ahora hay
     variantes que juntan la obra de línea de los dos, con y sin bancos, y el tramo común va una vez, con el conductor
     mayor; la de 50 mm² no se propone para la caída (098:RF-33)."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     comun = [{'nombre': f'T{i}', 'largo_m': 1000.0, 'corriente_a': 80.0, 'inom_a': 110.0} for i in range(3)]
     cola = comun + [{'nombre': f'C{i}', 'largo_m': 1500.0, 'corriente_a': 40.0, 'inom_a': 110.0} for i in range(3)]
@@ -1110,8 +1110,8 @@ def test_con_el_oraculo_gana_la_combinacion_de_los_dos_caminos():
     """098:RF-31, 098:RF-33 — con dos ramas bajo el límite, ninguna obra de un solo camino cumple y la que junta los
     dos sí: el oráculo la elige y solo esa (y las cercanas de una tanda) va a DIgSILENT."""
     pytest.importorskip('scipy')
-    from convertersmartgrid import optimizacion_oraculo as oo
-    from convertersmartgrid.escalera_optima import Variante
+    from convertersmartgrid.adaptadores import optimizacion_oraculo as oo
+    from convertersmartgrid.aplicacion.escalera_optima import Variante
 
     nodos = {_gid('S', 'ElmTerm'): {'kv': 10.0, 'p_mw': 0, 'q_mvar': 0, 'fuente': True, 'v_pu': 1.0},
              _gid('M', 'ElmTerm'): {'kv': 10.0, 'p_mw': 0.2, 'q_mvar': 0.05, 'fuente': False},
@@ -1141,7 +1141,7 @@ def test_con_el_oraculo_gana_la_combinacion_de_los_dos_caminos():
 def test_lo_medido_con_la_misma_red_se_reutiliza_y_lo_dudoso_se_mide():
     """098:RF-32 — con la misma huella se reutiliza y se dice; con otra (otra ronda, otras cargas activas), sin
     huella comprobable o con un resultado sospechoso, se vuelve a medir."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     class _C:
         def __init__(self):
@@ -1214,7 +1214,7 @@ def test_el_regulador_activa_el_ajuste_de_tomas_y_vuelve_al_borrar_la_variante(m
         return medir(app_, alims_, feeders, **k)
 
     monkeypatch.setattr(obras, 'medida_para_criterio', registrar)
-    from convertersmartgrid import obras_pf as op
+    from convertersmartgrid.aplicacion import obras_pf as op
 
     def plan_regulador(pl):           # sin tipo de regulador en el doble: se planifica como la terna de su tramo
         pl.elemento(pl.obra.tramo, 'ElmLne', 'regulador al principio del tramo')
@@ -1240,7 +1240,7 @@ def _fila_eo(nombre, escalones, costo, horizonte=None, obras=()):
 def test_la_seccion_y_la_terna_tienen_costo_sin_libro_capex():
     """098:RF-35 — CHN102 (2026-11-07): sin libro CAPEX, el paso a 22,9 kV tenía costo y la sección no; ahora la
     sección se costea con el km del cambio de nivel y la terna con ese km por su factor (1,5, del perfil si lo da)."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     p = eo.parametros(_perfil_eo())
     costos = eo.costos_de_alternativas({}, p)
@@ -1256,7 +1256,7 @@ def test_la_de_corto_plazo_tiene_que_llegar_al_anio_del_periodo():
     """098:RF-37 — usuario (2026-11-07): «el corto plazo debe ser solo para 4 años, considerando como año 0 el del
     análisis». Una que cumple hoy y no llega al año 4 no es la de corto plazo; la más barata que llega, sí. CA101: la
     terna con la sección de 240 mm² cumplía hoy y fallaba en el año 7."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     p = eo.parametros(_perfil_eo())
     terna = _fila_eo('terna en 62 tramos + 240 mm² en 9 tramos en 3 caminos', ('terna', 'seccion'), 500.0,
@@ -1277,7 +1277,7 @@ def test_la_de_corto_plazo_tiene_que_llegar_al_anio_del_periodo():
 
 def test_el_periodo_de_corto_plazo_sale_del_perfil():
     """098:RF-37 — del perfil (la clave del corto plazo, o el primer año del PIDE); si no, 4; y es el año que se mide."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     assert eo.periodo_de_corto_plazo({}) == 4
     assert eo.periodo_de_corto_plazo({'planificacion': {'anios_horizonte': [5, 10, 15]}}) == 5
@@ -1294,8 +1294,8 @@ def test_el_anio_en_que_vuelve_a_fallar_lo_busca_el_oraculo_y_lo_confirma_digsil
     se busca ninguna obra de ese año."""
     from types import SimpleNamespace
 
-    from convertersmartgrid import perfil_empresa
-    from convertersmartgrid.web import services
+    from convertersmartgrid.dominio import perfil_empresa
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: _perfil_eo())
     monkeypatch.setattr(services, 'carpeta_de', lambda *_a: '')
@@ -1329,7 +1329,7 @@ def test_el_anio_en_que_vuelve_a_fallar_lo_busca_el_oraculo_y_lo_confirma_digsil
     assert not any('variantes' in p_ for p_ in planes), 'ninguna obra futura se busca ni se mide'
     guardada = services.alternativas_de_la_escalera(ws, 'P')['F1'][0]
     assert guardada['vuelve_a_fallar']['anio'] == falla_desde
-    from convertersmartgrid.informes import filas_alternativas_escalera
+    from convertersmartgrid.adaptadores.informes import filas_alternativas_escalera
     cabecera, filas = filas_alternativas_escalera({'F1': [{**guardada, 'numero': 1, 'costo_anual': 1.0,
                                                            'plazo': 'corto plazo'}]})
     texto = filas[0][cabecera.index('Plazo')]
@@ -1351,7 +1351,7 @@ def test_el_anio_en_que_vuelve_a_fallar_lo_busca_el_oraculo_y_lo_confirma_digsil
 
 def test_el_guion_busca_el_primer_anio_que_falla_por_biseccion(tmp_path, monkeypatch):
     """098:RF-39 — sin oráculo, DIgSILENT por bisección desde el año siguiente al periodo: pocos flujos."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     vistos = []
 
@@ -1385,7 +1385,7 @@ def test_solo_se_compara_y_se_retira_lo_que_aplico_la_escalera(tmp_path, monkeyp
     compara (y «rehacer obras» lo retira) solo si la escalera aplicó esa misma obra: su elegida guardada con lo aplicado
     o el plan con que aplicó su elegida, con una obra igual (M1: CHN102, «Obra_tension_CHN102» y la elegida «cambio a
     22.9 kV…»); sin esa evidencia, se avisa y no se toca."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = _ws_con_obras(tmp_path, [
         {'project': 'P', 'variacion': 'Obra_tension_F1', 'obra': {'alimentador': 'F1', 'clase': 'tension'}},
@@ -1426,7 +1426,7 @@ def test_una_elegida_no_aplicada_no_es_evidencia_y_la_seccion_del_operador_no_se
     """098:RF-36 (M1) — una sección aplicada sin origen y una elegida guardada por una evaluación que no aplicó nada, con
     escalón «seccion»: no es evidencia, no se compara ni se retira; con la elegida aplicada de otra sección (otros
     tramos), tampoco; con la misma, sí."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     sec = {'alimentador': 'F1', 'clase': 'seccion', 'tramos': ['L1', 'L2'], 'tipo': {'nombre': 'AA24003D'}}
     ws = _ws_con_obras(tmp_path, [{'project': 'P', 'variacion': 'Obra_seccion_F1', 'obra': sec}])
@@ -1465,7 +1465,7 @@ def test_la_vieja_se_cambia_solo_si_la_nueva_cumple_y_cuesta_menos():
     """098:RF-36 — con la fila de la vieja medida en esta corrida: se conserva si nada cambió, si sin ella ya cumple (y se
     dice que sobra), si su medida es dudosa, si ninguna cumple, si vuelve a ganar o si la nueva no cuesta menos; se
     cambia si cuesta menos o si la vieja ya no cumple. ``ok`` solo si lo que queda cumple (M2)."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     vieja = {'nombre': 'cambio a 22.9 kV', 'variaciones': ['Obra_tension_F1']}
     cumple = {'factible': True, 'costo_anual': 1200.0, 'dudosa': None}
@@ -1493,7 +1493,7 @@ def test_la_vieja_se_cambia_solo_si_la_nueva_cumple_y_cuesta_menos():
 def test_sustituir_aplica_la_nueva_y_si_no_queda_la_vieja_sigue(tmp_path):
     """098:RF-36 — el servicio no borra nada: pide al guion la sustitución con la vieja; si la nueva no queda, la vieja
     sigue, activa, y no se recrea; si queda, la sustituye. Sin cambio, ni se llama."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = _ws_con_obras(tmp_path, [])
     vieja = {'nombre': 'cambio a 22.9 kV', 'variaciones': ['Obra_tension_F1'], 'operacion': [{'variacion': 'Obra_tension_F1',
@@ -1676,7 +1676,7 @@ def test_la_obra_de_la_escalera_se_mide_fuera_y_se_conserva_si_nada_cambio(tmp_p
     ejecutar = services.obras_ejecutar
     monkeypatch.setattr(services, 'obras_ejecutar', lambda *a, **k: (elecciones.append(k.get('eleccion')),
                                                                      ejecutar(*a, **k))[1])
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     r1 = services.obras_escalera(ws, ctx, 'P', ['F1'], anio_casos=ANIO, aplicar=False, por_alternativas=True)
     f1 = r1['alimentadores'][0]
@@ -1832,7 +1832,7 @@ def test_el_alcance_de_cada_una_que_cumple_aunque_sea_de_la_misma_clase(monkeypa
 def test_la_largo_plazo_queda_para_el_pide_partiendo_de_la_de_corto_plazo():
     """098:RF-37 — en el estudio no se plantea la obra de los años futuros; :func:`largo_plazo` queda para la ruta del
     PIDE: «2×300 kvar» contiene a «1×300 kvar» y la definitiva parte de la de corto plazo."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     b1 = {'clase': 'condensador', 'barra': 'B4', 'q_kvar': 300.0}
     b2 = {**b1, 'q_kvar': 600.0}
@@ -1851,7 +1851,7 @@ def test_la_largo_plazo_queda_para_el_pide_partiendo_de_la_de_corto_plazo():
 @pytest.mark.parametrize('valor', [0, -1, 'x'])
 def test_el_factor_de_la_terna_tiene_que_ser_positivo(valor):
     """098:RF-35 — un factor de 0 o negativo dejaba la terna gratis: se rechaza con el nombre del dato."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     with pytest.raises(eo.EscaleraError, match='factor_terna_sin_capex'):
         eo.parametros(_perfil_eo(factor_terna_sin_capex=valor))
@@ -2038,7 +2038,7 @@ def test_la_escalera_de_la_web_reutiliza_sin_abrir_digsilent_y_pasa_la_lista_ent
 def test_las_obras_de_varios_caminos_no_comparten_tramo_y_el_comun_lleva_el_mayor():
     """098:RF-31, 042:RF-30 — en las de varios caminos, cada tramo va en una sola obra (ni sección y terna a la vez) y el
     tramo común lleva la mayor capacidad de los caminos que pasan por él."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     comun = [{'nombre': f'T{i}', 'largo_m': 1000.0, 'corriente_a': 80.0, 'inom_a': 110.0} for i in range(3)]
     cola = comun + [{'nombre': f'C{i}', 'largo_m': 1500.0, 'corriente_a': 40.0, 'inom_a': 110.0} for i in range(3)]
@@ -2288,7 +2288,7 @@ def test_si_no_se_puede_quitar_lo_nuevo_la_vieja_no_se_reactiva(tmp_path):
 def test_la_sustitucion_fallida_no_deja_obras_pendientes_y_el_diario_recompone(tmp_path, monkeypatch):
     """098:RF-36 (I) — si la nueva se deshace, sus obras no quedan en el espacio como del operador; si una sustitución se
     completó en la orden siguiente, lo aplicado del espacio se pone al día con su diario."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = _ws_con_obras(tmp_path, [{'project': 'P', 'variacion': 'Obra_tension_F1', 'obra': {'alimentador': 'F1'},
                                    'origen': 'escalera'}])
@@ -2318,7 +2318,7 @@ def test_el_que_recibe_la_transferencia_prueba_otro_corte_de_la_misma():
     """098:RF-43 — CHN102 (2026-11-07) recibía la cola de CA101 y quedaba en 0,703 p.u.: su escalera empieza por mover el
     corte de la misma transferencia (devolver parte a CA101 por el punto que abrió el operador, abriendo otra maniobra
     de la zona), aunque CA101 no tenga margen ahora: se miden los dos (098:RF-25). Primero la que devuelve más."""
-    from convertersmartgrid import obras_integrales as oi
+    from convertersmartgrid.aplicacion import obras_integrales as oi
 
     devolver = {**_enlace_x(), 'u_min': 0.90, 'devuelve_zona': True}
     vs, avisos = oi.variantes_por_enlace('X', [devolver], _p_098())
@@ -2333,7 +2333,7 @@ def test_la_lectura_marca_el_corte_del_operador_en_los_enlaces(monkeypatch):
     import sys
     import types
 
-    from convertersmartgrid.transferencia_operador import CargaRed, Rama, Zona
+    from convertersmartgrid.dominio.transferencia_operador import CargaRed, Rama, Zona
 
     obras = cargar_herramienta('obras_pf.py', 'obras_corte_operador_098', tools_en_path=True)
     zona = Zona('CA101', 'CHN102', [CargaRed('k1', 'S1', 't1', 'CA101', 'CHN102', 900.0),
@@ -2378,8 +2378,8 @@ def _zona_operador():
 
 def _tabla_con(transfer_cumple: bool, otro_corte_cumple: bool = False, bancos_cumplen: bool = False):
     """Las filas de la escalera de CA101: la del operador, otro corte y unos bancos más caros."""
-    from convertersmartgrid import escalera_optima as eo
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+    from convertersmartgrid.presentacion.web import services
 
     vs = services.marcar_la_del_operador(
         [eo.Variante(f'transferencia a CHN102 por Breaker/Switch(1) abriendo {m}', ('transferencia',),
@@ -2405,7 +2405,7 @@ def test_los_bancos_que_bastan_van_antes_que_la_transferencia_del_operador():
 
 def test_la_transferencia_del_operador_que_resuelve_y_no_rompe_al_que_recibe_se_elige():
     """098:RF-44 — medida en los dos alimentadores (098:RF-25), cumple y es la más barata: se elige; su fila lo dice."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     d, vs = _tabla_con(True)
     assert d['elegida'] == vs[0].nombre and vs[0].nombre.startswith('la transferencia del operador')
@@ -2415,7 +2415,7 @@ def test_la_transferencia_del_operador_que_resuelve_y_no_rompe_al_que_recibe_se_
 
 def test_la_que_no_resuelve_se_mide_se_informa_y_se_trabaja_sin_ella():
     """098:RF-44 — no cumple (deja a CHN102 en 0,703 p.u.): se elige otra y la fila dice por qué, con las cifras."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     d, vs = _tabla_con(False)
     assert d['elegida'] == 'cambio a 22.9 kV'
@@ -2432,7 +2432,7 @@ def test_otro_punto_de_corte_que_resuelve_se_elige():
 # =========================================================================== 098:RF-45 (orden fijo de los escalones)
 def test_el_orden_fijo_de_los_escalones():
     """098:RF-45 — bancos, sección, terna, transferencia, nivel, regulador; una combinación, en el de su obra mayor."""
-    from convertersmartgrid import escalera_optima as eo
+    from convertersmartgrid.aplicacion import escalera_optima as eo
 
     orden = [('bancos',), ('seccion', 'bancos'), ('terna', 'bancos'), ('transferencia', 'bancos'), ('nivel',),
              ('regulador',)]
@@ -2446,8 +2446,8 @@ def test_el_orden_fijo_de_los_escalones():
 
 def _escalera_por_escalones(monkeypatch, tmp_path, cumple_en):
     """La escalera de F1 con el oráculo y DIgSILENT sustituidos: cumple solo en el escalón ``cumple_en`` (o ninguno)."""
-    from convertersmartgrid import escalera_optima as eo
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setattr(services, '_ruta_de_medicion', lambda nombre: tmp_path / nombre)
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas',
@@ -2505,7 +2505,7 @@ def test_la_transferencia_del_operador_siempre_va_a_digsilent():
     """098:RF-47 — aunque el oráculo vea que la red baja con ella, la transferencia del operador pasa a DIgSILENT."""
     import inspect
 
-    from convertersmartgrid import optimizacion_oraculo as oo
+    from convertersmartgrid.adaptadores import optimizacion_oraculo as oo
     fuente = inspect.getsource(oo.transferencias_con_oraculo)
     assert "startswith('la transferencia del operador')" in fuente and 'not del_operador and' in fuente
     assert "o.get('clase') == 'maniobra'" in fuente      # y toda transferencia por un enlace existente
@@ -2514,7 +2514,7 @@ def test_la_transferencia_del_operador_siempre_va_a_digsilent():
 def test_el_espacio_con_obras_de_la_escalera_se_abre_en_la_web():
     """098:RF-36 — el registro de una obra aplicada lleva su operación, su origen y su elección, y la respuesta de la web
     los admite: sin ellos, GET del espacio daba 500 (CA101 + CHN102, 2026-11-07)."""
-    from convertersmartgrid.web.api_contract import ObraAplicadaRespuesta
+    from convertersmartgrid.presentacion.web.api_contract import ObraAplicadaRespuesta
     fila = {'project': 'P', 'variacion': 'Obra_seccion_F1', 'obra': {'clase': 'seccion', 'alimentador': 'F1', 'casos': ['Con proyecto']},
             'aplicada': 1.0, 'operacion': {'abiertos': []}, 'origen': 'escalera',
             'eleccion': {'nombre': 'sección', 'regla': '098:corto_y_largo_plazo', 'costo_anual': 1.0}}
@@ -2525,7 +2525,7 @@ def test_el_espacio_con_obras_de_la_escalera_se_abre_en_la_web():
 def test_el_lector_de_libros_que_cae_se_reintenta_y_si_no_se_sigue_sin_el_dato():
     """098:RF-49 — el proceso que lee los libros cae: se reintenta una vez; si vuelve a caer, se sigue sin el dato y se
     avisa, sin tumbar el trabajo; el crecimiento se guarda para las rondas siguientes."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     class Ctx:
         def __init__(self, fallos):

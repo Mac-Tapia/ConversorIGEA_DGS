@@ -16,9 +16,9 @@ import pytest
 
 pytest.importorskip('sklearn')
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.asistente import clasificador as cl
-from convertersmartgrid.asistente import clasificador_vectores as cv
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.aplicacion.asistente import clasificador as cl
+from convertersmartgrid.aplicacion.asistente import clasificador_vectores as cv
 
 RAIZ = Path(__file__).resolve().parents[1]
 DIM = 64
@@ -51,7 +51,7 @@ def falso(monkeypatch):
     monkeypatch.setattr(cv, 'FABRICA', Falso)
     monkeypatch.setattr(cv, '_abiertos', {})
     monkeypatch.setattr(cv, 'codificador_por_defecto', lambda: ('falso/codificador', 'r0'))
-    from convertersmartgrid.asistente import transformer
+    from convertersmartgrid.aplicacion.asistente import transformer
     monkeypatch.setattr(transformer, 'liberar_gpu', lambda: None)
     return Falso()
 
@@ -168,7 +168,7 @@ def almacen_temporal(tmp_path, monkeypatch):
 def test_026_rf39_rf40_rf41_via_gobernada_con_las_mismas_puertas(falso, almacen_temporal, monkeypatch):
     """026:RF-39 — mismas puertas y reapertura; 026:RF-40 — sin los de prueba y con su medida aparte;
     026:RF-41 — el aprobado se abre y clasifica por la carga de siempre."""
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
 
     entrada = {}
     entrenar_original = cv.entrenar
@@ -217,8 +217,8 @@ def test_026_rf39_herramienta_lleva_la_arquitectura(tmp_path, monkeypatch):
     with pytest.raises(SystemExit):
         herramienta.main(['--output-json', str(tmp_path / 'x.json'), '--arquitectura', 'vectores'])
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'almacen'))
-    import convertersmartgrid.digital_twin.oraculo as oraculo
-    import convertersmartgrid.trabajadores_ml as tml
+    import convertersmartgrid.adaptadores.digital_twin.oraculo as oraculo
+    import convertersmartgrid.aplicacion.trabajadores_ml as tml
 
     monkeypatch.setattr(oraculo, 'dispositivo', lambda *_a: 'cuda')          # 067:RF-9: el que pide se nombra
     monkeypatch.setattr(tml, 'turno_gpu', lambda _n: contextlib.nullcontext())

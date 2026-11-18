@@ -8,7 +8,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 445 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 459 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 126 |
 | Interfaz | `frontend/src/` | 112 |
@@ -23,8 +23,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 82 |
-| aprobada | 23 |
+| cumplida | 83 |
+| aprobada | 22 |
 | implementada | 6 |
 | retirada | 1 |
 
@@ -34,13 +34,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 188 |
-| aplicacion | Apl | 127 |
-| dominio | Dom | 65 |
+| adaptadores | Ada | 193 |
+| aplicacion | Apl | 131 |
+| dominio | Dom | 69 |
 | presentacion | Pre | 50 |
-| puertos | Pue | 4 |
+| puertos | Pue | 5 |
 
-434 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+448 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -103,16 +103,16 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Orden | Punto de entrada |
 | --- | --- |
-| `convertersmartgrid` | `convertersmartgrid.cli:main` |
-| `convertersmartgrid-web` | `convertersmartgrid.web.__main__:main` |
+| `convertersmartgrid` | `convertersmartgrid.presentacion.cli:main` |
+| `convertersmartgrid-web` | `convertersmartgrid.presentacion.web.__main__:main` |
 | `vnr-etl` | `convertersmartgrid.adaptadores.entrada.vnr.cli:main` |
 
 | Módulo enchufable | Objeto |
 | --- | --- |
-| `escritor-dgs` | `convertersmartgrid.escritores:MODULO_DGS` |
-| `lector-mdb` | `convertersmartgrid.sources.mdb:MODULO` |
-| `lector-txt` | `convertersmartgrid.sources.txt:MODULO` |
-| `lector-vnr` | `convertersmartgrid.sources.vnr:MODULO` |
+| `escritor-dgs` | `convertersmartgrid.adaptadores.escritores:MODULO_DGS` |
+| `lector-mdb` | `convertersmartgrid.adaptadores.sources.mdb:MODULO` |
+| `lector-txt` | `convertersmartgrid.adaptadores.sources.txt:MODULO` |
+| `lector-vnr` | `convertersmartgrid.adaptadores.sources.vnr:MODULO` |
 
 ## El asistente y su equipo
 
@@ -236,89 +236,92 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `__init__.py` | Dom | 034, 106 | Paquete del motor y su versión. |
-| `util.py` | Dom | 001, 086, 107, 108 | SHA-256, JSON atómico y duradero, con copia anterior, y números, entre ellos el FRC (`frc`), la única fórmula del factor de recuperación del capital… |
-| `runtime_paths.py` | Dom | 065, 086 | Raíces externas, identidad estable de la instalación, staging por volumen o junto al destino, custodia y reconciliación de temporales. |
-| `naming.py` | Dom | 034, 011 | Nombres y selectores de alimentador. |
-| `perfil_empresa.py` | Dom | 002, 020, 021, 025 | Perfil de empresa: CRS de origen, patrón de las SED de medición, escala del diagrama y forma de los alimentadores, fuera del código. |
-| `perfil_esquema.py` | Ada | 086 | Valida un perfil contra su esquema: valores imposibles, claves desconocidas y lo que falta con la función que afecta. |
-| `edicion.py` | Dom | 086 | Qué edición corre (el programa instalado siempre es de producto) y las funciones en beta, activas y desactivables por el operador. |
-| `salidas_red.py` | Dom | 086 | Lista de cada salida a la red con su interruptor: encendidas en desarrollo, apagadas en la edición de producto. |
-| `sesion_web.py` | Dom | 086 | Token de la sesión de la web: el lanzador lo crea en un fichero solo del usuario y los clientes locales lo leen. |
-| `registro_rotativo.py` | Ada | 086 | Registro del programa en ficheros rotativos, fuera de la carpeta del programa. |
-| `cli.py` | Pre | 001, 022 | Orden `convertersmartgrid`: `list`, `convert` y `web`.; `--por-sistema [ZONAL]` y `--estructura`, aparte de `--unir` |
-| `privacidad.py` | Dom | 112, 086 | Patrones que tapan rutas, correos, IP, códigos y nombres, y los términos del perfil de una empresa (un perfil ilegible es un error, nunca «ningún… |
-| `compat_pf.py` | Dom | 103 | Equivalentes de `itertools.pairwise` y `zip(..., strict=True)` para lo que cargan los guiones de DIgSILENT con el Python 3.9 de PowerFactory 2021. |
+| `dominio/util.py` | Dom | 001, 086, 107, 108 | SHA-256, JSON atómico y duradero, con copia anterior, y números, entre ellos el FRC (`frc`), la única fórmula del factor de recuperación del capital… |
+| `dominio/runtime_paths.py` | Dom | 065, 086 | Raíces externas, identidad estable de la instalación, staging por volumen o junto al destino, custodia y reconciliación de temporales. |
+| `dominio/naming.py` | Dom | 034, 011 | Nombres y selectores de alimentador. |
+| `dominio/perfil_empresa.py` | Dom | 002, 020, 021, 025 | Perfil de empresa: CRS de origen, patrón de las SED de medición, escala del diagrama y forma de los alimentadores, fuera del código. |
+| `adaptadores/perfil_esquema.py` | Ada | 086 | Valida un perfil contra su esquema: valores imposibles, claves desconocidas y lo que falta con la función que afecta. |
+| `dominio/edicion.py` | Dom | 086 | Qué edición corre (el programa instalado siempre es de producto) y las funciones en beta, activas y desactivables por el operador. |
+| `dominio/salidas_red.py` | Dom | 086 | Lista de cada salida a la red con su interruptor: encendidas en desarrollo, apagadas en la edición de producto. |
+| `dominio/sesion_web.py` | Dom | 086 | Token de la sesión de la web: el lanzador lo crea en un fichero solo del usuario y los clientes locales lo leen. |
+| `adaptadores/registro_rotativo.py` | Ada | 086 | Registro del programa en ficheros rotativos, fuera de la carpeta del programa. |
+| `presentacion/cli.py` | Pre | 001, 022 | Orden `convertersmartgrid`: `list`, `convert` y `web`.; `--por-sistema [ZONAL]` y `--estructura`, aparte de `--unir` |
+| `dominio/privacidad.py` | Dom | 112, 086 | Patrones que tapan rutas, correos, IP, códigos y nombres, y los términos del perfil de una empresa (un perfil ilegible es un error, nunca «ningún… |
+| `dominio/compat_pf.py` | Dom | 103 | Equivalentes de `itertools.pairwise` y `zip(..., strict=True)` para lo que cargan los guiones de DIgSILENT con el Python 3.9 de PowerFactory 2021. |
 | `adaptadores/__init__.py` | Ada | 002 | Adaptadores de fuentes y servicios externos. |
 | `adaptadores/entrada/__init__.py` | Ada | 002 | Adaptadores de entrada. |
 | `adaptadores/fuentes_estables.py` | Ada | 034, 065 | Descriptor readonly identificado y protegido contra escritura/reemplazo durante el lector. |
 | `dominio/__init__.py` | Dom | 002 | Paquete real de valores y reglas puras, sin lectores ni E/S. |
 | `dominio/numeros_medidos.py` | Dom | 002, 004 | Un único cuerpo de normalización de códigos y números finitos de medición. |
+| `presentacion/__init__.py` | Pre | 002 | Paquete de la capa presentacion. |
 
 ### Motor: entrada de datos
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `sources/__init__.py` | Ada | 001 | Registro de adaptadores, común a la web y al CLI. |
-| `sources/base.py` | Pue | 001 | Contrato de los lectores de las tres procedencias. |
-| `sources/txt.py` | Ada | 001 | Adaptador de los tres TXT. |
-| `sources/mdb.py` | Ada | 001 | Adaptador de base Access. |
-| `sources/vnr.py` | Ada | 001, 053 | Adaptador de un paquete VNR-GIS. |
-| `sources/snapshot.py` | Dom | 001 | Qué ficheros forman una lectura y su huella. |
-| `source_contract.py` | Dom | 001, 004, 006 | Contrato canónico y evidencia de auditoría compartidos por TXT, MDB y VNR-GIS. |
-| `dataset.py` | Ada | 034 | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. |
+| `adaptadores/sources/__init__.py` | Ada | 001 | Registro de adaptadores, común a la web y al CLI. |
+| `puertos/sources/base.py` | Pue | 001 | Contrato de los lectores de las tres procedencias. |
+| `adaptadores/sources/txt.py` | Ada | 001 | Adaptador de los tres TXT. |
+| `adaptadores/sources/mdb.py` | Ada | 001 | Adaptador de base Access. |
+| `adaptadores/sources/vnr.py` | Ada | 001, 053 | Adaptador de un paquete VNR-GIS. |
+| `dominio/sources/snapshot.py` | Dom | 001 | Qué ficheros forman una lectura y su huella. |
+| `dominio/source_contract.py` | Dom | 001, 004, 006 | Contrato canónico y evidencia de auditoría compartidos por TXT, MDB y VNR-GIS. |
+| `adaptadores/dataset.py` | Ada | 034 | Lector de los TXT (RED, CARGA, BD_Equipo), en las dos disposiciones. |
 | `dominio/dataset.py` | Dom | 002 | La estructura del dataset común de CYMDIST (campos, índices por alimentador, tablas de tipos de línea) sin su lector. |
-| `access.py` | Ada | 034, 001 | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. |
-| `identify.py` | Ada | 034, 059 | Reconoce cada TXT por su contenido, no por su nombre, y a qué fuente (TXT, Access o VNR-GIS) pertenece un fichero. |
-| `study.py` | Ada | 034 | Estudio de CYMDIST (`.zxst`/`.xst`), entrada opcional que filtra la selección. |
-| `inventory.py` | Apl | 034 | Inventario detallado de un dataset cargado. |
-| `feeder_metadata.py` | Ada | 034, 022 | Procedencia por alimentador de los objetos de una red conjunta.; la red externa de una barra de SET, una vez con sus alimentadores |
+| `adaptadores/access.py` | Ada | 034, 001 | Lector de la base Access de CYMDIST (`.mdb`), la segunda vía de entrada. |
+| `adaptadores/identify.py` | Ada | 034, 059 | Reconoce cada TXT por su contenido, no por su nombre, y a qué fuente (TXT, Access o VNR-GIS) pertenece un fichero. |
+| `adaptadores/study.py` | Ada | 034 | Estudio de CYMDIST (`.zxst`/`.xst`), entrada opcional que filtra la selección. |
+| `aplicacion/inventory.py` | Apl | 034 | Inventario detallado de un dataset cargado. |
+| `adaptadores/feeder_metadata.py` | Ada | 034, 022 | Procedencia por alimentador de los objetos de una red conjunta.; la red externa de una barra de SET, una vez con sus alimentadores |
 | `dominio/cargas_plantilla.py` | Dom | 004, 002 | Lectura y validación de las filas de los libros de cargas por SED (columnas, potencia y FP), sin E/S: pasó entera de `loads.py` (002 T7, a), y la usa… |
+| `dominio/sources/__init__.py` | Dom | 002 | Paquete de `sources` en la capa dominio. |
+| `puertos/sources/__init__.py` | Pue | 002 | Paquete de `sources` en la capa puertos. |
 
 ### Motor: reconstrucción y catálogo
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `reconstruction.py` | Dom | 001 | Contrato de la reconstrucción auditable del dataset. |
-| `reconstruction_pipeline.py` | Apl | 001 | Reconstrucción de una selección de alimentadores, sin estado de la web. |
-| `reconstruction_topology.py` | Dom | 001 | Reconstrucción determinista de la topología. |
-| `catalog.py` | Apl | 034, 053 | Catálogo de parámetros eléctricos: tabla de entrada y auditoría del modelo. |
-| `catalog_data.py` | Dom | 034 | Datos de fabricante y de norma para los parámetros eléctricos. |
-| `catalog_merge.py` | Apl | 034, 001 | Completa el catálogo de equipos cuando el export llega incompleto. |
-| `catalog_resolution.py` | Dom | 001 | Resolución de equipos por evidencia, sin renombrar los códigos de origen. |
-| `coordenadas.py` | Dom | 034 | Completa las coordenadas que faltan con el grafo de la red. |
+| `dominio/reconstruction.py` | Dom | 001 | Contrato de la reconstrucción auditable del dataset. |
+| `aplicacion/reconstruction_pipeline.py` | Apl | 001 | Reconstrucción de una selección de alimentadores, sin estado de la web. |
+| `dominio/reconstruction_topology.py` | Dom | 001 | Reconstrucción determinista de la topología. |
+| `aplicacion/catalog.py` | Apl | 034, 053 | Catálogo de parámetros eléctricos: tabla de entrada y auditoría del modelo. |
+| `dominio/catalog_data.py` | Dom | 034 | Datos de fabricante y de norma para los parámetros eléctricos. |
+| `aplicacion/catalog_merge.py` | Apl | 034, 001 | Completa el catálogo de equipos cuando el export llega incompleto. |
+| `dominio/catalog_resolution.py` | Dom | 001 | Resolución de equipos por evidencia, sin renombrar los códigos de origen. |
+| `dominio/coordenadas.py` | Dom | 034 | Completa las coordenadas que faltan con el grafo de la red. |
 
 ### Motor: modelo y reglas
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `model.py` | Dom | 034 | Modelo eléctrico de un alimentador. |
-| `reglas.py` | Apl | 034, 002, 021, 022, 032, 057 | Reglas que se aplican a todo alimentador, venga de TXT o de base. |
-| `puentes.py` | Dom | 034, 021 | Funde los tramos puente de CYMDIST en vez de modelarlos como líneas. |
-| `trafomix.py` | Dom | 034, 002, 021 | Equipos de medición en MT que la base registra como SED, con el patrón del perfil de empresa. |
-| `sed_potencia.py` | Dom | 034, 057 | Lleva al tamaño normalizado las SED cuya carga supera su transformador. |
-| `fases_red.py` | Dom | 054 | Qué fases le llegan a cada tramo y SED desde la cabecera. |
-| `comprobacion_fases.py` | Dom | 081 | Contrato de fases de toda la clase de fallos: ningún elemento con más fases que su barra ni con fases que no le llegan, en cualquier fuente. |
-| `geography.py` | Ada | 034, 001 | Del CRS de origen a WGS84. |
-| `capacidades.py` | Ada | 015 | Capacidades, grupo de conexión y tensión de baja de transformadores y líneas del DGS original, y su comparación con lo leído en DIgSILENT. |
+| `dominio/model.py` | Dom | 034 | Modelo eléctrico de un alimentador. |
+| `aplicacion/reglas.py` | Apl | 034, 002, 021, 022, 032, 057 | Reglas que se aplican a todo alimentador, venga de TXT o de base. |
+| `dominio/puentes.py` | Dom | 034, 021 | Funde los tramos puente de CYMDIST en vez de modelarlos como líneas. |
+| `dominio/trafomix.py` | Dom | 034, 002, 021 | Equipos de medición en MT que la base registra como SED, con el patrón del perfil de empresa. |
+| `dominio/sed_potencia.py` | Dom | 034, 057 | Lleva al tamaño normalizado las SED cuya carga supera su transformador. |
+| `dominio/fases_red.py` | Dom | 054 | Qué fases le llegan a cada tramo y SED desde la cabecera. |
+| `dominio/comprobacion_fases.py` | Dom | 081 | Contrato de fases de toda la clase de fallos: ningún elemento con más fases que su barra ni con fases que no le llegan, en cualquier fuente. |
+| `adaptadores/geography.py` | Ada | 034, 001 | Del CRS de origen a WGS84. |
+| `adaptadores/capacidades.py` | Ada | 015 | Capacidades, grupo de conexión y tensión de baja de transformadores y líneas del DGS original, y su comparación con lo leído en DIgSILENT. |
 
 ### Motor: conversión, red unida y oráculo
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `batch.py` | Apl | 034, 001, 022, 065 | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo.; la red unida por zonal y SET con su informe, aperturas y oráculo |
-| `combine.py` | Apl | 034, 022 | Une todos los alimentadores en una sola red. |
-| `enlaces.py` | Apl | 022 | Puntos de enlace de la red unida con sus SET y caminos cerrados (entre SET, entre alimentadores, anillos): abre la maniobra más lejana de su fuente… |
-| `estructura.py` | Dom | 022, 055 | La estructura de la empresa: zonales, SET (con sus siglas) y alimentadores con su sistema eléctrico, sector típico y norma. |
-| `oraculo.py` | Ada | 034, 022, 057, 082, 111 | Flujo independiente con pandapower antes de escribir el DGS. |
-| `resolver_convergencia.py` | Dom | 081 | Si el «Caso base» no converge: su causa, corregir lo reconstruible, volver a medir, y decir lo que queda con su elemento y qué hacer. |
-| `preflight_contract.py` | Apl | 065 | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. |
-| `comprobacion_flujo.py` | Dom | 081 | Lo que un flujo o una calibración dijeron frente a lo que pasó: barras de baja a 0 p.u., cargas que no consumen, estado verdadero del trabajo y… |
+| `aplicacion/batch.py` | Apl | 034, 001, 022, 065 | Conversión de uno, varios o todos los alimentadores, en serie o en paralelo.; la red unida por zonal y SET con su informe, aperturas y oráculo |
+| `aplicacion/combine.py` | Apl | 034, 022 | Une todos los alimentadores en una sola red. |
+| `aplicacion/enlaces.py` | Apl | 022 | Puntos de enlace de la red unida con sus SET y caminos cerrados (entre SET, entre alimentadores, anillos): abre la maniobra más lejana de su fuente… |
+| `dominio/estructura.py` | Dom | 022, 055 | La estructura de la empresa: zonales, SET (con sus siglas) y alimentadores con su sistema eléctrico, sector típico y norma. |
+| `adaptadores/oraculo.py` | Ada | 034, 022, 057, 082, 111 | Flujo independiente con pandapower antes de escribir el DGS. |
+| `dominio/resolver_convergencia.py` | Dom | 081 | Si el «Caso base» no converge: su causa, corregir lo reconstruible, volver a medir, y decir lo que queda con su elemento y qué hacer. |
+| `aplicacion/preflight_contract.py` | Apl | 065 | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. |
+| `dominio/comprobacion_flujo.py` | Dom | 081 | Lo que un flujo o una calibración dijeron frente a lo que pasó: barras de baja a 0 p.u., cargas que no consumen, estado verdadero del trabajo y… |
 
 ### Motor: salida y módulos enchufables
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `schema.py` | Ada | 034, 054 | Perfiles de esquema DGS versionados. |
+| `adaptadores/schema.py` | Ada | 034, 054 | Perfiles de esquema DGS versionados. |
 | `schemas/pf21_dgs_1_8_4.json` | — | 034 | Perfil DGS genérico de PowerFactory. |
 | `schemas/perfil_empresa_v1.schema.json` | — | 086 | Esquema del perfil de empresa: cada clave con su tipo, la función que afecta, qué se hace sin ella y si es de la empresa o de una norma. |
 | `schemas/protecciones_v1.schema.json` | — | 049 | Contrato del dispositivo de protección (campos obligatorios, clases con su clase de PowerFactory, unidades admitidas y campos que pide cada unidad o… |
@@ -326,201 +329,205 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `schemas/revision_propuesta_v1.schema.json` | — | 047 | Contrato del dictamen de un rol: lo que se pide a Ollama y lo que se valida. |
 | `schemas/digital_twin_episode_v1.schema.json` | — | 024 | Esquema JSON publicado del episodio del gemelo digital, igual al contrato de `digital_twin/episode.py`. |
 | `schemas/digital_twin_episode_v2.schema.json` | — | 045 | Esquema JSON del episodio v2: cuatro casos y contexto físico con su identidad nativa y sus huellas. |
-| `dgs.py` | Ada | 034, 010, 011, 128, 021, 022, 054 | Escritor DGS: tablas, FID, cubículos, maniobras, capa gráfica y trazado GPS de las líneas. |
-| `validate.py` | Ada | 034, 010, 021, 022, 054 | Validación del DGS escrito, con el trazado GPS de cada línea.; reconoce la red por zonal y SET |
-| `export_tables.py` | Ada | 034 | DGS a Excel multihoja o TSV. |
-| `preview.py` | Ada | 034, 086 | Vista previa georreferenciada del modelo, con Leaflet propio dentro del fichero y su política de contenido. |
+| `adaptadores/dgs.py` | Ada | 034, 010, 011, 128, 021, 022, 054 | Escritor DGS: tablas, FID, cubículos, maniobras, capa gráfica y trazado GPS de las líneas. |
+| `adaptadores/validate.py` | Ada | 034, 010, 021, 022, 054 | Validación del DGS escrito, con el trazado GPS de cada línea.; reconoce la red por zonal y SET |
+| `adaptadores/export_tables.py` | Ada | 034 | DGS a Excel multihoja o TSV. |
+| `adaptadores/preview.py` | Ada | 034, 086 | Vista previa georreferenciada del modelo, con Leaflet propio dentro del fichero y su política de contenido. |
 | `recursos/NOTAS_VERSION.md` | — | 086 | Notas de la versión que muestra la pantalla «Acerca de». |
 | `recursos/leaflet/leaflet.js` | — | 086 | Leaflet, copia exacta con huella comprobada. |
 | `recursos/leaflet/leaflet.css` | — | 086 | Estilos de Leaflet, copia exacta con huella comprobada. |
 | `recursos/leaflet/LICENSE` | — | 086 | Licencia de la copia de Leaflet que sirve la propia web, sin salir a internet. |
-| `puertos.py` | Pue | 002 | Interfaces y versión de los módulos enchufables (`PUERTOS`) y puertos de los adaptadores internos de los casos de uso (`PUERTOS_ADAPTADORES`), en… |
-| `registro_modulos.py` | Apl | 002 | Descubre, filtra y carga los módulos. |
-| `escritores.py` | Ada | 002 | El escritor DGS como módulo y la entrega del modelo auditado a un escritor. |
+| `aplicacion/registro_modulos.py` | Apl | 002 | Descubre, filtra y carga los módulos. |
+| `adaptadores/escritores.py` | Ada | 002 | El escritor DGS como módulo y la entrega del modelo auditado a un escritor. |
 
 ### Motor: enlace con DIgSILENT
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `pf_arnes.py` | Ada | 019, 064, 091 | Arnés de DIgSILENT: turno del motor de la máquina, conexión común con reintento, caso restituido y proceso que se queda abierto. |
-| `pf_estado.py` | Ada | 064 | Foto del estado de DIgSILENT antes de una orden del servidor (caso, hora, escenario, variaciones) y su restitución si la orden falla. |
-| `powerfactory_env.py` | Ada | 034 | Dónde está la API de PowerFactory y qué intérprete la carga. |
-| `powerfactory_metadata.py` | Ada | 034, 078 | Procedencia del conversor en los objetos de PowerFactory, y la lectura única del flujo y su clasificación. |
-| `powerfactory_binding.py` | Ada | 004, 006, 011, 015, 078 | Vínculo auditable entre ejecución fuente, DGS, inventario releído y proyecto nativo aceptado, con el estado del «Caso base» de cada alimentador. |
-| `native_action.py` | Dom | 004, 006, 011 | Contexto firmado fuente–proyecto–alimentadores y vocabulario común de resultados para toda acción nativa. |
-| `carpeta_pf.py` | Ada | 005, 011 | Carpeta de DIgSILENT donde quedan los proyectos importados. |
-| `studies.py` | Apl | 034, 012, 056 | Qué estudios de PowerFactory se pueden correr y qué dato falta para cada uno. |
-| `estadistica_ordenes.py` | Dom | 081 | Estadística de las órdenes de DIgSILENT: registro por orden, descriptiva con IC 95 %, contraste de versiones (Mann-Whitney, Fisher) y fallos que se… |
+| `adaptadores/pf_arnes.py` | Ada | 019, 064, 091 | Arnés de DIgSILENT: turno del motor de la máquina, conexión común con reintento, caso restituido y proceso que se queda abierto. |
+| `adaptadores/pf_estado.py` | Ada | 064 | Foto del estado de DIgSILENT antes de una orden del servidor (caso, hora, escenario, variaciones) y su restitución si la orden falla. |
+| `adaptadores/powerfactory_env.py` | Ada | 034 | Dónde está la API de PowerFactory y qué intérprete la carga. |
+| `adaptadores/powerfactory_metadata.py` | Ada | 034, 078 | Procedencia del conversor en los objetos de PowerFactory, y la lectura única del flujo y su clasificación. |
+| `adaptadores/powerfactory_binding.py` | Ada | 004, 006, 011, 015, 078 | Vínculo auditable entre ejecución fuente, DGS, inventario releído y proyecto nativo aceptado, con el estado del «Caso base» de cada alimentador. |
+| `dominio/native_action.py` | Dom | 004, 006, 011 | Contexto firmado fuente–proyecto–alimentadores y vocabulario común de resultados para toda acción nativa. |
+| `adaptadores/carpeta_pf.py` | Ada | 005, 011 | Carpeta de DIgSILENT donde quedan los proyectos importados. |
+| `aplicacion/studies.py` | Apl | 034, 012, 056 | Qué estudios de PowerFactory se pueden correr y qué dato falta para cada uno. |
+| `dominio/estadistica_ordenes.py` | Dom | 081 | Estadística de las órdenes de DIgSILENT: registro por orden, descriptiva con IC 95 %, contraste de versiones (Mann-Whitney, Fisher) y fallos que se… |
 
 ### Motor: demanda y calibración
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `demanda_medida.py` | Apl | 004, 013, 021, 022, 025, 038, 039, 060, 088, 089, 091 | Máxima de cabecera por medidor y clientes importantes con su SED. |
-| `libros_por_anio.py` | Apl | 025 | Libros de demanda por año de medición: árbol de libros con su año (carpeta de cuatro cifras a cualquier altura) y su ruta relativa, años disponibles… |
-| `libros_nuevos.py` | Apl | 104 | Foto de una fuente de demanda y sus cambios, verificación de un libro de clientes (mes, registros frente a días × 96, nuevos, sin suministro, en… |
-| `cabecera_ancha.py` | Apl | 051 | Medición de cabecera entregada a lo ancho (una columna por alimentador, fecha y hora en dos columnas, hojas de activa y reactiva) y tablas de máximas… |
-| `loads.py` | Ada | 004, 002 | Reexportación temporal (hasta la T9 de la 002) de `dominio/cargas_plantilla.py`, donde pasó entero el lector de libros de cargas por SED. |
-| `cargas_pf.py` | Apl | 004, 007, 008, 016, 030, 093, 099 | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. |
-| `ajuste_cabecera.py` | Dom | 006, 021, 035, 041, 095 | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT. |
-| `oraculo_calibracion.py` | Ada | 083 | El oráculo antes de calibrar: los factores de arranque, sin gastar flujos de DIgSILENT. |
-| `crecimiento.py` | Apl | 029 | Tasa anual de crecimiento de la demanda de cada alimentador desde la medición de cabecera: máximas de los meses comunes del primer y el último año,… |
-| `valle.py` | Apl | 073 | El valle de un alcance desde la medición: limpieza de lo dudoso con su motivo, energía de sus medidores, inicio y duración por búsqueda exacta, por… |
-| `escaneo.py` | Apl | 028 | Reglas del escaneo de un alimentador antes de recalibrar: de quién es cada generador, banco y variación por los prefijos del conversor, resumen y… |
-| `transferencia_operador.py` | Dom | 098 | Transferencias de carga del operador: qué SED están transferidas, qué zona forman, qué abrir y qué cerrar para calibrar con la red de la fuente, y lo… |
-| `trafos_sed.py` | Apl | 020 | Transformador nuevo para una SED fija sobrecargada: la menor potencia de la tabla de fichas del perfil (por tensión primaria) con la máxima en el… |
-| `economia.py` | Dom | 004 | Datos de la evaluación técnico-económica (`ComTececo`). |
-| `evolucion_clientes.py` | Ada | 105 | Evolución de los clientes fijos de uno o varios alimentadores con los lectores del pronóstico: conciliación de fuentes, indicadores, mes copiado,… |
+| `aplicacion/demanda_medida.py` | Apl | 004, 013, 021, 022, 025, 038, 039, 060, 088, 089, 091 | Máxima de cabecera por medidor y clientes importantes con su SED. |
+| `aplicacion/libros_por_anio.py` | Apl | 025 | Libros de demanda por año de medición: árbol de libros con su año (carpeta de cuatro cifras a cualquier altura) y su ruta relativa, años disponibles… |
+| `aplicacion/libros_nuevos.py` | Apl | 104 | Foto de una fuente de demanda y sus cambios, verificación de un libro de clientes (mes, registros frente a días × 96, nuevos, sin suministro, en… |
+| `aplicacion/cabecera_ancha.py` | Apl | 051 | Medición de cabecera entregada a lo ancho (una columna por alimentador, fecha y hora en dos columnas, hojas de activa y reactiva) y tablas de máximas… |
+| `adaptadores/loads.py` | Ada | 004, 002 | Reexportación temporal (hasta la T9 de la 002) de `dominio/cargas_plantilla.py`, donde pasó entero el lector de libros de cargas por SED. |
+| `aplicacion/cargas_pf.py` | Apl | 004, 007, 008, 016, 030, 093, 099 | Lectura de los libros de demandas y cargas nuevas, y plan para DIgSILENT. |
+| `dominio/ajuste_cabecera.py` | Dom | 006, 021, 035, 041, 095 | Reparto y cuadre de las demandas a la máxima de cabecera, sin DIgSILENT. |
+| `adaptadores/oraculo_calibracion.py` | Ada | 083 | El oráculo antes de calibrar: los factores de arranque, sin gastar flujos de DIgSILENT. |
+| `aplicacion/crecimiento.py` | Apl | 029 | Tasa anual de crecimiento de la demanda de cada alimentador desde la medición de cabecera: máximas de los meses comunes del primer y el último año,… |
+| `aplicacion/valle.py` | Apl | 073 | El valle de un alcance desde la medición: limpieza de lo dudoso con su motivo, energía de sus medidores, inicio y duración por búsqueda exacta, por… |
+| `aplicacion/escaneo.py` | Apl | 028 | Reglas del escaneo de un alimentador antes de recalibrar: de quién es cada generador, banco y variación por los prefijos del conversor, resumen y… |
+| `dominio/transferencia_operador.py` | Dom | 098 | Transferencias de carga del operador: qué SED están transferidas, qué zona forman, qué abrir y qué cerrar para calibrar con la red de la fuente, y lo… |
+| `aplicacion/trafos_sed.py` | Apl | 020 | Transformador nuevo para una SED fija sobrecargada: la menor potencia de la tabla de fichas del perfil (por tensión primaria) con la máxima en el… |
+| `dominio/economia.py` | Dom | 004 | Datos de la evaluación técnico-económica (`ComTececo`). |
+| `adaptadores/evolucion_clientes.py` | Ada | 105 | Evolución de los clientes fijos de uno o varios alimentadores con los lectores del pronóstico: conciliación de fuentes, indicadores, mes copiado,… |
 | `dominio/meses_copiados.py` | Dom | 105 | Mes de cada registro de 15 minutos y detección del libro mensual que repite el mes anterior, día a día, por mayoría de las series. |
 | `dominio/evolucion_mensual.py` | Dom | 105 | Indicadores mensuales de una serie (máximas con su instante, medias, energías, FP, factor de carga, registros) y su crecimiento, variación, tendencia… |
 | `dominio/conciliacion_clientes.py` | Dom | 105 | Veredicto de cada cliente frente a sus fuentes, cadenas de renumeración, renumeraciones posibles por CL o SED y fijos por encima de la cabecera. |
+| `aplicacion/__init__.py` | Apl | 002 | Paquete de la capa aplicacion. |
 
 ### Motor: obras y optimización
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `obras_pf.py` | Apl | 011, 016, 042, 048, 098 | Obras de mejora sin DIgSILENT: modelo y validación de cada obra (lo de «Sin proyecto» pasa a «Con proyecto». |
-| `troncal.py` | Dom | 016 | Troncal de las obras sin DIgSILENT: camino continuo más largo desde la cabecera sobre el árbol de caminos más cortos en metros (anillos cerrados… |
-| `escalera_optima.py` | Apl | 025, 073, 098 | Escalera optimizada de obras: variantes en el orden bancos, regulador, terna y sección con sus combinaciones, criterio de «no empeorar» por sorteo,… |
-| `optimizacion_oraculo.py` | Ada | 052, 073, 098 | «Con proyecto» optimizado con el flujo del gemelo: obras sobre el grafo, búsqueda bayesiana (Optuna), frente de Pareto (NSGA-II), sorteos de Markov y… |
-| `perfil_tension.py` | Apl | 094 | Perfil de tensión de un alimentador (tensión de cada barra de media frente a su distancia eléctrica) y bancos ubicados según el perfil hasta la… |
-| `catalogo_reguladores.py` | Apl | 025 | Reguladores de tensión de catálogo (Eaton VR-32, 50 Hz): unidad por tensión del sistema y por corriente, y los datos de su `TypVoltreg`. |
-| `instalacion_ternas.py` | Apl | 084 | Dos o más ternas subterráneas: una por ducto, triangular o rectangular, y la capacidad del fabricante para esa configuración, de la tabla del perfil. |
-| `set_nueva.py` | Apl | 042 | SET nueva para las cargas que la red existente no atiende: potencia de diseño a la vida útil con la tasa de la 029 y el factor de seguridad, módulo… |
-| `sitio_set.py` | Apl | 084 | Sitio de una SET nueva: distancia al trazado de los alimentadores y a las calles de un fichero local, punto apartado y «sin verificar en plano» si… |
-| `vias.py` | Apl | 016 | Trazado de una línea nueva por la vía pública con un enrutador OSRM (OpenStreetMap): ruta con sus curvas, largo con los accesos, metros fuera de vía… |
-| `madrl_obras.py` | Ada | 074 | Entorno multiagente de obras, sus controles, su fidelidad contra DIgSILENT y la puerta del aprendizaje. |
-| `madrl_politica.py` | Ada | 074 | Política GATv2 compartida entre agentes, con crítico central y PPO, del piloto MADRL. |
-| `medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
-| `modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
-| `obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |
-| `seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |
+| `aplicacion/obras_pf.py` | Apl | 011, 016, 042, 048, 098 | Obras de mejora sin DIgSILENT: modelo y validación de cada obra (lo de «Sin proyecto» pasa a «Con proyecto». |
+| `dominio/troncal.py` | Dom | 016 | Troncal de las obras sin DIgSILENT: camino continuo más largo desde la cabecera sobre el árbol de caminos más cortos en metros (anillos cerrados… |
+| `aplicacion/escalera_optima.py` | Apl | 025, 073, 098 | Escalera optimizada de obras: variantes en el orden bancos, regulador, terna y sección con sus combinaciones, criterio de «no empeorar» por sorteo,… |
+| `adaptadores/optimizacion_oraculo.py` | Ada | 052, 073, 098 | «Con proyecto» optimizado con el flujo del gemelo: obras sobre el grafo, búsqueda bayesiana (Optuna), frente de Pareto (NSGA-II), sorteos de Markov y… |
+| `aplicacion/perfil_tension.py` | Apl | 094 | Perfil de tensión de un alimentador (tensión de cada barra de media frente a su distancia eléctrica) y bancos ubicados según el perfil hasta la… |
+| `aplicacion/catalogo_reguladores.py` | Apl | 025 | Reguladores de tensión de catálogo (Eaton VR-32, 50 Hz): unidad por tensión del sistema y por corriente, y los datos de su `TypVoltreg`. |
+| `aplicacion/instalacion_ternas.py` | Apl | 084 | Dos o más ternas subterráneas: una por ducto, triangular o rectangular, y la capacidad del fabricante para esa configuración, de la tabla del perfil. |
+| `aplicacion/set_nueva.py` | Apl | 042 | SET nueva para las cargas que la red existente no atiende: potencia de diseño a la vida útil con la tasa de la 029 y el factor de seguridad, módulo… |
+| `aplicacion/sitio_set.py` | Apl | 084 | Sitio de una SET nueva: distancia al trazado de los alimentadores y a las calles de un fichero local, punto apartado y «sin verificar en plano» si… |
+| `aplicacion/vias.py` | Apl | 016 | Trazado de una línea nueva por la vía pública con un enrutador OSRM (OpenStreetMap): ruta con sus curvas, largo con los accesos, metros fuera de vía… |
+| `adaptadores/madrl_obras.py` | Ada | 074 | Entorno multiagente de obras, sus controles, su fidelidad contra DIgSILENT y la puerta del aprendizaje. |
+| `adaptadores/madrl_politica.py` | Ada | 074 | Política GATv2 compartida entre agentes, con crítico central y PPO, del piloto MADRL. |
+| `dominio/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
+| `dominio/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
+| `aplicacion/obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |
+| `dominio/seleccion_bayesiana.py` | Dom | 087 | Cuándo dejar de sortear una variante: posterior Beta de que cumpla, y la certeza con que se dice. |
 
 ### Motor: estudios
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `estudios_pf.py` | Apl | 011, 012, 049 | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen (los de la 012 según el libro de la empresa y la… |
-| `estudios_red_pf.py` | Apl | 012 | Resultados de confiabilidad y capacidad sin DIgSILENT: índices por alimentador y su comprobación por cargas, ENS total y diferencias, aportes, mejora… |
-| `datos_empresa.py` | Apl | 012, 049 | Libro de la empresa de la confiabilidad, la capacidad y las protecciones: hojas, columnas y unidades validadas con hoja, fila y columna. |
-| `entradas_estudios.py` | Ada | 012 | Entradas que faltan a los estudios cargadas por el operador: texto de TXT, PDF o imagen (OCR), tablas con cualquier separador, columnas por su… |
-| `historico_interrupciones.py` | Apl | 012 | El libro de la empresa como histórico de interrupciones: columnas reconocidas por contenido y sinónimos, filtros de programadas, media tensión y… |
-| `protecciones.py` | Apl | 049 | Estudio de protecciones sin DIgSILENT: contrato de cada ajuste (modelo, unidades, TC/TT, poder de corte y procedencia), fila DEFAULT de la fuente que… |
-| `transferencia_pf.py` | Apl | 011, 110, 117, 121, 123, 125, 129 | Transferencia de carga sin DIgSILENT: pasos del camino y carga transferida, viabilidad y elemento que limita, máximo por seccionador y por nodo,… |
-| `plano_red.py` | Ada | 111 | El plano de la red: cada elemento por su código de la fuente y su nombre en DIgSILENT (con aviso de colisiones), la revisión de la red y la vista con… |
-| `pagina_plano.py` | Ada | 111 | La página del plano generada por el servidor: Leaflet propio con lienzo, capas por vista, nivel de detalle solo gráfico y reversible, leyenda con… |
-| `variacion_plano.py` | Apl | 111 | La variación del plano en el espacio, nunca en el caso base: maniobras, tramos nuevos con su longitud GIS y eléctrica, reglas de la edición, equipos… |
-| `resultados_plano.py` | Ada | 111 | Los resultados sobre el plano: elección del motor (DIgSILENT o el abierto), la variación aplicada a una copia del modelo y estudiada por elemento,… |
+| `aplicacion/estudios_pf.py` | Apl | 011, 012, 049 | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen (los de la 012 según el libro de la empresa y la… |
+| `aplicacion/estudios_red_pf.py` | Apl | 012 | Resultados de confiabilidad y capacidad sin DIgSILENT: índices por alimentador y su comprobación por cargas, ENS total y diferencias, aportes, mejora… |
+| `aplicacion/datos_empresa.py` | Apl | 012, 049 | Libro de la empresa de la confiabilidad, la capacidad y las protecciones: hojas, columnas y unidades validadas con hoja, fila y columna. |
+| `adaptadores/entradas_estudios.py` | Ada | 012 | Entradas que faltan a los estudios cargadas por el operador: texto de TXT, PDF o imagen (OCR), tablas con cualquier separador, columnas por su… |
+| `aplicacion/historico_interrupciones.py` | Apl | 012 | El libro de la empresa como histórico de interrupciones: columnas reconocidas por contenido y sinónimos, filtros de programadas, media tensión y… |
+| `aplicacion/protecciones.py` | Apl | 049 | Estudio de protecciones sin DIgSILENT: contrato de cada ajuste (modelo, unidades, TC/TT, poder de corte y procedencia), fila DEFAULT de la fuente que… |
+| `aplicacion/transferencia_pf.py` | Apl | 011, 110, 117, 121, 123, 125, 129 | Transferencia de carga sin DIgSILENT: pasos del camino y carga transferida, viabilidad y elemento que limita, máximo por seccionador y por nodo,… |
+| `adaptadores/plano_red.py` | Ada | 111 | El plano de la red: cada elemento por su código de la fuente y su nombre en DIgSILENT (con aviso de colisiones), la revisión de la red y la vista con… |
+| `adaptadores/pagina_plano.py` | Ada | 111 | La página del plano generada por el servidor: Leaflet propio con lienzo, capas por vista, nivel de detalle solo gráfico y reversible, leyenda con… |
+| `aplicacion/variacion_plano.py` | Apl | 111 | La variación del plano en el espacio, nunca en el caso base: maniobras, tramos nuevos con su longitud GIS y eléctrica, reglas de la edición, equipos… |
+| `adaptadores/resultados_plano.py` | Ada | 111 | Los resultados sobre el plano: elección del motor (DIgSILENT o el abierto), la variación aplicada a una copia del modelo y estudiada por elemento,… |
 
 ### Motor: informes
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `informes.py` | Ada | 017, 107, 108, 115, 121, 122, 128, 129, 132, 134 | Informes de estudio eléctrico y de factibilidad sin DIgSILENT: qué toman del perfil de empresa (modelos, banda y umbral, bandas de coloreado,… |
-| `informe_docx.py` | Ada | 017, 106, 113, 114, 118, 120, 122, 128, 132, 135 | Escribe en Word los informes de estudio eléctrico y de factibilidad como esquemas generales sobre el modelo de la empresa: de él solo la forma… |
-| `libro_informe.py` | Ada | 066 | El libro Excel de cada informe, relleno desde el modelo de la empresa con el plano de su perfil |
-| `libros_informe.py` | Ada | 017 | Libro de pérdidas de la empresa (sistema eléctrico, % reconocidos en potencia y energía, precio de compra), buscado por los nombres de hojas y… |
-| `mapa_informe.py` | Ada | 017, 116, 133 | Imágenes del informe de estudio (ubicación, tensión, cargabilidad y detalle de las obras) con el GPS y los resultados del flujo de DIgSILENT. |
-| `mapa_cargas.py` | Ada | 017, 109, 111, 112, 124 | El mapa de las cargas nuevas (punto, nodo de conexión, enlace y red del alimentador), sus diferencias con lo leído en DIgSILENT, el punto de diseño… |
-| `documentos_solicitud.py` | Ada | 017, 136, 141 | PDF del solicitante (carta, oficio, ficha del punto de diseño): capa de texto por página y, en las escaneadas, OCR con Tesseract y la imagen… |
-| `archivo_informes.py` | Ada | 105 | Carpeta de archivo de la máquina (`config/archivo.json`) y `archivar(fichero, tipo, ambito, periodo)`: copia por temporal con reintentos, sin borrar… |
-| `correo/__init__.py` | Pue | 110 | Contratos del envío: `ResultadoEnvio`, `ProveedorCorreo` y, hasta que la 109 publique los suyos, `FuenteDeCredenciales` y `Compartidor`. |
-| `correo/borrador.py` | Ada | 110 | Borrador del correo (cuenta, para, cc, cco, asunto, cuerpo, adjuntos o enlace) y su firma SHA-256, que vuelve a leer los adjuntos del disco al… |
-| `correo/envios.py` | Ada | 110 | Diario durable de los envíos de un espacio (`<espacio>/envios/<clave>.json`): reserva exclusiva de la clave antes de llamar al proveedor (también la… |
-| `correo/mensaje.py` | Ada | 110 | El mensaje MIME del envío (`email.message`), con el `Message-ID` de la clave y los adjuntos releídos y comparados con su huella. |
-| `correo/proveedores.py` | Ada | 110 | `EnvioGmail` (`gmail.send`) y `EnvioOutlook` (`Mail.Send`) con `requests`, sin redirecciones ni proxy del entorno, con plazo, salida declarada,… |
-| `correo/de_la_109.py` | Ada | 110 | La 110 sobre las cuentas de la 109: `CredencialesDeLa109` da el token de `Cuentas.acceso` de la cuenta conectada en el espacio (solo con el permiso… |
+| `adaptadores/informes.py` | Ada | 017, 107, 108, 115, 121, 122, 128, 129, 132, 134 | Informes de estudio eléctrico y de factibilidad sin DIgSILENT: qué toman del perfil de empresa (modelos, banda y umbral, bandas de coloreado,… |
+| `adaptadores/informe_docx.py` | Ada | 017, 106, 113, 114, 118, 120, 122, 128, 132, 135 | Escribe en Word los informes de estudio eléctrico y de factibilidad como esquemas generales sobre el modelo de la empresa: de él solo la forma… |
+| `adaptadores/libro_informe.py` | Ada | 066 | El libro Excel de cada informe, relleno desde el modelo de la empresa con el plano de su perfil |
+| `adaptadores/libros_informe.py` | Ada | 017 | Libro de pérdidas de la empresa (sistema eléctrico, % reconocidos en potencia y energía, precio de compra), buscado por los nombres de hojas y… |
+| `adaptadores/mapa_informe.py` | Ada | 017, 116, 133 | Imágenes del informe de estudio (ubicación, tensión, cargabilidad y detalle de las obras) con el GPS y los resultados del flujo de DIgSILENT. |
+| `adaptadores/mapa_cargas.py` | Ada | 017, 109, 111, 112, 124 | El mapa de las cargas nuevas (punto, nodo de conexión, enlace y red del alimentador), sus diferencias con lo leído en DIgSILENT, el punto de diseño… |
+| `adaptadores/documentos_solicitud.py` | Ada | 017, 136, 141 | PDF del solicitante (carta, oficio, ficha del punto de diseño): capa de texto por página y, en las escaneadas, OCR con Tesseract y la imagen… |
+| `adaptadores/archivo_informes.py` | Ada | 105 | Carpeta de archivo de la máquina (`config/archivo.json`) y `archivar(fichero, tipo, ambito, periodo)`: copia por temporal con reintentos, sin borrar… |
+| `puertos/correo/__init__.py` | Pue | 110 | Contratos del envío: `ResultadoEnvio`, `ProveedorCorreo` y, hasta que la 109 publique los suyos, `FuenteDeCredenciales` y `Compartidor`. |
+| `adaptadores/correo/borrador.py` | Ada | 110 | Borrador del correo (cuenta, para, cc, cco, asunto, cuerpo, adjuntos o enlace) y su firma SHA-256, que vuelve a leer los adjuntos del disco al… |
+| `adaptadores/correo/envios.py` | Ada | 110 | Diario durable de los envíos de un espacio (`<espacio>/envios/<clave>.json`): reserva exclusiva de la clave antes de llamar al proveedor (también la… |
+| `adaptadores/correo/mensaje.py` | Ada | 110 | El mensaje MIME del envío (`email.message`), con el `Message-ID` de la clave y los adjuntos releídos y comparados con su huella. |
+| `adaptadores/correo/proveedores.py` | Ada | 110 | `EnvioGmail` (`gmail.send`) y `EnvioOutlook` (`Mail.Send`) con `requests`, sin redirecciones ni proxy del entorno, con plazo, salida declarada,… |
+| `adaptadores/correo/de_la_109.py` | Ada | 110 | La 110 sobre las cuentas de la 109: `CredencialesDeLa109` da el token de `Cuentas.acceso` de la cuenta conectada en el espacio (solo con el permiso… |
+| `adaptadores/correo/__init__.py` | Ada | 002 | Paquete de `correo` en la capa adaptadores. |
 
 ### Motor: PIDE y planeamiento
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `pide.py` | Apl | 024 | Metodología del PIDE (RM 428-2017-MEM/DM): proyección y densidad de carga por cuadrículas de la Tabla N.º 2, diagnóstico con su causa (caída, FP,… |
-| `pide_economia.py` | Apl | 024, 073 | Evaluación económica y priorización del PIDE: libro CAPEX por nombres del perfil (sin datos personales), anualidad, costo anual, VAN y TIR del art. |
-| `pide_dataset.py` | Ada | 024 | Corpus PIDE universal desde un expediente de la empresa en solo lectura: custodia, calidad y fragmentos de texto. |
-| `estudio_planeamiento.py` | Dom | 072 | Estudio de planeamiento: del año de presentación, cada 4 años, salen el año 00 y los años de largo plazo y del PIDE. |
-| `proyeccion_mercado.py` | Apl | 072 | Proyección anual por sistema desde el Formato 01: métodos comparados contra lo ocurrido, sin mirar el futuro. |
-| `proyeccion_anual.py` | Ada | 031 | Proyección de todos los años del PIDE: competición por clase y magnitud con la regla declarada antes de medir, Formato 01 desde la cabecera con sus… |
-| `costos_fuentes.py` | Apl | 072 | Costos oficiales: contrato de fuente, lectores del SICODI público y de los módulos estándar de transmisión, cruce por código, tensión, estructura y… |
-| `metrados.py` | Apl | 072 | Metrados por código desde el modelo de la red, y su valoración con costos oficiales. |
-| `formatos_pide.py` | Apl | 072 | Los formatos 01 a 15 de un estudio con cada hueco nombrado y su motivo. |
-| `informes_planeamiento.py` | Ada | 072 | Los entregables de un estudio, un Word ligero por módulo, desde un mismo cálculo. |
-| `registro_normativo.py` | Dom | 108, 107 | Registro normativo común de las specs 107 y 108 (tarjeta RN, dueña la 108): normas con estado jurídico (vigente_comprobada, modificada, prepublicada,… |
+| `aplicacion/pide.py` | Apl | 024 | Metodología del PIDE (RM 428-2017-MEM/DM): proyección y densidad de carga por cuadrículas de la Tabla N.º 2, diagnóstico con su causa (caída, FP,… |
+| `aplicacion/pide_economia.py` | Apl | 024, 073 | Evaluación económica y priorización del PIDE: libro CAPEX por nombres del perfil (sin datos personales), anualidad, costo anual, VAN y TIR del art. |
+| `adaptadores/pide_dataset.py` | Ada | 024 | Corpus PIDE universal desde un expediente de la empresa en solo lectura: custodia, calidad y fragmentos de texto. |
+| `dominio/estudio_planeamiento.py` | Dom | 072 | Estudio de planeamiento: del año de presentación, cada 4 años, salen el año 00 y los años de largo plazo y del PIDE. |
+| `aplicacion/proyeccion_mercado.py` | Apl | 072 | Proyección anual por sistema desde el Formato 01: métodos comparados contra lo ocurrido, sin mirar el futuro. |
+| `adaptadores/proyeccion_anual.py` | Ada | 031 | Proyección de todos los años del PIDE: competición por clase y magnitud con la regla declarada antes de medir, Formato 01 desde la cabecera con sus… |
+| `aplicacion/costos_fuentes.py` | Apl | 072 | Costos oficiales: contrato de fuente, lectores del SICODI público y de los módulos estándar de transmisión, cruce por código, tensión, estructura y… |
+| `aplicacion/metrados.py` | Apl | 072 | Metrados por código desde el modelo de la red, y su valoración con costos oficiales. |
+| `aplicacion/formatos_pide.py` | Apl | 072 | Los formatos 01 a 15 de un estudio con cada hueco nombrado y su motivo. |
+| `adaptadores/informes_planeamiento.py` | Ada | 072 | Los entregables de un estudio, un Word ligero por módulo, desde un mismo cálculo. |
+| `dominio/registro_normativo.py` | Dom | 108, 107 | Registro normativo común de las specs 107 y 108 (tarjeta RN, dueña la 108): normas con estado jurídico (vigente_comprobada, modificada, prepublicada,… |
 | `adaptadores/entrada/capex.py` | Ada | 072, 024 | Recibo de la lectura CAPEX efectiva desde descriptor protegido. |
-| `pronostico_demanda.py` | Ada | 089 | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera,… |
-| `planeamiento_etapas.py` | Dom | 087 | Cuándo construir cada obra: árbol de decisión y proceso de decisión de Markov. |
+| `adaptadores/pronostico_demanda.py` | Ada | 089 | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera,… |
+| `dominio/planeamiento_etapas.py` | Dom | 087 | Cuándo construir cada obra: árbol de decisión y proceso de decisión de Markov. |
 
 ### Motor: PIT (plan de inversiones en transmisión)
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `pit/__init__.py` | Dom | 107 | Paquete del PIT, aparte del PIDE, y su error común. |
-| `pit/ambito.py` | Dom | 107 | Áreas de demanda del perfil y los elementos de cada una, sin mezclar áreas. |
-| `pit/red_area.py` | Apl | 107 | Contrato neutro RedArea y lector del libro de la red del perfil. |
-| `pit/red_pandapower.py` | Ada | 107 | De RedArea a pandapower (dos y tres devanados, compensación) y flujo del motor abierto con potencia sin servir y P y Q de cada línea y transformador. |
-| `pit/motores.py` | Ada | 107 | Matriz estudio × motor (abierto por defecto, DIgSILENT con licencia). |
-| `pit/diagnostico.py` | Ada | 107 | Diagnóstico por año: demanda por barra de SET, caso base y N-1 contra los límites del registro o del perfil. |
-| `pit/programa.py` | Dom | 107 | Programa por año, titular y área, con bajas y reemplazos. |
-| `pit/observaciones.py` | Dom | 107 | Observaciones del regulador con su respuesta, enlazadas con la traza del expediente, y el documento de absolución con lo que cambió por cada una. |
-| `pit/alternativas.py` | Ada | 107 | Alternativas excluyentes: inversión, COyM, pérdidas, confiabilidad y valor presente con la misma demanda y motor. |
-| `pit/cuadros.py` | Ada | 107 | Cuadros desde su definición en el registro, formatos aplicables de la norma vigente (transcritos o nombrados), celdas con traza, vínculos entre… |
-| `pit/f208.py` | Dom | 107 | Formato F-208 (fallas e índices de desempeño): estructura leída de la plantilla transcrita, celdas con traza desde las fuentes importadas, «Cumple»… |
-| `pit/reserva.py` | Dom | 107 | Transformadores de reserva compartida: horizonte, costo de la ENS, umbral de beneficio/costo y exclusión por tensión desde el registro. |
-| `pit/llenado.py` | Ada | 107 | Llenado de los formatos que exige el estudio del plan (regla del num. |
-| `pit/plantillas.py` | Ada | 107 | Motor de llenado de un formato desde su plantilla transcrita y su mapeo declarado (config/pit_mapeo_formatos.json): comprueba rótulos y marcas, llena… |
-| `pit/demanda_regulatoria.py` | Ada | 107 | Demanda regulatoria (paso 3b): curvas por devanado, SET y sistema sumadas instante a instante (los instantes incompletos se excluyen y se cuentan),… |
-| `pit/formatos_red.py` | Ada | 107 | Datos de F-001, F-002 y F-003 desde la red del área, con los niveles de la regla 12.1.1 y sus cálculos declarados (Pcu%, Pfe%, B con la frecuencia… |
-| `pit/expediente.py` | Ada | 107 | Expediente aparte del PIDE: instantánea del registro, aviso de modificatoria sin recalcular, reglas aplicadas, determinismo, memoria de cada sección,… |
-| `pit/informe.py` | Ada | 107 | Resumen ejecutivo del PIT: demanda, alternativa elegida y programa, con cada cifra tomada de los ficheros del expediente y su huella. |
-| `pit/unifilar.py` | Ada | 107 | Unifilar F-212 por alternativa y año: un espacio papel A3 por hoja con marco, rótulo y leyenda, barras con tensión nominal y calculada,… |
-| `web/rutas_pit.py` | Pre | 107 | Rutas /api/pit: áreas, matriz de motores, entradas (los cuatro libros de Excel y JSON), diagnóstico y expediente en cola con sus rutas dentro del… |
-| `pit/armado.py` | Ada | 107 | Armado del expediente del PIT de punta a punta. |
-| `pit/demanda_cadena.py` | Ada | 107 | Demanda regulatoria (paso 3c): F-108 (ventas proyectadas por nivel), F-109 (energía por barra con los FE de la fijación vigente de la empresa en… |
-| `pit/demanda_resumen.py` | Ada | 107 | Demanda regulatoria (paso 3d): la historia del −20 al 0 (F-104 con las exógenas de la 031 y F-105), los modelos comparados con su ecuación y sus… |
-| `pit/densidad.py` | Ada | 107 | F-123: los mapas de densidad de carga de los años de la nota de la plantilla, con la demanda de cada SED crecida con el factor regulatorio de su… |
-| `pit/elementos_modificacion.py` | Ada | 107 | Los elementos de las modificaciones del PIT (agregan, reprograman, eliminan, baja) desde el registro, que guarda sus nombres por huella: casa por… |
-| `pit/generacion.py` | Ada | 107 | F-124: los datos de generación deducidos del medidor de generación de cada central del perfil (`centrales_termicas`), con el lector de cabecera de la… |
-| `pit/norma.py` | Dom | 107 | Lo que la Norma Tarifas fija para el PIT, leído del registro: años de la programación, horizonte, factor de potencia de MT, N-1 y reglas de la… |
-| `pit/usuarios_libres.py` | Ada | 107 | F-113 a F-118: las demandas incorporadas del libro de cargas nuevas y los usuarios libres de `pit.usuarios_libres`, ubicados por su alimentador en la… |
+| `dominio/pit/__init__.py` | Dom | 107 | Paquete del PIT, aparte del PIDE, y su error común. |
+| `dominio/pit/ambito.py` | Dom | 107 | Áreas de demanda del perfil y los elementos de cada una, sin mezclar áreas. |
+| `aplicacion/pit/red_area.py` | Apl | 107 | Contrato neutro RedArea y lector del libro de la red del perfil. |
+| `adaptadores/pit/red_pandapower.py` | Ada | 107 | De RedArea a pandapower (dos y tres devanados, compensación) y flujo del motor abierto con potencia sin servir y P y Q de cada línea y transformador. |
+| `adaptadores/pit/motores.py` | Ada | 107 | Matriz estudio × motor (abierto por defecto, DIgSILENT con licencia). |
+| `adaptadores/pit/diagnostico.py` | Ada | 107 | Diagnóstico por año: demanda por barra de SET, caso base y N-1 contra los límites del registro o del perfil. |
+| `dominio/pit/programa.py` | Dom | 107 | Programa por año, titular y área, con bajas y reemplazos. |
+| `dominio/pit/observaciones.py` | Dom | 107 | Observaciones del regulador con su respuesta, enlazadas con la traza del expediente, y el documento de absolución con lo que cambió por cada una. |
+| `adaptadores/pit/alternativas.py` | Ada | 107 | Alternativas excluyentes: inversión, COyM, pérdidas, confiabilidad y valor presente con la misma demanda y motor. |
+| `adaptadores/pit/cuadros.py` | Ada | 107 | Cuadros desde su definición en el registro, formatos aplicables de la norma vigente (transcritos o nombrados), celdas con traza, vínculos entre… |
+| `dominio/pit/f208.py` | Dom | 107 | Formato F-208 (fallas e índices de desempeño): estructura leída de la plantilla transcrita, celdas con traza desde las fuentes importadas, «Cumple»… |
+| `dominio/pit/reserva.py` | Dom | 107 | Transformadores de reserva compartida: horizonte, costo de la ENS, umbral de beneficio/costo y exclusión por tensión desde el registro. |
+| `adaptadores/pit/llenado.py` | Ada | 107 | Llenado de los formatos que exige el estudio del plan (regla del num. |
+| `adaptadores/pit/plantillas.py` | Ada | 107 | Motor de llenado de un formato desde su plantilla transcrita y su mapeo declarado (config/pit_mapeo_formatos.json): comprueba rótulos y marcas, llena… |
+| `adaptadores/pit/demanda_regulatoria.py` | Ada | 107 | Demanda regulatoria (paso 3b): curvas por devanado, SET y sistema sumadas instante a instante (los instantes incompletos se excluyen y se cuentan),… |
+| `adaptadores/pit/formatos_red.py` | Ada | 107 | Datos de F-001, F-002 y F-003 desde la red del área, con los niveles de la regla 12.1.1 y sus cálculos declarados (Pcu%, Pfe%, B con la frecuencia… |
+| `adaptadores/pit/expediente.py` | Ada | 107 | Expediente aparte del PIDE: instantánea del registro, aviso de modificatoria sin recalcular, reglas aplicadas, determinismo, memoria de cada sección,… |
+| `adaptadores/pit/informe.py` | Ada | 107 | Resumen ejecutivo del PIT: demanda, alternativa elegida y programa, con cada cifra tomada de los ficheros del expediente y su huella. |
+| `adaptadores/pit/unifilar.py` | Ada | 107 | Unifilar F-212 por alternativa y año: un espacio papel A3 por hoja con marco, rótulo y leyenda, barras con tensión nominal y calculada,… |
+| `presentacion/web/rutas_pit.py` | Pre | 107 | Rutas /api/pit: áreas, matriz de motores, entradas (los cuatro libros de Excel y JSON), diagnóstico y expediente en cola con sus rutas dentro del… |
+| `adaptadores/pit/armado.py` | Ada | 107 | Armado del expediente del PIT de punta a punta. |
+| `adaptadores/pit/demanda_cadena.py` | Ada | 107 | Demanda regulatoria (paso 3c): F-108 (ventas proyectadas por nivel), F-109 (energía por barra con los FE de la fijación vigente de la empresa en… |
+| `adaptadores/pit/demanda_resumen.py` | Ada | 107 | Demanda regulatoria (paso 3d): la historia del −20 al 0 (F-104 con las exógenas de la 031 y F-105), los modelos comparados con su ecuación y sus… |
+| `adaptadores/pit/densidad.py` | Ada | 107 | F-123: los mapas de densidad de carga de los años de la nota de la plantilla, con la demanda de cada SED crecida con el factor regulatorio de su… |
+| `adaptadores/pit/elementos_modificacion.py` | Ada | 107 | Los elementos de las modificaciones del PIT (agregan, reprograman, eliminan, baja) desde el registro, que guarda sus nombres por huella: casa por… |
+| `adaptadores/pit/generacion.py` | Ada | 107 | F-124: los datos de generación deducidos del medidor de generación de cada central del perfil (`centrales_termicas`), con el lector de cabecera de la… |
+| `dominio/pit/norma.py` | Dom | 107 | Lo que la Norma Tarifas fija para el PIT, leído del registro: años de la programación, horizonte, factor de potencia de MT, N-1 y reglas de la… |
+| `adaptadores/pit/usuarios_libres.py` | Ada | 107 | F-113 a F-118: las demandas incorporadas del libro de cargas nuevas y los usuarios libres de `pit.usuarios_libres`, ubicados por su alimentador en la… |
+| `adaptadores/pit/__init__.py` | Ada | 002 | Paquete de `pit` en la capa adaptadores. |
+| `aplicacion/pit/__init__.py` | Apl | 002 | Paquete de `pit` en la capa aplicacion. |
 
 ### Motor: VAD y VNR (estudio de costos y Guía del VNR, spec 108)
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `__init__.py` | Apl | 108 | Paquete del estudio de costos del VAD (empresa modelo eficiente), aparte del PIDE y del PIT. |
-| `anexo2.py` | Apl | 108 | Validación de las tablas del estudio contra los formatos del anexo 2 transcritos (tabla, fila, columna, unidad, periodo), sin rellenar nada: huecos… |
-| `balance.py` | Apl | 108 | Balance de potencia y energía (6.10, A-VI) real y adaptado, con las fórmulas del formato transcrito. |
-| `calidad.py` | Apl | 108 | Calidad de servicio de la empresa modelo con el criterio del num. |
-| `caracterizacion.py` | Apl | 108 | Caracterización de la carga del Anexo 4 desde la medición: factor de carga, FCPP y FCFP en su periodo, pérdidas con la corriente y empíricas, y curva… |
-| `costos.py` | Ada | 108 | Costo estándar de la empresa modelo: valora solo la red dimensionada (`CostoEstandar` exige un `Dimensionamiento` con su huella) con el SICODI leído… |
-| `costos_explotacion.py` | Apl | 108 | VNR no eléctrico y costos de explotación por rubro del registro: total estándar solo con partidas dimensionadas y su fuente. |
-| `coym.py` | Apl | 108 | COyM del Anexo 7: cantidades adaptadas × costo unitario estándar por sistema y etapa, con los componentes y unidades del cuadro del registro (sin… |
-| `dimensionamiento.py` | Ada | 108 | Dimensionamiento de la empresa modelo del Anexo 6 sobre el modelo rural, sin tocar un vértice: potencia de cada SED con la tabla de transformadores… |
-| `entregables.py` | Ada | 108 | Entregables del estudio VAD: Formatos A y B del anexo 2 en Excel con una hoja por formato y cada celda calculada con su fórmula de Excel traducida de… |
-| `estudio.py` | Apl | 108 | Registro del estudio VAD (empresa del perfil, grupo, periodo, versión del TdR, estado) en `<espacio>/vad/<id>/estudio.json`, sin tocar las carpetas… |
-| `formulas.py` | Apl | 108 | Intérprete cerrado de las fórmulas del registro normativo del VAD (sin eval): números, variables, + - * / **, paréntesis y suma(n, …) sobre series… |
-| `informes.py` | Ada | 108 | Informe de Resultados Relevantes (anexo 3) e Informe del Estudio (numeral 9) en Word con los apartados del registro, cifras con origen o huecos… |
-| `linea.py` | Ada | 108 | La línea del VAD tras la empresa modelo: el modelo rural desde la red del espacio, el dimensionamiento con el sustento del caso y el costo estándar… |
-| `modelo_rural.py` | Ada | 108 | Modelo georreferenciado rural del Anexo 6: copia en solo lectura las trazas, longitudes y SED reales del VNR canónico o de la vía TXT/MDB… |
-| `modelo_urbano.py` | Ada | 108 | Anexo 5 urbano, las incoherencias del TdR resueltas como decidió 28: TRI_AREA, R_BT y NTRI en forma cerrada desde las fórmulas del registro, con… |
-| `observaciones.py` | Ada | 108 | Observaciones del regulador al estudio VAD en `<espacio>/vad/<id>/observaciones.json`: número, fecha, texto y lo que afectan (tablas del registro,… |
-| `pide_vad.py` | Apl | 108 | Contrato 072 → 108 (pide_vad_v1): lee el PIDE aprobado que entrega la 072 y calcula el VAD ajustado con el FRC de `util.frc`, la tasa de la LCE… |
-| `resultados_vad.py` | Apl | 108 | Cargo fijo y VAD de cada nivel por sistema y ponderado a nivel empresa, con los conceptos, variantes, fórmulas y ponderación del TdR registrado. |
-| `tablas_resultados.py` | Ada | 108 | Las Tablas de Resultados que lista el TdR registrado, en Excel: una hoja por tabla con su título, fuente, filas por sistema y total con =SUM, más el… |
-| `trabajo.py` | Apl | 108 | Armado de la empresa modelo como trabajo en cola (`armar_empresa_modelo(ctx, …)` para `JobManager.submit(..., lane='engine')`): sistema por sistema… |
-| `vnr_estudio.py` | Ada | — | Estudio VNR de una empresa desde su inventario VNR-GIS (modelo canónico del módulo ``vnr``), con la Guía del VNR |
-| `vnr_formatos.py` | Ada | — | Los formatos del Anexo 5 de la Guía del VNR (RCD 232-2017-OS/CD) en un libro Excel: una hoja por formato con sus |
-| `vnr_guia.py` | Apl | — | VNR según la «Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica» (RCD 232-2017-OS/CD; |
+| `aplicacion/vad/__init__.py` | Apl | 108 | Paquete del estudio de costos del VAD (empresa modelo eficiente), aparte del PIDE y del PIT. |
+| `aplicacion/vad/anexo2.py` | Apl | 108 | Validación de las tablas del estudio contra los formatos del anexo 2 transcritos (tabla, fila, columna, unidad, periodo), sin rellenar nada: huecos… |
+| `aplicacion/vad/balance.py` | Apl | 108 | Balance de potencia y energía (6.10, A-VI) real y adaptado, con las fórmulas del formato transcrito. |
+| `aplicacion/vad/calidad.py` | Apl | 108 | Calidad de servicio de la empresa modelo con el criterio del num. |
+| `aplicacion/vad/caracterizacion.py` | Apl | 108 | Caracterización de la carga del Anexo 4 desde la medición: factor de carga, FCPP y FCFP en su periodo, pérdidas con la corriente y empíricas, y curva… |
+| `adaptadores/vad/costos.py` | Ada | 108 | Costo estándar de la empresa modelo: valora solo la red dimensionada (`CostoEstandar` exige un `Dimensionamiento` con su huella) con el SICODI leído… |
+| `aplicacion/vad/costos_explotacion.py` | Apl | 108 | VNR no eléctrico y costos de explotación por rubro del registro: total estándar solo con partidas dimensionadas y su fuente. |
+| `aplicacion/vad/coym.py` | Apl | 108 | COyM del Anexo 7: cantidades adaptadas × costo unitario estándar por sistema y etapa, con los componentes y unidades del cuadro del registro (sin… |
+| `adaptadores/vad/dimensionamiento.py` | Ada | 108 | Dimensionamiento de la empresa modelo del Anexo 6 sobre el modelo rural, sin tocar un vértice: potencia de cada SED con la tabla de transformadores… |
+| `adaptadores/vad/entregables.py` | Ada | 108 | Entregables del estudio VAD: Formatos A y B del anexo 2 en Excel con una hoja por formato y cada celda calculada con su fórmula de Excel traducida de… |
+| `aplicacion/vad/estudio.py` | Apl | 108 | Registro del estudio VAD (empresa del perfil, grupo, periodo, versión del TdR, estado) en `<espacio>/vad/<id>/estudio.json`, sin tocar las carpetas… |
+| `aplicacion/vad/formulas.py` | Apl | 108 | Intérprete cerrado de las fórmulas del registro normativo del VAD (sin eval): números, variables, + - * / **, paréntesis y suma(n, …) sobre series… |
+| `adaptadores/vad/informes.py` | Ada | 108 | Informe de Resultados Relevantes (anexo 3) e Informe del Estudio (numeral 9) en Word con los apartados del registro, cifras con origen o huecos… |
+| `adaptadores/vad/linea.py` | Ada | 108 | La línea del VAD tras la empresa modelo: el modelo rural desde la red del espacio, el dimensionamiento con el sustento del caso y el costo estándar… |
+| `adaptadores/vad/modelo_rural.py` | Ada | 108 | Modelo georreferenciado rural del Anexo 6: copia en solo lectura las trazas, longitudes y SED reales del VNR canónico o de la vía TXT/MDB… |
+| `adaptadores/vad/modelo_urbano.py` | Ada | 108 | Anexo 5 urbano, las incoherencias del TdR resueltas como decidió 28: TRI_AREA, R_BT y NTRI en forma cerrada desde las fórmulas del registro, con… |
+| `adaptadores/vad/observaciones.py` | Ada | 108 | Observaciones del regulador al estudio VAD en `<espacio>/vad/<id>/observaciones.json`: número, fecha, texto y lo que afectan (tablas del registro,… |
+| `aplicacion/vad/pide_vad.py` | Apl | 108 | Contrato 072 → 108 (pide_vad_v1): lee el PIDE aprobado que entrega la 072 y calcula el VAD ajustado con el FRC de `util.frc`, la tasa de la LCE… |
+| `aplicacion/vad/resultados_vad.py` | Apl | 108 | Cargo fijo y VAD de cada nivel por sistema y ponderado a nivel empresa, con los conceptos, variantes, fórmulas y ponderación del TdR registrado. |
+| `adaptadores/vad/tablas_resultados.py` | Ada | 108 | Las Tablas de Resultados que lista el TdR registrado, en Excel: una hoja por tabla con su título, fuente, filas por sistema y total con =SUM, más el… |
+| `aplicacion/vad/trabajo.py` | Apl | 108 | Armado de la empresa modelo como trabajo en cola (`armar_empresa_modelo(ctx, …)` para `JobManager.submit(..., lane='engine')`): sistema por sistema… |
+| `adaptadores/vad/vnr_estudio.py` | Ada | — | Estudio VNR de una empresa desde su inventario VNR-GIS (modelo canónico del módulo ``vnr``), con la Guía del VNR |
+| `adaptadores/vad/vnr_formatos.py` | Ada | — | Los formatos del Anexo 5 de la Guía del VNR (RCD 232-2017-OS/CD) en un libro Excel: una hoja por formato con sus |
+| `aplicacion/vad/vnr_guia.py` | Apl | — | VNR según la «Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica» (RCD 232-2017-OS/CD; |
+| `adaptadores/vad/__init__.py` | Ada | 002 | Paquete de `vad` en la capa adaptadores. |
 
 ### Motor: biblioteca normativa y fuentes de la empresa (107, 109)
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `biblioteca_normativa.py` | Apl | 107 | La biblioteca normativa general: la base del programa más la capa del usuario, actualizable, con su huella para reindexar. |
+| `aplicacion/biblioteca_normativa.py` | Apl | 107 | La biblioteca normativa general: la base del programa más la capa del usuario, actualizable, con su huella para reindexar. |
 | `schemas/registro_normativo_v1.schema.json` | — | 108, 107 | Esquema del registro normativo común: cada norma con su estado jurídico, huella y vigencia, y cada regla con su cita literal y su página o líneas. |
 | `dominio/huellas_terminos.py` | Dom | 107, 086 | La huella de un término, `sha256(sal:texto normalizado)[:16]` con la sal de la lista mínima: un solo cuerpo para la comprobación de la entrega y los… |
-| `fuentes_empresa.py` | Apl | 109 | Los libros de la empresa del espacio, una vez y por periodo, y la red convertida que deja la carga para todos los módulos. |
-| `pfd_vinculos.py` | Ada | 004, 109, 110 | Vínculos del proyecto de un `.pfd` (nombres de su diagnóstico y las SET) con los ficheros de su expediente por su contenido, con el inventario y la… |
+| `aplicacion/fuentes_empresa.py` | Apl | 109 | Los libros de la empresa del espacio, una vez y por periodo, y la red convertida que deja la carga para todos los módulos. |
+| `adaptadores/pfd_vinculos.py` | Ada | 004, 109, 110 | Vínculos del proyecto de un `.pfd` (nombres de su diagnóstico y las SET) con los ficheros de su expediente por su contenido, con el inventario y la… |
 
 ### Motor: fachadas fuera del paquete
 
@@ -532,81 +539,88 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `model_registry.py` | Apl | 043, 060 | Candidatos inmutables, integridad, promoción atómica y reapertura en subproceso. |
-| `training_coordinator.py` | Apl | 043 | Etapas reanudables, bloqueo GPU mediante guardia OS compartida y memoria física/comprometible antes de cargar pesos. |
-| `trabajadores_ml.py` | Apl | 043 | Informes atómicos, dataset v2 verificado y herencia comprobada de la guardia GPU en procesos hijos. |
-| `compat_gpu.py` | Dom | 106 | Fija en memoria la DLL del controlador NVIDIA antes del primer cuInit, para que su hilo no ejecute en ella descargada (0xC0000005). |
-| `aprendizaje_continuo.py` | Apl | 050 | Ciclo común de aprendizaje: instantánea copiada y verificada, vistas por familia con particiones por observación, ciclo único sobre el coordinador,… |
-| `evaluacion_modelos.py` | Apl | 044 | Política previa y validación de cuatro particiones por grupos. |
-| `experimentos.py` | Apl | 043 | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. |
-| `upstream_ia.py` | Ada | 043 | Verifica origen, commit, licencia y árbol limpio de repositorios reutilizados. |
-| `evaluacion_harness/estadistica.py` | Dom | 044, 069, 047 | Estadística común de la evaluación: Wilson, Holm, McNemar exacto, HAC, Diebold-Mariano con HLN, Wilcoxon con biserial, TOST, Bland-Altman, kappa,… |
-| `evaluacion_harness/informe_final.py` | Apl | 044 | Informe único `docs/EVALUACION_FINAL_1.0.json`: rev, árbol limpio, huellas, IC, prueba, Holm y negativos. |
-| `conjuntos_aprendizaje.py` | Apl | 050, 002 | Lectura verificada del conjunto activo para inferencia, separada de la preparación. |
-| `contratos_aprendizaje.py` | Dom | 050, 002 | Identidad, procedencia y tipos puros de muestras y familias. |
-| `productores_aprendizaje.py` | Ada | 050, 002 | Composición real y diferida por familia, con lectores/validadores existentes. |
-| `puertos_muestras.py` | Pue | 050, 002 | Puerto de productores inyectado en la preparación del ciclo. |
-| `evaluacion_harness/__init__.py` | Apl | 043, 044, 047 | Paquete de evaluación integral sin cargar modelos ni motores al importarlo. |
-| `evaluacion_harness/adaptadores.py` | Ada | 043, 044, 047 | Adaptación de evaluaciones temporal, eléctrica y de herramientas externas, sin equivaler a aceptación nativa. |
-| `evaluacion_harness/cli.py` | Pre | 043, 044, 047 | Interfaz de sellado, replay y comprobación de informes del arnés. |
-| `evaluacion_harness/contratos.py` | Dom | 043, 044 | Sello, política, identidad y particiones de las suites de evaluación. |
-| `evaluacion_harness/ejecucion.py` | Apl | 043, 044 | Ejecución conservadora de suites y revalidación de sus resultados. |
-| `evaluacion_harness/integracion.py` | Ada | 043, 044 | Puente al coordinador y registro, con guardas de identidad y activación explícita. |
-| `evaluacion_harness/metricas.py` | Dom | 043, 044, 047 | Métricas con soporte, abstención y comparación pareada por grupos. |
-| `evaluacion_harness/publicacion.py` | Ada | 043, 044 | Publicación atómica y relectura de informes sellados. |
+| `aplicacion/model_registry.py` | Apl | 043, 060 | Candidatos inmutables, integridad, promoción atómica y reapertura en subproceso. |
+| `aplicacion/training_coordinator.py` | Apl | 043 | Etapas reanudables, bloqueo GPU mediante guardia OS compartida y memoria física/comprometible antes de cargar pesos. |
+| `aplicacion/trabajadores_ml.py` | Apl | 043 | Informes atómicos, dataset v2 verificado y herencia comprobada de la guardia GPU en procesos hijos. |
+| `dominio/compat_gpu.py` | Dom | 106 | Fija en memoria la DLL del controlador NVIDIA antes del primer cuInit, para que su hilo no ejecute en ella descargada (0xC0000005). |
+| `aplicacion/aprendizaje_continuo.py` | Apl | 050 | Ciclo común de aprendizaje: instantánea copiada y verificada, vistas por familia con particiones por observación, ciclo único sobre el coordinador,… |
+| `aplicacion/evaluacion_modelos.py` | Apl | 044 | Política previa y validación de cuatro particiones por grupos. |
+| `aplicacion/experimentos.py` | Apl | 043 | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. |
+| `adaptadores/upstream_ia.py` | Ada | 043 | Verifica origen, commit, licencia y árbol limpio de repositorios reutilizados. |
+| `dominio/evaluacion_harness/estadistica.py` | Dom | 044, 069, 047 | Estadística común de la evaluación: Wilson, Holm, McNemar exacto, HAC, Diebold-Mariano con HLN, Wilcoxon con biserial, TOST, Bland-Altman, kappa,… |
+| `aplicacion/evaluacion_harness/informe_final.py` | Apl | 044 | Informe único `docs/EVALUACION_FINAL_1.0.json`: rev, árbol limpio, huellas, IC, prueba, Holm y negativos. |
+| `aplicacion/conjuntos_aprendizaje.py` | Apl | 050, 002 | Lectura verificada del conjunto activo para inferencia, separada de la preparación. |
+| `dominio/contratos_aprendizaje.py` | Dom | 050, 002 | Identidad, procedencia y tipos puros de muestras y familias. |
+| `adaptadores/productores_aprendizaje.py` | Ada | 050, 002 | Composición real y diferida por familia, con lectores/validadores existentes. |
+| `puertos/puertos_muestras.py` | Pue | 050, 002 | Puerto de productores inyectado en la preparación del ciclo. |
+| `aplicacion/evaluacion_harness/__init__.py` | Apl | 043, 044, 047 | Paquete de evaluación integral sin cargar modelos ni motores al importarlo. |
+| `adaptadores/evaluacion_harness/adaptadores.py` | Ada | 043, 044, 047 | Adaptación de evaluaciones temporal, eléctrica y de herramientas externas, sin equivaler a aceptación nativa. |
+| `presentacion/evaluacion_harness/cli.py` | Pre | 043, 044, 047 | Interfaz de sellado, replay y comprobación de informes del arnés. |
+| `dominio/evaluacion_harness/contratos.py` | Dom | 043, 044 | Sello, política, identidad y particiones de las suites de evaluación. |
+| `aplicacion/evaluacion_harness/ejecucion.py` | Apl | 043, 044 | Ejecución conservadora de suites y revalidación de sus resultados. |
+| `adaptadores/evaluacion_harness/integracion.py` | Ada | 043, 044 | Puente al coordinador y registro, con guardas de identidad y activación explícita. |
+| `dominio/evaluacion_harness/metricas.py` | Dom | 043, 044, 047 | Métricas con soporte, abstención y comparación pareada por grupos. |
+| `adaptadores/evaluacion_harness/publicacion.py` | Ada | 043, 044 | Publicación atómica y relectura de informes sellados. |
+| `adaptadores/evaluacion_harness/__init__.py` | Ada | 002 | Paquete de `evaluacion_harness` en la capa adaptadores. |
+| `dominio/evaluacion_harness/__init__.py` | Dom | 002 | Paquete de `evaluacion_harness` en la capa dominio. |
+| `presentacion/evaluacion_harness/__init__.py` | Pre | 002 | Paquete de `evaluacion_harness` en la capa presentacion. |
+| `puertos/__init__.py` | Pue | 002 | Interfaces y versión de los módulos enchufables (`PUERTOS`) y puertos de los adaptadores internos de los casos de uso (`PUERTOS_ADAPTADORES`), en… |
 
 ### Motor: benchmarks anonimizados
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `__init__.py` | Ada | 112 | Paquete de los benchmarks de referencia anonimizados, con `generar_benchmark`, la única vía de emisión: escribe en un temporal, reproduce el estudio,… |
-| `seudonimos.py` | Dom | 112 | Seudónimos por tipo con permutación sorteada, coherentes entre los tres ficheros y nunca serializables. |
-| `manifiesto.py` | Ada | 112 | Manifiesto del benchmark en JSON canónico: huella del origen, versión y revisión del generador, semilla pública, transformaciones, columnas omitidas,… |
-| `geometria.py` | Dom | 112 | Trazado sintético por el grafo, longitudes perturbadas con la semilla secreta y el control del atacante que empareja las longitudes ordenadas rango a… |
-| `geometria_publica.py` | Ada | 112 | La geometría pública de una empresa: el paquete VNR-GIS vigente de Osinergmin, elegido por resolución y bajado bajo demanda a una carpeta fuera del… |
-| `publicable.py` | Ada | 112 | Benchmark publicable: red sintética con los agregados de la entrega (al menos 5 alimentadores y 500 tramos, que se suben y no se bajan), sin un tramo… |
-| `sintetico.py` | Dom | 112, 034 | Generador de exports CYMDIST sintéticos y sorteados (antes en `tests/synthetic_export.py`, que lo reexporta), con longitudes y cargas por cuantiles… |
-| `evaluacion.py` | Ada | 112 | Sellado de la prueba antes de elegir modelo (apertura exclusiva, huella fijada, rechazo si cambia) e informe publicado con todos los resultados,… |
-| `cohortes.py` | Apl | 112 | Cohortes de evaluación por empresa (una fuera) y por tiempo con franja de separación, por componente conexo de alimentadores y clientes, validadas… |
-| `redes.py` | Dom | 112 | Benchmark de redes: el trío TXT de CYMDIST con una lista cerrada de secciones y columnas, en la disposición del origen, sin texto libre y con el… |
-| `reproduccion.py` | Ada | 112 | El mismo estudio (reglas y oráculo) en el original y en el benchmark, comparado alimentador a alimentador con la tolerancia del estudio o la de por… |
-| `series.py` | Ada | 112 | Benchmark de series del 089: seudónimo, escala sorteada, semanas completas desplazadas, exógenas como columnas, potencia en bandas y CSV determinista. |
-| `reidentificacion.py` | Ada | 112 | Control de reidentificación antes de emitir: identificadores, clientes, términos del perfil, rutas, coordenadas, fechas, secuencias de valores,… |
-| `semilla.py` | Dom | 112 | La semilla secreta de los seudónimos: se sortea con 12 cifras o más, se guarda solo en la carpeta local por la huella del origen y sin pisar otra, y… |
+| `adaptadores/benchmarks/__init__.py` | Ada | 112 | Paquete de los benchmarks de referencia anonimizados, con `generar_benchmark`, la única vía de emisión: escribe en un temporal, reproduce el estudio,… |
+| `dominio/benchmarks/seudonimos.py` | Dom | 112 | Seudónimos por tipo con permutación sorteada, coherentes entre los tres ficheros y nunca serializables. |
+| `adaptadores/benchmarks/manifiesto.py` | Ada | 112 | Manifiesto del benchmark en JSON canónico: huella del origen, versión y revisión del generador, semilla pública, transformaciones, columnas omitidas,… |
+| `dominio/benchmarks/geometria.py` | Dom | 112 | Trazado sintético por el grafo, longitudes perturbadas con la semilla secreta y el control del atacante que empareja las longitudes ordenadas rango a… |
+| `adaptadores/benchmarks/geometria_publica.py` | Ada | 112 | La geometría pública de una empresa: el paquete VNR-GIS vigente de Osinergmin, elegido por resolución y bajado bajo demanda a una carpeta fuera del… |
+| `adaptadores/benchmarks/publicable.py` | Ada | 112 | Benchmark publicable: red sintética con los agregados de la entrega (al menos 5 alimentadores y 500 tramos, que se suben y no se bajan), sin un tramo… |
+| `dominio/benchmarks/sintetico.py` | Dom | 112, 034 | Generador de exports CYMDIST sintéticos y sorteados (antes en `tests/synthetic_export.py`, que lo reexporta), con longitudes y cargas por cuantiles… |
+| `adaptadores/benchmarks/evaluacion.py` | Ada | 112 | Sellado de la prueba antes de elegir modelo (apertura exclusiva, huella fijada, rechazo si cambia) e informe publicado con todos los resultados,… |
+| `aplicacion/benchmarks/cohortes.py` | Apl | 112 | Cohortes de evaluación por empresa (una fuera) y por tiempo con franja de separación, por componente conexo de alimentadores y clientes, validadas… |
+| `dominio/benchmarks/redes.py` | Dom | 112 | Benchmark de redes: el trío TXT de CYMDIST con una lista cerrada de secciones y columnas, en la disposición del origen, sin texto libre y con el… |
+| `adaptadores/benchmarks/reproduccion.py` | Ada | 112 | El mismo estudio (reglas y oráculo) en el original y en el benchmark, comparado alimentador a alimentador con la tolerancia del estudio o la de por… |
+| `adaptadores/benchmarks/series.py` | Ada | 112 | Benchmark de series del 089: seudónimo, escala sorteada, semanas completas desplazadas, exógenas como columnas, potencia en bandas y CSV determinista. |
+| `adaptadores/benchmarks/reidentificacion.py` | Ada | 112 | Control de reidentificación antes de emitir: identificadores, clientes, términos del perfil, rutas, coordenadas, fechas, secuencias de valores,… |
+| `dominio/benchmarks/semilla.py` | Dom | 112 | La semilla secreta de los seudónimos: se sortea con 12 cifras o más, se guarda solo en la carpeta local por la huella del origen y sin pisar otra, y… |
+| `aplicacion/benchmarks/__init__.py` | Apl | 002 | Paquete de `benchmarks` en la capa aplicacion. |
+| `dominio/benchmarks/__init__.py` | Dom | 002 | Paquete de `benchmarks` en la capa dominio. |
 
 ### Gemelo digital: `digital_twin/`
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `__init__.py` | Ada | 024 | Paquete del gemelo digital: episodios, búfer y captura, sin PowerFactory ni PyTorch. |
-| `episode.py` | Dom | 024 | Contrato del episodio: clase y caso, fuente y proyecto, resultados del flujo (balance, pérdidas, cargabilidad, tensiones, confiabilidad, o el motivo… |
-| `buffer.py` | Ada | 024 | Búfer local e inmutable de episodios: un JSON por huella, escritura atómica e idempotente, colisión detectada, índice SQLite reconstruible con… |
-| `capture.py` | Ada | 024 | Ensamblaje del episodio desde el contexto firmado, el resultado del guion y la lectura tras reabrir. |
-| `integration.py` | Ada | 024 | Captura tras cada acción nativa de la web: plan de lectura, norma de cada alimentador por su sistema y límites más estrictos, referencia del último… |
-| `native_snapshot.py` | Ada | 024 | Identidad estable de un objeto de DIgSILENT, huella SHA-256 de un trazado e islas por tramos cerrados, sin suponer red radial. |
-| `evaluacion.py` | Ada | 024 | Evaluación por caso: «Caso base» y «Sin proyecto» con las violaciones como diagnóstico (y el cuadre de la calibración), «Con proyecto» contra la… |
-| `escenarios.py` | Ada | 024 | Matriz de escenarios (demanda escalada y N-1), familia topológica y partición fija, elección por incertidumbre o diversidad y presupuesto de licencia… |
-| `auditoria.py` | Ada | 027 | Auditoría del dataset de cada modelo antes de entrenar: muestras, redes distintas, nodos, columnas, fracción etiquetada, rangos, no finitos (no se… |
-| `curva.py` | Ada | 027 | Episodios del gemelo por sistema eléctrico frente a los 30/10/10 (reparto fijo por la huella de cada episodio) y curva de aprendizaje que dice si un… |
-| `hiperparametros.py` | Ada | 027, 060 | Búsqueda de hiperparámetros del gemelo con Optuna (TPE y poda por mediana), limitada por ensayos con el reloj como tope de seguridad que no elige,… |
-| `contratos_fisicos.py` | Ada | 045 | Versión y alcance del grafo del gemelo: qué física representa y por qué rechaza una red, y huellas de controles y caso. |
-| `oraculo.py` | Ada | 024, 060 | Oráculo PINN/GNN (PyTorch, GPU si la hay): grafo por unidad, red de grafos sobre la física mallada con pérdida física de balance por barra eléctrica,… |
-| `flujo.py` | Ada | 024 | Flujo de carga físico por matriz de admitancias dispersa, con lazos: acopladores fusionados en una barra, factorización LU una sola vez, punto fijo… |
-| `motores_flujo.py` | Ada | 083 | Motores de flujo del oráculo sobre la misma red: Z-bus, Anderson, Newton, power-grid-model y OpenDSS. |
-| `benchmark_fisico.py` | Ada | 045 | Ablaciones del gemelo sobre las mismas particiones (física pura, red sin término físico, híbrido y PowerFlowNet) y comprobación de dominio antes de… |
-| `adaptador_pyg.py` | Ada | 045 | Adapta el MPN de PowerFlowNet a correcciones físicas de tensión y ángulo, mediante carga opcional. |
-| `evolutivo.py` | Ada | 024, 044, 048 | Algoritmo genético, NSGA-II y evolución diferencial autoadaptativa (jDE), deterministas con su semilla. |
-| `problema_optimizacion.py` | Ada | 048 | Contrato común de una búsqueda de obras y consignas: variables tipadas con unidad, origen y coste trazable, restricciones, objetivos, contexto y… |
-| `adaptador_pymoo.py` | Ada | 048 | GA, NSGA-II y DE de pymoo, opcionales, como candidatos del benchmark de la 048: genes reparados por la regla común y presupuesto cortado por el… |
-| `benchmark_optimizacion.py` | Ada | 048 | Benchmark de los optimizadores vigentes y los de pymoo: al menos veinte semillas comunes, presupuesto en evaluaciones reales (caché aparte),… |
-| `adaptador_pnl.py` | Ada | 048 | Tramo continuo con Pyomo y un solucionador PNL (Ipopt por omisión, HiGHS para cuadráticos) con las discretas fijas: punto local continuo, nunca… |
-| `temporal.py` | Ada | 024, 046, 060 | Gemelo temporal: GRU de las curvas de cabecera (estacional sin PyTorch), GRU multihorizonte para competir en el pronóstico, métricas, desviaciones… |
-| `temporal_entrenamiento.py` | Ada | 043, 046, 060 | Lectura de series mediante lectores existentes, ajuste causal GRU, objetivos de cabecera y clientes, competición de pronósticos con ganador por… |
-| `series_causales.py` | Ada | 046 | Cadencia, unidades, huecos, disponibilidad de covariables, particiones por día y ventanas causales. |
-| `pronostico.py` | Ada | 046 | Contrato multihorizonte: objetivos, conjunto en rejilla común, referencias ingenuo y estacional semanal, calibración de intervalos y filas con la… |
-| `evaluacion_temporal.py` | Ada | 046 | Política predeclarada, pinball y cobertura por horizonte, error de la máxima y de su instante y familias para las puertas. |
-| `adaptador_neuralforecast.py` | Ada | 046 | N-HiTS, TFT y PatchTST de neuralforecast, opcionales y solo en CUDA, con la interfaz común. |
-| `productor_pinn.py` | Ada | 050, 002 | Vista PINN congelada, con particiones comunes. |
+| `adaptadores/digital_twin/__init__.py` | Ada | 024 | Paquete del gemelo digital: episodios, búfer y captura, sin PowerFactory ni PyTorch. |
+| `dominio/digital_twin/episode.py` | Dom | 024 | Contrato del episodio: clase y caso, fuente y proyecto, resultados del flujo (balance, pérdidas, cargabilidad, tensiones, confiabilidad, o el motivo… |
+| `adaptadores/digital_twin/buffer.py` | Ada | 024 | Búfer local e inmutable de episodios: un JSON por huella, escritura atómica e idempotente, colisión detectada, índice SQLite reconstruible con… |
+| `adaptadores/digital_twin/capture.py` | Ada | 024 | Ensamblaje del episodio desde el contexto firmado, el resultado del guion y la lectura tras reabrir. |
+| `adaptadores/digital_twin/integration.py` | Ada | 024 | Captura tras cada acción nativa de la web: plan de lectura, norma de cada alimentador por su sistema y límites más estrictos, referencia del último… |
+| `adaptadores/digital_twin/native_snapshot.py` | Ada | 024 | Identidad estable de un objeto de DIgSILENT, huella SHA-256 de un trazado e islas por tramos cerrados, sin suponer red radial. |
+| `adaptadores/digital_twin/evaluacion.py` | Ada | 024 | Evaluación por caso: «Caso base» y «Sin proyecto» con las violaciones como diagnóstico (y el cuadre de la calibración), «Con proyecto» contra la… |
+| `adaptadores/digital_twin/escenarios.py` | Ada | 024 | Matriz de escenarios (demanda escalada y N-1), familia topológica y partición fija, elección por incertidumbre o diversidad y presupuesto de licencia… |
+| `adaptadores/digital_twin/auditoria.py` | Ada | 027 | Auditoría del dataset de cada modelo antes de entrenar: muestras, redes distintas, nodos, columnas, fracción etiquetada, rangos, no finitos (no se… |
+| `adaptadores/digital_twin/curva.py` | Ada | 027 | Episodios del gemelo por sistema eléctrico frente a los 30/10/10 (reparto fijo por la huella de cada episodio) y curva de aprendizaje que dice si un… |
+| `adaptadores/digital_twin/hiperparametros.py` | Ada | 027, 060 | Búsqueda de hiperparámetros del gemelo con Optuna (TPE y poda por mediana), limitada por ensayos con el reloj como tope de seguridad que no elige,… |
+| `adaptadores/digital_twin/contratos_fisicos.py` | Ada | 045 | Versión y alcance del grafo del gemelo: qué física representa y por qué rechaza una red, y huellas de controles y caso. |
+| `adaptadores/digital_twin/oraculo.py` | Ada | 024, 060 | Oráculo PINN/GNN (PyTorch, GPU si la hay): grafo por unidad, red de grafos sobre la física mallada con pérdida física de balance por barra eléctrica,… |
+| `adaptadores/digital_twin/flujo.py` | Ada | 024 | Flujo de carga físico por matriz de admitancias dispersa, con lazos: acopladores fusionados en una barra, factorización LU una sola vez, punto fijo… |
+| `adaptadores/digital_twin/motores_flujo.py` | Ada | 083 | Motores de flujo del oráculo sobre la misma red: Z-bus, Anderson, Newton, power-grid-model y OpenDSS. |
+| `adaptadores/digital_twin/benchmark_fisico.py` | Ada | 045 | Ablaciones del gemelo sobre las mismas particiones (física pura, red sin término físico, híbrido y PowerFlowNet) y comprobación de dominio antes de… |
+| `adaptadores/digital_twin/adaptador_pyg.py` | Ada | 045 | Adapta el MPN de PowerFlowNet a correcciones físicas de tensión y ángulo, mediante carga opcional. |
+| `adaptadores/digital_twin/evolutivo.py` | Ada | 024, 044, 048 | Algoritmo genético, NSGA-II y evolución diferencial autoadaptativa (jDE), deterministas con su semilla. |
+| `adaptadores/digital_twin/problema_optimizacion.py` | Ada | 048 | Contrato común de una búsqueda de obras y consignas: variables tipadas con unidad, origen y coste trazable, restricciones, objetivos, contexto y… |
+| `adaptadores/digital_twin/adaptador_pymoo.py` | Ada | 048 | GA, NSGA-II y DE de pymoo, opcionales, como candidatos del benchmark de la 048: genes reparados por la regla común y presupuesto cortado por el… |
+| `adaptadores/digital_twin/benchmark_optimizacion.py` | Ada | 048 | Benchmark de los optimizadores vigentes y los de pymoo: al menos veinte semillas comunes, presupuesto en evaluaciones reales (caché aparte),… |
+| `adaptadores/digital_twin/adaptador_pnl.py` | Ada | 048 | Tramo continuo con Pyomo y un solucionador PNL (Ipopt por omisión, HiGHS para cuadráticos) con las discretas fijas: punto local continuo, nunca… |
+| `adaptadores/digital_twin/temporal.py` | Ada | 024, 046, 060 | Gemelo temporal: GRU de las curvas de cabecera (estacional sin PyTorch), GRU multihorizonte para competir en el pronóstico, métricas, desviaciones… |
+| `adaptadores/digital_twin/temporal_entrenamiento.py` | Ada | 043, 046, 060 | Lectura de series mediante lectores existentes, ajuste causal GRU, objetivos de cabecera y clientes, competición de pronósticos con ganador por… |
+| `adaptadores/digital_twin/series_causales.py` | Ada | 046 | Cadencia, unidades, huecos, disponibilidad de covariables, particiones por día y ventanas causales. |
+| `adaptadores/digital_twin/pronostico.py` | Ada | 046 | Contrato multihorizonte: objetivos, conjunto en rejilla común, referencias ingenuo y estacional semanal, calibración de intervalos y filas con la… |
+| `adaptadores/digital_twin/evaluacion_temporal.py` | Ada | 046 | Política predeclarada, pinball y cobertura por horizonte, error de la máxima y de su instante y familias para las puertas. |
+| `adaptadores/digital_twin/adaptador_neuralforecast.py` | Ada | 046 | N-HiTS, TFT y PatchTST de neuralforecast, opcionales y solo en CUDA, con la interfaz común. |
+| `adaptadores/digital_twin/productor_pinn.py` | Ada | 050, 002 | Vista PINN congelada, con particiones comunes. |
+| `dominio/digital_twin/__init__.py` | Dom | 002 | Paquete de `digital_twin` en la capa dominio. |
 
 ### Asistente: núcleo y operación
 
@@ -676,23 +690,25 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `indice.py` | Apl | 026, 047 | Índice local del proyecto (CODIGO_FUENTE, RF de las specs, docstrings, manual, constitución), BM25 y vectores fusionados por posición, cálculo de… |
-| `embeddings.py` | Apl | 043, 047, 097 | Pares contrastivos, métricas de recuperación (también hit@10), encoder CUDA local y persistencia de índices con hashes. |
-| `reranker.py` | Apl | 047 | Reranker por cross-encoder en CUDA, con revisión fijada, la política que lee la decisión de la evaluación sellada y los umbrales de abstención… |
-| `evaluacion_rag.py` | Apl | 047, 097 | Conjunto sintético sellado, medición de BM25, híbrido y rerankers, decisión según la política declarada, calibración de la abstención y su puerta en… |
-| `fuga_evaluacion.py` | Apl | 097 | Ninguna pregunta ni orden de un conjunto de evaluación en lo que la juzga: qué conjunto mide qué corpus, preguntas literales fuera de su fuente, de… |
-| `pregunta_entregada.py` | Apl | 086, 097 | «Pregunta» en el programa instalado: calibra al construir el candidato la abstención por BM25 sobre los manuales y notas que se entregan, con la… |
-| `corpus_proyecto.py` | Apl | 077 | Corpus ampliado del índice: ficheros, troceado sin perder líneas, caché por fichero y medida de tamaño. |
-| `lectura_proyecto.py` | Apl | 077 | Lecturas del proyecto para el LLM y el MCP: leer un fichero, buscar un texto literal y consultar una ruta en el OpenAPI, con política local o… |
-| `ejemplos_pide.py` | Ada | 027 | Ejemplos del agente desde el corpus PIDE entregado: por artículo sus evidencias en cada PIDE (por la ruta y el texto), por formato F01 a F15 sus… |
-| `corpus_normativo.py` | Apl | 077 | La biblioteca normativa en el asistente, leída por su API: un fragmento por regla en el índice ampliado, su huella, la comprobación de una cita… |
+| `aplicacion/asistente/indice.py` | Apl | 026, 047 | Índice local del proyecto (CODIGO_FUENTE, RF de las specs, docstrings, manual, constitución), BM25 y vectores fusionados por posición, cálculo de… |
+| `aplicacion/asistente/embeddings.py` | Apl | 043, 047, 097 | Pares contrastivos, métricas de recuperación (también hit@10), encoder CUDA local y persistencia de índices con hashes. |
+| `aplicacion/asistente/reranker.py` | Apl | 047 | Reranker por cross-encoder en CUDA, con revisión fijada, la política que lee la decisión de la evaluación sellada y los umbrales de abstención… |
+| `aplicacion/asistente/evaluacion_rag.py` | Apl | 047, 097 | Conjunto sintético sellado, medición de BM25, híbrido y rerankers, decisión según la política declarada, calibración de la abstención y su puerta en… |
+| `aplicacion/asistente/fuga_evaluacion.py` | Apl | 097 | Ninguna pregunta ni orden de un conjunto de evaluación en lo que la juzga: qué conjunto mide qué corpus, preguntas literales fuera de su fuente, de… |
+| `aplicacion/asistente/pregunta_entregada.py` | Apl | 086, 097 | «Pregunta» en el programa instalado: calibra al construir el candidato la abstención por BM25 sobre los manuales y notas que se entregan, con la… |
+| `aplicacion/asistente/corpus_proyecto.py` | Apl | 077 | Corpus ampliado del índice: ficheros, troceado sin perder líneas, caché por fichero y medida de tamaño. |
+| `aplicacion/asistente/lectura_proyecto.py` | Apl | 077 | Lecturas del proyecto para el LLM y el MCP: leer un fichero, buscar un texto literal y consultar una ruta en el OpenAPI, con política local o… |
+| `adaptadores/asistente/ejemplos_pide.py` | Ada | 027 | Ejemplos del agente desde el corpus PIDE entregado: por artículo sus evidencias en cada PIDE (por la ruta y el texto), por formato F01 a F15 sus… |
+| `aplicacion/asistente/corpus_normativo.py` | Apl | 077 | La biblioteca normativa en el asistente, leída por su API: un fragmento por regla en el índice ampliado, su huella, la comprobación de una cita… |
+| `adaptadores/asistente/__init__.py` | Ada | 002 | Paquete de `asistente` en la capa adaptadores. |
+| `aplicacion/asistente/rutas_historicas.py` | Apl | 002 | Las rutas de fichero de antes de que cada módulo pasara a su paquete de capa: los conjuntos sellados no se reescriben y sus rutas se leen con las de… |
 
 ### Web: `web/`
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `__init__.py` | Pre | 001 | Paquete de la interfaz web. |
-| `__main__.py` | Pre | 001 | Arranca la web: `python -m convertersmartgrid.web` o `convertersmartgrid-web`. |
+| `__main__.py` | Pre | 001 | Arranca la web: `python -m convertersmartgrid.presentacion.web` o `convertersmartgrid-web`. |
 | `app.py` | Pre | 001, 004, 008, 011, 104, 017, 103, 021, 022, 025, 035, 039, 042, 061, 091 | Rutas FastAPI sobre el motor.; conversión por sistema eléctrico (`/convert/sistema`, `/estructura`) y la tabla de la estructura |
 | `api_contract.py` | Pre | 065, 002 | Modelos públicos Pydantic y contratos OpenAPI del frontend. |
 | `services.py` | Pre | 001, 004, 008, 092, 011, 121, 017, 104, 020, 021, 022, 025, 018, 030, 032, 035, 037, 038, 039, 041, 042, 060, 061, 091, 101 | Las acciones de la interfaz, sin interfaz. |
@@ -722,8 +738,6 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `fondo.py` | Pre | 104 | Carril de fondo de la web: mira si el operador tiene trabajos en el motor o en DIgSILENT, corre cada libro en un proceso de prioridad baja que se… |
 | `suspension.py` | Pre | 096 | Tiempo suspendido del equipo y petición a Windows de no suspender mientras corre un trabajo. |
 | `cierre.py` | Pre | 081 | Registro de cada arranque y cierre de la web, con su motivo. |
-| `sources/__init__.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources`. |
-| `sources/vnr.py` | Pre | 002 | Reexportación temporal de `convertersmartgrid.sources.vnr`. |
 | `evolucion_fijas.py` | Pre | 105 | Servicio de la evolución de los clientes fijos: libros del espacio, trabajo con avance, último resultado y curvas, libro en la salida y su archivo. |
 | `evolucion_fijas_api.py` | Pre | 105 | Rutas `…/clientes-fijos/evolucion`, su curva y `/api/archivo`, montadas en la API única. |
 | `nube_api.py` | Pre | 109 | Rutas de la nube (`/api/nube/…`, `…/nube/…` y `/nube/retorno`), con su modelo de respuesta: conectar, importar por la vía de una subida, versiones,… |
@@ -738,17 +752,17 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `adaptadores/nube/__init__.py` | Ada | 109 | Paquete de la nube: contrato, transporte único, OAuth y un adaptador por proveedor. |
-| `adaptadores/nube/proveedor.py` | Ada | 109 | Contrato `ProveedorNube`, `Item`, errores tipados con su causa y huellas locales (SHA-256 y QuickXorHash). |
-| `adaptadores/nube/http.py` | Ada | 109 | El único transporte HTTP hacia la nube: sin proxy del entorno, sin redirecciones, lista de hosts, tope de bytes y `Retry-After`. |
-| `adaptadores/nube/oauth.py` | Ada | 109 | Cliente OAuth desde `config/nube.json` (en `.gitignore`), PKCE (S256), `state` de un solo uso, permisos mínimos, canje, refresco y revocación. |
-| `adaptadores/nube/cuentas.py` | Ada | 109 | Cuentas conectadas por espacio y proveedor: proveedores registrados, conexión, token de acceso en memoria, refresco desde el cofre, desconexión y el… |
+| `nube/__init__.py` | Ada | 109 | Paquete de la nube: contrato, transporte único, OAuth y un adaptador por proveedor. |
+| `nube/proveedor.py` | Ada | 109 | Contrato `ProveedorNube`, `Item`, errores tipados con su causa y huellas locales (SHA-256 y QuickXorHash). |
+| `nube/http.py` | Ada | 109 | El único transporte HTTP hacia la nube: sin proxy del entorno, sin redirecciones, lista de hosts, tope de bytes y `Retry-After`. |
+| `nube/oauth.py` | Ada | 109 | Cliente OAuth desde `config/nube.json` (en `.gitignore`), PKCE (S256), `state` de un solo uso, permisos mínimos, canje, refresco y revocación. |
+| `nube/cuentas.py` | Ada | 109 | Cuentas conectadas por espacio y proveedor: proveedores registrados, conexión, token de acceso en memoria, refresco desde el cofre, desconexión y el… |
 | `nube_cofre.py` | Ada | 109 | Cofre DPAPI de Windows (por `ctypes`) del token de refresco, por espacio y proveedor, en `secretos/nube/`, fuera de los datos que se copian. |
-| `adaptadores/nube/google_drive.py` | Ada | 109 | Google Drive API v3 por REST: metadatos con revisión y huella, listado, descarga por rangos, exportación a XLSX, subida reanudable y permisos. |
-| `adaptadores/nube/onedrive.py` | Ada | 109 | Microsoft Graph v1.0 por REST: `cTag`, `downloadUrl` validado, `createUploadSession` sin sobrescribir e `invite` de solo lectura. |
-| `adaptadores/entrada/nube.py` | Ada | 109 | Copia inmutable de un fichero de la nube en `nube/copias/<sha256>/` con `copia.json`. |
-| `adaptadores/salida/__init__.py` | Ada | 109 | Paquete de las salidas hacia fuera de la máquina. |
-| `adaptadores/salida/nube.py` | Ada | 109 | Paquete cerrado con manifiesto, publicación idempotente sin sobrescribir, previa y confirmación de un solo uso, permisos de solo lectura, recibos y… |
+| `nube/google_drive.py` | Ada | 109 | Google Drive API v3 por REST: metadatos con revisión y huella, listado, descarga por rangos, exportación a XLSX, subida reanudable y permisos. |
+| `nube/onedrive.py` | Ada | 109 | Microsoft Graph v1.0 por REST: `cTag`, `downloadUrl` validado, `createUploadSession` sin sobrescribir e `invite` de solo lectura. |
+| `entrada/nube.py` | Ada | 109 | Copia inmutable de un fichero de la nube en `nube/copias/<sha256>/` con `copia.json`. |
+| `salida/__init__.py` | Ada | 109 | Paquete de las salidas hacia fuera de la máquina. |
+| `salida/nube.py` | Ada | 109 | Paquete cerrado con manifiesto, publicación idempotente sin sobrescribir, previa y confirmación de un solo uso, permisos de solo lectura, recibos y… |
 
 ### VNR-GIS: `adaptadores/entrada/vnr/`
 

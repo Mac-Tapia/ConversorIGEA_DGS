@@ -16,7 +16,7 @@ import pytest
 
 import fake_pf
 from apoyo import cargar_herramienta
-from convertersmartgrid.cargas_pf import (
+from convertersmartgrid.aplicacion.cargas_pf import (
     FRACCION_LINEA_LARGA, a_wgs84, distancia_gps_m, leer_hoja_nuevas, nodos_de_la_geografia, numero_es,
     verificar_ubicacion, verificar_ubicaciones, zona_del_alimentador,
 )
@@ -180,8 +180,8 @@ def test_web_rechaza_la_fila_con_su_propuesta(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
     from apoyo import vincular_proyecto
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
 
     rng = random.Random(SEMILLA)
     xy, nodos = _red(rng)
@@ -217,7 +217,7 @@ def test_web_rechaza_la_fila_con_su_propuesta(tmp_path, monkeypatch):
 
 def test_web_red_unida_usa_la_geografia_de_la_red(tmp_path, monkeypatch):
     """004:RF-72 — en una red unida sin la geografía propia del alimentador, la de la red entera, y se dice."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     _geografia(tmp_path, 'Grupo', [('n', -14.0, -75.7)])
     monkeypatch.setattr(services, '_dgs_aceptados', lambda _ws, _p: [tmp_path / 'Grupo.dgs'])

@@ -50,15 +50,15 @@ def main(argv=None) -> int:
     evaluar.add_argument('--output-json', type=Path, required=True)
     args = p.parse_args(argv)
     try:
-        from convertersmartgrid.asistente.destilacion_integral import (
+        from convertersmartgrid.aplicacion.asistente.destilacion_integral import (
             entrenar_destilacion, guardar_corpus, preparar_corpus, verificar_reapertura)
         if args.accion == 'preparar':
-            from convertersmartgrid.asistente import almacen
-            from convertersmartgrid.asistente.maestro_real import leer_etiquetas, leer_ninguna
+            from convertersmartgrid.aplicacion.asistente import almacen
+            from convertersmartgrid.aplicacion.asistente.maestro_real import leer_etiquetas, leer_ninguna
             vocab = json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario else {}
             etiquetas, lectura = leer_etiquetas(almacen.raiz())                # 068:RF-33
             ninguna, reservados = leer_ninguna(almacen.raiz())                 # 069:RF-28
-            from convertersmartgrid.asistente import ordenes_maestro
+            from convertersmartgrid.aplicacion.asistente import ordenes_maestro
             maestro, lectura_maestro = ordenes_maestro.leer(almacen.raiz())     # 085:RF-1
             filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'), por_familia=args.por_familia,
                                           etiquetas_reales=etiquetas, ninguna=ninguna, ninguna_reservada=reservados,
@@ -67,8 +67,8 @@ def main(argv=None) -> int:
             resultado = {'ok': True, **meta, 'lectura_etiquetas': dict(lectura),
                          'lectura_ordenes_maestro': dict(lectura_maestro)}
         elif args.accion == 'entrenar':
-            from convertersmartgrid.asistente.codificador_ordenes import Configuracion
-            from convertersmartgrid.training_coordinator import BloqueoGPU, ruta_guardia_gpu
+            from convertersmartgrid.aplicacion.asistente.codificador_ordenes import Configuracion
+            from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU, ruta_guardia_gpu
             if args.epocas < 1:
                 raise ValueError('épocas positivas obligatorias')
             semillas = tuple(int(s) for s in args.semillas.split(',') if s.strip())
@@ -78,14 +78,14 @@ def main(argv=None) -> int:
                     cfg=Configuracion(epocas=args.epocas), semillas=semillas, registro=args.registro)
         elif args.accion == 'verificar':
             if args.familia == 'clasificador':                       # 067:RF-26
-                from convertersmartgrid.asistente.clasificador import verificar_reapertura as reabrir_clasificador
+                from convertersmartgrid.aplicacion.asistente.clasificador import verificar_reapertura as reabrir_clasificador
                 resultado = reabrir_clasificador(args.modelo)
             else:
                 resultado = verificar_reapertura(args.modelo)
         else:
-            from convertersmartgrid.asistente.destilacion_integral import cargar_alumno, ensayar_funcionamiento, evaluar_agente, leer_corpus
-            from convertersmartgrid.asistente.ollama import ClienteOllama
-            from convertersmartgrid.training_coordinator import BloqueoGPU, ruta_guardia_gpu
+            from convertersmartgrid.aplicacion.asistente.destilacion_integral import cargar_alumno, ensayar_funcionamiento, evaluar_agente, leer_corpus
+            from convertersmartgrid.aplicacion.asistente.ollama import ClienteOllama
+            from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU, ruta_guardia_gpu
             ruta = ruta_guardia_gpu()
             with BloqueoGPU(ruta, 'ensayo-agente-integral'):
                 cliente = ClienteOllama(modelo=args.ollama, tiempo_max_s=60.) if args.ollama else None

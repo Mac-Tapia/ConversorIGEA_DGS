@@ -140,7 +140,7 @@ def test_planes_de_anios_distintos_no_se_calibran_juntos():
 # =========================================================================== T7: plan y registro
 def _ws(tmp_path, monkeypatch, *, calibrado: bool, anios=(2025, 2026)):
     from test_client_period_contract import _workspace
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setattr(services, 'carpeta_pf', lambda: 'ConverterSmartGrid')
     ws = _workspace(tmp_path, with_client_book=False)
@@ -237,7 +237,7 @@ def test_cargas_y_demandas_van_a_los_casos_del_anio():
 
 def test_el_anio_de_las_cargas_sale_de_su_base():
     """025:RF-37 — el año de los casos, del caso en que se grabó la calibración base."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     def ajuste(caso):
         return {'project': 'P', 'informes': [{'feeder': 'A1', 'caso': caso, 'cuadrado': True,
@@ -691,9 +691,9 @@ def _escalera_falsa(tmp_path, monkeypatch, evaluar, costos, *, alimentadores=('F
     """El servicio de la escalera con DIgSILENT, los libros y el perfil sustituidos."""
     from datetime import datetime, timedelta
 
-    from convertersmartgrid import perfil_empresa
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.dominio import perfil_empresa
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path)
     monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: _perfil_escalera(costos))
@@ -860,8 +860,8 @@ def test_la_evaluacion_terminada_con_el_mismo_plan_se_reutiliza(tmp_path):
     import os
     import time
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path)
     ws.plans_dir.mkdir(parents=True, exist_ok=True)
@@ -990,8 +990,8 @@ def test_la_base_de_las_cargas_se_encuentra_en_otra_ejecucion(tmp_path):
     Sin token también (2026-10-24: tras reiniciar la web, el paso de cargas de Pisco no
     encontraba su base); si la ejecución activa tiene una del proyecto, manda esa."""
     import json
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path)
     vieja = tmp_path / 'runs' / 'r1' / 'salida'
@@ -1014,8 +1014,8 @@ def test_la_base_de_un_solo_alimentador_se_encuentra_por_su_token(tmp_path):
     informe sin ``_n`` (``…_<token>.json``); pedida por su token, en la ejecución activa o en
     otra, se encuentra igual (CA101, 2026-10-24: «No se encuentra el ajuste de la base»)."""
     import json
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path)
     activa = tmp_path / 'runs' / 'r1' / 'salida'

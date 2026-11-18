@@ -16,11 +16,11 @@ import pytest
 from datos_pit import perfil_a
 from test_pit_formatos import NORMATIVA
 
-from convertersmartgrid.pit import PitError
-from convertersmartgrid.pit.armado import armar_expediente, leer_alternativas
-from convertersmartgrid.pit.expediente import TIPO_DIAGNOSTICO, TIPO_ESTUDIO, emitir
-from convertersmartgrid.pit.plantillas import cargar_mapeo
-from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid.dominio.pit import PitError
+from convertersmartgrid.adaptadores.pit.armado import armar_expediente, leer_alternativas
+from convertersmartgrid.adaptadores.pit.expediente import TIPO_DIAGNOSTICO, TIPO_ESTUDIO, emitir
+from convertersmartgrid.adaptadores.pit.plantillas import cargar_mapeo
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
 
 COLUMNAS = {'codigo': 'Código Módulo', 'nombre': 'Descripción', 'unidad': 'Unidad', 'total': 'Costo Total'}
 
@@ -206,7 +206,7 @@ def test_sin_carpeta_de_fuentes_no_sale_el_f000_y_se_dice(tmp_path):
 def test_doctor_dice_si_falta_la_carpeta_de_fuentes_o_el_sha_no_cuadra(tmp_path):
     """107-P10c (condición de 28) — el doctor dice si falta CSG_FUENTES_NORMATIVAS y si el libro oficial de esa
     carpeta no cuadra con su sha256; con los dos bien, en verde."""
-    from convertersmartgrid.web.doctor import _fuentes_normativas
+    from convertersmartgrid.presentacion.web.doctor import _fuentes_normativas
     x = _caso(tmp_path)
     sin = _fuentes_normativas({}, x['mapeo'])
     assert sin.ok is False and 'CSG_FUENTES_NORMATIVAS' in sin.detalle and sin.arreglo

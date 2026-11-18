@@ -147,7 +147,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       reutilizando `pide_dataset.py` y el lector común de libros; sus RF entran con la tarea (texto acordado en
       `plan.md`). (RF-109, RF-110)
       Hecho cuando: las pruebas sintéticas de vínculos están en verde.
-      Código (2026-11-16, f7): `src/convertersmartgrid/pfd_vinculos.py` y `tests/test_pfd_vinculos.py`.
+      Código (2026-11-16, f7): `src/convertersmartgrid/adaptadores/pfd_vinculos.py` y `tests/test_pfd_vinculos.py`.
       Hecho en 016498fc (LOTE-1); pruebas: tests/test_pfd_vinculos.py.
 - [x] T29. La web: subir el `.pfd`, el trabajo en el carril `powerfactory` y el informe del diagnóstico; sus RF entran
       con la tarea (texto acordado en `plan.md`).

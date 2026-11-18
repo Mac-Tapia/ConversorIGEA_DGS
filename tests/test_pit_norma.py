@@ -14,15 +14,15 @@ from pathlib import Path
 from test_pit_armado import _armar, _caso
 from test_pit_formatos import NORMATIVA
 
-from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
 
 CLAVES_DIAGNOSTICO = ('pit.anios_programacion_demanda', 'pit.factor_potencia_barras_mt', 'pit.n1_demanda_min_mw')
 CLAVES_COMPARACION = ('pit.criterio_alternativas', 'pit.costo_total', 'pit.coym_metodo', 'pit.tasa_actualizacion_fuente')
 
 
 def _norma():
-    assert importlib.util.find_spec('convertersmartgrid.pit.norma') is not None, 'falta el módulo pit.norma'
-    return importlib.import_module('convertersmartgrid.pit.norma')
+    assert importlib.util.find_spec('convertersmartgrid.dominio.pit.norma') is not None, 'falta el módulo pit.norma'
+    return importlib.import_module('convertersmartgrid.dominio.pit.norma')
 
 
 def _diagnostico(r) -> dict:

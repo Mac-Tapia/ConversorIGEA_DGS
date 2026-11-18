@@ -445,7 +445,7 @@ def test_el_perfil_de_la_captura_queda_anotado_y_no_cambia(guion, tmp_path, monk
     import json
     from pathlib import Path
 
-    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.dominio.perfil_empresa import VARIABLE_RUTA
     perfil = tmp_path.parent / f'{tmp_path.name}_perfil.json'
     perfil.write_text('{}', encoding='utf-8')
     monkeypatch.setenv(VARIABLE_RUTA, str(perfil))

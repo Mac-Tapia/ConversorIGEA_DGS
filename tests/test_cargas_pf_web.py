@@ -23,8 +23,8 @@ openpyxl = pytest.importorskip('openpyxl')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
-from convertersmartgrid.web import services  # noqa: E402
-from convertersmartgrid.web.app import create_app  # noqa: E402
+from convertersmartgrid.presentacion.web import services  # noqa: E402
+from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 
 # Imita a tools/cargas_pf.py: escribe un informe con lo que recibió. Con --cancel-file
 # espera a que aparezca el fichero (como si estuviera a mitad de un alimentador) y
@@ -273,7 +273,7 @@ def test_el_plan_lleva_la_ruta_y_la_carpeta(client):
 
     Comparaba con la del perfil y solo pasaba en un árbol sin `config/perfil_empresa.json`.
     """
-    from convertersmartgrid.powerfactory_binding import vinculo_guardado
+    from convertersmartgrid.adaptadores.powerfactory_binding import vinculo_guardado
 
     wid = _wid(client)
     r = _plan(client, wid, project='Oct/SI213', demandas=DEMANDAS)
@@ -286,7 +286,7 @@ def test_el_plan_lleva_la_ruta_y_la_carpeta(client):
 def test_el_plan_lleva_las_fichas_de_transformador_del_perfil(client, monkeypatch):
     """040:RF-5 — el plan de cargas lleva las fichas del perfil, con que el guion propone el
     transformador de la SED de una ampliación."""
-    from convertersmartgrid import perfil_empresa
+    from convertersmartgrid.dominio import perfil_empresa
 
     fichas = {'umbral_carga_pct': 80, 'tablas': []}
     monkeypatch.setattr(perfil_empresa, 'datos_perfil',

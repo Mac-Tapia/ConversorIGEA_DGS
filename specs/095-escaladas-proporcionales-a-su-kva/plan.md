@@ -2,7 +2,7 @@
 
 ## Dónde
 
-- `src/convertersmartgrid/ajuste_cabecera.py`: `probabilistico_de_fijas` devuelve pendiente 0 y la dispersión como la
+- `src/convertersmartgrid/dominio/ajuste_cabecera.py`: `probabilistico_de_fijas` devuelve pendiente 0 y la dispersión como la
   desviación típica de log(kW/kVA) de las fijas alrededor de su media (RF-1, RF-2); `probabilistico_del_perfil`
   devuelve pendiente 0 y anota si el perfil traía otra (RF-3).
 - `tools/ajuste_cabecera_pf.py`, `preparar_probabilistico`: el perfil, con pendiente 0 (RF-3).

@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.escalera_optima import OBRAS_DE_LARGO_PLAZO
-from convertersmartgrid.estudio_planeamiento import EstudioError, tipos_de_analisis
-from convertersmartgrid.informes_planeamiento import MODULOS
+from convertersmartgrid.aplicacion.escalera_optima import OBRAS_DE_LARGO_PLAZO
+from convertersmartgrid.dominio.estudio_planeamiento import EstudioError, tipos_de_analisis
+from convertersmartgrid.adaptadores.informes_planeamiento import MODULOS
 
 RAIZ = Path(__file__).resolve().parent.parent
 METODOLOGIA = json.loads((RAIZ / 'config' / 'pide_universal_2017.json').read_text(encoding='utf-8'))
@@ -99,8 +99,8 @@ pytest.importorskip('fastapi')
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from convertersmartgrid.web import services  # noqa: E402
-from convertersmartgrid.web.app import create_app  # noqa: E402
+from convertersmartgrid.presentacion.web import services  # noqa: E402
+from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 
 PLAN = {'tasa_regulada': 0.12, 'tasa_privada': 0.12, 'vida_util_anios': 30, 'horizonte_anios': 20,
         'crecimiento_demanda_anual': 0.04, 'pesos_art_15_3': {'subsanacion_calidad': 1, 'crecimiento_demanda': 1},
@@ -117,8 +117,8 @@ def api(tmp_path, monkeypatch):
     monkeypatch.setenv('CSG_TWIN_DATA', str(tmp_path / 'gemelo'))
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     monkeypatch.setenv('CSG_ML_GPU_LOCK', str(tmp_path / 'gpu.lock'))
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.estructura_empresa', lambda *a, **k: None)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.estructura_empresa', lambda *a, **k: None)
     monkeypatch.setattr(services, 'native_action_context',
                         lambda _ws, project, feeders, action: {'feeders': ['F1'], 'project': project})
     monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: (0, INFORME, tmp_path / 'pide.json'))

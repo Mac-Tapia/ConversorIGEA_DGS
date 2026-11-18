@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import argparse
 
-from convertersmartgrid import entradas_estudios as ee
+from convertersmartgrid.adaptadores import entradas_estudios as ee
 
 #: Nombres de lo que crea el estudio en el proyecto; todo se borra al terminar.
 NOMBRE_SHC = 'CSG_cortocircuito'

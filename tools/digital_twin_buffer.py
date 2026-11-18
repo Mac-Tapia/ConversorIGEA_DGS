@@ -21,8 +21,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from convertersmartgrid.digital_twin.buffer import BuferEpisodios, ColisionEpisodio, Consulta
-from convertersmartgrid.digital_twin.episode import (
+from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios, ColisionEpisodio, Consulta
+from convertersmartgrid.dominio.digital_twin.episode import (
     EpisodioInvalido,
     episodio_a_dict,
     leer_episodio,

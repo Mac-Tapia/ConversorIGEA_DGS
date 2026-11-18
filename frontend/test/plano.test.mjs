@@ -76,7 +76,7 @@ test('111:RF-14 la pestaña solo acepta de la página del plano los mensajes de 
   const marco = {};
   // test_frontend_rutas copia solo el frontend a una ruta con espacios: allí no está el código del servidor y el
   // cruce con sus listas se hace donde está (como avisosEnSuPaso); lo demás de la prueba corre igual.
-  const ruta = join(FRONT, '..', 'src', 'convertersmartgrid', 'pagina_plano.py');
+  const ruta = join(FRONT, '..', 'src', 'convertersmartgrid', 'adaptadores/pagina_plano.py');
   if (existsSync(ruta)) {
     const pagina = readFileSync(ruta, 'utf8');
     const lista = (n) => JSON.parse(pagina.match(new RegExp(`${n} = \\(([^)]*)\\)`))[1].replace(/'/g, '"').replace(/^/, '[').replace(/,?\s*$/, ']'));

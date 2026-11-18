@@ -25,9 +25,9 @@ from pathlib import Path
 
 
 def _metrados(args, tabla) -> int:
-    from convertersmartgrid.dataset import CymdistDataset
-    from convertersmartgrid.metrados import metrados_de_lineas, valorar_metrados
-    from convertersmartgrid.model import build_feeder_model
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.aplicacion.metrados import metrados_de_lineas, valorar_metrados
+    from convertersmartgrid.dominio.model import build_feeder_model
 
     if not (args.cargas and args.equipos and args.alimentador):
         print('ERROR: los metrados piden --red, --cargas, --equipos y --alimentador')
@@ -46,7 +46,7 @@ def _metrados(args, tabla) -> int:
 
 
 def _obra(args, tabla_sicodi) -> int:
-    from convertersmartgrid.costos_fuentes import CostosError, leer_modulos_transmision, valorar_obra
+    from convertersmartgrid.aplicacion.costos_fuentes import CostosError, leer_modulos_transmision, valorar_obra
 
     tablas = {'distribucion': tabla_sicodi} if tabla_sicodi is not None else {}
     if args.modulos:
@@ -124,7 +124,7 @@ def main(argv=None) -> int:
     p.add_argument('--salida', type=Path, help='JSON con el resultado')
     args = p.parse_args(argv)
 
-    from convertersmartgrid.costos_fuentes import CostosError, cruzar_codigos, leer_sicodi
+    from convertersmartgrid.aplicacion.costos_fuentes import CostosError, cruzar_codigos, leer_sicodi
 
     tabla = None
     if args.sicodi:

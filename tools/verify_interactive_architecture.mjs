@@ -94,7 +94,7 @@ try {
       href: document.getElementById('c4-open').href,
     };
   })()`);
-  if (localAccess.hidden || !localAccess.href.endsWith('/src/convertersmartgrid/digital_twin/oraculo.py')) {
+  if (localAccess.hidden || !localAccess.href.endsWith('/src/convertersmartgrid/adaptadores/digital_twin/oraculo.py')) {
     throw new Error(`Local direct access failed: ${JSON.stringify(localAccess)}`);
   }
 

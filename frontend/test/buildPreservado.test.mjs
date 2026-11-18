@@ -214,9 +214,9 @@ function preparar(raiz) {
   writeFileSync(join(destino, 'package.json'), JSON.stringify(paquete));
   copyFileSync(join(frontend, 'tsconfig.json'), join(destino, 'tsconfig.json'));
   if (existsSync(join(frontend, 'scripts'))) copiarArbol(join(frontend, 'scripts'), join(destino, 'scripts'));
-  const backend = join(raiz, 'checkout', 'src', 'convertersmartgrid', 'web');
+  const backend = join(raiz, 'checkout', 'src', 'convertersmartgrid', 'presentacion', 'web');
   mkdirSync(backend, { recursive: true });
-  copyFileSync(join(frontend, '..', 'src', 'convertersmartgrid', 'web', 'runtime.py'), join(backend, 'runtime.py'));
+  copyFileSync(join(frontend, '..', 'src', 'convertersmartgrid', 'presentacion', 'web', 'runtime.py'), join(backend, 'runtime.py'));
   symlinkSync(join(frontend, 'node_modules'), join(destino, 'node_modules'), 'junction');
   writeFileSync(join(destino, 'index.html'), '<div id="root"></div><script type="module" src="/src/main.ts"></script>');
   mkdirSync(join(destino, 'dist', 'assets'), { recursive: true });

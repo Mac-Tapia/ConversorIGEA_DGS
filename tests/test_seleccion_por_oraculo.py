@@ -5,10 +5,10 @@ import pytest
 from apoyo import cargar_herramienta
 from test_optimizacion_oraculo import _alimentador, _dos_cargas, _espacio, _grafo, _p, NUEVA, TIPOS
 
-from convertersmartgrid import optimizacion_oraculo as oo
-from convertersmartgrid.escalera_optima import Variante
-from convertersmartgrid.web import services
-from convertersmartgrid.web.jobs import JobCancelled
+from convertersmartgrid.adaptadores import optimizacion_oraculo as oo
+from convertersmartgrid.aplicacion.escalera_optima import Variante
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.jobs import JobCancelled
 
 
 class _Ctx:
@@ -207,14 +207,14 @@ def test_el_margen_de_demanda_por_biseccion():
 def test_el_perfil_puede_apagar_el_oraculo_para_comparar(monkeypatch):
     """087:RF-30 — con ``escalera.usar_oraculo`` falso se mide todo en DIgSILENT, y se dice el método."""
     llamadas = _con_seleccion(monkeypatch, _seleccion(4), 'x')
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: {'escalera': {'usar_oraculo': False}})
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda *a, **k: {'escalera': {'usar_oraculo': False}})
     r = services.escalera_por_alimentador(object(), _Ctx(), 'P', ['F1'])
     assert llamadas[0]['variantes'] == [] and r['metodo'] == 'escalera'
 
 
 def test_lo_medido_se_guarda_sin_nombres(monkeypatch, tmp_path):
     """087:RF-17 — el conjunto del modelo lleva números y el resultado de DIgSILENT; ningún nombre de variante."""
-    from convertersmartgrid import modelo_obras as mo
+    from convertersmartgrid.dominio import modelo_obras as mo
 
     _con_seleccion(monkeypatch, _seleccion(4), 'v1')
     services.escalera_por_alimentador(object(), _Ctx(), 'P', ['F1'])

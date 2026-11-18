@@ -1,6 +1,6 @@
 """El cofre de las credenciales de la nube: DPAPI del usuario, por espacio y proveedor (spec 109, T4; 109:RF-2).
 
-``_cofre()`` importa ``convertersmartgrid.nube_cofre`` con una aserción: si aún no existe, la prueba cae por aserción.
+``_cofre()`` importa ``convertersmartgrid.adaptadores.nube_cofre`` con una aserción: si aún no existe, la prueba cae por aserción.
 """
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ TOKEN = 'ref-1//0gX'
 
 
 def _cofre():
-    assert importlib.util.find_spec('convertersmartgrid.nube_cofre') is not None, 'falta convertersmartgrid.nube_cofre'
-    return importlib.import_module('convertersmartgrid.nube_cofre')
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.nube_cofre') is not None, 'falta convertersmartgrid.adaptadores.nube_cofre'
+    return importlib.import_module('convertersmartgrid.adaptadores.nube_cofre')
 
 
 def test_guarda_cifrado_y_solo_el_token_de_refresco(tmp_path):
@@ -84,7 +84,7 @@ def test_un_espacio_con_ruta_rara_se_rechaza(tmp_path, wid):
 
 def test_la_copia_de_datos_no_lleva_los_secretos():
     """109:RF-2 — ninguna raíz de copia_datos.raices_de_datos contiene secretos/ (la copia viaja a Drive)."""
-    from convertersmartgrid.web.copia_datos import raices_de_datos
+    from convertersmartgrid.presentacion.web.copia_datos import raices_de_datos
 
     nube_cofre = _cofre()
     cofre = nube_cofre.ruta_cofre().resolve()

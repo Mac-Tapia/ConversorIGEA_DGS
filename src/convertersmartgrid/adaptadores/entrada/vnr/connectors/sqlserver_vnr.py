@@ -32,8 +32,8 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from convertersmartgrid.fases_red import fases_de_carga_que_llegan, fases_desde_la_cabecera
-from convertersmartgrid.util import finite_or_none
+from convertersmartgrid.dominio.fases_red import fases_de_carga_que_llegan, fases_desde_la_cabecera
+from convertersmartgrid.dominio.util import finite_or_none
 from convertersmartgrid.adaptadores.entrada.vnr.reglas_tramo import SIN_REGLA_BT, estado_o_anota, medio_o_anota
 from convertersmartgrid.adaptadores.entrada.vnr.models import (Capacitor, CanonicalModel, ConductorType, Load,
                                                              LowVoltageSection, Node, Regulator, Section, Source,

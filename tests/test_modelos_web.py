@@ -3,13 +3,13 @@ import json
 
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.presentacion.web.app import create_app
 
 
 def _conjunto_unitario(tmp_path, monkeypatch, familia='transformer'):
     """Contrato de carga: archivos de prueba; no acredita un modelo entrenado."""
-    from convertersmartgrid import aprendizaje_continuo as ac
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion import aprendizaje_continuo as ac
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     raiz = tmp_path / 'asistente'
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     reg = RegistroModelo(raiz / 'model_registry')
@@ -29,7 +29,7 @@ def _conjunto_unitario(tmp_path, monkeypatch, familia='transformer'):
 
 def test_modelo_lenguaje_lee_conjunto_sin_reescribir_puntero(tmp_path, monkeypatch):
     """050:RF-7 — el consumidor carga la versión conjunta y conserva el puntero individual."""
-    from convertersmartgrid.asistente import transformer, modelos_en_uso
+    from convertersmartgrid.aplicacion.asistente import transformer, modelos_en_uso
     raiz = tmp_path / 'asistente'
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     transformer.raiz_modelos().mkdir(parents=True)
@@ -46,7 +46,7 @@ def test_modelo_lenguaje_lee_conjunto_sin_reescribir_puntero(tmp_path, monkeypat
 def test_modelo_lenguaje_no_reutiliza_copia_corrupta_del_conjunto(tmp_path, monkeypatch):
     """050:RF-7 — la copia materializada también se verifica antes de cargar."""
     import pytest
-    from convertersmartgrid.asistente import transformer
+    from convertersmartgrid.aplicacion.asistente import transformer
     _conjunto_unitario(tmp_path, monkeypatch)
     version = transformer.version_promovida()
     assert version
@@ -58,8 +58,8 @@ def test_modelo_lenguaje_no_reutiliza_copia_corrupta_del_conjunto(tmp_path, monk
 def test_modelo_lenguaje_sin_miembro_no_recurre_al_heredado(tmp_path, monkeypatch):
     """050:RF-7, 050:RF-8 — un conjunto configurado exige la familia que se pide."""
     import pytest
-    from convertersmartgrid.asistente import transformer
-    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado
+    from convertersmartgrid.aplicacion.asistente import transformer
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import CicloBloqueado
     _conjunto_unitario(tmp_path, monkeypatch, 'pinn')
     with pytest.raises(CicloBloqueado, match='transformer'):
         transformer.version_promovida()
@@ -69,8 +69,8 @@ def test_pinn_lee_artefactos_del_conjunto(tmp_path, monkeypatch):
     """050:RF-7 — ruta de carga y procedencia; no ejecuta una red ni acredita exactitud."""
     from types import SimpleNamespace
     from pathlib import Path
-    from convertersmartgrid.digital_twin import oraculo
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.adaptadores.digital_twin import oraculo
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
     _raiz, reg, cid, conjunto = _conjunto_unitario(tmp_path, monkeypatch, 'pinn')
     llamadas = []
     def abrir(carpeta):
@@ -88,8 +88,8 @@ def test_pinn_lee_artefactos_del_conjunto(tmp_path, monkeypatch):
 def test_activar_individual_no_declara_exito_bajo_un_conjunto(tmp_path, monkeypatch):
     """050:RF-7 — cambiar un puntero ignorado no puede presentarse como activación."""
     import pytest
-    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado
-    from convertersmartgrid.asistente import modelos_en_uso, transformer
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import CicloBloqueado
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso, transformer
     raiz, reg, _cid, conjunto = _conjunto_unitario(tmp_path, monkeypatch)
     datos = dict(model_manifest={'version': 'otro'}, dataset_manifest={}, metrics={},
         decision={'status': 'PROMOVIDO', 'gates': {'approved': True}}, smoke_reload={'ok': True},
@@ -99,15 +99,15 @@ def test_activar_individual_no_declara_exito_bajo_un_conjunto(tmp_path, monkeypa
         modelos_en_uso.activar('transformer', otro)
     assert not (transformer.raiz_modelos() / 'promovido.json').exists()
     assert reg.activo('transformer') is None
-    from convertersmartgrid.aprendizaje_continuo import conjunto_activo
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import conjunto_activo
     assert conjunto_activo(raiz / 'aprendizaje')['conjunto_id'] == conjunto['conjunto_id']
 
 
 def test_reversion_individual_bajo_conjunto_exige_reversion_conjunta(tmp_path, monkeypatch):
     """050:RF-7 — la reversión tampoco informa éxito sobre un puntero que no se carga."""
     import pytest
-    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado
-    from convertersmartgrid.asistente import modelos_en_uso
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import CicloBloqueado
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso
     _conjunto_unitario(tmp_path, monkeypatch)
     with pytest.raises(CicloBloqueado, match='conjunto'):
         modelos_en_uso.volver_al_anterior('transformer')
@@ -116,8 +116,8 @@ def test_reversion_individual_bajo_conjunto_exige_reversion_conjunta(tmp_path, m
 def test_provisional_no_rompe_conjunto_ni_anota_activacion_falsa(tmp_path, monkeypatch):
     """050:RF-7 — una decisión provisional individual no cambia un conjunto publicado."""
     import pytest
-    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado
-    from convertersmartgrid.asistente import modelos_en_uso
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import CicloBloqueado
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso
     _raiz, reg, _cid, _conjunto = _conjunto_unitario(tmp_path, monkeypatch)
     otro = reg.registrar_candidato('transformer', model_manifest={'version': 'provisional'},
         dataset_manifest={}, metrics={}, decision={'status': 'RECHAZADO', 'gates': {'approved': False}},
@@ -130,9 +130,9 @@ def test_provisional_no_rompe_conjunto_ni_anota_activacion_falsa(tmp_path, monke
 def test_pinn_no_promueve_individual_bajo_conjunto(tmp_path, monkeypatch):
     """050:RF-7 — la PINN conserva el mismo contrato de publicación conjunta."""
     import pytest
-    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado
-    from convertersmartgrid.digital_twin import oraculo
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import CicloBloqueado
+    from convertersmartgrid.adaptadores.digital_twin import oraculo
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
     _conjunto_unitario(tmp_path, monkeypatch, 'pinn')
     bufer = BuferEpisodios(tmp_path / 'twin')
     (bufer.raiz / 'modelos').mkdir()
@@ -163,7 +163,7 @@ def test_modelos_web_no_infiere_promocion(tmp_path, monkeypatch):
 
 def test_ausencia_de_informe_es_pendiente(tmp_path, monkeypatch):
     """043:RF-8 — la ausencia no se inventa como etapa entrenada ni rechazada."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     payload = services.asistente_estado_modelos()
     assert all(f['estado'] is None for f in payload['familias'])
@@ -172,8 +172,8 @@ def test_ausencia_de_informe_es_pendiente(tmp_path, monkeypatch):
 
 def test_candidato_bloqueado_visible_sin_informe_global(tmp_path, monkeypatch):
     """043:RF-8 — la destilación registra su decisión sin fingir siete entrenamientos."""
-    from convertersmartgrid.model_registry import RegistroModelo
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+    from convertersmartgrid.presentacion.web import services
     from test_model_registry import _payload
     raiz = tmp_path / 'asistente'
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
@@ -190,8 +190,8 @@ def test_candidato_bloqueado_visible_sin_informe_global(tmp_path, monkeypatch):
 def test_decision_reciente_no_queda_oculta_por_informe_viejo(tmp_path, monkeypatch):
     """043:RF-8 — se distingue última decisión de candidato y modelo que sigue activo."""
     import os
-    from convertersmartgrid.model_registry import RegistroModelo
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+    from convertersmartgrid.presentacion.web import services
     from test_model_registry import _payload
     raiz = tmp_path / 'asistente'
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
@@ -213,8 +213,8 @@ def test_decision_reciente_no_queda_oculta_por_informe_viejo(tmp_path, monkeypat
 def test_consulta_modelos_no_relee_pesos_en_http(tmp_path, monkeypatch):
     """043:RF-8 — consultar estado usa manifiestos; no bloquea HTTP leyendo GB de pesos."""
     from pathlib import Path
-    from convertersmartgrid.model_registry import RegistroModelo
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+    from convertersmartgrid.presentacion.web import services
     from test_model_registry import _payload
     raiz = tmp_path / 'asistente'
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
@@ -238,7 +238,7 @@ def test_consulta_modelos_no_relee_pesos_en_http(tmp_path, monkeypatch):
 
 def test_puntero_activo_corrupto_no_rompe_consulta(tmp_path, monkeypatch):
     """043:RF-8 — un registro ilegible se muestra bloqueado en vez de lanzar HTTP 500."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
     raiz = tmp_path / 'asistente'
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     ruta = raiz / 'training/report.json'
@@ -254,8 +254,8 @@ def test_puntero_activo_corrupto_no_rompe_consulta(tmp_path, monkeypatch):
 
 def test_los_cuatro_estados_con_su_evidencia(tmp_path, monkeypatch):
     """043:RF-8 — cada estado terminal sale con su candidato y puertas; un PROMOVIDO, solo si está activo."""
-    from convertersmartgrid.model_registry import RegistroModelo
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+    from convertersmartgrid.presentacion.web import services
     from test_model_registry import _payload
     raiz = tmp_path / 'asistente'
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
@@ -276,8 +276,8 @@ def test_los_cuatro_estados_con_su_evidencia(tmp_path, monkeypatch):
 
 def test_promovido_del_registro_sin_activar_no_se_muestra_promovido(tmp_path, monkeypatch):
     """043:RF-8 — aprobar un candidato no es ponerlo en uso: sin activar, queda pendiente y dice por qué."""
-    from convertersmartgrid.model_registry import RegistroModelo
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+    from convertersmartgrid.presentacion.web import services
     from test_model_registry import _payload
     raiz = tmp_path / 'asistente'
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
@@ -288,8 +288,8 @@ def test_promovido_del_registro_sin_activar_no_se_muestra_promovido(tmp_path, mo
 
 def test_el_pronostico_se_ve_en_la_familia_gru(tmp_path, monkeypatch):
     """043:RF-8 — se registra por clase (046) y la web lo buscaba en ``gru``: una promoción real salía sin evidencia."""
-    from convertersmartgrid.model_registry import RegistroModelo
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+    from convertersmartgrid.presentacion.web import services
     from test_model_registry import _payload
     raiz = tmp_path / 'asistente'
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
@@ -320,14 +320,14 @@ def test_el_pronostico_se_ve_en_la_familia_gru(tmp_path, monkeypatch):
 
 def test_pinn_del_registro_en_uso_por_su_puntero(tmp_path, monkeypatch):
     """043:RF-8, 071:RF-5 — anotada en el registro y en uso por su puntero; si se vuelve al anterior, ya no se dice en uso."""
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-    from convertersmartgrid.digital_twin.oraculo import _decidir_promocion, volver_al_anterior
-    from convertersmartgrid.model_registry import RegistroModelo
-    from convertersmartgrid.web import services
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import _decidir_promocion, volver_al_anterior
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+    from convertersmartgrid.presentacion.web import services
     raiz = tmp_path / 'asistente'
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     monkeypatch.setenv('CSG_TWIN_DATA', str(tmp_path / 'bufer'))
-    from convertersmartgrid.digital_twin.buffer import raiz_buffer
+    from convertersmartgrid.adaptadores.digital_twin.buffer import raiz_buffer
     bufer = BuferEpisodios(raiz_buffer())
     registro = RegistroModelo(raiz / 'model_registry')
     versiones = []
@@ -362,8 +362,8 @@ class Veto:
 sys.meta_path.insert(0, Veto())
 sys.path.insert(0, {str(src)!r})
 from fastapi.testclient import TestClient
-from convertersmartgrid import sesion_web
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.dominio import sesion_web
+from convertersmartgrid.presentacion.web.app import create_app
 from pathlib import Path
 # Otro proceso no hereda lo que hace conftest.py: sin esto, la puerta de 086:RF-19 responde 401.
 sesion_web.EXIGIR_SEGURIDAD = False

@@ -10,10 +10,10 @@ pytest.importorskip('httpx2')
 
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-from convertersmartgrid.pide_economia import propuesta_pide
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+from convertersmartgrid.aplicacion.pide_economia import propuesta_pide
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
 
 PLAN = {'tasa_regulada': 0.12, 'tasa_privada': 0.12, 'vida_util_anios': 30, 'horizonte_anios': 20,
         'anios_pide': [4, 5, 6, 7], 'anios_horizonte': [4, 8], 'crecimiento_demanda_anual': 0.04,
@@ -57,7 +57,7 @@ def test_el_orden_de_las_obras_no_cambia_al_pasar_a_la_moneda_de_trabajo():
     """025:RF-67 / 025:RF-77 (H4, condición del auditor): todo en soles, o tarifas y precio de compra en soles
     pasados a dólares con 3,5 y el CAPEX en dólares, dan las mismas obras en el mismo orden; solo cambia la
     escala del dinero."""
-    from convertersmartgrid.pide_economia import plan_en_moneda_de_trabajo
+    from convertersmartgrid.aplicacion.pide_economia import plan_en_moneda_de_trabajo
     tc = 3.5
     plan_soles = {**PLAN, 'tarifas': {**PLAN['tarifas'], 'moneda': 'PEN'}, 'precio_compra_kwh': 0.70}
     costos_soles = {a: {**c, 'costo_unitario': c['costo_unitario'] * tc} for a, c in COSTOS.items()}
@@ -98,8 +98,8 @@ def test_el_estudio_deja_sus_modulos_y_usa_la_confiabilidad_guardada(client, mon
               'empresa': 'Empresa de prueba'}
     monkeypatch.setattr(services, 'native_action_context',
                         lambda _ws, project, feeders, action: {'feeders': ['F1'], 'project': project})
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.estructura_empresa', lambda *a, **k: None)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.estructura_empresa', lambda *a, **k: None)
     monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: (0, INFORME, tmp_path / 'pide.json'))
     ws.out_dir.mkdir(parents=True, exist_ok=True)
     (ws.out_dir / 'estudio_sin_fiabilidad_x.json').write_text(json.dumps({'project': 'P', 'red': {'F1': {'saifi': 3.5}}}), encoding='utf-8')
@@ -132,8 +132,8 @@ def test_pide_simula_y_aplica_solo_lo_que_funciona(client, monkeypatch, tmp_path
               'calibracion': {'bancos_kvar_por_tension': {'10': 300}}}
     monkeypatch.setattr(services, 'native_action_context',
                         lambda _ws, project, feeders, action: {'feeders': ['F1'], 'project': project})
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.estructura_empresa', lambda *a, **k: None)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda *a, **k: perfil)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.estructura_empresa', lambda *a, **k: None)
     informe = {'anios': [dict(INFORME['anios'][0], problemas=INFORME['anios'][0]['problemas']
                               + [_p('caida_de_tension', 'C3', 0.92, 10.0, alim='F2')]),
                          INFORME['anios'][1]]}

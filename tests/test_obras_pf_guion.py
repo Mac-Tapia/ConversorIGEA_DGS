@@ -1105,7 +1105,7 @@ def _calibrada_con_escenario(rng):
 def _actual_no_cumple(monkeypatch):
     """«Con proyecto» tal como está no cumple (en la red real lo impiden las cargas nuevas):
     la primera comparación, la del estado actual (025:RF-74), sale que no."""
-    from convertersmartgrid import escalera_optima
+    from convertersmartgrid.aplicacion import escalera_optima
 
     original = escalera_optima.cumple
     llamadas = []
@@ -1370,7 +1370,7 @@ def test_perdidas_con_lo_que_consumen_las_cargas_en_el_flujo(monkeypatch):
     flujo (``m:Psum:bus1``), no su potencia nominal."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.ajuste_cabecera import Medida
+    from convertersmartgrid.dominio.ajuste_cabecera import Medida
 
     cargas = [SimpleNamespace(outserv=0, plini=9.0, GetAttribute=lambda a, p=p: p) for p in (0.4, 0.5)]
     elm = SimpleNamespace(GetObjs=lambda clase: cargas if clase == 'ElmLod' else [])
@@ -1405,7 +1405,7 @@ def test_sorteos_de_la_mas_barata_a_la_mas_cara_hasta_la_primera_que_cumple(monk
     primera que cumple las más caras no se sortean; la que no tiene costo tampoco."""
     import contextlib
 
-    from convertersmartgrid import escalera_optima
+    from convertersmartgrid.aplicacion import escalera_optima
 
     app, alims = _calibrada_con_escenario(random.Random(31))
     actual, sorteadas, medidas = {}, [], {'n': 0}
@@ -1567,7 +1567,7 @@ def test_la_obra_inactiva_vuelve_a_cerrar_lo_que_abrio():
 
 def test_la_evaluacion_mide_el_alcance_de_cada_clase_de_obra(monkeypatch):
     """042:RF-73, 042:RF-74 — baja del horizonte hasta el año que aguanta; no deja obra ni escenario temporal."""
-    from convertersmartgrid import escalera_optima
+    from convertersmartgrid.aplicacion import escalera_optima
 
     app, alims = _calibrada_con_escenario(random.Random(43))
     _actual_no_cumple(monkeypatch)
@@ -1589,7 +1589,7 @@ def test_la_evaluacion_mide_el_alcance_de_cada_clase_de_obra(monkeypatch):
 @pytest.mark.parametrize('sigue,medidos', [(False, 10), (True, 12)])
 def test_los_sorteos_van_por_etapas(monkeypatch, sigue, medidos):
     """042:RF-87, 042:RF-88 — con etapa de 10 de 12: si está claro, para ahí; si no, mide los otros 2 con su referencia."""
-    from convertersmartgrid import escalera_optima
+    from convertersmartgrid.aplicacion import escalera_optima
 
     app, alims = _calibrada_con_escenario(random.Random(44))
     _actual_no_cumple(monkeypatch)
@@ -1647,7 +1647,7 @@ def test_las_fases_se_miran_una_vez_por_caso(monkeypatch):
     """042:RF-89 — recorrer la red en cada sorteo costaba más que el flujo."""
     from types import SimpleNamespace as N
 
-    from convertersmartgrid import dgs
+    from convertersmartgrid.adaptadores import dgs
 
     miradas = []
     monkeypatch.setattr(dgs, 'red_con_monofasicos', lambda _a: (miradas.append(1), True)[1])
@@ -1661,7 +1661,7 @@ def test_las_fases_se_miran_una_vez_por_caso(monkeypatch):
 
 def test_tras_la_primera_que_cumple_hay_un_tope_de_variantes(monkeypatch):
     """042:RF-90 — con una alternativa y tope 2, para ahí y lo dice; las demás no se miden."""
-    from convertersmartgrid import escalera_optima
+    from convertersmartgrid.aplicacion import escalera_optima
 
     app, alims = _calibrada_con_escenario(random.Random(47))
     _actual_no_cumple(monkeypatch)
@@ -1685,7 +1685,7 @@ def _plan_con_horizonte(alims, n, perfil=None):
 
 def test_con_tres_alternativas_y_una_definitiva_para(monkeypatch):
     """042:RF-92 — ya no prueba más; el alcance se mide a la vida útil del perfil."""
-    from convertersmartgrid import escalera_optima
+    from convertersmartgrid.aplicacion import escalera_optima
 
     app, alims = _calibrada_con_escenario(random.Random(48))
     _actual_no_cumple(monkeypatch)
@@ -1699,7 +1699,7 @@ def test_con_tres_alternativas_y_una_definitiva_para(monkeypatch):
 
 def test_con_tres_y_ninguna_definitiva_sigue_hasta_el_tope(monkeypatch):
     """042:RF-92 — sigue buscando; al llegar al tope lo dice."""
-    from convertersmartgrid import escalera_optima
+    from convertersmartgrid.aplicacion import escalera_optima
 
     app, alims = _calibrada_con_escenario(random.Random(49))
     _actual_no_cumple(monkeypatch)

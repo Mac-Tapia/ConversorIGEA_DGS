@@ -29,7 +29,7 @@ Estado: propuesto el 2026-10-10, pendiente de aprobar. No se ha movido código t
   en `dgs`. `reglas` importa `powerfactory_env` solo por `project_root`.
 - **Perfil de empresa:** existe `config/perfil_empresa.json` (spec 005) con una sola
   clave, `carpeta_proyectos_pf`, leída por `carpeta_pf.nombre_de_perfil`.
-- **Reexportaciones temporales:** `convertersmartgrid.web.sources` e `convertersmartgrid.web.sources.vnr`.
+- **Reexportaciones temporales:** `convertersmartgrid.presentacion.web.sources` e `convertersmartgrid.presentacion.web.sources.vnr`.
 
 ## Capas
 

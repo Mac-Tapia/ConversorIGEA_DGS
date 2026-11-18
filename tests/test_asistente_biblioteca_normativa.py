@@ -11,16 +11,16 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.asistente import indice, lectura_proyecto
+from convertersmartgrid.aplicacion.asistente import indice, lectura_proyecto
 
 RAIZ = Path(__file__).resolve().parents[1]
 CONJUNTO = RAIZ / 'docs' / 'CONJUNTO_NORMATIVO_SELLADO_077.json'
 
 
 def _cn():
-    assert importlib.util.find_spec('convertersmartgrid.asistente.corpus_normativo') is not None, \
+    assert importlib.util.find_spec('convertersmartgrid.aplicacion.asistente.corpus_normativo') is not None, \
         'falta asistente/corpus_normativo.py (077 T12)'
-    return importlib.import_module('convertersmartgrid.asistente.corpus_normativo')
+    return importlib.import_module('convertersmartgrid.aplicacion.asistente.corpus_normativo')
 
 
 @pytest.fixture
@@ -103,7 +103,7 @@ def test_077_rf80_preguntas_normativas_selladas_y_ancladas():
     """077:RF-80 — el conjunto de la biblioteca es sintético, sellado y está en la auditoría de fugas; cada pregunta con
     respuesta encuentra su regla en la biblioteca real y hay preguntas sin respuesta de control."""
     cn = _cn()
-    from convertersmartgrid.asistente import evaluacion_rag, fuga_evaluacion, reranker
+    from convertersmartgrid.aplicacion.asistente import evaluacion_rag, fuga_evaluacion, reranker
     assert reranker.CONJUNTO_NORMATIVO_077 == CONJUNTO
     assert reranker.sha256_de(CONJUNTO) == reranker.SELLO_NORMATIVO_077, 'el conjunto cambió después de sellarse'
     assert 'docs/CONJUNTO_NORMATIVO_SELLADO_077.json' in fuga_evaluacion.CONJUNTOS_RAG['077']

@@ -6,7 +6,7 @@ import random
 
 import pytest
 
-from convertersmartgrid import perfil_tension as pt
+from convertersmartgrid.aplicacion import perfil_tension as pt
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 PRE = 'Red:\\P\\'
@@ -137,7 +137,7 @@ def test_el_perfil_de_la_propuesta_queda_en_el_espacio(tmp_path):
     """094:RF-13 — el perfil antes y después queda guardado por proyecto y alimentador; un fichero roto no tumba nada."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = SimpleNamespace(out_dir=tmp_path / 'salida')
     c = pt.comparar({'A': 0.94}, {'A': 0.97}, limite_min=0.95, limite_max=1.05, perdidas_antes=1.0, perdidas_despues=0.9)

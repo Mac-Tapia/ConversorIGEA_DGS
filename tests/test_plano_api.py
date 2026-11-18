@@ -21,10 +21,10 @@ pytest.importorskip('pandapower')
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from convertersmartgrid.estudios_pf import LIMITES_POR_DEFECTO  # noqa: E402
-from convertersmartgrid.geography import build_geography, geography_to_dict  # noqa: E402
-from convertersmartgrid.model import build_feeder_model  # noqa: E402
-from convertersmartgrid.plano_red import identidad  # noqa: E402
+from convertersmartgrid.aplicacion.estudios_pf import LIMITES_POR_DEFECTO  # noqa: E402
+from convertersmartgrid.adaptadores.geography import build_geography, geography_to_dict  # noqa: E402
+from convertersmartgrid.dominio.model import build_feeder_model  # noqa: E402
+from convertersmartgrid.adaptadores.plano_red import identidad  # noqa: E402
 from synthetic_export import CRS_SINTETICO, ExportSpec, load_export  # noqa: E402
 
 LAYOUTS = ('reducido', 'completo')
@@ -32,8 +32,8 @@ BASE = '/api/workspaces/w1/plano'
 
 
 def _api():
-    assert importlib.util.find_spec('convertersmartgrid.web.plano_api') is not None, 'falta web/plano_api.py'
-    modulo = importlib.import_module('convertersmartgrid.web.plano_api')
+    assert importlib.util.find_spec('convertersmartgrid.presentacion.web.plano_api') is not None, 'falta web/plano_api.py'
+    modulo = importlib.import_module('convertersmartgrid.presentacion.web.plano_api')
     assert hasattr(modulo, 'registrar_rutas_plano'), 'plano_api no da registrar_rutas_plano'
     return modulo
 
@@ -287,7 +287,7 @@ def test_111_rf4_sin_estudio_o_variacion_desconocida_se_dice(tmp_path):
 
 def test_111_rf16_las_rutas_del_plano_se_anaden_sin_quitar_ninguna(tmp_path):
     """111:RF-16 — montar el plano en la aplicación real no quita ni cambia ninguna ruta de antes."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     app = create_app(tmp_path / 'web')
     antes = {(r.path, tuple(sorted(getattr(r, 'methods', None) or ()))) for r in app.routes

@@ -29,8 +29,8 @@ import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ...identify import FUENTE_MDB, FUENTE_TXT, FUENTE_VNR, fuente_de
-from ...util import publicar_duradero
+from ..identify import FUENTE_MDB, FUENTE_TXT, FUENTE_VNR, fuente_de
+from ...dominio.util import publicar_duradero
 from ..nube.proveedor import ErrorNube, ProveedorNube, YaExiste, huellas_de
 
 MANIFIESTO = 'manifiesto.json'

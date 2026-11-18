@@ -14,8 +14,8 @@ import pytest
 
 from datos_pit import perfil_a, perfil_b
 
-from convertersmartgrid.pit.ambito import PitError, areas_del_perfil, reunir
-from convertersmartgrid.pit.red_area import REQUERIDOS, desde_ambito, leer_libro_red
+from convertersmartgrid.dominio.pit.ambito import PitError, areas_del_perfil, reunir
+from convertersmartgrid.aplicacion.pit.red_area import REQUERIDOS, desde_ambito, leer_libro_red
 
 SEMILLAS = (2, 29)
 
@@ -258,7 +258,7 @@ def test_xls_y_xlsb_reales_por_el_lector_comun(ext, tmp_path):
     """107:RF-12 — un .xls y un .xlsb reales los abre el lector común (calamine) y dan lo mismo que el .xlsx de origen y
     que el libro escrito en el momento; sin ``columnas`` en el perfil, los encabezados son las claves del contrato, y
     la hoja sin contrato queda en los avisos."""
-    from convertersmartgrid.libros_por_anio import EXTENSIONES
+    from convertersmartgrid.aplicacion.libros_por_anio import EXTENSIONES
 
     assert {'.xls', '.xlsb', '.xlsx', '.xlsm'} <= set(EXTENSIONES)
     ruta = MUESTRAS / f'red_pit_sintetica{ext}'

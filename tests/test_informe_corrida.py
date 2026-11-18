@@ -19,9 +19,9 @@ pytest.importorskip('fastapi')
 from test_informe_web import FACTIBILIDAD, FORMULARIO, _medida, client  # noqa: E402,F401
 
 from apoyo import esperar_trabajo  # noqa: E402
-from convertersmartgrid.informe_docx import exportar_pdf  # noqa: E402
-from convertersmartgrid.web import services  # noqa: E402
-from convertersmartgrid.web.services import UserError  # noqa: E402
+from convertersmartgrid.adaptadores.informe_docx import exportar_pdf  # noqa: E402
+from convertersmartgrid.presentacion.web import services  # noqa: E402
+from convertersmartgrid.presentacion.web.services import UserError  # noqa: E402
 
 LIMITES = {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100.0}
 OBRA = {'clase': 'condensador', 'alimentador': 'AL01', 'casos': ['Con proyecto'], 'barra': 'N7', 'q_kvar': 300}
@@ -178,7 +178,7 @@ def _si112(ws, monkeypatch, con, cargas=None):
 
 def test_la_tolerancia_es_la_de_la_escalera_y_sin_ella_no_se_disculpa_nada(monkeypatch):
     """086:RF-48 — la del perfil, para juzgar como la escalera; sin ella, 0: nunca un «previo» de más."""
-    from convertersmartgrid import perfil_empresa
+    from convertersmartgrid.dominio import perfil_empresa
 
     monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {'escalera': {'tolerancia_pu': 0.005}})
     assert services._tolerancia_pu_del_perfil() == 0.005
@@ -418,7 +418,7 @@ def test_la_carga_sola_trae_su_set_y_la_tension_de_su_barra(monkeypatch):
     """017:RF-91 — la solicitud se propone con la SET de la estructura y la tensión nominal de la barra de
     la carga en el flujo guardado («Con proyecto» primero; si no está, la de la cabecera). Sin estructura ni
     flujo, ``None``: se pide. CA101 (2026-11-13) volvía a pedir SET y tensión ya conocidas."""
-    from convertersmartgrid.estructura import AlimentadorEstructura, Estructura, SetElectrica
+    from convertersmartgrid.dominio.estructura import AlimentadorEstructura, Estructura, SetElectrica
 
     estructura = Estructura(zonales=['Z'], sets={'SET 21': SetElectrica('SET 21', 'El Carmen', 'Z')},
                             alimentadores={'CA101': AlimentadorEstructura('CA101', 'SET 21')})
@@ -483,7 +483,7 @@ def test_el_informe_no_se_escribe_con_una_carga_que_no_esta_en_digsilent(client,
 def test_lo_que_cambio_en_digsilent_manda_en_el_informe(client, monkeypatch):  # noqa: F811
     """017:RF-124 ampliada — la conexión movida en DIgSILENT se adopta como punto de diseño, y la potencia de
     DIgSILENT manda si difiere; los dos cambios se dicen en el informe."""
-    from convertersmartgrid.mapa_cargas import leer_puntos
+    from convertersmartgrid.adaptadores.mapa_cargas import leer_puntos
 
     _wid, ws = _espacio(client)
     ws.out_dir.mkdir(parents=True, exist_ok=True)

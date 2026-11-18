@@ -9,7 +9,7 @@ import pytest
 
 from correo_simulado import ProveedorSimulado, sin_red  # noqa: F401  (fixture)
 
-from convertersmartgrid.correo import borrador as b
+from convertersmartgrid.adaptadores.correo import borrador as b
 
 
 @pytest.fixture(autouse=True)
@@ -145,7 +145,7 @@ def test_direcciones_se_normalizan_y_no_se_repiten(tmp_path):
 # ------------------------------------------------------------------ T2: adjuntos admitidos y prohibidos (RF-3, RF-11)
 from test_informe_docx import _config, _factibilidad  # noqa: E402  (informes reales sobre datos sintéticos)
 
-from convertersmartgrid.informe_docx import escribir_informe_factibilidad  # noqa: E402
+from convertersmartgrid.adaptadores.informe_docx import escribir_informe_factibilidad  # noqa: E402
 
 #: Dos perfiles de empresa distintos (P13): otra norma, otro regulador y otros rótulos de cabecera.
 PERFILES = ({}, {'norma': 'NORMA-B', 'regulador': 'Regulador B',
@@ -318,7 +318,7 @@ def test_validez_de_un_tipo_que_no_se_conoce(tmp_path):
 
 
 # ------------------------------------------------------------------ T6: contactos habituales (RF-14)
-from convertersmartgrid.correo import envios as e  # noqa: E402
+from convertersmartgrid.adaptadores.correo import envios as e  # noqa: E402
 from correo_simulado import CredencialesSimuladas  # noqa: E402
 
 

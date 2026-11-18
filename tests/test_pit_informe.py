@@ -12,9 +12,9 @@ import pytest
 from datos_pit import perfil_a, perfil_b
 from test_pit_expediente import _piezas
 
-from convertersmartgrid.pit.ambito import PitError
-from convertersmartgrid.pit.expediente import emitir
-from convertersmartgrid.pit.informe import desde_carpeta
+from convertersmartgrid.dominio.pit.ambito import PitError
+from convertersmartgrid.adaptadores.pit.expediente import emitir
+from convertersmartgrid.adaptadores.pit.informe import desde_carpeta
 
 
 def _emitido(tmp_path, fabrica, seed=27):

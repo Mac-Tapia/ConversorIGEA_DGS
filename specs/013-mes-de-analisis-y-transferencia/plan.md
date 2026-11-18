@@ -119,9 +119,9 @@ manuales. No pretende sustituir un hash de custodia del contenido; sirve para in
 
 **Archivos**
 
-- Modificar: `src/convertersmartgrid/perfil_empresa.py`
+- Modificar: `src/convertersmartgrid/dominio/perfil_empresa.py`
 - Modificar: `config/perfiles/electro_dunas.json`
-- Modificar: `src/convertersmartgrid/demanda_medida.py`
+- Modificar: `src/convertersmartgrid/aplicacion/demanda_medida.py`
 - Modificar: `tests/test_perfil_empresa.py`
 - Modificar: `tests/test_demanda_medida.py`
 
@@ -169,7 +169,7 @@ el catálogo impide vincularlos a meses distintos sin evidencia.
 
    ```powershell
    .venv\Scripts\python.exe -m pytest tests/test_perfil_empresa.py tests/test_demanda_medida.py -q
-   git add src/convertersmartgrid/perfil_empresa.py config/perfiles/electro_dunas.json src/convertersmartgrid/demanda_medida.py tests/test_perfil_empresa.py tests/test_demanda_medida.py
+   git add src/convertersmartgrid/dominio/perfil_empresa.py config/perfiles/electro_dunas.json src/convertersmartgrid/aplicacion/demanda_medida.py tests/test_perfil_empresa.py tests/test_demanda_medida.py
    git commit -m "feat: indexar libros mensuales de clientes"
    ```
 
@@ -177,9 +177,9 @@ el catálogo impide vincularlos a meses distintos sin evidencia.
 
 **Archivos**
 
-- Modificar: `src/convertersmartgrid/web/workspace.py`
-- Modificar: `src/convertersmartgrid/web/services.py`
-- Modificar: `src/convertersmartgrid/web/app.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/workspace.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/services.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/app.py`
 - Modificar: `tests/test_demanda_medida_web.py`
 
 **Justificación científica:** la trazabilidad exigida por el uso conjunto de perfiles y
@@ -212,7 +212,7 @@ cruce.
 
    ```powershell
    .venv\Scripts\python.exe -m pytest tests/test_demanda_medida_web.py -q
-   git add src/convertersmartgrid/web/workspace.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py tests/test_demanda_medida_web.py
+   git add src/convertersmartgrid/presentacion/web/workspace.py src/convertersmartgrid/presentacion/web/services.py src/convertersmartgrid/presentacion/web/app.py tests/test_demanda_medida_web.py
    git commit -m "feat: conservar carpeta y meses de clientes"
    ```
 
@@ -221,10 +221,10 @@ cruce.
 **Archivos**
 
 - Crear: `src/convertersmartgrid/periodo_analisis.py`
-- Modificar: `src/convertersmartgrid/demanda_medida.py`
-- Modificar: `src/convertersmartgrid/web/workspace.py`
-- Modificar: `src/convertersmartgrid/web/services.py`
-- Modificar: `src/convertersmartgrid/web/app.py`
+- Modificar: `src/convertersmartgrid/aplicacion/demanda_medida.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/workspace.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/services.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/app.py`
 - Crear: `tests/test_periodo_analisis.py`
 - Modificar: `tests/test_demanda_medida_web.py`
 
@@ -265,7 +265,7 @@ coincidencia temporal, no reducir anticipadamente cada alimentador a una punta a
 
    ```powershell
    .venv\Scripts\python.exe -m pytest tests/test_periodo_analisis.py tests/test_demanda_medida_web.py -q
-   git add src/convertersmartgrid/periodo_analisis.py src/convertersmartgrid/demanda_medida.py src/convertersmartgrid/web/workspace.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py tests/test_periodo_analisis.py tests/test_demanda_medida_web.py
+   git add src/convertersmartgrid/periodo_analisis.py src/convertersmartgrid/aplicacion/demanda_medida.py src/convertersmartgrid/presentacion/web/workspace.py src/convertersmartgrid/presentacion/web/services.py src/convertersmartgrid/presentacion/web/app.py tests/test_periodo_analisis.py tests/test_demanda_medida_web.py
    git commit -m "feat: calcular periodos comunes de demanda"
    ```
 
@@ -273,9 +273,9 @@ coincidencia temporal, no reducir anticipadamente cada alimentador a una punta a
 
 **Archivos**
 
-- Modificar: `src/convertersmartgrid/demanda_medida.py`
-- Modificar: `src/convertersmartgrid/web/services.py`
-- Modificar: `src/convertersmartgrid/web/app.py`
+- Modificar: `src/convertersmartgrid/aplicacion/demanda_medida.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/services.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/app.py`
 - Modificar: `tests/test_demanda_medida.py`
 - Modificar: `tests/test_demanda_medida_web.py`
 
@@ -307,7 +307,7 @@ et al. respaldan reconciliar el libro de clientes con la medición del mismo per
 
    ```powershell
    .venv\Scripts\python.exe -m pytest tests/test_demanda_medida.py tests/test_demanda_medida_web.py -q
-   git add src/convertersmartgrid/demanda_medida.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py tests/test_demanda_medida.py tests/test_demanda_medida_web.py
+   git add src/convertersmartgrid/aplicacion/demanda_medida.py src/convertersmartgrid/presentacion/web/services.py src/convertersmartgrid/presentacion/web/app.py tests/test_demanda_medida.py tests/test_demanda_medida_web.py
    git commit -m "feat: acotar maxima y clientes al periodo"
    ```
 
@@ -370,9 +370,9 @@ que depende de coincidencia.
 
 **Archivos**
 
-- Modificar: `src/convertersmartgrid/demanda_medida.py`
-- Modificar: `src/convertersmartgrid/web/services.py`
-- Modificar: `src/convertersmartgrid/web/app.py`
+- Modificar: `src/convertersmartgrid/aplicacion/demanda_medida.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/services.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/app.py`
 - Modificar: `frontend/src/types.ts`
 - Modificar: `frontend/src/api.ts`
 - Modificar: `frontend/src/components/CurvaCabecera.tsx`
@@ -402,7 +402,7 @@ temporal común para distinguir simultaneidad y diversidad.
 4. Commit:
 
    ```powershell
-   git add src/convertersmartgrid/demanda_medida.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py frontend/src/types.ts frontend/src/api.ts frontend/src/components/CurvaCabecera.tsx frontend/src/styles.css tests/test_demanda_medida.py tests/test_demanda_medida_web.py docs/acceptance/013-mes-clientes.md
+   git add src/convertersmartgrid/aplicacion/demanda_medida.py src/convertersmartgrid/presentacion/web/services.py src/convertersmartgrid/presentacion/web/app.py frontend/src/types.ts frontend/src/api.ts frontend/src/components/CurvaCabecera.tsx frontend/src/styles.css tests/test_demanda_medida.py tests/test_demanda_medida_web.py docs/acceptance/013-mes-clientes.md
    git commit -m "feat: comparar curvas en un eje temporal"
    ```
 
@@ -410,8 +410,8 @@ temporal común para distinguir simultaneidad y diversidad.
 
 **Archivos**
 
-- Modificar: `src/convertersmartgrid/web/services.py`
-- Modificar: `src/convertersmartgrid/web/app.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/services.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/app.py`
 - Modificar: `frontend/src/components/CargasTab.tsx`
 - Modificar: `frontend/src/components/TransferenciaPF.tsx`
 - Modificar: `frontend/src/api.ts`
@@ -441,7 +441,7 @@ originó.
    Set-Location frontend
    npm run build
    Set-Location ..
-   git add src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py frontend/src/components/CargasTab.tsx frontend/src/components/TransferenciaPF.tsx frontend/src/api.ts tests/test_ajuste_cabecera_web.py tests/test_estudios_pf_web.py
+   git add src/convertersmartgrid/presentacion/web/services.py src/convertersmartgrid/presentacion/web/app.py frontend/src/components/CargasTab.tsx frontend/src/components/TransferenciaPF.tsx frontend/src/api.ts tests/test_ajuste_cabecera_web.py tests/test_estudios_pf_web.py
    git commit -m "feat: enlazar transferencia con el periodo aplicado"
    ```
 
@@ -450,7 +450,7 @@ originó.
 **Archivos**
 
 - Modificar: `src/convertersmartgrid/periodo_analisis.py`
-- Modificar: `src/convertersmartgrid/transferencia_pf.py`
+- Modificar: `src/convertersmartgrid/aplicacion/transferencia_pf.py`
 - Modificar: `tests/test_periodo_analisis.py`
 - Modificar: `tests/test_transferencia_pf.py`
 
@@ -494,7 +494,7 @@ al. y Mahdavi et al. respaldan evaluar reconfiguración bajo múltiples estados 
 
    ```powershell
    .venv\Scripts\python.exe -m pytest tests/test_periodo_analisis.py tests/test_transferencia_pf.py -q
-   git add src/convertersmartgrid/periodo_analisis.py src/convertersmartgrid/transferencia_pf.py tests/test_periodo_analisis.py tests/test_transferencia_pf.py
+   git add src/convertersmartgrid/periodo_analisis.py src/convertersmartgrid/aplicacion/transferencia_pf.py tests/test_periodo_analisis.py tests/test_transferencia_pf.py
    git commit -m "feat: construir frontera temporal de transferencia"
    ```
 
@@ -559,8 +559,8 @@ solo por aritmética de puntas.
 
 **Archivos**
 
-- Modificar: `src/convertersmartgrid/web/services.py`
-- Modificar: `src/convertersmartgrid/web/app.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/services.py`
+- Modificar: `src/convertersmartgrid/presentacion/web/app.py`
 - Modificar: `frontend/src/types.ts`
 - Modificar: `frontend/src/api.ts`
 - Modificar: `frontend/src/components/TransferenciaPF.tsx`
@@ -593,7 +593,7 @@ la evaluación multitemporal descrita por Ding, Mahdavi et al. y Azizivahed et a
    Set-Location frontend
    npm run build
    Set-Location ..
-   git add src/convertersmartgrid/web/services.py src/convertersmartgrid/web/app.py frontend/src/types.ts frontend/src/api.ts frontend/src/components/TransferenciaPF.tsx frontend/src/styles.css tests/test_estudios_pf_web.py docs/acceptance/013-mes-clientes.md
+   git add src/convertersmartgrid/presentacion/web/services.py src/convertersmartgrid/presentacion/web/app.py frontend/src/types.ts frontend/src/api.ts frontend/src/components/TransferenciaPF.tsx frontend/src/styles.css tests/test_estudios_pf_web.py docs/acceptance/013-mes-clientes.md
    git commit -m "feat: informar transferencia temporal comprobada"
    ```
 

@@ -4,8 +4,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from convertersmartgrid.digital_twin import motores_flujo as mf
-from convertersmartgrid.digital_twin.flujo import SistemaMallado
+from convertersmartgrid.adaptadores.digital_twin import motores_flujo as mf
+from convertersmartgrid.adaptadores.digital_twin.flujo import SistemaMallado
 
 EXTERNOS = ('newton', 'pgm', 'dss')
 

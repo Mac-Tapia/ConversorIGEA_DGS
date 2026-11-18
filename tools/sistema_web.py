@@ -46,10 +46,10 @@ from pathlib import Path
 
 import requests
 
-from convertersmartgrid.demanda_medida import (MAX_ALIMENTADORES_ANALISIS, TIPOS_DEMANDA, DemandaError,
+from convertersmartgrid.aplicacion.demanda_medida import (MAX_ALIMENTADORES_ANALISIS, TIPOS_DEMANDA, DemandaError,
                                      clasificar_carpeta_demanda, descubrir_libro_suministros)
-from convertersmartgrid.sesion_web import cabeceras_locales
-from convertersmartgrid.util import nombre_seguro
+from convertersmartgrid.dominio.sesion_web import cabeceras_locales
+from convertersmartgrid.dominio.util import nombre_seguro
 
 # 086:RF-9: un trabajo que cortó un reinicio de la web queda «interrumpido»; sin él aquí, el cliente lo esperaba para siempre
 # (PE102 de prueba, 2026-11-07: «Esperando Optimizar Con proyecto» de un Pisco ya cortado).
@@ -207,7 +207,7 @@ def libros_de_la_demanda(demanda_dir: Path, dados: dict[str, Path | None] | None
 
 
 def grupo_de_set(zonal: str, set_electrica: str) -> str:
-    from convertersmartgrid.estructura import clave
+    from convertersmartgrid.dominio.estructura import clave
 
     return nombre_seguro(f'SISTEMA_{zonal}_{clave(set_electrica)}', maximo=60).upper()
 
@@ -262,7 +262,7 @@ def _comprobar_que_no_borra(web: Web, grupo: str) -> None:
     005:RF-22 habría borrado ``20261112-113130_CSG_TXT_PA217``, el que el usuario ya había trabajado. La lista se
     lee de DIgSILENT con «Leer proyectos», no de la guardada: un espacio nuevo puede no tenerla, o tenerla vieja.
     """
-    from convertersmartgrid.carpeta_pf import proyectos_que_borraria
+    from convertersmartgrid.adaptadores.carpeta_pf import proyectos_que_borraria
 
     estado = web.esperar(web.post('/powerfactory/projects'))
     if not _terminado(estado) or estado.get('status') != 'done':
@@ -452,8 +452,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     # 021:RF-25, RF-33: la central de un alimentador del sistema (la de Nasca en NA205), con sus
     # tres medidores y su barra, del perfil: sin ella NA205 se calibraba con su cabecera, que
     # es la demanda menos la generación (usuario, 2026-10-28).
-    from convertersmartgrid.escaneo import nodo_de_central
-    from convertersmartgrid.perfil_empresa import PerfilError, centrales_termicas, datos_perfil
+    from convertersmartgrid.aplicacion.escaneo import nodo_de_central
+    from convertersmartgrid.dominio.perfil_empresa import PerfilError, centrales_termicas, datos_perfil
 
     # 028:RF-15: lo que hay en DIgSILENT (centrales y bancos puestos a mano) antes de calibrar;
     # la central del perfil sin barra toma la de su generador.
@@ -689,8 +689,8 @@ def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: fl
         if resultado.get(clave):
             print(f'  {clave}: {json.dumps(resultado[clave], ensure_ascii=False, default=str)[:600]}', flush=True)
     try:
-        from convertersmartgrid import estadistica_ordenes as eo
-        from convertersmartgrid import pf_arnes
+        from convertersmartgrid.dominio import estadistica_ordenes as eo
+        from convertersmartgrid.adaptadores import pf_arnes
 
         ordenes = [o for o in eo.leer(pf_arnes.ruta_cola()) if o['fecha'] >= inicio]
         for r in eo.descriptiva(ordenes):

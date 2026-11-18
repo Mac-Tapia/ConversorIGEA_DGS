@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from convertersmartgrid.asistente.embeddings import (
+from convertersmartgrid.aplicacion.asistente.embeddings import (
     ParContraste,
     construir_dataset_contrastivo,
     construir_preguntas_extractivas,
@@ -16,7 +16,7 @@ from convertersmartgrid.asistente.embeddings import (
     reabrir_indice_versionado,
     ajustar_holm,
 )
-from convertersmartgrid.asistente.indice import Fragmento
+from convertersmartgrid.aplicacion.asistente.indice import Fragmento
 
 
 FRAGMENTOS = [
@@ -108,7 +108,7 @@ def test_comparacion_pareada_bootstrap_permutacion_efecto_y_holm():
 
 def test_cambiar_pesos_en_misma_ruta_no_conserva_identidad(tmp_path):
     """043:RF-13: el nombre del directorio no acredita los pesos que codificaron el corpus."""
-    from convertersmartgrid.asistente.embeddings import manifiesto_indice
+    from convertersmartgrid.aplicacion.asistente.embeddings import manifiesto_indice
     modelo=tmp_path/'modelo';modelo.mkdir();pesos=modelo/'weights.bin';pesos.write_bytes(b'pesos contrato A')
     a=manifiesto_indice(FRAGMENTOS,None,modelo=str(modelo),segmentacion={})
     pesos.write_bytes(b'pesos contrato B')
@@ -118,7 +118,7 @@ def test_cambiar_pesos_en_misma_ruta_no_conserva_identidad(tmp_path):
 
 def test_prefijos_de_encoder_local_no_dependen_del_nombre_de_carpeta(tmp_path):
     """043:RF-13: el candidato local conserva el mismo contrato query/passage de su base E5."""
-    from convertersmartgrid.asistente.embeddings import protocolo_encoder
+    from convertersmartgrid.aplicacion.asistente.embeddings import protocolo_encoder
     base=protocolo_encoder('intfloat/multilingual-e5-base')
     local=tmp_path/'modelo';local.mkdir()
     (local/'embedding_protocol.json').write_text(json.dumps(base),encoding='utf-8')
@@ -135,7 +135,7 @@ def test_biserial_por_rangos_no_es_conteo_de_signos():
 
 def test_tensores_en_cuda_deja_los_textos():
     """047:RF-4 — los valores sin ``.to`` de ``tokenize`` no tumban el ajuste; los tensores sí se mueven."""
-    from convertersmartgrid.asistente.embeddings import _tensores_en_cuda
+    from convertersmartgrid.aplicacion.asistente.embeddings import _tensores_en_cuda
 
     class Tensor:
         def to(self, destino):
@@ -145,7 +145,7 @@ def test_tensores_en_cuda_deja_los_textos():
 
 def test_hit_a_10_dice_si_hay_algun_positivo_y_recall_no_cambia():
     """097:RF-23 — con 4 positivos y uno en el puesto 3, Recall@10 = 0,25 y hit@10 = 1; sin ninguno, los dos 0."""
-    from convertersmartgrid.asistente import evaluacion_rag
+    from convertersmartgrid.aplicacion.asistente import evaluacion_rag
 
     pares = [ParContraste('q1', ('a', 'b', 'c', 'd'), (), True, 'g1'), ParContraste('q2', ('z',), (), True, 'g2'),
              ParContraste('q3', (), (), False, 'g3')]
@@ -160,7 +160,7 @@ def test_hit_a_10_dice_si_hay_algun_positivo_y_recall_no_cambia():
 
 def test_hit_a_10_no_decide_ninguna_puerta():
     """097:RF-23 — la decisión de la 047 y la puerta de la abstención dan lo mismo con cualquier hit@10."""
-    from convertersmartgrid.asistente import evaluacion_rag
+    from convertersmartgrid.aplicacion.asistente import evaluacion_rag
 
     def medido(rr, hit):
         filas = [{'group_id': f'g{i}', 'answerable': True, 'reciprocal_rank@10': rr, 'exact_citation@1': rr,

@@ -11,11 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.perfil_empresa import PerfilEmpresa
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.estudio import crear_estudio
-from convertersmartgrid.vad.observaciones import registrar_observacion, responder
+from convertersmartgrid.dominio.perfil_empresa import PerfilEmpresa
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.aplicacion.vad.estudio import crear_estudio
+from convertersmartgrid.adaptadores.vad.observaciones import registrar_observacion, responder
 
 RAIZ = Path(__file__).resolve().parents[1]
 REGISTRO = RAIZ / 'config' / 'vad'
@@ -25,8 +25,8 @@ USOS = {'vad.frc': ('anualidad del VNR',), 'vad.igv_costos': ('costos sin IGV',)
 
 def _informes():
     """Lo nuevo de la T22: su ausencia es la falla de la aserción, no un error de importación."""
-    assert importlib.util.find_spec('convertersmartgrid.vad.informes') is not None
-    from convertersmartgrid.vad import informes
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.vad.informes') is not None
+    from convertersmartgrid.adaptadores.vad import informes
     assert hasattr(informes, 'armar_informe_definitivo'), 'falta armar_informe_definitivo en vad/informes.py (108 T22)'
     return informes
 
@@ -39,7 +39,7 @@ def _estudio(tmp_path):
 
 
 def _una_tabla(registro):
-    from convertersmartgrid.vad.tablas_resultados import tablas_registradas
+    from convertersmartgrid.adaptadores.vad.tablas_resultados import tablas_registradas
     tablas, _ = tablas_registradas(registro)
     return tablas[0]['numero']
 
@@ -102,7 +102,7 @@ def test_108_t22_respuesta_sin_la_tabla_o_el_calculo_que_cambio_se_rechaza(tmp_p
 def test_108_t22_respuesta_sin_sustento_se_rechaza():
     """108:RF-12 (T22) — una respuesta sin sustento (p. ej. un observaciones.json editado a mano) no entra en el
     informe de respuestas."""
-    from convertersmartgrid.vad.observaciones import Destino, Observacion
+    from convertersmartgrid.adaptadores.vad.observaciones import Destino, Observacion
     inf = _informes()
     obs = Observacion(numero='OBS-9', fecha='2041-06-01', texto='Sustentar', afecta=(Destino('tabla', '12'),),
                       respuesta='Se corrige', sustento='', cambios={'tabla 12': 'baja'})

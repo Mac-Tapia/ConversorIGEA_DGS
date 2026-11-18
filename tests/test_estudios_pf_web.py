@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
 from apoyo_pf_web import guion_falso  # noqa: E402,F401
-from convertersmartgrid.web.app import create_app  # noqa: E402
+from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 
 SIN, CON = 'Sin proyecto', 'Con proyecto'
 
@@ -152,7 +152,7 @@ def test_resumen_ejecutivo_del_resultado_guardado(client, semilla, monkeypatch):
     DIgSILENT, con sus casos, estudios, resultados y violaciones con cifras."""
     import docx
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     feeders, casos = _sorteo(semilla)
     wid = client.post('/api/workspaces').json()['id']
@@ -252,7 +252,7 @@ def test_casos_y_luego_cada_estudio_sin_y_con_proyecto(client):
 def test_el_flujo_de_cada_caso_se_captura_con_su_rol(client, monkeypatch):
     """045:RF-1 — los flujos de «Sin proyecto», «Cargas nuevas» y «Con proyecto» dejan su episodio, cada uno con
     su caso: «Cargas nuevas» no se capturaba y su flujo no llegaba al gemelo."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     casos = []
     monkeypatch.setattr(services, '_gemelo', lambda _ws, _ctx, _plan, _inf, *, caso, **_k: casos.append(caso))
@@ -471,7 +471,7 @@ def test_guion_nunca_en_el_caso_base(client):
 
 def test_resumen_con_libro_cuando_el_perfil_lo_declara(client, monkeypatch):
     """017:RF-143 — si el perfil de la empresa declara el libro de sus informes (066:RF-1), el resumen deja su Excel."""
-    from convertersmartgrid import perfil_empresa
+    from convertersmartgrid.dominio import perfil_empresa
 
     feeders, casos = _sorteo(19)
     wid = client.post('/api/workspaces').json()['id']

@@ -25,14 +25,15 @@ from fastapi.testclient import TestClient
 from apoyo import cargar_herramienta
 from synthetic_export import ExportSpec, write_export
 
-from convertersmartgrid import __version__, notas_de_la_version, runtime_paths
-from convertersmartgrid.batch import convert_selection
-from convertersmartgrid.cli import _parser, main as cli_main
-from convertersmartgrid.dataset import CymdistDataset
-from convertersmartgrid.edicion import es_edicion_producto
-from convertersmartgrid.registro_rotativo import configurar_registro
-from convertersmartgrid.web import doctor as DR, runtime as RT, soporte as SP
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid import __version__, notas_de_la_version
+from convertersmartgrid.dominio import runtime_paths
+from convertersmartgrid.aplicacion.batch import convert_selection
+from convertersmartgrid.presentacion.cli import _parser, main as cli_main
+from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.dominio.edicion import es_edicion_producto
+from convertersmartgrid.adaptadores.registro_rotativo import configurar_registro
+from convertersmartgrid.presentacion.web import doctor as DR, runtime as RT, soporte as SP
+from convertersmartgrid.presentacion.web.app import create_app
 
 CC = cargar_herramienta('construir_candidato.py')
 CE = CC.CE
@@ -131,11 +132,11 @@ def test_fuera_del_repositorio_encuentra_lo_suyo(fuera, tmp_path):
     """086:RF-36 — el fallo real: instalado, `parents[2]` era site-packages y no había ni tools/ ni config/ ni el front."""
     salida = _en_el_programa(fuera, tmp_path, """
 import json, convertersmartgrid as c
-from convertersmartgrid.libros_informe import COSTES_REFERENCIALES
-from convertersmartgrid.perfil_empresa import perfiles_disponibles, ruta_perfil_activo
-from convertersmartgrid.powerfactory_env import project_root, tools_dir
-from convertersmartgrid.edicion import es_edicion_producto
-from convertersmartgrid.asistente import reranker
+from convertersmartgrid.adaptadores.libros_informe import COSTES_REFERENCIALES
+from convertersmartgrid.dominio.perfil_empresa import perfiles_disponibles, ruta_perfil_activo
+from convertersmartgrid.adaptadores.powerfactory_env import project_root, tools_dir
+from convertersmartgrid.dominio.edicion import es_edicion_producto
+from convertersmartgrid.aplicacion.asistente import reranker
 r = project_root()
 print(json.dumps({'paquete': c.__file__, 'raiz': str(r), 'guiones': sorted(p.name for p in tools_dir().glob('*.py')),
                   'pide': (r / 'config' / 'pide_universal_2017.json').is_file(), 'vnr': (r / 'config' / 'vnr_dgs_profile.json').is_file(),
@@ -181,8 +182,8 @@ from pathlib import Path
 sys.path.insert(0, {str(Path(__file__).parent)!r})
 from synthetic_export import ExportSpec, write_export
 import convertersmartgrid
-from convertersmartgrid.batch import convert_selection
-from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.aplicacion.batch import convert_selection
+from convertersmartgrid.adaptadores.dataset import CymdistDataset
 if __name__ == '__main__':
     assert '_programa' not in convertersmartgrid.__file__ and {str(RAIZ)!r} not in convertersmartgrid.__file__
     t = Path('.').resolve()
@@ -202,7 +203,7 @@ def test_lo_que_lanza_la_web_entra_en_la_entrega(manifiesto):
     destilación y la reapertura de un candidato en otro proceso): en el programa instalado, entrenar habría dado
     «No se encuentra el guion». Solo queda fuera la suite, que necesita ``tests/`` (086 D4)."""
     fuentes = {f: f.read_text(encoding='utf-8') for f in (RAIZ / 'src').rglob('*.py')}
-    guiones = set(re.findall(r"_script\('([\w.]+)'\)", fuentes[RAIZ / 'src/convertersmartgrid/web/services.py']))
+    guiones = set(re.findall(r"_script\('([\w.]+)'\)", fuentes[RAIZ / 'src/convertersmartgrid/presentacion/web/services.py']))
     for texto in fuentes.values():
         guiones |= set(re.findall(r"(?:'tools' / |tools_dir\(\) / |'tools/)'?([a-z_]+\.py)'", texto))
     sin_pruebas = {'suite_por_tandas.py'}
@@ -235,11 +236,11 @@ def test_lo_instalado_es_de_producto_sin_que_nadie_lo_diga(monkeypatch, tmp_path
     instalado.mkdir(parents=True)
     assert runtime_paths.es_programa_instalado(instalado)
     assert not runtime_paths.es_programa_instalado(RAIZ)
-    monkeypatch.setattr('convertersmartgrid.edicion.raiz_programa', lambda: instalado)
+    monkeypatch.setattr('convertersmartgrid.dominio.edicion.raiz_programa', lambda: instalado)
     assert es_edicion_producto() is True
     monkeypatch.setenv('CSG_EDICION', 'desarrollo')
     assert es_edicion_producto() is True
-    monkeypatch.setattr('convertersmartgrid.edicion.raiz_programa', lambda: RAIZ)
+    monkeypatch.setattr('convertersmartgrid.dominio.edicion.raiz_programa', lambda: RAIZ)
     assert es_edicion_producto() is False
     monkeypatch.setenv('CSG_EDICION', 'producto')
     assert es_edicion_producto() is True
@@ -284,7 +285,7 @@ def test_la_identidad_sobrevive_a_sustituir_el_programa(tmp_path, monkeypatch):
 
 def test_la_copia_de_una_instalacion_lleva_perfil_y_catalogos(tmp_path, monkeypatch):
     """086:RF-38; 086:RF-10 — las fichas del operador están en input/ y son datos: una actualización no puede dejarlas sin copia."""
-    from convertersmartgrid.web.copia_datos import raices_de_datos
+    from convertersmartgrid.presentacion.web.copia_datos import raices_de_datos
 
     programa = _programa_falso(tmp_path)
     monkeypatch.setenv('CSG_DATOS_HOME', str(tmp_path / 'datos'))
@@ -534,7 +535,7 @@ def test_lanzador_del_programa_no_lee_otro_python(tmp_path):
     """086:RF-36 — PYTHONHOME propio, nada de PYTHONPATH de la máquina, sin lo del usuario y sin la carpeta de trabajo en la ruta."""
     texto = IC._CABECERA_CMD + IC._PIE_WEB
     assert 'set "PYTHONHOME=%PYDIR%"' in texto and 'set "PYTHONPATH="' in texto and 'PYTHONNOUSERSITE=1' in texto
-    assert '-P -m convertersmartgrid.web' in texto
+    assert '-P -m convertersmartgrid.presentacion.web' in texto
     IC._escribir_lanzadores(tmp_path)
     assert (tmp_path / 'ConverterSmartGrid.cmd').read_bytes().count(b'\r\n') > 5, 'cmd.exe exige CRLF'
     assert {'csg.cmd', 'volver_atras.cmd', 'copia_datos.cmd'} <= {p.name for p in tmp_path.iterdir()}
@@ -589,9 +590,9 @@ sys.modules['torch'] = None
 sys.modules['transformers'] = None
 sys.path.insert(0, {str(RAIZ / 'src')!r})
 from pathlib import Path
-from convertersmartgrid import sesion_web
+from convertersmartgrid.dominio import sesion_web
 sesion_web.EXIGIR_SEGURIDAD = False
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.presentacion.web.app import create_app
 from fastapi.testclient import TestClient
 with TestClient(create_app(Path({str(tmp_path / 'web')!r}))) as c:
     d = c.get('/api/sistema/diagnostico').json()
@@ -741,7 +742,7 @@ def _sin_entorno_frontend(monkeypatch, tmp_path):
     monkeypatch.delenv('CSG_TESSERACT', raising=False)
     # 091:RF-32: el buscador también mira Program Files; la simulación sin OCR
     # debe aislar esa vía, además del PATH que ya inyecta _doctor.
-    monkeypatch.setattr('convertersmartgrid.documentos_solicitud.tesseract', lambda: None)
+    monkeypatch.setattr('convertersmartgrid.adaptadores.documentos_solicitud.tesseract', lambda: None)
     monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(tmp_path / 'sin_perfil.json'))
     monkeypatch.setenv('CSG_RUNTIME_HOME', str(tmp_path / 'rt'))
 
@@ -860,7 +861,7 @@ def test_sin_espacio_y_sin_poder_escribir(tmp_path, monkeypatch):
 
 def test_orden_doctor(capsys, monkeypatch, tmp_path):
     """086:RF-40 — la orden: texto o JSON, y sale con 1 si falta algo imprescindible."""
-    monkeypatch.setattr('convertersmartgrid.web.doctor.diagnosticar',
+    monkeypatch.setattr('convertersmartgrid.presentacion.web.doctor.diagnosticar',
                         lambda: {'version': 'v', 'listo': False, 'pendientes': 1, 'instalado': False, 'python': '3.12', 'comprobaciones': [
                             {'clave': 'x', 'nombre': 'Cosa', 'ok': False, 'obligatoria': True, 'detalle': 'mal', 'afecta': 'Algo', 'arreglo': 'Hágalo'}]})
     assert cli_main(['doctor']) == 1
@@ -894,7 +895,7 @@ def test_la_pantalla_muestra_lo_que_dice_el_doctor():
 @pytest.fixture()
 def registro_limpio():
     """El registro es global del proceso: al salir, los manejadores se van y sus ficheros se cierran."""
-    import convertersmartgrid.registro_rotativo as RR
+    import convertersmartgrid.adaptadores.registro_rotativo as RR
 
     antes = {n: list(logging.getLogger(n).handlers) for n in RR._REGISTROS}
     niveles = {n: logging.getLogger(n).level for n in RR._REGISTROS}
@@ -927,7 +928,7 @@ def test_el_registro_recoge_tambien_al_servidor(tmp_path, registro_limpio):
     import uvicorn
 
     ruta = configurar_registro('web', carpeta=tmp_path)
-    uvicorn.Config('convertersmartgrid.web.app:create_app', factory=True, log_level='info')
+    uvicorn.Config('convertersmartgrid.presentacion.web.app:create_app', factory=True, log_level='info')
     configurar_registro('web', carpeta=tmp_path)
     logging.getLogger('uvicorn.error').info('servidor en marcha')
     assert ruta.read_text(encoding='utf-8').count('servidor en marcha') == 1
@@ -954,13 +955,13 @@ def test_sin_carpeta_para_el_registro_el_programa_sigue(tmp_path, registro_limpi
 
 def test_la_web_y_la_orden_escriben_su_registro():
     """086:RF-41 — los dos puntos de entrada lo configuran."""
-    for rel in ('src/convertersmartgrid/web/__main__.py', 'src/convertersmartgrid/cli.py'):
+    for rel in ('src/convertersmartgrid/presentacion/web/__main__.py', 'src/convertersmartgrid/presentacion/cli.py'):
         assert 'configurar_registro(' in (RAIZ / rel).read_text(encoding='utf-8'), rel
 
 
 def test_el_registro_no_va_en_la_carpeta_del_programa(tmp_path, monkeypatch):
     """086:RF-41; 086:RF-38 — sobrevive a una actualización, y no escribe en una carpeta que puede ser de solo lectura."""
-    from convertersmartgrid.registro_rotativo import carpeta_de_registros
+    from convertersmartgrid.adaptadores.registro_rotativo import carpeta_de_registros
 
     programa = _programa_falso(tmp_path)
     monkeypatch.delenv('CSG_RUNTIME_HOME', raising=False)
@@ -1041,7 +1042,7 @@ def test_anonimizar(linea, sale, queda):
 
 def test_orden_soporte(capsys, tmp_path, monkeypatch):
     """086:RF-42 — la orden escribe donde se le dice y recuerda revisarlo: no envía nada."""
-    monkeypatch.setattr('convertersmartgrid.web.soporte.diagnosticar', lambda: INFORME_FALSO)
+    monkeypatch.setattr('convertersmartgrid.presentacion.web.soporte.diagnosticar', lambda: INFORME_FALSO)
     monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(tmp_path / 'no.json'))
     assert cli_main(['soporte', '--destino', str(tmp_path / 's')]) == 0
     assert 'Revíselo' in capsys.readouterr().out
@@ -1050,7 +1051,7 @@ def test_orden_soporte(capsys, tmp_path, monkeypatch):
 
 def test_soporte_no_abre_la_red():
     """086:RF-42 — se arma en local: el código no sabe enviar nada."""
-    arbol = ast.parse((RAIZ / 'src/convertersmartgrid/web/soporte.py').read_text(encoding='utf-8'))
+    arbol = ast.parse((RAIZ / 'src/convertersmartgrid/presentacion/web/soporte.py').read_text(encoding='utf-8'))
     importados = {a.name.split('.')[0] for n in ast.walk(arbol) if isinstance(n, ast.Import) for a in n.names}
     importados |= {n.module.split('.')[0] for n in ast.walk(arbol) if isinstance(n, ast.ImportFrom) and n.module and not n.level}
     assert not importados & {'requests', 'urllib', 'http', 'smtplib', 'httpx'}
@@ -1143,7 +1144,7 @@ def test_el_manual_cita_ordenes_que_existen():
 
 def test_la_hoja_de_seguridad_dice_cada_salida_a_la_red():
     """086:RF-44; 086:RF-22 — una salida declarada en el código y no en la hoja sería una omisión ante el cliente."""
-    from convertersmartgrid.salidas_red import SALIDAS
+    from convertersmartgrid.dominio.salidas_red import SALIDAS
 
     hoja = (RAIZ / 'docs/SEGURIDAD_Y_PRIVACIDAD.md').read_text(encoding='utf-8')
     faltan = [s.variable for s in SALIDAS.values() if s.variable not in hoja]
@@ -1382,7 +1383,7 @@ def test_086_rf55_el_doctor_avisa_un_perfil_sin_fichas_ni_bancos(tmp_path, monke
     """086:RF-55 — sin fichas de transformadores ni bancos por tensión, aviso con lo que afecta; con ellas, bien."""
     import json
 
-    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.dominio.perfil_empresa import VARIABLE_RUTA
 
     perfil = tmp_path / 'perfil_empresa.json'
     perfil.write_text(json.dumps({'calibracion': {'bancos_kvar_por_tension': None, 'transformadores_sed': None}}),
@@ -1402,7 +1403,7 @@ def test_020_rf63_las_fichas_del_conversor_cuando_el_perfil_no_las_trae(tmp_path
     """020:RF-63 — sin fichas en el perfil, las NTP 370.400 del conversor (con su origen); con fichas propias, las suyas."""
     import json
 
-    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA, seccion_transformadores_sed, transformadores_sed
+    from convertersmartgrid.dominio.perfil_empresa import VARIABLE_RUTA, seccion_transformadores_sed, transformadores_sed
 
     perfil = tmp_path / 'perfil_empresa.json'
     perfil.write_text('{}', encoding='utf-8')

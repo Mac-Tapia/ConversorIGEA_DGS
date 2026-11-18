@@ -32,8 +32,8 @@ def test_seleccion_de_alimentadores(herramienta):
 
 def test_un_error_sigue_con_los_demas_y_termina_con_1(herramienta, tmp_path, monkeypatch, capsys):
     """089:RF-90 — el fallo de uno no detiene a los otros, queda en el resumen y la orden termina con código 1."""
-    import convertersmartgrid.pronostico_demanda as pd_mod
-    import convertersmartgrid.training_coordinator as tc
+    import convertersmartgrid.adaptadores.pronostico_demanda as pd_mod
+    import convertersmartgrid.aplicacion.training_coordinator as tc
 
     monkeypatch.setattr(tc, 'dispositivo', lambda: 'cuda:0')
     monkeypatch.setattr(tc, 'exigir_memoria_ml', lambda **_k: None)

@@ -64,10 +64,10 @@ from cargas_pf import (
 from casos_pf import (NOMBRES, _desc, anio_del_plan, casos_del_proyecto, nombre_cargas_nuevas,
                       rol_de, sin_a_con_proyecto)
 
-from convertersmartgrid.estudios_pf import CON_GUION
-from convertersmartgrid.estudios_pf import ESTUDIOS_012
-from convertersmartgrid.obras_pf import PREFIJO_VARIACION
-from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.aplicacion.estudios_pf import CON_GUION
+from convertersmartgrid.aplicacion.estudios_pf import ESTUDIOS_012
+from convertersmartgrid.aplicacion.obras_pf import PREFIJO_VARIACION
+from convertersmartgrid.dominio.native_action import native_action_block_report
 
 #: Estudio → orden de DIgSILENT. Los dos flujos usan el ``ComLdf`` del caso.
 ORDENES = {
@@ -667,7 +667,7 @@ def _estudio_de_red(app, plan: dict, alims, feeders: list[str], informe: dict) -
     import confiabilidad_pf
     import estudios_entradas_pf
 
-    from convertersmartgrid.estudios_red_pf import VARIACION_DATOS, cambios_de_estado
+    from convertersmartgrid.aplicacion.estudios_red_pf import VARIACION_DATOS, cambios_de_estado
 
     funcion = {'fiabilidad': confiabilidad_pf.fiabilidad, 'reconectadores': confiabilidad_pf.reconectadores,
                'alojamiento': capacidad_pf.alojamiento, 'curvas_pv': capacidad_pf.curvas_pv,
@@ -1126,7 +1126,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('estudios_pf.py')

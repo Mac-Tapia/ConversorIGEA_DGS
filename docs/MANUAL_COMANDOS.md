@@ -156,7 +156,7 @@ preparado. La interfaz de escritorio Tkinter (`convertersmartgrid.gui`) se retir
 | `convertersmartgrid version` | La versión del programa y sus notas. | 0 |
 | `vnr-etl` | Módulo VNR-GIS: descubrir, validar y exportar paquetes (`docs/VNR_GIS_PRODUCTION.md`). | — |
 
-`convertersmartgrid` equivale a `python -m convertersmartgrid.cli`; los ejemplos usan una u otra forma.
+`convertersmartgrid` equivale a `python -m convertersmartgrid.presentacion.cli`; los ejemplos usan una u otra forma.
 
 ---
 
@@ -228,10 +228,10 @@ rem Vínculo de la interfaz con el motor
 
 | En la interfaz | Comando |
 | --- | --- |
-| **Cargar / listar alimentadores** | `convertersmartgrid.cli list` |
+| **Cargar / listar alimentadores** | `convertersmartgrid.presentacion.cli list` |
 
 ```bat
-> .venv\Scripts\python.exe -m convertersmartgrid.cli list ^
+> .venv\Scripts\python.exe -m convertersmartgrid.presentacion.cli list ^
     --red "D:\datos\RED_030826(1).txt" ^
     --loads "D:\datos\CARGA_030826(1).txt" ^
     --equipment "D:\datos\BD_Equipo_V261124 (1)(1).txt" ^
@@ -263,9 +263,9 @@ recuperan su conductor** leyendo la base en lugar del TXT.
 ### Leer desde la base
 
 ```bat
-> .venv\Scripts\python.exe -m convertersmartgrid.cli list --mdb "D:\Ruta\BaseDatos.mdb"
+> .venv\Scripts\python.exe -m convertersmartgrid.presentacion.cli list --mdb "D:\Ruta\BaseDatos.mdb"
 
-> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.presentacion.cli convert ^
     --mdb "D:\Ruta\BaseDatos.mdb" ^
     --all --source-crs EPSG:32718 --out-dir output\produccion
 ```
@@ -283,7 +283,7 @@ Un `.zxst` de CYMDIST no contiene la red, pero sí **qué alimentadores forman p
 estudio**. Con `--study` se convierte exactamente ese conjunto:
 
 ```bat
-> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.presentacion.cli convert ^
     --mdb "D:\Ruta\BaseDatos.mdb" ^
     --study "D:\Ruta\estudios\base2026.zxst" ^
     --all --source-crs EPSG:32718 --out-dir output\produccion
@@ -312,7 +312,7 @@ opcionales.
 ### 4.1 Un alimentador
 
 ```bat
-> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.presentacion.cli convert ^
     --red "D:\datos\RED_030826(1).txt" ^
     --loads "D:\datos\CARGA_030826(1).txt" ^
     --equipment "D:\datos\BD_Equipo_V261124 (1)(1).txt" ^
@@ -324,7 +324,7 @@ opcionales.
 ### 4.2 Todos
 
 ```bat
-> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.presentacion.cli convert ^
     --red "D:\datos\RED_030826(1).txt" ^
     --loads "D:\datos\CARGA_030826(1).txt" ^
     --equipment "D:\datos\BD_Equipo_V261124 (1)(1).txt" ^
@@ -410,14 +410,14 @@ comprobación rápida tras instalar o actualizar.
 
 ```bat
 rem Alternativa 1 — TXT
-> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.presentacion.cli convert ^
     --red "D:\datos\RED_030826(1).txt" ^
     --loads "D:\datos\CARGA_030826(1).txt" ^
     --equipment "D:\datos\BD_Equipo_V261124 (1)(1).txt" ^
     --feeder PA217 --source-crs EPSG:32718 --out-dir output\pa217_txt
 
 rem Alternativa 2 — base Access
-> .venv\Scripts\python.exe -m convertersmartgrid.cli convert ^
+> .venv\Scripts\python.exe -m convertersmartgrid.presentacion.cli convert ^
     --mdb "D:\BaseDatosElectroDunas\BaseDatos.mdb" ^
     --feeder PA217 --source-crs EPSG:32718 --out-dir output\pa217_mdb
 ```
@@ -623,7 +623,7 @@ set "CSG_EQUIPMENT=%EQUIPO%"
 "%PY%" -m pytest -q || (echo Pruebas fallidas: se detiene. & exit /b 1)
 
 echo === 2/3 Conversion ===
-"%PY%" -m convertersmartgrid.cli convert --red "%RED%" --loads "%CARGA%" --equipment "%EQUIPO%" ^
+"%PY%" -m convertersmartgrid.presentacion.cli convert --red "%RED%" --loads "%CARGA%" --equipment "%EQUIPO%" ^
     --feeder %ALIM% --source-crs %CRS% --out-dir "%SALIDA%" || (echo Conversion fallida. & exit /b 2)
 
 echo === 3/3 Importacion en DIgSILENT ===
@@ -737,7 +737,7 @@ rem Convertir a DGS con las características corregidas
     --out-dir output\corregido --escribir-dgs --informe-json output\cambios.json
 
 rem O directamente en la conversión normal
-.venv\Scripts\python.exe -m convertersmartgrid.cli convert --red R.txt --loads C.txt --equipment E.txt ^
+.venv\Scripts\python.exe -m convertersmartgrid.presentacion.cli convert --red R.txt --loads C.txt --equipment E.txt ^
     --all --catalogo --source-crs EPSG:32718 --out-dir output\prod
 ```
 
@@ -812,7 +812,7 @@ queda fuera. Una modificación manual del proyecto es un aviso, nunca un bloqueo
 | **1 · Proyecto de DIgSILENT** | «Leer proyectos», buscar por nombre o carpeta y elegir | `tools/pf_proyectos.py` lee la carpeta de importación (spec 005) |
 | **2 · Alimentadores y calibración** | Marcar alimentadores (todos al elegir el proyecto) | Los marcados sirven a la calibración y a la integración |
 | 2.1 Libros de medición | Medidor por alimentador, medición de cabecera, suministros, clientes importantes | Se validan en la web (spec 004, RF-22 a RF-45) |
-| 2.2 Máxima de cabecera | «Buscar medidores» y «Buscar la máxima», para todos los marcados en un trabajo | `convertersmartgrid.demanda_medida` |
+| 2.2 Máxima de cabecera | «Buscar medidores» y «Buscar la máxima», para todos los marcados en un trabajo | `convertersmartgrid.aplicacion.demanda_medida` |
 | 2.3 Clientes importantes | Elegir «Fijas de la tabla cruzada» (coincidentes con la máxima, por defecto, o máximo del mes) y «Cruzar clientes»: su demanda queda fija a escala 1. «Comparar los criterios de las fijas» enseña los dos y si la medida de cabecera es coherente, sin abrir DIgSILENT | Cruce por «Suministro Act» y «Suministro» (specs 035 y 039) |
 | 2.4 Escalar y ajustar | «Simular» o «Ajustar en DIgSILENT» (después de la primera, «Recalibrar (n.º k)») | `tools/ajuste_cabecera_pf.py`, en el escenario de «Sin proyecto»; las escaladas con reparto probabilístico y el P50 escrito; las cargas nuevas quedan fuera de la medida (specs 006, 008, 014, 015, 035 y 041) |
 | **3 · Integración de nuevas** | | |

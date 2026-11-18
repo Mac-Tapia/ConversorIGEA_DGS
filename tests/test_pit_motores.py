@@ -5,9 +5,9 @@ import pytest
 
 from datos_pit import perfil_a, perfil_b
 
-from convertersmartgrid.pit.ambito import PitError, areas_del_perfil, reunir
-from convertersmartgrid.pit.motores import ESTUDIOS, capacidad, ejecutar, elegir_motor
-from convertersmartgrid.pit.red_area import desde_ambito
+from convertersmartgrid.dominio.pit.ambito import PitError, areas_del_perfil, reunir
+from convertersmartgrid.adaptadores.pit.motores import ESTUDIOS, capacidad, ejecutar, elegir_motor
+from convertersmartgrid.aplicacion.pit.red_area import desde_ambito
 
 SEMILLAS = (4, 23)
 

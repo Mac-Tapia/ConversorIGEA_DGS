@@ -32,9 +32,9 @@ def _flags_separado() -> int:
 
 def separar(*, abrir=subprocess.Popen, inicio=None) -> int:
     """Lanza ``--correr`` separado y deja registrada la suite con su proceso (081:RF-37, RF-41)."""
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.asistente.vigilancia import EMPEZADA, ENTORNO_SUITE
-    from convertersmartgrid.pf_arnes import inicio_proceso
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.aplicacion.asistente.vigilancia import EMPEZADA, ENTORNO_SUITE
+    from convertersmartgrid.adaptadores.pf_arnes import inicio_proceso
 
     salida = almacen.raiz() / 'suite_salida.log'
     salida.parent.mkdir(parents=True, exist_ok=True)
@@ -54,7 +54,7 @@ def separar(*, abrir=subprocess.Popen, inicio=None) -> int:
 
 def correr() -> int:
     """Las tandas; una señal de cierre deja «interrumpida» (081:RF-40) en vez de un registro a medias."""
-    from convertersmartgrid.asistente.vigilancia import correr_por_tandas
+    from convertersmartgrid.aplicacion.asistente.vigilancia import correr_por_tandas
 
     def al_recibir(numero, _marco):
         raise KeyboardInterrupt(f'señal {numero}')

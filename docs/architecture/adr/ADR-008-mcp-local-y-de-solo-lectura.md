@@ -4,7 +4,7 @@
 - Fecha: 2026-11-14
 - Specs: 077:RF-25, 077:RF-37, 077:RF-38, 077:RF-60
 - Elementos C4: mcp, assistant
-- Evidencia: `tools/mcp_conversor.py::_servidor`, `tools/mcp_conversor.py~read_only_hint=True, destructive_hint=False`, `src/convertersmartgrid/asistente/lectura_proyecto.py::catalogo`
+- Evidencia: `tools/mcp_conversor.py::_servidor`, `tools/mcp_conversor.py~read_only_hint=True, destructive_hint=False`, `src/convertersmartgrid/aplicacion/asistente/lectura_proyecto.py::catalogo`
 
 ## Contexto
 

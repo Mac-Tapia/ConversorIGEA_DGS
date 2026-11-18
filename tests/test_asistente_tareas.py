@@ -4,8 +4,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from convertersmartgrid.asistente.tareas import TAREAS, TIPOS_DATO, descripcion_para_modelo
-from convertersmartgrid.web import services
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, TIPOS_DATO, descripcion_para_modelo
+from convertersmartgrid.presentacion.web import services
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -20,7 +20,7 @@ def test_cada_tarea_apunta_a_algo_que_existe():
             assert (RAIZ / 'tools' / f'{t.funcion}.py').is_file(), t.nombre
         elif '.' in t.funcion:
             modulo, funcion = t.funcion.rsplit('.', 1)
-            web = importlib.import_module(f'convertersmartgrid.web.{modulo}')
+            web = importlib.import_module(f'convertersmartgrid.presentacion.web.{modulo}')
             assert callable(getattr(web, funcion, None)), t.nombre
         else:
             assert callable(getattr(services, t.funcion, None)), t.nombre

@@ -2,7 +2,7 @@
 
 Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
 
-- [x] T1. `src/convertersmartgrid/carpeta_pf.py`: nombre por defecto, validación y lectura de
+- [x] T1. `src/convertersmartgrid/adaptadores/carpeta_pf.py`: nombre por defecto, validación y lectura de
       `config/perfil_empresa.json`; `config/perfil_empresa.example.json` versionado y
       `config/perfil_empresa.json` local con «sistemaeletricoELD», fuera de git. (RF-2, RF-3, RF-4)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_carpeta_pf.py` en verde,

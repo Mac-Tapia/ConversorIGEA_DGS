@@ -1,15 +1,14 @@
 # ADR-002 · La fachada `web/services.py` se parte por delegación, un caso de uso cada vez
 
-- Estado: pendiente
+- Estado: vigente
 - Fecha: 2026-11-14
 - Specs: 002:RF-1, 002:RF-20, 002:RF-21
 - Elementos C4: api, cmpWeb, cmpFachadaServicios, cmpCasosDeUso, cmpEntrada, cmpEstudios
 - Tareas: 002 T7, 002 T9
-- Pendiente en: 002 T7 y T9 (F-09 del Plan Maestro V1), la última tarjeta, cuando estén integradas todas las que tocan `web/services.py`
 
 ## Contexto
 
-`src/convertersmartgrid/web/services.py` tiene 13 904 líneas en 00d30651 y `web/app.py`, 3 059: casi cada tarjeta
+`src/convertersmartgrid/presentacion/web/services.py` tiene 13 904 líneas en 00d30651 y `web/app.py`, 3 059: casi cada tarjeta
 toca la fachada, y dos tarjetas en paralelo chocan en ella. La spec 002 tiene abiertas T7 (mover los módulos a sus
 capas, con reexportaciones temporales) y T9 (retirar las reexportaciones). El Plan Maestro V1 (§30.5, fase A2)
 pide «crear una interfaz pequeña para un flujo identificado y delegar desde la fachada», sin mover 13 000 líneas en

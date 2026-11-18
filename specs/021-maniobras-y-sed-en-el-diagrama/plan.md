@@ -6,13 +6,13 @@ Lee: `docs/constitution.md` y `specs/021-maniobras-y-sed-en-el-diagrama/spec.md`
 
 Cuatro bloques independientes, que se pueden entregar por separado y en este orden:
 
-1. **Maniobras de los puentes** (motor, DGS). `src/convertersmartgrid/puentes.py` decide hoy entre
-   fundir y `Coupler`; `src/convertersmartgrid/dgs.py` escribe los `Coupler` como `ElmCoup`
+1. **Maniobras de los puentes** (motor, DGS). `src/convertersmartgrid/dominio/puentes.py` decide hoy entre
+   fundir y `Coupler`; `src/convertersmartgrid/adaptadores/dgs.py` escribe los `Coupler` como `ElmCoup`
    (líneas 1214-1236) y los `SwitchingDevice` de `model.devices` como `StaSwitch` en el
    cubículo `line_cubic_fids[(section_id, terminal_side)]` (líneas 1268-1278). El cambio
    es sobre todo en `puentes.py`: un equipo plegado deja de ser `Coupler` y pasa a ser un
    `SwitchingDevice` de la línea vecina, y `dgs.py` ya lo escribe sin tocarlo. El
-   trafomix se quita en `src/convertersmartgrid/trafomix.py`, después de `fundir_puentes`
+   trafomix se quita en `src/convertersmartgrid/dominio/trafomix.py`, después de `fundir_puentes`
    (`reglas.aplicar_reglas`); la completitud está en `reglas.auditar_completitud`
    (líneas 210-241).
 2. **SED unidas a su barra** (DGS, dibujo). `dgs.py` escribe el triángulo `SecSubProd`
@@ -23,11 +23,11 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
    La ruta `GET /api/workspaces/{wid}/demanda/cabecera/{job_id}/curva` (`web/app.py:1093`,
    `services.demanda_curva`) devuelve una curva por medidor, y se reutiliza tal cual.
 4. **Central térmica** (demanda medida, plan del ajuste, guion de DIgSILENT, web).
-   `src/convertersmartgrid/demanda_medida.py` (lectura y máxima), `src/convertersmartgrid/ajuste_cabecera.py`
-   (objetivo, reparto, cuadre), `src/convertersmartgrid/web/services.py` (`maximas` en la búsqueda
+   `src/convertersmartgrid/aplicacion/demanda_medida.py` (lectura y máxima), `src/convertersmartgrid/dominio/ajuste_cabecera.py`
+   (objetivo, reparto, cuadre), `src/convertersmartgrid/presentacion/web/services.py` (`maximas` en la búsqueda
    de la máxima, `ajuste_plan`), `tools/ajuste_cabecera_pf.py` (crear el generador y
-   medir en el flujo), `src/convertersmartgrid/troncal.py` (`aguas_abajo`), perfil de empresa en
-   `src/convertersmartgrid/perfil_empresa.py`. Carril `powerfactory` para el guion; el cálculo de
+   medir en el flujo), `src/convertersmartgrid/dominio/troncal.py` (`aguas_abajo`), perfil de empresa en
+   `src/convertersmartgrid/dominio/perfil_empresa.py`. Carril `powerfactory` para el guion; el cálculo de
    la máxima va en el carril `engine`, como hoy.
 
 ## Diseño por partes

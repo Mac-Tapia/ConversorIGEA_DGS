@@ -29,7 +29,7 @@ que pasa al añadir demanda. Se usa desde una página web local, en el propio eq
 - El editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo.
 
 **En beta**, marcadas en su pantalla y desactivables con `CSG_BETA_APAGADAS`: asistente de órdenes, SET nueva y confiabilidad
-(`src/convertersmartgrid/edicion.py`). El PIDE ya no es beta: el corto plazo, el PIDE y el largo plazo tienen cada uno su pestaña
+(`src/convertersmartgrid/dominio/edicion.py`). El PIDE ya no es beta: el corto plazo, el PIDE y el largo plazo tienen cada uno su pestaña
 (`5cbe2eae`). Su norma de criterios y metodología (RM 428-2017-MEM/DM) sigue publicada como proyecto, y la web lo dice.
 
 Nada está apagado en la edición de producto (usuario, 2026-11-13). La edición solo decide lo que es de seguridad: las salidas a

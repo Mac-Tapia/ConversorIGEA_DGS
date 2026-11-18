@@ -39,7 +39,7 @@ def _publicado(web, tmp_path, proveedor='google', crudos=False):
     (salida / 'informe.docx').write_bytes(_office('Informe de factibilidad'))
     (salida / 'resumen.md').write_text('Resumen.\n', encoding='utf-8')
     if crudos:
-        from convertersmartgrid.identify import _FIRMAS_ACCESS
+        from convertersmartgrid.adaptadores.identify import _FIRMAS_ACCESS
 
         red, _c, _e = write_export(ExportSpec(feeders=2, seed=109), tmp_path / 'export')
         # Renombrados: se reconocen por el contenido, no por el nombre.

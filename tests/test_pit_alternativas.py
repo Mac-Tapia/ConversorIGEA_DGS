@@ -9,14 +9,14 @@ import pytest
 
 from datos_pit import perfil_a
 
-from convertersmartgrid.costos_fuentes import Costo, FuenteCostos, TablaCostos
-from convertersmartgrid.pide_economia import frc, van
-from convertersmartgrid.pit.alternativas import evaluar
-from convertersmartgrid.pit.ambito import areas_del_perfil, reunir
-from convertersmartgrid.pit.diagnostico import agregar_demanda
-from convertersmartgrid.pit.red_area import desde_ambito
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.set_nueva import leer_modulos_pit
+from convertersmartgrid.aplicacion.costos_fuentes import Costo, FuenteCostos, TablaCostos
+from convertersmartgrid.aplicacion.pide_economia import frc, van
+from convertersmartgrid.adaptadores.pit.alternativas import evaluar
+from convertersmartgrid.dominio.pit.ambito import areas_del_perfil, reunir
+from convertersmartgrid.adaptadores.pit.diagnostico import agregar_demanda
+from convertersmartgrid.aplicacion.pit.red_area import desde_ambito
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.aplicacion.set_nueva import leer_modulos_pit
 
 MONEDA = 'XTS'
 

@@ -15,9 +15,9 @@ import pytest
 pytest.importorskip('scipy')
 
 from apoyo import contrato_fisico
-from convertersmartgrid.digital_twin import evolutivo as ev
-from convertersmartgrid.digital_twin import oraculo as orc
-from convertersmartgrid.pide_economia import valor_kw_perdidas
+from convertersmartgrid.adaptadores.digital_twin import evolutivo as ev
+from convertersmartgrid.adaptadores.digital_twin import oraculo as orc
+from convertersmartgrid.aplicacion.pide_economia import valor_kw_perdidas
 
 NORMA = {'tension_min_pu': 0.95, 'tension_max_pu': 1.05}
 
@@ -256,9 +256,9 @@ def test_la_web_optimiza_los_bancos_con_la_red_del_gemelo(tmp_path, monkeypatch)
     sin red del gemelo, lo dice y deja los del diagnóstico."""
     from test_digital_twin_episode import _payload
 
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-    from convertersmartgrid.digital_twin.episode import leer_episodio
-    from convertersmartgrid.web import services
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.dominio.digital_twin.episode import leer_episodio
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setenv('CSG_TWIN_DATA', str(tmp_path / 'twin'))
     limites = SimpleNamespace(**NORMA)

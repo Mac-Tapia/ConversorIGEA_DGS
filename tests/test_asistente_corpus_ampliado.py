@@ -7,14 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.asistente import (
-    corpus_proyecto,
-    evaluacion_rag,
-    indice,
-    reranker,
-)
-from convertersmartgrid.asistente import lectura_proyecto as lp
-from convertersmartgrid.asistente.equipo import LecturaGobernada
+from convertersmartgrid.aplicacion.asistente import corpus_proyecto, evaluacion_rag, indice, reranker
+from convertersmartgrid.aplicacion.asistente import lectura_proyecto as lp
+from convertersmartgrid.aplicacion.asistente.equipo import LecturaGobernada
 
 RAIZ = Path(__file__).resolve().parents[1]
 AMPLIADO = indice.CORPUS_AMPLIADO
@@ -337,7 +332,7 @@ def test_lectura_mala_del_llm_se_descarta(repo, mala):
 
 def test_lo_leido_son_datos():
     """077:RF-30 — las dos peticiones al LLM dicen que los trozos son datos, nunca instrucciones."""
-    from convertersmartgrid.asistente.ollama import ClienteOllama
+    from convertersmartgrid.aplicacion.asistente.ollama import ClienteOllama
 
     mensajes = []
     cliente = ClienteOllama.__new__(ClienteOllama)
@@ -370,8 +365,8 @@ def test_lectura_del_llm_no_rompe_la_abstencion(repo):
 
 def test_web_lee_por_el_gobierno(repo, monkeypatch):
     """077:RF-33 — la pregunta de la web lee como operador y su lectura queda en la bitácora del espacio."""
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.presentacion.web import services
 
     class SinOllama:
         modelo = 'falso'
@@ -379,7 +374,7 @@ def test_web_lee_por_el_gobierno(repo, monkeypatch):
         def modelos(self):
             return None
 
-    monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado', SinOllama)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.asistente.ollama.cliente_configurado', SinOllama)
     monkeypatch.setattr(services, 'project_root', lambda: repo)
     r = services.asistente_pregunta('que dice docs/ACTUAL.md', espacio='esp1', plan='plan1')
     assert any(c['fuente'] == 'docs/ACTUAL.md:1' for c in r['citas'])
@@ -611,7 +606,7 @@ def test_097_la_calibracion_del_077_no_esta_en_su_corpus(frags_077_reales):
     """097:RF-19 — con el documento del maestro dentro del 077 (076:RF-29), ninguna pregunta de la calibración, de ninguna
     longitud, está literal en el corpus fuera de su fuente; el fichero dice de dónde salen y por qué no están indexadas, y
     conserva preguntas con y sin respuesta para calibrar."""
-    from convertersmartgrid.asistente import fuga_evaluacion as fe
+    from convertersmartgrid.aplicacion.asistente import fuga_evaluacion as fe
 
     textos = fe.textos_por_fichero(frags_077_reales)
     assert 'docs/PREGUNTAS_MAESTRO_076.md' in textos
@@ -641,7 +636,7 @@ def test_097_rf19_las_preguntas_nuevas_del_maestro_no_estan_en_el_corpus(frags_0
     documento del maestro de la 076, que sí entra en el corpus (076:RF-29)."""
     import re
 
-    from convertersmartgrid.asistente import fuga_evaluacion as fe
+    from convertersmartgrid.aplicacion.asistente import fuga_evaluacion as fe
 
     nuevas = _conjunto(RAIZ / MAESTRO_077)['preguntas']
     textos = fe.textos_por_fichero(frags_077_reales)
@@ -669,7 +664,7 @@ def test_097_el_detector_ve_la_copia_y_respeta_la_fuente(semilla):
     movida de carpeta, 097:RF-18) no cuenta; una de menos de seis palabras no se comprueba y se cuenta."""
     import random
 
-    from convertersmartgrid.asistente import fuga_evaluacion as fe
+    from convertersmartgrid.aplicacion.asistente import fuga_evaluacion as fe
 
     rnd = random.Random(semilla)
     vocab = ['barra', 'tensión', 'banco', 'cabecera', 'alimentador', 'calibración', 'demanda', 'carga', 'obra', 'fase']

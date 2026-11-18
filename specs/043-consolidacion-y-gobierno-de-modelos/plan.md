@@ -70,7 +70,7 @@ contextos/evaluación en [Nature Machine Intelligence](https://doi.org/10.1038/s
 
 **Cubre:** RF-1, RF-6.
 
-**Files:** Integrar selectivamente `src/convertersmartgrid/model_registry.py`, `src/convertersmartgrid/training_coordinator.py` y `tools/reentrenar_modelos.py` desde `.worktrees/reentrenamiento-integral/`; crear sus pruebas en raíz si no existen.
+**Files:** Integrar selectivamente `src/convertersmartgrid/aplicacion/model_registry.py`, `src/convertersmartgrid/aplicacion/training_coordinator.py` y `tools/reentrenar_modelos.py` desde `.worktrees/reentrenamiento-integral/`; crear sus pruebas en raíz si no existen.
 
 **Interfaces:** Preservar `RegistroModelo.registrar_candidato(modelo, *, model_manifest, dataset_manifest, metrics, decision, smoke_reload, artifacts=()) -> dict`, `.promover(modelo, candidate_id)`, `.volver_al_anterior(modelo)` y `TrainingStage(name, run, uses_gpu=True)`. Conservar las siete etapas históricas y `BloqueoGPU`; no usar `os.kill(pid, 0)` en Windows.
 
@@ -89,7 +89,7 @@ contextos/evaluación en [Nature Machine Intelligence](https://doi.org/10.1038/s
 
 **Cubre:** RF-2, RF-3, RF-4.
 
-**Files:** Crear `src/convertersmartgrid/experimentos.py`; integrar `asistente/dataset_entrenamiento.py` y `asistente/calidad_datos.py` del donante; crear `tests/test_experimentos.py` y adaptar las pruebas de dataset del donante.
+**Files:** Crear `src/convertersmartgrid/aplicacion/experimentos.py`; integrar `asistente/dataset_entrenamiento.py` y `asistente/calidad_datos.py` del donante; crear `tests/test_experimentos.py` y adaptar las pruebas de dataset del donante.
 
 **Interfaces:** Definir `ContextoExperimento` inmutable con `source_run_id: str`, `source_mode: str`, `source_fingerprint: str`, `project: str`, `feeders: tuple[str, ...]`, `case_id: str`, `case_role: str`, `year: int | None`, `period: str`, `criterio_fijas: str`, `profile_hash: str`, `topology_hash: str`, `controls_hash: str`, `scenario_hash: str`. `clave_contexto(contexto: ContextoExperimento) -> str` usa JSON canónico y SHA-256. `ExperimentoSpec` contiene contexto, algoritmo, semillas, política, revisión y schema_version; `cargar_experimento(ruta: Path) -> ExperimentoSpec` rechaza campos incompatibles.
 
@@ -133,7 +133,7 @@ bloqueado sigue sin activarse ni acredita haber completado todas las familias.
 
 **Cubre:** RF-8.
 
-**Files:** Integrar/adaptar `GET /api/asistente/modelos` en `src/convertersmartgrid/web/app.py` y `services.py`; modificar `frontend/src/components/Asistente.tsx`, `frontend/src/types.ts` y `frontend/src/api.ts`; crear `tests/test_modelos_web.py`.
+**Files:** Integrar/adaptar `GET /api/asistente/modelos` en `src/convertersmartgrid/presentacion/web/app.py` y `services.py`; modificar `frontend/src/components/Asistente.tsx`, `frontend/src/types.ts` y `frontend/src/api.ts`; crear `tests/test_modelos_web.py`.
 
 **Interfaces:** La respuesta tiene `schema_version`, `familias` con `estado`, `candidate_id`, `algorithm`, `report_path`, `gates` y `bloqueos`; una etapa pendiente no se convierte en estado terminal inventado. La carga de informes no ejecuta entrenamiento. El runner existente de trabajos conserva cancelación.
 
@@ -154,7 +154,7 @@ bloqueado sigue sin activarse ni acredita haber completado todas las familias.
 
 **Cubre:** RF-9, RF-10, RF-11. Petición explícita del usuario de priorizar uso/clonación de GitHub.
 
-**Archivos:** crear `docs/UPSTREAM_IA_LOCK.json`, `src/convertersmartgrid/upstream_ia.py`, `tools/preparar_upstream_ia.py`,
+**Archivos:** crear `docs/UPSTREAM_IA_LOCK.json`, `src/convertersmartgrid/adaptadores/upstream_ia.py`, `tools/preparar_upstream_ia.py`,
 `tests/test_upstream_ia.py` y documentación de selección. Las copias quedan en
 `external/upstream/`, excluidas del repositorio padre; se preservan sus licencias.
 

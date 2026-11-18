@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import random
 
-from convertersmartgrid.asistente import almacen, senales
-from convertersmartgrid.asistente.interprete import interpretar
+from convertersmartgrid.aplicacion.asistente import almacen, senales
+from convertersmartgrid.aplicacion.asistente.interprete import interpretar
 
 
 def test_umbral_por_tarea_con_su_tasa_de_error():

@@ -83,9 +83,9 @@ def main(argv=None) -> int:
     if args.salida.exists():
         print(f'{args.salida} ya existe: no se mide de nuevo.', file=sys.stderr)
         return 2
-    from convertersmartgrid.asistente.ollama import ClienteOllama
-    from convertersmartgrid.asistente.revision_roles import comparar_revision, revisor_ollama
-    from convertersmartgrid.trabajadores_ml import turno_gpu
+    from convertersmartgrid.aplicacion.asistente.ollama import ClienteOllama
+    from convertersmartgrid.aplicacion.asistente.revision_roles import comparar_revision, revisor_ollama
+    from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
 
     cliente = ClienteOllama(modelo=args.modelo, tiempo_max_s=90.0)
     if args.modelo not in (cliente.modelos() or []):

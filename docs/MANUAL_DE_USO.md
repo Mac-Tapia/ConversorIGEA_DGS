@@ -615,7 +615,7 @@ Estado de cada una: [specs/README.md](../specs/README.md).
 | Qué | Dónde |
 | --- | --- |
 | Motor | `src/convertersmartgrid/` |
-| Web | `src/convertersmartgrid/web/` (API) y `frontend/src/` (interfaz) |
+| Web | `src/convertersmartgrid/presentacion/web/` (API) y `frontend/src/` (interfaz) |
 | Guiones de DIgSILENT y herramientas | `tools/` |
 | Perfil de la empresa | `config/perfil_empresa.json` y `config/perfiles/` |
 | Salidas de la web | `output/web/<espacio>/` (planes, informes, ejecuciones) |

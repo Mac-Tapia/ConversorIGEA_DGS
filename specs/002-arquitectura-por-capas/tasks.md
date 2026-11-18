@@ -42,9 +42,10 @@ Plan de lo abierto (2026-11-03): T7 a T9 mueven 250 módulos y tocan casi todas 
 guiones de PowerFactory; van por capas, de abajo arriba, una por commit y con la línea base en cada una. T8 y T9
 van después de T7. T11 reordena `frontend/src` y pide probar la web en el navegador real. T12 es el cierre.
 
-- [ ] T7. Mover los módulos a `dominio`, `puertos`, `aplicacion`, `adaptadores` y
+- [x] T7. Mover los módulos a `dominio`, `puertos`, `aplicacion`, `adaptadores` y
       `presentacion`, con reexportaciones temporales. (RF-1)
       Hecho cuando: la tabla de `pyproject.toml` es la del plan y `test_capas.py` en verde sin excepciones de capa.
+      Hecho en esta entrega (CAPAS-002, 4d): 355 módulos movidos a su paquete de capa por una transformación determinista (D:/csg/INTEGRA_54/capas_002/mover_a_capas.py); 444 módulos importan; test_capas en verde sin excepciones de capa.
 - [x] T8. `vnr_etl` dentro de `convertersmartgrid.adaptadores.entrada.vnr`; `vnr-etl` sigue igual. (RF-6, RF-22)
       Hecho cuando: no queda `src/vnr_etl/` y `pytest -q tests/test_vnr_etl.py` en verde.
       Bloque P23 del 2026-11-08: implementación y consumidores trasladados, fachada única
@@ -56,10 +57,11 @@ van después de T7. T11 reordena `frontend/src` y pide probar la web en el naveg
       RF-22: `tests/test_vnr_etl.py::test_sqlite_probe_cli_real_codigo_y_json` (línea 175).
       Hecho el 2026-11-15 (MARCAS-PISTA3): en e182c823 no queda `src/vnr_etl/` (solo la fachada `src/vnr_etl.py` del CLI,
       RF-22), y la puerta de regresión real es la suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log:1202` «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.» Incluye `tests/test_vnr_etl.py` y `tests/test_linea_base_001.py`.
-- [ ] T9. Retirar las reexportaciones; `tools/` y las pruebas usan las rutas nuevas. (RF-21)
+- [x] T9. Retirar las reexportaciones; `tools/` y las pruebas usan las rutas nuevas. (RF-21)
       Hecho cuando: `test_capas.py` no encuentra ningún módulo que solo reexporte.
       Compatibilidad pendiente: `src/vnr_etl.py` (CLI público conservado por contrato) y
-      fachadas anteriores `convertersmartgrid.web.sources` / `web.sources.vnr`.
+      fachadas anteriores `convertersmartgrid.presentacion.web.sources` / `web.sources.vnr`.
+      Hecho en esta entrega (CAPAS-002, 4d): sin reexportaciones (web.sources retirada); tools/ y las pruebas usan las rutas nuevas; vnr_etl queda como CLI público por contrato.
 - [x] T10. Modelos Pydantic en las respuestas de la API y tipos del front generados. (RF-16, RF-17)
       Hecho cuando: `pytest -q tests/test_contrato_api.py` en verde.
       Del 2026-11-03: lo cumplió la 065. Quedan 7 de 133 rutas de `/api` sin modelo de respuesta; salen como tipo abierto.
@@ -81,9 +83,14 @@ van después de T7. T11 reordena `frontend/src` y pide probar la web en el naveg
       sin navegador): sobre e182c823, `D:/csg/PM_IMPL/PISTA3/MARCAS-PISTA3/verde_002T11_lint_tsc_build.log` da rc_lint=0
       («Fronteras verificadas: api/shared/features/app, sin dependencias ilícitas.»), rc_tsc=0 y rc_build=0, y
       `verde_002T11_fronteras_test.log` 32 de 32.
-- [ ] T12. Validación: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u` lista RF-1 a RF-37;
+- [x] T12. Validación: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u` lista RF-1 a RF-37;
       línea base idéntica; `CODIGO_FUENTE.md` con las rutas nuevas.
       Hecho cuando: `grep -rnoE "002:RF-[0-9]+" tests frontend | sort -u` lista RF-1 a RF-37 y la línea base de la 001 sigue idéntica.
+      Hecho el 2026-11-17 con CAPAS-002 v5 sobre 2c0b2823: el grep lista RF-1 a RF-38. La línea base se generó con el código de
+      antes (árbol 18a8f86c), con el catálogo del proyecto que fija la prueba: 96 DGS de alimentador y la red unida por TXT,
+      y 101 por Access. Con los módulos ya en su capa, `pytest tests/test_linea_base_001.py` da 3 passed, sin omitidas
+      (D:/csg/INTEGRA_54/capas_002/linea_base_v5_0c02a607.log y linea_base_v5_SHA256SUMS.txt). `test_inventario` exige cada
+      ruta nueva en `CODIGO_FUENTE.md`.
 - [x] T13. Tope de rutas sin modelo de respuesta: `tools/rutas_sin_modelo.py` y `docs/architecture/rutas_sin_modelo.json`,
       con una lista que solo baja, al día con el código y con el motivo de cada ruta. (RF-38 y su aclaración)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_contrato_api.py -k rf38` en verde y

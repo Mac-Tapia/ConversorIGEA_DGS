@@ -23,8 +23,8 @@ def test_recalibrar_lleva_los_clientes_a_su_maxima_al_guion(tmp_path, monkeypatc
     from apoyo import esperar_trabajo
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import jobs
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import jobs
+    from convertersmartgrid.presentacion.web.app import create_app
 
     ordenes = []
     monkeypatch.setattr(jobs.JobContext, 'run_process', lambda self, cmd, **kw: ordenes.append(cmd) or 0)

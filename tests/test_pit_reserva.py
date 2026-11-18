@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.pit.ambito import PitError
-from convertersmartgrid.pit.reserva import evaluar_reserva
-from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid.dominio.pit.ambito import PitError
+from convertersmartgrid.dominio.pit.reserva import evaluar_reserva
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
 
 RAIZ = Path(__file__).resolve().parents[1]
 FUENTE = {'nombre': 'modelo_confiabilidad_sintetico.xlsx', 'huella': 'e' * 64}

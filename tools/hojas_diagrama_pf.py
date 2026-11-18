@@ -147,7 +147,7 @@ def main(argv=None) -> int:
     p.add_argument('--carpeta', help='Carpeta de proyectos del usuario (perfil de empresa)')
     p.add_argument('--output-json', help='Informe en JSON')
     args = p.parse_args(argv)
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('hojas_diagrama_pf.py')

@@ -17,7 +17,7 @@ import fake_pf
 from test_obras_pf_guion import (CON, PERFIL_ESCALERA, SIN, _actual_no_cumple, _calibrada_con_escenario, _obra_terna,
                                  _plan, _terna, guion)
 
-from convertersmartgrid import obras_pf as op
+from convertersmartgrid.aplicacion import obras_pf as op
 
 
 def _caso(app, nombre):

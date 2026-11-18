@@ -9,7 +9,7 @@ import importlib.util
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
 
 RAIZ = Path(__file__).resolve().parents[1]
 NORMATIVA = RAIZ / 'config' / 'normativa'
@@ -21,9 +21,9 @@ T0 = datetime(2041, 3, 1)  # noqa: DTZ001 (las curvas de cabecera van en hora lo
 
 def _generacion():
     """El módulo de la tarjeta: su ausencia es la falla de la aserción, no un error de importación."""
-    assert importlib.util.find_spec('convertersmartgrid.pit.generacion') is not None, \
-        'falta convertersmartgrid.pit.generacion (PIT-F124)'
-    return importlib.import_module('convertersmartgrid.pit.generacion')
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.pit.generacion') is not None, \
+        'falta convertersmartgrid.adaptadores.pit.generacion (PIT-F124)'
+    return importlib.import_module('convertersmartgrid.adaptadores.pit.generacion')
 
 
 def _curva(valores_kw):
@@ -35,7 +35,7 @@ def test_107_rf9_generacion_f124_capacidad_deducida_de_la_maxima_medida_con_su_s
     potencia medida en MW como capacidad (anotada como deducida, no declarada) y el sustento con medidor y periodo; lo
     que la medición no da (titular, año, tipo de sistema) sale vacío con su motivo, nunca genérico."""
     mod = _generacion()
-    from convertersmartgrid.pit.plantillas import celdas_de_formato
+    from convertersmartgrid.adaptadores.pit.plantillas import celdas_de_formato
     datos = mod.datos_f124(CENTRALES, {'AL-G1': _curva([1200, 3450, 2000]), 'AL-G2': _curva([-800, -900])}, FUENTE,
                            area='AREA-S')
     filas = datos['bloques']['grupos']
@@ -66,7 +66,7 @@ def test_107_rf9_generacion_lee_el_medidor_de_generacion_de_cada_central(monkeyp
     """107:RF-9 (PIT-F124) — la curva sale del medidor de generación de cada central, con el lector de cabecera de la
     calibración; lo que no se lee vuelve como hueco con su motivo."""
     mod = _generacion()
-    from convertersmartgrid import pronostico_demanda
+    from convertersmartgrid.adaptadores import pronostico_demanda
     pedidos = []
 
     def leer(rutas, pares, centrales=None):
@@ -83,7 +83,7 @@ def test_107_rf9_generacion_el_f124_sale_llenado_y_ya_no_es_un_pendiente():
     """107:RF-9 (PIT-F124) — con la fuente de generación el F-124 sale llenado, y ya no está entre los formatos con
     causa de pendiente."""
     _generacion()
-    from convertersmartgrid.pit import llenado
+    from convertersmartgrid.adaptadores.pit import llenado
     registro = cargar_registro(NORMATIVA)
     assert 'F-124' not in llenado.CAUSAS_DE_PENDIENTE
     hecho = llenado.llenar_formatos(registro, {'generacion': {'fuente': FUENTE, 'centrales': CENTRALES,

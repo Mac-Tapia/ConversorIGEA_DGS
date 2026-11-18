@@ -41,7 +41,7 @@ from pathlib import Path
 
 from cargas_pf import activar_proyecto, crear_variacion
 
-from convertersmartgrid import protecciones as pr
+from convertersmartgrid.aplicacion import protecciones as pr
 
 #: Órdenes que se inventarían y los métodos documentados de cada una (referencia 2024, 5.4).
 METODOS_DOCUMENTADOS = {
@@ -187,7 +187,7 @@ def ejecutar(app, plan: dict, cancelar=lambda: False) -> tuple[dict, int]:
     caso = _caso(app, plan['caso'])
     if caso is None:
         return {**informe, 'error': f"el proyecto no tiene el caso «{plan['caso']}»"}, 2
-    from convertersmartgrid.pf_arnes import caso_restituido
+    from convertersmartgrid.adaptadores.pf_arnes import caso_restituido
 
     with caso_restituido(app):
         caso.Activate()
@@ -251,7 +251,7 @@ def main(argv=None) -> int:
     p.add_argument('--cancel-file', help='Fichero que pide cancelar (se mira entre fallas)')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
-    from convertersmartgrid.native_action import native_action_block_report
+    from convertersmartgrid.dominio.native_action import native_action_block_report
 
     bloqueado = native_action_block_report(plan, 'protecciones')
     if bloqueado:
@@ -259,7 +259,7 @@ def main(argv=None) -> int:
                                           encoding='utf-8')
         print(bloqueado['error'])
         return 2
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar, importar_api
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar, importar_api
 
     try:
         app = conectar('protecciones_pf.py')

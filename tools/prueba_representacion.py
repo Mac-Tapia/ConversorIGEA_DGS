@@ -6,10 +6,10 @@
 Por cada alimentador:
 
 1. Toma del TXT los valores y coordenadas de cada elemento. Los nodos sin
-   ``CoordX/CoordY`` se colocan por el grafo (``convertersmartgrid.coordenadas``) y quedan
+   ``CoordX/CoordY`` se colocan por el grafo (``convertersmartgrid.dominio.coordenadas``) y quedan
    marcados como inferidos.
 2. Excluye los trafomix —medición de MT registrada como SED, con el patrón del perfil
-   de empresa— (``convertersmartgrid.trafomix``).
+   de empresa— (``convertersmartgrid.dominio.trafomix``).
 3. Encaja el diagrama en la hoja pedida con escala isótropa y dimensiona los símbolos
    en múltiplos de la cuadrícula (``FeederModel.diagram_sheet``).
 4. Valida el DGS y **audita la completitud contra el TXT**: tramos, barras, cargas,
@@ -38,15 +38,15 @@ for _flujo in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # pragma: no cover
         pass
 
-from convertersmartgrid.coordenadas import completar_coordenadas  # noqa: E402
-from convertersmartgrid.dataset import CymdistDataset  # noqa: E402
-from convertersmartgrid.dgs import formato_hoja, write_dgs  # noqa: E402
-from convertersmartgrid.geography import assert_metre_source_crs, build_geography  # noqa: E402
-from convertersmartgrid.model import calc_p_q, build_feeder_model  # noqa: E402
-from convertersmartgrid.naming import feeder_short_name  # noqa: E402
-from convertersmartgrid.sed_potencia import redimensionar_sobrecargadas  # noqa: E402
-from convertersmartgrid.trafomix import es_trafomix, excluir_trafomix  # noqa: E402
-from convertersmartgrid.validate import parse_dgs, validate_dgs  # noqa: E402
+from convertersmartgrid.dominio.coordenadas import completar_coordenadas  # noqa: E402
+from convertersmartgrid.adaptadores.dataset import CymdistDataset  # noqa: E402
+from convertersmartgrid.adaptadores.dgs import formato_hoja, write_dgs  # noqa: E402
+from convertersmartgrid.adaptadores.geography import assert_metre_source_crs, build_geography  # noqa: E402
+from convertersmartgrid.dominio.model import calc_p_q, build_feeder_model  # noqa: E402
+from convertersmartgrid.dominio.naming import feeder_short_name  # noqa: E402
+from convertersmartgrid.dominio.sed_potencia import redimensionar_sobrecargadas  # noqa: E402
+from convertersmartgrid.dominio.trafomix import es_trafomix, excluir_trafomix  # noqa: E402
+from convertersmartgrid.adaptadores.validate import parse_dgs, validate_dgs  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ def importar(dgs: Path, red_nombre: str, hoja, grid_mm: float, en_dgs: dict,
     # 064:RF-1: el turno del motor, el vigía y el reintento del 4002 del arnés; sin
     # él, este guion conectaba por su cuenta y otro proceso recibía «error 4002».
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
     try:
         app = conectar('prueba_representacion.py')
     except PFNoDisponible as exc:
@@ -237,8 +237,8 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     formato_hoja(args.hoja)
-    from convertersmartgrid.geography import exigir_crs_origen
-    from convertersmartgrid.perfil_empresa import cargar_perfil
+    from convertersmartgrid.adaptadores.geography import exigir_crs_origen
+    from convertersmartgrid.dominio.perfil_empresa import cargar_perfil
 
     perfil = cargar_perfil()
     args.source_crs = exigir_crs_origen(args.source_crs or perfil.crs_origen)

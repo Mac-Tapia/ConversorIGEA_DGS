@@ -29,8 +29,8 @@ def _imprimir(dato) -> None:
 
 
 def _ver(familia: str) -> int:
-    from convertersmartgrid.asistente import modelos_en_uso as meu
-    from convertersmartgrid.asistente.transformer import version_promovida
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso as meu
+    from convertersmartgrid.aplicacion.asistente.transformer import version_promovida
 
     reg, ultimo = meu.registro(), None
     if (reg.raiz / familia / 'latest.json').is_file():
@@ -63,7 +63,7 @@ def main(argv=None) -> int:
     a = _parser().parse_args(argv)
     if a.orden == 'ver':
         return _ver(a.familia)
-    from convertersmartgrid.asistente import modelos_en_uso as meu
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso as meu
 
     try:
         if a.orden == 'poner':

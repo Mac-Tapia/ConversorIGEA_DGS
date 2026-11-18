@@ -9,7 +9,7 @@ from apoyo import cargar_herramienta
 def test_se_mide_sin_razonar_y_se_guarda_asi(tmp_path, monkeypatch):
     """026:RF-3 — qwen3:8b razonaba antes de cada orden (48 de 144 sin respuesta, 2026-11-07): se mide con `pensar=False`
     y el elegido queda con esa opción para la web."""
-    from convertersmartgrid.asistente import ollama
+    from convertersmartgrid.aplicacion.asistente import ollama
 
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     creados = []

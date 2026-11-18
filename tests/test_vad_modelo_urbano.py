@@ -14,12 +14,12 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.pide_economia import frc
-from convertersmartgrid import registro_normativo as rn
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad import modelo_urbano as mu
-from convertersmartgrid.vad.formulas import evaluar
+from convertersmartgrid.aplicacion.pide_economia import frc
+from convertersmartgrid.dominio import registro_normativo as rn
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.adaptadores.vad import modelo_urbano as mu
+from convertersmartgrid.aplicacion.vad.formulas import evaluar
 
 RAIZ = Path(__file__).resolve().parents[1]
 VAD = RAIZ / 'config' / 'vad'

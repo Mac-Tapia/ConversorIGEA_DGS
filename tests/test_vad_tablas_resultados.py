@@ -13,10 +13,10 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from convertersmartgrid.libro_informe import ERRORES_DE_FORMULA
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.tablas_resultados import HOJA_INDICE, TablaDatos, escribir_tablas, tablas_registradas
+from convertersmartgrid.adaptadores.libro_informe import ERRORES_DE_FORMULA
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.adaptadores.vad.tablas_resultados import HOJA_INDICE, TablaDatos, escribir_tablas, tablas_registradas
 
 RAIZ = Path(__file__).resolve().parents[1]
 

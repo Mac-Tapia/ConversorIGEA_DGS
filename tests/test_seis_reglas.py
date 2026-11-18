@@ -16,19 +16,20 @@ from types import SimpleNamespace
 import pytest
 
 from apoyo import cargar_herramienta
-from convertersmartgrid import escalera_optima as eo
-from convertersmartgrid import instalacion_ternas as it
-from convertersmartgrid import optimizacion_oraculo as oo
-from convertersmartgrid import pf_arnes, sitio_set
-from convertersmartgrid.asistente.interprete import Interpretacion
-from convertersmartgrid.asistente.ordenes_fijas import FRASES
-from convertersmartgrid.asistente.plan import _PIDE_BORRAR, resolver
-from convertersmartgrid.asistente.sinteticos import normalizar
-from convertersmartgrid.asistente.tareas import TAREAS
-from convertersmartgrid.informe_docx import DatosEstudio, escribir_informe_estudio
-from convertersmartgrid.informes import Caso, Encabezado, Etapa, Extremo, Potencia, alternativas_de_obras, describir_obra
-from convertersmartgrid.informes import obra_para_informe, trechos_de_conductor
-from convertersmartgrid.obras_pf import ObrasError, validar_obra
+from convertersmartgrid.aplicacion import escalera_optima as eo
+from convertersmartgrid.aplicacion import instalacion_ternas as it
+from convertersmartgrid.adaptadores import optimizacion_oraculo as oo
+from convertersmartgrid.adaptadores import pf_arnes
+from convertersmartgrid.aplicacion import sitio_set
+from convertersmartgrid.aplicacion.asistente.interprete import Interpretacion
+from convertersmartgrid.aplicacion.asistente.ordenes_fijas import FRASES
+from convertersmartgrid.aplicacion.asistente.plan import _PIDE_BORRAR, resolver
+from convertersmartgrid.aplicacion.asistente.sinteticos import normalizar
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
+from convertersmartgrid.adaptadores.informe_docx import DatosEstudio, escribir_informe_estudio
+from convertersmartgrid.adaptadores.informes import Caso, Encabezado, Etapa, Extremo, Potencia, alternativas_de_obras, describir_obra
+from convertersmartgrid.adaptadores.informes import obra_para_informe, trechos_de_conductor
+from convertersmartgrid.aplicacion.obras_pf import ObrasError, validar_obra
 from test_informe_alternativas import GEO, GEO_SIN, _caso, _config, _texto
 from test_obras_pf_guion import CON, _activas, _calibrada, _linea, _plan
 from test_obras_pf_guion_042 import PERFIL, _con_red_externa, _obra
@@ -119,7 +120,7 @@ def test_sin_calles_el_punto_queda_sin_verificar_en_plano(tmp_path, monkeypatch)
         p = sitio_set.parametros({'planificacion': {'sitio_set': {'retiro_min_m': RETIRO, 'calles_geojson': str(ruta)}}})
         assert not p.calles and any('sin verificar en plano' in a for a in p.avisos)
         assert sitio_set.situar((-10.005, -69.99), TRAZADO, p)['estado'] == sitio_set.SIN_VERIFICAR
-    fuente = (RAIZ / 'src/convertersmartgrid/sitio_set.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/aplicacion/sitio_set.py').read_text(encoding='utf-8')
     assert not re.search(r'\b(requests|urllib|http|osrm|overpass)\b', fuente, re.I)
 
 
@@ -215,8 +216,8 @@ def _datos_web():
 def test_la_web_situa_antes_de_crear_la_obra_y_no_bloquea(monkeypatch, tmp_path, final, cumple):
     """084:RF-2, 084:RF-5, 084:RF-8, 084:RF-10, 084:RF-11 — el punto de la obra y el del oráculo son el apartado;
     sin calles se dice; y sin flujos en el punto final no «cumple» y se avisa."""
-    from convertersmartgrid import perfil_empresa
-    from convertersmartgrid.web import services
+    from convertersmartgrid.dominio import perfil_empresa
+    from convertersmartgrid.presentacion.web import services
     from test_set_nueva import CFG_PIT, _libro
 
     perfil = {'crs_origen': 'EPSG:32718', 'escalera': {'sorteos': 20, 'semilla': 1},
@@ -305,7 +306,7 @@ def test_sin_dato_del_fabricante_no_se_inventa_factor(monkeypatch):
     assert fila['instalaciones'][0]['factor'] is None
     assert any('sin confirmar para varias ternas' in a for a in fila['avisos'])
     assert 'sin confirmar' in it.describir(fila['instalaciones'][0])
-    fuente = (RAIZ / 'src/convertersmartgrid/instalacion_ternas.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/aplicacion/instalacion_ternas.py').read_text(encoding='utf-8')
     assert not re.search(r'(?<![\w.])0[.,]\d', fuente), 'ningún factor de agrupamiento en el código'
 
 
@@ -505,7 +506,7 @@ BORRADOS = {
         'tools/pfd_diagnostico.py::importar'},
     # Objetos con nombre propio del conversor, en el proyecto activado por la orden, que se renuevan sin duplicar.
     'renovado': {
-        'src/convertersmartgrid/carpeta_pf.py::eliminar_versiones_anteriores',
+        'src/convertersmartgrid/adaptadores/carpeta_pf.py::eliminar_versiones_anteriores',
         'tools/ajuste_cabecera_pf.py::_limpiar_etapa_de_la_central', 'tools/casos_pf.py::_escenario_renovado',
         'tools/confiabilidad_pf.py::escribir_modelos', 'tools/confiabilidad_pf.py::aplicar_datos',
         'tools/pide_pf.py::casos_del_anio', 'tools/obras_pf.py::_proyecto_biblioteca',
@@ -515,7 +516,7 @@ BORRADOS = {
         # 025:RF-79: «Cargas nuevas <año>» por su nombre y su marca, para copiarlo otra vez de «Sin proyecto» (PA217).
         'tools/casos_pf.py::_borrar_caso'},
     # Con su guarda: la de esta spec, o la de la copia de prueba (064).
-    'con_guarda': {'src/convertersmartgrid/pf_arnes.py::borrar_en_su_proyecto', 'tools/restitucion_pf.py::borrar'},
+    'con_guarda': {'src/convertersmartgrid/adaptadores/pf_arnes.py::borrar_en_su_proyecto', 'tools/restitucion_pf.py::borrar'},
 }
 
 

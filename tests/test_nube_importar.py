@@ -17,7 +17,7 @@ import zipfile
 import pytest
 
 from nube_simulada import NubeSimulada, montar_web_nube, sin_sockets  # noqa: F401
-from convertersmartgrid.web.jobs import JobCancelled
+from convertersmartgrid.presentacion.web.jobs import JobCancelled
 
 pytestmark = pytest.mark.usefixtures('sin_sockets')
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED') or random.SystemRandom().randrange(1 << 30))

@@ -60,7 +60,7 @@ confianza (077:RF-77).
 
 ## Qué se puede leer con la política restringida
 
-La lista blanca y la lista negra están en `src/convertersmartgrid/asistente/lectura_proyecto.py`, y las publica
+La lista blanca y la lista negra están en `src/convertersmartgrid/aplicacion/asistente/lectura_proyecto.py`, y las publica
 `GET /api/asistente/equipo` en `lectura_proyecto`. La lista negra manda sobre la blanca y no distingue mayúsculas.
 
 - Se lee: `src/`, `tools/`, `tests/`, `tests_ml/`, `docs/`, `specs/`, `frontend/src/`, `.claude/skills/`, `CLAUDE.md`, `CODIGO_FUENTE.md`,

@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid.batch import convert_group, convert_selection, load_aliases, sort_key_feeder
-from convertersmartgrid.naming import feeder_short_name
+from convertersmartgrid.aplicacion.batch import convert_group, convert_selection, load_aliases, sort_key_feeder
+from convertersmartgrid.dominio.naming import feeder_short_name
 
 
 def test_convert_one_feeder(ds, sample_feeder, tmp_path, opciones_reales):
@@ -71,7 +71,7 @@ def test_external_alias_file_is_recorded(ds, sample_feeder, tmp_path, opciones_r
 
 def test_cli_list_and_convert_do_not_accept_reference_dgs(csg_paths, sample_feeder, tmp_path, capsys,
                                                           perfil_real):
-    from convertersmartgrid.cli import main
+    from convertersmartgrid.presentacion.cli import main
 
     red, loads, equip = csg_paths
     inv_json = tmp_path / 'inv.json'
@@ -125,7 +125,7 @@ def test_red_unida_por_set_con_datos_reales(ds, opciones_reales, tmp_path):
     """022:RF-7, 022:RF-25, 022:RF-30, 022:RF-32 — alimentadores reales unidos por SET con la
     estructura de una distribuidora real: valida, los anillos de la entrada se abren y el oráculo
     calcula una isla por barra de SET. Con otra exportación, los que estén en la tabla."""
-    from convertersmartgrid.perfil_empresa import carpeta_perfiles, estructura_empresa
+    from convertersmartgrid.dominio.perfil_empresa import carpeta_perfiles, estructura_empresa
 
     local = tmp_path / 'perfil.json'
     local.write_text('{"perfil": "electro_dunas"}', encoding='utf-8')

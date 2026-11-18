@@ -5,7 +5,7 @@ import pytest
 
 def test_checkpoint_incompleto_no_se_publica(tmp_path):
     """047:RF-19: ni un checkpoint parcial ni archivos sin hash acreditan un alumno."""
-    from convertersmartgrid.asistente.llm_runtime import verificar_checkpoint
+    from convertersmartgrid.aplicacion.asistente.llm_runtime import verificar_checkpoint
     (tmp_path/'estado.json').write_text(json.dumps({'training_completed':False}),encoding='utf-8')
     with pytest.raises(ValueError,match='complet'):
         verificar_checkpoint(tmp_path)
@@ -13,8 +13,8 @@ def test_checkpoint_incompleto_no_se_publica(tmp_path):
 
 def test_checkpoint_que_cambio_se_rechaza(tmp_path):
     """047:RF-19: la recarga exige los mismos pesos que fueron entrenados."""
-    from convertersmartgrid.asistente.llm_runtime import verificar_checkpoint
-    from convertersmartgrid.asistente.llm_destilacion import custodiar
+    from convertersmartgrid.aplicacion.asistente.llm_runtime import verificar_checkpoint
+    from convertersmartgrid.aplicacion.asistente.llm_destilacion import custodiar
     f=tmp_path/'adaptador';f.mkdir()
     p=f/'adapter_model.safetensors';p.write_bytes(b'contrato, no pesos de aceptacion')
     sha=custodiar(p,localizador='contrato')['sha256']
@@ -30,7 +30,7 @@ def test_huella_de_licencia_con_autocrlf(tmp_path):
     import hashlib
     import subprocess
 
-    from convertersmartgrid.asistente.llm_runtime import sha256_en_commit
+    from convertersmartgrid.aplicacion.asistente.llm_runtime import sha256_en_commit
 
     def g(*a):
         subprocess.run(['git', '-C', str(tmp_path), *a], check=True, capture_output=True)

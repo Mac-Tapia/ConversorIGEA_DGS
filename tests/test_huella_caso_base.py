@@ -14,8 +14,8 @@ from apoyo import cargar_herramienta
 from test_ajuste_cabecera_guion import _carga, _caso, _con_escenario_que_manda, _plan
 from test_ajuste_proyecto_guion import _de
 
-from convertersmartgrid.comprobacion_flujo import comparar_huellas, huella_de_caso, revisar_huellas
-from convertersmartgrid.web import services
+from convertersmartgrid.dominio.comprobacion_flujo import comparar_huellas, huella_de_caso, revisar_huellas
+from convertersmartgrid.presentacion.web import services
 
 
 @pytest.fixture(scope='module')

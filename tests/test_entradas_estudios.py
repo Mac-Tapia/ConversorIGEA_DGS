@@ -15,9 +15,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from apoyo import cargar_herramienta
-from convertersmartgrid import entradas_estudios as ee
-from convertersmartgrid.estudios_pf import estudios_no_ofrecidos, estudios_ofrecidos, validar_estudios
-from convertersmartgrid.studies import ESTUDIOS
+from convertersmartgrid.adaptadores import entradas_estudios as ee
+from convertersmartgrid.aplicacion.estudios_pf import estudios_no_ofrecidos, estudios_ofrecidos, validar_estudios
+from convertersmartgrid.aplicacion.studies import ESTUDIOS
 
 SEMILLAS = [random.randrange(10**6) for _ in range(3)]
 SEPARADORES = ('\t', ';', '|')
@@ -105,7 +105,7 @@ def test_perfil_con_paso_irregular_no_se_guarda():
 
 def test_tasas_tiempos_y_costes_con_las_reglas_del_libro():
     """012:RF-81 — tasas, tiempos y costes cargados valen como las hojas del libro de la empresa."""
-    from convertersmartgrid.datos_empresa import CLASES, que_falta
+    from convertersmartgrid.aplicacion.datos_empresa import CLASES, que_falta
 
     tasas = 'Clase;Falla permanente (1/año);Tiempo de reparación (h)\n' + ''.join(
         f'{v};0,{i + 1};{i + 2}\n' for i, v in enumerate(CLASES.values()))
@@ -168,7 +168,7 @@ def test_imagen_por_ocr(tmp_path):
     """012:RF-74 — una foto de la tabla se lee por OCR y da las mismas filas que el TXT."""
     from PIL import Image, ImageDraw, ImageFont
 
-    from convertersmartgrid import documentos_solicitud as ds
+    from convertersmartgrid.adaptadores import documentos_solicitud as ds
 
     if not ds.tesseract():
         pytest.skip('sin Tesseract en este equipo')
@@ -193,9 +193,9 @@ def test_imagen_por_ocr(tmp_path):
 # --------------------------------------------------------------------------- web
 @pytest.fixture
 def cliente(tmp_path):
-    from convertersmartgrid.web.entradas_estudios_api import registrar_rutas_entradas
-    from convertersmartgrid.web.jobs import Job, JobContext
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.entradas_estudios_api import registrar_rutas_entradas
+    from convertersmartgrid.presentacion.web.jobs import Job, JobContext
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     ws = WorkspaceStore(tmp_path / 'web').create()
 
@@ -231,7 +231,7 @@ def test_web_leer_corregir_y_guardar(cliente):
     assert bien['cumplidas'] == [ee.ESQUEMAS['impedancia'].nombre] and 'impedancia' not in bien['borradores']
     carpeta = ws.root / 'entradas_estudios' / 'P1'
     assert (carpeta / 'impedancia.json').is_file() and any((carpeta / 'originales').iterdir())
-    from convertersmartgrid.web.entradas_estudios_api import entradas_cargadas, registros_para_plan
+    from convertersmartgrid.presentacion.web.entradas_estudios_api import entradas_cargadas, registros_para_plan
 
     assert entradas_cargadas(ws, 'P1') == {ee.ESQUEMAS['impedancia'].nombre} and entradas_cargadas(ws, 'P2') == set()
     assert registros_para_plan(ws, 'P1')['impedancia']['registro']['barras']['a1']['rx_max'] == 0.1

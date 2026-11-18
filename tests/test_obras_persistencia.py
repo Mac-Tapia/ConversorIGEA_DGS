@@ -15,7 +15,7 @@ from test_obras_pf_guion import (
     _toca_a_otro, _variaciones, guion,
 )
 
-from convertersmartgrid.obras_pf import foto_de_referencia, veredicto_persistencia
+from convertersmartgrid.aplicacion.obras_pf import foto_de_referencia, veredicto_persistencia
 
 
 def _seccion(ctx):

@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from convertersmartgrid import biblioteca_normativa as bn
+from convertersmartgrid.aplicacion import biblioteca_normativa as bn
 
 
 def _norma(acto, valor, desde='2020-01-01'):

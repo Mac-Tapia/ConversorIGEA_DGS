@@ -12,9 +12,9 @@ from types import SimpleNamespace
 import pytest
 
 from apoyo import espacio_txt_custodiado
-from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
-from convertersmartgrid.util import sha256_file
-from convertersmartgrid.web import services
+from convertersmartgrid.adaptadores.powerfactory_binding import PowerFactoryProjectBinding
+from convertersmartgrid.dominio.util import sha256_file
+from convertersmartgrid.presentacion.web import services
 
 
 @pytest.mark.parametrize('modo', ['rc3_sin', 'rc0_sin', 'roto', 'hash', 'source', 'feeder', 'ruta',

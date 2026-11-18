@@ -18,14 +18,14 @@ from pathlib import Path
 import pytest
 
 RAIZ = Path(__file__).resolve().parents[1]
-SRC = RAIZ / 'src' / 'convertersmartgrid'
+SRC = RAIZ / 'src' / 'convertersmartgrid' / 'aplicacion'  # batch, cargas_pf y reglas: capa de aplicación
 CASOS_DE_USO = ('batch', 'cargas_pf', 'reglas')
 ADAPTADORES = ('dgs', 'export_tables', 'geography', 'preview', 'validate', 'feeder_metadata', 'oraculo', 'loads')
 
 
 def _registro():
     """Lo nuevo de la pieza: su ausencia es la falla de la aserción, no un error de importación."""
-    mod = importlib.import_module('convertersmartgrid.registro_modulos')
+    mod = importlib.import_module('convertersmartgrid.aplicacion.registro_modulos')
     assert hasattr(mod, 'adaptador') and hasattr(mod, 'AdaptadorFaltante'), \
         'falta registro_modulos.adaptador (002 T7, a)'
     return mod
@@ -76,7 +76,7 @@ def test_002_rf9_resolucion_perezosa_un_entry_point_roto_que_no_se_pide_no_rompe
     mod = _registro()
     monkeypatch.setattr(mod, '_ADAPTADORES', {})
     monkeypatch.delenv(mod.VARIABLE_DESDE_PYPROJECT, raising=False)
-    metadatos = [EntryPoint('salida-dgs', 'convertersmartgrid.dgs', 'convertersmartgrid.adaptadores'),
+    metadatos = [EntryPoint('salida-dgs', 'convertersmartgrid.adaptadores.dgs', 'convertersmartgrid.adaptadores'),
                  EntryPoint('oraculo', 'convertersmartgrid.modulo_que_no_existe', 'convertersmartgrid.adaptadores')]
     vistos = []
 
@@ -84,7 +84,7 @@ def test_002_rf9_resolucion_perezosa_un_entry_point_roto_que_no_se_pide_no_rompe
         vistos.append(name)
         return [e for e in metadatos if e.group == group and e.name == name]
     monkeypatch.setattr(mod, 'entry_points', entry_points)
-    from convertersmartgrid import dgs
+    from convertersmartgrid.adaptadores import dgs
     assert mod.adaptador('salida-dgs') is dgs and vistos == ['salida-dgs']
     with pytest.raises(mod.AdaptadorFaltante, match=r'«oraculo».*pip install -e \. --no-deps'):
         mod.adaptador('oraculo')
@@ -100,7 +100,7 @@ def test_002_rf9_desde_el_pyproject_del_arbol_para_un_worktree_sin_reinstalar(mo
     monkeypatch.setattr(mod, '_ADAPTADORES', {})
     monkeypatch.setenv(mod.VARIABLE_DESDE_PYPROJECT, '1')
     monkeypatch.setattr(mod, 'entry_points', lambda **_k: pytest.fail('no se leen los metadatos instalados'))
-    from convertersmartgrid import geography
+    from convertersmartgrid.adaptadores import geography
     assert mod.adaptador('geografia') is geography
-    from convertersmartgrid import batch
+    from convertersmartgrid.aplicacion import batch
     assert batch.exigir_crs_origen('EPSG:32718') == geography.exigir_crs_origen('EPSG:32718')

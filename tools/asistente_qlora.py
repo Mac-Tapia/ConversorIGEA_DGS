@@ -27,13 +27,13 @@ def main(argv=None):
     a.add_argument('--dataset',type=Path,required=True)
     a.add_argument('--salida',type=Path,required=True)
     args=p.parse_args(argv)
-    from convertersmartgrid.trabajadores_ml import escribir_informe,fallo,turno_gpu
+    from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe,fallo,turno_gpu
     reporte=args.salida/'training_manifest.json'
     if args.salida.exists() and (not args.salida.is_dir() or any(args.salida.iterdir())):
         print(json.dumps({'error':'salida existente conservada'}));return 2
     args.salida.mkdir(parents=True,exist_ok=True)
     try:
-        from convertersmartgrid.asistente.llm_destilacion import auditar_fuentes_corpus,entrenar_epoca,ficha_base
+        from convertersmartgrid.aplicacion.asistente.llm_destilacion import auditar_fuentes_corpus,entrenar_epoca,ficha_base
         if not args.dataset.is_dir():raise ValueError('no existe el corpus generativo sellado')
         auditoria=auditar_fuentes_corpus(args.dataset)
         base=ficha_base()

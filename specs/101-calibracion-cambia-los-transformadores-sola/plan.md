@@ -2,7 +2,7 @@
 
 ## Módulos
 
-- `src/convertersmartgrid/web/services.py`
+- `src/convertersmartgrid/presentacion/web/services.py`
   - `cambios_automaticos(informes, hechos)` (RF-1, RF-4, RF-6, RF-12): función pura. De cada informe toma
     `fijas_sobre_su_transformador` y las de `sed_sobre_umbral` con nivel `sobre_100`, con propuesta y un solo
     transformador, y quita las ya aplicadas con la misma potencia y las mismas unidades.

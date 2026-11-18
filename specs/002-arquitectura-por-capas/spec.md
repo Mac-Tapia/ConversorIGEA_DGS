@@ -1,6 +1,6 @@
 # Spec 002 — Arquitectura por capas y módulos enchufables
 
-Estado: aprobada (2026-10-08) · Fecha: 2026-10-08 · Depende de: spec 001 cumplida
+Estado: cumplida (2026-11-17, T7, T9 y T12 con CAPAS-002: cada módulo en su capa y la línea base de la 001 idéntica) · aprobada (2026-10-08) · Fecha: 2026-10-08 · Depende de: spec 001 cumplida
 
 ## Contexto y objetivo
 
@@ -8,7 +8,7 @@ El conversor va a crecer con módulos nuevos: otras entradas, otras salidas, est
 (flujo de carga, cortocircuito, pérdidas) y automatización de PowerFactory. Hoy no está
 preparado para ello. `convertersmartgrid` son 40 módulos planos sin fronteras, y `convertersmartgrid` y
 `vnr_etl` se importan en ciclo: `vnr_etl` usa `dataset`, `schema` y `validate`, y
-`convertersmartgrid.web` usa `vnr_etl`. Además, `reglas.py` depende de `powerfactory_env`,
+`convertersmartgrid.presentacion.web` usa `vnr_etl`. Además, `reglas.py` depende de `powerfactory_env`,
 `web/services.py` importa 22 módulos y `web/source_scope.py` usa funciones privadas de
 `vnr_etl.pipeline`. Con esta forma, cada módulo nuevo toca a los demás. El objetivo es
 la forma de CYME, PowerFactory o ETAP: un núcleo con un único modelo de red, módulos
@@ -150,7 +150,7 @@ Compatibilidad
 - RF-20: EL SISTEMA producirá, para la misma entrada, perfil y alias, los mismos DGS byte
   a byte que antes de esta spec.
 - RF-21: EL SISTEMA no conservará, al cumplirse esta spec, reexportaciones desde las
-  rutas de importación antiguas (`convertersmartgrid.batch`, `vnr_etl.*`…); `tools/` y las pruebas
+  rutas de importación antiguas (`convertersmartgrid.aplicacion.batch`, `vnr_etl.*`…); `tools/` y las pruebas
   usarán las nuevas.
 - RF-22: EL SISTEMA mantendrá los comandos `convertersmartgrid`, `convertersmartgrid-web` y `vnr-etl` con
   los mismos argumentos (`vnr-etl-web` lo retira la spec 001).

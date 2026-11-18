@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from convertersmartgrid.experimentos import (
+from convertersmartgrid.aplicacion.experimentos import (
     ContextoExperimento, ExperimentoSpec, cargar_experimento, clave_contexto,
 )
 

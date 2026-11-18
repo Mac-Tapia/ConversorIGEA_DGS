@@ -31,7 +31,7 @@ def _importa_pronostico(ruta: Path) -> list[str]:
 
 def test_calibracion_caso_base_e_informes_no_leen_pronosticos():
     """046:RF-20 — ningún módulo de calibración, caso base o informes importa el pronóstico."""
-    modulos = ['ajuste_cabecera.py', 'demanda_medida.py', 'cargas_pf.py', 'informes.py', 'reglas.py']
+    modulos = ['dominio/ajuste_cabecera.py', 'aplicacion/demanda_medida.py', 'aplicacion/cargas_pf.py', 'adaptadores/informes.py', 'aplicacion/reglas.py']
     presentes = [SRC / m for m in modulos if (SRC / m).is_file()]
     assert len(presentes) >= 3
     for ruta in presentes:
@@ -48,7 +48,7 @@ def test_digsilent_no_recibe_pronosticos():
 
 def test_crecimiento_sigue_sin_pronostico():
     """046:RF-22 — la tasa del PIDE sigue en ``crecimiento.py``, sin red ni pronóstico."""
-    ruta = SRC / 'crecimiento.py'
+    ruta = SRC / 'aplicacion/crecimiento.py'
     assert not _importa_pronostico(ruta)
     assert 'digital_twin' not in ruta.read_text(encoding='utf-8')
 
@@ -59,7 +59,7 @@ def test_ningun_camino_lo_lanza_por_defecto():
     for ruta in SRC.rglob('*.py'):
         if 'gemelo_pronostico' in ruta.read_text(encoding='utf-8'):
             fuera.append(ruta.relative_to(SRC).as_posix())
-    assert sorted(fuera) == ['web/app.py', 'web/services.py']
+    assert sorted(fuera) == ['presentacion/web/app.py', 'presentacion/web/services.py']
 
 
 def _xlsx(ruta: Path, dias: int) -> Path:
@@ -127,7 +127,7 @@ def test_servicio_lanza_otro_proceso_cancelable(tmp_path, monkeypatch):
     """046:RF-24 — la web lanza el trabajador con ``run_process`` y devuelve su informe."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
     vistos = {}
 
     def correr(cmd, cwd=None, env=None):
@@ -156,8 +156,8 @@ def test_ruta_web_con_modo_pronostico(tmp_path, monkeypatch):
 
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
     pedidos = []
     monkeypatch.setattr(services, 'gemelo_pronostico',
                         lambda _ws, _ctx, pedido: pedidos.append(pedido) or {'status': 'RECHAZADO', 'marca': 'pronostico'})
@@ -181,14 +181,14 @@ def test_reconstruccion_dice_que_no_es_pronostico():
     from threading import Lock
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
     inicio = datetime(2026, 7, 1)
     t = [inicio + timedelta(minutes=15 * i) for i in range(3 * 96)]
     ws = SimpleNamespace(lock=Lock(), curvas_cabecera={'J': {'M': {'curva': [(x, 10.0 + i % 96, 0.0) for i, x in enumerate(t)]}}})
     # La GRU pide CUDA: el resultado se comprueba con el estacional, sin GPU.
     import unittest.mock as mock
 
-    from convertersmartgrid.digital_twin import temporal
+    from convertersmartgrid.adaptadores.digital_twin import temporal
     with mock.patch.object(temporal, 'modelo_temporal', lambda **_k: temporal.ModeloEstacional()):
         r = services.gemelo_temporal(ws, SimpleNamespace(log=lambda _m: None), 'J', {'A': 'M'})
     assert r['salida'] == 'reconstruccion_un_paso' and 'no es un pronóstico' in r['aviso']
@@ -196,7 +196,7 @@ def test_reconstruccion_dice_que_no_es_pronostico():
 
 def test_asistente_pide_el_pronostico_solo_con_su_formulario():
     """046:RF-23 — el asistente reutiliza la tarea temporal; el pronóstico solo con su formulario."""
-    from convertersmartgrid.asistente.ejecutor import pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
     normal = pasos('gemelo_temporal', {}, {'ultima_maxima': {'id': 'J', 'result': {'resultados': []}}})
     assert 'modo' not in normal[0].cuerpo
     pedido = {'clase': 'cliente', 'libros': ['x'], 'zona_horaria': 'UTC', 'cadencia_min': 15}

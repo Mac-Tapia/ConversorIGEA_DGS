@@ -12,7 +12,7 @@ import sys
 from datetime import UTC
 from pathlib import Path
 
-from convertersmartgrid.util import publicar_duradero
+from convertersmartgrid.dominio.util import publicar_duradero
 
 from . import __version__
 from .config import Settings
@@ -158,7 +158,7 @@ def main(argv=None) -> int:
         return 0
     if args.command == 'web':
         # Una sola API web (spec 001, RF-11): las rutas de VNR van en convertersmartgrid-web.
-        from convertersmartgrid.web.__main__ import main as web_main
+        from convertersmartgrid.presentacion.web.__main__ import main as web_main
 
         argv = ['--host', args.host, '--port', str(args.port)]
         return web_main(argv + (['--no-browser'] if args.no_browser else []))
@@ -233,7 +233,7 @@ def main(argv=None) -> int:
             report = probe_source(args.source)
             texto = json.dumps(report, ensure_ascii=False, indent=2)
             if args.output:
-                from convertersmartgrid.util import publicar_duradero
+                from convertersmartgrid.dominio.util import publicar_duradero
 
                 publicar_duradero(Path(args.output), texto)
         except (OSError, ValueError) as exc:
@@ -284,7 +284,7 @@ def _convert(args, log: Logger) -> int:
     from datetime import datetime
 
     from .discovery import compute_schema_fingerprint, compute_source_fingerprint
-    from convertersmartgrid.util import sha256_file
+    from convertersmartgrid.dominio.util import sha256_file
 
     from .pipeline import (
         buscar_capa_de_tramos,

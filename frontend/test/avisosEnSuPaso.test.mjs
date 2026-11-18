@@ -85,15 +85,15 @@ function kindsDelServidor() {
 /** Los `submit` con el `kind` en una variable: cada uno con lo que puede valer y por qué. */
 const DINAMICOS = {
   // registro_modulos.lanzar_estudio: el puerto del módulo, que solo admite 'estudio' o 'sesion'.
-  'registro_modulos.py': { llamadas: 1, kinds: ['estudio', 'sesion'] },
+  'aplicacion/registro_modulos.py': { llamadas: 1, kinds: ['estudio', 'sesion'] },
   // encolar_ciclo_aprendizaje: kind = f'aprendizaje:{huella}'; el reintento del vigilante repite el kind de su trabajo,
   // y el submit(ws, kind, …) de la API es el que usan todos los literales leídos.
-  'web/app.py': { llamadas: 3, kinds: ['aprendizaje'] },
+  'presentacion/web/app.py': { llamadas: 3, kinds: ['aprendizaje'] },
   // vnr/web/app.py: el submit(kind, title, fn) del adaptador, con 'download' y f'vnr_export_{target}' (cymdist o dgs).
   'adaptadores/entrada/vnr/web/app.py': { llamadas: 2, kinds: ['download', 'vnr_export_cymdist', 'vnr_export_dgs'] },
   // web/nube_selector.py (109): `formulario.submit()` es JavaScript de la página del selector, dentro de una cadena de
   // Python; envía un formulario del navegador, no encola ningún trabajo.
-  'web/nube_selector.py': { llamadas: 1, kinds: [] },
+  'presentacion/web/nube_selector.py': { llamadas: 1, kinds: [] },
 };
 
 /** Kinds que el servidor ya no encola pero que siguen en el historial de los espacios: sus avisos se muestran igual.

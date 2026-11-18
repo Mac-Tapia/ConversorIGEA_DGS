@@ -13,7 +13,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 
 
 def modelos():
-    from convertersmartgrid.web import api_contract
+    from convertersmartgrid.presentacion.web import api_contract
     return api_contract
 
 
@@ -28,7 +28,7 @@ def generador():
 
 def test_job_real_preserva_envoltorio_y_resultado_extensible():
     """065:RF-17; 002:RF-16 — el resultado nativo es variable; su sobre es un contrato fijo."""
-    from convertersmartgrid.web.jobs import Job, JobContext
+    from convertersmartgrid.presentacion.web.jobs import Job, JobContext
     job = Job('conversion', 'Convertir', 'w', 'engine', lambda ctx: None)
     JobContext(job, lambda *args: None).progress(1, 3, 'alimentador')
     job.result = {'informe_nativo': {'tension': [1.0, None]}, 'avisos': []}
@@ -44,7 +44,7 @@ def test_job_real_preserva_envoltorio_y_resultado_extensible():
 
 def test_workspace_real_no_pierde_campos(tmp_path):
     """065:RF-17; 002:RF-16 — el modelo preserva todos los campos del espacio real vacío."""
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
     ws = WorkspaceStore(tmp_path / 'web').create()
     publico = ws.public()
     validado = modelos().EspacioRespuesta.model_validate(publico).model_dump(exclude_unset=True)
@@ -66,7 +66,7 @@ def test_grupo_no_acepta_campos_sin_contrato():
 
 def test_health_workspace_y_job_publican_modelos_reales(tmp_path, monkeypatch):
     """065:RF-17; 002:RF-16 — OpenAPI y la respuesta HTTP comparten modelos anidados."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     app = create_app(tmp_path / 'web')
     with TestClient(app) as cliente:
@@ -96,7 +96,7 @@ def test_health_workspace_y_job_publican_modelos_reales(tmp_path, monkeypatch):
 
 def test_todas_las_admisiones_lentas_exponen_job(tmp_path):
     """065:RF-17 — las rutas de trabajos nuevos y anteriores no vuelven a dict sin forma."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     app = create_app(tmp_path / 'web')
     rutas = [r for r in app.routes if getattr(r, 'status_code', None) == 202
              and r.path != '/api/sistema/cerrar']
@@ -121,7 +121,7 @@ def test_generacion_reproducible_y_detecta_deriva(tmp_path):
 
 def test_espacio_guardado_con_obras_e_indice_se_abre(tmp_path):
     """065:RF-26 — lo ya guardado se abre: campos propios de cada obra e índice de cabecera (025:RF-28)."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     app = create_app(tmp_path / 'web')
     with TestClient(app) as cliente:
@@ -149,7 +149,7 @@ def test_espacio_guardado_con_obras_e_indice_se_abre(tmp_path):
 @pytest.mark.parametrize('disposicion', ['reducido', 'completo'])
 def test_contrato_preserva_espacio_cargado_y_obra_real(tmp_path, disposicion):
     """065:RF-17; 002:RF-16 — contratos anidados sobre lector y obra reales, sin motor nativo."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     from synthetic_export import CRS_SINTETICO, ExportSpec, write_export
     from apoyo import esperar_trabajo
 
@@ -209,7 +209,7 @@ def _lista_guardada(modulo) -> dict:
 
 def _medidas_ahora(tmp_path) -> list[str]:
     """Lo que mide la herramienta, ahora, sobre la aplicación que construye el código."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     return _herramienta().rutas_sin_modelo(create_app(tmp_path / 'web'))
 
 

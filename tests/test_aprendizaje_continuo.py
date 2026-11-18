@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import aprendizaje_continuo as ac
-from convertersmartgrid.model_registry import RegistroModelo
-from convertersmartgrid.training_coordinator import TrainingStage
+from convertersmartgrid.aplicacion import aprendizaje_continuo as ac
+from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+from convertersmartgrid.aplicacion.training_coordinator import TrainingStage
 
 RAIZ = Path(__file__).resolve().parents[1]
 CTX = hashlib.sha256(b'contexto-043').hexdigest()
@@ -382,9 +382,9 @@ def test_ciclo_reanuda_despues_de_muerte_real_del_proceso(tmp_path):
     cid = _candidato(reg,'pinn');root=tmp_path/'ap'
     script = '''import sys,os
 sys.path.insert(0,sys.argv[1])
-from convertersmartgrid import aprendizaje_continuo as ac
-from convertersmartgrid.model_registry import RegistroModelo
-from convertersmartgrid.training_coordinator import TrainingStage
+from convertersmartgrid.aplicacion import aprendizaje_continuo as ac
+from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+from convertersmartgrid.aplicacion.training_coordinator import TrainingStage
 inst=ac.verificar_instantanea(sys.argv[3])
 ac.ejecutar_ciclo(sys.argv[2],inst,[TrainingStage('pinn',lambda:os._exit(73),uses_gpu=False)],
     politica_hash=sys.argv[5],presupuesto=ac.Presupuesto(tiempo_s=3600,memoria_gib=1,usa_gpu=False),
@@ -585,7 +585,7 @@ def test_decidir_ciclo_por_datos_o_deriva():
 
 def test_vigilancia_lanza_un_solo_ciclo(monkeypatch, tmp_path):
     """050:RF-4: gemelo y asistente con datos nuevos lanzan un ciclo, no dos entrenamientos sueltos."""
-    from convertersmartgrid.asistente import almacen, vigilancia
+    from convertersmartgrid.aplicacion.asistente import almacen, vigilancia
     monkeypatch.setattr(almacen, 'raiz', lambda: tmp_path)
     ciclos, sueltos = [], []
     v = vigilancia.Vigilante(listar_trabajos=lambda: [], reintentar=lambda _j: None,

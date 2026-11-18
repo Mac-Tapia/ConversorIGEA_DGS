@@ -17,9 +17,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.dataset import CymdistDataset
-from convertersmartgrid.model import extract_sed_code
-from convertersmartgrid.perfil_empresa import PerfilEmpresa
+from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.dominio.model import extract_sed_code
+from convertersmartgrid.dominio.perfil_empresa import PerfilEmpresa
 from synthetic_export import ExportSpec, write_export
 
 DISPOSICIONES = ('reducido', 'completo')
@@ -32,7 +32,7 @@ def _origen(tmp_path: Path, *, semilla: int, layout: str, naming: str = 'net', f
 
 
 def _generar(trio, destino: Path, *, semilla: int = 31, perfil: PerfilEmpresa | None = None):
-    from convertersmartgrid.benchmarks.redes import anonimizar_red
+    from convertersmartgrid.dominio.benchmarks.redes import anonimizar_red
     return anonimizar_red(*trio, destino, semilla=semilla, perfil=perfil)
 
 
@@ -212,7 +212,7 @@ def test_perfil_neutro_con_los_prefijos_traducidos(tmp_path, perfil, layout):
 # --------------------------------------------------------------------------- T4: reproducción del estudio (112:RF-3)
 
 def _reproducir(trio, carpeta: Path, informe, perfil=None, tolerancia=None):
-    from convertersmartgrid.benchmarks.reproduccion import reproducir_red
+    from convertersmartgrid.adaptadores.benchmarks.reproduccion import reproducir_red
     return reproducir_red(trio, carpeta, mapa=informe.mapa, perfil=perfil, perfil_neutro=informe.perfil_neutro,
                           tolerancia=tolerancia)
 
@@ -240,7 +240,7 @@ def test_el_estudio_se_reproduce_en_dos_redes(tmp_path, semilla, layout, perfil)
 def test_si_no_reproduce_dice_que_magnitud_y_que_elemento(tmp_path):
     """112:RF-3 — un benchmark que no da el mismo estudio se rechaza nombrando la magnitud y el seudónimo."""
     pytest.importorskip('pandapower')
-    from convertersmartgrid.benchmarks.reproduccion import ReproduccionFallida, exigir
+    from convertersmartgrid.adaptadores.benchmarks.reproduccion import ReproduccionFallida, exigir
     _, trio = _origen(tmp_path, semilla=1403, layout='reducido')
     informe = _generar(trio, tmp_path / 'bench')
     # Se estropea el benchmark: todas las cargas, al triple.
@@ -269,7 +269,7 @@ def test_si_no_reproduce_dice_que_magnitud_y_que_elemento(tmp_path):
 
 def test_reproduce_con_la_tolerancia_declarada_por_el_estudio(tmp_path):
     """112:RF-3 — la tolerancia del estudio, si la declara, sustituye a la de por defecto y dice de dónde sale."""
-    from convertersmartgrid.benchmarks.reproduccion import Tolerancia, tolerancia_para
+    from convertersmartgrid.adaptadores.benchmarks.reproduccion import Tolerancia, tolerancia_para
     assert tolerancia_para(None) == Tolerancia()
     t = tolerancia_para({'v_pu': 0.01, 'corriente_rel': 0.02, 'fuente': 'spec 011'})
     assert (t.v_pu, t.corriente_rel, t.fuente) == (0.01, 0.02, 'spec 011')
@@ -284,7 +284,7 @@ def test_el_estudio_se_reproduce_en_la_red_real(tmp_path):
     rutas = [os.environ.get(k, '').strip() for k in ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT')]
     if not all(rutas) or not all(Path(r).is_file() for r in rutas):
         pytest.skip('faltan CSG_RED, CSG_LOADS o CSG_EQUIPMENT: sin datos reales no se reproduce la red real')
-    from convertersmartgrid.perfil_empresa import cargar_perfil
+    from convertersmartgrid.dominio.perfil_empresa import cargar_perfil
     perfil = cargar_perfil()
     trio = tuple(Path(r) for r in rutas)
     informe = _generar(trio, tmp_path / 'bench', perfil=perfil)
@@ -299,17 +299,17 @@ SECRETA = 7_340_112_998_001_234_567
 
 
 def _generar_todo(trio, destino: Path, raiz: Path, **kw):
-    from convertersmartgrid.benchmarks import generar_benchmark
+    from convertersmartgrid.adaptadores.benchmarks import generar_benchmark
     return generar_benchmark(*trio, destino, semilla=SECRETA, raiz=raiz, **kw)
 
 
 def test_manifiesto_con_todo_lo_que_pide_la_spec(tmp_path):
     """112:RF-5 — huella del origen, versión, semilla pública, transformaciones, omitidas, tolerancia, métricas y huellas."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.manifiesto'), 'falta convertersmartgrid.benchmarks.manifiesto'
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.benchmarks.manifiesto'), 'falta convertersmartgrid.adaptadores.benchmarks.manifiesto'
     pytest.importorskip('pandapower')
     import json
 
-    from convertersmartgrid.benchmarks.semilla import leer_secreta, semilla_publica
+    from convertersmartgrid.dominio.benchmarks.semilla import leer_secreta, semilla_publica
     _, trio = _origen(tmp_path, semilla=2101, layout='reducido')
     manifiesto = _generar_todo(trio, tmp_path / 'bench', tmp_path / 'local')
     leido = json.loads((tmp_path / 'bench' / 'manifiesto.json').read_text(encoding='utf-8'))
@@ -333,7 +333,7 @@ def test_manifiesto_con_todo_lo_que_pide_la_spec(tmp_path):
 
 def test_manifiesto_dos_generaciones_mismas_huellas(tmp_path):
     """112:RF-5 — generar dos veces el mismo origen con la misma semilla da los mismos bytes, manifiesto incluido."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.manifiesto'), 'falta convertersmartgrid.benchmarks.manifiesto'
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.benchmarks.manifiesto'), 'falta convertersmartgrid.adaptadores.benchmarks.manifiesto'
     pytest.importorskip('pandapower')
     _, trio = _origen(tmp_path, semilla=2202, layout='completo')
     a = _generar_todo(trio, tmp_path / 'a', tmp_path / 'local')
@@ -345,9 +345,9 @@ def test_manifiesto_dos_generaciones_mismas_huellas(tmp_path):
 @pytest.mark.parametrize('fallo', ['fuga', 'reproduccion'])
 def test_manifiesto_nada_a_medias_si_algo_falla(tmp_path, monkeypatch, fallo):
     """112:RF-1, RF-4, RF-5 — con una fuga o sin reproducir, el destino no aparece y no queda ninguna carpeta temporal."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.manifiesto'), 'falta convertersmartgrid.benchmarks.manifiesto'
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.benchmarks.manifiesto'), 'falta convertersmartgrid.adaptadores.benchmarks.manifiesto'
     pytest.importorskip('pandapower')
-    from convertersmartgrid.benchmarks import reidentificacion, reproduccion
+    from convertersmartgrid.adaptadores.benchmarks import reidentificacion, reproduccion
     _, trio = _origen(tmp_path, semilla=2303, layout='reducido')
     if fallo == 'fuga':
         monkeypatch.setattr(reidentificacion, 'revisar', lambda *a, **k: [
@@ -371,7 +371,7 @@ def test_manifiesto_nada_a_medias_si_algo_falla(tmp_path, monkeypatch, fallo):
 
 def test_manifiesto_no_pisa_un_benchmark_existente(tmp_path):
     """112:RF-5 — un benchmark ya emitido no se sobrescribe: su manifiesto es su contrato."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.manifiesto'), 'falta convertersmartgrid.benchmarks.manifiesto'
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.benchmarks.manifiesto'), 'falta convertersmartgrid.adaptadores.benchmarks.manifiesto'
     _, trio = _origen(tmp_path, semilla=2404, layout='reducido')
     (tmp_path / 'bench').mkdir()
     with pytest.raises(FileExistsError):
@@ -381,7 +381,7 @@ def test_manifiesto_no_pisa_un_benchmark_existente(tmp_path):
 def test_manifiesto_origen_neutro_lejos_del_original(tmp_path):
     """112:RF-2, RF-4 — una red que ya está en el primer origen neutro se lleva a otro, a más de 100 km de su recuadro:
     el control de coordenadas no rechaza el benchmark limpio y la elección (de una lista fija) no delata el original."""
-    from convertersmartgrid.benchmarks import seudonimos as Z
+    from convertersmartgrid.dominio.benchmarks import seudonimos as Z
     assert hasattr(Z, 'origen_lejano'), 'falta seudonimos.origen_lejano'
     assert Z.origen_lejano(None, (0.0, 0.0, 1.0, 1.0)) == Z.ORIGENES_NEUTROS[0]
     ox, oy = Z.ORIGENES_NEUTROS[0]

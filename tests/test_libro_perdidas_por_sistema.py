@@ -9,8 +9,8 @@ from types import SimpleNamespace
 import openpyxl
 import pytest
 
-from convertersmartgrid.informe_docx import exportar_pdf
-from convertersmartgrid.libros_informe import ColumnasPerdidas, LibroError, leer_libro_perdidas
+from convertersmartgrid.adaptadores.informe_docx import exportar_pdf
+from convertersmartgrid.adaptadores.libros_informe import ColumnasPerdidas, LibroError, leer_libro_perdidas
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 CONFIG = {'hoja_alimentadores': 'Radial', 'columna_alimentador': 'Codigo Alim', 'columna_codigo': 'Codigo Sist.',
@@ -117,7 +117,7 @@ def test_el_perfil_local_no_pierde_el_libro_del_heredado(tmp_path):
     """063:RF-41 — el perfil local cambia un rótulo de ``informes`` y conserva lo demás del heredado."""
     import json
 
-    from convertersmartgrid.perfil_empresa import datos_perfil
+    from convertersmartgrid.dominio.perfil_empresa import datos_perfil
 
     carpeta = tmp_path / 'perfiles'
     carpeta.mkdir()

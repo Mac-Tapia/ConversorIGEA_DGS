@@ -15,10 +15,10 @@ import sys
 import numpy as np
 import pytest
 
-from convertersmartgrid import proyeccion_anual as pa
-from convertersmartgrid.digital_twin.pronostico import Objetivo
-from convertersmartgrid.pronostico_demanda import CurvaCompacta, Dataset
-from convertersmartgrid.proyeccion_mercado import SerieMercado
+from convertersmartgrid.adaptadores import proyeccion_anual as pa
+from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
+from convertersmartgrid.adaptadores.pronostico_demanda import CurvaCompacta, Dataset
+from convertersmartgrid.aplicacion.proyeccion_mercado import SerieMercado
 
 sys.path.insert(0, str(Path(__file__).parent))
 from pronostico_sintetico import SEMILLA  # noqa: E402

@@ -53,7 +53,7 @@ def _crs_de_las_empresas(manifiesto) -> set[str]:
 def test_108_rf13_sin_el_nombre_ni_un_codigo_de_una_empresa(terminos):
     """108:RF-13 — en vad/, config/vad/ y tests/test_vad_* no hay ningún nombre ni código de una empresa, tampoco en
     un comentario: el VAD vale para cualquier distribuidora."""
-    ficheros = (_ficheros('src/convertersmartgrid/vad/*.py') + _ficheros('config/vad/*.json')
+    ficheros = (_ficheros('src/convertersmartgrid/aplicacion/vad/*.py') + _ficheros('config/vad/*.json')
                 + _ficheros('tests/test_vad_*.py'))
     assert len(ficheros) > 20, 'la comprobación recorrió de verdad el paquete, su registro y sus pruebas'
     malos = []
@@ -67,7 +67,7 @@ def test_108_rf13_sin_un_crs_ni_un_periodo_escritos_en_el_codigo():
     """108:RF-13 — el código de vad/ no lleva ningún CRS (sale del perfil o de la entrada) ni ningún periodo de
     fijación (sale del registro o del estudio); config/vad/ no lleva ningún CRS."""
     malos = []
-    for p in _ficheros('src/convertersmartgrid/vad/*.py'):
+    for p in _ficheros('src/convertersmartgrid/aplicacion/vad/*.py'):
         for n, linea in enumerate(CE.lineas_de_codigo(p.name, p.read_text(encoding='utf-8')), 1):
             malos += [f'{_rel(p)}:{n} ({m.group(0)})' for m in _CRS.finditer(linea)]
             malos += [f'{_rel(p)}:{n} ({m.group(0)})' for m in _PERIODO.finditer(linea)]
@@ -89,7 +89,7 @@ def test_108_rf13_las_pruebas_no_usan_el_crs_de_una_empresa(manifiesto):
 
 def _registro_con_periodos(tmp_path, periodos):
     """Copia del registro real (config/vad y config/normativa) con los periodos de los grupos del TdR cambiados."""
-    from convertersmartgrid.registro_normativo import cargar_registro
+    from convertersmartgrid.dominio.registro_normativo import cargar_registro
     destino = tmp_path / '-'.join(periodos)
     for carpeta in ('vad', 'normativa'):
         (destino / carpeta).mkdir(parents=True)
@@ -110,7 +110,7 @@ def test_108_rf13_el_periodo_del_aviso_de_costos_compartidos_sale_del_registro(t
     """108:RF-13, 108:RF-9 — el aviso del Anexo 7 frente al Manual dice para qué periodos manda el TdR con los de los
     grupos que registra el acto (vad.grupo.N.periodo) y su vigencia del registro: con dos registros distintos, dos
     textos distintos, y ningún periodo fijo del código."""
-    from convertersmartgrid.vad import coym
+    from convertersmartgrid.aplicacion.vad import coym
     registro = _registro_con_periodos(tmp_path, periodos)
     res = coym.costos_compartidos(1000.0, registro, avnr_periodo=2000.0)
     norma = registro.regla(coym.REGLA_COMPARTIDOS).norma

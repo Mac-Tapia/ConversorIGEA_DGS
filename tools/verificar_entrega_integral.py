@@ -75,9 +75,9 @@ def plan_comprobaciones(raiz: Path, python: Path, edicion: str, evidencia: Path,
 def admitir_campanas(referencias) -> dict:
     """065:RF-24 — verifica recibos explícitos; nunca ejecuta proveedores o promueve modelos."""
     from convertersmartgrid.adaptadores.fuentes_estables import abrir_fuente_estable
-    from convertersmartgrid.evaluacion_harness.contratos import MINIMAS
-    from convertersmartgrid.evaluacion_harness.ejecucion import validar_integridad
-    from convertersmartgrid.evaluacion_harness.publicacion import leer_informe
+    from convertersmartgrid.dominio.evaluacion_harness.contratos import MINIMAS
+    from convertersmartgrid.aplicacion.evaluacion_harness.ejecucion import validar_integridad
+    from convertersmartgrid.adaptadores.evaluacion_harness.publicacion import leer_informe
 
     errores, familias, vistos = [], [], set()
     for familia, nombre, esperado in referencias:
@@ -251,7 +251,7 @@ def _validar_resultado(c: dict, stdout: Path) -> dict:
     if kind == 'frontend_build':
         if str(RAIZ/'src') not in sys.path:
             sys.path.insert(0, str(RAIZ/'src'))
-        from convertersmartgrid.web.runtime import integridad_del_front
+        from convertersmartgrid.presentacion.web.runtime import integridad_del_front
         motivo = integridad_del_front(Path(c['artifact']))
         if motivo:
             raise ValueError('Frontend incompleto: ' + motivo)

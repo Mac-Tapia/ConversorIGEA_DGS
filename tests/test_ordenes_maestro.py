@@ -10,10 +10,10 @@ import re
 
 import pytest
 
-from convertersmartgrid.asistente import destilacion_integral as di
-from convertersmartgrid.asistente import ordenes_maestro as om
-from convertersmartgrid.asistente.ajuste_condicionado import ACIERTO_REAL, F1_REAL, MIN_ORDENES_REALES
-from convertersmartgrid.asistente.maestro_real import clave_texto
+from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
+from convertersmartgrid.aplicacion.asistente import ordenes_maestro as om
+from convertersmartgrid.aplicacion.asistente.ajuste_condicionado import ACIERTO_REAL, F1_REAL, MIN_ORDENES_REALES
+from convertersmartgrid.aplicacion.asistente.maestro_real import clave_texto
 
 _MARCA = re.compile(r'\[\[(\w+):([^\]]+)\]\]')
 
@@ -161,7 +161,7 @@ def test_puerta_tres_cifras_separadas():
 def test_clasificador_da_los_origenes_de_sus_informes(tmp_path, monkeypatch):
     """085:RF-25 — los informes etiquetados por el maestro se cuentan aparte de los del operador."""
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
-    from convertersmartgrid.asistente import almacen, clasificador
+    from convertersmartgrid.aplicacion.asistente import almacen, clasificador
     for i in range(5):
         almacen.anotar('informes', {'texto': f'informe {i}', 'tipo': 'estudio', 'subtipo': 'PIDE',
                                     'origen': 'maestro' if i % 2 else 'corregido'})
@@ -176,7 +176,7 @@ def test_clasificador_da_los_origenes_de_sus_informes(tmp_path, monkeypatch):
 def test_097_las_fugas_del_interprete_se_cuentan_sin_textos():
     """097:RF-21 — una orden de entrenamiento con el texto de una de prueba (con otra mayúscula o tilde) o de una humana
     cuenta; la salida son números, nunca los textos del operador."""
-    from convertersmartgrid.asistente import fuga_evaluacion as fe
+    from convertersmartgrid.aplicacion.asistente import fuga_evaluacion as fe
 
     filas = [{'texto': 'Calibra el alimentador QX511', 'particion': 'entrenamiento'},
              {'texto': 'calibra el alimentador qx511', 'particion': 'prueba', 'conjunto': om.CONJUNTO},
@@ -202,9 +202,9 @@ def test_097_el_interprete_no_entrena_con_lo_que_lo_examina(tmp_path, monkeypatc
     de las pruebas selladas 070 y 079. Se copia el almacén: la prueba nunca escribe en el de la web."""
     import shutil
 
-    from convertersmartgrid.asistente import almacen, prueba_sellada, prueba_sellada_079
-    from convertersmartgrid.asistente import fuga_evaluacion as fe
-    from convertersmartgrid.asistente.maestro_real import leer_etiquetas, leer_ninguna
+    from convertersmartgrid.aplicacion.asistente import almacen, prueba_sellada, prueba_sellada_079
+    from convertersmartgrid.aplicacion.asistente import fuga_evaluacion as fe
+    from convertersmartgrid.aplicacion.asistente.maestro_real import leer_etiquetas, leer_ninguna
 
     origen = _almacen_real()
     for nombre in ('ejemplos.jsonl', 'ordenes_maestro.jsonl', 'vocabulario.json'):

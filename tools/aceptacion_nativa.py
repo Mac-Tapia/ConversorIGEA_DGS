@@ -104,7 +104,7 @@ def releida(lectura: dict | None, rol: str, esperadas: tuple[str, ...] | list[st
 
 def comparar_lecturas(a: dict, b: dict) -> dict[str, Any]:
     """Dos lecturas del mismo caso en sesiones distintas: la misma red, controles, tensiones y cabeceras."""
-    from convertersmartgrid.digital_twin.contratos_fisicos import contexto_fisico
+    from convertersmartgrid.adaptadores.digital_twin.contratos_fisicos import contexto_fisico
 
     fa, fb = contexto_fisico(a), contexto_fisico(b)
     ta = ((a.get('flujo') or {}).get('tensiones') or {}).get('valores') or {}
@@ -179,7 +179,7 @@ def veredicto_048(informe: dict, antes: dict[str, dict], despues: dict[str, dict
 
 def prediccion_fisica(lectura: dict, kv_min: float) -> dict[str, Any]:
     """Lo que predice el gemelo físico (flujo mallado, en la CPU) para la red leída, en las barras de media."""
-    from convertersmartgrid.digital_twin.oraculo import ModeloMallado, muestra
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import ModeloMallado, muestra
 
     grafo = (lectura.get('topologia') or {}).get('grafo') or {}
     tensiones = ((lectura.get('flujo') or {}).get('tensiones') or {}).get('valores') or {}
@@ -209,14 +209,14 @@ def veredicto_044(con: dict, sin: dict, base: dict, *, variacion: str, barra: st
 
     Un caso que converge con violaciones se rechaza por la evaluación eléctrica, no por converger.
     """
-    from convertersmartgrid.digital_twin.episode import Caso
-    from convertersmartgrid.digital_twin.evaluacion import evaluar
-    from convertersmartgrid.digital_twin.evolutivo import verificar_top_k
-    from convertersmartgrid.digital_twin.integration import (
+    from convertersmartgrid.dominio.digital_twin.episode import Caso
+    from convertersmartgrid.adaptadores.digital_twin.evaluacion import evaluar
+    from convertersmartgrid.adaptadores.digital_twin.evolutivo import verificar_top_k
+    from convertersmartgrid.adaptadores.digital_twin.integration import (
         contexto_de_lectura,
         medicion_de_lecturas,
     )
-    from convertersmartgrid.optimizacion_oraculo import KV_MEDIA_MIN
+    from convertersmartgrid.adaptadores.optimizacion_oraculo import KV_MEDIA_MIN
 
     reabierto = releida(con, 'con_proyecto', [variacion])
     presente = obra_presente(sin, con, barra, q_kvar)
@@ -251,7 +251,7 @@ def veredicto_044(con: dict, sin: dict, base: dict, *, variacion: str, barra: st
 def veredicto_045(despues: dict[str, dict], antes: dict[str, dict], *, pedidos: list[str],
                   bancos_declarados: list[str], tolerancia_v_pu: float, variacion: str) -> dict[str, Any]:
     """045:RF-11: contraste del gemelo físico con DIgSILENT en cada papel pedido, del mismo alcance."""
-    from convertersmartgrid.optimizacion_oraculo import KV_MEDIA_MIN
+    from convertersmartgrid.adaptadores.optimizacion_oraculo import KV_MEDIA_MIN
 
     roles = {}
     for rol in pedidos:
@@ -342,7 +342,7 @@ def leer(base: dict, rol: str, esperadas: list[str], carpeta: Path, etiqueta: st
 
 def referencia_valida(resultado: dict, rol: str, base: dict) -> dict:
     """044/048:RF-9: reapertura, identidad pedida y referencia física completa antes de escribir."""
-    from convertersmartgrid.estudios_pf import CASO_BASE, SIN_PROYECTO
+    from convertersmartgrid.aplicacion.estudios_pf import CASO_BASE, SIN_PROYECTO
 
     motivos = []
     if resultado.get('rc') != 0:
@@ -504,13 +504,13 @@ def cargar(carpeta: Path, nombre: str) -> dict:
 
 def contexto_de_aceptacion(carpeta: Path, manifiesto: dict, perfil_ruta: Path | None) -> dict:
     """Lo que necesitan los veredictos de obras: lecturas, límites del perfil y la base del contexto firmado."""
-    from convertersmartgrid.digital_twin.integration import (
+    from convertersmartgrid.adaptadores.digital_twin.integration import (
         TOLERANCIAS_ACEPTACION,
         limites_combinados,
         normas_de,
     )
-    from convertersmartgrid.evaluacion_modelos import huella
-    from convertersmartgrid.perfil_empresa import datos_perfil, estructura_empresa
+    from convertersmartgrid.aplicacion.evaluacion_modelos import huella
+    from convertersmartgrid.dominio.perfil_empresa import datos_perfil, estructura_empresa
 
     obras = manifiesto['obras']
     lect = {k: cargar(carpeta, v['ruta']) for k, v in obras['lecturas'].items() if (carpeta / v['ruta']).is_file()}
@@ -635,7 +635,7 @@ def perfil_de_la_captura(pedido: Path | None, manifiesto: dict) -> Path | None:
         return pedido
     if manifiesto.get('perfil'):
         return Path(manifiesto['perfil'])
-    from convertersmartgrid.perfil_empresa import ruta_perfil_activo
+    from convertersmartgrid.dominio.perfil_empresa import ruta_perfil_activo
 
     activo = ruta_perfil_activo()
     return activo if activo.is_file() else None

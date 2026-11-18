@@ -504,9 +504,9 @@ def test_el_regulador_llega_al_dgs_como_elmvoltreg(tmp_path):
     """080:RF-38 — con su tipo y la toma neutra, y la red sigue conexa y convierte."""
     from test_vnr_sqlserver import Motor, _tablas
 
-    from convertersmartgrid.dgs import write_dgs
-    from convertersmartgrid.model import build_feeder_model
-    from convertersmartgrid.puentes import fundir_reguladores
+    from convertersmartgrid.adaptadores.dgs import write_dgs
+    from convertersmartgrid.dominio.model import build_feeder_model
+    from convertersmartgrid.dominio.puentes import fundir_reguladores
     from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
     from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
@@ -526,7 +526,7 @@ def test_el_regulador_llega_al_dgs_como_elmvoltreg(tmp_path):
     (acoplador,) = [c for c in modelo.couplers if c.kind == 'BR']
     assert acoplador.regulador.corriente_a == 200.0
     # El modelo se guarda para la verificación previa: C+æ02 de la empresa del caso fallaba aquí.
-    from convertersmartgrid.preflight_contract import _restaurar, snapshot_model
+    from convertersmartgrid.aplicacion.preflight_contract import _restaurar, snapshot_model
 
     copia = _restaurar(json.loads(json.dumps(snapshot_model(modelo))))
     assert [c.regulador for c in copia.couplers if c.kind == 'BR'] == [acoplador.regulador]
@@ -536,8 +536,8 @@ def test_el_regulador_llega_al_dgs_como_elmvoltreg(tmp_path):
     texto = destino.read_text(encoding='utf-8', errors='replace')
     assert '$$ElmVoltreg' in texto and '$$TypVoltreg' in texto
     # Los validadores reales: C+æ02 de la empresa del caso se paraba en estos dos, no en la escritura.
-    from convertersmartgrid.reglas import auditar_completitud
-    from convertersmartgrid.validate import parse_dgs, validate_dgs
+    from convertersmartgrid.aplicacion.reglas import auditar_completitud
+    from convertersmartgrid.adaptadores.validate import parse_dgs, validate_dgs
 
     assert 'missing object' not in json.dumps(validate_dgs(modelo, destino), ensure_ascii=False)
     auditoria = auditar_completitud(puente.dataset, ['F1'], modelo, parse_dgs(destino), [])
@@ -556,7 +556,7 @@ def _modelo_de_sed(pares):
 
 def test_una_demanda_proporcional_es_relleno(monkeypatch):
     """080:RF-42 — una empresa (caso real): 0,87, 0,88, 0,90 y 0,80 de la potencia instalada."""
-    from convertersmartgrid import sed_potencia as sp
+    from convertersmartgrid.dominio import sed_potencia as sp
 
     pares = [(k, k * r) for k, r in zip((100, 160, 250, 400, 630, 50, 75, 25) * 3, (.87, .88, .9, .8) * 6)]
     modelo = _modelo_de_sed(pares)
@@ -567,7 +567,7 @@ def test_una_demanda_proporcional_es_relleno(monkeypatch):
 
 def test_una_demanda_medida_no_es_relleno(monkeypatch):
     """080:RF-42 — otra empresa (caso real): razones repartidas y dentro de su potencia, sin tocar."""
-    from convertersmartgrid import sed_potencia as sp
+    from convertersmartgrid.dominio import sed_potencia as sp
 
     pares = [(100 + i, (100 + i) * (.30 + i * .05)) for i in range(12)]
     modelo = _modelo_de_sed(pares)
@@ -580,7 +580,8 @@ def test_el_factor_no_deja_tensiones_imposibles(monkeypatch):
     """080:RF-43 — converger con 0,68 p.u. no vale: la importación lo rechazaría."""
     from types import SimpleNamespace as N
 
-    from convertersmartgrid import oraculo, sed_potencia as sp
+    from convertersmartgrid.adaptadores import oraculo
+    from convertersmartgrid.dominio import sed_potencia as sp
 
     factor = {'f': None}
     modelo = N(loads=[])
@@ -613,7 +614,7 @@ def test_toda_carga_de_la_tabla_sed_es_una_sed(tmp_path, codigo):
     """080:RF-44 — con el formato de cualquier empresa, y con su potencia instalada."""
     from test_vnr_sqlserver import Motor, _tablas
 
-    from convertersmartgrid.model import build_feeder_model
+    from convertersmartgrid.dominio.model import build_feeder_model
     from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
     from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
@@ -634,7 +635,8 @@ def test_la_demanda_propia_se_reduce_por_igual(monkeypatch):
     """080:RF-45 — C+æ02: conserva el reparto entre SED y anota el factor."""
     from types import SimpleNamespace as N
 
-    from convertersmartgrid import model as modelo_mod, oraculo, sed_potencia as sp
+    from convertersmartgrid.dominio import model as modelo_mod, sed_potencia as sp
+    from convertersmartgrid.adaptadores import oraculo
 
     def carga(sed, kw):
         return dataclasses.replace(CARGA_BASE, device_number=sed, p_mw=kw / 1000, q_mvar=kw / 2000)
@@ -668,7 +670,8 @@ def test_sin_problema_de_demanda_no_se_reduce(monkeypatch):
     """080:RF-45 — lo que converge queda como lo trae la fuente; un error de red no se tapa."""
     from types import SimpleNamespace as N
 
-    from convertersmartgrid import oraculo, sed_potencia as sp
+    from convertersmartgrid.adaptadores import oraculo
+    from convertersmartgrid.dominio import sed_potencia as sp
 
     carga = N(p_mw=1.0, q_mvar=0.0)
     modelo = N(loads=[carga])
@@ -687,7 +690,7 @@ def test_la_sed_lleva_su_codigo_operativo(tmp_path):
     """080:RF-46 — con «65335X» y no con el interno 12027990; la clave interna se conserva."""
     from test_vnr_sqlserver import Motor, _tablas
 
-    from convertersmartgrid.model import build_feeder_model
+    from convertersmartgrid.dominio.model import build_feeder_model
     from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
     from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
@@ -720,7 +723,7 @@ def test_codigos_operativos_repetidos_o_vacios():
 
 def test_lo_esperado_en_digsilent_cuenta_los_reguladores():
     """080:RF-48 — C+æ02: «regulators count mismatch: expected 0, actual 3»."""
-    fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/geography.py'
+    fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/adaptadores/geography.py'
               ).read_text(encoding='utf-8')
     assert "'regulators': 0," not in fuente
     assert 'regulador' in fuente
@@ -740,7 +743,7 @@ def _filas_del_catalogo(ruta):
 
 def test_la_semilla_no_lleva_datos_de_ninguna_empresa(tmp_path):
     """080:RF-50 — solo fichas: sin valores de modelo ni uso de una red."""
-    from convertersmartgrid.catalog import asegurar_catalogo_empresa
+    from convertersmartgrid.aplicacion.catalog import asegurar_catalogo_empresa
 
     ruta = asegurar_catalogo_empresa(tmp_path / 'E' / 'catalogo.xlsx')
 
@@ -756,7 +759,7 @@ def test_la_semilla_no_lleva_datos_de_ninguna_empresa(tmp_path):
 
 def test_la_x_aerea_sale_de_la_geometria():
     """080:RF-51 — crece al bajar la sección y da el orden de magnitud de una línea de MT."""
-    from convertersmartgrid.catalog import reactancia_aerea_ohm_km
+    from convertersmartgrid.aplicacion.catalog import reactancia_aerea_ohm_km
 
     assert reactancia_aerea_ohm_km(50.0) > reactancia_aerea_ohm_km(120.0)
     assert 0.35 < reactancia_aerea_ohm_km(120.0) < reactancia_aerea_ohm_km(25.0) < 0.55
@@ -764,8 +767,8 @@ def test_la_x_aerea_sale_de_la_geometria():
 
 def test_cada_empresa_amplia_solo_su_catalogo(tmp_path, monkeypatch):
     """080:RF-49 — un código de una empresa no aparece en el fichero de la otra."""
-    from convertersmartgrid import reglas
-    from convertersmartgrid.catalog import ampliar_catalogo
+    from convertersmartgrid.aplicacion import reglas
+    from convertersmartgrid.aplicacion.catalog import ampliar_catalogo
 
     monkeypatch.setattr(reglas, 'project_root', lambda: tmp_path)
     uno, otro = reglas.catalogo_de_empresa('EMPC'), reglas.catalogo_de_empresa('EMPD')
@@ -781,8 +784,8 @@ def test_una_empresa_nueva_completa_sus_conductores_sin_otro_catalogo(tmp_path):
     """080:RF-49, 080:RF-50 — con la semilla se deducen las familias de la leyenda."""
     from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import CanonicalModel, ConductorType
 
-    from convertersmartgrid.catalog import asegurar_catalogo_empresa
-    from convertersmartgrid.sources import vnr
+    from convertersmartgrid.aplicacion.catalog import asegurar_catalogo_empresa
+    from convertersmartgrid.adaptadores.sources import vnr
 
     ruta = asegurar_catalogo_empresa(tmp_path / 'catalogo.xlsx')
     codigos = ['AA05003G', 'AA03501G', 'CU01603D', 'N207003D', 'NK05003D', 'AS05003G', 'CS05003F']
@@ -797,7 +800,7 @@ def test_una_empresa_nueva_completa_sus_conductores_sin_otro_catalogo(tmp_path):
 
 def test_el_catalogo_de_la_fuente(tmp_path, monkeypatch):
     """080:RF-49 — la copia VNR-GIS usa el de su empresa; las demás fuentes, el del proyecto."""
-    from convertersmartgrid import reglas
+    from convertersmartgrid.aplicacion import reglas
 
     monkeypatch.setattr(reglas, 'project_root', lambda: tmp_path)
     proyecto = tmp_path / 'proyecto.xlsx'
@@ -810,7 +813,7 @@ def test_el_catalogo_de_la_fuente(tmp_path, monkeypatch):
 
 def test_el_regulador_va_a_60_hz():
     """080:RF-52 — el catálogo Eaton es de 50 Hz; la red peruana, de 60."""
-    fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/dgs.py').read_text(encoding='utf-8')
+    fuente = (Path(__file__).resolve().parents[1] / 'src/convertersmartgrid/adaptadores/dgs.py').read_text(encoding='utf-8')
     fila = fuente[fuente.index('def _fila_regulador'):fuente.index('def _make_row')]
     assert 'frnom=60' in fila and 'FRECUENCIA_HZ' not in fila
 
@@ -844,7 +847,7 @@ def test_un_tramo_cerrado_en_una_salida_con_red_sigue_descartandose():
 ])
 def test_no_se_recorta_a_un_ultimo_trozo_numerico(red, nombre):
     """080:RF-28 — sin tocar los nombres que sí identifican al alimentador."""
-    from convertersmartgrid.naming import feeder_short_name
+    from convertersmartgrid.dominio.naming import feeder_short_name
 
     assert feeder_short_name(red) == nombre
 
@@ -887,7 +890,7 @@ def test_el_crs_de_la_fuente(monkeypatch, elegido, fuente, perfil, esperado):
     """080:RF-34 — una empresa es PSAD56 y otra WGS84 (casos reales): ninguno se supone."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setattr(services, 'perfil_de', lambda _ws: SimpleNamespace(crs_origen=perfil))
     espacio = SimpleNamespace(
@@ -904,7 +907,7 @@ def test_la_copia_dice_su_crs_en_el_alcance():
     assert sv.crs_de_empresa([{'ZonaUTM': 18, 'Datum': 'PSAD56'}]) == 'EPSG:24878'
     assert sv.crs_de_empresa([{'ZonaUTM': 18, 'Datum': 'WGS84'}]) == 'EPSG:32718'
     # 055:RF-7: lo lleva la procedencia de la fuente, que es de donde lo lee la web.
-    from convertersmartgrid.sources import vnr as adaptador
+    from convertersmartgrid.adaptadores.sources import vnr as adaptador
 
     fuente = Path(adaptador.__file__).read_text(encoding='utf-8')
     assert "'crs': modelo.metadata.get('source_crs')" in fuente
@@ -956,7 +959,7 @@ def cliente(tmp_path, monkeypatch):
     pytest.importorskip('httpx2')
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'no-front'))
     raiz = tmp_path / 'web'

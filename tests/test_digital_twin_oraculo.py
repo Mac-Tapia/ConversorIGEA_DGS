@@ -16,10 +16,10 @@ torch = pytest.importorskip('torch')
 from apoyo import contrato_fisico, turno_gpu_esperando
 from test_digital_twin_episode import _payload
 
-from convertersmartgrid.digital_twin import oraculo as orc
-from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-from convertersmartgrid.digital_twin.episode import episodio_a_dict, leer_episodio
-from convertersmartgrid.digital_twin.escenarios import Escenario
+from convertersmartgrid.adaptadores.digital_twin import oraculo as orc
+from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+from convertersmartgrid.dominio.digital_twin.episode import episodio_a_dict, leer_episodio
+from convertersmartgrid.adaptadores.digital_twin.escenarios import Escenario
 
 # La regresión verifica contrato, precisión y reapertura; el presupuesto de 20 épocas
 # no modifica los umbrales ni los hiperparámetros de los modelos operativos.
@@ -325,8 +325,8 @@ def test_busqueda_de_hiperparametros_solo_en_validacion(entrenado, tmp_path, mon
     """027:RF-7 — TPE con presupuesto de ensayos; cada ensayo se evalúa solo con la partición
     de validación y se guardan todos y la configuración elegida."""
     pytest.importorskip('optuna')
-    from convertersmartgrid.digital_twin import hiperparametros as hp
-    from convertersmartgrid.digital_twin.buffer import Consulta
+    from convertersmartgrid.adaptadores.digital_twin import hiperparametros as hp
+    from convertersmartgrid.adaptadores.digital_twin.buffer import Consulta
 
     bufer, _r = entrenado
     muestras, _ids = orc._muestras(bufer, Consulta())
@@ -371,7 +371,7 @@ def test_cuantil_conforme_con_su_cobertura():
 def test_intervalo_por_barra_y_no_confiable(entrenado):
     """027:RF-12 / 027:RF-13 — el modelo trae su cuantil y da un intervalo por barra; si es
     más ancho que la banda de la norma, la predicción no se usa para decidir."""
-    from convertersmartgrid.digital_twin.evaluacion import Limites
+    from convertersmartgrid.adaptadores.digital_twin.evaluacion import Limites
 
     bufer, _r = entrenado
     actual = orc.cargar(bufer)
@@ -423,12 +423,12 @@ def test_rutas_de_deriva_y_vuelta(tmp_path, monkeypatch):
     from apoyo import esperar_trabajo
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     monkeypatch.setattr(services, 'gemelo_deriva', lambda ws, ctx: {'proponer_reentrenar': True, 'motivos': ['x']})
-    import convertersmartgrid.asistente.transformer as tr
+    import convertersmartgrid.aplicacion.asistente.transformer as tr
 
     # Volver atrás también toca el registro de modelos (067:RF-23): sin esta carpeta, la prueba
     # retiraría el modelo activo del registro real del equipo.
@@ -448,7 +448,7 @@ def test_episodios_por_sistema_y_curva(tmp_path):
     import copy
     import hashlib
 
-    from convertersmartgrid.digital_twin import curva as cv
+    from convertersmartgrid.adaptadores.digital_twin import curva as cv
 
     rnd = random.Random(21)
     muestras, ids = [], []
@@ -481,8 +481,8 @@ def test_entrenar_con_un_sistema_entero(entrenado, tmp_path):
     reparto por la huella de cada episodio; la curva que empeora al añadir datos es inestable."""
     import shutil
 
-    from convertersmartgrid.digital_twin import curva as cv
-    from convertersmartgrid.digital_twin.buffer import Consulta
+    from convertersmartgrid.adaptadores.digital_twin import curva as cv
+    from convertersmartgrid.adaptadores.digital_twin.buffer import Consulta
 
     bufer, _r = entrenado
     copia = BuferEpisodios(tmp_path / 'copia')

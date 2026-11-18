@@ -20,70 +20,70 @@ def politica_externa(tmp_path, monkeypatch):
 def _escritor(nombre, ruta, monkeypatch):
     dato = {'valor': 'Señal Ñ'}
     if nombre == 'registro':
-        from convertersmartgrid.model_registry import RegistroModelo
+        from convertersmartgrid.aplicacion.model_registry import RegistroModelo
         return lambda: RegistroModelo(ruta.parent)._reemplazar_json(ruta, dato)
     if nombre == 'binding':
-        from convertersmartgrid.powerfactory_binding import _escribir_registro
+        from convertersmartgrid.adaptadores.powerfactory_binding import _escribir_registro
         return lambda: _escribir_registro(ruta, dato)
     if nombre == 'coordinador':
-        from convertersmartgrid.training_coordinator import TrainingCoordinator
+        from convertersmartgrid.aplicacion.training_coordinator import TrainingCoordinator
         instancia = TrainingCoordinator.__new__(TrainingCoordinator)
         return lambda: instancia._escribir(ruta, dato)
     if nombre == 'trabajador':
-        from convertersmartgrid.trabajadores_ml import escribir_informe
+        from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe
         return lambda: escribir_informe(ruta, dato)
     if nombre == 'almacen':
-        from convertersmartgrid.asistente import almacen
+        from convertersmartgrid.aplicacion.asistente import almacen
         monkeypatch.setattr(almacen, 'raiz', lambda: ruta.parent)
         return lambda: almacen.guardar_json(ruta.stem, dato)
     if nombre == 'checkpoint':
-        from convertersmartgrid.asistente.orquestador import PuntoDeControl
+        from convertersmartgrid.aplicacion.asistente.orquestador import PuntoDeControl
         instancia = PuntoDeControl.abrir(ruta)
         return lambda: instancia.marcar('fuente', 'hecha', resultado=dato)
     if nombre == 'pide_json':
-        from convertersmartgrid.pide_dataset import _write_json_atomic
+        from convertersmartgrid.adaptadores.pide_dataset import _write_json_atomic
         return lambda: _write_json_atomic(ruta, dato)
     if nombre == 'pide_jsonl':
-        from convertersmartgrid.pide_dataset import _write_jsonl_atomic
+        from convertersmartgrid.adaptadores.pide_dataset import _write_jsonl_atomic
         return lambda: _write_jsonl_atomic(ruta, [dato])
     if nombre == 'custodia_json':
-        from convertersmartgrid.web.source_runs import _atomic_json
+        from convertersmartgrid.presentacion.web.source_runs import _atomic_json
         return lambda: _atomic_json(ruta, dato)
     if nombre == 'turno':
-        from convertersmartgrid.pf_arnes import _escribir_turno
+        from convertersmartgrid.adaptadores.pf_arnes import _escribir_turno
         return lambda: _escribir_turno(ruta, dato)
     if nombre == 'oraculo':
-        from convertersmartgrid.digital_twin import oraculo
+        from convertersmartgrid.adaptadores.digital_twin import oraculo
         monkeypatch.setattr(oraculo, '_raiz_modelos', lambda _b: ruta.parent)
         return lambda: oraculo.promover(None, 'v1', 'prueba')
     if nombre == 'transformer':
-        from convertersmartgrid.asistente import transformer
+        from convertersmartgrid.aplicacion.asistente import transformer
         monkeypatch.setattr(transformer, 'raiz_modelos', lambda _n: ruta.parent)
         return lambda: transformer.promover('v1', 'prueba')
     # 001:RF-5 (H14): antes preparaban un .tmp junto al destino; ahora publican con publicar_duradero.
     if nombre == 'libros_estado':
-        from convertersmartgrid import libros_nuevos
+        from convertersmartgrid.aplicacion import libros_nuevos
         monkeypatch.setattr(libros_nuevos, 'NOMBRE_ESTADO', ruta.name)
         return lambda: libros_nuevos.guardar_estado(ruta.parent, dato)
     if nombre == 'aperturas':
-        from convertersmartgrid.obras_pf import escribir_aperturas
+        from convertersmartgrid.aplicacion.obras_pf import escribir_aperturas
         return lambda: escribir_aperturas(ruta, [dato])
     if nombre == 'entradas_estudios':
-        from convertersmartgrid.web.entradas_estudios_api import _escribir
+        from convertersmartgrid.presentacion.web.entradas_estudios_api import _escribir
         return lambda: _escribir(ruta, dato)
     if nombre == 'salidas':
-        from convertersmartgrid import salidas_red as sr
+        from convertersmartgrid.dominio import salidas_red as sr
         return lambda: sr.guardar_salida('teselas', True, {sr.VARIABLE_RUTA_GUARDADAS: str(ruta)})
     if nombre == 'crecimiento':
         from types import SimpleNamespace
 
-        from convertersmartgrid import crecimiento, demanda_medida
+        from convertersmartgrid.aplicacion import crecimiento, demanda_medida
         monkeypatch.setattr(crecimiento, '_huella_del_libro', lambda *_a: 'huella')
         monkeypatch.setattr(demanda_medida, 'leer_clientes',
                             lambda *_a: ([SimpleNamespace(codigo='C1', pot=5.0)], []))
         return lambda: crecimiento.pot_de_los_libros([('2026-01', 'clientes.xlsx')], None, cache=ruta.parent)
     if nombre == 'pronostico_dataset':
-        from convertersmartgrid import pronostico_demanda as pd_
+        from convertersmartgrid.adaptadores import pronostico_demanda as pd_
         return lambda: pd_.guardar_dataset(pd_.Dataset([], [], [dato], {'cabecera': '2026-01'}), ruta.parent)
     raise AssertionError(nombre)
 
@@ -144,7 +144,7 @@ def test_publicacion_json_externa_conserva_anterior_y_limpia(tmp_path, monkeypat
 
 def test_custodia_copia_independiente_con_fsync_y_origen_intacto(tmp_path, monkeypatch):
     """065:RF-11, 065:RF-12 — una copia fallida nunca retira el original."""
-    from convertersmartgrid.web.source_runs import _sha256_copy
+    from convertersmartgrid.presentacion.web.source_runs import _sha256_copy
     fuente = tmp_path / 'fuente.bin'
     contenido = b'fuente real de prueba' * 100
     fuente.write_bytes(contenido)
@@ -175,7 +175,7 @@ def test_custodia_copia_independiente_con_fsync_y_origen_intacto(tmp_path, monke
 
 def test_escritores_concurrentes_no_comparten_temporal(tmp_path):
     """065:RF-11, 065:RF-12 — hilos del mismo PID publican sin pisar su staging."""
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     registro = RegistroModelo(tmp_path / 'producto')
     ruta = registro.raiz / 'puntero.json'
     with ThreadPoolExecutor(max_workers=8) as pool:
@@ -187,7 +187,7 @@ def test_escritores_concurrentes_no_comparten_temporal(tmp_path):
 
 def test_candidato_canonico_publica_carpeta_externa_y_copia_pesos(tmp_path, monkeypatch):
     """065:RF-11, 065:RF-12 — candidato completo, hash estable y fuente independiente."""
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     fuente = tmp_path / 'pesos.bin'
     fuente.write_bytes(b'pesos originales')
     registro = RegistroModelo(tmp_path / 'registro')
@@ -219,7 +219,7 @@ def test_candidato_canonico_publica_carpeta_externa_y_copia_pesos(tmp_path, monk
 def test_informe_prepara_docx_y_json_antes_de_publicar(tmp_path, monkeypatch):
     """065:RF-11, 065:RF-12 — no publica JSON si falla guardar el Word."""
     import docx
-    from convertersmartgrid.informe_docx import _guardar
+    from convertersmartgrid.adaptadores.informe_docx import _guardar
     documento = docx.Document()
     documento.add_paragraph('Informe de prueba')
     destino = tmp_path / 'informes' / 'estudio.docx'
@@ -309,7 +309,7 @@ def test_descarga_prepara_ruta_privada_y_limpia_tras_error(tmp_path, monkeypatch
 @pytest.mark.parametrize('tipo', ['valido', 'checkout', 'otro_volumen'])
 def test_descarga_temp_dir_explicito_respeta_fronteras(tmp_path, monkeypatch, tipo):
     """065:RF-10, 065:RF-11 — temp_dir conserva contrato sin copiar entre volúmenes."""
-    from convertersmartgrid.runtime_paths import rutas_runtime
+    from convertersmartgrid.dominio.runtime_paths import rutas_runtime
     from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import DownloadManager
     destino = tmp_path / 'producto' / 'red.bin'
     if tipo == 'checkout':
@@ -398,10 +398,10 @@ def test_subida_vnr_real_prepara_fuera_y_conserva_anteriores(tmp_path, monkeypat
 
 def test_particiones_e_indice_conservan_bytes_y_hashes(tmp_path, monkeypatch):
     """065:RF-11, 065:RF-12 — formatos canónicos reabiertos tras staging externo."""
-    from convertersmartgrid.asistente.dataset_entrenamiento import (
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import (
         escribir_particiones, normalizar_orden, particionar_dataset, registrar_evento_conversion)
-    from convertersmartgrid.asistente.embeddings import guardar_indice_versionado, reabrir_indice_versionado
-    from convertersmartgrid.asistente.indice import Fragmento
+    from convertersmartgrid.aplicacion.asistente.embeddings import guardar_indice_versionado, reabrir_indice_versionado
+    from convertersmartgrid.aplicacion.asistente.indice import Fragmento
     producto = tmp_path / 'producto'
     reemplazar = os.replace
     observados = []
@@ -439,14 +439,14 @@ def test_libros_publican_fuera_y_conservan_libro_anterior(tmp_path, monkeypatch,
     destino.parent.mkdir()
     if tipo == 'catalogo':
         from test_catalogo_crece import _catalogo
-        from convertersmartgrid.catalog import ampliar_catalogo
+        from convertersmartgrid.aplicacion.catalog import ampliar_catalogo
         destino = _catalogo(destino.parent)
         publicar = lambda: ampliar_catalogo(destino, ['AS05003G'])
     elif tipo == 'pide':
-        from convertersmartgrid.pide import escribir_formatos
+        from convertersmartgrid.aplicacion.pide import escribir_formatos
         publicar = lambda: escribir_formatos(destino, {})
     else:
-        from convertersmartgrid.transferencia_pf import escribir_fichero
+        from convertersmartgrid.aplicacion.transferencia_pf import escribir_fichero
         publicar = lambda: escribir_fichero([], destino)
     reemplazar = os.replace
     cortes = []
@@ -481,8 +481,8 @@ def test_libros_publican_fuera_y_conservan_libro_anterior(tmp_path, monkeypatch,
 def test_bufer_preserva_canonico_fsync_e_idempotencia(tmp_path, monkeypatch):
     """065:RF-11, 065:RF-12 — objeto inmutable e índice reabierto con episodio real del contrato."""
     from test_digital_twin_episode import _payload
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-    from convertersmartgrid.digital_twin.episode import leer_episodio, contenido_canonico, episodio_a_dict
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.dominio.digital_twin.episode import leer_episodio, contenido_canonico, episodio_a_dict
     bufer = BuferEpisodios(tmp_path / 'producto')
     episodio = leer_episodio(_payload())
     reemplazar = os.replace
@@ -505,7 +505,7 @@ def test_bufer_preserva_canonico_fsync_e_idempotencia(tmp_path, monkeypatch):
 def test_clon_git_real_usa_staging_externo_y_limpia_readonly(tmp_path, monkeypatch, licencia_valida):
     """065:RF-11, 065:RF-12 — Git real fija commit/licencia sin temporal hermano."""
     from test_upstream_ia import catalogo as crear_catalogo
-    from convertersmartgrid import upstream_ia
+    from convertersmartgrid.adaptadores import upstream_ia
     catalogo = crear_catalogo.__wrapped__(tmp_path, monkeypatch)
     if not licencia_valida:
         catalogo['repositorios'][0]['license_sha256'] = '0' * 64
@@ -532,7 +532,7 @@ def test_shard_fusionado_usa_safetensors_real_y_publicacion_externa(tmp_path, mo
     from types import SimpleNamespace
     import torch
     from safetensors.torch import load_file
-    from convertersmartgrid.asistente import llm_destilacion
+    from convertersmartgrid.aplicacion.asistente import llm_destilacion
     modelo = torch.nn.Sequential(torch.nn.Linear(2, 2, bias=False))
     modelo.config = SimpleNamespace(to_dict=lambda: {'arquitectura': 'prueba'})
     ficha = {'id': 'modelo-sintetico', 'revision': 'a' * 40}

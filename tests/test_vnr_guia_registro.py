@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
 
 RAIZ = Path(__file__).resolve().parents[1]
 REGISTRO = RAIZ / 'config' / 'normativa' / 'rcd_232_2017.json'

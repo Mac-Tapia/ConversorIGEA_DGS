@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.web import services
+from convertersmartgrid.presentacion.web import services
 
 RAIZ = Path(__file__).resolve().parents[1]
 TDR = 'rcd-174-2025-os-cd'
@@ -23,8 +23,8 @@ TDR = 'rcd-174-2025-os-cd'
 
 @pytest.fixture
 def web_vad(tmp_path, monkeypatch):
-    import convertersmartgrid.perfil_empresa as perfil_empresa
-    from convertersmartgrid.web.app import create_app
+    import convertersmartgrid.dominio.perfil_empresa as perfil_empresa
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setattr(perfil_empresa, 'cargar_perfil',
                         lambda *a, **k: perfil_empresa.PerfilEmpresa(nombre='Distribuidora Sintética Norte'))
@@ -40,7 +40,7 @@ def web_vad(tmp_path, monkeypatch):
 def _exige():
     """Lo nuevo de la T30: su ausencia es la falla de la aserción, no un error al importar."""
     import importlib.util
-    assert importlib.util.find_spec('convertersmartgrid.vad.linea') is not None, 'falta vad/linea.py (108 T30)'
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.vad.linea') is not None, 'falta vad/linea.py (108 T30)'
 
 
 def _esperar(cliente, trabajo: dict) -> dict:
@@ -55,8 +55,8 @@ def _esperar(cliente, trabajo: dict) -> dict:
 
 def _resultados_sinteticos(registro) -> dict:
     """Un sistema del primer ámbito del registro, con cada variable de sus fórmulas a 2 (sin dividir por cero)."""
-    from convertersmartgrid.vad.formulas import variables
-    from convertersmartgrid.vad.resultados_vad import ambitos, conceptos
+    from convertersmartgrid.aplicacion.vad.formulas import variables
+    from convertersmartgrid.aplicacion.vad.resultados_vad import ambitos, conceptos
 
     ambito = ambitos(registro)[0]
     valores, variantes = {}, {}
@@ -76,7 +76,7 @@ def _resultados_sinteticos(registro) -> dict:
 
 
 def _caso(registro, *, estudio=None) -> bytes:
-    from convertersmartgrid.vad.costos_explotacion import rubros
+    from convertersmartgrid.aplicacion.vad.costos_explotacion import rubros
 
     rubro = rubros(registro)[0]
     explotacion = {rubro.clave: [{'descripcion': 'cuadrilla', 'cantidad': 2, 'costo_unitario': 10.0, 'moneda': 'USD',
@@ -94,7 +94,7 @@ def _caso(registro, *, estudio=None) -> bytes:
 
 
 def _registro():
-    from convertersmartgrid.registro_normativo import cargar_registro
+    from convertersmartgrid.dominio.registro_normativo import cargar_registro
     return cargar_registro(RAIZ / 'config' / 'vad', RAIZ / 'config' / 'normativa')
 
 

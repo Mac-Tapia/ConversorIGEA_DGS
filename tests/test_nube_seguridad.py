@@ -35,7 +35,7 @@ def test_asistente_ninguna_ruta_de_la_nube_escapa_a_la_comprobacion(tmp_path):
     """109:RF-15 — cada ruta que monta el router la reconoce es_ruta_de_la_nube, absoluta o relativa al espacio."""
     from fastapi import FastAPI
 
-    from convertersmartgrid.web import nube_api
+    from convertersmartgrid.presentacion.web import nube_api
 
     assert hasattr(nube_api, 'es_ruta_de_la_nube'), 'falta es_ruta_de_la_nube (109, T12)'
     es_ruta_de_la_nube, registrar_rutas_nube = nube_api.es_ruta_de_la_nube, nube_api.registrar_rutas_nube
@@ -56,7 +56,7 @@ def test_asistente_ninguna_ruta_de_la_nube_escapa_a_la_comprobacion(tmp_path):
 @pytest.mark.parametrize('cabecera', [{'X-CSG-Token': 'tok-web'}, {'Authorization': 'Bearer tok-web'}])
 def test_asistente_con_el_token_de_un_programa_no_conecta_importa_publica_ni_comparte(tmp_path, cabecera):
     """109:RF-15 — con el token de un programa (el asistente), toda ruta que actúa se rechaza, con o sin plan."""
-    from convertersmartgrid.asistente.ejecutor import ClienteWeb, PasoFallido
+    from convertersmartgrid.aplicacion.asistente.ejecutor import ClienteWeb, PasoFallido
 
     with montar_web_nube(tmp_path) as web:
         wid = web.espacio()

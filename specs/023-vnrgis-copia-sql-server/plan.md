@@ -34,7 +34,7 @@ La geometría no viene como `geometry` de SQL Server sino por vértices con UTM 
   relación padre–hijo, tramos con longitud y norma, SED como cargas con su potencia
   instalada y su punto de unión, maniobras, fuente en la SET. CRS de `empEmpresa`
   (`Datum`+`ZonaUTM` → EPSG) o del perfil (RF-8).
-- `src/convertersmartgrid/sources/vnr.py`: acepta `.bak` como `vnr_package` y lo manda por el lector
+- `src/convertersmartgrid/adaptadores/sources/vnr.py`: acepta `.bak` como `vnr_package` y lo manda por el lector
   nuevo; lo demás por el puente de siempre (RF-1, RF-9).
 - Web y CLI: la casilla y `--vnr-package` aceptan `.bak` (RF-1).
 

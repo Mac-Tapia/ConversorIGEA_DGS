@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.asistente.vigilancia import (
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.aplicacion.asistente.vigilancia import (
     Vigilante,
     correr_suite,
     revisar_calidad,
@@ -12,8 +12,8 @@ from convertersmartgrid.asistente.vigilancia import (
     revisar_trabajos,
     toca_suite,
 )
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import _cerrar_entrenamiento_vigilado
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import _cerrar_entrenamiento_vigilado
 
 
 def _t(i, kind, status, *, start=None, end=None, lane='engine', error=None, created=0.0, result=None):

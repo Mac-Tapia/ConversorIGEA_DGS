@@ -23,7 +23,7 @@ def _ws(tmp_path, *, metadata_run: str | None = None):
 
 
 def test_same_name_historical_dgs_is_rejected(tmp_path):
-    from convertersmartgrid.web.services import UserError, check_powerfactory_source_run
+    from convertersmartgrid.presentacion.web.services import UserError, check_powerfactory_source_run
 
     ws = _ws(tmp_path, metadata_run='20000101T000000-abcdef123456')
     with pytest.raises(UserError, match=r'POWERFACTORY_SOURCE_RUN_MISMATCH.*IN111'):
@@ -31,7 +31,7 @@ def test_same_name_historical_dgs_is_rejected(tmp_path):
 
 
 def test_exact_active_source_run_is_accepted(tmp_path):
-    from convertersmartgrid.web.services import check_powerfactory_source_run
+    from convertersmartgrid.presentacion.web.services import check_powerfactory_source_run
 
     ws = _ws(tmp_path)
     evidence = check_powerfactory_source_run(ws, ['IN111'])
@@ -41,8 +41,8 @@ def test_exact_active_source_run_is_accepted(tmp_path):
 
 
 def test_reconstructed_dgs_requires_the_active_untampered_report(tmp_path):
-    from convertersmartgrid.powerfactory_metadata import reconstruction_report_sha256
-    from convertersmartgrid.web.services import UserError, check_powerfactory_source_run
+    from convertersmartgrid.adaptadores.powerfactory_metadata import reconstruction_report_sha256
+    from convertersmartgrid.presentacion.web.services import UserError, check_powerfactory_source_run
 
     ws = _ws(tmp_path)
     report = {
@@ -108,8 +108,8 @@ def test_acceptance_source_contract_runs_before_powerfactory_connect(tmp_path, m
 
 
 def test_assignment_report_proves_plan_identity_reread_and_rollback(tmp_path):
-    from convertersmartgrid.feeder_metadata import FeederAssignment
-    from convertersmartgrid.powerfactory_metadata import (
+    from convertersmartgrid.adaptadores.feeder_metadata import FeederAssignment
+    from convertersmartgrid.adaptadores.powerfactory_metadata import (
         PowerFactoryMetadataWriteError, apply_feeder_assignment_plan,
         assignment_plan_sha256,
     )

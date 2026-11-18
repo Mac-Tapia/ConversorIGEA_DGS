@@ -1,7 +1,7 @@
 """043:RF-9 044:RF-5 044:RF-8 — procedencia y evaluadores existentes."""
 import unittest
 
-from convertersmartgrid.evaluacion_harness.adaptadores import (
+from convertersmartgrid.adaptadores.evaluacion_harness.adaptadores import (
     desde_ordenes,
     evaluar_electrico,
     importar_upstream,
@@ -22,7 +22,7 @@ class AdaptadoresTest(unittest.TestCase):
             desde_ordenes(informe)
 
     def test_electrico_aplica_politica_existente_sin_aceptacion_nativa(self):
-        from convertersmartgrid.evaluacion_modelos import PoliticaDeError
+        from convertersmartgrid.aplicacion.evaluacion_modelos import PoliticaDeError
         politica = PoliticaDeError(modo='agente', topes=(('mae_v', .02),))
         valores = {'ejemplos': 3, 'mae_v': .01, 'mae_fisica': .01}
         m = evaluar_electrico({'global': valores, 'familias': {'red': valores}}, politica=politica)

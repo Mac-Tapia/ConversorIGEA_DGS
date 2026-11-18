@@ -1,4 +1,4 @@
-"""Utilidades comunes de ``convertersmartgrid.util`` (spec 001, T2).
+"""Utilidades comunes de ``convertersmartgrid.dominio.util`` (spec 001, T2).
 
 Estaban copiadas hasta en siete sitios (diagnóstico del 2026-10-07, B5). Además de su
 comportamiento, aquí se prueba que no vuelvan a copiarse: el detector compara el árbol
@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import util
-from convertersmartgrid.util import (
+from convertersmartgrid.dominio import util
+from convertersmartgrid.dominio.util import (
     finite_or_none, importar_opcional, nombre_seguro, sha256_file, write_json_atomic,
 )
 
@@ -142,7 +142,7 @@ def _funciones(ruta: Path):
 
 @pytest.mark.parametrize('paquete', ['convertersmartgrid', 'convertersmartgrid/adaptadores/entrada/vnr'])
 def test_ninguna_utilidad_esta_copiada(paquete):
-    """001:RF-4, 001:RF-5 — las utilidades viven solo en ``convertersmartgrid.util``."""
+    """001:RF-4, 001:RF-5 — las utilidades viven solo en ``convertersmartgrid.dominio.util``."""
     ruta_util = Path(util.__file__)
     propias = {_huella(f): f.name for f in _funciones(ruta_util) if not f.name.startswith('_')}
     copias = [

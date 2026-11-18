@@ -322,7 +322,8 @@ const A = 'Suba los libros (028:RF-23).';
 #: Carpetas con dueño propio en vuelo, que esta prueba no reescribe: su dueño quita sus citas. Cada entrada dice quién y por
 #: qué, y `test_la_lista_de_en_vuelo_no_esconde_nada` obliga a quitarla en cuanto la carpeta quede limpia.
 EN_VUELO = {
-    'src/convertersmartgrid/pit/': 'spec 107 (PIT), en vuelo con su subagente S-107/108: 7 avisos con «107:RF-8/12» (2026-11-15)',
+    'src/convertersmartgrid/adaptadores/pit/': 'spec 107 (PIT), en vuelo con su subagente S-107/108: avisos con «107:RF-8/15» (2026-11-15)',
+    'src/convertersmartgrid/aplicacion/pit/': 'spec 107 (PIT), en vuelo con su subagente S-107/108: avisos con «107:RF-12» (2026-11-15)',
 }
 
 

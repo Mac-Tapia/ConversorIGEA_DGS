@@ -13,13 +13,13 @@ from datos_pit import perfil_a
 from test_pit_armado import _armar, _caso as _caso_armado
 from test_pit_formatos import NORMATIVA
 
-from convertersmartgrid.costos_fuentes import Costo, FuenteCostos, TablaCostos
-from convertersmartgrid.pit.alternativas import evaluar
-from convertersmartgrid.pit.ambito import areas_del_perfil, reunir
-from convertersmartgrid.pit.diagnostico import agregar_demanda
-from convertersmartgrid.pit.expediente import TIPO_DIAGNOSTICO, TIPO_ESTUDIO
-from convertersmartgrid.pit.red_area import desde_ambito
-from convertersmartgrid.registro_normativo import RegistroError, cargar_registro
+from convertersmartgrid.aplicacion.costos_fuentes import Costo, FuenteCostos, TablaCostos
+from convertersmartgrid.adaptadores.pit.alternativas import evaluar
+from convertersmartgrid.dominio.pit.ambito import areas_del_perfil, reunir
+from convertersmartgrid.adaptadores.pit.diagnostico import agregar_demanda
+from convertersmartgrid.adaptadores.pit.expediente import TIPO_DIAGNOSTICO, TIPO_ESTUDIO
+from convertersmartgrid.aplicacion.pit.red_area import desde_ambito
+from convertersmartgrid.dominio.registro_normativo import RegistroError, cargar_registro
 
 MONEDA = 'XTS'
 CI = 900.0

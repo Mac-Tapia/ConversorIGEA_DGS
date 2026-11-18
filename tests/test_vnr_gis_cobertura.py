@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 
 from convertersmartgrid.adaptadores.entrada.vnr.catalogs.conductor import ConductorCatalog, load_conductor_catalog
-from convertersmartgrid.util import sha256_file as sha256_of
+from convertersmartgrid.dominio.util import sha256_file as sha256_of
 from convertersmartgrid.adaptadores.entrada.vnr.exporters.base import ExportBlocked, TargetProfile
 from convertersmartgrid.adaptadores.entrada.vnr.exporters.cymdist import CymdistExporter
 from convertersmartgrid.adaptadores.entrada.vnr.gis.crs import CRSError, CRSManager

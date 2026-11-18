@@ -35,7 +35,7 @@ Lo que ya existe y se reutiliza (comprobado leyendo el código):
 - `perfil_empresa.py`: `ruta_perfil_activo` y `perfil_con_nombre`. La empresa de un origen se identifica por la huella de
   su perfil, nunca por su nombre (P13).
 
-Nuevo: el paquete `src/convertersmartgrid/benchmarks/` y la herramienta `tools/benchmark_anonimo.py`. Corre en el
+Nuevo: el paquete `src/convertersmartgrid/adaptadores/benchmarks/` y la herramienta `tools/benchmark_anonimo.py`. Corre en el
 carril del motor y en la máquina del usuario; no usa PowerFactory, GPU ni red. La salida va a
 `output/benchmarks/<huella>/`, fuera de git.
 
@@ -43,7 +43,7 @@ carril del motor y en la máquina del usuario; no usa PowerFactory, GPU ni red. 
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| Patrones de privacidad compartidos: se mueven de `web/soporte.py` sin cambiar su comportamiento; soporte los importa | `src/convertersmartgrid/privacidad.py` (nuevo), `web/soporte.py` | RF-2, RF-4 |
+| Patrones de privacidad compartidos: se mueven de `web/soporte.py` sin cambiar su comportamiento; soporte los importa | `src/convertersmartgrid/dominio/privacidad.py` (nuevo), `web/soporte.py` | RF-2, RF-4 |
 | Seudónimos: permutación sorteada con la semilla, coordenadas a un origen neutro con giro sorteado y distancias relativas conservadas, clientes y equipos renombrados de forma coherente entre RED, CARGA y BD_Equipo | `benchmarks/seudonimos.py` | RF-2, RF-3 |
 | Redes: lista cerrada de secciones y columnas por disposición; escritura del trío TXT con su `FORMAT_`; perfil de empresa neutro con los prefijos ya traducidos | `benchmarks/redes.py` | RF-1, RF-2, RF-3, RF-10 |
 | Series: objetivos del 089 con identificador nuevo, escala sorteada y desplazamiento de semanas completas; las exógenas viajan como columnas; CSV determinista | `benchmarks/series.py` | RF-2, RF-3, RF-11 |

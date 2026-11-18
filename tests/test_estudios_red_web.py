@@ -61,7 +61,7 @@ def test_subir_el_libro_lo_valida_y_lo_guarda_con_el_proyecto(client, tmp_path):
     assert cat['datos_empresa']['nombre'] == 'libro_1.xlsx'
     assert _catalogo(client, wid, 'OTRO')[2]['datos_empresa'] is None
     ws = client.app.state.store.get(wid)
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
     assert Workspace.load(ws.root).datos_empresa['P']['nombre'] == 'libro_1.xlsx'
 
 
@@ -191,7 +191,7 @@ def test_historico_en_un_espacio_sin_conversion_dice_que_falta_la_red(client, tm
 
     from test_historico_interrupciones import _escribir as _escribir_h, _historico
 
-    from convertersmartgrid.historico_interrupciones import FALTA_RED
+    from convertersmartgrid.aplicacion.historico_interrupciones import FALTA_RED
 
     rng = _r.Random(7)
     filas, _exp, _e, _p = _historico(rng)

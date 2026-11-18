@@ -140,7 +140,7 @@ LEIDA = {'sed': 'SE1', 'alimentador': 'AL1', 'variacion': 'Carga_SE1_AL1_1', 'pu
 
 def test_comparar_dice_que_cambio_en_digsilent():
     """017:RF-124 — igual, nodo distinto, enlace más largo, punto movido, solo en DIgSILENT y no leída."""
-    from convertersmartgrid.mapa_cargas import comparar
+    from convertersmartgrid.adaptadores.mapa_cargas import comparar
 
     (igual,) = comparar([GUARDADA], [LEIDA])
     assert igual['estado'] == 'igual' and igual['cambios'] == []
@@ -159,7 +159,7 @@ def test_comparar_dice_que_cambio_en_digsilent():
 def test_el_punto_confirmado_lo_usan_las_cargas_aplicadas(tmp_path):
     """017:RF-124 — guardado en el espacio, la barra pasa a ser el nodo leído y la de la aplicación queda aparte;
     aplicarlo dos veces no cambia nada."""
-    from convertersmartgrid.mapa_cargas import aplicar_puntos, guardar_puntos, leer_puntos, ruta_puntos
+    from convertersmartgrid.adaptadores.mapa_cargas import aplicar_puntos, guardar_puntos, leer_puntos, ruta_puntos
 
     movida = {**LEIDA, 'nodo': {'nombre': 'N7', 'gps': [-13.502, -76.0]}, 'punto': [-13.4999, -76.0]}
     (guardado,) = guardar_puntos(tmp_path, 'PRY', [movida], lectura='ubicacion_cargas_0123456789ab.json')
@@ -182,7 +182,7 @@ GEO = {'cabecera': 'CAB', 'barras': [['CAB', -13.49, -76.01, 1.0, 10.0], ['N1', 
 def test_datos_del_mapa_con_la_geografia_guardada(tmp_path, monkeypatch):
     """017:RF-109, 017:RF-124 — red del alimentador, carga en su punto, nodo con su GPS y el enlace de la geografía; sin
     CRS en el perfil, sin UTM (P13); un punto confirmado después del flujo pide repetir 4.2."""
-    from convertersmartgrid import mapa_cargas as mc
+    from convertersmartgrid.adaptadores import mapa_cargas as mc
 
     monkeypatch.setenv('CSG_SALIDA_TESELAS', '0')
     datos = mc.datos_del_mapa('PRY', [GUARDADA, {**GUARDADA, 'sed': 'SE2', 'sola': False}], {'AL1': GEO},
@@ -206,8 +206,8 @@ def test_datos_del_mapa_con_la_geografia_guardada(tmp_path, monkeypatch):
 def test_la_pagina_del_mapa_lleva_leaflet_dentro_y_los_fondos_solo_si_se_permiten(monkeypatch):
     """017:RF-124; 086:RF-63, 086:RF-65 — la página lleva Leaflet dentro; con la salida apagada no nombra ninguna
     tesela y lo dice; encendida, calles y satélite; un nombre con «</script>» no cierra el guion."""
-    from convertersmartgrid import mapa_cargas as mc
-    from convertersmartgrid.preview import ORIGEN_SATELITE
+    from convertersmartgrid.adaptadores import mapa_cargas as mc
+    from convertersmartgrid.adaptadores.preview import ORIGEN_SATELITE
 
     datos = {'project': 'PRY', 'alimentadores': {'AL1': {'tramos': [['L1', [[-13.49, -76.01], [-13.5, -76.0]]]],
                                                          'cabecera': None}},
@@ -245,7 +245,7 @@ class _Fondo:
 def test_la_imagen_de_ubicacion_con_fondo_de_calles(tmp_path):
     """017:RF-111, 017:RF-109 — con el fondo, las teselas quedan debajo de la red y el pie nombra el fondo y su
     atribución; con un nodo corregido que la geografía no tiene, se marca en su GPS."""
-    from convertersmartgrid.mapa_informe import ubicacion_del_cliente
+    from convertersmartgrid.adaptadores.mapa_informe import ubicacion_del_cliente
 
     fondo = _Fondo(_png((10, 200, 10)))
     ruta = ubicacion_del_cliente({'AL1': GEO}, 'AL1', 'N1', 'Carga-X-100 kW-Cod N1', tmp_path / 'u.png',
@@ -262,7 +262,7 @@ def test_la_imagen_de_ubicacion_con_fondo_de_calles(tmp_path):
 def test_sin_red_o_sin_salida_la_imagen_sale_sin_fondo_y_lo_dice(tmp_path):
     """017:RF-112, 017:RF-111 — si no llega ninguna tesela, sin fondo y el pie dice a cuál no se llegó; sin salida,
     el pie dice por qué; nunca un error."""
-    from convertersmartgrid.mapa_informe import PIE_SIN_FONDO, ubicacion_del_cliente
+    from convertersmartgrid.adaptadores.mapa_informe import PIE_SIN_FONDO, ubicacion_del_cliente
 
     ruta = ubicacion_del_cliente({'AL1': GEO}, 'AL1', 'N1', 't', tmp_path / 'u.png', titulo='u', fondo=_Fondo(None))
     with Image.open(ruta) as img:
@@ -276,7 +276,7 @@ def test_sin_red_o_sin_salida_la_imagen_sale_sin_fondo_y_lo_dice(tmp_path):
 def test_proveedor_de_teselas_con_cache_y_sin_insistir_sin_red(tmp_path, monkeypatch):
     """017:RF-111, 017:RF-112; 086:RF-22 — trae del origen de la vista previa y guarda en el espacio; sin red, una sola
     petición y ``None``; con la salida apagada no pide nada."""
-    from convertersmartgrid import mapa_cargas as mc
+    from convertersmartgrid.adaptadores import mapa_cargas as mc
 
     monkeypatch.setenv('CSG_SALIDA_TESELAS', '1')
     pedidas = []
@@ -315,11 +315,11 @@ def web(tmp_path, monkeypatch):
     from fastapi.responses import JSONResponse
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.jobs import Job, JobContext
-    from convertersmartgrid.web.mapa_cargas_api import registrar_rutas_mapa
-    from convertersmartgrid.web.requisitos import UserError
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.jobs import Job, JobContext
+    from convertersmartgrid.presentacion.web.mapa_cargas_api import registrar_rutas_mapa
+    from convertersmartgrid.presentacion.web.requisitos import UserError
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(tmp_path / 'sin_perfil.json'))
     monkeypatch.setenv('CSG_SALIDA_TESELAS', '0')
@@ -365,7 +365,7 @@ def test_rutas_del_mapa_actualizar_y_usar_el_punto(web, monkeypatch):
     """017:RF-109, 017:RF-124 — los datos y la página salen de lo guardado; «Actualizar desde DIgSILENT» es un
     trabajo del carril de DIgSILENT con las diferencias; «Usar este punto» lo guarda y desde entonces el mapa lo usa y
     pide repetir 4.2; una lectura que no es de ese proyecto, o un nombre de fichero cualquiera, no se acepta."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     cliente, store, hechos = web
     ws = _espacio_con_carga(store)
@@ -417,7 +417,7 @@ def test_la_carga_que_solo_esta_en_digsilent_se_da_de_alta_como_sola(web):
     """017:RF-124 ampliada — SECA0001 (2026-11-13) estaba en DIgSILENT y no en la web: «Dar de alta» la deja como carga
     aplicada y sola, con su potencia, su punto, su nodo y su enlace, y el informe de factibilidad ya la encuentra. Una
     carga que la web ya tiene, o sin nodo, no se da de alta."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     cliente, store, _hechos = web
     ws = _espacio_con_carga(store)

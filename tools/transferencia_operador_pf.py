@@ -29,7 +29,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 if str(RAIZ / 'src') not in sys.path:          # como orden suelta; ``tools/`` lo pone Python al ejecutarla
     sys.path.insert(0, str(RAIZ / 'src'))
 
-from convertersmartgrid.transferencia_operador import (
+from convertersmartgrid.dominio.transferencia_operador import (
     CargaRed,
     Rama,
     texto_de_zona,
@@ -96,8 +96,8 @@ def _topologia(alims, alimentadores) -> tuple[dict[str, set[str]], dict[str, str
 
 def red_de_la_fuente(plan: dict):
     """098:RF-16: la red del DGS aceptado (``dgs_fuente``, las rutas que pone la web), o ``None`` sin él."""
-    from convertersmartgrid.dgs import DGS_ENCODING
-    from convertersmartgrid.transferencia_operador import red_del_dgs
+    from convertersmartgrid.adaptadores.dgs import DGS_ENCODING
+    from convertersmartgrid.dominio.transferencia_operador import red_del_dgs
 
     rutas = [Path(r) for r in plan.get('dgs_fuente') or [] if r and Path(r).is_file()]
     if not rutas:
@@ -120,7 +120,7 @@ def leer_transferencias(app, alims, plan: dict, interesan=None) -> tuple[list, d
     """
     from cargas_pf import potencia
 
-    from convertersmartgrid.transferencia_operador import frente_a_la_fuente
+    from convertersmartgrid.dominio.transferencia_operador import frente_a_la_fuente
 
     alimentadores = sorted(alims.elm)
     barras, de_carga, cabeceras = _topologia(alims, alimentadores)
@@ -184,7 +184,7 @@ def equipos_de_las_zonas(app, zonas) -> list[dict[str, list[str]]]:
     """098:RF-9: bancos y generadores de cada zona, que pasaron con ella (CA101: EBC_1, EBC_2 y EBC_3).
 
     Una pasada por clase para todas las zonas, no una por zona."""
-    from convertersmartgrid.escaneo import CLASES_GENERADOR
+    from convertersmartgrid.aplicacion.escaneo import CLASES_GENERADOR
 
     de_barra = {t: i for i, z in enumerate(zonas) for t in z.terminales}
     out = [{'bancos': [], 'generadores': []} for _z in zonas]
@@ -202,20 +202,20 @@ def equipos_de_las_zonas(app, zonas) -> list[dict[str, list[str]]]:
 # =========================================================================== registro en disco (098:RF-5)
 def fichero(plan: dict) -> Path:
     """El registro de lo que se tocó para calibrar con la red de la fuente, al lado del de las aperturas (081:RF-80)."""
-    from convertersmartgrid.obras_pf import fichero_aperturas
+    from convertersmartgrid.aplicacion.obras_pf import fichero_aperturas
 
     ruta = Path(fichero_aperturas(plan))
     return ruta.with_name(ruta.stem + '_red_de_la_fuente.json')
 
 
 def _leer(ruta: Path) -> list[dict]:
-    from convertersmartgrid.obras_pf import leer_aperturas
+    from convertersmartgrid.aplicacion.obras_pf import leer_aperturas
 
     return leer_aperturas(ruta)
 
 
 def _escribir(ruta: Path, entradas: list[dict]) -> None:
-    from convertersmartgrid.obras_pf import escribir_aperturas
+    from convertersmartgrid.aplicacion.obras_pf import escribir_aperturas
 
     escribir_aperturas(ruta, entradas)
 
@@ -468,7 +468,7 @@ def main(argv=None) -> int:
                    help='Deshace en «Con proyecto» la transferencia del operador, para la escalera (098:RF-44)')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('transferencia_operador_pf.py')

@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _argumentos(argv)
     from convertersmartgrid.adaptadores.entrada.vnr.discovery.download import DownloadError
     from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import refresh_official_catalog
-    from convertersmartgrid.benchmarks.geometria_publica import DestinoNoPermitido, comprobar_destino, descargar, \
+    from convertersmartgrid.adaptadores.benchmarks.geometria_publica import DestinoNoPermitido, comprobar_destino, descargar, \
         plan_descarga
 
     try:

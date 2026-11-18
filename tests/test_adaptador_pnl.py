@@ -17,8 +17,8 @@ pytest.importorskip('highspy')
 
 from test_verificacion_top_k_completa import LIMITES, contexto_de, medida_nativa
 
-from convertersmartgrid.digital_twin import adaptador_pnl as pnl
-from convertersmartgrid.digital_twin import problema_optimizacion as po
+from convertersmartgrid.adaptadores.digital_twin import adaptador_pnl as pnl
+from convertersmartgrid.adaptadores.digital_twin import problema_optimizacion as po
 
 C_MODULO = 0.001
 LIMITE_SUMA = 1.9
@@ -129,7 +129,7 @@ def test_solver_ausente_no_rompe_algoritmos(monkeypatch):
     assert r['estado'] == 'ERROR_ENTORNO' and 'pyomo' in r['motivo'].lower()
     monkeypatch.setattr(builtins, '__import__', original)
     # Los algoritmos evolutivos siguen: el benchmark no depende del PNL.
-    from convertersmartgrid.digital_twin import benchmark_optimizacion as bo
+    from convertersmartgrid.adaptadores.digital_twin import benchmark_optimizacion as bo
     prob = replace(problema_conocido(), normalizacion={'f': (0.0, 1.0)})
     b = bo.comparar_optimizadores([prob], semillas=tuple(range(20)), presupuesto=10, cancelado=lambda: False,
                                   algoritmos=('nsga2', 'evolucion_diferencial'))

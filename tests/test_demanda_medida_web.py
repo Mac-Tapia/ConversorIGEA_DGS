@@ -16,7 +16,7 @@ openpyxl = pytest.importorskip('openpyxl')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo  # noqa: E402
-from convertersmartgrid.web.app import create_app  # noqa: E402
+from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 
 T0 = datetime(2026, 7, 1)
 
@@ -64,7 +64,7 @@ def _subir(client, wid, tipo, hojas, nombre='libro.xlsx'):
 
 def _perfil_clientes_mensuales(tmp_path, monkeypatch):
     """Perfil mínimo real: el resultado mensual depende del perfil, no del nombre codificado."""
-    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.dominio.perfil_empresa import VARIABLE_RUTA
 
     perfil = tmp_path / 'perfil-mensual.json'
     perfil.write_text(json.dumps({
@@ -383,7 +383,7 @@ def test_indice_de_clientes_rechaza_carpeta_sin_libros(client, tmp_path, monkeyp
 
 def test_indice_detecta_si_la_carpeta_cambia_durante_el_escaneo(client, tmp_path, monkeypatch):
     """013:RF-6 — una carrera no publica como vigente una instantánea que ya cambió."""
-    from convertersmartgrid import demanda_medida as dm
+    from convertersmartgrid.aplicacion import demanda_medida as dm
 
     _perfil_clientes_mensuales(tmp_path, monkeypatch)
     carpeta = tmp_path / 'clientes'
@@ -547,7 +547,7 @@ def test_curva_solo_del_ultimo_trabajo(client):
 
 def test_curva_reducida_conserva_la_maxima(client, monkeypatch):
     """006:RF-39 — por encima del tope de puntos se reduce sin perder la máxima."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
     monkeypatch.setattr(services, 'CURVA_MAX_PUNTOS', 4)
     wid = _wid(client)
     _subir(client, wid, 'cabecera', CABECERA)
@@ -588,7 +588,7 @@ def test_medidores_que_no_son_de_la_red(client):
 
 def test_perfil_propone_la_central(client, tmp_path, monkeypatch):
     """021:RF-27 — la central que guarda el perfil local se propone ya rellena."""
-    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.dominio.perfil_empresa import VARIABLE_RUTA
 
     perfil = tmp_path / 'perfil.json'
     perfil.write_text(json.dumps({'centrales_termicas': {
@@ -676,8 +676,8 @@ def _libros_por_barra(client, wid, monkeypatch, kv_alta=220, pico_alta=None, esc
     A1 y A2; SET Y sin medidor de barra, con B1. La barra da su máxima en el registro 3 y
     los alimentadores la suya en otros. B-X6T1 es la de alta: de 220 kV no cuenta; de 60 kV
     con su punta en ``pico_alta`` da el instante a toda la SET X (022:RF-84)."""
-    from convertersmartgrid.estructura import estructura_de_dict
-    from convertersmartgrid.web import services
+    from convertersmartgrid.dominio.estructura import estructura_de_dict
+    from convertersmartgrid.presentacion.web import services
 
     e = estructura_de_dict({'zonales': [{'nombre': 'Z', 'sets': [
         {'codigo': 'SET X', 'nombre': 'Equis', 'siglas': ['X'], 'alimentadores': ['A1', 'A2', 'A3']},
@@ -914,8 +914,8 @@ def _subir_anio(client, wid, tipo, hojas, anio, nombre='libro.xlsx'):
 def test_025_rf84_cada_anio_va_a_su_carpeta_y_se_reemplaza_solo_el_suyo(client, tipo):
     """025:RF-84 — por la web, los libros de un año van a «<tipo>/AAAA/»; subir otra vez un año sustituye solo ese
     año y los demás se conservan (antes la subida vaciaba la carpeta entera)."""
-    from convertersmartgrid.libros_por_anio import anios_de, arbol_de_libros
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion.libros_por_anio import anios_de, arbol_de_libros
+    from convertersmartgrid.presentacion.web import services
 
     wid = _wid(client)
     hojas = CLIENTES if tipo == 'clientes' else CABECERA
@@ -933,8 +933,8 @@ def test_025_rf84_cada_anio_va_a_su_carpeta_y_se_reemplaza_solo_el_suyo(client, 
 
 def test_025_rf84_sin_anio_no_se_borran_los_libros_de_otros_anios(client):
     """025:RF-84 — si la carpeta ya está separada por año, una subida sin año se rechaza y no toca ningún año."""
-    from convertersmartgrid.libros_por_anio import arbol_de_libros
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion.libros_por_anio import arbol_de_libros
+    from convertersmartgrid.presentacion.web import services
 
     wid = _wid(client)
     assert _subir_anio(client, wid, 'clientes', CLIENTES, 2024, 'c2024.xlsx').status_code == 200
@@ -954,8 +954,8 @@ def test_025_rf84_el_anio_se_valida(client):
 def test_025_rf85_la_carpeta_subida_trae_sus_anios_y_solo_se_reemplazan_los_que_llegan(client):
     """025:RF-85 — como la entrega la empresa: la carpeta de clientes con «2024/» y «2025/». Cada libro va a su año por
     su ruta; una segunda carpeta solo con 2025 sustituye ese año y conserva 2024."""
-    from convertersmartgrid.libros_por_anio import anios_de, arbol_de_libros
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion.libros_por_anio import anios_de, arbol_de_libros
+    from convertersmartgrid.presentacion.web import services
 
     wid = _wid(client)
     libro = _xlsx(CLIENTES)
@@ -972,7 +972,7 @@ def test_025_rf85_la_carpeta_subida_trae_sus_anios_y_solo_se_reemplazan_los_que_
 
 def test_025_rf85_la_ruta_de_un_libro_no_sale_de_su_carpeta():
     """025:RF-85 — la ruta que manda el navegador se sanea parte a parte: ni «..» ni rutas absolutas salen fuera."""
-    from convertersmartgrid.web.app import ruta_por_anio
+    from convertersmartgrid.presentacion.web.app import ruta_por_anio
 
     assert ruta_por_anio('Cabecera/2025/ene.xlsx') == ('2025', '2025/ene.xlsx')
     assert ruta_por_anio(r'C:\datos\Cabecera\2024\sub\x.xlsx') == ('2024', '2024/sub/x.xlsx')

@@ -44,7 +44,7 @@ def _sellado(manifiesto: Path) -> str:
 
 
 def _referencia(contexto: str, fuente_hash: str, registro_id: str, instante: str, contenido: Any) -> dict:
-    from convertersmartgrid.contratos_aprendizaje import huella
+    from convertersmartgrid.dominio.contratos_aprendizaje import huella
     return {'contexto': contexto, 'fuente_hash': fuente_hash, 'registro_id': registro_id,
             'instante': instante, 'contenido_hash': huella(contenido)}
 
@@ -108,8 +108,8 @@ def _informes_de_calibracion(espacios: list[Path]) -> dict[str, list[tuple[float
 
 def generar_complemento(proyectos, espacios: list[Path], perfil: Path, declarado_por: str) -> tuple[dict, dict]:
     """050:RF-25: mes y criterio de la última calibración de cada proyecto, y la huella del perfil vigente."""
-    from convertersmartgrid.evaluacion_modelos import huella
-    from convertersmartgrid.perfil_empresa import datos_perfil
+    from convertersmartgrid.aplicacion.evaluacion_modelos import huella
+    from convertersmartgrid.dominio.perfil_empresa import datos_perfil
     informes = _informes_de_calibracion(espacios)
     sha_perfil = huella(datos_perfil(perfil))
     salida, sin_informe = {}, {}
@@ -133,7 +133,7 @@ def _periodo(valor: Any) -> Any:
 
 def contexto_de_episodio(e, complemento: dict):
     """050:RF-13/14: ``(ContextoExperimento, None)`` con los 14 campos, o ``(None, motivo)``."""
-    from convertersmartgrid.experimentos import ContextoExperimento
+    from convertersmartgrid.aplicacion.experimentos import ContextoExperimento
     fisico = e.contexto_fisico
     if fisico is None:
         return None, 'identidad 043 incompleta: el episodio no trae contexto_fisico'
@@ -164,7 +164,7 @@ def contexto_de_episodio(e, complemento: dict):
 
 
 def _anotar_contexto(p: Preparacion, contexto) -> str:
-    from convertersmartgrid.experimentos import clave_contexto
+    from convertersmartgrid.aplicacion.experimentos import clave_contexto
     clave = clave_contexto(contexto)
     # Un proyecto tiene varios casos y escenarios, cada uno con su contexto.
     p.proyectos[f'{contexto.project}#{clave[:12]}'] = clave
@@ -191,8 +191,8 @@ def _observaciones(rutas: list[Path]) -> tuple[dict, dict]:
 
 def preparar_dataset(p: Preparacion, dataset: Path, observaciones: list[Path]) -> None:
     """050:RF-11/15/17: órdenes e informes contra su observación; consultas contra el dataset sellado."""
-    from convertersmartgrid.asistente.dataset_entrenamiento import consultas_recuperacion
-    from convertersmartgrid.trabajadores_ml import leer_dataset_v2
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import consultas_recuperacion
+    from convertersmartgrid.aplicacion.trabajadores_ml import leer_dataset_v2
     partes, _ = leer_dataset_v2(dataset)
     p.fuentes['dataset'] = str(dataset)
     tabla = p.referencias.setdefault('dataset', {})
@@ -251,9 +251,9 @@ def preparar_dataset(p: Preparacion, dataset: Path, observaciones: list[Path]) -
 
 def preparar_twin(p: Preparacion, twin: Path) -> dict:
     """050:RF-13/15/16: identidad de todo episodio; solo los que enseñan y la tienen van a la vista."""
-    from convertersmartgrid.digital_twin.episode import episodio_a_dict, leer_episodio
-    from convertersmartgrid.digital_twin.oraculo import por_que_no_ensena
-    from convertersmartgrid.experimentos import clave_contexto
+    from convertersmartgrid.dominio.digital_twin.episode import episodio_a_dict, leer_episodio
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import por_que_no_ensena
+    from convertersmartgrid.aplicacion.experimentos import clave_contexto
     objetos = twin / 'objetos'
     if not objetos.is_dir():
         raise ValueError(f'{twin}: no tiene objetos/ de episodios')
@@ -308,8 +308,8 @@ def escribir_vista(p: Preparacion, rutas: dict[str, Path]) -> None:
 
 def _proyectos_de_twin(twin: Path) -> set[str]:
     """Los proyectos de los episodios que pueden enseñar, para declarar solo lo que se consume."""
-    from convertersmartgrid.digital_twin.episode import leer_episodio
-    from convertersmartgrid.digital_twin.oraculo import por_que_no_ensena
+    from convertersmartgrid.dominio.digital_twin.episode import leer_episodio
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import por_que_no_ensena
     proyectos = set()
     for ruta in sorted((twin / 'objetos').glob('*/*.json')):
         try:
@@ -323,7 +323,7 @@ def _proyectos_de_twin(twin: Path) -> set[str]:
 
 def declarar_series(p: Preparacion, idents, proyecto: str, contextos: list, creados: dict) -> None:
     """050:RF-20/27: el libro de un sistema con el caso base más reciente de su proyecto; sin huellas nuevas."""
-    from convertersmartgrid.experimentos import clave_contexto
+    from convertersmartgrid.aplicacion.experimentos import clave_contexto
     propios = [c for c in contextos if c.project == proyecto and c.case_role == 'caso_base']
     if not propios:
         p.apartar('cabeceras', proyecto, 'el proyecto declarado para las series no tiene caso base con identidad 043 completa')
@@ -337,8 +337,8 @@ def declarar_series(p: Preparacion, idents, proyecto: str, contextos: list, crea
 
 def _contexto_de_serie(p: Preparacion, ident: str, contextos: list):
     """050:RF-20: la serie se vincula a una identidad 043 única, o se dice por qué no."""
-    from convertersmartgrid.demanda_medida import hojas_del_alimentador
-    from convertersmartgrid.experimentos import clave_contexto
+    from convertersmartgrid.aplicacion.demanda_medida import hojas_del_alimentador
+    from convertersmartgrid.aplicacion.experimentos import clave_contexto
     declarado = p.complemento['series'].get(ident)
     if declarado is not None:
         candidatos = {clave_contexto(c): c for c in contextos if clave_contexto(c) == declarado}
@@ -358,7 +358,7 @@ def preparar_cabeceras(p: Preparacion, libro: Path, contextos: list, *, zona_hor
                        cadencia_min: int | None, horizontes: str | None, proyecto_series: str | None = None,
                        creados: dict | None = None) -> None:
     """050:RF-11/19/20: una referencia por ventana; lo apartado se reporta con su motivo textual."""
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import (
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import (
         contenido_de_ventana, series_de_aprendizaje, ventanas_de_aprendizaje)
     p.fuentes['cabeceras'] = str(libro)
     tabla = p.referencias.setdefault('cabeceras', {})
@@ -404,7 +404,7 @@ def preparar_cabeceras(p: Preparacion, libro: Path, contextos: list, *, zona_hor
 
 def cifras_de_ventanas(series: dict, cadencia_min: int) -> dict:
     """Por qué una partición se queda sin ventanas, con cifras: días y emisiones por parte."""
-    from convertersmartgrid.digital_twin.evaluacion_temporal import POLITICA_TEMPORAL
+    from convertersmartgrid.adaptadores.digital_twin.evaluacion_temporal import POLITICA_TEMPORAL
     conjunto = series['conjunto']
     try:
         ventanas = conjunto.ventanas_comunes(POLITICA_TEMPORAL, contexto_pasos=series['contexto_pasos'],
@@ -423,7 +423,7 @@ def cifras_de_ventanas(series: dict, cadencia_min: int) -> dict:
 
 def preparar_corpus(p: Preparacion, corpus: Path) -> None:
     """050:RF-11/15/17: cada registro sellado contra su parte; maestro sigue siendo maestro."""
-    from convertersmartgrid.asistente.llm_destilacion import PARTICIONES, leer_particion_real
+    from convertersmartgrid.aplicacion.asistente.llm_destilacion import PARTICIONES, leer_particion_real
     manifiesto = corpus / 'dataset_manifest.json'
     if not manifiesto.is_file():
         p.pendiente('llm_dataset', f'{corpus}: sin dataset_manifest.json')
@@ -448,8 +448,8 @@ def preparar_corpus(p: Preparacion, corpus: Path) -> None:
 
 def preparar_casos(p: Preparacion, casos: Path, twin: Path | None, rutas: dict[str, Path]) -> None:
     """050:RF-13/15: el contexto del caso debe ser el de su episodio; no se acepta otro."""
-    from convertersmartgrid.digital_twin.episode import leer_episodio
-    from convertersmartgrid.experimentos import ContextoExperimento
+    from convertersmartgrid.dominio.digital_twin.episode import leer_episodio
+    from convertersmartgrid.aplicacion.experimentos import ContextoExperimento
     dato = json.loads(casos.read_text(encoding='utf-8'))
     if twin is None:
         p.pendiente('evolutivos_casos', 'los casos necesitan el búfer de sus episodios')
@@ -502,7 +502,7 @@ def _sufijo(identidad: str) -> str:
 
 
 def _parametros_bancos(e, escalera: dict, limites, perfil: dict) -> tuple[dict | None, str | None]:
-    from convertersmartgrid.perfil_empresa import bancos_kvar_por_tension
+    from convertersmartgrid.dominio.perfil_empresa import bancos_kvar_por_tension
     nodos = e.topologia['grafo']['nodos']
     por_nombre = {_sufijo(n): n for n in nodos}
     nombres = {b for a in escalera['datos']['alimentadores'].values() for b in (a.get('banco_en') or {}).values()}
@@ -533,8 +533,8 @@ def _parametros_maniobras(e, escalera: dict, limites) -> tuple[dict | None, str 
 
 def _normalizacion(e, contexto, problema: str, parametros: dict) -> dict:
     """Ideal físico cero y, de nadir, lo medido en el estado actual o la inversión máxima; nunca un valor a mano."""
-    from convertersmartgrid.digital_twin.evolutivo import problema_bancos, problema_maniobras
-    from convertersmartgrid.digital_twin.problema_optimizacion import evaluar_vector
+    from convertersmartgrid.adaptadores.digital_twin.evolutivo import problema_bancos, problema_maniobras
+    from convertersmartgrid.adaptadores.digital_twin.problema_optimizacion import evaluar_vector
     factory = problema_bancos if problema == 'bancos' else problema_maniobras
     prob = factory(e.topologia['grafo'], contexto=contexto, modelo_id='normalizacion', **parametros)
     if problema == 'bancos':
@@ -551,8 +551,8 @@ def _normalizacion(e, contexto, problema: str, parametros: dict) -> dict:
 
 def _particion_pinn(ensenan: dict) -> dict[str, str]:
     """050:RF-2: la misma partición de la observación que la vista PINN."""
-    from convertersmartgrid.digital_twin.oraculo import muestras_y_particiones
-    from convertersmartgrid.digital_twin.buffer import Consulta
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import muestras_y_particiones
+    from convertersmartgrid.adaptadores.digital_twin.buffer import Consulta
 
     class Lectura:
         def consultar(self, consulta):
@@ -566,8 +566,8 @@ def _particion_pinn(ensenan: dict) -> dict[str, str]:
 def generar_casos(p: Preparacion, destino: Path, proyectos: list[str], espacios: list[Path], ensenan: dict,
                   perfil_ruta: Path) -> Path | None:
     """050:RF-28: casos con los datos guardados de escalera; a lo que le falta un parámetro se le dice cuál."""
-    from convertersmartgrid.digital_twin.integration import limites_combinados, normas_de
-    from convertersmartgrid.perfil_empresa import datos_perfil, estructura_empresa
+    from convertersmartgrid.adaptadores.digital_twin.integration import limites_combinados, normas_de
+    from convertersmartgrid.dominio.perfil_empresa import datos_perfil, estructura_empresa
     perfil = datos_perfil(perfil_ruta)
     particiones = _particion_pinn(ensenan) if ensenan else {}
     casos, informe = [], {}
@@ -624,8 +624,8 @@ def _escribir(ruta: Path, valor: Any) -> None:
 
 def politica_del_ciclo(semillas: str) -> dict:
     """050:RF-30: la huella 044 de las políticas con que se evalúa: la del agente y la temporal, con sus valores."""
-    from convertersmartgrid.digital_twin.evaluacion_temporal import POLITICA_TEMPORAL
-    from convertersmartgrid.evaluacion_modelos import PoliticaEvaluacion, huella
+    from convertersmartgrid.adaptadores.digital_twin.evaluacion_temporal import POLITICA_TEMPORAL
+    from convertersmartgrid.aplicacion.evaluacion_modelos import PoliticaEvaluacion, huella
     agente = PoliticaEvaluacion(modo='agente', semillas=tuple(int(s) for s in semillas.split(',')))
     miembros = {'agente': agente.hash, 'temporal': POLITICA_TEMPORAL.hash}
     return {'huella': huella(miembros), 'miembros': miembros}
@@ -633,7 +633,7 @@ def politica_del_ciclo(semillas: str) -> dict:
 
 def ordenes(p: Preparacion, args, contexto: Path) -> dict:
     """Las dos órdenes con los mismos parámetros: ``ciclo`` reutiliza la copia de ``congelar``."""
-    from convertersmartgrid.aprendizaje_continuo import huella_parametros_ciclo
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import huella_parametros_ciclo
     fuentes = [a for n, r in sorted(p.fuentes.items()) for a in ('--fuente', f'{n}={r}')]
     parametros = {'semillas': args.semillas, 'zona_horaria': args.zona_horaria, 'cadencia_min': args.cadencia_min,
                   'horizontes': args.horizontes, 'embedding_model': args.embedding_model}
@@ -648,7 +648,7 @@ def ordenes(p: Preparacion, args, contexto: Path) -> dict:
 
 
 def preparar(args) -> dict:
-    from convertersmartgrid.aprendizaje_continuo import ESQUEMA_PROCEDENCIA, crear_contexto_ciclo
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import ESQUEMA_PROCEDENCIA, crear_contexto_ciclo
     salida: Path = args.salida
     if args.espacios and args.perfil and args.complemento is None and not args.declarado_por.strip():
         raise ValueError('declare --declarado-por: lo que se completa al preparar tiene responsable')

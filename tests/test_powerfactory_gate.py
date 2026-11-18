@@ -24,7 +24,7 @@ def _load_pf_mod():
 
 
 def test_geography_expected_counts_include_equipment(ds, sample_model, tmp_path):
-    from convertersmartgrid.geography import build_geography, geography_to_dict
+    from convertersmartgrid.adaptadores.geography import build_geography, geography_to_dict
 
     geo = build_geography(ds, sample_model, source_crs='EPSG:32718')
     payload = geography_to_dict(geo, sample_model)
@@ -620,7 +620,7 @@ def test_081_rf79_la_aceptacion_conecta_por_el_arnes_con_su_vigia(monkeypatch):
     """081:RF-79 — PRUEBA_007 (2026-11-06): la verificación del «Caso base» quedó 10 min en
     ``pf.GetApplication()`` sin CPU (pila leída con py-spy). La aceptación conectaba por su cuenta,
     fuera del vigía de 019:RF-23; con el motor de la máquina conecta ahora con ``pf_arnes.conectar``."""
-    from convertersmartgrid import pf_arnes
+    from convertersmartgrid.adaptadores import pf_arnes
 
     mod = _load_pf_mod()
     pedidos = []

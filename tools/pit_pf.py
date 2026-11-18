@@ -166,7 +166,7 @@ def _ejecutar(app, clase: str) -> dict[str, Any]:
 
 def estudiar(app, plan: dict) -> tuple[dict[str, Any], int]:
     """Cada estudio del plan en el caso de cada año; nada queda cambiado (o el informe lo dice y sale con 2)."""
-    from convertersmartgrid.estudios_red_pf import cambios_de_estado
+    from convertersmartgrid.aplicacion.estudios_red_pf import cambios_de_estado
 
     pedidos = list(plan.get('estudios') or ESTUDIOS)
     desconocidos = [e for e in pedidos if e not in ESTUDIOS]
@@ -202,7 +202,7 @@ def main(argv=None) -> int:
     p.add_argument('--exportar-red', action='store_true', help='Solo exportar la red al contrato RedArea')
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('pit_pf.py')

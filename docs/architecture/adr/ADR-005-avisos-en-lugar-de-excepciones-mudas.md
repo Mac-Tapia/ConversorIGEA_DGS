@@ -4,7 +4,7 @@
 - Fecha: 2026-11-14
 - Specs: 034:RF-5, 034:RF-10, 034:RF-40
 - Elementos C4: engine, oracle, nativeRunner, security
-- Evidencia: `docs/architecture/adr/deuda_excepciones_mudas.json~"ficheros"`, `src/convertersmartgrid/model.py::palabras_de`, `docs/architecture/workspace.dsl~Devuelve avisos; la importacion continua`
+- Evidencia: `docs/architecture/adr/deuda_excepciones_mudas.json~"ficheros"`, `src/convertersmartgrid/dominio/model.py::palabras_de`, `docs/architecture/workspace.dsl~Devuelve avisos; la importacion continua`
 
 ## Contexto
 

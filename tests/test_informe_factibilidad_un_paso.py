@@ -11,8 +11,8 @@ import random
 
 import pytest
 
-from convertersmartgrid.estudios_pf import Limites
-from convertersmartgrid.informes import (
+from convertersmartgrid.aplicacion.estudios_pf import Limites
+from convertersmartgrid.adaptadores.informes import (
     TRIFASICA,
     Caso,
     Extremo,
@@ -27,7 +27,7 @@ SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 @pytest.fixture(autouse=True)
 def _conjunto_que_cumple(monkeypatch):
     """087:RF-45: la confirmación conjunta tiene sus pruebas en test_obras_integrales; aquí, que cumple."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setattr(services, 'confirmar_conjunto', lambda *a, **k: {'cumple': True})
 
@@ -108,7 +108,7 @@ def _caso(rng, nombre, *, cumple: bool, converge: bool = True) -> Caso:
 
 def test_conclusiones_de_cada_caso_con_sus_cifras():
     """063:RF-54 — cada caso dice sus cifras medidas; sorteadas, nada de valores fijos."""
-    from convertersmartgrid.informes import conclusiones_por_caso, numero
+    from convertersmartgrid.adaptadores.informes import conclusiones_por_caso, numero
 
     rng = random.Random(SEMILLA)
     for _ in range(30):
@@ -125,7 +125,7 @@ def test_conclusiones_de_cada_caso_con_sus_cifras():
 
 def test_conclusiones_de_un_caso_sin_flujo_no_inventan_valores():
     """063:RF-54 — sin convergencia solo la demanda nominal, nunca tensiones ni cargabilidades."""
-    from convertersmartgrid.informes import conclusiones_por_caso, numero
+    from convertersmartgrid.adaptadores.informes import conclusiones_por_caso, numero
 
     rng = random.Random(SEMILLA)
     nominal = rng.uniform(1000, 90_000)
@@ -138,7 +138,7 @@ def test_conclusiones_de_un_caso_sin_flujo_no_inventan_valores():
 
 def test_demanda_por_fuente_antes_y_despues():
     """063:RF-55 — variación y total por fuente; la que entra o sale del servicio se nombra."""
-    from convertersmartgrid.informes import FuenteMedida, demanda_antes_despues, numero
+    from convertersmartgrid.adaptadores.informes import FuenteMedida, demanda_antes_despues, numero
 
     rng = random.Random(SEMILLA)
     comun, sale, entra = (f'F{rng.randrange(10_000)}_{n}' for n in 'abc')
@@ -155,7 +155,7 @@ def test_demanda_por_fuente_antes_y_despues():
 
 def test_demanda_por_alimentador_suma_cabecera_y_salidas():
     """063:RF-55 — la zona trasladada no desaparece: cabecera más salidas de la SET nueva."""
-    from convertersmartgrid.informes import demanda_por_alimentador, numero
+    from convertersmartgrid.adaptadores.informes import demanda_por_alimentador, numero
 
     rng = random.Random(SEMILLA)
     antes, cab, sal, nuevas = (rng.uniform(100, 30_000) for _ in range(4))
@@ -176,7 +176,7 @@ def _cola(rng, *, converge: bool, cumple: bool = False) -> dict:
 
 def test_cola_que_no_converge_justifica_la_obra():
     """063:RF-56 — cuántas cargas, cuántos kW, que no converge y que por eso se justifica la obra."""
-    from convertersmartgrid.informes import conclusion_cola, desarrollo_cola, numero
+    from convertersmartgrid.adaptadores.informes import conclusion_cola, desarrollo_cola, numero
 
     rng = random.Random(SEMILLA)
     cola = _cola(rng, converge=False)
@@ -189,7 +189,7 @@ def test_cola_que_no_converge_justifica_la_obra():
 
 def test_cola_que_cumple_no_afirma_que_no_cabe():
     """063:RF-56 — solo se afirma lo medido: si el flujo cumple, no se dice que no se pueda conectar."""
-    from convertersmartgrid.informes import conclusion_cola, desarrollo_cola
+    from convertersmartgrid.adaptadores.informes import conclusion_cola, desarrollo_cola
 
     rng = random.Random(SEMILLA)
     cola = _cola(rng, converge=True, cumple=True)
@@ -201,7 +201,7 @@ def test_cola_que_cumple_no_afirma_que_no_cabe():
 
 def test_demanda_sin_fuentes_usa_el_alimentador():
     """063:RF-55 — sin datos por fuente, la inyección de cada caso con el nombre del alimentador."""
-    from convertersmartgrid.informes import fuentes_del_caso, numero
+    from convertersmartgrid.adaptadores.informes import fuentes_del_caso, numero
 
     rng = random.Random(SEMILLA)
     caso = _caso(rng, 'A', cumple=True)
@@ -383,8 +383,8 @@ def test_conclusion_usa_los_limites_que_recibe():
 def test_optimiza_solo_con_las_cargas_pedidas(monkeypatch, tmp_path):
     """063:RF-23, 063:RF-24 — <código> (2026-11-01): con <sitio> y tres cargas del bloque aplicadas, la
     optimización de «Con proyecto» para <sitio> cuenta solo <sitio>; un nombre que no está se rechaza."""
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.services import UserError
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.services import UserError
 
     rng = random.Random(SEMILLA + 5)
     feeders = [f'AL{rng.randrange(100, 999)}' for _ in range(rng.randint(1, 3))]
@@ -409,7 +409,7 @@ def test_banco_en_la_barra_existente_de_la_troncal():
     """063:RF-25 — <sitio> en <código> (2026-11-01): su barra NODE_T_ la crea su variación; el banco va
     en la barra existente del tramo que partió, y la carga sigue con su tramo de la troncal. Una
     barra que existe sin la carga se queda; una sin barra existente cercana no da banco."""
-    from convertersmartgrid.web.services import _carga_para_escalera
+    from convertersmartgrid.presentacion.web.services import _carga_para_escalera
 
     rng = random.Random(SEMILLA + 6)
     for _ in range(30):
@@ -426,7 +426,7 @@ def test_banco_en_la_barra_existente_de_la_troncal():
 def test_umbral_de_carga_nueva_lleva_a_set_nueva(monkeypatch, encima):
     """063:RF-34 — NA203 + NA205 (2026-11-01): con cargas nuevas que suman más que el umbral del
     perfil (10 MW en una distribuidora real) la solución es una SET nueva directa; por debajo, la escalera."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     rng = random.Random(SEMILLA + 7 + int(encima))
     umbral = rng.uniform(5_000, 20_000)
@@ -437,7 +437,7 @@ def test_umbral_de_carga_nueva_lleva_a_set_nueva(monkeypatch, encima):
                   'barra': f'N{i}', 'variacion': f'Carga_{i}', 'sola': False,
                   'lat': -13.0, 'lon': -76.0} for i, w in enumerate(pesos)]
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil',
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil',
                         lambda: {'planificacion': {'set_nueva_desde_kw': umbral}})
     vistos = {}
     monkeypatch.setattr(services, 'optimizar_con_proyecto',
@@ -468,7 +468,7 @@ def test_el_informe_prepara_solo_su_alimentador_sin_pasar_por_4_2(monkeypatch, t
     alimentadores del proyecto variables), la preparación del informe es el paso 4.2 entero solo
     para el alimentador del informe: el último ajuste aplicado como base, flujo equilibrado y
     desequilibrado, y la ejecución del mismo plan; ningún alimentador fijo."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     rng = random.Random(SEMILLA + k)
     alims = [f"{rng.choice('ABCDEFGHJKLMNPRSTUVWXYZ')}{rng.choice('ABCDEFGHJK')}{rng.randint(100, 999)}"
@@ -498,11 +498,11 @@ def test_el_informe_prepara_solo_su_alimentador_sin_pasar_por_4_2(monkeypatch, t
 
 def test_la_escalera_primero_no_salta_a_la_set_nueva(monkeypatch):
     """042:RF-17 — por encima del umbral, si el operador pide la escalera, se busca carga a carga."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     aplicadas = [{'sed': 'C0', 'alimentador': 'AL1', 'kw': 25_000.0, 'kvar': 0.0, 'barra': 'N0', 'variacion': 'Carga_0', 'sola': False}]
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil',
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil',
                         lambda: {'planificacion': {'set_nueva_desde_kw': 10_000}})
     vistos = {}
     monkeypatch.setattr(services, 'escalera_por_alimentador',
@@ -519,7 +519,7 @@ def test_la_escalera_primero_no_salta_a_la_set_nueva(monkeypatch):
 
 def test_la_escalera_va_por_alimentador(monkeypatch, tmp_path):
     """042:RF-24, 042:RF-29 — cada alimentador sube la escalera con sus cargas; el que no cumple pasa sus cargas a la obra siguiente."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 900.0, 'variacion': 'Carga_A'},
                  {'sed': 'B', 'alimentador': 'F2', 'kw': 4000.0, 'variacion': 'Carga_B'},
@@ -556,7 +556,7 @@ def test_la_escalera_va_por_alimentador(monkeypatch, tmp_path):
 
 def test_la_escalera_repone_antes_las_cargas_apartadas(monkeypatch, tmp_path):
     """042:RF-32 — Pisco: tras una caída, 6 de 14 cargas seguían apartadas y AL209 se medía sin ellas."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     orden = []
     aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 100.0, 'variacion': 'Carga_A'},
@@ -585,7 +585,7 @@ def test_la_escalera_repone_antes_las_cargas_apartadas(monkeypatch, tmp_path):
 
 def test_cada_alimentador_aplica_su_obra_antes_de_evaluar_el_siguiente(monkeypatch):
     """042:RF-48 — al elegir la obra de F1 se aplica ya; F2 se evalúa después, y el que no cumple no aplica nada."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     # 042 sin el oráculo de la 087 (087:RF-30): aquí se mira el orden de la escalera de siempre.
     monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: {})
@@ -622,7 +622,7 @@ def test_cada_alimentador_aplica_su_obra_antes_de_evaluar_el_siguiente(monkeypat
 
 def test_rehacer_retira_antes_de_evaluar_y_olvida_lo_aplicado(monkeypatch):
     """042:RF-60 — retira, repone y evalúa, en ese orden; sin pedirlo no se retira nada."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     # 042 sin el oráculo de la 087 (087:RF-30): aquí se mira el orden de la escalera de siempre.
     monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: {})
@@ -669,7 +669,7 @@ def test_rehacer_retira_antes_de_evaluar_y_olvida_lo_aplicado(monkeypatch):
 
 def test_una_barra_que_ya_estaba_baja_lleva_su_obra_aparte(monkeypatch):
     """042:RF-64 — con obra para la carga y sin ella: segunda escalera con las barras previas; ninguna obra si no las hay."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     baja = {'previo': [{'barra': 'B2', 'u': 0.94}, {'barra': 'B1', 'u': 0.93}], 'causado': [], 'sin_comparacion': [{'barra': 'B3', 'u': 0.945}]}
     filas = {'F1': {'alimentador': 'F1', 'elegida': 'obra', 'bajo_limite': baja},
@@ -706,7 +706,7 @@ def test_una_barra_que_ya_estaba_baja_lleva_su_obra_aparte(monkeypatch):
 
 def test_la_web_recibe_las_alternativas_de_cada_alimentador(monkeypatch):
     """042:RF-76, 042:RF-77, 042:RF-78 — el resultado trae las alternativas por alimentador, y no trae pruebas por tandas."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 10.0, 'variacion': 'Carga_A'}]
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: list(aplicadas))

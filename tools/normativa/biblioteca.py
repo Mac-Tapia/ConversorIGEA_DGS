@@ -14,8 +14,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src'))
 
-from convertersmartgrid import biblioteca_normativa as bn  # noqa: E402
-from convertersmartgrid.registro_normativo import RegistroError  # noqa: E402
+from convertersmartgrid.aplicacion import biblioteca_normativa as bn  # noqa: E402
+from convertersmartgrid.dominio.registro_normativo import RegistroError  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:

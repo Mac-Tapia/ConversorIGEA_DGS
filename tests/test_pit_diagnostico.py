@@ -7,9 +7,9 @@ import pytest
 
 from datos_pit import perfil_a, perfil_b
 
-from convertersmartgrid.pit.ambito import PitError, areas_del_perfil, reunir
-from convertersmartgrid.pit.diagnostico import agregar_demanda, diagnosticar, limites_del_estudio
-from convertersmartgrid.pit.red_area import desde_ambito
+from convertersmartgrid.dominio.pit.ambito import PitError, areas_del_perfil, reunir
+from convertersmartgrid.adaptadores.pit.diagnostico import agregar_demanda, diagnosticar, limites_del_estudio
+from convertersmartgrid.aplicacion.pit.red_area import desde_ambito
 
 LIMITES_PERFIL = {'tension_min_pu': 0.9, 'tension_max_pu': 1.1, 'cargabilidad_max_pct': 100.0}
 

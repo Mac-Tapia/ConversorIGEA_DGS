@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from convertersmartgrid.estructura import asignar, estructura_de_dict, estructura_de_la_fuente
-from convertersmartgrid.web import services
+from convertersmartgrid.dominio.estructura import asignar, estructura_de_dict, estructura_de_la_fuente
+from convertersmartgrid.presentacion.web import services
 from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
 FILAS = {'A1': {'sistema_codigo': 'S1', 'sistema_nombre': 'Sistema Uno', 'sector': '2', 'set_codigo': 'T1', 'set_nombre': 'Norte'},
@@ -57,7 +57,7 @@ def _espacio(alimentadores=('A1', 'B1'), fuente=FILAS, excel=None):
 
 
 def _perfil(monkeypatch, estructura):
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.estructura_empresa', lambda *a, **k: estructura)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.estructura_empresa', lambda *a, **k: estructura)
 
 
 def _tabla():
@@ -83,7 +83,7 @@ def test_sin_excel_ni_perfil_que_cubra_manda_la_fuente(monkeypatch):
 def test_el_excel_gana_a_todo(monkeypatch, tmp_path):
     """055:RF-2 — lo que sube el operador manda."""
     _perfil(monkeypatch, None)
-    monkeypatch.setattr('convertersmartgrid.demanda_medida.leer_tabla_excel', lambda ruta: _tabla())
+    monkeypatch.setattr('convertersmartgrid.aplicacion.demanda_medida.leer_tabla_excel', lambda ruta: _tabla())
     assert services._estructura_y_origen(_espacio(excel=str(tmp_path / 'x.xlsx')))[1] == 'excel'
 
 
@@ -92,10 +92,10 @@ def _de_empresa(company=None, crs=None, opciones=None):
 
 
 def _perfil_de_empresa(monkeypatch, datos):
-    from convertersmartgrid.perfil_empresa import PerfilEmpresa
+    from convertersmartgrid.dominio.perfil_empresa import PerfilEmpresa
 
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: datos)
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.cargar_perfil',
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda *a, **k: datos)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.cargar_perfil',
                         lambda *a, **k: PerfilEmpresa(crs_origen='EPSG:1', patron_sed_medicion='^M', escala_diagrama=2.0))
     monkeypatch.setattr(services, 'carpeta_pf', lambda: 'carpeta_del_perfil')
 

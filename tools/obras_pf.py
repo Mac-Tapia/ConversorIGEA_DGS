@@ -24,7 +24,7 @@ Sin ``--bibliotecas`` aplica las obras del plan (``--simular``: dice lo que har�
 escribir nada, RF-69). Las reglas comunes a todas (RF-57 a RF-60, RF-64 a RF-67):
 
 1. Lee la red y los tipos y planifica todas las obras con
-   ``convertersmartgrid.obras_pf.plan_simulacion``: lo que se aplica es lo que se simuló. Cada
+   ``convertersmartgrid.aplicacion.obras_pf.plan_simulacion``: lo que se aplica es lo que se simuló. Cada
    alimentador se lee en el caso de sus obras («Con proyecto» si todas son de allí, si no
    «Sin proyecto»), con la troncal del camino más largo (spec 016).
 2. Mide «Sin proyecto» antes de tocar nada: cabecera y tensión mínima por alimentador.
@@ -79,25 +79,25 @@ from casos_pf import (
 )
 from estudios_pf import medida
 
-from convertersmartgrid.carpeta_pf import buscar_proyecto, nombre_de_perfil
-from convertersmartgrid.instalacion_ternas import factor_de_capacidad, instalacion
-from convertersmartgrid.perfil_empresa import datos_perfil
-from convertersmartgrid.pf_arnes import proyecto_de as _proyecto_de
-from convertersmartgrid import sitio_set
-from convertersmartgrid.vias import ruta_por_vias
-from convertersmartgrid.native_action import native_action_block_report
-from convertersmartgrid.obras_pf import (
+from convertersmartgrid.adaptadores.carpeta_pf import buscar_proyecto, nombre_de_perfil
+from convertersmartgrid.aplicacion.instalacion_ternas import factor_de_capacidad, instalacion
+from convertersmartgrid.dominio.perfil_empresa import datos_perfil
+from convertersmartgrid.adaptadores.pf_arnes import proyecto_de as _proyecto_de
+from convertersmartgrid.aplicacion import sitio_set
+from convertersmartgrid.aplicacion.vias import ruta_por_vias
+from convertersmartgrid.dominio.native_action import native_action_block_report
+from convertersmartgrid.aplicacion.obras_pf import (
     ATRIBUTOS_TIPO, BANDA_TENSION_PU, ESTADO_SERVICIO, SOLO_CON_PROYECTO, Obra, ObrasError, RedAlimentador, Tipo,
     clasificar_restos, diferencias_sin_proyecto, escribir_aperturas, fichero_aperturas, foto_de_referencia,
     fuera_de_servicio, leer_aperturas, mismos_datos, misma_apertura, plan_simulacion, red_de_lectura, resolver_copia,
     resumen_tipo, tipo_de_ficha, validar_obra, veredicto_persistencia,
 )
-from convertersmartgrid.estudios_pf import EstudiosError, limites_de_perfil
-from convertersmartgrid.naming import feeder_short_name
-from convertersmartgrid.obras_pf import nombre_copia, punto_indicado
-from convertersmartgrid.troncal import (Conexion, TroncalError, aguas_abajo, camino_y_ramales, extremos_del_enlace,
+from convertersmartgrid.aplicacion.estudios_pf import EstudiosError, limites_de_perfil
+from convertersmartgrid.dominio.naming import feeder_short_name
+from convertersmartgrid.aplicacion.obras_pf import nombre_copia, punto_indicado
+from convertersmartgrid.dominio.troncal import (Conexion, TroncalError, aguas_abajo, camino_y_ramales, extremos_del_enlace,
                               punto_en_troncal)
-from convertersmartgrid.troncal import troncal as troncal_de
+from convertersmartgrid.dominio.troncal import troncal as troncal_de
 
 #: Las clases de tipo que piden las obras (RF-89), en el orden en que se listan.
 CLASES_TIPO = tuple(ATRIBUTOS_TIPO)
@@ -288,8 +288,8 @@ def bibliotecas(app, plan: dict) -> tuple[dict, int]:
     tensiones = sorted({float(a['kv']) for a in informe['alimentadores'].values() if a.get('kv')})
     if plan.get('secciones_nuevas') and tensiones:
         # 042:RF-30: los normalizados que no están en ninguna biblioteca, desde su ficha.
-        from convertersmartgrid.catalog import filas_de_conductores, tipo_de_ficha
-        from convertersmartgrid.reglas import catalogo_del_proyecto
+        from convertersmartgrid.aplicacion.catalog import filas_de_conductores, tipo_de_ficha
+        from convertersmartgrid.aplicacion.reglas import catalogo_del_proyecto
 
         filas = filas_de_conductores(catalogo_del_proyecto())
         conductores = [t for c in plan['secciones_nuevas'] for kv in tensiones if (t := tipo_de_ficha(c, kv, filas)) is not None]
@@ -328,7 +328,7 @@ BIBLIOTECA_TIPOS = 'CSG_Biblioteca_tipos'
 
 def _proyecto_biblioteca(app, nombre: str, avisos: list[str]):
     """El proyecto biblioteca y su carpeta de tipos; se crean si faltan."""
-    from convertersmartgrid.util import NOMBRES_ANTERIORES_PF
+    from convertersmartgrid.dominio.util import NOMBRES_ANTERIORES_PF
 
     usuario = app.GetCurrentUser()
     proyectos = usuario.GetContents('*.IntPrj') or []
@@ -413,7 +413,7 @@ def crear_tipos_conductor(app, conductores: list[dict], avisos: list[str]) -> li
 def crear_tipos_regulador(app, plan: dict) -> tuple[dict, int]:
     """Los ``TypVoltreg`` del catálogo para cada tensión del plan, en el proyecto biblioteca
     (025:RF-59). Los que ya existen con ese nombre no se tocan ni se duplican."""
-    from convertersmartgrid.catalogo_reguladores import CatalogoError, FABRICANTE, unidades_para
+    from convertersmartgrid.aplicacion.catalogo_reguladores import CatalogoError, FABRICANTE, unidades_para
 
     nombre = plan.get('biblioteca') or BIBLIOTECA_TIPOS
     informe: dict[str, Any] = {'biblioteca': nombre, 'fabricante': FABRICANTE,
@@ -832,7 +832,7 @@ def _barra_con_tres_fases(ctx, barra):
     Un banco trifásico en una barra de dos fases dejó sin flujo toda la calibración de un sistema. Sin ninguna
     barra compatible, queda en la pedida y se avisa (081:RF-9): nunca se rechaza por sus fases.
     """
-    from convertersmartgrid.comprobacion_fases import Barra, ubicar_nuevo
+    from convertersmartgrid.dominio.comprobacion_fases import Barra, ubicar_nuevo
 
     fases = fases_de_barra
     if fases(barra) >= 3:
@@ -2083,7 +2083,7 @@ CON_TRONCAL = ('seccion', 'terna', 'enlace', 'migracion', 'set_nueva', 'expreso'
 def leer_troncal(elm, f: str) -> tuple[tuple[str, ...], object, str, list[str]]:
     """(troncal, red, cabecera, avisos) del alimentador en el caso activo (016:RF-1, RF-2).
 
-    Es la troncal del camino más largo de ``convertersmartgrid.troncal``, no la de ``ComBbone``:
+    Es la troncal del camino más largo de ``convertersmartgrid.dominio.troncal``, no la de ``ComBbone``:
     DIgSILENT solo dibuja troncales entre alimentadores con un enlace, e IN111 no tenía
     ninguno (2026-10-14). El N-1 y la transferencia siguen con ``ComBbone`` (016:RF-10).
     Solo cuentan las líneas: un seccionador del camino une, pero no se le cambia el tipo.
@@ -3332,7 +3332,7 @@ def georreferenciar_obras(app, filas: list[dict]) -> None:
 
     Se lee de lo que grabó su etapa, sin saber de cada clase de obra: la que venga mañana también queda situada.
     """
-    from convertersmartgrid.geography import make_transformer
+    from convertersmartgrid.adaptadores.geography import make_transformer
 
     crs = datos_perfil().get('crs_origen')
     try:
@@ -3589,7 +3589,7 @@ def anio_de_problemas(app, plan: dict) -> tuple[dict, int]:
     casos = casos_del_proyecto(app, anio_del_plan(plan))
     if 'con' not in casos:
         return {**informe, 'error': 'falta «Con proyecto»'}, 2
-    from convertersmartgrid.escalera_optima import definitiva, parametros, primer_anio_que_falla
+    from convertersmartgrid.aplicacion.escalera_optima import definitiva, parametros, primer_anio_que_falla
 
     feeders = [str(f) for f in plan.get('feeders') or ()]
     p = parametros(plan.get('parametros') or {}, plan.get('tipo_cambio'))
@@ -3713,7 +3713,7 @@ def enlaces_existentes(app, alims, feeders, tramos_red: list[dict], margen: dict
     con el flujo de ahora (087:RF-32). CA101 y CHN102 (2026-11-07): el enlace con CHN102 ya existía y la escalera no lo
     veía.
     """
-    from convertersmartgrid.escalera_optima import camino_electrico
+    from convertersmartgrid.aplicacion.escalera_optima import camino_electrico
 
     pedidos = set(feeders)
     out: dict[str, list[dict]] = {f: [] for f in feeders}
@@ -3922,8 +3922,8 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                    if media.get(b, b) != b and media[b] in sin_cargas_de.get(f, set())]))
         # 063:RF-32: el camino eléctrico de la cabecera a cada carga, con todas las cargas y el
         # flujo que convergió; sobre él van sección y terna, y el banco en su barra de aguas arriba.
-        from convertersmartgrid.escalera_optima import camino_electrico
-        from convertersmartgrid.obras_integrales import con_maniobras
+        from convertersmartgrid.aplicacion.escalera_optima import camino_electrico
+        from convertersmartgrid.aplicacion.obras_integrales import con_maniobras
         tramos_red = []
         for ln in app.GetCalcRelevantObjects('*.ElmLne') or []:
             a = getattr(getattr(ln, 'bus1', None), 'cterm', None)
@@ -4176,7 +4176,7 @@ _MONOFASICOS: dict[str, bool] = {}
 def _monofasicos_del_caso(app) -> bool:
     caso = getattr(app.GetActiveStudyCase(), 'loc_name', '')
     if caso not in _MONOFASICOS:
-        from convertersmartgrid.dgs import red_con_monofasicos
+        from convertersmartgrid.adaptadores.dgs import red_con_monofasicos
 
         _MONOFASICOS[caso] = red_con_monofasicos(app)
     return _MONOFASICOS[caso]
@@ -4413,11 +4413,11 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
     ``estudios``) y ``valle`` (sus ``puntos``, 073:RF-25). Devuelve por variante si cumple con la
     máxima, la fracción de sorteos que cumplen, sus pérdidas con la máxima y lo medido en valle.
     """
-    from convertersmartgrid.escalera_optima import (cumple, cumple_en_valle, definitiva, grupo_economico,
+    from convertersmartgrid.aplicacion.escalera_optima import (cumple, cumple_en_valle, definitiva, grupo_economico,
                                                     hace_falta_seguir, parametros, plan_de_corto_plazo,
                                                     plan_de_horizonte)
-    from convertersmartgrid.informes import clasificar_bajo_limite
-    from convertersmartgrid.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
+    from convertersmartgrid.adaptadores.informes import clasificar_bajo_limite
+    from convertersmartgrid.aplicacion.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
 
     informe: dict[str, Any] = {'project': plan.get('project'), 'modo': 'evaluar', 'variantes': [],
                                'avisos': [], 'cancelado': False}
@@ -4590,7 +4590,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             sabía si era por la máxima o por el valle."""
             # 087:RF-8: con la marca del plan se para también a favor, en cuanto la certeza lo permite; sigue
             # contando lo de la etapa anterior (042:RF-87), para no empezar de cero la posterior.
-            from convertersmartgrid.seleccion_bayesiana import Seguimiento
+            from convertersmartgrid.dominio.seleccion_bayesiana import Seguimiento
 
             hasta = len(sorteos) if hasta is None else hasta
             seg = Seguimiento(len(sorteos), p.cumplimiento, bayesiana=bool(plan.get('parada_bayesiana')),
@@ -5115,7 +5115,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('obras_pf.py')

@@ -19,10 +19,10 @@ from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
 
-from convertersmartgrid.salidas_red import (RedireccionRechazada, get_sin_redireccion_ajena, mismo_servidor, motivo_apagada,
+from convertersmartgrid.dominio.salidas_red import (RedireccionRechazada, get_sin_redireccion_ajena, mismo_servidor, motivo_apagada,
                                             salida_permitida)
-from convertersmartgrid.util import importar_opcional, sha256_file, write_json_atomic
-from convertersmartgrid.runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
+from convertersmartgrid.dominio.util import importar_opcional, sha256_file, write_json_atomic
+from convertersmartgrid.dominio.runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
 
 
 class DownloadError(RuntimeError):

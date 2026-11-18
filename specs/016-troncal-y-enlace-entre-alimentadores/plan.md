@@ -4,7 +4,7 @@ Estado: aprobado (2026-10-14) · Fecha: 2026-10-14
 
 ## Resumen
 
-La geometría y la topología van a un módulo puro nuevo, `src/convertersmartgrid/troncal.py`, que
+La geometría y la topología van a un módulo puro nuevo, `src/convertersmartgrid/dominio/troncal.py`, que
 se prueba sin DIgSILENT. Ese módulo calcula la troncal del camino más largo, lo que queda
 aguas abajo de un nodo, el punto más cercano sobre un trazado y el reparto de longitudes
 al partir. Los guiones de DIgSILENT (`tools/obras_pf.py` y `tools/cargas_pf.py`) solo leen
@@ -14,7 +14,7 @@ DIgSILENT en `tools/`.
 
 ## Módulos
 
-### 1. `src/convertersmartgrid/troncal.py` (nuevo) — RF-1 a RF-5, RF-15, RF-18, RF-20, RF-27, RF-28, RF-45, RF-64, RF-67
+### 1. `src/convertersmartgrid/dominio/troncal.py` (nuevo) — RF-1 a RF-5, RF-15, RF-18, RF-20, RF-27, RF-28, RF-45, RF-64, RF-67
 
 - `Red`: barras (nombre, kV, GPS opcional) y tramos (nombre, dos barras, longitud,
   cerrado y en servicio, cable o aéreo, trazado GPS opcional). Es lo que lee el guion.
@@ -47,7 +47,7 @@ Alternativa descartada: calcular la troncal con `ComBbone`, que ya usan el N-1 y
 transferencia. No da troncal sin enlace (el caso de IN111), y RF-10 la deja para esos dos
 usos.
 
-### 2. `src/convertersmartgrid/obras_pf.py` — RF-6 a RF-9, RF-11 a RF-14, RF-23 a RF-25, RF-31, RF-38, RF-39, RF-41, RF-51 a RF-53, RF-57, RF-59, RF-61, RF-65, RF-66
+### 2. `src/convertersmartgrid/aplicacion/obras_pf.py` — RF-6 a RF-9, RF-11 a RF-14, RF-23 a RF-25, RF-31, RF-38, RF-39, RF-41, RF-51 a RF-53, RF-57, RF-59, RF-61, RF-65, RF-66
 
 - `CLASES` suma `'enlace'` y `'migracion'`. `Obra` suma `toda_troncal`, `tipo_cable`,
   `recibe`, `minima_m`, `origen`, `destino` y `nodo`.
@@ -89,7 +89,7 @@ usos.
   en «Con proyecto» (RF-11). Si «Con proyecto» no existe, `casos_pf` lo crea después
   (RF-12, 014:RF-18).
 
-### 4. `tools/cargas_pf.py` y `src/convertersmartgrid/cargas_pf.py` — RF-45 a RF-50, RF-73
+### 4. `tools/cargas_pf.py` y `src/convertersmartgrid/aplicacion/cargas_pf.py` — RF-45 a RF-50, RF-73
 
 - La búsqueda de la barra más cercana (`cercanas`, RF-24 de la 007) pasa a
   `troncal.punto_en_troncal` sobre la troncal de cada alimentador marcado, leída una vez
@@ -118,7 +118,7 @@ distinto `uknom`, no se calcula ese enlace y se dice (RF-63). Encontrar el enlac
 
 ### 6. Web — RF-68 a RF-73
 
-- `src/convertersmartgrid/web/services.py` y `app.py`: los campos nuevos de la obra pasan por
+- `src/convertersmartgrid/presentacion/web/services.py` y `app.py`: los campos nuevos de la obra pasan por
   `validar_obra`, sin un esquema aparte. `minima_m` llega al plan de cargas.
 - `frontend/src/components/ObrasPF.tsx`: clases «Enlace entre alimentadores» y «Migración
   de SED a otra tensión»; casilla «toda la troncal» y tipo de cable en la sección; campo
@@ -184,7 +184,7 @@ Cada prueba cita `016:RF-n`.
 
 ## Trazado del enlace por la vía (RF-81 a RF-87, 2026-10-16)
 
-- `src/convertersmartgrid/vias.py`, sin DIgSILENT: `ruta_por_vias(a, b, config, pedir=…)` pide a un
+- `src/convertersmartgrid/aplicacion/vias.py`, sin DIgSILENT: `ruta_por_vias(a, b, config, pedir=…)` pide a un
   servidor OSRM (`/route/v1/driving/lon,lat;lon,lat?overview=full&geometries=geojson`)
   la ruta entre los dos extremos y devuelve los puntos (extremo, ruta, extremo), el largo
   por la vía más los accesos, la recta, los metros fuera de vía (`waypoints[].distance`)

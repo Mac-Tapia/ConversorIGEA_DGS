@@ -6,9 +6,9 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
 
 #: Lo que «entiende» el Transformer falso de cada orden de estas pruebas.
 ORDENES = {
@@ -85,7 +85,7 @@ def test_lo_que_solo_lee_se_lanza_sin_confirmar(client, monkeypatch):
     """026:RF-9 / 026:RF-10 — buscar la máxima solo lee los libros: se lanza solo, por la misma ruta y el mismo
     carril que la pestaña. Leer los proyectos de DIgSILENT ya no es de estas: ocupa la licencia (086:RF-24)."""
     monkeypatch.setattr(services, '_asistente_requisitos', lambda *_a, **_k: None)
-    from convertersmartgrid.asistente import ejecutor
+    from convertersmartgrid.aplicacion.asistente import ejecutor
 
     monkeypatch.setattr(ejecutor, 'pasos', lambda *_a, **_k: [ejecutor.Paso('versión', 'GET', '/api/health', espera=False)])
     r = _orden(client, _wid(client), 'busca la maxima')
@@ -209,7 +209,7 @@ def test_un_reintento_con_el_error_y_vuelta_al_operador(client, monkeypatch):
 
 def test_revisar_tras_error_propone_al_operador():
     """027:RF-20 — con otros datos u otra tarea, no se ejecuta solo: vuelve al operador."""
-    from convertersmartgrid.asistente.ejecutor import revisar_tras_error
+    from convertersmartgrid.aplicacion.asistente.ejecutor import revisar_tras_error
 
     datos = {'alimentadores': [{'valor': 'IN111'}]}
     assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x')['accion'] == 'reintentar'
@@ -226,7 +226,7 @@ def test_revisar_tras_error_propone_al_operador():
 def test_senales_preferencias_y_reflexiones(client, monkeypatch):
     """027:RF-35 / 027:RF-36 / 027:RF-37 — confirmar es recompensa; corregir, penalización con
     par de preferencia y nota; rechazar, penalización; el registro las suma por tarea."""
-    from convertersmartgrid.asistente import senales
+    from convertersmartgrid.aplicacion.asistente import senales
 
     monkeypatch.setattr(services, 'gemelo_entrenar', lambda ws, ctx, forzar=False: {'entrenado': True})
     wid = _wid(client)
@@ -250,7 +250,7 @@ def test_senales_preferencias_y_reflexiones(client, monkeypatch):
 def test_orden_parecida_lleva_su_nota_y_sus_ejemplos(client, monkeypatch):
     """027:RF-37 / 027:RF-39 — tras un fallo, una orden parecida llega a Ollama con la nota del
     fallo y las órdenes confirmadas más parecidas."""
-    from convertersmartgrid.asistente import senales
+    from convertersmartgrid.aplicacion.asistente import senales
 
     almacen.anotar('ejemplos', {'texto': 'convierte el alimentador IN111', 'tarea': 'convertir',
                                 'datos': [], 'origen': 'confirmado'})

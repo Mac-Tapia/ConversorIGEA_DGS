@@ -58,7 +58,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     serviceWorkers: 'block',
   },
-  webServer: [servidor(`-m convertersmartgrid.web`, puerto, carpeta),
+  webServer: [servidor(`-m convertersmartgrid.presentacion.web`, puerto, carpeta),
     // 109 T19: la misma web con la nube simulada (tests/e2e_web_nube_simulada.py), en el puerto siguiente y con sus
     // propias carpetas, para el recorrido del selector único (f05). Los demás recorridos no la usan.
     servidor(`"${join(RAIZ, 'tests', 'e2e_web_nube_simulada.py')}"`, puertoNube, carpetaNube)],

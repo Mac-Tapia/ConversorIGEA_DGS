@@ -20,7 +20,7 @@ pytest.importorskip('python_calamine')
 openpyxl = pytest.importorskip('openpyxl')
 
 from apoyo import cargar_herramienta, esperar_trabajo  # noqa: E402
-from convertersmartgrid import demanda_medida as dm  # noqa: E402
+from convertersmartgrid.aplicacion import demanda_medida as dm  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parents[1]
 T0 = datetime(2026, 3, 1)
@@ -242,7 +242,7 @@ pytest.importorskip('fastapi')
 pytest.importorskip('httpx2')
 from test_ajuste_cabecera_web import _plan, _recibido, client  # noqa: E402,F401
 from test_demanda_medida_web import _xlsx  # noqa: E402
-from convertersmartgrid.web import services  # noqa: E402
+from convertersmartgrid.presentacion.web import services  # noqa: E402
 
 CON_TENSION = {'M1': [['Local Time', 'kVAR tot', 'kW tot', 'Vll avg mean']]
                + [[datetime(2026, 7, 1) + timedelta(minutes=15 * i), 10.0, 100.0 + i, 23000.0 + 67.0 * i]

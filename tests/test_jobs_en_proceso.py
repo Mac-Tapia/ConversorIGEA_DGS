@@ -7,7 +7,7 @@ import threading
 
 import pytest
 
-from convertersmartgrid.web import jobs
+from convertersmartgrid.presentacion.web import jobs
 
 
 def ocupado(segundos, *, progreso, log, cancelado):
@@ -59,7 +59,7 @@ def test_muerte_real_del_trabajador_libera_carril_y_conserva_error(tmp_path):
 def cliente(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:

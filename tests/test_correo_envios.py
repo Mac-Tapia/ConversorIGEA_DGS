@@ -11,8 +11,8 @@ import pytest
 
 from correo_simulado import CompartidorSimulado, CredencialesSimuladas, ProveedorSimulado, sin_red  # noqa: F401
 
-from convertersmartgrid.correo import borrador as b
-from convertersmartgrid.correo import envios as e
+from convertersmartgrid.adaptadores.correo import borrador as b
+from convertersmartgrid.adaptadores.correo import envios as e
 
 
 @pytest.fixture(autouse=True)
@@ -238,10 +238,10 @@ def test_un_recibo_roto_no_tumba_el_historial(tmp_path):
 
 def test_los_recibos_viajan_en_la_copia_y_la_retencion_no_los_borra(tmp_path):
     """110:RF-8 — <espacio>/envios/ va en la copia de datos (086) y la limpieza diaria (062) no lo toca."""
-    from convertersmartgrid.web.copia_datos import crear_copia
-    from convertersmartgrid.web.jobs import JobManager
-    from convertersmartgrid.web.retencion import RetencionDiaria
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.copia_datos import crear_copia
+    from convertersmartgrid.presentacion.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.retencion import RetencionDiaria
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     raiz = tmp_path / 'web'
     store = WorkspaceStore(raiz)
@@ -326,7 +326,7 @@ def test_enlace_se_ofrece_si_los_adjuntos_pasan_del_limite(tmp_path):
 # ------------------------------------------------------------------ salida apagada y reserva hecha por la ruta (RF-7, RF-9)
 def test_salida_apagada_es_rechazado_y_no_desconocido(tmp_path):
     """110:RF-9 — con la salida a la red apagada (086:RF-22) nada salió: rechazado, y admite otro intento."""
-    from convertersmartgrid.salidas_red import SalidaApagada
+    from convertersmartgrid.dominio.salidas_red import SalidaApagada
 
     class Apagado(ProveedorSimulado):
         def enviar(self, mensaje, *, token):

@@ -21,7 +21,7 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO / 'src') not in sys.path:
     sys.path.insert(0, str(REPO / 'src'))
 
-from convertersmartgrid.digital_twin import pronostico as pr  # noqa: E402
+from convertersmartgrid.adaptadores.digital_twin import pronostico as pr  # noqa: E402
 
 CADENCIA_MIN = 15
 ZONA_HORARIA = 'America/Lima'
@@ -40,7 +40,7 @@ def entrenar_un_alimentador(codigo: str, fuentes_base: dict, salida_base: Path, 
     """Entrena ``codigo`` y deja su modelo y su ``resultado.json``; uno ya entrenado se devuelve tal cual."""
     import numpy as np
 
-    from convertersmartgrid.pronostico_demanda import Fuentes, armar_dataset
+    from convertersmartgrid.adaptadores.pronostico_demanda import Fuentes, armar_dataset
 
     salida = salida_base / codigo
     salida.mkdir(parents=True, exist_ok=True)
@@ -104,8 +104,8 @@ def main(argv=None) -> int:
     p.add_argument('--limite', type=int, help='Solo los N primeros alimentadores del libro')
     args = p.parse_args(argv)
 
-    from convertersmartgrid.pronostico_demanda import equivalencias
-    from convertersmartgrid.training_coordinator import dispositivo, exigir_memoria_ml
+    from convertersmartgrid.adaptadores.pronostico_demanda import equivalencias
+    from convertersmartgrid.aplicacion.training_coordinator import dispositivo, exigir_memoria_ml
 
     print(f'Dispositivo: {dispositivo()}', flush=True)       # sin CUDA, error claro (gemelo en GPU)
     exigir_memoria_ml(minimo_fisico_gib=1.0, minimo_commit_gib=4.0)

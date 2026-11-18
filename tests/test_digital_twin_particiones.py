@@ -8,8 +8,8 @@ from __future__ import annotations
 import os
 import random
 
-from convertersmartgrid.digital_twin import oraculo
-from convertersmartgrid.digital_twin.oraculo import muestra
+from convertersmartgrid.adaptadores.digital_twin import oraculo
+from convertersmartgrid.adaptadores.digital_twin.oraculo import muestra
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED') or random.randrange(1_000_000))
 

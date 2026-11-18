@@ -10,17 +10,17 @@ Base leída: `trabajo/plan-maestro-specs@51895566`. Lo que ya existe y se reutil
 
 | Pieza existente | Qué aporta a la 110 |
 | --- | --- |
-| `src/convertersmartgrid/informe_docx.py` (`escribir_informe_estudio`, `escribir_informe_factibilidad`, `escribir_resumen_estudios`, `_guardar`) | Los informes Word y su resumen `.json`, publicados a la vez y de forma atómica. Ese par publicado es lo que esta spec llama **informe cerrado**. La 110 no escribe informes: los lee |
-| `src/convertersmartgrid/libro_informe.py` (`generar_libro`) e `informe_docx.exportar_pdf` | El libro `.xlsx` y el PDF del mismo informe, que la ventana ofrece como adjuntos (los campos `informe`, `pdf`, `libro_xlsx` y `json` del resultado que ya pinta `InformesPF.tsx`) |
-| `src/convertersmartgrid/informes.py` (`asunto_propuesto`) | El asunto inicial de la ventana, editable |
-| `src/convertersmartgrid/archivo_informes.py` (`_huella`) | La huella SHA-256 por bloques de un fichero. Se reutiliza la misma función (se hace pública como `huella_fichero` en ese módulo, sin cambiar su comportamiento) |
-| `src/convertersmartgrid/identify.py` (`identificar`, `es_base_access`, `fuente_de`) | Reconoce por su contenido un TXT de CYMDIST, una base MDB o una fuente VNR: es la lista negra de adjuntos de RF-11 |
-| `src/convertersmartgrid/asistente/equipo.py` (`GobiernoEquipo`, `_huella`, `PermisoDenegado`) y `asistente/tareas.py` | La forma de sellar lo que el operador vio (firma del plan, alcance y huellas de entrada, `confirmar` que vuelve a comprobarlo) y la frontera HTTP del ejecutor (`autorizar_peticion`). La 110 copia el patrón en su borrador, no el código, y añade una prueba de que ningún paso de ningún plan puede alcanzar la ruta de confirmación del envío |
-| `src/convertersmartgrid/asistente/almacen.py` (`anotar`) | Bitácora de solo añadir, con `fsync`. Se usa para la fila de auditoría `correo_envios` del asistente cuando un borrador nace de una orden |
-| `src/convertersmartgrid/web/jobs.py` (`JobManager.submit`, `LANES`, `DiarioTrabajos`) | El envío es un trabajo en cola (P7). Se encola **sin** `reanudar`, para que la 096 nunca lo relance solo tras un reinicio |
-| `src/convertersmartgrid/web/seguridad.py` | `Origin` propio, token de sesión y `_SinTokenEnElRegistro`. Se añade un filtro hermano que enmascara direcciones y tokens del correo |
-| `src/convertersmartgrid/salidas_red.py` (`SALIDAS`, `exigir_salida`) | Cada salida a la red declarada con su interruptor; `tests/test_seguridad_web.py` falla si un módulo abre la red sin estar ahí |
-| `src/convertersmartgrid/web/*_api.py` (`copia_datos_api.registrar_rutas_copia` como modelo) y `web/api_contract.py` | Patrón de rutas en su propio módulo, registradas desde `create_app` con una llamada, y modelos de respuesta tipados |
+| `src/convertersmartgrid/adaptadores/informe_docx.py` (`escribir_informe_estudio`, `escribir_informe_factibilidad`, `escribir_resumen_estudios`, `_guardar`) | Los informes Word y su resumen `.json`, publicados a la vez y de forma atómica. Ese par publicado es lo que esta spec llama **informe cerrado**. La 110 no escribe informes: los lee |
+| `src/convertersmartgrid/adaptadores/libro_informe.py` (`generar_libro`) e `informe_docx.exportar_pdf` | El libro `.xlsx` y el PDF del mismo informe, que la ventana ofrece como adjuntos (los campos `informe`, `pdf`, `libro_xlsx` y `json` del resultado que ya pinta `InformesPF.tsx`) |
+| `src/convertersmartgrid/adaptadores/informes.py` (`asunto_propuesto`) | El asunto inicial de la ventana, editable |
+| `src/convertersmartgrid/adaptadores/archivo_informes.py` (`_huella`) | La huella SHA-256 por bloques de un fichero. Se reutiliza la misma función (se hace pública como `huella_fichero` en ese módulo, sin cambiar su comportamiento) |
+| `src/convertersmartgrid/adaptadores/identify.py` (`identificar`, `es_base_access`, `fuente_de`) | Reconoce por su contenido un TXT de CYMDIST, una base MDB o una fuente VNR: es la lista negra de adjuntos de RF-11 |
+| `src/convertersmartgrid/aplicacion/asistente/equipo.py` (`GobiernoEquipo`, `_huella`, `PermisoDenegado`) y `asistente/tareas.py` | La forma de sellar lo que el operador vio (firma del plan, alcance y huellas de entrada, `confirmar` que vuelve a comprobarlo) y la frontera HTTP del ejecutor (`autorizar_peticion`). La 110 copia el patrón en su borrador, no el código, y añade una prueba de que ningún paso de ningún plan puede alcanzar la ruta de confirmación del envío |
+| `src/convertersmartgrid/aplicacion/asistente/almacen.py` (`anotar`) | Bitácora de solo añadir, con `fsync`. Se usa para la fila de auditoría `correo_envios` del asistente cuando un borrador nace de una orden |
+| `src/convertersmartgrid/presentacion/web/jobs.py` (`JobManager.submit`, `LANES`, `DiarioTrabajos`) | El envío es un trabajo en cola (P7). Se encola **sin** `reanudar`, para que la 096 nunca lo relance solo tras un reinicio |
+| `src/convertersmartgrid/presentacion/web/seguridad.py` | `Origin` propio, token de sesión y `_SinTokenEnElRegistro`. Se añade un filtro hermano que enmascara direcciones y tokens del correo |
+| `src/convertersmartgrid/dominio/salidas_red.py` (`SALIDAS`, `exigir_salida`) | Cada salida a la red declarada con su interruptor; `tests/test_seguridad_web.py` falla si un módulo abre la red sin estar ahí |
+| `src/convertersmartgrid/presentacion/web/*_api.py` (`copia_datos_api.registrar_rutas_copia` como modelo) y `web/api_contract.py` | Patrón de rutas en su propio módulo, registradas desde `create_app` con una llamada, y modelos de respuesta tipados |
 | `frontend/src/features/powerfactory/InformesPF.tsx` (`Resultado`) y `frontend/src/app/ArchivoInformes.tsx` | Donde hoy se descarga cada informe: allí aparece «Enviar por correo» y el historial. No se quita ningún botón |
 | Spec 109 (credenciales cifradas 109:RF-2, consentimiento 109:RF-1, permiso de lectura 109:RF-10, recibos 109:RF-12) | Token del proveedor y concesión del acceso de un enlace. La 110 lo consume por la interfaz que fije el plan de 109 |
 
@@ -28,12 +28,12 @@ Módulos nuevos, con su ruta propuesta (todos entran en `CODIGO_FUENTE.md` y en 
 
 | Fichero nuevo | Responsabilidad |
 | --- | --- |
-| `src/convertersmartgrid/correo/__init__.py` | Paquete del envío de informes; sin dependencias fuera de la biblioteca estándar y `requests` |
-| `src/convertersmartgrid/correo/borrador.py` | `Borrador` (cuenta, para, cc, cco, asunto, cuerpo, adjuntos con ruta, tamaño y SHA-256, o enlace), su **firma**, la comprobación de adjuntos (cerrado, mismo proyecto y escenario, lista negra), la validez del estudio y el aviso de contactos habituales |
-| `src/convertersmartgrid/correo/envios.py` | Diario durable de envíos por espacio: reserva de la clave, estados, recibos, historial por informe y reconciliación al arrancar |
-| `src/convertersmartgrid/correo/mensaje.py` | El mensaje MIME con `email.message.EmailMessage` (biblioteca estándar), con `Message-ID` derivado de la clave |
-| `src/convertersmartgrid/correo/proveedores.py` | `ProveedorCorreo` (Protocol) y sus dos adaptadores, `EnvioGmail` (`gmail.send`) y `EnvioOutlook` (`Mail.Send`), con `requests`, sin redirecciones y con plazo; la tabla de errores a estados |
-| `src/convertersmartgrid/web/correo_api.py` | `registrar_rutas_correo(app, *, ws_or_404, submit, credenciales, compartir)`: vista previa, confirmación, estado e historial |
+| `src/convertersmartgrid/puertos/correo/__init__.py` | Paquete del envío de informes; sin dependencias fuera de la biblioteca estándar y `requests` |
+| `src/convertersmartgrid/adaptadores/correo/borrador.py` | `Borrador` (cuenta, para, cc, cco, asunto, cuerpo, adjuntos con ruta, tamaño y SHA-256, o enlace), su **firma**, la comprobación de adjuntos (cerrado, mismo proyecto y escenario, lista negra), la validez del estudio y el aviso de contactos habituales |
+| `src/convertersmartgrid/adaptadores/correo/envios.py` | Diario durable de envíos por espacio: reserva de la clave, estados, recibos, historial por informe y reconciliación al arrancar |
+| `src/convertersmartgrid/adaptadores/correo/mensaje.py` | El mensaje MIME con `email.message.EmailMessage` (biblioteca estándar), con `Message-ID` derivado de la clave |
+| `src/convertersmartgrid/adaptadores/correo/proveedores.py` | `ProveedorCorreo` (Protocol) y sus dos adaptadores, `EnvioGmail` (`gmail.send`) y `EnvioOutlook` (`Mail.Send`), con `requests`, sin redirecciones y con plazo; la tabla de errores a estados |
+| `src/convertersmartgrid/presentacion/web/correo_api.py` | `registrar_rutas_correo(app, *, ws_or_404, submit, credenciales, compartir)`: vista previa, confirmación, estado e historial |
 | `frontend/src/api/correo.ts` | Cliente tipado de esas rutas |
 | `frontend/src/features/powerfactory/EnviarInforme.tsx` | La ventana de envío y el historial de envíos de un informe |
 | `tests/correo_simulado.py` | Proveedor simulado (como `tests/fake_pf.py`): acepta, rechaza, tarda más que el plazo, acepta y luego no responde, revoca el token |
@@ -42,23 +42,23 @@ Módulos nuevos, con su ruta propuesta (todos entran en `CODIGO_FUENTE.md` y en 
 
 Ficheros existentes que se tocan, y cuánto:
 
-- `src/convertersmartgrid/web/jobs.py`: un carril más en `LANES` (`'correo'`), y nada más.
-- `src/convertersmartgrid/salidas_red.py`: dos entradas, `correo_google` (`CSG_SALIDA_CORREO_GOOGLE`, host
+- `src/convertersmartgrid/presentacion/web/jobs.py`: un carril más en `LANES` (`'correo'`), y nada más.
+- `src/convertersmartgrid/dominio/salidas_red.py`: dos entradas, `correo_google` (`CSG_SALIDA_CORREO_GOOGLE`, host
   `gmail.googleapis.com`) y `correo_microsoft` (`CSG_SALIDA_CORREO_MICROSOFT`, host `graph.microsoft.com`), apagadas en
   la edición de producto como las demás. **Punto de coordinación con 109**, que también añade las suyas: un solo
   escritor por vez sobre ese fichero.
-- `src/convertersmartgrid/web/seguridad.py`: el filtro `_SinCorreoEnElRegistro`.
-- `src/convertersmartgrid/web/api_contract.py`: los modelos `CorreoVistaPrevia`, `CorreoConfirmacion`, `CorreoEnvio`,
+- `src/convertersmartgrid/presentacion/web/seguridad.py`: el filtro `_SinCorreoEnElRegistro`.
+- `src/convertersmartgrid/presentacion/web/api_contract.py`: los modelos `CorreoVistaPrevia`, `CorreoConfirmacion`, `CorreoEnvio`,
   `CorreoHistorial`.
-- `src/convertersmartgrid/archivo_informes.py`: `_huella` pasa a llamarse `huella_fichero` (con alias `_huella`), sin
+- `src/convertersmartgrid/adaptadores/archivo_informes.py`: `_huella` pasa a llamarse `huella_fichero` (con alias `_huella`), sin
   cambiar lo que hace.
-- `src/convertersmartgrid/web/app.py`: **mínimo, pactado con el integrador f9**: dos líneas en el bloque de módulos
+- `src/convertersmartgrid/presentacion/web/app.py`: **mínimo, pactado con el integrador f9**: dos líneas en el bloque de módulos
   (`from .correo_api import registrar_rutas_correo` y su llamada), igual que `registrar_rutas_copia`, y la llamada a
   `envios.reconciliar_al_arrancar` dentro de esa misma función de registro, no en el arranque de `app.py`.
 - `frontend/src/features/powerfactory/InformesPF.tsx` y `frontend/src/app/ArchivoInformes.tsx`: un botón «Enviar por
   correo» junto a «Descargar Word» y el historial bajo el resultado. Nada se quita.
 
-**No se tocan** `src/convertersmartgrid/web/services.py`, `pide_economia.py` ni el adaptador VNR
+**No se tocan** `src/convertersmartgrid/presentacion/web/services.py`, `pide_economia.py` ni el adaptador VNR
 (`adaptadores/entrada/vnr/`), que corrige f9 (H1–H14). La 110 no necesita nada de `services.py`: el resumen JSON del
 informe está en disco, en la salida del espacio, y se lee desde allí. Tampoco se toca `asistente/tareas.py`, que tiene
 cambios sin integrar en `wt_asistente_plazos` (ver RF-6 en Decisiones).

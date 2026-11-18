@@ -145,7 +145,7 @@ export function construir(frontend, entorno = process.env) {
     if (!existsSync(join(temporal, 'index.html'))) throw new Error('La compilación no produjo index.html; se conserva dist anterior.');
     const pythonLocal = process.platform === 'win32' ? join(rutas.principal, '.venv', 'Scripts', 'python.exe') : join(rutas.principal, '.venv', 'bin', 'python');
     const python = entorno.CSG_PYTHON || (existsSync(pythonLocal) ? pythonLocal : 'python');
-    const validacion = spawnSync(python, ['-I', '-B', join(rutas.checkout, 'src', 'convertersmartgrid', 'web', 'runtime.py'), '--validate-dist', temporal], { cwd: frontend, env, stdio: 'inherit' });
+    const validacion = spawnSync(python, ['-I', '-B', join(rutas.checkout, 'src', 'convertersmartgrid', 'presentacion', 'web', 'runtime.py'), '--validate-dist', temporal], { cwd: frontend, env, stdio: 'inherit' });
     if (validacion.error) throw validacion.error;
     if (validacion.status !== 0) throw new Error('La salida contiene una referencia local faltante o inválida; se conserva dist anterior.');
     const diarioCompleto = join(ejecucion, 'publicacion.json');

@@ -35,15 +35,15 @@ for _flujo in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # pragma: no cover
         pass
 
-from convertersmartgrid.combine import build_combined  # noqa: E402
-from convertersmartgrid.dgs import write_dgs  # noqa: E402
+from convertersmartgrid.aplicacion.combine import build_combined  # noqa: E402
+from convertersmartgrid.adaptadores.dgs import write_dgs  # noqa: E402
 
 
 def _cargar_dataset(args: argparse.Namespace):
     if args.mdb:
-        from convertersmartgrid.access import read_access_dataset
+        from convertersmartgrid.adaptadores.access import read_access_dataset
         return read_access_dataset(args.mdb, equipment_path=args.equipment_mdb)
-    from convertersmartgrid.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
     return CymdistDataset.from_files(args.red, args.cargas, args.equipos)
 
 
@@ -75,7 +75,7 @@ def _importar_en_powerfactory(dgs: Path, nombre: str, *, run_ldf: bool,
     # 064:RF-1: el turno del motor, el vigía y el reintento del 4002 del arnés; sin
     # él, este guion conectaba por su cuenta y otro proceso recibía «error 4002».
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
     try:
         app = conectar('build_system_grid.py')
     except PFNoDisponible as exc:
@@ -170,7 +170,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if args.catalogo is not None:
-        from convertersmartgrid.catalog import (
+        from convertersmartgrid.aplicacion.catalog import (
             CATALOG_FILENAME, CatalogError, aplicar_correcciones, input_dir,
             leer_catalogo,
         )
@@ -195,8 +195,8 @@ def main(argv: list[str] | None = None) -> int:
 
     geografia = None
     if not args.sin_geografia:
-        from convertersmartgrid.geography import assert_metre_source_crs, build_geography, exigir_crs_origen
-        from convertersmartgrid.perfil_empresa import crs_o_perfil
+        from convertersmartgrid.adaptadores.geography import assert_metre_source_crs, build_geography, exigir_crs_origen
+        from convertersmartgrid.dominio.perfil_empresa import crs_o_perfil
         args.source_crs = exigir_crs_origen(crs_o_perfil(args.source_crs))
         assert_metre_source_crs(args.source_crs)
         geografia = build_geography(ds, modelo, source_crs=args.source_crs)

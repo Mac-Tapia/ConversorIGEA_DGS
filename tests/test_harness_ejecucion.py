@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 from test_harness_contratos import configuracion
 
-from convertersmartgrid.evaluacion_harness.contratos import huella, sellar
-from convertersmartgrid.evaluacion_harness.ejecucion import (
+from convertersmartgrid.dominio.evaluacion_harness.contratos import huella, sellar
+from convertersmartgrid.aplicacion.evaluacion_harness.ejecucion import (
     ejecutar,
     validar_integridad,
     validar_promocion,
@@ -67,7 +67,7 @@ class EjecucionTest(unittest.TestCase):
                                  'clase_evidencia': 'real'} for t in evaluadores(cfg)}
         r = ejecutar(cfg, doble, modo='runtime', evaluadores=ev)
         validar_promocion(r, cfg)
-        with (patch.dict('convertersmartgrid.evaluacion_harness.ejecucion._RUNTIME_VIVOS', {}, clear=True),
+        with (patch.dict('convertersmartgrid.aplicacion.evaluacion_harness.ejecucion._RUNTIME_VIVOS', {}, clear=True),
               self.assertRaisesRegex(ValueError, 'vivo')):
             validar_promocion(r, cfg)
 

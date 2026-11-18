@@ -89,7 +89,7 @@ def test_subproceso_no_escribe_en_almacen_heredado(tmp_path,monkeypatch,candidat
 @pytest.mark.parametrize('manual', [False, True])
 def test_caches_del_verificador_son_reconfigurables_sin_mover_sus_datos(tmp_path, monkeypatch, manual):
     """065:RF-10, 065:RF-24 — caché automática reubicable; override manual y datos aislados se conservan."""
-    from convertersmartgrid.runtime_paths import configurar_entorno
+    from convertersmartgrid.dominio.runtime_paths import configurar_entorno
     root = tmp_path / 'checkout'
     root.mkdir()
     env = runner()._entorno(tmp_path / 'ejecucion', {})

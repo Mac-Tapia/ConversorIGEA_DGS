@@ -602,7 +602,7 @@ def test_el_flujo_guarda_la_geografia_para_las_imagenes_del_informe():
 def test_sin_gps_el_flujo_guarda_la_topologia_para_el_esquematico():
     """017:RF-12 — un alimentador sin coordenadas guarda sus barras con su tensión y sus
     tramos con sus dos barras y su cargabilidad, para dibujar el esquemático."""
-    from convertersmartgrid.mapa_informe import esquematico
+    from convertersmartgrid.adaptadores.mapa_informe import esquematico
 
     app, feeders = _red(random.Random(6))
     for barra in app.proyecto.GetContents('*.ElmTerm', 1):

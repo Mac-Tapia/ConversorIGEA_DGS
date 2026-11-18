@@ -17,7 +17,7 @@ if str(REPO/'src') not in sys.path:sys.path.insert(0,str(REPO/'src'))
 
 def _objetivos(args):
     """Los objetivos de la clase pedida, con los lectores de la medición (046:RF-9 a RF-11)."""
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import objetivos_de_cabecera,objetivos_de_clientes
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import objetivos_de_cabecera,objetivos_de_clientes
     rutas=([args.cabeceras] if args.cabeceras else [])+list(args.libro or [])
     if not rutas:raise ValueError('indique el libro de la medición')
     if not args.clase:raise ValueError('indique --clase cabecera o cliente')
@@ -30,27 +30,27 @@ def _objetivos(args):
         centrales[alimentador]=dict(zip(('generacion','llegada','salida'),medidores.split(','),strict=True))
     if args.tramo_comun and not pares and not centrales and len(rutas)==1:
         # 050:RF-22: el mismo criterio con que el ciclo preparó sus muestras.
-        from convertersmartgrid.digital_twin.temporal_entrenamiento import objetivos_del_ciclo
+        from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import objetivos_del_ciclo
         return (*objetivos_del_ciclo(rutas[0],zona_horaria=args.zona_horaria,cadencia_min=args.cadencia_min),rutas)
     return (*objetivos_de_cabecera(rutas,pares,centrales=centrales),rutas)
 
 
 def _pronostico(args):
-    from convertersmartgrid.trabajadores_ml import escribir_informe,fallo,semillas_de,sha_archivo,turno_gpu
+    from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe,fallo,semillas_de,sha_archivo,turno_gpu
     if args.output_json.exists():print('Informe existente conservado');return 2
     try:
         objetivos,apartados,rutas=_objetivos(args)
         if args.inventario:
-            from convertersmartgrid.digital_twin.temporal_entrenamiento import inventariar
+            from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import inventariar
             resultado={**inventariar(objetivos,cadencia_min=args.cadencia_min,zona_horaria=args.zona_horaria),'apartados':apartados}
         else:
-            from convertersmartgrid.digital_twin.pronostico import NEURONALES
-            from convertersmartgrid.digital_twin.temporal_entrenamiento import comparar_pronosticos
-            from convertersmartgrid.model_registry import RegistroModelo
+            from convertersmartgrid.adaptadores.digital_twin.pronostico import NEURONALES
+            from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import comparar_pronosticos
+            from convertersmartgrid.aplicacion.model_registry import RegistroModelo
             algoritmos=tuple(a.strip() for a in args.comparar.split(',') if a.strip())
             if args.registro:registro=RegistroModelo(args.registro)
             else:
-                from convertersmartgrid.asistente import almacen
+                from convertersmartgrid.aplicacion.asistente import almacen
                 registro=RegistroModelo(almacen.raiz()/'model_registry')
             ajustes={k:v for k,v in (('pasos',args.pasos),('lote',args.lote),('contexto_pasos',args.contexto_modelo)) if v}
             hojas=[p for p in rutas if p.is_file()]
@@ -65,7 +65,7 @@ def _pronostico(args):
                     publicar_individual=not args.sin_publicar)
             if set(algoritmos)&set(NEURONALES):
                 # La guardia y el margen de memoria, solo si compite una red: las referencias no los piden.
-                from convertersmartgrid.training_coordinator import exigir_memoria_ml
+                from convertersmartgrid.aplicacion.training_coordinator import exigir_memoria_ml
                 exigir_memoria_ml(3.,minimo_commit_gib=6.)
                 with turno_gpu('pronostico-temporal'):resultado=correr()
             else:resultado=correr()
@@ -110,8 +110,8 @@ def main(argv=None):
     p.add_argument('--hasta',help='Fin ISO exclusivo del alcance, fijado antes del ajuste')
     args=p.parse_args(argv)
     if args.reabrir_candidato:
-        from convertersmartgrid.digital_twin.temporal_entrenamiento import reabrir_candidato
-        from convertersmartgrid.trabajadores_ml import fallo,turno_gpu
+        from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import reabrir_candidato
+        from convertersmartgrid.aplicacion.trabajadores_ml import fallo,turno_gpu
         try:
             with turno_gpu('pronostico-reapertura'):resultado=reabrir_candidato(args.reabrir_candidato)
         except Exception as exc:resultado={**fallo(exc),'ok':False}
@@ -120,17 +120,17 @@ def main(argv=None):
     if not args.raiz or not args.output_json:p.error('indique --raiz y --output-json')
     if args.inventario or args.comparar:return _pronostico(args)
     if not args.cabeceras and not args.reabrir:p.error('--libro solo vale con --inventario o --comparar')
-    from convertersmartgrid.trabajadores_ml import escribir_informe,fallo,semillas_de,turno_gpu,sha_archivo
+    from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe,fallo,semillas_de,turno_gpu,sha_archivo
     if args.output_json.exists():print('Informe existente conservado');return 2
     try:
-        from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras,entrenar_temporal,reabrir_temporal
+        from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import cargar_cabeceras,entrenar_temporal,reabrir_temporal
         if args.cabeceras:
             series,procedencia=cargar_cabeceras(args.cabeceras,zona_horaria=args.zona_horaria,
                 codigos=tuple(v.strip() for v in (args.codigos or '').split(',') if v.strip()),
                 hojas=tuple(args.hoja),desde=args.desde,hasta=args.hasta)
             semillas=semillas_de(args.semillas)
             if args.epocas<1:raise ValueError('epocas positivas obligatorias')
-        from convertersmartgrid.training_coordinator import exigir_memoria_ml
+        from convertersmartgrid.aplicacion.training_coordinator import exigir_memoria_ml
         exigir_memoria_ml(3.,minimo_commit_gib=6.)
         with turno_gpu('gru-temporal'):
             if args.reabrir:resultado=reabrir_temporal(args.reabrir)

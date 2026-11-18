@@ -13,13 +13,13 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import pf_arnes
-from convertersmartgrid.demanda_medida import (
+from convertersmartgrid.adaptadores import pf_arnes
+from convertersmartgrid.aplicacion.demanda_medida import (
     MOTIVO_SIN_SUMINISTRO, ClienteImportante, MaximaCabecera, Registro, cabeceras_de_hojas, completar_desde_hojas,
     maxima_de_registros,
 )
-from convertersmartgrid.web import services
-from convertersmartgrid.web.requisitos import UserError
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.requisitos import UserError
 
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
@@ -31,7 +31,7 @@ CATALOGO = (SRC / 'features' / 'powerfactory' / 'clientesCatalogo.ts').read_text
 ESTUDIOS = (SRC / 'features' / 'powerfactory' / 'EstudiosPF.tsx').read_text(encoding='utf-8')
 CARGAS = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
 API = (SRC / 'api' / 'client.ts').read_text(encoding='utf-8')
-SERVICES = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8')
+SERVICES = (RAIZ / 'src' / 'convertersmartgrid' / 'presentacion' / 'web' / 'services.py').read_text(encoding='utf-8')
 
 
 # ------------------------------------------------------------------ DIgSILENT abierto o sin conexión
@@ -204,7 +204,7 @@ def test_hoja_sin_red_cargada_no_cambia_nada(tmp_path):
 
 def test_hoja_se_lee_una_vez_mientras_el_libro_no_cambia(tmp_path, monkeypatch):
     """091:RF-13 — el plan cruza por alimentador; un libro real trae cientos de hojas."""
-    from convertersmartgrid import demanda_medida
+    from convertersmartgrid.aplicacion import demanda_medida
 
     libro = _libro(tmp_path / 'c.xlsx', {'H': [['7001'], ['SED1']]})
     aperturas = []
@@ -232,7 +232,7 @@ def test_hoja_entra_en_el_cruce_real():
 def _maxima_y_plan(tmp_path, monkeypatch, proyecto_maxima, proyecto_plan):
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     monkeypatch.setattr(services, 'demanda_cabecera', lambda *a, **k: {'resultados': [{'alimentador': 'F1'}]})
@@ -333,7 +333,7 @@ def test_estudio_de_ajuste_sin_tipo_avisa():
 
 def test_estudio_el_plan_lleva_el_aviso(tmp_path, monkeypatch):
     """091:RF-20 — el plan real del estudio sale con el aviso, no con un error."""
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     ws = WorkspaceStore(tmp_path / 'web').create()
     monkeypatch.setattr(services, 'native_action_context', lambda *a, **k: {})
@@ -438,7 +438,7 @@ def test_texto_del_resumen_de_la_carga():
 
 def test_texto_del_rechazo_de_un_libro(tmp_path):
     """091:RF-30 — decía «el tabla de la estructura»."""
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     assert 'el {DEMANDA_ETIQUETAS[tipo]} debe ser' not in SERVICES
     ws = WorkspaceStore(tmp_path / 'web').create()
@@ -456,7 +456,7 @@ def test_texto_intro_aplica_la_ruta():
 
 def test_doctor_halla_tesseract_en_sus_rutas():
     """091:RF-32 — instalado en Archivos de programa y el diagnóstico decía que no."""
-    from convertersmartgrid.web.doctor import _tesseract
+    from convertersmartgrid.presentacion.web.doctor import _tesseract
 
     assert _tesseract(lambda n: None, hallar=lambda: 'C:/x/tesseract.exe').ok
     assert not _tesseract(lambda n: None, hallar=lambda: None).ok
@@ -466,9 +466,9 @@ def test_foto_bloqueada_dice_su_motivo(tmp_path):
     """091:RF-34 — la lectura bloqueada (código 2) llega al Registro de la acción, con su motivo."""
     from test_digital_twin_integration import PERFIL, _plan as plan_del_gemelo
 
-    from convertersmartgrid.digital_twin import integration
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-    from convertersmartgrid.digital_twin.episode import Caso
+    from convertersmartgrid.adaptadores.digital_twin import integration
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.dominio.digital_twin.episode import Caso
 
     avisos = []
     out = integration.capturar_accion(

@@ -9,7 +9,7 @@ Spec: `specs/020-sed-sobrecargadas/spec.md` (aprobada el 2026-10-16).
    paralelo, cuántos hay en la SED). Calcularla en la web obligaría a mandar todo eso o a
    leer DIgSILENT otra vez. *Descartado:* un guion de propuesta aparte (otro viaje al
    motor y la misma lectura dos veces).
-2. **La regla de dimensionado es pura y vive en `src/convertersmartgrid/trafos_sed.py`.** Recibe la
+2. **La regla de dimensionado es pura y vive en `src/convertersmartgrid/aplicacion/trafos_sed.py`.** Recibe la
    demanda en kVA, la tensión primaria y las tablas del perfil, y devuelve la potencia, las
    unidades y la ficha. Se prueba sin DIgSILENT. El guion solo la llama (P5: una
    responsabilidad, un sitio). *No se reutiliza* `sed_potencia.redimensionar_sobrecargadas`
@@ -39,13 +39,13 @@ Spec: `specs/020-sed-sobrecargadas/spec.md` (aprobada el 2026-10-16).
 
 - `config/perfiles/electro_dunas.json`: `calibracion.transformadores_sed` con las dos
   tablas y el umbral del 80 %, y su `_comentario` con la fuente.
-- `src/convertersmartgrid/perfil_empresa.py`: `transformadores_sed(datos) -> dict | None`, que
+- `src/convertersmartgrid/dominio/perfil_empresa.py`: `transformadores_sed(datos) -> dict | None`, que
   devuelve las tablas válidas y los avisos de las filas descartadas (fila y perfil).
 - Pruebas: `tests/test_perfil_empresa.py`.
 
 ### B. Regla de dimensionado (RF-6, RF-7, RF-8, RF-11)
 
-- `src/convertersmartgrid/trafos_sed.py`: `tabla_para(tablas, kv_primaria)` y
+- `src/convertersmartgrid/aplicacion/trafos_sed.py`: `tabla_para(tablas, kv_primaria)` y
   `proponer(kva_carga, kv_primaria, tablas, umbral) -> dict` (potencia, unidades, ficha,
   tabla, carga prevista, o el motivo de que no haya propuesta).
 - Pruebas: `tests/test_trafos_sed.py`, con los cuatro casos de PA217 y potencias sorteadas.
@@ -84,11 +84,11 @@ Spec: `specs/020-sed-sobrecargadas/spec.md` (aprobada el 2026-10-16).
 
 ### E. Web: servicio y API (RF-15, RF-25, RF-28)
 
-- `src/convertersmartgrid/web/services.py`: `ajuste_plan` pone en el plan las tablas del perfil;
+- `src/convertersmartgrid/presentacion/web/services.py`: `ajuste_plan` pone en el plan las tablas del perfil;
   `ajuste_transformadores(ws, ctx, token, seds)` copia el plan con `transformadores` (la
   propuesta de las SED pedidas, tomada del último informe del ajuste de ese plan) y lo
   ejecuta como el aplicar de siempre, con `_guardar_calibracion` si sale válida (RF-28).
-- `src/convertersmartgrid/web/app.py`: `POST /api/workspaces/{wid}/demanda/ajuste/{token}/transformadores`
+- `src/convertersmartgrid/presentacion/web/app.py`: `POST /api/workspaces/{wid}/demanda/ajuste/{token}/transformadores`
   con `{sed: [...]}`, trabajo `ajuste_transformadores` en el carril de DIgSILENT (P7).
 - Pruebas: `tests/test_ajuste_cabecera_web.py`.
 
@@ -103,7 +103,7 @@ Spec: `specs/020-sed-sobrecargadas/spec.md` (aprobada el 2026-10-16).
 
 ### G. Índice y documentación
 
-- `CODIGO_FUENTE.md`: `src/convertersmartgrid/trafos_sed.py` con la spec 020 (`test_inventario`).
+- `CODIGO_FUENTE.md`: `src/convertersmartgrid/aplicacion/trafos_sed.py` con la spec 020 (`test_inventario`).
 - `CLAUDE.md`: fila de la 020 en la tabla de specs.
 - `specs/015-caso-base-verificado/spec.md`: nota en «Fuera de alcance» que remite a la 020.
 

@@ -3,7 +3,7 @@
 Spec 034: 034:RF-7.
 """
 
-from convertersmartgrid.model import suggest_catalog_code, _resolve_type, LineType
+from convertersmartgrid.dominio.model import suggest_catalog_code, _resolve_type, LineType
 
 
 def _lt(code: str, table: str = 'LINE') -> LineType:

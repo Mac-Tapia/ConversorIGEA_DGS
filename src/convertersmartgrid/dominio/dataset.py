@@ -5,7 +5,7 @@ sección, nodos, alimentadores y catálogo, con los índices por alimentador. Es
 dominio porque la usan el modelo, la reconstrucción y los casos de uso, que no deben
 depender del lector: antes ``model`` (dominio) importaba ``dataset`` (adaptador de
 entrada) solo para anotar sus parámetros, y la guarda de capas lo tenía por deuda. El
-lector de los TXT sigue en ``convertersmartgrid.dataset``, que extiende esta clase.
+lector de los TXT sigue en ``convertersmartgrid.adaptadores.dataset``, que extiende esta clase.
 """
 
 from __future__ import annotations
@@ -101,7 +101,7 @@ class CymdistDataset:
         return frozenset(self.feeders[network_id])
 
     def resolve_feeder(self, selector: str) -> str:
-        from ..naming import feeder_short_name, feeder_tokens
+        from .naming import feeder_short_name, feeder_tokens
 
         normalized = selector.strip().lower()
         if not normalized:

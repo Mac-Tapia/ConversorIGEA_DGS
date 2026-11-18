@@ -5,10 +5,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.asistente.ejecutor import ClienteWeb, Paso, ejecutar, pasos
-from convertersmartgrid.asistente.plan import Plan
-from convertersmartgrid.asistente.equipo import GobiernoEquipo, PermisoDenegado, inventario_equipo
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.aplicacion.asistente.ejecutor import ClienteWeb, Paso, ejecutar, pasos
+from convertersmartgrid.aplicacion.asistente.plan import Plan
+from convertersmartgrid.aplicacion.asistente.equipo import GobiernoEquipo, PermisoDenegado, inventario_equipo
 
 
 @pytest.fixture(autouse=True)
@@ -130,7 +130,7 @@ def test_exclusion_por_espacio_y_liberacion_tras_error():
 
 def test_inventario_no_otorga_permisos_por_modelo():
     """065:RF-22 — catálogo completo, permisos de ejecución solo del operador."""
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
     inventario = inventario_equipo()
     assert {t['herramienta'] for t in inventario['herramientas']} == set(TAREAS)
     assert inventario['modelos_conceden_permisos'] is False
@@ -168,7 +168,7 @@ def test_base_remota_rechazada_antes_de_enviar_datos():
 
 def test_orquestador_aplica_gobierno_a_cada_etapa_y_proceso(tmp_path):
     """065:RF-23 / 061:RF-5 — las etapas del agente no evaden los permisos."""
-    from convertersmartgrid.asistente.orquestador import Etapa, PuntoDeControl, ejecutar_proyecto
+    from convertersmartgrid.aplicacion.asistente.orquestador import Etapa, PuntoDeControl, ejecutar_proyecto
     _, _, gobierno = preparar('entrenar_asistente', rol='fuentes')
     with pytest.raises(PermisoDenegado, match='rol'):
         ejecutar_proyecto({}, cliente=ClienteWeb(HTTP(), '', 'espacio-a'),
@@ -231,7 +231,7 @@ def _claves_del_gobierno(estado):
 def test_067_rf41_el_recibo_directo_tiene_el_contrato_del_gobierno():
     """067:RF-41 — una vía que escribe sin plan deja «iniciada» y «terminada» con los mismos campos que GobiernoEquipo,
     sin plan ni confirmación que no hubo, y su salida, con su huella."""
-    from convertersmartgrid.asistente.equipo import recibo_directo
+    from convertersmartgrid.aplicacion.asistente.equipo import recibo_directo
 
     terminada = _claves_del_gobierno('terminada')
     antes = len(almacen.leer('equipo_acciones'))
@@ -249,7 +249,7 @@ def test_067_rf41_el_recibo_directo_tiene_el_contrato_del_gobierno():
 
 def test_067_rf41_el_recibo_directo_anota_el_fallo_y_no_lo_cambia():
     """067:RF-41 — el error de la vía sale igual que sin recibo, y queda «fallida» con su motivo."""
-    from convertersmartgrid.asistente.equipo import recibo_directo
+    from convertersmartgrid.aplicacion.asistente.equipo import recibo_directo
 
     fallida = _claves_del_gobierno('terminada') - {'salida', 'salida_sha256', 'alcance_final'}
     antes = len(almacen.leer('equipo_acciones'))

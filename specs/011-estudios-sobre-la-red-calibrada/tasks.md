@@ -25,7 +25,7 @@ Preparación
 
 Estudios sobre los tres casos
 
-- [x] T3. `src/convertersmartgrid/estudios_pf.py`. (RF-23, RF-24, RF-32 a RF-35, RF-37)
+- [x] T3. `src/convertersmartgrid/aplicacion/estudios_pf.py`. (RF-23, RF-24, RF-32 a RF-35, RF-37)
       Hecho cuando: `pytest -q tests/test_estudios_pf.py` en verde.
 - [x] T4. `tools/casos_pf.py`: los tres casos, escenarios por caso, variaciones por caso,
       ajustes anteriores, caso ajeno, caso activo restaurado. (RF-1 a RF-16, RF-46 a
@@ -49,7 +49,7 @@ Obras de mejora
       DGS. (RF-61)
       Hecho cuando: suite completa en verde con las tres `CSG_*` y `TestParallelWorkers`
       en verde.
-- [x] T10. `src/convertersmartgrid/obras_pf.py`: modelo y validación de cada obra, nombres de
+- [x] T10. `src/convertersmartgrid/aplicacion/obras_pf.py`: modelo y validación de cada obra, nombres de
       variación y de copias, igualdad de tipos, plan de la simulación. (RF-56, RF-59,
       RF-61 a RF-63, RF-69, RF-85)
       Hecho cuando: `pytest -q tests/test_obras_pf.py` en verde.
@@ -80,7 +80,7 @@ Transferencia de carga
       usuario en DIgSILENT. (RF-128)
       Hecho cuando: suite completa en verde con las tres `CSG_*`, `TestParallelWorkers`
       en verde y una prueba que cita `011:RF-128` con las dos disposiciones de export.
-- [x] T15b. `src/convertersmartgrid/transferencia_pf.py`: pasos, carga transferida, viabilidad,
+- [x] T15b. `src/convertersmartgrid/aplicacion/transferencia_pf.py`: pasos, carga transferida, viabilidad,
       máximo por seccionador y por nodo, elemento limitante, filas del fichero. (RF-110 a
       RF-117, RF-121)
       Hecho cuando: `pytest -q tests/test_transferencia_pf.py` en verde.

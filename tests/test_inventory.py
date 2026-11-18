@@ -5,7 +5,7 @@ Spec 034: 034:RF-28.
 
 from __future__ import annotations
 
-from convertersmartgrid.inventory import build_dataset_inventory, format_inventory_report, write_inventory
+from convertersmartgrid.aplicacion.inventory import build_dataset_inventory, format_inventory_report, write_inventory
 
 
 def test_inventory_on_referencia_dataset(ds):

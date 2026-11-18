@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Demandas y cargas nuevas en un proyecto existente de DIgSILENT (spec 004).
 
-Recibe el plan de ``convertersmartgrid.cargas_pf.armar_plan``: el proyecto, los alimentadores
+Recibe el plan de ``convertersmartgrid.aplicacion.cargas_pf.armar_plan``: el proyecto, los alimentadores
 elegidos en orden, las demandas por SED y las cargas nuevas. No necesita nada de la
 conversión: qué carga coincide y dónde se conecta cada carga nueva se decide aquí,
 mirando el proyecto (RF-1).
@@ -47,11 +47,11 @@ import traceback
 from collections import Counter
 from pathlib import Path
 
-from convertersmartgrid.cargas_pf import FRACCION_LINEA_LARGA, distancia_es, verificar_ubicacion, zona_del_alimentador
-from convertersmartgrid.native_action import native_action_block_report
-from convertersmartgrid.pf_arnes import borrar_en_su_proyecto
-from convertersmartgrid.troncal import Barra, Red, Tramo, cortar_trazado, punto_en_troncal, red_de
-from convertersmartgrid.troncal import troncal as troncal_de
+from convertersmartgrid.aplicacion.cargas_pf import FRACCION_LINEA_LARGA, distancia_es, verificar_ubicacion, zona_del_alimentador
+from convertersmartgrid.dominio.native_action import native_action_block_report
+from convertersmartgrid.adaptadores.pf_arnes import borrar_en_su_proyecto
+from convertersmartgrid.dominio.troncal import Barra, Red, Tramo, cortar_trazado, punto_en_troncal, red_de
+from convertersmartgrid.dominio.troncal import troncal as troncal_de
 
 MAX_NOMBRE = 40               # loc_name de DIgSILENT
 REFERENCIAS_DIBUJO = 12       # barras dibujadas cercanas con que se mide la escala
@@ -168,7 +168,7 @@ def _cerrado(objeto, cubiculos) -> bool:
 
 
 def leer_red(elm, cabecera=None) -> Red:
-    """La red del alimentador en el caso activo, para ``convertersmartgrid.troncal`` (016:RF-2).
+    """La red del alimentador en el caso activo, para ``convertersmartgrid.dominio.troncal`` (016:RF-2).
 
     Tramos son sus líneas y sus acopladores: un seccionador ``ElmCoup`` cerrado une dos
     barras igual que una línea, y abierto corta el camino. Los extremos salen de los
@@ -262,8 +262,8 @@ def activar_proyecto(app, ruta: str, carpeta: str | None = None):
     en el plan (planes anteriores a la spec 005), la del perfil de empresa. Respeta el
     caso de estudio activo del proyecto.
     """
-    from convertersmartgrid.carpeta_pf import activar_proyecto as activar
-    from convertersmartgrid.carpeta_pf import nombre_de_perfil
+    from convertersmartgrid.adaptadores.carpeta_pf import activar_proyecto as activar
+    from convertersmartgrid.adaptadores.carpeta_pf import nombre_de_perfil
 
     proyecto = activar(app, ruta, carpeta or nombre_de_perfil())
     if proyecto is None:
@@ -475,7 +475,7 @@ def medir_cabecera(app, elm):
     cubículo. ``m:Psum:busN`` es lo que sale de la barra hacia la rama: si el alimentador
     está orientado hacia la barra (``iorient`` = 1), lo que entra en él es lo contrario.
     """
-    from convertersmartgrid.ajuste_cabecera import Medida
+    from convertersmartgrid.dominio.ajuste_cabecera import Medida
 
     ldf = app.GetFromStudyCase('ComLdf')
     rc = ldf.Execute()
@@ -536,7 +536,7 @@ def leer_cabecera(elm):
 
     La verificación de la spec 008 mide varios alimentadores con un solo flujo.
     """
-    from convertersmartgrid.ajuste_cabecera import Medida
+    from convertersmartgrid.dominio.ajuste_cabecera import Medida
 
     cub, metodo, troncales, fuentes = _frontera_cabecera(elm)
     # Un ``ElmFeeder`` puede apuntar solo a una de varias troncales que salen de la
@@ -1244,7 +1244,7 @@ def _troncales(alims: Alimentadores):
 
 def fases_de_barra(barra) -> int:
     """Las fases que lleva una barra del proyecto (054:RF-3)."""
-    from convertersmartgrid.comprobacion_fases import fases_de_phtech
+    from convertersmartgrid.dominio.comprobacion_fases import fases_de_phtech
 
     return fases_de_phtech(getattr(barra, 'phtech', 0))
 
@@ -1277,8 +1277,8 @@ def ubicar_sed_nueva(sed: str, barra, fases_punto: int, cercanas: list, punto):
     La barra compatible más cercana y, sin ninguna, la pedida con sus fases: nunca se rechaza. Las
     barras de media internas de una SED solo cuentan si no hay otras (004:RF-48).
     """
-    from convertersmartgrid.comprobacion_fases import Barra as BarraFases
-    from convertersmartgrid.comprobacion_fases import ubicar_nuevo
+    from convertersmartgrid.dominio.comprobacion_fases import Barra as BarraFases
+    from convertersmartgrid.dominio.comprobacion_fases import ubicar_nuevo
 
     lista = ([c for c in cercanas if not c[2]] or list(cercanas)) if punto is not None else []
     opciones = {b.loc_name: (b, distancia_m(pos, punto)) for b, pos, _interna in lista}
@@ -1290,7 +1290,7 @@ def ubicar_sed_nueva(sed: str, barra, fases_punto: int, cercanas: list, punto):
 
 def cifras_de_sed_adaptada(fila: dict, kv: float, n: int) -> str:
     """Lo que supone dejar la SED con ``n`` fases (081:RF-66): su potencia y la corriente de más."""
-    from convertersmartgrid.comprobacion_fases import corriente_por_fase_a
+    from convertersmartgrid.dominio.comprobacion_fases import corriente_por_fase_a
 
     kw, kvar = float(fila.get('kw') or 0.0), float(fila.get('kvar') or 0.0)
     kva = float(fila.get('kva_instalado') or 0.0) or math.hypot(kw, kvar)
@@ -1301,7 +1301,7 @@ def cifras_de_sed_adaptada(fila: dict, kv: float, n: int) -> str:
 
 def cifras_de_banco(kvar: float, kv: float, n: int) -> str:
     """Lo que supone dejar un banco nuevo con ``n`` fases (081:RF-68)."""
-    from convertersmartgrid.comprobacion_fases import corriente_por_fase_a
+    from convertersmartgrid.dominio.comprobacion_fases import corriente_por_fase_a
 
     corriente = corriente_por_fase_a(kvar, kv, n)
     a_tension = f' a {kv:g} kV' if kv else ''
@@ -1312,7 +1312,7 @@ def cifras_de_banco(kvar: float, kv: float, n: int) -> str:
 def poner_fases(n: int, *barras) -> None:
     """Las barras nuevas con ``n`` fases; una trifásica queda como la deja DIgSILENT (054:RF-3)."""
     if n < 3:
-        from convertersmartgrid.dgs import PHTECH_POR_FASES
+        from convertersmartgrid.adaptadores.dgs import PHTECH_POR_FASES
 
         for barra in barras:
             if barra is not None:
@@ -1326,8 +1326,8 @@ def adaptar_banco(banco, n: int) -> None:
     que deja a DIgSILENT sin flujo en todo el proyecto.
     """
     if n < 3:
-        from convertersmartgrid.comprobacion_fases import LETRAS_POR_FASES
-        from convertersmartgrid.dgs import _capacitor_technology
+        from convertersmartgrid.dominio.comprobacion_fases import LETRAS_POR_FASES
+        from convertersmartgrid.adaptadores.dgs import _capacitor_technology
 
         banco.ctech, banco.ilcph = _capacitor_technology(LETRAS_POR_FASES[n])
 
@@ -1402,7 +1402,7 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
     vistas: dict[str, list[tuple[tuple[float, float], str]]] = {}   # 040:RF-1
     # 099:RF-1 a RF-4: el mismo cliente dos veces en el mismo alimentador del libro, por su nombre o por su punto:
     # cuenta la última fila. CH_20 y CH_23 (Tierra Larga, CA101) estaban a 2,6 km y se creaban las dos.
-    from convertersmartgrid.cargas_pf import duplicadas_por_cliente
+    from convertersmartgrid.aplicacion.cargas_pf import duplicadas_por_cliente
     superadas = duplicadas_por_cliente(nuevas, MISMO_PUNTO_M)
     # 099:RF-8: las repetidas que la web ya quitó del plan no llegan como filas; solo se borra lo que se creó para ellas.
     previas = [r for r in repetidas or [] if r.get('sed') not in {f['sed'] for f in nuevas}]
@@ -1757,7 +1757,7 @@ def transformador_de_la_ampliacion(plan: dict, r: dict, creada: dict) -> dict:
     más el incremento de la fila. Se propone, no se cambia: el operador lo aplica desde la web
     como las SED sobrecargadas de la calibración (spec 020).
     """
-    from convertersmartgrid.trafos_sed import sed_sobre_umbral
+    from convertersmartgrid.aplicacion.trafos_sed import sed_sobre_umbral
 
     # ``tools/ajuste_cabecera_pf.py`` importa este módulo: por eso no se importa arriba.
     try:
@@ -1794,7 +1794,7 @@ def transformador_de_ficha(plan: dict | None, fila: dict, mt: float, fases: int)
     Con el kVA del libro, su ficha si la tabla la tiene. Devuelve la propuesta (o ``None``) y
     el motivo de no tenerla.
     """
-    from convertersmartgrid.trafos_sed import proponer, tabla_para
+    from convertersmartgrid.aplicacion.trafos_sed import proponer, tabla_para
 
     if fases < 3:
         return None, 'las fichas del perfil son de transformadores trifásicos'
@@ -1828,7 +1828,7 @@ def transformador_de_ficha(plan: dict | None, fila: dict, mt: float, fases: int)
 def _tipo_de_ficha(typ_folder, p: dict, mt: float, bt: float, frecuencia: float):
     """El tipo trifásico con la ficha (004:RF-69), con el nombre de 020:RF-21; uno que ya
     exista con ese nombre se reutiliza solo si tiene la misma ficha (020:RF-22)."""
-    from convertersmartgrid.trafos_sed import nombre_tipo
+    from convertersmartgrid.aplicacion.trafos_sed import nombre_tipo
 
     try:
         import ajuste_cabecera_pf as ajuste
@@ -2110,7 +2110,7 @@ class Diagrama:
         return True
 
     def _linea(self, linea) -> bool:
-        from convertersmartgrid.dgs import PUNTOS_POR_CONECTOR_PF, _line_irot, _puntos_que_dan_la_forma
+        from convertersmartgrid.adaptadores.dgs import PUNTOS_POR_CONECTOR_PF, _line_irot, _puntos_que_dan_la_forma
 
         if hasattr(linea, 'bus1'):
             cubiculos = [getattr(linea, 'bus1', None), getattr(linea, 'bus2', None)]
@@ -2291,7 +2291,7 @@ def flujo_de_carga(app, *, extremos: bool = True, monofasicos: bool | None = Non
 
     054:RF-7: con líneas o trafos de menos de 3 fases, el flujo desequilibrado; si no, el que
     tenga el caso (un estudio puede haber pedido el desequilibrado a propósito)."""
-    from convertersmartgrid.dgs import red_con_monofasicos
+    from convertersmartgrid.adaptadores.dgs import red_con_monofasicos
 
     ldf = app.GetFromStudyCase('ComLdf')
     # 042:RF-89: recorrer la red en cada sorteo costaba más que el flujo: quien repite ya lo sabe.
@@ -3139,7 +3139,7 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
             'carga.')
     creada.update(variacion=variacion.loc_name, nota=nota)
     if plan.get('costos') and not r.get('ampliacion'):     # la ampliación no construye SED ni línea
-        from convertersmartgrid.economia import CostosUnitarios, datos_etapa
+        from convertersmartgrid.dominio.economia import CostosUnitarios, datos_etapa
 
         eco = datos_etapa([{'sed_code': creada['sed'], 'installed_kva': creada['kva_instalado'],
                             'length_km': (creada['distancia_m'] or 0) / 1000.0}],
@@ -3257,7 +3257,7 @@ def main(argv=None) -> int:
         return 2
     # 019:RF-1 a RF-6: turno del motor de la máquina, reintento con el motor ocupado y
     # primera línea al responder, comunes a todos los guiones.
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('cargas_pf.py')

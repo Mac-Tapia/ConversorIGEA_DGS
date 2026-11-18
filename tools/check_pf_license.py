@@ -124,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     # 064:RF-1: el turno del motor, el vigía y el reintento del 4002 del arnés; sin
     # él, este guion conectaba por su cuenta y otro proceso recibía «error 4002».
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
     try:
         app = conectar('check_pf_license.py')
     except PFNoDisponible as exc:
@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         # Por ruta en la carpeta de proyectos, o por nombre en la raíz para los
         # anteriores: ActivateProject(nombre) solo mira la raíz (spec 005, RF-16).
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-        from convertersmartgrid.carpeta_pf import activar_proyecto, nombre_de_perfil
+        from convertersmartgrid.adaptadores.carpeta_pf import activar_proyecto, nombre_de_perfil
 
         activar_proyecto(app, args.project, nombre_de_perfil())
     proyecto = app.GetActiveProject()

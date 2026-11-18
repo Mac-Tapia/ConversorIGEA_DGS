@@ -2,7 +2,7 @@
 
 Estado: pedida por el usuario el 2026-10-28; plan corto en la propia tarea.
 
-Plan: `src/convertersmartgrid/crecimiento.py` (máximas mensuales de cada curva, tasa compuesta entre los
+Plan: `src/convertersmartgrid/aplicacion/crecimiento.py` (máximas mensuales de cada curva, tasa compuesta entre los
 meses comunes del primer y el último año, mediana para los demás; lectura de los libros por año
 con `demanda_medida.maximas`, de nivel superior para `JobContext.en_proceso`); `pide_ejecutar`
 la calcula si el perfil no trae tasa y la pasa a `tools/pide_pf.py` por alimentador, que escala el

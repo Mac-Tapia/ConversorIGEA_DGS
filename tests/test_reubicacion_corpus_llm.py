@@ -7,8 +7,8 @@ import subprocess
 
 import pytest
 
-from convertersmartgrid.asistente import llm_destilacion as llm
-from convertersmartgrid.evaluacion_modelos import huella
+from convertersmartgrid.aplicacion.asistente import llm_destilacion as llm
+from convertersmartgrid.aplicacion.evaluacion_modelos import huella
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ def corpus(tmp_path):
 
 def test_reubicar_preserva_bytes_y_ids_y_usa_custodia_relativa(corpus, tmp_path):
     """047:RF-12 / 047:RF-20 / 065:RF-12: mover datos no reetiqueta ni reparticiona."""
-    from convertersmartgrid.asistente.reubicacion_corpus import reubicar_corpus
+    from convertersmartgrid.aplicacion.asistente.reubicacion_corpus import reubicar_corpus
     origen, anterior, nueva = corpus
     antes = {p.name: p.read_bytes() for p in origen.iterdir()}
     destino = tmp_path / 'nuevo-sellado'
@@ -81,7 +81,7 @@ def test_reubicar_preserva_bytes_y_ids_y_usa_custodia_relativa(corpus, tmp_path)
 @pytest.mark.parametrize('modo', ['ausente', 'alterada'])
 def test_reubicacion_bloquea_fuente_faltante_o_sha_distinto(corpus, tmp_path, modo):
     """047:RF-20: no buscar por parecido ni aceptar bytes diferentes."""
-    from convertersmartgrid.asistente.reubicacion_corpus import reubicar_corpus
+    from convertersmartgrid.aplicacion.asistente.reubicacion_corpus import reubicar_corpus
     origen, anterior, nueva = corpus
     if modo == 'ausente':
         (nueva / 'datos.txt').unlink()
@@ -95,7 +95,7 @@ def test_reubicacion_bloquea_fuente_faltante_o_sha_distinto(corpus, tmp_path, mo
 @pytest.mark.parametrize('campo', ['record_id', 'particion', 'group_id'])
 def test_reubicacion_no_resella_ids_ni_particiones_alteradas(corpus, tmp_path, campo):
     """047:RF-12 / 047:RF-20: un traslado no legitima manipulación del sellado."""
-    from convertersmartgrid.asistente.reubicacion_corpus import reubicar_corpus
+    from convertersmartgrid.aplicacion.asistente.reubicacion_corpus import reubicar_corpus
     origen, anterior, nueva = corpus
     archivo = origen / 'corpus_auditoria.json'
     filas = json.loads(archivo.read_text(encoding='utf-8'))
@@ -107,7 +107,7 @@ def test_reubicacion_no_resella_ids_ni_particiones_alteradas(corpus, tmp_path, c
 
 def test_destino_existente_interno_y_cuota_no_se_publican(corpus, tmp_path):
     """065:RF-12 / 065:RF-19: no sobrescribir fuente, checkout ni destinos existentes."""
-    from convertersmartgrid.asistente.reubicacion_corpus import reubicar_corpus
+    from convertersmartgrid.aplicacion.asistente.reubicacion_corpus import reubicar_corpus
     origen, anterior, nueva = corpus
     for destino in (origen, origen / 'dentro', nueva / 'dentro', Path(__file__).parents[1] / 'corpus-nuevo'):
         with pytest.raises(ValueError, match='destino|externo|cruce'):
@@ -118,7 +118,7 @@ def test_destino_existente_interno_y_cuota_no_se_publican(corpus, tmp_path):
 
 def test_copia_alterada_y_escape_del_mapeo_fallan(corpus, tmp_path):
     """047:RF-20: el resolvedor local no elude SHA ni permite escapar del corpus."""
-    from convertersmartgrid.asistente.reubicacion_corpus import reubicar_corpus
+    from convertersmartgrid.aplicacion.asistente.reubicacion_corpus import reubicar_corpus
     origen, anterior, nueva = corpus
     destino = tmp_path / 'destino'
     reubicar_corpus(origen, destino, anterior, nueva, ejecutar=True)
@@ -141,7 +141,7 @@ def test_copia_alterada_y_escape_del_mapeo_fallan(corpus, tmp_path):
 
 def test_dos_raices_con_fuente_identica_son_ambiguas(corpus, tmp_path):
     """047:RF-20: dos candidatos no se resuelven escogiendo arbitrariamente uno."""
-    from convertersmartgrid.asistente.reubicacion_corpus import reubicar_corpus
+    from convertersmartgrid.aplicacion.asistente.reubicacion_corpus import reubicar_corpus
     origen, anterior, nueva = corpus
     shutil.copytree(nueva, anterior)
     with pytest.raises(ValueError, match='ambigua'):
@@ -150,7 +150,7 @@ def test_dos_raices_con_fuente_identica_son_ambiguas(corpus, tmp_path):
 
 def test_enlace_nativo_en_fuente_o_destino_se_rechaza(corpus, tmp_path):
     """065:RF-12: una junction o symlink no permite cruzar las raíces protegidas."""
-    from convertersmartgrid.asistente.reubicacion_corpus import reubicar_corpus
+    from convertersmartgrid.aplicacion.asistente.reubicacion_corpus import reubicar_corpus
     origen, anterior, nueva = corpus
     enlace = tmp_path / 'enlace'
     if os.name == 'nt':
@@ -166,7 +166,7 @@ def test_enlace_nativo_en_fuente_o_destino_se_rechaza(corpus, tmp_path):
 
 def test_metadatos_cambiados_y_mapa_duplicado_no_validan(corpus, tmp_path):
     """047:RF-12 / 047:RF-20: conservar la semilla y una resolución inequívoca."""
-    from convertersmartgrid.asistente.reubicacion_corpus import reubicar_corpus
+    from convertersmartgrid.aplicacion.asistente.reubicacion_corpus import reubicar_corpus
     origen, anterior, nueva = corpus
     destino = tmp_path / 'destino'
     reubicar_corpus(origen, destino, anterior, nueva, ejecutar=True)
@@ -177,7 +177,7 @@ def test_metadatos_cambiados_y_mapa_duplicado_no_validan(corpus, tmp_path):
     archivo.write_text(json.dumps(meta), encoding='utf-8')
     with pytest.raises(ValueError, match='manifiesto distinto'):
         llm.auditar_fuentes_corpus(destino)
-    from convertersmartgrid.asistente.custodia_corpus import CustodiaCorpus
+    from convertersmartgrid.aplicacion.asistente.custodia_corpus import CustodiaCorpus
     with pytest.raises(ValueError, match='manifiesto distinto'):
         llm.auditar_fuentes_corpus(destino, custodia=CustodiaCorpus(destino, {}))
     meta = json.loads(original)

@@ -14,7 +14,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import CymdistDataset
 from convertersmartgrid.adaptadores.entrada.vnr.models import CanonicalModel
 # 080:RF-53, RF-55: las reglas de estado y medio, de su módulo de dominio (se reexportan aquí).
 from convertersmartgrid.adaptadores.entrada.vnr.reglas_tramo import (  # noqa: F401
@@ -40,7 +40,7 @@ CLAVE_PERFIL_CABLE = 'vnr_patron_tipo_cable'
 def patron_cable_del_perfil() -> str | None:
     """La regla del perfil activo para los tipos de cable, o None si no la da o no se puede leer."""
     try:
-        from convertersmartgrid.perfil_empresa import datos_perfil
+        from convertersmartgrid.dominio.perfil_empresa import datos_perfil
 
         valor = datos_perfil().get(CLAVE_PERFIL_CABLE)
     except Exception as exc:  # noqa: BLE001  # justificado: un perfil ilegible no impide convertir (reconstruir, no bloquear); queda el aviso con su causa
@@ -102,7 +102,7 @@ def _susceptancia_de_cable(tipo, kv: float | None) -> tuple[float, dict[str, Any
     quickfield.com; el 3,0 del EPR, supuesto; Di con el espesor de aislamiento de IEC 60502-2). B1 = B0: en un cable unipolar apantallado
     el campo queda dentro de la pantalla y la capacitancia homopolar es la misma.
     """
-    from convertersmartgrid.catalog import (
+    from convertersmartgrid.aplicacion.catalog import (
         capacitancia_cable, clase_de_designacion, regla_de_clase, seccion_de_codigo, susceptancia_us_km)
 
     texto = f'{tipo.conductor_code} {getattr(tipo, "description", "") or ""}'.upper()

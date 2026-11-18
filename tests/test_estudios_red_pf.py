@@ -9,8 +9,8 @@ import random
 
 import pytest
 
-from convertersmartgrid import estudios_red_pf as er
-from convertersmartgrid.estudios_pf import CON_PROYECTO, DIFERENCIA, SIN_PROYECTO, escribir_csv
+from convertersmartgrid.aplicacion import estudios_red_pf as er
+from convertersmartgrid.aplicacion.estudios_pf import CON_PROYECTO, DIFERENCIA, SIN_PROYECTO, escribir_csv
 
 SEMILLAS = [random.randrange(10**6) for _ in range(4)]
 

@@ -13,9 +13,9 @@ import random
 
 import pytest
 
-from convertersmartgrid import dgs
-from convertersmartgrid.geography import build_geography, geography_to_dict
-from convertersmartgrid.model import Node, build_feeder_model
+from convertersmartgrid.adaptadores import dgs
+from convertersmartgrid.adaptadores.geography import build_geography, geography_to_dict
+from convertersmartgrid.dominio.model import Node, build_feeder_model
 from synthetic_export import CRS_SINTETICO, ExportSpec, load_export
 
 LAYOUTS = ('reducido', 'completo')
@@ -24,8 +24,8 @@ CRS_PERFILES = (CRS_SINTETICO, 'EPSG:32718')
 
 
 def _plano_red():
-    assert importlib.util.find_spec('convertersmartgrid.plano_red') is not None, 'falta convertersmartgrid.plano_red'
-    return importlib.import_module('convertersmartgrid.plano_red')
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.plano_red') is not None, 'falta convertersmartgrid.adaptadores.plano_red'
+    return importlib.import_module('convertersmartgrid.adaptadores.plano_red')
 
 
 def _semilla() -> int:

@@ -18,9 +18,9 @@ SEMILLA = 4_28
 
 def _vinculos():
     """El módulo de la T28: su ausencia es la falla de la aserción, no un error de importación."""
-    assert importlib.util.find_spec('convertersmartgrid.pfd_vinculos') is not None, \
-        'falta convertersmartgrid.pfd_vinculos (004 T28)'
-    return importlib.import_module('convertersmartgrid.pfd_vinculos')
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.pfd_vinculos') is not None, \
+        'falta convertersmartgrid.adaptadores.pfd_vinculos (004 T28)'
+    return importlib.import_module('convertersmartgrid.adaptadores.pfd_vinculos')
 
 
 def _nombre(rng, prefijo):

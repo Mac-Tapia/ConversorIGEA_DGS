@@ -100,14 +100,14 @@ def main(argv=None) -> int:
                    help='Registro de vínculos de la web (por defecto, el de output/web)')
     args = p.parse_args(argv)
 
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-    from convertersmartgrid.digital_twin.capture import construir_episodio
-    from convertersmartgrid.digital_twin.episode import Caso
-    from convertersmartgrid.digital_twin.integration import limites_combinados, normas_de
-    from convertersmartgrid.native_action import build_native_action_context
-    from convertersmartgrid.perfil_empresa import datos_perfil, estructura_empresa
-    from convertersmartgrid.powerfactory_binding import vinculo_guardado
-    from convertersmartgrid.web.workspace import REGISTRO_VINCULOS_FILE, data_root
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.adaptadores.digital_twin.capture import construir_episodio
+    from convertersmartgrid.dominio.digital_twin.episode import Caso
+    from convertersmartgrid.adaptadores.digital_twin.integration import limites_combinados, normas_de
+    from convertersmartgrid.dominio.native_action import build_native_action_context
+    from convertersmartgrid.dominio.perfil_empresa import datos_perfil, estructura_empresa
+    from convertersmartgrid.adaptadores.powerfactory_binding import vinculo_guardado
+    from convertersmartgrid.presentacion.web.workspace import REGISTRO_VINCULOS_FILE, data_root
 
     esperado = json.loads(args.esperado.read_text(encoding='utf-8'))
     registro = args.vinculos or data_root() / REGISTRO_VINCULOS_FILE

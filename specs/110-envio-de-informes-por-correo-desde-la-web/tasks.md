@@ -7,7 +7,7 @@ T8–T10 montan la web; T11–T12 se validan con el simulado (la prueba real con
 
 - [x] T1. Proveedor simulado y contratos con la 109: `tests/correo_simulado.py` (acepta, 400, 401, 403, 413, 429, 5xx,
       `ConnectTimeout`, acepta y no responde) y los `Protocol` `FuenteDeCredenciales` y `Compartidor` en
-      `src/convertersmartgrid/correo/__init__.py`; borrador con su firma en `correo/borrador.py`: la firma cubre
+      `src/convertersmartgrid/puertos/correo/__init__.py`; borrador con su firma en `correo/borrador.py`: la firma cubre
       cuenta, para, cc, cco, asunto, cuerpo, enlace y la ruta, el tamaño y el SHA-256 de cada adjunto; comprobar la
       firma vuelve a leer los adjuntos del disco. El adaptador sobre las cuentas de la 109 (`Cuentas.cuenta`,
       `Cuentas.acceso` y `PERMISOS[p]['enviar']`), en `correo/de_la_109.py`: sin cuenta, otra cuenta, sin permiso o

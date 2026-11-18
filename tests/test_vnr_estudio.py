@@ -7,9 +7,9 @@ import pytest
 
 from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import (CanonicalModel, Load, Node, Section,
                                                                          Transformer)
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad.vnr_estudio import estudio_vnr, instalacion_de_codigo, letra_de_tension
-from convertersmartgrid.vad.vnr_guia import VnrGuiaError, cargar_anexo2, cargar_anexo6
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.adaptadores.vad.vnr_estudio import estudio_vnr, instalacion_de_codigo, letra_de_tension
+from convertersmartgrid.aplicacion.vad.vnr_guia import VnrGuiaError, cargar_anexo2, cargar_anexo6
 
 RAIZ = Path(__file__).resolve().parents[1]
 REG = cargar_registro(RAIZ / 'config' / 'normativa' / 'rcd_232_2017.json')

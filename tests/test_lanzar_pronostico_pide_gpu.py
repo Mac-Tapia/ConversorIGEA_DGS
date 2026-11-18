@@ -23,7 +23,7 @@ def test_sin_libros_ni_dataset_no_corre(herramienta, capsys):
 
 
 def _falsos(monkeypatch, llamadas, *, sin_gpu=False):
-    import convertersmartgrid.training_coordinator as tc
+    import convertersmartgrid.aplicacion.training_coordinator as tc
 
     def dispositivo():
         if sin_gpu:

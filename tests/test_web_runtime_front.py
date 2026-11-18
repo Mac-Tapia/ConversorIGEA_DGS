@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from convertersmartgrid.web.runtime import front_desactualizado
+from convertersmartgrid.presentacion.web.runtime import front_desactualizado
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -56,9 +56,9 @@ def test_un_componente_cambiado_obliga_a_recompilar(tmp_path):
 def test_el_lanzador_usa_la_comprobacion():
     """001:RF-27 — run_gui.bat pregunta antes de abrir y compila si hace falta."""
     bat = (RAIZ / 'run_gui.bat').read_bytes().decode('ascii')
-    comprobacion = bat.index('-m convertersmartgrid.web.runtime --front')
+    comprobacion = bat.index('-m convertersmartgrid.presentacion.web.runtime --front')
     compila = bat.index('call npm run build')
-    abre = bat.index('-m convertersmartgrid.web\r\n')
+    abre = bat.index('-m convertersmartgrid.presentacion.web\r\n')
     assert comprobacion < compila < abre
     # Ya no se compila solo cuando falta dist: la comprobación decide.
     assert 'if not exist "frontend\\dist\\index.html" (\r\n  where npm' not in bat
@@ -130,7 +130,7 @@ def test_dependencia_preload_generada_por_vite_no_puede_faltar(tmp_path):
 
 def test_cli_valida_staging_explicito_antes_de_publicar(tmp_path, monkeypatch):
     """065:RF-3; 065:RF-4 — build puede rechazar su staging sin sustituir el publicado."""
-    from convertersmartgrid.web import runtime
+    from convertersmartgrid.presentacion.web import runtime
 
     monkeypatch.setenv('CSG_RUNTIME_HOME', str(tmp_path / 'runtime'))
     monkeypatch.setenv('CSG_CACHE_HOME', str(tmp_path / 'cache'))
@@ -147,7 +147,7 @@ def test_validacion_staging_se_ejecuta_directa_sin_paquete_instalado(tmp_path):
     staging = tmp_path / 'staging'
     staging.mkdir()
     (staging / 'index.html').write_text('<html>completo</html>')
-    script = RAIZ / 'src/convertersmartgrid/web/runtime.py'
+    script = RAIZ / 'src/convertersmartgrid/presentacion/web/runtime.py'
     # -I ignora PYTHONUTF8/PYTHONIOENCODING: no inferir el encoding del hijo
     # desde el padre. Capturar bytes también conserva el diagnóstico íntegro.
     resultado = subprocess.run([sys.executable, '-I', '-B', str(script), '--validate-dist', str(staging)],

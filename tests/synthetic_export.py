@@ -1,4 +1,4 @@
-"""Generador de exports CYMDIST sintéticos de las pruebas: vive en ``convertersmartgrid.benchmarks.sintetico``.
+"""Generador de exports CYMDIST sintéticos de las pruebas: vive en ``convertersmartgrid.dominio.benchmarks.sintetico``.
 
 Se movió al núcleo en la spec 112 (T13, opción A), porque el benchmark publicable sale de ``ExportSpec`` y el código de
 ``src/`` no puede importar de ``tests/``. Aquí se reexporta por nombre —también lo privado que alguna prueba usa—, para
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from convertersmartgrid.benchmarks.sintetico import (  # noqa: F401
+from convertersmartgrid.dominio.benchmarks.sintetico import (  # noqa: F401
     _SIZES_CACHE,
     CRS_SINTETICO,
     FMT_BD_CABLE,
@@ -41,7 +41,7 @@ def load_export(spec: ExportSpec, out_dir: Path):
 
     Se queda en las pruebas: usa el lector (capa de adaptadores) y el generador del núcleo es de dominio.
     """
-    from convertersmartgrid.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
 
     red, carga, equipo = write_export(spec, out_dir)
     return CymdistDataset.from_files(red, carga, equipo)

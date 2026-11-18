@@ -15,10 +15,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid.asistente.interprete import Interpretacion
-from convertersmartgrid.asistente.plan import resolver
-from convertersmartgrid.inventory import build_dataset_inventory
-from convertersmartgrid.web import services
+from convertersmartgrid.aplicacion.asistente.interprete import Interpretacion
+from convertersmartgrid.aplicacion.asistente.plan import resolver
+from convertersmartgrid.aplicacion.inventory import build_dataset_inventory
+from convertersmartgrid.presentacion.web import services
 from synthetic_export import ExportSpec, load_export
 
 SEMILLA = random.randrange(10**6)
@@ -79,7 +79,7 @@ def test_filas_de_mdb_y_vnr(monkeypatch, fuente):
 def test_un_codigo_de_dos_redes_se_pregunta(monkeypatch):
     """026:RF-6 — el mismo código en dos redes (dos SET, o repetido en la fuente) no se resuelve con la primera:
     el plan pregunta cuál y nombra las dos; con el nombre de la red, resuelve a esa."""
-    from convertersmartgrid.web.reconstruction_service import resolve_selection
+    from convertersmartgrid.presentacion.web.reconstruction_service import resolve_selection
 
     rnd = random.Random(f'{SEMILLA}-repetido')
     codigo = f'AB{rnd.randint(100, 399)}'
@@ -106,7 +106,7 @@ def test_de_punta_a_punta_por_la_web(tmp_path, monkeypatch):
 
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     from synthetic_export import CRS_SINTETICO, write_export
 
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
@@ -169,7 +169,7 @@ def _comprobar_real(monkeypatch, filas: list[dict]) -> None:
 def test_mdb_real(monkeypatch):
     """026:RF-6 — con una .mdb real, el vocabulario reconoce los códigos de sus alimentadores."""
     pytest.importorskip('pyodbc')
-    from convertersmartgrid.access import read_access_dataset
+    from convertersmartgrid.adaptadores.access import read_access_dataset
 
     dataset = read_access_dataset(MDB, equipment_db=os.environ.get('CSG_EQUIPMENT_MDB') or None)
     _comprobar_real(monkeypatch, build_dataset_inventory(dataset)['feeders'])

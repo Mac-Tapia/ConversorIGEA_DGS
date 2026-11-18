@@ -10,11 +10,11 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.cargas_pf import CargaNueva
-from convertersmartgrid.pit import PitError
-from convertersmartgrid.pit.demanda_regulatoria import Topologia
-from convertersmartgrid.pit.red_area import RedArea
-from convertersmartgrid.registro_normativo import RegistroError, cargar_registro
+from convertersmartgrid.aplicacion.cargas_pf import CargaNueva
+from convertersmartgrid.dominio.pit import PitError
+from convertersmartgrid.adaptadores.pit.demanda_regulatoria import Topologia
+from convertersmartgrid.aplicacion.pit.red_area import RedArea
+from convertersmartgrid.dominio.registro_normativo import RegistroError, cargar_registro
 
 RAIZ = Path(__file__).resolve().parents[1]
 NORMATIVA = RAIZ / 'config' / 'normativa'
@@ -25,9 +25,9 @@ TOPO = Topologia(sistemas={'SIS-1': ['SET-A']}, sets={'SET-A': ['TA:lv']}, devan
 
 def _modulo():
     """El módulo de la tarjeta: su ausencia es la falla de la aserción, no un error de importación."""
-    assert importlib.util.find_spec('convertersmartgrid.pit.usuarios_libres') is not None, \
-        'falta convertersmartgrid.pit.usuarios_libres (PIT-F113-118)'
-    return importlib.import_module('convertersmartgrid.pit.usuarios_libres')
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.pit.usuarios_libres') is not None, \
+        'falta convertersmartgrid.adaptadores.pit.usuarios_libres (PIT-F113-118)'
+    return importlib.import_module('convertersmartgrid.adaptadores.pit.usuarios_libres')
 
 
 def _registro_y_empresa():
@@ -99,7 +99,7 @@ def test_107_rf9_usuarios_sin_ninguna_fuente_salen_vacios_con_su_aviso_y_llenan_
     """107:RF-9 (PIT-F113-118) — sin cargas nuevas ni usuarios libres, F-113 a F-118 salen vacíos con su aviso (nunca
     con una causa genérica) y ya no están entre los pendientes; con ellos, el motor los llena en la plantilla."""
     mod = _modulo()
-    from convertersmartgrid.pit import llenado
+    from convertersmartgrid.adaptadores.pit import llenado
     registro, empresa, _fe = _registro_y_empresa()
     ub = mod.ubicacion_de_alimentadores(TOPO, _red())
     vacia = mod.proyeccion_usuarios(registro, empresa, SALIDA_3B, ub, anio_0=2030, fecha=FECHA)
@@ -121,8 +121,8 @@ def test_107_rf9_usuarios_se_suman_en_los_resumenes_f119_a_f122():
     """107:RF-9 (PIT-F113-118) — la proyección de los usuarios es la parte «libres» de los resúmenes: F-120 suma por
     barra la F-116 de los usuarios con la F-110 de los regulados."""
     mod = _modulo()
-    from convertersmartgrid.pit.demanda_cadena import cadena_regulatoria
-    from convertersmartgrid.pit.demanda_resumen import resumen_demanda
+    from convertersmartgrid.adaptadores.pit.demanda_cadena import cadena_regulatoria
+    from convertersmartgrid.adaptadores.pit.demanda_resumen import resumen_demanda
     registro, empresa, _fe = _registro_y_empresa()
     salida = {**SALIDA_3B, 'f102': {'filas': [{'sistema': 'SIS-1', 'set': 'SET-A', 'devanado': 'TA:lv'}]}}
     ventas = {'SIS-1': {n: [100.0] * 31 for n in ('at', 'mt', 'bt')}}

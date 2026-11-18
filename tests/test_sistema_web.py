@@ -381,7 +381,7 @@ def test_reconstruir_reconvierte_con_las_medidas(herramienta):
 def test_escanea_antes_de_calibrar_y_la_central_toma_su_barra(herramienta, monkeypatch, capsys):
     """028:RF-15 — el sistema se escanea antes del plan; la central del perfil sin barra va al
     plan con la del generador que encontró el escaneo."""
-    from convertersmartgrid import perfil_empresa
+    from convertersmartgrid.dominio import perfil_empresa
 
     monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda *a, **k: {})
     monkeypatch.setattr(perfil_empresa, 'centrales_termicas', lambda _d: {

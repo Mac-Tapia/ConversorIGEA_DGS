@@ -8,7 +8,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       «Sin proyecto» activo deja igual el «Caso base». (Decisión del plan; RF-19, RF-26)
       Hecho cuando: informe JSON en `output/` y resultado anotado en el plan. Si `i_scale`
       no es dato de operación, se para y se pregunta al usuario.
-- [x] T2. `src/convertersmartgrid/capacidades.py`: capacidades, grupo de conexión y tensión de baja
+- [x] T2. `src/convertersmartgrid/adaptadores/capacidades.py`: capacidades, grupo de conexión y tensión de baja
       del DGS, y su comparación. (RF-6, RF-7, RF-11, RF-32, RF-33)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_capacidades.py` en verde.
 - [x] T3. Verificación completa del «Caso base» en `powerfactory_acceptance.py`, también

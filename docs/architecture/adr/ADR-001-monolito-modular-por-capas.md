@@ -5,7 +5,7 @@
 - Specs: 002:RF-1, 002:RF-2, 002:RF-3, 002:RF-4, 002:RF-7
 - Elementos C4: conversor, api, engine, dgs, nativeRunner, jobs
 - Tareas: 002 T6
-- Evidencia: `tools/arquitectura.py::CAPAS`, `tools/arquitectura.py::BORDE_Y_DRIVERS`, `src/convertersmartgrid/puertos.py::LectorDeRed`, `src/convertersmartgrid/puertos.py::EscritorDeRed`, `src/convertersmartgrid/puertos.py::Estudio`, `pyproject.toml~[tool.convertersmartgrid.capas]`
+- Evidencia: `tools/arquitectura.py::CAPAS`, `tools/arquitectura.py::BORDE_Y_DRIVERS`, `src/convertersmartgrid/puertos/__init__.py::LectorDeRed`, `src/convertersmartgrid/puertos/__init__.py::EscritorDeRed`, `src/convertersmartgrid/puertos/__init__.py::Estudio`, `pyproject.toml~[tool.convertersmartgrid.capas]`
 
 ## Contexto
 

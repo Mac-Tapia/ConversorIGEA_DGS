@@ -20,14 +20,14 @@ pytest.importorskip('httpx2')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from synthetic_export import CRS_SINTETICO, ExportSpec, write_export  # noqa: E402
-from convertersmartgrid.web.app import create_app  # noqa: E402
+from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 
 from apoyo import esperar_trabajo  # noqa: E402
 
 
 def test_estado_aprendizaje_web_sin_ciclo_no_anuncia_entrenamiento(tmp_path,monkeypatch):
     """050:RF-10 — API tipada de siete fases, sin crear ni anunciar un entrenamiento."""
-    from convertersmartgrid.aprendizaje_continuo import FASES
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import FASES
     monkeypatch.setenv('CSG_ASISTENTE_DATA',str(tmp_path/'asistente'))
     cliente=TestClient(create_app(tmp_path/'web'))
     r=cliente.get('/api/asistente/aprendizaje')
@@ -115,8 +115,8 @@ def _loaded(client, export, *, geography: bool = False) -> str:
 def test_powerfactory_usa_un_dgs_unido_para_la_seleccion_exacta(tmp_path):
     import os
 
-    from convertersmartgrid.web.services import dgs_jobs
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.services import dgs_jobs
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path)
     ws.out_dir.mkdir(parents=True)
@@ -177,8 +177,8 @@ def test_powerfactory_usa_un_dgs_unido_para_la_seleccion_exacta(tmp_path):
 def test_powerfactory_importa_dgs_aunque_pandapower_avise_isla(tmp_path, monkeypatch):
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path)
     dgs = ws.out_dir / 'RED.dgs'
@@ -234,8 +234,8 @@ def test_powerfactory_importa_dgs_aunque_pandapower_avise_isla(tmp_path, monkeyp
 
 
 def test_check_powerfactory_exige_metadata_para_no_dejar_columna_vacia(tmp_path, monkeypatch):
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='w', root=tmp_path)
     ws.out_dir.mkdir(parents=True)
@@ -452,7 +452,7 @@ def test_el_lanzador_pasa_la_interfaz_de_escucha_a_la_api(monkeypatch):
     import sys
     import types
 
-    from convertersmartgrid.web import __main__ as lanzador
+    from convertersmartgrid.presentacion.web import __main__ as lanzador
 
     llamadas = []
     class Servidor:
@@ -554,7 +554,7 @@ def test_sin_georreferenciacion_no_hay_gps_ni_diagrama(client, export, unir):
 
 @pytest.mark.parametrize('unir', [False, True], ids=['suelto', 'red_unida'])
 def test_el_modo_estricto_llega_al_motor(client, export, monkeypatch, unir):
-    from convertersmartgrid import batch
+    from convertersmartgrid.aplicacion import batch
 
     vistos = []
     original = batch.build_feeder_model
@@ -587,7 +587,7 @@ def test_el_arranque_no_abre_otro_servidor_si_el_puerto_esta_ocupado(capsys, mon
     """001:RF-31 — con el puerto y los siguientes en manos de otro programa, sale con 2 y lo nombra."""
     import socket
 
-    from convertersmartgrid.web import __main__ as lanzador
+    from convertersmartgrid.presentacion.web import __main__ as lanzador
 
     # Otro programa (no un Conversor) y ningún puerto libre después: no hay qué hacer.
     monkeypatch.setattr(lanzador, 'conversor_en', lambda *_a, **_k: None)
@@ -608,7 +608,7 @@ def test_086_rf56_el_perfil_se_carga_desde_la_web(client, tmp_path, monkeypatch)
     """086:RF-56 — con errores no se escribe nada; bueno, queda con su estructura y copia del anterior."""
     import json as _json
 
-    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.dominio.perfil_empresa import VARIABLE_RUTA
 
     destino = tmp_path / 'datos' / 'config' / 'perfil_empresa.json'
     monkeypatch.setenv(VARIABLE_RUTA, str(destino))
@@ -630,7 +630,7 @@ def test_086_rf56_el_perfil_se_carga_desde_la_web(client, tmp_path, monkeypatch)
 # ------------------------------------------------------------ 086:RF-67 a RF-69, salidas a la red
 def test_086_rf69_lista_las_salidas_con_su_estado_origen_y_destino(client, monkeypatch):
     """086:RF-69 — todas las salidas, con su estado, quién lo decide y adónde van; solo teselas se cambia."""
-    from convertersmartgrid.salidas_red import SALIDAS
+    from convertersmartgrid.dominio.salidas_red import SALIDAS
 
     for s in SALIDAS.values():
         monkeypatch.delenv(s.variable, raising=False)
@@ -653,7 +653,7 @@ def test_086_rf69_lista_las_salidas_con_su_estado_origen_y_destino(client, monke
 
 def test_086_rf67_encender_el_fondo_de_mapa_se_recuerda_en_el_equipo(client, monkeypatch):
     """086:RF-67 — el POST lo guarda fuera de git y la conversión siguiente lo usa; un servidor nuevo lo lee igual."""
-    from convertersmartgrid.salidas_red import SALIDAS, ruta_guardadas, salida_permitida
+    from convertersmartgrid.dominio.salidas_red import SALIDAS, ruta_guardadas, salida_permitida
 
     monkeypatch.delenv(SALIDAS['teselas'].variable, raising=False)
     monkeypatch.setenv('CSG_EDICION', 'producto')
@@ -671,7 +671,7 @@ def test_086_rf67_encender_el_fondo_de_mapa_se_recuerda_en_el_equipo(client, mon
 
 def test_086_rf68_con_la_variable_fijada_la_web_no_la_cambia(client, monkeypatch):
     """086:RF-68 — la variable manda: el GET dice «variable» y no cambiable, y el POST se niega sin tocar nada."""
-    from convertersmartgrid.salidas_red import SALIDAS, ruta_guardadas
+    from convertersmartgrid.dominio.salidas_red import SALIDAS, ruta_guardadas
 
     monkeypatch.setenv(SALIDAS['teselas'].variable, '1')
     teselas = next(f for f in client.get('/api/salidas').json()['salidas'] if f['nombre'] == 'teselas')
@@ -683,8 +683,8 @@ def test_086_rf68_con_la_variable_fijada_la_web_no_la_cambia(client, monkeypatch
 
 def _web_con_puerta(tmp_path, monkeypatch):
     """La aplicación con la puerta de 086:RF-17 a RF-21 encendida y la sesión de un arranque, como la usa el navegador."""
-    from convertersmartgrid import sesion_web
-    from convertersmartgrid.web import seguridad
+    from convertersmartgrid.dominio import sesion_web
+    from convertersmartgrid.presentacion.web import seguridad
 
     puerto = 8793
     monkeypatch.setattr(sesion_web, 'EXIGIR_SEGURIDAD', True)
@@ -725,7 +725,7 @@ def test_086_rf21_la_web_incrusta_su_vista_previa_y_su_mapa_y_nada_mas(tmp_path,
 
 
 def _perfil_de_planificacion(monkeypatch, **planificacion) -> None:
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil',
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil',
                         lambda *a, **k: {'planificacion': dict(planificacion)})
 
 

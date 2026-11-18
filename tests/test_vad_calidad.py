@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.registro_normativo import RegistroError, RegistroNormativo, cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.calidad import (
+from convertersmartgrid.dominio.registro_normativo import RegistroError, RegistroNormativo, cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.aplicacion.vad.calidad import (
     CaidaTension,
     Cliente,
     Interrupcion,

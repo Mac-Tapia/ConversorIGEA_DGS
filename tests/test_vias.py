@@ -9,7 +9,7 @@ import random
 
 import pytest
 
-from convertersmartgrid import vias
+from convertersmartgrid.aplicacion import vias
 
 A = (-14.0128, -75.7293)
 B = (-14.0222, -75.7615)

@@ -23,7 +23,7 @@ class _NoSubprocess:
 
 
 def _workspace(tmp_path):
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='gate', root=tmp_path)
     ws.active_run_id = 'run-active'
@@ -61,7 +61,7 @@ def test_018_rf19_ninguna_accion_nativa_se_detiene_por_el_vinculo(tmp_path, invo
     """018:RF-19 — regla del usuario (2026-11-13): se trabaja sobre cualquier proyecto de DIgSILENT, convertido o no por
     el conversor. Antes esta prueba exigía lo contrario («toda acción nativa rechaza el proyecto sin vínculo»); una
     acción puede seguir fallando por otra causa (falta de calibración, de datos…), pero nunca por PROJECT_BINDING_*."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     try:
         invoke(services, _workspace(tmp_path))
@@ -74,8 +74,8 @@ def test_018_rf19_ninguna_accion_nativa_se_detiene_por_el_vinculo(tmp_path, invo
 def test_018_rf19_sin_vinculo_el_contexto_se_arma_con_el_proyecto_y_lo_avisa(tmp_path):
     """018:RF-19 — sin vínculo, el contexto nativo lleva un vínculo de origen «proyecto», firmado, y la causa como aviso
     informativo; nunca «se importó a mano»."""
-    from convertersmartgrid.native_action import verify_native_action_context
-    from convertersmartgrid.web import services
+    from convertersmartgrid.dominio.native_action import verify_native_action_context
+    from convertersmartgrid.presentacion.web import services
 
     feeders = ['A1', 'A2']
     contexto = services.native_action_context(_workspace(tmp_path), 'P', feeders, 'ajuste')
@@ -89,8 +89,8 @@ def test_018_rf19_sin_vinculo_el_contexto_se_arma_con_el_proyecto_y_lo_avisa(tmp
 
 
 def test_native_action_context_carries_one_signed_binding(tmp_path):
-    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
-    from convertersmartgrid.web import services
+    from convertersmartgrid.adaptadores.powerfactory_binding import PowerFactoryProjectBinding
+    from convertersmartgrid.presentacion.web import services
 
     ws = _workspace(tmp_path)
     binding = PowerFactoryProjectBinding(
@@ -115,9 +115,9 @@ def test_native_action_context_carries_one_signed_binding(tmp_path):
 
 def test_native_action_context_signs_nonblocking_project_warnings(tmp_path):
     """014:RF-17 — la acción nativa se autoriza con las modificaciones manuales como aviso."""
-    from convertersmartgrid.native_action import verify_native_action_context
-    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
-    from convertersmartgrid.web import services
+    from convertersmartgrid.dominio.native_action import verify_native_action_context
+    from convertersmartgrid.adaptadores.powerfactory_binding import PowerFactoryProjectBinding
+    from convertersmartgrid.presentacion.web import services
 
     ws = _workspace(tmp_path)
     binding = PowerFactoryProjectBinding(
@@ -154,7 +154,7 @@ def test_native_action_context_signs_nonblocking_project_warnings(tmp_path):
     ({'not_applicable': 'sin interruptor'}, 'NO_APLICA'),
 ])
 def test_status_vocabulary_never_returns_generic_fail(evidence, expected):
-    from convertersmartgrid.native_action import native_result_status
+    from convertersmartgrid.dominio.native_action import native_result_status
 
     status = native_result_status(evidence)
     assert status == expected
@@ -162,7 +162,7 @@ def test_status_vocabulary_never_returns_generic_fail(evidence, expected):
 
 
 def test_q_warning_is_nonblocking_for_studies():
-    from convertersmartgrid.native_action import status_blocks_studies
+    from convertersmartgrid.dominio.native_action import status_blocks_studies
 
     assert status_blocks_studies('AVISO_KVAR') is False
     assert status_blocks_studies('AVISO_PERSISTENCIA_CORREGIDA') is False
@@ -186,7 +186,7 @@ def test_native_tool_rejects_unsigned_plan_before_powerfactory(tmp_path):
 def test_015_rf70_sin_conversion_vinculada_se_calibra_sin_exigir_el_caso_base(tmp_path):
     """015:RF-70 — un proyecto sin ninguna conversión vinculada no tiene contra qué verificar su «Caso base»: la
     calibración no se detiene por eso y lo dice en sus avisos (regla del usuario, 2026-11-13)."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     plan = services.ajuste_plan(_workspace(tmp_path), 'P', _maxima(), '', .01)
     avisos = ' '.join(str(a) for a in plan.get('avisos') or [])

@@ -11,17 +11,17 @@ import pytest
 
 from datos_pit import perfil_a
 
-from convertersmartgrid.costos_fuentes import Costo, FuenteCostos, TablaCostos
-from convertersmartgrid.perfil_esquema import validar_perfil
-from convertersmartgrid.pit.alternativas import evaluar
-from convertersmartgrid.pit.ambito import PitError, areas_del_perfil, reunir
-from convertersmartgrid.pit.cuadros import celdas_de_cuadros, definiciones, escribir_libro_de_cuadros
-from convertersmartgrid.pit.diagnostico import agregar_demanda, diagnosticar, limites_del_estudio
-from convertersmartgrid.pit.expediente import (abrir, comprobar_modificatoria, emitir, escribir_informacion_general,
+from convertersmartgrid.aplicacion.costos_fuentes import Costo, FuenteCostos, TablaCostos
+from convertersmartgrid.adaptadores.perfil_esquema import validar_perfil
+from convertersmartgrid.adaptadores.pit.alternativas import evaluar
+from convertersmartgrid.dominio.pit.ambito import PitError, areas_del_perfil, reunir
+from convertersmartgrid.adaptadores.pit.cuadros import celdas_de_cuadros, definiciones, escribir_libro_de_cuadros
+from convertersmartgrid.adaptadores.pit.diagnostico import agregar_demanda, diagnosticar, limites_del_estudio
+from convertersmartgrid.adaptadores.pit.expediente import (abrir, comprobar_modificatoria, emitir, escribir_informacion_general,
                                                 filas_del_programa)
-from convertersmartgrid.pit.programa import programar
-from convertersmartgrid.pit.red_area import desde_ambito
-from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid.dominio.pit.programa import programar
+from convertersmartgrid.aplicacion.pit.red_area import desde_ambito
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
 
 MONEDA = 'XTS'
 COLUMNAS = [{'nombre': 'N°', 'campo': 'numero'}, {'nombre': 'Año', 'campo': 'anio'},
@@ -448,8 +448,8 @@ def _informacion_general(tmp_path, codigos=('F-001', 'F-002', 'F-003'), lineas_e
 
     from test_pit_formatos import FUENTE_RED, NORMATIVA, _red
 
-    from convertersmartgrid.pit.formatos_red import datos_f001, datos_f002, datos_f003
-    from convertersmartgrid.pit.plantillas import cargar_mapeo, celdas_de_formato
+    from convertersmartgrid.adaptadores.pit.formatos_red import datos_f001, datos_f002, datos_f003
+    from convertersmartgrid.adaptadores.pit.plantillas import cargar_mapeo, celdas_de_formato
     registro = cargar_registro(NORMATIVA)
     red = _red(lineas_extra)
     datos = {'F-001': datos_f001(red, registro, FUENTE_RED)[0], 'F-002': datos_f002(red, FUENTE_RED),
@@ -561,7 +561,7 @@ def test_plantilla_oficial_alterada_no_se_usa(tmp_path):
 def test_plan_de_formatos_no_escribe_sin_saber_donde_insertar(tmp_path):
     """107-P10b — un formato con filas que insertar sin su sitio (un grupo repetido) no se escribe: insertar a ciegas
     pisaría las filas de abajo, y el error lo nombra."""
-    from convertersmartgrid.pit.cuadros import plan_de_formatos
+    from convertersmartgrid.adaptadores.pit.cuadros import plan_de_formatos
 
     resultado = {'codigo': 'F-101', 'celdas': [], 'filas_a_insertar': {'sistemas:1': 2}, 'insertar_en': [],
                  'grupos_a_insertar': {'sistemas': 1}}
@@ -574,7 +574,7 @@ def test_el_motor_abre_una_copia_fuera_de_las_fuentes_y_el_original_se_comprueba
     la carpeta de fuentes, y el sha256 del original se comprueba dos veces: antes de copiarlo y después de la corrida."""
     import hashlib
 
-    from convertersmartgrid.pit import expediente
+    from convertersmartgrid.adaptadores.pit import expediente
     x = _informacion_general(tmp_path)
     comprobados = []
 

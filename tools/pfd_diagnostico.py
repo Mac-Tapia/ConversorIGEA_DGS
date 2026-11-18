@@ -51,7 +51,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 
-from convertersmartgrid.carpeta_pf import (  # noqa: E402
+from convertersmartgrid.adaptadores.carpeta_pf import (  # noqa: E402
     LARGO_MAXIMO, NO_ADMITIDOS, CarpetaError, alimentadores_de, asegurar_carpeta, nombre_de_perfil, nombre_libre,
     proyectos_de, validar_nombre,
 )
@@ -754,7 +754,7 @@ def main(argv=None) -> int:
             informe['errores'].append(str(exc))
             codigo = USO
             return codigo
-        from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+        from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
         try:
             app = conectar('pfd_diagnostico.py')

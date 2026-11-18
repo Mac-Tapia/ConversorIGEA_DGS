@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
-from ...runtime_paths import raiz_local
+from ...dominio.runtime_paths import raiz_local
 from .http import Hosts, Transporte
 from .proveedor import NOMBRES_VISIBLES, PROVEEDORES, ErrorNube, PermisoCaducado
 

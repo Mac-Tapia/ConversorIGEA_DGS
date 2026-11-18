@@ -205,8 +205,8 @@ def test_el_anio_00_es_el_de_la_medicion_de_la_calibracion(tmp_path, monkeypatch
     de la medición con que se calibró el proyecto; un año ya del PIDE se queda como está."""
     import random
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     rnd = random.Random()
     base = rnd.randint(2024, 2030)

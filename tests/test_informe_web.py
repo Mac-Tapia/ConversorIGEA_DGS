@@ -14,7 +14,7 @@ pytest.importorskip('fastapi')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo  # noqa: E402
-from convertersmartgrid.web.app import create_app  # noqa: E402
+from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 
 
 def _medida(vmin, kvar_perdidas=55.0):
@@ -252,7 +252,7 @@ def test_libro_de_perdidas_por_ruta_del_servidor_y_quitarlo(client, tmp_path):
 def test_cargas_del_proyecto_de_transmision_en_el_carril_de_digsilent(client, tmp_path, monkeypatch):
     """017:RF-26, 017:RF-95 — listar las cargas de barra del proyecto de transmisión es un
     trabajo del carril de DIgSILENT con el proyecto pedido; su error llega al operador."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     wid, salida = _espacio(client, tmp_path)
     planes = []
@@ -278,7 +278,7 @@ def test_cargas_del_proyecto_de_transmision_en_el_carril_de_digsilent(client, tm
 def test_transformador_con_el_delta_de_los_flujos_guardados(client, tmp_path, monkeypatch):
     """017:RF-65, 017:RF-67, 017:RF-67b — el Δ de cabecera «Con − Sin» de 4.2 va al guion de
     transmisión; nada se vuelve a simular en el proyecto del alimentador."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     wid, salida = _espacio(client, tmp_path)
     con = next(salida.glob('estudio_con_*.json'))
@@ -315,7 +315,7 @@ def test_informe_de_estudio_con_las_obras_ya_aplicadas(client, tmp_path):
     espacio, y el informe salía solo con el estado actual. Ahora toma las obras aplicadas
     cuya variación está activa en el flujo de «Con proyecto», con la consigna de cabecera
     como etapa de regulación."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     wid, salida = _espacio(client, tmp_path)
     con = salida / 'estudio_con_flujo_desequilibrado_b.json'
@@ -352,7 +352,7 @@ def test_informe_de_estudio_con_las_imagenes_del_flujo(client, tmp_path):
         (salida / nombre).write_text(json.dumps({
             'medidas': {'AL01': _medida(u)}, 'geo': {'AL01': GEO},
             'obras_activas': ['Obra_consigna_AL01']}), encoding='utf-8')
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = client.app.state.store.get(wid)
     services.registrar_obra_aplicada(ws, '', 'Obra_consigna_AL01', {
@@ -441,7 +441,7 @@ def test_progreso_por_pasos_huecos_y_descargas(client, tmp_path):
 
 def test_rotulo_de_la_carga_nueva_en_las_imagenes():
     """017:RF-109 / 017:RF-117 — el cliente nuevo se rotula «Carga-{nombre}-{kW} kW-Cod {código}»."""
-    from convertersmartgrid.mapa_informe import rotulo_de_carga
+    from convertersmartgrid.adaptadores.mapa_informe import rotulo_de_carga
 
     assert rotulo_de_carga('EMPRESA X', 800.0, 'E-39533') == 'Carga-EMPRESA X-800 kW-Cod E-39533'
     assert rotulo_de_carga('B', 1250.5, 'N1') == 'Carga-B-1250.5 kW-Cod N1'
@@ -449,7 +449,7 @@ def test_rotulo_de_la_carga_nueva_en_las_imagenes():
 
 def test_asunto_propuesto_con_el_tipo_y_los_alimentadores():
     """017:RF-80 — el asunto propuesto lleva el tipo de informe y los alimentadores."""
-    from convertersmartgrid.informes import asunto_propuesto
+    from convertersmartgrid.adaptadores.informes import asunto_propuesto
 
     assert asunto_propuesto('estudio', ['CA101', 'CA102']) == 'ESTUDIO ELÉCTRICO DE LOS ALIMENTADORES CA101, CA102'
     assert asunto_propuesto('factibilidad', ['XA218'], 'ANDES BERRIES') == \
@@ -476,7 +476,7 @@ def test_sin_proyecto_no_convergido_avisa_y_deja_generar(client, tmp_path, monke
     """017:RF-1 / 017:RF-28 / 017:RF-78 — con el último flujo de «Sin proyecto» sin converger, el
     contexto lo marca, el informe se genera y lo dice en su sección; nada pasa por DIgSILENT,
     así que el proyecto queda como estaba."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     def sin_digsilent(*_a, **_k):
         raise AssertionError('el informe no debe abrir DIgSILENT')
@@ -521,7 +521,7 @@ def test_resumen_y_miniaturas_al_terminar(client, tmp_path):
         (salida / nombre).write_text(json.dumps({
             'medidas': {'AL01': _medida(u)}, 'geo': {'AL01': GEO},
             'obras_activas': ['Obra_consigna_AL01']}), encoding='utf-8')
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = client.app.state.store.get(wid)
     services.registrar_obra_aplicada(ws, '', 'Obra_consigna_AL01', {
@@ -546,7 +546,7 @@ def test_el_boton_prepara_los_casos_y_corre_los_flujos_en_el_mismo_trabajo(clien
     """063:RF-1, 063:RF-2, 063:RF-6, 063:RF-7 — sin pasar antes por 4.2: el mismo trabajo prepara
     los casos y corre los flujos (equilibrado y desequilibrado) del alimentador, y el informe toma
     «Cargas nuevas» como el estado proyectado sin obras."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     # La comprobación previa en DIgSILENT (017:RF-124) tiene sus propias pruebas; aquí, la carga está igual.
     monkeypatch.setattr(services, 'comprobar_carga_en_digsilent', lambda *_a, **_k: ([], None))
@@ -603,8 +603,8 @@ def test_ampliacion_nis_y_ficha_llegan_del_formulario_al_word(client, tmp_path):
 def test_islas_y_baja_tension_no_deciden_el_informe():
     """063:RF-43, 063:RF-44 — SM218: los nodos 8674 y 8675 a 0 p.u. y la baja de una SED a 0,887 dejaban
     no factible una red cuya media tensión cumple."""
-    from convertersmartgrid.estudios_pf import Limites
-    from convertersmartgrid.informes import Caso
+    from convertersmartgrid.aplicacion.estudios_pf import Limites
+    from convertersmartgrid.adaptadores.informes import Caso
 
     medida = {**_medida(0.96), 'barras': [['CAB', 1.0], ['N1', 0.96], ['ISLA', 0.0], ['SED_BT', 0.887]],
               'sin_tension': ['ISLA'], 'barras_mt': ['CAB', 'N1', 'ISLA']}
@@ -618,7 +618,7 @@ def test_islas_y_baja_tension_no_deciden_el_informe():
 def test_el_desequilibrado_que_no_cuadra_no_entra_en_el_informe(tmp_path):
     """063:RF-45 — SM218: 11 873 kW frente a 9 284 kW, con cuellos del 185 % que no existen. Si cuadra,
     se prefiere el desequilibrado (017:RF-17)."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = SimpleNamespace(out_dir=tmp_path)
     (tmp_path / 'estudio_sin_flujo_desequilibrado_a.json').write_text(
@@ -647,8 +647,8 @@ def test_transformador_opcional_no_impide_concluir(client, tmp_path):
 
 def test_imagenes_de_cargas_nuevas_salen_de_su_flujo(tmp_path, monkeypatch):
     """063:RF-47 — T7 en SM218: el flujo estaba y el informe decía «imagen ... sin obras» como hueco."""
-    from convertersmartgrid import mapa_informe
-    from convertersmartgrid.web import services
+    from convertersmartgrid.adaptadores import mapa_informe
+    from convertersmartgrid.presentacion.web import services
 
     dibujados = []
 
@@ -675,8 +675,8 @@ def test_imagenes_de_cargas_nuevas_salen_de_su_flujo(tmp_path, monkeypatch):
 
 def test_cliente_de_otra_carga_se_dice_y_queda_como_hueco(client, tmp_path, monkeypatch):
     """063:RF-49 — T7 en <código>: la carga de <sitio>'S BERRIES salió con la solicitud de Minera <sitio>."""
-    from convertersmartgrid import informes
-    from convertersmartgrid.informes import cliente_ajeno
+    from convertersmartgrid.adaptadores import informes
+    from convertersmartgrid.adaptadores.informes import cliente_ajeno
 
     assert cliente_ajeno("AMPC ANDES'S BERRIES S.A.C.", 'Minera Ejemplo S.A.C.')
     assert not cliente_ajeno("AMPC ANDES'S BERRIES S.A.C.", 'Andinas Berries S.A.C.')
@@ -695,7 +695,7 @@ def test_cliente_de_otra_carga_se_dice_y_queda_como_hueco(client, tmp_path, monk
 
 def test_obras_del_informe_solo_las_activas_de_ese_proyecto_y_alimentador():
     """063:RF-53 — una obra de otro proyecto, de otro alimentador o apagada no se atribuye a esta carga."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     banco = {'clase': 'condensador', 'alimentador': 'AL01', 'barra': 'N8904', 'q_kvar': 450.0}
     ws = SimpleNamespace(obras_aplicadas=[

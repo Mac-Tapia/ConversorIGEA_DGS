@@ -17,9 +17,9 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
 from apoyo_pf_web import guion_falso  # noqa: E402,F401
-from convertersmartgrid import datos_empresa as de  # noqa: E402
-from convertersmartgrid import estudios_pf, protecciones as pr  # noqa: E402
-from convertersmartgrid.web.app import create_app  # noqa: E402
+from convertersmartgrid.aplicacion import datos_empresa as de  # noqa: E402
+from convertersmartgrid.aplicacion import estudios_pf, protecciones as pr  # noqa: E402
+from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 
 FEEDERS = ['A1', 'A2']
 

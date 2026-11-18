@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from convertersmartgrid import crecimiento as cr
+from convertersmartgrid.aplicacion import crecimiento as cr
 
 
 def _curva(anio: int, meses: range, base: float, rnd: random.Random):
@@ -58,7 +58,7 @@ def test_la_tasa_del_perfil_vale_para_todos():
     cada alimentador solo se calcula si el perfil no la trae."""
     import inspect
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     fuente = inspect.getsource(services.pide_ejecutar)
     tasa = fuente.index("tasa = plan_pide.get('crecimiento_demanda_anual')")
@@ -73,8 +73,8 @@ def test_los_libros_de_cabecera_se_leen_en_el_proceso_del_trabajo():
     proceso del trabajo y no en el de la API, con una función de nivel superior."""
     import inspect
 
-    from convertersmartgrid import crecimiento
-    from convertersmartgrid.web import services
+    from convertersmartgrid.aplicacion import crecimiento
+    from convertersmartgrid.presentacion.web import services
 
     fuente = inspect.getsource(services._crecimiento_de_la_cabecera)
     assert "_en_proceso_con_reintento(ctx, avisos, 'la tasa de la cabecera', curvas_por_anio," in fuente   # 098:RF-49
@@ -109,7 +109,7 @@ def test_la_pot_de_cada_libro_se_guarda_con_su_huella(tmp_path, monkeypatch):
     import os
     from types import SimpleNamespace
 
-    from convertersmartgrid import demanda_medida as dm
+    from convertersmartgrid.aplicacion import demanda_medida as dm
 
     rnd = random.Random(42096)
     n = rnd.randint(3, 8)

@@ -4,10 +4,10 @@ from __future__ import annotations
 import pytest
 from apoyo import cargar_herramienta
 
-from convertersmartgrid import escalera_optima as eo
-from convertersmartgrid import obras_integrales as oi
-from convertersmartgrid import optimizacion_oraculo as oo
-from convertersmartgrid.web import services
+from convertersmartgrid.aplicacion import escalera_optima as eo
+from convertersmartgrid.aplicacion import obras_integrales as oi
+from convertersmartgrid.adaptadores import optimizacion_oraculo as oo
+from convertersmartgrid.presentacion.web import services
 
 PERFIL = {'escalera': {'cumplimiento': 0.95, 'sorteos': 200, 'semilla': 7, 'tolerancia_pu': 0.005,
                        'tolerancia_carga_pct': 1.0},
@@ -77,7 +77,7 @@ def test_celda_y_km_del_libro_o_su_referencia_citada():
     sin_alim = eo.costos_de_alternativas({'nueva_terna': {'costo_unitario': 40.0, 'unidad': 'km'}},
                                          eo.parametros({**PERFIL, 'escalera': {**PERFIL['escalera'], 'escala_capex': 1000}}))
     assert sin_alim['nuevo_alimentador']['costo_unitario'] == 40000.0 and 'por confirmar' in sin_alim['nuevo_alimentador']['origen']
-    from convertersmartgrid.pide_economia import ObraCapex, costos_por_alternativa
+    from convertersmartgrid.aplicacion.pide_economia import ObraCapex, costos_por_alternativa
 
     libro = costos_por_alternativa([ObraCapex('P27320019', 'Pisco', 'Ampl.', 'Nuevo alimentador PO201', 'km', 5.0, 69.3, 346.5,
                                               'nuevo_alimentador')])
@@ -244,8 +244,8 @@ def test_la_regla_de_la_maxima_solo_cerca_del_criterio():
 def test_traslado_a_un_vecino_de_la_misma_tension(monkeypatch):
     """087:RF-33 — con el enlace llegando a la parte que pasa, la migración a la misma tensión solo abre su entrada; sin
     él, se rechaza como siempre (016:RF-65)."""
-    from convertersmartgrid import obras_pf as op
-    from convertersmartgrid.troncal import Barra, Tramo, red_de
+    from convertersmartgrid.aplicacion import obras_pf as op
+    from convertersmartgrid.dominio.troncal import Barra, Tramo, red_de
 
     barras = ['C', 'A', 'B', 'D']
     topo = red_de([Barra(b) for b in barras], [Tramo('L1', 'C', 'A', 10), Tramo('L2', 'A', 'B', 10),
@@ -480,7 +480,7 @@ def test_una_zona_pequena_sola_va_al_alimentador_nuevo(monkeypatch):
     """087:RF-54 — CHI201 sola con 0,66 MW: alimentador expreso, no SET nueva; y la orden directa, sin escalera."""
     import inspect
 
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil',
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil',
                         lambda: {'planificacion': {'set_nueva_desde_kw': 10000, 'radio_zona_set_km': 10}})
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: [
         {'sed': 'SALUD', 'alimentador': 'CHI201', 'kw': 660.0, 'variacion': 'Carga_SALUD', 'lat': -13.7, 'lon': -75.9}])

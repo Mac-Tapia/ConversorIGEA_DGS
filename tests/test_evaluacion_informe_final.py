@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.evaluacion_harness import informe_final as inf
+from convertersmartgrid.aplicacion.evaluacion_harness import informe_final as inf
 
 
 def _git(repo: Path, *args: str) -> str:

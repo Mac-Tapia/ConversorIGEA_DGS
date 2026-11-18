@@ -2,7 +2,7 @@
 
 Spec 034: 034:RF-1.
 """
-from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import CymdistDataset
 
 
 def test_dataset_parses_all_source_tables_once(csg_paths):
@@ -20,7 +20,7 @@ def test_dataset_parses_all_source_tables_once(csg_paths):
 
 
 def test_dataset_resolves_short_name_network_id_and_joins_load_location(ds, sample_feeder):
-    from convertersmartgrid.naming import feeder_short_name
+    from convertersmartgrid.dominio.naming import feeder_short_name
 
     network_id = ds.resolve_feeder(sample_feeder)
     assert feeder_short_name(network_id) == sample_feeder

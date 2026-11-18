@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import privacidad as PR
-from convertersmartgrid.web import soporte as SP
+from convertersmartgrid.dominio import privacidad as PR
+from convertersmartgrid.presentacion.web import soporte as SP
 
 # Líneas como las que deja el registro de la web: cada una con algo que identifica a alguien.
 LINEAS = [
@@ -162,7 +162,7 @@ def _codigos_sorteados(semilla: int, n: int) -> list[str]:
 
 def test_mismo_identificador_mismo_seudonimo_en_los_tres_ficheros():
     """112:RF-2 — un cliente de la CARGA y el mismo de la RED reciben el mismo seudónimo: el trío sigue cuadrando."""
-    from convertersmartgrid.benchmarks.seudonimos import Mapa
+    from convertersmartgrid.dominio.benchmarks.seudonimos import Mapa
     codigos = sorted(set(_codigos_sorteados(7, 40)))
     mapa = Mapa(semilla=123)
     for c in codigos:              # como si se leyera la RED…
@@ -179,7 +179,7 @@ def test_mismo_identificador_mismo_seudonimo_en_los_tres_ficheros():
 
 def test_los_tipos_no_se_mezclan_y_el_orden_original_no_se_filtra():
     """112:RF-2 — el número del seudónimo sale de una permutación sorteada, no del orden alfabético del original."""
-    from convertersmartgrid.benchmarks.seudonimos import Mapa
+    from convertersmartgrid.dominio.benchmarks.seudonimos import Mapa
     codigos = sorted(set(_codigos_sorteados(11, 60)))
     mapa = Mapa(semilla=5)
     for c in codigos:
@@ -193,7 +193,7 @@ def test_los_tipos_no_se_mezclan_y_el_orden_original_no_se_filtra():
 
 def test_misma_semilla_mismos_seudonimos_y_otra_semilla_otros():
     """112:RF-2 — reproducible con la misma semilla, sea cual sea el orden de registro; con otra, cambia."""
-    from convertersmartgrid.benchmarks.seudonimos import Mapa
+    from convertersmartgrid.dominio.benchmarks.seudonimos import Mapa
     codigos = sorted(set(_codigos_sorteados(3, 30)))
 
     def tabla(semilla, orden):
@@ -211,7 +211,7 @@ def test_el_mapa_nunca_se_escribe():
     """112:RF-2 — el mapa vive solo en memoria: no se serializa ni se puede volcar a JSON."""
     import pickle
 
-    from convertersmartgrid.benchmarks.seudonimos import Mapa
+    from convertersmartgrid.dominio.benchmarks.seudonimos import Mapa
     mapa = Mapa(semilla=1)
     mapa.registrar('red', 'XX001')
     mapa.congelar()
@@ -224,7 +224,7 @@ def test_el_mapa_nunca_se_escribe():
 
 def test_valores_vacios_y_errores_de_uso():
     """112:RF-2 — lo vacío no se seudonimiza; un tipo desconocido o un valor sin registrar es un error claro."""
-    from convertersmartgrid.benchmarks.seudonimos import Mapa
+    from convertersmartgrid.dominio.benchmarks.seudonimos import Mapa
     mapa = Mapa(semilla=1)
     mapa.registrar('red', '')
     mapa.registrar('red', None)
@@ -244,7 +244,7 @@ def test_coordenadas_a_un_origen_neutro_conservan_las_distancias():
     import math
     import random
 
-    from convertersmartgrid.benchmarks.seudonimos import (
+    from convertersmartgrid.dominio.benchmarks.seudonimos import (
         ORIGEN_NEUTRO,
         transformar_coordenadas,
     )

@@ -23,7 +23,7 @@ def _ctx():
 
 
 def _txt_workspace(tmp_path, *, feeders: int = 2):
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     red, loads, equipment = write_export(ExportSpec(feeders=feeders), tmp_path / 'export')
     ws = Workspace(id='adapter-tests', root=tmp_path / 'workspace')
@@ -34,9 +34,9 @@ def _txt_workspace(tmp_path, *, feeders: int = 2):
 
 
 def test_txt_adapter_paridad_con_lector_actual(tmp_path):
-    from convertersmartgrid.dataset import CymdistDataset
-    from convertersmartgrid.web.source_runs import create_source_run
-    from convertersmartgrid.web.sources import adapter_for
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
+    from convertersmartgrid.adaptadores.sources import adapter_for
 
     ws, originals = _txt_workspace(tmp_path)
     expected = CymdistDataset.from_files(*originals)
@@ -53,9 +53,9 @@ def test_txt_adapter_paridad_con_lector_actual(tmp_path):
 
 
 def test_mdb_adapter_paridad_con_lector_actual(tmp_path, monkeypatch):
-    from convertersmartgrid.web.source_runs import create_source_run
-    from convertersmartgrid.web.sources import adapter_for
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
+    from convertersmartgrid.adaptadores.sources import adapter_for
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     mdb = tmp_path / 'red.mdb'
     mdb.write_bytes(b'base access de prueba')
@@ -70,7 +70,7 @@ def test_mdb_adapter_paridad_con_lector_actual(tmp_path, monkeypatch):
         called.update(path=path, equipment_db=equipment_db, networks=networks)
         return expected
 
-    monkeypatch.setattr('convertersmartgrid.access.read_access_dataset', fake_reader)
+    monkeypatch.setattr('convertersmartgrid.adaptadores.access.read_access_dataset', fake_reader)
 
     result = adapter_for('mdb').load(snapshot, aliases={})
 
@@ -81,8 +81,8 @@ def test_mdb_adapter_paridad_con_lector_actual(tmp_path, monkeypatch):
 
 
 def test_adapter_rechaza_slot_de_otro_modo(tmp_path):
-    from convertersmartgrid.web.source_runs import SourceFile, SourceSnapshot
-    from convertersmartgrid.web.sources import SourceModeError, adapter_for
+    from convertersmartgrid.presentacion.web.source_runs import SourceFile, SourceSnapshot
+    from convertersmartgrid.adaptadores.sources import SourceModeError, adapter_for
 
     foreign = tmp_path / 'red.mdb'
     foreign.write_bytes(b'mdb')
@@ -100,7 +100,7 @@ def test_adapter_rechaza_slot_de_otro_modo(tmp_path):
 
 
 def test_load_crea_run_antes_de_leer_y_usa_su_salida(tmp_path):
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws, originals = _txt_workspace(tmp_path)
 
@@ -118,9 +118,9 @@ def test_load_crea_run_antes_de_leer_y_usa_su_salida(tmp_path):
 
 def test_reinicio_sin_dataset_pide_cargar_sin_inventar_cambio_de_seleccion(tmp_path):
     """034:RF-20: reabrir una fuente intacta no equivale a cambiar sus entradas."""
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.requisitos import require_active_source_run
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.requisitos import require_active_source_run
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws, _ = _txt_workspace(tmp_path)
     services.load_dataset(ws, _ctx())
@@ -135,8 +135,8 @@ def test_reinicio_sin_dataset_pide_cargar_sin_inventar_cambio_de_seleccion(tmp_p
 @pytest.mark.parametrize('change', ['mode', 'generation', 'loaded_token'])
 def test_reinicio_guardas_de_una_red_cargada_siguen_vigentes(tmp_path, change):
     """034:RF-20: disponer del dataset no permite saltarse modo o tokens."""
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.requisitos import require_active_source_run
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.requisitos import require_active_source_run
 
     ws, _ = _txt_workspace(tmp_path)
     services.load_dataset(ws, _ctx())
@@ -153,9 +153,9 @@ def test_reinicio_guardas_de_una_red_cargada_siguen_vigentes(tmp_path, change):
 @pytest.mark.parametrize('change', ['mode', 'generation'])
 def test_reinicio_con_seleccion_realmente_distinta_sigue_bloqueado(tmp_path, change):
     """034:RF-20: no tener dataset tampoco oculta una modificación de selección."""
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.requisitos import require_active_source_run
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.requisitos import require_active_source_run
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws, _ = _txt_workspace(tmp_path)
     services.load_dataset(ws, _ctx())
@@ -172,9 +172,9 @@ def test_reinicio_con_seleccion_realmente_distinta_sigue_bloqueado(tmp_path, cha
 def test_reinicio_con_manifiesto_invalido_nunca_habilita_una_fuente(tmp_path, field, value):
     """034:RF-20: un manifiesto inválido conserva el rechazo sin fuente cargada."""
     import json
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.requisitos import require_active_source_run
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.requisitos import require_active_source_run
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws, _ = _txt_workspace(tmp_path)
     services.load_dataset(ws, _ctx())
@@ -189,8 +189,8 @@ def test_reinicio_con_manifiesto_invalido_nunca_habilita_una_fuente(tmp_path, fi
 
 
 def test_convert_rechaza_source_run_mismatch(tmp_path):
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.source_runs import create_source_run
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
 
     ws, _originals = _txt_workspace(tmp_path)
     services.load_dataset(ws, _ctx())
@@ -205,7 +205,7 @@ def test_convert_rechaza_source_run_mismatch(tmp_path):
 def test_conversion_estampa_run_en_manifiesto_y_metadata(tmp_path):
     import json
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws, _originals = _txt_workspace(tmp_path, feeders=1)
     services.load_dataset(ws, _ctx())
@@ -227,7 +227,7 @@ def test_conversion_estampa_run_en_manifiesto_y_metadata(tmp_path):
 def test_conversion_unida_estampa_el_mismo_run(tmp_path):
     import json
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws, _originals = _txt_workspace(tmp_path, feeders=2)
     services.load_dataset(ws, _ctx())
@@ -250,8 +250,8 @@ def test_conversion_unida_estampa_el_mismo_run(tmp_path):
 
 
 def test_conversion_unida_rechaza_source_run_mismatch(tmp_path):
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.source_runs import create_source_run
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
 
     ws, _originals = _txt_workspace(tmp_path, feeders=2)
     services.load_dataset(ws, _ctx())
@@ -268,7 +268,7 @@ def test_conversion_revalida_bytes_custodiados_antes_del_dataset_cached_y_escrit
     """034:RF-20 — mismo tamaño/mtime no conserva identidad si cambiaron los bytes."""
     import copy
     import os
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws, originals = _txt_workspace(tmp_path, feeders=1)
     services.load_dataset(ws, _ctx())
@@ -282,8 +282,8 @@ def test_conversion_revalida_bytes_custodiados_antes_del_dataset_cached_y_escrit
     os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
     assert (path.stat().st_size, path.stat().st_mtime_ns) == (stat.st_size, stat.st_mtime_ns)
     called = []
-    monkeypatch.setattr('convertersmartgrid.batch.convert_selection', lambda *a, **k: called.append('individual'))
-    monkeypatch.setattr('convertersmartgrid.batch.convert_group', lambda *a, **k: called.append('unida'))
+    monkeypatch.setattr('convertersmartgrid.aplicacion.batch.convert_selection', lambda *a, **k: called.append('individual'))
+    monkeypatch.setattr('convertersmartgrid.aplicacion.batch.convert_group', lambda *a, **k: called.append('unida'))
     feeders = [row['feeder'] for row in services.feeder_rows(ws)]
     with pytest.raises(services.UserError, match='SOURCE_RUN_INTEGRITY.*huella'):
         if group:
@@ -299,7 +299,7 @@ def test_conversion_revalida_bytes_custodiados_antes_del_dataset_cached_y_escrit
 
 def test_carga_verifica_custodia_persistida_antes_del_lector(tmp_path, monkeypatch):
     """034:RF-20 — la carga valida la copia y su manifiesto antes de invocar adaptadores."""
-    from convertersmartgrid.web import services, source_runs
+    from convertersmartgrid.presentacion.web import services, source_runs
 
     ws, originals = _txt_workspace(tmp_path, feeders=1)
     create = source_runs.create_source_run
@@ -312,7 +312,7 @@ def test_carga_verifica_custodia_persistida_antes_del_lector(tmp_path, monkeypat
         return snapshot
 
     monkeypatch.setattr(source_runs, 'create_source_run', capture_and_tamper)
-    monkeypatch.setattr('convertersmartgrid.sources.adapter_for', lambda *a, **k: called.append('lector'))
+    monkeypatch.setattr('convertersmartgrid.adaptadores.sources.adapter_for', lambda *a, **k: called.append('lector'))
     with pytest.raises(services.UserError, match='SOURCE_RUN_INTEGRITY.*huella'):
         services.load_dataset(ws, _ctx())
     assert not called
@@ -324,8 +324,8 @@ def test_carga_verifica_custodia_persistida_antes_del_lector(tmp_path, monkeypat
 @pytest.mark.parametrize('moment', ['copy', 'reader'])
 def test_carga_obsoleta_no_reactiva_run_ni_publica_dataset_al_cambiar_modalidad(tmp_path, monkeypatch, moment):
     """034:RF-20 — un PUT de modalidad durante el trabajo conserva la decisión nueva."""
-    from convertersmartgrid import sources
-    from convertersmartgrid.web import services, source_runs
+    from convertersmartgrid.adaptadores import sources
+    from convertersmartgrid.presentacion.web import services, source_runs
 
     ws, _ = _txt_workspace(tmp_path, feeders=1)
     mdb = tmp_path / 'solo-existencia.mdb'
@@ -371,8 +371,8 @@ def test_carga_obsoleta_no_reactiva_run_ni_publica_dataset_al_cambiar_modalidad(
 def test_lector_real_no_puede_consumir_ABA_y_recibo_coincide_con_dgs_control(tmp_path, monkeypatch):
     """034:RF-20 — SHA y lector usan fuente excluida de escritores, no hash antes/después."""
     import hashlib
-    from convertersmartgrid import sources
-    from convertersmartgrid.web import services
+    from convertersmartgrid.adaptadores import sources
+    from convertersmartgrid.presentacion.web import services
 
     ws, _ = _txt_workspace(tmp_path / 'protected', feeders=1)
     factory = sources.adapter_for
@@ -415,7 +415,7 @@ def test_lector_real_no_puede_consumir_ABA_y_recibo_coincide_con_dgs_control(tmp
 def test_cambio_de_run_al_adquirir_guarda_no_convierte_otro_dataset(tmp_path, monkeypatch, group):
     """034:RF-20 — la guarda y el cuerpo consumen una captura única, aunque termine otra carga."""
     from contextlib import contextmanager
-    from convertersmartgrid.web import services, source_runs
+    from convertersmartgrid.presentacion.web import services, source_runs
 
     ws, _ = _txt_workspace(tmp_path, feeders=1)
     services.load_dataset(ws, _ctx())
@@ -447,7 +447,7 @@ def test_cambio_de_run_al_adquirir_guarda_no_convierte_otro_dataset(tmp_path, mo
 @pytest.mark.parametrize('group', [False, True])
 def test_cambio_justo_antes_publicar_no_escribe_en_run_nuevo_ni_repuebla_estado(tmp_path, monkeypatch, group):
     """034:RF-20 — el commit de publicación valida y actualiza bajo una exclusión breve."""
-    from convertersmartgrid.web import services, source_runs
+    from convertersmartgrid.presentacion.web import services, source_runs
 
     ws, _ = _txt_workspace(tmp_path, feeders=1)
     mdb = tmp_path / 'existencia.mdb'
@@ -482,7 +482,7 @@ def test_publicacion_breve_excluye_cambio_concurrente_y_conserva_recibo_capturad
     """034:RF-20 — otra petición espera solo al commit, sin desviar identidad ni destino."""
     import json
     import threading
-    from convertersmartgrid.web import services, source_runs
+    from convertersmartgrid.presentacion.web import services, source_runs
 
     ws, _ = _txt_workspace(tmp_path, feeders=1)
     mdb = tmp_path / 'existencia.mdb'
@@ -532,8 +532,8 @@ def test_publicacion_breve_excluye_cambio_concurrente_y_conserva_recibo_capturad
 def test_conversion_larga_no_retiene_lock_http_y_aborta_commit_de_seleccion_obsoleta(tmp_path, monkeypatch):
     """065:RF-18; 034:RF-20 — el cerrojo breve no cubre el cálculo DGS."""
     import threading
-    from convertersmartgrid.web import services
-    from convertersmartgrid import batch
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.aplicacion import batch
 
     ws, _ = _txt_workspace(tmp_path, feeders=1)
     services.load_dataset(ws, _ctx())

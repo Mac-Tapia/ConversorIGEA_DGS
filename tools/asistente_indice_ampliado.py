@@ -132,12 +132,7 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     with tempfile.TemporaryDirectory(prefix='csg-indice-077-') as datos:
         os.environ['CSG_ASISTENTE_DATA'] = datos
-        from convertersmartgrid.asistente import (
-            corpus_proyecto,
-            evaluacion_rag,
-            indice,
-            reranker,
-        )
+        from convertersmartgrid.aplicacion.asistente import corpus_proyecto, evaluacion_rag, indice, reranker
 
         if args.orden == 'medir':
             salida = _medir(indice, corpus_proyecto)

@@ -42,13 +42,13 @@ PERFIL = 'electro_dunas'
 
 
 def _perfil():
-    from convertersmartgrid.perfil_empresa import perfil_con_nombre
+    from convertersmartgrid.dominio.perfil_empresa import perfil_con_nombre
 
     return perfil_con_nombre(PERFIL)
 
 
 def _reglas():
-    from convertersmartgrid.reglas import REGLAS_PROYECTO, reglas_de_perfil
+    from convertersmartgrid.aplicacion.reglas import REGLAS_PROYECTO, reglas_de_perfil
 
     return reglas_de_perfil(_perfil(), REGLAS_PROYECTO)
 
@@ -62,7 +62,7 @@ def _perfil_activo():
     prueba, que no tiene perfil, daba CN101. Con este, las dos dan lo mismo en cualquier
     equipo.
     """
-    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.dominio.perfil_empresa import VARIABLE_RUTA
 
     antes = os.environ.get(VARIABLE_RUTA)
     with tempfile.TemporaryDirectory(prefix='csg-linea-base-perfil-') as tmp:
@@ -90,7 +90,7 @@ PARAMETROS = {
 
 
 def _hashes_dgs(carpeta: Path) -> dict[str, str]:
-    from convertersmartgrid.util import sha256_file
+    from convertersmartgrid.dominio.util import sha256_file
 
     return {p.relative_to(carpeta).as_posix(): sha256_file(p)
             for p in sorted(carpeta.rglob('*.dgs'))}
@@ -98,8 +98,8 @@ def _hashes_dgs(carpeta: Path) -> dict[str, str]:
 
 def huella_entradas(red: Path, loads: Path, equipment: Path) -> dict[str, str | None]:
     """Hash de lo que determina la salida además del código: entradas y catálogo."""
-    from convertersmartgrid.reglas import catalogo_del_proyecto
-    from convertersmartgrid.util import sha256_file
+    from convertersmartgrid.aplicacion.reglas import catalogo_del_proyecto
+    from convertersmartgrid.dominio.util import sha256_file
 
     catalogo = catalogo_del_proyecto()
     return {
@@ -123,10 +123,10 @@ def _calcular(red: Path, loads: Path, equipment: Path, salida: Path, *,
     ``workers`` cambia solo el reparto del lote: la prueba lo usa con 4 para comprobar
     que el DGS no depende de él (002:RF-20); los parámetros guardados no cambian.
     """
-    from convertersmartgrid.batch import convert_group, convert_selection
-    from convertersmartgrid.dataset import CymdistDataset
-    from convertersmartgrid.naming import feeder_short_name
-    from convertersmartgrid.reglas import catalogo_del_proyecto
+    from convertersmartgrid.aplicacion.batch import convert_group, convert_selection
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.dominio.naming import feeder_short_name
+    from convertersmartgrid.aplicacion.reglas import catalogo_del_proyecto
 
     catalogo = catalogo_del_proyecto()
     p = PARAMETROS
@@ -166,8 +166,8 @@ def _calcular(red: Path, loads: Path, equipment: Path, salida: Path, *,
 
 def huella_mdb(mdb: Path, equipment_mdb: Path | None) -> dict[str, str | None]:
     """Hash de las bases de Access y del catálogo del proyecto."""
-    from convertersmartgrid.reglas import catalogo_del_proyecto
-    from convertersmartgrid.util import sha256_file
+    from convertersmartgrid.aplicacion.reglas import catalogo_del_proyecto
+    from convertersmartgrid.dominio.util import sha256_file
 
     catalogo = catalogo_del_proyecto()
     return {
@@ -184,9 +184,9 @@ def calcular_mdb(mdb: Path, equipment_mdb: Path | None, salida: Path) -> dict:
 
 
 def _calcular_mdb(mdb: Path, equipment_mdb: Path | None, salida: Path) -> dict:
-    from convertersmartgrid.access import read_access_dataset
-    from convertersmartgrid.batch import convert_selection
-    from convertersmartgrid.reglas import catalogo_del_proyecto
+    from convertersmartgrid.adaptadores.access import read_access_dataset
+    from convertersmartgrid.aplicacion.batch import convert_selection
+    from convertersmartgrid.aplicacion.reglas import catalogo_del_proyecto
 
     p = PARAMETROS
     ds = read_access_dataset(mdb, equipment_db=equipment_mdb)

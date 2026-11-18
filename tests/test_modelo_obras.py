@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import random
 
-from convertersmartgrid import modelo_obras as mo
-from convertersmartgrid.escalera_optima import Variante
+from convertersmartgrid.dominio import modelo_obras as mo
+from convertersmartgrid.aplicacion.escalera_optima import Variante
 
 
 def _fila(sistema, grupo, km, costo, cumple):

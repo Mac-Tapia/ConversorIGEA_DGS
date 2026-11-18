@@ -1,6 +1,6 @@
 # Plan — Spec 106
 
-- `src/convertersmartgrid/trabajadores_ml.py`: `turno_gpu_con_plazo` (espera, aviso cada minuto y error con el dueño) y
+- `src/convertersmartgrid/aplicacion/trabajadores_ml.py`: `turno_gpu_con_plazo` (espera, aviso cada minuto y error con el dueño) y
   `quien_tiene_la_gpu` (lee el JSON del turno). Reloj y espera inyectables para probar sin dormir. RF-2, RF-3.
 - `tests/conftest.py`: al importarse, calcula la guardia de la máquina y redirige `CSG_ML_GPU_LOCK` a una de la sesión,
   antes que cualquier fixture de módulo; `pytest_collection_modifyitems` marca `gpu` por el texto del módulo (RF-6);

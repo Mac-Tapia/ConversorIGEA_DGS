@@ -19,8 +19,8 @@ from types import SimpleNamespace
 import pytest
 from openpyxl import Workbook
 
-from convertersmartgrid import datos_empresa as de
-from convertersmartgrid import historico_interrupciones as hi
+from convertersmartgrid.aplicacion import datos_empresa as de
+from convertersmartgrid.aplicacion import historico_interrupciones as hi
 
 SEMILLAS = [random.randrange(10**6) for _ in range(4)]
 
@@ -273,7 +273,7 @@ def _faltan_reales() -> list[str]:
 def test_historico_real_da_tasas_mayores_que_cero():
     """012:RF-6, RF-8, RF-62 — el histórico real de la empresa, tal cual, da tasas mayores que cero
     para las líneas y los transformadores, normalizadas con la red del TXT, y lo dice."""
-    from convertersmartgrid.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
 
     ds = CymdistDataset.from_files(os.environ['CSG_RED'], os.environ['CSG_LOADS'], os.environ['CSG_EQUIPMENT'])
     libro = de.leer_libro(os.environ['CSG_INTERRUPCIONES'], red=ds)

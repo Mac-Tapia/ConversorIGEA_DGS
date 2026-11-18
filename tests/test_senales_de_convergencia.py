@@ -17,13 +17,13 @@ from types import SimpleNamespace
 import pytest
 
 from apoyo import TOOLS, cargar_herramienta, espacio_txt_custodiado
-from convertersmartgrid.powerfactory_binding import (
+from convertersmartgrid.adaptadores.powerfactory_binding import (
     PowerFactoryProjectBinding, caso_base_verificado, fusionar_caso_base,
 )
-from convertersmartgrid.powerfactory_metadata import classify_convergence, estado_caso_base, estado_flujo
-from convertersmartgrid.util import sha256_file
-from convertersmartgrid.web import services
-from convertersmartgrid.web.workspace import Workspace
+from convertersmartgrid.adaptadores.powerfactory_metadata import classify_convergence, estado_caso_base, estado_flujo
+from convertersmartgrid.dominio.util import sha256_file
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.workspace import Workspace
 
 tool = cargar_herramienta('powerfactory_acceptance.py', 'pfa_078')
 RAIZ = TOOLS.parent
@@ -297,7 +297,7 @@ def test_caso_base_el_gemelo_solo_con_verificado(tmp_path, monkeypatch):
 
     ctx = SimpleNamespace(job=SimpleNamespace(id='j'), log=lambda *_: None, progress=lambda *_: None,
                           check_cancel=lambda: None, run_process=ejecutar)
-    monkeypatch.setattr('convertersmartgrid.powerfactory_binding.require_project_binding',
+    monkeypatch.setattr('convertersmartgrid.adaptadores.powerfactory_binding.require_project_binding',
                         lambda ws_, p, f: _binding_de(ws_.pf_project_bindings[p]))
     res = services.pf_verificar_base(ws, ctx, 'P', ['AL101'])['feeders'][0]
     assert res['status'] == 'NO_CONVERGE' and capturas == []

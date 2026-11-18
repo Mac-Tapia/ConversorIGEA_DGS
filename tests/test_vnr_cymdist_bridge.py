@@ -94,7 +94,7 @@ def test_vnr_tramo_de_cable_no_sale_aereo_y_se_anota(empresa):
     Igual para dos distribuidoras: nada depende del código de la empresa.
     """
     from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
-    from convertersmartgrid.model import build_feeder_model
+    from convertersmartgrid.dominio.model import build_feeder_model
 
     alimentador = f'{empresa}-MT01'
     result = canonical_to_cymdist(_vnr_con_cable_y_tramo_fuera(alimentador=alimentador, empresa=empresa),
@@ -146,8 +146,8 @@ def test_vnr_medio_por_prioridad_fuente_perfil_capa_y_norma():
 def test_vnr_parametros_del_tipo_y_tension_llegan_al_resolvedor():
     """080:RF-54 — R, X, amperios y tensión del tipo VNR llegan al resolvedor; lo que falta, de cable."""
     from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
-    from convertersmartgrid.catalog_resolution import resolve_dataset_equipment
-    from convertersmartgrid.reconstruction import ReconstructionPolicy, reconstruct_dataset
+    from convertersmartgrid.dominio.catalog_resolution import resolve_dataset_equipment
+    from convertersmartgrid.dominio.reconstruction import ReconstructionPolicy, reconstruct_dataset
 
     model = _vnr_con_cable_y_tramo_fuera()
     cable = model.conductor_types[0]
@@ -173,7 +173,7 @@ def test_vnr_parametros_del_tipo_y_tension_llegan_al_resolvedor():
 def test_vnr_tramo_fuera_de_servicio_no_entra_energizado(interruptor_propio):
     """080:RF-55 — abierto por sus dos extremos, con su maniobra si la tiene; se conserva y se anota."""
     from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
-    from convertersmartgrid.model import build_feeder_model
+    from convertersmartgrid.dominio.model import build_feeder_model
 
     result = canonical_to_cymdist(_vnr_con_cable_y_tramo_fuera(interruptor_propio=interruptor_propio),
                                   source_path=Path('VNR.zip'))
@@ -246,7 +246,7 @@ def test_la_formula_del_cable_reproduce_la_ficha_del_fabricante(kv, ficha):
 
     13,2 kV (Um 17,5) lleva cable 8,7/15 kV y 22,9 kV (Um 36), 18/30 kV; los dos con ficha.
     """
-    from convertersmartgrid.catalog import capacitancia_cable, capacitancia_formula_uf_km
+    from convertersmartgrid.aplicacion.catalog import capacitancia_cable, capacitancia_formula_uf_km
 
     for seccion, valor in ficha:
         assert capacitancia_formula_uf_km(seccion, kv) == pytest.approx(valor, rel=0.05)
@@ -260,7 +260,7 @@ def test_la_formula_del_cable_reproduce_la_ficha_del_fabricante(kv, ficha):
 @pytest.mark.parametrize('kv, aislante', [(6.0, 'XLPE'), (3.3, 'XLPE'), (13.2, 'EPR')])
 def test_cable_sin_ficha_va_por_la_formula_marcada_supuesta(kv, aislante):
     """080:RF-58 — 6/10 kV, 3,6/6 kV y el EPR no tienen ficha: fórmula, «supuesta», con la cita de εr."""
-    from convertersmartgrid.catalog import capacitancia_cable
+    from convertersmartgrid.aplicacion.catalog import capacitancia_cable
 
     c, metodo, detalle = capacitancia_cable(70, kv, aislante)
     assert c > 0 and metodo == 'FORMULA' and 'supuesta' in detalle
@@ -313,8 +313,8 @@ def test_clase_paso_1_la_de_la_designacion_de_la_fuente():
 def test_cable_de_10_kv_con_r_y_x_de_8_7_15_toma_la_c_de_8_7_15(tmp_path):
     """080:RF-58 — coherencia: la R y la X salen de la ficha Indeco N2XSY 8,7/15 kV de la semilla del
     catálogo; la C es la del mismo cable (8,7/15 kV, 0,229 µF/km), no la de 6/10 kV de la norma."""
-    from convertersmartgrid.catalog import asegurar_catalogo_empresa
-    from convertersmartgrid.sources.vnr import fichas_del_catalogo
+    from convertersmartgrid.aplicacion.catalog import asegurar_catalogo_empresa
+    from convertersmartgrid.adaptadores.sources.vnr import fichas_del_catalogo
 
     model = _vnr_con_cable_y_tramo_fuera()
     model.sections[0].conductor_code = 'N207003D'
@@ -337,7 +337,7 @@ def test_cable_de_10_kv_con_r_y_x_de_8_7_15_toma_la_c_de_8_7_15(tmp_path):
 ])
 def test_clase_de_la_designacion(texto, clase):
     """080:RF-58 — una sola regla: la U de la designación es la de la clase; una U que no es de clase, nada."""
-    from convertersmartgrid.catalog import clase_de_designacion
+    from convertersmartgrid.aplicacion.catalog import clase_de_designacion
 
     assert clase_de_designacion(texto) == clase
 
@@ -352,7 +352,7 @@ def test_clase_del_cable_por_la_tension_de_fase(kv, clase, regla):
     10 kV: 5,77·1,05 = 6,06 > 6 → 8,7/15 kV (el usuario, 2026-11-14: «sus cables de 10 kV son N2XSY
     8,7/15 kV»). 33 kV: 20,0 > 18 no cabe en ninguna; la tabla 1 de IEC 60502-2 da 18/30 para Um 36.
     """
-    from convertersmartgrid.catalog import clase_de_cable, regla_de_clase
+    from convertersmartgrid.aplicacion.catalog import clase_de_cable, regla_de_clase
 
     assert regla_de_clase(kv) == (clase, regla)
     assert clase_de_cable(kv)[0] == clase
@@ -360,7 +360,7 @@ def test_clase_del_cable_por_la_tension_de_fase(kv, clase, regla):
 
 def test_cable_de_10_kv_toma_la_ficha_de_8_7_15_sin_suponer():
     """080:RF-58 — 10 kV ya no da 6/10 por la norma A/B: da 8,7/15 kV con su ficha, sin «supuesta»."""
-    from convertersmartgrid.catalog import capacitancia_cable
+    from convertersmartgrid.aplicacion.catalog import capacitancia_cable
 
     c, metodo, detalle = capacitancia_cable(70, 10.0)
     assert (c, metodo) == (0.229, 'FICHA') and 'supuesta' not in detalle
@@ -403,7 +403,7 @@ def test_perfil_ilegible_deja_constancia_y_no_bloquea(monkeypatch, caplog):
     queda el aviso PERFIL_ILEGIBLE con su causa y el medio se deduce de la fuente."""
     import logging
 
-    from convertersmartgrid import perfil_empresa
+    from convertersmartgrid.dominio import perfil_empresa
     from convertersmartgrid.adaptadores.entrada.vnr.application import cymdist_bridge
 
     def perfil_roto():

@@ -27,8 +27,8 @@ from pathlib import Path
 from cargas_pf import activar_proyecto, clave_pf, flujo_de_carga
 from digital_twin_snapshot_pf import CASOS, _caso, _red, caso_nativo, contexto_del_plan, grafo, resultados
 
-from convertersmartgrid.digital_twin.native_snapshot import componentes
-from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.adaptadores.digital_twin.native_snapshot import componentes
+from convertersmartgrid.dominio.native_action import native_action_block_report
 
 
 def ejecutar(app, plan: dict, cancelado=lambda: False) -> tuple[dict, int]:
@@ -116,7 +116,7 @@ def main(argv=None) -> int:
         salida.write_text(json.dumps(blocked, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         print(blocked['error'])
         return 2
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('escenarios_pf.py')

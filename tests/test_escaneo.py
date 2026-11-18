@@ -8,8 +8,8 @@ import fake_pf
 import pytest
 from apoyo import cargar_herramienta
 
-from convertersmartgrid import escaneo as esc
-from convertersmartgrid.validate import tramos_del_dgs
+from convertersmartgrid.aplicacion import escaneo as esc
+from convertersmartgrid.adaptadores.validate import tramos_del_dgs
 
 SEMILLA = random.randrange(1 << 30)
 
@@ -103,8 +103,8 @@ def test_ruta_de_la_web_guarda_el_escaneo_y_la_central_toma_su_barra(tmp_path, m
     from apoyo import esperar_trabajo
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
 
     informe = {'project': 'P', 'caso': 'Sin proyecto', 'avisos': [], 'variaciones': [],
                'alimentadores': {'A1': {'generadores': [{'generador': 'G', 'barra': 'N7', 'en_servicio': True,
@@ -267,7 +267,7 @@ def test_recalibrar_sin_bloqueos(tmp_path, monkeypatch):
     from threading import Event
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = SimpleNamespace(escaneo={}, pf_project_bindings={}, root=tmp_path, calibraciones={})
     avisos: list[str] = []
@@ -309,8 +309,8 @@ def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
     from apoyo import esperar_trabajo
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import jobs, services
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import jobs, services
+    from convertersmartgrid.presentacion.web.app import create_app
 
     ordenes = []
     monkeypatch.setattr(jobs.JobContext, 'run_process', lambda self, cmd, **kw: ordenes.append(cmd) or 0)
@@ -363,8 +363,8 @@ def test_recalibrar_solo_unos_alimentadores_del_sistema(tmp_path, monkeypatch):
     from apoyo import esperar_trabajo
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import jobs
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import jobs
+    from convertersmartgrid.presentacion.web.app import create_app
 
     ordenes = []
     monkeypatch.setattr(jobs.JobContext, 'run_process', lambda self, cmd, **kw: ordenes.append(cmd) or 0)
@@ -455,8 +455,8 @@ def test_recalibrar_alimentadores_usa_la_seleccion_guardada(tmp_path, monkeypatc
     """RF-24: la pertenencia del espacio manda incluso si una red unida se llama SISTEMA_*."""
     from apoyo import esperar_trabajo
     from fastapi.testclient import TestClient
-    from convertersmartgrid.web import jobs
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import jobs
+    from convertersmartgrid.presentacion.web.app import create_app
 
     ordenes = []
     monkeypatch.setattr(jobs.JobContext, 'run_process', lambda self, cmd, **kw: ordenes.append(cmd) or 0)
@@ -486,7 +486,7 @@ def test_recalibrar_alimentadores_usa_la_seleccion_guardada(tmp_path, monkeypatc
 
 def test_las_variaciones_del_catalogo_son_del_conversor():
     """032:RF-27 — ``Fichas_`` y ``SED_NTP_`` son del conversor para el escaneo (028)."""
-    from convertersmartgrid import escaneo as esc
+    from convertersmartgrid.aplicacion import escaneo as esc
 
     for nombre in ('Fichas_CA101', 'SED_NTP_Chincha'):
         assert esc.origen_de('', nombre)['origen'] == 'conversor'

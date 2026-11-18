@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.asistente.corpus_redaccion import (
+from convertersmartgrid.aplicacion.asistente.corpus_redaccion import (
     CorpusRedaccionError,
     ejemplos_para_entrenar,
     pendientes,

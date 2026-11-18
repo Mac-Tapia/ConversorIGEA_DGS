@@ -63,7 +63,7 @@ def main(argv=None) -> int:
     p.add_argument('--salida', type=Path, help='JSON con el resultado')
     args = p.parse_args(argv)
 
-    from convertersmartgrid.madrl_obras import (
+    from convertersmartgrid.adaptadores.madrl_obras import (
         EntornoObras,
         EntornoPlano,
         ParametrosObras,
@@ -90,7 +90,7 @@ def main(argv=None) -> int:
 
     def entrenar():
         if args.politica == 'gatv2':
-            from convertersmartgrid.madrl_politica import Entrenamiento, entrenar_ppo
+            from convertersmartgrid.adaptadores.madrl_politica import Entrenamiento, entrenar_ppo
 
             return entrenar_ppo(plano, Entrenamiento(iteraciones=args.iteraciones, semilla=args.semilla),
                                 dispositivo=args.dispositivo)[0]
@@ -100,7 +100,7 @@ def main(argv=None) -> int:
         return modelo
 
     if args.dispositivo == 'cuda':
-        from convertersmartgrid.trabajadores_ml import turno_gpu
+        from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
 
         with turno_gpu('madrl_entrenar'):
             modelo = entrenar()
@@ -108,7 +108,7 @@ def main(argv=None) -> int:
         print('Aviso: en cpu solo se comprueba el montaje; esto no es una medida del piloto.')
         modelo = entrenar()
     if args.politica == 'gatv2':
-        from convertersmartgrid.madrl_politica import evaluar_politica
+        from convertersmartgrid.adaptadores.madrl_politica import evaluar_politica
 
         aprendido = evaluar_politica(plano, modelo)
     else:

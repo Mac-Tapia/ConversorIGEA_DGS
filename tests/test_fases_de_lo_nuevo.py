@@ -12,7 +12,7 @@ import random
 import pytest
 
 from apoyo import cargar_herramienta
-from convertersmartgrid.comprobacion_fases import corriente_por_fase_a, fases_de_phtech
+from convertersmartgrid.dominio.comprobacion_fases import corriente_por_fase_a, fases_de_phtech
 from test_cargas_pf_guion import _nueva, _plan
 from test_cargas_pf_guion_007 import _app
 
@@ -81,7 +81,7 @@ def test_sin_barra_trifasica_la_sed_nueva_se_crea_con_las_fases_de_la_barra(guio
     assert 'ninguna barra cercana lleva' in aviso and '100 kVA' in aviso and 'por fase' in aviso, aviso
     for v in app.carpetas['scheme'].GetContents('*.IntScheme'):
         v.Activate()
-    from convertersmartgrid.dgs import PHTECH_POR_FASES
+    from convertersmartgrid.adaptadores.dgs import PHTECH_POR_FASES
     for nombre in ('N1', 'N1_BT', 'NODE_N1'):
         assert _objeto(app, 'ElmTerm', nombre).phtech == PHTECH_POR_FASES[fases], nombre
     assert _objeto(app, 'ElmCoup', 'SW_N1').nphase == fases

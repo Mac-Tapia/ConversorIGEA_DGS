@@ -15,8 +15,8 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook
 
-from convertersmartgrid import cabecera_ancha as ca
-from convertersmartgrid import demanda_medida as dm
+from convertersmartgrid.aplicacion import cabecera_ancha as ca
+from convertersmartgrid.aplicacion import demanda_medida as dm
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 RAIZ = Path(__file__).resolve().parents[1]
@@ -179,7 +179,7 @@ def test_fp_del_usuario_para_una_medicion_sin_reactiva(tmp_path):
     rechaza."""
     import math
 
-    from convertersmartgrid.ajuste_cabecera import objetivo_de
+    from convertersmartgrid.dominio.ajuste_cabecera import objetivo_de
 
     rng = random.Random(SEMILLA)
     _maximas(tmp_path / 'max.xlsx', rng, ['R5'])

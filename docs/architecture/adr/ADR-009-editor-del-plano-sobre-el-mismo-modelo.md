@@ -5,7 +5,7 @@
 - Specs: 111:RF-1, 111:RF-2, 111:RF-4, 111:RF-5, 111:RF-6
 - Elementos C4: gisEditor, cmpSalida, security
 - Tareas: 111 T3, 111 T4, 111 T5
-- Evidencia: `src/convertersmartgrid/dgs.py::nombre_en_pf`, `src/convertersmartgrid/plano_red.py::identidad`, `src/convertersmartgrid/plano_red.py::vista`, `src/convertersmartgrid/plano_red.py::revision_red`, `src/convertersmartgrid/variacion_plano.py::editar`, `src/convertersmartgrid/variacion_plano.py::CARPETA`
+- Evidencia: `src/convertersmartgrid/adaptadores/dgs.py::nombre_en_pf`, `src/convertersmartgrid/adaptadores/plano_red.py::identidad`, `src/convertersmartgrid/adaptadores/plano_red.py::vista`, `src/convertersmartgrid/adaptadores/plano_red.py::revision_red`, `src/convertersmartgrid/aplicacion/variacion_plano.py::editar`, `src/convertersmartgrid/aplicacion/variacion_plano.py::CARPETA`
 
 ## Contexto
 

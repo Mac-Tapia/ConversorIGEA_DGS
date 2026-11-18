@@ -15,10 +15,10 @@ SRC = Path(__file__).resolve().parents[1] / 'src'
 
 COMPROBACION = '''
 import sys
-import convertersmartgrid.sources
-import convertersmartgrid.sources.txt, convertersmartgrid.sources.mdb, convertersmartgrid.sources.vnr
+import convertersmartgrid.adaptadores.sources
+import convertersmartgrid.adaptadores.sources.txt, convertersmartgrid.adaptadores.sources.mdb, convertersmartgrid.adaptadores.sources.vnr
 cargados = sorted(m for m in sys.modules
-                  if m.startswith('convertersmartgrid.web') or m.split('.')[0] in ('fastapi', 'starlette'))
+                  if m.startswith('convertersmartgrid.presentacion.web') or m.split('.')[0] in ('fastapi', 'starlette'))
 print(cargados)
 sys.exit(1 if cargados else 0)
 '''
@@ -33,13 +33,19 @@ def test_importar_los_adaptadores_no_carga_la_web():
     assert resultado.returncode == 0, resultado.stdout + resultado.stderr
 
 
-def test_la_ruta_antigua_sigue_dando_los_mismos_objetos():
-    """001:RF-1 — ``convertersmartgrid.web.sources`` reexporta mientras dura la migración."""
-    from convertersmartgrid import sources
-    from convertersmartgrid.web import sources as antiguo
-    from convertersmartgrid.web.source_runs import SourceSnapshot
-    from convertersmartgrid.web.sources.vnr import VnrSourceAdapter
+def test_002_rf21_la_reexportacion_antigua_de_las_fuentes_ya_no_existe():
+    """002:RF-21 — la reexportación temporal de ``web.sources`` se retiró: la ruta antigua no importa y los adaptadores
+    viven en ``adaptadores.sources``, con el mismo ``SourceSnapshot`` (valor del dominio) que usa la web."""
+    import importlib
 
-    assert antiguo.adapter_for is sources.adapter_for
-    assert SourceSnapshot is sources.snapshot.SourceSnapshot
-    assert VnrSourceAdapter is sources.vnr.VnrSourceAdapter
+    import pytest
+
+    from convertersmartgrid.adaptadores.sources import txt
+    from convertersmartgrid.dominio.sources import snapshot
+    from convertersmartgrid.presentacion.web.source_runs import SourceSnapshot
+
+    for antigua in ('convertersmartgrid.web.sources', 'convertersmartgrid.presentacion.web.sources'):
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module(antigua)
+    assert SourceSnapshot is snapshot.SourceSnapshot
+    assert txt.__name__ == 'convertersmartgrid.adaptadores.sources.txt'

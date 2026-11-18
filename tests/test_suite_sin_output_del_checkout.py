@@ -18,7 +18,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 # ninguna puerta de worktree lo vio.
 def _arboles_reales() -> list[Path]:
     """El árbol que se prueba y su checkout primario: los dos pueden tener el output/ del usuario."""
-    from convertersmartgrid import runtime_paths
+    from convertersmartgrid.dominio import runtime_paths
 
     return sorted({RAIZ.resolve(), runtime_paths._primario(RAIZ.resolve())})
 
@@ -55,10 +55,11 @@ def test_ninguna_raiz_de_datos_cae_en_el_output_del_checkout(output_del_arbol, m
     """106:RF-17 — durante la suite, ni las raíces de la copia de datos, ni los espacios heredados de la web, ni el
     registro de vínculos heredado, ni los almacenes heredados del asistente y del gemelo, ni los ejemplos del PIDE caen
     en el output/ del checkout real (el que se prueba o su primario), aunque exista y tenga datos."""
-    from convertersmartgrid import powerfactory_binding, runtime_paths
-    from convertersmartgrid.asistente.ejemplos_pide import ultimo_ejemplos
-    from convertersmartgrid.web import copia_datos
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.adaptadores import powerfactory_binding
+    from convertersmartgrid.dominio import runtime_paths
+    from convertersmartgrid.adaptadores.asistente.ejemplos_pide import ultimo_ejemplos
+    from convertersmartgrid.presentacion.web import copia_datos
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     # Sin las variables que fija el conftest para los almacenes: lo que se prueba es la ruta que se deduce del checkout.
     for variable in ('CSG_ASISTENTE_DATA', 'CSG_TWIN_DATA', 'CSG_WEB_DATA'):
@@ -89,7 +90,7 @@ def test_ninguna_raiz_de_datos_cae_en_el_output_del_checkout(output_del_arbol, m
 
 def test_una_prueba_que_fija_su_checkout_conserva_su_output(tmp_path, monkeypatch):
     """106:RF-17 — lo que una prueba fije por su cuenta manda: un checkout simulado en tmp conserva su output/web."""
-    from convertersmartgrid.web import copia_datos
+    from convertersmartgrid.presentacion.web import copia_datos
 
     monkeypatch.delenv('CSG_WEB_DATA', raising=False)
     (tmp_path / 'output' / 'web' / 'a1b2c3d4e5f6').mkdir(parents=True)
@@ -105,9 +106,11 @@ def test_ningun_fichero_local_de_config_ni_input_sale_del_checkout_real(monkeypa
     """106:RF-17 — durante la suite, el perfil activo, los alias, la carpeta de DIgSILENT, las salidas, el archivo de
     informes, la copia de datos, los módulos permitidos y el catálogo de input/ no se buscan en el config/ ni en el
     input/ del checkout real; config/perfiles, que está en git, sí."""
-    from convertersmartgrid import archivo_informes, perfil_empresa, powerfactory_env, reglas, salidas_red
-    from convertersmartgrid.runtime_paths import raiz_local
-    from convertersmartgrid.web import copia_datos
+    from convertersmartgrid.adaptadores import archivo_informes, powerfactory_env
+    from convertersmartgrid.dominio import perfil_empresa, salidas_red
+    from convertersmartgrid.aplicacion import reglas
+    from convertersmartgrid.dominio.runtime_paths import raiz_local
+    from convertersmartgrid.presentacion.web import copia_datos
 
     for variable in (perfil_empresa.VARIABLE_RUTA, salidas_red.VARIABLE_RUTA_GUARDADAS):
         monkeypatch.delenv(variable, raising=False)

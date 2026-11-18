@@ -2,7 +2,7 @@
 
 ## Módulos
 
-- `src/convertersmartgrid/powerfactory_env.py` (RF-1 a RF-4): `instalaciones()` devuelve cada PowerFactory con su
+- `src/convertersmartgrid/adaptadores/powerfactory_env.py` (RF-1 a RF-4): `instalaciones()` devuelve cada PowerFactory con su
   versión y sus carpetas de API; `elegir_api(instalacion, interpretes)` aplica RF-2; `pf_python_dir()` y
   `python_for_pf()` pasan a usarlas, con `PF_PYTHON` y la elección guardada (RF-3) delante. Se quita `DEFAULT_PF_PYTHON`.
   El registro de Windows se lee con `winreg`, sin fallar si no hay clave.

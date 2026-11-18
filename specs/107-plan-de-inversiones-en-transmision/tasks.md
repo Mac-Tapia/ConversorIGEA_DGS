@@ -3,7 +3,7 @@
 Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y parar.
 
 Los ficheros nuevos de `src/` y `tools/` entran en `CODIGO_FUENTE.md` y en `docs/architecture/subsistemas.json` en el
-mismo cambio (spec 009 y 090). Ninguna tarea toca `src/convertersmartgrid/web/services.py`, `pide_economia.py` ni el
+mismo cambio (spec 009 y 090). Ninguna tarea toca `src/convertersmartgrid/presentacion/web/services.py`, `pide_economia.py` ni el
 adaptador VNR (integrador f9).
 
 - [x] T1. Registro normativo común con la 108 (`registro_normativo.py`, su esquema y `config/normativa/`): contrato de

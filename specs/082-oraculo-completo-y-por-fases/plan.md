@@ -2,7 +2,7 @@
 
 ## Módulos
 
-- `src/convertersmartgrid/oraculo.py` (RF-1 a RF-11): `red_pandapower(..., por_fases=)` deja de saltarse
+- `src/convertersmartgrid/adaptadores/oraculo.py` (RF-1 a RF-11): `red_pandapower(..., por_fases=)` deja de saltarse
   elementos, añade los bancos y prepara las secuencias; `tiene_fases`, `_ejecutar`, `_tensiones`,
   `_p_fuente`, `_carga_lineas` y `_carga_trafos` reúnen la diferencia entre los dos flujos, para que
   `validar`, `validar_unida` y la corrección usen la misma lógica.

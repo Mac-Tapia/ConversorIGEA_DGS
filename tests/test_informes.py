@@ -7,14 +7,14 @@ from datetime import date
 
 import pytest
 
-from convertersmartgrid.estudios_pf import Limites
-from convertersmartgrid.informes import (
+from convertersmartgrid.aplicacion.estudios_pf import Limites
+from convertersmartgrid.adaptadores.informes import (
     ETAPAS, SOLICITUDES_VIGENTES, TRIFASICA, Caso, ConfigInforme, Devanado, Encabezado, Etapa, Extremo,
     InformeError, Potencia, Solicitud, antecedentes_factibilidad, asunto_propuesto, conclusiones_estudio,
     conclusiones_factibilidad, descripcion_factibilidad, etapa_recomendada, factor_de_carga, factor_de_perdidas, perdida_no_reconocida, perdidas_anuales,
     redactar_cargabilidad, redactar_tension, seguir_evaluando, texto_transformador,
     veredicto_factibilidad)
-from convertersmartgrid.perfil_empresa import carpeta_perfiles, datos_perfil
+from convertersmartgrid.dominio.perfil_empresa import carpeta_perfiles, datos_perfil
 
 COMPLETO = {
     'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100},
@@ -424,7 +424,7 @@ def test_caso_desequilibrado_y_sin_convergencia_desde_la_medida():
 def test_terna_y_enlace_son_la_etapa_de_refuerzo():
     """017:RF-126 — la terna y el enlace de «Con proyecto» son la etapa «refuerzo de la
     red», entre el cambio de conductor y la migración."""
-    from convertersmartgrid.informes import ETAPAS, NOMBRE_ETAPA, etapa_de_obras
+    from convertersmartgrid.adaptadores.informes import ETAPAS, NOMBRE_ETAPA, etapa_de_obras
 
     assert ETAPAS.index('conductor') < ETAPAS.index('refuerzo') < ETAPAS.index('migracion')
     assert 'Refuerzo' in NOMBRE_ETAPA['refuerzo']
@@ -437,7 +437,7 @@ def test_terna_y_enlace_son_la_etapa_de_refuerzo():
 def test_descripcion_de_la_terna_y_del_enlace():
     """017:RF-127 — la terna se describe con sus tramos y el enlace con su largo, su
     conductor y sus dos extremos, como se aplicó."""
-    from convertersmartgrid.informes import describir_obra, obra_para_informe
+    from convertersmartgrid.adaptadores.informes import describir_obra, obra_para_informe
 
     terna = obra_para_informe({'clase': 'terna', 'alimentador': 'TA225',
                                'tramos': ['SEC_1', 'SEC_2']})
@@ -456,7 +456,7 @@ def test_descripcion_de_la_terna_y_del_enlace():
 
 def test_la_terna_con_conductor_del_perfil_lo_nombra_en_el_informe():
     """042:RF-98 — la terna que deja los dos circuitos en el conductor del perfil lo dice en el informe; sin él, como antes."""
-    from convertersmartgrid.informes import describir_obra, obra_para_informe
+    from convertersmartgrid.adaptadores.informes import describir_obra, obra_para_informe
 
     con = obra_para_informe({'clase': 'terna', 'alimentador': 'F1', 'tramos': ['S1'],
                              'tipo': {'nombre': 'AA12003D_FICHA', 'clase': 'TypLne'},
@@ -480,14 +480,14 @@ def _registro_fp(tmp_path, lineal, cuadratico):
     carpeta = tmp_path / 'registro'
     carpeta.mkdir(parents=True)
     (carpeta / 'r.json').write_text(json.dumps(datos), encoding='utf-8')
-    from convertersmartgrid.registro_normativo import cargar_registro
+    from convertersmartgrid.dominio.registro_normativo import cargar_registro
     return cargar_registro(carpeta)
 
 
 def test_factor_de_perdidas_con_los_coeficientes_del_registro_real():
     """017:RF-55 (INF-FP) — los coeficientes 0,3 y 0,7 salen del registro (TdR VAD vigente, Anexo 4-14 y num. 6.9) y el
     resultado no cambia: 0,3·0,5 + 0,7·0,5² = 0,325."""
-    from convertersmartgrid.informes import coeficientes_factor_de_perdidas
+    from convertersmartgrid.adaptadores.informes import coeficientes_factor_de_perdidas
     lineal, cuadratico, cita = coeficientes_factor_de_perdidas()
     assert (lineal, cuadratico) == (0.3, 0.7)
     assert 'Anexo 4' in cita
@@ -497,7 +497,7 @@ def test_factor_de_perdidas_con_los_coeficientes_del_registro_real():
 def test_factor_de_perdidas_sigue_al_registro_y_sin_regla_es_un_error(tmp_path):
     """017:RF-55 (INF-FP) — con otro coeficiente en el registro cambia el resultado (no hay números fijos en el código),
     y un registro sin la regla da un error que la nombra."""
-    from convertersmartgrid.registro_normativo import cargar_registro
+    from convertersmartgrid.dominio.registro_normativo import cargar_registro
     mutado = _registro_fp(tmp_path, 0.2, 0.8)
     assert factor_de_perdidas(0.5, registro=mutado) == pytest.approx(0.2 * 0.5 + 0.8 * 0.25)
     vacio = tmp_path / 'vacio'
@@ -511,7 +511,7 @@ def test_el_registro_del_factor_de_perdidas_se_cachea_por_ruta(tmp_path, monkeyp
     """017:RF-55 (INF-FP, condición de 28) — la caché del registro va por RUTA: si cambia la raíz del programa se lee
     el registro nuevo, nunca el de una caché global anterior."""
     import shutil
-    from convertersmartgrid import runtime_paths
+    from convertersmartgrid.dominio import runtime_paths
     raices = []
     for n, (lineal, cuadratico) in enumerate(((0.3, 0.7), (0.4, 0.6))):
         registro = _registro_fp(tmp_path / f'r{n}', lineal, cuadratico)

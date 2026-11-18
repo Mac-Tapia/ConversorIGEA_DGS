@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad.costos import anualidad_vnr_real
-from convertersmartgrid.vad.vnr_guia import (
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.adaptadores.vad.costos import anualidad_vnr_real
+from convertersmartgrid.aplicacion.vad.vnr_guia import (
     ItemMetrado,
     Tramo,
     VnrGuiaError,

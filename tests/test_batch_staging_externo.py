@@ -9,8 +9,8 @@ from synthetic_export import ExportSpec, load_export
 @pytest.mark.parametrize('layout', ['reducido', 'completo'])
 def test_dgs_se_prepara_fuera_y_limpia_al_terminar(tmp_path, monkeypatch, grupo, layout):
     """065:RF-10 / 065:RF-11 / 065:RF-12 — ambas vías conservan sus artefactos completos."""
-    from convertersmartgrid import batch
-    from convertersmartgrid.runtime_paths import rutas_runtime
+    from convertersmartgrid.aplicacion import batch
+    from convertersmartgrid.dominio.runtime_paths import rutas_runtime
     monkeypatch.setenv('CSG_RUNTIME_HOME', str(tmp_path / 'runtime'))
     monkeypatch.setenv('CSG_CACHE_HOME', str(tmp_path / 'cache'))
     dataset = load_export(ExportSpec(feeders=2, sections_per_feeder=3,

@@ -22,7 +22,7 @@ def test_el_modulo_ya_no_existe():
 
 def test_el_cli_no_ofrece_gui():
     """001:RF-16 — ``convertersmartgrid gui`` da error de uso."""
-    from convertersmartgrid.cli import _parser
+    from convertersmartgrid.presentacion.cli import _parser
 
     with pytest.raises(SystemExit) as info:
         _parser().parse_args(['gui'])

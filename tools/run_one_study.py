@@ -59,7 +59,7 @@ def _importar_y_medir(args) -> int:
         # 064:RF-1: el turno del motor, el vigía y el reintento del 4002 del arnés; sin
         # él, este guion conectaba por su cuenta y otro proceso recibía «error 4002».
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-        from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+        from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
         try:
             app = conectar('run_one_study.py')
         except PFNoDisponible as exc:
@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         # 064:RF-1: el turno del motor, el vigía y el reintento del 4002 del arnés; sin
         # él, este guion conectaba por su cuenta y otro proceso recibía «error 4002».
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-        from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+        from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
         try:
             app = conectar('run_one_study.py')
         except PFNoDisponible as exc:
@@ -225,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
             return 3
         ventana = app.GetOutputWindow()
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-        from convertersmartgrid.carpeta_pf import activar_proyecto, nombre_de_perfil
+        from convertersmartgrid.adaptadores.carpeta_pf import activar_proyecto, nombre_de_perfil
 
         # ActivateProject(nombre) solo mira la raíz del usuario, y los proyectos
         # importados están en la carpeta (spec 005, RF-16).

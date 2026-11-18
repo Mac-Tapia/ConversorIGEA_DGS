@@ -42,7 +42,7 @@ def argumentos(argv: list[str] | None) -> tuple[argparse.Namespace, list[str]]:
 
 def main(argv=None) -> int:
     args, resto = argumentos(argv)
-    from convertersmartgrid.training_coordinator import dispositivo, exigir_memoria_ml
+    from convertersmartgrid.aplicacion.training_coordinator import dispositivo, exigir_memoria_ml
 
     # 031:RF-18: sin CUDA o sin memoria se dice antes de leer los libros, no a mitad de la competición.
     print(f'Dispositivo: {dispositivo()}', flush=True)

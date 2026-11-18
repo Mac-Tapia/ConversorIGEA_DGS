@@ -17,8 +17,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from convertersmartgrid.digital_twin import hiperparametros as hp
-from convertersmartgrid.digital_twin import oraculo as orc
+from convertersmartgrid.adaptadores.digital_twin import hiperparametros as hp
+from convertersmartgrid.adaptadores.digital_twin import oraculo as orc
 
 
 def _error(cfg) -> float:

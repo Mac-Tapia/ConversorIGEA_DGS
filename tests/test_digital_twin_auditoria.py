@@ -12,8 +12,8 @@ import random
 import numpy as np
 import pytest
 
-from convertersmartgrid.digital_twin import auditoria as au
-from convertersmartgrid.digital_twin.oraculo import Z_ACOPLADOR_PU, muestra
+from convertersmartgrid.adaptadores.digital_twin import auditoria as au
+from convertersmartgrid.adaptadores.digital_twin.oraculo import Z_ACOPLADOR_PU, muestra
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED') or random.randrange(1_000_000))
 
@@ -96,7 +96,7 @@ def test_una_sola_red_y_pocas_ordenes_reales_se_avisan():
     g['ramas'].append({'id': 'S1', 'desde': 'N0', 'hasta': 'N7', 'r_ohm': 0.1, 'x_ohm': 0.1})
     cerrada = muestra(g, {f'N{i}': 1.0 for i in range(8)})
     assert au.auditar_muestras([abierta, cerrada], ['a', 'b'])['redes'] == 1
-    from convertersmartgrid.asistente.calidad_datos import auditar_ordenes
+    from convertersmartgrid.aplicacion.asistente.calidad_datos import auditar_ordenes
 
     ordenes = auditar_ordenes(reales=1, sinteticas=4054, prueba_real=0, parametros=567_088)
     assert any('200' in a for a in ordenes['avisos'])
@@ -107,8 +107,8 @@ def test_una_sola_red_y_pocas_ordenes_reales_se_avisan():
 
 def test_entrenar_no_arranca_con_un_dataset_no_apto(monkeypatch, tmp_path):
     """027:RF-29, 027:RF-30 — `entrenar` audita antes: con no finitos no entrena y lo dice."""
-    from convertersmartgrid.digital_twin import oraculo
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.adaptadores.digital_twin import oraculo
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
 
     rng = random.Random(SEMILLA)
     ms, ids = _muestras(rng, 2, 2, nan=True)

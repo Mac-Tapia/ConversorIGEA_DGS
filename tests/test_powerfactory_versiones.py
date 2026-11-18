@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import powerfactory_env as pe
+from convertersmartgrid.adaptadores import powerfactory_env as pe
 
 
 def _instalar(raiz: Path, nombre: str, pythons: tuple[str, ...]) -> Path:
@@ -89,7 +89,7 @@ def test_103_rf4_el_diagnostico_dice_lo_instalado_y_lo_que_falta(maquina, monkey
     lineas = pe.resumen_instalaciones(encontradas, _interpretes('3.12'))
     assert lineas[0] == 'PowerFactory 2025: API 3.12 con prueba 3.12.'
     assert lineas[-1] == 'PowerFactory 2021 SP3: falta un intérprete de Python 3.9 para cargar su API.'
-    from convertersmartgrid.web import doctor
+    from convertersmartgrid.presentacion.web import doctor
     monkeypatch.setattr(pe, 'resumen_instalaciones', lambda: [])
     c = doctor._digsilent(lambda: None)
     assert '2024' not in c.arreglo and '3.12' not in c.arreglo and '2021 o posterior' in c.arreglo
@@ -99,7 +99,7 @@ def test_103_rf4_ningun_mensaje_con_una_version_fija():
     """103:RF-4 — ni rutas ni mensajes que pidan una versión concreta de PowerFactory o de Python."""
     raiz = Path(__file__).resolve().parents[1]
     prohibidos = (r'PowerFactory 2024\Python', 'PF 2024 pide', 'Abra PF 2024', 'PowerFactory 2024 con su Python')
-    for fichero in ('src/convertersmartgrid/powerfactory_env.py', 'src/convertersmartgrid/web/doctor.py',
+    for fichero in ('src/convertersmartgrid/adaptadores/powerfactory_env.py', 'src/convertersmartgrid/presentacion/web/doctor.py',
                     'tools/check_pf_license.py', 'tools/powerfactory_acceptance.py'):
         texto = (raiz / fichero).read_text(encoding='utf-8')
         assert not [p for p in prohibidos if p in texto], fichero
@@ -107,7 +107,7 @@ def test_103_rf4_ningun_mensaje_con_una_version_fija():
 
 def test_103_rf7_sin_digsilent_se_sigue_convirtiendo(monkeypatch):
     """103:RF-7 — sin ninguna PowerFactory el diagnóstico no lo pone como obligatorio y dice que el DGS sigue."""
-    from convertersmartgrid.web import doctor
+    from convertersmartgrid.presentacion.web import doctor
     monkeypatch.setattr(pe, 'resumen_instalaciones', lambda: [])
     c = doctor._digsilent(lambda: None)
     assert c.ok is False and c.obligatoria is False and 'Convertir a DGS sigue funcionando' in c.afecta
@@ -179,7 +179,7 @@ def test_103_rf5_cargan_de_verdad_con_un_python_39():
 
 def test_103_rf5_compatibilidad_de_pairwise_y_zip_estricto():
     """103:RF-5 — los equivalentes dan lo mismo que los nativos y el estricto falla con largos distintos."""
-    from convertersmartgrid.compat_pf import pairwise, zip_estricto
+    from convertersmartgrid.dominio.compat_pf import pairwise, zip_estricto
     assert list(pairwise([1, 2, 3])) == [(1, 2), (2, 3)] and list(pairwise([])) == []
     assert list(zip_estricto([1, 2], 'ab')) == [(1, 'a'), (2, 'b')]
     with pytest.raises(ValueError):
@@ -213,7 +213,7 @@ def test_103_rf3_la_web_lista_y_elige(maquina, tmp_path, monkeypatch):
     """103:RF-3 — la web lista las encontradas, acepta una de ellas y rechaza una carpeta ajena."""
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     encontradas = pe.instalaciones(raices=maquina, registro=())
     monkeypatch.delenv('PF_PYTHON', raising=False)
     monkeypatch.setattr(pe, 'instalaciones', lambda *a, **k: encontradas)
@@ -221,7 +221,7 @@ def test_103_rf3_la_web_lista_y_elige(maquina, tmp_path, monkeypatch):
     monkeypatch.setattr(pe, 'python_for_pf', lambda d: _interpretes('3.12', '3.9')(d.name))
     monkeypatch.setattr(pe, 'ruta_eleccion', lambda: tmp_path / 'config' / 'powerfactory.json')
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
     monkeypatch.setattr(services, 'pf_python_dir', pe.pf_python_dir)
     monkeypatch.setattr(services, 'python_for_pf', pe.python_for_pf)
     with TestClient(create_app(tmp_path / 'web')) as c:
@@ -258,7 +258,7 @@ def test_103_rf6_el_guion_carga_su_numpy_y_el_paquete_con_otro_python(tmp_path):
     if not Path(py39).is_file():
         pytest.skip('sin intérprete Python 3.9: CSG_PF_PYTHON_39 (embebido oficial de python.org con su numpy)')
     env = pe.pf_subprocess_env(tmp_path / 'api', Path(py39))
-    r = subprocess.run([py39, '-c', 'import sys, numpy, convertersmartgrid.valle as v; '
+    r = subprocess.run([py39, '-c', 'import sys, numpy, convertersmartgrid.aplicacion.valle as v; '
                         'print(sys.version_info[:2], numpy.__file__, v.__file__)'],
                        capture_output=True, text=True, env=env, check=False)
     assert r.returncode == 0, r.stderr
@@ -330,6 +330,6 @@ def test_103_rf6_el_diagnostico_lista_los_python_de_powerfactory(tmp_path, monke
     api = tmp_path / 'PowerFactory 2024' / 'Python' / '3.12'
     api.mkdir(parents=True)
     (api / 'powerfactory.pyd').write_bytes(b'')
-    from convertersmartgrid.web import doctor
+    from convertersmartgrid.presentacion.web import doctor
     monkeypatch.setattr(pe, 'resumen_instalaciones', lambda: [])
     assert 'Python para otras PowerFactory: 3.9, 3.10, 3.11.' in doctor._digsilent(lambda: api).detalle

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.model import PALABRAS_POR_FUENTE, palabras_de
+from convertersmartgrid.dominio.model import PALABRAS_POR_FUENTE, palabras_de
 
 PROHIBIDAS = ('IGEA', 'CYMDIST', 'TXT', 'BD_Equipo', 'RED export')
 
@@ -42,7 +42,7 @@ def test_la_web_no_nombra_cymdist_y_la_entrada_se_llama_txt():
 
 def test_los_mensajes_al_operador_no_nombran_cymdist():
     """056:RF-8 — lo que el servidor dice al operador sobre la fuente nombra los TXT sin el programa que los exporta."""
-    from convertersmartgrid.web.workspace import PIDE_FUENTE
+    from convertersmartgrid.presentacion.web.workspace import PIDE_FUENTE
 
     assert 'CYMDIST' not in PIDE_FUENTE and 'TXT' in PIDE_FUENTE
 
@@ -93,7 +93,7 @@ def test_un_vnr_gis_convertido_no_deja_palabras_de_cymdist(tmp_path):
     from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
     from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
-    from convertersmartgrid.batch import convert_selection
+    from convertersmartgrid.aplicacion.batch import convert_selection
     from test_vnr_sqlserver import _datos, _tablas
 
     datos, _motor = _datos(_tablas())
@@ -122,7 +122,7 @@ DEL_TXT = (*PROHIBIDAS, '[CUSTOMER LOADS]', '[SUBSTATION]', '[SECTION]', 'Number
 def test_el_catalogo_de_estudios_habla_con_las_palabras_de_su_fuente(fuente):
     """056:RF-4 — el catálogo de datos de los estudios de una .mdb o de un VNR-GIS no nombra ficheros,
     tablas ni campos del TXT; con las mismas claves y los mismos datos que el del TXT."""
-    from convertersmartgrid.studies import ESTUDIOS, estudios_de
+    from convertersmartgrid.aplicacion.studies import ESTUDIOS, estudios_de
 
     otro = estudios_de(fuente)
     assert [e.clave for e in otro] == [e.clave for e in ESTUDIOS]
@@ -137,7 +137,7 @@ def test_el_catalogo_de_estudios_habla_con_las_palabras_de_su_fuente(fuente):
 def test_lo_que_el_vnr_no_trae_no_se_da_por_disponible():
     """056:RF-4 — lo que un VNR-GIS no puede traer (energía, clientes, impedancia de las SET) se dice con
     sus palabras y bloquea como lo que falta, no como un dato «disponible»."""
-    from convertersmartgrid.studies import AUSENTE, DISPONIBLE, entradas_por_nombre
+    from convertersmartgrid.aplicacion.studies import AUSENTE, DISPONIBLE, entradas_por_nombre
 
     txt, vnr = entradas_por_nombre('txt'), entradas_por_nombre('vnr')
     assert txt['Número de clientes por SED'].estado == DISPONIBLE
@@ -154,7 +154,7 @@ def test_el_informe_de_datos_llega_a_una_base_access(monkeypatch):
     import importlib.util
     import inspect
 
-    from convertersmartgrid import access
+    from convertersmartgrid.adaptadores import access
 
     ruta = Path(__file__).resolve().parents[1] / 'tools' / 'base_scenario.py'
     spec = importlib.util.spec_from_file_location('base_scenario_056', ruta)
@@ -175,7 +175,7 @@ def test_el_informe_de_datos_llega_a_una_base_access(monkeypatch):
 def test_la_hoja_de_parametros_no_nombra_una_fuente():
     """056:RF-4 — la hoja de parámetros por elemento del libro del catálogo vale para cualquier fuente: ni
     CYMDIST en lo que pide ni «txt» como origen."""
-    from convertersmartgrid.catalog import auditar, construir_hojas
+    from convertersmartgrid.aplicacion.catalog import auditar, construir_hojas
 
     _columnas, filas = construir_hojas(auditar([]))['parametros_por_elemento']
     assert filas
@@ -186,7 +186,7 @@ def test_la_hoja_de_parametros_no_nombra_una_fuente():
 
 def test_el_txt_conserva_su_catalogo():
     """056:RF-4 — sin fuente declarada, o con un TXT, el catálogo es el de siempre."""
-    from convertersmartgrid.studies import ESTUDIOS, datos_que_faltan, estudios_de
+    from convertersmartgrid.aplicacion.studies import ESTUDIOS, datos_que_faltan, estudios_de
 
     assert estudios_de(None) == estudios_de('txt') == ESTUDIOS
     assert datos_que_faltan() == datos_que_faltan('txt')
@@ -199,7 +199,7 @@ def test_la_auditoria_de_un_vnr_gis_no_nombra_las_tablas_del_txt(tmp_path):
     from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
     from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
-    from convertersmartgrid.studies import auditar_datos
+    from convertersmartgrid.aplicacion.studies import auditar_datos
     from test_vnr_sqlserver import _datos, _tablas
 
     datos, _motor = _datos(_tablas())

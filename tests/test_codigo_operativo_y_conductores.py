@@ -46,8 +46,8 @@ def test_sin_etiqueta_o_repetida_conserva_el_codigo_y_se_anota():
 def test_conductor_sin_impedancia_se_reconstruye_al_cargar(tmp_path):
     """053:RF-9: el código que la fuente trae sin R ni X se completa con su ficha en la carga,
     sin duplicar la fila, y el alimentador sale listo con CONDUCTOR_RECONSTRUIDO."""
-    from convertersmartgrid.reglas import con_impedancia, preparar_dataset
-    from convertersmartgrid.web.readiness import revisar_conductores
+    from convertersmartgrid.aplicacion.reglas import con_impedancia, preparar_dataset
+    from convertersmartgrid.presentacion.web.readiness import revisar_conductores
     from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
 
     tablas = _tablas()
@@ -74,7 +74,7 @@ def test_conductor_sin_impedancia_se_reconstruye_al_cargar(tmp_path):
 
 def test_el_que_no_se_puede_completar_sigue_incompleto():
     """053:RF-9: si un código sigue sin impedancia, la falta se queda y se dice."""
-    from convertersmartgrid.web.readiness import revisar_conductores
+    from convertersmartgrid.presentacion.web.readiness import revisar_conductores
 
     dataset = SimpleNamespace(
         equipment_tables={'LINE': ({'ID': 'X1', 'R1': '', 'X1': ''},)},

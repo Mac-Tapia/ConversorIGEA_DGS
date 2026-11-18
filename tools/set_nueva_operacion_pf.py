@@ -38,7 +38,7 @@ from casos_pf import (
 from estudios_pf import geografia, resumen_proyecto
 from obras_pf import construir_salida_set_existente, validar_salida_set_existente
 
-from convertersmartgrid.native_action import native_action_block_report
+from convertersmartgrid.dominio.native_action import native_action_block_report
 
 CLASES_RED = ('ElmTerm', 'ElmLne', 'ElmTr2', 'ElmTr3', 'ElmLod', 'ElmXnet',
               'ElmSym', 'ElmGenstat', 'ElmShnt', 'ElmCoup', 'StaSwitch', 'ElmFeeder')
@@ -1254,7 +1254,7 @@ def main(argv=None):
         if bloqueado:
             informe, codigo = bloqueado, 2
         else:
-            from convertersmartgrid.pf_arnes import conectar
+            from convertersmartgrid.adaptadores.pf_arnes import conectar
             print('Diagnóstico/operación de SET existente: esperando el arnés', flush=True)
             app = conectar('set_nueva_operacion_pf.py')
             informe, codigo = ejecutar(app, plan)

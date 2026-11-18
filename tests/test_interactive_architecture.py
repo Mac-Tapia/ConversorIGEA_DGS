@@ -40,10 +40,10 @@ def test_structurizr_model_exposes_required_views_and_real_access_points():
 
     for access_point in (
         "http://127.0.0.1:8765/",
-        "src/convertersmartgrid/web/app.py",
-        "src/convertersmartgrid/web/services.py",
-        "src/convertersmartgrid/digital_twin",
-        "src/convertersmartgrid/asistente",
+        "src/convertersmartgrid/presentacion/web/app.py",
+        "src/convertersmartgrid/presentacion/web/services.py",
+        "src/convertersmartgrid/adaptadores/digital_twin",
+        "src/convertersmartgrid/aplicacion/asistente",
         "output/web",
     ):
         assert access_point in text
@@ -56,7 +56,7 @@ def test_structurizr_model_exposes_required_views_and_real_access_points():
     # 034:RF-31: los puntos de acceso se enlazan fijados a una revisión, nunca a una ruta de la máquina del desarrollo
     # (antes se exigía un «file:///D:/…»: no vale en otro equipo y la lista de términos de la entrega lo rechaza).
     assert "file:///" not in text
-    assert re.search(r"https://github\.com/[^\s\"]+/tree/[0-9a-f]{40}/src/convertersmartgrid/digital_twin", text)
+    assert re.search(r"https://github\.com/[^\s\"]+/tree/[0-9a-f]{40}/src/convertersmartgrid/adaptadores/digital_twin", text)
 
 
 def test_interactive_visualization_has_finite_flow_controls_and_accessible_nodes():
@@ -98,12 +98,12 @@ def test_visualization_contains_every_required_flow_and_direct_destination():
         assert f'data-view="{view}"' in text
 
     for destination in (
-        "src/convertersmartgrid/sources",
-        "src/convertersmartgrid/dgs.py",
-        "src/convertersmartgrid/web/app.py",
+        "src/convertersmartgrid/adaptadores/sources",
+        "src/convertersmartgrid/adaptadores/dgs.py",
+        "src/convertersmartgrid/presentacion/web/app.py",
         "tools/powerfactory_acceptance.py",
-        "src/convertersmartgrid/digital_twin/oraculo.py",
-        "src/convertersmartgrid/asistente/interprete.py",
+        "src/convertersmartgrid/adaptadores/digital_twin/oraculo.py",
+        "src/convertersmartgrid/aplicacion/asistente/interprete.py",
         "docs/architecture/plano_flujo_arquitectura_converter_smart_grid.pdf",
     ):
         assert destination in text
@@ -497,7 +497,7 @@ def test_adrs_record_todays_boundary_decisions():
     assert ADR_DIR.is_dir(), "034:RF-36: falta docs/architecture/adr"
     evidencias = [a["campos"].get("Evidencia", "") + a["campos"].get("Consumidores", "") for a in leer_adrs(ADR_DIR)]
     decisiones = {
-        "escritura duradera del estado": "src/convertersmartgrid/util.py::publicar_duradero",
+        "escritura duradera del estado": "src/convertersmartgrid/dominio/util.py::publicar_duradero",
         "DXF garantizado y .dwg opcional": "pyproject.toml::dep:ezdxf",
         "avisos en lugar de excepciones mudas": "docs/architecture/adr/deuda_excepciones_mudas.json",
     }

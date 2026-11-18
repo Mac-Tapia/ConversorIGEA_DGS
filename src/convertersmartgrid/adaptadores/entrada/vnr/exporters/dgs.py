@@ -6,12 +6,12 @@ auditoría de completitud: el mismo modelo daba un DGS distinto según se convir
 por la web o por ``vnr-etl export`` (spec 001, RF-10). Ahora el modelo canónico pasa
 por el mismo puente que usa la web para los paquetes VNR-GIS
 (:func:`convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge.canonical_to_cymdist`) y por
-:func:`convertersmartgrid.batch.convert_group`, que une los alimentadores en una sola red,
+:func:`convertersmartgrid.aplicacion.batch.convert_group`, que une los alimentadores en una sola red,
 valida y publica de forma atómica.
 
 Un dato ausente no impide exportar (RF-17): antes del motor, el modelo pasa por
 :func:`convertersmartgrid.adaptadores.entrada.vnr.application.reconstruccion.reconstruir_modelo` y el dataset por
-:func:`convertersmartgrid.reconstruction_pipeline.reconstruir_seleccion`, que completa los
+:func:`convertersmartgrid.aplicacion.reconstruction_pipeline.reconstruir_seleccion`, que completa los
 conductores con el catálogo de parámetros. Junto al DGS queda
 ``<red>_reconstruccion.json`` con cada valor completado (RF-21).
 
@@ -21,7 +21,7 @@ que no son datos de la red, y el manifiesto de procedencia junto al DGS.
 
 from __future__ import annotations
 
-from convertersmartgrid.runtime_paths import staging_publicacion
+from convertersmartgrid.dominio.runtime_paths import staging_publicacion
 
 import json
 import os
@@ -43,17 +43,17 @@ PROVENANCE_FIELDS = (
 def _load_schema(profile: str = 'pf21_dgs_1_8_4'):
     """Reutiliza el perfil DGS versionado del proyecto existente."""
     try:
-        from convertersmartgrid.schema import load_schema
+        from convertersmartgrid.adaptadores.schema import load_schema
     except ImportError as exc:  # pragma: no cover - módulo independiente
         raise ExportBlocked(
-            'El export DGS necesita el perfil DGS del proyecto (convertersmartgrid.schema). '
+            'El export DGS necesita el perfil DGS del proyecto (convertersmartgrid.adaptadores.schema). '
             'No se escribe un DGS especulativo.'
         ) from exc
     return load_schema(profile)
 
 
 def _catalogo_del_proyecto():
-    from convertersmartgrid.reglas import catalogo_del_proyecto
+    from convertersmartgrid.aplicacion.reglas import catalogo_del_proyecto
 
     return catalogo_del_proyecto()
 
@@ -123,8 +123,8 @@ class DgsExporter:
                              if self.profile is not None else None)
         if configured_schema and configured_schema != self.schema_profile:
             avisos.append(f'El perfil declara {configured_schema!r}; se usa {self.schema_profile!r}.')
-        from convertersmartgrid.batch import convert_group
-        from convertersmartgrid.reconstruction_pipeline import catalogos_del_fichero, reconstruir_seleccion
+        from convertersmartgrid.aplicacion.batch import convert_group
+        from convertersmartgrid.aplicacion.reconstruction_pipeline import catalogos_del_fichero, reconstruir_seleccion
         from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import (
             canonical_to_cymdist, patron_cable_del_perfil)
         from convertersmartgrid.adaptadores.entrada.vnr.application.reconstruccion import reconstruir_modelo
@@ -144,7 +144,7 @@ class DgsExporter:
             bridge.dataset, feeders, catalogos_del_fichero(catalogo),
         )
         if not modelo.include_geography:
-            from convertersmartgrid.coordenadas import ORIGEN_SIN_CRS
+            from convertersmartgrid.dominio.coordenadas import ORIGEN_SIN_CRS
 
             # Sin CRS las coordenadas no están en metros conocidos: dibujan la red, pero
             # la longitud eléctrica es la del modelo (RF-20).
@@ -171,7 +171,7 @@ class DgsExporter:
             roundtrip_errors = self.roundtrip_errors(stage_dgs)
             avisos += [f'Relectura: {error}' for error in roundtrip_errors]
             from convertersmartgrid.adaptadores.entrada.vnr import __version__
-            from convertersmartgrid.util import sha256_file
+            from convertersmartgrid.dominio.util import sha256_file
 
             informe = _informe_reconstruccion(modelo, bridge, result, resolutions, catalogo)
             informe['avisos'] = avisos
@@ -195,7 +195,7 @@ class DgsExporter:
                 'roundtrip': 'BLOQUEADO_PERSISTENCIA' if roundtrip_errors else 'OK',
                 'roundtrip_errors': roundtrip_errors,
                 'avisos': avisos,
-                'engine': 'convertersmartgrid.batch.convert_group',
+                'engine': 'convertersmartgrid.aplicacion.batch.convert_group',
                 'feeders': engine['feeders'],
                 'engine_manifest': f'{name}_manifest.json',
                 'georreferenciado': modelo.include_geography,
@@ -221,7 +221,7 @@ class DgsExporter:
 
     def roundtrip_errors(self, path: Path) -> list[str]:
         """Valida cabeceras, aridad y unicidad de FID releyendo el DGS escrito."""
-        from convertersmartgrid.validate import parse_dgs, total_fids
+        from convertersmartgrid.adaptadores.validate import parse_dgs, total_fids
 
         schema = _load_schema(self.schema_profile)
         tables = parse_dgs(path)

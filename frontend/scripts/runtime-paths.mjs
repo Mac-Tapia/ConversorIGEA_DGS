@@ -1,4 +1,4 @@
-/** 065:RF-10 RF-11 — contrato equivalente a convertersmartgrid.runtime_paths. */
+/** 065:RF-10 RF-11 — contrato equivalente a convertersmartgrid.dominio.runtime_paths. */
 import { createHash } from 'node:crypto';
 import { existsSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, join, parse, relative, resolve, sep } from 'node:path';

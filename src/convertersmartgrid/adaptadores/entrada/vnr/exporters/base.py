@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from convertersmartgrid.util import sha256_file
+from convertersmartgrid.dominio.util import sha256_file
 from convertersmartgrid.adaptadores.entrada.vnr.models import CanonicalModel
 
 

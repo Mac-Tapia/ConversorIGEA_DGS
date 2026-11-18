@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from convertersmartgrid.asistente import indice
+from convertersmartgrid.aplicacion.asistente import indice
 
 RAIZ = Path(__file__).resolve().parents[1]
 

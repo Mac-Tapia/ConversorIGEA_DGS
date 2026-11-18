@@ -31,7 +31,7 @@ import argparse
 from cargas_pf import crear_variacion, nombre_libre
 from confiabilidad_pf import orden_propia, sin_licencia
 
-from convertersmartgrid import estudios_red_pf as er
+from convertersmartgrid.aplicacion import estudios_red_pf as er
 
 #: ``ComHostcap.objective``: 0 generación distribuida, 1 carga nueva (plan).
 OBJETIVOS = {'gd': 0, 'carga': 1}

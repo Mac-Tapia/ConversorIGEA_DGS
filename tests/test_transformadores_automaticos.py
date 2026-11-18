@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.web import services
+from convertersmartgrid.presentacion.web import services
 
 
 def _tr(sed, kva=50.0, unidades=1):

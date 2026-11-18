@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "convertersmartgrid-digital-twin-episode-v1",
   "title": "Episodio del gemelo digital (spec 024)",
-  "description": "Evidencia de un trabajo fuente–DIgSILENT. episode_id es el SHA-256 del JSON canónico sin el propio episode_id. Lo valida convertersmartgrid.digital_twin.episode.leer_episodio; este esquema lo publica para otras herramientas.",
+  "description": "Evidencia de un trabajo fuente–DIgSILENT. episode_id es el SHA-256 del JSON canónico sin el propio episode_id. Lo valida convertersmartgrid.dominio.digital_twin.episode.leer_episodio; este esquema lo publica para otras herramientas.",
   "type": "object",
   "required": ["schema", "clase", "caso", "creado", "fuente", "nativo", "accion", "topologia",
                "flujo", "aceptacion", "obras", "artefactos"],

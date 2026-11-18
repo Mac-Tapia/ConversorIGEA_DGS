@@ -15,10 +15,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad import balance as bal
-from convertersmartgrid.vad import coym
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.aplicacion.vad import balance as bal
+from convertersmartgrid.aplicacion.vad import coym
 
 RAIZ = Path(__file__).resolve().parents[1]
 VAD = RAIZ / 'config' / 'vad'

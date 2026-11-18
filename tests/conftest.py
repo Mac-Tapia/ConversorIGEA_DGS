@@ -30,7 +30,7 @@ if _SESION_PROPIA:
 _SESION_DE_DATOS = Path(os.environ[VARIABLE_SESION_DE_DATOS])
 RUNTIME_REAL = None
 if not os.environ.get('CSG_RUNTIME_HOME'):
-    from convertersmartgrid.runtime_paths import rutas_runtime as _rutas_runtime
+    from convertersmartgrid.dominio.runtime_paths import rutas_runtime as _rutas_runtime
 
     RUNTIME_REAL = _rutas_runtime().runtime
     os.environ['CSG_RUNTIME_HOME'] = str(_SESION_DE_DATOS / 'runtime')
@@ -62,9 +62,9 @@ def lineas_de_pruebas_en_registros(tamanos: dict) -> list[str]:
     return halladas
 
 
-from convertersmartgrid import sesion_web
-from convertersmartgrid.compat_gpu import fijar_dll_nvidia
-from convertersmartgrid.naming import feeder_short_name
+from convertersmartgrid.dominio import sesion_web
+from convertersmartgrid.dominio.compat_gpu import fijar_dll_nvidia
+from convertersmartgrid.dominio.naming import feeder_short_name
 
 # 106:RF-18: antes de _hay_cuda y de cualquier torch.cuda de la sesión. Con el controlador NVIDIA 560.94, el primer
 # cuInit dejaba un hilo en nvdxgdmal64.dll ya descargada y pytest moría con 0xC0000005 a los ~90 s, a mitad de la suite
@@ -81,7 +81,7 @@ os.environ.pop(sesion_web.VARIABLE_PUERTO, None)
 # 106:RF-1: la GPU de la máquina se pide una vez por sesión (ver pytest_sessionstart); dentro, la guardia es de la
 # sesión. Aquí y no en un fixture: con un fixture de módulo, test_digital_twin_oraculo tomaba la guardia real antes que
 # el fixture por prueba de 102:RF-22, y la puerta del 2026-11-12 esperó 40 min en silencio a la T7.
-from convertersmartgrid.training_coordinator import ruta_guardia_gpu as _ruta_guardia_gpu
+from convertersmartgrid.aplicacion.training_coordinator import ruta_guardia_gpu as _ruta_guardia_gpu
 
 # 106:RF-12: los hijos (guiones de tools/, --help, lanzadores) cargan el src de ESTE árbol. pytest pone «pythonpath =
 # ["src"]» solo en su propio sys.path; un hijo con el python del .venv cargaba el src del árbol principal por el .pth
@@ -187,7 +187,7 @@ def tomar_turno_si_hace_falta(items) -> None:
     if (os.environ.get('PYTEST_CURRENT_TEST') or not any(i.get_closest_marker('gpu') for i in items)
             or not _hay_cuda()):
         return
-    from convertersmartgrid.trabajadores_ml import SALIDA_SIN_TURNO_GPU, turno_gpu_con_plazo
+    from convertersmartgrid.aplicacion.trabajadores_ml import SALIDA_SIN_TURNO_GPU, turno_gpu_con_plazo
 
     limite = float(os.environ.get(VARIABLE_ESPERA_GPU_SUITE, ESPERA_GPU_SUITE_S))
     turno = turno_gpu_con_plazo('suite-pytest', ruta=GUARDIA_GPU_DE_LA_MAQUINA, limite_s=limite,
@@ -294,7 +294,7 @@ def _ci_sin_cuda() -> bool:
 
 def _por_falta_de_gpu(exc: BaseException | None) -> bool:
     """El fallo es la falta de GPU que el código declara (``SinGPU``), también como causa encadenada."""
-    from convertersmartgrid.training_coordinator import SinGPU
+    from convertersmartgrid.aplicacion.training_coordinator import SinGPU
 
     vistos = set()
     while exc is not None and id(exc) not in vistos:
@@ -344,7 +344,7 @@ def _entorno_restituido():
         yield
     # Lo mismo con el cierre que ``main`` registra en la web: con él, «cerrar» de otra prueba daba 202 y no 503.
     import sys
-    app_mod = sys.modules.get('convertersmartgrid.web.app')
+    app_mod = sys.modules.get('convertersmartgrid.presentacion.web.app')
     if app_mod is not None:
         app_mod._cierre.clear()
         app_mod._motivo_cierre.clear()
@@ -383,7 +383,7 @@ def _sin_perfil_de_la_maquina(monkeypatch, tmp_path_factory):
     pasaban en su equipo y fallaban en otro sin él. Una prueba que necesite un perfil lo
     escribe ella o usa uno de ``config/perfiles``.
     """
-    from convertersmartgrid.perfil_empresa import VARIABLE_RUTA
+    from convertersmartgrid.dominio.perfil_empresa import VARIABLE_RUTA
 
     vacio = tmp_path_factory.getbasetemp() / 'sin_perfil_empresa.json'
     monkeypatch.setenv(VARIABLE_RUTA, str(vacio))
@@ -396,7 +396,7 @@ def _sin_salidas_guardadas_de_la_maquina(monkeypatch, tmp_path):
     En desarrollo la carpeta local es el repositorio: un ``config/salidas.json`` con el fondo de mapa
     encendido desde la web cambiaba lo que las pruebas de la edición de producto esperan.
     """
-    from convertersmartgrid.salidas_red import VARIABLE_RUTA_GUARDADAS
+    from convertersmartgrid.dominio.salidas_red import VARIABLE_RUTA_GUARDADAS
 
     monkeypatch.setenv(VARIABLE_RUTA_GUARDADAS, str(tmp_path / '_salidas_guardadas.json'))
 
@@ -486,8 +486,8 @@ def _sin_turno_de_la_maquina(monkeypatch, tmp_path):
     2026-10-17 la suite lo tuvo más de 10 minutos y una sonda real se quedó sin DIgSILENT
     («ocupado por ajuste_cabecera_pf.py», que era pytest).
     """
-    from convertersmartgrid import powerfactory_env
-    from convertersmartgrid.pf_arnes import VARIABLE_TURNO
+    from convertersmartgrid.adaptadores import powerfactory_env
+    from convertersmartgrid.adaptadores.pf_arnes import VARIABLE_TURNO
 
     monkeypatch.setenv(VARIABLE_TURNO, str(tmp_path / 'powerfactory.turno'))
     # Tampoco miran el DIgSILENT de la máquina: el 2026-10-22 el operador lo abrió a mano
@@ -502,12 +502,12 @@ def _sin_gemelo_de_la_maquina(monkeypatch, tmp_path):
     La captura lanza la lectura nativa después de cada acción de DIgSILENT; en las pruebas
     de la web sería un proceso más que no esperan. Las pruebas del gemelo la encienden.
     """
-    from convertersmartgrid.digital_twin.integration import VARIABLE_CAPTURA
+    from convertersmartgrid.adaptadores.digital_twin.integration import VARIABLE_CAPTURA
 
     monkeypatch.setenv('CSG_TWIN_DATA', str(tmp_path / '_digital_twin'))
     monkeypatch.setenv(VARIABLE_CAPTURA, '0')
     # 081:RF-80: el registro de aperturas de las obras, de cada prueba y no el de la máquina.
-    from convertersmartgrid.obras_pf import VARIABLE_APERTURAS
+    from convertersmartgrid.aplicacion.obras_pf import VARIABLE_APERTURAS
 
     monkeypatch.setenv(VARIABLE_APERTURAS, str(tmp_path / '_aperturas_pf'))
 
@@ -522,7 +522,7 @@ def perfil_real():
     """
     import os
 
-    from convertersmartgrid.perfil_empresa import perfil_con_nombre
+    from convertersmartgrid.dominio.perfil_empresa import perfil_con_nombre
 
     return perfil_con_nombre(os.environ.get('CSG_PERFIL', '').strip() or 'electro_dunas')
 
@@ -530,7 +530,7 @@ def perfil_real():
 @pytest.fixture(scope='session')
 def opciones_reales(perfil_real) -> dict:
     """CRS, reglas y perfil con que se convierten los datos reales."""
-    from convertersmartgrid.reglas import reglas_de_perfil
+    from convertersmartgrid.aplicacion.reglas import reglas_de_perfil
 
     return {'source_crs': perfil_real.crs_origen, 'reglas': reglas_de_perfil(perfil_real),
             'perfil': perfil_real}
@@ -561,7 +561,7 @@ def EQUIP(csg_paths: tuple[Path, Path, Path]) -> Path:
 
 @pytest.fixture(scope='session')
 def ds(csg_paths: tuple[Path, Path, Path]):
-    from convertersmartgrid.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
 
     red, loads, equip = csg_paths
     dataset = CymdistDataset.from_files(red, loads, equip)
@@ -590,7 +590,7 @@ def second_feeder(feeder_shorts, sample_feeder) -> str:
 
 @pytest.fixture(scope='session')
 def sample_model(ds, sample_feeder):
-    from convertersmartgrid.model import build_feeder_model
+    from convertersmartgrid.dominio.model import build_feeder_model
 
     return build_feeder_model(ds, sample_feeder)
 
@@ -605,7 +605,7 @@ def sample_model(ds, sample_feeder):
 
 @pytest.fixture(scope='module')
 def txt_dataset(csg_paths):
-    from convertersmartgrid.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
 
     red, loads, equip = csg_paths
     return CymdistDataset.from_files(red, loads, equip)
@@ -619,7 +619,7 @@ def mdb_dataset():
     if not mdb or not Path(mdb).is_file():
         pytest.skip('Defina CSG_MDB con la ruta de una base de red CYMDIST (.mdb)')
     pytest.importorskip('pyodbc')
-    from convertersmartgrid.access import AccessReadError, read_access_dataset
+    from convertersmartgrid.adaptadores.access import AccessReadError, read_access_dataset
 
     try:
         return read_access_dataset(mdb, equipment_db=os.environ.get('CSG_EQUIPMENT_MDB') or None)
@@ -643,7 +643,7 @@ def dataset_for(request, txt_dataset, mdb_dataset):
 def _sin_crecimiento_de_otra_prueba():
     """098:RF-49: el crecimiento ya calculado vive en el proceso; cada prueba empieza sin el de otra."""
     import sys
-    mod = sys.modules.get('convertersmartgrid.web.services')
+    mod = sys.modules.get('convertersmartgrid.presentacion.web.services')
     if mod is not None and hasattr(mod, 'CRECIMIENTO_DEL_TRABAJO'):
         mod.CRECIMIENTO_DEL_TRABAJO.clear()
     yield

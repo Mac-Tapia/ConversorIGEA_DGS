@@ -6,12 +6,12 @@ import pytest
 torch = pytest.importorskip('torch')
 pytest.importorskip('torch_geometric')
 
-from convertersmartgrid.madrl_obras import (
+from convertersmartgrid.adaptadores.madrl_obras import (
     EntornoObras,
     EntornoPlano,
     ParametrosObras,
 )
-from convertersmartgrid.madrl_politica import (
+from convertersmartgrid.adaptadores.madrl_politica import (
     RASGOS,
     Entrenamiento,
     crear_politica,

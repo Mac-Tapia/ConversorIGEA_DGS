@@ -12,9 +12,9 @@ import random
 import pytest
 from openpyxl import Workbook
 
-from convertersmartgrid import datos_empresa as de
-from convertersmartgrid import estudios_pf as ep
-from convertersmartgrid import protecciones as pr
+from convertersmartgrid.aplicacion import datos_empresa as de
+from convertersmartgrid.aplicacion import estudios_pf as ep
+from convertersmartgrid.aplicacion import protecciones as pr
 
 SEMILLAS = [random.randrange(10**6) for _ in range(4)]
 

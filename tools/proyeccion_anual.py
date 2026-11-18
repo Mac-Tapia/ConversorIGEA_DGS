@@ -30,7 +30,7 @@ def _estructura(args):
     """Los alimentadores y sus sistemas de la estructura del perfil, sin nombres de empresa en el código."""
     if not args.perfil:
         return None
-    from convertersmartgrid.estructura import estructura_de_perfil
+    from convertersmartgrid.dominio.estructura import estructura_de_perfil
 
     return estructura_de_perfil(json.loads(args.perfil.read_text(encoding='utf-8')), args.perfil.parent)
 
@@ -74,8 +74,8 @@ def main(argv=None) -> int:
     p.add_argument('--salida', type=Path, required=True, help='Carpeta de salida')
     args = p.parse_args(argv)
 
-    from convertersmartgrid import proyeccion_anual as pa
-    from convertersmartgrid.pronostico_demanda import Fuentes, abrir_dataset
+    from convertersmartgrid.adaptadores import proyeccion_anual as pa
+    from convertersmartgrid.adaptadores.pronostico_demanda import Fuentes, abrir_dataset
 
     estructura = _estructura(args)
     feeders = _alimentadores(args, estructura)

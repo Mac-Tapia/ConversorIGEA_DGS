@@ -21,19 +21,19 @@ torch = pytest.importorskip('torch')
 
 from test_interprete_codificador import CodificadorFalso, _entrenado, _humanas, _pequeno, falso  # noqa: E402,F401
 
-from convertersmartgrid.asistente import afinado_ordenes as af                         # noqa: E402
-from convertersmartgrid.asistente import codificador_ordenes as co                     # noqa: E402
-from convertersmartgrid.asistente import curriculo_maestro as cm                       # noqa: E402
-from convertersmartgrid.asistente import destilacion_integral as di                    # noqa: E402
-from convertersmartgrid.asistente import ordenes_fijas as of                           # noqa: E402
-from convertersmartgrid.asistente import prueba_sellada as anterior                    # noqa: E402
-from convertersmartgrid.asistente import prueba_sellada_079 as ps                      # noqa: E402
-from convertersmartgrid.asistente import transformer as tr                             # noqa: E402
-from convertersmartgrid.asistente import validacion_cruzada as vc                      # noqa: E402
-from convertersmartgrid.asistente.interprete import PUESTO_CHARLA, charla_cerca, interpretar  # noqa: E402
-from convertersmartgrid.asistente.maestro_real import NINGUNA, clave_texto, firma_familia  # noqa: E402
-from convertersmartgrid.asistente.sinteticos import expandir                           # noqa: E402
-from convertersmartgrid.asistente.tareas import TAREAS, TAREAS_107_112                 # noqa: E402
+from convertersmartgrid.aplicacion.asistente import afinado_ordenes as af                         # noqa: E402
+from convertersmartgrid.aplicacion.asistente import codificador_ordenes as co                     # noqa: E402
+from convertersmartgrid.aplicacion.asistente import curriculo_maestro as cm                       # noqa: E402
+from convertersmartgrid.aplicacion.asistente import destilacion_integral as di                    # noqa: E402
+from convertersmartgrid.aplicacion.asistente import ordenes_fijas as of                           # noqa: E402
+from convertersmartgrid.aplicacion.asistente import prueba_sellada as anterior                    # noqa: E402
+from convertersmartgrid.aplicacion.asistente import prueba_sellada_079 as ps                      # noqa: E402
+from convertersmartgrid.aplicacion.asistente import transformer as tr                             # noqa: E402
+from convertersmartgrid.aplicacion.asistente import validacion_cruzada as vc                      # noqa: E402
+from convertersmartgrid.aplicacion.asistente.interprete import PUESTO_CHARLA, charla_cerca, interpretar  # noqa: E402
+from convertersmartgrid.aplicacion.asistente.maestro_real import NINGUNA, clave_texto, firma_familia  # noqa: E402
+from convertersmartgrid.aplicacion.asistente.sinteticos import expandir                           # noqa: E402
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, TAREAS_107_112                 # noqa: E402
 
 RAIZ = Path(__file__).resolve().parents[1]
 CPU = torch.device('cpu')
@@ -126,7 +126,7 @@ def test_sellada_anterior_intacta_y_sin_decidir(corpus):
 
 def test_sellada_vedada_a_la_lectura_local():
     """079:RF-60 — el patrón de los sellados de la 077 la cubre, sin tocar la lectura del proyecto."""
-    from convertersmartgrid.asistente import lectura_proyecto as lp
+    from convertersmartgrid.aplicacion.asistente import lectura_proyecto as lp
     import fnmatch
     assert any(fnmatch.fnmatch(Path(ps.__file__).name, p) for p in lp.SELLADOS)
 
@@ -543,8 +543,8 @@ def test_artefacto_reabierto_predice_igual_en_el_mismo_proceso(falso, monkeypatc
 def test_artefacto_heredados_y_sin_afinar_cargan_y_el_puntero_es_el_mismo(falso, monkeypatch):
     """079:RF-23 / 079:RF-24 — letra a letra, cabezas sin afinar y afinado, por el mismo puntero del registro."""
     monkeypatch.setattr(co, 'FABRICA', BaseFalsa)
-    from convertersmartgrid.asistente import almacen, modelos_en_uso
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.asistente import almacen, modelos_en_uso
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
 
     cfg = tr.Configuracion(dim=8, capas=1, cabezas=2, epocas=1)
     red = tr.construir_red(4, {'tarea': len(TAREAS)}, cfg, len(tr.ETIQUETAS))
@@ -834,7 +834,7 @@ CONFIRMADAS = [('cuentame lo que tienes cargado', 'estado'), ('muestrame el resu
 @pytest.fixture(scope='module')
 def corrida(tmp_path_factory):
     """El protocolo entero, con afinado y validación cruzada; una sola vez porque tarda."""
-    import convertersmartgrid.model_registry as mr
+    import convertersmartgrid.aplicacion.model_registry as mr
     raiz = tmp_path_factory.mktemp('afinado')
     parche = pytest.MonkeyPatch()
     parche.setenv('CSG_ASISTENTE_DATA', str(raiz / 'almacen'))
@@ -886,7 +886,7 @@ def test_cruzada_decide_la_nueva_con_las_puertas_de_siempre(corrida):
     assert '"prueba_sellada_079"' in corrida['registrados'] and anterior.HUELLA in corrida['registrados']
     # 070:RF-69, 079:RF-47: la medida de la sellada nueva también en su bloque, en el informe y en el registro, que es
     # donde la leen el cierre de 070 T11 y las cifras del registro; antes solo estaba en ``sinteticas``.
-    from convertersmartgrid.asistente import modelos_en_uso
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso
     for donde in (r, corrida['metricas']):
         assert 'medida' in donde['prueba_sellada_079'], 'la sellada nueva lleva su medida en su bloque (070:RF-69)'
         assert donde['prueba_sellada_079']['medida']['ejemplos'] == decisora
@@ -988,8 +988,8 @@ GUION_ENTRENA = r'''
 import json, sys
 sys.path.insert(0, sys.argv[1])
 import torch
-from convertersmartgrid.asistente import afinado_ordenes as af, codificador_ordenes as co, destilacion_integral as di
-from convertersmartgrid.asistente.sinteticos import Ejemplo
+from convertersmartgrid.aplicacion.asistente import afinado_ordenes as af, codificador_ordenes as co, destilacion_integral as di
+from convertersmartgrid.aplicacion.asistente.sinteticos import Ejemplo
 CPU = torch.device('cpu')
 filas = [Ejemplo(f'convierte {c}', 'convertir', [(10, 15, 'alimentadores')]) for c in ('AB101', 'CD202', 'EF303')]
 filas += [Ejemplo(f'flujo de {c}', 'flujo', [(9, 14, 'alimentadores')]) for c in ('AB101', 'CD202', 'EF303')]
@@ -1006,7 +1006,7 @@ import json, sys
 sys.path.insert(0, sys.argv[1])
 import torch
 from pathlib import Path
-from convertersmartgrid.asistente import codificador_ordenes as co
+from convertersmartgrid.aplicacion.asistente import codificador_ordenes as co
 c = Path(sys.argv[2])
 m = co.modelo_desde(json.loads((c / 'modelo.json').read_text(encoding='utf-8')),
                     torch.load(c / 'pesos.pt', weights_only=True, map_location='cpu'), 'alumno', torch.device('cpu'))

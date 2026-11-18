@@ -15,11 +15,11 @@ from PIL import Image
 
 import fake_pf
 from apoyo import cargar_herramienta, contexto_nativo
-from convertersmartgrid.informe_docx import DatosEstudio, escribir_informe_estudio
-from convertersmartgrid.informes import (
+from convertersmartgrid.adaptadores.informe_docx import DatosEstudio, escribir_informe_estudio
+from convertersmartgrid.adaptadores.informes import (
     Caso, Encabezado, Etapa, Extremo, Potencia, alternativas_de_obras, describir_obra,
     trechos_de_conductor)
-from convertersmartgrid.mapa_informe import COLOR_BANCO, COLOR_CONDUCTOR, dibujar
+from convertersmartgrid.adaptadores.mapa_informe import COLOR_BANCO, COLOR_CONDUCTOR, dibujar
 
 casos_pf = cargar_herramienta('casos_pf.py', 'casos_alt', tools_en_path=True)
 guion = cargar_herramienta('estudios_pf.py', 'estudios_alt', tools_en_path=True)
@@ -57,7 +57,7 @@ def test_la_web_lleva_al_estudio_las_alternativas_del_proyecto_y_sus_alimentador
     sin las de otro proyecto ni las de otro alimentador."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web.services import _alternativas_del_proyecto
+    from convertersmartgrid.presentacion.web.services import _alternativas_del_proyecto
 
     def aplicada(variacion, clase, alimentador, proyecto):
         return {'variacion': variacion, 'project': proyecto,
@@ -223,7 +223,7 @@ def _caso(minima, carga=60.0):
 
 
 def _config(tmp_path):
-    from convertersmartgrid.informes import ConfigInforme
+    from convertersmartgrid.adaptadores.informes import ConfigInforme
     perfil = {'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100},
               'informes': {'modelo_estudio': str(_modelo(tmp_path / 'm.docx')),
                            'modelo_factibilidad': str(_modelo(tmp_path / 'f.docx')),
@@ -320,8 +320,8 @@ def test_el_banco_se_nombra_por_su_nodo_de_la_red():
 
 def test_el_nodo_numerico_dice_la_sed_mas_cercana(tmp_path):
     """017:RF-135 — «14717» con la SED a su lado; dos bancos del mismo nodo, juntos."""
-    from convertersmartgrid.informe_docx import _nodo_banco, _siguen_en_servicio
-    from convertersmartgrid.web.services import _sed_cercana
+    from convertersmartgrid.adaptadores.informe_docx import _nodo_banco, _siguen_en_servicio
+    from convertersmartgrid.presentacion.web.services import _sed_cercana
     geo = {'barras': [['SE20730_BT', -13.4693, -76.01466, 0.9, 0.38], ['14717', -13.4694, -76.01466, 0.9, 10.0]]}
     cerca = _sed_cercana([-13.46937, -76.01466], geo)
     assert cerca[0] == 'SE20730' and cerca[1] < 20

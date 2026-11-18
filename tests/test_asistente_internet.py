@@ -4,8 +4,8 @@ from __future__ import annotations
 import io
 import json
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.asistente.internet import Buscador
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.aplicacion.asistente.internet import Buscador
 
 ATOM = ('<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Physics-informed GNN</title>'
         '<id>http://arxiv.org/abs/1</id><published>2025-01-01</published></entry></feed>')

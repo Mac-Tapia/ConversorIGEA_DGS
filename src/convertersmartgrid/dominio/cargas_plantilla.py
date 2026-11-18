@@ -27,7 +27,7 @@ las que llegan). Una fila con ``FP = 0`` y ``kVA = 0`` escritos, que en el fiche
 son 58, deja la carga en cero y se registra como fila sin datos, no como error.
 
 Este módulo solo lee y valida filas. Qué SED existe lo decide ``tools/cargas_pf.py``
-en el proyecto de DIgSILENT; el libro lo lee ``convertersmartgrid.cargas_pf`` (spec 004). El cruce
+en el proyecto de DIgSILENT; el libro lo lee ``convertersmartgrid.aplicacion.cargas_pf`` (spec 004). El cruce
 con el modelo de la conversión y la plantilla rellenada con la carga actual se
 retiraron con la vía vieja de tres guiones.
 """

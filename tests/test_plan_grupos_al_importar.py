@@ -8,9 +8,9 @@ import copy
 
 import pytest
 
-from convertersmartgrid.asistente.interprete import Interpretacion
-from convertersmartgrid.asistente.plan import resolver
-from convertersmartgrid.asistente.tareas import TAREAS, TAREAS_HASTA_069
+from convertersmartgrid.aplicacion.asistente.interprete import Interpretacion
+from convertersmartgrid.aplicacion.asistente.plan import resolver
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, TAREAS_HASTA_069
 
 VOCAB = {'alimentadores': ['AL101', 'AL102'], 'proyecto': ['Proyecto demostracion'],
          'sistema': ['Zona', 'Otra'], 'set': ['SET_NORTE']}
@@ -112,7 +112,7 @@ def test_el_espacio_ofrece_solo_los_grupos_con_dgs(tmp_path):
     """078:RF-29, 078:RF-35 — un grupo fallido o sin fichero no se puede importar, y el vocabulario no los lleva."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     (tmp_path / 'BUENO.dgs').write_text('', encoding='utf-8')
     (tmp_path / 'FALLIDO.dgs').write_text('', encoding='utf-8')

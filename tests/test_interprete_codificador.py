@@ -13,13 +13,13 @@ import pytest
 
 torch = pytest.importorskip('torch')
 
-from convertersmartgrid.asistente import codificador_ordenes as co                  # noqa: E402
-from convertersmartgrid.asistente import destilacion_integral as di                 # noqa: E402
-from convertersmartgrid.asistente import transformer as tr                          # noqa: E402
-from convertersmartgrid.asistente.interprete import Interpretacion, interpretar     # noqa: E402
-from convertersmartgrid.asistente.maestro_real import CALIDAD, NINGUNA, leer_ninguna  # noqa: E402
-from convertersmartgrid.asistente.sinteticos import Ejemplo                         # noqa: E402
-from convertersmartgrid.asistente.tareas import TAREAS                              # noqa: E402
+from convertersmartgrid.aplicacion.asistente import codificador_ordenes as co                  # noqa: E402
+from convertersmartgrid.aplicacion.asistente import destilacion_integral as di                 # noqa: E402
+from convertersmartgrid.aplicacion.asistente import transformer as tr                          # noqa: E402
+from convertersmartgrid.aplicacion.asistente.interprete import Interpretacion, interpretar     # noqa: E402
+from convertersmartgrid.aplicacion.asistente.maestro_real import CALIDAD, NINGUNA, leer_ninguna  # noqa: E402
+from convertersmartgrid.aplicacion.asistente.sinteticos import Ejemplo                         # noqa: E402
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS                              # noqa: E402
 
 RAIZ = Path(__file__).resolve().parents[1]
 CPU = torch.device('cpu')
@@ -114,7 +114,7 @@ def test_modelo_pregunta_es_el_mensaje_entero():
     """069:RF-30 — no se marca un trozo, y el plan usa el mensaje entero."""
     m = _entrenado()
     assert m._datos('como se calibra AB101', 'pregunta', m.codificador(['como se calibra AB101'])) == {}
-    from convertersmartgrid.asistente.plan import resolver
+    from convertersmartgrid.aplicacion.asistente.plan import resolver
     plan = resolver(Interpretacion('como se calibra AB101', 'pregunta', 1., 'ensayo', {}), {})
     assert plan.datos['texto'] == 'como se calibra AB101'
 
@@ -133,7 +133,7 @@ def test_modelo_no_recorta_palabras_de_union():
 
 def test_modelo_todos_los_alimentadores_en_el_plan():
     """069:RF-32 — el plan lo toma por todos, no por un alimentador desconocido."""
-    from convertersmartgrid.asistente.plan import resolver
+    from convertersmartgrid.aplicacion.asistente.plan import resolver
     i = Interpretacion('convierte todos los alimentadores', 'convertir', 1., 'ensayo',
                        {'alimentadores': [{'valor': 'todos los alimentadores'}]})
     plan = resolver(i, {'alimentadores': ['AB101', 'CD202']})
@@ -228,7 +228,7 @@ def test_modelo_sin_gpu_el_error_de_siempre(falso, monkeypatch):
     di._guardar_alumno(m, falso / 'alumno', {'version': 'alumno'})
     filas, meta = di.preparar_corpus({}, _humanas(), por_familia=1)
     di.guardar_corpus(falso / 'corpus', filas, meta)
-    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.aplicacion.asistente import almacen
     carpeta = tr.raiz_modelos() / 'v1'
     carpeta.mkdir(parents=True)
     for n in ('pesos.pt', 'modelo.json'):
@@ -257,8 +257,8 @@ def test_modelo_heredado_y_nuevo_cargan_por_el_mismo_puntero(falso):
     tr.promover(version, 'heredado')
     assert isinstance(tr.cargar(), tr.ModeloOrdenes)
 
-    from convertersmartgrid.asistente import almacen, modelos_en_uso
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.asistente import almacen, modelos_en_uso
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     nuevo = _entrenado()
     nuevo.umbral = .75
     di._guardar_alumno(nuevo, falso / 'alumno', {'version': 'alumno'})
@@ -292,7 +292,7 @@ def test_modelo_reabierto_predice_igual(falso):
 
 def test_modelo_reapertura_aguanta_la_salida_del_codificador():
     """069:RF-9 — la barra de carga escribe bytes que cp1252 no lee: la primera ejecución real se cayó ahí."""
-    from convertersmartgrid.model_registry import reabrir_en_subproceso
+    from convertersmartgrid.aplicacion.model_registry import reabrir_en_subproceso
     codigo = ('import sys; sys.stderr.buffer.write(bytes([0x8f, 0xe2, 0x96, 0x88])); sys.stderr.flush(); '
               'print(\'{"ok": true}\')')
     r = reabrir_en_subproceso([sys.executable, '-c', codigo])
@@ -361,8 +361,8 @@ def test_ninguna_sin_fuga_hacia_lo_sellado():
 
 def test_ninguna_deja_identico_lo_sellado():
     """069:RF-13 — las filas de selección, calibración y prueba, y las fijas, no cambian."""
-    from convertersmartgrid.asistente import ordenes_fijas as of
-    from convertersmartgrid.evaluacion_modelos import huella
+    from convertersmartgrid.aplicacion.asistente import ordenes_fijas as of
+    from convertersmartgrid.aplicacion.evaluacion_modelos import huella
     vocab = {'alimentadores': ['AB101'], 'proyecto': ['Proyecto X']}
     sin, _ = di.preparar_corpus(vocab, [], por_familia=3, ampliar=False)
     con, _ = di.preparar_corpus(vocab, [], por_familia=3, ninguna=['charla de mas'], ninguna_reservada=['otra charla'])
@@ -394,7 +394,7 @@ def test_ninguna_guardada_y_releida_con_custodia(tmp_path):
 
 def test_ninguna_fuera_del_entrenamiento_no_se_acepta(tmp_path):
     """069:RF-10 — un corpus con «ninguna» en la prueba no se relee."""
-    from convertersmartgrid.evaluacion_modelos import huella
+    from convertersmartgrid.aplicacion.evaluacion_modelos import huella
     filas, meta = di.preparar_corpus({}, [], por_familia=1, ninguna=['charla de mas'])
     fila = next(r for r in filas if r['tarea'] == NINGUNA)
     fila['particion'] = 'prueba'
@@ -427,7 +427,7 @@ def test_ninguna_deja_la_orden_sin_tarea_y_no_pregunta_a_otro():
             pytest.fail('con «ninguna» no se consulta a otro modelo')
     i = interpretar('me parece bien', transformer=Respuesta(NINGUNA), ollama=Ollama())
     assert i.tarea is None and i.datos == {} and i.modelo == 'ninguno' and i.razon
-    from convertersmartgrid.asistente.plan import resolver
+    from convertersmartgrid.aplicacion.asistente.plan import resolver
     plan = resolver(i, {})
     assert plan.tarea is None and not plan.listo and not plan.escribe
 
@@ -479,7 +479,7 @@ def test_rechazo_medido_sin_guardar_texto():
 
 def test_rechazo_no_relaja_las_puertas_de_antes():
     """069:RF-22 — con el rechazo perfecto, las puertas existentes siguen mandando; la política no cambia."""
-    from convertersmartgrid.evaluacion_modelos import PoliticaEvaluacion
+    from convertersmartgrid.aplicacion.evaluacion_modelos import PoliticaEvaluacion
     f = _familias()
     bueno = {'ejemplos': 200, 'rechazada': 1., 'se_cuela': 0.}
     assert di.decidir_promocion(PERFECTO, PERFECTO, {**f, 'flujo': {**PERFECTO, 'acierto_tarea': .94}}, f, bueno)['status'] == 'RECHAZADO'
@@ -569,7 +569,7 @@ def _humanas():
 
 def test_integral_de_punta_a_punta_con_codificador_falso(falso, monkeypatch):
     """069:RF-1 / 069:RF-20 / 069:RF-21 / 069:RF-27 / 069:RF-28 — el protocolo real, con todas sus medidas y sin textos reservados."""
-    import convertersmartgrid.model_registry as mr
+    import convertersmartgrid.aplicacion.model_registry as mr
     monkeypatch.setattr(mr, 'reabrir_en_subproceso', lambda *_a, **_k: {'ok': True})
     reservados = [f'secreto reservado {i}' for i in range(120)]
     filas, meta = di.preparar_corpus({}, _humanas(), por_familia=1, ninguna=['charla uno de mas', 'charla dos de mas'],
@@ -617,7 +617,7 @@ def test_integral_herramientas_leen_los_mensajes_ninguna(tmp_path):
 
 def test_integral_frases_de_tareas_flojas_solo_entrenan():
     """069:RF-29 — las tareas flojas tienen más frases, y estas solo van al ajuste."""
-    from convertersmartgrid.asistente.curriculo_maestro import ESTILO_REAL
+    from convertersmartgrid.aplicacion.asistente.curriculo_maestro import ESTILO_REAL
     for tarea in TAREAS_FLOJAS:
         assert len(ESTILO_REAL[tarea]) >= 20
     filas, _ = di.preparar_corpus({}, [], por_familia=2)

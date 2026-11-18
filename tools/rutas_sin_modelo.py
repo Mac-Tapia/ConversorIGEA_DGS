@@ -44,7 +44,7 @@ def rutas_sin_modelo(app) -> list[str]:
 def de_la_aplicacion() -> list[str]:
     """Crea la aplicación sobre una carpeta temporal y devuelve sus rutas sin modelo."""
     sys.path.insert(0, str(RAIZ / 'src'))
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     with tempfile.TemporaryDirectory() as tmp:
         return rutas_sin_modelo(create_app(Path(tmp) / 'web'))

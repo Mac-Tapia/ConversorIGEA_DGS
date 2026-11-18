@@ -18,13 +18,13 @@ Preparación
       entera en verde.
       Hecha el 2026-10-14: 22 en verde; suite sintética 1.717 en verde. Fallan las dos
       de `test_linea_base_001.py` (94 DGS distintos de la línea base), que no usan
-      `fake_pf`: vienen de los cambios sin confirmar de `src/convertersmartgrid/dgs.py` en la rama.
+      `fake_pf`: vienen de los cambios sin confirmar de `src/convertersmartgrid/adaptadores/dgs.py` en la rama.
       Las líneas de `fake_pf.proyecto` tienen ahora `dline` = 1 km (lo que ya suponía la
       confiabilidad de la 012) y `GPScoords` de barra a barra.
 
 Lógica sin DIgSILENT
 
-- [x] T3. `src/convertersmartgrid/troncal.py`: `Red`, `troncal`, `aguas_abajo`. Entra en
+- [x] T3. `src/convertersmartgrid/dominio/troncal.py`: `Red`, `troncal`, `aguas_abajo`. Entra en
       `CODIGO_FUENTE.md`. (RF-1 a RF-5, RF-64)
       Hecho cuando: `pytest -q tests/test_troncal.py tests/test_inventario.py` en verde, y
       con las tres `CSG_*` IN111 da 71 tramos y 13,58 km.
@@ -36,7 +36,7 @@ Lógica sin DIgSILENT
       Hecho cuando: `pytest -q tests/test_troncal.py` en verde.
       Hecha el 2026-10-15: 177 en verde. Con los TXT, el enlace va del nodo `15232` de la
       troncal de TA225 al 47,4 % de `SEC_1091_1055021` de la de IN111: 3.626 m.
-- [x] T5. `src/convertersmartgrid/obras_pf.py`: casos (Sin proyecto implica Con proyecto), clases
+- [x] T5. `src/convertersmartgrid/aplicacion/obras_pf.py`: casos (Sin proyecto implica Con proyecto), clases
       `enlace` y `migracion`, sección con toda la troncal y tipo de cable, simulación de
       cada una. (RF-6 a RF-9, RF-11, RF-13, RF-14, RF-23 a RF-25, RF-31, RF-38, RF-39,
       RF-41, RF-51 a RF-53, RF-59, RF-61, RF-65, RF-66)

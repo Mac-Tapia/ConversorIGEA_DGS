@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid.asistente.revision_roles import revisar_propuesta
+from convertersmartgrid.aplicacion.asistente.revision_roles import revisar_propuesta
 
 
 def paquete(tmp_path):
@@ -114,7 +114,7 @@ def test_propuesta_final_y_dictamen_trazable(tmp_path):
 def _cliente(respuesta, peticiones):
     import io
     import json
-    from convertersmartgrid.asistente.ollama import ClienteOllama
+    from convertersmartgrid.aplicacion.asistente.ollama import ClienteOllama
     def abrir(peticion, timeout):
         peticiones.append((peticion.full_url, json.loads(peticion.data)))
         return io.BytesIO(json.dumps(respuesta).encode())
@@ -132,8 +132,8 @@ FAVORABLE = {'decision': 'favorable', 'evidencia_ids': ['e1'], 'incertidumbres':
 def test_roles_no_escriben(tmp_path, monkeypatch):
     """047:RF-7 / 047:RF-10 — sin herramientas, sin cliente de escritura ni acceso a DIgSILENT: solo el chat local."""
     import ast
-    from convertersmartgrid.asistente import almacen, revision_roles
-    from convertersmartgrid.asistente.revision_roles import revisor_ollama
+    from convertersmartgrid.aplicacion.asistente import almacen, revision_roles
+    from convertersmartgrid.aplicacion.asistente.revision_roles import revisor_ollama
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
     importados = set()
     for nodo in ast.walk(ast.parse(Path(revision_roles.__file__).read_text(encoding='utf-8'))):
@@ -152,7 +152,7 @@ def test_roles_no_escriben(tmp_path, monkeypatch):
 
 def test_cada_rol_tiene_su_encargo_y_el_esquema_es_el_del_validador(tmp_path):
     """047:RF-5 — cada rol recibe lo suyo, y lo que se pide a Ollama es lo que se valida."""
-    from convertersmartgrid.asistente.revision_roles import esquema_dictamen, revisor_ollama
+    from convertersmartgrid.aplicacion.asistente.revision_roles import esquema_dictamen, revisor_ollama
     contexto, evidencia = paquete(tmp_path)
     peticiones = []
     revisar_propuesta({}, evidencia, contexto=contexto, revisor=revisor_ollama(_cliente(_dictamen_llm(FAVORABLE), peticiones)))
@@ -165,8 +165,8 @@ def test_cada_rol_tiene_su_encargo_y_el_esquema_es_el_del_validador(tmp_path):
 
 def test_presupuesto_de_revision_en_la_configuracion(tmp_path, monkeypatch):
     """047:RF-7 — el tiempo y los tokens salen de la configuración; un valor fuera de rango se dice, no se ignora."""
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.asistente.revision_roles import config_revision, revisor_ollama
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.aplicacion.asistente.revision_roles import config_revision, revisor_ollama
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
     assert config_revision() == {'presupuesto_s': 60.0, 'num_predict': 512}
     almacen.guardar_json('ollama', {'revision_presupuesto_s': 30, 'revision_tokens': 128})
@@ -195,7 +195,7 @@ def _herramienta_comparar():
 
 def test_comparacion_rol_unico_y_equipo_con_los_mismos_casos(tmp_path):
     """047:RF-5 — mismos casos, coste y errores; el revisor es de prueba: no acredita la calidad de ningún LLM."""
-    from convertersmartgrid.asistente.revision_roles import comparar_revision
+    from convertersmartgrid.aplicacion.asistente.revision_roles import comparar_revision
     herramienta = _herramienta_comparar()
     casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)
     assert {c['defecto'] for c in casos} == herramienta.DEFECTOS
@@ -221,7 +221,7 @@ def test_comparacion_rol_unico_y_equipo_con_los_mismos_casos(tmp_path):
 
 def test_un_revisor_que_no_responde_no_cuenta_como_deteccion(tmp_path):
     """047:RF-6 — nunca un OK falso: el fallo del LLM bloquea, pero se cuenta aparte y no como defecto hallado."""
-    from convertersmartgrid.asistente.revision_roles import comparar_revision
+    from convertersmartgrid.aplicacion.asistente.revision_roles import comparar_revision
     herramienta = _herramienta_comparar()
     casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)
     def fabrica(medir):
@@ -261,7 +261,7 @@ CORTADA = {**RAZONA, 'message': {'role': 'assistant', 'content': '{"decision": "
 def test_respuesta_no_reconocida_guarda_el_motivo_en_el_informe(tmp_path, respuesta, frases):
     """047:RF-6 — la medición dijo «sin respuesta» en 23 de 24 sin dejar ver por qué; el informe guarda la causa."""
     import json
-    from convertersmartgrid.asistente.revision_roles import comparar_revision, revisor_ollama
+    from convertersmartgrid.aplicacion.asistente.revision_roles import comparar_revision, revisor_ollama
     herramienta = _herramienta_comparar()
     casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)[:2]
     r = comparar_revision(casos, lambda medir: revisor_ollama(_cliente(respuesta, []), medir=medir), rondas=1)
@@ -277,8 +277,8 @@ def test_respuesta_no_reconocida_guarda_el_motivo_en_el_informe(tmp_path, respue
 @pytest.mark.parametrize('pensar', [None, True, False])
 def test_la_revision_pide_sin_razonar_sea_cual_sea_el_cliente(tmp_path, pensar):
     """047:RF-5 — el razonamiento gastaba el tope antes de escribir el dictamen; la configuración no lo reabre."""
-    from convertersmartgrid.asistente.ollama import ClienteOllama
-    from convertersmartgrid.asistente.revision_roles import revisor_ollama
+    from convertersmartgrid.aplicacion.asistente.ollama import ClienteOllama
+    from convertersmartgrid.aplicacion.asistente.revision_roles import revisor_ollama
     contexto, evidencia = paquete(tmp_path)
     peticiones = []
     cliente = _cliente(_dictamen_llm(FAVORABLE), peticiones)
@@ -291,7 +291,7 @@ def test_la_revision_pide_sin_razonar_sea_cual_sea_el_cliente(tmp_path, pensar):
 
 def test_el_presupuesto_agotado_tambien_se_dice(tmp_path):
     """047:RF-6 — una revisión que se queda sin tiempo no cuenta como hallazgo, y el informe lo dice."""
-    from convertersmartgrid.asistente import revision_roles
+    from convertersmartgrid.aplicacion.asistente import revision_roles
     herramienta = _herramienta_comparar()
     casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)[:1]
     real = revision_roles.revisar_propuesta
@@ -325,7 +325,7 @@ def test_dictamen_que_no_aprueba_nombra_su_hallazgo(tmp_path):
 
 def test_bloquear_sin_hallazgo_no_cuenta_como_deteccion(tmp_path):
     """047:RF-38 — «6 de 6 defectos hallados» no lo era si el mismo dictamen vacío bloqueaba también los sanos."""
-    from convertersmartgrid.asistente.revision_roles import comparar_revision
+    from convertersmartgrid.aplicacion.asistente.revision_roles import comparar_revision
     herramienta = _herramienta_comparar()
     casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)
     def fabrica(medir):
@@ -341,7 +341,7 @@ def test_bloquear_sin_hallazgo_no_cuenta_como_deteccion(tmp_path):
 def test_el_revisor_solo_ve_la_propuesta_y_los_fragmentos(tmp_path):
     """047:RF-39 — el proyecto y el fichero de cada caso se llamaban «sano-…» o «defecto-…», y viajaban al LLM."""
     import json
-    from convertersmartgrid.asistente.revision_roles import revisor_ollama
+    from convertersmartgrid.aplicacion.asistente.revision_roles import revisor_ollama
     herramienta = _herramienta_comparar()
     nombres = [c['id'] for c in herramienta.leer_casos()]
     casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)
@@ -364,7 +364,7 @@ def test_el_revisor_solo_ve_la_propuesta_y_los_fragmentos(tmp_path):
 
 def test_el_dictamen_escribe_sus_hallazgos_antes_de_decidir(tmp_path):
     """047:RF-40 — sin razonar, la decisión era el primer campo: se elegía antes de comparar nada con la evidencia."""
-    from convertersmartgrid.asistente.revision_roles import esquema_dictamen, revisor_ollama
+    from convertersmartgrid.aplicacion.asistente.revision_roles import esquema_dictamen, revisor_ollama
     orden = list(esquema_dictamen()['properties'])
     assert orden[-1] == 'decision' and orden.index('contradicciones') < orden.index('decision')
     assert esquema_dictamen()['required'] == orden
@@ -383,7 +383,7 @@ def test_el_dictamen_escribe_sus_hallazgos_antes_de_decidir(tmp_path):
 
 def test_el_informe_guarda_cada_dictamen(tmp_path):
     """047:RF-41 — la medición de T8 no guardó qué dijo el modelo, y la causa de las falsas alarmas no se veía."""
-    from convertersmartgrid.asistente.revision_roles import comparar_revision
+    from convertersmartgrid.aplicacion.asistente.revision_roles import comparar_revision
     herramienta = _herramienta_comparar()
     casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)[:1]
     def fabrica(medir):

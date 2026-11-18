@@ -10,8 +10,8 @@ from unittest.mock import patch
 from test_harness_contratos import configuracion
 from test_harness_ejecucion import evaluadores, preparar, proveedor
 
-from convertersmartgrid.evaluacion_harness.ejecucion import ejecutar
-from convertersmartgrid.evaluacion_harness.publicacion import (
+from convertersmartgrid.aplicacion.evaluacion_harness.ejecucion import ejecutar
+from convertersmartgrid.adaptadores.evaluacion_harness.publicacion import (
     leer_informe,
     leer_json,
     publicar,
@@ -24,7 +24,7 @@ class CliTest(unittest.TestCase):
             ruta = Path(folder)/'informe.json'
             publicar(ruta, {'valor': 1})
             anterior = ruta.read_bytes()
-            with (patch('convertersmartgrid.evaluacion_harness.publicacion.leer_informe',
+            with (patch('convertersmartgrid.adaptadores.evaluacion_harness.publicacion.leer_informe',
                         side_effect=[{'valor': 2}, OSError('readback controlado')]),
                   self.assertRaises(OSError)):
                 publicar(ruta, {'valor': 2})
@@ -47,7 +47,7 @@ class CliTest(unittest.TestCase):
             ruta = Path(folder)/'informe.json'
             publicar(ruta, {'valor': 1})
             anterior = ruta.read_bytes()
-            with (patch('convertersmartgrid.evaluacion_harness.publicacion.os.replace',
+            with (patch('convertersmartgrid.adaptadores.evaluacion_harness.publicacion.os.replace',
                         side_effect=OSError('disco de ensayo')),
                   self.assertRaises(OSError)):
                 publicar(ruta, {'valor': 2})

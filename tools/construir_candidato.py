@@ -203,7 +203,7 @@ def documentos_de_pregunta(raiz: Path, programa: Path, version: str, *, calibrar
     Con ``calibrar``, además la abstención sobre ellos (asistente/pregunta_entregada.py, 097:RF-19): se arma sin
     internet y sin GPU, con BM25. El candidato la exige; una rueda suelta de ensayo no.
     """
-    from convertersmartgrid.asistente import pregunta_entregada as PE
+    from convertersmartgrid.aplicacion.asistente import pregunta_entregada as PE
 
     carpeta = programa / PE.CARPETA
     carpeta.mkdir(parents=True, exist_ok=True)
@@ -239,7 +239,7 @@ def preparar_arbol(raiz: Path, arbol: Path, manifiesto: dict, terminos: CE.Termi
     dist = raiz / 'frontend' / 'dist' if dist is None else dist
     if not (dist / 'index.html').is_file():
         raise CE.EntregaError('Falta la compilación del front: cd frontend && npm ci && npm run build.')
-    from convertersmartgrid.web.runtime import integridad_del_front
+    from convertersmartgrid.presentacion.web.runtime import integridad_del_front
 
     motivo = integridad_del_front(dist)
     if motivo:
@@ -1297,7 +1297,7 @@ def corpus_neutro(salida: Path, terminos: CE.Terminos) -> dict[str, Any]:
     Es lo mismo que el intérprete genera al entrenar en el cliente (transformer.entrenar_y_promover) con un vocabulario
     vacío: queda escrito para que se pueda revisar, y se comprueba contra la lista de términos de la entrega.
     """
-    from convertersmartgrid.asistente import ordenes_fijas, sinteticos
+    from convertersmartgrid.aplicacion.asistente import ordenes_fijas, sinteticos
 
     memoria: dict[str, str | None] = {}
 

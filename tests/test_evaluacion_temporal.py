@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from convertersmartgrid.digital_twin.evaluacion_temporal import (
+from convertersmartgrid.adaptadores.digital_twin.evaluacion_temporal import (
     POLITICA_TEMPORAL,
     error_de_maxima,
     evaluar_pronosticos,
@@ -85,7 +85,7 @@ def test_error_de_maxima_y_de_su_instante():
 
 def test_sesgo_de_maxima_se_calibra_y_se_aplica():
     """046:RF-18 — una mediana lisa no pierde la puerta solo por serlo: el sesgo sale de calibración."""
-    from convertersmartgrid.digital_twin.evaluacion_temporal import sesgo_de_maxima
+    from convertersmartgrid.adaptadores.digital_twin.evaluacion_temporal import sesgo_de_maxima
     real = np.array([[1., 9., 2.], [2., 11., 1.], [1., 10., 3.]])
     lisa = np.array([[1., 7., 2.], [2., 7., 1.], [1., 7., 3.]])
     sesgo = sesgo_de_maxima(real, lisa, puntos_trayectoria=3)
@@ -106,7 +106,7 @@ def test_error_por_horizonte_no_se_oculta():
     ref = {1: _metricas(1.0), 96: _metricas(1.0)}
     cand = {1: _metricas(.5), 96: _metricas(1.05)}
     fam = familias_de('o', cand, ref, politica=POLITICA_TEMPORAL)
-    from convertersmartgrid.evaluacion_modelos import verificar_familias
+    from convertersmartgrid.aplicacion.evaluacion_modelos import verificar_familias
     fallos = verificar_familias(fam, None, POLITICA_TEMPORAL, esperadas=['o|h1', 'o|h96'])
     assert any(f.startswith('o|h96: habilidad_pinball') for f in fallos)
     assert not any(f.startswith('o|h1:') for f in fallos)
@@ -114,7 +114,7 @@ def test_error_por_horizonte_no_se_oculta():
 
 def test_pico_y_su_instante_son_puertas():
     """046:RF-18 — mejorar el pinball empeorando la máxima o su instante no pasa."""
-    from convertersmartgrid.evaluacion_modelos import verificar_familias
+    from convertersmartgrid.aplicacion.evaluacion_modelos import verificar_familias
     ref = {4: _metricas(1.0)}
     for cand, puerta in (({4: _metricas(.5, emax=1.2)}, 'maxima_no_peor'),
                          ({4: _metricas(.5, einst=30.0)}, 'instante_no_peor')):
@@ -127,7 +127,7 @@ def test_pico_y_su_instante_son_puertas():
 
 def test_cobertura_fuera_de_banda_no_pasa():
     """046:RF-6 — un intervalo muy ancho o muy estrecho no pasa aunque mejore el error."""
-    from convertersmartgrid.evaluacion_modelos import verificar_familias
+    from convertersmartgrid.aplicacion.evaluacion_modelos import verificar_familias
     ref = {4: _metricas(1.0)}
     for c in (.99, .7):
         fallos = verificar_familias(familias_de('o', {4: _metricas(.5, cobertura=c)}, ref, politica=POLITICA_TEMPORAL),
@@ -169,6 +169,6 @@ def test_puertas_predeclaradas_dicen_lo_mismo_que_la_spec():
     assert tabla_puertas == dict(POLITICA_TEMPORAL.puertas_por_familia)
     dias = re.findall(r'^\| (entrenamiento|seleccion|calibracion|prueba) \| (\d+\.\d+) \| (\d+) \|$', spec, re.M)
     assert tuple(int(d[2]) for d in dias) == POLITICA_TEMPORAL.minimos
-    from convertersmartgrid.digital_twin.series_causales import FRACCIONES_DIAS
+    from convertersmartgrid.adaptadores.digital_twin.series_causales import FRACCIONES_DIAS
     assert tuple(float(d[1]) for d in dias) == FRACCIONES_DIAS
     assert POLITICA_TEMPORAL.cobertura_objetivo == .9

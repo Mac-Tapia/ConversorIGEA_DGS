@@ -5,9 +5,9 @@ import pytest
 
 def test_web_lanza_integral_y_no_recalibra_candidato_bloqueado(tmp_path, monkeypatch):
     """047:RF-13 / 047:RF-15 — entrenar no equivale a modificar el modelo que atiende."""
-    from convertersmartgrid.asistente import senales
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.aplicacion.asistente import senales
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     ws = Workspace(id='ensayo', root=tmp_path / 'web')
     comandos = []
@@ -31,8 +31,8 @@ def test_web_lanza_integral_y_no_recalibra_candidato_bloqueado(tmp_path, monkeyp
 
 def test_web_no_declara_hecho_un_entrenamiento_fallido(tmp_path, monkeypatch):
     """047:RF-14 — un proceso fallido con informe sigue siendo un trabajo fallido."""
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
     ws = Workspace(id='ensayo', root=tmp_path / 'web')
     class Contexto:

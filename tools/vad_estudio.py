@@ -62,11 +62,11 @@ def main(argv: list[str] | None = None) -> int:
                    default=[RAIZ / 'config' / 'vad', RAIZ / 'config' / 'normativa'])
     p.add_argument('--formatos', type=Path, default=RAIZ / 'config' / 'vad' / 'anexo2_formatos.json')
     args = p.parse_args(argv)
-    from convertersmartgrid.registro_normativo import cargar_registro
-    from convertersmartgrid.vad import VadError
-    from convertersmartgrid.vad.anexo2 import cargar_formatos
-    from convertersmartgrid.vad.estudio import comprobar_estudio
-    from convertersmartgrid.vad.trabajo import (
+    from convertersmartgrid.dominio.registro_normativo import cargar_registro
+    from convertersmartgrid.aplicacion.vad import VadError
+    from convertersmartgrid.aplicacion.vad.anexo2 import cargar_formatos
+    from convertersmartgrid.aplicacion.vad.estudio import comprobar_estudio
+    from convertersmartgrid.aplicacion.vad.trabajo import (
         armar_empresa_modelo,
         leer_caso,
         pasos_del_caso,

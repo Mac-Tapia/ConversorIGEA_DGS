@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.asistente import evaluacion_rag, indice, reranker
+from convertersmartgrid.aplicacion.asistente import evaluacion_rag, indice, reranker
 
 RAIZ = Path(__file__).resolve().parents[1]
 

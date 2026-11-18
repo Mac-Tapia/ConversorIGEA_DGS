@@ -8,8 +8,8 @@ import pytest
 
 def test_pinn_no_inicia_sin_particiones_independientes(tmp_path, monkeypatch):
     """060:RF-1: una validación no se convierte silenciosamente en entrenamiento."""
-    from convertersmartgrid.digital_twin import oraculo as m
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.adaptadores.digital_twin import oraculo as m
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
     import numpy as np
     muestra=SimpleNamespace(ids=['a'],familia='f',x=np.zeros((1,5)),z=np.array([]),v=np.ones(1),mascara=np.ones(1,dtype=bool))
     monkeypatch.setattr(m,'_muestras',lambda *a:([muestra],['id']))
@@ -22,7 +22,7 @@ def test_pinn_no_inicia_sin_particiones_independientes(tmp_path, monkeypatch):
 
 def test_calibracion_pinn_separa_familias_y_es_estable():
     """060:RF-2: las variantes de una familia no cruzan selección/calibración."""
-    from convertersmartgrid.digital_twin import oraculo as m
+    from convertersmartgrid.adaptadores.digital_twin import oraculo as m
     familias=[SimpleNamespace(ids=['red'],familia=f'familia{i}') for i in range(6) for _ in range(2)]
     grupos={'entrenamiento':[], 'validacion':familias, 'prueba':[]}
     a=m.separar_calibracion(grupos);b=m.separar_calibracion({**grupos,'validacion':list(reversed(familias))})
@@ -35,8 +35,8 @@ def test_calibracion_pinn_separa_familias_y_es_estable():
 def test_pinn_rechaza_familia_compartida_aunque_cambie_episodio(tmp_path,monkeypatch):
     """060:RF-2: otra demanda de la misma familia no constituye calibración independiente."""
     import numpy as np
-    from convertersmartgrid.digital_twin import oraculo as m
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios
+    from convertersmartgrid.adaptadores.digital_twin import oraculo as m
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
     def muestra(red,familia):
         return SimpleNamespace(ids=[red],familia=familia,x=np.zeros((1,5)),z=np.array([]),
                                v=np.ones(1),mascara=np.ones(1,dtype=bool))
@@ -56,13 +56,13 @@ def test_pinn_rechaza_familia_compartida_aunque_cambie_episodio(tmp_path,monkeyp
     ({'entrenamiento':['a'],'validacion':['cal']},False)])
 def test_genealogia_no_hereda_ajuste_contaminado(previo,esperado):
     """060:RF-3: el warm-start exige trazabilidad de ajuste y selección anteriores."""
-    from convertersmartgrid.digital_twin import oraculo as m
+    from convertersmartgrid.adaptadores.digital_twin import oraculo as m
     assert m.herencia_independiente(previo,{'calibracion':['cal'],'prueba':['test']}) is esperado
 
 
 def test_custodia_politica_copia_inmutable_y_detecta_cambio(tmp_path):
     """060:RF-4: una edición del original no invalida la versión ya custodiada."""
-    from convertersmartgrid.asistente import llm_destilacion as m
+    from convertersmartgrid.aplicacion.asistente import llm_destilacion as m
     original=tmp_path/'politica.md';original.write_text('política vigente',encoding='utf-8')
     evidencia=m.custodiar_politica(original,tmp_path/'corpus')
     original.write_text('política posterior',encoding='utf-8')
@@ -76,7 +76,7 @@ def test_custodia_politica_copia_inmutable_y_detecta_cambio(tmp_path):
     ([date(2025,1,2),datetime(2025,1,2,5,15)],datetime(2025,1,2,5,15))])
 def test_fecha_local_medianoche_no_salta_a_timestamp(fechas,esperada):
     """060:RF-5: prioridad por columna temporal, incluidas celdas date a medianoche."""
-    from convertersmartgrid.demanda_medida import registros_de_hoja,ALIAS
+    from convertersmartgrid.aplicacion.demanda_medida import registros_de_hoja,ALIAS
     anterior=datetime(2025,1,1,23,45) if esperada.hour==0 else date(2025,1,1)
     filas=[['Local Time','Timestamp','kW tot'],[anterior,datetime(2025,1,2,4,45),1], [*fechas,2]]
     registros,_=registros_de_hoja(filas,ALIAS)
@@ -86,14 +86,14 @@ def test_fecha_local_medianoche_no_salta_a_timestamp(fechas,esperada):
 @pytest.mark.parametrize('rechazado',[False,True])
 def test_estado_heredado_se_distingue_del_registro(tmp_path,monkeypatch,rechazado):
     """060:RF-7: un puntero heredado no se convierte en aceptación del registro común."""
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.web.services import asistente_estado_modelos
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.presentacion.web.services import asistente_estado_modelos
     monkeypatch.setattr(almacen,'raiz',lambda:tmp_path)
     base=tmp_path/'modelos/ordenes';(base/'v1').mkdir(parents=True)
     (base/'promovido.json').write_text(json.dumps({'version':'v1'}))
     (base/'v1/modelo.json').write_text(json.dumps({'cfg':{'epocas':24},'metricas':{'f1_datos':.86}}))
     if rechazado:
-        from convertersmartgrid.model_registry import RegistroModelo
+        from convertersmartgrid.aplicacion.model_registry import RegistroModelo
         from test_model_registry import _payload
         payload=_payload(tmp_path)
         payload['decision']={'status':'RECHAZADO','gates':{'approved':False},'fallos':['F1 insuficiente']}
@@ -109,7 +109,7 @@ def test_estado_heredado_se_distingue_del_registro(tmp_path,monkeypatch,rechazad
 def test_temporal_localiza_celda_sin_potencia(tmp_path):
     """060:RF-5: una potencia ausente se localiza sin imputarla."""
     from openpyxl import Workbook
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import cargar_cabeceras
     w=Workbook();h=w.active;h.title='Medidor'
     h.append(['Local Time','kW tot']);h.append([datetime(2025,1,1),1]);h.append([datetime(2025,1,1,0,15),None])
     p=tmp_path/'datos.xlsx';w.save(p)
@@ -123,7 +123,7 @@ def test_temporal_localiza_celda_sin_potencia(tmp_path):
 def test_temporal_aparta_la_serie_sin_potencia_y_sigue(tmp_path):
     """060:RF-5: sin hojas pedidas, una serie con la potencia vacía se aparta con su motivo y no tumba el libro."""
     from openpyxl import Workbook
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import cargar_cabeceras
     w=Workbook();h=w.active;h.title='Buena';b=w.create_sheet('Mala')
     for hoja,segundo in ((h,2),(b,None)):
         hoja.append(['Local Time','kW tot']);hoja.append([datetime(2025,1,1),1]);hoja.append([datetime(2025,1,1,0,15),segundo])
@@ -136,7 +136,7 @@ def test_temporal_aparta_la_serie_sin_potencia_y_sigue(tmp_path):
 def test_temporal_recorta_al_tramo_comun_sin_hojas_pedidas(tmp_path):
     """060:RF-5: sin hojas pedidas, las series con otro rango de fechas se recortan a su tramo común."""
     from openpyxl import Workbook
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import cargar_cabeceras
     w=Workbook();a=w.active;a.title='A';b=w.create_sheet('B')
     a.append(['Local Time','kW tot']);b.append(['Local Time','kW tot'])
     for k in range(3):a.append([datetime(2025,1,1,0,15*k),k+1])
@@ -151,7 +151,7 @@ def test_temporal_recorta_al_tramo_comun_sin_hojas_pedidas(tmp_path):
 def test_temporal_aparta_la_serie_demasiado_corta(tmp_path,monkeypatch):
     """060:RF-5: sin hojas pedidas, una serie por debajo del mínimo se aparta con su motivo y no recorta a las demás."""
     from openpyxl import Workbook
-    from convertersmartgrid.digital_twin import temporal_entrenamiento as te
+    from convertersmartgrid.adaptadores.digital_twin import temporal_entrenamiento as te
     monkeypatch.setattr(te,'MIN_PASOS_COMUNES',3)
     w=Workbook();a=w.active;a.title='Larga';b=w.create_sheet('Corta')
     a.append(['Local Time','kW tot']);b.append(['Local Time','kW tot'])
@@ -165,7 +165,7 @@ def test_temporal_aparta_la_serie_demasiado_corta(tmp_path,monkeypatch):
 def test_temporal_fecha_textual_y_medianoche(tmp_path):
     """060:RF-5: los formatos soportados por el lector compartido mantienen la hora."""
     from openpyxl import Workbook
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import cargar_cabeceras
     w=Workbook();h=w.active;h.title='Medidor';h.append(['Local Time','kW tot'])
     h.append(['2025-01-01 00:00',1]);h.append(['2025-01-01 00:15',2])
     p=tmp_path/'datos.xlsx';w.save(p)
@@ -175,7 +175,7 @@ def test_temporal_fecha_textual_y_medianoche(tmp_path):
 
 def test_gru_declara_configuracion_completa_sin_cargar_red():
     """060:RF-6: el manifiesto preserva todos los parámetros de construcción."""
-    from convertersmartgrid.digital_twin.temporal import GemeloGRU
+    from convertersmartgrid.adaptadores.digital_twin.temporal import GemeloGRU
     m=object.__new__(GemeloGRU)
     m.ventana=96;m.ocultas=32;m.epocas=40;m.semilla=11;m.paciencia=8;m.recorte=1.;m.fraccion_validacion=.2
     assert m.configuracion()=={'ventana':96,'ocultas':32,'epocas':40,'semilla':11,
@@ -185,7 +185,7 @@ def test_gru_declara_configuracion_completa_sin_cargar_red():
 def test_alcance_temporal_se_fija_por_fecha_no_por_calidad(tmp_path):
     """060:RF-8: seleccionar enero no autoriza omitir un dato ausente de enero."""
     from openpyxl import Workbook
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import cargar_cabeceras
     w=Workbook();h=w.active;h.title='Medidor';h.append(['Local Time','kW tot'])
     h.append([datetime(2025,1,1),1]);h.append([datetime(2025,1,1,0,15),2])
     h.append([datetime(2025,2,1),None]);p=tmp_path/'datos.xlsx';w.save(p)
@@ -199,7 +199,7 @@ def test_alcance_temporal_se_fija_por_fecha_no_por_calidad(tmp_path):
 def test_alcance_temporal_no_acepta_hoja_ausente(tmp_path):
     """060:RF-8: una hoja mal escrita no se omite ni se sustituye por otra."""
     from openpyxl import Workbook
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import cargar_cabeceras
     w=Workbook();p=tmp_path/'datos.xlsx';w.save(p)
     with pytest.raises(ValueError,match='hojas'):
         cargar_cabeceras(p,zona_horaria='UTC',hojas=('ausente',))
@@ -224,7 +224,7 @@ def test_coordinador_conserva_alcance_temporal_explicito(tmp_path,monkeypatch):
 def test_temporal_localiza_fecha_invalida_o_duplicada(tmp_path,fecha,error):
     """060:RF-5: fechas corruptas o repetidas tienen un localizador de origen."""
     from openpyxl import Workbook
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import cargar_cabeceras
     w=Workbook();h=w.active;h.title='Medidor';h.append(['Local Time','kW tot'])
     h.append([datetime(2025,1,1),1]);h.append([fecha,2]);p=tmp_path/'datos.xlsx';w.save(p)
     with pytest.raises(ValueError,match='Medidor.*fila 3.*'+error):cargar_cabeceras(p,zona_horaria='UTC')
@@ -233,8 +233,8 @@ def test_temporal_localiza_fecha_invalida_o_duplicada(tmp_path,fecha,error):
 def test_temporal_rechaza_libro_cambiado_durante_lectura(tmp_path,monkeypatch):
     """060:RF-8: el hash posterior no debe atribuirse a observaciones de otra versión."""
     from openpyxl import Workbook
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
-    from convertersmartgrid import trabajadores_ml
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    from convertersmartgrid.aplicacion import trabajadores_ml
     w=Workbook();h=w.active;h.append(['Local Time','kW tot'])
     h.append([datetime(2025,1,1),1]);h.append([datetime(2025,1,1,0,15),2])
     p=tmp_path/'datos.xlsx';w.save(p)
@@ -245,7 +245,7 @@ def test_temporal_rechaza_libro_cambiado_durante_lectura(tmp_path,monkeypatch):
 def test_busqueda_reserva_calibracion_antes_del_ajuste(monkeypatch):
     """060:RF-2: la selección de hiperparámetros no usa familias de calibración."""
     import numpy as np
-    from convertersmartgrid.digital_twin import hiperparametros as hp,oraculo as m
+    from convertersmartgrid.adaptadores.digital_twin import hiperparametros as hp, oraculo as m
     train=SimpleNamespace(ids=['a'],x=np.zeros((1,5)),familia='train')
     valid=[SimpleNamespace(ids=['a'],x=np.zeros((1,5)),familia=f'f{i}') for i in range(6)]
     grupos={'entrenamiento':[train],'validacion':valid,'prueba':[]}

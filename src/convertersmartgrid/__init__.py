@@ -12,7 +12,7 @@ __version__ = '1.0.0rc6'
 # 106:RF-18: antes del primer cuInit de cualquier modelo del producto, en este proceso o en un hijo que importe el
 # paquete. Con el controlador NVIDIA 560.94, iniciar CUDA dejaba un hilo en una DLL ya descargada y el proceso moría con
 # 0xC0000005 a los ~90 s; aquí solo se deja un buscador de módulos que actúa al importar torch.
-from .compat_gpu import instalar_antes_de_torch as _instalar_antes_de_torch
+from .dominio.compat_gpu import instalar_antes_de_torch as _instalar_antes_de_torch
 
 _instalar_antes_de_torch()
 

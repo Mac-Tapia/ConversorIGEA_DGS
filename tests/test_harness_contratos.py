@@ -2,7 +2,7 @@
 import unittest
 from copy import deepcopy
 
-from convertersmartgrid.evaluacion_harness.contratos import (
+from convertersmartgrid.dominio.evaluacion_harness.contratos import (
     MINIMAS,
     huella,
     sellar,

@@ -2,8 +2,8 @@
 from apoyo import esperar_trabajo
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
 
 
 def test_operacion_set_se_encola_en_powerfactory_sin_recrear_set(tmp_path, monkeypatch):
@@ -39,7 +39,7 @@ def test_operacion_set_se_encola_en_powerfactory_sin_recrear_set(tmp_path, monke
 
 def test_formularios_de_set_existente_y_set_nueva_conservan_su_contrato():
     """042:RF-6, 063:RF-38: operar una SET no recibe parámetros de creación de otra SET."""
-    from convertersmartgrid.web.app import ObrasIn, SetNuevaOperacionIn
+    from convertersmartgrid.presentacion.web.app import ObrasIn, SetNuevaOperacionIn
 
     assert ObrasIn(project='P').alimentadores_nuevos == 4
     assert 'alimentadores_nuevos' not in SetNuevaOperacionIn(project='P').model_dump()

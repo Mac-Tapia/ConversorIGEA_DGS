@@ -12,7 +12,7 @@ import tomllib
 import pytest
 from packaging.requirements import Requirement
 
-from convertersmartgrid.web.runtime import missing_dependencies
+from convertersmartgrid.presentacion.web.runtime import missing_dependencies
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -77,7 +77,7 @@ def test_el_extractor_del_corpus_saca_el_texto_de_un_pdf(tmp_path):
     La prueba de `test_pide_dataset` usa una página en blanco: habría pasado igual con un
     lector que no sacase ninguna palabra (auditoría del arranque, 2026-11-02).
     """
-    from convertersmartgrid.pide_dataset import cargar_contrato, extraer_archivo, inventariar
+    from convertersmartgrid.adaptadores.pide_dataset import cargar_contrato, extraer_archivo, inventariar
 
     raiz = tmp_path / 'corpus'
     raiz.mkdir()
@@ -103,7 +103,7 @@ def _lanzar_aislado(tmp_path, fallo, *, runtime=RUNTIME_PIDE_COMPILAR, con_npm=T
     # El launcher CPython de Windows usa el home real indicado por pyvenv.cfg.
     shutil.copyfile(sys.executable, scripts / 'python.exe')
     shutil.copyfile(Path(sys.prefix) / 'pyvenv.cfg', entorno / 'pyvenv.cfg')
-    paquete = tmp_path / 'src' / 'convertersmartgrid' / 'web'
+    paquete = tmp_path / 'src' / 'convertersmartgrid' / 'presentacion' / 'web'
     paquete.mkdir(parents=True)
     (paquete.parent / '__init__.py').write_text('', encoding='ascii')
     (paquete / '__init__.py').write_text('', encoding='ascii')
@@ -256,7 +256,7 @@ SELLADO_076 = (CONJUNTO_076, 'sellado')
 @pytest.fixture(scope='module')
 def frags_de_los_corpus(tmp_path_factory):
     """Los trozos de los dos corpus del asistente, una vez por módulo y sin tocar la carpeta de la web."""
-    from convertersmartgrid.asistente import indice
+    from convertersmartgrid.aplicacion.asistente import indice
 
     with pytest.MonkeyPatch.context() as mp:
         mp.setenv('CSG_ASISTENTE_DATA', str(tmp_path_factory.mktemp('asistente')))
@@ -268,7 +268,7 @@ def test_ninguna_pregunta_de_evaluacion_literal_en_el_corpus_que_la_mide(frags_d
     """097:RF-20 — ni la calibración ni el sellado de la 047, la 076/077 y el operador (097:RF-16) están en los trozos del
     corpus que los mide, salvo en el fichero que la pregunta cita como su fuente; en el 077, con el documento del maestro
     dentro (076:RF-29). Con la calibración formada del reparto entero, 374 fugas en el 077 (2026-11-13)."""
-    from convertersmartgrid.asistente import fuga_evaluacion as fe
+    from convertersmartgrid.aplicacion.asistente import fuga_evaluacion as fe
 
     textos = fe.textos_por_fichero(frags_de_los_corpus[corpus])
     maestro = 'docs/PREGUNTAS_MAESTRO_076.md'
@@ -285,7 +285,7 @@ def test_todo_conjunto_de_evaluacion_del_repositorio_se_comprueba():
     """097:RF-20 — un conjunto nuevo de `docs/` con preguntas no queda sin comprobar por olvido."""
     import json
 
-    from convertersmartgrid.asistente import fuga_evaluacion as fe
+    from convertersmartgrid.aplicacion.asistente import fuga_evaluacion as fe
 
     vistos = {r for rs in fe.CONJUNTOS_RAG.values() for r in rs}
     for p in sorted(p for patron in ('RAG_*.json', 'CONJUNTO_*.json') for p in (RAIZ / 'docs').glob(patron)):

@@ -4,7 +4,7 @@ import json
 
 def test_informes_del_operador_entran_en_dataset_con_sus_etiquetas(tmp_path):
     """043:RF-3 / 050:RF-2: informes confirmados y maestro no tienen la misma calidad."""
-    from convertersmartgrid.asistente.dataset_entrenamiento import construir_dataset
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import construir_dataset
     assistant=tmp_path/'assistant';assistant.mkdir()
     filas=[{'texto':'Informe confirmado de refuerzo', 'tipo':'estudio','subtipo':'refuerzo',
             'origen':'corregido','fecha':'2026-11-07T10:00:00-05:00'},
@@ -27,7 +27,7 @@ def test_informes_del_operador_entran_en_dataset_con_sus_etiquetas(tmp_path):
 
 def test_informe_invalido_no_se_hace_oro_y_textos_equivalentes_se_agrupan():
     """043:RF-4: corregir la etiqueta no separa copias del mismo informe entre particiones."""
-    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_informe,particionar_dataset
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_informe,particionar_dataset
     base={'texto':'Informe de red', 'tipo':'estudio','subtipo':'refuerzo','origen':'confirmado'}
     uno=normalizar_informe(base)
     otro=normalizar_informe({**base,'texto':'INFORME  DE RED','subtipo':'tensión'})
@@ -40,7 +40,7 @@ def test_informe_invalido_no_se_hace_oro_y_textos_equivalentes_se_agrupan():
 
 def test_informes_con_etiquetas_humanas_contradictorias_se_conservan_en_cuarentena(tmp_path):
     """050:RF-9: no resolver por el orden del JSONL una contradicción de la prueba."""
-    from convertersmartgrid.asistente.dataset_entrenamiento import construir_dataset
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import construir_dataset
     root=tmp_path/'assistant';root.mkdir()
     filas=[{'texto':'Informe de red','tipo':'estudio','subtipo':s,'origen':'corregido'}
            for s in ['refuerzo','tensión']]
@@ -52,7 +52,7 @@ def test_informes_con_etiquetas_humanas_contradictorias_se_conservan_en_cuarente
 
 def test_revision_humana_del_informe_conserva_la_procedencia_del_maestro():
     """043:RF-3 / 050:RF-9: confirmar etiquetas no cambia quién las propuso."""
-    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_informe
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_informe
     revision={'id':'R1','revisor':'usuario','confirmed':True,'source_record_sha256':'a'*64,
               'source_file_sha256':'b'*64,'fecha':'2026-11-07T22:25:00-05:00'}
     record=normalizar_informe({'texto':'Informe revisado','tipo':'estudio','subtipo':'refuerzo',
@@ -65,7 +65,7 @@ def test_revision_humana_del_informe_conserva_la_procedencia_del_maestro():
 def test_auditoria_de_privacidad_no_confunde_encabezados_con_rutas(tmp_path):
     """043:RF-3: el escape JSON de un salto tras el encabezado no es una ruta."""
     from dataclasses import replace
-    from convertersmartgrid.asistente.dataset_entrenamiento import (
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import (
         normalizar_informe,auditar_registro,construir_dataset)
     row={'texto':'CONCLUSIONES:\nLa red converge.\nASUNTO:\tRefuerzo',
          'tipo':'estudio','subtipo':'refuerzo','origen':'confirmado'}
@@ -93,7 +93,7 @@ def _episode(*, accepted=True):
 
 
 def test_confirmed_order_is_human_gold_and_private_path_is_removed():
-    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_orden
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_orden
 
     record = normalizar_orden({
         'texto': r'convierte CA101 desde D:\empresa\fuente.txt',
@@ -110,7 +110,7 @@ def test_confirmed_order_is_human_gold_and_private_path_is_removed():
 
 def test_orden_historica_con_posiciones_se_traduce_sin_cambiar_la_etiqueta():
     """043:RF-3: almacen usa [inicio,fin,tipo], no [tipo,valor]."""
-    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_orden
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_orden
     texto='convierte CA101 con catálogo'
     inicio=texto.index('CA101')
     r=normalizar_orden({'texto':texto,'tarea':'convertir','origen':'confirmado',
@@ -122,7 +122,7 @@ def test_orden_historica_con_posiciones_se_traduce_sin_cambiar_la_etiqueta():
 
 def test_anotaciones_invalidas_no_desaparecen_como_ordenes_sin_entidades():
     """043:RF-3: no convertir un dato perdido en una etiqueta de ausencia."""
-    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_orden
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_orden
     base={'texto':'convierte CA101','tarea':'convertir','origen':'confirmado'}
     for datos in ([[0,999,'alimentadores']],[['desconocido','CA101']],
                   [['alimentadores','OTRA']],[[3]],[[True,8,'alimentadores']]):
@@ -131,7 +131,7 @@ def test_anotaciones_invalidas_no_desaparecen_como_ordenes_sin_entidades():
 
 
 def test_native_gold_requires_accepted_converged_evidence():
-    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_episodio
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_episodio
 
     accepted = normalizar_episodio(_episode())
     rejected = normalizar_episodio(_episode(accepted=False))
@@ -144,7 +144,7 @@ def test_native_gold_requires_accepted_converged_evidence():
 
 def test_native_sin_reapertura_no_es_gold():
     """043:RF-3 — una etiqueta de aceptación no inventa una reapertura ausente."""
-    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_episodio
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_episodio
     fila = _episode()
     fila['nativo'].pop('reopen_verified')
     assert normalizar_episodio(fila).quality == 'quarantine'
@@ -153,7 +153,7 @@ def test_native_sin_reapertura_no_es_gold():
 def test_episodio_vigente_se_valida_con_su_contrato():
     """043:RF-3 — aceptar el formato real de 024 sin exigir campos legacy inventados."""
     from test_digital_twin_episode import _payload
-    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_episodio
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_episodio
     payload = _payload()
     # Sin ``topologia.sets``: el sistema nunca lo escribe, y exigirlo mandaba a cuarentena los 66
     # episodios aceptados del buffer real (2026-11-02). Esta prueba lo añadía a mano y lo ocultaba.
@@ -165,7 +165,7 @@ def test_episodio_vigente_se_valida_con_su_contrato():
 
 
 def test_partition_keeps_group_together_and_excludes_quarantine():
-    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_orden, particionar_dataset
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_orden, particionar_dataset
 
     repeated = [normalizar_orden({'texto': 'reentrena la pinn', 'tarea': 'gemelo_entrenar',
                                   'origen': 'confirmado'}) for _ in range(3)]
@@ -179,7 +179,7 @@ def test_partition_keeps_group_together_and_excludes_quarantine():
 
 
 def test_manifest_v2_has_hashes_quality_counts_and_no_leak(tmp_path):
-    from convertersmartgrid.asistente.dataset_entrenamiento import (
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import (
         escribir_particiones, normalizar_orden, particionar_dataset)
 
     rows = [normalizar_orden({'texto': f'ordena {i}', 'tarea': 'convertir',
@@ -194,7 +194,7 @@ def test_manifest_v2_has_hashes_quality_counts_and_no_leak(tmp_path):
 
 
 def test_conversion_event_is_context_and_never_gold(tmp_path):
-    from convertersmartgrid.asistente.dataset_entrenamiento import (
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import (
         normalizar_evento_conversion, registrar_evento_conversion)
 
     result = registrar_evento_conversion(
@@ -210,7 +210,7 @@ def test_conversion_event_is_context_and_never_gold(tmp_path):
 
 
 def test_web_history_merges_same_source_without_contradicting_reload(tmp_path):
-    from convertersmartgrid.asistente.dataset_entrenamiento import (
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import (
         construir_dataset, importar_historial_web)
 
     web = tmp_path / 'web'
@@ -234,7 +234,7 @@ def test_web_history_merges_same_source_without_contradicting_reload(tmp_path):
 
 
 def test_normative_unknown_license_is_quarantined(tmp_path):
-    from convertersmartgrid.asistente.dataset_entrenamiento import importar_normativa
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import importar_normativa
 
     root = tmp_path / 'normativa'
     (root / 'textos').mkdir(parents=True)
@@ -251,7 +251,7 @@ def test_normative_unknown_license_is_quarantined(tmp_path):
 
 
 def test_descubre_ciento_un_alimentadores_sin_inferir_identidad_mdb(tmp_path):
-    from convertersmartgrid.asistente.dataset_entrenamiento import descubrir_alimentadores_inventarios
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import descubrir_alimentadores_inventarios
 
     ruta = tmp_path / 'w' / 'runs' / 'r' / 'salida'
     ruta.mkdir(parents=True)
@@ -264,7 +264,7 @@ def test_descubre_ciento_un_alimentadores_sin_inferir_identidad_mdb(tmp_path):
 
 def test_identidad_explicita_prevalece_sobre_nombre_de_red(tmp_path):
     """043:RF-2 043:RF-3 — pertenencia explícita y códigos universales, sin regex de empresa."""
-    from convertersmartgrid.asistente.dataset_entrenamiento import descubrir_alimentadores_inventarios
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import descubrir_alimentadores_inventarios
     (tmp_path / 'dataset_inventory.json').write_text(json.dumps({'feeders': [
         {'network_id': 'NET_2030_1_AA001', 'feeder': 'Ramal rural/Sur'},
         {'network_id': 'Identificador-no-convencional'},
@@ -278,8 +278,8 @@ def test_episodios_de_un_alimentador_no_se_reparten_entre_particiones():
     con redes ya vistas al entrenar, y la auditoría no lo veía. Van juntos, y la auditoría lo vigila."""
     from dataclasses import replace
 
-    from convertersmartgrid.asistente.calidad_datos import auditar_contaminacion
-    from convertersmartgrid.asistente.dataset_entrenamiento import normalizar_episodio, particionar_dataset
+    from convertersmartgrid.aplicacion.asistente.calidad_datos import auditar_contaminacion
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_episodio, particionar_dataset
 
     registros = []
     for i in range(40):

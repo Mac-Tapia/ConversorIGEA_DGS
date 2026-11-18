@@ -20,15 +20,15 @@ from test_informe_docx import _estudio, _factibilidad, _texto
 from test_informe_web import _espacio, client  # noqa: F401
 from synthetic_export import ExportSpec, write_export
 
-from convertersmartgrid.catalog import auditar, construir_hojas
-from convertersmartgrid.cli import main as cli_main
-from convertersmartgrid.informe_docx import escribir_informe_estudio, escribir_informe_factibilidad
-from convertersmartgrid.informes import ConfigInforme, InformeError
-from convertersmartgrid.libro_informe import comprobar_libro
-from convertersmartgrid.mapa_informe import imagenes_del_estado
-from convertersmartgrid.perfil_empresa import cargar_perfil, datos_perfil, moneda_informes, perfil_con_nombre, perfiles_disponibles
-from convertersmartgrid.perfil_esquema import claves_del_esquema, validar_perfil
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.aplicacion.catalog import auditar, construir_hojas
+from convertersmartgrid.presentacion.cli import main as cli_main
+from convertersmartgrid.adaptadores.informe_docx import escribir_informe_estudio, escribir_informe_factibilidad
+from convertersmartgrid.adaptadores.informes import ConfigInforme, InformeError
+from convertersmartgrid.adaptadores.libro_informe import comprobar_libro
+from convertersmartgrid.adaptadores.mapa_informe import imagenes_del_estado
+from convertersmartgrid.dominio.perfil_empresa import cargar_perfil, datos_perfil, moneda_informes, perfil_con_nombre, perfiles_disponibles
+from convertersmartgrid.adaptadores.perfil_esquema import claves_del_esquema, validar_perfil
+from convertersmartgrid.presentacion.web.app import create_app
 
 CE = cargar_herramienta('comprobar_entrega.py')
 RAIZ = CE.RAIZ
@@ -108,7 +108,7 @@ def test_ninguna_moneda_fija_en_el_codigo(manifiesto):
 
 def test_libro_no_escribe_la_moneda_en_sus_avisos():
     """086:RF-28 — el aviso del libro compara cifras: no necesita una unidad fija."""
-    fuente = (RAIZ / 'src' / 'convertersmartgrid' / 'libro_informe.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src' / 'convertersmartgrid' / 'adaptadores/libro_informe.py').read_text(encoding='utf-8')
     assert 'S/.' not in fuente.split('def conclusiones_del_word')[0].split('TOLERANCIA_SOLES = ')[1]
     assert comprobar_libro is not None
 
@@ -296,7 +296,7 @@ def test_ficticia_convierte_e_informa_sin_modelos_de_empresa(tmp_path, monkeypat
     activo = tmp_path / 'perfil_empresa.json'
     activo.write_text('{"perfil": "ficticia"}', encoding='utf-8')
     monkeypatch.setenv('CSG_PERFIL_EMPRESA', str(activo))
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.carpeta_perfiles', lambda: carpeta)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.carpeta_perfiles', lambda: carpeta)
 
     red, cargas, equipos = write_export(ExportSpec(seed=86), tmp_path / 'txt')
     salida = tmp_path / 'salida'
@@ -526,7 +526,7 @@ def test_lista_de_entrega_unica_y_declarativa(manifiesto):
 
     086:RF-15 (orden del usuario, 2026-11-13: «nada debería estar apagado ni bloqueado»): los guiones que lanza el
     programa para entrenar entran; sin ellos el instalado respondía «No se encuentra el guion» al entrenar."""
-    for dentro in ('src/convertersmartgrid/cli.py', 'tools/cargas_pf.py', 'config/entrega.json', 'docs/PERFIL_EMPRESA.md',
+    for dentro in ('src/convertersmartgrid/presentacion/cli.py', 'tools/cargas_pf.py', 'config/entrega.json', 'docs/PERFIL_EMPRESA.md',
                    'tools/asistente_entrenar.py'):
         assert CE.entra(dentro, manifiesto), dentro
     for fuera in ('tests/test_x.py', 'specs/086/spec.md', '.claude/x.md', '.git/config', 'output/x.dgs',
@@ -596,7 +596,7 @@ def test_catalogo_no_supone_una_tension_nominal():
     """086:RF-35 — sin tensión del modelo la hoja queda por rellenar, no con la de una empresa."""
     columnas, filas = construir_hojas(auditar([]))['transformadores_sed']
     assert 'kV' in ' '.join(columnas)
-    from convertersmartgrid.catalog import _hoja_trafos, Auditoria
+    from convertersmartgrid.aplicacion.catalog import _hoja_trafos, Auditoria
 
     aud = Auditoria(trafos_kva={100.0: 2})
     assert _hoja_trafos(aud, None)[0][2] == ''
@@ -635,9 +635,9 @@ def test_sin_limites_ni_bandas_se_piden_y_no_se_inventan(tmp_path):
 
 def test_bandas_de_referencia_del_mapa_salen_de_la_norma():
     """086:RF-35 — las del mapa son las de ±5 % y 100 %, no un modelo de una empresa: se comprueba con la fórmula."""
-    import convertersmartgrid.mapa_informe as mapa
-    from convertersmartgrid.estudios_pf import LIMITES_POR_DEFECTO
-    from convertersmartgrid.informes import bandas_de_limites
+    import convertersmartgrid.adaptadores.mapa_informe as mapa
+    from convertersmartgrid.aplicacion.estudios_pf import LIMITES_POR_DEFECTO
+    from convertersmartgrid.adaptadores.informes import bandas_de_limites
 
     assert (mapa.BANDAS_TENSION, mapa.BANDAS_CARGA) == bandas_de_limites(LIMITES_POR_DEFECTO)
     assert imagenes_del_estado is not None
@@ -646,7 +646,7 @@ def test_bandas_de_referencia_del_mapa_salen_de_la_norma():
 def test_transformador_con_las_bandas_del_perfil(tmp_path):
     """086:RF-35 — el dibujo del transformador también usa las bandas dadas, no unas fijas."""
     from PIL import Image
-    from convertersmartgrid.mapa_informe import transformador_de_la_set
+    from convertersmartgrid.adaptadores.mapa_informe import transformador_de_la_set
 
     ruta = transformador_de_la_set('T', 'S', [(10.0, 60.0)], tmp_path / 't.png', titulo='x', bandas_carga=(10, 20, 30, 40, 50))
     with Image.open(ruta) as img:
@@ -666,7 +666,7 @@ def test_contexto_ofrece_las_bandas_que_se_piden(client, tmp_path, monkeypatch):
 
 def test_api_acepta_las_bandas_del_formulario():
     """086:RF-35 — el formulario las lleva; un valor que no es lista se rechaza con 422."""
-    from convertersmartgrid.web.app import InformeEstudioIn
+    from convertersmartgrid.presentacion.web.app import InformeEstudioIn
 
     base = {'project': 'P', 'alimentador': 'A', 'fecha': '2026-11-04', 'asunto': 'X'}
     assert InformeEstudioIn(**base, bandas={'tension': [90, 110]}).bandas == {'tension': [90, 110]}
@@ -750,7 +750,8 @@ def test_086_rf33_el_codigo_entregado_no_cita_a_otras_distribuidoras(manifiesto)
 # --------------------------------------------------------------------------- 107:RF-11 (T17)
 #: El PIT y el registro normativo, universales: lo que vale para un área, una empresa o un periodo sale del perfil o del
 #: registro, nunca del código (107 T17).
-_UNIVERSALES_107 = ('src/convertersmartgrid/pit', 'src/convertersmartgrid/registro_normativo.py')
+_UNIVERSALES_107 = ('src/convertersmartgrid/dominio/pit', 'src/convertersmartgrid/aplicacion/pit',
+                    'src/convertersmartgrid/adaptadores/pit', 'src/convertersmartgrid/dominio/registro_normativo.py')
 
 
 def test_107_rf11_el_detector_ve_tensiones_anios_tasas_y_areas_escritas_en_el_codigo():

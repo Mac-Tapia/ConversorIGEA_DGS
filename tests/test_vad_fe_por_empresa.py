@@ -11,9 +11,9 @@ import json
 from pathlib import Path
 
 import pytest
-from convertersmartgrid.pit import expediente
-from convertersmartgrid.registro_normativo import RegistroError, cargar_registro
-from convertersmartgrid.vad import estudio
+from convertersmartgrid.adaptadores.pit import expediente
+from convertersmartgrid.dominio.registro_normativo import RegistroError, cargar_registro
+from convertersmartgrid.aplicacion.vad import estudio
 
 RAIZ = Path(__file__).resolve().parents[1]
 NORMATIVA = RAIZ / 'config' / 'normativa'

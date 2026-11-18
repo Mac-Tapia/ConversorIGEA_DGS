@@ -10,7 +10,7 @@ import numpy as np
 
 def test_gru_guarda_ajustes_pasos_historial_y_reabre(tmp_path):
     """060:RF-6: los pesos ajustados se reabren con toda su configuración real."""
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import entrenar_temporal,reabrir_temporal
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import entrenar_temporal,reabrir_temporal
     t=np.arange(30*96)
     serie=(100+10*np.sin(2*np.pi*t/96)).tolist()
     r=entrenar_temporal({'contrato':serie},tmp_path,semillas=(11,),

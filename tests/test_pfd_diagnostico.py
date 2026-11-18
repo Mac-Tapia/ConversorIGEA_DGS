@@ -146,7 +146,7 @@ def _pfd(tmp_path, nombre, contenido=b'x', sub='a'):
 
 
 def _correr(guion, monkeypatch, app, pfd, tmp_path, *extra, salida='d.json'):
-    from convertersmartgrid import pf_arnes
+    from convertersmartgrid.adaptadores import pf_arnes
     monkeypatch.setattr(pf_arnes, 'conectar', lambda _g, **_k: app)
     rc = guion.main(['--pfd', str(pfd), '--output-json', str(tmp_path / salida), '--carpeta', 'CSG_PFD', *extra])
     return rc, json.loads((tmp_path / salida).read_text(encoding='utf-8'))
@@ -369,7 +369,7 @@ def test_comparar_versiones_por_partes(guion):
 @pytest.mark.parametrize('nombre,contenido,codigo', [('x.txt', b'1', 2), ('falta.pfd', None, 2)])
 def test_uso_sin_digsilent(guion, monkeypatch, tmp_path, nombre, contenido, codigo):
     """004:RF-98 — un fichero que no es .pfd o no existe sale con 2, sin conectar, y deja su JSON."""
-    from convertersmartgrid import pf_arnes
+    from convertersmartgrid.adaptadores import pf_arnes
     monkeypatch.setattr(pf_arnes, 'conectar', lambda *_a, **_k: pytest.fail('no debía conectar'))
     f = tmp_path / nombre
     if contenido is not None:

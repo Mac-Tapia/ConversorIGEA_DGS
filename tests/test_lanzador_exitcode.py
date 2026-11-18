@@ -22,7 +22,7 @@ def test_batch_propaga_codigo_real_del_hijo(tmp_path, codigo):
     scripts.mkdir(parents=True)
     shutil.copyfile(sys.executable, scripts / 'python.exe')
     shutil.copyfile(Path(sys.prefix) / 'pyvenv.cfg', entorno / 'pyvenv.cfg')
-    paquete = tmp_path / 'src/convertersmartgrid/web'
+    paquete = tmp_path / 'src/convertersmartgrid/presentacion/web'
     paquete.mkdir(parents=True)
     (paquete.parent / '__init__.py').write_text('')
     (paquete / '__init__.py').write_text('')

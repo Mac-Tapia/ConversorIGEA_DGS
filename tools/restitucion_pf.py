@@ -34,7 +34,7 @@ PREFIJO = 'PRUEBA064_'
 
 
 def _foto_legible(app) -> dict:
-    from convertersmartgrid import pf_estado
+    from convertersmartgrid.adaptadores import pf_estado
 
     f = pf_estado.fotografiar(app)
     if f is None:
@@ -55,7 +55,7 @@ def _exigir_copia(app, plan: dict):
 
 
 def copiar(app, plan: dict) -> dict:
-    from convertersmartgrid.carpeta_pf import buscar_carpeta, proyectos_de
+    from convertersmartgrid.adaptadores.carpeta_pf import buscar_carpeta, proyectos_de
 
     carpeta = buscar_carpeta(app.GetCurrentUser(), plan['folder'])
     original = dict(proyectos_de(carpeta) if carpeta else []).get(plan['origen'])
@@ -127,7 +127,7 @@ def main(argv=None) -> int:
     if accion is None:
         print(f"ERROR: acción desconocida {plan.get('accion')!r}")
         return 2
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('restitucion_pf.py')

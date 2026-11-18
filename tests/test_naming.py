@@ -1,6 +1,6 @@
 """Universal NetworkID / selector naming (no company-specific patterns)."""
 
-from convertersmartgrid.naming import feeder_short_name, feeder_tokens, sort_key_feeder
+from convertersmartgrid.dominio.naming import feeder_short_name, feeder_tokens, sort_key_feeder
 
 
 def test_feeder_short_name_handles_varied_utility_patterns():
@@ -18,8 +18,8 @@ def test_sufijo_de_tension_es_uno_para_el_dgs_y_las_obras():
     """011:RF-61 — la copia de un tipo de una obra lleva el mismo sufijo de tensión que
     el conversor pone a los TypLne de una red unida, porque la regla vive en un solo
     sitio: el mismo conductor a 22,9 kV no puede salir con dos nombres."""
-    from convertersmartgrid.dgs import _type_name
-    from convertersmartgrid.naming import nombre_con_tension, sufijo_tension
+    from convertersmartgrid.adaptadores.dgs import _type_name
+    from convertersmartgrid.dominio.naming import nombre_con_tension, sufijo_tension
 
     assert sufijo_tension(22.9) == '22_9kV'
     assert sufijo_tension(10.0) == '10kV'
@@ -36,7 +36,7 @@ def test_siglas_canonicas_del_perfil(monkeypatch):
     """022:RF-90 — con la estructura que declara ``["CHN", "CN"]``, CN101 de la red se llama
     CHN101 desde la carga; las demás siglas y los nombres sin número, tal cual; sin perfil,
     nada cambia."""
-    from convertersmartgrid import naming
+    from convertersmartgrid.dominio import naming
 
     monkeypatch.setattr(naming, 'siglas_canonicas', lambda: {'CN': 'CHN'})
     assert naming.feeder_short_name('NET_2030_1192582_CN101') == 'CHN101'
@@ -49,7 +49,7 @@ def test_siglas_canonicas_del_perfil(monkeypatch):
 
 def test_nombre_canonico_de_los_trozos():
     """022:RF-90 / 027:T23 — cada trozo «sigla + número» con la sigla canónica; lo demás igual."""
-    from convertersmartgrid.naming import nombre_canonico
+    from convertersmartgrid.dominio.naming import nombre_canonico
 
     canon = {'CN': 'CHN'}
     assert nombre_canonico('NODE_2030_1192582_CN101', canon) == 'NODE_2030_1192582_CHN101'

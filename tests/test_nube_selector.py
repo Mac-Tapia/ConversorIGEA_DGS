@@ -18,7 +18,7 @@ CONFIG = {'google': {**CONFIG_PRUEBA['google'], 'secreto': SECRETO, 'clave_api':
 @pytest.mark.parametrize('proveedor', ['google', 'microsoft'])
 def test_el_token_del_selector_nunca_lleva_el_refresco_ni_el_secreto(tmp_path, proveedor):
     """109:RF-2 — solo el token de acceso, con no-store; ni refresh_token, ni el de refresco del cofre, ni el secreto."""
-    from convertersmartgrid import nube_cofre
+    from convertersmartgrid.adaptadores import nube_cofre
 
     with montar_web_nube(tmp_path, config=CONFIG) as web:
         wid = web.espacio()

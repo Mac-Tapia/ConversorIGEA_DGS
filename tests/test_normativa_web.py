@@ -10,10 +10,10 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def web(tmp_path, monkeypatch):
-    from convertersmartgrid import biblioteca_normativa as bn
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.aplicacion import biblioteca_normativa as bn
+    from convertersmartgrid.presentacion.web.app import create_app
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     monkeypatch.setenv(bn.VARIABLE_CAPA, str(tmp_path / 'capa'))
     for nombre, valor in (('CSG_ASISTENTE_DATA', tmp_path / 'asistente'), ('CSG_TWIN_DATA', tmp_path / 'gemelo'),

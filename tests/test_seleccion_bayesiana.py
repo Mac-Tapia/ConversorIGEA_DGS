@@ -5,7 +5,7 @@ import math
 
 import pytest
 
-from convertersmartgrid.seleccion_bayesiana import CERTEZA, MINIMO_SORTEOS, Seguimiento, probabilidad_de_alcanzar
+from convertersmartgrid.dominio.seleccion_bayesiana import CERTEZA, MINIMO_SORTEOS, Seguimiento, probabilidad_de_alcanzar
 
 
 def test_la_posterior_da_el_valor_conocido():

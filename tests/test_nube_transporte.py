@@ -223,7 +223,7 @@ def test_quickxor_por_bloques_igual_que_byte_a_byte(tmp_path, monkeypatch):
 
 # --------------------------------------------------------------------------- T2: la salida «nube»
 def _salidas():
-    from convertersmartgrid import salidas_red
+    from convertersmartgrid.dominio import salidas_red
 
     assert 'nube' in salidas_red.SALIDAS, 'falta la salida «nube» en salidas_red.SALIDAS (109, T2)'
     return salidas_red
@@ -273,7 +273,7 @@ def test_salida_nube_se_ve_en_la_web_y_la_decide_su_variable(tmp_path, monkeypat
     """109:RF-16, 086:RF-69 — la web la lista con su estado y su variable, pero no la cambia: 403 y nada guardado."""
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.delenv('CSG_SALIDA_NUBE', raising=False)
     monkeypatch.setenv('CSG_SALIDAS_RUTA', str(tmp_path / 'salidas.json'))

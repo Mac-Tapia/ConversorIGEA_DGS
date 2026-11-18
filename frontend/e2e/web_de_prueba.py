@@ -44,8 +44,8 @@ def main() -> None:
     import uvicorn
 
     from synthetic_export import CRS_SINTETICO, ExportSpec, write_export
-    from convertersmartgrid import sesion_web
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.dominio import sesion_web
+    from convertersmartgrid.presentacion.web.app import create_app
 
     assert sesion_web.EXIGIR_SEGURIDAD, "la web de prueba corre con la seguridad encendida"
     sesion_web.crear_sesion(puerto)

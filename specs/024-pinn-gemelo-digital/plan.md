@@ -13,7 +13,7 @@ alternativas del PIDE (RF-32) que entraron en la spec al aprobarla.
 
 ## Contexto técnico
 
-- Paquete nuevo `src/convertersmartgrid/digital_twin/`, puro (biblioteca estándar y `sqlite3`), sin
+- Paquete nuevo `src/convertersmartgrid/adaptadores/digital_twin/`, puro (biblioteca estándar y `sqlite3`), sin
   importar PowerFactory: `episode.py` (contrato), `buffer.py` (almacén), `evaluacion.py`
   (clasificación por caso y norma), `capture.py` (ensamblaje), `native_snapshot.py`
   (identidades y lectura nativa) e `integration.py` (enganche con la web).
@@ -22,9 +22,9 @@ alternativas del PIDE (RF-32) que entraron en la spec al aprobarla.
   de DIgSILENT (spec 019), en el carril `powerfactory`, después de que la acción que escribe
   haya terminado; solo lectura (sin `CreateObject`, `Delete`, `SetAttribute`,
   `WriteChangesToDb`).
-- Enganche en `src/convertersmartgrid/web/services.py` tras cada salida nativa (flujo, cargas, ajuste,
+- Enganche en `src/convertersmartgrid/presentacion/web/services.py` tras cada salida nativa (flujo, cargas, ajuste,
   verificación del «Caso base», obras, estudios, transferencia, guiones) y consulta en
-  `src/convertersmartgrid/web/app.py`.
+  `src/convertersmartgrid/presentacion/web/app.py`.
 - Norma por sistema: `norma` de `config/perfiles/<empresa>.estructura.json` (NTCSE/NTCSER) y
   límites de `estudios` del perfil; transformadores con la máxima de la NTP 370.400 del perfil
   (spec 020).
@@ -106,11 +106,11 @@ modelos y los modelos necesitan los escenarios.
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| T13. Metodología del PIDE | `src/convertersmartgrid/pide.py` (puro): mercado y densidad por cuadrículas, diagnóstico con causa, año de incumplimiento, plan por etapas, formatos 01 a 15 en Excel; `tools/pide_pf.py`: cada año del horizonte en DIgSILENT con el factor de escala de cargas del `ComLdf`, restituido al terminar | RF-49 a RF-53, RF-60 a RF-63 |
-| T14. Economía y priorización | `src/convertersmartgrid/pide_economia.py` (puro): libro CAPEX por nombres del perfil, CI por componente, anualidad, costo anual, VAN y TIR regulados, flujo de caja privado con tarifas, indicadores, priorización del art. 15, sobredimensionadas, rubros; `services`: propuestas propias verificadas y aplicadas con las obras de la 011 | RF-23, RF-33 a RF-36, RF-38, RF-45 a RF-48, RF-54 a RF-59 |
-| T10. Escenarios y aprendizaje activo | `src/convertersmartgrid/digital_twin/escenarios.py` (puro: matriz, partición por familia, elección por incertidumbre); `tools/escenarios_pf.py`: copia del proyecto, escala y tramos abiertos, lectura y episodio `counterfactual`, copia borrada | RF-11, RF-12, RF-40, RF-41 |
-| T11. Oráculo PINN/GNN | `src/convertersmartgrid/digital_twin/oraculo.py` (PyTorch opcional): grafo con impedancias, GNN con pérdida física de balance nodal, conjunto de modelos para la incertidumbre, fuera de distribución, registro y promoción con puertas | RF-13 a RF-19, RF-39, RF-42 a RF-44 |
-| T12. Gemelo temporal | `src/convertersmartgrid/digital_twin/temporal.py`: GRU sobre las curvas de cabecera del mes, pseudo-medidas de los alimentadores sin medidor con la barra de su SET | RF-20 a RF-22, RF-37 |
+| T13. Metodología del PIDE | `src/convertersmartgrid/aplicacion/pide.py` (puro): mercado y densidad por cuadrículas, diagnóstico con causa, año de incumplimiento, plan por etapas, formatos 01 a 15 en Excel; `tools/pide_pf.py`: cada año del horizonte en DIgSILENT con el factor de escala de cargas del `ComLdf`, restituido al terminar | RF-49 a RF-53, RF-60 a RF-63 |
+| T14. Economía y priorización | `src/convertersmartgrid/aplicacion/pide_economia.py` (puro): libro CAPEX por nombres del perfil, CI por componente, anualidad, costo anual, VAN y TIR regulados, flujo de caja privado con tarifas, indicadores, priorización del art. 15, sobredimensionadas, rubros; `services`: propuestas propias verificadas y aplicadas con las obras de la 011 | RF-23, RF-33 a RF-36, RF-38, RF-45 a RF-48, RF-54 a RF-59 |
+| T10. Escenarios y aprendizaje activo | `src/convertersmartgrid/adaptadores/digital_twin/escenarios.py` (puro: matriz, partición por familia, elección por incertidumbre); `tools/escenarios_pf.py`: copia del proyecto, escala y tramos abiertos, lectura y episodio `counterfactual`, copia borrada | RF-11, RF-12, RF-40, RF-41 |
+| T11. Oráculo PINN/GNN | `src/convertersmartgrid/adaptadores/digital_twin/oraculo.py` (PyTorch opcional): grafo con impedancias, GNN con pérdida física de balance nodal, conjunto de modelos para la incertidumbre, fuera de distribución, registro y promoción con puertas | RF-13 a RF-19, RF-39, RF-42 a RF-44 |
+| T12. Gemelo temporal | `src/convertersmartgrid/adaptadores/digital_twin/temporal.py`: GRU sobre las curvas de cabecera del mes, pseudo-medidas de los alimentadores sin medidor con la barra de su SET | RF-20 a RF-22, RF-37 |
 
 Decisiones:
 - Los años se verifican escalando las cargas con el `ComLdf` y no con variaciones: no deja

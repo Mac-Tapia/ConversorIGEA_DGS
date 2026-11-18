@@ -5,8 +5,8 @@ import pytest
 
 from datos_pit import perfil_a, perfil_b
 
-from convertersmartgrid.pit.ambito import PitError, areas_del_perfil
-from convertersmartgrid.pit.programa import programar
+from convertersmartgrid.dominio.pit.ambito import PitError, areas_del_perfil
+from convertersmartgrid.dominio.pit.programa import programar
 
 
 def _cambios(caso):
@@ -81,7 +81,7 @@ def _vigente_y_nuevo(caso):
 def test_modificacion_lista_lo_que_se_elimina_cambia_o_agrega(fabrica):
     """107:RF-17 — entre el programa vigente y el nuevo: lo eliminado, lo cambiado (con lo de antes y lo de ahora) y lo
     agregado, cada uno con su razón."""
-    from convertersmartgrid.pit.programa import comparar_programas
+    from convertersmartgrid.dominio.pit.programa import comparar_programas
 
     caso = fabrica(44)
     _, vigente, nuevo, quitada, movida, agregada = _vigente_y_nuevo(caso)
@@ -100,7 +100,7 @@ def test_modificacion_sin_razon_o_de_otra_area_es_un_error():
     """107:RF-17 — un cambio sin su razón no se lista callado, y dos programas de áreas distintas no se comparan."""
     import dataclasses
 
-    from convertersmartgrid.pit.programa import comparar_programas
+    from convertersmartgrid.dominio.pit.programa import comparar_programas
 
     caso = perfil_a(44)
     _, vigente, nuevo, quitada, movida, agregada = _vigente_y_nuevo(caso)

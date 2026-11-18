@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
-from convertersmartgrid.util import publicar_duradero
+from convertersmartgrid.dominio.util import publicar_duradero
 
 FAMILIES = (
     'REGULATORY_VNRGIS_PACKAGE',

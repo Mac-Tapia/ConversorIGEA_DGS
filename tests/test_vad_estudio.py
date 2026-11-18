@@ -9,9 +9,9 @@ import json
 
 import pytest
 
-from convertersmartgrid.perfil_empresa import PerfilEmpresa
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.estudio import EstudioVad, cargar_estudio, crear_estudio
+from convertersmartgrid.dominio.perfil_empresa import PerfilEmpresa
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.aplicacion.vad.estudio import EstudioVad, cargar_estudio, crear_estudio
 
 EMPRESAS = (
     PerfilEmpresa(nombre='Distribuidora Sintética Norte', crs_origen='EPSG:3857'),

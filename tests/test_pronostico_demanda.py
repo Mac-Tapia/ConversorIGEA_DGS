@@ -12,10 +12,10 @@ import numpy as np
 import pytest
 from openpyxl import Workbook
 
-from convertersmartgrid import pronostico_demanda as pd_
-from convertersmartgrid.demanda_medida import Cabecera, curvas_de_clientes
-from convertersmartgrid.digital_twin.pronostico import CLASES
-from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+from convertersmartgrid.adaptadores import pronostico_demanda as pd_
+from convertersmartgrid.aplicacion.demanda_medida import Cabecera, curvas_de_clientes
+from convertersmartgrid.adaptadores.digital_twin.pronostico import CLASES
+from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import cargar_cabeceras
 
 RAIZ = Path(__file__).resolve().parents[1]
 PASO = timedelta(minutes=15)
@@ -504,7 +504,7 @@ def test_el_dataset_usa_el_apoyo_y_lo_anota(tmp_path):
 
 # ------------------------------------------------------------------------- métodos
 def _objetivo_simple(dias=120, base=100.0, **kw):
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     curva = [(t, p) for t, p, _q in _serie(dias, base, **kw)]
     return Objetivo('cabecera', 'A1', 'kW', 'kW', curva, {'inicio_base': curva[0][0].isoformat()})
@@ -545,7 +545,7 @@ def test_la_eleccion_y_la_prueba_estan_separadas():
 
 def test_gana_el_nivel_reciente_cuando_la_demanda_cambia_de_nivel():
     """089:RF-38, 089:RF-41 — con un escalón, el perfil anclado a lo reciente debe batir al calendario."""
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     curva = [(t, p * (2.0 if i > 30 * 96 else 1.0)) for i, (t, p, _q) in enumerate(_serie(200))]
     r = pd_.backtest_objetivo(Objetivo('cabecera', 'A1', 'kW', 'kW', curva, {'inicio_base': curva[0][0].isoformat()}))
@@ -556,7 +556,7 @@ def test_el_informe_se_puede_escribir_con_una_serie_sin_energia(tmp_path):
     """089:RF-40 — un cliente en cero da un WAPE sin definir: el informe lo deja vacío y sigue siendo JSON."""
     import json
 
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     curva = [(t, 0.0) for t, _p, _q in _serie(120)]
     d = pd_.Dataset([Objetivo('cliente', 'K', 'kW', 'kW', curva, {})], [], [], {})
@@ -572,7 +572,7 @@ def test_historia_insuficiente():
 
 def test_no_evalua_sobre_el_apoyo():
     """089:RF-37 — los orígenes de evaluación caen dentro de la serie base."""
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     curva = [(t, p) for t, p, _q in _serie(150)]
     inicio = curva[60 * 96][0]
@@ -642,7 +642,7 @@ def test_emite_cuantiles_y_marca(tmp_path):
 
 def test_sin_datos_de_una_empresa_en_el_modulo():
     """089:RF-52 — ni medidores, ni libros, ni meses, ni años."""
-    texto = (RAIZ / 'src/convertersmartgrid/pronostico_demanda.py').read_text(encoding='utf-8')
+    texto = (RAIZ / 'src/convertersmartgrid/adaptadores/pronostico_demanda.py').read_text(encoding='utf-8')
     codigo = re.sub(r'""".*?"""|#.*', '', texto, flags=re.S)
     assert not re.search(r'CHB2T1|L-?\d{4}|PA\d{3}|AL\d{3}|Pisco|Electro|\b20(2[3-9])\b', codigo)
 
@@ -669,7 +669,7 @@ def test_libro_real_dia_hora():
 
 def test_el_resumen_pondera_por_energia():
     """089:RF-53 — un alimentador casi dedicado, con resto casi cero, no pesa como uno grande."""
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     grande = _objetivo_simple(120, 1000.0)
     curva = [(t, 1e-3 * (1 + (i % 7))) for i, (t, _v) in enumerate(grande.curva)]
@@ -710,7 +710,7 @@ def test_apoyo_de_clientes_solo_antes_de_la_base(tmp_path):
 
 def test_mes_a_medias_se_mide_sobre_lo_observado():
     """089:RF-40 — un mes recién cargado con días sin dato no cuenta esos días como error."""
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     curva = [(t, p) for i, (t, p, _q) in enumerate(_serie(120)) if not 110 * 96 <= i < 115 * 96]
     r = pd_.backtest_objetivo(Objetivo('cabecera', 'A1', 'kW', 'kW', curva, {}))
@@ -766,7 +766,7 @@ class _Falso:
 
 
 def _objetivos_ml(n=2):
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     return [Objetivo('cabecera', f'A{i}', 'kW', 'kW', [(t, p) for t, p, _q in _serie(200, ruido=i)], {}) for i in range(n)]
 
@@ -818,7 +818,7 @@ def test_conjunto_compite_como_un_candidato():
 
 def test_correccion_sobre_el_perfil_con_covariables():
     """089:RF-57, 089:RF-58 — aprende el resto sobre el perfil, a 15 minutos, con huecos enmascarados y lo conocido."""
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     curva = [(t, p) for i, (t, p, _q) in enumerate(_serie(60)) if i != 500]
     o = Objetivo('cabecera', 'A', 'kW', 'kW', curva, {})
@@ -904,7 +904,7 @@ def test_cliente_en_varios_libros_con_arreglos(tmp_path):
 # ------------------------------------------------------------------------- hallazgos de la revisión independiente
 def test_el_anclado_ancla_tras_un_escalon():
     """089:RF-71 — con +40 % hace 60 días, el anclado da el nivel nuevo: antes daba el viejo, igual que el calendario."""
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     curva = [(t, p * (1.4 if i > 120 * 96 else 1.0)) for i, (t, p, _q) in enumerate(_serie(200))]
     t = np.array([x for x, _ in curva], dtype='datetime64[ns]')
@@ -1050,7 +1050,7 @@ def test_calendario_con_bom_de_excel(tmp_path):
 
 def test_una_ventana_sin_dato_no_anula_la_eleccion():
     """089:RF-80 — 28 días sin medida en un origen no vuelven infinito a todos los métodos: se elige con los demás."""
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     serie = _serie(200)
     curva = [(t, p * (2.0 if i > 170 * 96 else 1.0)) for i, (t, p, _q) in enumerate(serie) if not (110 * 96 <= i < 146 * 96)]
@@ -1139,7 +1139,7 @@ def test_el_mase_no_mira_el_futuro():
     """089:RF-87 — la escala sale de la historia de cada origen: cambiar lo posterior no la toca."""
     serie = _serie(200)
     curva = [(t, p) for t, p, _q in serie]
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     a = pd_.backtest_objetivo(Objetivo('cabecera', 'A', 'kW', 'kW', curva, {}), origenes=3)
     cambiada = [(t, p * (50.0 if i > len(curva) - 96 * 28 else 1.0)) for i, (t, p) in enumerate(curva)]
@@ -1150,7 +1150,7 @@ def test_el_mase_no_mira_el_futuro():
 
 def test_el_resumen_da_el_mase_por_clase():
     """089:RF-88 — mediana por método, sin que un objetivo sin MASE la rompa."""
-    from convertersmartgrid.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
     r = pd_.backtest(pd_.Dataset(objetivos=[Objetivo('cabecera', 'A', 'kW', 'kW', [(t, p) for t, p, _q in _serie(200)], {})], apartados=[], libros=[], ultimo_dato={}), origenes=3)
     assert r['resumen']['cabecera|kW']['mase_prueba']['semanal'] > 0
@@ -1207,7 +1207,7 @@ def test_memoria_de_la_cabecera_no_crece_con_los_libros(tmp_path, monkeypatch):
     import gc
     import tracemalloc
 
-    from convertersmartgrid import demanda_medida as dm
+    from convertersmartgrid.aplicacion import demanda_medida as dm
 
     rng = random.Random(SEMILLA)
     n, alimentadores, registros = rng.randint(2, 3), rng.randint(2, 3), 96 * rng.randint(15, 25)
@@ -1259,7 +1259,7 @@ def test_la_cabecera_del_pronostico_no_deja_abiertos_todos_los_libros(tmp_path, 
     registros, sorteados."""
     import weakref
 
-    from convertersmartgrid import demanda_medida as dm
+    from convertersmartgrid.aplicacion import demanda_medida as dm
 
     rng = random.Random(SEMILLA)
     k = rng.randint(3, 6)

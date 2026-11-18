@@ -9,10 +9,10 @@ from apoyo import cargar_herramienta
 from datos_pit import perfil_a
 from fake_pf import Obj
 
-from convertersmartgrid.pit import PitError
-from convertersmartgrid.pit.ambito import areas_del_perfil, reunir
-from convertersmartgrid.pit.red_area import desde_ambito
-from convertersmartgrid.pit.red_pandapower import calcular
+from convertersmartgrid.dominio.pit import PitError
+from convertersmartgrid.dominio.pit.ambito import areas_del_perfil, reunir
+from convertersmartgrid.aplicacion.pit.red_area import desde_ambito
+from convertersmartgrid.adaptadores.pit.red_pandapower import calcular
 
 guion = cargar_herramienta('pit_pf.py', 'pit_pf_t12', tools_en_path=True)
 

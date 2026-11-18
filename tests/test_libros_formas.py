@@ -14,9 +14,9 @@ import pytest
 pytest.importorskip('python_calamine')
 from openpyxl import Workbook  # noqa: E402
 
-from convertersmartgrid import demanda_medida as dm  # noqa: E402
-from convertersmartgrid.demanda_medida import catalogar_libros_clientes, curvas_de_clientes  # noqa: E402
-from convertersmartgrid.pronostico_demanda import curvas_por_cliente, libros_con_mes  # noqa: E402
+from convertersmartgrid.aplicacion import demanda_medida as dm  # noqa: E402
+from convertersmartgrid.aplicacion.demanda_medida import catalogar_libros_clientes, curvas_de_clientes  # noqa: E402
+from convertersmartgrid.adaptadores.pronostico_demanda import curvas_por_cliente, libros_con_mes  # noqa: E402
 
 
 def _hoja_sin_textos(wb, nombre: str, codigo: int, dias_con_datos: int, *, dias_plantilla: int = 31,

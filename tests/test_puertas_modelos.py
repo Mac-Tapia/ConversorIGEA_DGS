@@ -12,9 +12,9 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from convertersmartgrid.digital_twin import oraculo as o
-from convertersmartgrid.training_coordinator import BloqueoGPU
-from convertersmartgrid.web import app as web_app, services
+from convertersmartgrid.adaptadores.digital_twin import oraculo as o
+from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
+from convertersmartgrid.presentacion.web import app as web_app, services
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -41,7 +41,7 @@ def test_red_ajena_o_sin_declarar_queda_fuera_de_dominio():
 
 def test_las_redes_del_modelo_incluyen_todas_sus_particiones():
     """071:RF-1: el dominio declara también la red de prueba."""
-    fuente = (RAIZ / 'src/convertersmartgrid/digital_twin/oraculo.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/adaptadores/digital_twin/oraculo.py').read_text(encoding='utf-8')
     assert "'redes': sorted({red_de(m) for ms in grupos.values() for m in ms})" in fuente
 
 
@@ -74,7 +74,7 @@ def test_monitor_cuenta_la_pinn_del_puntero():
 
 
 def _vigilante(monkeypatch):
-    from convertersmartgrid.asistente import vigilancia
+    from convertersmartgrid.aplicacion.asistente import vigilancia
 
     visto = {}
     monkeypatch.setattr(vigilancia.Vigilante, 'arrancar', lambda self: visto.setdefault('v', self))
@@ -118,7 +118,7 @@ def _herramienta(nombre):
 
 def test_turno_ocupado_no_entrena_y_lo_dice(tmp_path, monkeypatch):
     """071:RF-7: con otro dueño de la GPU, informe con el motivo y código 1, sin entrenar."""
-    from convertersmartgrid.asistente import ollama
+    from convertersmartgrid.aplicacion.asistente import ollama
 
     lock = tmp_path / 'gpu.lock'
     monkeypatch.setenv('CSG_ML_GPU_LOCK', str(lock))

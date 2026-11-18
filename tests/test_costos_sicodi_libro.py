@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.costos_fuentes import (SUBFAMILIA_POR_TIPO, CostosError, leer_sicodi, normalizar_cabecera,
+from convertersmartgrid.aplicacion.costos_fuentes import (SUBFAMILIA_POR_TIPO, CostosError, leer_sicodi, normalizar_cabecera,
                                                valorar_obra)
-from convertersmartgrid.metrados import valorar_metrados
+from convertersmartgrid.aplicacion.metrados import valorar_metrados
 
 MUESTRAS = Path(__file__).resolve().parent / 'fixtures' / 'sicodi'
 SEMILLA = int(os.environ.get('CSG_SICODI_SEED') or random.SystemRandom().randrange(10**6))

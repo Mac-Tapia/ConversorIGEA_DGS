@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from apoyo import espacio_txt_custodiado
-from convertersmartgrid.util import sha256_file
+from convertersmartgrid.dominio.util import sha256_file
 
 
 class _Obj:
@@ -40,7 +40,7 @@ class _App:
 
 
 def _binding(**overrides):
-    from convertersmartgrid.powerfactory_binding import PowerFactoryProjectBinding
+    from convertersmartgrid.adaptadores.powerfactory_binding import PowerFactoryProjectBinding
 
     values = {
         'project': 'Oct/IN111',
@@ -59,7 +59,7 @@ def _binding(**overrides):
 
 
 def _workspace(tmp_path):
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='binding', root=tmp_path)
     ws.active_run_id = 'run-active'
@@ -78,7 +78,7 @@ def _workspace(tmp_path):
 
 
 def test_native_inventory_hash_is_wrapper_stable_and_excludes_operational_pq():
-    from convertersmartgrid.powerfactory_binding import native_inventory_sha256
+    from convertersmartgrid.adaptadores.powerfactory_binding import native_inventory_sha256
 
     term = _Obj('ElmTerm', r'Grid\B1.ElmTerm', ukNom=10.0, **{'p:alimentador': ['IN111']})
     cub = _Obj('StaCubic', r'Grid\B1\C1.StaCubic', cterm=term)
@@ -98,7 +98,7 @@ def test_native_inventory_hash_is_wrapper_stable_and_excludes_operational_pq():
 
 
 def test_native_inventory_hash_changes_with_equipment_or_feeder_label():
-    from convertersmartgrid.powerfactory_binding import native_inventory_sha256
+    from convertersmartgrid.adaptadores.powerfactory_binding import native_inventory_sha256
 
     typ = _Obj('TypLne', r'Library\AAAC70.TypLne')
     line = _Obj('ElmLne', r'Grid\L1.ElmLne', typ_id=typ, **{'p:alimentador': ['IN111']})
@@ -112,8 +112,8 @@ def test_native_inventory_hash_changes_with_equipment_or_feeder_label():
 
 
 def test_exact_active_binding_is_persisted_and_accepted(tmp_path):
-    from convertersmartgrid.powerfactory_binding import record_project_binding, require_project_binding
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.adaptadores.powerfactory_binding import record_project_binding, require_project_binding
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = _workspace(tmp_path)
     record_project_binding(ws, _binding())
@@ -131,7 +131,7 @@ def test_exact_active_binding_is_persisted_and_accepted(tmp_path):
 
 
 def test_equivalent_source_reload_is_warning_not_blocking(tmp_path):
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         project_binding_warnings, record_project_binding, require_project_binding,
     )
 
@@ -152,7 +152,7 @@ def test_equivalent_source_reload_is_warning_not_blocking(tmp_path):
 
 
 def test_different_source_fingerprint_is_still_rejected(tmp_path):
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         ProjectBindingError, record_project_binding, require_project_binding,
     )
 
@@ -167,7 +167,7 @@ def test_different_source_fingerprint_is_still_rejected(tmp_path):
 def test_tras_reiniciar_la_web_el_vinculo_usa_el_manifiesto_activo(tmp_path, monkeypatch):
     """014:RF-17 — reiniciar la web no bloquea el proyecto: sin la fuente en memoria, la
     identidad sale del manifiesto persistido de la ejecución activa (CA101, 2026-10-14)."""
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         ProjectBindingError, record_project_binding, require_project_binding,
     )
 
@@ -188,7 +188,7 @@ def test_tras_reiniciar_la_web_el_vinculo_usa_el_manifiesto_activo(tmp_path, mon
 def test_changed_native_topology_is_reported_but_does_not_block(tmp_path):
     """014:RF-17 — una modificación manual del modelo nativo se lista como aviso y no
     bloquea: el vínculo sigue siendo válido."""
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         project_binding_warnings, record_project_binding, require_project_binding,
     )
 
@@ -228,7 +228,7 @@ def test_changed_native_topology_is_reported_but_does_not_block(tmp_path):
 
 
 def test_unbound_project_and_foreign_feeder_are_rejected(tmp_path):
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         ProjectBindingError, record_project_binding, require_project_binding,
     )
 
@@ -244,7 +244,7 @@ def test_unbound_project_and_foreign_feeder_are_rejected(tmp_path):
 def test_vinculo_de_otro_espacio_sin_fuente_activa_se_dice_como_tal(tmp_path):
     """018:RF-3 — caso real 2026-10-14: el proyecto se aceptó en un espacio con fuente activa
     y se listó en otro espacio sin fuente activa; el mensaje decía «fuente activa None»."""
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         ProjectBindingError, record_project_binding, require_project_binding,
     )
 
@@ -261,7 +261,7 @@ def test_vinculo_de_otro_espacio_sin_fuente_activa_se_dice_como_tal(tmp_path):
 
 
 def test_tampered_persisted_binding_is_rejected(tmp_path):
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         ProjectBindingError, record_project_binding, require_project_binding,
     )
 
@@ -273,7 +273,7 @@ def test_tampered_persisted_binding_is_rejected(tmp_path):
 
 
 def test_failed_native_reread_is_fail_closed(tmp_path):
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         ProjectBindingError, record_project_binding, require_project_binding,
     )
 
@@ -290,7 +290,7 @@ def test_caso_base_verificado_por_alimentador():
     vínculo de antes de la spec 015 cuenta como no verificado."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.powerfactory_binding import caso_base_verificado
+    from convertersmartgrid.adaptadores.powerfactory_binding import caso_base_verificado
 
     ws = SimpleNamespace(pf_project_bindings={
         'P': {'native_reread': {'caso_base': {
@@ -313,7 +313,7 @@ def _espacio(tmp_path, nombre, registro):
 
 def test_018_rf1_vinculo_aceptado_en_un_espacio_vale_en_otro_con_la_misma_fuente(tmp_path):
     """018:RF-1 — un vínculo aceptado en un espacio vale en otro con la misma fuente activa."""
-    from convertersmartgrid.powerfactory_binding import record_project_binding, require_project_binding
+    from convertersmartgrid.adaptadores.powerfactory_binding import record_project_binding, require_project_binding
 
     registro = tmp_path / 'vinculos_pf.json'
     record_project_binding(_espacio(tmp_path, 'origen', registro), _binding())
@@ -324,7 +324,7 @@ def test_018_rf1_vinculo_aceptado_en_un_espacio_vale_en_otro_con_la_misma_fuente
 
 def test_018_rf1_otra_fuente_no_reutiliza_el_vinculo_compartido(tmp_path):
     """018:RF-1 — con otra fuente activa el vínculo compartido no se reutiliza."""
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         ProjectBindingError, record_project_binding, require_project_binding,
     )
 
@@ -341,7 +341,7 @@ def test_018_rf1_otra_fuente_no_reutiliza_el_vinculo_compartido(tmp_path):
 def test_018_rf2_registro_ilegible_bloquea_aunque_el_espacio_tenga_copia(tmp_path):
     """018:RF-2 — fail-closed: con el registro roto no se cae a la copia del espacio, y no se
     sobrescribe."""
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         ProjectBindingError, record_project_binding, require_project_binding,
     )
 
@@ -358,7 +358,7 @@ def test_018_rf2_registro_ilegible_bloquea_aunque_el_espacio_tenga_copia(tmp_pat
 
 def test_018_rf4_mismo_nombre_en_otra_carpeta_no_es_el_mismo_proyecto(tmp_path):
     """018:RF-4 — el mismo nombre de proyecto en otra carpeta de DIgSILENT es otro proyecto."""
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         ProjectBindingError, record_project_binding, require_project_binding,
     )
 
@@ -374,7 +374,7 @@ def test_018_rf7_registro_conserva_todos_los_proyectos_sin_fichero_temporal(tmp_
     """018:RF-7 — el registro guarda todos los proyectos y no deja ficheros temporales."""
     import json
 
-    from convertersmartgrid.powerfactory_binding import record_project_binding
+    from convertersmartgrid.adaptadores.powerfactory_binding import record_project_binding
 
     registro = tmp_path / 'vinculos_pf.json'
     ws = _espacio(tmp_path, 'espacio', registro)
@@ -391,7 +391,7 @@ def test_018_rf8_arranque_siembra_los_vinculos_de_los_espacios_existentes(tmp_pa
     cambia nada."""
     import json
 
-    from convertersmartgrid.web.workspace import REGISTRO_VINCULOS_FILE, WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import REGISTRO_VINCULOS_FILE, WorkspaceStore
 
     raiz = tmp_path / 'web'
     viejo = _binding(accepted_at=1.0, feeders=('IN111',)).as_dict()
@@ -427,7 +427,7 @@ class _CtxSinEjecutar:
 
 def test_018_rf5_verificar_caso_base_exige_vinculo_en_el_servidor(tmp_path):
     """018:RF-5 — sin vínculo la API no verifica; la interfaz oculta el botón, pero no basta."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = _workspace(tmp_path)
     with pytest.raises(services.UserError, match='PROJECT_BINDING_MISSING'):
@@ -441,8 +441,8 @@ def test_018_rf14_el_nombre_de_la_red_por_sistema_vale_por_sus_alimentadores(tmp
     import random
     import string
 
-    from convertersmartgrid import powerfactory_binding
-    from convertersmartgrid.web import services
+    from convertersmartgrid.adaptadores import powerfactory_binding
+    from convertersmartgrid.presentacion.web import services
 
     azar = random.Random()
     codigo = lambda: ''.join(azar.choices(string.ascii_uppercase, k=2)) + str(azar.randint(100, 999))  # noqa: E731
@@ -478,7 +478,7 @@ def test_018_rf15_misma_fuente_sin_el_dgs_aceptado_usa_la_ejecucion_del_vinculo(
     la ejecución del vínculo y se dice; con otra huella, la misma ejecución o el DGS, nada."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = _workspace(tmp_path)
     activa = SimpleNamespace(run_id='nueva' if caso != 'misma ejecución' else 'vieja', mode='txt',
@@ -498,8 +498,8 @@ def test_018_rf15_las_acciones_nativas_no_cambian_la_ejecucion_activa(tmp_path, 
     DGS en la ejecución activa, no la cambia (Chincha, 2026-10-24)."""
     from types import SimpleNamespace
 
-    from convertersmartgrid import powerfactory_binding
-    from convertersmartgrid.web import services
+    from convertersmartgrid.adaptadores import powerfactory_binding
+    from convertersmartgrid.presentacion.web import services
 
     ws = _workspace(tmp_path)
     binding = SimpleNamespace(dgs_sha256={}, source_run_id='vieja')
@@ -508,21 +508,21 @@ def test_018_rf15_las_acciones_nativas_no_cambian_la_ejecucion_activa(tmp_path, 
     monkeypatch.setattr(services, 'comprobar_dgs_vinculados', lambda *_a: None)
     monkeypatch.setattr(services, 'usar_ejecucion_del_vinculo',
                         lambda *_a: pytest.fail('una acción nativa no cambia la ejecución activa'))
-    monkeypatch.setattr('convertersmartgrid.native_action.build_native_action_context',
+    monkeypatch.setattr('convertersmartgrid.dominio.native_action.build_native_action_context',
                         lambda b, p, f, a, warnings: {'feeders': f, 'warnings': warnings})
     assert services.native_action_context(ws, 'P', ['PN107'], 'obras')['feeders'] == ['PN107']
 
 
 def test_018_rf6_dgs_distinto_del_aceptado_bloquea_y_sin_huella_no_bloquea(tmp_path, monkeypatch):
     """018:RF-6 — un DGS distinto del aceptado bloquea; un alimentador sin huella, no."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     dgs = tmp_path / 'IN111.dgs'
     dgs.write_text('dgs', encoding='utf-8')
     (tmp_path / 'IN111_feeder_metadata.json').write_text('{}', encoding='utf-8')
     monkeypatch.setattr(services, 'dgs_jobs', lambda ws, feeders: ([('IN111', dgs, None)], []))
     monkeypatch.setattr(
-        'convertersmartgrid.feeder_metadata.read_feeder_metadata',
+        'convertersmartgrid.adaptadores.feeder_metadata.read_feeder_metadata',
         lambda path, expected_dgs: {'dgs_sha256': 'b' * 64},
     )
     ws = _workspace(tmp_path)
@@ -564,8 +564,8 @@ def test_018_rf9_rf10_espacio_nuevo_usa_la_ejecucion_con_la_que_se_acepto(tmp_pa
     disponible la ejecución del vínculo y, al usarla, el proyecto deja de estar bloqueado sin
     volver a abrir DIgSILENT; trae la calibración, el DGS unido de esa ejecución y los libros
     de demanda que siguen en disco."""
-    from convertersmartgrid.powerfactory_binding import record_project_binding
-    from convertersmartgrid.web import services
+    from convertersmartgrid.adaptadores.powerfactory_binding import record_project_binding
+    from convertersmartgrid.presentacion.web import services
 
     raiz = tmp_path / 'web'
     registro = raiz / 'vinculos_pf.json'
@@ -602,12 +602,12 @@ def test_018_rf9_rf10_espacio_nuevo_usa_la_ejecucion_con_la_que_se_acepto(tmp_pa
 def test_018_rf10_ejecucion_con_otra_huella_no_se_usa(tmp_path):
     """018:RF-10 — una carpeta con el mismo identificador pero otra huella no es la fuente
     aceptada: no se ofrece, y pedirla no cambia nada."""
-    from convertersmartgrid.powerfactory_binding import record_project_binding
-    from convertersmartgrid.web import services
+    from convertersmartgrid.adaptadores.powerfactory_binding import record_project_binding
+    from convertersmartgrid.presentacion.web import services
 
     raiz = tmp_path / 'web'
     registro = raiz / 'vinculos_pf.json'
-    from convertersmartgrid.web.source_runs import verify_source_files
+    from convertersmartgrid.presentacion.web.source_runs import verify_source_files
 
     origen = _espacio_origen_en_disco(raiz, seed=7802).active_run()
     referencia = espacio_txt_custodiado(tmp_path / 'referencia', feeder_name='IN111').active_run()
@@ -628,10 +628,10 @@ def test_018_rf10_ejecucion_con_otra_huella_no_se_usa(tmp_path):
 def test_018_rf12_verificar_compara_con_el_manifiesto_sin_la_red_en_memoria(tmp_path, monkeypatch):
     """018:RF-12 — tras reiniciar la web la red no está en memoria; para leer un proyecto ya
     importado basta el manifiesto en disco. Importar sigue exigiendo la red cargada."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     raiz = tmp_path / 'web'
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     origen = _espacio_origen_en_disco(raiz).active_run()
     ws = Workspace.load(raiz / 'origen')
@@ -649,11 +649,11 @@ def test_092_reconstruccion_verificada_con_el_disco_sin_la_red_en_memoria(tmp_pa
     sesión se exige que sea la suya; importar sigue pidiendo la red cargada."""
     import json
 
-    from convertersmartgrid.powerfactory_metadata import reconstruction_report_sha256
-    from convertersmartgrid.web import services
+    from convertersmartgrid.adaptadores.powerfactory_metadata import reconstruction_report_sha256
+    from convertersmartgrid.presentacion.web import services
 
     raiz = tmp_path / 'web'
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     origen = _espacio_origen_en_disco(raiz).active_run()
     ws = Workspace.load(raiz / 'origen')
@@ -687,7 +687,7 @@ def test_alimentador_solo_en_el_rotulo_de_su_barra_de_set(tmp_path):
     """022:RF-52 — el rótulo de la red externa de una barra de SET junta a sus alimentadores
     («PI101 + PI102»); cada uno vale para el vínculo (sistema Pisco, 2026-10-18: PI101 y
     SI114 solo salían ahí y la calibración del sistema se rechazaba)."""
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         ProjectBindingError, alimentadores_de_rotulos, record_project_binding,
         require_project_binding,
     )
@@ -708,7 +708,7 @@ def test_alimentador_solo_en_el_rotulo_de_su_barra_de_set(tmp_path):
 def test_caso_base_de_un_alimentador_del_rotulo_de_su_barra(tmp_path):
     """022:RF-52 — un alimentador sin cargas solo está en el rótulo de su barra de SET: toma
     el estado del rótulo (CA103 y TM101 en Chincha, 2026-10-18, salían «sin verificar»)."""
-    from convertersmartgrid.powerfactory_binding import caso_base_verificado, record_project_binding
+    from convertersmartgrid.adaptadores.powerfactory_binding import caso_base_verificado, record_project_binding
 
     ws = _workspace(tmp_path)
     verificado = {'status': 'VERIFICADO', 'fallos': []}
@@ -726,7 +726,7 @@ def test_081_rf75_relectura_anterior_a_la_importacion_no_cuenta_como_otro_proyec
     Caso real del 2026-11-05 (005 T12): el operador leyó los proyectos, reimportó PRUEBA_005 y el
     «Caso base» falló con PROJECT_BINDING_PROJECT_MISMATCH porque la lista era de antes.
     """
-    from convertersmartgrid.powerfactory_binding import record_project_binding, require_project_binding
+    from convertersmartgrid.adaptadores.powerfactory_binding import record_project_binding, require_project_binding
 
     ws = _workspace(tmp_path)
     ws.pf_inventory['projects'][0]['native_reread_at'] = 1_796_999_000.0       # antes de importar
@@ -736,7 +736,7 @@ def test_081_rf75_relectura_anterior_a_la_importacion_no_cuenta_como_otro_proyec
 
 def test_081_rf75_relectura_posterior_sin_el_proyecto_sigue_fallando(tmp_path):
     """081:RF-75 — si la lista se leyó después de importar y el proyecto no está, ya no existe."""
-    from convertersmartgrid.powerfactory_binding import (
+    from convertersmartgrid.adaptadores.powerfactory_binding import (
         ProjectBindingError, record_project_binding, require_project_binding,
     )
 
@@ -749,7 +749,7 @@ def test_081_rf75_relectura_posterior_sin_el_proyecto_sigue_fallando(tmp_path):
 
 def _registro_heredado(tmp_path, monkeypatch, vinculos):
     """Un registro de una carpeta de datos anterior, con el formato de siempre, que la web nueva no conocía."""
-    from convertersmartgrid import powerfactory_binding as pb
+    from convertersmartgrid.adaptadores import powerfactory_binding as pb
 
     ruta = tmp_path / 'heredado' / 'output' / 'web' / 'vinculos_pf.json'
     ruta.parent.mkdir(parents=True)
@@ -761,7 +761,7 @@ def _registro_heredado(tmp_path, monkeypatch, vinculos):
 def test_018_rf18_el_vinculo_del_registro_anterior_se_reconoce_sin_escribir_en_el(tmp_path, monkeypatch):
     """018:RF-18 — un proyecto aceptado con la carpeta de datos anterior deja de salir como «no aceptado»; el registro
     anterior se lee y no se toca. (2026-11-13: un proyecto aceptado el día 9 salía como «importado a mano».)"""
-    from convertersmartgrid.powerfactory_binding import vinculo_guardado
+    from convertersmartgrid.adaptadores.powerfactory_binding import vinculo_guardado
 
     ws = _workspace(tmp_path)
     ws.vinculos_compartidos = tmp_path / 'nuevo' / 'vinculos_pf.json'
@@ -778,7 +778,7 @@ def test_018_rf18_el_vinculo_del_registro_anterior_se_reconoce_sin_escribir_en_e
 def test_018_rf18_del_registro_anterior_solo_vale_un_vinculo_integro_y_de_esta_carpeta(tmp_path, monkeypatch, cambio):
     """018:RF-18 — un vínculo heredado cuya huella no cuadra con su contenido, o de otra carpeta de DIgSILENT, no se
     acepta a ciegas."""
-    from convertersmartgrid.powerfactory_binding import vinculo_guardado
+    from convertersmartgrid.adaptadores.powerfactory_binding import vinculo_guardado
 
     ws = _workspace(tmp_path)
     ws.vinculos_compartidos = tmp_path / 'nuevo' / 'vinculos_pf.json'
@@ -791,7 +791,7 @@ def test_018_rf18_del_registro_anterior_solo_vale_un_vinculo_integro_y_de_esta_c
 
 def test_018_rf18_el_registro_actual_gana_al_anterior(tmp_path, monkeypatch):
     """018:RF-18 — si el registro de la carpeta de datos en uso ya tiene el proyecto, el anterior ni se mira."""
-    from convertersmartgrid import powerfactory_binding as pb
+    from convertersmartgrid.adaptadores import powerfactory_binding as pb
 
     ws = _workspace(tmp_path)
     ws.vinculos_compartidos = tmp_path / 'nuevo' / 'vinculos_pf.json'
@@ -807,7 +807,7 @@ def test_018_rf18_el_registro_actual_gana_al_anterior(tmp_path, monkeypatch):
 def test_018_rf19_con_vinculo_heredado_la_calibracion_usa_su_caso_base(tmp_path, monkeypatch):
     """018:RF-19 — con el vínculo en el registro anterior, el contexto nativo lo usa (no uno armado) aunque la fuente
     activa del espacio no sea la suya, y el aviso lo dice sin «se importó a mano»."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = _workspace(tmp_path)
     ws.vinculos_compartidos = tmp_path / 'nuevo' / 'vinculos_pf.json'

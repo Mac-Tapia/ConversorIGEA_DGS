@@ -31,7 +31,7 @@ if str(ROOT / 'src') not in sys.path:
 
 
 def _contexto(registro: list[str]):
-    from convertersmartgrid.web.jobs import Job, JobContext
+    from convertersmartgrid.presentacion.web.jobs import Job, JobContext
 
     def emit(_wid: str, kind: str, data: dict) -> None:
         if kind == 'log' and data.get('text'):
@@ -44,8 +44,8 @@ def _contexto(registro: list[str]):
 
 
 def aceptar(origen: str, carpeta: str, trabajo: Path) -> dict:
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='acept064', root=trabajo / 'espacio')
     pasos: dict = {}
@@ -87,7 +87,7 @@ def main(argv=None) -> int:
     p.add_argument('--carpeta', default=None, help='Carpeta de DIgSILENT; por defecto, la del perfil')
     p.add_argument('--out', required=True, type=Path, help='JSON de evidencia')
     args = p.parse_args(argv)
-    from convertersmartgrid.carpeta_pf import nombre_de_perfil
+    from convertersmartgrid.adaptadores.carpeta_pf import nombre_de_perfil
 
     with tempfile.TemporaryDirectory(prefix='csg-acept064-') as tmp:
         evidencia = aceptar(args.origen, args.carpeta or nombre_de_perfil(), Path(tmp))

@@ -7,9 +7,9 @@ import time
 
 import pytest
 
-from convertersmartgrid.web.jobs import JobManager
-from convertersmartgrid.web.retencion import RetencionDiaria
-from convertersmartgrid.web.workspace import WorkspaceStore
+from convertersmartgrid.presentacion.web.jobs import JobManager
+from convertersmartgrid.presentacion.web.retencion import RetencionDiaria
+from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
 AHORA = 1_800_000_000.0
 DIA = 86400
@@ -192,7 +192,7 @@ def test_estado_expuesto_por_monitor_y_lifespan(tmp_path):
     """062:RF-1 062:RF-8 — revisión real al arrancar y política visible por HTTP."""
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     app = create_app(tmp_path / 'web', host='127.0.0.1')
     with TestClient(app) as client:
         ws = client.post('/api/workspaces').json()

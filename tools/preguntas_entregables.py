@@ -176,10 +176,26 @@ def repartir(filas: Sequence[Mapping[str, Any]]) -> dict[str, str]:
 _CACHE: dict[tuple[str, str], list[str] | None] = {}
 
 
+def _rutas_002(sentido: int) -> list[tuple[str, str]]:
+    """Ruta de antes de 002 T7 → la de hoy (``sentido=1``) o al revés (``-1``), del prefijo más largo al más corto."""
+    ruta = RAIZ / 'docs' / 'architecture' / 'rutas_antes_002.json'
+    rutas = (json.loads(ruta.read_text(encoding='utf-8')).get('rutas') or {}) if ruta.is_file() else {}
+    pares = [(v, n) if sentido == 1 else (n, v) for v, n in rutas.items()]
+    return sorted(pares, key=lambda par: -len(par[0]))
+
+
+def _traducir_002(fichero: str, sentido: int) -> str:
+    for desde, hacia in _rutas_002(sentido):
+        if fichero == desde or fichero.startswith((desde + '/', desde + '.py')):
+            return hacia + fichero[len(desde):]
+    return fichero
+
+
 def _en_revision(fichero: str) -> list[str] | None:
-    """Las líneas del fichero en la revisión fijada, o `None` si allí no estaba."""
+    """Las líneas del fichero en la revisión fijada, o `None` si allí no estaba (con su ruta de antes de 002 T7)."""
     if not re.fullmatch(r'[0-9a-f]{40}', REVISION):
         return None  # Nunca un ref móvil como HEAD ni una expresión Git aportada desde fuera.
+    fichero = _traducir_002(fichero, -1)
     clave = (REVISION, fichero)
     if clave not in _CACHE:
         r = subprocess.run(['git', 'show', f'{REVISION}:{fichero}'], cwd=RAIZ, capture_output=True, check=False)
@@ -191,13 +207,14 @@ def _en_revision(fichero: str) -> list[str] | None:
 #: frase de la GPU del gemelo salió de ``oraculo.py`` a ``training_coordinator.py`` con el refactor de capas del
 #: 2026-11-08 (e2a3eb0d, 002:RF-2): la cita histórica sigue valiendo y su ancla se busca donde está ahora.
 _ANCLAS_MOVIDAS = {
-    ('src/convertersmartgrid/digital_twin/oraculo.py', 'No hay GPU CUDA: el gemelo no entrena ni predice en la CPU.'):
-        'src/convertersmartgrid/training_coordinator.py',
+    ('src/convertersmartgrid/adaptadores/digital_twin/oraculo.py', 'No hay GPU CUDA: el gemelo no entrena ni predice en la CPU.'):
+        'src/convertersmartgrid/aplicacion/training_coordinator.py',
 }
 
 
 def _ruta_actual(fichero: str, ancla: str | None = None) -> Path:
     """076:RF-4: conserva la cita histórica; coteja su ancla literal en la ruta vigente."""
+    fichero = _traducir_002(fichero, 1)
     movida = _ANCLAS_MOVIDAS.get((fichero, ancla)) if ancla is not None else None
     return RAIZ / (movida or _RENOMBRES_FRONTEND.get(fichero, fichero))
 
@@ -352,7 +369,7 @@ def errores_de_forma(f: Mapping[str, Any]) -> list[str]:
 
 # ----------------------------------------------------------------------- web
 def _rutas_de_la_api() -> set[str]:
-    texto = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'app.py').read_text(encoding='utf-8')
+    texto = (RAIZ / 'src' / 'convertersmartgrid' / 'presentacion' / 'web' / 'app.py').read_text(encoding='utf-8')
     return {f'{m.upper()} {r}' for m, r in re.findall(r"@app\.(get|post|put|delete)\('([^']+)'", texto)}
 
 
@@ -471,7 +488,7 @@ def generar(hechos: Sequence[Mapping[str, Any]], *, semilla: int, cuantas: int, 
     semilla (076:RF-22). Con `para='corpus'` se apartan los hechos de una fila sellada: enseñarían lo que se va a medir
     (076:RF-23). Los marcadores son de forma `ALIM-A`: `expandir` inventa códigos con forma de alimentador real.
     """
-    from convertersmartgrid.asistente.sinteticos import expandir
+    from convertersmartgrid.aplicacion.asistente.sinteticos import expandir
 
     if para not in ('corpus', 'medida'):
         raise ValueError(f'«para» es corpus o medida, no {para}')

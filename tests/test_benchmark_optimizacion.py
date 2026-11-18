@@ -13,9 +13,9 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from convertersmartgrid.digital_twin import adaptador_pymoo
-from convertersmartgrid.digital_twin import benchmark_optimizacion as bo
-from convertersmartgrid.digital_twin import problema_optimizacion as po
+from convertersmartgrid.adaptadores.digital_twin import adaptador_pymoo
+from convertersmartgrid.adaptadores.digital_twin import benchmark_optimizacion as bo
+from convertersmartgrid.adaptadores.digital_twin import problema_optimizacion as po
 
 SEMILLAS = tuple(range(20))
 CONTEXTO = po.ContextoSintetico('benchmark_analitico_no_red_electrica', 'pruebas de la spec 048')

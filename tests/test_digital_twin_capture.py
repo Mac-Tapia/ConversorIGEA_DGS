@@ -8,11 +8,11 @@ import pytest
 
 from apoyo import contrato_fisico
 
-from convertersmartgrid.digital_twin import capture as cp
-from convertersmartgrid.digital_twin.contratos_fisicos import VERSION_GRAFO
-from convertersmartgrid.digital_twin.episode import Caso, Clase
-from convertersmartgrid.digital_twin.evaluacion import Limites
-from convertersmartgrid.native_action import build_native_action_context
+from convertersmartgrid.adaptadores.digital_twin import capture as cp
+from convertersmartgrid.adaptadores.digital_twin.contratos_fisicos import VERSION_GRAFO
+from convertersmartgrid.dominio.digital_twin.episode import Caso, Clase
+from convertersmartgrid.adaptadores.digital_twin.evaluacion import Limites
+from convertersmartgrid.dominio.native_action import build_native_action_context
 
 H = 'f' * 64
 LIM = Limites('NTCSE', 0.95, 1.05, 100, 80)

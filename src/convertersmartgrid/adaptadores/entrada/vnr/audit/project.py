@@ -67,7 +67,7 @@ def _discover(project_dir: Path) -> AuditFindings:
         dgs_profiles = [rel(p) for p in sorted((src / 'convertersmartgrid' / 'schemas').glob('*.json'))]
 
     exporters = []
-    if (src / 'convertersmartgrid' / 'dgs.py').is_file():
+    if (src / 'convertersmartgrid' / 'adaptadores/dgs.py').is_file():
         exporters.append('convertersmartgrid/dgs.py (write_dgs — reutilizar)')
 
     deps = _read_requirements(project_dir)

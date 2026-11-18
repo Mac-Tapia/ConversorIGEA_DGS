@@ -12,9 +12,9 @@ from pathlib import Path
 import jsonschema
 import pytest
 
-from convertersmartgrid.perfil_empresa import PerfilEmpresa
-from convertersmartgrid.registro_normativo import ESTADOS, RegistroError, cargar_registro
-from convertersmartgrid.vad.estudio import cargar_estudio, comprobar_estudio, crear_estudio
+from convertersmartgrid.dominio.perfil_empresa import PerfilEmpresa
+from convertersmartgrid.dominio.registro_normativo import ESTADOS, RegistroError, cargar_registro
+from convertersmartgrid.aplicacion.vad.estudio import cargar_estudio, comprobar_estudio, crear_estudio
 
 RAIZ = Path(__file__).resolve().parents[1]
 ESQUEMA = RAIZ / 'src' / 'convertersmartgrid' / 'schemas' / 'registro_normativo_v1.schema.json'

@@ -8,8 +8,8 @@ import pytest
 
 from datos_pit import perfil_a, perfil_b
 
-from convertersmartgrid.perfil_esquema import validar_perfil
-from convertersmartgrid.pit.ambito import PitError, areas_del_perfil, reunir
+from convertersmartgrid.adaptadores.perfil_esquema import validar_perfil
+from convertersmartgrid.dominio.pit.ambito import PitError, areas_del_perfil, reunir
 
 SEMILLAS = (3, 17, 42)
 

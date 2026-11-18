@@ -24,7 +24,7 @@ def _entorno(tmp_path, monkeypatch):
 
 
 def _store(tmp_path, nombre='web'):
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     return WorkspaceStore(tmp_path / nombre)
 
@@ -52,7 +52,7 @@ def _matar_de_golpe(proceso: subprocess.Popen) -> None:
 # ---------------------------------------------------------------- RF-1
 def test_fsync_antes_de_sustituir_el_fichero(tmp_path, monkeypatch):
     """086:RF-1 — los datos llegan al disco antes de cambiar el nombre: al revés, un corte deja un fichero vacío."""
-    from convertersmartgrid.util import write_json_atomic
+    from convertersmartgrid.dominio.util import write_json_atomic
 
     orden = []
     fsync, sustituir = os.fsync, Path.replace
@@ -65,7 +65,7 @@ def test_fsync_antes_de_sustituir_el_fichero(tmp_path, monkeypatch):
 
 def test_sustituir_reintenta_un_bloqueo_pasajero_de_windows(tmp_path, monkeypatch):
     """086:RF-54 — un ``PermissionError`` pasajero se reintenta; uno que no pasa, sube tras el último intento."""
-    from convertersmartgrid import util
+    from convertersmartgrid.dominio import util
 
     monkeypatch.setattr(util.os, 'name', 'nt')
     monkeypatch.setattr(util, 'ESPERAS_SUSTITUIR_S', (0.0, 0.0, 0.0))
@@ -92,8 +92,8 @@ def test_sustituir_reintenta_un_bloqueo_pasajero_de_windows(tmp_path, monkeypatc
 
 def test_registro_de_vinculos_y_almacen_tambien_sincronizan(tmp_path, monkeypatch):
     """086:RF-1 — el registro compartido de vínculos y lo del asistente son estado igual que un espacio."""
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.powerfactory_binding import _escribir_registro
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.adaptadores.powerfactory_binding import _escribir_registro
 
     llamadas = []
     fsync = os.fsync
@@ -109,14 +109,14 @@ def test_registro_de_vinculos_y_almacen_tambien_sincronizan(tmp_path, monkeypatc
 
 def test_matar_el_proceso_a_mitad_de_guardar_deja_un_espacio_legible(tmp_path):
     """086:RF-1 — el proceso muere mientras guarda sin parar; lo que queda se abre y no es un trozo."""
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     wid = 'c' * 16
     root = tmp_path / 'web' / wid
     guion = tmp_path / 'guardar.py'
     guion.write_text(textwrap.dedent(f'''
         from pathlib import Path
-        from convertersmartgrid.web.workspace import Workspace
+        from convertersmartgrid.presentacion.web.workspace import Workspace
         ws = Workspace(id={wid!r}, root=Path({str(root)!r}))
         ws.calibraciones = {{'P': {{'F': {{'relleno': 'x' * 200000}}}}}}
         n = 0
@@ -167,7 +167,7 @@ def test_json_danado_se_ve_y_se_restaura(tmp_path, contenido):
 
 def test_un_fichero_danado_no_pisa_la_copia_que_lo_arregla(tmp_path):
     """086:RF-2 — guardar con un fichero dañado en disco deja la copia buena donde estaba."""
-    from convertersmartgrid.util import write_json_atomic
+    from convertersmartgrid.dominio.util import write_json_atomic
 
     ruta = tmp_path / 'estado.json'
     write_json_atomic(ruta, {'v': 1}, copia=True)
@@ -180,7 +180,7 @@ def test_un_fichero_danado_no_pisa_la_copia_que_lo_arregla(tmp_path):
 
 def test_danado_sin_copia_se_ve_y_no_se_finge_restaurable(tmp_path):
     """086:RF-2 — sin copia lo dice, y no borra lo dañado: alguien puede querer rescatarlo a mano."""
-    from convertersmartgrid.web.workspace import EspacioDanado
+    from convertersmartgrid.presentacion.web.workspace import EspacioDanado
 
     store = _store(tmp_path)
     ws = store.create()
@@ -194,7 +194,7 @@ def test_danado_sin_copia_se_ve_y_no_se_finge_restaurable(tmp_path):
 
 def test_conversiones_danadas_recuperan_su_copia(tmp_path):
     """086:RF-2 — antes se leía vacío y el siguiente guardado pisaba lo que quedaba."""
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = _store(tmp_path).create()
     ws.conversions['F1'] = {'status': 'ok'}
@@ -209,7 +209,7 @@ def test_conversiones_danadas_recuperan_su_copia(tmp_path):
 
 def test_api_de_un_espacio_danado(tmp_path):
     """086:RF-2 — por la web: la lista lo muestra, abrirlo dice por qué y se puede restaurar."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     _, ws = _espacio_con_dos_guardados(tmp_path)
     (ws.root / 'workspace.json').write_text('{roto', encoding='utf-8')
@@ -245,7 +245,7 @@ def _espacio_con_todo_fuera(tmp_path):
 
 def test_unidad_ausente_no_borra_las_referencias_al_guardar(tmp_path):
     """086:RF-3 — con la unidad fuera se conserva todo marcado; al guardar y volver, sigue ahí."""
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws, fuera, rutas = _espacio_con_todo_fuera(tmp_path)
     oculta = fuera.with_name('unidad_desconectada')
@@ -272,7 +272,7 @@ def test_unidad_ausente_no_borra_las_referencias_al_guardar(tmp_path):
 
 def test_la_unidad_que_vuelve_con_la_web_abierta_repone_lo_suyo(tmp_path):
     """086:RF-3 — sin reiniciar: reconectar el disco basta para que vuelva."""
-    from convertersmartgrid.web.workspace import REVISION_NO_DISPONIBLES_S, Workspace
+    from convertersmartgrid.presentacion.web.workspace import REVISION_NO_DISPONIBLES_S, Workspace
 
     ws, fuera, rutas = _espacio_con_todo_fuera(tmp_path)
     oculta = fuera.with_name('unidad_desconectada')
@@ -292,7 +292,7 @@ def test_la_unidad_que_vuelve_con_la_web_abierta_repone_lo_suyo(tmp_path):
 
 def test_la_ejecucion_activa_sin_su_carpeta_tampoco_se_pierde_al_guardar(tmp_path):
     """086:RF-3 — hallado al migrar una copia sin ``runs``: se olvidaba cuál era la activa para siempre."""
-    from convertersmartgrid.web.workspace import REVISION_NO_DISPONIBLES_S, Workspace
+    from convertersmartgrid.presentacion.web.workspace import REVISION_NO_DISPONIBLES_S, Workspace
 
     run = '20261101T101010-abcdefabcdef'
     ws = _store(tmp_path).create()
@@ -320,7 +320,7 @@ def test_la_ejecucion_activa_sin_su_carpeta_tampoco_se_pierde_al_guardar(tmp_pat
 
 def test_elegir_o_quitar_otra_entrada_olvida_la_no_disponible(tmp_path):
     """086:RF-3 — lo que decide el operador manda: la vieja no vuelve a la casilla al guardar."""
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws, fuera, _ = _espacio_con_todo_fuera(tmp_path)
     shutil.rmtree(fuera)
@@ -337,7 +337,7 @@ def test_elegir_o_quitar_otra_entrada_olvida_la_no_disponible(tmp_path):
 
 def test_descartar_por_api_y_aviso_en_el_espacio(tmp_path):
     """086:RF-3 — la API dice qué no está; descartarlo lo quita de verdad, también de disco."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     ws, fuera, _ = _espacio_con_todo_fuera(tmp_path)
     shutil.rmtree(fuera)
@@ -361,7 +361,7 @@ def _version_2(root: Path, wid: str, **campos) -> None:
 
 def test_migra_con_copia_previa_y_por_pasos(tmp_path):
     """086:RF-4 — de la 2 a la vigente: copia intacta, versión escrita, y lo que había sigue."""
-    from convertersmartgrid.web.workspace import MIGRACIONES, VERSION_ESPACIO, Workspace
+    from convertersmartgrid.presentacion.web.workspace import MIGRACIONES, VERSION_ESPACIO, Workspace
 
     wid = 'd' * 16
     root = tmp_path / wid
@@ -381,7 +381,7 @@ def test_migra_con_copia_previa_y_por_pasos(tmp_path):
 
 def test_un_paso_que_falla_no_toca_el_fichero(tmp_path, monkeypatch):
     """086:RF-4 — una migración que revienta deja el fichero como estaba, y su copia."""
-    from convertersmartgrid.web import workspace
+    from convertersmartgrid.presentacion.web import workspace
 
     wid = 'e' * 16
     root = tmp_path / wid
@@ -399,7 +399,7 @@ def test_un_paso_que_falla_no_toca_el_fichero(tmp_path, monkeypatch):
 
 def test_fichero_sin_version_se_trata_como_el_primero(tmp_path):
     """086:RF-4 — los primeros espacios no llevaban versión, y su copia dice de cuál venían."""
-    from convertersmartgrid.web.workspace import VERSION_ESPACIO, Workspace
+    from convertersmartgrid.presentacion.web.workspace import VERSION_ESPACIO, Workspace
 
     root = tmp_path / ('f' * 16)
     root.mkdir()
@@ -411,8 +411,8 @@ def test_fichero_sin_version_se_trata_como_el_primero(tmp_path):
 
 def test_version_futura_no_se_sobrescribe_y_lo_dice(tmp_path):
     """086:RF-5 — antes se cargaba, y el siguiente guardado rebajaba la versión y perdía sus campos."""
-    from convertersmartgrid.web.app import create_app
-    from convertersmartgrid.web.workspace import EspacioVersionFutura, Workspace
+    from convertersmartgrid.presentacion.web.app import create_app
+    from convertersmartgrid.presentacion.web.workspace import EspacioVersionFutura, Workspace
 
     ws = _store(tmp_path).create()
     futuro = {**_leer(ws), 'version': 99, 'campo_del_futuro': 'x'}
@@ -485,7 +485,7 @@ def test_mover_la_carpeta_de_datos_conserva_los_espacios(tmp_path):
 
 def test_espacio_de_la_version_2_ya_movido_recupera_sus_rutas(tmp_path):
     """086:RF-6, 086:RF-4 — las absolutas de antes llevan su ``<id>``: de ahí en adelante es lo suyo."""
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     wid = 'a1' * 8
     raiz_nueva = tmp_path / 'nueva' / wid
@@ -510,7 +510,7 @@ def test_espacio_de_la_version_2_ya_movido_recupera_sus_rutas(tmp_path):
 
 def test_adoptar_de_otro_espacio_lee_sus_rutas_enteras(tmp_path):
     """086:RF-6 — quien lee el fichero de otro espacio no ve ``espacio:…``, o perdería su demanda."""
-    from convertersmartgrid.web.workspace import leer_metadatos_espacio
+    from convertersmartgrid.presentacion.web.workspace import leer_metadatos_espacio
 
     ws = _store(tmp_path).create()
     libro = ws.root / 'demanda' / 'cab.xlsx'
@@ -524,7 +524,7 @@ def test_adoptar_de_otro_espacio_lee_sus_rutas_enteras(tmp_path):
 
 def test_una_ruta_relativa_que_sale_del_espacio_no_se_sigue(tmp_path):
     """086:RF-6 — ``espacio:`` no es una forma de apuntar fuera: queda como no disponible."""
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     wid = 'b2' * 8
     root = tmp_path / wid
@@ -539,8 +539,8 @@ def test_una_ruta_relativa_que_sale_del_espacio_no_se_sigue(tmp_path):
 
 def test_retencion_ve_las_referencias_relativas(tmp_path):
     """086:RF-6 — la limpieza no toma por libre un automático que un espacio usa con ruta relativa."""
-    from convertersmartgrid.web.jobs import JobManager
-    from convertersmartgrid.web.retencion import RetencionDiaria
+    from convertersmartgrid.presentacion.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.retencion import RetencionDiaria
 
     store = _store(tmp_path)
     ws = store.create()
@@ -558,7 +558,7 @@ def test_retencion_ve_las_referencias_relativas(tmp_path):
 # ---------------------------------------------------------------- RF-7
 def test_renombrar_la_carpeta_no_cambia_la_identidad(tmp_path, monkeypatch):
     """086:RF-7 — el hash de la ruta hacía que renombrar dejara los datos atrás."""
-    from convertersmartgrid.runtime_paths import FICHERO_INSTALACION, fijar_identidad, rutas_runtime
+    from convertersmartgrid.dominio.runtime_paths import FICHERO_INSTALACION, fijar_identidad, rutas_runtime
 
     entorno = {'LOCALAPPDATA': str(tmp_path / 'local')}
     a = tmp_path / 'ConversorViejo'
@@ -578,7 +578,7 @@ def test_renombrar_la_carpeta_no_cambia_la_identidad(tmp_path, monkeypatch):
 
 def test_instalacion_existente_conserva_su_raiz_al_fijar_identidad(tmp_path):
     """086:RF-7 — la que ya tiene datos en la raíz por hash se queda con ese hash, sin mover nada."""
-    from convertersmartgrid.runtime_paths import (FICHERO_INSTALACION, _identidad_por_ruta, fijar_identidad,
+    from convertersmartgrid.dominio.runtime_paths import (FICHERO_INSTALACION, _identidad_por_ruta, fijar_identidad,
                                                   rutas_runtime)
 
     entorno = {'LOCALAPPDATA': str(tmp_path / 'local')}
@@ -601,7 +601,7 @@ def test_instalacion_existente_conserva_su_raiz_al_fijar_identidad(tmp_path):
 
 def test_el_hash_de_siempre_para_las_rutas_existentes():
     """086:RF-7 — la fórmula no cambia: de ella depende encontrar la raíz de las instalaciones de antes."""
-    from convertersmartgrid.runtime_paths import _identidad_por_ruta
+    from convertersmartgrid.dominio.runtime_paths import _identidad_por_ruta
 
     class Ruta:
         @staticmethod
@@ -615,7 +615,7 @@ def test_el_hash_de_siempre_para_las_rutas_existentes():
 
 def test_mover_a_otra_carpeta_madre_sigue_encontrando_los_datos(tmp_path):
     """086:RF-7 — la raíz está junto a la carpeta madre: movida a otra, vale la ruta anotada."""
-    from convertersmartgrid.runtime_paths import fijar_identidad, rutas_runtime
+    from convertersmartgrid.dominio.runtime_paths import fijar_identidad, rutas_runtime
 
     entorno = {'LOCALAPPDATA': str(tmp_path / 'local')}
     programa = tmp_path / 'madre_a' / 'programa'
@@ -633,7 +633,7 @@ def test_mover_a_otra_carpeta_madre_sigue_encontrando_los_datos(tmp_path):
 
 def test_mover_todo_junto_prefiere_la_raiz_vecina(tmp_path):
     """086:RF-7 — si los datos viajaron con el programa, la ruta anotada ya es vieja y no manda."""
-    from convertersmartgrid.runtime_paths import fijar_identidad, rutas_runtime
+    from convertersmartgrid.dominio.runtime_paths import fijar_identidad, rutas_runtime
 
     entorno = {'LOCALAPPDATA': str(tmp_path / 'local')}
     madre = tmp_path / 'madre_a'
@@ -650,7 +650,7 @@ def test_mover_todo_junto_prefiere_la_raiz_vecina(tmp_path):
 
 def test_fichero_de_identidad_danado_o_sin_permiso_no_cambia_nada(tmp_path, monkeypatch):
     """086:RF-7 — ilegible: la identidad por ruta, nunca una nueva y vacía que parezca sin datos."""
-    from convertersmartgrid.runtime_paths import (FICHERO_INSTALACION, _identidad_por_ruta, fijar_identidad,
+    from convertersmartgrid.dominio.runtime_paths import (FICHERO_INSTALACION, _identidad_por_ruta, fijar_identidad,
                                                   rutas_runtime)
 
     programa = tmp_path / 'programa'
@@ -670,7 +670,7 @@ def test_fichero_de_identidad_danado_o_sin_permiso_no_cambia_nada(tmp_path, monk
 
 def test_configurar_entorno_fija_la_identidad_y_no_anota_una_raiz_explicita(tmp_path):
     """086:RF-7 — el arranque la deja escrita; con ``CSG_RUNTIME_HOME`` del operador, esa raíz no es la propia."""
-    from convertersmartgrid.runtime_paths import FICHERO_INSTALACION, configurar_entorno
+    from convertersmartgrid.dominio.runtime_paths import FICHERO_INSTALACION, configurar_entorno
 
     previo = os.environ.copy()
     try:
@@ -689,7 +689,7 @@ def test_configurar_entorno_fija_la_identidad_y_no_anota_una_raiz_explicita(tmp_
 @pytest.mark.parametrize('destino', ['Z:/datos/x.json', r'\\servidor\recurso\informes\x.json'])
 def test_otra_unidad_o_ruta_de_red_publica_junto_al_destino(tmp_path, destino):
     """086:RF-8 — antes daba ValueError al final de la corrida, con todo calculado."""
-    from convertersmartgrid.runtime_paths import rutas_runtime
+    from convertersmartgrid.dominio.runtime_paths import rutas_runtime
 
     rutas = rutas_runtime(tmp_path / 'codigo', {'CSG_RUNTIME_HOME': str(tmp_path / 'runtime'),
                                                 'LOCALAPPDATA': str(tmp_path / 'local')})
@@ -699,8 +699,8 @@ def test_otra_unidad_o_ruta_de_red_publica_junto_al_destino(tmp_path, destino):
 
 def test_escribir_de_verdad_con_el_destino_en_otro_volumen(tmp_path, monkeypatch):
     """086:RF-8 — el temporal queda junto al destino, se publica y no deja nada detrás."""
-    from convertersmartgrid import runtime_paths
-    from convertersmartgrid.util import write_json_atomic
+    from convertersmartgrid.dominio import runtime_paths
+    from convertersmartgrid.dominio.util import write_json_atomic
 
     rutas = runtime_paths.rutas_runtime(tmp_path / 'codigo', {'LOCALAPPDATA': str(tmp_path / 'local')})
     # La raíz de ejecución en una unidad distinta de la del destino, sin depender de cuáles tenga la máquina.
@@ -717,7 +717,7 @@ def test_escribir_de_verdad_con_el_destino_en_otro_volumen(tmp_path, monkeypatch
 
 def test_mismo_volumen_sigue_fuera_del_destino(tmp_path):
     """086:RF-8 y 065:RF-11 — con raíz en ese volumen no cambia: el temporal va a la raíz, no junto al código."""
-    from convertersmartgrid.runtime_paths import rutas_runtime
+    from convertersmartgrid.dominio.runtime_paths import rutas_runtime
 
     rutas = rutas_runtime(tmp_path / 'codigo', {'CSG_RUNTIME_HOME': str(tmp_path / 'runtime'),
                                                 'LOCALAPPDATA': str(tmp_path / 'local')})
@@ -740,7 +740,7 @@ def _sha(path) -> str:
 
 @pytest.fixture()
 def _web(tmp_path, monkeypatch):
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     app = create_app(tmp_path / 'web', host='127.0.0.1')
@@ -863,7 +863,7 @@ def test_pdf_con_la_lectura_anterior_en_curso_responden_409(_web, monkeypatch):
     borra esos PDF."""
     import threading
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     app, cliente = _web
     liberar = threading.Event()
@@ -887,7 +887,7 @@ def test_borrar_el_espacio_y_encolar_van_bajo_el_mismo_cerrojo(_web, monkeypatch
     ya no existe: borrar comprueba y borra bajo el mismo cerrojo con que se encola."""
     import threading
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     app, cliente = _web
     liberar = threading.Event()

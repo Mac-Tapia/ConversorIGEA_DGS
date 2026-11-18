@@ -193,7 +193,7 @@ Spec aprobada el 2026-10-08.
       lector menos `.shp` suelto (necesita `.dbf` y `.shx`: va en un ZIP o RAR).
       `validate_vnr_package_file` la usa y nombra los formatos al rechazar. Etiqueta de
       la casilla: «Paquete o base VNR-GIS», con los formatos bajo ella.
-- [x] T22. `convertersmartgrid.web.runtime --front` dice si `frontend/dist` está por detrás del
+- [x] T22. `convertersmartgrid.presentacion.web.runtime --front` dice si `frontend/dist` está por detrás del
       código del front; `run_gui.bat` recompila en ese caso. (RF-27)
       Hecho cuando: prueba con un fichero del front más reciente que `dist`.
       Hecho el 2026-10-08 (`tests/test_web_runtime_front.py`). Probado además en `cmd`
@@ -210,7 +210,7 @@ Spec aprobada el 2026-10-08.
       Hecho cuando: pruebas de la huella, del rechazo sin cabecera, desde fuera y con
       trabajos en curso, y del cierre aceptado.
       Hecho el 2026-10-15 (`tests/test_lanzador_web.py`).
-- [x] T25. `convertersmartgrid.web` resuelve el puerto ocupado: reutiliza, reemplaza, respeta los
+- [x] T25. `convertersmartgrid.presentacion.web` resuelve el puerto ocupado: reutiliza, reemplaza, respeta los
       trabajos, termina el colgado o cambia de puerto; abre el navegador cuando responde;
       `run_gui.bat` no pide tecla salvo error. (RF-28 a RF-32)
       Hecho cuando: una prueba por caso, con servidores falsos en puertos libres.

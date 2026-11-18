@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import pytest
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.web import __main__ as lanzador
-from convertersmartgrid.web import app as app_mod
-from convertersmartgrid.web import cierre
-from convertersmartgrid.web.runtime import huella_del_codigo
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.presentacion.web import __main__ as lanzador
+from convertersmartgrid.presentacion.web import app as app_mod
+from convertersmartgrid.presentacion.web import cierre
+from convertersmartgrid.presentacion.web.runtime import huella_del_codigo
 from fastapi.testclient import TestClient
 
 
@@ -86,7 +86,7 @@ def test_un_lanzador_de_otra_carpeta_no_cierra_la_web(monkeypatch, capsys):
 
 def test_la_misma_carpeta_con_otro_codigo_se_sigue_sustituyendo(monkeypatch):
     """081:RF-44, 001:RF-29 — tras cambiar el código, el acceso directo sigue reemplazando la web."""
-    from convertersmartgrid.powerfactory_env import project_root
+    from convertersmartgrid.adaptadores.powerfactory_env import project_root
 
     pedidos = []
     monkeypatch.setattr(lanzador, 'conversor_en', lambda *_a, **_k: _salud(str(project_root())))
@@ -99,7 +99,7 @@ def test_la_misma_carpeta_con_otro_codigo_se_sigue_sustituyendo(monkeypatch):
 
 def test_la_salud_dice_de_que_carpeta_es(tmp_path):
     """081:RF-44 — es lo que mira el lanzador."""
-    from convertersmartgrid.powerfactory_env import project_root
+    from convertersmartgrid.adaptadores.powerfactory_env import project_root
 
     assert TestClient(app_mod.create_app(tmp_path)).get('/api/health').json()['servidor']['raiz'] == str(project_root())
     assert huella_del_codigo(app_mod.frontend_dist()) is not None
@@ -110,12 +110,12 @@ def test_no_se_termina_sin_dar_un_plazo(monkeypatch):
     esperas, terminados = [], []
     monkeypatch.setattr(lanzador, 'conversor_en', lambda *_a, **_k: None)
     monkeypatch.setattr(lanzador, 'es_web_de_otra_sesion', lambda *_a, **_k: False)  # sin esto, mira la web real del 8765
-    monkeypatch.setattr(lanzador, 'quien_escucha', lambda _p: (4242, 'python -m convertersmartgrid.web'))
+    monkeypatch.setattr(lanzador, 'quien_escucha', lambda _p: (4242, 'python -m convertersmartgrid.presentacion.web'))
     monkeypatch.setattr(lanzador, 'esperar_respuesta', lambda _u, s: esperas.append(s) or None)
     monkeypatch.setattr(lanzador, '_terminar', terminados.append)
     monkeypatch.setattr(lanzador, 'esperar_puerto_libre', lambda *_a: True)
     monkeypatch.setattr(lanzador, 'puerto_ocupado', lambda *_a: False)
-    from convertersmartgrid.web import jobs as jobs_mod
+    from convertersmartgrid.presentacion.web import jobs as jobs_mod
 
     monkeypatch.setattr(jobs_mod, 'trabajos_anotados', lambda _p: 0)
     assert lanzador.resolver_puerto('127.0.0.1', 8765, abrir=False) == ('arrancar', 8765)
@@ -123,7 +123,7 @@ def test_no_se_termina_sin_dar_un_plazo(monkeypatch):
     assert 'no respondió' in almacen.leer(cierre.REGISTRO)[-1]['motivo']
     # Si contesta durante el plazo, no se termina nada.
     terminados.clear()
-    from convertersmartgrid.powerfactory_env import project_root
+    from convertersmartgrid.adaptadores.powerfactory_env import project_root
 
     respuesta = _salud(str(project_root()))
     respuesta['servidor']['huella'] = huella_del_codigo(app_mod.frontend_dist())

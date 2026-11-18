@@ -2,7 +2,7 @@
 
 ## Dónde
 
-- `src/convertersmartgrid/perfil_tension.py` (nuevo, puro): de un grafo con tensiones (el de `digital_twin`) arma el
+- `src/convertersmartgrid/aplicacion/perfil_tension.py` (nuevo, puro): de un grafo con tensiones (el de `digital_twin`) arma el
   perfil de cada alimentador —barras de media, distancia por el camino eléctrico desde la cabecera, tensión— y las
   ubicaciones candidatas por caída igual, por 2i/(2n+1) y un banco por tramo, con la separación mínima (RF-1, RF-4,
   RF-6). Añade módulos uno a uno con el oráculo hasta el objetivo o la parada de RF-9 (RF-8, RF-9).
@@ -11,7 +11,7 @@
   luego recalibración de P y Q, 035), con los bancos existentes en servicio; si queda
   AVISO_KVAR, el perfil lleva el aviso y el desvío (RF-10, RF-11). En «Con proyecto» no se cuadra nada: el perfil y
   los bancos se juzgan con lo que da DIgSILENT con cargas y obras (RF-12).
-- `src/convertersmartgrid/web/services.py`: guarda el perfil con la calibración (RF-2); la escalera y el déficit previo
+- `src/convertersmartgrid/presentacion/web/services.py`: guarda el perfil con la calibración (RF-2); la escalera y el déficit previo
   toman las candidatas de banco de `perfil_tension` en vez de solo la barra de la carga (RF-4, RF-5); la confirmación en
   DIgSILENT y el valle siguen como están (RF-7).
 - `frontend/src/` y `informes.py`: el gráfico del perfil por alimentador, con el límite (RF-3).

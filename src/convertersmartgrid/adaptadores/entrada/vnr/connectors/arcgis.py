@@ -12,9 +12,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from convertersmartgrid.salidas_red import (DestinoNoPermitido, RedireccionRechazada, get_sin_redireccion_ajena,
+from convertersmartgrid.dominio.salidas_red import (DestinoNoPermitido, RedireccionRechazada, get_sin_redireccion_ajena,
                                             motivo_apagada, pedir_a_destino_fijado, salida_permitida, validar_destino)
-from convertersmartgrid.util import importar_opcional
+from convertersmartgrid.dominio.util import importar_opcional
 
 from .base import LayerInfo, SourceProbe, VNRSourceAdapter
 

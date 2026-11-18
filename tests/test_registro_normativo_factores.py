@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 import pytest
-from convertersmartgrid.registro_normativo import (
+from convertersmartgrid.dominio.registro_normativo import (
     RegistroError,
     cargar_registro,
 )

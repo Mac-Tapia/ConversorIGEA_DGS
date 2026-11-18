@@ -65,7 +65,7 @@ descarta esa alternativa con motivo explícito; no fabricar ceros.
 
 **Cubre:** RF-1, RF-2, RF-3.
 
-**Files:** Crear `src/convertersmartgrid/evaluacion_modelos.py`, `tests/test_evaluacion_modelos.py`; modificar `digital_twin/oraculo.py:particionar`, `_grupos` y consumidores del donante.
+**Files:** Crear `src/convertersmartgrid/aplicacion/evaluacion_modelos.py`, `tests/test_evaluacion_modelos.py`; modificar `digital_twin/oraculo.py:particionar`, `_grupos` y consumidores del donante.
 
 **Interfaces:** `Particiones` contiene `entrenamiento`, `seleccion`, `calibracion`, `prueba` como tuplas de IDs; `PoliticaEvaluacion` contiene `schema_version`, `modo` (por_sistema/generalizacion), `min_calibracion_grupos`, `cobertura_objetivo`, `puertas_por_familia`, `semillas` y hash sellado. `particionar_registros(registros: Sequence[Mapping], politica: PoliticaEvaluacion) -> Particiones`. Requerir mínimos existentes 30/10/10 por sistema y mínimo de calibración positivo declarado; el modo generalizacion además retiene sistemas enteros fuera.
 
@@ -147,10 +147,10 @@ eléctricas del modo por_sistema ni cierra su integración pendiente en el PINN.
 
 **Cubre:** RF-10, RF-11, RF-12.
 
-- `src/convertersmartgrid/evaluacion_harness/estadistica.py`: los contrastes de todos los bloques. Sin dependencias
+- `src/convertersmartgrid/dominio/evaluacion_harness/estadistica.py`: los contrastes de todos los bloques. Sin dependencias
   nuevas: biblioteca estándar y scipy dentro de las funciones. Se descartó añadir statsmodels a `.venv` (no está, y
   arrastra pandas); sus valores quedan fijados en las pruebas.
-- `src/convertersmartgrid/evaluacion_harness/informe_final.py` y `tools/evaluacion_final.py`: el consolidador.
+- `src/convertersmartgrid/aplicacion/evaluacion_harness/informe_final.py` y `tools/evaluacion_final.py`: el consolidador.
 - Pruebas: `tests/test_evaluacion_estadistica.py` (valores publicados) y `tests/test_evaluacion_informe_final.py`
   (repositorio git de juguete).
 

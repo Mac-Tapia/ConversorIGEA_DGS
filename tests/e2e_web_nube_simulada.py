@@ -1,7 +1,7 @@
 """La web real con la nube simulada, para el recorrido e2e del selector único (spec 109, T19; 109:RF-21 a RF-24).
 
 No es una prueba (pytest no la recoge): la arranca ``frontend/test/e2e/playwright.config.mjs`` como segundo servidor.
-Es la web de siempre (``python -m convertersmartgrid.web``), con dos cambios solo en este proceso:
+Es la web de siempre (``python -m convertersmartgrid.presentacion.web``), con dos cambios solo en este proceso:
 
 - ``Cuentas`` usa el proveedor simulado de ``tests/nube_simulada.py`` (Google Drive y OneDrive en memoria) y un
   ``nube.json`` de prueba en el temporal del recorrido: nada sale a la red y no hace falta registrar ninguna aplicación.
@@ -23,7 +23,7 @@ sys.path[:0] = [str(RAIZ / 'tests'), str(RAIZ / 'src')]
 from nube_simulada import CONFIG_PRUEBA, NubeSimulada  # noqa: E402
 
 from convertersmartgrid.adaptadores.nube import cuentas as modulo_cuentas  # noqa: E402
-from convertersmartgrid.web import app as modulo_app  # noqa: E402
+from convertersmartgrid.presentacion.web import app as modulo_app  # noqa: E402
 
 
 def _puerto(argv: list[str]) -> str:
@@ -72,7 +72,7 @@ def preparar(argv: list[str]) -> NubeSimulada:
 
 if __name__ == '__main__':
     preparar(sys.argv[1:])
-    from convertersmartgrid.web.__main__ import main
+    from convertersmartgrid.presentacion.web.__main__ import main
 
     sys.argv = [sys.argv[0], *sys.argv[1:]]
     raise SystemExit(main())

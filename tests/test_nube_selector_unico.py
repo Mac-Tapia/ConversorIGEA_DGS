@@ -86,7 +86,7 @@ def test_una_salida_suelta_se_publica_sola(tmp_path):
     import uuid
     import zipfile
 
-    from convertersmartgrid.web.operaciones_lentas import preparar_zip, retirar_zip
+    from convertersmartgrid.presentacion.web.operaciones_lentas import preparar_zip, retirar_zip
 
     salida = tmp_path / 'salida'
     for rel in ('informes/estudio.docx', 'informes/otro.docx', 'F1.dgs', 'F1_resumen.json', 'F10.dgs'):
@@ -129,7 +129,7 @@ def test_el_campo_unico_filtra_por_tipo_y_guarda_la_salida():
 
 def test_un_programa_no_descarga_las_copias_de_la_nube(tmp_path):
     """109:RF-15, RF-22 — solo la sesión del navegador trae una copia; con el token de la web, 403."""
-    from convertersmartgrid.sesion_web import CABECERA_TOKEN
+    from convertersmartgrid.dominio.sesion_web import CABECERA_TOKEN
 
     with montar_web_nube(tmp_path) as web:
         wid = web.espacio()

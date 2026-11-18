@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import valle as vl
+from convertersmartgrid.aplicacion import valle as vl
 
 INICIO = datetime(2026, 3, 1)
 PASO = timedelta(minutes=15)
@@ -385,7 +385,7 @@ def test_ventana_real_con_la_medicion_de_la_distribuidora():
     """073:RF-2, 073:RF-6, 073:RF-11, 073:RF-35 — con medición real, por objetivo, inicio, fin y duración
     salen de los registros, el punto no es un cero y lo apartado se nombra. ``CSG_VALLE_OBJETIVOS`` dice
     cuántos alimentadores lee, para la medición completa; nada de esos datos se guarda."""
-    from convertersmartgrid import demanda_medida as dm
+    from convertersmartgrid.aplicacion import demanda_medida as dm
 
     def sub(prefijo):
         return next(p for p in Path(REAL).iterdir() if p.is_dir() and p.name.startswith(prefijo))
@@ -443,8 +443,8 @@ from test_optimizacion_oraculo import (
     _p,
 )
 
-from convertersmartgrid import escalera_optima as eo
-from convertersmartgrid import optimizacion_oraculo as oo
+from convertersmartgrid.aplicacion import escalera_optima as eo
+from convertersmartgrid.adaptadores import optimizacion_oraculo as oo
 
 
 def _banco(n: int, kvar: float = 450.0, barra: str = 'B') -> dict:
@@ -846,7 +846,7 @@ def _evaluar_en_valle(monkeypatch, puntos, *, u_valle=1.09, barra='B1', actual_c
     la variante lleva banco. Lo que se pone en juego es el guion, no el doble."""
     from test_obras_pf_guion import PERFIL_ESCALERA, _calibrada_con_escenario, _plan
 
-    from convertersmartgrid import escalera_optima
+    from convertersmartgrid.aplicacion import escalera_optima
 
     g = _guion()
     app, alims = _calibrada_con_escenario(random.Random(13))
@@ -965,7 +965,7 @@ def test_guion_el_escenario_temporal_escala_y_no_deja_nada():
 def _pide(**extra):
     from test_pide_web import COSTOS, INFORME, PLAN
 
-    from convertersmartgrid.pide_economia import propuesta_pide
+    from convertersmartgrid.aplicacion.pide_economia import propuesta_pide
 
     return propuesta_pide(INFORME, PLAN, costos=COSTOS, bancos_kvar={10.0: 300.0}, **extra)
 
@@ -986,7 +986,7 @@ def test_pide_causa_sin_otra_alternativa_queda_descartada_con_su_motivo():
     from test_pide_web import COSTOS, PLAN
     from test_pide_web import _p as problema
 
-    from convertersmartgrid.pide_economia import propuesta_pide
+    from convertersmartgrid.aplicacion.pide_economia import propuesta_pide
 
     informe = {'anios': [{'anio': 0, 'cabeceras_kw': {'F1': 900.0}, 'problemas': [
         problema('factor_de_potencia', 'B3', 0.91, 10.0)]}]}
@@ -1095,8 +1095,8 @@ def test_informe_sin_medicion_la_escalera_no_se_bloquea_y_lo_dice(tmp_path, monk
 
 def test_informe_alimentador_con_central_queda_sin_comprobar(tmp_path, monkeypatch):
     """073:RF-12 — con central, su cabecera no es su demanda: sin comprobar y dicho, sin leer el valle."""
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     def leer(*_a, **_k):
         raise AssertionError('no se lee el valle de un alimentador con central')
@@ -1125,8 +1125,8 @@ def test_informe_de_estudio_dice_la_tension_en_valle_de_cada_alternativa_con_ban
     from test_informe_docx import _caso as caso_docx
     from test_informe_docx import _config, _estudio
 
-    from convertersmartgrid.informe_docx import escribir_informe_estudio
-    from convertersmartgrid.informes import Etapa
+    from convertersmartgrid.adaptadores.informe_docx import escribir_informe_estudio
+    from convertersmartgrid.adaptadores.informes import Etapa
 
     def texto(etapas):
         destino = tmp_path / 'i.docx'
@@ -1152,7 +1152,7 @@ def test_informe_de_factibilidad_tambien_lo_dice(tmp_path):
     from docx import Document
     from test_informe_docx import _config, _factibilidad
 
-    from convertersmartgrid.informe_docx import escribir_informe_factibilidad
+    from convertersmartgrid.adaptadores.informe_docx import escribir_informe_factibilidad
 
     obra = ({'tipo': 'banco', 'nodo': 'N15', 'kvar': 300},)
     destino = tmp_path / 'f.docx'
@@ -1222,8 +1222,8 @@ def test_alimentador_con_central_sin_un_medidor_queda_sin_comprobar_con_su_motiv
 def test_el_proyecto_con_central_declarada_toma_el_valle_de_su_demanda(tmp_path, monkeypatch):
     """073:RF-12 — T9: con la central del perfil (021:RF-27), `_valle_del_proyecto` lee sus tres medidores y
     da el punto de valle de la demanda, con el aviso; sin ella, sin comprobar (prueba de arriba)."""
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     rng = random.Random(3)
     cab, gen, lle, sal = _con_central(rng, 120, (80, 15), (10, 40))

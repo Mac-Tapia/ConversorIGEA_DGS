@@ -10,7 +10,7 @@ import random
 
 import pytest
 
-from convertersmartgrid.web import services
+from convertersmartgrid.presentacion.web import services
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
@@ -97,7 +97,7 @@ def test_set_nueva_se_disena_situa_y_crea(monkeypatch, tmp_path):
     nueva; la potencia de diseño es (S_C × (1 + g)^30 + N1 + N2) × 1,25 y la cubre el módulo de
     SET de 25 MVA del libro; la obra lleva la rama, la potencia y la tensión de alta del módulo,
     y el informe da el punto en UTM y GPS."""
-    from convertersmartgrid import perfil_empresa
+    from convertersmartgrid.dominio import perfil_empresa
     from test_set_nueva import CFG_PIT, _libro
 
     perfil = {'crs_origen': 'EPSG:32718', 'escalera': {'sorteos': 20, 'semilla': 1},
@@ -140,7 +140,7 @@ def test_set_nueva_se_disena_situa_y_crea(monkeypatch, tmp_path):
 def test_set_nueva_toma_la_barra_de_una_carga_apartada(monkeypatch, tmp_path):
     """042:RF-6 — una carga apartada por la escalera no está activa en «Con proyecto» ni sale entre
     sus cargas: entra en la SET nueva por la barra que dio la escalera, llevada a media."""
-    from convertersmartgrid import perfil_empresa
+    from convertersmartgrid.dominio import perfil_empresa
     from test_set_nueva import CFG_PIT, _libro
 
     perfil = {'crs_origen': 'EPSG:32718', 'escalera': {'sorteos': 20, 'semilla': 1},
@@ -171,7 +171,7 @@ def test_set_nueva_toma_la_barra_de_una_carga_apartada(monkeypatch, tmp_path):
 
 def test_sin_libro_capex_la_set_se_dimensiona_igual(tmp_path):
     """042:RF-33 — sin libro, o con uno que no se lee, no hay módulos pero tampoco error: se dice y se sigue."""
-    from convertersmartgrid import set_nueva as sn
+    from convertersmartgrid.aplicacion import set_nueva as sn
 
     assert sn.modulos_del_libro('', {})[0] == [] and 'CAPEX' in sn.modulos_del_libro('', {})[1][0]
     assert sn.modulos_del_libro(str(tmp_path / 'no.xlsx'), {'hoja': 'x'})[0] == []
@@ -179,7 +179,7 @@ def test_sin_libro_capex_la_set_se_dimensiona_igual(tmp_path):
 
 def test_la_web_ofrece_la_optimizacion_de_con_proyecto():
     """042:RF-13 — la ruta del paso de obras, como trabajo del carril de DIgSILENT."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     rutas = {getattr(r, 'path', '') for r in create_app().routes}
     assert '/api/workspaces/{wid}/pf/obras/con-proyecto' in rutas
@@ -271,7 +271,7 @@ def test_si_caben_basta_una_obra_y_las_lecturas_comunes_van_una_vez(tmp_path, mo
 
 def test_la_carga_que_parte_un_tramo_entra_en_la_set_nueva():
     """042:RF-18 — Pisco: su nodo solo existe en su variación; va por el extremo más cercano del tramo."""
-    from convertersmartgrid.web.services import barra_del_tramo_partido
+    from convertersmartgrid.presentacion.web.services import barra_del_tramo_partido
 
     tramos = [{'nombre': 'T1', 'desde': 'A', 'hasta': 'B'}]
     assert barra_del_tramo_partido({'tramo_partido': {'tramo': 'T1', 'fraccion': 0.2}}, tramos, {}) == 'A'
@@ -284,7 +284,7 @@ def test_el_resultado_directo_a_set_nueva_tiene_la_forma_de_los_demas():
     """042:RF-80 — con proyecto, orden y pruebas: sin ellos la web lo descartaba y el operador no veía su SET nueva."""
     from pathlib import Path
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     fuente = Path(services.__file__).read_text(encoding='utf-8')
     tramo = fuente.split('if directo_set_nueva:', 1)[1].split('elif escalera_primero', 1)[0]

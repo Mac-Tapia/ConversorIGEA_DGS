@@ -13,13 +13,13 @@ import sys
 
 import pytest
 
-from convertersmartgrid import demanda_medida as dm
+from convertersmartgrid.aplicacion import demanda_medida as dm
 
 RAIZ = Path(__file__).resolve().parents[1]
 ARISTAS = {
-    'capa|convertersmartgrid.ajuste_cabecera|convertersmartgrid.demanda_medida',
-    'capa|convertersmartgrid.perfil_empresa|convertersmartgrid.powerfactory_env',
-    'capa|convertersmartgrid.reglas|convertersmartgrid.powerfactory_env',
+    'capa|convertersmartgrid.dominio.ajuste_cabecera|convertersmartgrid.aplicacion.demanda_medida',
+    'capa|convertersmartgrid.dominio.perfil_empresa|convertersmartgrid.adaptadores.powerfactory_env',
+    'capa|convertersmartgrid.aplicacion.reglas|convertersmartgrid.adaptadores.powerfactory_env',
 }
 
 
@@ -34,7 +34,7 @@ def test_u1_architectura_sin_las_tres_dependencias_historicas():
 
 def test_helpers_unicos_con_api_anterior_y_pickle_conservados():
     """002:RF-1/21: un solo cuerpo canónico; los dos consumidores comparten objeto."""
-    from convertersmartgrid import ajuste_cabecera
+    from convertersmartgrid.dominio import ajuste_cabecera
 
     puros = importlib.import_module('convertersmartgrid.dominio.numeros_medidos')
     for nombre in ('clave_codigo', 'numero'):
@@ -43,7 +43,8 @@ def test_helpers_unicos_con_api_anterior_y_pickle_conservados():
         assert fn.__module__ == puros.__name__
         assert pickle.loads(pickle.dumps(fn)) is fn
         antiguo = ('cconvertersmartgrid.demanda_medida\n' + nombre + '\n.').encode('ascii')
-        assert pickle.loads(antiguo) is fn
+        with pytest.raises(ModuleNotFoundError):  # 002:RF-21: la ruta de antes ya no se reexporta
+            pickle.loads(antiguo)
     arbol = ast.parse(Path(dm.__file__).read_text(encoding='utf-8'))
     assert not any(isinstance(n, ast.FunctionDef) and n.name in ('clave_codigo', 'numero')
                    for n in arbol.body)
@@ -56,7 +57,7 @@ import sys
 sys.path.insert(0, sys.argv[1])
 from convertersmartgrid.dominio.numeros_medidos import clave_codigo, numero
 assert clave_codigo(' 001234 ') == '1234' and numero('1,5') == 1.5
-prohibidos = ('convertersmartgrid.demanda_medida', 'convertersmartgrid.powerfactory_env',
+prohibidos = ('convertersmartgrid.aplicacion.demanda_medida', 'convertersmartgrid.adaptadores.powerfactory_env',
               'openpyxl', 'pandas', 'powerfactory')
 assert not any(m in sys.modules for m in prohibidos)
 '''
@@ -67,7 +68,8 @@ assert not any(m in sys.modules for m in prohibidos)
 
 def test_configuracion_no_importa_powerfactory_y_conserva_alias_publico():
     """002:RF-3: las raíces canónicas no pasan por un adaptador del motor nativo."""
-    from convertersmartgrid import perfil_empresa, reglas, runtime_paths
+    from convertersmartgrid.dominio import perfil_empresa, runtime_paths
+    from convertersmartgrid.aplicacion import reglas
 
     assert reglas.project_root is runtime_paths.raiz_programa
     for modulo in (perfil_empresa, reglas):
@@ -103,7 +105,8 @@ def test_numero_finito_conserva_su_contrato(valor, esperado):
 @pytest.mark.parametrize('instalado', [False, True])
 def test_configuracion_conserva_programa_datos_y_empresas(tmp_path, monkeypatch, instalado):
     """002:RF-31/35; 086:RF-36/38: configuraciones de lectura y datos locales separados."""
-    from convertersmartgrid import perfil_empresa as pe, reglas, runtime_paths as rp
+    from convertersmartgrid.dominio import perfil_empresa as pe, runtime_paths as rp
+    from convertersmartgrid.aplicacion import reglas
 
     paquete = (tmp_path / 'site' / 'convertersmartgrid' if instalado
                else tmp_path / 'repo' / 'src' / 'convertersmartgrid')
@@ -116,7 +119,7 @@ def test_configuracion_conserva_programa_datos_y_empresas(tmp_path, monkeypatch,
     (perfiles / 'empresa_a.json').write_text(json.dumps({'crs_origen': 'EPSG:3857'}), encoding='utf-8')
     (perfiles / 'empresa_b.json').write_text(json.dumps({'crs_origen': 'EPSG:4326'}), encoding='utf-8')
     activo.write_text(json.dumps({'perfil': 'empresa_a', 'escala_diagrama': 1.25}), encoding='utf-8')
-    monkeypatch.setattr(rp, '__file__', str(paquete / 'runtime_paths.py'))
+    monkeypatch.setattr(rp, '__file__', str(paquete / 'dominio/runtime_paths.py'))
     monkeypatch.setenv(rp.VARIABLE_DATOS, str(datos))
     monkeypatch.delenv(pe.VARIABLE_RUTA, raising=False)
     assert pe._raiz() == reglas.project_root() == programa

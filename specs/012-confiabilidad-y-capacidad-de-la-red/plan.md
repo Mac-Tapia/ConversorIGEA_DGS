@@ -17,14 +17,14 @@ Lo que ya existe y se reutiliza (P5: se importa, no se copia):
   restitución de interruptores y demandas), `_salida` (ventana de salida),
   `tramos_troncales` y el `ComSimoutage` propio del N-1, que las curvas PV reutilizan
   (RF-53). Los estudios nuevos entran como claves nuevas de su `ejecutar`.
-- `src/convertersmartgrid/estudios_pf.py` (011): `estudios_ofrecidos`, `estudios_no_ofrecidos`,
+- `src/convertersmartgrid/aplicacion/estudios_pf.py` (011): `estudios_ofrecidos`, `estudios_no_ofrecidos`,
   `Limites` y `limites_de_perfil` (RF-3), `diferencia`, `escribir_csv`, ficheros de
   resultados (RF-59).
-- `src/convertersmartgrid/studies.py`: el catálogo `ESTUDIOS`, con `fiabilidad` (`ComRel3`) y
+- `src/convertersmartgrid/aplicacion/studies.py`: el catálogo `ESTUDIOS`, con `fiabilidad` (`ComRel3`) y
   `condensadores` (`ComCapo`) hoy bloqueados por `_TASAS_FALLA`, `_TIEMPOS_MANIOBRA`,
   `_PRECIOS` y `_COSTE_ENERGIA`.
 - `tools/check_pf_license.py`: la lista de módulos de la licencia (RF-4).
-- `src/convertersmartgrid/web/services.py`, `app.py`, `workspace.py`: trabajos del carril
+- `src/convertersmartgrid/presentacion/web/services.py`, `app.py`, `workspace.py`: trabajos del carril
   `powerfactory` y ficheros del espacio de trabajo.
 - `frontend/src/components/EstudiosPF.tsx` (011, T17): la parte «4.2 Estudios».
 - `tests/fake_pf.py`: el DIgSILENT falso de la 011, con casos, variaciones y escenarios.
@@ -124,13 +124,13 @@ Sondas ejecutadas por el usuario en DIgSILENT 2024 (a su petición) sobre una co
 
 | Parte | Ficheros | Cubre |
 | --- | --- | --- |
-| A. Libro de la empresa: leer el Excel, validar hojas, filas y unidades, clases que faltan, anualidad de los bancos, plantilla descargable | `src/convertersmartgrid/datos_empresa.py` (nuevo) | RF-6 a RF-18, RF-62 a RF-66 |
-| B. Catálogo: estudios nuevos en `studies.py`; las entradas de tasas y costes pasan a depender del libro cargado; módulos nuevos en la lista de la licencia | `src/convertersmartgrid/studies.py`, `src/convertersmartgrid/estudios_pf.py`, `tools/check_pf_license.py` | RF-1, RF-4, RF-19 |
-| C. Resultados sin DIgSILENT: índices por alimentador a partir de los de cada carga, diferencias, ENS total, aportes ordenados, capacidad mínima y máxima, margen PV, informe de bancos, comprobación de estado, filas de los ficheros | `src/convertersmartgrid/estudios_red_pf.py` (nuevo) | RF-25, RF-30 a RF-33, RF-39, RF-47 a RF-49, RF-52, RF-56, RF-57, RF-59 a RF-61, RF-67, RF-68 |
+| A. Libro de la empresa: leer el Excel, validar hojas, filas y unidades, clases que faltan, anualidad de los bancos, plantilla descargable | `src/convertersmartgrid/aplicacion/datos_empresa.py` (nuevo) | RF-6 a RF-18, RF-62 a RF-66 |
+| B. Catálogo: estudios nuevos en `studies.py`; las entradas de tasas y costes pasan a depender del libro cargado; módulos nuevos en la lista de la licencia | `src/convertersmartgrid/aplicacion/studies.py`, `src/convertersmartgrid/aplicacion/estudios_pf.py`, `tools/check_pf_license.py` | RF-1, RF-4, RF-19 |
+| C. Resultados sin DIgSILENT: índices por alimentador a partir de los de cada carga, diferencias, ENS total, aportes ordenados, capacidad mínima y máxima, margen PV, informe de bancos, comprobación de estado, filas de los ficheros | `src/convertersmartgrid/aplicacion/estudios_red_pf.py` (nuevo) | RF-25, RF-30 a RF-33, RF-39, RF-47 a RF-49, RF-52, RF-56, RF-57, RF-59 a RF-61, RF-67, RF-68 |
 | D. Datos de confiabilidad en DIgSILENT: variación «Datos de confiabilidad», modelos `Sto*` por clase y por tipo, asignación `pStoch` en los elementos, equipos de maniobra, comprobación de clase | `tools/confiabilidad_pf.py` (nuevo, modo `--aplicar-datos`) | RF-20 a RF-27 |
 | E. Confiabilidad y reconectadores: `ComRel3` propio en el caso, lectura por carga, aportes por elemento, `ComOpri` con candidatos filtrados en una variación temporal | `tools/confiabilidad_pf.py`; claves `fiabilidad` y `reconectadores` en `tools/estudios_pf.py` | RF-2, RF-28 a RF-39 |
 | F. Capacidad: `ComHostcap` nodo a nodo y conjunto, curvas PV por alimentador, `ComCapo` por alimentador en una variación temporal | `tools/capacidad_pf.py` (nuevo); claves `alojamiento`, `curvas_pv` y `condensadores` en `tools/estudios_pf.py` | RF-41 a RF-46, RF-50 a RF-58 |
-| G. Web: subir el libro y guardarlo con el proyecto, plantilla, aplicar los datos como trabajo, opciones de los estudios nuevos, aceptar una propuesta como obra de la 011 | `src/convertersmartgrid/web/services.py`, `app.py`, `workspace.py` | RF-5, RF-6, RF-7, RF-20, RF-37, RF-40, RF-58 |
+| G. Web: subir el libro y guardarlo con el proyecto, plantilla, aplicar los datos como trabajo, opciones de los estudios nuevos, aceptar una propuesta como obra de la 011 | `src/convertersmartgrid/presentacion/web/services.py`, `app.py`, `workspace.py` | RF-5, RF-6, RF-7, RF-20, RF-37, RF-40, RF-58 |
 | H. Interfaz: libro de la empresa y estudios nuevos dentro de «4.2 Estudios» | `frontend/src/components/EstudiosPF.tsx`, `DatosEmpresaPF.tsx` (nuevo), `api.ts`, `types.ts` | RF-1, RF-7, RF-19, RF-37, RF-40, RF-45, RF-53, RF-58 |
 | I. DIgSILENT falso: modelos `Sto*`, `pStoch`, `ComRel3` con resultados por carga, `ComRelpost`, `ComOpri`, `ComHostcap.CalcMaxHostedPower`, `ComPvcurves`, `ComCapo` | `tests/fake_pf.py` | pruebas de D, E y F |
 | J. Índice y estado | `CODIGO_FUENTE.md`, `CLAUDE.md`, `docs/MANUAL_COMANDOS.md` | P12, spec 009 |

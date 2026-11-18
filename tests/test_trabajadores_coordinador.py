@@ -43,11 +43,11 @@ def test_ayuda_asistente_admite_el_dataset_del_runner():
 
 def test_guardia_del_coordinador_se_hereda_en_un_hijo_real(tmp_path,monkeypatch):
     """043:RF-6 / RF-13: un hijo real comparte la guardia viva sin soltarla ni duplicarla."""
-    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
     from tools.reentrenar_modelos import _subproceso
     lock=tmp_path/'gpu.lock';monkeypatch.setenv('CSG_ML_GPU_LOCK',str(lock))
     reporte=tmp_path/'informe.json';script=tmp_path/'worker.py'
-    script.write_text('from pathlib import Path\nfrom convertersmartgrid.trabajadores_ml import turno_gpu, escribir_informe\n'
+    script.write_text('from pathlib import Path\nfrom convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu, escribir_informe\n'
         'with turno_gpu("contrato-sin-calculo-CUDA"):\n'
         f'    escribir_informe(Path({str(reporte)!r}),{{"status":"RECHAZADO","promovido":False,"training_completed":False}})\n',encoding='utf-8')
     with BloqueoGPU(lock,'padre-del-contrato'):
@@ -70,7 +70,7 @@ def test_cabecera_no_oculta_huecos_ni_objetivos_ausentes(tmp_path):
     """046:RF-3 / 043:RF-13: consumir el lector existente sin descartar objetivos ausentes."""
     from datetime import datetime,timedelta
     from openpyxl import Workbook
-    from convertersmartgrid.digital_twin.temporal_entrenamiento import cargar_cabeceras
+    from convertersmartgrid.adaptadores.digital_twin.temporal_entrenamiento import cargar_cabeceras
     libro=Workbook();h=libro.active;h.title='Cabecera contrato';h.append(['Fecha','kW'])
     inicio=datetime(2025,1,1)
     h.append([inicio,10.]);h.append([inicio+timedelta(minutes=30),12.])
@@ -123,7 +123,7 @@ def test_recuperacion_admite_documento_compartido_con_consulta_nueva(dataset_ret
 def test_busqueda_evolutiva_no_se_presenta_como_red_entrenada(tmp_path,capsys):
     """043:RF-13: completar evaluacion de busqueda no inventa un entrenamiento de pesos."""
     from tools.reentrenar_modelos import verificar
-    from convertersmartgrid.training_coordinator import ORDEN_MODELOS
+    from convertersmartgrid.aplicacion.training_coordinator import ORDEN_MODELOS
     r=tmp_path/'report.json'
     etapas=[{'model':n,'status':'RECHAZADO','training_completed':n!='evolutivos',
              'evaluation_completed':n=='evolutivos'} for n in ORDEN_MODELOS]
@@ -135,15 +135,15 @@ def test_busqueda_evolutiva_no_se_presenta_como_red_entrenada(tmp_path,capsys):
 
 def test_memoria_insuficiente_es_error_de_entorno():
     """043:RF-12 / RF-13: recursos agotados no se diagnostican como datos ausentes."""
-    from convertersmartgrid.training_coordinator import MemoriaMLInsuficiente
-    from convertersmartgrid.trabajadores_ml import fallo
+    from convertersmartgrid.aplicacion.training_coordinator import MemoriaMLInsuficiente
+    from convertersmartgrid.aplicacion.trabajadores_ml import fallo
     assert fallo(MemoriaMLInsuficiente('contrato'))['status']=='ERROR_ENTORNO'
 
 
 @pytest.mark.parametrize('cambio', ['bajo', 'nan', 'sin_reales', 'retroceso', 'sin_reapertura'])
 def test_puertas_dataset_no_aprueban_sin_evidencia(cambio):
     """050:RF-5 / 043:RF-5: pesos guardados no acreditan calidad ni recarga."""
-    from convertersmartgrid.asistente.entrenamiento_dataset import puertas_dataset
+    from convertersmartgrid.aplicacion.asistente.entrenamiento_dataset import puertas_dataset
     prueba = {'acierto_tarea': .99, 'f1_datos': .99, 'ejemplos': 4}
     reales = dict(prueba)
     actual = None
@@ -163,10 +163,10 @@ def test_dataset_registra_candidato_y_conserva_puntero(tmp_path, monkeypatch, so
     """050:RF-4 / RF-5: candidato íntegro y reabierto, nunca activación individual."""
     from contextlib import nullcontext
     from types import SimpleNamespace
-    from convertersmartgrid import trabajadores_ml, training_coordinator
-    from convertersmartgrid.asistente import entrenamiento_dataset as worker
-    from convertersmartgrid.asistente import transformer, clasificador
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion import trabajadores_ml, training_coordinator
+    from convertersmartgrid.aplicacion.asistente import entrenamiento_dataset as worker
+    from convertersmartgrid.aplicacion.asistente import transformer, clasificador
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     modulo = transformer if solo == 'ordenes' else clasificador
     partes = {p: [{'texto': f'{p} convierte la red', 'quality': quality,
                    'tarea': 'convertir', 'datos': [],
@@ -235,7 +235,7 @@ def test_dataset_registra_candidato_y_conserva_puntero(tmp_path, monkeypatch, so
 
 def test_dataset_no_aprueba_ordenes_solo_por_promedios():
     """050:RF-7 / 069:RF-17: también rigen cobertura, referencia y rechazo reservados."""
-    from convertersmartgrid.asistente.entrenamiento_dataset import puertas_dataset
+    from convertersmartgrid.aplicacion.asistente.entrenamiento_dataset import puertas_dataset
     metricas={'acierto_tarea':.99,'f1_datos':.99,'ejemplos':4}
     gates=puertas_dataset('ordenes',metricas,metricas,None,{'ok':True})
     assert gates['approved'] is False
@@ -244,8 +244,8 @@ def test_dataset_no_aprueba_ordenes_solo_por_promedios():
 
 def test_dataset_aprueba_puertas_comunes_solo_con_examen_completo():
     """050:RF-7: contrato de aprobación, sin afirmar medidas reales de ningún modelo."""
-    from convertersmartgrid.asistente.entrenamiento_dataset import puertas_dataset
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.entrenamiento_dataset import puertas_dataset
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
     metricas={'acierto_tarea':.99,'f1_datos':.99,'ejemplos':4}
     familias={t:dict(metricas) for t in TAREAS}
     gates=puertas_dataset('ordenes',metricas,metricas,metricas,{'ok':True},
@@ -256,7 +256,7 @@ def test_dataset_aprueba_puertas_comunes_solo_con_examen_completo():
 @pytest.mark.parametrize('tipo', [0.,None,float('nan')])
 def test_clasificador_no_aprueba_subtipo_si_falla_el_tipo(tipo):
     """026:RF-14 / 026:RF-16 / 050:RF-7: ambos niveles deciden qué informe se genera."""
-    from convertersmartgrid.asistente.entrenamiento_dataset import puertas_dataset
+    from convertersmartgrid.aplicacion.asistente.entrenamiento_dataset import puertas_dataset
     metricas={'acierto_tipo':tipo,'acierto_subtipo':.99,'ejemplos':4}
     result=puertas_dataset('informes',metricas,metricas,None,{'ok':True})
     assert result['approved'] is False and any('acierto_tipo' in f for f in result['fallos'])

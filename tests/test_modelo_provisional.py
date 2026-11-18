@@ -8,12 +8,12 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.asistente import modelos_en_uso as meu
-from convertersmartgrid.asistente import transformer
-from convertersmartgrid.asistente.tareas import TAREAS, requiere_confirmacion
-from convertersmartgrid.model_registry import EstadoModelo
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.aplicacion.asistente import modelos_en_uso as meu
+from convertersmartgrid.aplicacion.asistente import transformer
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, requiere_confirmacion
+from convertersmartgrid.aplicacion.model_registry import EstadoModelo
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
 
 ANTERIOR = '20260101-000000-aaaa'
 MOTIVO = 'El modelo en uso deja colarse lo que no es orden.'
@@ -209,7 +209,7 @@ def _orden(cliente, wid, tarea, monkeypatch, texto='haz esto ahora mismo'):
 
 def test_ninguna_tarea_que_escribe_tiene_otra_via_que_la_confirmacion():
     """085:RF-31 — toda tarea que escribe es de un modo que espera, y ninguna responde como consulta."""
-    from convertersmartgrid.asistente.plan import Plan
+    from convertersmartgrid.aplicacion.asistente.plan import Plan
 
     que_escriben = [n for n, t in TAREAS.items() if t.escribe]
     assert que_escriben and not [n for n in que_escriben if TAREAS[n].modo == 'consulta']
@@ -330,7 +330,7 @@ def test_herramienta_rechaza_lo_que_no_puede_y_lo_dice(datos, capfd):
 
 
 def _recibos(herramienta):
-    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.aplicacion.asistente import almacen
 
     return [f for f in almacen.leer('equipo_acciones') if f['herramienta'] == herramienta]
 

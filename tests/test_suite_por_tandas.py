@@ -13,8 +13,8 @@ from types import SimpleNamespace
 import pytest
 
 from apoyo import cargar_herramienta
-from convertersmartgrid.asistente import almacen, vigilancia
-from convertersmartgrid.asistente.vigilancia import (
+from convertersmartgrid.aplicacion.asistente import almacen, vigilancia
+from convertersmartgrid.aplicacion.asistente.vigilancia import (
     EMPEZADA, INTERRUMPIDA, Vigilante, correr_por_tandas, lanzar_suite_separada, revisar_suite, tandas_de_pruebas,
 )
 

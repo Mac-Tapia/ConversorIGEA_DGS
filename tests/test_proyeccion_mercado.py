@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from convertersmartgrid.proyeccion_mercado import (METODOS, MercadoError, SerieMercado, comparar_metodos,
+from convertersmartgrid.aplicacion.proyeccion_mercado import (METODOS, MercadoError, SerieMercado, comparar_metodos,
                                                    errores_contra_lo_ocurrido, leer_hoja_formato_01,
                                                    perfiles_distintos, sector_tipico, sin_crecimiento, tasa_de_un_anio, tasa_media,
                                                    tendencia_logaritmica)

@@ -12,7 +12,7 @@ import random
 
 import pytest
 
-from convertersmartgrid import set_nueva as sn
+from convertersmartgrid.aplicacion import set_nueva as sn
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 openpyxl = pytest.importorskip('openpyxl')
@@ -160,7 +160,7 @@ def test_cuantas_caben_por_biseccion():
 
 # =========================================================================== RF-6
 def _red(enlaces):
-    from convertersmartgrid.troncal import Barra, Tramo, red_de
+    from convertersmartgrid.dominio.troncal import Barra, Tramo, red_de
 
     barras = {b for a, c in enlaces for b in (a, c)}
     return red_de([Barra(b) for b in sorted(barras)],
@@ -301,7 +301,7 @@ def test_el_crecimiento_tira_hacia_donde_estan_las_cargas_nuevas():
 
 def test_las_cargas_se_agrupan_por_zona_geografica():
     """042:RF-21 — Pisco: Salud Huaytará a 90 km no va con las de Pisco; sin radio, una sola zona."""
-    from convertersmartgrid.set_nueva import zonas_de_carga
+    from convertersmartgrid.aplicacion.set_nueva import zonas_de_carga
 
     cargas = [{'sed': 'A', 'kw': 4900, 'lat': -13.7654, 'lon': -76.1704},
               {'sed': 'B', 'kw': 2100, 'lat': -13.7082, 'lon': -76.1582},

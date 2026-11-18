@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from convertersmartgrid.protecciones import leer_ajustes
+from convertersmartgrid.aplicacion.protecciones import leer_ajustes
 
 SEL = """Relay ID: CA101-R1
 Manufacturer: SEL
@@ -59,7 +59,7 @@ def test_una_foto_de_los_ajustes_se_lee_por_ocr(tmp_path):
     import pytest
     from PIL import Image, ImageDraw, ImageFont
 
-    from convertersmartgrid.documentos_solicitud import tesseract, texto_de_fichero
+    from convertersmartgrid.adaptadores.documentos_solicitud import tesseract, texto_de_fichero
     if not tesseract():
         pytest.skip('sin Tesseract')
     try:

@@ -2,7 +2,7 @@
 
 - [x] T1. Contrato de la instantánea común: copia verificada, identidad por contenido, contexto 043 y bloqueo anotado. (RF-1, RF-2, RF-8)
       Hecho cuando: `tests/test_aprendizaje_continuo.py` prueba copia e idempotencia, otro contexto u otras versiones, fuente ausente o vacía, cambio durante la copia y copia tocada después.
-      Hecho el 2026-11-03: `congelar_instantanea` y `verificar_instantanea` en `src/convertersmartgrid/aprendizaje_continuo.py`; `tools/aprendizaje_continuo.py congelar`.
+      Hecho el 2026-11-03: `congelar_instantanea` y `verificar_instantanea` en `src/convertersmartgrid/aplicacion/aprendizaje_continuo.py`; `tools/aprendizaje_continuo.py congelar`.
 - [x] T1b. Instantánea real con los datos locales: dataset v2, vocabulario, búfer del gemelo, libro de cabeceras y corpus generativo sellado. (RF-1, RF-2, RF-8)
       Hecho cuando: existe el manifiesto local con copias verificadas de todos los datos requeridos y su `snapshot_id`, anotado aquí.
       Avance 2026-11-07: contexto multiproyecto con mapa de huellas 043 e identidad común implementado y probado. Falta preparar sus manifiestos reales y correr

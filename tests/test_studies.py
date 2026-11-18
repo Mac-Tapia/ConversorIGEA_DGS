@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from convertersmartgrid.studies import (
+from convertersmartgrid.aplicacion.studies import (
     AUSENTE,
     DISPONIBLE,
     ESTUDIOS,

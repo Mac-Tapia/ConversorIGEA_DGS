@@ -24,7 +24,7 @@ import urllib.request
 
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / 'src'))
-from convertersmartgrid.salidas_red import motivo_apagada, salida_permitida  # noqa: E402
+from convertersmartgrid.dominio.salidas_red import motivo_apagada, salida_permitida  # noqa: E402
 
 
 def validar_catalogo(catalogo):

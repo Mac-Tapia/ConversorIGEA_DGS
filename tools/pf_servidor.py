@@ -31,7 +31,8 @@ for _p in (HERE, HERE.parent / 'src'):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from convertersmartgrid import estadistica_ordenes, pf_arnes, pf_estado  # noqa: E402
+from convertersmartgrid.dominio import estadistica_ordenes
+from convertersmartgrid.adaptadores import pf_arnes, pf_estado  # noqa: E402
 
 
 def _olvidar_modulos_de_tools(carpeta: Path = HERE) -> list[str]:

@@ -32,7 +32,7 @@ from cargas_pf import activar_proyecto, crear_variacion, flujo_de_carga
 from casos_pf import _desc
 from estudios_pf import _salida, caso_por_nombre, geografia
 
-from convertersmartgrid import pf_estado
+from convertersmartgrid.adaptadores import pf_estado
 
 #: Prefijo del nombre de la copia del caso, de la copia del escenario y de la variación temporal.
 PREFIJO = 'Plano_conversor'
@@ -218,8 +218,8 @@ def main(argv=None) -> int:
     p.add_argument('--plan', required=True, help='Plan JSON preparado por la web')
     p.add_argument('--output-json', required=True, help='Dónde dejar el informe')
     args = p.parse_args(argv)
-    from convertersmartgrid.native_action import native_action_block_report
-    from convertersmartgrid.util import write_json_atomic
+    from convertersmartgrid.dominio.native_action import native_action_block_report
+    from convertersmartgrid.dominio.util import write_json_atomic
 
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
     bloqueo = native_action_block_report(plan, 'plano')
@@ -227,7 +227,7 @@ def main(argv=None) -> int:
         write_json_atomic(Path(args.output_json), bloqueo)
         print(bloqueo['error'])
         return 2
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('variacion_plano_pf.py')

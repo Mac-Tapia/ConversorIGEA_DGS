@@ -19,7 +19,7 @@ def problemas_analiticos():
     NSGA-II y la comparación medía el presupuesto. Con ``comparar_optimizadores`` todos gastan lo
     mismo (048:RF-3).
     """
-    from convertersmartgrid.digital_twin import problema_optimizacion as po
+    from convertersmartgrid.adaptadores.digital_twin import problema_optimizacion as po
     ctx=lambda d:po.ContextoSintetico('benchmark_analitico_no_red_electrica',d)
     objetivo=(3,0,2,1,4)
 
@@ -59,12 +59,12 @@ def main(argv=None):
     p.add_argument('--instantanea',type=Path,help='050: casos físicos declarados de una captura verificada; sin aceptación nativa')
     p.add_argument('--registro',type=Path,help='Registro común del ciclo; conserva evaluación rechazada, sin activar')
     args=p.parse_args(argv)
-    from convertersmartgrid.trabajadores_ml import escribir_informe,fallo
+    from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe,fallo
     if args.report.exists():print('Informe existente conservado');return 2
     inicio=time.monotonic()
     try:
         if args.seeds<30:raise ValueError('el benchmark requiere al menos 30 semillas')
-        from convertersmartgrid.digital_twin.benchmark_optimizacion import comparar_optimizadores
+        from convertersmartgrid.adaptadores.digital_twin.benchmark_optimizacion import comparar_optimizadores
         hechas=[0]
 
         def avance():
@@ -74,8 +74,8 @@ def main(argv=None):
 
         instantanea = None
         if args.instantanea:
-            from convertersmartgrid.aprendizaje_continuo import verificar_instantanea
-            from convertersmartgrid.digital_twin.evolutivo import casos_aprendizaje
+            from convertersmartgrid.aplicacion.aprendizaje_continuo import verificar_instantanea
+            from convertersmartgrid.adaptadores.digital_twin.evolutivo import casos_aprendizaje
             instantanea = verificar_instantanea(args.instantanea)
             casos = casos_aprendizaje(instantanea)
             problemas = [c['problema'] for c in casos]
@@ -98,7 +98,7 @@ def main(argv=None):
         if instantanea is not None:
             if not args.registro:
                 raise ValueError('el ciclo evolutivo exige --registro explícito')
-            from convertersmartgrid.model_registry import RegistroModelo
+            from convertersmartgrid.aplicacion.model_registry import RegistroModelo
             resultado.update(dominio='episodios_nativos_evaluados_con_flujo_mallado',
                 reason='evaluación de configuraciones sobre captura; faltan contraste nativo independiente y retención',
                 snapshot_id=instantanea['snapshot_id'])

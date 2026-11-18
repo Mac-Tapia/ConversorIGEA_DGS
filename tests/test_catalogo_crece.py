@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from convertersmartgrid import catalog as cat
+from convertersmartgrid.aplicacion import catalog as cat
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
@@ -123,7 +123,7 @@ def test_la_fuente_vnr_hace_crecer_el_catalogo_y_lo_usa(tmp_path):
     catálogo (uno, sin perfil de empresa) y los usa en la misma conversión."""
     from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import CanonicalModel, ConductorType
 
-    from convertersmartgrid.sources import vnr
+    from convertersmartgrid.adaptadores.sources import vnr
 
     ruta = _catalogo(tmp_path)
     modelo = CanonicalModel()

@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from apoyo import cargar_herramienta
-from convertersmartgrid import carpeta_pf, pf_arnes, powerfactory_env
+from convertersmartgrid.adaptadores import carpeta_pf, pf_arnes, powerfactory_env
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -447,7 +447,7 @@ def test_orden_cortada_cierra_el_servidor(tmp_path, monkeypatch):
     """019:RF-9 — si la web corta la orden (límite o cancelación), cierra también el proceso
     de DIgSILENT que la atendía."""
     from test_carpeta_pf import _contexto_real
-    from convertersmartgrid.web.jobs import TIEMPO_AGOTADO
+    from convertersmartgrid.presentacion.web.jobs import TIEMPO_AGOTADO
 
     monkeypatch.setattr(powerfactory_env, 'cerrar_guiones_pf_huerfanos', lambda: [])
     cerrados = []
@@ -468,7 +468,7 @@ def test_el_reintento_vuelve_a_pasar_por_el_servidor(tmp_path, monkeypatch):
     """019:RF-20 — el reintento de la web tras un guion mudo usa la orden original: vuelve
     al cliente con otra orden y, si también se corta, cierra el servidor colgado."""
     from test_carpeta_pf import _contexto_real
-    from convertersmartgrid.web import jobs
+    from convertersmartgrid.presentacion.web import jobs
 
     monkeypatch.setattr(powerfactory_env, 'cerrar_guiones_pf_huerfanos', lambda: [])
     monkeypatch.setattr(powerfactory_env, 'powerfactory_abierto', lambda: [])
@@ -567,7 +567,7 @@ def test_una_restitucion_que_no_surte_efecto_no_se_anuncia(cola, servidor, monke
 
 def test_fotografiar_distingue_sin_proyecto_de_un_fallo_de_lectura():
     """064:RF-9 — sin proyecto activo no hay foto; una lectura que falla es otra cosa."""
-    from convertersmartgrid import pf_estado
+    from convertersmartgrid.adaptadores import pf_estado
 
     app = _App()
     app.prj = None

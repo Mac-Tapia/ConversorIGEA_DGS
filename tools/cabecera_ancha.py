@@ -32,8 +32,8 @@ def main(argv=None) -> int:
     p.add_argument('--salida', required=True, help='Carpeta del espacio de trabajo donde escribir (nunca la de los datos de la distribuidora)')
     args = p.parse_args(argv)
 
-    from convertersmartgrid.cabecera_ancha import Lectura, escribir, leer_ancho, leer_maximas_mensuales
-    from convertersmartgrid.demanda_medida import DemandaError
+    from convertersmartgrid.aplicacion.cabecera_ancha import Lectura, escribir, leer_ancho, leer_maximas_mensuales
+    from convertersmartgrid.aplicacion.demanda_medida import DemandaError
 
     medidores = {}
     for par in args.alimentador:

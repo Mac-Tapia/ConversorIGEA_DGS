@@ -4,7 +4,7 @@
 
 - `src/vnr_etl/discovery/official.py` (RF-1 a RF-10): `PORTAL_VNR`, `paginas_de_ciclos`, ampliación de `parse_official_publications` y de `refresh_official_catalog`, `vigentes_por_empresa`. `_fetch_html` decodifica por los bytes: con `apparent_encoding` esas páginas no se leían bien.
 - `src/vnr_etl/discovery/download.py` (RF-18 a RF-24): `preparar_unrar`, comprobación antes de descargar y `extraer_copia_sql`.
-- `src/convertersmartgrid/web/app.py` (RF-9, RF-14, RF-18, RF-20): `/api/vnr/publications` añade `vigente`, `empresa` y `portal`; la descarga extrae y asigna.
+- `src/convertersmartgrid/presentacion/web/app.py` (RF-9, RF-14, RF-18, RF-20): `/api/vnr/publications` añade `vigente`, `empresa` y `portal`; la descarga extrae y asigna.
 - `frontend/src/components/InputsPanel.tsx`, `frontend/src/types.ts` (RF-11 a RF-17): `VnrDiscovery` por distribuidora.
 
 ## Decisiones

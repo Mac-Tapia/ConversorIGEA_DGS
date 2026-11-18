@@ -46,12 +46,12 @@ def main(argv=None):
     a.add_argument('--publicar', action='store_true')
     args = p.parse_args(argv)
     try:
-        from convertersmartgrid.asistente.aceptacion import auditar_propuestas, decidir_aceptacion, evaluar_ordenes
-        from convertersmartgrid.asistente.destilacion_integral import leer_corpus
-        from convertersmartgrid.asistente.propuestas_maestro import generar_propuestas, VOCABULARIO
-        from convertersmartgrid.asistente.ollama import ClienteOllama
-        from convertersmartgrid.training_coordinator import BloqueoGPU, ruta_guardia_gpu
-        from convertersmartgrid.evaluacion_modelos import huella, texto_canonico
+        from convertersmartgrid.aplicacion.asistente.aceptacion import auditar_propuestas, decidir_aceptacion, evaluar_ordenes
+        from convertersmartgrid.aplicacion.asistente.destilacion_integral import leer_corpus
+        from convertersmartgrid.aplicacion.asistente.propuestas_maestro import generar_propuestas, VOCABULARIO
+        from convertersmartgrid.aplicacion.asistente.ollama import ClienteOllama
+        from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU, ruta_guardia_gpu
+        from convertersmartgrid.aplicacion.evaluacion_modelos import huella, texto_canonico
         if args.accion == 'preparar':
             filas, meta = generar_propuestas()
             datos, fuente = leer_corpus(args.dataset)
@@ -63,11 +63,11 @@ def main(argv=None):
                 'training_dataset_hash': fuente['dataset_hash']})
             escribir(args.destino / 'humanas.json', [r for r in datos if r['quality'] == 'gold_human'])
             if args.publicar:
-                from convertersmartgrid.asistente import almacen
+                from convertersmartgrid.aplicacion.asistente import almacen
                 almacen.guardar_json('aceptacion_agente', {'corpus': str(args.destino.resolve()), 'evaluacion': None})
             resultado = {**meta, 'auditoria': auditoria}
         else:
-            from convertersmartgrid.training_coordinator import exigir_memoria_ml
+            from convertersmartgrid.aplicacion.training_coordinator import exigir_memoria_ml
             exigir_memoria_ml(4., minimo_commit_gib=6.)
             ruta_lock = ruta_guardia_gpu()
             with BloqueoGPU(ruta_lock, 'aceptacion-agente'):
@@ -144,7 +144,7 @@ def main(argv=None):
                     resultado = {'metricas': m, 'humanas': humanas, 'aceptacion': decidir_aceptacion(m, humanas), 'manifest': meta}
             escribir(args.destino / 'resultado.json', resultado)
             if args.accion == 'evaluar' and args.publicar:
-                from convertersmartgrid.asistente import almacen
+                from convertersmartgrid.aplicacion.asistente import almacen
                 almacen.guardar_json('aceptacion_agente', {'corpus': str(args.corpus.resolve()),
                     'evaluacion': str((args.destino / 'resultado.json').resolve())})
         print(json.dumps(resultado, ensure_ascii=True, allow_nan=False))

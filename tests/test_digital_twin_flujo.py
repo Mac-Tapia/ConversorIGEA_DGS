@@ -14,7 +14,7 @@ pytest.importorskip('scipy')
 
 from test_digital_twin_oraculo import red_radial
 
-from convertersmartgrid.digital_twin import oraculo as orc
+from convertersmartgrid.adaptadores.digital_twin import oraculo as orc
 
 
 def red_mallada(rnd: random.Random, n: int, lazos: int, kv: float = 10.0) -> dict:
@@ -145,7 +145,7 @@ def test_045_rf14_si_el_punto_fijo_no_converge_newton_da_lo_de_pandapower(semill
 
 def test_045_rf14_sin_solucion_mallada_la_base_es_el_radial_y_nunca_ceros(monkeypatch):
     """045:RF-14 — ciclo del 2026-11-08: sin converger, la física daba 0 p.u. y la PINN aprendía de ceros."""
-    from convertersmartgrid.digital_twin import flujo
+    from convertersmartgrid.adaptadores.digital_twin import flujo
 
     g = red_radial(random.Random(7), 25)
     radial = orc.ModeloRadial().predecir(g)

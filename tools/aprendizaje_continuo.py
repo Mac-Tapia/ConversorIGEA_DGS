@@ -21,7 +21,7 @@ if str(REPO / 'src') not in sys.path:
 
 
 def _raiz_defecto() -> Path:
-    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.aplicacion.asistente import almacen
     return almacen.raiz() / 'aprendizaje'
 
 
@@ -46,21 +46,21 @@ def _versiones() -> dict[str, str]:
 def _contexto(texto: str):
     ruta = Path(texto)
     if ruta.is_file():
-        from convertersmartgrid.aprendizaje_continuo import (
+        from convertersmartgrid.aplicacion.aprendizaje_continuo import (
             ESQUEMA_CONTEXTO_CICLO, ESQUEMA_CONTEXTO_DOCUMENTAL, ESQUEMA_CONTEXTO_MIXTO)
         dato = json.loads(ruta.read_text(encoding='utf-8'))
         if isinstance(dato, dict) and dato.get('schema') in (
                 ESQUEMA_CONTEXTO_CICLO, ESQUEMA_CONTEXTO_DOCUMENTAL, ESQUEMA_CONTEXTO_MIXTO):
             return dato
-        from convertersmartgrid.experimentos import cargar_experimento
+        from convertersmartgrid.aplicacion.experimentos import cargar_experimento
         return cargar_experimento(ruta).contexto
     return texto
 
 
 def _etapas(instantanea: dict, familias: list[str], args, run_dir: Path) -> list:
     """Las etapas de ``reentrenar_modelos``, con las rutas de la instantánea congelada."""
-    from convertersmartgrid.aprendizaje_continuo import preparar_fuentes, ruta_de
-    from convertersmartgrid.productores_aprendizaje import ProductoresReales
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import preparar_fuentes, ruta_de
+    from convertersmartgrid.adaptadores.productores_aprendizaje import ProductoresReales
     preparar_fuentes(instantanea, familias, parametros={
         'zona_horaria': getattr(args, 'zona_horaria', None),
         'cadencia_min': getattr(args, 'cadencia_min', None),
@@ -119,7 +119,7 @@ def main(argv=None) -> int:
     sub.add_parser('revertir', help='Vuelve al conjunto anterior, comprobado por relectura')
     args = p.parse_args(argv)
 
-    from convertersmartgrid import aprendizaje_continuo as ac
+    from convertersmartgrid.aplicacion import aprendizaje_continuo as ac
     if args.accion == 'plan':
         # Antes de leer fuentes o tomar GPU: run_process ya puede cancelar cooperativamente.
         print('Preparando el ciclo conjunto desde su plan explícito.', flush=True)
@@ -158,11 +158,11 @@ def main(argv=None) -> int:
             if args.accion == 'congelar':
                 salida = {'ok': True, 'snapshot_id': inst['snapshot_id'], 'ruta': inst['ruta']}
             else:
-                from convertersmartgrid.asistente import almacen
-                from convertersmartgrid.model_registry import RegistroModelo
-                from convertersmartgrid.training_coordinator import memoria_del_presupuesto
+                from convertersmartgrid.aplicacion.asistente import almacen
+                from convertersmartgrid.aplicacion.model_registry import RegistroModelo
+                from convertersmartgrid.aplicacion.training_coordinator import memoria_del_presupuesto
                 familias = [f.strip() for f in args.familias.split(',') if f.strip()]
-                from convertersmartgrid.productores_aprendizaje import ProductoresReales
+                from convertersmartgrid.adaptadores.productores_aprendizaje import ProductoresReales
                 clave = ac.clave_ciclo(inst['snapshot_id'], familias, args.politica_hash)
                 preparado = ac.preflight_ciclo(inst, familias, parametros={
                     'zona_horaria': args.zona_horaria, 'cadencia_min': args.cadencia_min,

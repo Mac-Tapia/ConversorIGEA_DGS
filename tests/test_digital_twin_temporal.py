@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 import numpy as np
 import pytest
 
-from convertersmartgrid.digital_twin import temporal as tp
+from convertersmartgrid.adaptadores.digital_twin import temporal as tp
 
 
 def _curva(dias: int, base: float, semilla: int) -> np.ndarray:
@@ -83,7 +83,7 @@ def test_gemelo_temporal_desde_la_web(tmp_path, monkeypatch):
     from threading import Lock
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     a, b = _curva(7, 1000, 6), _curva(7, 400, 7)
     barra = a + b + _curva(7, 300, 8)
@@ -120,7 +120,7 @@ def test_metricas_sin_base_se_pueden_guardar():
     """024:RF-20 — con lo medido en cero el porcentaje no existe y el informe se puede escribir en JSON."""
     import json
 
-    from convertersmartgrid.digital_twin import temporal as tp
+    from convertersmartgrid.adaptadores.digital_twin import temporal as tp
 
     r = tp.metricas([0.0, 0.0], [1.0, 2.0])
     assert r['mape_pct'] is None and r['mae_kw'] == 1.5 and r['puntos'] == 2

@@ -39,7 +39,7 @@ limitaciones; no marcar casillas por existir código o por una simulación que s
 T1 (RF-1 a RF-3), 2026-11-06, rama del worktree `agent-aeb4c1fac69ae0f98` sobre `1c22f85b`. Sin
 DIgSILENT ni GPU; sintéticas sorteadas.
 
-- `src/convertersmartgrid/protecciones.py`: `disponibilidad_protecciones` (disponible, faltan, bloqueos,
+- `src/convertersmartgrid/aplicacion/protecciones.py`: `disponibilidad_protecciones` (disponible, faltan, bloqueos,
   alcance, criterios), `validar_dispositivo`, `es_fila_por_defecto`, `inventario_protecciones`,
   `criterios_de_perfil`. Contrato en `schemas/protecciones_v1.schema.json`.
 - La referencia de Python de PF 2024 (`PythonReference_en.pdf`, 5.4.33) documenta `ComProtgraphic` solo

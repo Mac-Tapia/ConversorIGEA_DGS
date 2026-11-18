@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import documentos_solicitud as ds
-from convertersmartgrid.documentos_solicitud import (
+from convertersmartgrid.adaptadores import documentos_solicitud as ds
+from convertersmartgrid.adaptadores.documentos_solicitud import (
     Documento, antecedentes_de, clase_de, datos_de_texto, leer_documento, propuesta_factibilidad, texto_pdf,
 )
 
@@ -214,7 +214,7 @@ def client(tmp_path, monkeypatch):
     pytest.importorskip('fastapi')
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     with TestClient(create_app(tmp_path / 'web')) as c:
         yield c
@@ -279,7 +279,7 @@ def test_documentos_exp_codigo_de_ficha_fechas_y_alimentadores():
 
 def test_un_oficio_en_txt_se_lee_como_un_pdf(tmp_path):
     """017:RF-136 ampliada — una carta o un oficio en TXT se lee con los mismos datos que un PDF."""
-    from convertersmartgrid.documentos_solicitud import leer_documento
+    from convertersmartgrid.adaptadores.documentos_solicitud import leer_documento
 
     ruta = tmp_path / 'oficio.txt'
     lineas = ['Ica, 22 de octubre de 2026', 'Solicitud de factibilidad de suministro',

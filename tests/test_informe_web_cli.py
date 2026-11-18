@@ -13,7 +13,7 @@ pytest.importorskip('fastapi')
 from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import cargar_herramienta, esperar_trabajo  # noqa: E402
-from convertersmartgrid.web.app import create_app  # noqa: E402
+from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 
 
 def _medida(vmin):

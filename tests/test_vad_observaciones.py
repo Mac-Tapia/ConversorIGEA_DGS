@@ -12,11 +12,11 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.perfil_empresa import PerfilEmpresa
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.anexo2 import cargar_formatos
-from convertersmartgrid.vad.estudio import crear_estudio
+from convertersmartgrid.dominio.perfil_empresa import PerfilEmpresa
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.aplicacion.vad.anexo2 import cargar_formatos
+from convertersmartgrid.aplicacion.vad.estudio import crear_estudio
 
 RAIZ = Path(__file__).resolve().parents[1]
 REGISTRO = RAIZ / 'config' / 'vad'
@@ -26,9 +26,9 @@ SEMILLA = 108_11
 
 
 def _modulo():
-    assert importlib.util.find_spec('convertersmartgrid.vad.observaciones') is not None, \
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.vad.observaciones') is not None, \
         'falta vad/observaciones.py (108 T11)'
-    from convertersmartgrid.vad import observaciones
+    from convertersmartgrid.adaptadores.vad import observaciones
     return observaciones
 
 
@@ -40,7 +40,7 @@ def _estudio(tmp_path, perfil=EMPRESAS[0]):
 
 
 def _tabla_y_formato(registro, rng):
-    from convertersmartgrid.vad.tablas_resultados import tablas_registradas
+    from convertersmartgrid.adaptadores.vad.tablas_resultados import tablas_registradas
     tablas, _ = tablas_registradas(registro)
     formatos = cargar_formatos(REGISTRO / 'anexo2_formatos.json')
     return rng.choice(tablas)['numero'], rng.choice(formatos.todos()).id, formatos

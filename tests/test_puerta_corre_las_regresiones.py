@@ -29,7 +29,7 @@ def test_un_commit_que_no_toca_docs_regresiones_corre_test_regresiones():
     gobierno, que la puerta de commit corre siempre."""
     puerta = _puerta()
     # Un commit como aquel: borra pruebas de un fichero de tests/ y cambia un módulo de src/, sin docs/regresiones.
-    elegidas = puerta.pruebas_del_commit(['tests/test_ya_no_existe_rf13.py', 'src/convertersmartgrid/naming.py'], RAIZ)
+    elegidas = puerta.pruebas_del_commit(['tests/test_ya_no_existe_rf13.py', 'src/convertersmartgrid/dominio/naming.py'], RAIZ)
     assert 'tests/test_regresiones.py' in elegidas
     # Y también un commit sin código: solo un documento.
     assert 'tests/test_regresiones.py' in puerta.pruebas_del_commit(['docs/NOTA.md'], RAIZ)

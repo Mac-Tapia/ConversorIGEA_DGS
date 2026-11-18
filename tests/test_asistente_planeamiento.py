@@ -14,9 +14,9 @@ pytest.importorskip('fastapi')
 
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.asistente.ejecutor import pasos
-from convertersmartgrid.web import asistente_operacion, services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
+from convertersmartgrid.presentacion.web import asistente_operacion, services
+from convertersmartgrid.presentacion.web.app import create_app
 
 PLAN = {'tasa_regulada': 0.12, 'tasa_privada': 0.12, 'vida_util_anios': 30, 'horizonte_anios': 20,
         'crecimiento_demanda_anual': 0.04, 'pesos_art_15_3': {'subsanacion_calidad': 1, 'crecimiento_demanda': 1},
@@ -49,8 +49,8 @@ def api(tmp_path, monkeypatch):
     monkeypatch.setenv('CSG_ML_GPU_LOCK', str(tmp_path / 'gpu.lock'))
     monkeypatch.setattr(services, 'asistente_vocabulario', lambda ws: {'proyecto': ['P1'], 'alimentadores': ['F1']})
     monkeypatch.setattr(asistente_operacion, 'parametros_de_costeo', lambda _t: None)
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda *a, **k: PERFIL)
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.estructura_empresa', lambda *a, **k: None)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda *a, **k: PERFIL)
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.estructura_empresa', lambda *a, **k: None)
     monkeypatch.setattr(services, 'native_action_context',
                         lambda _ws, project, feeders, action: {'feeders': ['F1'], 'project': project})
     monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: (0, INFORME, tmp_path / 'pide.json'))
@@ -273,8 +273,8 @@ class WebCortoPlazo:
 
 def test_corto_plazo_va_por_las_rutas_de_la_web_en_orden(tmp_path):
     """072:RF-33 / 072:RF-18 — la carga, la escalera, los estudios y el informe, por sus rutas y en ese orden."""
-    from convertersmartgrid.asistente.ejecutor import ClienteWeb
-    from convertersmartgrid.asistente.orquestador import ETAPAS_CORTO_PLAZO, PuntoDeControl, ejecutar_proyecto
+    from convertersmartgrid.aplicacion.asistente.ejecutor import ClienteWeb
+    from convertersmartgrid.aplicacion.asistente.orquestador import ETAPAS_CORTO_PLAZO, PuntoDeControl, ejecutar_proyecto
 
     web = WebCortoPlazo()
     datos = {'proyecto': 'P1', 'alimentadores': ['F1'], 'sed': 'MINERA', 'formulario': {'solicitante': 'c'},
@@ -291,9 +291,9 @@ def test_corto_plazo_va_por_las_rutas_de_la_web_en_orden(tmp_path):
 def test_un_ejemplo_neutro_de_cada_tipo_y_el_interprete_lo_respeta():
     """072:RF-29 — el catálogo trae un ejemplo sin datos de ninguna empresa de cada tipo de análisis, y el intérprete
     manda el corto y el largo plazo a su tarea aunque el modelo en uso entienda otra; consultar no es planificar."""
-    from convertersmartgrid.asistente.interprete import interpretar
-    from convertersmartgrid.asistente.sinteticos import normalizar
-    from convertersmartgrid.asistente.tareas import TAREAS, TIPOS_DE_ANALISIS, tipos_de_analisis_de
+    from convertersmartgrid.aplicacion.asistente.interprete import interpretar
+    from convertersmartgrid.aplicacion.asistente.sinteticos import normalizar
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, TIPOS_DE_ANALISIS, tipos_de_analisis_de
 
     for tipo, tarea in TIPOS_DE_ANALISIS.items():
         assert [p for p in TAREAS[tarea].plantillas if tipos_de_analisis_de(normalizar(p)) == [tipo]], tipo

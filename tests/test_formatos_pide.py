@@ -4,9 +4,9 @@ from __future__ import annotations
 import pytest
 from openpyxl import load_workbook
 
-from convertersmartgrid import pide_economia as ec
-from convertersmartgrid.estudio_planeamiento import estudio_de
-from convertersmartgrid.formatos_pide import (
+from convertersmartgrid.aplicacion import pide_economia as ec
+from convertersmartgrid.dominio.estudio_planeamiento import estudio_de
+from convertersmartgrid.aplicacion.formatos_pide import (
     MOTIVO_DEL_CAMPO,
     MOTIVO_DEL_FORMATO,
     filas_de_calidad,
@@ -17,8 +17,8 @@ from convertersmartgrid.formatos_pide import (
     formatos_del_estudio,
     huecos_de,
 )
-from convertersmartgrid.pide import FORMATOS, escribir_formatos
-from convertersmartgrid.proyeccion_mercado import SerieMercado
+from convertersmartgrid.aplicacion.pide import FORMATOS, escribir_formatos
+from convertersmartgrid.aplicacion.proyeccion_mercado import SerieMercado
 
 HORIZONTE = {'ciclo_anios': 4, 'largo_plazo': [4, 8], 'detalle_pide': [4]}
 PLAN = {'tasa_regulada': 0.12, 'vida_util_anios': 30, 'horizonte_anios': 20}
@@ -284,7 +284,7 @@ def test_sin_tipo_de_cambio_f09_y_f10_lo_dicen():
     """025:RF-68 / 072:RF-16 (H4 y H5, auditor b4) — tarifas en PEN, CAPEX en USD y sin tipo de cambio: la evaluación
     privada no se hace; F09 dice «sin tipo de cambio» en VAN, TIR y costo anual, F10 en el costo anual, y ``huecos_de``
     los nombra con ese motivo. Ninguna de esas celdas vale 0."""
-    from convertersmartgrid.formatos_pide import MOTIVO_DE_LA_MARCA, SIN_TIPO_DE_CAMBIO
+    from convertersmartgrid.aplicacion.formatos_pide import MOTIVO_DE_LA_MARCA, SIN_TIPO_DE_CAMBIO
 
     plan, avisos = ec.plan_en_moneda_de_trabajo(_PLAN_PEN, moneda_trabajo='USD', tipo_cambio=None)
     assert any('tipo de cambio' in a for a in avisos)
@@ -305,7 +305,7 @@ def test_sin_tipo_de_cambio_f09_y_f10_lo_dicen():
 def test_el_flujo_privado_sin_coym_ni_perdidas_lleva_su_marca():
     """072:RF-16 (H5) — la VAN y la TIR de un flujo sin COyM o sin el costo de las pérdidas no se presentan como completas:
     F09 conserva la cifra, y los huecos dicen que el flujo no lleva esos costos."""
-    from convertersmartgrid.formatos_pide import ALCANCE_DEL_FLUJO_PRIVADO
+    from convertersmartgrid.aplicacion.formatos_pide import ALCANCE_DEL_FLUJO_PRIVADO
 
     plan = {**_PLAN_PEN, 'tarifas': {**_PLAN_PEN['tarifas'], 'moneda': 'USD'}}
     p = ec.propuesta_pide(_INFORME_COYM, plan, costos=_COSTOS_COYM, bancos_kvar={10.0: 300.0}, factor_carga=0.6,

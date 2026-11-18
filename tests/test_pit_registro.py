@@ -12,7 +12,7 @@ from pathlib import Path
 import jsonschema
 import pytest
 
-from convertersmartgrid.registro_normativo import (
+from convertersmartgrid.dominio.registro_normativo import (
     RegistroError,
     ReglaAmbigua,
     cargar_registro,
@@ -241,7 +241,7 @@ def test_rotulo_y_llamada_a_nota_separados_en_todos_los_formatos():
     llamada a nota en superíndice guarda su texto literal y, aparte, el rótulo sin la llamada; rótulo y llamada
     rehacen el literal (la llamada puede ir en medio o antes de «:», con o sin paréntesis). Los exponentes (r², mm²)
     quedan literales y la plantilla de F-101 dice «Total Sistema 1», no «Total Sistema 12»."""
-    from convertersmartgrid.pit.plantillas import _plantilla
+    from convertersmartgrid.adaptadores.pit.plantillas import _plantilla
     registro = cargar_registro(NORMATIVA)
     llamadas, exponentes = {}, {}
     for norma in registro.normas.values():

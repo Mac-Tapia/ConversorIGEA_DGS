@@ -13,9 +13,9 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from convertersmartgrid.costos_fuentes import (CostosError, leer_modulos_transmision, leer_sicodi,
+from convertersmartgrid.aplicacion.costos_fuentes import (CostosError, leer_modulos_transmision, leer_sicodi,
                                                valorar_obra)
-from convertersmartgrid.metrados import valorar_metrados
+from convertersmartgrid.aplicacion.metrados import valorar_metrados
 
 COLUMNAS = {'codigo': 'Código Módulo', 'nombre': 'Descripción', 'unidad': 'Unidad', 'total': 'Costo Total'}
 COLUMNAS_ZONA = {**COLUMNAS, 'zona': 'Zona'}

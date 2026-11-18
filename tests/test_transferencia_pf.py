@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from convertersmartgrid import transferencia_pf as tp
-from convertersmartgrid.estudios_pf import Limites
+from convertersmartgrid.aplicacion import transferencia_pf as tp
+from convertersmartgrid.aplicacion.estudios_pf import Limites
 
 #: Semillas de los sorteos: largo del camino, cargas, seccionadores y paso que limita.
 SEMILLAS = (5, 17, 38, 71)

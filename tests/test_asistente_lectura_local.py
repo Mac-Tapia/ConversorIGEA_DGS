@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.asistente import corpus_proyecto, indice
-from convertersmartgrid.asistente import lectura_proyecto as lp
-from convertersmartgrid.asistente import ollama as modulo_ollama
-from convertersmartgrid.asistente.equipo import LecturaGobernada
+from convertersmartgrid.aplicacion.asistente import corpus_proyecto, indice
+from convertersmartgrid.aplicacion.asistente import lectura_proyecto as lp
+from convertersmartgrid.aplicacion.asistente import ollama as modulo_ollama
+from convertersmartgrid.aplicacion.asistente.equipo import LecturaGobernada
 
 RAIZ = Path(__file__).resolve().parents[1]
 DATO = 'CODIGO-ZX9981 de la empresa Ficticia'
@@ -26,7 +26,7 @@ def repo(tmp_path, monkeypatch):
     monkeypatch.delenv('CSG_DEMANDA_DIR', raising=False)
     repo = tmp_path / 'repo'
     for carpeta in ('output/informes', 'input', 'config/perfiles', '.agents/coordination', '.cursor/skills', 'frontend/dist', 'docs/asistente',
-                    '.git', '.venv/Lib', 'node_modules/x', 'src/convertersmartgrid/asistente', 'tools', 'specs/098-a', '__pycache__', 'maestro_real'):
+                    '.git', '.venv/Lib', 'node_modules/x', 'src/convertersmartgrid/aplicacion/asistente', 'tools', 'specs/098-a', '__pycache__', 'maestro_real'):
         (repo / carpeta).mkdir(parents=True)
     for rel in ('output/informes/resultado.md', 'input/entrada.csv', 'config/perfil_empresa.json', 'config/perfiles/una.json',
                 '.agents/coordination/ACTIVE.md', '.cursor/skills/x.md', 'frontend/dist/app.js', 'otra.md', 'maestro_real/textos.txt',
@@ -34,7 +34,7 @@ def repo(tmp_path, monkeypatch):
         (repo / rel).write_text(DATO + ' en ' + rel, encoding='utf-8')
     for rel in ('.env', 'docs/.env.local', 'config/credentials.json', 'tools/secrets.py', 'clave.pem', 'id_rsa', '.npmrc', '.git/config',
                 'docs/RAG_ABSTENCION_SELLADO_099.json', 'docs/CONJUNTO_X_099.json', 'docs/EVALUACION_X_099.json', 'docs/CALIBRACION_X_099.json',
-                'output/evaluacion_final.json', 'src/convertersmartgrid/asistente/prueba_sellada.py', 'src/convertersmartgrid/asistente/ordenes_fijas.py',
+                'output/evaluacion_final.json', 'src/convertersmartgrid/aplicacion/asistente/prueba_sellada.py', 'src/convertersmartgrid/aplicacion/asistente/ordenes_fijas.py',
                 'docs/asistente/filas.jsonl', 'output/ejemplos.jsonl', 'maestro_real/etiquetas.jsonl', 'output/etiquetas_v2.jsonl'):
         (repo / rel).write_text(SECRETO, encoding='utf-8')
     (repo / lp.OPENAPI).write_text(json.dumps({'paths': {}}), encoding='utf-8')
@@ -58,8 +58,8 @@ LEIBLES = ['output/informes/resultado.md', 'input/entrada.csv', 'config/perfil_e
            'OUTPUT/informes/resultado.md']
 SECRETOS = ['.env', '.ENV', 'docs/.env.local', 'config/credentials.json', 'tools/secrets.py', 'clave.pem', 'id_rsa', '.npmrc', '.git/config']
 SELLADOS = ['docs/RAG_ABSTENCION_SELLADO_099.json', 'docs/CONJUNTO_X_099.json', 'docs/EVALUACION_X_099.json', 'docs/CALIBRACION_X_099.json',
-            'output/evaluacion_final.json', 'src/convertersmartgrid/asistente/prueba_sellada.py',
-            'src/convertersmartgrid/asistente/ordenes_fijas.py', 'docs/asistente/filas.jsonl']
+            'output/evaluacion_final.json', 'src/convertersmartgrid/aplicacion/asistente/prueba_sellada.py',
+            'src/convertersmartgrid/aplicacion/asistente/ordenes_fijas.py', 'docs/asistente/filas.jsonl']
 EXAMEN = ['output/ejemplos.jsonl', 'maestro_real/etiquetas.jsonl', 'output/etiquetas_v2.jsonl']
 
 
@@ -99,13 +99,13 @@ def test_raices_configuradas(repo, raiz_datos, tmp_path, monkeypatch):
     monkeypatch.setenv('CSG_DEMANDA_DIR', str(raiz_datos))
     assert raiz_datos in lp.politica_local().raices
     monkeypatch.delenv('CSG_DEMANDA_DIR')
-    monkeypatch.setattr('convertersmartgrid.perfil_empresa.datos_perfil', lambda: {'raices_llm': [str(raiz_datos)]})
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda: {'raices_llm': [str(raiz_datos)]})
     assert raiz_datos in lp.politica_local().raices
 
 
 def test_sin_rutas_fijas_en_el_codigo():
     """077:RF-52 — ninguna carpeta de datos escrita en el código que decide las raíces."""
-    fuente = (RAIZ / 'src/convertersmartgrid/asistente/lectura_proyecto.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/aplicacion/asistente/lectura_proyecto.py').read_text(encoding='utf-8')
     arbol = ast.parse(fuente)
     funcion = next(n for n in arbol.body if isinstance(n, ast.FunctionDef) and n.name == 'raices_configuradas')
     textos = [n.value for n in ast.walk(funcion) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
@@ -134,7 +134,7 @@ def test_sellados_reales(repo):
         assert lp.motivo_de_rechazo(rel, LOCAL), rel
     assert lp.motivo_de_rechazo(lp.OPENAPI, LOCAL) is None
     # Código que evalúa, sin datos sellados: sigue legible.
-    assert lp.motivo_de_rechazo('src/convertersmartgrid/asistente/evaluacion_rag.py', LOCAL) is None
+    assert lp.motivo_de_rechazo('src/convertersmartgrid/aplicacion/asistente/evaluacion_rag.py', LOCAL) is None
 
 
 @pytest.mark.parametrize('rel', EXAMEN)
@@ -216,9 +216,9 @@ class _SinOllama:
 
 
 def _pregunta_web(repo, monkeypatch, texto, **k):
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
-    monkeypatch.setattr('convertersmartgrid.asistente.ollama.cliente_configurado', _SinOllama)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.asistente.ollama.cliente_configurado', _SinOllama)
     monkeypatch.setattr(services, 'project_root', lambda: repo)
     return services.asistente_pregunta(texto, **k)
 
@@ -240,8 +240,8 @@ class _WS:
 
 def test_lo_leido_no_sale_a_internet(repo, monkeypatch):
     """077:RF-59 — tras leer un dato, la búsqueda bloquea su código, su nombre y su fichero, también desde otro espacio."""
-    from convertersmartgrid.asistente import internet
-    from convertersmartgrid.web import asistente_consultas, services
+    from convertersmartgrid.aplicacion.asistente import internet
+    from convertersmartgrid.presentacion.web import asistente_consultas, services
 
     monkeypatch.setattr(asistente_consultas, '_LEIDOS', set())
     _pregunta_web(repo, monkeypatch, 'que dice otra.md', espacio='otro')
@@ -264,7 +264,7 @@ def test_lo_leido_no_sale_a_internet(repo, monkeypatch):
 
 def test_lo_leido_de_codigo_no_bloquea(repo, monkeypatch):
     """077:RF-59 — leer código del proyecto no es leer un dato: no se bloquea nada por ello."""
-    from convertersmartgrid.web import asistente_consultas
+    from convertersmartgrid.presentacion.web import asistente_consultas
 
     monkeypatch.setattr(asistente_consultas, '_LEIDOS', set())
     (repo / 'docs/GUIA.md').write_text('# Guía\n\nFlujo de Potencia.\n', encoding='utf-8')
@@ -275,12 +275,12 @@ def test_lo_leido_de_codigo_no_bloquea(repo, monkeypatch):
 def test_sin_camino_a_internet():
     """077:RF-60 — ni las lecturas ni el índice importan nada de red, y `pregunta` no toca el buscador."""
     prohibidos = {'socket', 'urllib', 'requests', 'httpx', 'http', 'aiohttp'}
-    for rel in ('asistente/lectura_proyecto.py', 'asistente/corpus_proyecto.py', 'asistente/indice.py'):
+    for rel in ('aplicacion/asistente/lectura_proyecto.py', 'aplicacion/asistente/corpus_proyecto.py', 'aplicacion/asistente/indice.py'):
         arbol = ast.parse((RAIZ / 'src/convertersmartgrid' / rel).read_text(encoding='utf-8'))
         importados = {a.name.split('.')[0] for n in ast.walk(arbol) if isinstance(n, ast.Import) for a in n.names}
         importados |= {n.module.split('.')[0] for n in ast.walk(arbol) if isinstance(n, ast.ImportFrom) and n.module}
         assert not importados & (prohibidos | {'internet'}), rel
-    fuente = (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
     arbol = ast.parse(fuente)
     funcion = next(n for n in arbol.body if isinstance(n, ast.FunctionDef) and n.name == 'asistente_pregunta')
     cuerpo = ast.get_source_segment(fuente, funcion)

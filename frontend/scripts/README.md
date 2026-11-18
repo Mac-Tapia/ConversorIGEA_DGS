@@ -4,7 +4,7 @@ Instalar con `npm ci` y ejecutar `npm test`, `npm run typecheck`, `npm run build
 `package-lock.json` fija la instalación; `engines` y `.npmrc` rechazan Node/npm
 incompatibles. `packageManager` identifica la versión con que se verificó el lock.
 
-`runtime-paths.mjs` mantiene el contrato de `convertersmartgrid.runtime_paths`:
+`runtime-paths.mjs` mantiene el contrato de `convertersmartgrid.dominio.runtime_paths`:
 SHA256 de la ruta real del checkout (Windows: `/` y minúsculas), primeros 16 caracteres.
 `CSG_RUNTIME_HOME` y `CSG_CACHE_HOME` son raíces externas explícitas. Sin variables,
 runtime usa `primary_repo.parent/.convertersmartgrid-runtime/<hash>` y caché usa

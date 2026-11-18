@@ -5,7 +5,7 @@
 - Specs: 080:RF-61
 - Elementos C4: jobs, vnrGis, frontend
 - Tareas: 080 T18
-- Evidencia: `src/convertersmartgrid/web/jobs.py::LANES`
+- Evidencia: `src/convertersmartgrid/presentacion/web/jobs.py::LANES`
 
 ## Contexto
 

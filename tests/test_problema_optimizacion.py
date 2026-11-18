@@ -16,10 +16,10 @@ pytest.importorskip('scipy')
 
 from apoyo import contrato_fisico
 
-from convertersmartgrid.digital_twin import evolutivo as ev
-from convertersmartgrid.digital_twin import oraculo as orc
-from convertersmartgrid.digital_twin import problema_optimizacion as po
-from convertersmartgrid.experimentos import ContextoExperimento
+from convertersmartgrid.adaptadores.digital_twin import evolutivo as ev
+from convertersmartgrid.adaptadores.digital_twin import oraculo as orc
+from convertersmartgrid.adaptadores.digital_twin import problema_optimizacion as po
+from convertersmartgrid.aplicacion.experimentos import ContextoExperimento
 
 POLITICA = 'f' * 64
 NORMA = {'tension_min_pu': 0.95, 'tension_max_pu': 1.05}

@@ -17,18 +17,18 @@ import re
 
 import pytest
 
-from convertersmartgrid.estudios_pf import LIMITES_POR_DEFECTO
-from convertersmartgrid.geography import build_geography, geography_to_dict
-from convertersmartgrid.model import build_feeder_model
-from convertersmartgrid.plano_red import vista
+from convertersmartgrid.aplicacion.estudios_pf import LIMITES_POR_DEFECTO
+from convertersmartgrid.adaptadores.geography import build_geography, geography_to_dict
+from convertersmartgrid.dominio.model import build_feeder_model
+from convertersmartgrid.adaptadores.plano_red import vista
 from synthetic_export import CRS_SINTETICO, ExportSpec, load_export
 
 LAYOUTS = ('reducido', 'completo')
 
 
 def _pagina():
-    assert importlib.util.find_spec('convertersmartgrid.pagina_plano') is not None, 'falta pagina_plano.py'
-    return importlib.import_module('convertersmartgrid.pagina_plano')
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.pagina_plano') is not None, 'falta pagina_plano.py'
+    return importlib.import_module('convertersmartgrid.adaptadores.pagina_plano')
 
 
 def _vistas(tmp_path, layout='reducido'):
@@ -54,7 +54,7 @@ def _datos(html: str) -> dict:
 @pytest.mark.parametrize('layout', LAYOUTS)
 def test_111_rf1_la_pagina_lleva_el_leaflet_propio_con_lienzo_y_todos_los_vertices(tmp_path, layout):
     """111:RF-1 — el Leaflet propio (con su huella), el lienzo y todos los vértices de la fuente, sin simplificar."""
-    from convertersmartgrid.preview import HUELLAS_LEAFLET, recurso_leaflet
+    from convertersmartgrid.adaptadores.preview import HUELLAS_LEAFLET, recurso_leaflet
 
     vistas, seed = _vistas(tmp_path, layout)
     html = _pagina().pagina(vistas)
@@ -110,7 +110,7 @@ def test_111_rf14_sin_teselas_no_hay_fondo_y_se_dice(tmp_path, monkeypatch):
 def test_111_rf13_los_resultados_llevan_leyenda_texto_e_icono_y_el_motor(tmp_path):
     """111:RF-10, RF-13, RF-18 — la capa de resultados con su leyenda (unidad, umbral, caso, motor) y cada
     incumplimiento con texto e icono además del color."""
-    from convertersmartgrid.resultados_plano import capas
+    from convertersmartgrid.adaptadores.resultados_plano import capas
 
     vistas, _seed = _vistas(tmp_path)
     v = vistas[0]
@@ -144,7 +144,7 @@ def test_111_rf14_tokens_claro_y_oscuro(tmp_path):
 
 def test_111_rf14_la_api_sirve_la_pagina_aislada(tmp_path):
     """111:RF-14 — ``GET …/plano/pagina`` con la política de las páginas generadas (sandbox, sin connect-src)."""
-    from convertersmartgrid.preview import politica_pagina_generada
+    from convertersmartgrid.adaptadores.preview import politica_pagina_generada
     from test_plano_api import BASE, _montar
 
     cliente, _ws, _f, _t, alimentador, _seed = _montar(tmp_path)

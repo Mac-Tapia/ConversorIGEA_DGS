@@ -2,15 +2,15 @@
 
 ## Módulos
 
-- `src/convertersmartgrid/web/suspension.py` (nuevo): `suspendido_s()` mide los segundos que el equipo estuvo
+- `src/convertersmartgrid/presentacion/web/suspension.py` (nuevo): `suspendido_s()` mide los segundos que el equipo estuvo
   suspendido desde el arranque, como `GetTickCount64` (cuenta la suspensión) menos `QueryUnbiasedInterruptTime` (no
   la cuenta); fuera de Windows, 0. `sin_suspender()` es un contexto que llama a `SetThreadExecutionState` con
   `ES_CONTINUOUS | ES_SYSTEM_REQUIRED` en el hilo del trabajo y lo devuelve a `ES_CONTINUOUS` al salir. (RF-1)
-- `src/convertersmartgrid/web/jobs.py`, `JobManager._run`: el trabajo corre dentro de `sin_suspender()`; si falla con
+- `src/convertersmartgrid/presentacion/web/jobs.py`, `JobManager._run`: el trabajo corre dentro de `sin_suspender()`; si falla con
   más de `SUSPENSION_MINIMA_S` suspendido entre su inicio y su fallo, y no está cancelado, se repite una vez. (RF-2 a
   RF-4). `submit(..., reanudar=...)` guarda en el diario la petición con que se puede repetir; `recuperar` la devuelve
   con el interrumpido. (RF-5)
-- `src/convertersmartgrid/web/app.py`: al arrancar, por espacio, el último interrumpido con `reanudar` de un tipo
+- `src/convertersmartgrid/presentacion/web/app.py`: al arrancar, por espacio, el último interrumpido con `reanudar` de un tipo
   conocido (`recalibrar`) se lanza otra vez con su petición, si no sigue vivo un `sistema_web.py` de ese espacio; el
   interrumpido se marca relanzado para no repetirlo. (RF-5 a RF-7)
 

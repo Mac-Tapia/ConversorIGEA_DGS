@@ -3,7 +3,8 @@ from copy import deepcopy
 
 import pytest
 
-from convertersmartgrid import escalera_optima as eo, perfil_empresa as pe
+from convertersmartgrid.aplicacion import escalera_optima as eo
+from convertersmartgrid.dominio import perfil_empresa as pe
 
 
 def _perfil(esc=None):
@@ -73,8 +74,8 @@ def test_servicio_sin_bancos_no_activa_modulos_de_muestra(tmp_path, monkeypatch)
 
 def test_servicio_rechaza_banco_invalido_antes_de_leer_proyecto(tmp_path, monkeypatch):
     """042:RF-39 — un perfil defectuoso no dispara acciones ni fallback silencioso."""
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
     perfil = _perfil()
     perfil['calibracion'] = {'bancos_kvar_por_tension': {'10': -1}}
     original = deepcopy(perfil)

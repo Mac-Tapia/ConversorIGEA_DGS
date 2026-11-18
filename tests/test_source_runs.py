@@ -19,7 +19,7 @@ def _write(path: Path, content: bytes) -> Path:
 
 
 def _txt_workspace(tmp_path):
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='source-run-tests', root=tmp_path / 'workspace')
     ws.options['input_mode'] = 'txt'
@@ -34,7 +34,7 @@ def _txt_workspace(tmp_path):
 
 
 def test_source_run_custodia_originales_y_hashes(tmp_path):
-    from convertersmartgrid.web.source_runs import create_source_run
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
 
     ws, originals = _txt_workspace(tmp_path)
 
@@ -62,7 +62,7 @@ def test_source_run_custodia_originales_y_hashes(tmp_path):
 
 
 def test_run_txt_no_incluye_slots_mdb_o_vnr(tmp_path):
-    from convertersmartgrid.web.source_runs import create_source_run
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
 
     ws, _originals = _txt_workspace(tmp_path)
     ws.set_input('mdb', _write(tmp_path / 'server' / 'red.mdb', b'MDB'), origin='server')
@@ -80,7 +80,7 @@ def test_run_txt_no_incluye_slots_mdb_o_vnr(tmp_path):
 
 
 def test_cambiar_archivo_invalida_run_sin_borrar_historial(tmp_path):
-    from convertersmartgrid.web.source_runs import create_source_run
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
 
     ws, _originals = _txt_workspace(tmp_path)
     snapshot = create_source_run(ws)
@@ -97,7 +97,7 @@ def test_cambiar_archivo_invalida_run_sin_borrar_historial(tmp_path):
 
 
 def test_ruta_servidor_mutada_no_cambia_snapshot(tmp_path):
-    from convertersmartgrid.web.source_runs import create_source_run
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
 
     ws, originals = _txt_workspace(tmp_path)
     snapshot = create_source_run(ws)
@@ -118,7 +118,7 @@ def test_ruta_servidor_mutada_no_cambia_snapshot(tmp_path):
                                   'escape', 'size_type', 'name_type', 'created_at'])
 def test_run_rechaza_manifiesto_de_otra_identidad_sin_borrar_historial(tmp_path, change):
     """034:RF-20 — la identidad persistida no se acepta por parecer de la misma fuente."""
-    from convertersmartgrid.web.source_runs import create_source_run, load_source_run
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run, load_source_run
 
     ws, _ = _txt_workspace(tmp_path)
     snapshot = create_source_run(ws)
@@ -140,7 +140,7 @@ def test_run_rechaza_manifiesto_de_otra_identidad_sin_borrar_historial(tmp_path,
         payload['files'][0]['size'] = str(payload['files'][0]['size'])
     elif change == 'name_type':
         payload['files'][0]['name'] = 123
-        from convertersmartgrid.sources.snapshot import SourceFile, fingerprint
+        from convertersmartgrid.dominio.sources.snapshot import SourceFile, fingerprint
         payload['fingerprint'] = fingerprint(snapshot.mode, [
             SourceFile(slot=f['slot'], name=str(f['name']), path=Path(f['path']), size=f['size'],
                        sha256=f['sha256'], origin=f['origin'], source_path=f['source_path'])
@@ -158,7 +158,7 @@ def test_run_rechaza_manifiesto_de_otra_identidad_sin_borrar_historial(tmp_path,
 @pytest.mark.parametrize('change', ['missing', 'same_size_changed_hash'])
 def test_preparacion_rechaza_original_custodiado_ausente_o_modificado(tmp_path, change):
     """034:RF-20 — la preparación verifica bytes sin regenerar la referencia custodiada."""
-    from convertersmartgrid.web.source_runs import create_source_run, load_source_run
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run, load_source_run
 
     ws, originals = _txt_workspace(tmp_path)
     snapshot = create_source_run(ws)
@@ -181,7 +181,7 @@ def test_preparacion_rechaza_original_custodiado_ausente_o_modificado(tmp_path, 
 
 def test_relectura_ligera_no_lee_bytes_y_preparacion_verifica_hashes(tmp_path, monkeypatch):
     """034:RF-20; 065:RF-18 — consultas ligeras y preparación con integridad completa."""
-    from convertersmartgrid.web.source_runs import create_source_run, load_source_run
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run, load_source_run
 
     ws, _ = _txt_workspace(tmp_path)
     snapshot = create_source_run(ws)
@@ -208,7 +208,7 @@ def test_relectura_ligera_no_lee_bytes_y_preparacion_verifica_hashes(tmp_path, m
 def test_catalogo_modificado_con_mismo_mtime_bloquea_sin_renovar_baseline(tmp_path):
     """034:RF-20 — la ficha cacheada se vincula a contenido; no se rebaselina en silencio."""
     from openpyxl import Workbook
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws, _ = _txt_workspace(tmp_path)
     path = tmp_path / 'catalogo.xlsx'
@@ -238,7 +238,7 @@ def test_catalogo_modificado_con_mismo_mtime_bloquea_sin_renovar_baseline(tmp_pa
 def test_reaplicar_catalogo_explicito_fija_nueva_huella_y_ficha(tmp_path):
     """034:RF-20 — la decisión explícita sustituye la baseline, una consulta nunca lo hace."""
     from openpyxl import Workbook
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws, _ = _txt_workspace(tmp_path)
     digests = []
@@ -260,8 +260,8 @@ def test_reaplicar_catalogo_explicito_fija_nueva_huella_y_ficha(tmp_path):
 def test_catalogo_baseline_ausente_tras_reabrir_no_se_convierte_en_catalogo_vacio(tmp_path):
     """034:RF-20; 086:RF-3 — perder el fichero no es una decisión de retirar la ficha."""
     from openpyxl import Workbook
-    from convertersmartgrid.web.workspace import Workspace
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web import services
 
     ws, _ = _txt_workspace(tmp_path)
     path = tmp_path / 'catalogo.xlsx'

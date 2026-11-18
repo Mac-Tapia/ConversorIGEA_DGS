@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from datos_pit import perfil_a, perfil_b
 
-from convertersmartgrid.web.rutas_pit import crear_router
+from convertersmartgrid.presentacion.web.rutas_pit import crear_router
 
 
 class _Ctx:
@@ -209,7 +209,7 @@ def test_107_t13_los_resultados_traen_sus_rutas_dentro_del_espacio(tmp_path):
 
 def _fuentes(tmp_path, ws='ws1'):
     """Registra el libro de la red y la proyección del espacio como fuentes de la empresa (109:RF-25)."""
-    from convertersmartgrid import fuentes_empresa as fe
+    from convertersmartgrid.aplicacion import fuentes_empresa as fe
 
     raiz = tmp_path / ws
     return (fe.registrar(raiz, 'red_area', raiz / 'red.xlsx', nombre='red.xlsx'),
@@ -237,7 +237,7 @@ def test_107_rf19_el_diagnostico_toma_las_fuentes_de_la_empresa(tmp_path):
 def test_107_rf19_las_alternativas_solo_si_se_nombran_y_las_areas_dicen_la_empresa(tmp_path):
     """107:RF-19 — una fuente de alternativas de la empresa no entra en el expediente si no se nombra; nombrada, sí, con
     su alternativa elegida. Las áreas dicen la empresa del perfil, para avisar si la red del espacio es de otra."""
-    from convertersmartgrid import fuentes_empresa as fe
+    from convertersmartgrid.aplicacion import fuentes_empresa as fe
     from test_pit_formatos import NORMATIVA
 
     caso = perfil_a(27)

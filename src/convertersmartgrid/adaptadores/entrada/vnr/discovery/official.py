@@ -21,7 +21,7 @@ from pathlib import PurePosixPath
 from unicodedata import combining, normalize
 from urllib.parse import unquote, urljoin, urlparse
 
-from convertersmartgrid.salidas_red import (RedireccionRechazada, get_sin_redireccion_ajena, motivo_apagada,
+from convertersmartgrid.dominio.salidas_red import (RedireccionRechazada, get_sin_redireccion_ajena, motivo_apagada,
                                             salida_permitida)
 
 from .catalog import Publication, PublicationCatalog

@@ -20,8 +20,8 @@ import pytest
 import fake_pf
 from apoyo import cargar_herramienta, contexto_nativo
 
-from convertersmartgrid import variacion_plano
-from convertersmartgrid.dgs import nombre_en_pf
+from convertersmartgrid.aplicacion import variacion_plano
+from convertersmartgrid.adaptadores.dgs import nombre_en_pf
 
 
 
@@ -208,7 +208,7 @@ def _vista(codigo_largo: str) -> dict:
 @pytest.mark.parametrize('semilla', SEMILLAS)
 def test_111_rf2_el_plan_de_digsilent_lleva_los_nombres_de_la_identidad(tmp_path, semilla):
     """111:RF-2 — las ediciones van a DIgSILENT con el nombre de la identidad del plano, nunca con otra regla."""
-    from convertersmartgrid import resultados_plano
+    from convertersmartgrid.adaptadores import resultados_plano
 
     assert hasattr(resultados_plano, 'plan_pf'), 'resultados_plano no da el plan de DIgSILENT'
     plan_pf = resultados_plano.plan_pf

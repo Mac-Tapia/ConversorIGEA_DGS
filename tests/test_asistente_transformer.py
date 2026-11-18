@@ -7,9 +7,9 @@ import pytest
 
 torch = pytest.importorskip('torch')
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.asistente import transformer as tr
-from convertersmartgrid.asistente.sinteticos import generar
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.aplicacion.asistente import transformer as tr
+from convertersmartgrid.aplicacion.asistente.sinteticos import generar
 
 VOCAB = {'alimentadores': ['IN111', 'TA225', 'PA217', 'CA101', 'NA203'],
          'proyecto': ['20261015-170359_CSG_IN111_TA225', 'CA101 13'], 'sistema': ['Pisco', 'Ica', 'Nasca']}

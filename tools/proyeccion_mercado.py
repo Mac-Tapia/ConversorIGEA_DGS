@@ -21,7 +21,7 @@ def main(argv=None) -> int:
     p.add_argument('--salida', type=Path, help='JSON con el resultado')
     args = p.parse_args(argv)
 
-    from convertersmartgrid.proyeccion_mercado import MercadoError, comparar_metodos, leer_formato_01
+    from convertersmartgrid.aplicacion.proyeccion_mercado import MercadoError, comparar_metodos, leer_formato_01
 
     try:
         r = comparar_metodos(leer_formato_01(args.formato_01), horizonte=args.horizonte)

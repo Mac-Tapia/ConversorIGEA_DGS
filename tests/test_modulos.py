@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import puertos, registro_modulos as rm
+from convertersmartgrid import puertos
+from convertersmartgrid.aplicacion import registro_modulos as rm
 from convertersmartgrid.puertos import Modulo
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -114,7 +115,7 @@ def test_mismo_nombre_rechaza_los_dos_y_nombra_ambos(sitio, tmp_path):
 
 def test_escritor_recibe_el_modelo_preparado_y_auditado(tmp_path, monkeypatch):
     """002:RF-13 — pasa por preparar_dataset, aplicar_reglas y auditar_completitud antes de escribir."""
-    from convertersmartgrid import escritores
+    from convertersmartgrid.adaptadores import escritores
     llamadas = []
     monkeypatch.setattr(escritores, 'preparar_dataset', lambda d, catalogo=None: llamadas.append('preparar'))
     monkeypatch.setattr(escritores, 'build_feeder_model', lambda d, r: llamadas.append('modelo') or 'modelo')
@@ -152,10 +153,10 @@ def test_estudio_de_powerfactory_va_al_carril_unico():
 
 def test_la_web_no_instala_ni_edita_modulos(tmp_path):
     """002:RF-15, 002:RF-24 — ninguna ruta sube módulos ni toca la lista de permitidos."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
     rutas = [getattr(r, 'path', '') for r in create_app(tmp_path / 'web').routes]
     assert rutas and not [r for r in rutas if 'modulos' in r or 'permitidos' in r or 'plugin' in r]
-    fuente = (RAIZ / 'src/convertersmartgrid/web/app.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/app.py').read_text(encoding='utf-8')
     assert 'registro_modulos' not in fuente and 'modulos_permitidos' not in fuente
 
 
@@ -231,7 +232,7 @@ def test_resolucion_cruza_a_un_hijo_y_da_el_mismo_orden(tmp_path):
 
 def test_la_conversion_en_paralelo_pasa_la_resolucion_a_cada_hijo(monkeypatch):
     """002:RF-29 — el arranque del hijo recibe la resolución del principal."""
-    import convertersmartgrid.batch as lote
+    import convertersmartgrid.aplicacion.batch as lote
     resolucion = rm.Resolucion(permitidos=('x',))
     try:
         lote._init_worker('dataset', 'opciones', resolucion)
@@ -244,7 +245,7 @@ def test_la_conversion_en_paralelo_pasa_la_resolucion_a_cada_hijo(monkeypatch):
 
 def test_estudio_sin_powerfactory_es_un_trabajo_cancelable():
     """002:RF-30 — en cola, con progreso, y se cancela a mitad."""
-    from convertersmartgrid.web.jobs import JobManager
+    from convertersmartgrid.presentacion.web.jobs import JobManager
     empezo, soltar = threading.Event(), threading.Event()
 
     class Largo:

@@ -35,7 +35,7 @@ def main(argv=None) -> int:
     p.add_argument('--salida', type=Path, help='JSON con el resultado')
     args = p.parse_args(argv)
 
-    from convertersmartgrid.madrl_obras import (
+    from convertersmartgrid.adaptadores.madrl_obras import (
         ParametrosObras,
         comparar_controles,
         control_nsga2_sistema,
@@ -46,8 +46,8 @@ def main(argv=None) -> int:
     if args.grafo:
         grafo = json.loads(args.grafo.read_text(encoding='utf-8'))
     else:
-        from convertersmartgrid.digital_twin.buffer import BuferEpisodios, Consulta
-        from convertersmartgrid.digital_twin.evolutivo import red_del_gemelo
+        from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios, Consulta
+        from convertersmartgrid.adaptadores.digital_twin.evolutivo import red_del_gemelo
 
         episodios = BuferEpisodios(args.buffer).consultar(Consulta(proyecto=args.proyecto, caso=args.caso))
         grafo = red_del_gemelo(episodios)

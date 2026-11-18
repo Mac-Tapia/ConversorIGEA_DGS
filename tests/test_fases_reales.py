@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pytest
 
-from convertersmartgrid import dgs
-from convertersmartgrid.batch import convert_selection
+from convertersmartgrid.adaptadores import dgs
+from convertersmartgrid.aplicacion.batch import convert_selection
 
 
 def _tablas(texto: str) -> dict[str, tuple[list[str], list[list[str]]]]:
@@ -50,8 +50,8 @@ def test_sed_de_una_fase_que_no_llega_toma_las_del_ramal_en_txt_y_mdb():
     """054:RF-9 — en el modelo común, no solo en VNR-GIS: una SED C en un ramal AB (Pisco) dejaba su baja a 0 p.u."""
     from dataclasses import replace
 
-    from convertersmartgrid.fases_red import fases_desde_la_cabecera
-    from convertersmartgrid.model import Line, Load, _fases_coherentes
+    from convertersmartgrid.dominio.fases_red import fases_desde_la_cabecera
+    from convertersmartgrid.dominio.model import Line, Load, _fases_coherentes
 
     def linea(i, a, b, fase):
         return Line(i, a, b, fase, 'T', 'T', 1.0, True)
@@ -87,8 +87,8 @@ def test_fases_que_llegan_en_las_dos_disposiciones_y_con_cualquier_numero_de_wor
 
     from synthetic_export import ExportSpec, load_export
 
-    from convertersmartgrid.fases_red import fases_desde_la_cabecera
-    from convertersmartgrid.model import build_feeder_model, decode_phase
+    from convertersmartgrid.dominio.fases_red import fases_desde_la_cabecera
+    from convertersmartgrid.dominio.model import build_feeder_model, decode_phase
 
     azar = random.Random(semilla)
     spec = ExportSpec(feeders=azar.randint(2, 4), sections_per_feeder=azar.randint(4, 9),
@@ -201,7 +201,7 @@ def test_sed_monofasica_como_trafo_monofasico(ds, sample_feeder, tmp_path, opcio
     equilibrada (DIgSILENT la hace «1PH PH-E»)."""
     from dataclasses import replace
 
-    import convertersmartgrid.batch as batch
+    import convertersmartgrid.aplicacion.batch as batch
 
     construir = batch.write_dgs
 

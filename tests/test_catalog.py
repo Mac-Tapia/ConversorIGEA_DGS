@@ -19,7 +19,7 @@ import math
 
 import pytest
 
-from convertersmartgrid.catalog import (
+from convertersmartgrid.aplicacion.catalog import (
     B_AEREO_MAX,
     B_AEREO_MIN,
     CorreccionConductor,
@@ -33,7 +33,7 @@ from convertersmartgrid.catalog import (
     material_de_codigo,
     seccion_de_codigo,
 )
-from convertersmartgrid.catalog_data import (
+from convertersmartgrid.dominio.catalog_data import (
     AAAC_FICHA,
     AAAC_K_7_HILOS,
     AAAC_RHO20_OHM_MM2_KM,
@@ -42,7 +42,7 @@ from convertersmartgrid.catalog_data import (
     aaac_r20_ohm_km,
     trafo_interpola,
 )
-from convertersmartgrid.model import FeederModel, LineType, Line, Load, Node, Sed
+from convertersmartgrid.dominio.model import FeederModel, LineType, Line, Load, Node, Sed
 
 
 def _tipo(code: str, r1: float, *, x1: float = 0.45, r0: float | None = None,
@@ -334,7 +334,7 @@ class TestLecturaYCorreccion:
         assert modelo.line_types['LINE:AA03503D'].r1_ohm_km == pytest.approx(0.9651)
 
     def test_un_catalogo_que_no_existe_lo_dice(self, tmp_path):
-        from convertersmartgrid.catalog import CatalogError
+        from convertersmartgrid.aplicacion.catalog import CatalogError
 
         with pytest.raises(CatalogError, match='No existe'):
             leer_catalogo(tmp_path / 'no_esta.xlsx')
@@ -354,7 +354,7 @@ class TestCatalogoReal:
     """Contra el export real, que es donde el método se gana la confianza."""
 
     def test_las_secciones_dominantes_coinciden_con_la_ficha(self, ds):
-        from convertersmartgrid.model import build_feeder_model
+        from convertersmartgrid.dominio.model import build_feeder_model
 
         modelos = []
         for net in ds.feeder_ids()[:25]:
@@ -378,7 +378,7 @@ class TestCatalogoReal:
                         if h.codigo == codigo and h.atributo == 'rline']
 
     def test_el_export_real_produce_hallazgos_con_su_cuenta_hecha(self, ds):
-        from convertersmartgrid.model import build_feeder_model
+        from convertersmartgrid.dominio.model import build_feeder_model
 
         modelos = []
         for net in ds.feeder_ids()[:25]:
@@ -469,7 +469,7 @@ class TestTodasLasCaracteristicas:
 
     def test_el_mapa_de_caracteristicas_apunta_a_campos_que_existen(self):
         """Añadir una característica es añadir una línea al mapa: que no mienta."""
-        from convertersmartgrid.catalog import CARACTERISTICAS, COLUMNAS_CONDUCTOR
+        from convertersmartgrid.aplicacion.catalog import CARACTERISTICAS, COLUMNAS_CONDUCTOR
 
         tipo = _tipo('AA03503D', 1.0)
         for columna, (atributo, pf, unidad) in CARACTERISTICAS.items():
@@ -612,7 +612,7 @@ class TestFlujoDeConversion:
     def test_convert_selection_acepta_las_correcciones(self):
         import inspect
 
-        from convertersmartgrid.batch import convert_selection
+        from convertersmartgrid.aplicacion.batch import convert_selection
 
         assert 'catalog_corrections' in inspect.signature(convert_selection).parameters
 
@@ -621,7 +621,7 @@ class TestFlujoDeConversion:
         import pathlib
 
         fuente = pathlib.Path(
-            __file__).resolve().parents[1] / 'src' / 'convertersmartgrid' / 'batch.py'
+            __file__).resolve().parents[1] / 'src' / 'convertersmartgrid' / 'aplicacion/batch.py'
         texto = fuente.read_text(encoding='utf-8')
         assert "'catalog_applied'" in texto
         assert "'catalog_changes'" in texto
@@ -630,7 +630,7 @@ class TestFlujoDeConversion:
         import pathlib
 
         fuente = pathlib.Path(
-            __file__).resolve().parents[1] / 'src' / 'convertersmartgrid' / 'batch.py'
+            __file__).resolve().parents[1] / 'src' / 'convertersmartgrid' / 'aplicacion/batch.py'
         texto = fuente.read_text(encoding='utf-8')
         # Las correcciones van dentro de las reglas del proyecto (reglas.aplicar_reglas),
         # que se aplican entre construir el modelo y escribir el DGS.
@@ -648,7 +648,7 @@ class TestFichasEnSinProyecto:
 
     def test_fichas_para_el_plan(self):
         """032:RF-14 — las fichas del catálogo van al plan por código, en JSON."""
-        from convertersmartgrid.catalog import fichas_para_pf
+        from convertersmartgrid.aplicacion.catalog import fichas_para_pf
 
         out = fichas_para_pf({
             'AA': CorreccionConductor('AA', {'r1_ohm_km': 0.9}, fuente='f'),
@@ -658,7 +658,7 @@ class TestFichasEnSinProyecto:
     def test_cambios_en_unidades_de_digsilent_y_del_informe(self):
         """032:RF-14, 032:RF-16 — R en Ω/km y corriente en kA para DIgSILENT; el informe la da en A,
         con el valor del archivo, el de la ficha, tramos, km y fuente."""
-        from convertersmartgrid.catalog import cambios_de_ficha
+        from convertersmartgrid.aplicacion.catalog import cambios_de_ficha
 
         nuevos, cambios, rechazos = cambios_de_ficha('AA', self.ACTUAL, self.FICHA,
                                                      tramos=7, km=1.5)
@@ -673,7 +673,7 @@ class TestFichasEnSinProyecto:
 
     def test_sin_diferencia_no_hay_cambio(self):
         """032:RF-14 — solo cambian los parámetros que difieren del archivo."""
-        from convertersmartgrid.catalog import cambios_de_ficha
+        from convertersmartgrid.aplicacion.catalog import cambios_de_ficha
 
         nuevos, cambios, _ = cambios_de_ficha(
             'AA', self.ACTUAL, {'valores': {'r1_ohm_km': 0.31, 'ampacity_a': 250.0}})
@@ -681,14 +681,14 @@ class TestFichasEnSinProyecto:
 
     def test_sin_ficha_no_cambia_nada(self):
         """032:RF-18 — un código sin ficha deja los valores del archivo."""
-        from convertersmartgrid.catalog import cambios_de_ficha
+        from convertersmartgrid.aplicacion.catalog import cambios_de_ficha
 
         assert cambios_de_ficha('AA', self.ACTUAL, {}) == ({}, [], [])
 
     def test_valor_no_positivo_se_rechaza(self):
         """032:RF-19 — una ficha con 0 donde el archivo tiene un valor positivo no se aplica y
         se nombra el código y el parámetro."""
-        from convertersmartgrid.catalog import cambios_de_ficha
+        from convertersmartgrid.aplicacion.catalog import cambios_de_ficha
 
         nuevos, _c, rechazos = cambios_de_ficha(
             'AA', self.ACTUAL, {'valores': {'ampacity_a': 0.0, 'x1_ohm_km': 0.5}})

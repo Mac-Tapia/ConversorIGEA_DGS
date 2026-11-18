@@ -17,7 +17,7 @@ pytest.importorskip('fastapi')
 
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.identify import (
+from convertersmartgrid.adaptadores.identify import (
     CARGA, EQUIPOS, FUENTE_MDB, FUENTE_TXT, FUENTE_VNR, RED, fuente_de,
 )
 
@@ -40,7 +40,7 @@ def _zip_vnr(path: Path) -> Path:
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'no-front'))
     with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as value:
@@ -91,7 +91,7 @@ def test_lo_pendiente_sin_fuente_no_encadena_dos_puntos(client):
 def test_al_abrir_la_fuente_sale_de_las_entradas(tmp_path):
     """059:RF-2: guardado como «txt» con solo un paquete VNR-GIS abre como VNR-GIS; sin
     entradas, sin fuente."""
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     paquete = _zip_vnr(tmp_path / 'p.zip')
     root = tmp_path / 'esp'
@@ -175,7 +175,7 @@ def test_la_web_no_marca_fuente_y_recupera_el_espacio():
 def test_la_copia_sql_no_es_un_paquete_de_capas(tmp_path):
     """059:RF-8: la copia de SQL Server (cabecera MTF «TAPE», sin extensión) da su empresa por
     ConfigBD.config y, sin él, ningún error."""
-    from convertersmartgrid.web.source_scope import inspect_package_scope
+    from convertersmartgrid.presentacion.web.source_scope import inspect_package_scope
 
     copia = tmp_path / 'ELOR25_V2'
     copia.write_bytes(b'TAPE' + b'\x00' * 64)

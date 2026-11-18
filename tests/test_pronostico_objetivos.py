@@ -9,8 +9,8 @@ import pytest
 from openpyxl import Workbook
 from pronostico_sintetico import sorteo
 
-from convertersmartgrid.digital_twin import temporal_entrenamiento as te
-from convertersmartgrid.digital_twin.pronostico import Objetivo, construir_conjunto
+from convertersmartgrid.adaptadores.digital_twin import temporal_entrenamiento as te
+from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo, construir_conjunto
 
 INICIO = datetime(2026, 6, 1, 0, 15)
 
@@ -73,7 +73,7 @@ def test_medidor_inexistente_se_aparta_con_su_motivo(tmp_path):
 
 def test_la_central_se_descuenta_con_curva_de_demanda(tmp_path):
     """046:RF-10 — con los medidores de la central, la demanda es la de ``curva_de_demanda``."""
-    from convertersmartgrid.demanda_medida import curva_de_demanda, maximas
+    from convertersmartgrid.aplicacion.demanda_medida import curva_de_demanda, maximas
     libro = _cabecera(tmp_path / 'cabecera.xlsx', {'CAB': 500.0, 'GEN': 500.0, 'LLE': 300.0, 'SAL': 200.0}, 200)
     central = {'A1': {'generacion': 'GEN', 'llegada': 'LLE', 'salida': 'SAL'}}
     objetivos, _apartados = te.objetivos_de_cabecera([libro], [('A1', 'CAB')], centrales=central)
@@ -88,7 +88,7 @@ def test_la_central_se_descuenta_con_curva_de_demanda(tmp_path):
 
 def test_curvas_de_clientes_del_libro_de_quince_minutos(tmp_path):
     """046:RF-11 — kW = EA × 4 y kVAR = ERI × 4, como 004:RF-66, por hoja del maestro."""
-    from convertersmartgrid.demanda_medida import curvas_de_clientes
+    from convertersmartgrid.aplicacion.demanda_medida import curvas_de_clientes
     libro = _clientes(tmp_path / '0626.xlsx', {'S1': 'Cliente uno', 'S2': 'Cliente dos'}, INICIO, 20)
     curvas, avisos = curvas_de_clientes(libro)
     assert set(curvas) == {'S1', 'S2'} and not avisos
@@ -101,7 +101,7 @@ def test_curvas_de_clientes_del_libro_de_quince_minutos(tmp_path):
 
 def test_libro_sin_maestro_usa_el_suministro_de_cada_hoja(tmp_path):
     """046:RF-11 — sin «maestro_lib», el código sale de la columna SUMINISTRO de la hoja."""
-    from convertersmartgrid.demanda_medida import curvas_de_clientes
+    from convertersmartgrid.aplicacion.demanda_medida import curvas_de_clientes
     libro = _clientes(tmp_path / '0526.xlsx', {'S1': 'Uno'}, INICIO, 6)
     from openpyxl import load_workbook
     wb = load_workbook(libro)
@@ -126,7 +126,7 @@ def test_libro_ilegible_se_dice(tmp_path):
 
 def test_registro_de_maxima_sigue_igual_tras_compartir_el_maestro(tmp_path):
     """004:RF-66 — ``registros_de_maxima`` lee el mismo maestro: el registro de su POT no cambia."""
-    from convertersmartgrid.demanda_medida import registros_de_maxima
+    from convertersmartgrid.aplicacion.demanda_medida import registros_de_maxima
     libro = _clientes(tmp_path / '0626.xlsx', {'S1': 'Cliente uno'}, INICIO, 12)
     fila = INICIO + timedelta(minutes=30)
     pot = (40 / 4 + 2) * 4
@@ -195,7 +195,7 @@ def test_huecos_quedan_como_huecos():
 @pytest.mark.skipif(not os.environ.get('CSG_DEMANDA_DIR'), reason='CSG_DEMANDA_DIR no definida')
 def test_clientes_reales_de_un_mes_son_de_quince_minutos():
     """046:RF-11 — el libro real de un mes da curvas de 15 minutos por cliente."""
-    from convertersmartgrid.demanda_medida import curvas_de_clientes, libros_de_cabecera
+    from convertersmartgrid.aplicacion.demanda_medida import curvas_de_clientes, libros_de_cabecera
     raiz = Path(os.environ['CSG_DEMANDA_DIR'])
     libros = sorted((raiz / '4.-clientesimportantes').rglob('*.xlsx'), key=lambda p: p.stat().st_size)
     assert libros and libros_de_cabecera is not None

@@ -12,7 +12,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 
 #: 064:RF-1: la aceptación nativa puede engancharse a un DIgSILENT abierto a mano y toma el
 #: turno con ``tomar_turno``; el arnés es quien conecta.
-PERMITIDOS = {'src/convertersmartgrid/pf_arnes.py', 'tools/powerfactory_acceptance.py'}
+PERMITIDOS = {'src/convertersmartgrid/adaptadores/pf_arnes.py', 'tools/powerfactory_acceptance.py'}
 
 
 def _llamadas_directas(fuente: str) -> list[int]:
@@ -57,7 +57,7 @@ def test_la_deteccion_ve_las_tres_formas():
 def test_la_web_lanza_la_red_del_sistema_con_el_entorno_de_digsilent(tmp_path, monkeypatch):
     """064:RF-3 — red del sistema, escenario base y datos que faltan llevan ``PF_PYTHON``:
     sin él, ``jobs.run_process`` no cerraba huérfanos ni ponía el límite de arranque."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     pf_dir = tmp_path / 'pf'
     pf_dir.mkdir()
@@ -91,6 +91,6 @@ def test_la_web_lanza_la_red_del_sistema_con_el_entorno_de_digsilent(tmp_path, m
 
 def test_el_servidor_atiende_la_operacion_de_la_set_nueva():
     """064:RF-8 — sin él, cada orden de la SET nueva cerraba el servidor y reconectaba."""
-    from convertersmartgrid import pf_arnes
+    from convertersmartgrid.adaptadores import pf_arnes
 
     assert 'set_nueva_operacion_pf.py' in pf_arnes.GUIONES_SERVIBLES

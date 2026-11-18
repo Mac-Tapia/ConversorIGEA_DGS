@@ -4,9 +4,9 @@ from __future__ import annotations
 import os
 import random
 
-from convertersmartgrid.combine import combine_models, estructurar
-from convertersmartgrid.estructura import asignar, estructura_de_dict
-from convertersmartgrid.model import Node
+from convertersmartgrid.aplicacion.combine import combine_models, estructurar
+from convertersmartgrid.dominio.estructura import asignar, estructura_de_dict
+from convertersmartgrid.dominio.model import Node
 from test_combine import _alimentador
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))

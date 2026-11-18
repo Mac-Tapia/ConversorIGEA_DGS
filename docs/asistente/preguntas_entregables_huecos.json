@@ -55,7 +55,7 @@
   {
    "codigo": {
     "ancla": "MODULOS = (",
-    "fichero": "src/convertersmartgrid/informes_planeamiento.py",
+    "fichero": "src/convertersmartgrid/adaptadores/informes_planeamiento.py",
     "linea": 250,
     "rf": null
    },
@@ -71,7 +71,7 @@
   {
    "codigo": {
     "ancla": "class RerankerNoDisponible(RuntimeError):",
-    "fichero": "src/convertersmartgrid/asistente/indice.py",
+    "fichero": "src/convertersmartgrid/aplicacion/asistente/indice.py",
     "linea": 72,
     "rf": null
    },
@@ -87,7 +87,7 @@
   {
    "codigo": {
     "ancla": "'marca': 'pronostico'})",
-    "fichero": "src/convertersmartgrid/digital_twin/pronostico.py",
+    "fichero": "src/convertersmartgrid/adaptadores/digital_twin/pronostico.py",
     "linea": 328,
     "rf": null
    },
@@ -103,7 +103,7 @@
   {
    "codigo": {
     "ancla": "N-HiTS, TFT y PatchTST de neuralforecast",
-    "fichero": "src/convertersmartgrid/digital_twin/adaptador_neuralforecast.py",
+    "fichero": "src/convertersmartgrid/adaptadores/digital_twin/adaptador_neuralforecast.py",
     "linea": 1,
     "rf": null
    },
@@ -119,7 +119,7 @@
   {
    "codigo": {
     "ancla": "LANES = ('engine', 'powerfactory', 'asistente', 'control'",
-    "fichero": "src/convertersmartgrid/web/jobs.py",
+    "fichero": "src/convertersmartgrid/presentacion/web/jobs.py",
     "linea": 40,
     "rf": null
    },
@@ -151,7 +151,7 @@
   {
    "codigo": {
     "ancla": "leía ``promovido.json``",
-    "fichero": "src/convertersmartgrid/asistente/modelos_en_uso.py",
+    "fichero": "src/convertersmartgrid/aplicacion/asistente/modelos_en_uso.py",
     "linea": 4,
     "rf": null
    },
@@ -166,7 +166,7 @@
   {
    "codigo": {
     "ancla": "Indique el alimentador del informe.",
-    "fichero": "src/convertersmartgrid/web/services.py",
+    "fichero": "src/convertersmartgrid/presentacion/web/services.py",
     "linea": 6926,
     "rf": null
    },
@@ -181,13 +181,13 @@
   {
    "codigo": {
     "ancla": "leido = _perdidas_del_libro(ws, [alimentador])",
-    "fichero": "src/convertersmartgrid/web/services.py",
+    "fichero": "src/convertersmartgrid/presentacion/web/services.py",
     "linea": 7631,
     "rf": null
    },
    "documento": {
     "ancla": "transformador de la SET, del formulario mientras no se lean del libro de la empresa",
-    "fichero": "src/convertersmartgrid/web/services.py",
+    "fichero": "src/convertersmartgrid/presentacion/web/services.py",
     "linea": 7545,
     "rf": null
    },

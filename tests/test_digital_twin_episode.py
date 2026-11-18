@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.digital_twin import episode as ep
+from convertersmartgrid.dominio.digital_twin import episode as ep
 
 RAIZ = Path(__file__).resolve().parents[1]
 H = 'a' * 64

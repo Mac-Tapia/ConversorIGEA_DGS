@@ -20,8 +20,8 @@ import math
 
 import pytest
 
-from convertersmartgrid.dataset import CymdistDataset
-from convertersmartgrid.model import (
+from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.dominio.model import (
     ModelBuildError,
     build_feeder_model,
     check_length_scale_agreement,

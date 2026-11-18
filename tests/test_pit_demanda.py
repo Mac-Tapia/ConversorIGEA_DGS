@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.pit.ambito import PitError
-from convertersmartgrid.pit.demanda_regulatoria import (
+from convertersmartgrid.dominio.pit.ambito import PitError
+from convertersmartgrid.adaptadores.pit.demanda_regulatoria import (
     Topologia,
     curvas_por_devanado,
     datos_f101,
@@ -21,9 +21,9 @@ from convertersmartgrid.pit.demanda_regulatoria import (
     tolerancia_de,
     topologia_desde,
 )
-from convertersmartgrid.pit.ambito import AreaPit
-from convertersmartgrid.pit.red_area import RedArea
-from convertersmartgrid.registro_normativo import RegistroError, cargar_registro
+from convertersmartgrid.dominio.pit.ambito import AreaPit
+from convertersmartgrid.aplicacion.pit.red_area import RedArea
+from convertersmartgrid.dominio.registro_normativo import RegistroError, cargar_registro
 
 RAIZ = Path(__file__).resolve().parents[1]
 NORMATIVA = RAIZ / 'config' / 'normativa'
@@ -342,12 +342,12 @@ def _leer_falso(leidas, apartados, vistos):
 def test_curvas_de_la_medida_aparta_lo_que_falta(monkeypatch):
     """107:RF-9 (T28) — las curvas salen de los libros de cabecera del perfil; un alimentador apartado por la lectura
     o sin curva queda en hueco con su motivo, y sin pares cada alimentador se busca por su propio código."""
-    from convertersmartgrid import pronostico_demanda
+    from convertersmartgrid.adaptadores import pronostico_demanda
     vistos = []
     leidas = {'A1': {'curva': _curva([5, 6]), 'fuente': {'medidor': 'A1', 'libros': ['cab.xlsx']}}}
     monkeypatch.setattr(pronostico_demanda, 'curvas_de_cabecera',
                         _leer_falso(leidas, [{'objetivo': 'cabecera:A2', 'motivo': 'M2: sin curva'}], vistos))
-    from convertersmartgrid.pit.demanda_regulatoria import curvas_de_la_medida
+    from convertersmartgrid.adaptadores.pit.demanda_regulatoria import curvas_de_la_medida
     curvas, fuentes, huecos = curvas_de_la_medida(['libros'], TOPO)
     assert vistos == [[('A1', 'A1'), ('A2', 'A2'), ('A3', 'A3')]]
     assert set(curvas) == {'A1'} and fuentes['A1']['libros'] == ['cab.xlsx']
@@ -359,12 +359,12 @@ def test_curvas_de_la_medida_aparta_lo_que_falta(monkeypatch):
 def test_demanda_regulatoria_de_punta_a_punta(tmp_path, monkeypatch):
     """107:RF-9, 107:RF-11 (T28) — del perfil, la red, la medida y el registro a F-101, F-102 y F-103, con la
     tolerancia por defecto dicha y sin huecos cuando todo está declarado."""
-    from convertersmartgrid import pronostico_demanda
+    from convertersmartgrid.adaptadores import pronostico_demanda
     h = T0 + Q15
     registro = _registro(tmp_path, sein={'potencia_mw': 7000.0, 'fecha': h.strftime('%Y-%m-%d'), 'hora': h.strftime('%H:%M')})
     leidas = {a: {'curva': _curva(v), 'fuente': {'medidor': a}} for a, v in (('A1', [8, 8, 4, 2]), ('A2', [2, 2, 1, 1]))}
     monkeypatch.setattr(pronostico_demanda, 'curvas_de_cabecera', _leer_falso(leidas, [], []))
-    from convertersmartgrid.pit.demanda_regulatoria import demanda_regulatoria
+    from convertersmartgrid.adaptadores.pit.demanda_regulatoria import demanda_regulatoria
     area = _area({'SA': ('A1', 'A2')})
     red = _red([('BA', 'SA')], trafo2=[{'id': 'TA', 'set': 'SA', 'hv': 'HA', 'lv': 'BA'}])
     salida = demanda_regulatoria(registro, area, red, {'SIS': ['SA']}, ['libros'], ANIO, convencion='inicio')
@@ -379,8 +379,8 @@ def test_f102_y_f103_llenados_con_la_plantilla_oficial(monkeypatch):
     """107:RF-9 (T28) — F-102 y F-103 se llenan con el motor común sobre la plantilla oficial transcrita (RCD
     217-2013): cada momento en sus cuatro columnas, la barra y la tensión de la red, la Pmax del día de máxima del
     sistema y la energía en MWh; ninguna columna de la plantilla queda sin campo."""
-    from convertersmartgrid import pronostico_demanda
-    from convertersmartgrid.pit.demanda_regulatoria import celdas_f102_f103, demanda_regulatoria
+    from convertersmartgrid.adaptadores import pronostico_demanda
+    from convertersmartgrid.adaptadores.pit.demanda_regulatoria import celdas_f102_f103, demanda_regulatoria
     registro = cargar_registro(NORMATIVA)
     t0 = datetime(2025, 3, 26, 18, 45)
     leidas = {a: {'curva': _curva(v, desde=t0), 'fuente': {'medidor': a}}
@@ -448,8 +448,8 @@ def test_f101_un_bloque_por_sistema_con_el_fc_en_su_total(monkeypatch):
     """107:RF-9 (T28, delta18) — F-101 sobre su plantilla oficial: un bloque por sistema eléctrico con su cabecera
     «SISTEMA ELÉCTRICO k», una fila por devanado y el total «Total Sistema k» (el «2» del original es la llamada a la
     nota) con SOLO el FC; con más sistemas que huecos de la plantilla, se dice cuántos bloques insertar."""
-    from convertersmartgrid import pronostico_demanda
-    from convertersmartgrid.pit.demanda_regulatoria import celdas_f101, demanda_regulatoria
+    from convertersmartgrid.adaptadores import pronostico_demanda
+    from convertersmartgrid.adaptadores.pit.demanda_regulatoria import celdas_f101, demanda_regulatoria
     registro = cargar_registro(NORMATIVA)
     t0 = datetime(2025, 3, 26, 18, 45)
     alims = {f'A{i}': [8 + i, 8 + i, 4, 2] for i in range(1, 5)}
@@ -483,9 +483,9 @@ def _cadena():
     """El módulo de la 3c: su ausencia es la falla de la aserción, no un error de importación."""
     import importlib
     import importlib.util
-    assert importlib.util.find_spec('convertersmartgrid.pit.demanda_cadena') is not None, \
-        'falta convertersmartgrid.pit.demanda_cadena (107 T29, paso 3c)'
-    return importlib.import_module('convertersmartgrid.pit.demanda_cadena')
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.pit.demanda_cadena') is not None, \
+        'falta convertersmartgrid.adaptadores.pit.demanda_cadena (107 T29, paso 3c)'
+    return importlib.import_module('convertersmartgrid.adaptadores.pit.demanda_cadena')
 
 
 def _registro_real_y_empresa():
@@ -615,9 +615,9 @@ def _resumen():
     """El módulo de la 3d: su ausencia es la falla de la aserción, no un error de importación."""
     import importlib
     import importlib.util
-    assert importlib.util.find_spec('convertersmartgrid.pit.demanda_resumen') is not None, \
-        'falta convertersmartgrid.pit.demanda_resumen (107 T30, paso 3d)'
-    return importlib.import_module('convertersmartgrid.pit.demanda_resumen')
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.pit.demanda_resumen') is not None, \
+        'falta convertersmartgrid.adaptadores.pit.demanda_resumen (107 T30, paso 3d)'
+    return importlib.import_module('convertersmartgrid.adaptadores.pit.demanda_resumen')
 
 
 def _cadena_hecha():
@@ -692,7 +692,7 @@ def test_resumen_historia_f104_y_f105_del_menos_20_al_0_con_sus_tasas_y_desde_la
     de la 031 con lo publicado hasta el corte, el PBI en millones de soles y los clientes como hueco con su causa."""
     from datetime import date
 
-    from convertersmartgrid.proyeccion_anual import CifraExogena, RegistroExogenas
+    from convertersmartgrid.adaptadores.proyeccion_anual import CifraExogena, RegistroExogenas
     mod = _resumen()
     registro = cargar_registro(NORMATIVA)
     cifras = tuple(CifraExogena(v, 'Región sintética', a, valor, 'nivel', u, 'fuente sintética', date(a + 1, 3, 1), 'x')
@@ -735,7 +735,7 @@ def test_resumen_modelos_comparados_f106_y_f107_con_su_ecuacion_y_sus_estadistic
 def test_resumen_llenado_ningun_formato_de_demanda_pendiente_sin_causa_nombrada():
     """107:RF-9 (aclaración, T30 3d) — `llenado.pendientes_de_mapeo` no lista ningún formato de demanda (F-101 a
     F-124) sin su causa nombrada, y con sus fuentes los de la 3b, la 3c y la 3d salen llenados."""
-    from convertersmartgrid.pit import llenado
+    from convertersmartgrid.adaptadores.pit import llenado
     registro, cadena = _cadena_hecha()
     sin_fuentes = llenado.llenar_formatos(registro, {})
     demanda = [c for c in sin_fuentes['pendientes_de_mapeo'] if c.startswith('F-1')]
@@ -757,8 +757,8 @@ def test_resumen_formato_por_sistema_con_dos_sistemas_pide_su_copia_de_hoja_y_el
     """107:RF-9 (T30 3d) — F-108 va una hoja por sistema eléctrico: con dos sistemas, el segundo va a «F-108 (2)», el
     resultado lo pide en ``hojas_a_copiar`` y el plan del libro se detiene diciéndolo en lugar de escribir en una hoja
     que no existe."""
-    from convertersmartgrid.pit import llenado
-    from convertersmartgrid.pit.cuadros import plan_de_formatos
+    from convertersmartgrid.adaptadores.pit import llenado
+    from convertersmartgrid.adaptadores.pit.cuadros import plan_de_formatos
     registro, empresa, _tabla = _registro_real_y_empresa()
     dos = {**VENTAS, 'SIS-2': VENTAS['SIS-1']}
     cadena = _cadena().cadena_regulatoria(registro, empresa, _salida_3b(), _red_cadena(), dos, fecha=FECHA_FIJACION)

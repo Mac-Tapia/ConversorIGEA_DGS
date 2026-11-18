@@ -9,7 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
-from convertersmartgrid.digital_twin.pronostico import Objetivo
+from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
 
 CADENCIA = 15
 PUNTOS_DIA = 96

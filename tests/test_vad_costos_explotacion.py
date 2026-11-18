@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.registro_normativo import cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.costos_explotacion import ROTULO_REAL, CostoReal, Partida, costear, rubros
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.aplicacion.vad.costos_explotacion import ROTULO_REAL, CostoReal, Partida, costear, rubros
 
 RAIZ = Path(__file__).resolve().parents[1]
 

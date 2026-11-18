@@ -11,10 +11,10 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.asistente.equipo import ROLES_LECTURA, ROLES_REVISION, inventario_equipo
-from convertersmartgrid.asistente.orquestador import ETAPAS, ETAPAS_CARGA
-from convertersmartgrid.asistente.tareas import TAREAS
-from convertersmartgrid.web.jobs import LANES
+from convertersmartgrid.aplicacion.asistente.equipo import ROLES_LECTURA, ROLES_REVISION, inventario_equipo
+from convertersmartgrid.aplicacion.asistente.orquestador import ETAPAS, ETAPAS_CARGA
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
+from convertersmartgrid.presentacion.web.jobs import LANES
 from apoyo import cargar_herramienta
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -59,9 +59,9 @@ def test_catalogo_nombra_cada_fichero_versionado(texto):
 
 def test_cada_fichero_toma_papel_y_capa_de_su_fuente(texto):
     """090:RF-2 — el papel es el del índice y la capa la de pyproject, sin otra copia."""
-    fuente = FuenteCon({'CODIGO_FUENTE.md': fuente_indice_con('`src/convertersmartgrid/util.py`', 'Papel de prueba. Y más detalle', '777')})
-    linea = next(x for x in GA.documento(fuente).splitlines() if x.startswith('| `util.py` |'))
-    assert linea == '| `util.py` | Dom | 777 | Papel de prueba. |'
+    fuente = FuenteCon({'CODIGO_FUENTE.md': fuente_indice_con('`src/convertersmartgrid/dominio/util.py`', 'Papel de prueba. Y más detalle', '777')})
+    linea = next(x for x in GA.documento(fuente).splitlines() if x.startswith('| `dominio/util.py` |'))
+    assert linea == '| `dominio/util.py` | Dom | 777 | Papel de prueba. |'
 
 
 def fuente_indice_con(ruta, papel, spec):
@@ -89,8 +89,8 @@ def test_090_rf18_cada_fichero_del_arbol_tiene_su_subsistema(texto):
 
 def test_fichero_retirado_desaparece():
     """090:RF-4 — sale del catálogo aunque el mapa lo siga nombrando."""
-    assert '| `vias.py` |' in GA.documento(FuenteCon())
-    assert '| `vias.py` |' not in GA.documento(FuenteCon(sin={'src/convertersmartgrid/vias.py'}))
+    assert '| `aplicacion/vias.py` |' in GA.documento(FuenteCon())
+    assert '| `aplicacion/vias.py` |' not in GA.documento(FuenteCon(sin={'src/convertersmartgrid/aplicacion/vias.py'}))
 
 
 def test_cifras_con_capas_carriles_rutas_y_specs(texto):
@@ -122,7 +122,7 @@ def test_comprobar_dice_la_orden(tmp_path, capsys, monkeypatch):
 # ---------------------------------------------------------------------- el asistente y su equipo
 def test_tareas_iguales_al_codigo_real():
     """090:RF-5 — leídas sin importar, dicen lo mismo que el catálogo que corre."""
-    leidas = GA.tareas(GA.Fuente(RAIZ).leer(GA.S + 'asistente/tareas.py'))
+    leidas = GA.tareas(GA.Fuente(RAIZ).leer(GA.S + 'aplicacion/asistente/tareas.py'))
     assert [t['nombre'] for t in leidas] == list(TAREAS)
     for t in leidas:
         real = TAREAS[t['nombre']]
@@ -142,7 +142,7 @@ def test_tareas_con_carril_como_el_inventario(texto):
 
 def test_roles_iguales_al_inventario(texto):
     """090:RF-6 — todos los roles, y solo el operador ejecuta."""
-    leidos = GA.roles(GA.Fuente(RAIZ).leer(GA.S + 'asistente/equipo.py'), GA.Fuente(RAIZ).leer(GA.S + 'asistente/revision_roles.py'))
+    leidos = GA.roles(GA.Fuente(RAIZ).leer(GA.S + 'aplicacion/asistente/equipo.py'), GA.Fuente(RAIZ).leer(GA.S + 'aplicacion/asistente/revision_roles.py'))
     assert {r['rol'] for r in leidos} == {'operador', *ROLES_REVISION, *ROLES_LECTURA}
     inventario = {r['rol']: r['puede_ejecutar'] for r in inventario_equipo()['roles']}
     for r in leidos:
@@ -152,7 +152,7 @@ def test_roles_iguales_al_inventario(texto):
 
 def test_etapas_y_familias_iguales_al_codigo(texto):
     """090:RF-7 — las etapas de las dos cadenas, las familias y los umbrales."""
-    orquestador = GA.Fuente(RAIZ).leer(GA.S + 'asistente/orquestador.py')
+    orquestador = GA.Fuente(RAIZ).leer(GA.S + 'aplicacion/asistente/orquestador.py')
     for nombre, reales in (('ETAPAS', ETAPAS), ('ETAPAS_CARGA', ETAPAS_CARGA)):
         leidas = GA.etapas(orquestador, nombre)
         assert [(e['nombre'], e['tarea'], e['opcional'], e['proceso'], e['condicion']) for e in leidas] == \
@@ -163,8 +163,8 @@ def test_etapas_y_familias_iguales_al_codigo(texto):
 def test_orden_de_familias_se_lee_del_contrato_puro():
     """090:RF-7/12; 002:RF-3: el catálogo usa el dueño canónico, sin importar el producto."""
     fuente = FuenteCon({
-        GA.S + 'contratos_aprendizaje.py': 'ORDEN_MODELOS = ("familia_contrato",)\n',
-        GA.S + 'training_coordinator.py': 'ORDEN_MODELOS = ("familia_obsoleta",)\n',
+        GA.S + 'dominio/contratos_aprendizaje.py': 'ORDEN_MODELOS = ("familia_contrato",)\n',
+        GA.S + 'aplicacion/training_coordinator.py': 'ORDEN_MODELOS = ("familia_obsoleta",)\n',
     })
     documento = GA.documento(fuente)
     assert 'Orden de entrenamiento: `familia_contrato`.' in documento
@@ -268,8 +268,13 @@ def test_la_arquitectura_explica_cada_paquete():
     """090:RF-17 — un paquete de ``src/convertersmartgrid`` que la arquitectura no explica se dice por su nombre."""
     texto = (RAIZ / 'docs/ARQUITECTURA.md').read_text(encoding='utf-8')
     raiz = RAIZ / 'src/convertersmartgrid'
-    paquetes = sorted(p.name for p in raiz.iterdir() if p.is_dir() and not p.name.startswith(('_', '.'))
-                      and any(f.is_file() for f in p.rglob('*') if '__pycache__' not in f.parts))
+    def con_ficheros(p):
+        return p.is_dir() and not p.name.startswith(('_', '.')) and any(
+            f.is_file() for f in p.rglob('*') if '__pycache__' not in f.parts)
+    # 002:RF-1: los paquetes de primer nivel son las capas; los de cada capa también se explican.
+    primeros = [p for p in raiz.iterdir() if con_ficheros(p)]
+    capas = [p for p in primeros if p.name in ('dominio', 'puertos', 'aplicacion', 'adaptadores', 'presentacion')]
+    paquetes = sorted({p.name for p in primeros} | {q.name for c in capas for q in c.iterdir() if con_ficheros(q)})
     assert {'pit', 'vad', 'correo', 'benchmarks', 'adaptadores'} <= set(paquetes)
     sin_explicar = [p for p in paquetes if f'`{p}/' not in texto]
     assert not sin_explicar, f'Paquetes sin explicar en docs/ARQUITECTURA.md: {sin_explicar}'

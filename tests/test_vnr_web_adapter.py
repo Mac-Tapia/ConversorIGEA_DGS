@@ -71,7 +71,7 @@ def test_safe_extract_package_rechaza_traversal_y_duplicados(tmp_path):
 
 
 def test_bridge_conserva_identidad_de_dos_alimentadores():
-    from convertersmartgrid.model import build_feeder_model
+    from convertersmartgrid.dominio.model import build_feeder_model
     from convertersmartgrid.adaptadores.entrada.vnr.application.cymdist_bridge import canonical_to_cymdist
     from convertersmartgrid.adaptadores.entrada.vnr.models import CanonicalModel, ConductorType, Load, Node, Section, Source
 
@@ -138,9 +138,9 @@ def test_bridge_enumera_pero_bloquea_vnr_sin_fuente_ni_cargas():
 
 
 def test_vnr_adapter_respeta_empresa_y_periodo_explicitos(tmp_path):
-    from convertersmartgrid.web.source_runs import create_source_run
-    from convertersmartgrid.web.sources import adapter_for
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
+    from convertersmartgrid.adaptadores.sources import adapter_for
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     archive = _vnr_zip(tmp_path)
     ws = Workspace(id='vnr-adapter', root=tmp_path / 'workspace')
@@ -163,7 +163,7 @@ ALIMENTADORES_POR_EMPRESA = {'EMPC': {'FC101', 'FC202'}, 'EMPD': {'FD101'}}
 
 
 def _ws_vnr(tmp_path, empresa: str = 'EMPC'):
-    from convertersmartgrid.web.workspace import Workspace
+    from convertersmartgrid.presentacion.web.workspace import Workspace
 
     ws = Workspace(id='vnr-puertas', root=tmp_path / 'workspace')
     ws.options['input_mode'] = 'vnr'
@@ -191,8 +191,8 @@ def test_vnr_las_puertas_corren_al_cargar_solo_para_informar(tmp_path, empresa):
 
     Para dos distribuidoras del mismo paquete: nada depende del código de la empresa.
     """
-    from convertersmartgrid.web.source_runs import create_source_run
-    from convertersmartgrid.web.sources import adapter_for
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
+    from convertersmartgrid.adaptadores.sources import adapter_for
 
     ws = _ws_vnr(tmp_path, empresa)
     result = adapter_for('vnr', company=empresa, period='2025').load(create_source_run(ws), aliases={})
@@ -210,7 +210,7 @@ def test_vnr_las_puertas_corren_al_cargar_solo_para_informar(tmp_path, empresa):
 
 def test_vnr_incidencia_g_h_llega_al_resultado_de_la_web(tmp_path):
     """080:RF-57 — la incidencia de G/H llega al resultado de la carga en la web y a su inventario."""
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ws = _ws_vnr(tmp_path)
     registro: list[str] = []
@@ -231,8 +231,8 @@ def test_vnr_incidencia_g_h_llega_al_resultado_de_la_web(tmp_path):
 def test_vnr_puertas_que_fallan_al_evaluar_no_tumban_la_carga(tmp_path, monkeypatch):
     """080:RF-56 — si la evaluación falla, se dice como incidencia y G/H siguen informándose."""
     from convertersmartgrid.adaptadores.entrada.vnr.application.services import VnrApplicationService
-    from convertersmartgrid.web.source_runs import create_source_run
-    from convertersmartgrid.web.sources import adapter_for
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
+    from convertersmartgrid.adaptadores.sources import adapter_for
 
     def roto(self, *_a, **_k):
         raise RuntimeError('topología ilegible')
@@ -253,7 +253,7 @@ def test_vnr_resultado_de_la_carga_resume_la_revision_para_el_operador(tmp_path,
     """080:RF-57 — contrato del resultado de la carga en la web: una frase corta, sin RF ni jerga."""
     import re
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     resultado = services.load_dataset(_ws_vnr(tmp_path, empresa), _ctx())
 
@@ -500,7 +500,7 @@ def test_equipo_de_tipo_sin_regla_se_anota_y_no_se_pierde(tmp_path):
 
 def test_aviso_dice_lo_que_si_se_modelo_cuando_hay_sed():
     """080:RF-55 — con SED y equipos modelados, el aviso ya no dice «solo los tramos de media tensión»."""
-    from convertersmartgrid.sources.vnr import aviso_de_capas_sin_modelar
+    from convertersmartgrid.adaptadores.sources.vnr import aviso_de_capas_sin_modelar
 
     metadata = {'capas': [{'rol': 'tramos_mt', 'registros': 3}, {'rol': 'sed', 'registros': 2},
                           {'rol': 'equipos', 'registros': 1}, {'rol': 'tramos_bt', 'registros': 4}],
@@ -623,7 +623,7 @@ def test_capas_sin_modelar_van_delante_en_el_resumen_para_el_operador(tmp_path):
     """080:RF-55 — lo que la vía de capas no modela lo dice el resultado de la carga en su primera frase, por rol y con
     sus registros; no basta con dejarlo en metadata (auditor, 2026-11-14). Los tramos BT ya entran: la frase lo dice."""
     from convertersmartgrid.adaptadores.entrada.vnr.pipeline import canonicalize_vnr_package
-    from convertersmartgrid.sources.vnr import aviso_de_capas_sin_modelar
+    from convertersmartgrid.adaptadores.sources.vnr import aviso_de_capas_sin_modelar
 
     paquete = tmp_path / 'paquete'
     paquete.mkdir()

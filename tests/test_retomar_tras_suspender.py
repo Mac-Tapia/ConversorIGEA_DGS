@@ -6,8 +6,8 @@ import time
 
 import pytest
 
-from convertersmartgrid.web import jobs as J
-from convertersmartgrid.web import suspension
+from convertersmartgrid.presentacion.web import jobs as J
+from convertersmartgrid.presentacion.web import suspension
 
 
 def _esperar(manager, job_id, limite=10.0):
@@ -85,8 +85,8 @@ def test_al_arrancar_se_relanza_una_vez_el_ultimo_interrumpido(tmp_path, monkeyp
     petición, dice de dónde viene y no se relanza dos veces; uno sin petición guardada no se relanza."""
     from fastapi.testclient import TestClient
 
-    from convertersmartgrid.web import services
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     # Otra prueba que arranca ``__main__`` deja la variable puesta; aquí se relanza a mano.

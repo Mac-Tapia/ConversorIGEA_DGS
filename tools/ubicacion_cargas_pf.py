@@ -250,7 +250,7 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     from casos_pf import caso as caso_del_sistema
     from cargas_pf import activar_proyecto
 
-    from convertersmartgrid.pf_arnes import caso_restituido
+    from convertersmartgrid.adaptadores.pf_arnes import caso_restituido
 
     informe = {'project': plan.get('project'), 'caso': None, 'cargas': [], 'avisos': [], 'solo_lectura': True}
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
@@ -277,7 +277,7 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
     salida = Path(args.output_json)
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('ubicacion_cargas_pf.py')

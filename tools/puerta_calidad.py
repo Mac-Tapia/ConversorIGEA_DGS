@@ -109,7 +109,7 @@ def pyproject_cambia_solo_capas(raiz: Path = RAIZ) -> bool:
 #: 077:RF-76: lo que cambia el servidor MCP. Un commit con uno de estos corre su prueba real con su intérprete y no la
 #: tolera omitida: hasta el 2026-11-14 la puerta del commit corría sin ``CSG_MCP_PYTHON`` y la omitía callada.
 DEL_MCP = ('tools/mcp_conversor.py', 'requirements-mcp.txt', 'tests/test_mcp_conversor.py', 'docs/MCP_CONVERSOR.md',
-           'src/convertersmartgrid/asistente/lectura_proyecto.py')
+           'src/convertersmartgrid/aplicacion/asistente/lectura_proyecto.py')
 #: 077:RF-76: las pruebas del servidor MCP real. Sin ellas aprobadas, la suite de ``main``, la que precede a la etiqueta, no
 #: se da por buena, aunque nadie las elija o se omitan.
 MCP_REAL = ('tests.test_mcp_conversor::test_servidor_real_por_stdio',
@@ -545,7 +545,7 @@ def puerta_arbol(raiz: Path = RAIZ) -> int:
              'puerta': firma_de_la_puerta(), 'variables': variables_de_la_firma(raiz, _entorno_de_pytest(entorno)),
              'entorno': entorno_de_la_firma(raiz),
              'aprobada': not juicio['fallidas'] and not juicio['omitidas'], **juicio}
-    from convertersmartgrid import util
+    from convertersmartgrid.dominio import util
 
     util.write_json_atomic(ruta, datos)              # 001:RF-5: la escritura atómica única, después de los junit
     aprobada = _informar(juicio, omitidas_cuentan=True)
@@ -595,7 +595,7 @@ def _pytest(argumentos: list[str], entorno: Mapping[str, str], raiz: Path, exigi
     """pytest con su junit; ``conservar`` (ruta sin extensión) guarda una copia de cada junit, ``<nombre>.<sesión>.junit.xml``,
     y su sha256 va en ``juicio['junits']`` (102:RF-11). ``procesos`` > 1 reparte la suite entera (102:RF-5,
     :func:`procesos_de_la_suite`); con 1, la orden de siempre."""
-    from convertersmartgrid.trabajadores_ml import SALIDA_SIN_TURNO_GPU, quien_tiene_la_gpu
+    from convertersmartgrid.aplicacion.trabajadores_ml import SALIDA_SIN_TURNO_GPU, quien_tiene_la_gpu
 
     # 102:RF-19: sin las variables que git pone al gancho (GIT_INDEX_FILE, GIT_DIR…): heredadas, el «git worktree add»
     # de las pruebas del asistente usaba el índice de este repositorio y fallaba solo dentro de la puerta (2026-11-11).
@@ -624,7 +624,7 @@ def _pytest(argumentos: list[str], entorno: Mapping[str, str], raiz: Path, exigi
         for sesion, junit, rc in resultados:
             if rc == SALIDA_SIN_TURNO_GPU:
                 # 106:RF-8: sin el turno de GPU no hay veredicto, y eso es un fallo con su dueño, nunca «0 fallidas».
-                from convertersmartgrid.training_coordinator import ruta_guardia_gpu
+                from convertersmartgrid.aplicacion.training_coordinator import ruta_guardia_gpu
 
                 dueno = quien_tiene_la_gpu(ruta_guardia_gpu(env))   # la misma que calculó el conftest
                 return {'total': 0, 'omitidas': [],

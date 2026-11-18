@@ -39,7 +39,7 @@ def _servidor(lector: Any) -> Any:
     from mcp import types
     from mcp.server.lowlevel import Server
 
-    from convertersmartgrid.asistente import lectura_proyecto
+    from convertersmartgrid.aplicacion.asistente import lectura_proyecto
 
     async def herramientas(_contexto: Any, _parametros: Any) -> types.ListToolsResult:
         return types.ListToolsResult(tools=[
@@ -76,12 +76,12 @@ def main(argv: list[str] | None = None) -> int:
         print('Falta el paquete opcional «mcp»: pip install --require-hashes -r requirements-mcp.txt. La web no lo necesita.',
               file=sys.stderr)
         return SIN_PAQUETE
-    from convertersmartgrid.asistente.equipo import LecturaGobernada
-    from convertersmartgrid.asistente.lectura_proyecto import (
+    from convertersmartgrid.aplicacion.asistente.equipo import LecturaGobernada
+    from convertersmartgrid.aplicacion.asistente.lectura_proyecto import (
         RESTRINGIDA,
         politica_local,
     )
-    from convertersmartgrid.documentos_solicitud import texto_pdf
+    from convertersmartgrid.adaptadores.documentos_solicitud import texto_pdf
 
     politica = politica_local(texto_pdf) if args.datos_locales else RESTRINGIDA  # 077:RF-61, RF-62
     if args.datos_locales:

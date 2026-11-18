@@ -23,7 +23,7 @@ import math
 
 import pytest
 
-from convertersmartgrid.loads import (
+from convertersmartgrid.adaptadores.loads import (
     ACTION_SKIP,
     SHEET_COLUMNS,
     LoadTemplateError,

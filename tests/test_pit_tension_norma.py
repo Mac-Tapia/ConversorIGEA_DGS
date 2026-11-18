@@ -13,13 +13,13 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from convertersmartgrid.pit import diagnostico as dg
-from convertersmartgrid.pit.ambito import AreaPit, PitError
-from convertersmartgrid.pit.diagnostico import diagnosticar, limites_de_tension
-from convertersmartgrid.pit.expediente import abrir, emitir
-from convertersmartgrid.pit.red_area import RedArea, leer_libro_red
-from convertersmartgrid.pit.red_pandapower import ResultadoFlujo
-from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid.adaptadores.pit import diagnostico as dg
+from convertersmartgrid.dominio.pit.ambito import AreaPit, PitError
+from convertersmartgrid.adaptadores.pit.diagnostico import diagnosticar, limites_de_tension
+from convertersmartgrid.adaptadores.pit.expediente import abrir, emitir
+from convertersmartgrid.aplicacion.pit.red_area import RedArea, leer_libro_red
+from convertersmartgrid.adaptadores.pit.red_pandapower import ResultadoFlujo
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
 
 RAIZ = Path(__file__).resolve().parents[1]
 NORMATIVA = RAIZ / 'config' / 'normativa'

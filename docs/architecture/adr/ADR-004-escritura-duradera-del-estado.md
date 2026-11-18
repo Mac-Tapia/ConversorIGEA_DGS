@@ -4,8 +4,8 @@
 - Fecha: 2026-11-14
 - Specs: 086:RF-1, 086:RF-2, 086:RF-54
 - Elementos C4: workspaceStore, custody, operationStore, api
-- Evidencia: `src/convertersmartgrid/util.py::publicar_duradero`, `src/convertersmartgrid/util.py::_sustituir`, `src/convertersmartgrid/util.py::ESPERAS_SUSTITUIR_S`, `src/convertersmartgrid/util.py::sincronizar_carpeta`, `src/convertersmartgrid/util.py::write_json_atomic`, `src/convertersmartgrid/util.py::ruta_copia_anterior`
-- Consumidores: `src/convertersmartgrid/web/workspace.py::publicar_duradero`, `src/convertersmartgrid/web/source_runs.py::publicar_duradero`, `src/convertersmartgrid/web/copia_datos.py::publicar_duradero`, `src/convertersmartgrid/asistente/almacen.py::publicar_duradero`, `src/convertersmartgrid/powerfactory_binding.py::publicar_duradero`
+- Evidencia: `src/convertersmartgrid/dominio/util.py::publicar_duradero`, `src/convertersmartgrid/dominio/util.py::_sustituir`, `src/convertersmartgrid/dominio/util.py::ESPERAS_SUSTITUIR_S`, `src/convertersmartgrid/dominio/util.py::sincronizar_carpeta`, `src/convertersmartgrid/dominio/util.py::write_json_atomic`, `src/convertersmartgrid/dominio/util.py::ruta_copia_anterior`
+- Consumidores: `src/convertersmartgrid/presentacion/web/workspace.py::publicar_duradero`, `src/convertersmartgrid/presentacion/web/source_runs.py::publicar_duradero`, `src/convertersmartgrid/presentacion/web/copia_datos.py::publicar_duradero`, `src/convertersmartgrid/aplicacion/asistente/almacen.py::publicar_duradero`, `src/convertersmartgrid/adaptadores/powerfactory_binding.py::publicar_duradero`
 
 ## Contexto
 

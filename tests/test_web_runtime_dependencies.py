@@ -20,7 +20,7 @@ from packaging.specifiers import SpecifierSet
 
 def _runtime_module():
     try:
-        return importlib.import_module('convertersmartgrid.web.runtime')
+        return importlib.import_module('convertersmartgrid.presentacion.web.runtime')
     except ModuleNotFoundError:
         pytest.fail('falta el comprobador único de dependencias del lanzador web')
 
@@ -95,7 +95,7 @@ class SinFastapi(importlib.abc.MetaPathFinder):
         if nombre == 'fastapi' or nombre.startswith('fastapi.'):
             raise ModuleNotFoundError('fastapi ausente deliberadamente')
 sys.meta_path.insert(0, SinFastapi())
-from convertersmartgrid.web.runtime import missing_dependencies
+from convertersmartgrid.presentacion.web.runtime import missing_dependencies
 print(json.dumps(missing_dependencies()))
 '''
     # Importa de verdad cada dependencia: 3 s solo, 18 s tras las pruebas web y más de 60 s con la memoria justa (2026-11-05). Esta

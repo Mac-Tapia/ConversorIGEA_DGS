@@ -67,7 +67,7 @@ def cruzar(base: dict, web: list[dict]) -> dict:
 
 
 def _leer(url: str):
-    from convertersmartgrid.sesion_web import cabeceras_locales
+    from convertersmartgrid.dominio.sesion_web import cabeceras_locales
 
     # 086:RF-19: la API exige el token de la sesión, también para leer.
     with urllib.request.urlopen(urllib.request.Request(url, headers=cabeceras_locales(url)), timeout=120) as respuesta:

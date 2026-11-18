@@ -16,9 +16,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
 
 RAIZ = Path(__file__).resolve().parents[1]
 VOCAB = {'alimentadores': ['F1', 'F2'], 'proyecto': ['P1'], 'sistema': ['S1'], 'subtipo': ['refuerzo de red']}
@@ -56,7 +56,7 @@ def entorno(tmp_path, monkeypatch):
 def api(entorno, monkeypatch):
     monkeypatch.setattr(services, '_asistente_modelos', lambda: (Transformer(), None))
     # 070:RF-14: el perfil para costear se comprueba al proponer; estas pruebas no traen ninguno.
-    from convertersmartgrid.web import asistente_operacion
+    from convertersmartgrid.presentacion.web import asistente_operacion
 
     monkeypatch.setattr(asistente_operacion, 'parametros_de_costeo', lambda _t: None)
     app = create_app(entorno / 'web')
@@ -97,7 +97,7 @@ def informe_del_motor(ws, ctx, formulario):
 
 def ollama_de_prueba(monkeypatch, decision='favorable'):
     """Solo el transporte es de prueba: el cliente, el adaptador y sus validaciones son los reales."""
-    from convertersmartgrid.asistente import ollama
+    from convertersmartgrid.aplicacion.asistente import ollama
 
     peticiones = []
 
@@ -152,7 +152,7 @@ def test_evidencia_del_trabajo_real_alimenta_la_revision_sin_registro_manual(api
 
 def test_evidencia_usa_la_huella_del_vinculo_del_proyecto(api, monkeypatch):
     """067:RF-3 — tras reiniciar no hay fuente en memoria, pero el proyecto sigue vinculado a la suya."""
-    from convertersmartgrid.asistente.observacion import leer_evidencias
+    from convertersmartgrid.aplicacion.asistente.observacion import leer_evidencias
 
     cliente, app = api
     monkeypatch.setattr(services, 'informe_estudio', informe_del_motor)
@@ -167,7 +167,7 @@ def test_evidencia_usa_la_huella_del_vinculo_del_proyecto(api, monkeypatch):
 @pytest.mark.parametrize('resultado, fuente', [({'informe': 'x.docx'}, 'huella'), ({'project': 'P1'}, None)])
 def test_evidencia_sin_proyecto_o_sin_fuente_no_se_inventa(api, monkeypatch, resultado, fuente):
     """067:RF-4 — sin proyecto o sin huella no se custodia y el Registro lo dice."""
-    from convertersmartgrid.asistente.observacion import leer_evidencias
+    from convertersmartgrid.aplicacion.asistente.observacion import leer_evidencias
 
     cliente, app = api
     monkeypatch.setattr(services, 'informe_estudio', lambda *_a: resultado)
@@ -180,8 +180,8 @@ def test_evidencia_sin_proyecto_o_sin_fuente_no_se_inventa(api, monkeypatch, res
 
 def test_evidencia_de_trabajo_fallido_no_se_custodia(api, monkeypatch):
     """067:RF-1 — solo lo que terminó bien es evidencia."""
-    from convertersmartgrid.asistente.observacion import leer_evidencias
-    from convertersmartgrid.web.jobs import JobCancelled
+    from convertersmartgrid.aplicacion.asistente.observacion import leer_evidencias
+    from convertersmartgrid.presentacion.web.jobs import JobCancelled
 
     cliente, app = api
 
@@ -236,7 +236,7 @@ class OllamaDoble:
 
 def test_aviso_sin_gpu_sigue_con_ollama_y_dice_el_motivo(entorno, monkeypatch):
     """067:RF-8 / 067:RF-9 / 067:RF-10 — sin GPU no se corta el servicio ni se calla."""
-    from convertersmartgrid.asistente import ollama, transformer
+    from convertersmartgrid.aplicacion.asistente import ollama, transformer
 
     def sin_gpu(*_a):
         raise RuntimeError('No hay GPU CUDA para el gemelo digital')
@@ -256,8 +256,8 @@ def test_sin_gpu_el_motivo_nombra_a_quien_la_pide(monkeypatch):
     """067:RF-9 — sin CUDA, el intérprete de órdenes decía «No hay GPU CUDA para el gemelo digital» (auditoría del
     2026-11-13): el motivo nombra al que la pide, y el gemelo sigue nombrándose a sí mismo."""
     torch = pytest.importorskip('torch')
-    from convertersmartgrid import training_coordinator as tc
-    from convertersmartgrid.asistente import transformer
+    from convertersmartgrid.aplicacion import training_coordinator as tc
+    from convertersmartgrid.aplicacion.asistente import transformer
 
     monkeypatch.setattr(torch.cuda, 'is_available', lambda: False)
     with pytest.raises(tc.SinGPU) as interprete:
@@ -270,7 +270,7 @@ def test_sin_gpu_el_motivo_nombra_a_quien_la_pide(monkeypatch):
 
 def test_aviso_sin_ningun_modelo_lo_dice(entorno, monkeypatch):
     """067:RF-10 — si tampoco responde Ollama, el plan dice que no respondió ninguno."""
-    from convertersmartgrid.asistente import ollama, transformer
+    from convertersmartgrid.aplicacion.asistente import ollama, transformer
 
     def sin_gpu(*_a):
         raise RuntimeError('No hay GPU CUDA')
@@ -306,10 +306,10 @@ def reiniciar_web(entorno):
 
 def test_guardado_atomico_por_espacio_no_deja_medias(entorno, monkeypatch):
     """067:RF-12 — si falla la publicación, el fichero anterior queda intacto."""
-    from convertersmartgrid.asistente.equipo import GobiernoEquipo
-    from convertersmartgrid.asistente.plan import Plan
-    from convertersmartgrid.asistente.planes_guardados import PlanesGuardados
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.aplicacion.asistente.equipo import GobiernoEquipo
+    from convertersmartgrid.aplicacion.asistente.plan import Plan
+    from convertersmartgrid.aplicacion.asistente.planes_guardados import PlanesGuardados
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     ws = WorkspaceStore(entorno / 'w').create()
     otro = WorkspaceStore(entorno / 'w').create()
@@ -371,7 +371,7 @@ def test_guardado_con_contexto_cambiado_se_rechaza(entorno, monkeypatch):
 
 def test_guardado_interrumpido_se_ofrece_sin_confirmacion(entorno, monkeypatch):
     """067:RF-16 — lo que se cortó a mitad se dice y hay que volver a confirmarlo."""
-    from convertersmartgrid.asistente.planes_guardados import PlanesGuardados
+    from convertersmartgrid.aplicacion.asistente.planes_guardados import PlanesGuardados
 
     monkeypatch.setattr(services, '_asistente_modelos', lambda: (Transformer(), None))
     app = create_app(entorno / 'web')
@@ -416,7 +416,7 @@ def test_guardado_rechazo_y_correccion_lo_retiran(api):
 
 def test_guardado_no_sale_de_su_carpeta_por_el_identificador(entorno):
     """067:RF-12 — el identificador llega por la URL: nunca compone una ruta fuera de la carpeta."""
-    from convertersmartgrid.asistente.planes_guardados import PlanesGuardados
+    from convertersmartgrid.aplicacion.asistente.planes_guardados import PlanesGuardados
 
     assert PlanesGuardados(entorno).leer('../../secreto') is None
 
@@ -429,7 +429,7 @@ def test_guardado_en_la_consola():
 
 # ------------------------------------------------------------------ modelos en uso
 def candidato(entorno, nombre='uno', estado='PROMOVIDO', familia='transformer'):
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
 
     origen = entorno / f'origen-{nombre}'
     origen.mkdir()
@@ -444,13 +444,13 @@ def candidato(entorno, nombre='uno', estado='PROMOVIDO', familia='transformer'):
 
 
 def en_uso(nombre='ordenes'):
-    from convertersmartgrid.asistente import transformer
+    from convertersmartgrid.aplicacion.asistente import transformer
 
     return transformer.version_promovida(nombre)
 
 
 def carpeta_legada(version, nombre='ordenes'):
-    from convertersmartgrid.asistente import transformer
+    from convertersmartgrid.aplicacion.asistente import transformer
 
     carpeta = transformer.raiz_modelos(nombre) / version
     carpeta.mkdir(parents=True)
@@ -461,7 +461,7 @@ def carpeta_legada(version, nombre='ordenes'):
 
 def test_uso_candidato_aprobado_cambia_el_puntero_y_conserva_el_anterior(entorno):
     """067:RF-20 / 067:RF-22 — el puntero apunta a una copia verificada y el anterior sigue en disco."""
-    from convertersmartgrid.asistente import modelos_en_uso, transformer
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso, transformer
 
     carpeta_legada('heredado')
     registro, c = candidato(entorno)
@@ -476,7 +476,7 @@ def test_uso_candidato_aprobado_cambia_el_puntero_y_conserva_el_anterior(entorno
 
 def test_uso_artefacto_alterado_no_entra(entorno):
     """067:RF-21 — el registro compara huellas antes de tocar el puntero."""
-    from convertersmartgrid.asistente import modelos_en_uso
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso
 
     carpeta_legada('heredado')
     _registro, c = candidato(entorno)
@@ -487,7 +487,7 @@ def test_uso_artefacto_alterado_no_entra(entorno):
 
 def test_uso_vuelve_al_anterior_con_puntero_y_registro_de_acuerdo(entorno):
     """067:RF-23 — volver a un candidato o a un modelo heredado deja las dos piezas coherentes."""
-    from convertersmartgrid.asistente import modelos_en_uso
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso
 
     carpeta_legada('heredado')
     registro, uno = candidato(entorno, 'uno')
@@ -498,7 +498,7 @@ def test_uso_vuelve_al_anterior_con_puntero_y_registro_de_acuerdo(entorno):
     assert en_uso() == primera['version']
     assert registro.activo('transformer')['candidate_id'] == uno['candidate_id']
     # Ahora, hasta el modelo heredado, que no está en el registro: no queda ningún activo falso.
-    from convertersmartgrid.asistente import transformer
+    from convertersmartgrid.aplicacion.asistente import transformer
     puntero = transformer.raiz_modelos() / 'promovido.json'
     fila = json.loads(puntero.read_text(encoding='utf-8'))
     puntero.write_text(json.dumps({**fila, 'anterior': 'heredado'}), encoding='utf-8')
@@ -508,7 +508,7 @@ def test_uso_vuelve_al_anterior_con_puntero_y_registro_de_acuerdo(entorno):
 
 def test_uso_servicio_vuelve_por_la_misma_via(entorno):
     """067:RF-23 — el botón de volver de la web no deja el registro atrás."""
-    from convertersmartgrid.asistente import modelos_en_uso
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso
 
     carpeta_legada('heredado')
     registro, c = candidato(entorno)
@@ -520,7 +520,7 @@ def test_uso_servicio_vuelve_por_la_misma_via(entorno):
 @pytest.mark.parametrize('estado', ['RECHAZADO', 'BLOQUEADO_POR_DATOS', 'ERROR_ENTORNO'])
 def test_uso_candidato_no_aprobado_deja_el_modelo_actual(entorno, estado):
     """067:RF-24 — solo PROMOVIDO del registro pasa a uso."""
-    from convertersmartgrid.asistente import modelos_en_uso
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso
 
     carpeta_legada('heredado')
     registro, c = candidato(entorno, estado=estado)
@@ -531,9 +531,9 @@ def test_uso_candidato_no_aprobado_deja_el_modelo_actual(entorno, estado):
 
 def test_uso_puerta_de_comparacion_mide_el_modelo_activo(entorno, monkeypatch):
     """067:RF-25 — la puerta recibe la medida real por familia, y una regresión sigue rechazando."""
-    from convertersmartgrid.asistente import destilacion_integral as di
-    from convertersmartgrid.asistente import transformer
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
+    from convertersmartgrid.aplicacion.asistente import transformer
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
     class Activo:
         def predecir(self, texto):
@@ -556,8 +556,8 @@ def test_uso_puerta_de_comparacion_mide_el_modelo_activo(entorno, monkeypatch):
 
 def test_uso_sin_modelo_activo_no_inventa_referencia(entorno, monkeypatch):
     """067:RF-25 — si el modelo no se puede medir, la puerta sigue sin aprobar."""
-    from convertersmartgrid.asistente import destilacion_integral as di
-    from convertersmartgrid.asistente import transformer
+    from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
+    from convertersmartgrid.aplicacion.asistente import transformer
 
     def falla(*_a):
         raise RuntimeError('sin GPU')
@@ -575,7 +575,7 @@ def herramienta_entrenar():
 
 def preparar_integral(entorno, monkeypatch, estado):
     """El entrenamiento, sustituido: se comprueba lo que la herramienta hace con su decisión."""
-    from convertersmartgrid.asistente import clasificador, destilacion_integral as di
+    from convertersmartgrid.aplicacion.asistente import clasificador, destilacion_integral as di
 
     _registro, c = candidato(entorno, estado=estado)
     monkeypatch.setattr(di, 'preparar_corpus', lambda *_a, **_k: ([], {}))
@@ -604,8 +604,8 @@ def test_uso_reentrenar_aplica_la_decision_del_registro(entorno, monkeypatch, es
 ])
 def test_uso_clasificador_con_informes_reales_va_por_el_registro(entorno, monkeypatch, rechazado):
     """067:RF-26 — con prueba real se entrena, se registra y se pone en uso por la misma vía."""
-    from convertersmartgrid.asistente import clasificador as cl
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.asistente import clasificador as cl
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
 
     carpeta_legada('heredado', 'informes')
     for i in range(5):
@@ -637,7 +637,7 @@ def test_uso_clasificador_con_informes_reales_va_por_el_registro(entorno, monkey
 def test_clasificador_heredado_no_activa_un_tipo_incorrecto(monkeypatch):
     """026:RF-16: la compatibilidad heredada conserva también la puerta del primer nivel."""
     from types import SimpleNamespace
-    from convertersmartgrid.asistente import clasificador as cl
+    from convertersmartgrid.aplicacion.asistente import clasificador as cl
     muestra=('texto de entrenamiento','estudio','refuerzo de red')
     monkeypatch.setattr(cl,'reales',lambda:([muestra],[('texto reservado','estudio','refuerzo de red')]))
     monkeypatch.setattr(cl,'subtipos_del_perfil',lambda:['refuerzo de red'])
@@ -655,14 +655,14 @@ def test_clasificador_heredado_no_activa_un_tipo_incorrecto(monkeypatch):
 
 def test_uso_descripcion_de_reentrenar_dice_la_verdad():
     """067:RF-28 — el clasificador solo se entrena con informes reales, y la tarea lo dice."""
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
     assert 'informes reales' in TAREAS['entrenar_asistente'].descripcion
 
 
 def test_uso_estado_de_modelos_dice_la_version(entorno):
     """067:RF-29 — la versión en uso se lee, y un activo del registro no se presenta como heredado."""
-    from convertersmartgrid.asistente import modelos_en_uso
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso
 
     carpeta_legada('heredado')
     _registro, c = candidato(entorno)
@@ -710,7 +710,7 @@ def test_tarea_nueva_con_otra_fuente_no_se_ejecuta(api, monkeypatch):
 
 def test_tarea_carril_declarado_de_digsilent():
     """067:RF-33 — el inventario dice el carril real de las tres."""
-    from convertersmartgrid.asistente.equipo import inventario_equipo
+    from convertersmartgrid.aplicacion.asistente.equipo import inventario_equipo
 
     carriles = {h['herramienta']: h['carril'] for h in inventario_equipo()['herramientas']}
     for t in ('obras_escalera', 'optimizar_con_proyecto', 'informe_factibilidad'):
@@ -719,7 +719,7 @@ def test_tarea_carril_declarado_de_digsilent():
 
 def test_tarea_factibilidad_avisa_de_la_carga_inexistente(api, monkeypatch):
     """067:RF-34 — lo que la ruta rechazaría se dice antes de ofrecer confirmar."""
-    from convertersmartgrid.web.services import UserError
+    from convertersmartgrid.presentacion.web.services import UserError
 
     def no_existe(*_a):
         raise UserError('S1 no es una carga nueva aplicada')
@@ -756,11 +756,11 @@ def test_tarea_factibilidad_llega_a_su_ruta(api, monkeypatch):
 
 def test_tarea_ejemplos_en_todos_los_conjuntos_sin_tocar_pesos():
     """067:RF-35 — plantillas, frases del maestro, currículo y propuestas cubren las tareas nuevas."""
-    from convertersmartgrid.asistente.curriculo_llm_real import PRUEBA_NUEVA
-    from convertersmartgrid.asistente.curriculo_maestro import FAMILIAS
-    from convertersmartgrid.asistente.ordenes_fijas import FRASES
-    from convertersmartgrid.asistente.propuestas_maestro import PLANTILLAS, generar_propuestas
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.curriculo_llm_real import PRUEBA_NUEVA
+    from convertersmartgrid.aplicacion.asistente.curriculo_maestro import FAMILIAS
+    from convertersmartgrid.aplicacion.asistente.ordenes_fijas import FRASES
+    from convertersmartgrid.aplicacion.asistente.propuestas_maestro import PLANTILLAS, generar_propuestas
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
     for tarea in ('obras_escalera', 'optimizar_con_proyecto'):
         assert TAREAS[tarea].plantillas and FRASES[tarea] and PLANTILLAS[tarea] and PRUEBA_NUEVA[tarea]
@@ -777,7 +777,7 @@ def test_tarea_ejemplos_en_todos_los_conjuntos_sin_tocar_pesos():
     ('como funciona la escalera', 'estado')])
 def test_tarea_por_frase_literal_con_modelo_que_no_la_conoce(texto, esperada):
     """067:RF-36 — el modelo en uso no aprendió la tarea nueva: la frase literal lleva a un plan por confirmar."""
-    from convertersmartgrid.asistente.interprete import interpretar
+    from convertersmartgrid.aplicacion.asistente.interprete import interpretar
 
     i = interpretar(texto, transformer=Transformer('estado'))
     assert i.tarea == esperada
@@ -785,7 +785,7 @@ def test_tarea_por_frase_literal_con_modelo_que_no_la_conoce(texto, esperada):
 
 def test_tarea_conocida_decide_el_modelo():
     """067:RF-36 — cuando el modelo ya conoce la tarea, la regla no interviene."""
-    from convertersmartgrid.asistente.interprete import interpretar
+    from convertersmartgrid.aplicacion.asistente.interprete import interpretar
 
     m = Transformer('obras')
     m.tareas = ('obras', 'obras_escalera', 'optimizar_con_proyecto')
@@ -867,8 +867,8 @@ def test_lista_que_cambio_se_rechaza(api, monkeypatch, cambio):
 
 def test_lista_inventario_dice_la_verdad():
     """067:RF-40 — el inventario declara la lista única y qué herramientas cubre."""
-    from convertersmartgrid.asistente.equipo import inventario_equipo
-    from convertersmartgrid.asistente.orquestador import ETAPAS
+    from convertersmartgrid.aplicacion.asistente.equipo import inventario_equipo
+    from convertersmartgrid.aplicacion.asistente.orquestador import ETAPAS
 
     inventario = inventario_equipo()
     proyecto = inventario['proyecto_entero']
@@ -913,7 +913,7 @@ def test_067_rf41_las_mejoras_dejan_su_recibo(entorno, monkeypatch):
     """067:RF-41 — la rama de una librería y la decisión sobre una mejora dejan su recibo; un error sale igual."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.asistente import internet, mejoras
+    from convertersmartgrid.aplicacion.asistente import internet, mejoras
 
     class Buscador:
         def __init__(self, *_a, **_k):

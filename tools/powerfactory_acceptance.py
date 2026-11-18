@@ -114,7 +114,7 @@ def verify_source_contract(
     if reconstruction is not None or reconstruction_report_path is not None:
         if reconstruction_report_path is None:
             raise ValueError('el DGS reconstruido requiere --reconstruction-report')
-        from convertersmartgrid.powerfactory_metadata import verify_reconstruction_contract
+        from convertersmartgrid.adaptadores.powerfactory_metadata import verify_reconstruction_contract
 
         evidence['reconstruction'] = verify_reconstruction_contract(
             payload,
@@ -125,7 +125,7 @@ def verify_source_contract(
 
 
 def attach_source_evidence(report: dict[str, Any], evidence: dict[str, Any]) -> None:
-    from convertersmartgrid.powerfactory_metadata import (
+    from convertersmartgrid.adaptadores.powerfactory_metadata import (
         classify_convergence,
         convergence_pass_de,
         estado_flujo,
@@ -187,7 +187,7 @@ def attach_project_binding(
         return
     if evidence.get('status') != 'VERIFIED_BEFORE_MUTATION':
         return
-    from convertersmartgrid.powerfactory_binding import (PowerFactoryProjectBinding, alimentadores_de_rotulos,
+    from convertersmartgrid.adaptadores.powerfactory_binding import (PowerFactoryProjectBinding, alimentadores_de_rotulos,
                                                native_inventory_evidence)
 
     feeders = tuple(evidence.get('feeders') or [fallback_feeder])
@@ -303,8 +303,8 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
     """Return PF Application; prefer running instance, else start engine."""
     # 019:RF-16: la API se busca también en la instalación de DIgSILENT, como en los demás
     # guiones; la aceptación lanzada a mano (VNR-GIS, 2026-10-18) no la encontraba.
-    from convertersmartgrid.pf_arnes import PFNoDisponible as _SinApi  # noqa: PLC0415
-    from convertersmartgrid.pf_arnes import exigir_fuera_de_pruebas, importar_api, salida_sin_bufer  # noqa: PLC0415
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible as _SinApi  # noqa: PLC0415
+    from convertersmartgrid.adaptadores.pf_arnes import exigir_fuera_de_pruebas, importar_api, salida_sin_bufer  # noqa: PLC0415
 
     salida_sin_bufer()
     try:
@@ -320,8 +320,8 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
     # (019:RF-23). PRUEBA_007 (2026-11-06): la verificación del «Caso base» quedó 10 min en
     # ``pf.GetApplication()`` sin CPU, fuera de toda vigilancia, y el carril de DIgSILENT parado.
     if start_engine and command_line is None:
-        from convertersmartgrid.pf_arnes import PFNoDisponible as _NoConecta  # noqa: PLC0415
-        from convertersmartgrid.pf_arnes import conectar  # noqa: PLC0415
+        from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible as _NoConecta  # noqa: PLC0415
+        from convertersmartgrid.adaptadores.pf_arnes import conectar  # noqa: PLC0415
 
         try:
             return conectar('powerfactory_acceptance.py')
@@ -332,7 +332,7 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
     # DIgSILENT abierto (sin arrancar el motor) es elección del operador: no se le avisa.
     import atexit  # noqa: PLC0415
 
-    from convertersmartgrid.pf_arnes import PFNoDisponible, soltar_turno, tomar_turno  # noqa: PLC0415
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, soltar_turno, tomar_turno  # noqa: PLC0415
 
     try:
         turno = tomar_turno('powerfactory_acceptance.py',
@@ -375,7 +375,7 @@ def connect_powerfactory(*, start_engine: bool = True, command_line: str | None 
 
 def _activate_project_by_path(app: Any, path: str, folder: str):
     """Punto único y sustituible para activar un proyecto existente por identidad."""
-    from convertersmartgrid.carpeta_pf import activar_proyecto
+    from convertersmartgrid.adaptadores.carpeta_pf import activar_proyecto
 
     return activar_proyecto(app, path, folder)
 
@@ -383,7 +383,7 @@ def _activate_project_by_path(app: Any, path: str, folder: str):
 def activate_existing_project(app: Any, project_path: str,
                               folder: str | None = None) -> dict[str, Any]:
     """Activa un proyecto nativo exacto sin crear ni importar otro proyecto."""
-    from convertersmartgrid.carpeta_pf import nombre_de_perfil
+    from convertersmartgrid.adaptadores.carpeta_pf import nombre_de_perfil
 
     requested = str(project_path or '').strip()
     folder_name = str(folder or nombre_de_perfil()).strip()
@@ -451,7 +451,7 @@ def import_dgs_file(
 
     ``carpeta`` None toma la del perfil de empresa (``config/perfil_empresa.json``).
     """
-    from convertersmartgrid.carpeta_pf import (
+    from convertersmartgrid.adaptadores.carpeta_pf import (
         CarpetaError, asegurar_carpeta, eliminar_versiones_anteriores, nombre_de_perfil, nombre_libre,
         validar_nombre,
     )
@@ -607,7 +607,7 @@ def _generated_project_name(stamp: str, dgs_stem: str, fuente: str | None = None
     se reconocen por su nombre, sino por su vínculo (056:RF-2, spec 018). La regla vive en ``carpeta_pf``,
     que ``sistema_web.py`` usa para saber qué borraría una importación antes de pedirla (005:RF-24).
     """
-    from convertersmartgrid.carpeta_pf import nombre_de_importacion
+    from convertersmartgrid.adaptadores.carpeta_pf import nombre_de_importacion
 
     return nombre_de_importacion(stamp, dgs_stem, fuente)
 
@@ -1183,7 +1183,7 @@ def execute_load_flow(
         if iopt_net is None:
             # 054:RF-7: una red con líneas o trafos de menos de 3 fases, en desequilibrado; con
             # el equilibrado sus SED monofásicas quedaban a 0 pu (caso real, 2026-11-01).
-            from convertersmartgrid.dgs import red_con_monofasicos
+            from convertersmartgrid.adaptadores.dgs import red_con_monofasicos
 
             if red_con_monofasicos(app):
                 iopt_net = 1
@@ -1973,7 +1973,7 @@ def apply_imported_feeder_metadata_and_restore(
     restore_study: bool,
     ensure_scenario: bool,
 ) -> dict[str, Any]:
-    from convertersmartgrid.powerfactory_metadata import apply_imported_feeder_metadata
+    from convertersmartgrid.adaptadores.powerfactory_metadata import apply_imported_feeder_metadata
 
     result = apply_imported_feeder_metadata(
         app, import_info, str(dgs_path), str(metadata_path) if metadata_path else None,
@@ -2492,7 +2492,7 @@ def inventory_network(net: Any) -> dict[str, int]:
 # ---------------------------------------------------------------------------
 
 def _grupo_pf(tipo: Any) -> tuple[Any, Any, Any]:
-    from convertersmartgrid.capacidades import grupo_canonico
+    from convertersmartgrid.adaptadores.capacidades import grupo_canonico
 
     return grupo_canonico(_attr(tipo, 'tr2cn_h'), _attr(tipo, 'tr2cn_l'), _attr(tipo, 'nt2ag'))
 
@@ -2511,7 +2511,7 @@ def leer_equipos_pf(trafos: list[Any], lineas: list[Any]) -> dict[str, dict]:
     015:RF-6, RF-7, RF-32, RF-33: capacidad por las unidades en paralelo, tensión de baja y
     grupo de conexión del tipo asignado. Sin tipo, todo queda sin definir.
     """
-    from convertersmartgrid.capacidades import Linea, Trafo
+    from convertersmartgrid.adaptadores.capacidades import Linea, Trafo
 
     out_tr = {}
     for tr in trafos:
@@ -2609,7 +2609,7 @@ def _poner_flujo(caso_base: dict[str, Any], report: dict[str, Any]) -> None:
     El flujo no bloquea (015:RF-38 a RF-40), pero se dice: con la comprobación ✗ y el estado
     VERIFICADO, el operador leía «verificado» en un proyecto que no calculó.
     """
-    from convertersmartgrid.powerfactory_metadata import FLUJO_CONVERGE, FLUJO_NO_CONVERGE, estado_caso_base, estado_flujo
+    from convertersmartgrid.adaptadores.powerfactory_metadata import FLUJO_CONVERGE, FLUJO_NO_CONVERGE, estado_caso_base, estado_flujo
 
     flujo = estado_flujo(report)
     comprobaciones = caso_base['comprobaciones']
@@ -2790,7 +2790,7 @@ def elementos_de_pf(app: Any) -> tuple[list[Any], dict[str, Any], dict[str, Any]
     Las cargas no van: una carga sin tipo toma la tecnología de su barra (054), y las que no llegan
     las ve la lectura tras el flujo. Devuelve también el objeto de cada elemento, para corregirlo.
     """
-    from convertersmartgrid.comprobacion_fases import FASES_POR_PHTECH, Barra, Elemento
+    from convertersmartgrid.dominio.comprobacion_fases import FASES_POR_PHTECH, Barra, Elemento
 
     barras = {}
     for t in _calc_objects(app, '*.ElmTerm'):
@@ -2815,8 +2815,8 @@ def corregir_fases_pf(app: Any) -> list[dict[str, Any]]:
     Tramos y transformadores comparten su tipo con otros: cambiarlo aquí arrastraría a todos; quedan
     dichos, y se arreglan al reconvertir. Lo escrito lo confirma el flujo que viene después.
     """
-    from convertersmartgrid.comprobacion_fases import LETRAS_POR_FASES, comprobar
-    from convertersmartgrid.dgs import _capacitor_technology
+    from convertersmartgrid.dominio.comprobacion_fases import LETRAS_POR_FASES, comprobar
+    from convertersmartgrid.adaptadores.dgs import _capacitor_technology
 
     elementos, barras, objetos = elementos_de_pf(app)
     anotaciones = []
@@ -2847,8 +2847,8 @@ def _mensajes_de_salida(app: Any) -> str:
 
 def resolver_caso_base(app: Any, ldf: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """Busca la causa y corrige lo reconstruible, hasta converger o no tener más (081:RF-25 a RF-29)."""
-    from convertersmartgrid.comprobacion_fases import comprobar
-    from convertersmartgrid.resolver_convergencia import FASES, resolver
+    from convertersmartgrid.dominio.comprobacion_fases import comprobar
+    from convertersmartgrid.dominio.resolver_convergencia import FASES, resolver
 
     ultimo = [ldf]
     primera = [True]
@@ -2902,7 +2902,7 @@ def leer_tras_flujo(app: Any) -> dict[str, Any]:
     resultado. Si ninguna barra del proyecto tiene resultado, no hay lectura: se dice, sin
     sacar de ahí que todo está a cero.
     """
-    from convertersmartgrid.comprobacion_flujo import comprobar_tras_flujo
+    from convertersmartgrid.dominio.comprobacion_flujo import comprobar_tras_flujo
 
     barras = [{'nombre': _name(t), 'uknom_kv': _attr(t, 'uknom'), 'u_pu': _attr(t, 'm:u')}
               for t in _calc_objects(app, '*.ElmTerm')]
@@ -3219,8 +3219,8 @@ def run_acceptance(
     correcciones: list[dict] = []
     trafos = _contents(net, '*.ElmTr2')
     if source_dgs is not None and Path(source_dgs).is_file():
-        from convertersmartgrid.capacidades import comparar_equipos, equipos_de_dgs
-        from convertersmartgrid.validate import parse_dgs
+        from convertersmartgrid.adaptadores.capacidades import comparar_equipos, equipos_de_dgs
+        from convertersmartgrid.adaptadores.validate import parse_dgs
 
         archivo = equipos_de_dgs(parse_dgs(source_dgs))
         equipos = comparar_equipos(archivo, leer_equipos_pf(trafos, lines))

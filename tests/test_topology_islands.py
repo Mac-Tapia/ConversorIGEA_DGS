@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import pytest
 
-from convertersmartgrid.batch import convert_selection
-from convertersmartgrid.dataset import CymdistDataset
-from convertersmartgrid.model import (
+from convertersmartgrid.aplicacion.batch import convert_selection
+from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.dominio.model import (
     IslandWithLoadsError,
     ModelBuildError,
     build_feeder_model,

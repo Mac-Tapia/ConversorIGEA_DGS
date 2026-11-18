@@ -33,10 +33,10 @@ def _perfil(tmp_path: Path) -> Path:
 
 def _limpio(tmp_path: Path):
     """Un benchmark de redes y series sin fugas, y lo que el control sabe del origen."""
-    from convertersmartgrid.benchmarks import redes as R
-    from convertersmartgrid.benchmarks import series as S
-    from convertersmartgrid.benchmarks.reidentificacion import Origen
-    from convertersmartgrid.benchmarks.seudonimos import Mapa
+    from convertersmartgrid.dominio.benchmarks import redes as R
+    from convertersmartgrid.adaptadores.benchmarks import series as S
+    from convertersmartgrid.adaptadores.benchmarks.reidentificacion import Origen
+    from convertersmartgrid.dominio.benchmarks.seudonimos import Mapa
 
     # Lejos del origen neutro: si la red ya estuviera allí, cualquier coordenada parecería una fuga.
     spec = ExportSpec(feeders=3, sections_per_feeder=5, loads_per_feeder=3, seed=61, layout='completo',
@@ -56,7 +56,7 @@ def _limpio(tmp_path: Path):
 
 
 def _revisar(carpeta, origen):
-    from convertersmartgrid.benchmarks.reidentificacion import revisar
+    from convertersmartgrid.adaptadores.benchmarks.reidentificacion import revisar
     return revisar(carpeta, origen)
 
 
@@ -140,7 +140,7 @@ CLASES = ('identificador', 'cliente', 'coordenada', 'termino', 'fecha', 'secuenc
 @pytest.mark.parametrize('clase', CLASES)
 def test_cada_fuga_plantada_se_rechaza_con_su_clase(tmp_path, clase):
     """112:RF-4, RF-10 — una fuga de cada clase en una copia: se rechaza, dice su clase y no repite el original."""
-    from convertersmartgrid.benchmarks.reidentificacion import FugaDetectada, exigir_limpio
+    from convertersmartgrid.adaptadores.benchmarks.reidentificacion import FugaDetectada, exigir_limpio
     bench, origen, ficheros, serie = _limpio(tmp_path)
     copia = tmp_path / f'copia_{clase}'
     shutil.copytree(bench, copia)
@@ -163,8 +163,8 @@ def test_cada_fuga_plantada_se_rechaza_con_su_clase(tmp_path, clase):
 def test_un_perfil_ilegible_no_deja_emitir(tmp_path):
     """112:RF-4 — si el perfil de la empresa no se puede leer, el control no sabe qué términos buscar: no se arma el
     control (y por tanto no se emite) en vez de buscar «ningún término» en silencio."""
-    from convertersmartgrid.benchmarks.reidentificacion import Origen
-    from convertersmartgrid.privacidad import PerfilIlegible
+    from convertersmartgrid.adaptadores.benchmarks.reidentificacion import Origen
+    from convertersmartgrid.dominio.privacidad import PerfilIlegible
     roto = tmp_path / 'perfil.json'
     roto.write_text('{"empresa": "' + TERMINO + '",', encoding='utf-8')
     with pytest.raises(PerfilIlegible, match='perfil.json'):
@@ -181,14 +181,14 @@ SECRETA = 8_811_234_567_890_123_457      # con la forma de las que se sortean: 6
 
 def _hay_semilla() -> bool:
     import importlib.util
-    return importlib.util.find_spec('convertersmartgrid.benchmarks.semilla') is not None
+    return importlib.util.find_spec('convertersmartgrid.dominio.benchmarks.semilla') is not None
 
 
 def test_semilla_publica_de_un_solo_sentido():
     """112:RF-12 — lo publicado es sha256("publica:" + semilla): no contiene la secreta y siempre es la misma."""
     import hashlib
-    assert _hay_semilla(), 'falta convertersmartgrid.benchmarks.semilla'
-    from convertersmartgrid.benchmarks.semilla import semilla_publica
+    assert _hay_semilla(), 'falta convertersmartgrid.dominio.benchmarks.semilla'
+    from convertersmartgrid.dominio.benchmarks.semilla import semilla_publica
     publica = semilla_publica(SECRETA)
     assert publica == hashlib.sha256(f'publica:{SECRETA}'.encode()).hexdigest()
     assert str(SECRETA) not in publica and publica == semilla_publica(SECRETA)
@@ -198,8 +198,8 @@ def test_semilla_publica_de_un_solo_sentido():
 def test_la_semilla_secreta_se_guarda_solo_en_el_equipo(tmp_path):
     """112:RF-12 — la secreta queda en la carpeta local, por la huella del origen, nunca en el destino del benchmark;
     una segunda semilla distinta para el mismo origen no pisa la primera."""
-    assert _hay_semilla(), 'falta convertersmartgrid.benchmarks.semilla'
-    from convertersmartgrid.benchmarks.semilla import guardar_secreta, leer_secreta, nueva_semilla
+    assert _hay_semilla(), 'falta convertersmartgrid.dominio.benchmarks.semilla'
+    from convertersmartgrid.dominio.benchmarks.semilla import guardar_secreta, leer_secreta, nueva_semilla
     destino = tmp_path / 'bench'
     destino.mkdir()
     ruta = guardar_secreta('ab' * 32, SECRETA, raiz=tmp_path / 'local')
@@ -219,8 +219,8 @@ def test_la_semilla_secreta_se_guarda_solo_en_el_equipo(tmp_path):
 
 def test_semilla_corta_no_se_admite():
     """112:RF-12 — una semilla corta no se distingue de cualquier número del benchmark: el control no la vería."""
-    assert _hay_semilla(), 'falta convertersmartgrid.benchmarks.semilla'
-    from convertersmartgrid.benchmarks.semilla import validar_secreta
+    assert _hay_semilla(), 'falta convertersmartgrid.dominio.benchmarks.semilla'
+    from convertersmartgrid.dominio.benchmarks.semilla import validar_secreta
     for corta in (17, -SECRETA, True, '881123456789012'):
         with pytest.raises(ValueError, match='semilla'):
             validar_secreta(corta)
@@ -233,10 +233,10 @@ def test_un_manifiesto_con_la_semilla_secreta_se_rechaza(tmp_path, fuga):
     pública sí."""
     import inspect
 
-    from convertersmartgrid.benchmarks.reidentificacion import Origen
-    assert _hay_semilla(), 'falta convertersmartgrid.benchmarks.semilla'
+    from convertersmartgrid.adaptadores.benchmarks.reidentificacion import Origen
+    assert _hay_semilla(), 'falta convertersmartgrid.dominio.benchmarks.semilla'
     assert 'semilla' in inspect.signature(Origen.desde).parameters, 'el control no sabe de la semilla secreta'
-    from convertersmartgrid.benchmarks.semilla import semilla_publica
+    from convertersmartgrid.dominio.benchmarks.semilla import semilla_publica
     bench, origen, ficheros, serie = _limpio(tmp_path)
     origen = Origen.desde(red=ficheros, series=serie, perfil=_perfil(tmp_path), textos=[INFORME], semilla=SECRETA)
     assert str(SECRETA) not in repr(origen)
@@ -257,8 +257,8 @@ def test_un_manifiesto_con_la_semilla_secreta_se_rechaza(tmp_path, fuga):
 # (Se añade al final de tests/test_benchmarks_reidentificacion.py al empezar la T13.)
 
 def _red_grande(tmp_path: Path, semilla: int, *, feeders: int = 6, layout: str = 'reducido', secciones: int = 110):
-    from convertersmartgrid.benchmarks.sintetico import ExportSpec as ES
-    from convertersmartgrid.benchmarks.sintetico import write_export as we
+    from convertersmartgrid.dominio.benchmarks.sintetico import ExportSpec as ES
+    from convertersmartgrid.dominio.benchmarks.sintetico import write_export as we
     # Longitudes y cargas variadas, como una red real: sin ellas todos los tramos medirían lo mismo.
     spec = ES(feeders=feeders, sections_per_feeder=secciones, loads_per_feeder=20, seed=semilla, layout=layout,
               origin_x=300000.0, origin_y=8200000.0,
@@ -269,10 +269,10 @@ def _red_grande(tmp_path: Path, semilla: int, *, feeders: int = 6, layout: str =
 
 def test_geometria_el_atacante_que_conoce_el_margen_empareja_la_red_perturbada():
     """112:RF-14 — con ±5 % las longitudes ordenadas se emparejan dentro del margen: la red perturbada está identificada."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.geometria'), 'falta convertersmartgrid.benchmarks.geometria'
+    assert importlib.util.find_spec('convertersmartgrid.dominio.benchmarks.geometria'), 'falta convertersmartgrid.dominio.benchmarks.geometria'
     import random
 
-    from convertersmartgrid.benchmarks.geometria import UMBRAL_IDENTIFICADO, fraccion_emparejada
+    from convertersmartgrid.dominio.benchmarks.geometria import UMBRAL_IDENTIFICADO, fraccion_emparejada
     r = random.Random(3)
     original = [math.exp(r.uniform(0, math.log(4000))) for _ in range(400)]
     perturbada = [x * (1 + r.uniform(-0.05, 0.05)) for x in original]
@@ -285,10 +285,10 @@ def test_geometria_el_atacante_que_conoce_el_margen_empareja_la_red_perturbada()
 @pytest.mark.parametrize('semilla,layout', [(3101, 'reducido'), (3202, 'completo')])
 def test_geometria_de_uso_local_reproduce_y_se_marca(tmp_path, semilla, layout):
     """112:RF-13, RF-3, RF-14 — trazado sintético y longitudes perturbadas: reproduce el estudio y queda «uso local»."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.geometria'), 'falta convertersmartgrid.benchmarks.geometria'
+    assert importlib.util.find_spec('convertersmartgrid.dominio.benchmarks.geometria'), 'falta convertersmartgrid.dominio.benchmarks.geometria'
     pytest.importorskip('pandapower')
-    from convertersmartgrid.benchmarks import generar_benchmark
-    from convertersmartgrid.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.benchmarks import generar_benchmark
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
     trio = _red_grande(tmp_path, semilla, feeders=3, layout=layout)
     m = generar_benchmark(*trio, tmp_path / 'bench', semilla=SECRETA, raiz=tmp_path / 'local')
     assert m['uso_local'] is True
@@ -306,9 +306,9 @@ def test_geometria_de_uso_local_reproduce_y_se_marca(tmp_path, semilla, layout):
 
 def test_geometria_publicar_rechaza_lo_de_uso_local(tmp_path):
     """112:RF-14 — un benchmark derivado de una red real no sale por la vía de publicación."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.geometria'), 'falta convertersmartgrid.benchmarks.geometria'
+    assert importlib.util.find_spec('convertersmartgrid.dominio.benchmarks.geometria'), 'falta convertersmartgrid.dominio.benchmarks.geometria'
     pytest.importorskip('pandapower')
-    from convertersmartgrid.benchmarks import NoPublicable, generar_benchmark, publicar
+    from convertersmartgrid.adaptadores.benchmarks import NoPublicable, generar_benchmark, publicar
     trio = _red_grande(tmp_path, 3303, feeders=2)
     generar_benchmark(*trio, tmp_path / 'bench', semilla=SECRETA, raiz=tmp_path / 'local')
     with pytest.raises(NoPublicable, match='uso local.*la identifica; publique el sintético'):
@@ -318,9 +318,9 @@ def test_geometria_publicar_rechaza_lo_de_uso_local(tmp_path):
 
 def test_geometria_el_publicable_sale_de_las_estadisticas_y_no_se_identifica(tmp_path):
     """112:RF-13, RF-14 — el publicable es sintético con los agregados del origen: ningún alimentador se identifica."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.geometria'), 'falta convertersmartgrid.benchmarks.geometria'
-    from convertersmartgrid.benchmarks import publicar
-    from convertersmartgrid.benchmarks.publicable import generar_publicable
+    assert importlib.util.find_spec('convertersmartgrid.dominio.benchmarks.geometria'), 'falta convertersmartgrid.dominio.benchmarks.geometria'
+    from convertersmartgrid.adaptadores.benchmarks import publicar
+    from convertersmartgrid.adaptadores.benchmarks.publicable import generar_publicable
     trio = _red_grande(tmp_path, 3404, feeders=6, secciones=200)    # tamaños sorteados: ≥ 500 tramos en total
     m = generar_publicable([trio], tmp_path / 'pub', semilla=SECRETA, raiz=tmp_path / 'local')
     assert m['uso_local'] is False
@@ -329,7 +329,7 @@ def test_geometria_el_publicable_sale_de_las_estadisticas_y_no_se_identifica(tmp
     assert m['estadisticas']['alimentadores'] == 6 and m['estadisticas']['tramos'] >= 500
     # Ningún tramo del origen (su código con su longitud) está en el publicable: el generador comparte la forma de los
     # códigos, no los tramos.
-    from convertersmartgrid.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import CymdistDataset
     original = CymdistDataset.from_files(*trio)
     pub = CymdistDataset.from_files(*(tmp_path / 'pub' / n for n in ('RED.txt', 'CARGA.txt', 'BD_Equipo.txt')))
     tramos_o = {(s, c['Length']) for s, c in original.line_configurations.items()}
@@ -341,8 +341,8 @@ def test_geometria_el_publicable_sale_de_las_estadisticas_y_no_se_identifica(tmp
 
 def test_geometria_un_origen_pequeno_se_agrupa_o_no_se_emite(tmp_path):
     """112:RF-14 — con menos de 5 alimentadores o de 500 tramos se agrupa con la entrega; si no llega, no se emite."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.geometria'), 'falta convertersmartgrid.benchmarks.geometria'
-    from convertersmartgrid.benchmarks.publicable import AgregadoInsuficiente, generar_publicable
+    assert importlib.util.find_spec('convertersmartgrid.dominio.benchmarks.geometria'), 'falta convertersmartgrid.dominio.benchmarks.geometria'
+    from convertersmartgrid.adaptadores.benchmarks.publicable import AgregadoInsuficiente, generar_publicable
     pequenas = [_red_grande(tmp_path, s, feeders=2, secciones=200) for s in (3501, 3502, 3503)]
     m = generar_publicable(pequenas, tmp_path / 'pub', semilla=SECRETA, raiz=tmp_path / 'local')
     assert m['estadisticas']['alimentadores'] == 6 and m['estadisticas']['redes_agrupadas'] == 3
@@ -353,8 +353,8 @@ def test_geometria_un_origen_pequeno_se_agrupa_o_no_se_emite(tmp_path):
 
 def test_geometria_los_minimos_se_suben_pero_no_se_bajan(tmp_path):
     """112:RF-14 — un mínimo por encima del de la spec se respeta; uno por debajo se rechaza."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.geometria'), 'falta convertersmartgrid.benchmarks.geometria'
-    from convertersmartgrid.benchmarks.publicable import minimos_para
+    assert importlib.util.find_spec('convertersmartgrid.dominio.benchmarks.geometria'), 'falta convertersmartgrid.dominio.benchmarks.geometria'
+    from convertersmartgrid.adaptadores.benchmarks.publicable import minimos_para
     assert minimos_para(None) == {'alimentadores': 5, 'tramos': 500}
     assert minimos_para({'alimentadores': 8}) == {'alimentadores': 8, 'tramos': 500}
     with pytest.raises(ValueError, match='no se puede bajar de 5: se pidió 4'):
@@ -366,7 +366,7 @@ def test_geometria_los_minimos_se_suben_pero_no_se_bajan(tmp_path):
 # --------------------------------------------------------------------------- T14: cuadre contra la geometría pública (112:RF-14)
 
 def _hay_publica() -> bool:
-    return importlib.util.find_spec('convertersmartgrid.benchmarks.geometria_publica') is not None
+    return importlib.util.find_spec('convertersmartgrid.adaptadores.benchmarks.geometria_publica') is not None
 
 
 def _red_ramificada(semilla: int, nudos: int = 80):
@@ -390,9 +390,9 @@ def _red_ramificada(semilla: int, nudos: int = 80):
 def test_publica_la_red_girada_cuadra_y_el_trazado_no(tmp_path):
     """112:RF-14 — una red girada (T2, uso local) cuadra por ICP con la «pública»; el trazado sintético, con la misma
     topología y las longitudes perturbadas, no. Y con menos de 3 vértices no se compara."""
-    assert _hay_publica(), 'falta convertersmartgrid.benchmarks.geometria_publica'
-    from convertersmartgrid.benchmarks import geometria as G
-    from convertersmartgrid.benchmarks.seudonimos import transformar_coordenadas
+    assert _hay_publica(), 'falta convertersmartgrid.adaptadores.benchmarks.geometria_publica'
+    from convertersmartgrid.dominio.benchmarks import geometria as G
+    from convertersmartgrid.dominio.benchmarks.seudonimos import transformar_coordenadas
     publica = {}
     for k, semilla in enumerate((3601, 3602, 3603)):
         _cab, _tramos, coords = _red_ramificada(semilla)
@@ -431,9 +431,9 @@ def test_publica_la_descarga_es_bajo_demanda_por_empresa_y_fuera_del_programa(tm
     red; un destino dentro del programa o de sus datos se rechaza (no puede acabar en el corpus); la descarga pasa por
     el gestor del VNR con esa URL."""
     import socket
-    assert _hay_publica(), 'falta convertersmartgrid.benchmarks.geometria_publica'
-    from convertersmartgrid.benchmarks import geometria_publica as GP
-    from convertersmartgrid.runtime_paths import raiz_local, raiz_programa
+    assert _hay_publica(), 'falta convertersmartgrid.adaptadores.benchmarks.geometria_publica'
+    from convertersmartgrid.adaptadores.benchmarks import geometria_publica as GP
+    from convertersmartgrid.dominio.runtime_paths import raiz_local, raiz_programa
 
     def sin_red(*a, **k):
         raise AssertionError('el plan abrió la red')
@@ -465,10 +465,10 @@ def test_publica_el_manifiesto_declara_los_identificados_contra_la_publica(tmp_p
     """112:RF-14 — con la geometría pública (un trío, p. ej. el del ETL del VNR), el manifiesto dice cuántos
     alimentadores del benchmark cuadran con ella: con el trazado sintético, ninguno."""
     pytest.importorskip('pandapower')
-    assert _hay_publica(), 'falta convertersmartgrid.benchmarks.geometria_publica'
+    assert _hay_publica(), 'falta convertersmartgrid.adaptadores.benchmarks.geometria_publica'
     import inspect
 
-    from convertersmartgrid.benchmarks import generar_benchmark
+    from convertersmartgrid.adaptadores.benchmarks import generar_benchmark
     assert 'geometria_publica' in inspect.signature(generar_benchmark).parameters
     trio = _red_grande(tmp_path, 3702, feeders=2)
     m = generar_benchmark(*trio, tmp_path / 'bench', semilla=SECRETA, raiz=tmp_path / 'local', geometria_publica=trio)

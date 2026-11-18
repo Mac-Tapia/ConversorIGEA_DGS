@@ -17,8 +17,8 @@ import json
 
 import pytest
 
-from convertersmartgrid.batch import convert_selection
-from convertersmartgrid.dataset import CymdistDataset
+from convertersmartgrid.aplicacion.batch import convert_selection
+from convertersmartgrid.adaptadores.dataset import CymdistDataset
 from synthetic_export import ExportSpec, write_export
 
 SPEC = ExportSpec(feeders=3, sections_per_feeder=4, loads_per_feeder=2)

@@ -2,7 +2,7 @@
 
 ## Dónde
 
-- `src/convertersmartgrid/cargas_pf.py`: `palabras_del_cliente`, `mismo_cliente` y `duplicadas_por_cliente`, puras,
+- `src/convertersmartgrid/aplicacion/cargas_pf.py`: `palabras_del_cliente`, `mismo_cliente` y `duplicadas_por_cliente`, puras,
   junto a la lectura del libro (RF-1 a RF-4, RF-6).
 - `tools/cargas_pf.py`, `resolver_nuevas`: antes del bucle, `duplicadas_por_cliente` con `MISMO_PUNTO_M`; la fila que
   no cuenta va a `no_creadas` con `duplicada_de` y, si ya tiene variación, `eliminar` (RF-1, RF-5). El camino de

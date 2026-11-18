@@ -15,7 +15,7 @@ pytestmark = pytest.mark.usefixtures('sin_sockets')
 
 def test_la_web_real_monta_las_rutas_de_la_nube(tmp_path, monkeypatch):
     """109:RF-19 — la web real responde a la nube; sin ``config/nube.json`` dice que falta registrarla y no falla."""
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_NUBE_CONFIG', str(tmp_path / 'no_existe' / 'nube.json'))
     with TestClient(create_app(tmp_path / 'web')) as web:
@@ -33,7 +33,7 @@ def test_la_web_real_monta_las_rutas_de_la_nube(tmp_path, monkeypatch):
 
 def test_una_casilla_de_la_nube_cabe_en_el_contrato_del_espacio(tmp_path):
     """109:RF-4 — con una entrada de origen «nube», ``GET /api/workspaces/{wid}`` responde con su contrato (sin 500)."""
-    from convertersmartgrid.web.api_contract import DemandaRespuesta, EntradaRespuesta
+    from convertersmartgrid.presentacion.web.api_contract import DemandaRespuesta, EntradaRespuesta
 
     assert 'nube' in EntradaRespuesta.model_fields['origin'].annotation.__args__
     assert 'nube' in DemandaRespuesta.model_fields['origin'].annotation.__args__
@@ -55,8 +55,8 @@ def test_una_casilla_de_la_nube_cabe_en_el_contrato_del_espacio(tmp_path):
                                   '/nube/google/conectar', '/api/workspaces/w1/nube/vinculos/v/aceptar'])
 def test_el_asistente_no_pide_la_nube_ni_con_el_plan_confirmado(ruta):
     """109:RF-15 — `autorizar_peticion` corta cualquier ruta de la nube aunque el plan esté listo y confirmado."""
-    from convertersmartgrid.asistente.equipo import GobiernoEquipo, PermisoDenegado
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.equipo import GobiernoEquipo, PermisoDenegado
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
     gobierno = object.__new__(GobiernoEquipo)
     gobierno.rol, gobierno.tarea, gobierno.listo, gobierno.confirmado, gobierno.lectura = (

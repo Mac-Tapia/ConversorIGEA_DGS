@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.vad.anexo2 import cargar_formatos, costo_reconocible, validar_tablas
+from convertersmartgrid.aplicacion.vad.anexo2 import cargar_formatos, costo_reconocible, validar_tablas
 
 RAIZ = Path(__file__).resolve().parents[1]
 FORMATOS = RAIZ / 'config' / 'vad' / 'anexo2_formatos.json'

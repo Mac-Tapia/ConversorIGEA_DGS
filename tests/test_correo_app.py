@@ -22,8 +22,8 @@ def test_create_app_sirve_el_correo_y_sin_cuentas_de_la_109_no_envia(tmp_path, m
     from apoyo import esperar_trabajo
     from test_informe_docx import _config, _factibilidad
 
-    from convertersmartgrid.informe_docx import escribir_informe_factibilidad
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.adaptadores.informe_docx import escribir_informe_factibilidad
+    from convertersmartgrid.presentacion.web.app import create_app
 
     monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
     app = create_app(tmp_path / 'web')
@@ -57,10 +57,10 @@ def test_create_app_usa_las_cuentas_de_la_109(tmp_path, monkeypatch):
     """110:RF-2, RF-10 — el envío pide el token y el permiso de lectura a los adaptadores de la 109, no a ``SinCuentas``."""
     import importlib.util
 
-    assert importlib.util.find_spec('convertersmartgrid.correo.de_la_109'), 'falta convertersmartgrid.correo.de_la_109'
-    from convertersmartgrid.correo import de_la_109
-    from convertersmartgrid.web import correo_api
-    from convertersmartgrid.web.app import create_app
+    assert importlib.util.find_spec('convertersmartgrid.adaptadores.correo.de_la_109'), 'falta convertersmartgrid.adaptadores.correo.de_la_109'
+    from convertersmartgrid.adaptadores.correo import de_la_109
+    from convertersmartgrid.presentacion.web import correo_api
+    from convertersmartgrid.presentacion.web.app import create_app
 
     pedidos = []
     monkeypatch.setattr(correo_api, 'registrar_rutas_correo',
@@ -78,8 +78,8 @@ def test_la_nube_y_el_correo_comparten_una_sola_cuentas(tmp_path, monkeypatch):
     """110:RF-2 y 109:RF-1 — una cuenta por proveedor: la web monta la nube y el correo con la MISMA ``Cuentas`` (Google =
     Drive + Gmail; Microsoft = OneDrive + Outlook), y no dos con su caché de tokens y sus ``state`` por separado."""
     from convertersmartgrid.adaptadores.nube.cuentas import Cuentas
-    from convertersmartgrid.web import correo_api, nube_api
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web import correo_api, nube_api
+    from convertersmartgrid.presentacion.web.app import create_app
 
     correo, nube = [], []
     monkeypatch.setattr(correo_api, 'registrar_rutas_correo', lambda app, **kw: correo.append(kw))

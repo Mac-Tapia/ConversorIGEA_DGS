@@ -56,7 +56,7 @@ def _subproceso(comando: list[str], reporte: Path, modelo: str, *, cwd: Path = R
     if reporte.exists():
         # Un proceso que termina sin escribir no puede heredar el éxito anterior.
         reporte.rename(reporte.with_name(f'{reporte.stem}.previous.{uuid.uuid4().hex}.json'))
-    from convertersmartgrid.trabajadores_ml import entorno_hijo_gpu
+    from convertersmartgrid.aplicacion.trabajadores_ml import entorno_hijo_gpu
     env=entorno_hijo_gpu()
     p = subprocess.run(comando, cwd=cwd, capture_output=True, text=True, check=False,env=env,
                        encoding='utf-8',errors='replace')
@@ -107,8 +107,8 @@ def orden_temporal(args, reporte: Path, algoritmo: str, *otros: str) -> list[str
 
 def _twin_de_trabajo(origen: Path, destino: Path) -> Path:
     """050:RF-1: el trabajador puede escribir modelos e índice, nunca en la captura congelada."""
-    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado, huellas_de, validar_vista_twin
-    from convertersmartgrid.runtime_paths import staging_publicacion
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import CicloBloqueado, huellas_de, validar_vista_twin
+    from convertersmartgrid.dominio.runtime_paths import staging_publicacion
 
     if not origen.is_dir():
         raise CicloBloqueado('falta el búfer congelado para la PINN')
@@ -130,8 +130,8 @@ def _twin_de_trabajo(origen: Path, destino: Path) -> Path:
 
 
 def _etapas(args, run_dir: Path):
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.training_coordinator import TrainingStage
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.aplicacion.training_coordinator import TrainingStage
 
     py = sys.executable
     vocab = args.vocabulario
@@ -175,7 +175,7 @@ def _etapas(args, run_dir: Path):
         if getattr(args, 'ciclo_comun', False):
             if twin is None:
                 raise ValueError('falta el búfer congelado para la PINN')
-            from convertersmartgrid.aprendizaje_continuo import referencia_pinn_ciclo, verificar_instantanea
+            from convertersmartgrid.aplicacion.aprendizaje_continuo import referencia_pinn_ciclo, verificar_instantanea
             inst = verificar_instantanea(args.instantanea)
             referencia_pinn_ciclo(inst)
             twin = _twin_de_trabajo(Path(twin), run_dir / 'pinn_twin')
@@ -244,7 +244,7 @@ def etapas_del_experimento(experimento, etapas: list, args, run_dir: Path) -> li
 
     046:RF-13: N-HiTS, TFT y PatchTST se ejecutan e informan dentro de la etapa ``gru``.
     """
-    from convertersmartgrid.training_coordinator import TrainingStage
+    from convertersmartgrid.aplicacion.training_coordinator import TrainingStage
 
     familia = FAMILIAS_DE_ALGORITMO[experimento.algoritmo]
     elegidas = [etapa for etapa in etapas if etapa.name == familia]
@@ -282,7 +282,7 @@ def verificar(reporte: Path, *, fail_on_incomplete: bool) -> int:
     payload = _leer(reporte)
     permitidos = {'PROMOVIDO', 'RECHAZADO', 'BLOQUEADO_POR_DATOS', 'ERROR_ENTORNO'}
     etapas = payload.get('stages') or []
-    from convertersmartgrid.training_coordinator import ORDEN_MODELOS
+    from convertersmartgrid.aplicacion.training_coordinator import ORDEN_MODELOS
     estados_validos = (len(etapas) == len(ORDEN_MODELOS)
                        and {x.get('model') for x in etapas} == set(ORDEN_MODELOS)
                        and all(x.get('status') in permitidos for x in etapas))
@@ -301,8 +301,8 @@ def verificar(reporte: Path, *, fail_on_incomplete: bool) -> int:
 
 
 def main(argv=None) -> int:
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.digital_twin.buffer import raiz_buffer
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.adaptadores.digital_twin.buffer import raiz_buffer
 
     p = argparse.ArgumentParser(description='Reentrenamiento integral reanudable')
     sub = p.add_subparsers(dest='accion')
@@ -353,7 +353,7 @@ def main(argv=None) -> int:
     experimento = None
     familia = None
     if args.config:
-        from convertersmartgrid.experimentos import cargar_experimento
+        from convertersmartgrid.aplicacion.experimentos import cargar_experimento
         try:
             experimento = cargar_experimento(args.config)
         except (OSError, ValueError) as exc:
@@ -369,8 +369,8 @@ def main(argv=None) -> int:
     elif args.validar_config:
         p.error('--validar-config requiere --config')
     run_dir = args.run_dir or almacen.raiz() / 'training'
-    from convertersmartgrid.asistente.ollama import liberar_gpu_para_entrenar
-    from convertersmartgrid.training_coordinator import TrainingCoordinator
+    from convertersmartgrid.aplicacion.asistente.ollama import liberar_gpu_para_entrenar
+    from convertersmartgrid.aplicacion.training_coordinator import TrainingCoordinator
     etapas = _etapas(args, run_dir)
     if experimento:
         if experimento.algoritmo in {'nhits', 'tft', 'patchtst'} and not (
@@ -400,7 +400,7 @@ def main(argv=None) -> int:
         return 2
     destino = args.report or run_dir / 'report.json'
     if destino != run_dir / 'report.json':
-        from convertersmartgrid.trabajadores_ml import escribir_informe
+        from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe
         escribir_informe(destino, informe)                                      # 043:RF-13
     print(json.dumps(informe, ensure_ascii=False, indent=2))
     return 0

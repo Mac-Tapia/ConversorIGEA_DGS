@@ -9,9 +9,9 @@ import numpy as np
 import pytest
 from pronostico_sintetico import CADENCIA, PUNTOS_DIA, objetivos, sorteo
 
-from convertersmartgrid.digital_twin import pronostico as pr
-from convertersmartgrid.digital_twin import series_causales as sc
-from convertersmartgrid.digital_twin.evaluacion_temporal import POLITICA_TEMPORAL
+from convertersmartgrid.adaptadores.digital_twin import pronostico as pr
+from convertersmartgrid.adaptadores.digital_twin import series_causales as sc
+from convertersmartgrid.adaptadores.digital_twin.evaluacion_temporal import POLITICA_TEMPORAL
 
 
 def _conjunto(cuantos=2, dias=100):
@@ -172,9 +172,9 @@ def test_el_nucleo_arranca_sin_neuralforecast_ni_torch():
     """046:RF-14 — importar el contrato no carga las dependencias opcionales."""
     import subprocess
     codigo = ("import sys;"
-              "import convertersmartgrid.digital_twin.pronostico;"
-              "import convertersmartgrid.digital_twin.adaptador_neuralforecast;"
-              "import convertersmartgrid.digital_twin.evaluacion_temporal;"
+              "import convertersmartgrid.adaptadores.digital_twin.pronostico;"
+              "import convertersmartgrid.adaptadores.digital_twin.adaptador_neuralforecast;"
+              "import convertersmartgrid.adaptadores.digital_twin.evaluacion_temporal;"
               "print(any(m.split('.')[0] in ('neuralforecast','torch','lightning') for m in sys.modules))")
     salida = subprocess.run([sys.executable, '-c', codigo], capture_output=True, text=True, check=True,
                             env={**__import__('os').environ, 'PYTHONPATH': 'src', 'OPENBLAS_NUM_THREADS': '1'})

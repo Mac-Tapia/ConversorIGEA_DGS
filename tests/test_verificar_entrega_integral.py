@@ -166,9 +166,9 @@ def _recibos_campanas(tmp_path, *, modo='runtime'):
     """Dobles CPU del contrato del lector; metadata runtime no es campaña científica."""
     import hashlib
     from test_harness_contratos import configuracion
-    from convertersmartgrid.evaluacion_harness.contratos import MINIMAS, huella, sellar
-    from convertersmartgrid.evaluacion_harness.ejecucion import ejecutar
-    from convertersmartgrid.evaluacion_harness.publicacion import publicar
+    from convertersmartgrid.dominio.evaluacion_harness.contratos import MINIMAS, huella, sellar
+    from convertersmartgrid.aplicacion.evaluacion_harness.ejecucion import ejecutar
+    from convertersmartgrid.adaptadores.evaluacion_harness.publicacion import publicar
 
     refs = []
     for familia in MINIMAS:
@@ -203,8 +203,8 @@ def _recibos_campanas(tmp_path, *, modo='runtime'):
 
 def _alterar_recibo(ref, cambiar):
     import hashlib
-    from convertersmartgrid.evaluacion_harness.contratos import huella
-    from convertersmartgrid.evaluacion_harness.publicacion import leer_informe, publicar
+    from convertersmartgrid.dominio.evaluacion_harness.contratos import huella
+    from convertersmartgrid.adaptadores.evaluacion_harness.publicacion import leer_informe, publicar
     familia, nombre, _ = ref
     ruta = Path(nombre)
     dato = leer_informe(ruta)
@@ -280,7 +280,7 @@ def test_recibo_contract_o_replay_es_diagnostico_no_campana_ejecutada(tmp_path, 
 
 def test_recibo_no_puede_cambiar_mientras_se_valida(tmp_path, monkeypatch):
     """065:RF-24 — la guarda canónica conserva el descriptor durante la validación."""
-    from convertersmartgrid.evaluacion_harness import ejecucion
+    from convertersmartgrid.aplicacion.evaluacion_harness import ejecucion
     refs = _recibos_campanas(tmp_path)
     ruta = Path(refs[0][1])
     antes = ruta.read_bytes()

@@ -4,7 +4,7 @@
 - Fecha: 2026-11-14
 - Specs: spec 107, spec 072
 - Elementos C4: cadWriter, oda, planning, pit, workspaceStore
-- Evidencia: `pyproject.toml::dep:ezdxf`, `src/convertersmartgrid/pit/unifilar.py::generar`, `src/convertersmartgrid/pit/unifilar.py::convertidor_dwg`
+- Evidencia: `pyproject.toml::dep:ezdxf`, `src/convertersmartgrid/adaptadores/pit/unifilar.py::generar`, `src/convertersmartgrid/adaptadores/pit/unifilar.py::convertidor_dwg`
 
 ## Contexto
 

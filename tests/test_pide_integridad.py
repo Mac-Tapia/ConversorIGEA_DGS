@@ -304,7 +304,7 @@ def test_cancelar_despues_de_demanda_no_inicia_el_flujo_siguiente(anual, monkeyp
 def test_fallo_de_custodia_no_publica_token_parcial_ni_abandona_copias(tmp_path, monkeypatch, fallo):
     """072:RF-24, 072:RF-28: custodia completa o ninguna, incluidos IO/rename fallidos."""
     import hashlib
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
     for nombre in ('RUNTIME', 'CACHE', 'TEMP'):
         monkeypatch.setenv(f'CSG_{nombre}_HOME', str(tmp_path / nombre.lower()))
     ws = SimpleNamespace(plans_dir=tmp_path / 'planes')
@@ -472,7 +472,7 @@ def test_demanda_nativa_no_finita_se_bloquea_antes_de_otro_flujo(anual, tmp_path
 def test_fallo_del_recibo_temporal_no_abandona_payload_ni_oculta_publicacion(tmp_path, monkeypatch, publicar):
     """072:RF-24, 072:RF-28: disco fallido también al cerrar staging; verdad de publicación conservada."""
     import hashlib
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
     for nombre in ('RUNTIME', 'CACHE', 'TEMP'):
         monkeypatch.setenv(f'CSG_{nombre}_HOME', str(tmp_path / nombre.lower()))
     ws = SimpleNamespace(plans_dir=tmp_path / 'planes')

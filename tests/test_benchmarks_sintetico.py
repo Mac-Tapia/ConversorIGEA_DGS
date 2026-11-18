@@ -46,7 +46,7 @@ def _huellas(rutas):
 @pytest.mark.parametrize('semilla', [None, 1, 7, 42, 2024, 99991])
 def test_misma_salida_que_el_generador_anterior(tmp_path, semilla, layout):
     """112:RF-13 — con los campos nuevos apagados, write_export da los mismos tres TXT que antes del cambio."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.sintetico'), 'falta convertersmartgrid.benchmarks.sintetico'
+    assert importlib.util.find_spec('convertersmartgrid.dominio.benchmarks.sintetico'), 'falta convertersmartgrid.dominio.benchmarks.sintetico'
     import synthetic_export as nuevo
     viejo = _generador_anterior()
     kw = dict(feeders=4, sections_per_feeder=5, loads_per_feeder=3, sectionalizers_per_feeder=1, seed=semilla,
@@ -58,10 +58,10 @@ def test_misma_salida_que_el_generador_anterior(tmp_path, semilla, layout):
 
 def test_la_reexportacion_es_explicita():
     """112:RF-13 — tests/synthetic_export.py reexporta por nombre, también lo privado que alguna prueba use."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.sintetico'), 'falta convertersmartgrid.benchmarks.sintetico'
+    assert importlib.util.find_spec('convertersmartgrid.dominio.benchmarks.sintetico'), 'falta convertersmartgrid.dominio.benchmarks.sintetico'
     import synthetic_export as S
 
-    from convertersmartgrid.benchmarks import sintetico as N
+    from convertersmartgrid.dominio.benchmarks import sintetico as N
     for nombre in ('ExportSpec', 'FeederSize', 'write_export', 'CRS_SINTETICO', '_pad', 'FMT_NODE',
                    'FMT_SECTION', 'FMT_CUSTOMERLOADS', 'FMT_BD_LINE', 'FMT_BD_CABLE'):
         assert getattr(S, nombre) is getattr(N, nombre), nombre
@@ -70,10 +70,10 @@ def test_la_reexportacion_es_explicita():
 
 def test_longitudes_y_cargas_por_cuantiles(tmp_path):
     """112:RF-13 — encendidos, los tramos y las cargas siguen los cuantiles dados y las coordenadas cuadran con la longitud."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.sintetico'), 'falta convertersmartgrid.benchmarks.sintetico'
+    assert importlib.util.find_spec('convertersmartgrid.dominio.benchmarks.sintetico'), 'falta convertersmartgrid.dominio.benchmarks.sintetico'
     import math
 
-    from convertersmartgrid.benchmarks.sintetico import ExportSpec
+    from convertersmartgrid.dominio.benchmarks.sintetico import ExportSpec
     from synthetic_export import load_export
     cuantiles = (2.0, 10.0, 50.0, 200.0, 1000.0)
     ds = load_export(ExportSpec(feeders=3, sections_per_feeder=40, loads_per_feeder=10, seed=5,

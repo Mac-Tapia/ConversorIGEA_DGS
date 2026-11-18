@@ -18,9 +18,9 @@ if str(REPO / 'src') not in sys.path:
 
 
 def unir(origenes: list[Path], destino: Path) -> dict:
-    from convertersmartgrid.asistente.dataset_entrenamiento import (
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import (
         RegistroEntrenamiento, escribir_particiones, particionar_dataset)
-    from convertersmartgrid.trabajadores_ml import leer_dataset_v2
+    from convertersmartgrid.aplicacion.trabajadores_ml import leer_dataset_v2
     if destino.exists() and any(destino.iterdir()):
         raise ValueError(f'{destino}: el dataset anterior no se pisa')
     registros: dict[str, RegistroEntrenamiento] = {}

@@ -9,9 +9,9 @@ import numpy as np
 import pytest
 from pronostico_sintetico import CADENCIA, PUNTOS_DIA, PerfilMedio, objetivos, sorteo
 
-from convertersmartgrid.digital_twin import temporal_entrenamiento as te
-from convertersmartgrid.digital_twin.evaluacion_temporal import POLITICA_TEMPORAL
-from convertersmartgrid.model_registry import RegistroModelo
+from convertersmartgrid.adaptadores.digital_twin import temporal_entrenamiento as te
+from convertersmartgrid.adaptadores.digital_twin.evaluacion_temporal import POLITICA_TEMPORAL
+from convertersmartgrid.aplicacion.model_registry import RegistroModelo
 
 HORIZONTES = (1, 4, PUNTOS_DIA)
 CUANTOS = sorteo().randint(1, 3)
@@ -111,7 +111,7 @@ def test_pronostico_del_ciclo_registra_sin_publicar_individual(tmp_path):
 
 
 def _publicar_temporal(registro, candidato, familia='gru'):
-    from convertersmartgrid import aprendizaje_continuo as ac
+    from convertersmartgrid.aplicacion import aprendizaje_continuo as ac
     r=ac.publicar_conjunto(registro.raiz.parent/'aprendizaje',registro,
         {'estado':'terminado','clave':'a'*64,'snapshot_id':'b'*64,'candidatos':{familia:candidato}},
         retencion={familia:{'retiene':True}},conjunta={'aprobado':True},obligatorias=[familia])
@@ -146,7 +146,7 @@ def test_temporal_sin_conjunto_conserva_lectura_individual(tmp_path):
 @pytest.mark.parametrize('caso',['clase_distinta','familia_ausente','artefacto_corrupto'])
 def test_temporal_no_caera_a_individual_si_conjunto_no_es_utilizable(tmp_path,caso):
     """050:RF-7/8 — clase ajena, familia ausente o corrupción bloquean la lectura."""
-    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import CicloBloqueado
     from test_model_registry import _payload
     reg=RegistroModelo(tmp_path/'registro')
     individual=reg.registrar_candidato('pronostico_cabecera',**_payload(tmp_path,contenido=b'individual'))['candidate_id']
@@ -162,7 +162,7 @@ def test_temporal_no_caera_a_individual_si_conjunto_no_es_utilizable(tmp_path,ca
 
 def test_temporal_no_publica_individual_bajo_conjunto(tmp_path,corrida):
     """050:RF-7 — una activación individual ignorada no puede anunciar éxito."""
-    from convertersmartgrid.aprendizaje_continuo import CicloBloqueado
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import CicloBloqueado
     d,r=corrida
     reg=RegistroModelo(d/'registro')
     _publicar_temporal(reg,r['candidate_id'])
@@ -215,7 +215,7 @@ def test_reapertura_fallida_no_promueve(tmp_path):
 
 def test_reapertura_real_hereda_la_guardia_de_gpu(tmp_path, monkeypatch):
     """046:RF-7 — el hijo que reabre usa la GPU del padre: sin el token la encontraría ocupada."""
-    from convertersmartgrid.trabajadores_ml import turno_gpu
+    from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
     monkeypatch.setenv('CSG_ML_GPU_LOCK', str(tmp_path / 'gpu.lock'))
     monkeypatch.setenv('PYTHONPATH', str(Path(__file__).resolve().parents[1] / 'src'))
     monkeypatch.delenv('CSG_GPU_PARENT_TOKEN', raising=False)
@@ -230,7 +230,7 @@ def test_reapertura_detecta_una_prediccion_distinta(tmp_path):
     """046:RF-7 — un artefacto que no reproduce su sonda no pasa, aunque se abra."""
     import shutil
 
-    from convertersmartgrid.digital_twin.pronostico import construir_conjunto
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import construir_conjunto
     objs = objetivos(1, 40)
     c = construir_conjunto(objs, cadencia_min=CADENCIA, zona_horaria='UTC')
     m = PerfilMedio('perfil')
@@ -285,8 +285,8 @@ def test_adaptador_nf_exige_gpu_antes_de_cargar(monkeypatch):
     """046:RF-15 — neuralforecast cae a la CPU si no se le fuerza: aquí se exige CUDA antes."""
     import types
 
-    from convertersmartgrid.digital_twin.adaptador_neuralforecast import AdaptadorNeuralForecast
-    from convertersmartgrid.digital_twin.oraculo import SinGPU
+    from convertersmartgrid.adaptadores.digital_twin.adaptador_neuralforecast import AdaptadorNeuralForecast
+    from convertersmartgrid.adaptadores.digital_twin.oraculo import SinGPU
     falso = types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda: False))
     monkeypatch.setitem(sys.modules, 'torch', falso)
     with pytest.raises(SinGPU, match='GPU'):
@@ -295,8 +295,8 @@ def test_adaptador_nf_exige_gpu_antes_de_cargar(monkeypatch):
 
 def test_nf_entrena_solo_antes_del_corte_y_sin_escala_global(monkeypatch):
     """046:RF-1 / 046:RF-2 — al adaptador solo llega lo anterior al corte, en tramos; solo calendario."""
-    from convertersmartgrid.digital_twin import adaptador_neuralforecast as nf
-    from convertersmartgrid.digital_twin.pronostico import construir_conjunto
+    from convertersmartgrid.adaptadores.digital_twin import adaptador_neuralforecast as nf
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import construir_conjunto
     objs = objetivos(2, 40)
     c = construir_conjunto(objs, cadencia_min=CADENCIA, zona_horaria='UTC')
     corte = 30 * PUNTOS_DIA
@@ -317,8 +317,8 @@ def test_tabla_de_prediccion_del_adaptador_y_columnas(monkeypatch):
     """046:RF-5 — cada ventana es una serie propia, y la salida vuelve a (ventana, horizonte, cuantil)."""
     import pandas as pd
 
-    from convertersmartgrid.digital_twin import adaptador_neuralforecast as nf
-    from convertersmartgrid.digital_twin.pronostico import construir_conjunto
+    from convertersmartgrid.adaptadores.digital_twin import adaptador_neuralforecast as nf
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import construir_conjunto
     c = construir_conjunto(objetivos(1, 40), cadencia_min=CADENCIA, zona_horaria='UTC')
     em = np.array([20 * PUNTOS_DIA, 21 * PUNTOS_DIA])
     lote = c.lote(c.nombres * 2, em, contexto=16, horizonte=4)

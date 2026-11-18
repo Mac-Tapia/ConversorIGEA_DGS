@@ -16,10 +16,10 @@ pytest.importorskip('pandas')
 
 from test_pronostico_demanda import _equivalencia, _libro_cabecera, _libro_clientes, _suministros  # noqa: E402
 
-from convertersmartgrid import archivo_informes as ar  # noqa: E402
+from convertersmartgrid.adaptadores import archivo_informes as ar  # noqa: E402
 from convertersmartgrid.dominio import evolucion_mensual as em  # noqa: E402
 from convertersmartgrid.dominio.meses_copiados import fraccion_repetida, mes_de_registro, meses_copiados  # noqa: E402
-from convertersmartgrid.evolucion_clientes import (  # noqa: E402
+from convertersmartgrid.adaptadores.evolucion_clientes import (  # noqa: E402
     FuentesEvolucion, ambito, calcular_evolucion, escribir_libro, meses_del_rango)
 
 PASO = timedelta(minutes=15)
@@ -374,7 +374,7 @@ def test_archivar_reintenta_un_bloqueo_y_dice_el_fallo(config_archivo, tmp_path,
 # --------------------------------------------------------------------------- conciliación y búsqueda de códigos
 from convertersmartgrid.dominio.conciliacion_clientes import (  # noqa: E402
     cadenas_de_renumeracion, fijos_sobre_cabecera, posibles_renumeraciones, veredicto)
-from convertersmartgrid.evolucion_clientes import FilaMaestro, clientes_fijos, leer_maestro  # noqa: E402
+from convertersmartgrid.adaptadores.evolucion_clientes import FilaMaestro, clientes_fijos, leer_maestro  # noqa: E402
 
 
 def test_codigos_normalizados_y_cadenas_de_renumeracion():

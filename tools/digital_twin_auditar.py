@@ -26,11 +26,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--output-json', type=Path, help='Dónde guardar el informe')
     args = p.parse_args(argv)
 
-    from convertersmartgrid.asistente import almacen
-    from convertersmartgrid.digital_twin import oraculo
-    from convertersmartgrid.asistente.calidad_datos import auditar_ordenes
-    from convertersmartgrid.digital_twin.auditoria import auditar_muestras
-    from convertersmartgrid.digital_twin.buffer import BuferEpisodios, Consulta, raiz_buffer
+    from convertersmartgrid.aplicacion.asistente import almacen
+    from convertersmartgrid.adaptadores.digital_twin import oraculo
+    from convertersmartgrid.aplicacion.asistente.calidad_datos import auditar_ordenes
+    from convertersmartgrid.adaptadores.digital_twin.auditoria import auditar_muestras
+    from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios, Consulta, raiz_buffer
 
     bufer = BuferEpisodios(args.raiz or raiz_buffer())
     muestras, ids = oraculo._muestras(bufer, Consulta())

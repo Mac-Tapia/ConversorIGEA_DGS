@@ -1,6 +1,6 @@
 # Plan 066
 
-- `src/convertersmartgrid/libro_informe.py`: del JSON del informe a un plan de celdas (RF-1, RF-4, RF-5, RF-6, RF-8);
+- `src/convertersmartgrid/adaptadores/libro_informe.py`: del JSON del informe a un plan de celdas (RF-1, RF-4, RF-5, RF-6, RF-8);
   Excel por COM aplica el plan, porque el modelo tiene imágenes, gráfico, vínculos y comentarios que openpyxl pierde al
   guardar (RF-9). Después se relee el libro y se comprueba (RF-7, RF-10).
 - `config/perfiles/electro_dunas.json`: el plano del libro. El código no lleva celdas ni nombres de la empresa (RF-2, RF-4).

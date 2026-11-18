@@ -5,12 +5,12 @@ Spec 034: 034:RF-11.
 from pathlib import Path
 import json
 
-from convertersmartgrid.model import build_feeder_model
+from convertersmartgrid.dominio.model import build_feeder_model
 
 
 def test_batch_writes_geography_and_integrated_validation(ds, sample_feeder, tmp_path):
-    from convertersmartgrid.batch import convert_selection
-    from convertersmartgrid.dgs import diagram_line_rail_counts
+    from convertersmartgrid.aplicacion.batch import convert_selection
+    from convertersmartgrid.adaptadores.dgs import diagram_line_rail_counts
 
     model = build_feeder_model(ds, sample_feeder)
     nested_keys = {sed.load_key for sed in model.seds}
@@ -19,7 +19,7 @@ def test_batch_writes_geography_and_integrated_validation(ds, sample_feeder, tmp
     )
     _oh, _ug, d_lin_graphics = diagram_line_rail_counts(model)
     # La fórmula de conectores de abajo es la de la escala NA205, sin reglas.
-    from convertersmartgrid.reglas import SIN_REGLAS
+    from convertersmartgrid.aplicacion.reglas import SIN_REGLAS
 
     manifest = convert_selection(ds, [sample_feeder], tmp_path, source_crs='EPSG:32718',
                                  include_geography=True, reglas=SIN_REGLAS)

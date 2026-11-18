@@ -17,11 +17,11 @@ from correo_simulado import sin_red  # noqa: F401
 from nube_simulada import CONFIG_PRUEBA, NubeSimulada
 from test_correo_web import ORIGEN
 
-from convertersmartgrid import salidas_red
-from convertersmartgrid.asistente import tareas
-from convertersmartgrid.asistente.equipo import GobiernoEquipo, PermisoDenegado
-from convertersmartgrid.asistente.interprete import _por_frase_literal
-from convertersmartgrid.web import services
+from convertersmartgrid.dominio import salidas_red
+from convertersmartgrid.aplicacion.asistente import tareas
+from convertersmartgrid.aplicacion.asistente.equipo import GobiernoEquipo, PermisoDenegado
+from convertersmartgrid.aplicacion.asistente.interprete import _por_frase_literal
+from convertersmartgrid.presentacion.web import services
 
 ORDENES = {
     'enviar_informe': ('envía el informe por correo a cliente@otra.test', 'mándale por mail el informe al revisor'),
@@ -88,7 +88,7 @@ def test_070_rf81_las_demas_tareas_no_leen_la_nube_y_nada_se_cuela_por_la_ruta()
 @pytest.fixture
 def web(tmp_path, monkeypatch, sin_red):  # noqa: F811
     from convertersmartgrid.adaptadores.nube import cuentas as modulo_cuentas
-    from convertersmartgrid.web.app import create_app
+    from convertersmartgrid.presentacion.web.app import create_app
 
     sim = NubeSimulada()
     ruta_config = tmp_path / 'config' / 'nube.json'
@@ -142,7 +142,7 @@ def _conectar_para_enviar(cliente, sim, wid: str) -> None:
 def _informe(tmp_path, app, wid: str) -> str:
     from test_informe_docx import _config, _factibilidad
 
-    from convertersmartgrid.informe_docx import escribir_informe_factibilidad
+    from convertersmartgrid.adaptadores.informe_docx import escribir_informe_factibilidad
 
     ws = app.state.store.get(wid)
     Path(ws.out_dir).mkdir(parents=True, exist_ok=True)

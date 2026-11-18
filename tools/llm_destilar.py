@@ -58,25 +58,25 @@ def main(argv=None):
         if args.destino.exists():
             raise ValueError('destino existente conservado; use una ruta nueva')
         if args.accion=='auditar':
-            from convertersmartgrid.asistente.llm_destilacion import auditar_fuentes_corpus
+            from convertersmartgrid.aplicacion.asistente.llm_destilacion import auditar_fuentes_corpus
             resultado=auditar_fuentes_corpus(args.dataset)
             args.destino.mkdir(parents=True);creado=True
             (args.destino/'auditoria.json').write_text(json.dumps(resultado,indent=2,ensure_ascii=False),encoding='utf-8')
             print(json.dumps(resultado,ensure_ascii=True));return 0
         if args.accion=='publicar':
-            from convertersmartgrid.asistente.llm_runtime import publicar
+            from convertersmartgrid.aplicacion.asistente.llm_runtime import publicar
             resultado=publicar(args.checkpoint,args.destino,args.modelo)
             print(json.dumps({k:resultado[k] for k in ('publicado','activado','modelo','modelo_digest','sha256_gguf')}))
             return 0
         if args.accion=='elegir':
-            from convertersmartgrid.asistente.llm_destilacion import elegir_version_llm
+            from convertersmartgrid.aplicacion.asistente.llm_destilacion import elegir_version_llm
             resultado=elegir_version_llm([json.loads(p.read_text(encoding='utf-8')) for p in args.informe])
             args.destino.mkdir(parents=True);creado=True
             (args.destino/'seleccion.json').write_text(json.dumps(resultado,indent=2,ensure_ascii=False),encoding='utf-8')
             print(json.dumps({'ok':True,'modelo':resultado['modelo'],'criterio':'seleccion'}));return 0
         if args.accion=='evaluar':
-            from convertersmartgrid.trabajadores_ml import turno_gpu  # 071:RF-8
-            from convertersmartgrid.asistente.llm_destilacion import evaluar_version_llm
+            from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu  # 071:RF-8
+            from convertersmartgrid.aplicacion.asistente.llm_destilacion import evaluar_version_llm
             args.destino.mkdir(parents=True);creado=True
             with turno_gpu('evaluacion-llm-generativo'):
                 resultado=evaluar_version_llm(args.dataset,args.modelo,parte=args.parte,seleccion=args.seleccion,
@@ -84,8 +84,8 @@ def main(argv=None):
             (args.destino/'resultado.json').write_text(json.dumps(resultado,ensure_ascii=False,indent=2,allow_nan=False),encoding='utf-8')
             print(json.dumps({k:v for k,v in resultado.items() if k!='metricas'},ensure_ascii=True));return 0
         if args.accion=='entrenar-epoca':
-            from convertersmartgrid.trabajadores_ml import turno_gpu  # 071:RF-8
-            from convertersmartgrid.asistente.llm_destilacion import entrenar_epoca
+            from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu  # 071:RF-8
+            from convertersmartgrid.aplicacion.asistente.llm_destilacion import entrenar_epoca
             creado=True
             with turno_gpu('destilacion-llm-generativo'):
                 resultado=entrenar_epoca(args.dataset,args.destino,epoca=args.epoca,desde=args.desde,
@@ -93,21 +93,21 @@ def main(argv=None):
                     max_tokens=args.max_tokens)
             print(json.dumps(resultado,ensure_ascii=True));return 0
         if args.accion=='sellar':
-            from convertersmartgrid.asistente.llm_destilacion import sellar_particiones
+            from convertersmartgrid.aplicacion.asistente.llm_destilacion import sellar_particiones
             creado=True
             resultado=sellar_particiones(args.dataset,args.destino)
             print(json.dumps({'ok':True,'dataset_hash':resultado['dataset_hash'],
                               'por_particion':resultado['por_particion']},ensure_ascii=True));return 0
         if args.accion=='exportar':
-            from convertersmartgrid.trabajadores_ml import turno_gpu  # 071:RF-8
-            from convertersmartgrid.asistente.llm_destilacion import exportar_fusionado
+            from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu  # 071:RF-8
+            from convertersmartgrid.aplicacion.asistente.llm_destilacion import exportar_fusionado
             creado=True
             with turno_gpu('exportar-alumno-llm'):
                 resultado=exportar_fusionado(args.destino,args.adaptador)
             print(json.dumps(resultado,ensure_ascii=True));return 0
         args.destino.mkdir(parents=True)
         creado=True
-        from convertersmartgrid.asistente.llm_destilacion import extraer_referencia, construir_corpus_real, custodiar
+        from convertersmartgrid.aplicacion.asistente.llm_destilacion import extraer_referencia, construir_corpus_real, custodiar
         fuentes=args.destino/'fuentes';fuentes.mkdir()
         copias=[];originales=[]
         for i,entrada in enumerate(args.workspace):
@@ -118,16 +118,16 @@ def main(argv=None):
                 raise ValueError('el workspace cambio durante la copia de custodia')
             copias.append(copia);originales.append(original)
         # 002:RF-1: el caso de uso recibe el dataset ya leído; el lector de los TXT es un adaptador.
-        from convertersmartgrid.dataset import CymdistDataset
+        from convertersmartgrid.adaptadores.dataset import CymdistDataset
         dataset=CymdistDataset.from_files(args.red,args.cargas,args.equipos)
         contextos,manifest=extraer_referencia(dataset=dataset,red=args.red,cargas=args.cargas,equipos=args.equipos,
             estructura_pdf=args.estructura_pdf,mediciones=args.mediciones,nuevos_clientes=args.nuevos_clientes,
             workspaces=copias)
         manifest['workspaces_originales']=originales
-        from convertersmartgrid.asistente import almacen
-        from convertersmartgrid.asistente.llm_destilacion import reservar_humanas
+        from convertersmartgrid.aplicacion.asistente import almacen
+        from convertersmartgrid.aplicacion.asistente.llm_destilacion import reservar_humanas
         humanas=reservar_humanas(almacen.leer('ejemplos'))
-        from convertersmartgrid.asistente.llm_destilacion import custodiar_politica
+        from convertersmartgrid.aplicacion.asistente.llm_destilacion import custodiar_politica
         politica=custodiar_politica(Path(__file__).resolve().parents[1]/'docs/constitution.md',args.destino)
         filas,meta=construir_corpus_real(contextos,manifest,max_train_por_tarea=args.max_train_por_tarea,
             humanas=humanas,politica=Path(politica['copia']['ruta']))

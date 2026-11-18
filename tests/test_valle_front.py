@@ -15,7 +15,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
 CARGAS = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
 TIPOS = (SRC / 'api' / 'types.ts').read_text(encoding='utf-8')
-SERVICIOS = (RAIZ / 'src' / 'convertersmartgrid' / 'web' / 'services.py').read_text(encoding='utf-8')
+SERVICIOS = (RAIZ / 'src' / 'convertersmartgrid' / 'presentacion' / 'web' / 'services.py').read_text(encoding='utf-8')
 
 
 def _bloque(texto: str, inicio: str, fin: str) -> str:

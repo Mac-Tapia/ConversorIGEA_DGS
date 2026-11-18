@@ -20,7 +20,7 @@ INICIO = datetime(2027, 1, 4)
 
 
 def _registros(semilla: int, empresas: tuple[str, ...], *, transferido: bool = True):
-    from convertersmartgrid.benchmarks.cohortes import Registro
+    from convertersmartgrid.aplicacion.benchmarks.cohortes import Registro
     r = random.Random(semilla)
     salida = []
     for e in empresas:
@@ -43,8 +43,8 @@ def _particion_de(cohorte):
 
 def test_el_cliente_transferido_une_sus_alimentadores():
     """112:RF-6 — el componente conexo une a los alimentadores que comparten un cliente."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.cohortes'), 'falta convertersmartgrid.benchmarks.cohortes'
-    from convertersmartgrid.benchmarks.cohortes import componentes
+    assert importlib.util.find_spec('convertersmartgrid.aplicacion.benchmarks.cohortes'), 'falta convertersmartgrid.aplicacion.benchmarks.cohortes'
+    from convertersmartgrid.aplicacion.benchmarks.cohortes import componentes
     regs = _registros(1, ('E1',))
     comp = componentes(regs)
     por_alim = {r.alimentador: comp[r.id] for r in regs}
@@ -55,8 +55,8 @@ def test_el_cliente_transferido_une_sus_alimentadores():
 @pytest.mark.parametrize('semilla', [3, 4, 5])
 def test_una_empresa_fuera_cada_vez(semilla):
     """112:RF-6 — por empresa: la prueba es entera de la empresa retenida y ningún alimentador cae en dos partes."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.cohortes'), 'falta convertersmartgrid.benchmarks.cohortes'
-    from convertersmartgrid.benchmarks.cohortes import planificar
+    assert importlib.util.find_spec('convertersmartgrid.aplicacion.benchmarks.cohortes'), 'falta convertersmartgrid.aplicacion.benchmarks.cohortes'
+    from convertersmartgrid.aplicacion.benchmarks.cohortes import planificar
     regs = _registros(semilla, ('E1', 'E2', 'E3'))
     plan = planificar(regs, corte=INICIO + timedelta(days=70), horizonte=timedelta(days=14))
     por_empresa = [c for c in plan.cohortes if c.tipo == 'empresa']
@@ -80,8 +80,8 @@ def test_una_empresa_fuera_cada_vez(semilla):
 @pytest.mark.parametrize('semilla', [6, 7])
 def test_por_tiempo_con_franja_de_separacion(semilla):
     """112:RF-6 — por tiempo: entrenamiento antes del corte, prueba tras la franja; la franja no está en ninguna parte."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.cohortes'), 'falta convertersmartgrid.benchmarks.cohortes'
-    from convertersmartgrid.benchmarks.cohortes import planificar
+    assert importlib.util.find_spec('convertersmartgrid.aplicacion.benchmarks.cohortes'), 'falta convertersmartgrid.aplicacion.benchmarks.cohortes'
+    from convertersmartgrid.aplicacion.benchmarks.cohortes import planificar
     regs = _registros(semilla, ('E1', 'E2'))
     corte, h = INICIO + timedelta(days=63), timedelta(days=21)
     plan = planificar(regs, corte=corte, horizonte=h)
@@ -102,8 +102,8 @@ def test_por_tiempo_con_franja_de_separacion(semilla):
 
 def test_con_una_sola_empresa_lo_dice(tmp_path):
     """112:RF-9 — con una empresa no hay cohorte por empresa, y el aviso dice que la generalización no está demostrada."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.cohortes'), 'falta convertersmartgrid.benchmarks.cohortes'
-    from convertersmartgrid.benchmarks.cohortes import FRASE_UNA_EMPRESA, planificar
+    assert importlib.util.find_spec('convertersmartgrid.aplicacion.benchmarks.cohortes'), 'falta convertersmartgrid.aplicacion.benchmarks.cohortes'
+    from convertersmartgrid.aplicacion.benchmarks.cohortes import FRASE_UNA_EMPRESA, planificar
     regs = _registros(8, ('E1',))
     plan = planificar(regs, corte=INICIO + timedelta(days=70), horizonte=timedelta(days=14))
     assert not [c for c in plan.cohortes if c.tipo == 'empresa']
@@ -114,8 +114,8 @@ def test_con_una_sola_empresa_lo_dice(tmp_path):
 
 def test_las_empresas_se_nombran_por_seudonimo():
     """112:RF-6, RF-2 — la empresa de un origen es la huella de su perfil; en el benchmark, E1…En sin la huella."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.cohortes'), 'falta convertersmartgrid.benchmarks.cohortes'
-    from convertersmartgrid.benchmarks.cohortes import seudonimos_de_empresa
+    assert importlib.util.find_spec('convertersmartgrid.aplicacion.benchmarks.cohortes'), 'falta convertersmartgrid.aplicacion.benchmarks.cohortes'
+    from convertersmartgrid.aplicacion.benchmarks.cohortes import seudonimos_de_empresa
     huellas = ['f' * 64, '0' * 64, 'a' * 64]
     nombres = seudonimos_de_empresa(huellas)
     assert sorted(nombres.values()) == ['E1', 'E2', 'E3']
@@ -125,8 +125,8 @@ def test_las_empresas_se_nombran_por_seudonimo():
 
 def test_un_cliente_en_dos_empresas_no_se_puede_separar():
     """112:RF-6 — si un componente cruza dos empresas, dejar una fuera es imposible sin mezclarlas: se dice."""
-    assert importlib.util.find_spec('convertersmartgrid.benchmarks.cohortes'), 'falta convertersmartgrid.benchmarks.cohortes'
-    from convertersmartgrid.benchmarks.cohortes import Registro, planificar
+    assert importlib.util.find_spec('convertersmartgrid.aplicacion.benchmarks.cohortes'), 'falta convertersmartgrid.aplicacion.benchmarks.cohortes'
+    from convertersmartgrid.aplicacion.benchmarks.cohortes import Registro, planificar
     regs = _registros(9, ('E1', 'E2'), transferido=False)
     regs.append(Registro(id='raro', empresa='E2', alimentador='E2-A0', clientes=('E1-A0-C0',), t=INICIO))
     with pytest.raises(ValueError, match='empresa'):

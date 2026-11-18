@@ -17,9 +17,9 @@ pytest.importorskip('fastapi')
 
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.asistente.tareas import TAREAS
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
 
 #: Un valor de ejemplo por tipo de dato, inventado y de ninguna empresa (P13).
 EJEMPLO = {'proyecto': 'Ensayo Alfa', 'alimentadores': 'QX511', 'sistema': 'Meseta', 'periodo': '2026-07', 'sed': 'SX4411',
@@ -165,7 +165,7 @@ MOTIVO_REAL = ("El codificador intfloat/multilingual-e5-base (revisión d1287505
 def test_el_aviso_sin_transformer_no_ensena_la_consola_ni_el_ingles():
     """070:RF-51 / 067:RF-9 — el aviso dice por qué falta el modelo, sin la orden de consola, la revisión ni el error en
     inglés de la librería; un motivo ya en palabras del operador se queda como está."""
-    from convertersmartgrid.asistente.plan import aviso_sin_transformer
+    from convertersmartgrid.aplicacion.asistente.plan import aviso_sin_transformer
 
     aviso = aviso_sin_transformer(MOTIVO_REAL, 'ninguno')
     assert 'caché local' in aviso and not _jerga(aviso)
@@ -176,7 +176,7 @@ def test_el_aviso_sin_transformer_no_ensena_la_consola_ni_el_ingles():
 
 def test_la_etapa_que_falta_se_dice_en_palabras():
     """070:RF-51 — «falta ruta_cargas» enseñaba el campo; las etapas se nombran y se explican sin claves."""
-    from convertersmartgrid.web.asistente_operacion import _etapas_en_palabras
+    from convertersmartgrid.presentacion.web.asistente_operacion import _etapas_en_palabras
 
     lista = {'etapas': [{'nombre': 'cargas_nuevas', 'estado': 'se_omitira', 'falta': ['ruta_cargas'], 'motivo': ''},
                         {'nombre': 'informe', 'estado': 'falta_dato', 'falta': ['formulario'], 'motivo': ''},

@@ -12,14 +12,14 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.pit.ambito import PitError
-from convertersmartgrid.pit.cuadros import (
+from convertersmartgrid.dominio.pit.ambito import PitError
+from convertersmartgrid.adaptadores.pit.cuadros import (
     codigos_de_grupos,
     formatos_aplicables,
     plan_de_cuadros,
 )
-from convertersmartgrid.pit.expediente import abrir, emitir
-from convertersmartgrid.registro_normativo import cargar_registro
+from convertersmartgrid.adaptadores.pit.expediente import abrir, emitir
+from convertersmartgrid.dominio.registro_normativo import cargar_registro
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -140,7 +140,7 @@ FUENTE = {'nombre': 'historico_sintetico.xlsx', 'huella': 'd' * 64}
 
 
 def _f208():
-    from convertersmartgrid.pit import f208
+    from convertersmartgrid.dominio.pit import f208
     return f208
 
 
@@ -237,7 +237,7 @@ def test_f208_sus_celdas_entran_en_el_expediente(tmp_path):
 
 # --------------------------------------------------------------------------- T19b: el llenado de los formatos
 def _llenado():
-    from convertersmartgrid.pit import llenado
+    from convertersmartgrid.adaptadores.pit import llenado
     return llenado
 
 
@@ -306,7 +306,7 @@ FUENTE_RED = {'nombre': 'red_sintetica.xlsx', 'huella': 'b' * 64}
 
 
 def _red(lineas_extra=0):
-    from convertersmartgrid.pit.red_area import RedArea
+    from convertersmartgrid.aplicacion.pit.red_area import RedArea
     barras = [{'id': 'B1', 'kv': 138.0, 'set': 'SET-A'}, {'id': 'B2', 'kv': 60.0, 'set': 'SET-A'},
               {'id': 'B3', 'kv': 60.0, 'set': 'SET-B'}, {'id': 'B4', 'kv': 22.9, 'set': 'SET-B'},
               {'id': 'B5', 'kv': 66.0, 'set': 'SET-C'}, {'id': 'B6', 'kv': 22.9, 'set': 'SET-A'},
@@ -354,8 +354,8 @@ def test_f001_por_titular_con_los_niveles_de_la_regla_12_1_1():
 def test_f002_lineas_con_su_calculo_y_b_solo_con_la_frecuencia():
     """107:RF-9 (T19b) — cada línea en su fila, con la tensión de envío; B solo si el perfil da la frecuencia, y lo que
     la red no trae queda vacío con su motivo."""
-    from convertersmartgrid.pit.formatos_red import datos_f002
-    from convertersmartgrid.pit.plantillas import celdas_de_formato
+    from convertersmartgrid.adaptadores.pit.formatos_red import datos_f002
+    from convertersmartgrid.adaptadores.pit.plantillas import celdas_de_formato
     registro = cargar_registro(NORMATIVA)
     con = _celdas(celdas_de_formato(registro, 'F-002', datos_f002(_red(), FUENTE_RED, frecuencia_hz=60)))
     assert con['F-002!A10']['valor'] == 'SET-A-SET-B' and con['F-002!G10']['valor'] == 60.0
@@ -369,8 +369,8 @@ def test_f002_lineas_con_su_calculo_y_b_solo_con_la_frecuencia():
 def test_f003_dos_y_tres_devanados_y_compensacion():
     """107:RF-9 (T19b) — Pcu% = vkr%, Pfe% = P0/Sn, P-S/S-T/P-T de la red; la potencia de un equipo que no se declara
     capacitor no va a la columna de capacitores, y las columnas sin campo se nombran."""
-    from convertersmartgrid.pit.formatos_red import datos_f003
-    from convertersmartgrid.pit.plantillas import celdas_de_formato
+    from convertersmartgrid.adaptadores.pit.formatos_red import datos_f003
+    from convertersmartgrid.adaptadores.pit.plantillas import celdas_de_formato
     resultado = celdas_de_formato(cargar_registro(NORMATIVA), 'F-003', datos_f003(_red(), FUENTE_RED))
     c = _celdas(resultado)
     assert c['F-003!L12']['valor'] == 0.4 and c['F-003!M12']['valor'] == pytest.approx(0.06)
@@ -383,8 +383,8 @@ def test_f003_dos_y_tres_devanados_y_compensacion():
 
 def test_bloque_con_mas_filas_que_la_plantilla_dice_cuantas_insertar():
     """107:RF-9 (T19b) — la plantilla trae 5 filas de ejemplo de líneas; con 8 líneas hay que insertar 3."""
-    from convertersmartgrid.pit.formatos_red import datos_f002
-    from convertersmartgrid.pit.plantillas import celdas_de_formato
+    from convertersmartgrid.adaptadores.pit.formatos_red import datos_f002
+    from convertersmartgrid.adaptadores.pit.plantillas import celdas_de_formato
     resultado = celdas_de_formato(cargar_registro(NORMATIVA), 'F-002', datos_f002(_red(6), FUENTE_RED))
     assert resultado['filas_a_insertar'] == {'lineas': 3}
     assert '!A17' in max((c['celda'] for c in resultado['celdas'] if c['campo'] == 'nombre'),
@@ -393,8 +393,8 @@ def test_bloque_con_mas_filas_que_la_plantilla_dice_cuantas_insertar():
 
 def test_mapeo_que_no_coincide_con_la_plantilla_es_un_error(tmp_path):
     """107:RF-9 (T19b) — si la norma cambia un rótulo, no se llena la columna equivocada: el error lo nombra."""
-    from convertersmartgrid.pit.formatos_red import datos_f002
-    from convertersmartgrid.pit.plantillas import cargar_mapeo, celdas_de_formato
+    from convertersmartgrid.adaptadores.pit.formatos_red import datos_f002
+    from convertersmartgrid.adaptadores.pit.plantillas import cargar_mapeo, celdas_de_formato
     mapeo = cargar_mapeo()
     mapeo['formatos']['F-002']['bloques'][0]['columnas'][6]['rotulo'] = [9, 'G', '(MW)']
     with pytest.raises(PitError, match='G9'):
@@ -403,7 +403,7 @@ def test_mapeo_que_no_coincide_con_la_plantilla_es_un_error(tmp_path):
 
 def test_sin_regla_de_niveles_no_se_clasifica_el_f001(tmp_path):
     """107:RF-9 (T19b) — sin la regla 12.1.1 no se supone qué es MAT o AT."""
-    from convertersmartgrid.pit.formatos_red import datos_f001
+    from convertersmartgrid.adaptadores.pit.formatos_red import datos_f001
     registro = _registro(tmp_path / 'reg', {'F-001 a F-003': 'General'}, ['F-001'])
     with pytest.raises(PitError, match='pit.niveles_tension_kv'):
         datos_f001(_red(), registro, FUENTE_RED)
@@ -438,7 +438,7 @@ def _registro_con_horizonte(tmp_path, anios):
 def test_serie_en_columnas_sale_del_horizonte_de_la_norma(tmp_path, anios, ultima):
     """107:RF-9, 107:RF-11 (T27 3a) — una columna por año, del 0 al horizonte de la regla registrada, con el rótulo de
     cada año comprobado en la plantilla; ningún número de años en el código."""
-    from convertersmartgrid.pit.plantillas import celdas_de_formato
+    from convertersmartgrid.adaptadores.pit.plantillas import celdas_de_formato
     registro = _registro_con_horizonte(tmp_path, anios) if anios != 30 else cargar_registro(NORMATIVA)
     datos = {'fuente': FUENTE, 'bloques': {'barras': [{'barra': 'B1', 'potencia_mw': [float(i) for i in
                                                                                     range(anios + 1)]}]}}
@@ -451,7 +451,7 @@ def test_serie_en_columnas_sale_del_horizonte_de_la_norma(tmp_path, anios, ultim
 
 def test_serie_mas_larga_que_la_plantilla_es_un_error(tmp_path):
     """107:RF-9 (T27 3a) — si la norma pide más años que columnas tiene la plantilla, el error lo dice."""
-    from convertersmartgrid.pit.plantillas import celdas_de_formato
+    from convertersmartgrid.adaptadores.pit.plantillas import celdas_de_formato
     with pytest.raises(PitError, match='año 31'):
         celdas_de_formato(_registro_con_horizonte(tmp_path, 40), 'F-110',
                           {'fuente': FUENTE, 'bloques': {'barras': []}}, mapeo=_MAPEO_SERIES)
@@ -460,7 +460,7 @@ def test_serie_mas_larga_que_la_plantilla_es_un_error(tmp_path):
 def test_serie_en_filas_comprueba_cada_anio(tmp_path):
     """107:RF-9 (T27 3a) — la serie en filas (F-119) lleva un año por fila del 0 al horizonte, comprobado en la
     plantilla; un año que falta en la fuente queda vacío con su motivo."""
-    from convertersmartgrid.pit.plantillas import celdas_de_formato
+    from convertersmartgrid.adaptadores.pit.plantillas import celdas_de_formato
     datos = {'fuente': FUENTE, 'bloques': {'anios': [{'mat_gwh': 1.5}, {'mat_gwh': 1.6}]}}
     resultado = celdas_de_formato(_registro_con_horizonte(tmp_path, 10), 'F-119', datos, mapeo=_MAPEO_SERIES)
     celdas = {c['celda']: c for c in resultado['celdas']}

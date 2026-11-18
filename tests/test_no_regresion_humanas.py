@@ -18,7 +18,7 @@ import json
 import pytest
 from scipy.stats import binomtest
 
-from convertersmartgrid.asistente import destilacion_integral as di
+from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
 
 
 class _Modelo:
@@ -114,7 +114,7 @@ def _registro(tmp_path, monkeypatch, candidato_id, metrics, dataset=None):
 
 
 def _en_uso(monkeypatch, filas, aciertos, version):
-    from convertersmartgrid.asistente import transformer as tr
+    from convertersmartgrid.aplicacion.asistente import transformer as tr
 
     monkeypatch.setattr(tr, 'cargar', lambda *a, **k: _Modelo(filas, aciertos, version))
 

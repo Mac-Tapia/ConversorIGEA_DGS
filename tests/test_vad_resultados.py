@@ -14,10 +14,10 @@ from pathlib import Path
 import jsonschema
 import pytest
 
-from convertersmartgrid.registro_normativo import RegistroError, cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.formulas import FormulaError, evaluar, variables
-from convertersmartgrid.vad.resultados_vad import (DatosSistema, ambitos, calcular_fee, calcular_sistema,
+from convertersmartgrid.dominio.registro_normativo import RegistroError, cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.aplicacion.vad.formulas import FormulaError, evaluar, variables
+from convertersmartgrid.aplicacion.vad.resultados_vad import (DatosSistema, ambitos, calcular_fee, calcular_sistema,
                                                    calcular_vad, conceptos, factores_reajuste)
 
 RAIZ = Path(__file__).resolve().parents[1]

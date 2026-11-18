@@ -5,10 +5,10 @@ from dataclasses import replace
 
 import pytest
 
-from convertersmartgrid import oraculo
-from convertersmartgrid.combine import combine_models, estructurar
-from convertersmartgrid.enlaces import abrir_caminos_cerrados
-from convertersmartgrid.estructura import estructura_de_dict
+from convertersmartgrid.adaptadores import oraculo
+from convertersmartgrid.aplicacion.combine import combine_models, estructurar
+from convertersmartgrid.aplicacion.enlaces import abrir_caminos_cerrados
+from convertersmartgrid.dominio.estructura import estructura_de_dict
 from test_combine import _alimentador
 
 pytest.importorskip('pandapower')

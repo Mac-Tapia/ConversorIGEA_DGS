@@ -5,7 +5,7 @@ módulo de cargas del 2026-10-08 (resumida en el contexto de la spec).
 
 ## Contexto técnico
 
-- Web: `src/convertersmartgrid/web/services.py` (`load_update_plan`, `create_plan_*`, `apply_plan`,
+- Web: `src/convertersmartgrid/presentacion/web/services.py` (`load_update_plan`, `create_plan_*`, `apply_plan`,
   `lote_plan`, `apply_lote`, `pf_projects`), `web/load_batch.py` (custodia del plan),
   `web/app.py` (rutas), `web/jobs.py` (`run_process`).
 - Lectura de Excel: `convertersmartgrid/loads.py` (`read_workbook`, demandas) y

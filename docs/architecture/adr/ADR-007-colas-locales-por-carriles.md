@@ -4,7 +4,7 @@
 - Fecha: 2026-11-14
 - Specs: 002:RF-14, 002:RF-30
 - Elementos C4: jobs, api, engine, nativeRunner, operationStore
-- Evidencia: `src/convertersmartgrid/web/jobs.py::LANES`, `src/convertersmartgrid/web/jobs.py::JobManager`, `src/convertersmartgrid/web/jobs.py::DiarioTrabajos`, `src/convertersmartgrid/web/jobs.py::EventLog`
+- Evidencia: `src/convertersmartgrid/presentacion/web/jobs.py::LANES`, `src/convertersmartgrid/presentacion/web/jobs.py::JobManager`, `src/convertersmartgrid/presentacion/web/jobs.py::DiarioTrabajos`, `src/convertersmartgrid/presentacion/web/jobs.py::EventLog`
 
 ## Contexto
 

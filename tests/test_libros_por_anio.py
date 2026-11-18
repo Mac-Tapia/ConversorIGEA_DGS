@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid import demanda_medida as dm
-from convertersmartgrid import libros_por_anio as lpa
+from convertersmartgrid.aplicacion import demanda_medida as dm
+from convertersmartgrid.aplicacion import libros_por_anio as lpa
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
 
@@ -235,7 +235,7 @@ def test_varios_patrones_en_el_perfil(tmp_path):
                 r'(?i)^CLI(?P<anio>\d{4})(?P<mes>\d{2})\.xlsx$']
     assert dm.mes_de_nombre('0126clientesImportantes.xlsx', patrones) == '2026-01'
     assert dm.mes_de_nombre('CLI202507.xlsx', patrones) == '2025-07'
-    from convertersmartgrid.perfil_empresa import PerfilEmpresa, PerfilError
+    from convertersmartgrid.dominio.perfil_empresa import PerfilEmpresa, PerfilError
     assert PerfilEmpresa(patron_libro_clientes=patrones).patron_libro_clientes == tuple(patrones)
     with pytest.raises(PerfilError, match='mes'):
         PerfilEmpresa(patron_libro_clientes=[patrones[0], r'(?P<anio>\d{4})'])

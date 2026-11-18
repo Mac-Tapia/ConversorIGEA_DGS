@@ -27,7 +27,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(RAIZ / 'src'), str(RAIZ / 'tools')]
 
-from convertersmartgrid.escaneo import CLASES_GENERADOR, origen_de  # noqa: E402
+from convertersmartgrid.aplicacion.escaneo import CLASES_GENERADOR, origen_de  # noqa: E402
 
 
 def _variaciones(app) -> tuple[list[dict], dict[tuple[str, str], str]]:
@@ -201,7 +201,7 @@ def _transferencias(app, alims, plan: dict, informe: dict) -> None:
     """
     from transferencia_operador_pf import equipos_de_las_zonas, leer_transferencias
 
-    from convertersmartgrid.transferencia_operador import texto_de_zona
+    from convertersmartgrid.dominio.transferencia_operador import texto_de_zona
 
     try:
         zonas, _objs, frente = leer_transferencias(app, alims, plan, interesan=informe['feeders'])
@@ -236,7 +236,7 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     plan = json.loads(Path(args.plan).read_text(encoding='utf-8'))
     salida = Path(args.output_json)
-    from convertersmartgrid.pf_arnes import PFNoDisponible, conectar
+    from convertersmartgrid.adaptadores.pf_arnes import PFNoDisponible, conectar
 
     try:
         app = conectar('escanear_alimentador_pf.py')

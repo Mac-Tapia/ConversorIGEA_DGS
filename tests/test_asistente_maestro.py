@@ -13,10 +13,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from convertersmartgrid.asistente import almacen
-from convertersmartgrid.web import asistente_operacion as operacion
-from convertersmartgrid.web import services
-from convertersmartgrid.web.app import create_app
+from convertersmartgrid.aplicacion.asistente import almacen
+from convertersmartgrid.presentacion.web import asistente_operacion as operacion
+from convertersmartgrid.presentacion.web import services
+from convertersmartgrid.presentacion.web.app import create_app
 
 RAIZ = Path(__file__).resolve().parents[1]
 #: Fijada antes de entrenar ningún candidato (070:RF-70): no se actualiza para que pase una prueba.
@@ -132,7 +132,7 @@ def test_huecos_estudios_llegan_a_la_ruta_con_su_base_y_su_catalogo(api, monkeyp
 
 def test_huecos_estudio_nombrado_corre_solo_ese(api, monkeypatch):
     """070:RF-4 — con un estudio nombrado, solo ese."""
-    from convertersmartgrid.asistente.ejecutor import pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
 
     lista = pasos('estudios', {'proyecto': 'P1', 'alimentadores': ['F1'], 'estudio': 'flujo'})
     resultados = [{'ajuste': {'id': 'disco:t'}}, {'ofrecidos': [{'clave': 'flujo'}, {'clave': 'troncal'}]}]
@@ -173,8 +173,8 @@ def test_huecos_sistema_sin_libros_lo_dice(api, monkeypatch):
 
 def test_huecos_proyecto_para_antes_de_la_primera_etapa(tmp_path):
     """070:RF-8 — sin los libros no se empieza por cargar la fuente para caer en la etapa siguiente."""
-    from convertersmartgrid.asistente.ejecutor import ClienteWeb
-    from convertersmartgrid.asistente.orquestador import PuntoDeControl, ejecutar_proyecto
+    from convertersmartgrid.aplicacion.asistente.ejecutor import ClienteWeb
+    from convertersmartgrid.aplicacion.asistente.orquestador import PuntoDeControl, ejecutar_proyecto
 
     class SinRed:
         def request(self, *_a, **_k):
@@ -194,7 +194,7 @@ def test_huecos_cargas_en_bloque_con_su_base(api, monkeypatch, tmp_path):
     modelo = Modelo('cargas_nuevas', proyecto='P1', alimentadores='F1', ruta=str(libro))
     plan = proponer(cliente, wid, monkeypatch, modelo)['plan']
     assert not plan['listo'] and any('calibración' in f for f in plan['faltan'])
-    from convertersmartgrid.asistente.ejecutor import pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
 
     lista = pasos('cargas_nuevas', {'proyecto': 'P1', 'alimentadores': ['F1'], 'ruta': str(libro)})
     assert lista[1].cuerpo([{'ajuste': {'id': 'disco:t'}}])['ajuste_job_id'] == 'disco:t'
@@ -225,7 +225,7 @@ def test_huecos_factibilidad_dice_como_conectarla(api, monkeypatch):
 
 def test_huecos_informe_de_estudio_por_alimentador():
     """070:RF-12 — antes se perdían todos menos el primero."""
-    from convertersmartgrid.asistente.ejecutor import pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
 
     lista = pasos('informe_estudio', {'proyecto': 'P1', 'alimentadores': ['F1', 'F2']}, {'formulario': {'lugar': 'x'}})
     assert [p.cuerpo['alimentador'] for p in lista] == ['F1', 'F2']
@@ -235,7 +235,7 @@ def test_huecos_informe_de_estudio_por_alimentador():
 @pytest.mark.parametrize('tarea', ['obras_escalera', 'optimizar_con_proyecto'])
 def test_huecos_obras_envian_capex_y_tipo_de_cambio(tarea):
     """070:RF-13 — el libro CAPEX y el tipo de cambio llegan a la ruta."""
-    from convertersmartgrid.asistente.ejecutor import pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
 
     cuerpo = pasos(tarea, {'proyecto': 'P1', 'alimentadores': ['F1'], 'ruta': 'D:/capex.xlsx'}, {'tipo_cambio': 3.75})[0].cuerpo
     assert cuerpo['capex'] == 'D:/capex.xlsx' and cuerpo['tipo_cambio'] == 3.75
@@ -275,7 +275,7 @@ def test_huecos_set_nueva_directa_sin_capex(api, monkeypatch):
 
 def test_huecos_entregables_de_todos_los_pasos():
     """070:RF-16 — con un informe por alimentador se perdían todos los Word menos el último."""
-    from convertersmartgrid.asistente.ejecutor import ClienteWeb, Paso, ejecutar
+    from convertersmartgrid.aplicacion.asistente.ejecutor import ClienteWeb, Paso, ejecutar
 
     class Web:
         def __init__(self):
@@ -297,8 +297,8 @@ def test_huecos_entregables_de_todos_los_pasos():
 # ------------------------------------------------------------------ T2, tareas nuevas
 def test_tareas_tipos_nuevos_al_final_para_los_modelos_heredados():
     """070:RF-17 / 070:RF-18 — la etiqueta de un modelo heredado es su posición: no se mueve ninguna."""
-    from convertersmartgrid.asistente.datos_por_palabra import ETIQUETAS
-    from convertersmartgrid.asistente.tareas import TIPOS_DATO
+    from convertersmartgrid.aplicacion.asistente.datos_por_palabra import ETIQUETAS
+    from convertersmartgrid.aplicacion.asistente.tareas import TIPOS_DATO
 
     previos = ('proyecto', 'alimentadores', 'sistema', 'periodo', 'caso', 'numero', 'ruta', 'sed', 'subtipo', 'texto')
     assert TIPOS_DATO[:len(previos)] == previos and {'set', 'estudio', 'alcance', 'anio'} <= set(TIPOS_DATO)
@@ -319,7 +319,7 @@ def test_tareas_tipos_nuevos_al_final_para_los_modelos_heredados():
 ])
 def test_tareas_cada_una_por_su_ruta(tarea, datos, extras, metodo, ruta, parte):
     """070:RF-19 / 070:RF-22 / 070:RF-23 / 070:RF-27 / 070:RF-28 / 070:RF-35 / 070:RF-36 — la ruta del operador."""
-    from convertersmartgrid.asistente.ejecutor import pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
 
     p = pasos(tarea, datos, extras)[-1]
     assert (p.metodo, p.ruta) == (metodo, ruta)
@@ -329,7 +329,7 @@ def test_tareas_cada_una_por_su_ruta(tarea, datos, extras, metodo, ruta, parte):
 @pytest.mark.parametrize('tarea, ultimo', [('calibrar', 'aplicar'), ('simular_calibracion', 'simular')])
 def test_tareas_calibrar_y_simular_usan_la_maxima_buscada(tarea, ultimo):
     """070:RF-24 / 070:RF-25 — relee proyectos, prepara el plan con la máxima y sin las centrales, y ejecuta."""
-    from convertersmartgrid.asistente.ejecutor import pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
 
     maxima = {'id': 'j1', 'result': {'resultados': [
         {'alimentador': 'F1', 'medidor': 'M1'}, {'alimentador': 'F2', 'medidor': 'M2', 'error': 'sin dato'},
@@ -389,7 +389,7 @@ def test_tareas_cruzar_con_la_fecha_de_la_maxima(api, monkeypatch):
     trabajo = {'id': 'j1', 'kind': 'demanda_cabecera', 'status': 'done', 'title': 'máxima', 'result': {'resultados': [
         {'alimentador': 'F1', 'medidor': 'M1', 'fecha': '2026-07-21 18:45', 'kw': 10.0, 'kvar': 1.0, 'fp': .99}]}}
     extras = operacion_extras_de(monkeypatch, trabajo)
-    from convertersmartgrid.asistente.ejecutor import pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
 
     plan = _plan('cruzar_clientes', {'alimentadores': ['F1'], 'periodo': '2026-07'})
     operacion.requisitos(services, app.state.store.get(wid), plan, extras)
@@ -398,8 +398,8 @@ def test_tareas_cruzar_con_la_fecha_de_la_maxima(api, monkeypatch):
 
 
 def _plan(tarea, datos, texto='orden'):
-    from convertersmartgrid.asistente.plan import Plan
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.plan import Plan
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
     return Plan('a' * 12, texto, tarea, TAREAS[tarea].escribe, TAREAS[tarea].modo, datos=dict(datos))
 
@@ -423,7 +423,7 @@ def test_tareas_carga_sola_lee_la_orden(api, monkeypatch, texto, kw, fp):
     assert (nueva['Kw'], nueva['FP'], nueva['alimentador'], nueva['CoordX'], nueva['CoordY']) == (kw, fp, 'F1', 500100.0, 8400200.0)
     if fp == .98:
         assert any('0,98' in x for x in r['plan']['razonamiento'])
-    from convertersmartgrid.asistente.ejecutor import pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
 
     cuerpo = pasos('carga_nueva_sola', guardado['plan'].datos, guardado['extras'])[1].cuerpo([{'ajuste': {'id': 'disco:t'}}])
     assert cuerpo['ajuste_job_id'] == 'disco:t' and '"Kw"' in cuerpo['nueva']
@@ -609,7 +609,7 @@ def test_tareas_recalibrar_con_su_carril_ocupado_por_el_propio_trabajo(api, monk
 
 def test_tareas_pronostico_con_clientes_nombrados(entorno, monkeypatch, tmp_path):
     """070:RF-36 — los clientes son opcionales; si se nombran, van al pedido."""
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     libro = tmp_path / 'm.xlsx'
     libro.write_bytes(b'x')
@@ -620,7 +620,7 @@ def test_tareas_pronostico_con_clientes_nombrados(entorno, monkeypatch, tmp_path
 
 def test_tareas_nuevas_que_escriben_esperan_confirmacion(api, monkeypatch):
     """070:RF-38 — el plan que escribe no se ejecuta solo y al reiniciar no se reanuda (067:RF-14)."""
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
     for nombre in ('convertir_set', 'set_completo', 'alimentadores_completo', 'calibrar', 'simular_calibracion',
                    'recalibrar', 'carga_nueva_sola', 'proyecto_entero', 'cancelar_trabajo', 'leer_solicitud', 'pronostico'):
@@ -653,7 +653,7 @@ def test_tareas_nuevas_que_escriben_esperan_confirmacion(api, monkeypatch):
     ('pronostica la cabecera de F1', 'pronostico')])
 def test_tareas_frase_literal_con_modelo_que_no_las_conoce(texto, tarea):
     """070:RF-39 — hasta que un candidato pase las puertas, la frase las reconoce."""
-    from convertersmartgrid.asistente.interprete import interpretar
+    from convertersmartgrid.aplicacion.asistente.interprete import interpretar
 
     assert interpretar(texto, transformer=Modelo('estado')).tarea == tarea
 
@@ -663,7 +663,7 @@ def test_tareas_frase_literal_con_modelo_que_no_las_conoce(texto, tarea):
     'verifica si converge el caso base de P1', 'set nueva para las cargas que no caben en P1', 'carga nuevas de D:/a.xlsx en P1'])
 def test_tareas_frase_literal_no_captura_lo_que_ya_tenia_dueno(texto):
     """070:RF-39 — una pregunta o una orden de otra tarea sigue siendo del modelo."""
-    from convertersmartgrid.asistente.interprete import interpretar
+    from convertersmartgrid.aplicacion.asistente.interprete import interpretar
 
     assert interpretar(texto, transformer=Modelo('estado')).tarea == 'estado'
 
@@ -749,7 +749,7 @@ def consultar(cliente, wid, monkeypatch, texto, **datos):
 
 def test_consulta_no_escribe_ni_abre_digsilent(api, monkeypatch):
     """070:RF-40 — se responde en la misma orden; ningún trabajo del carril de DIgSILENT."""
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
     assert not TAREAS['consultar_datos'].escribe and TAREAS['consultar_datos'].modo == 'consulta'
     cliente, app = api
@@ -819,7 +819,7 @@ def test_consulta_sed_por_el_modelo_sin_recorrer_tablas(tmp_path):
     from synthetic_export import ExportSpec, load_export
     from test_flexibility_and_scale import _NoFullScan
 
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     ds = load_export(ExportSpec(feeders=3, sections_per_feeder=6, loads_per_feeder=4, seed=70), tmp_path / 'src')
     ds.customer_loads_by_feeder, ds.switching_by_feeder, ds.intermediate_by_section
@@ -827,7 +827,7 @@ def test_consulta_sed_por_el_modelo_sin_recorrer_tablas(tmp_path):
         object.__setattr__(ds, nombre, _NoFullScan(nombre, getattr(ds, nombre)))
     ws = WorkspaceStore(tmp_path / 'w').create()
     ws.dataset = ds
-    from convertersmartgrid.naming import feeder_short_name
+    from convertersmartgrid.dominio.naming import feeder_short_name
 
     for network_id in ds.feeder_ids():
         r = services.sed_de_alimentador(ws, feeder_short_name(network_id))
@@ -859,7 +859,7 @@ def test_consulta_lo_devuelto_no_sale_a_internet(api, monkeypatch):
                                    '¿qué años de medición tengo?', '¿qué variaciones tiene P1?', 'dame las máximas ya buscadas'])
 def test_consulta_por_frase_literal_aunque_sea_pregunta(texto):
     """070:RF-39 / 070:RF-41 — tiene forma de pregunta y es una orden de esta tarea."""
-    from convertersmartgrid.asistente.interprete import interpretar
+    from convertersmartgrid.aplicacion.asistente.interprete import interpretar
 
     assert interpretar(texto, transformer=Modelo('estado')).tarea == 'consultar_datos'
 
@@ -870,7 +870,7 @@ def test_consulta_por_frase_literal_aunque_sea_pregunta(texto):
     ('revisa la coordinación de protecciones de F1', 'protecciones'), ('¿coordinan los relés de SETA?', 'protecciones')])
 def test_nodisponible_del_catalogo_con_su_motivo(api, monkeypatch, texto, clave):
     """070:RF-47 / 070:RF-48 — el motivo es el de ``estudios_no_ofrecidos``, no uno escrito aquí."""
-    from convertersmartgrid.estudios_pf import estudios_no_ofrecidos
+    from convertersmartgrid.aplicacion.estudios_pf import estudios_no_ofrecidos
 
     fila = next(e for e in estudios_no_ofrecidos() if clave in e['clave'])
     cliente, app = api
@@ -895,7 +895,7 @@ def test_nodisponible_lo_que_solo_esta_especificado(api, monkeypatch, texto, spe
 @pytest.mark.parametrize('texto', ['¿qué es el cortocircuito?', 'cómo funciona la coordinación de protecciones'])
 def test_nodisponible_una_pregunta_de_concepto_sigue_siendo_pregunta(texto):
     """070:RF-47 — explicar el concepto no es pedir el estudio."""
-    from convertersmartgrid.asistente.interprete import interpretar
+    from convertersmartgrid.aplicacion.asistente.interprete import interpretar
 
     assert interpretar(texto, transformer=Modelo('estado')).tarea == 'estado'
 
@@ -942,8 +942,8 @@ DATOS_CARGA = {'proyecto': 'P1', 'alimentadores': ['F1'], 'sed': 'S9', 'nueva': 
 
 
 def correr_carga(web, tmp_path):
-    from convertersmartgrid.asistente.ejecutor import ClienteWeb
-    from convertersmartgrid.asistente.orquestador import ETAPAS_CARGA, PuntoDeControl, ejecutar_proyecto
+    from convertersmartgrid.aplicacion.asistente.ejecutor import ClienteWeb
+    from convertersmartgrid.aplicacion.asistente.orquestador import ETAPAS_CARGA, PuntoDeControl, ejecutar_proyecto
 
     def proceso(tarea, _d):
         assert tarea == 'recalibrar'
@@ -999,7 +999,7 @@ def test_cadena_no_sigue_si_no_converge(tmp_path):
 
 def test_cadena_cortada_retoma_sin_repetir(tmp_path):
     """070:RF-56 — lo hecho no se repite; retomar exige volver a llamarla, no ocurre solo."""
-    from convertersmartgrid.asistente.ejecutor import PasoFallido
+    from convertersmartgrid.aplicacion.asistente.ejecutor import PasoFallido
 
     web = WebDeCarga(cortar_en='/informes/factibilidad')
     with pytest.raises(PasoFallido):
@@ -1062,8 +1062,8 @@ def test_cadena_dice_lo_que_falta_de_la_carga(api, monkeypatch, texto, falta):
 
 def test_cadena_la_carga_se_llama_por_su_nombre():
     """070:RF-29 — sin SED todavía, el nombre que da la orden; una palabra de unión no es un nombre."""
-    from convertersmartgrid.asistente.interprete import Interpretacion
-    from convertersmartgrid.asistente.plan import resolver
+    from convertersmartgrid.aplicacion.asistente.interprete import Interpretacion
+    from convertersmartgrid.aplicacion.asistente.plan import resolver
 
     def nombre(texto):
         return resolver(Interpretacion(texto, 'carga_nueva_sola', 1., 'x', {}), {}).datos.get('sed')
@@ -1083,9 +1083,9 @@ def test_cadena_sin_formulario_ni_calibracion_lo_dice(api, monkeypatch):
 
 def test_cadena_el_libro_es_solo_del_perfil():
     """070:RF-55 — lo decide el informe, que ya lo escribe solo si el perfil lo declara (066:RF-1): aquí no se fuerza."""
-    fuente = (RAIZ / 'src/convertersmartgrid/asistente/orquestador.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/aplicacion/asistente/orquestador.py').read_text(encoding='utf-8')
     assert 'libro_informe' not in fuente and 'libro_xlsx' not in fuente
-    fuente = (RAIZ / 'src/convertersmartgrid/web/services.py').read_text(encoding='utf-8')
+    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
     assert '_libro_del_informe(ctx, destino, imagenes)' in fuente
 
 # ------------------------------------------------------------------ T6, reglas de dominio
@@ -1119,7 +1119,7 @@ def test_dominio_las_centrales_no_cuentan_como_alimentadores(api, monkeypatch):
     ('alimentadores_completo', {'alimentadores': ['F1', 'F2', 'F3', 'F4'], 'periodo': '2026-07', 'ruta': 'D:/l'})])
 def test_dominio_tareas_con_mas_de_tres_proponen_set_o_sistema(entorno, monkeypatch, tarea, datos):
     """070:RF-58 — se dice en el plan, con la alternativa: no se pregunta ni se trocea."""
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     monkeypatch.setattr(services, 'medidores_por_alimentador', lambda _ws, a: {x: [f'M-{x}'] for x in a})
     plan = _plan(tarea, datos)
@@ -1156,7 +1156,7 @@ def test_dominio_recalibrar_conserva_el_criterio_de_la_set(entorno, monkeypatch,
     """070:RF-59 — un proyecto de SET se calibraba como alimentadores sueltos: ``SISTEMA_<zonal>_<set>`` no casaba."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     ws = WorkspaceStore(entorno / 'w').create()
     grupo = 'SISTEMA_VALLE_SET_1'
@@ -1175,7 +1175,7 @@ def test_dominio_recalibrar_conserva_el_criterio_de_la_set(entorno, monkeypatch,
 
 def test_dominio_recalibrar_un_sistema_sigue_igual(entorno, monkeypatch, tmp_path):
     """070:RF-59 — los proyectos de sistema y de alimentadores no cambian (028:RF-24)."""
-    from convertersmartgrid.web.workspace import WorkspaceStore
+    from convertersmartgrid.presentacion.web.workspace import WorkspaceStore
 
     ws = WorkspaceStore(entorno / 'w').create()
     ws.pf_projects['SISTEMA_VALLE'] = 'P_SIS'
@@ -1189,7 +1189,7 @@ def test_dominio_recalibrar_un_sistema_sigue_igual(entorno, monkeypatch, tmp_pat
 
 def test_dominio_la_maxima_de_una_set_es_de_barra(api, monkeypatch):
     """070:RF-60 — por barra y sin el instante común de 60 kV (RF-22 lo mide en el plan)."""
-    from convertersmartgrid.asistente.ejecutor import pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
 
     monkeypatch.setattr(services, 'estructura_resumen', lambda _ws: {'zonales': [
         {'nombre': 'S1', 'alimentadores': ['F1'], 'sets_detalle': [{'codigo': 'SETA', 'alimentadores': ['F1']}]}]})
@@ -1221,7 +1221,7 @@ def test_dominio_transmision_sin_perfil_no_estorba(entorno):
 
 def test_dominio_la_conclusion_de_conexion_manda_al_decidir_obras():
     """070:RF-54 — lo que decide es la conclusión de los tres casos (063:RF-8), no el resumen del Word."""
-    from convertersmartgrid.asistente.orquestador import _resumen
+    from convertersmartgrid.aplicacion.asistente.orquestador import _resumen
 
     r = _resumen({'factible': True, 'informe': 'i.docx', 'conclusion_conexion': {'factible': False, 'clave': 'requiere_refuerzo'}})
     assert r['factible'] is False and r['conclusion'] == 'requiere_refuerzo' and r['informe'] == 'i.docx'
@@ -1238,7 +1238,7 @@ def herramienta_entrenar():
 
 def test_via_sin_opciones_toma_la_gobernada_y_nunca_la_antigua(entorno, monkeypatch):
     """070:RF-62 / 070:RF-63 — la vigilancia la lanza sin ``--integral``: nunca llega a ``entrenar_y_promover``."""
-    from convertersmartgrid.asistente import clasificador, destilacion_integral as di, transformer
+    from convertersmartgrid.aplicacion.asistente import clasificador, destilacion_integral as di, transformer
 
     monkeypatch.setattr(transformer, 'entrenar_y_promover', lambda *_a, **_k: pytest.fail('vía antigua de órdenes'))
     monkeypatch.setattr(clasificador, 'entrenar_y_promover', lambda *_a, **_k: pytest.fail('vía antigua de informes'))
@@ -1248,12 +1248,12 @@ def test_via_sin_opciones_toma_la_gobernada_y_nunca_la_antigua(entorno, monkeypa
     monkeypatch.setattr(di, 'entrenar_destilacion', lambda *_a, registro=None, **_k: {
         'status': 'RECHAZADO', 'promovido': False, 'registro': str(registro),
         'candidato': {'status': 'RECHAZADO', 'candidate_id': 'c'}})
-    from convertersmartgrid.asistente import modelos_en_uso
+    from convertersmartgrid.aplicacion.asistente import modelos_en_uso
 
     monkeypatch.setattr(modelos_en_uso, 'aplicar_decision', lambda familia, c: {'promovido': False, 'motivo': 'no pasa', 'en_uso': None})
     monkeypatch.setattr(clasificador, 'entrenar_gobernado', lambda *_a, **_k: {'status': 'BLOQUEADO_POR_DATOS'})
     almacen_vocab = {'alimentadores': ['F1']}
-    from convertersmartgrid.asistente import almacen
+    from convertersmartgrid.aplicacion.asistente import almacen
 
     almacen.guardar_json('vocabulario', almacen_vocab)
     salida = entorno / 'informe.json'
@@ -1266,9 +1266,9 @@ def test_via_sin_opciones_toma_la_gobernada_y_nunca_la_antigua(entorno, monkeypa
 @pytest.mark.parametrize('opciones, tocan_ordenes', [(['--solo', 'ordenes'], True), (['--destilar'], True), (['--solo', 'informes'], False)])
 def test_via_pedida_expresamente_va_con_turno_y_registro(entorno, monkeypatch, opciones, tocan_ordenes):
     """070:RF-63 / 070:RF-64 — con turno de GPU, sin promover por su cuenta y con la decisión en el registro."""
-    from convertersmartgrid import trabajadores_ml
-    from convertersmartgrid.asistente import clasificador, destilacion, ollama, transformer
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion import trabajadores_ml
+    from convertersmartgrid.aplicacion.asistente import clasificador, destilacion, ollama, transformer
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
 
     turnos, kw_vistos = [], []
 
@@ -1284,7 +1284,7 @@ def test_via_pedida_expresamente_va_con_turno_y_registro(entorno, monkeypatch, o
 
     monkeypatch.setattr(trabajadores_ml, 'turno_gpu', Turno)
     monkeypatch.setattr(transformer, 'dispositivo_de_calculo', lambda: 'cuda')
-    import convertersmartgrid.digital_twin.oraculo as oraculo
+    import convertersmartgrid.adaptadores.digital_twin.oraculo as oraculo
 
     monkeypatch.setattr(oraculo, 'dispositivo', lambda *_a: 'cuda')          # 067:RF-9: el que pide se nombra
 
@@ -1311,15 +1311,15 @@ def test_via_por_defecto_no_promueve_sin_registro(entorno, monkeypatch):
     """070:RF-63 — sin pedirlo expresamente, ``entrenar_y_promover`` no toca el puntero."""
     import inspect
 
-    from convertersmartgrid.asistente import transformer
+    from convertersmartgrid.aplicacion.asistente import transformer
 
     assert inspect.signature(transformer.entrenar_y_promover).parameters['promover_directo'].default is False
 
 
 def test_via_quita_de_entrenar_los_textos_de_la_prueba():
     """070:RF-65 — un texto de la prueba repetido en el entrenamiento no mide nada."""
-    from convertersmartgrid.asistente import transformer
-    from convertersmartgrid.asistente.sinteticos import Ejemplo
+    from convertersmartgrid.aplicacion.asistente import transformer
+    from convertersmartgrid.aplicacion.asistente.sinteticos import Ejemplo
 
     e = lambda t: Ejemplo(t, 'estado', [])  # noqa: E731
     limpio, quitados = transformer.sin_textos_de_prueba([e('Uno  dos'), e('tres'), e('uno dos')], [e('uno dos')])
@@ -1328,8 +1328,8 @@ def test_via_quita_de_entrenar_los_textos_de_la_prueba():
 
 def test_via_clasificador_sin_fuga_y_con_calidad(entorno, monkeypatch):
     """070:RF-65 / 070:RF-66 — el clasificador gobernado tampoco entrena con su prueba, y su manifiesto dice la calidad."""
-    from convertersmartgrid.asistente import clasificador as cl
-    from convertersmartgrid.model_registry import RegistroModelo
+    from convertersmartgrid.aplicacion.asistente import clasificador as cl
+    from convertersmartgrid.aplicacion.model_registry import RegistroModelo
 
     for i in range(5):
         cl.registrar(f'informe real {i}', 'estudio', 'refuerzo de red', 'generado')
@@ -1364,9 +1364,9 @@ def test_via_clasificador_sin_fuga_y_con_calidad(entorno, monkeypatch):
 # ------------------------------------------------------------------ T8, currículo y prueba
 def test_curriculo_cinco_parafrasis_de_entrenar_por_tarea_con_origen():
     """070:RF-67 / 070:RF-68 — al menos cinco distintas por tarea, nuevas y antiguas, marcadas por su origen."""
-    from convertersmartgrid.asistente.curriculo_maestro import ESTILO_REAL, MAESTRO_070, PARAFRASIS_070
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
-    from convertersmartgrid.asistente.tareas import TAREAS, TAREAS_HASTA_069
+    from convertersmartgrid.aplicacion.asistente.curriculo_maestro import ESTILO_REAL, MAESTRO_070, PARAFRASIS_070
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, TAREAS_HASTA_069
 
     assert MAESTRO_070['origen'] == 'sintetico_spec_070'
     assert set(PARAFRASIS_070) == set(TAREAS_HASTA_069) and all(len(set(v)) >= 5 for v in PARAFRASIS_070.values())
@@ -1379,8 +1379,8 @@ def test_curriculo_cinco_parafrasis_de_entrenar_por_tarea_con_origen():
 
 def test_curriculo_sin_nombres_de_empresa_ni_numeros_fijos():
     """070:RF-67 — P2 y P13: nada de empresas, zonales ni códigos reales en lo que se añade."""
-    from convertersmartgrid.asistente.curriculo_maestro import PARAFRASIS_070
-    from convertersmartgrid.asistente.prueba_sellada import FRASES, VOCABULARIO
+    from convertersmartgrid.aplicacion.asistente.curriculo_maestro import PARAFRASIS_070
+    from convertersmartgrid.aplicacion.asistente.prueba_sellada import FRASES, VOCABULARIO
 
     texto = normalizar_todo(PARAFRASIS_070, FRASES, VOCABULARIO)
     from test_entrega_universal import _codigos_de_alimentador, _hallar_sitios, _sitios_de_casos  # de config
@@ -1394,15 +1394,15 @@ def test_curriculo_sin_nombres_de_empresa_ni_numeros_fijos():
 
 
 def normalizar_todo(*dicts):
-    from convertersmartgrid.asistente.sinteticos import normalizar
+    from convertersmartgrid.aplicacion.asistente.sinteticos import normalizar
 
     return normalizar(' '.join(str(d) for d in dicts))
 
 
 def test_curriculo_prueba_sellada_con_varias_parafrasis_y_su_declaracion():
     """070:RF-69 — varias frases por tarea de todo el catálogo, y el módulo dice cómo se generó."""
-    from convertersmartgrid.asistente import prueba_sellada as ps
-    from convertersmartgrid.asistente.tareas import TAREAS, TAREAS_107_112
+    from convertersmartgrid.aplicacion.asistente import prueba_sellada as ps
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, TAREAS_107_112
 
     # 070:RF-85: las tareas de las specs 107 a 112 se miden en la prueba sellada nueva, y esta conserva su huella.
     assert set(ps.FRASES) == set(TAREAS) - TAREAS_107_112 and all(len(set(v)) >= 5 for v in ps.FRASES.values())
@@ -1417,8 +1417,8 @@ def test_curriculo_prueba_sellada_con_varias_parafrasis_y_su_declaracion():
 
 def test_curriculo_prueba_sellada_huella_fija_sin_depender_del_espacio():
     """070:RF-70 — la misma con cualquier vocabulario del espacio; si cambia, se rechaza."""
-    from convertersmartgrid.asistente import prueba_sellada as ps
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente import prueba_sellada as ps
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
 
     assert ps.HUELLA == HUELLA_PRUEBA_SELLADA and ps.huella_de(ps.filas()) == HUELLA_PRUEBA_SELLADA
     uno, m1 = preparar_corpus({}, [], por_familia=1)
@@ -1436,9 +1436,9 @@ def test_curriculo_prueba_sellada_huella_fija_sin_depender_del_espacio():
 
 def test_curriculo_prueba_sellada_separada_por_familias():
     """070:RF-71 — ni un texto ni una familia en entrenamiento, selección o calibración, también con erratas."""
-    from convertersmartgrid.asistente import prueba_sellada as ps
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
-    from convertersmartgrid.asistente.maestro_real import clave_texto, firma_familia
+    from convertersmartgrid.aplicacion.asistente import prueba_sellada as ps
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.maestro_real import clave_texto, firma_familia
 
     filas, _ = preparar_corpus({'alimentadores': ['AB101', 'CD202'], 'proyecto': ['Proyecto X'], 'sistema': ['Valle']}, [], por_familia=6)
     sellada = [r for r in filas if r.get('conjunto') == ps.CONJUNTO]
@@ -1452,9 +1452,9 @@ def test_curriculo_prueba_sellada_separada_por_familias():
 
 def test_curriculo_prueba_historica_intacta_y_sin_tareas_nuevas():
     """070:RF-72 — las filas de la anterior son las mismas y de las tareas de entonces."""
-    from convertersmartgrid.asistente.destilacion_integral import es_historica, preparar_corpus
-    from convertersmartgrid.asistente.tareas import TAREAS_HASTA_069
-    from convertersmartgrid.evaluacion_modelos import huella
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import es_historica, preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS_HASTA_069
+    from convertersmartgrid.aplicacion.evaluacion_modelos import huella
 
     filas, meta = preparar_corpus({}, [], por_familia=5)
     historicas = [r for r in filas if es_historica(r)]
@@ -1466,10 +1466,10 @@ def test_curriculo_prueba_historica_intacta_y_sin_tareas_nuevas():
 
 def test_curriculo_decide_la_sellada_y_la_historica_se_mide_sin_decidir(tmp_path, monkeypatch):
     """070:RF-69 / 070:RF-72 — el protocolo real con codificador falso: decisión con la nueva, medida con las dos."""
-    import convertersmartgrid.model_registry as mr
+    import convertersmartgrid.aplicacion.model_registry as mr
     from test_interprete_codificador import CodificadorFalso
 
-    from convertersmartgrid.asistente import codificador_ordenes as co, destilacion_integral as di, prueba_sellada as ps, transformer as tr
+    from convertersmartgrid.aplicacion.asistente import codificador_ordenes as co, destilacion_integral as di, prueba_sellada as ps, transformer as tr
 
     monkeypatch.setattr(tr, 'liberar_gpu', lambda: None)
     import torch
@@ -1502,8 +1502,8 @@ def test_curriculo_decide_la_sellada_y_la_historica_se_mide_sin_decidir(tmp_path
 @pytest.mark.parametrize('cambio', [{'acierto_tarea': .9499}, {'f1_datos': .8499}])
 def test_curriculo_puertas_de_familia_no_bajan(cambio):
     """070:RF-73 — 0,95 y 0,85 por familia, ni una décima menos."""
-    from convertersmartgrid.asistente import destilacion_integral as di
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
     perfecto = {'ejemplos': 3, 'acierto_tarea': 1., 'f1_datos': 1.}
     familias = {t: dict(perfecto) for t in TAREAS}
@@ -1520,8 +1520,8 @@ def test_curriculo_puertas_de_familia_no_bajan(cambio):
     ({'ejemplos': 3, 'acierto_tarea': 1., 'f1_datos': 1.}, {'ejemplos': 200, 'rechazada': 1., 'se_cuela': .0201})])
 def test_curriculo_puertas_humanas_y_de_rechazo_no_bajan(humanas, rechazo):
     """070:RF-73 — 0,98 y 0,95 humanas; rechazo de al menos 0,90 y como mucho 0,02."""
-    from convertersmartgrid.asistente import destilacion_integral as di
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
     perfecto = {'ejemplos': 3, 'acierto_tarea': 1., 'f1_datos': 1.}
     familias = {t: dict(perfecto) for t in TAREAS}
@@ -1530,10 +1530,10 @@ def test_curriculo_puertas_humanas_y_de_rechazo_no_bajan(humanas, rechazo):
 
 def test_curriculo_un_pronostico_no_es_reconstruccion():
     """070:RF-74 — «pronostica» estaba en ``gemelo_temporal``, que reconstruye a un paso."""
-    from convertersmartgrid.asistente.curriculo_maestro import ESTILO_REAL, FAMILIAS, PARAFRASIS_070
-    from convertersmartgrid.asistente.ordenes_fijas import FRASES
-    from convertersmartgrid.asistente.prueba_sellada import FRASES as SELLADA
-    from convertersmartgrid.asistente.tareas import TAREAS
+    from convertersmartgrid.aplicacion.asistente.curriculo_maestro import ESTILO_REAL, FAMILIAS, PARAFRASIS_070
+    from convertersmartgrid.aplicacion.asistente.ordenes_fijas import FRASES
+    from convertersmartgrid.aplicacion.asistente.prueba_sellada import FRASES as SELLADA
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
     conjuntos = (FAMILIAS, ESTILO_REAL, PARAFRASIS_070, FRASES, SELLADA, {t: v.plantillas for t, v in TAREAS.items()})
     for c in conjuntos:
@@ -1543,7 +1543,7 @@ def test_curriculo_un_pronostico_no_es_reconstruccion():
 
 def test_curriculo_fijas_con_su_huella_intacta():
     """070:RF-75 — con 48 tareas siguen siendo las 200 de siempre."""
-    from convertersmartgrid.asistente import ordenes_fijas as of
+    from convertersmartgrid.aplicacion.asistente import ordenes_fijas as of
 
     assert of.huella(of.generar({})) == '41f7ab110ac35c0b'
 
@@ -1552,7 +1552,7 @@ def test_curriculo_interpreta_lo_mismo_con_tipos_nuevos_en_un_heredado():
     """070:RF-18 — los modelos con menos etiquetas siguen leyéndose: sus índices no se movieron."""
     import numpy as np
 
-    from convertersmartgrid.asistente.datos_por_palabra import ETIQUETAS, marcar_datos
+    from convertersmartgrid.aplicacion.asistente.datos_por_palabra import ETIQUETAS, marcar_datos
 
     heredadas = 1 + 2 * 10
     p = np.zeros((10, heredadas), dtype='float32')
@@ -1567,8 +1567,8 @@ def _humana(texto, tarea, datos=()):
 
 def test_curriculo_lo_confirmado_nunca_entrena_aunque_fuera_plata():
     """070:RF-76 — sin mayúsculas ni tildes es la misma frase: ni la plata, ni sus erratas, ni la plantilla que la repite."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
-    from convertersmartgrid.asistente.maestro_real import clave_texto
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.maestro_real import clave_texto
 
     # Frase de catálogo que se genera sin datos: «que hay cargado» sale de las plantillas de ``estado``.
     humana = 'Qué hay cargado'
@@ -1583,8 +1583,8 @@ def test_curriculo_lo_confirmado_nunca_entrena_aunque_fuera_plata():
 
 def test_curriculo_una_humana_igual_a_la_sellada_no_para_el_corpus():
     """070:RF-76 / 070:RF-71 — las dos son prueba: no hay fuga, y la sellada no cambia por una orden del operador."""
-    from convertersmartgrid.asistente import prueba_sellada as ps
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente import prueba_sellada as ps
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
 
     filas, meta = preparar_corpus({}, [_humana('Aborta eso', 'cancelar_trabajo')], por_familia=1)
     assert meta['prueba_sellada']['huella'] == ps.HUELLA and meta['ordenes_humanas_independientes'] == 1
@@ -1593,7 +1593,7 @@ def test_curriculo_una_humana_igual_a_la_sellada_no_para_el_corpus():
 
 def test_curriculo_la_historica_sin_humanas_se_puede_comparar():
     """070:RF-72 — con más órdenes confirmadas la huella con humanas se mueve; la de sus sintéticas lo dice aparte."""
-    from convertersmartgrid.asistente.destilacion_integral import preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus
 
     _, sin = preparar_corpus({}, [], por_familia=1)
     _, con = preparar_corpus({}, [_humana('una orden confirmada cualquiera', 'estado')], por_familia=1)

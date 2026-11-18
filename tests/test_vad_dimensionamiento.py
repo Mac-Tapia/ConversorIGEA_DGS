@@ -27,20 +27,20 @@ from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import (
     System,
     Transformer,
 )
-from convertersmartgrid.informes import (
+from convertersmartgrid.adaptadores.informes import (
     HORAS_ANIO,
     coeficientes_factor_de_perdidas,
     factor_de_perdidas,
 )
-from convertersmartgrid.registro_normativo import RegistroNormativo, cargar_registro
-from convertersmartgrid.vad import VadError
-from convertersmartgrid.vad.dimensionamiento import (
+from convertersmartgrid.dominio.registro_normativo import RegistroNormativo, cargar_registro
+from convertersmartgrid.aplicacion.vad import VadError
+from convertersmartgrid.adaptadores.vad.dimensionamiento import (
     DemandaSed,
     RangoEconomico,
     TablaTransformadores,
     dimensionar,
 )
-from convertersmartgrid.vad.modelo_rural import armar_modelo_rural, comprobar_trazas
+from convertersmartgrid.adaptadores.vad.modelo_rural import armar_modelo_rural, comprobar_trazas
 
 pytest.importorskip('pandapower')
 
@@ -235,7 +235,7 @@ def test_conductor_por_corriente_economica_y_seccion_minima(registro, semilla):
 def test_perdidas_del_oraculo_y_factor_empirico(registro, semilla):
     """108:RF-7 — las pérdidas de potencia son las de oraculo.validar sobre la red dimensionada y las de energía usan
     informes.factor_de_perdidas con los coeficientes del registro."""
-    from convertersmartgrid.oraculo import validar
+    from convertersmartgrid.adaptadores.oraculo import validar
 
     vnr, modelo, entradas = _armar(registro, semilla, EMPRESAS[1])
     dim = dimensionar(modelo, registro=registro, **entradas)
@@ -427,8 +427,8 @@ def test_el_flujo_es_el_del_oraculo():
     pandapower."""
     import inspect
 
-    from convertersmartgrid import oraculo
-    from convertersmartgrid.vad import dimensionamiento
+    from convertersmartgrid.adaptadores import oraculo
+    from convertersmartgrid.adaptadores.vad import dimensionamiento
 
     fuente = inspect.getsource(dimensionamiento)
     assert 'runpp' not in fuente

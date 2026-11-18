@@ -1,4 +1,4 @@
-workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 434 módulos de Python en 37 subsistemas." {
+workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 448 módulos de Python en 37 subsistemas." {
 
     // Las relaciones de componentes no se suben solas a los contenedores: cada vista muestra solo lo declarado.
     !impliedRelationships false
@@ -16,7 +16,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
 
         // ------------------------------------------------------------------ sistemas externos
         fuentes = softwareSystem "Fuentes de la distribuidora" "TXT de CYMDIST, base Access y libros de medición; cada fuente se carga por su ruta." {
-            url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/sources"
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/sources"
             tags "External"
         }
 
@@ -36,7 +36,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
         }
 
         llm = softwareSystem "LLM local" "Ollama en esta máquina, para el asistente y su revisión; solo direcciones locales." {
-            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/asistente/ollama.py"
+            url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/asistente/ollama.py"
             tags "External"
         }
 
@@ -125,15 +125,15 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             security = container "Puerta de seguridad" "Host, Origin, token de sesión, política de contenido, edición y salidas a la red." "Middleware ASGI" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/web/seguridad.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/presentacion/web/seguridad.py"
                 tags "API"
             }
 
             api = container "API web" "REST y WebSocket: 161 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/web/app.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/presentacion/web/app.py"
                 tags "API"
-                cmpWeb = component "Web" "Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo (42 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/web"
+                cmpWeb = component "Web" "Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo (40 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/presentacion/web"
                     tags "API"
                     properties {
                         "Subsistemas" "Web: `web/`"
@@ -142,12 +142,12 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             jobs = container "Colas de trabajo" "Carriles engine, powerfactory, asistente, control, correo y red; el de control solo cancela." "Hilos y colas de Python" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/web/jobs.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/presentacion/web/jobs.py"
                 tags "Queue"
             }
 
             custody = container "Custodia de fuentes" "Ejecuciones fuente inmutables con alcance y huellas, sin mezclar fuentes." "Ficheros + SHA-256" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/web/source_runs.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/presentacion/web/source_runs.py"
                 tags "Store"
             }
 
@@ -188,17 +188,17 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             engine = container "Motor de conversión" "Adapta, reconstruye, aplica reglas y construye FeederModel; hasta 4 procesos con el mismo DGS." "Python" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/batch.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/batch.py"
                 tags "Engine"
-                cmpTransversales = component "Transversales" "Rutas de ejecución, nombres, perfil de empresa, privacidad, edición y salidas a la red (18 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/runtime_paths.py"
+                cmpTransversales = component "Transversales" "Rutas de ejecución, nombres, perfil de empresa, privacidad, edición y salidas a la red (19 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/dominio/runtime_paths.py"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: transversales"
                     }
                 }
-                cmpEntrada = component "Entrada de datos" "Lectores TXT, MDB y VNR, contrato de fuente, copia fija, identificación e inventario (15 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/sources"
+                cmpEntrada = component "Entrada de datos" "Lectores TXT, MDB y VNR, contrato de fuente, copia fija, identificación e inventario (17 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/sources"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: entrada de datos"
@@ -212,21 +212,21 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                     }
                 }
                 cmpReconstruccion = component "Reconstrucción y catálogo" "Completa lo que falta con el catálogo y anota cada supuesto (8 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/reconstruction_pipeline.py"
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/reconstruction_pipeline.py"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: reconstrucción y catálogo"
                     }
                 }
                 cmpModelo = component "Modelo y reglas" "FeederModel, reglas comunes, puentes, fases y capacidades (9 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/model.py"
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/dominio/model.py"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: modelo y reglas"
                     }
                 }
                 cmpConversion = component "Conversión, red unida y oráculo" "Lote, red unida, enlaces, estructura y oráculo de convergencia (8 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/batch.py"
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/batch.py"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: conversión, red unida y oráculo"
@@ -235,15 +235,15 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             oracle = container "Preflight consultivo" "Informa conectividad y convergencia antes de importar a PowerFactory; sus avisos no omiten el DGS." "pandapower" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/oraculo.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/oraculo.py"
                 tags "Engine"
             }
 
             dgs = container "Escritor y validador DGS" "Escribe con esquema versionado, valida y publica de forma atómica." "Python + esquema DGS" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/dgs.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/dgs.py"
                 tags "Engine"
-                cmpSalida = component "Salida y módulos enchufables" "Esquemas versionados, escritor DGS, validación y módulos enchufables (19 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/dgs.py"
+                cmpSalida = component "Salida y módulos enchufables" "Esquemas versionados, escritor DGS, validación y módulos enchufables (18 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/dgs.py"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: salida y módulos enchufables"
@@ -252,10 +252,10 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             nativeRunner = container "Guiones de DIgSILENT" "Lanza tools/*_pf.py con plan JSON y turno exclusivo; recibe informe JSON. Importa, calibra, aplica obras y corre estudios." "Python / API de PowerFactory" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/web/services.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/presentacion/web/services.py"
                 tags "Native"
                 cmpEnlacePf = component "Enlace con DIgSILENT" "Arnés de turno exclusivo, entorno, metadatos y vínculo fuente-proyecto (9 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/pf_arnes.py"
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/pf_arnes.py"
                     tags "Native"
                     properties {
                         "Subsistemas" "Motor: enlace con DIgSILENT"
@@ -271,10 +271,10 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             calibration = container "Demanda y calibración" "Libros por año, máxima coincidente y reparto de la demanda; el Caso base no se toca." "Python" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/demanda_medida.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/demanda_medida.py"
                 tags "Engine"
-                cmpDemanda = component "Demanda y calibración" "Libros por año y libros nuevos, cabecera, cargas y reparto (18 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/demanda_medida.py"
+                cmpDemanda = component "Demanda y calibración" "Libros por año y libros nuevos, cabecera, cargas y reparto (19 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/demanda_medida.py"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: demanda y calibración"
@@ -283,10 +283,10 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             optimizer = container "Obras y optimización" "Escalera de bancos, sección y terna, Optuna y NSGA-II; DIgSILENT confirma cada obra." "Python + NumPy + Optuna" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/escalera_optima.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/escalera_optima.py"
                 tags "AI"
                 cmpObras = component "Obras y optimización" "Escalera, troncal, perfil de tensión, reguladores, obras integrales y optimización (16 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/obras_pf.py"
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/obras_pf.py"
                     tags "AI"
                     properties {
                         "Subsistemas" "Motor: obras y optimización"
@@ -295,10 +295,10 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             studies = container "Estudios eléctricos" "Flujo, N-1, protecciones y transferencia con los módulos nativos de DIgSILENT." "Python" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/estudios_pf.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/estudios_pf.py"
                 tags "Engine"
                 cmpEstudios = component "Estudios" "Estudios de red, protecciones y transferencia (11 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/estudios_pf.py"
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/estudios_pf.py"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: estudios"
@@ -307,10 +307,10 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             reports = container "Informes" "Word, PDF, imágenes y libro Excel de estudio y factibilidad, con lo guardado por la corrida." "python-docx + COM" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/informes.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/informes.py"
                 tags "Engine"
-                cmpInformes = component "Informes" "Word, libros, mapas del informe y mapa de cargas (14 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/informes.py"
+                cmpInformes = component "Informes" "Word, libros, mapas del informe y mapa de cargas (15 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/informes.py"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: informes"
@@ -319,10 +319,10 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             normativa = container "Biblioteca normativa" "Normas nacionales e internacionales con su vigencia, sus modificaciones y la cita de cada regla; vale para toda empresa, estudio y módulo, y para el asistente." "Python + JSON con esquema" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/biblioteca_normativa.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/biblioteca_normativa.py"
                 tags "Engine"
                 cmpNormativa = component "Biblioteca normativa y fuentes de la empresa" "Registro normativo con esquema, huellas de términos, fuentes de la empresa y vínculos del .pfd (5 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/biblioteca_normativa.py"
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/biblioteca_normativa.py"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: biblioteca normativa y fuentes de la empresa (107, 109)"
@@ -331,10 +331,10 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             planning = container "PIDE y planeamiento" "Largo plazo y PIDE de distribución: diagnóstico, obras, costos oficiales y formatos." "Python" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/pide.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/pide.py"
                 tags "Engine"
                 cmpPide = component "PIDE y planeamiento" "PIDE, economía, proyecciones de mercado y estudio de planeamiento (14 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/estudio_planeamiento.py"
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/dominio/estudio_planeamiento.py"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: PIDE y planeamiento"
@@ -349,8 +349,8 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                     "Estado" "en implementación"
                     "Spec" "107"
                 }
-                cmpPit = component "PIT" "Ámbito y red del área de demanda, demanda regulatoria, diagnóstico con la norma, alternativas, formatos, expediente e informe (28 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/pit"
+                cmpPit = component "PIT" "Ámbito y red del área de demanda, demanda regulatoria, diagnóstico con la norma, alternativas, formatos, expediente e informe (30 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/dominio/pit"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: PIT (plan de inversiones en transmisión)"
@@ -365,8 +365,8 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                     "Estado" "en implementación"
                     "Spec" "108"
                 }
-                cmpVadVnr = component "VAD y VNR" "Caracterización, dimensionamiento, costos, COyM, modelos urbano y rural, VNR de la Guía, formatos y entregables (24 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/vad"
+                cmpVadVnr = component "VAD y VNR" "Caracterización, dimensionamiento, costos, COyM, modelos urbano y rural, VNR de la Guía, formatos y entregables (25 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/vad"
                     tags "Engine"
                     properties {
                         "Subsistemas" "Motor: VAD y VNR (estudio de costos y Guía del VNR, spec 108)"
@@ -375,10 +375,10 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             twin = container "Gemelo digital" "Captura episodios y ofrece oráculos radial, mallado, PINN-GNN y GRU; filtra candidatos, DIgSILENT decide." "Python + PyTorch (CUDA)" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/digital_twin"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/digital_twin"
                 tags "AI"
-                cmpGemelo = component "Gemelo digital" "Episodios, búfer, captura, oráculos, temporal, pronóstico y evolutivos (29 ficheros)." "Python + PyTorch" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/digital_twin"
+                cmpGemelo = component "Gemelo digital" "Episodios, búfer, captura, oráculos, temporal, pronóstico y evolutivos (30 ficheros)." "Python + PyTorch" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/digital_twin"
                     tags "AI"
                     properties {
                         "Subsistemas" "Gemelo digital: `digital_twin/`"
@@ -387,7 +387,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             forecast = container "Pronóstico de demanda" "Un módulo con datos que crecen cada mes: compiten modelos ingenuos, GRU, N-HiTS, TFT y PatchTST; ninguno se pone en uso solo." "Python + PyTorch" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/pronostico_demanda.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/pronostico_demanda.py"
                 tags "AI"
             }
 
@@ -397,8 +397,8 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 properties {
                     "Spec" "112"
                 }
-                cmpBench = component "Benchmarks anonimizados" "Seudónimos, geometría pública, cohortes, series, control de reidentificación y reproducción (14 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/benchmarks"
+                cmpBench = component "Benchmarks anonimizados" "Seudónimos, geometría pública, cohortes, series, control de reidentificación y reproducción (16 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/benchmarks"
                     tags "AI"
                     properties {
                         "Subsistemas" "Motor: benchmarks anonimizados"
@@ -407,31 +407,31 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             assistant = container "Asistente y su equipo" "59 tareas; interpreta órdenes, muestra el plan y ejecuta solo tras confirmación; revisan fuentes, física, coste y riesgo." "Reglas + codificador de órdenes + LLM local" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/asistente"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/asistente"
                 tags "AI"
                 cmpAsisNucleo = component "Núcleo y operación" "Tareas, intérprete, plan, planes guardados, ejecutor y orquestador (17 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/asistente/tareas.py"
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/asistente/tareas.py"
                     tags "AI"
                     properties {
                         "Subsistemas" "Asistente: núcleo y operación"
                     }
                 }
                 cmpAsisModelos = component "Modelos de órdenes y documentos" "Transformer, codificador y clasificador de informes (9 ficheros)." "Python + PyTorch" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/asistente/codificador_ordenes.py"
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/asistente/codificador_ordenes.py"
                     tags "AI"
                     properties {
                         "Subsistemas" "Asistente: modelos de órdenes y documentos"
                     }
                 }
                 cmpAsisDatos = component "Datos y entrenamiento" "Órdenes sintéticas, fijas y del maestro; currículos y destilación (23 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/asistente/ordenes_maestro.py"
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/asistente/ordenes_maestro.py"
                     tags "AI"
                     properties {
                         "Subsistemas" "Asistente: datos y entrenamiento"
                     }
                 }
-                cmpAsisRag = component "Conocimiento y RAG" "Índice con el corpus normativo, vectores, reordenación y evaluación de la recuperación (10 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/asistente/indice.py"
+                cmpAsisRag = component "Conocimiento y RAG" "Índice con el corpus normativo, vectores, reordenación y evaluación de la recuperación (12 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/asistente/indice.py"
                     tags "AI"
                     properties {
                         "Subsistemas" "Asistente: conocimiento y RAG"
@@ -440,10 +440,10 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             modelGovernance = container "Gobierno de modelos" "Registro de candidatos, puertas, puntero en uso, un turno de GPU para toda la máquina y ciclo de aprendizaje." "Python + JSON + SHA-256" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/model_registry.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/model_registry.py"
                 tags "AI"
-                cmpGobierno = component "Gobierno de modelos" "Registro, coordinador de entrenamiento, GPU, contratos de aprendizaje y arnés de evaluación (22 ficheros)." "Python" {
-                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/model_registry.py"
+                cmpGobierno = component "Gobierno de modelos" "Registro, coordinador de entrenamiento, GPU, contratos de aprendizaje y arnés de evaluación (26 ficheros)." "Python" {
+                    url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/model_registry.py"
                     tags "AI"
                     properties {
                         "Subsistemas" "Motor: gobierno de modelos"
@@ -491,12 +491,12 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             }
 
             episodeStore = container "Búfer de episodios" "JSON inmutable por huella, objetos e índice SQLite." "JSON + SQLite" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/digital_twin/buffer.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/digital_twin/buffer.py"
                 tags "Store"
             }
 
             operationStore = container "Diario de operaciones y evidencia" "Estados por espacio, contexto inicial e informes custodiados; no promueve modelos." "SQLite + JSON + SHA-256" {
-                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/asistente/observacion.py"
+                url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/asistente/observacion.py"
                 tags "Store"
             }
         }

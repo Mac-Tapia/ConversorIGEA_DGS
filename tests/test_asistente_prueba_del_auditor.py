@@ -10,9 +10,9 @@ import random
 
 import pytest
 
-from convertersmartgrid.asistente import interprete, plan as modulo_plan
-from convertersmartgrid.asistente.interprete import Interpretacion, interpretar
-from convertersmartgrid.asistente.plan import parecido, resolver
+from convertersmartgrid.aplicacion.asistente import interprete, plan as modulo_plan
+from convertersmartgrid.aplicacion.asistente.interprete import Interpretacion, interpretar
+from convertersmartgrid.aplicacion.asistente.plan import parecido, resolver
 
 SEMILLA = random.randrange(10**6)
 
@@ -45,7 +45,7 @@ def test_f2_todos_en_un_proyecto_son_los_del_proyecto():
                                    {'proyecto': [{'valor': 'Ensayo Alfa'}], 'alimentadores': [{'valor': 'todos'}]}), vocab)
     assert plan.datos['alimentadores'] == ['todos'], SEMILLA
     assert any('del proyecto Ensayo Alfa' in r for r in plan.razonamiento)
-    from convertersmartgrid.asistente.ejecutor import pasos
+    from convertersmartgrid.aplicacion.asistente.ejecutor import pasos
 
     assert pasos('pide', plan.datos, {})[0].cuerpo['feeders'] == []      # la ruta toma los del vínculo del proyecto
     sin = resolver(Interpretacion('convierte todos los alimentadores', 'convertir', 1.0, 'transformer',
@@ -73,8 +73,8 @@ def test_f3_las_coordenadas_son_la_ubicacion(lugar, esperado):
 
 def test_f3_el_formulario_de_la_carga_lee_las_coordenadas():
     """070:RF-29 — la carga sola recibe «CoordX» y «CoordY» de «coordenadas X Y»; antes faltaba la ubicación."""
-    from convertersmartgrid.asistente.plan import Plan
-    from convertersmartgrid.web.asistente_operacion import _datos_de_la_carga
+    from convertersmartgrid.aplicacion.asistente.plan import Plan
+    from convertersmartgrid.presentacion.web.asistente_operacion import _datos_de_la_carga
 
     plan = Plan('p', 'conecta una carga nueva sola de 1500 kW con fp 0.98 en QX511, coordenadas 374207.83 8476517',
                 'carga_nueva_sola', True, 'trabajo', datos={'alimentadores': ['QX511'], 'sed': 'MINERA'})

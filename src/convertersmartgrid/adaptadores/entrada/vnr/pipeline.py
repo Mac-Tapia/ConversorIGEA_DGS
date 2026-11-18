@@ -7,7 +7,7 @@ coordina la secuencia fuente → modelo canónico → validación → export.
 
 from __future__ import annotations
 
-from convertersmartgrid.runtime_paths import staging_publicacion
+from convertersmartgrid.dominio.runtime_paths import staging_publicacion
 
 import math
 import json
@@ -413,7 +413,7 @@ def _transform_points(points, source_crs, working_crs):
     """Reproyecta puntos; devuelve la misma lista si no hay pyproj o ya coinciden."""
     if not source_crs or not working_crs or source_crs == working_crs:
         return points
-    from convertersmartgrid.geography import make_transformer
+    from convertersmartgrid.adaptadores.geography import make_transformer
 
     try:
         transformer = make_transformer(source_crs, working_crs)

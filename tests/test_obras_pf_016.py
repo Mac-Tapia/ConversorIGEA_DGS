@@ -6,9 +6,9 @@ import random
 
 import pytest
 
-from convertersmartgrid import obras_pf as op
-from convertersmartgrid.estudios_pf import CON_PROYECTO, SIN_PROYECTO
-from convertersmartgrid.troncal import Barra, Tramo, red_de, troncal
+from convertersmartgrid.aplicacion import obras_pf as op
+from convertersmartgrid.aplicacion.estudios_pf import CON_PROYECTO, SIN_PROYECTO
+from convertersmartgrid.dominio.troncal import Barra, Tramo, red_de, troncal
 
 SEMILLAS = (3, 17, 41, 77)
 CON, AMBOS = [CON_PROYECTO], [SIN_PROYECTO, CON_PROYECTO]
@@ -224,7 +224,7 @@ def test_migracion_de_lo_que_queda_aguas_abajo(semilla):
     obra = _obra(clase='migracion', alimentador='IN111', nodo=nodo, kv_destino=22.9, casos=CON)
     (fila,) = op.plan_simulacion([obra], {'IN111': red}, tipos)
     assert not fila['error'], fila
-    from convertersmartgrid.troncal import aguas_abajo
+    from convertersmartgrid.dominio.troncal import aguas_abajo
     parte = aguas_abajo(red.topologia, red.cabecera, nodo)
     por_clase = {}
     for e in fila['elementos']:
@@ -292,7 +292,7 @@ def test_migracion_avisa_de_un_anillo_que_une_las_dos_partes():
 def test_seccion_de_la_troncal_hasta_la_sed_que_indica_el_operador(semilla):
     """017:RF-41, 017:RF-42b — el cambio de conductor va en los tramos del camino de la
     cabecera a la SED indicada (con el árbol de la spec 016), no en el camino más largo."""
-    from convertersmartgrid.troncal import arbol
+    from convertersmartgrid.dominio.troncal import arbol
 
     rng = random.Random(semilla)
     red = _alimentador(rng, 'CA', 10.0)
@@ -329,7 +329,7 @@ def test_la_sed_que_no_esta_en_el_alimentador_se_dice():
 def test_migracion_solo_por_la_troncal_hasta_la_sed(semilla):
     """017:RF-42, 017:RF-42b, 017:RF-42d, 017:RF-42f — pasan solo los tramos del camino y las SED de sus barras; se abre
     lo que cuelga, se dice qué queda sin alimentar, y ningún ramal cambia de tensión."""
-    from convertersmartgrid.troncal import arbol, camino_y_ramales
+    from convertersmartgrid.dominio.troncal import arbol, camino_y_ramales
 
     rng = random.Random(semilla)
     red = _alimentador(rng, 'CA', 10.0)
@@ -363,7 +363,7 @@ def test_migracion_solo_por_la_troncal_hasta_la_sed(semilla):
 def test_migracion_hasta_cambia_los_bancos_de_sus_barras_y_no_los_otros():
     """017:RF-42 — un banco de media en el camino pasa a la tensión nueva; uno en un ramal o de baja se queda."""
     from dataclasses import replace
-    from convertersmartgrid.troncal import camino_y_ramales
+    from convertersmartgrid.dominio.troncal import camino_y_ramales
 
     red = _alimentador(random.Random(5), 'CA', 10.0)
     sed = max(red.trafo_barra, key=lambda t: len(camino_y_ramales(red.topologia, red.cabecera, red.trafo_barra[t]).tramos))
@@ -406,7 +406,7 @@ def test_migracion_pide_nodo_o_sed_y_no_los_dos():
 
 def test_informe_dice_lo_que_deja_sin_alimentar():
     """017:RF-42f, 017:RF-44 — el detalle de obras da los transformadores, los ramales y la demanda que se queda fuera."""
-    from convertersmartgrid.informes import describir_obra, obra_para_informe
+    from convertersmartgrid.adaptadores.informes import describir_obra, obra_para_informe
 
     guardada = {'clase': 'migracion', 'alimentador': 'CA', 'hasta': 'SE1', 'kv_destino': 22.9, 'transformadores': 4, 'ramales': 2,
                 'sin_alimentar': {'seds': 7, 'barras': 9, 'kw': 350.0}}

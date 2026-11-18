@@ -25,7 +25,7 @@ from urllib.parse import urlsplit
 import requests
 from requests.adapters import BaseAdapter
 
-from ...salidas_red import SalidaApagada, motivo_apagada, salida_permitida
+from ...dominio.salidas_red import SalidaApagada, motivo_apagada, salida_permitida
 from .proveedor import (DemasiadoGrande, DescargaCortada, ErrorNube, HostNoPermitido, Limitado, NoEncontrado,
                         PermisoCaducado, SinAcceso, SinConexion, YaExiste)
 

@@ -15,15 +15,15 @@ from dataclasses import replace
 from datetime import date
 from pathlib import Path, PureWindowsPath
 
-from convertersmartgrid.informe_docx import (
+from convertersmartgrid.adaptadores.informe_docx import (
     DatosFactibilidad,
     escribir_informe_factibilidad,
 )
-from convertersmartgrid.informes import (
+from convertersmartgrid.adaptadores.informes import (
     Caso, ConfigInforme, Encabezado, FuenteMedida, PerdidasAnuales, Solicitud, bajo_limite, perdidas_anuales)
-from convertersmartgrid.libros_informe import DatosPerdidas
-from convertersmartgrid.mapa_informe import imagenes_del_estado
-from convertersmartgrid.perfil_empresa import datos_perfil
+from convertersmartgrid.adaptadores.libros_informe import DatosPerdidas
+from convertersmartgrid.adaptadores.mapa_informe import imagenes_del_estado
+from convertersmartgrid.dominio.perfil_empresa import datos_perfil
 
 ROLES = {'sin': 'Sin proyecto', 'cargas': 'Cargas nuevas', 'con': 'Con proyecto'}
 

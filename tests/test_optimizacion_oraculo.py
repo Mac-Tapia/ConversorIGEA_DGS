@@ -12,9 +12,9 @@ import pytest
 
 pytest.importorskip('scipy')
 
-from convertersmartgrid import optimizacion_oraculo as oo
-from convertersmartgrid.digital_twin.oraculo import muestra, sistema_de
-from convertersmartgrid.escalera_optima import Parametros
+from convertersmartgrid.adaptadores import optimizacion_oraculo as oo
+from convertersmartgrid.adaptadores.digital_twin.oraculo import muestra, sistema_de
+from convertersmartgrid.aplicacion.escalera_optima import Parametros
 
 PREFIJO = 'Red:\\Proy\\'
 
@@ -238,7 +238,7 @@ def _dos_cargas():
 
 
 def _alimentador(espacio=None):
-    from convertersmartgrid.escalera_optima import Variante
+    from convertersmartgrid.aplicacion.escalera_optima import Variante
 
     terna = Variante('terna', ('terna',), [{'clase': 'terna', 'tramos': ['T1', 'T2']}], {'terna': 4.0})
     banco = Variante('banco', ('bancos',), [{'clase': 'condensador', 'barra': 'B', 'q_kvar': 150.0}], {'bancos': 1.0})
@@ -281,7 +281,7 @@ def test_digsilent_confirma_y_si_discrepa_manda_el(monkeypatch, tmp_path):
     confirma 1: se baja k, se anota la discrepancia, se aplica con 1 y se dicen los tiempos."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     ora = _dos_cargas()
     nuevas = [{**c, 'sed': c['variacion'][6:], 'kw': c['p_mw'] * 1000} for c in ora.nuevas]
@@ -323,7 +323,7 @@ def test_digsilent_confirma_y_si_discrepa_manda_el(monkeypatch, tmp_path):
 
 def _lectura(ora, obras, rol, *, perdidas_kw=None, variaciones=(), quitar=()):
     """La lectura de ``digital_twin_snapshot_pf.py`` tras reabrir, con el flujo que da el oráculo para ``obras``."""
-    from convertersmartgrid.digital_twin.evolutivo import nombre_corto
+    from convertersmartgrid.adaptadores.digital_twin.evolutivo import nombre_corto
 
     m = ora.medir(obras, len(ora.nuevas))
     grafo = ora.grafo
@@ -345,9 +345,9 @@ def _optimizar_con_aceptacion(monkeypatch, tmp_path, lecturas):
     da ``lecturas[caso]`` (o lanza si es una excepción)."""
     from types import SimpleNamespace
 
-    from convertersmartgrid import perfil_empresa
-    from convertersmartgrid.native_action import build_native_action_context
-    from convertersmartgrid.web import services
+    from convertersmartgrid.dominio import perfil_empresa
+    from convertersmartgrid.dominio.native_action import build_native_action_context
+    from convertersmartgrid.presentacion.web import services
 
     ora = _dos_cargas()
     nuevas = [{**c, 'sed': c['variacion'][6:], 'kw': c['p_mw'] * 1000} for c in ora.nuevas]
@@ -426,7 +426,7 @@ def test_la_alternativa_que_no_pasa_se_avisa_y_la_corrida_sigue(monkeypatch, tmp
     """044:RF-6, 044:RF-7, 044:RF-9 — una medición incompleta, una obra que ya no está activa tras reabrir, DIgSILENT sin
     responder o lo medido lejos de lo predicho: no se acepta, el aviso dice el motivo y la corrida termina con lo
     de la SET nueva."""
-    from convertersmartgrid.web.services import UserError
+    from convertersmartgrid.presentacion.web.services import UserError
 
     ora = _dos_cargas()
 
@@ -454,7 +454,7 @@ def test_sin_grafo_se_busca_en_digsilent(monkeypatch):
     """052:RF-8 — si el oráculo no puede leer el grafo, se dice y se busca en DIgSILENT."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     vistos = []
     monkeypatch.setattr(services, '_optimizar_con_oraculo',
@@ -488,7 +488,7 @@ def test_set_nueva_comprobada_con_el_oraculo_y_con_su_nombre():
     """052:RF-18, 052:RF-19 — una carga que la red existente no puede (B a 0,84 p.u.) cumple con la
     SET nueva: el tramo de entrada abierto y B alimentada desde la SET por una línea corta; la obra
     de la SET nueva lleva el nombre que da el operador."""
-    from convertersmartgrid.obras_pf import validar_obra
+    from convertersmartgrid.aplicacion.obras_pf import validar_obra
 
     ora = oo.Oraculo(_grafo(r=4.0, x=3.0), [{**NUEVA, 'alimentador': 'F1', 'barra': 'B'}])
     p = _p()
@@ -541,7 +541,7 @@ def test_la_busqueda_del_oraculo_ve_todo_el_alimentador_y_lo_dice(monkeypatch):
     barras de media de todo el alimentador, y el registro dice cuántas y cuáles."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     g = _grafo_con_ramal()
     nueva = {'sed': 'X1', 'variacion': 'Carga_X1', 'nodo': _id('B', 'ElmTerm'), 'p_mw': 1.1, 'q_mvar': 0.22,
@@ -573,7 +573,7 @@ def test_con_proyecto_propone_los_bancos_segun_el_perfil(monkeypatch):
     bancos ubicados según el perfil de tensión de «Con proyecto», y el registro dice el perfil, dónde y por qué para."""
     from types import SimpleNamespace
 
-    from convertersmartgrid.web import services
+    from convertersmartgrid.presentacion.web import services
 
     g = _grafo_con_ramal()
     nueva = {'sed': 'X1', 'variacion': 'Carga_X1', 'nodo': _id('B', 'ElmTerm'), 'p_mw': 1.1, 'q_mvar': 0.22,

@@ -14,7 +14,7 @@ import re
 from dataclasses import asdict
 from pathlib import Path
 
-from convertersmartgrid.registro_normativo import RegistroError, cargar_registro
+from convertersmartgrid.dominio.registro_normativo import RegistroError, cargar_registro
 
 RAIZ = Path(__file__).resolve().parents[1]
 CONFIG_VAD = RAIZ / 'config' / 'vad'

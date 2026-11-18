@@ -25,7 +25,7 @@ def _dataset(*, orphan: bool = False):
 
 @pytest.mark.parametrize('mode', ['txt', 'mdb', 'vnr'])
 def test_same_audit_contract_for_txt_mdb_vnr(mode):
-    from convertersmartgrid.source_contract import audit_source
+    from convertersmartgrid.dominio.source_contract import audit_source
 
     audit = audit_source(
         _dataset(),
@@ -47,7 +47,7 @@ def test_same_audit_contract_for_txt_mdb_vnr(mode):
 
 
 def test_missing_or_ambiguous_feeder_is_reported_once():
-    from convertersmartgrid.source_contract import audit_source
+    from convertersmartgrid.dominio.source_contract import audit_source
 
     audit = audit_source(_dataset(orphan=True), {}).as_dict()
 
@@ -58,7 +58,7 @@ def test_missing_or_ambiguous_feeder_is_reported_once():
 
 
 def test_source_audit_keeps_mode_run_and_fingerprint():
-    from convertersmartgrid.source_contract import audit_source
+    from convertersmartgrid.dominio.source_contract import audit_source
 
     audit = audit_source(
         _dataset(),
@@ -75,7 +75,7 @@ def test_source_audit_keeps_mode_run_and_fingerprint():
 
 
 def test_common_contract_has_no_mode_branch():
-    import convertersmartgrid.source_contract as contract
+    import convertersmartgrid.dominio.source_contract as contract
 
     source = Path(contract.__file__).read_text(encoding='utf-8')
     for literal in ("'txt'", "'mdb'", "'vnr'", '"txt"', '"mdb"', '"vnr"'):
@@ -83,8 +83,8 @@ def test_common_contract_has_no_mode_branch():
 
 
 def test_source_load_result_can_carry_the_same_audit():
-    from convertersmartgrid.source_contract import audit_source
-    from convertersmartgrid.sources.base import SourceLoadResult
+    from convertersmartgrid.dominio.source_contract import audit_source
+    from convertersmartgrid.puertos.sources.base import SourceLoadResult
 
     audit = audit_source(_dataset(), {})
     result = SourceLoadResult(dataset=_dataset(), audit=audit)

@@ -25,7 +25,7 @@ def _herramienta():
 
 @pytest.fixture
 def sin_gpu(monkeypatch):
-    from convertersmartgrid.asistente import llm_destilacion
+    from convertersmartgrid.aplicacion.asistente import llm_destilacion
     monkeypatch.setattr(llm_destilacion, 'auditar_fuentes_corpus', lambda _d: {'valid': True})
     monkeypatch.setattr(llm_destilacion, 'ficha_base', lambda: {'id': 'base/fijada', 'revision': 'a' * 40})
     monkeypatch.setattr(llm_destilacion, 'entrenar_epoca', lambda *a, **k: pytest.fail('no debe entrenar'))
