@@ -60,6 +60,13 @@ export const TEXTOS = {
   motor: 'Motor',
   quitarSeleccion: 'Quitar la selección',
   criterioEmpresa: 'Criterio de la empresa, no norma',
+  vista: 'Vista',
+  vistaPlano: 'Plano',
+  vistaUnifilar: 'Unifilar',
+  unifilar: 'Unifilar del alimentador',
+  cabecera: 'cabecera',
+  sinAlcanzar: 'Barras sin camino desde la cabecera',
+  sinDibujar: 'Tramos sin sus dos barras',
 } as const;
 
 /** Cómo se lee la calidad de un elemento. */

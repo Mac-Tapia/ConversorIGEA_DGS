@@ -960,6 +960,30 @@
         "title": "BarraPlanoRespuesta",
         "type": "object"
       },
+      "BarraUnifilarRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "nivel": {
+            "title": "Nivel",
+            "type": "integer"
+          },
+          "orden": {
+            "title": "Orden",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "codigo",
+          "nivel",
+          "orden"
+        ],
+        "title": "BarraUnifilarRespuesta",
+        "type": "object"
+      },
       "BetaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -11574,6 +11598,54 @@
         "title": "TurnoVariacionPeticion",
         "type": "object"
       },
+      "UnifilarPlanoRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-23: el unifilar del alimentador desde su cabecera; las barras con su nivel y su orden, por su código.",
+        "properties": {
+          "ancho": {
+            "title": "Ancho",
+            "type": "integer"
+          },
+          "barras": {
+            "items": {
+              "$ref": "#/components/schemas/BarraUnifilarRespuesta"
+            },
+            "title": "Barras",
+            "type": "array"
+          },
+          "fuente": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuente"
+          },
+          "niveles": {
+            "title": "Niveles",
+            "type": "integer"
+          },
+          "sin_alcanzar": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sin Alcanzar",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fuente",
+          "barras",
+          "niveles",
+          "ancho",
+          "sin_alcanzar"
+        ],
+        "title": "UnifilarPlanoRespuesta",
+        "type": "object"
+      },
       "ValidateIn": {
         "properties": {
           "canonical": {
@@ -11917,7 +11989,7 @@
       },
       "VistaPlanoRespuesta": {
         "additionalProperties": false,
-        "description": "111:RF-1 a RF-3, RF-11: un alimentador con todos los vértices de su fuente y su revisión de la red.",
+        "description": "111:RF-1 a RF-3, RF-11, RF-23: un alimentador con todos los vértices de su fuente, su revisión de la red y su\nunifilar.",
         "properties": {
           "alimentador": {
             "title": "Alimentador",
@@ -11943,6 +12015,10 @@
             },
             "title": "Colisiones",
             "type": "array"
+          },
+          "fuente": {
+            "title": "Fuente",
+            "type": "string"
           },
           "kv": {
             "title": "Kv",
@@ -12005,11 +12081,16 @@
             },
             "title": "Tramos",
             "type": "array"
+          },
+          "unifilar": {
+            "$ref": "#/components/schemas/UnifilarPlanoRespuesta"
           }
         },
         "required": [
           "alimentador",
           "kv",
+          "fuente",
+          "unifilar",
           "source_crs",
           "target_crs",
           "sin_coordenadas",

@@ -66,6 +66,10 @@ Todo esto sin tocar nunca el caso base ni la geometría de la fuente.
   el umbral, la norma que lo fija (de la biblioteca normativa, 107:RF-21) y el caso y el motor que lo calcularon (RF-18).
 - RF-22: EL SISTEMA mantendrá el espacio de trabajo de ingeniería como una sola pantalla con el plano, la tabla de
   resultados y el inspector a la vez, redimensionables y recordados por espacio, sin quitar ninguna vista actual (RF-16).
+- RF-23: (Plan Maestro §7.5, «Unifilar») EL SISTEMA ofrecerá, junto al plano, un diagrama unifilar automático del
+  alimentador o de la red elegida, sincronizado con el plano, la tabla y el inspector (el mismo código, 111:RF-2): un
+  esquema que no cambia las geometrías físicas ni las impedancias, y que pinta los mismos resultados del estudio
+  (111:RF-10, RF-11). Elegir un elemento en uno lo elige en el otro.
 
 ## Requisitos no funcionales
 - Escala: un plano con todos los alimentadores de la entrega, sin bloquear la página mientras calcula, con capas por
@@ -85,7 +89,6 @@ Todo esto sin tocar nunca el caso base ni la geometría de la fuente.
 ## Fuera de alcance
 - Escribir en el proyecto nativo de DIgSILENT desde el editor sin pasar por el carril, la copia y la confirmación.
 - Operar equipos reales de campo, SCADA o ADMS.
-- El diagrama unifilar automático, que va en una iteración posterior.
 
 ## Criterios de finalización
 Cada RF citado por una prueba (`grep "111:RF-"`). Pruebas en navegador real (e2e) de dos recorridos: maniobra → flujo

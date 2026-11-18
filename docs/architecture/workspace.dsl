@@ -1,4 +1,4 @@
-workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 448 módulos de Python en 37 subsistemas." {
+workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 449 módulos de Python en 37 subsistemas." {
 
     // Las relaciones de componentes no se suben solas a los contenedores: cada vista muestra solo lo declarado.
     !impliedRelationships false
@@ -64,7 +64,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             frontend = container "Interfaz web" "Selección, seguimiento, confirmación y descarga; compilada en frontend/dist." "React + TypeScript" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/src"
                 tags "Web"
-                cmpInterfaz = component "Interfaz común" "Compilación, cliente tipado de la API y piezas comunes de las pestañas (80 ficheros)." "React + TypeScript" {
+                cmpInterfaz = component "Interfaz común" "Compilación, cliente tipado de la API y piezas comunes de las pestañas (83 ficheros)." "React + TypeScript" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/src"
                     tags "Web"
                     properties {
@@ -297,7 +297,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             studies = container "Estudios eléctricos" "Flujo, N-1, protecciones y transferencia con los módulos nativos de DIgSILENT." "Python" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/estudios_pf.py"
                 tags "Engine"
-                cmpEstudios = component "Estudios" "Estudios de red, protecciones y transferencia (11 ficheros)." "Python" {
+                cmpEstudios = component "Estudios" "Estudios de red, protecciones y transferencia (12 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/estudios_pf.py"
                     tags "Engine"
                     properties {

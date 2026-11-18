@@ -27,11 +27,11 @@ import re
 import shutil
 import subprocess
 import tempfile
-from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
+from ...dominio.disposicion_unifilar import niveles_por_anchura
 from ...dominio.pit import PitError
 from ...aplicacion.pit.red_area import RedArea
 
@@ -162,28 +162,9 @@ def _niveles(red: RedArea) -> dict[str, tuple[int, int]]:
         vecinos.setdefault(a, []).append(b)
         vecinos.setdefault(b, []).append(a)
     raices = [g['barra'] for g in red.de_tipo('red_externa')] or list(vecinos)[:1]
-    nivel: dict[str, int] = {}
-    cola = deque()
-    for r in raices:
-        if r in vecinos and r not in nivel:
-            nivel[r] = 0
-            cola.append(r)
-    while cola:
-        x = cola.popleft()
-        for y in vecinos[x]:
-            if y not in nivel:
-                nivel[y] = nivel[x] + 1
-                cola.append(y)
-    ultimo = max(nivel.values(), default=-1) + 1
-    for b in vecinos:
-        nivel.setdefault(b, ultimo)
-    orden: dict[int, int] = {}
-    pos = {}
-    for b in vecinos:  # el orden de entrada de la red: determinista
-        n = nivel[b]
-        pos[b] = (n, orden.get(n, 0))
-        orden[n] = orden.get(n, 0) + 1
-    return pos
+    # 111:RF-23: la misma regla que el unifilar del plano, con el orden de entrada de la red (las hojas del F-212 no
+    # cambian).
+    return niveles_por_anchura(vecinos, raices, orden='entrada')
 
 
 def _num(v: Any, fmt: str) -> str:

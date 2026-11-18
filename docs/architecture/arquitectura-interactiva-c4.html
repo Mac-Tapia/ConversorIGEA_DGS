@@ -173,7 +173,7 @@
 
   <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
   <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo.</p>
-  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107, 108, 109, 111). 448 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
+  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107, 108, 109, 111). 449 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
 
   <div class="c4-toolbar">
     <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
@@ -329,7 +329,7 @@
         normativa: { label: 'Biblioteca normativa', tech: 'Vigencia y cita de cada regla', path: 'src/convertersmartgrid/aplicacion/biblioteca_normativa.py', kind: 'engine', detail: 'Normas nacionales e internacionales con su vigencia, sus modificaciones y la cita de cada regla; vale para toda empresa, estudio y módulo, y para el asistente.' },
         bench: { label: 'Benchmarks anonimizados', tech: 'Desidentificados, solo en local', path: 'specs/112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md', kind: 'ai', detail: 'Datos de referencia desidentificados, solo en local, y protocolos por cohortes de empresa y de tiempo.' },
         // Componentes (subsistemas de docs/architecture/subsistemas.json; uno por componente de workspace.dsl)
-        cInterfaz: { label: 'Interfaz común', tech: '80 ficheros', path: 'frontend/src', kind: 'web', detail: 'Compilación, cliente tipado de la API y piezas comunes de las pestañas.' },
+        cInterfaz: { label: 'Interfaz común', tech: '83 ficheros', path: 'frontend/src', kind: 'web', detail: 'Compilación, cliente tipado de la API y piezas comunes de las pestañas.' },
         cInterfazConversion: { label: 'Conversión y perfil', tech: '7 ficheros', path: 'frontend/src/features/conversion', kind: 'web', detail: 'Entradas, alimentadores, opciones, reconstrucción y perfil de la empresa.' },
         cInterfazEstudios: { label: 'Cargas, estudios, obras e informes', tech: '24 ficheros', path: 'frontend/src/features/powerfactory', kind: 'web', detail: '«Cargas en DIgSILENT», demanda, estudios, obras e informes.' },
         cInterfazRegulatorio: { label: 'Módulos regulatorios', tech: '4 ficheros', path: 'frontend/src/features/pit', kind: 'web', detail: 'Pestañas del PIT, del VAD, del VNR y de la biblioteca normativa.' },
@@ -350,7 +350,7 @@
         cGuiones: { label: 'Guiones de DIgSILENT', tech: '38 ficheros', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importan, verifican, calibran, insertan cargas, aplican obras y corren estudios.' },
         cDemanda: { label: 'Demanda y calibración', tech: '19 ficheros', path: 'src/convertersmartgrid/aplicacion/demanda_medida.py', kind: 'engine', detail: 'Libros por año y libros nuevos, cabecera, cargas y reparto.' },
         cObras: { label: 'Obras y optimización', tech: '16 ficheros', path: 'src/convertersmartgrid/aplicacion/obras_pf.py', kind: 'ai', detail: 'Escalera, troncal, perfil de tensión, reguladores, obras integrales y optimización.' },
-        cEstudios: { label: 'Estudios', tech: '11 ficheros', path: 'src/convertersmartgrid/aplicacion/estudios_pf.py', kind: 'engine', detail: 'Estudios de red, protecciones y transferencia.' },
+        cEstudios: { label: 'Estudios', tech: '12 ficheros', path: 'src/convertersmartgrid/aplicacion/estudios_pf.py', kind: 'engine', detail: 'Estudios de red, protecciones y transferencia.' },
         cInformes: { label: 'Informes', tech: '15 ficheros', path: 'src/convertersmartgrid/adaptadores/informes.py', kind: 'engine', detail: 'Word, libros, mapas del informe y mapa de cargas.' },
         cNormativa: { label: 'Biblioteca normativa y fuentes de la empresa', tech: '5 ficheros', path: 'src/convertersmartgrid/aplicacion/biblioteca_normativa.py', kind: 'engine', detail: 'Registro normativo con esquema, huellas de términos, fuentes de la empresa y vínculos del .pfd.' },
         cPide: { label: 'PIDE y planeamiento', tech: '14 ficheros', path: 'src/convertersmartgrid/dominio/estudio_planeamiento.py', kind: 'engine', detail: 'PIDE, economía, proyecciones de mercado y estudio de planeamiento.' },

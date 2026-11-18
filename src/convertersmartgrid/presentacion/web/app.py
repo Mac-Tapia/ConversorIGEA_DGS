@@ -45,7 +45,7 @@ from ...dominio.runtime_paths import rutas_runtime, staging_publicacion, tempora
 from . import services
 from .copia_datos import carpeta_recordada, estado_copia
 from .jobs import FINISHED, JobManager, TrabajoRechazado
-from .seguridad import AlcanceEdicion, instalar_seguridad
+from .seguridad import AlcanceEdicion, PresupuestoIngreso, instalar_seguridad
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, VersionRespuesta, DiagnosticoRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
     ArchivoRespuesta, AmbitoFuenteRespuesta, ElegirPowerFactoryPeticion, EstadoPowerFactoryRespuesta,
@@ -955,6 +955,8 @@ def create_app(
     )
     # 086:RF-16: dentro de la puerta: una petición sin sesión no llega a saber qué se vende y qué no.
     app.add_middleware(AlcanceEdicion)
+    # 086:RF-113: la cota de la petición entera, mientras llega; por dentro de la puerta, que rechaza antes sin leer.
+    app.add_middleware(PresupuestoIngreso)
     # Por fuera de CORS, y de todo lo demás: Host, Origin, token y política de contenido (086:RF-17 a RF-21).
     if sesion_web.EXIGIR_SEGURIDAD:
         instalar_seguridad(app, origenes_dev)

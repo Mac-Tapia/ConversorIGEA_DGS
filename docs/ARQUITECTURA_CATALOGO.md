@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 459 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 460 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 126 |
-| Interfaz | `frontend/src/` | 112 |
-| Pruebas de la interfaz | `frontend/test/` | 53 |
-| Pruebas | `tests/` | 591 |
+| Interfaz | `frontend/src/` | 114 |
+| Pruebas de la interfaz | `frontend/test/` | 54 |
+| Pruebas | `tests/` | 594 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3854 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3857 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -36,11 +36,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | adaptadores | Ada | 193 |
 | aplicacion | Apl | 131 |
-| dominio | Dom | 69 |
+| dominio | Dom | 70 |
 | presentacion | Pre | 50 |
 | puertos | Pue | 5 |
 
-448 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+449 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -411,6 +411,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `aplicacion/protecciones.py` | Apl | 049 | Estudio de protecciones sin DIgSILENT: contrato de cada ajuste (modelo, unidades, TC/TT, poder de corte y procedencia), fila DEFAULT de la fuente que… |
 | `aplicacion/transferencia_pf.py` | Apl | 011, 110, 117, 121, 123, 125, 129 | Transferencia de carga sin DIgSILENT: pasos del camino y carga transferida, viabilidad y elemento que limita, máximo por seccionador y por nodo,… |
 | `adaptadores/plano_red.py` | Ada | 111 | El plano de la red: cada elemento por su código de la fuente y su nombre en DIgSILENT (con aviso de colisiones), la revisión de la red y la vista con… |
+| `dominio/disposicion_unifilar.py` | Dom | 111, 107 | La disposición de un unifilar por anchura desde la fuente (nivel y orden de cada barra), una sola regla para el unifilar del PIT y el del plano. |
 | `adaptadores/pagina_plano.py` | Ada | 111 | La página del plano generada por el servidor: Leaflet propio con lienzo, capas por vista, nivel de detalle solo gráfico y reversible, leyenda con… |
 | `aplicacion/variacion_plano.py` | Apl | 111 | La variación del plano en el espacio, nunca en el caso base: maniobras, tramos nuevos con su longitud GIS y eléctrica, reglas de la edición, equipos… |
 | `adaptadores/resultados_plano.py` | Ada | 111 | Los resultados sobre el plano: elección del motor (DIgSILENT o el abierto), la variación aplicada a una copia del modelo y estudiada por elemento,… |
@@ -1002,8 +1003,11 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/plano/mensajesPlano.ts` | — | 111 | Protocolo `postMessage` con la página del plano: esquema cerrado de entrada y salida, solo desde su marco y con su origen opaco. |
 | `src/features/plano/textosPlano.ts` | — | 111 | Textos cortos de la pestaña del plano. |
 | `src/features/plano/logicaPlano.ts` | — | 111 | Lógica de la pestaña del plano sin reglas eléctricas: elementos, búsqueda por código, teclado, ventana de filas, lectura de vértices y la variación… |
+| `src/features/plano/UnifilarRed.tsx` | — | 111 | El unifilar del alimentador junto al plano, con la misma selección y los mismos resultados, sin tocar geometrías ni impedancias. |
+| `src/features/plano/logicaUnifilar.ts` | — | 111 | Lógica del unifilar sin reglas eléctricas: coordenadas del dibujo desde el nivel y el orden del servidor, tramos por sus barras y bandas de… |
 | `test/plano.test.mjs` | — | 111 | Pruebas de la pestaña del plano sin navegador: tipos del contrato, mensajes, teclado, tabla virtualizada, inspector, capas, comparación, ediciones,… |
 | `test/planoEspacio.test.mjs` | — | 111 | Pruebas del plano en el espacio de ingeniería sin navegador: la selección enlazada entre plano, tabla, inspector y capas, el hallazgo con su norma o… |
+| `test/unifilar.test.mjs` | — | 111 | Pruebas del unifilar sin navegador: disposición desde la cabecera, mismos códigos que el plano, la misma selección y los mismos resultados, con el… |
 | `test/puntosDeDiseno.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/app/ArchivoInformes.tsx` | — | 105 | Tarjeta para ver, poner y quitar la carpeta de archivo de los informes. |
 | `src/shared/graficos.ts` | — | 105, 006 | Marcas de eje, tramos de línea y colores de serie de las gráficas SVG, compartidos sin librería de gráficos. |

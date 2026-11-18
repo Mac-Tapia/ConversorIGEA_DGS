@@ -13,6 +13,7 @@ import { ajustarPanel, almacenDelNavegador, buscarPorCodigo, elementosDe, hallaz
 import { leerMensaje, mensajeAlPlano } from './mensajesPlano';
 import { TablaElementos } from './TablaElementos';
 import { TEXTOS } from './textosPlano';
+import { UnifilarRed } from './UnifilarRed';
 
 /**
  * 111: la pestaña «Plano de la red». El plano es una página del servidor en un `<iframe sandbox>` (sin origen propio)
@@ -44,6 +45,8 @@ export function PlanoRed() {
   const [refresco, setRefresco] = useState(0);
   const [hallazgo, setHallazgo] = useState<Hallazgo | null>(null);
   const [paneles, setPaneles] = useState<Paneles>(() => panelesRecordados(almacenDelNavegador(), ws.id));
+  // 111:RF-23: el plano o su unifilar en el mismo sitio, con la misma selección y los mismos resultados.
+  const [modo, setModo] = useState<'plano' | 'unifilar'>('plano');
   const marco = useRef<HTMLIFrameElement>(null);
   const espacio = useRef<HTMLDivElement>(null);
   const lado = useRef<HTMLDivElement>(null);
@@ -193,6 +196,13 @@ export function PlanoRed() {
           <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
             aria-controls={busqueda ? 'plano-hallados' : undefined} />
         </label>
+        <div role="group" aria-label={TEXTOS.vista} className="segmentado">
+          {(['plano', 'unifilar'] as const).map((m) => (
+            <button key={m} type="button" aria-pressed={modo === m} onClick={() => setModo(m)}>
+              {m === 'plano' ? TEXTOS.vistaPlano : TEXTOS.vistaUnifilar}
+            </button>
+          ))}
+        </div>
       </div>
       {busqueda && (
         <ul id="plano-hallados" className="lista-compacta" aria-live="polite">
@@ -208,7 +218,8 @@ export function PlanoRed() {
       <div className="plano-espacio" ref={espacio}
         style={{ '--ancho-plano': `${paneles.plano}%`, '--alto-tabla': `${paneles.tabla}%` } as CSSProperties}>
         <div className="plano-espacio-mapa">
-          {actual && (
+          {modo === 'unifilar' && vista && <UnifilarRed vista={vista} elegido={elegido} capas={capas} onElegir={elegir} />}
+          {modo === 'plano' && actual && (
             <iframe ref={marco} key={`${actual}|${refresco}|${capas?.variacion ?? ''}`} className="map-frame" title={TEXTOS.marco}
               src={plano.paginaUrl(ws.id, [actual], capas?.pintable ? capas.variacion ?? null : null)} sandbox="allow-scripts" />
           )}

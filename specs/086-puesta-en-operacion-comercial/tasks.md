@@ -359,3 +359,13 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
   Pruebas en `tests/test_vnr_etl.py` (127.0.0.1, 169.254.169.254, otro host; mismo servidor sí; https→http no). (RF-22)
   Hecho cuando: `tests/test_vnr_etl.py` (086:RF-22: ninguna redirección a otra máquina se pide, en ArcGIS, el
   descubrimiento y la descarga) y `tests/test_seguridad_web.py` en verde, con rojo previo. Evidencia: `D:/csg/PM_IMPL/SSRF-ARCGIS/v2/`.
+- [x] T82 TRABAJOS-ROBUSTOS (auditoría del 18-11, C1: H01 y H02): `presentacion/web/jobs.py` comprueba el recibo durable
+  antes de encolar todo trabajo con diario, y aísla del carril los fallos de evento y de diario al empezar y al terminar,
+  sin volver a llamar al observador roto. (RF-112)
+  Hecho cuando: `tests/test_jobs_resiliencia.py` (086:RF-112) en verde, con rojo previo por aserción, y las pruebas de
+  trabajos, recuperación y relanzado sin regresión. Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/c1/`.
+- [x] T83 COTA-DE-INGRESO (auditoría del 18-11, C3: H04): `presentacion/web/seguridad.py` `PresupuestoIngreso` cuenta lo
+  que entrega `receive` y corta con 413 al pasar el tope; `create_app` lo instala siempre, también sin la puerta. (RF-113)
+  Hecho cuando: `tests/test_subidas_presupuesto_ingreso.py` (086:RF-113: sin leer con Content-Length mayor; corte sin
+  longitud o con una falsa; límite exacto y un byte más; espacio libre; GET sin contar) en verde, con rojo previo por
+  aserción, y las pruebas de subidas sin regresión. Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/c3/`.

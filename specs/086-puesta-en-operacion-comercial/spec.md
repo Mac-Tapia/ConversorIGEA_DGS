@@ -441,6 +441,19 @@ mientras los demás casos pasaban a 1,0278.
 - RF-45: CUANDO se congela un candidato, cada flujo vendido tendrá evidencia en DIgSILENT, por la web y ligada a esa revisión, antes de aceptarlo.
 - RF-46: La 1.0 se aceptará en un equipo limpio, con una empresa distinta de Electro Dunas y con un corte de luz simulado a media corrida.
 - Aclaración de RF-46 (usuario, 2026-11-04: «haslo todo con este local; para otro local o usuario se debe dejar un manual»): la aceptación se hace en este equipo, con su DIgSILENT y por turnos, instalando con el `setup.exe` en un entorno sin nada de desarrollo. No demuestra lo que dependa de lo que este Windows ya tiene: el manual de instalación explica cómo llevarlo a otro equipo o usuario, y el primer cliente se acompaña.
+- RF-112: (auditoría del 18-11, H01 y H02) CUANDO falle la observación (el evento de un trabajo) o el diario de
+  trabajos, EL SISTEMA no dejará un trabajo «en curso» con su hilo muerto ni ejecutará un trabajo sin su recibo durable:
+  con diario, un trabajo nuevo o relanzado que no se pudo anotar no se admite (503 con su motivo); si no se pudo publicar
+  el inicio, el trabajo termina con error sin ejecutarse; si falla publicar o anotar el final, el estado final queda
+  consultable y el fallo va al log del servidor; el carril sigue atendiendo el siguiente trabajo. Sin diario, la admisión
+  no cambia. Enmienda la decisión del 04-11 (086 T6) por la que un disco lleno no paraba el trabajo: sin recibo, si la web cae, el
+  trabajo no sale como interrumpido (RF-9).
+- RF-113: (auditoría del 18-11, H04) CUANDO llegue una petición que cambia algo, EL SISTEMA impondrá su cota mientras
+  llega el cuerpo, no después de que el parser lo haya recibido entero: el tope es el menor entre
+  `CSG_UPLOAD_MAX_REQUEST_BYTES` (por defecto 64 GiB, cuatro veces la cota de un archivo, para no bajar de los lotes
+  que se admitían) y el espacio libre de la carpeta temporal menos 1 GiB de reserva. Con un Content-Length mayor se
+  responde 413 sin leer el cuerpo; sin Content-Length o con uno falso, al pasar el tope. El 413 dice en español si es la
+  cuota o el disco. La cota de cada archivo (`CSG_UPLOAD_MAX_BYTES`, 16 GiB) no cambia.
 
 ## Fuera de alcance
 

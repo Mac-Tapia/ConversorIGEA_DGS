@@ -894,8 +894,10 @@ class JobManager:
             raise TrabajoRechazado(f'Hay {len(activos)} trabajo(s) en curso: la copia se hace con la web en reposo.')
         job = Job(kind=kind, title=title, workspace_id=workspace_id, lane=lane, fn=fn,
                   reanudar=reanudar, relanzado_de=relanzado_de)
-        if relanzado_de and self._diario is not None and not self._diario.anotar(job):
-            raise OSError('No se pudo guardar el recibo durable del sucesor; no se admite ni ejecuta.')
+        # 086:RF-112: con diario, ningún trabajo (nuevo o sucesor) entra en la cola sin su recibo durable.
+        if self._diario is not None and not self._diario.anotar(job):
+            que = 'del sucesor' if relanzado_de else 'del trabajo'
+            raise OSError(f'No se pudo guardar el recibo durable {que}; no se admite ni ejecuta.')
         with self._lock:
             self._jobs[job.id] = job
             self._ensure_worker(lane)
@@ -907,12 +909,10 @@ class JobManager:
             # ni permite ejecutar un trabajo cuya admisión no se pudo observar.
             with self._lock:
                 self._jobs.pop(job.id,None)
-            if relanzado_de and self._diario is not None:
+            if self._diario is not None:
                 self._diario.olvidar(job.id)  # Aún no entró en la cola ni pudo ejecutar efectos.
             self._anotar()
             raise
-        if self._diario is not None and not relanzado_de:
-            self._diario.anotar(job)
         self._queues[lane].put(job)
         return job
 
@@ -992,17 +992,34 @@ class JobManager:
                 return
             if job.status != QUEUED:
                 continue
-            self._run(job)
+            try:
+                self._run(job)
+            except Exception as exc:  # noqa: BLE001 - 086:RF-112: la infraestructura no mata el carril
+                self._rescatar(job, exc)
+
+    def _rescatar(self, job: Job, exc: BaseException) -> None:
+        """086:RF-112: un fallo fuera del cuerpo (diario, evento) termina el trabajo con su causa; el hilo sigue."""
+        logging.getLogger(__name__).error('Trabajo %s sin terminar por un fallo de infraestructura: %r', job.id, exc)
+        if job.status in FINISHED:
+            return
+        job.error = (f'Fallo de infraestructura ({exc.__class__.__name__}: {exc}): el trabajo no terminó y su '
+                     'resultado no vale; el registro del servidor dice dónde.')
+        self._finish(job, FAILED)
 
     def _run(self, job: Job) -> None:
         job.status = RUNNING
         job.started_at = time.time()
         if self._diario is not None:
             self._diario.anotar(job)
-        self._emit(job.workspace_id, 'job', job.public())
-        ctx = JobContext(job, self._emit, self._diario)
-        if job.relanzado_de:
-            ctx.log(f'Se relanza solo el trabajo {job.relanzado_de}, interrumpido al caer la web (096:RF-5, RF-7).')
+        try:
+            self._emit(job.workspace_id, 'job', job.public())
+            ctx = JobContext(job, self._emit, self._diario)
+            if job.relanzado_de:
+                ctx.log(f'Se relanza solo el trabajo {job.relanzado_de}, interrumpido al caer la web (096:RF-5, RF-7).')
+        except Exception as exc:  # noqa: BLE001 - 086:RF-112: un inicio que no se pudo observar no se ejecuta
+            job.error = f'No se pudo publicar el inicio del trabajo ({exc}); no se ejecutó.'
+            self._finish(job, FAILED)
+            return
         from .suspension import sin_suspender, suspendido_s
 
         repetido = False
@@ -1035,7 +1052,15 @@ class JobManager:
     def _finish(self, job: Job, status: str) -> None:
         job.status = status
         job.finished_at = time.time()
-        if self._diario is not None:
-            self._diario.terminar(job)
+        # 086:RF-112: el estado final ya está en memoria y se consulta con get(); que el diario o el evento fallen se
+        # dice en el log del servidor, sin volver a llamar al mismo observador roto ni matar el carril.
+        try:
+            if self._diario is not None:
+                self._diario.terminar(job)
+        except Exception as exc:  # noqa: BLE001 - ver arriba
+            logging.getLogger(__name__).error('Diario del trabajo %s sin cerrar: %r', job.id, exc)
         self._anotar()
-        self._emit(job.workspace_id, 'job', job.public())
+        try:
+            self._emit(job.workspace_id, 'job', job.public())
+        except Exception as exc:  # noqa: BLE001 - ver arriba
+            logging.getLogger(__name__).error('Final del trabajo %s sin publicar: %r', job.id, exc)

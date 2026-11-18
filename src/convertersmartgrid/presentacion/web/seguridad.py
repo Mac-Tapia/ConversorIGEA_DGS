@@ -18,9 +18,13 @@ import logging
 import os
 import re
 import secrets
+import shutil
 import sys
+import tempfile
 import time
 from urllib.parse import parse_qsl, urlencode, urlsplit
+
+from starlette.exceptions import HTTPException
 
 from ...dominio.edicion import motivo_ruta_negada
 from ...dominio.sesion_web import (CABECERA_TOKEN, HOSTS_LOCALES, PARAMETRO_ACCESO, VARIABLE_PUERTO, FiltroSecretos,
@@ -410,6 +414,86 @@ class AlcanceEdicion:
         await send({'type': 'http.response.start', 'status': 403,
                     'headers': [(b'content-type', b'application/json'), (b'content-length', str(len(cuerpo)).encode())]})
         await send({'type': 'http.response.body', 'body': cuerpo})
+
+
+#: 086:RF-113: la cota de una petición entera. Por defecto, cuatro veces la de un archivo (``CSG_UPLOAD_MAX_BYTES``,
+#: 16 GiB): no baja de los lotes que la web admitía, y deja de ser ilimitada.
+VARIABLE_INGRESO = 'CSG_UPLOAD_MAX_REQUEST_BYTES'
+INGRESO_POR_DEFECTO = 64 * 1024 ** 3
+#: Lo que se deja libre en la carpeta temporal, donde el parser multipart vuelca los archivos.
+RESERVA_INGRESO_BYTES = 1024 ** 3
+
+
+class CuerpoFueraDeCuota(HTTPException):
+    """El cuerpo pasó la cota mientras llegaba: 413 con ``detalle``. Es una ``HTTPException`` porque FastAPI convierte
+    cualquier otra excepción al leer el cuerpo en un 400 genérico; si salta fuera de una ruta, la responde el middleware."""
+
+    def __init__(self, detalle: str) -> None:
+        super().__init__(status_code=413, detail=detalle)
+        self.detalle = detalle
+
+
+class PresupuestoIngreso:
+    """086:RF-113 (auditoría del 18-11, H04): la cota se impone mientras llega el cuerpo, contando lo que entrega
+    ``receive``; con Content-Length mayor, sin leer nada. Antes solo se aplicaba al copiar lo que FastAPI ya había
+    recibido entero. El tope es el menor entre ``CSG_UPLOAD_MAX_REQUEST_BYTES`` y el espacio libre de la carpeta
+    temporal menos ``RESERVA_INGRESO_BYTES``; la cota de cada archivo (``CSG_UPLOAD_MAX_BYTES``) no cambia."""
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    @staticmethod
+    def _tope() -> tuple[int, str]:
+        from .operaciones_lentas import presupuesto
+
+        cota = presupuesto(VARIABLE_INGRESO, INGRESO_POR_DEFECTO)
+        libre = shutil.disk_usage(tempfile.gettempdir()).free - RESERVA_INGRESO_BYTES
+        if libre < cota:
+            return max(libre, 0), ('La subida no cabe en el espacio libre del disco de la carpeta temporal: libere '
+                                   'espacio o suba menos archivos a la vez.')
+        return cota, 'La subida supera la cuota de una petición: suba menos archivos a la vez.'
+
+    @staticmethod
+    async def _responder(send, detalle: str) -> None:
+        cuerpo = json.dumps({'detail': detalle}, ensure_ascii=False).encode('utf-8')
+        await send({'type': 'http.response.start', 'status': 413,
+                    'headers': [(b'content-type', b'application/json'), (b'content-length', str(len(cuerpo)).encode()),
+                                (b'connection', b'close')]})
+        await send({'type': 'http.response.body', 'body': cuerpo})
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope['type'] != 'http' or scope.get('method', 'GET') in METODOS_SEGUROS:
+            await self.app(scope, receive, send)
+            return
+        tope, detalle = self._tope()
+        declarada = _cabeceras(scope).get('content-length', '').strip()
+        if declarada.isdigit() and int(declarada) > tope:
+            await self._responder(send, detalle)
+            return
+        recibido = 0
+        empezada = False
+
+        async def contar():
+            nonlocal recibido
+            mensaje = await receive()
+            if mensaje['type'] == 'http.request':
+                recibido += len(mensaje.get('body', b''))
+                if recibido > tope:
+                    raise CuerpoFueraDeCuota(detalle)
+            return mensaje
+
+        async def enviar(mensaje):
+            nonlocal empezada
+            if mensaje['type'] == 'http.response.start':
+                empezada = True
+            await send(mensaje)
+
+        try:
+            await self.app(scope, contar, enviar)
+        except CuerpoFueraDeCuota as exc:
+            if empezada:
+                raise
+            await self._responder(send, exc.detalle)
 
 
 def instalar_seguridad(app, origenes_desarrollo: tuple[str, ...]) -> None:

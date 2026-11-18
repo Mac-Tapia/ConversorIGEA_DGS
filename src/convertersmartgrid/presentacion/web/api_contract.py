@@ -1048,10 +1048,28 @@ class ColisionPlanoRespuesta(Respuesta):
     codigos: list[str]
 
 
+class BarraUnifilarRespuesta(Respuesta):
+    codigo: str
+    nivel: int
+    orden: int
+
+
+class UnifilarPlanoRespuesta(Respuesta):
+    """111:RF-23: el unifilar del alimentador desde su cabecera; las barras con su nivel y su orden, por su código."""
+    fuente: str | None
+    barras: list[BarraUnifilarRespuesta]
+    niveles: int
+    ancho: int
+    sin_alcanzar: list[str]
+
+
 class VistaPlanoRespuesta(Respuesta):
-    """111:RF-1 a RF-3, RF-11: un alimentador con todos los vértices de su fuente y su revisión de la red."""
+    """111:RF-1 a RF-3, RF-11, RF-23: un alimentador con todos los vértices de su fuente, su revisión de la red y su
+    unifilar."""
     alimentador: str
     kv: float
+    fuente: str
+    unifilar: UnifilarPlanoRespuesta
     source_crs: str | None
     target_crs: str | None
     sin_coordenadas: bool

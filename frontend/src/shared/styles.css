@@ -592,6 +592,21 @@ button.link { background: none; border: 0; padding: 0; color: var(--primary); fo
   min-height: 520px; gap: 0; margin: 8px 0; }
 .plano-espacio-mapa { min-width: 0; min-height: 0; }
 .plano-espacio-mapa .map-frame { height: 100%; }
+/* 111:RF-23: el unifilar en el sitio del plano, con los tokens del tema (claro y oscuro) y el elegido resaltado. */
+.segmentado { display: inline-flex; gap: 0; }
+.segmentado button[aria-pressed="true"] { background: var(--primary); color: var(--primary-ink); }
+.unifilar { height: 100%; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.unifilar-dibujo { display: block; }
+.unifilar-tramo { stroke: var(--muted); stroke-width: 2; cursor: pointer; }
+.unifilar-barra { fill: var(--text); cursor: pointer; }
+.unifilar-fuente { fill: var(--pf); }
+.unifilar-sed { fill: var(--info); cursor: pointer; }
+.unifilar-maniobra { stroke: var(--text); stroke-width: 1.5; cursor: pointer; }
+.unifilar-maniobra.unifilar-cerrado { fill: var(--ok); }
+.unifilar-maniobra.unifilar-abierto { fill: var(--surface); }
+.unifilar-normal { stroke: var(--ok); fill: var(--ok); }
+.unifilar-alerta { stroke: var(--error); fill: var(--error); }
+.unifilar-elegido { stroke: var(--primary); stroke-width: 5; }
 .plano-espacio-lado { display: grid; grid-template-rows: var(--alto-tabla, 55%) 10px minmax(0, 1fr); min-width: 0; min-height: 0; }
 .plano-espacio-tabla, .plano-espacio-inspector { overflow: auto; min-height: 0; padding: 0 4px; }
 .plano-separador { background: var(--border); border-radius: 4px; touch-action: none; }

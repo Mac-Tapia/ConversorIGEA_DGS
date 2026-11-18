@@ -11,6 +11,10 @@
   ``<alimentador>_geography.json`` elegidos. Cada variación y cada resultado la llevan; uno de otra revisión no se
   pinta.
 
+- Unifilar (111:RF-23): cada vista lleva su cabecera (``fuente``) y el nivel y el orden de cada barra desde ella
+  (``dominio.disposicion_unifilar``, la misma regla que el unifilar del PIT); los tramos, las SED y las maniobras se
+  pintan con sus códigos de la vista.
+
 Solo lee: no cambia el modelo, la geografía ni el DGS.
 """
 from __future__ import annotations
@@ -21,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from .dgs import letras_de_fase, nombre_en_pf
+from ..dominio.disposicion_unifilar import unifilar_de_vista
 from ..dominio.model import FeederModel
 
 
@@ -159,11 +164,14 @@ def vista(model: FeederModel, geografia: Mapping[str, Any] | None, *, validacion
                   'clase': d.kind, 'tramo': d.section_id, 'barra': d.node_id,
                   'estado': 'cerrado' if d.on_off == 1 else 'abierto'}
                  for d in sorted(model.devices, key=lambda d: (codigo_de_maniobra(d), d.terminal_side))]
-    return {'alimentador': model.name, 'kv': model.nominal_kv,
-            'source_crs': geografia.get('source_crs'), 'target_crs': geografia.get('target_crs'),
-            'sin_coordenadas': sin_coordenadas, 'tramos': tramos, 'barras': barras, 'sed': sed,
-            'maniobras': maniobras, 'tipos_de_linea': sorted(model.line_types),
-            'colisiones': ident['colisiones'], 'avisos': list((validacion or {}).get('warnings', ()))}
+    salida = {'alimentador': model.name, 'kv': model.nominal_kv, 'fuente': model.source_node,
+              'source_crs': geografia.get('source_crs'), 'target_crs': geografia.get('target_crs'),
+              'sin_coordenadas': sin_coordenadas, 'tramos': tramos, 'barras': barras, 'sed': sed,
+              'maniobras': maniobras, 'tipos_de_linea': sorted(model.line_types),
+              'colisiones': ident['colisiones'], 'avisos': list((validacion or {}).get('warnings', ()))}
+    # 111:RF-23: el unifilar del mismo alimentador, con los mismos códigos y desde su cabecera; solo coloca barras.
+    salida['unifilar'] = unifilar_de_vista(salida)
+    return salida
 
 
 def resumen_plano(vistas: Iterable[Mapping[str, Any]]) -> dict[str, list[str]]:

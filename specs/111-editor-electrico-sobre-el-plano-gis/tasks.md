@@ -133,3 +133,9 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
       Hecho en la fila 111-T22 (f7, 17-11): la pestaña es una sola pantalla con el plano, la tabla y el inspector, con dos
       separadores accesibles (flechas, Inicio y Fin) y el reparto recordado por espacio; estrecha, se apilan sin quitar
       ninguna vista; pruebas: frontend/test/planoEspacio.test.mjs y frontend/e2e/plano_espacio.spec.ts a 1366×900 y 1920×1080.
+- [x] T23. Unifilar automático sincronizado con el plano (selección y resultados), sin tocar geometrías ni impedancias. (RF-23)
+      Hecho cuando: rojo por aserción (sin unifilar) y verde con sus pruebas de render y su e2e en navegador real.
+      Hecho en la fila PLANO-A (4d, 18-11): dominio/disposicion_unifilar.py da la disposición por anchura desde la
+      cabecera, común con el unifilar del PIT (107:RF-15, mismas hojas); la vista del plano trae su unifilar y la
+      pestaña lo enseña con los mismos códigos, la misma selección y las mismas bandas; pruebas:
+      tests/test_plano_unifilar.py, frontend/test/unifilar.test.mjs y frontend/e2e/unifilar.spec.ts (claro y oscuro).

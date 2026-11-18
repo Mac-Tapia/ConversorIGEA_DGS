@@ -604,8 +604,8 @@ def test_pid_reutilizado_no_finge_un_trabajo_vivo(tmp_path):
 
 
 def test_diario_ilegible_o_que_falla_no_impide_arrancar_ni_trabajar(tmp_path, monkeypatch):
-    """086:RF-9 — un corte a media escritura o un disco lleno no paran la web ni el trabajo."""
-    from convertersmartgrid.dominio.util import write_json_atomic  # noqa: F401 - se sustituye abajo
+    """086:RF-9 — un corte a media escritura no para la web; 086:RF-112 — con el disco lleno, un trabajo nuevo no se
+    ejecuta sin su recibo durable (antes corría y, si la web caía, no salía como interrumpido); vuelto el disco, sí."""
     from convertersmartgrid.presentacion.web import jobs as modulo
 
     diario = tmp_path / '_trabajos'
@@ -619,7 +619,12 @@ def test_diario_ilegible_o_que_falla_no_impide_arrancar_ni_trabajar(tmp_path, mo
     def sin_disco(*_a, **_k):
         raise OSError('disco lleno')
 
-    monkeypatch.setattr('convertersmartgrid.dominio.util.write_json_atomic', sin_disco)
+    corridas = []
+    with monkeypatch.context() as m:
+        m.setattr('convertersmartgrid.dominio.util.write_json_atomic', sin_disco)
+        with pytest.raises(OSError, match='recibo durable'):
+            jobs.submit(WID, 'k', 't', lambda c: corridas.append(1))
+    assert corridas == [] and jobs.list() == []
     job = jobs.submit(WID, 'k', 't', lambda c: 7)
     _esperar(jobs, job)
     jobs.shutdown(10)
