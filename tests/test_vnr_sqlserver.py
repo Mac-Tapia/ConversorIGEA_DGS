@@ -16,6 +16,14 @@ import pytest
 from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr as sv
 
 
+def _exige_capas():
+    """080 T15 a T17: el paquete de capas en flujo (exporters/capas.py) es lo nuevo de la 080 v3; su ausencia es la falla de
+    la aserción, no un error al importar (el rojo, sobre el código de antes, tiene que fallar por aserción)."""
+    import importlib.util
+    nombre = 'convertersmartgrid.adaptadores.entrada.vnr.exporters.capas'
+    assert importlib.util.find_spec(nombre) is not None, 'falta adaptadores/entrada/vnr/exporters/capas.py (080 T15 a T17)'
+
+
 @pytest.fixture(autouse=True)
 def _catalogo_de_empresa_aislado(monkeypatch, tmp_path):
     """080:RF-49: el catálogo de cada empresa se crea al cargar; una prueba no toca el real."""
@@ -739,6 +747,7 @@ class _CursorQueAnota:
 
 def _leer_por_la_web(monkeypatch, conectar, salidas):
     """La lectura de una base ya restaurada que usa el paquete de capas (``leer_base_restaurada``), con la red BT."""
+    _exige_capas()
     from convertersmartgrid.adaptadores.entrada.vnr.exporters.capas import leer_base_restaurada
 
     monkeypatch.setattr(sv, 'conectar', conectar)
@@ -1005,6 +1014,9 @@ def test_el_cli_bak_a_capas_imprime_la_estimacion_de_memoria(monkeypatch, tmp_pa
     monkeypatch.setattr(shutil, 'disk_usage', lambda *_a, **_k: types.SimpleNamespace(free=1 << 20))
     motor = MotorSinMars(EmpresaGrande(3, 5).tablas(), cuenta=10**8)
     monkeypatch.setattr(sv, 'conectar', motor.conectar)
+    import inspect
+    assert "'bak-a-capas'" in inspect.getsource(cli) or '"bak-a-capas"' in inspect.getsource(cli), (
+        'el CLI de VNR no tiene el subcomando bak-a-capas (080 T15 a T17)')
     assert cli.main(['bak-a-capas', 'CSG_VNR_SINTETICA', str(tmp_path / 'red.gpkg')]) == 0
     salida = capsys.readouterr().out
     for codigo in ('MEMORIA_BT_ESTIMADA_SUPERA_LA_LIBRE', 'DISCO_BT_ESTIMADO_SUPERA_EL_LIBRE'):
@@ -1021,6 +1033,7 @@ def test_la_exportacion_en_flujo_da_el_mismo_geopackage(monkeypatch, tmp_path):
     capa su fila de ``gpkg_contents`` (con su extensión), su geometría, su esquema, el número de filas y la sha256 de
     sus filas ordenadas. También los mismos avisos y los mismos valores BT sin regla. Sobre la red enrevesada y una
     empresa sintética, con lotes de 1, 2 y 1 000 salidas, piezas de 3, 7 y 5 000 tramos, y con y sin pyarrow."""
+    _exige_capas()
     from convertersmartgrid.adaptadores.entrada.vnr.exporters import capas
     from vnr_bt_sintetica import EmpresaGrande, MotorSinMars, huella_gpkg
 
@@ -1060,6 +1073,7 @@ def test_la_exportacion_en_flujo_lee_cada_tabla_una_vez(monkeypatch, tmp_path):
     (SQL Server sin MARS no lo deja: el doble del motor falla si pasa). Un lote de 0 salidas es un error."""
     from collections import Counter
 
+    _exige_capas()
     from convertersmartgrid.adaptadores.entrada.vnr.exporters import capas
     from vnr_bt_sintetica import EmpresaGrande, MotorSinMars
 
@@ -1121,6 +1135,7 @@ def test_la_red_mt_en_flujo_se_lee_por_bloques(monkeypatch, tmp_path):
     motor, como SQL Server sin MARS, falla si pasa). Con la v2, las tablas MT se leían enteras con ``fetchall``."""
     from collections import Counter
 
+    _exige_capas()
     from convertersmartgrid.adaptadores.entrada.vnr.exporters import capas
     from vnr_bt_sintetica import EmpresaGrande, MotorSinMars
 
@@ -1183,6 +1198,7 @@ def test_la_red_mt_en_flujo_da_el_mismo_geopackage_y_el_mismo_modelo(monkeypatch
     (equipo de código repetido, SED en dos salidas, salida repetida, sin red BT), una red MT con los valores sucios que
     puede dar el motor (espacios, enteros, ``None``, ``Decimal``, números como texto, NaN) y una empresa sintética con equipos,
     reguladores, salidas sin tramos y etiquetas repetidas; con lotes de 1, 3 y 1 000 salidas, y con y sin pyarrow."""
+    _exige_capas()
     from convertersmartgrid.adaptadores.entrada.vnr.exporters import capas
     from vnr_bt_sintetica import EmpresaGrande, MotorSinMars, huella_gpkg
 
@@ -1230,6 +1246,7 @@ def test_las_capas_mt_por_lotes_dan_las_capas_del_canonico_entero(monkeypatch, t
     columna sale de las filas que sí), un tramo sin vértices (se dibuja entre sus nodos), una tensión sin dato en toda la
     capa (columna de texto vacía) y ``ON_OFF`` y ``KVAR`` con enteros, reales y ``None``. Con y sin pyarrow."""
     from convertersmartgrid.adaptadores.entrada.vnr.connectors.sqlserver_vnr import _sqlite_temporal
+    _exige_capas()
     from convertersmartgrid.adaptadores.entrada.vnr.exporters import capas
     from convertersmartgrid.adaptadores.entrada.vnr.models import (Capacitor, CanonicalModel, Load, Node, Regulator,
                                                                  Section, Switch)

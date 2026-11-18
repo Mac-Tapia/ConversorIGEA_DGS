@@ -86,7 +86,7 @@ retirada.
 | [077](077-asistente-lee-el-proyecto/spec.md) | El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | cumplida | 80 | 80 | — |
 | [078](078-senales-de-convergencia/spec.md) | Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | cumplida | 35 | 35 | — |
 | [079](079-afinado-del-interprete-de-ordenes/spec.md) | Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida | 64 | 64 | — |
-| [080](080-acceso-directo-a-paquetes-vnrgis/spec.md) | Acceso directo a los paquetes VNR-GIS de cada distribuidora | aprobada | 61 | 61 | T13, T15, T16, T17 |
+| [080](080-acceso-directo-a-paquetes-vnrgis/spec.md) | Acceso directo a los paquetes VNR-GIS de cada distribuidora | aprobada | 61 | 61 | T13 |
 | [081](081-regresiones-permanentes/spec.md) | Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | cumplida | 85 | 85 | — |
 | [082](082-oraculo-completo-y-por-fases/spec.md) | El oráculo calcula todo lo del modelo, y por fases | cumplida | 15 | 15 | — |
 | [083](083-oraculo-antes-de-calibrar/spec.md) | El oráculo antes de calibrar y recalibrar | cumplida | 32 | 32 | — |
