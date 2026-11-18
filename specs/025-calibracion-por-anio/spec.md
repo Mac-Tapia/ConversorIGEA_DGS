@@ -376,6 +376,10 @@ no se aplica aunque su variación esté activa, y DIgSILENT no avisa, 081:RF-78)
   en la carpeta «AAAA» de ese año y sustituirá solo ese año, conservando los demás; sin año, si los libros ya
   van por año, rechazará la subida diciendo que falta el año y sin borrar nada. Suministros no va por año.
   (Revisión de la web del 17-11: la subida vaciaba la carpeta y los libros subidos quedaban sin año.)
+- RF-85: CUANDO el operador elija en la web la carpeta de cabecera o de clientes como la entrega la empresa,
+  con sus subcarpetas «AAAA», EL SISTEMA guardará cada libro en el año que dice su ruta, sustituirá solo los años
+  que llegan y conservará los demás; la ruta de cada libro se sanea parte a parte y nunca sale de su carpeta.
+  (Orden del usuario del 17-11: «los libros de cabecera y clientes importantes se cargan por carpetas por años».)
 
 Cargas nuevas incompletas (usuario, 2026-10-23: «las cargas nuevas que no tienen datos
 completos necesarios se rechazan y se deja un mensaje en la web»; obligatorios: barra o

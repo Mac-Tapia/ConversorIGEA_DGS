@@ -933,6 +933,7 @@
     "test/e2e/f03_planificacion.e2e.mjs",
     "test/e2e/f04_asistente.e2e.mjs",
     "test/e2e/f05_selector_unico.e2e.mjs",
+    "test/e2e/f06_vad_linea.e2e.mjs",
     "test/e2e/playwright.config.mjs",
     "test/e2e/teclado.e2e.mjs",
     "test/e2e/vnr_sintetico.mjs",

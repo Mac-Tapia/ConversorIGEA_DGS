@@ -181,8 +181,9 @@ export function EstudioVad() {
                 {inf.documentos.map((doc) => (
                   <li key={doc.documento}>
                     {doc.ruta_relativa
-                      ? <GuardarSalida url={api.fileUrl(ws.id, doc.ruta_relativa, true)} nombre={nombre(doc.ruta_relativa)}
-                        rel={doc.ruta_relativa} />
+                      ? <>{doc.documento}{' '}
+                        <GuardarSalida url={api.fileUrl(ws.id, doc.ruta_relativa, true)} nombre={nombre(doc.ruta_relativa)}
+                          rel={doc.ruta_relativa} /></>
                       : <span>{doc.documento}: <span className="muted">{doc.motivo}</span></span>}
                   </li>
                 ))}

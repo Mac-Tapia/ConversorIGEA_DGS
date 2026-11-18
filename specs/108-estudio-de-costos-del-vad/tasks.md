@@ -97,7 +97,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       secciones equivalentes quedan como huecos o interpretación anotada. Pruebas en `tests/test_vad_dimensionamiento.py`,
       pendientes de la corrida de f4.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vad_dimensionamiento.py.
-- [ ] T7. Costo estándar: `vad/costos.py` valora la red **dimensionada** con el SICODI (`costos_fuentes.leer_sicodi`)
+- [x] T7. Costo estándar: `vad/costos.py` valora la red **dimensionada** con el SICODI (`costos_fuentes.leer_sicodi`)
       mediante `valorar_obra` y `metrados.valorar_metrados`, con la fuente, la moneda y el IGV de cada elemento según
       el registro de la T2. `CostoEstandar` solo se construye con un `Dimensionamiento`, y el VNR real va solo como
       columna de referencia. (RF-7, RF-9)
@@ -113,6 +113,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       con la tasa pasiva del perfil y hueco nombrado sin ella. En la T6: AAAC y ACSR cuentan como Al (interpretación de f4),
       el umbral trifásico es el dato `trifasico_umbral_kVA` de `vad.anexo6.sed` y el flujo es `oraculo.ejecutar`. Pruebas
       en `tests/test_vad_costos.py` y `tests/test_vad_dimensionamiento.py`, pendientes de la corrida de f4.
+      Hecho en esta entrega (CIERRES-17-11, 4d): tests/test_vad_costos.py en verde; junto con las demás candidatas, 424 passed sin omitidas (D:/csg/INTEGRA_54/cierre_tareas/hechas_r3.log).
 - [x] T8. Anexo 7 y balance. Leer y transcribir en `config/vad/anexo7_coym.json` la metodología del COyM técnico, y
       la de las pérdidas estándar y del balance de potencia y energía, con su cita. `vad/coym.py` y `vad/balance.py`
       los calculan por sistema y por tensión, sobre los resultados de la T6. (RF-8)
@@ -335,7 +336,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       verde; la matriz de cobertura de `frontend/test/vadPanel.test.mjs` (cada ruta del VAD del contrato con su llamada,
       su control y su prueba) y `npm test`, `npm run lint`, `npx tsc --noEmit -p .` y `npm run build` sin errores.
       Hecho en ecad83ea (LOTE-4, VAD-PANEL); pruebas: tests/test_vad_web.py frontend/test/vadPanel.test.mjs.
-- [ ] T30. La línea del VAD de punta a punta desde el caso: el armado encadena dimensionamiento, costo estándar,
+- [x] T30. La línea del VAD de punta a punta desde el caso: el armado encadena dimensionamiento, costo estándar,
       resultados (`calcular_vad`), PIDE (`incorporar_pide`), calidad, costos de explotación, tablas (`escribir_tablas`),
       informes e Informe Definitivo, cada paso con su entrada en `sistemas.json` o en el perfil y su hueco nombrado si
       falta un dato, como trabajo con progreso y cancelación, y la pestaña enseña el estado de cada paso. Hoy esas
@@ -356,10 +357,17 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       estructura y código de cada SED); la tabla 2 y el apartado 4 llevan el costo estándar por sistema. Pruebas:
       `tests/test_vad_linea_b.py`.
       Avance (LOTE-4): la línea A y B por la API de la web, en test_vad_linea y test_vad_linea_b; falta el recorrido en navegador real.
+      Hecho en la fila T30-NAVEGADOR (f7, 17-11): el recorrido F06 en Edge real crea el estudio, sube un caso sintético
+      de dos sistemas, arma la línea (cada paso con su estado, y el motivo del que no tiene entrada) y el Informe
+      Definitivo (cada documento nombrado, escrito y descargable, o su hueco nombrado). El recorrido encontró que las
+      descargas del VAD y del PIT daban 404 (escriben en la raíz del espacio, no en «salida/»), arreglado en la ruta de
+      ficheros, y que los documentos escritos salían sin su nombre. Pruebas: frontend/test/e2e/f06_vad_linea.e2e.mjs,
+      tests/test_vad_linea.py, tests/test_descarga_carpetas_de_modulo.py.
 - [x] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "108:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-26 y la suite está en verde.
       Hecho en 5cc6908d (VNR-232 + FIX-VNR-REG); pruebas: las del criterio.
-- [ ] T31. VNR-LINEA: el estudio VNR con la red BT de VNR-GIS (`sections_bt`), los equipos de protección y
+- [x] T31. VNR-LINEA: el estudio VNR con la red BT de VNR-GIS (`sections_bt`), los equipos de protección y
       seccionamiento y los del componente C4 por su prefijo del Anexo 2 (que ahora trae su componente C: códigos de 11
       caracteres, y el código que la Guía repite anotado), con la red y el SICODI del espacio. (RF-20, RF-23)
       Hecho cuando: `pytest tests/test_vnr_estudio.py tests/test_vnr_guia_registro.py tests/test_vnr_api.py` en verde.
+      Hecho en esta entrega (CIERRES-17-11, 4d): tests/test_vnr_estudio.py, tests/test_vnr_guia_registro.py y tests/test_vnr_api.py en verde; junto con las demás candidatas, 424 passed sin omitidas (D:/csg/INTEGRA_54/cierre_tareas/hechas_r3.log).

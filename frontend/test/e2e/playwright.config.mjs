@@ -13,11 +13,11 @@
  * temporal) y CSG_E2E_EVIDENCIA (dónde quedan capturas y resultados de axe, por SHA; por defecto output/e2e).
  */
 import { defineConfig } from '@playwright/test';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { carpetaNubeE2E, evidenciaDe, puertoE2E, puertoNubeE2E } from './entorno.mjs';
+import { carpetaNubeE2E, evidenciaDe, puertoE2E, puertoNubeE2E, pythonServidor } from './entorno.mjs';
 
 const FRONT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RAIZ = resolve(FRONT, '..');
@@ -28,21 +28,8 @@ const puertoNube = puertoNubeE2E();
 const carpetaNube = carpetaNubeE2E();
 mkdirSync(join(carpetaNube, 'sesiones'), { recursive: true });
 
-/** El python del servidor: el del checkout o, en un worktree sin .venv, el del checkout primario. */
-function python() {
-  if (process.env.CSG_E2E_PYTHON) return process.env.CSG_E2E_PYTHON;
-  const exe = process.platform === 'win32' ? join('Scripts', 'python.exe') : join('bin', 'python');
-  const candidatas = [join(RAIZ, '.venv', exe)];
-  const marca = join(RAIZ, '.git');
-  if (existsSync(marca) && !existsSync(join(marca, 'HEAD'))) {
-    // .git de un worktree: «gitdir: <primario>/.git/worktrees/<nombre>».
-    const gitdir = readFileSync(marca, 'utf8').split(':').slice(1).join(':').trim();
-    candidatas.push(join(resolve(gitdir, '..', '..', '..'), '.venv', exe));
-  }
-  const elegida = candidatas.find((c) => existsSync(c));
-  if (!elegida) throw new Error(`No hay python para la web en ${candidatas.join(' ni en ')}: indique CSG_E2E_PYTHON.`);
-  return elegida;
-}
+/** El python del servidor (entorno.mjs): el del checkout o, en un worktree sin .venv, el del checkout primario. */
+const python = () => pythonServidor(RAIZ);
 
 if (!existsSync(join(FRONT, 'dist', 'index.html'))) {
   throw new Error('Falta frontend/dist: ejecute «npm run build» antes de los recorridos.');

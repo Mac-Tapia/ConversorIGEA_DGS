@@ -215,3 +215,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `_reemplazar_carpeta(subcarpeta)`; sin año con años ya separados, 422 sin tocar nada. (RF-84)
       Hecho cuando: `pytest tests/test_demanda_medida_web.py -k rf84` en verde y `npm test` entero. Hecho en esta
       entrega (LIBROS-ANIO, 4d).
+- [x] T29. La carpeta por años en la web: «Elegir carpeta (por años)» en cabecera y clientes, la ruta relativa
+      de cada libro (`webkitRelativePath`), `ruta_por_anio` y `_reemplazar_carpeta(por_rutas)`. (RF-85)
+      Hecho cuando: `pytest tests/test_demanda_medida_web.py -k rf85` en verde y `npm test` entero. Hecho en esta
+      entrega (LIBROS-CARPETA, 4d).

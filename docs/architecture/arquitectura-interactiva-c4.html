@@ -173,7 +173,7 @@
 
   <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
   <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo.</p>
-  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107 a 111). 434 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
+  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107, 108, 109, 111). 434 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
 
   <div class="c4-toolbar">
     <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
@@ -294,7 +294,7 @@
         powerfactory: { label: 'DIgSILENT PowerFactory', tech: '2021 o posterior, API nativa', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importa el DGS, verifica el Caso base, calibra, aplica obras y corre los estudios; cada resultado se relee.' },
         llm: { label: 'LLM local', tech: 'Ollama en esta máquina', path: 'src/convertersmartgrid/asistente/ollama.py', kind: 'external', detail: 'Inferencia del asistente y de su revisión, solo en direcciones de la máquina.' },
         cloud: { label: 'Nube del operador', tech: 'en implementación · 109', path: 'specs/109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md', kind: 'external', status: PLAN, detail: 'Google Drive y OneDrive con la cuenta del operador: fuentes, avisos de cambio y expedientes compartidos.' },
-        mail: { label: 'Correo del operador', tech: 'en implementación · 110', path: 'specs/110-envio-de-informes-por-correo-desde-la-web/spec.md', kind: 'external', status: PLAN, detail: 'Gmail y Outlook con la cuenta del operador, con vista previa, confirmación y recibo.' },
+        mail: { label: 'Correo del operador', tech: 'spec 110 cumplida', path: 'specs/110-envio-de-informes-por-correo-desde-la-web/spec.md', kind: 'external', detail: 'Gmail y Outlook con la cuenta del operador, con vista previa, confirmación y recibo.' },
         deliverables: { label: 'Entregables', tech: 'DGS, PF, estudios e informes', path: 'docs/architecture/plano_flujo_arquitectura_converter_smart_grid.pdf', kind: 'store', detail: 'Artefactos para revisión, operación y decisión, cada uno con su huella.' },
         // Contenedores
         frontend: { label: 'Interfaz web', tech: 'React + TypeScript', path: 'frontend/src', kind: 'web', detail: 'Selección, seguimiento, confirmación y descarga; compilada en frontend/dist.' },
@@ -325,7 +325,7 @@
         tooling: { label: 'Herramientas de órdenes', tech: 'Operación, calidad y modelos', path: 'tools/arquitectura.py', kind: 'engine', detail: 'Operación, aceptación, entrenamientos y calidad desde la línea de órdenes.' },
         gisEditor: { label: 'Editor sobre el plano', tech: 'en implementación · 111', path: 'specs/111-editor-electrico-sobre-el-plano-gis/spec.md', kind: 'web', status: PLAN, detail: 'Ver la red, elegir un equipo, proponer maniobras u obras y ver resultados en el mismo trazo, sin tocar el Caso base.' },
         cloudConn: { label: 'Conector de nube', tech: 'en implementación · 109', path: 'specs/109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md', kind: 'engine', status: PLAN, detail: 'Elige fuentes en la nube, avisa de cambios y sube expedientes; cada estudio usa una copia fija con huella.' },
-        mailer: { label: 'Envío de informes', tech: 'en implementación · 110', path: 'specs/110-envio-de-informes-por-correo-desde-la-web/spec.md', kind: 'engine', status: PLAN, detail: 'Envía el informe cerrado o un enlace privado a su expediente; queda un recibo.' },
+        mailer: { label: 'Envío de informes', tech: 'spec 110 cumplida', path: 'specs/110-envio-de-informes-por-correo-desde-la-web/spec.md', kind: 'engine', detail: 'Envía el informe cerrado o un enlace privado a su expediente; queda un recibo.' },
         normativa: { label: 'Biblioteca normativa', tech: 'Vigencia y cita de cada regla', path: 'src/convertersmartgrid/biblioteca_normativa.py', kind: 'engine', detail: 'Normas nacionales e internacionales con su vigencia, sus modificaciones y la cita de cada regla; vale para toda empresa, estudio y módulo, y para el asistente.' },
         bench: { label: 'Benchmarks anonimizados', tech: 'Desidentificados, solo en local', path: 'specs/112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md', kind: 'ai', detail: 'Datos de referencia desidentificados, solo en local, y protocolos por cohortes de empresa y de tiempo.' },
         // Componentes (subsistemas de docs/architecture/subsistemas.json; uno por componente de workspace.dsl)
@@ -335,7 +335,7 @@
         cInterfazRegulatorio: { label: 'Módulos regulatorios', tech: '4 ficheros', path: 'frontend/src/features/pit', kind: 'web', detail: 'Pestañas del PIT, del VAD, del VNR y de la biblioteca normativa.' },
         cInterfazNube: { label: 'Nube y correo', tech: '5 ficheros', path: 'frontend/src/features/nube', kind: 'web', detail: 'Elegir fuentes de la nube, publicar expedientes y ver versiones nuevas.' },
         cInterfazAsistente: { label: 'Asistente en la web', tech: '8 ficheros', path: 'frontend/src/features/asistente', kind: 'web', detail: 'Órdenes, equipo, monitor, tarjeta del operador y aprendizaje.' },
-        cInterfazPruebas: { label: 'Pruebas de la interfaz', tech: '39 ficheros', path: 'frontend/test', kind: 'web', detail: 'Pruebas sin navegador de las pestañas y de la lógica.' },
+        cInterfazPruebas: { label: 'Pruebas de la interfaz', tech: '40 ficheros', path: 'frontend/test', kind: 'web', detail: 'Pruebas sin navegador de las pestañas y de la lógica.' },
         cWeb: { label: 'Web', tech: '42 ficheros', path: 'src/convertersmartgrid/web', kind: 'web', detail: 'Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo.' },
         cNube: { label: 'Nube', tech: '11 ficheros', path: 'src/convertersmartgrid/adaptadores/nube', kind: 'web', detail: 'Proveedores Google Drive y OneDrive, OAuth, cuentas, cofre y salida a la nube.' },
         cVnr: { label: 'VNR-GIS', tech: '52 ficheros', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'engine', detail: 'Conectores, descubrimiento, GIS, validación y puente al modelo común.' },

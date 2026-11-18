@@ -51,9 +51,8 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
 
         correo = softwareSystem "Correo del operador" "Gmail y Outlook con la cuenta del operador." {
             url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/specs/110-envio-de-informes-por-correo-desde-la-web/spec.md"
-            tags "External,en implementación"
+            tags "External"
             properties {
-                "Estado" "en implementación"
                 "Spec" "110"
             }
         }
@@ -107,7 +106,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Interfaz: asistente"
                     }
                 }
-                cmpInterfazPruebas = component "Pruebas de la interfaz" "Pruebas sin navegador de las pestañas y de la lógica (39 ficheros)." "Node test runner" {
+                cmpInterfazPruebas = component "Pruebas de la interfaz" "Pruebas sin navegador de las pestañas y de la lógica (40 ficheros)." "Node test runner" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/test"
                     tags "Web"
                     properties {
@@ -170,9 +169,8 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
 
             mailer = container "Envío de informes" "Envía el informe cerrado o un enlace privado a su expediente, con vista previa, confirmación y recibo." "Python" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/specs/110-envio-de-informes-por-correo-desde-la-web/spec.md"
-                tags "API,en implementación"
+                tags "API"
                 properties {
-                    "Estado" "en implementación"
                     "Spec" "110"
                 }
             }

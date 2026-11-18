@@ -23,7 +23,9 @@ jobs:
   backend:
     name: Suite sintética (Windows, Python 3.12)
     runs-on: windows-latest
-    timeout-minutes: 90
+    # 102:RF-30 (17-11): la suite sintética ya tarda de 76 a 80 min en el runner; con 90 la corrida de main a05dad95 se
+    # cortó al minuto 90 sin ningún fallo. El tope deja margen: al menos 1,5 veces lo medido.
+    timeout-minutes: 180
     steps:
       # 102:RF-25: acciones fijadas por el SHA de su commit; 102:RF-27: sin credenciales en la copia.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

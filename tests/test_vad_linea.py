@@ -153,6 +153,25 @@ def test_108_rf26_el_informe_definitivo_usa_lo_que_dejo_la_linea(web_vad):
     assert not any('sin el libro de las tablas de resultados' in h for h in fin['result']['huecos']), fin['result']['huecos']
 
 
+def test_108_rf26_cada_documento_escrito_del_informe_definitivo_se_descarga(web_vad):
+    """108:RF-26 (T30) — cada documento escrito del Informe Definitivo se descarga por la ruta de ficheros que usa el
+    panel. El recorrido en navegador real (frontend/test/e2e/f06_vad_linea.e2e.mjs) vio un 404: el VAD escribe en la
+    raíz del espacio y la ruta solo miraba «salida/»."""
+    _exige()
+    cliente, _app = web_vad
+    wid, eid = _estudio(cliente)
+    r = cliente.post(f'/api/workspaces/{wid}/vad/{eid}/armar',
+                     files=[('files', ('caso.zip', _caso(_registro()), 'application/zip'))])
+    assert _esperar(cliente, r.json())['status'] == 'done'
+    assert _esperar(cliente, cliente.post(f'/api/workspaces/{wid}/vad/{eid}/informe-definitivo').json())['status'] == 'done'
+    docs = cliente.get(f'/api/workspaces/{wid}/vad/{eid}').json()['informe_definitivo']['documentos']
+    escritos = [d['ruta_relativa'] for d in docs if d.get('ruta_relativa')]
+    assert escritos, docs
+    for rel in escritos:
+        r = cliente.get(f'/api/workspaces/{wid}/files/{rel}', params={'download': '1'})
+        assert r.status_code == 200 and r.content, f'{rel}: {r.status_code}'
+
+
 def test_108_rf26_una_entrada_del_estudio_que_no_existe_o_mal_nombrada_se_rechaza_antes(web_vad):
     """108:RF-26 (T30) — «estudio» con un paso que no es del estudio, o que nombra un fichero que no viene, da 422 antes de
     encolar."""

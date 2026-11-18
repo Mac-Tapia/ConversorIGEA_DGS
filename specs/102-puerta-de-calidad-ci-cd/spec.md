@@ -109,6 +109,9 @@ Instalación
   y de nombres sin definir (`E9,F63,F7,F82`) antes de la suite sintética (H-CI4).
 - RF-29: MIENTRAS una rama tenga abierta una petición de fusión, GitHub Actions dejará en marcha una sola corrida por
   revisión de esa rama, y la nueva cancelará la anterior (H-CI5: la subida y la petición se corrían dos veces).
+- RF-30: EL SISTEMA dará a la suite sintética de GitHub Actions un tope de tiempo de al menos 1,5 veces su duración
+  medida en el runner, para que una corrida sin fallos no quede cortada por el reloj. (17-11: la corrida de main
+  a05dad95 se canceló al minuto 90 con la suite en verde.)
 - Aclaración de RF-29 (auditor 3e, 2026-11-14): en `main` la corrida nueva NO cancelará la anterior, para que cada commit de `main` conserve su corrida entera como evidencia de la etiqueta.
 
 ## Requisitos no funcionales

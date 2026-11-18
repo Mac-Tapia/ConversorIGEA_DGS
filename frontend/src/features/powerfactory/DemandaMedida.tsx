@@ -1,5 +1,5 @@
 import { fmtNum } from '../../shared/formato';
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { api, type DemandaTipo } from '../../api/client';
 import { estadoCatalogoClientes } from './clientesCatalogo';
 import { useApp } from '../../shared/context';
@@ -38,6 +38,15 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
   const porAnio = tipo === 'cabecera' || tipo === 'clientes';
   const [anioSubida, setAnioSubida] = useState('');
   const anioValido = /^(19|20|21)\d{2}$/.test(anioSubida) ? Number(anioSubida) : undefined;
+  // 025:RF-85: la carpeta entera, como la entrega la empresa («2024/», «2025/»…): el año sale de la ruta de cada libro.
+  const carpetaRef = useRef<HTMLInputElement | null>(null);
+  const subirCarpeta = async (lista: FileList | null) => {
+    const files = Array.from(lista ?? []).filter((f) => EXT.split(',').some((e) => f.name.toLowerCase().endsWith(e.trim())));
+    if (!files.length) return;
+    const r = await run(() => api.demandaSubir(ws.id, tipo, files));
+    if (r) asignada(r);
+    if (carpetaRef.current) carpetaRef.current.value = '';
+  };
   const meta = ws.demanda?.[tipo];
   // Spec 025, RF-28 y RF-32: la cabecera en carpeta también tiene su índice por año.
   const indexable = (m: typeof meta) => tipo === 'clientes' || (tipo === 'cabecera' && m?.source_kind === 'folder');
@@ -86,6 +95,12 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
           <span>Año</span>
           <input className="search" inputMode="numeric" maxLength={4} placeholder="AAAA" aria-label={`Año de ${titulo}`}
             value={anioSubida} disabled={engineBusy} onChange={(e) => setAnioSubida(e.target.value.replace(/\D/g, ''))} />
+          <button type="button" className="btn btn-sm" disabled={engineBusy} onClick={() => carpetaRef.current?.click()}>
+            Elegir carpeta (por años)
+          </button>
+          {/* La carpeta con sus subcarpetas: el atributo va por la ref, sin efecto al montar (025:RF-78). */}
+          <input ref={(el) => { carpetaRef.current = el; el?.setAttribute('webkitdirectory', ''); }} type="file" multiple hidden aria-label={`Carpeta de ${titulo}`}
+            onChange={(e) => { void subirCarpeta(e.target.files); }} />
         </label>
       )}
       <FileDrop entrada="demanda_medida" compact accept={EXT} disabled={engineBusy}

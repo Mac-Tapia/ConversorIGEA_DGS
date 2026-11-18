@@ -104,7 +104,7 @@ adaptador VNR (integrador f9).
       el N-1 del Área 15 va con el rango normal salvo que `pit.emergencia_rm129` sustente el de emergencia. Pruebas:
       `tests/test_pit_tension_norma.py`.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_pit_diagnostico.py.
-- [ ] T8. Alternativas mutuamente excluyentes (`pit/alternativas.py`): inversión con `costos_fuentes.valorar_obra`
+- [x] T8. Alternativas mutuamente excluyentes (`pit/alternativas.py`): inversión con `costos_fuentes.valorar_obra`
       (ámbito `transmision`) y los módulos de `set_nueva.leer_modulos_pit`, COyM y pérdidas según el registro, valor
       actual con `pide_economia.frc` y `van`, y confiabilidad según la matriz; misma demanda y mismo motor para todas;
       una alternativa con un costo que falta queda incompleta y fuera de la comparación; una regla no vigente se usa
@@ -116,6 +116,7 @@ adaptador VNR (integrador f9).
       vigente del 01-05-2021 al 30-04-2027); `pit.vida_util_anios` = 30 ya estaba (art. 24.2 de la 217-2013). El COyM
       va por elemento, ubicación, nivel y año, con huecos nombrados y el aviso del transformador elevador
       (aclaraciones de RF-5 y RF-8). Pruebas: `tests/test_pit_coym_registro.py`.
+      Hecho en esta entrega (CIERRES-17-11, 4d): tests/test_pit_alternativas.py y tests/test_pit_coym_registro.py, 13 passed; junto con las demás candidatas, 424 passed sin omitidas (D:/csg/INTEGRA_54/cierre_tareas/hechas_r3.log).
 - [x] T9. Programa (`pit/programa.py`): cada elemento con su año de puesta en servicio, su titular y su área, con las
       bajas y los reemplazos; un programa por titular cuando el área tiene varios. (RF-6)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_pit_programa.py` en verde con el perfil A (un titular) y el B (varios).

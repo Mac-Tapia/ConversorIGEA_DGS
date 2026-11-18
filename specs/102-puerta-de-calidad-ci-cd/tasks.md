@@ -65,3 +65,5 @@
       fijado con el pico medido; es la T20 la que sube PROCESOS_MAXIMOS (hoy 1, FIX-XDIST-UNO) al N medido. (RF-5)
       Hecho cuando: el guion de comparación (PUERTA-XDIST/comparar_n.py), lanzado por b3 por los carriles en un hueco sin
       puerta, deja su informe con «iguales» y los picos, y la constante queda con su medida.
+- [x] T21. El tope de la suite sintética en Actions con margen: `timeout-minutes` 180 en `ci.yml`. (RF-30)
+      Hecho cuando: `pytest tests/test_puerta_calidad.py -k rf30` en verde. Hecho en esta entrega (FIX-CI-TOPE, 4d).

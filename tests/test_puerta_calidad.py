@@ -1083,3 +1083,19 @@ def test_102_rf5_rf11_una_suite_repartida_deja_un_veredicto_que_el_gancho_reutil
                                                        for f in ('serie', 'reparto', 'a_solas')]
     assert datos['total'] == 6
     assert PC.puerta_commit(raiz) == 0 and len(lanzadas) == 3
+
+
+#: 102:RF-30: lo que tardó la suite sintética en el runner en sus últimas corridas completas (17-11: de 76 a 80 min).
+DURACION_MEDIDA_MIN = 80
+
+
+def test_102_rf30_la_suite_sintetica_tiene_margen_sobre_lo_que_tarda():
+    """102:RF-30 — el tope del trabajo de la suite sintética es al menos 1,5 veces su duración medida: con 90 min, la
+    corrida de main se cortó sin ningún fallo."""
+    import re
+
+    flujo = (RAIZ / '.github' / 'workflows' / 'ci.yml').read_text(encoding='utf-8')
+    assert 'name: Suite sintética' in flujo
+    tope = re.search(r'timeout-minutes:\s*(\d+)', flujo.split('name: Suite sintética', 1)[1])
+    assert tope, 'el trabajo de la suite sintética no tiene timeout-minutes'
+    assert int(tope.group(1)) >= 1.5 * DURACION_MEDIDA_MIN, (tope.group(1), DURACION_MEDIDA_MIN)

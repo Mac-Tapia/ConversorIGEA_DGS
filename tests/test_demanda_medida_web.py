@@ -949,3 +949,32 @@ def test_025_rf84_el_anio_se_valida(client):
     wid = _wid(client)
     assert _subir_anio(client, wid, 'clientes', CLIENTES, 1700).status_code == 422
     assert _subir_anio(client, wid, 'suministros', SUMINISTROS, 2025).status_code == 422
+
+
+def test_025_rf85_la_carpeta_subida_trae_sus_anios_y_solo_se_reemplazan_los_que_llegan(client):
+    """025:RF-85 — como la entrega la empresa: la carpeta de clientes con «2024/» y «2025/». Cada libro va a su año por
+    su ruta; una segunda carpeta solo con 2025 sustituye ese año y conserva 2024."""
+    from convertersmartgrid.libros_por_anio import anios_de, arbol_de_libros
+    from convertersmartgrid.web import services
+
+    wid = _wid(client)
+    libro = _xlsx(CLIENTES)
+    r = client.post(f'/api/workspaces/{wid}/demanda/clientes', files=[
+        ('files', ('Clientes/2024/ene.xlsx', libro)), ('files', ('Clientes/2025/ene.xlsx', libro))])
+    assert r.status_code == 200, r.text
+    raiz = services.demanda_carpeta(client.app.state.store.get(wid), 'clientes')
+    assert {x.relativa for x in arbol_de_libros(raiz)} == {'2024/ene.xlsx', '2025/ene.xlsx'}
+    r = client.post(f'/api/workspaces/{wid}/demanda/clientes', files=[('files', ('Clientes/2025/feb.xlsx', libro))])
+    assert r.status_code == 200, r.text
+    assert {x.relativa for x in arbol_de_libros(raiz)} == {'2024/ene.xlsx', '2025/feb.xlsx'}
+    assert anios_de(arbol_de_libros(raiz)) == [2024, 2025]
+
+
+def test_025_rf85_la_ruta_de_un_libro_no_sale_de_su_carpeta():
+    """025:RF-85 — la ruta que manda el navegador se sanea parte a parte: ni «..» ni rutas absolutas salen fuera."""
+    from convertersmartgrid.web.app import ruta_por_anio
+
+    assert ruta_por_anio('Cabecera/2025/ene.xlsx') == ('2025', '2025/ene.xlsx')
+    assert ruta_por_anio(r'C:\datos\Cabecera\2024\sub\x.xlsx') == ('2024', '2024/sub/x.xlsx')
+    assert ruta_por_anio('../../2023/../x.xlsx') == ('2023', '2023/x.xlsx')
+    assert ruta_por_anio('suelto.xlsx') == (None, 'suelto.xlsx')

@@ -1,7 +1,8 @@
 /** Lo común a la configuración y a los recorridos E2E: el puerto aislado y la carpeta de evidencia por SHA. */
 import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 /** El puerto del operador: los recorridos nunca lo usan, para no tocar su web ni sus espacios. */
 export const PUERTO_OPERADOR = 8765;
@@ -47,4 +48,23 @@ export function revision(frontend) {
 export function evidenciaDe(frontend) {
   // Por defecto en output/e2e del checkout, que git ignora; CSG_E2E_EVIDENCIA la lleva a otra carpeta.
   return join(process.env.CSG_E2E_EVIDENCIA || join(frontend, '..', 'output', 'e2e'), revision(frontend));
+}
+
+/**
+ * El python del servidor y de los ayudantes de los recorridos: CSG_E2E_PYTHON, el del checkout o, en un worktree sin
+ * .venv, el del checkout primario.
+ */
+export function pythonServidor(RAIZ) {
+  if (process.env.CSG_E2E_PYTHON) return process.env.CSG_E2E_PYTHON;
+  const exe = process.platform === 'win32' ? join('Scripts', 'python.exe') : join('bin', 'python');
+  const candidatas = [join(RAIZ, '.venv', exe)];
+  const marca = join(RAIZ, '.git');
+  if (existsSync(marca) && !existsSync(join(marca, 'HEAD'))) {
+    // .git de un worktree: «gitdir: <primario>/.git/worktrees/<nombre>».
+    const gitdir = readFileSync(marca, 'utf8').split(':').slice(1).join(':').trim();
+    candidatas.push(join(resolve(gitdir, '..', '..', '..'), '.venv', exe));
+  }
+  const elegida = candidatas.find((c) => existsSync(c));
+  if (!elegida) throw new Error(`No hay python para la web en ${candidatas.join(' ni en ')}: indique CSG_E2E_PYTHON.`);
+  return elegida;
 }

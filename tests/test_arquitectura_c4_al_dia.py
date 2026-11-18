@@ -99,7 +99,11 @@ def test_090_rf19_el_comprobador_ve_cada_cifra_desviada_y_escribir_la_arregla(c4
     reabierto = dsl.read_text(encoding="utf-8")
     bloque = re.search(rf'tags "([^"]*)"\s*properties \{{([^}}]*)"Spec" "{cumplidas[0]}"', reabierto)
     assert bloque and "en implementación" in bloque.group(1) and '"Estado" "en implementación"' in bloque.group(2)
-    assert cumplidas[0] in re.search(r"en implementación \(specs ([^)]*)\)", html.read_text(encoding="utf-8")).group(1)
+    # La leyenda da las specs como lista («107, 109») o, si son seguidas, como rango («107 a 111»).
+    leyenda = re.search(r"en implementación \(specs ([^)]*)\)", html.read_text(encoding="utf-8")).group(1)
+    rango = re.fullmatch(r"(\d+) a (\d+)", leyenda.strip())
+    marcadas = set(range(int(rango[1]), int(rango[2]) + 1)) if rango else {int(x) for x in re.findall(r"\d+", leyenda)}
+    assert int(cumplidas[0]) in marcadas, (cumplidas[0], leyenda)
 
     # Sin la sección de ficheros no inventa nada: sale con 2 y dice qué falta.
     catalogo.write_text("# catálogo sin ficheros\n", encoding="utf-8")

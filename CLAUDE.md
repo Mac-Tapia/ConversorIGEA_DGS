@@ -137,7 +137,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | aprobada | falta T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30 |
   | 108 Estudio de costos del VAD con la empresa modelo eficiente | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
   | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | implementada | queda T16 (DIgSILENT) |
-  | 110 Envío de informes por correo (Gmail y Outlook) desde la web | aprobada | falta T2 a T9, T11 a T13 |
+  | 110 Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | |
   | 111 Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | aprobada | falta T1, T2, T13, T16, T17, T18 (DIgSILENT), T19 |
   | 112 Datasets de referencia anonimizados y benchmarks reproducibles | cumplida | |
 

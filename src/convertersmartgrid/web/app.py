@@ -192,6 +192,21 @@ def arrancar_vigilancia(jobs: JobManager):
     return v
 
 
+def ruta_por_anio(nombre_subido: str) -> tuple[str | None, str]:
+    """025:RF-85: de la ruta relativa con que llega un libro de una carpeta subida («Cabecera/2025/ene.xlsx»), su año
+    (la última carpeta de cuatro cifras) y su ruta desde ese año, con cada parte saneada; sin año, solo el nombre.
+    Nunca sale de la carpeta: «..» y las partes vacías se descartan."""
+    partes = [x for x in re.split(r'[\\/]+', nombre_subido or '') if x not in ('', '.', '..')]
+    if not partes:
+        return None, safe_filename('')
+    nombre = safe_filename(partes[-1])
+    carpetas = partes[:-1]
+    for i in range(len(carpetas) - 1, -1, -1):
+        if re.fullmatch(r'\d{4}', carpetas[i]):
+            return carpetas[i], '/'.join([carpetas[i], *(safe_filename(x) for x in carpetas[i + 1:]), nombre])
+    return None, nombre
+
+
 def _server_paths_allowed(host: str | None) -> bool:
     """Si se puede indicar una ruta del disco del servidor en lugar de subir el fichero.
 
@@ -1407,7 +1422,7 @@ def create_app(
 
     def _reemplazar_carpeta(ws: Workspace, carpeta: Path, files: list[UploadFile], por_defecto: str, asignar, *,
                             conservar: bool = False, lectores: frozenset[str] | None = None,
-                            subcarpeta: str | None = None):
+                            subcarpeta: str | None = None, por_rutas: bool = False):
         """086:RF-3: los ficheros subidos sustituyen a los de ``carpeta`` solo si ``asignar`` los acepta.
 
         Se guardan y se validan en un staging del espacio (mismo volumen) y se publican con ``os.replace``, que
@@ -1416,7 +1431,8 @@ def create_app(
         antes de guardar y validar: un libro rechazado dejaba el hueco vacío y los PDF que el OCR estaba leyendo,
         borrados. Con ``conservar``, la nueva lleva también lo que ya había (la cabecera se sube por partes).
         Con ``subcarpeta`` (025:RF-84, el año «AAAA»), los libros van a ``carpeta/subcarpeta`` y solo se reemplaza esa
-        subcarpeta: los demás años se conservan.
+        subcarpeta: los demás años se conservan. Con ``por_rutas`` (025:RF-85, una carpeta subida), cada libro va a su
+        año según su ruta (``ruta_por_anio``) y se reemplazan solo los años que llegan.
         Con un trabajo que pueda leerlos en curso (``lectores``; sin ella, cualquiera que no esté en
         ``NO_LEEN_LIBROS``) responde 409 sin tocar nada. Todo bajo el cerrojo de ``submit`` (086:RF-86).
         """
@@ -1432,20 +1448,25 @@ def create_app(
             anterior: Path | None = None
             publicado = False
             try:
-                if (conservar or subcarpeta) and carpeta.is_dir():
+                if (conservar or subcarpeta or por_rutas) and carpeta.is_dir():
                     nueva.rmdir()
                     shutil.copytree(carpeta, nueva, copy_function=_enlazar_o_copiar)
-                dentro = nueva / subcarpeta if subcarpeta else nueva
                 if subcarpeta:
-                    shutil.rmtree(dentro, ignore_errors=True)  # ese año se sustituye entero; los otros siguen
-                    dentro.mkdir(parents=True, exist_ok=True)
+                    rutas = [f'{subcarpeta}/{safe_filename(f.filename or por_defecto)}' for f in files]
+                elif por_rutas:
+                    rutas = [ruta_por_anio(f.filename or por_defecto)[1] for f in files]
+                else:
+                    rutas = [safe_filename(f.filename or por_defecto) for f in files]
+                for anio_llega in {r.split('/', 1)[0] for r in rutas if '/' in r}:
+                    shutil.rmtree(nueva / anio_llega, ignore_errors=True)  # ese año se sustituye entero; los otros siguen
                 destinos = []
-                for f in files:
-                    nombre = safe_filename(f.filename or por_defecto)
+                for f, rel in zip(files, rutas):
+                    destino = nueva / rel
+                    destino.parent.mkdir(parents=True, exist_ok=True)
                     # Quitar el enlace antes de escribir: escribir en él cambiaría también el libro vigente.
-                    (dentro / nombre).unlink(missing_ok=True)
-                    _escribir_subida(dentro / nombre, f)
-                    destinos.append(carpeta / subcarpeta / nombre if subcarpeta else carpeta / nombre)
+                    destino.unlink(missing_ok=True)
+                    _escribir_subida(destino, f)
+                    destinos.append(carpeta / rel)
                 if carpeta.exists():
                     anterior = raiz / f'{nueva.name}.anterior'
                     os.replace(carpeta, anterior)
@@ -1790,10 +1811,26 @@ def create_app(
                          'modified': st.st_mtime})
         return rows
 
+    #: 108:RF-26, 107:RF-1: las carpetas de módulo que se escriben en la raíz del espacio, no en «salida/»: el VAD
+    #: (``vad/``, vad/estudio.py) y el PIT (``expedientes_pit/``, pit/expediente.py).
+    carpetas_de_modulo_en_raiz = ('vad', 'expedientes_pit')
+
+    def _de_modulo_en_raiz(ws: Workspace, rel: str) -> Path | None:
+        """El VAD y el PIT nombran sus salidas con la ruta desde la raíz del espacio. El recorrido en navegador real
+        (108 T30) vio que esas descargas daban 404: se sirven aquí, sin salir de su carpeta; lo demás de la raíz, no."""
+        partes = rel.replace('\\', '/').split('/', 1)
+        if len(partes) < 2 or partes[0] not in carpetas_de_modulo_en_raiz:
+            return None
+        base = (Path(ws.root) / partes[0]).resolve()
+        target = (Path(ws.root) / rel).resolve()
+        return target if base in target.parents and target.is_file() else None
+
     @app.get('/api/workspaces/{wid}/files/{rel:path}')
     def get_file(wid: str, rel: str, download: bool = False) -> FileResponse:
         ws = ws_or_404(wid)
         path = _safe_out(ws, rel)
+        if not path.is_file():
+            path = _de_modulo_en_raiz(ws, rel) or path
         if not path.is_file():
             raise HTTPException(404, 'Fichero no encontrado.')
         media = 'text/html' if path.suffix.lower() == '.html' and not download else None
@@ -3014,13 +3051,16 @@ def create_app(
         if anio is not None and not (tipo in {'cabecera', 'clientes'} and 1990 <= anio <= 2100):
             raise HTTPException(422, f'Año no válido para «{tipo}»: {anio}.')
         carpeta = services.demanda_carpeta(ws, tipo)
-        if anio is None and tipo == 'clientes' and carpeta.is_dir() and any(
+        # 025:RF-85: una carpeta subida trae el año en la ruta de cada libro.
+        por_rutas = anio is None and tipo in {'cabecera', 'clientes'} and any(
+            ruta_por_anio(f.filename or '')[0] for f in files)
+        if anio is None and not por_rutas and tipo == 'clientes' and carpeta.is_dir() and any(
                 p.is_dir() and re.fullmatch(r'\d{4}', p.name) for p in carpeta.iterdir()):
             raise HTTPException(422, 'Estos libros ya están separados por año: indique el año de los que sube; '
                                      'así no se borran los de los otros años.')
 
         def asignar(destinos: list[Path]) -> dict:
-            fuente = (carpeta if tipo in {'cabecera', 'suministros'} or anio is not None
+            fuente = (carpeta if tipo in {'cabecera', 'suministros'} or anio is not None or por_rutas
                       or (tipo == 'clientes' and len(destinos) > 1)
                       else destinos[0])
             return services.demanda_asignar(ws, tipo, fuente, 'upload')
@@ -3028,7 +3068,7 @@ def create_app(
         # 086:RF-3: antes se borraba la carpeta del hueco antes de guardar y validar los libros nuevos, y sin mirar
         # si un trabajo los estaba leyendo; la cabecera se sube por partes y conserva lo que ya tenía.
         return _reemplazar_carpeta(ws, carpeta, files, f'{tipo}.xlsx', asignar, conservar=tipo == 'cabecera',
-                                   subcarpeta=str(anio) if anio is not None else None)
+                                   subcarpeta=str(anio) if anio is not None else None, por_rutas=por_rutas)
 
     @app.delete('/api/workspaces/{wid}/demanda/{tipo}')
     def demanda_quitar(wid: str, tipo: DemandaTipo) -> dict:

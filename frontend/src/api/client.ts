@@ -230,7 +230,8 @@ export const api = {
   // 025:RF-84: con ``anio``, los libros van a la carpeta de ese año y solo se sustituye ese año.
   demandaSubir: (id: string, tipo: DemandaTipo, files: File[], anio?: number) => {
     const fd = new FormData();
-    files.forEach((f) => fd.append('files', f, f.name));
+    // 025:RF-85: de una carpeta elegida, cada libro con su ruta («Clientes/2025/ene.xlsx»): el año sale de ella.
+    files.forEach((f) => fd.append('files', f, f.webkitRelativePath || f.name));
     if (anio) fd.append('anio', String(anio));
     return request<WorkspaceState>(`${ws(id)}/demanda/${tipo}`, { method: 'POST', body: fd });
   },

@@ -110,7 +110,7 @@ T8–T10 montan la web; T11–T12 se validan con el simulado (la prueba real con
       identificadores ni secretos reales, con la versión de prueba descrita y con el envío sin cuenta rechazado con ese
       mensaje y sin llamar al proveedor.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: las del criterio.
-- [ ] T12. Validación con el simulado (`tests/correo_simulado.py`): acepta, rechaza (400, 401, 403, 413, 429, 5xx),
+- [x] T12. Validación con el simulado (`tests/correo_simulado.py`): acepta, rechaza (400, 401, 403, 413, 429, 5xx),
       `ConnectTimeout` y acepta sin responder, con su recibo y sin abrir la red. La prueba real con una cuenta es
       opcional: la hace el operador cuando registre su aplicación de prueba (`docs/CORREO_OAUTH.md`), con un envío a una
       dirección suya y el recibo en `envios/` del espacio. (RF-2, RF-7, RF-8)
@@ -118,6 +118,7 @@ T8–T10 montan la web; T11–T12 se validan con el simulado (la prueba real con
       tests/test_correo_web.py` en verde con el simulado; la prueba real, si el operador la hace, deja su recibo
       (clave, identificador del proveedor o `Message-ID`, estado `aceptado`, hora, destinatario y huella) en la
       evidencia de esta tarea.
+      Hecho en esta entrega (CIERRES-17-11, 4d): tests/test_correo_proveedores.py, tests/test_correo_envios.py y tests/test_correo_web.py en verde con el simulado (la prueba real es opcional del operador); junto con las demás candidatas, 424 passed sin omitidas (D:/csg/INTEGRA_54/cierre_tareas/hechas_r3.log).
 - [x] T13. Validación: cada RF citado por al menos una prueba y en verde, con la tabla RF → pruebas en `plan.md`
       («Trazabilidad (T13)»); la prueba con el simulado no acredita la integración real, que acredita la prueba
       opcional de T12. (Todos)

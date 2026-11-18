@@ -1,6 +1,6 @@
 # Spec 110 — Envío de informes por correo (Gmail y Outlook) desde la web
 
-Estado: aprobada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-26, y orden del usuario del 2026-11-14:
+Estado: cumplida (2026-11-17: todas sus tareas cerradas; T12 con el simulado, CIERRES-17-11); antes aprobada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-26, y orden del usuario del 2026-11-14:
 «haz nuevos spec». G0: `D:/csg/G0_PLAN_MAESTRO/E/E_FILAS_BP.md` (BP-26: no existe).
 
 ## Contexto y objetivo
