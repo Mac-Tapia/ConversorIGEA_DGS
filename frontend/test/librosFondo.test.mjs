@@ -115,6 +115,18 @@ test('104:RF-20 las novedades de los libros van en 2.1, junto a los libros, y no
   assert.deepEqual(resumenDeAvisos([]), { alertas: 0, informativos: 0 });
 });
 
+test('104:RF-20 sin proyecto elegido, las novedades se ven en «Cargas en DIgSILENT»; con proyecto, una sola y en 2.1', () => {
+  // Los libros son del espacio, no del proyecto de DIgSILENT (la e2e F10 no podía verlas sin DIgSILENT).
+  const cargas = readFileSync(new URL('../src/features/powerfactory/CargasTab.tsx', import.meta.url), 'utf8');
+  assert.match(cargas, /\{!current \? <>[\s\S]*?\{!modulo && <AvisosLibros \/>\}[\s\S]*?<\/> : <>/,
+    'sin proyecto, la pestaña no enseña las novedades de los libros');
+  assert.equal((cargas.match(/<AvisosLibros\b/g) ?? []).length, 1, 'la pestaña pinta las novedades más de una vez');
+  // Con proyecto, la rama de «current» pinta DemandaMedida, que lleva la suya en 2.1 (y solo una).
+  const demanda = readFileSync(new URL('../src/features/powerfactory/DemandaMedida.tsx', import.meta.url), 'utf8');
+  assert.equal((demanda.match(/<AvisosLibros\b/g) ?? []).length, 1);
+  assert.match(cargas, /: <>[\s\S]*<DemandaMedida project=\{project\}/);
+});
+
 test('104:RF-20 cada aviso en una línea y por tipo: los largos dejan su detalle aparte', async () => {
   const { agruparAvisos, resumirAviso } = await cargar();
   const largo = '0226clientesImportantes.xlsb: queda fuera del dataset del pronóstico: '

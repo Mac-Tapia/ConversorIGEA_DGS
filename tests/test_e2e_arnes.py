@@ -239,3 +239,16 @@ def test_086_rf21_la_revision_en_navegador_de_los_marcos_enmarca_dentro_y_niega_
     texto = ruta.read_text(encoding='utf-8')
     for pieza in ('/plano/pagina', '/files/', 'OTRO_ORIGEN', 'toBe(0)', 'toBeGreaterThan(0)', "from './sin_red'"):
         assert pieza in texto, f'marcos.spec.ts sin «{pieza}»'
+
+
+def test_104_rf1_el_recorrido_de_libros_nuevos_tiene_su_web_con_la_vigilancia_encendida():
+    """104:RF-1, RF-20, RF-23 (104 T6) — F10 ve el libro nuevo reconocido sin pulsar nada en una web propia con
+    `CSG_LIBROS_NUEVOS=1` y un intervalo corto, con libros sintéticos."""
+    f10 = E2E_PRUEBA / 'f10_libros_nuevos.e2e.mjs'
+    assert f10.is_file(), 'falta test/e2e/f10_libros_nuevos.e2e.mjs (104 T6)'
+    texto = f10.read_text(encoding='utf-8')
+    assert 'Llegó octubre 2026 de clientes importantes' in texto and "toBe('al_dia')" in texto
+    assert 'e2e_libros_sinteticos.py' in texto and (RAIZ / 'tests' / 'e2e_libros_sinteticos.py').is_file()
+    config = (E2E_PRUEBA / 'playwright.config.mjs').read_text(encoding='utf-8')
+    assert "CSG_LIBROS_NUEVOS: '1'" in config and 'CSG_LIBROS_INTERVALO_MIN' in config, 'sin la web con la vigilancia'
+    assert 'puertoLibrosE2E' in (E2E_PRUEBA / 'entorno.mjs').read_text(encoding='utf-8')

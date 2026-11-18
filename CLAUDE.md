@@ -131,7 +131,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 101 La calibración cambia sola los transformadores que impiden converger | cumplida |  |
   | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | falta T12, T13, T14, T15, T16, T17, T20 |
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
-  | 104 Los libros nuevos de demanda se reconocen solos | aprobada | falta T6 |
+  | 104 Los libros nuevos de demanda se reconocen solos | cumplida |  |
   | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |
   | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | aprobada | falta T2 |
   | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | aprobada | falta T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30 |

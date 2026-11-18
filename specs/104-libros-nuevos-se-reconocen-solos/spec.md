@@ -1,6 +1,6 @@
 # Spec 104 — Los libros nuevos de demanda se reconocen solos
 
-Estado: aprobada · Fecha: 2026-11-12 · Origen: usuario, 2026-11-12, al añadir el libro de clientes importantes de octubre
+Estado: cumplida (2026-11-18: T1 a T11 cerradas; T6 con el recorrido e2e F10 en la web arrancada, sin pulsar nada) · aprobada (2026-11-12) · Fecha: 2026-11-12 · Origen: usuario, 2026-11-12, al añadir el libro de clientes importantes de octubre
 de 2026: «todo lo has hecho tú; el conversor debe hacerlo de forma automática, reconocerlo». Coordinador, el mismo día:
 el libro de abril de 2026 repite los valores de marzo y nadie lo detectó.
 
@@ -72,7 +72,10 @@ El operador de la web, que deja libros en las carpetas de demanda de su espacio;
 ### Avisar
 
 - RF-20: EL SISTEMA dejará el resultado de cada libro en el registro del espacio y en un aviso visible del espacio, en
-  «Novedades de los libros» de 2.1, junto a los libros y no en la cabecera de la página (usuario, 2026-11-13), con la
+  «Novedades de los libros» de 2.1, junto a los libros y no en la cabecera de la página (usuario, 2026-11-13); y, como
+  los libros son del espacio y no del proyecto de DIgSILENT, sin proyecto elegido el mismo panel sale en la pestaña
+  «Cargas en DIgSILENT», en su paso 2, y nunca dos a la vez (aclaración del 2026-11-18: la e2e F10 no podía verlo sin
+  DIgSILENT), con la
   forma «Llegó octubre 2026 de clientes importantes: 280 clientes, completo (31 días), 2 nuevos sin suministro: …; falta
   el libro de suministros de octubre», y el de un mes repetido con la forma «Abril 2026 de clientes importantes repite los
   valores de marzo 2026: pida el libro correcto; mientras, abril no se usa para la máxima ni para el pronóstico».

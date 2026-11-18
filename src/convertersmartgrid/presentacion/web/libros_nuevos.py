@@ -350,9 +350,10 @@ class VigilanciaLibros:
             return
         self._modificar(ws, lambda e: e.setdefault('fotos', {}).update(bases))
         for tipo, foto in bases.items():
+            # 104:RF-34; el registro lo lee el operador, sin la cita (070:RF-51; la cazó F10 en la e2e de 104-T6).
             ws.events.append('log', {'text': f'Libros de {ETIQUETAS[tipo]}: {len(foto)} tomados como base, sin '
                                               'abrirlos; se verificarán los que lleguen o cambien. «Verificar todos '
-                                              'ahora» los revisa a mano (104:RF-34).'})
+                                              'ahora» los revisa a mano.'})
 
     def revisar(self, ws, *, todos: bool = False, leer: bool = True) -> bool:
         """Compara y, si hay algo que reconocer, lo pide al carril de fondo; devuelve si lo pidió (RF-3, RF-30).
@@ -732,7 +733,7 @@ class VigilanciaLibros:
             self._lanzando.add(wid)          # RF-43: mientras arranca el proceso, el «regenerando» es de esta web
         self._modificar(ws, lambda e: e.setdefault('dataset', {}).update(estado='regenerando', inicio=self.ahora()))
         ws.events.append('log', {'text': 'Regenerando el dataset del pronóstico con los libros nuevos, en segundo '
-                                         'plano y sin entrenar; se detiene si lanza un trabajo (104:RF-36, RF-37)…'})
+                                         'plano y sin entrenar; se detiene si lanza un trabajo…'})   # 104:RF-36, RF-37
         self._publicar(ws)
         try:
             if not self.en_fondo:
@@ -783,7 +784,7 @@ class VigilanciaLibros:
             if ws is None:
                 continue
             ws.events.append('log', {'text': 'Se detuvo la regeneración del dataset del pronóstico: lanzó un trabajo. '
-                                             f'Se rehará tras {reposo_min():g} min sin trabajos (104:RF-37).'})
+                                             f'Se rehará tras {reposo_min():g} min sin trabajos.'})   # 104:RF-37
             self._publicar(ws)
 
     def _avisos_libros_del_dataset(self, ws, resumen: dict, estado: dict) -> list[dict]:
@@ -795,7 +796,7 @@ class VigilanciaLibros:
         abiertos = {a.get('texto') for a in estado.get('avisos') or [] if not a.get('visto')}
         avisos: list[dict] = []
         for x in resumen.get('libros_apartados') or []:
-            texto = f"{x['libro']}: queda fuera del dataset del pronóstico: {x['motivo']} (104:RF-47)."
+            texto = f"{x['libro']}: queda fuera del dataset del pronóstico: {x['motivo']}."   # 104:RF-47
             if texto not in abiertos:
                 self._avisar(ws, avisos, 'apartado', texto, libro=x['libro'])
         from ...aplicacion.demanda_medida import huella_de_aviso
@@ -903,13 +904,12 @@ class VigilanciaLibros:
                             if isinstance(inicio, (int, float)) else '')
                 avisos: list[dict] = []
                 self._avisar(ws, avisos, 'dataset', f'La regeneración del dataset del pronóstico{empezada} quedó '
-                                                    f'interrumpida: {motivo}; {sigue}. No se entrenó ningún modelo '
-                                                    '(104:RF-44).')
+                                                    f'interrumpida: {motivo}; {sigue}. No se entrenó ningún modelo.')   # 104:RF-44
                 self._anadir_avisos(ws, e, avisos)
             except Exception:  # noqa: BLE001 - el estado ya cambió; la traza va al Registro y queda un aviso genérico
                 log.exception('aviso de la interrupción del dataset de %s', ws.id)
                 self._aviso_generico(e, f'La regeneración del dataset del pronóstico quedó interrumpida: {motivo}; '
-                                        f'{sigue} (104:RF-44).')
+                                        f'{sigue}.')   # 104:RF-44
         self._modificar(ws, poner)
         # RF-39: el estado cambió siempre (aunque el aviso ya existiera): la web tiene que repintar.
         self._publicar(ws)
@@ -936,11 +936,11 @@ class VigilanciaLibros:
             except Exception:  # noqa: BLE001 - el estado ya cambió; la traza va al Registro y queda un aviso genérico
                 log.exception('avisos de los libros del dataset de %s', ws.id)
                 self._aviso_generico(e, 'El dataset del pronóstico se regeneró, pero no se pudieron preparar los avisos '
-                                        'de sus libros: el detalle está en el Registro (104:RF-47).')
+                                        'de sus libros: el detalle está en el Registro.')   # 104:RF-47
         self._modificar(ws, poner)
         texto = (f'El dataset del pronóstico no se pudo regenerar: {error}.' if error else
                  f"Dataset del pronóstico regenerado ({resumen['huella'][:12]}): {resumen['objetivos']} series, "
-                 f"{resumen['apartados']} apartadas; no se entrenó ningún modelo (104:RF-23).")
+                 f"{resumen['apartados']} apartadas; no se entrenó ningún modelo.")   # 104:RF-23
         ws.events.append('log', {'text': texto})
         self._publicar(ws)
 

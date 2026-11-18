@@ -13,6 +13,7 @@ import type {
   VerificarInforme, VerificarResultado,
 } from '../../api/types';
 import { estadoVinculoProyecto, textoCausaVinculo, usoDeLaFuente } from '../../shared/projectBinding';
+import { AvisosLibros } from './AvisosLibros';
 import { DemandaMedida } from './DemandaMedida';
 import { DeshacerLotes } from './DeshacerLotes';
 import { EstudiosPF } from './EstudiosPF';
@@ -576,7 +577,12 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
       <div className="step-box" id={pref + DESTINO.calibracion} tabIndex={-1}>
         <h3>2 · Alimentadores y calibración{current ? ` de ${current.name}` : ''}</h3>
         <AvisosTrabajo paso="pf-calibracion" />
-        {!current ? <p className="muted">Elija un proyecto en el paso 1.</p> : <>
+        {!current ? <>
+          <p className="muted">Elija un proyecto en el paso 1.</p>
+          {/* 104:RF-20: los libros son del espacio, no del proyecto: sin proyecto elegido, sus novedades se ven aquí, en
+              «Cargas en DIgSILENT»; con proyecto, en «2.1 · Libros de medición» (DemandaMedida). Nunca las dos. */}
+          {!modulo && <AvisosLibros />}
+        </> : <>
           <Ayuda>Se calibran y se integran los alimentadores marcados, en el orden en que se marcan. El instante de
             la máxima lo decide el tipo de análisis que se elija abajo: alimentadores, SET o sistema eléctrico.</Ayuda>
           <div className="toolbar">

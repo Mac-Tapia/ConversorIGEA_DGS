@@ -150,6 +150,28 @@ def test_la_web_dice_los_metodos_en_el_texto(tmp_path, monkeypatch):
     assert 'BM25' not in r['texto']
 
 
+def test_sin_modelo_que_redacte_el_texto_no_repite_las_fuentes_con_sus_requisitos(tmp_path, monkeypatch):
+    """070:RF-51 (18-11, F04 de la e2e de 104-T6) — sin modelo que redacte, la respuesta eran los trozos literales de
+    las fuentes, con «RF-n» a la vista del operador. Las fuentes van en ``citas`` (la web las marca como procedencia);
+    el ``texto`` dice que no hay modelo y no las repite ni cita requisitos."""
+    import re
+
+    repo = _repo(tmp_path)
+    (repo / 'specs' / '022-barras').mkdir(parents=True)
+    (repo / 'specs' / '022-barras' / 'spec.md').write_text(
+        '- RF-52: CUANDO el operador calibra la barra sin medidor, EL SISTEMA repartirá la medida de la barra.\n',
+        encoding='utf-8')
+    monkeypatch.setattr(services, 'project_root', lambda: repo)
+    monkeypatch.setattr('convertersmartgrid.aplicacion.asistente.ollama.cliente_configurado',
+                        lambda: SimpleNamespace(modelos=lambda: None))
+    monkeypatch.setattr(reranker, 'politica', lambda: {'hibrido': True, 'modelo': None, 'revision': None, 'motivo': ''})
+    monkeypatch.setattr(reranker, 'abstencion', lambda: indice.Abstencion(calibrada=True, umbral_bm25_solo=2.0))
+    r = services.asistente_pregunta('¿cómo se calibra la barra sin medidor?')
+    assert r['sabe'] and r['citas'], r
+    assert not re.search(r'RF-\d|\[\d+\]', r['texto']), r['texto']
+    assert r['texto'].startswith('No hay un modelo de lenguaje que redacte la respuesta'), r['texto']
+
+
 # ------------------------------------------------------------------- vectores en trabajo
 def test_la_pregunta_no_calcula_los_vectores_del_corpus(tmp_path):
     """047:RF-23 — responder pide como mucho el vector de la consulta, y con índice sin vectores, ninguno."""

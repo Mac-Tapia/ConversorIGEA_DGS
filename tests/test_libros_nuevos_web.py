@@ -854,3 +854,21 @@ def test_104_si_falla_el_aviso_el_estado_se_guarda_igual_con_un_aviso_generico(a
     assert estado['dataset']['estado'] == esperado, estado['dataset']
     assert [a for a in estado.get('avisos') or [] if a.get('tipo') == tipo], estado.get('avisos')
     assert any(r.levelno >= logging.ERROR and r.exc_info for r in caplog.records), caplog.records
+
+
+def test_104_los_mensajes_que_lee_el_operador_no_citan_requisitos():
+    """104:RF-20 y 070:RF-51 (18-11, F10 de la e2e de 104-T6): los avisos y las líneas del Registro de los libros nuevos
+    los lee el operador; ninguno cita requisitos («(104:RF-36, RF-37)»). La cita va en el comentario del código. Se mira
+    cada literal de libros_nuevos.py que no es docstring."""
+    import ast
+    import re
+
+    ruta = Path(__file__).resolve().parents[1] / 'src' / 'convertersmartgrid' / 'presentacion' / 'web' / 'libros_nuevos.py'
+    arbol = ast.parse(ruta.read_text(encoding='utf-8'))
+    docs = {id(n.body[0].value) for n in ast.walk(arbol)
+            if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and n.body
+            and isinstance(n.body[0], ast.Expr) and isinstance(n.body[0].value, ast.Constant)}
+    citas = [(n.lineno, n.value[:80]) for n in ast.walk(arbol)
+             if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in docs
+             and re.search(r'\b\d{3}:RF|RF-\d', n.value)]
+    assert citas == [], f'mensajes al operador con citas de requisitos: {citas}'

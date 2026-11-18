@@ -13715,7 +13715,14 @@ def asistente_pregunta(texto: str, *, espacio: str | None = None, plan: str | No
     notas = [f'Solo se lee lo público, lectura restringida: {aviso}'] if aviso and not es_local else []
     if 'no es lo vigente' in r['recuperacion']:
         notas.append('Solo hay documentos históricos: no es lo vigente.')                 # 077:RF-8
-    return {'texto': '\n\n'.join([sin_citas(r['respuesta']), *notas]), 'citas': r['citas'], 'sabe': r['sabe'],
+    respuesta = r['respuesta']
+    if r.get('sabe') and r.get('citas') and r.get('redactada_por') is None:
+        # 070:RF-51 (18-11, F04 de la e2e de 104-T6): sin modelo que redacte, la respuesta eran los trozos literales de
+        # las fuentes («[1] 022-… RF-52: …»), con sus requisitos a la vista. Esos trozos ya van en «Fuentes citadas»,
+        # marcados como procedencia: el texto que lee el operador lo dice sin repetirlos.
+        respuesta = ('No hay un modelo de lenguaje que redacte la respuesta: estas son las fuentes que lo tratan, por '
+                     'orden de pertinencia.')
+    return {'texto': '\n\n'.join([sin_citas(respuesta), *notas]), 'citas': r['citas'], 'sabe': r['sabe'],
             'metodos': r['metodos'], 'recuperacion': r['recuperacion'], 'corpus': servir['corpus']}
 
 

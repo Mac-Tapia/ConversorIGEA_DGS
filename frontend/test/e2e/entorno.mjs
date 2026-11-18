@@ -26,6 +26,18 @@ export function puertoNubeE2E() {
   return puerto;
 }
 
+/** 104 T6: la web con la vigilancia de libros nuevos encendida va dos puertos más allá, nunca en el del operador. */
+export function puertoLibrosE2E() {
+  const puerto = puertoE2E() + 2;
+  if (puerto === PUERTO_OPERADOR || puerto > 65535) throw new Error(`No hay un puerto libre junto al ${puertoE2E()}.`);
+  return puerto;
+}
+
+/** Sus espacios y sesiones, aparte de los de las otras dos webs. */
+export function carpetaLibrosE2E() {
+  return process.env.CSG_E2E_DIR ? `${process.env.CSG_E2E_DIR}-libros` : join(tmpdir(), `csg-e2e-libros-${puertoLibrosE2E()}`);
+}
+
 /** Sus espacios y sesiones, aparte de los de la web de los demás recorridos. */
 export function carpetaNubeE2E() {
   return process.env.CSG_E2E_DIR ? `${process.env.CSG_E2E_DIR}-nube` : join(tmpdir(), `csg-e2e-nube-${puertoNubeE2E()}`);

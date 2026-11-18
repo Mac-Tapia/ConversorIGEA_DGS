@@ -17,10 +17,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T5. Aviso en la web, contrato de la API e índices del repositorio. (RF-20, RF-21)
       Hecho cuando: `npm run lint`, `npx tsc --noEmit -p .`, `npm test`, `npm run build`,
       `tools/generar_contrato_api.py --check` y `tests/test_inventario.py` en verde.
-- [ ] T6. Con la web real arrancada por el operador, el libro nuevo aparece reconocido en el aviso del espacio sin pulsar
+- [x] T6. Con la web real arrancada por el operador, el libro nuevo aparece reconocido en el aviso del espacio sin pulsar
       nada, y el dataset del espacio se regenera con los libros reales. (RF-1, RF-20, RF-23)
       Hecho cuando: se ve en el navegador real. La comprobación con los libros reales por la vía de la web, sin navegador
       ni servidor, se hizo el 2026-11-12 (cifras en el informe de la tarea, fuera de git).
+      Hecho en la fila 104-T6 (f7, 17-11): `frontend/test/e2e/f10_libros_nuevos.e2e.mjs` en Edge, con su web con la vigilancia
+      encendida (CSG_LIBROS_NUEVOS=1 e intervalo corto): el libro de octubre que llega a la carpeta del espacio sale
+      reconocido en «Novedades de los libros» sin pulsar nada, y el dataset del espacio se regenera solo (al_dia, con el
+      libro nuevo). Libros sintéticos de tests/e2e_libros_sinteticos.py; la vía de la web con los libros reales, el 2026-11-12.
 - [x] T7. Carril de fondo que cede al operador: sin la cola del motor, proceso de prioridad baja que se termina al ceder,
       foto base sin abrir libros, «Verificar todos ahora», dataset solo en reposo y aviso que se relee. (RF-30 a RF-39)
       Hecho cuando: `tests/test_libros_nuevos_web.py -k "fondo or base or ceder or reposo or verificar_todos"` y

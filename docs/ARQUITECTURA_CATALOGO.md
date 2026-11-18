@@ -12,19 +12,19 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 126 |
 | Interfaz | `frontend/src/` | 112 |
-| Pruebas de la interfaz | `frontend/test/` | 52 |
-| Pruebas | `tests/` | 590 |
+| Pruebas de la interfaz | `frontend/test/` | 53 |
+| Pruebas | `tests/` | 591 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 13995 líneas y 435 funciones, pendiente de partir (002).
+`web/services.py` tiene 14002 líneas y 435 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 83 |
-| aprobada | 22 |
+| cumplida | 84 |
+| aprobada | 21 |
 | implementada | 6 |
 | retirada | 1 |
 
@@ -1142,6 +1142,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/e2e/f04_asistente.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/f05_selector_unico.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/f06_vad_linea.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/f10_libros_nuevos.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/playwright.config.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/sin_omitidas.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/teclado.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

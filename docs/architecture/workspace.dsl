@@ -106,7 +106,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Interfaz: asistente"
                     }
                 }
-                cmpInterfazPruebas = component "Pruebas de la interfaz" "Pruebas sin navegador de las pestañas y de la lógica (40 ficheros)." "Node test runner" {
+                cmpInterfazPruebas = component "Pruebas de la interfaz" "Pruebas sin navegador de las pestañas y de la lógica (41 ficheros)." "Node test runner" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/test"
                     tags "Web"
                     properties {

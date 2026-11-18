@@ -17,7 +17,8 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { carpetaNubeE2E, evidenciaDe, puertoE2E, puertoNubeE2E, pythonServidor } from './entorno.mjs';
+import { carpetaLibrosE2E, carpetaNubeE2E, evidenciaDe, puertoE2E, puertoLibrosE2E, puertoNubeE2E,
+  pythonServidor } from './entorno.mjs';
 
 const FRONT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const RAIZ = resolve(FRONT, '..');
@@ -27,6 +28,9 @@ mkdirSync(join(carpeta, 'sesiones'), { recursive: true });
 const puertoNube = puertoNubeE2E();
 const carpetaNube = carpetaNubeE2E();
 mkdirSync(join(carpetaNube, 'sesiones'), { recursive: true });
+const puertoLibros = puertoLibrosE2E();
+const carpetaLibros = carpetaLibrosE2E();
+mkdirSync(join(carpetaLibros, 'sesiones'), { recursive: true });
 
 /** El python del servidor (entorno.mjs): el del checkout o, en un worktree sin .venv, el del checkout primario. */
 const python = () => pythonServidor(RAIZ);
@@ -64,10 +68,13 @@ export default defineConfig({
   webServer: [servidor(`-m convertersmartgrid.presentacion.web`, puerto, carpeta),
     // 109 T19: la misma web con la nube simulada (tests/e2e_web_nube_simulada.py), en el puerto siguiente y con sus
     // propias carpetas, para el recorrido del selector único (f05). Los demás recorridos no la usan.
-    servidor(`"${join(RAIZ, 'tests', 'e2e_web_nube_simulada.py')}"`, puertoNube, carpetaNube)],
+    servidor(`"${join(RAIZ, 'tests', 'e2e_web_nube_simulada.py')}"`, puertoNube, carpetaNube),
+    // 104 T6: la misma web con la vigilancia de libros nuevos encendida y un intervalo corto, para el recorrido F10.
+    servidor(`-m convertersmartgrid.presentacion.web`, puertoLibros, carpetaLibros,
+      { CSG_LIBROS_NUEVOS: '1', CSG_LIBROS_INTERVALO_MIN: '0.05', CSG_DATASET_REPOSO_MIN: '0' })],
 });
 
-function servidor(programa, puertoDe, carpetaDe) {
+function servidor(programa, puertoDe, carpetaDe, extra = {}) {
   return {
     command: `"${python()}" ${programa} --host 127.0.0.1 --port ${puertoDe} --no-browser`,
     cwd: RAIZ,
@@ -93,6 +100,7 @@ function servidor(programa, puertoDe, carpetaDe) {
       CSG_WEB_RELANZAR: '0',
       CSG_LIBROS_NUEVOS: '0',
       CSG_ASISTENTE_VECTORES: '0',
+      ...extra,
     },
   };
 }
