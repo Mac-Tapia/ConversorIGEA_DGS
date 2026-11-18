@@ -96,3 +96,9 @@ van después de T7. T11 reordena `frontend/src` y pide probar la web en el naveg
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q -rfs tests/test_contrato_api.py -k rf38` en verde y
       `python tools/rutas_sin_modelo.py --help` sale con 0.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_contrato_api.py -k rf38.
+- [x] T14. Los guiones de `tools/` que nombran las pruebas y la aplicación existen: `tests/test_guiones_de_tools_existen.py`
+      lee, sin ejecutar nada, cada `cargar_herramienta('x.py')`, `spec_from_file_location(… 'tools' / 'x.py')`, `_script`,
+      `guion_pf`/`_guion_pf` y las listas del arnés, y exige el fichero; un sembrado prueba que no es ciego. (RF-39)
+      Hecho cuando: falla por aserción sobre b0f95bdc (CAPAS-002 v5 superada: 81 cargas de pruebas y 25 guiones de la
+      aplicación sin fichero) y pasa sobre 8d42bc30, con `test_capas`, `test_inventario` y `test_trazabilidad_specs` en verde.
+      Hecho en la fila RUTAS-TOOLS (f7, 17-11); evidencias en D:/csg/PM_IMPL/RUTAS_TOOLS.

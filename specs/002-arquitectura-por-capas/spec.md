@@ -154,6 +154,10 @@ Compatibilidad
   usarán las nuevas.
 - RF-22: EL SISTEMA mantendrá los comandos `convertersmartgrid`, `convertersmartgrid-web` y `vnr-etl` con
   los mismos argumentos (`vnr-etl-web` lo retira la spec 001).
+- RF-39: (amplía RF-21) EL SISTEMA comprobará que cada guion de `tools/` que nombran las pruebas
+  (`cargar_herramienta`, `spec_from_file_location`) y la aplicación (`_script`, `guion_pf` y las listas de guiones del
+  arnés de DIgSILENT) existe en `tools/`; SI uno no existe, ENTONCES la prueba fallará con la lista de los que faltan
+  (CAPAS-002 v5, 17-11: 116 nombres de guiones reescritos como módulos de su capa).
 
 ## Requisitos no funcionales
 
