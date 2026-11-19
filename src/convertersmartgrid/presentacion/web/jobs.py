@@ -89,6 +89,8 @@ TIEMPO_AGOTADO = 124
 #: DIgSILENT ya ha dado el usuario (spec 005, RF-21). El arranque normal medido el
 #: 2026-10-14 fue de unos 20 s; el margen cubre un equipo frío o la licencia lenta.
 LIMITE_ARRANQUE_PF_S = 180.0
+#: 086:RF-116: la línea con que ``pf_arnes.conectar`` dice que DIgSILENT ya respondió (también dentro del servidor).
+MARCA_CONECTADO_PF = 'Conectado a DIgSILENT'
 
 
 class MemoriaExcedida(RuntimeError):
@@ -474,11 +476,19 @@ class JobContext:
             raise
         self.anotar_proceso(proc.pid)
         primera_linea = threading.Event()
+        # 086:RF-116: un guion de PowerFactory está «arrancado» cuando conecta, no con su primer aviso. El 19-11,
+        # «Turno de DIgSILENT liberado: …» desarmó el límite y la importación se quedó 30 min callada sin cortarse.
+        # Hasta conectar, cada línea solo reinicia el plazo: esperar turno avisando (019:RF-2) sigue valiendo.
+        conectado = threading.Event()
+        ultima_linea = [time.monotonic()]
 
         def pump() -> None:
             assert proc.stdout is not None
             for line in proc.stdout:
+                ultima_linea[0] = time.monotonic()
                 primera_linea.set()
+                if not es_pf or MARCA_CONECTADO_PF in line:
+                    conectado.set()
                 self.log(line.rstrip('\r\n'))
 
         reader = threading.Thread(target=pump, daemon=True)
@@ -487,12 +497,21 @@ class JobContext:
         inicio = time.monotonic()
         while proc.poll() is None:
             transcurrido = time.monotonic() - inicio
-            sin_arrancar = (limite_arranque_s is not None and not primera_linea.is_set()
-                            and transcurrido > limite_arranque_s)
+            if es_pf:
+                callado = time.monotonic() - ultima_linea[0]
+                sin_arrancar = (limite_arranque_s is not None and not conectado.is_set()
+                                and callado > limite_arranque_s)
+            else:
+                sin_arrancar = (limite_arranque_s is not None and not primera_linea.is_set()
+                                and transcurrido > limite_arranque_s)
             if sin_arrancar or (limite_s is not None and transcurrido > limite_s):
-                self.log(f'El guion no escribió nada en {limite_arranque_s:g} s: se termina.'
-                         if sin_arrancar else
-                         f'El guion pasó su límite de {limite_s:g} s: se termina.')
+                if sin_arrancar and es_pf and primera_linea.is_set():
+                    self.log(f'El guion no escribió nada en {limite_arranque_s:g} s sin haber conectado a '
+                             'DIgSILENT: se termina.')
+                else:
+                    self.log(f'El guion no escribió nada en {limite_arranque_s:g} s: se termina.'
+                             if sin_arrancar else
+                             f'El guion pasó su límite de {limite_s:g} s: se termina.')
                 cortar()
                 reader.join(timeout=5)
                 if es_pf and sin_arrancar:
@@ -520,7 +539,7 @@ class JobContext:
             # alimentador: con el fichero de cancelación esperaría a que conecte, y si
             # está colgado en la conexión, el botón Cancelar no haría nada.
             if (self.job.cancel.is_set() and cancel_file is not None
-                    and primera_linea.is_set()):
+                    and conectado.is_set()):
                 if not avisado:
                     Path(cancel_file).parent.mkdir(parents=True, exist_ok=True)
                     Path(cancel_file).write_text('cancelar\n', encoding='utf-8')

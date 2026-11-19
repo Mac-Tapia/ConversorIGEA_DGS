@@ -466,6 +466,16 @@ mientras los demás casos pasaban a 1,0278.
   número hasta el que se perdieron) a los que conserva, por la consulta y por el WebSocket; un historial completo no
   lo lleva. La pestaña lo dice en el Registro en una línea, sin citar requisitos, y relee del servidor el espacio y sus
   trabajos sin duplicarlos.
+- RF-116: (prueba funcional del 19-11) CUANDO un guion de PowerFactory aún no haya escrito la marca de conexión
+  («Conectado a DIgSILENT», de pf_arnes.conectar, también dentro del servidor), EL SISTEMA lo terminará si pasa el
+  límite de arranque (005:RF-21) sin escribir nada desde su última línea, y lo reintentará una vez como a uno mudo;
+  sus avisos previos (turno liberado, espera de turno) reinician el plazo pero ya no dan el guion por arrancado. Con
+  fichero de cancelación, un guion que aún no conectó se termina al cancelar. Ya conectado, nada cambia; los guiones
+  que no son de PowerFactory siguen con la primera línea.
+- RF-117: (CI del 19-11, e2e F03; amplía 024:RF-9, cumplida) CUANDO varias aperturas a la vez del búfer de episodios
+  del gemelo lo encuentren sin índice válido, EL SISTEMA lo rehará una sola vez por proceso (cerrojo por carpeta,
+  comprobando de nuevo dentro), con un temporal propio por llamada, y si otro proceso ya dejó un índice válido lo
+  aceptará en vez de fallar; ninguna apertura falla por el bloqueo de ficheros de Windows y no quedan temporales.
 
 ## Fuera de alcance
 

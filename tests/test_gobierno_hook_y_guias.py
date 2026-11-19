@@ -59,14 +59,21 @@ def test_102_rf34_el_hook_deja_pasar_lo_correcto_y_lo_que_no_es_del_proyecto(tmp
     assert _hook(datos, proyecto) == 0
 
 
+#: Salidas del build, no versionadas: la suite de la CI corre sin construir el frontend (CI del 19-11, 1 F en 11549).
+#: Valen si su orden de build existe; cualquier otra ruta inexistente sigue siendo un fallo.
+GENERADAS_POR_EL_BUILD = {'frontend/dist': ('frontend/package.json', '"build"')}
+
+
 def test_102_rf34_las_skills_citan_rutas_que_existen():
+    for _ruta, (fichero, orden) in GENERADAS_POR_EL_BUILD.items():
+        assert orden in (RAIZ / fichero).read_text(encoding='utf-8'), f'{fichero} sin la orden {orden}'
     citas = []
     for skill in sorted((RAIZ / '.claude' / 'skills').glob('*/SKILL.md')):
         for ruta in re.findall(r'(?:src|frontend|tools|tests|docs|specs)/[A-Za-z0-9_./-]+', skill.read_text(encoding='utf-8')):
             ruta = ruta.rstrip('.,/')
             if any(c in ruta for c in '*<>') or 'NNN' in ruta or not ruta:   # comodines y plantillas («specs/NNN-…»)
                 continue
-            if not (RAIZ / ruta).exists():
+            if not (RAIZ / ruta).exists() and ruta not in GENERADAS_POR_EL_BUILD:
                 citas.append(f'{skill.parent.name}: {ruta}')
     assert not citas, f'102:RF-34: las skills llevan a rutas que no existen: {citas}'
 

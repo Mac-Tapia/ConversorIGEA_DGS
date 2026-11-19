@@ -13,6 +13,9 @@ import json
 import os
 import re
 import sqlite3
+import threading
+import time
+import uuid
 from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
@@ -64,13 +67,27 @@ def _texto(episodio: Episodio) -> str:
 
 
 
+#: 086:RF-117: un cerrojo por carpeta del búfer, para que las aperturas a la vez de un mismo proceso rehagan el índice
+#: una sola vez (CI del 19-11: «WinError 32 … episodios.nuevo» en la e2e F03).
+_CERROJOS: dict[str, threading.Lock] = {}
+_CERROJOS_GUARDA = threading.Lock()
+
+
+def _cerrojo_de(raiz: Path) -> threading.Lock:
+    clave = os.path.normcase(str(raiz.resolve()))
+    with _CERROJOS_GUARDA:
+        return _CERROJOS.setdefault(clave, threading.Lock())
+
+
 class BuferEpisodios:
     def __init__(self, raiz: Path | str | None = None):
         self.raiz = Path(raiz) if raiz is not None else raiz_buffer()
         self.indice = self.raiz / 'episodios.sqlite3'
         (self.raiz / 'objetos').mkdir(parents=True, exist_ok=True)
         if not self._indice_valido():
-            self.reconstruir_indice()
+            with _cerrojo_de(self.raiz):
+                if not self._indice_valido():            # otro hilo pudo rehacerlo mientras se esperaba
+                    self.reconstruir_indice()
 
     # ------------------------------------------------------------------ objetos
 
@@ -174,8 +191,8 @@ class BuferEpisodios:
 
         Devuelve cuántos episodios quedaron indexados.
         """
-        nuevo = self.indice.with_suffix('.nuevo')
-        nuevo.unlink(missing_ok=True)
+        # 086:RF-117: un temporal propio por llamada; con uno común, otro proceso lo borraba o reemplazaba abierto.
+        nuevo = self.indice.with_name(f'{self.indice.stem}.{os.getpid()}.{uuid.uuid4().hex[:8]}.nuevo')
         cuarentena = self.raiz / 'cuarentena'
         n = 0
         with closing(sqlite3.connect(nuevo)) as con, con:
@@ -191,8 +208,19 @@ class BuferEpisodios:
                     continue
                 self._indexar(con, e, ruta)
                 n += 1
-        os.replace(nuevo, self.indice)
-        return n
+        for intento in range(20):
+            try:
+                os.replace(nuevo, self.indice)
+                return n
+            except PermissionError:
+                # 086:RF-117: en Windows el índice abierto por otro proceso no se reemplaza. Si ya es válido, otro
+                # proceso lo rehízo con los mismos objetos: vale el suyo; si no, se reintenta un momento.
+                if self._indice_valido():
+                    nuevo.unlink(missing_ok=True)
+                    return n
+                time.sleep(0.05 * (intento + 1))
+        nuevo.unlink(missing_ok=True)
+        raise PermissionError(f'No se pudo reemplazar el índice {self.indice}: lo tiene abierto otro proceso.')
 
     def consultar(self, consulta: Consulta) -> list[Episodio]:
         """Episodios que cumplen todos los filtros, por fecha y huella (RF-8)."""

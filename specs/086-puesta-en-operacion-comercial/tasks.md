@@ -380,3 +380,15 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
   Hecho cuando: `tests/test_eventos_truncados.py` (086:RF-115: buffer 2, cuatro eventos, cursor inicial y cursor al
   día) y `frontend/test/reconexion.test.mjs` (la línea y la relectura) en verde, con rojo previo por aserción.
   Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/c4/`.
+- [x] T86 ARRANQUE-HASTA-CONECTAR (prueba funcional del 19-11): `presentacion/web/jobs.py` `run_process` da por
+  arrancado un guion de PowerFactory solo con la marca de conexión y, hasta entonces, mide el silencio desde la última
+  línea. (RF-116)
+  Hecho cuando: `tests/test_pf_arranque_hasta_conectar.py` (086:RF-116: aviso de turno y silencio se corta y se
+  reintenta; espera de turno con avisos y conexión no se corta; ya conectado no se corta; cancelar sin conectar
+  termina) en verde, con rojo previo por aserción, y las pruebas de 005:RF-21 y del servidor de PowerFactory sin
+  regresión. Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/pfvigia/`.
+- [x] T87 BUFFER-CONCURRENTE (CI del 19-11): `adaptadores/digital_twin/buffer.py` rehace el índice bajo un cerrojo
+  por carpeta, con temporal propio y aceptando el índice válido de otro proceso. (RF-117)
+  Hecho cuando: `tests/test_buffer_indice_concurrente.py` (086:RF-117: 8 aperturas a la vez sin índice, seis vueltas,
+  ninguna falla, 12 episodios indexados, sin temporales) en verde, con rojo previo por aserción (7 de 8 con
+  PermissionError), y las pruebas del búfer y del gemelo sin regresión. Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/pfvigia/`.
