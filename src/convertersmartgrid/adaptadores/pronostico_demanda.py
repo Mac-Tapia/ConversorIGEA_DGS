@@ -1319,6 +1319,23 @@ def _deshacer_resto(objetivos, restos: Mapping[str, np.ndarray], hasta, futuro, 
     return salida
 
 
+def _lote_gru(datos, rng, contexto: int, horizonte: int, lote: int):
+    """Un lote de la GRU: ``x`` (contexto con covariables, los huecos a cero), ``y`` (el resto del horizonte, los huecos
+    a cero) y ``mascara`` (True donde el objetivo es un dato medido). Las mismas extracciones de ``rng`` que antes.
+
+    089:RF-115 (C10 del diagnóstico del 18-11, H17): antes la serie entera pasaba por ``nan_to_num`` y un objetivo
+    ausente entraba en la pérdida como un cero medido; con la máscara, no cuenta."""
+    x, y, m = [], [], []
+    for _i in range(lote):
+        r, c = datos[int(rng.integers(len(datos)))]
+        e = int(rng.integers(contexto, len(r) - horizonte))
+        x.append(np.c_[np.nan_to_num(r[e - contexto:e]), c[e - contexto:e]])
+        objetivo = np.asarray(r[e:e + horizonte], dtype=float)
+        m.append(~np.isnan(objetivo))
+        y.append(np.nan_to_num(objetivo))
+    return np.array(x), np.array(y), np.array(m)
+
+
 class ModeloGRU:
     """La GRU como referencia neuronal: un resto por paso del horizonte, en CUDA (089:RF-56, RF-62)."""
 
@@ -1350,22 +1367,22 @@ class ModeloGRU:
         torch = self.torch
         torch.manual_seed(semilla)
         rng = np.random.default_rng(semilla)
-        datos = [(np.nan_to_num(d[1]), _covariables(d[0], exogenas, hasta)) for o in objetivos
+        # 089:RF-115 (C10 del diagnóstico del 18-11, H17): la serie se guarda con sus huecos; el lote los pone a cero
+        # solo en la entrada y los enmascara en el objetivo, para que un hueco no entre en la pérdida como un dato.
+        datos = [(np.asarray(d[1], dtype=float), _covariables(d[0], exogenas, hasta)) for o in objetivos
                  if (d := _resto_normalizado(o, hasta, exogenas)) is not None and len(d[0]) > self.contexto + horizonte]
         if not datos:
             raise ValueError('ninguna serie llega al contexto más el horizonte')
         self.red = self._red(horizonte)
         optim = torch.optim.Adam(self.red.parameters(), lr=1e-3)
         for _ in range(self.pasos):
-            x, y = [], []
-            for _i in range(self.lote):
-                r, c = datos[int(rng.integers(len(datos)))]
-                e = int(rng.integers(self.contexto, len(r) - horizonte))
-                x.append(np.c_[r[e - self.contexto:e], c[e - self.contexto:e]])
-                y.append(r[e:e + horizonte])
+            x, y, mascara = _lote_gru(datos, rng, self.contexto, horizonte, self.lote)
+            if not mascara.any():
+                continue                                   # un lote sin ningún objetivo medido no enseña nada
             optim.zero_grad()
-            error = self.red(torch.tensor(np.array(x), dtype=torch.float32, device=self.disp)) - torch.tensor(np.array(y), dtype=torch.float32, device=self.disp)
-            error.abs().mean().backward()
+            valida = torch.tensor(mascara, dtype=torch.float32, device=self.disp)
+            error = self.red(torch.tensor(x, dtype=torch.float32, device=self.disp)) - torch.tensor(y, dtype=torch.float32, device=self.disp)
+            ((error.abs() * valida).sum() / valida.sum()).backward()
             optim.step()
 
     def predecir_todos(self, objetivos, hasta, horizonte, exogenas):

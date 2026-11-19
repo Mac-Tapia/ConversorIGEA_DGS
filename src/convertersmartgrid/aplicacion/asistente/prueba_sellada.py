@@ -17,7 +17,7 @@ import random
 
 from ..evaluacion_modelos import huella, texto_canonico
 from .sinteticos import expandir
-from .tareas import TAREAS, TAREAS_107_112
+from .tareas import TAREAS, TAREAS_SIN_SELLADA_070_079
 
 POR_FRASE = 8
 RUIDO = .06
@@ -136,7 +136,7 @@ FRASES: dict[str, tuple[str, ...]] = {
 def filas() -> list[dict]:
     """Las filas de la prueba, siempre las mismas: dependen de esto y de ``expandir``, no del espacio."""
     # 070:RF-85: las tareas de las specs 107 a 112 se miden en la prueba sellada nueva; esta conserva su huella.
-    if set(FRASES) != set(TAREAS) - TAREAS_107_112:
+    if set(FRASES) != set(TAREAS) - TAREAS_SIN_SELLADA_070_079:
         raise ValueError('prueba sellada sin todas las tareas del catálogo')
     salida, vistas = [], set()
     for tarea in sorted(FRASES):

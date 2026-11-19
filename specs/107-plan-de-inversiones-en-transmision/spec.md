@@ -192,6 +192,12 @@ común.
 - RF-21: EL SISTEMA tendrá una sola biblioteca normativa, la del programa más una capa del usuario fuera del paquete,
   que añade normas o sustituye la versión de una (lo sustituido se dice, nada se borra), para cualquier empresa,
   estudio y módulo, y con una huella del conjunto que cambia con cualquier fichero. (Orden del usuario, 17-11.)
+- RF-22: (amplía RF-21: «actualizable») EL SISTEMA regenerará un registro de la biblioteca desde su fuente oficial ya
+  descargada en la carpeta de fuentes normativas, con su generador (la Guía VNR de la RCD 232-2017, los formatos y las
+  sombreadas de la RCD 217-2013, el COES y las reconsideraciones): comprobará antes la huella de la fuente y, si no
+  coincide, no regenerará y dirá por qué; leerá los libros oficiales solo en copia, nunca con COM; comparará el registro
+  nuevo con el vigente y dirá qué reglas entran, salen o cambian antes de escribirlo; y tomará la vigencia del texto de
+  la norma (su cláusula; el art. 109 solo si calla). Sin la fuente, dirá cuál falta y dónde ponerla; nunca la descargará.
 
 ## Requisitos no funcionales
 - Universal: cualquier área de demanda y titular. Las pruebas usan al menos dos perfiles sintéticos.

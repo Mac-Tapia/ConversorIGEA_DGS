@@ -80,3 +80,15 @@
   Hecho cuando: `pytest -q tests/test_prueba_sellada_107_112.py tests/test_asistente_maestro.py tests/test_maestro_real.py tests/test_asistente_sinteticos.py` en verde, y la destilación la mide (con la T22).
 - [ ] T22 [GPU] Reentrenar el modelo de órdenes con las tareas nuevas y pasar sus puertas (085). (RF-84)
   Hecho cuando: el candidato pasa sus puertas, o queda el modelo en uso con su diagnóstico.
+- [x] T23 Esperas finitas del asistente (C2 del diagnóstico del 18-11, H03): «interrumpido» termina la espera, cada
+  petición lleva su límite, la espera tiene plazo total y una web que no responde se dice. (RF-87)
+  Hecho cuando: `pytest -q tests/test_asistente_espera_finita.py` en verde, con su rojo por aserción en la base (las
+  sondas H03a y H03b de D:/csg/INTEGRA_54/auditoria_c0 reproducen lo mismo).
+- [x] T24 Petición sin respuesta como paso fallido con su motivo, plazo propio de las rutas síncronas largas y la espera
+  que sigue contándola como pasajera; con lo demás de la revisión de ASISTENTE-A de 1d (18-11). (RF-88)
+  Hecho cuando: `pytest -q tests/test_asistente_peticion_sin_respuesta.py` en verde (070:RF-88, 086:RF-110, 026:RF-50,
+  026:RF-46), con su rojo por aserción en la base, y `tests/test_asistente_espera_finita.py` sin cambios en verde.
+- [x] T25 El interruptor `CSG_ASISTENTE_OLLAMA=0`: sin conexión a Ollama y la vía compatible, en las configuraciones de
+  las pruebas de navegador sin modelo. (RF-89)
+  Hecho cuando: `pytest -q tests/test_asistente_ollama_apagado.py` (070:RF-89) en verde; lo trajo ASISTENTE-A y le
+  faltaba su RF (lo cazó test_trazabilidad_specs en el verde amplio de ce del 18-11).

@@ -16,6 +16,13 @@ export const normativa = {
     fd.append('file', fichero, fichero.name);
     return request<Agregada>('/api/normativa', { method: 'POST', body: fd });
   },
+  // 107:RF-22 (026:RF-46): comprobar las fuentes oficiales (solo lee), la vista previa de una regeneración y aplicarla.
+  fuentes: (fecha?: string) => request<Record<string, unknown>>(
+    fecha ? `/api/normativa/fuentes?fecha=${encodeURIComponent(fecha)}` : '/api/normativa/fuentes'),
+  regenerar: (generador: string) => request<Record<string, unknown>>('/api/normativa/regenerar', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ generador }) }),
+  aplicarRegeneracion: (token: string) =>
+    request<Record<string, unknown>>(`/api/normativa/regenerar/${encodeURIComponent(token)}/aplicar`, { method: 'POST' }),
 };
 
 /** Las normas que contienen el texto buscado en su acto o su título, sin distinguir mayúsculas ni tildes. */

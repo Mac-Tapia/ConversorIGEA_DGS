@@ -146,3 +146,15 @@ PLANTILLAS.update({
 PLANTILLAS.update({
     'benchmark_anonimo': ('Genera el benchmark anonimizado de la red cargada', 'Prepara el conjunto de referencia anonimizado'),
 })
+
+# 026:RF-44 y RF-46: el VNR, la evolución de clientes fijos y la biblioteca normativa (maestro de la sesión, 2026-11-18).
+PLANTILLAS.update({
+    'vnr_estudio': ('Haz el estudio VNR de la red con el SICODI del espacio', 'Calcula el valor nuevo de reemplazo por la Guía 232'),
+    'clientes_fijos_evolucion': ('Muestra la evolución de los clientes fijos de {alimentadores}',
+                                 'Saca el histórico mes a mes de los clientes fijos de {alimentadores}'),
+    'normativa_comprobar': ('Comprueba la huella de las fuentes de la biblioteca normativa',
+                            'Revisa qué normas de la biblioteca obligan hoy'),
+    'normativa_agregar': ('Agrega a la biblioteca normativa la norma «{ruta}»', 'Sube la norma «{ruta}» a la capa del usuario'),
+    'normativa_regenerar': ('Regenera el registro de la Guía VNR desde su fuente oficial',
+                            'Actualiza el registro del COES desde su fuente descargada'),
+})

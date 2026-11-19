@@ -538,3 +538,44 @@ FAMILIAS.update({
 ESTILO_REAL['benchmark_anonimo'] = ('benchmark', 'genera el benchmark', 'has el benchmark anonimizado',
                                     'dataset de referencia anonimizado', 'anonimiza la red', 'el benchmark de la red',
                                     'haz un benchmark', 'benchmark anonimizado de la red', 'saca el benchmark', 'genera un dataset anonimizado', 'anonimiza la red del espacio', 'el benchmark reproducible')
+
+# 026:RF-44 y RF-46: el VNR, la evolución de clientes fijos y la biblioteca normativa, con la regla de las cuatro
+# columnas. Sintéticas: no copian órdenes del operador ni ninguna prueba, ni nombran empresa real (P9, P13).
+FAMILIAS.update({
+    'vnr_estudio': ('haz el estudio vnr de la red con el sicodi', 'calcula el valor nuevo de reemplazo de la red cargada',
+                    'corre el vnr por la guia 232 con su resolucion', 'valoriza la red por la guia 232 en soles'),
+    'clientes_fijos_evolucion': ('evolucion de los clientes fijos de {alimentadores}',
+                                 'historico mes a mes de los clientes fijos de {alimentadores}',
+                                 'como evolucionan los clientes fijos de {alimentadores} en el año',
+                                 'clientes fijos de {alimentadores} mes a mes sin cabecera'),
+    'normativa_comprobar': ('comprueba las fuentes de la biblioteca normativa', 'verifica la huella de las fuentes oficiales',
+                            'revisa si cuadran las fuentes de la normativa', 'que normas de la biblioteca obligan hoy'),
+    'normativa_agregar': ('agrega la norma {ruta} a la biblioteca', 'sube la norma {ruta} a la normativa',
+                          'incorpora a la biblioteca normativa {ruta}', 'anade la modificatoria {ruta} a la biblioteca'),
+    'normativa_regenerar': ('regenera el registro de la guia vnr', 'rehaz el registro de los formatos 217',
+                            'actualiza el registro del coes desde su fuente', 'regenera las reconsideraciones del vad'),
+})
+ESTILO_REAL['vnr_estudio'] = ('estudio vnr', 'haz el vnr', 'corre el vnr', 'el vnr de la red', 'calcula el vnr',
+                              'vnr con el sicodi', 'haz el estudio del vnr', 'el valor nuevo de reemplazo',
+                              'valoriza la red', 'vnr por la guia', 'corre el estudio vnr en dolares', 'calcula el vnr del año')
+ESTILO_REAL['clientes_fijos_evolucion'] = ('evolucion de fijos de {alimentadores}', 'clientes fijos de {alimentadores}',
+                                           'historico de fijos de {alimentadores}', 'fijos mes a mes de {alimentadores}',
+                                           'evolucion de clientes fijos', 'los fijos de {alimentadores} por mes',
+                                           'como van los fijos de {alimentadores}', 'historico de clientes fijos',
+                                           'evolucion fijos {alimentadores}', 'fijos de {alimentadores} en el año',
+                                           'clientes fijos por mes de {alimentadores}', 'evolucion de los fijos')
+ESTILO_REAL['normativa_comprobar'] = ('comprueba la normativa', 'revisa las fuentes', 'cuadran las fuentes',
+                                      'verifica las fuentes oficiales', 'estado de la biblioteca normativa',
+                                      'que normas obligan', 'revisa la biblioteca', 'comprueba las huellas de la normativa',
+                                      'normas vigentes hoy', 'verifica la biblioteca normativa', 'fuentes de la normativa',
+                                      'comprueba las fuentes oficiales')
+ESTILO_REAL['normativa_agregar'] = ('agrega la norma {ruta}', 'sube la norma {ruta}', 'anade la norma {ruta}',
+                                    'incorpora la norma {ruta}', 'norma nueva {ruta}', 'agrega {ruta} a la normativa',
+                                    'mete la norma {ruta}', 'sube {ruta} a la biblioteca', 'agrega la modificatoria {ruta}',
+                                    'la norma {ruta} a la biblioteca', 'incorpora {ruta}', 'anade {ruta} a la normativa')
+ESTILO_REAL['normativa_regenerar'] = ('regenera la guia vnr', 'regenera los formatos 217', 'regenera el coes',
+                                      'regenera las reconsideraciones', 'rehaz el registro de la guia',
+                                      'actualiza el registro de los formatos', 'regenera el registro del coes',
+                                      'rehaz las reconsideraciones', 'regenera la normativa del vnr',
+                                      'actualiza la guia vnr desde su fuente', 'regenera el registro 217',
+                                      'rehaz el coes')

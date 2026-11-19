@@ -1,6 +1,6 @@
 # Spec 089 — Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método
 
-Estado: aprobada · Fecha: 2026-11-05
+Estado: aprobada (2026-11-18: RF-115, objetivos ausentes fuera de la pérdida de la GRU, T14) · Fecha: 2026-11-05
 
 ## Contexto y objetivo
 
@@ -171,6 +171,10 @@ exacto. El mes ya lo daban la carpeta del año y el nombre (104:RF-27); el trasp
   mismos que leyendo cada alimentador por separado, con los libros del modificado antes al modificado después. Un
   .xls se lee entero al abrirlo (unas tres veces su tamaño): con una `Cabecera` abierta por libro, cuatro copias de un
   libro de 173 MB pasaban de 2,3 GB (2026-11-15).
+- RF-115: (diagnóstico del 2026-11-18, H17, tarjeta C10; Plan Maestro BP-06) MIENTRAS ajusta la GRU de pronóstico, EL
+  SISTEMA no contará un objetivo ausente como un dato: los huecos de la serie irán a cero solo en la entrada, y en la
+  pérdida un objetivo sin medida no contará (máscara), de modo que un lote sin ningún objetivo medido no ajuste nada.
+  No cambia la arquitectura de la red ni obliga a reentrenar o promover modelos.
 
 ## Fuera de alcance
 

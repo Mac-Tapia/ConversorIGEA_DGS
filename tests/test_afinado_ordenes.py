@@ -33,7 +33,7 @@ from convertersmartgrid.aplicacion.asistente import validacion_cruzada as vc    
 from convertersmartgrid.aplicacion.asistente.interprete import PUESTO_CHARLA, charla_cerca, interpretar  # noqa: E402
 from convertersmartgrid.aplicacion.asistente.maestro_real import NINGUNA, clave_texto, firma_familia  # noqa: E402
 from convertersmartgrid.aplicacion.asistente.sinteticos import expandir                           # noqa: E402
-from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, TAREAS_107_112                 # noqa: E402
+from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, TAREAS_SIN_SELLADA_070_079                 # noqa: E402
 
 RAIZ = Path(__file__).resolve().parents[1]
 CPU = torch.device('cpu')
@@ -49,7 +49,7 @@ def corpus():
 
 def test_sellada_cubre_el_catalogo_con_frases_nuevas():
     """079:RF-38, 070:RF-85 — al menos 5 frases por cada tarea del catálogo; las de las specs 107 a 112, en la nueva."""
-    assert set(ps.FRASES) == set(TAREAS) - TAREAS_107_112
+    assert set(ps.FRASES) == set(TAREAS) - TAREAS_SIN_SELLADA_070_079
     assert all(len(set(v)) >= 5 for v in ps.FRASES.values())
     por_tarea = {}
     for r in ps.selladas():

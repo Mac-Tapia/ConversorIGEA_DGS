@@ -81,3 +81,53 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       elección con un grupo fuera solo en entrenamiento y carga según la arquitectura en uso. (RF-36 a RF-41)
       Hecho cuando: `tests/test_asistente_clasificador_vectores.py` (026:RF-36 a RF-41) en verde y el ensayo corto con los
       informes reales (entrenar, guardar y reabrir en un proceso nuevo) da las mismas predicciones.
+- [ ] T16. Órdenes de las entradas: asignar un fichero (de la máquina o de la nube) a cada casilla del espacio y subir los
+      libros de las fuentes de la empresa a su carpeta y año, por las rutas de la web, con confirmación. (RF-42)
+      Hecho cuando: la orden no existe con el código de antes (rojo por aserción) y existe después, con su prueba del
+      ejecutor contra la API de prueba y la e2e F04 ampliada; `test_asistente_*` y la sellada 107-112 en verde.
+      Bloqueada por su implementación en ASISTENTE-B, que va detrás en la cola (ce, 18-11). Siguiente acción: implementarla con su prueba en esa fila.
+- [ ] T17. Control de los trabajos: carril, avance y resultado de cada uno, cancelar y repetir el último que falló con sus
+      mismos datos. (RF-43)
+      Hecho cuando: rojo por aserción (las órdenes de estado y de repetir no existen) y verde con la prueba del ejecutor.
+      Bloqueada por su implementación en ASISTENTE-B, que va detrás en la cola (ce, 18-11). Siguiente acción: implementarla con su prueba en esa fila.
+- [x] T18. Órdenes `vnr_estudio` (108) y `clientes_fijos_evolucion` (105), con las entradas del espacio por defecto;
+      sus frases en el corpus de entrenamiento del intérprete (079), nunca en el sellado; se miden en su propia prueba
+      sellada (`prueba_sellada_026`, con el criterio de la 070:RF-85) y las selladas de la 070, la 079 y la 107-112
+      conservan su huella. (RF-44)
+      Hecho cuando: rojo por aserción (las órdenes no existen) y verde con `tests/test_asistente_026_modulos.py`,
+      `tests/test_prueba_sellada_026.py` (incluida la fuga sembrada en el currículo, que tiene que delatarse),
+      `tests/test_prueba_sellada_107_112.py` y las que restan las tareas sin sellada de la 070 y la 079
+      (`test_afinado_ordenes`, `test_asistente_maestro`, `test_destilacion_integral`).
+- [ ] T19. Entregar los entregables de cada módulo: descargarlos, publicarlos en la nube o enviarlos por correo, con
+      confirmación. (RF-45)
+      Hecho cuando: rojo por aserción y verde con la prueba del ejecutor por módulo (PIDE, PIT, VAD, VNR e informes).
+      Bloqueada por su implementación en ASISTENTE-B, que va detrás en la cola (ce, 18-11). Siguiente acción: implementarla con su prueba en esa fila.
+- [x] T20. Órdenes `normativa_comprobar` (lectura), `normativa_agregar` y `normativa_regenerar` (con el resumen del cambio
+      y confirmación; 107:RF-22). (RF-46)
+      Hecho cuando: rojo por aserción por cada orden y verde con `tests/test_asistente_026_normativa.py` (comprobar solo
+      lee; agregar sube el .json; regenerar con vista previa que no escribe y aplicar con su ficha; fuente alterada o
+      sin carpeta, sin regenerar y con su motivo sin rutas de la máquina), `test_biblioteca_normativa`,
+      `test_pit_sombreadas` y `tests/test_prueba_sellada_026.py`.
+- [ ] T21. Dictamen del equipo (fuentes, física, coste y riesgo) antes de escribir un entregable, enseñado con la
+      confirmación. (RF-47)
+      Hecho cuando: rojo por aserción (sin dictamen) y verde con la prueba del gobierno del equipo (065).
+      Bloqueada por su implementación en ASISTENTE-C, que va detrás en la cola (ce, 18-11). Siguiente acción: implementarla con su prueba en esa fila.
+- [ ] T22. El asistente decide el camino: siguiente etapa, entradas del espacio y parámetros según la norma y el perfil,
+      propuesto entero con su motivo; el operador confirma lo que escribe o envía. (RF-48)
+      Hecho cuando: rojo por aserción (sin propuesta de camino con su motivo) y verde con la prueba del planificador y la
+      e2e F04 ampliada.
+      Bloqueada por su implementación en ASISTENTE-C, que va detrás en la cola (ce, 18-11). Siguiente acción: implementarla con su prueba en esa fila.
+- [ ] T23. Aprender del operador y del programa: cada acción del operador con su contexto y su resultado al corpus de
+      entrenamiento (nunca al sellado), evaluado antes de usarse y sin promoción automática. (RF-49)
+      Hecho cuando: rojo por aserción (la acción no llega al corpus) y verde con las pruebas del diario de operaciones
+      (061), del corpus y de la evaluación (027).
+      Bloqueada por su implementación en ASISTENTE-C, que va detrás en la cola (ce, 18-11). Siguiente acción: implementarla con su prueba en esa fila.
+- [x] T24. Navegar por internet para buscar información: búsqueda y lectura de páginas web generales con las salvaguardas
+      de RF-29 a RF-32 (consulta sin datos de la distribuidora, registro con destino, fecha y huella, salidas de red),
+      lo leído citado como fuente y nunca obedecido, sin credenciales ni pagos. (RF-50)
+      Hecho cuando: rojo por aserción (sin búsqueda ni lectura general) y verde con las pruebas del buscador: un dominio
+      fuera de la lista no se consulta, añadir uno pide confirmación y queda registrado, una consulta con un código de
+      alimentador o con un término del perfil se rechaza antes de salir, la página se cita con su huella y con las
+      salidas apagadas no se envía nada (`tests/test_asistente_026_internet.py` y `tests/test_asistente_internet.py`;
+      la lista base en `internet.DOMINIOS_BASE`, la del operador en `config/internet_dominios.json` de la carpeta local,
+      fuera de git, y `GET`/`POST /api/asistente/internet/dominios`).

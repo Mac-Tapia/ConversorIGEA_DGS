@@ -765,6 +765,11 @@ class AsistenteDecisionIn(BaseModel):
     comentario: str = Field('', max_length=2000)
 
 
+class DominioInternetIn(BaseModel):
+    dominio: str = Field(min_length=4, max_length=253)
+    confirmado: bool = False
+
+
 class VnrDownloadIn(BaseModel):
     publication_id: str
 
@@ -2656,6 +2661,16 @@ def create_app(
     def asistente_decision(propuesta_id: str, body: AsistenteDecisionIn) -> dict:
         """026:RF-28: lo que el operador decidió de una propuesta."""
         return services.asistente_decision_mejora(propuesta_id, body.decision, body.comentario)
+
+    @app.get('/api/asistente/internet/dominios')
+    def asistente_dominios() -> dict:
+        """026:RF-50: los dominios que el asistente puede leer: los del programa y los que añadió el operador."""
+        return services.asistente_dominios_internet()
+
+    @app.post('/api/asistente/internet/dominios')
+    def asistente_dominio_nuevo(body: DominioInternetIn) -> dict:
+        """026:RF-50: el operador añade un dominio, con su confirmación; queda en el registro."""
+        return services.asistente_dominios_internet(body.dominio, confirmado=body.confirmado)
 
     @app.post('/api/workspaces/{wid}/pide/decision')
     def pide_decision(wid: str, body: dict[str, Any]) -> dict:

@@ -158,3 +158,28 @@ def fugas_del_interprete(filas: Sequence[Mapping[str, Any]], vedadas: Mapping[st
     for nombre, textos in vedadas.items():
         examina[nombre] |= {clave_texto(t) for t in textos if str(t).strip()}
     return {nombre: len(textos & entrena) for nombre, textos in sorted(examina.items())}
+
+
+def textos_que_entrenan() -> set[str]:
+    """Las plantillas de las que aprende el intérprete: el currículo (familias y estilo real), las propuestas del maestro,
+    las órdenes fijas y las plantillas del catálogo, en forma canónica."""
+    from ..evaluacion_modelos import texto_canonico
+    from . import curriculo_maestro as cm
+    from . import ordenes_fijas as of
+    from . import propuestas_maestro as pm
+    from .tareas import TAREAS
+
+    textos = [x for d in (cm.FAMILIAS, cm.ESTILO_REAL, pm.PLANTILLAS, of.FRASES) for v in d.values() for x in v]
+    textos += [p for t in TAREAS.values() for p in t.plantillas]
+    return {texto_canonico(x) for x in textos}
+
+
+def fugas_de_las_selladas() -> dict[str, int]:
+    """026:RF-44, RF-46 y 070:RF-85: cuántas frases de cada prueba sellada de las tareas nuevas (la 107-112 y la 026)
+    están también en lo que entrena. Una sola vale para que la prueba deje de ser ciega."""
+    from ..evaluacion_modelos import texto_canonico
+    from . import prueba_sellada_026, prueba_sellada_107_112
+
+    entrena = textos_que_entrenan()
+    return {s.CONJUNTO: sum(1 for v in s.FRASES.values() for p in v if texto_canonico(p) in entrena)
+            for s in (prueba_sellada_107_112, prueba_sellada_026)}

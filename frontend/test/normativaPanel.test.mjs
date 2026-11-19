@@ -14,6 +14,10 @@ const SRC = join(RAIZ, 'src');
 const MATRIZ = {
   '/api/normativa': { llamada: ['listar', 'agregar'], prueba: 'test_107_rf21_la_web_sube_una_norma_y_rechaza_la_que_no_valida' },
   '/api/normativa/reglas': { llamada: ['reglas'], prueba: 'test_107_rf21_la_web_da_las_reglas_con_su_cita' },
+  '/api/normativa/fuentes': { llamada: ['fuentes'], prueba: 'test_107_rf22_la_web_comprueba_las_fuentes_sin_escribir' },
+  '/api/normativa/regenerar': { llamada: ['regenerar'], prueba: 'test_107_rf22_la_web_no_regenera_sin_carpeta_de_fuentes' },
+  '/api/normativa/regenerar/{token}/aplicar': { llamada: ['aplicarRegeneracion'],
+    prueba: 'test_107_rf22_la_web_no_aplica_una_regeneracion_que_no_existe' },
 };
 
 let modulo;

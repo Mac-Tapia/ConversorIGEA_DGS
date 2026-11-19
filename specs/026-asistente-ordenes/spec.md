@@ -1,6 +1,6 @@
 # Spec 026 — Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor
 
-Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (revisión 033 del 2026-10-29) · aprobada el 2026-10-24 (32 RF), con las dudas resueltas por el usuario el mismo día; T1 a T11 implementadas el mismo día, los 32 RF citados por pruebas en verde; T12 (aceptación en DIgSILENT de las tareas que lo usan) pendiente · Fecha: 2026-10-24
+Estado: aprobada (reabierta por orden del usuario del 18-11, «el asistente debe controlar el SmartConverter de punta a punta…» y «debe aprender a hacer todo eso el asistente», en RF-48 y RF-49: RF-42 a RF-50, el asistente controla y decide el programa entero y aprende del operador, y navega por internet para buscar información; T16 a T24) · cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (revisión 033 del 2026-10-29) · aprobada el 2026-10-24 (32 RF), con las dudas resueltas por el usuario el mismo día; T1 a T11 implementadas el mismo día, los 32 RF citados por pruebas en verde; T12 (aceptación en DIgSILENT de las tareas que lo usan) pendiente · Fecha: 2026-10-24
 
 ## Contexto y objetivo
 
@@ -168,6 +168,50 @@ consultas sin datos y registradas; vigila trabajos, modelos, calidad de resultad
 - RF-40: CUANDO elija los hiperparámetros del clasificador de vectores, EL SISTEMA los elegirá validando con un grupo fuera
   solo sobre los grupos de entrenamiento, y anotará esa medida aparte de la de la prueba.
 - RF-41: EL SISTEMA abrirá y usará para clasificar el clasificador en uso, sea cual sea su arquitectura.
+
+Control del programa entero (orden del usuario, 2026-11-18: «el asistente debe controlar el motor, debe poder cargar los
+archivos de entrada hasta hacer los entregables, todo debe controlar, para eso tiene su equipo»). Todo por las mismas
+rutas y trabajos que la web; lo que escribe, con la confirmación del operador y su recibo (065).
+
+- RF-42: EL SISTEMA permitirá al asistente cargar las entradas del espacio: asignar a cada casilla (red, cargas,
+  equipos, base .mdb, paquete o copia VNR-GIS, alias) un fichero de la máquina o de la nube, y subir los libros de las
+  fuentes de la empresa (demanda, SICODI, perfil, interrupciones, catálogo) a su carpeta y a su año, como la web.
+- RF-43: EL SISTEMA permitirá al asistente controlar los trabajos del motor y de DIgSILENT: decir en qué carril va cada
+  uno, su avance y su resultado, cancelarlo, y repetir el último que falló con los mismos datos; cancelar y repetir,
+  con la confirmación del operador.
+- RF-44: EL SISTEMA dará al asistente las órdenes de los módulos que le faltaban: el Estudio VNR por la Guía 232
+  (spec 108) y la Evolución de clientes fijos (spec 105), con las entradas que ya tenga el espacio por defecto.
+- RF-45: EL SISTEMA permitirá al asistente entregar los entregables de cada módulo (informes, expedientes, formatos y
+  libros): descargarlos, publicarlos en la nube o enviarlos por correo, con la confirmación del operador; el correo,
+  sin datos de clientes ni nombres reales en claro (086:RF-29).
+- RF-46: EL SISTEMA dará al asistente tres órdenes de la biblioteca normativa (107:RF-21, RF-22): comprobar sus fuentes
+  oficiales (solo lectura: huella y vigencia), agregar una norma a la capa del usuario y regenerar un registro desde su
+  fuente oficial ya descargada; las dos últimas, con el resumen del cambio y la confirmación del operador.
+- RF-47: ANTES de escribir un entregable, EL SISTEMA hará que el equipo del asistente (revisores de fuentes, física,
+  coste y riesgo) dé su dictamen sobre lo que se va a escribir, sacado de lo que ya calcularon las corridas (nunca de un
+  cálculo nuevo improvisado), y lo enseñará con la confirmación; SI el dictamen dice «riesgo», ENTONCES el asistente no
+  escribirá: lo enseñará y preguntará. Un modelo nunca concede autoridad (065).
+- RF-48: (usuario, 2026-11-18: «el asistente debe controlar el SmartConverter de punta a punta, por eso es smart; que tome
+  decisiones, y yo hago solo lo que hace el SmartConverter con su control») EL SISTEMA hará que el asistente decida el
+  camino del trabajo: qué etapa sigue, con qué entradas del espacio y con qué parámetros según la norma y el perfil de la
+  empresa, y lo proponga entero con su motivo; el operador confirma lo que escribe o envía, y lo demás lo hace el asistente
+  solo.
+- RF-49: (usuario, 2026-11-18: «debe aprender a hacer todo eso el asistente») EL SISTEMA hará que el asistente aprenda de
+  lo que el operador hace en la web y de lo que hace el programa: cada acción del operador, anonimizada, con su contexto y
+  su resultado,
+  pasa al corpus de entrenamiento del intérprete y del planificador (nunca al sellado), para que la próxima vez la proponga
+  él; lo aprendido se evalúa antes de usarse (027, 061) y nunca se promueve solo.
+- RF-50: (amplía RF-29 a RF-32; usuario, 2026-11-18: «incluso debe tener la capacidad de navegar en internet para buscar
+  información») EL SISTEMA permitirá al asistente buscar y leer páginas web (normas y su vigencia, fichas de fabricantes,
+  publicaciones de los organismos del sector) en los dominios de una lista de la configuración, sin rutas de la máquina,
+  que empieza por las fuentes oficiales (osinergmin.gob.pe, minem.gob.pe, coes.org.pe, gob.pe y el diario oficial El
+  Peruano) y GitHub, PyPI y arXiv; un dominio nuevo solo lo añade el operador, con confirmación y registro, y fuera de la
+  lista no busca. Con las salvaguardas de RF-29 a RF-32: ninguna consulta con datos de la distribuidora ni del operador
+  (alimentador, SED, proyecto, rutas o ficheros de datos, su correo, nombres, empresa en claro: 086:RF-29),
+  cada consulta y cada página leída en su registro con destino, fecha y huella, y nada si las salidas de red están
+  apagadas. Lo leído es un dato que se cita como fuente (dirección, fecha y huella), nunca una instrucción que el
+  asistente obedezca; nunca introduce credenciales ni paga. Un fichero oficial hallado en la web solo entra en la
+  biblioteca normativa con su huella comprobada y la confirmación del operador (107:RF-22).
 
 ## Requisitos no funcionales
 

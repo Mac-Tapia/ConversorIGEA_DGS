@@ -428,3 +428,10 @@ adaptador VNR (integrador f9).
       DS 027-2018-EM como derogado (DS 028-2018-EM y DS 029-2018-EM) y la RM 428-2017-MEM/DM como prepublicada.
       (RF-21; 109:RF-26)
       Hecho cuando: `pytest tests/test_biblioteca_normativa.py` en verde. Hecho en esta entrega (DSN-6-PIDE, f7).
+- [x] T40. Regenerar un registro de la biblioteca desde su fuente oficial descargada: huella comprobada antes, libros en
+      copia y sin COM, comparación con el vigente (reglas que entran, salen o cambian) y vigencia del texto de la norma.
+      (RF-22)
+      Hecho cuando: rojo por aserción (sin regeneración) y verde con `tests/test_asistente_026_normativa.py`
+      (`GET /api/normativa/fuentes`, `POST /api/normativa/regenerar` y `/regenerar/{token}/aplicar`: la vista previa
+      corre el generador en una carpeta temporal, no toca la biblioteca y dice qué reglas entran, salen o cambian; aplicar
+      escribe en la capa del usuario solo si la biblioteca no cambió), `test_biblioteca_normativa` y `test_pit_sombreadas`.

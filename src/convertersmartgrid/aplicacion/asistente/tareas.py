@@ -70,6 +70,7 @@ INFORME = Dato('ruta', 'ruta', obligatorio=False, descripcion='el informe de la 
 SALIDA = Dato('ruta', 'ruta', obligatorio=False, descripcion='la carpeta de la salida; sin ella, toda la salida')
 ENTRADAS_PIT = Dato('ruta', 'ruta', descripcion='el libro de la red y la proyección del área (y las alternativas)')
 CASO_VAD = Dato('ruta', 'ruta', descripcion='la carpeta del caso del VAD, con su sistemas.json')
+NORMA_JSON = Dato('ruta', 'ruta', descripcion='el fichero .json de la norma, con el esquema de la biblioteca normativa')
 
 _TAREAS = (
     # ------------------------------------------------------------ consultas (sin confirmar)
@@ -408,6 +409,42 @@ _TAREAS = (
           'clasificador de informes; lo que no pase sus puertas deja el modelo en uso (026:RF-20, 067:RF-28).', (),
           True, 'proceso', 'asistente_entrenar', (
               'reentrena el asistente', 'entrena el transformer', 'aprende de las órdenes', 'aprende de las ordenes')),
+    # 026:RF-44 (T18): los módulos que le faltaban al asistente, por sus mismas rutas de la web.
+    Tarea('vnr_estudio', 'Estudio VNR de la red del espacio por la Guía 232-2017, con el SICODI de la empresa: el sector '
+          'típico de la Guía y el del SICODI, su resolución, el año y la moneda (108:RF-20 a RF-25).', (), True, 'trabajo',
+          'vnr_api.registrar_rutas_vnr', (
+              'haz el estudio vnr', 'calcula el vnr de la red', 'estudio del valor nuevo de reemplazo',
+              'corre el vnr con el sicodi', 'valoriza la red por la guia 232'),
+          frases_literales=(r'\b(estudio|calcul\w*|corre|haz)\b.*\bvnr\b', r'\bvalor nuevo de reemplazo\b',
+                            r'\bvaloriz\w*\b.*\bguia 232\b')),
+    Tarea('clientes_fijos_evolucion', 'Evolución mes a mes de los clientes fijos de los alimentadores que nombre la orden, '
+          'con los libros de clientes del rango de meses (105:RF-17).', (A,), True, 'trabajo',
+          'evolucion_fijas_api.registrar_rutas_evolucion', (
+              'evolucion de los clientes fijos de {alimentadores}', 'como evolucionan los clientes fijos de {alimentadores}',
+              'historico de clientes fijos de {alimentadores}', 'clientes fijos de {alimentadores} mes a mes'),
+          frases_literales=(r'\bclientes? fij\w*\b.*\b(evoluci\w*|historic\w*|mes a mes)\b',
+                            r'\b(evoluci\w*|historic\w*)\b.*\bclientes? fij\w*\b')),
+    # 026:RF-46 (T20): la biblioteca normativa por el asistente (107:RF-21, RF-22).
+    Tarea('normativa_comprobar', 'Comprueba las fuentes oficiales de la biblioteca normativa: la huella de cada una '
+          'contra la registrada y su vigencia hoy; solo lee y nada se descarga (107:RF-22).', (), False, 'consulta',
+          'normativa_api.registrar_rutas_normativa', (
+              'comprueba las fuentes de la normativa', 'revisa la biblioteca normativa',
+              'que normas estan vigentes', 'cuadran las fuentes oficiales'),
+          frases_literales=(r'\b(comprueb\w*|revis\w*|verific\w*)\b.*\b(fuentes?|biblioteca)\b.*\bnormativ\w*\b',
+                            r'\bfuentes? oficial\w*\b.*\b(cuadr\w*|huella)\b')),
+    Tarea('normativa_agregar', 'Agrega a la capa del usuario de la biblioteca normativa la norma del fichero .json que '
+          'nombre la orden (con el esquema de la biblioteca normativa); lo que no valida no entra (107:RF-21).', (NORMA_JSON,), True,
+          'trabajo', 'normativa_api.registrar_rutas_normativa', (
+              'agrega la norma {ruta}', 'anade a la biblioteca normativa {ruta}', 'sube la norma {ruta}'),
+          frases_literales=(r'\b(agreg\w*|anad\w*|sub\w*|incorpor\w*)\b.*\bnorma\b.*\.json\b',)),
+    Tarea('normativa_regenerar', 'Regenera un registro de la biblioteca desde su fuente oficial ya descargada, con su '
+          'generador (Guía VNR 232, formatos 217, COES o reconsideraciones): comprueba la huella, dice qué reglas '
+          'entran, salen o cambian y lo escribe en la capa del usuario (107:RF-22).', (), True, 'trabajo',
+          'normativa_api.registrar_rutas_normativa', (
+              'regenera la guia vnr', 'regenera los formatos 217', 'actualiza el registro del coes',
+              'regenera las reconsideraciones'),
+          frases_literales=((r'\b(regener\w*|rehaz\w*|actualiz\w*)\b.*\b(registro|biblioteca|guia vnr|formatos 217|'
+                             r'coes|reconsideracion\w*)\b'),)),
 )
 
 TAREAS: dict[str, Tarea] = {t.nombre: t for t in _TAREAS}
@@ -431,6 +468,11 @@ EFECTOS: dict[str, tuple[str, ...]] = {
     **dict.fromkeys(TAREAS_107_112_PLANO := ('plano_maniobra',), (ESCRIBE, LICENCIA)),
     # 070:RF-79: el benchmark de la 112, en local y sin red; escribe su carpeta en la salida.
     **dict.fromkeys(TAREAS_107_112_BENCH := ('benchmark_anonimo',), (ESCRIBE,)),
+    # 026:RF-44 (T18): el VNR y la evolución de clientes fijos escriben su resultado en el espacio.
+    **dict.fromkeys(TAREAS_026_RF44 := ('vnr_estudio', 'clientes_fijos_evolucion'), (ESCRIBE,)),
+    # 026:RF-46 (T20): comprobar solo lee; agregar y regenerar escriben en la capa del usuario de la biblioteca.
+    'normativa_comprobar': (LEE,),
+    **dict.fromkeys(TAREAS_026_RF46 := ('normativa_agregar', 'normativa_regenerar'), (ESCRIBE,)),
     **dict.fromkeys(('leer_proyectos', 'escanear', 'verificar_convergencia'), (LICENCIA,)),
     'buscar_internet': (RED,),
     **dict.fromkeys(('cargar_fuente', 'convertir', 'unir', 'convertir_sistema', 'convertir_set', 'gemelo_entrenar',
@@ -467,6 +509,11 @@ TAREAS_HASTA_069: dict[str, Tarea] = {n: TAREAS[n] for n in (
 #: estas se miden en la prueba sellada nueva (070 T21).
 TAREAS_107_112: frozenset[str] = frozenset((*TAREAS_107_112_NUBE, *TAREAS_107_112_PIT, *TAREAS_107_112_VAD,
                                             *TAREAS_107_112_PLANO, *TAREAS_107_112_BENCH))
+#: 026:RF-44 y RF-46 (2026-11-18): las tareas de la 026 posteriores a la 107-112, medidas en su propia prueba sellada
+#: (``prueba_sellada_026``), con el mismo criterio que la 070:RF-85.
+TAREAS_026: frozenset[str] = frozenset((*TAREAS_026_RF44, 'normativa_comprobar', *TAREAS_026_RF46))
+#: Lo que las pruebas selladas de la 070 y la 079 no miden: así conservan su huella con cada tarea nueva.
+TAREAS_SIN_SELLADA_070_079: frozenset[str] = TAREAS_107_112 | TAREAS_026
 
 
 #: 072:RF-29: los tres tipos de análisis, por las palabras de la orden, y la tarea del catálogo que hace cada uno. Sin

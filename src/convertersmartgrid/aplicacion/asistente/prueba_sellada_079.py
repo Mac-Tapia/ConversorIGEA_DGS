@@ -21,7 +21,7 @@ import random
 
 from ..evaluacion_modelos import huella, texto_canonico
 from .sinteticos import expandir
-from .tareas import TAREAS, TAREAS_107_112
+from .tareas import TAREAS, TAREAS_SIN_SELLADA_070_079
 
 POR_FRASE = 8
 RUIDO = .06
@@ -382,7 +382,7 @@ def filas() -> list[dict]:
     """Las filas de la prueba, sin comprobar su huella: las mismas con cualquier espacio."""
     salida, vistos = [], {}
     # 070:RF-85: sin las tareas de las specs 107 a 112, que se miden en la prueba sellada nueva: la huella no cambia.
-    for tarea in sorted(set(TAREAS) - TAREAS_107_112):
+    for tarea in sorted(set(TAREAS) - TAREAS_SIN_SELLADA_070_079):
         for j, plantilla in enumerate(FRASES[tarea]):
             rnd = random.Random(SEMILLA + j + int(huella(tarea)[:8], 16))
             grupo = huella({'sellada_079': plantilla, 'tarea': tarea})

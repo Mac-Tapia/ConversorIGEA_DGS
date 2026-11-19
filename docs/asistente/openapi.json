@@ -466,6 +466,46 @@
         "title": "AmbitoFuenteRespuesta",
         "type": "object"
       },
+      "AplicadaRespuesta": {
+        "properties": {
+          "actos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actos",
+            "type": "array"
+          },
+          "cambios": {
+            "items": {
+              "$ref": "#/components/schemas/CambioNorma"
+            },
+            "title": "Cambios",
+            "type": "array"
+          },
+          "huella": {
+            "title": "Huella",
+            "type": "string"
+          },
+          "otros": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Otros",
+            "type": "array"
+          },
+          "sin_cambios": {
+            "title": "Sin Cambios",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "actos",
+          "huella",
+          "sin_cambios"
+        ],
+        "title": "AplicadaRespuesta",
+        "type": "object"
+      },
       "ArchivoDelLibroRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -1679,6 +1719,55 @@
           "encendida"
         ],
         "title": "CambiarSalidaPeticion",
+        "type": "object"
+      },
+      "CambioNorma": {
+        "properties": {
+          "acto": {
+            "title": "Acto",
+            "type": "string"
+          },
+          "cambian": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cambian",
+            "type": "array"
+          },
+          "entran": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Entran",
+            "type": "array"
+          },
+          "nueva": {
+            "default": false,
+            "title": "Nueva",
+            "type": "boolean"
+          },
+          "salen": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Salen",
+            "type": "array"
+          },
+          "vigencia": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Vigencia",
+            "type": "object"
+          }
+        },
+        "required": [
+          "acto"
+        ],
+        "title": "CambioNorma",
         "type": "object"
       },
       "CancelacionAprendizajeRespuesta": {
@@ -4084,6 +4173,26 @@
         "title": "DispositivosProteccionIn",
         "type": "object"
       },
+      "DominioInternetIn": {
+        "properties": {
+          "confirmado": {
+            "default": false,
+            "title": "Confirmado",
+            "type": "boolean"
+          },
+          "dominio": {
+            "maxLength": 253,
+            "minLength": 4,
+            "title": "Dominio",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dominio"
+        ],
+        "title": "DominioInternetIn",
+        "type": "object"
+      },
       "EdicionRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -5427,6 +5536,54 @@
         "title": "FormatoPeticion",
         "type": "object"
       },
+      "FuenteNorma": {
+        "properties": {
+          "acto": {
+            "title": "Acto",
+            "type": "string"
+          },
+          "estado_juridico": {
+            "title": "Estado Juridico",
+            "type": "string"
+          },
+          "fichero": {
+            "default": "",
+            "title": "Fichero",
+            "type": "string"
+          },
+          "fuente": {
+            "title": "Fuente",
+            "type": "string"
+          },
+          "motivo": {
+            "default": "",
+            "title": "Motivo",
+            "type": "string"
+          },
+          "obliga": {
+            "title": "Obliga",
+            "type": "boolean"
+          },
+          "vigencia_desde": {
+            "default": "",
+            "title": "Vigencia Desde",
+            "type": "string"
+          },
+          "vigencia_hasta": {
+            "default": "",
+            "title": "Vigencia Hasta",
+            "type": "string"
+          }
+        },
+        "required": [
+          "acto",
+          "fuente",
+          "estado_juridico",
+          "obliga"
+        ],
+        "title": "FuenteNorma",
+        "type": "object"
+      },
       "FuenteRespuesta": {
         "properties": {
           "clase": {
@@ -5480,6 +5637,38 @@
           "vigente"
         ],
         "title": "FuenteRespuesta",
+        "type": "object"
+      },
+      "FuentesNormativaRespuesta": {
+        "properties": {
+          "carpeta": {
+            "title": "Carpeta",
+            "type": "boolean"
+          },
+          "cuenta": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Cuenta",
+            "type": "object"
+          },
+          "fecha": {
+            "title": "Fecha",
+            "type": "string"
+          },
+          "normas": {
+            "items": {
+              "$ref": "#/components/schemas/FuenteNorma"
+            },
+            "title": "Normas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fecha",
+          "carpeta"
+        ],
+        "title": "FuentesNormativaRespuesta",
         "type": "object"
       },
       "FuentesRespuesta": {
@@ -10313,6 +10502,56 @@
         "title": "RedDelEspacioRespuesta",
         "type": "object"
       },
+      "RegenerarPedido": {
+        "properties": {
+          "generador": {
+            "title": "Generador",
+            "type": "string"
+          }
+        },
+        "required": [
+          "generador"
+        ],
+        "title": "RegenerarPedido",
+        "type": "object"
+      },
+      "RegenerarRespuesta": {
+        "properties": {
+          "cambios": {
+            "items": {
+              "$ref": "#/components/schemas/CambioNorma"
+            },
+            "title": "Cambios",
+            "type": "array"
+          },
+          "generador": {
+            "title": "Generador",
+            "type": "string"
+          },
+          "otros": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Otros",
+            "type": "array"
+          },
+          "sin_cambios": {
+            "title": "Sin Cambios",
+            "type": "boolean"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "generador",
+          "token",
+          "sin_cambios"
+        ],
+        "title": "RegenerarRespuesta",
+        "type": "object"
+      },
       "ReglaRespuesta": {
         "properties": {
           "articulo_o_anexo": {
@@ -12631,6 +12870,66 @@
         "summary": "Inventario"
       }
     },
+    "/api/asistente/internet/dominios": {
+      "get": {
+        "description": "026:RF-50: los dominios que el asistente puede leer: los del programa y los que añadió el operador.",
+        "operationId": "asistente_dominios_api_asistente_internet_dominios_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Asistente Dominios Api Asistente Internet Dominios Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Asistente Dominios"
+      },
+      "post": {
+        "description": "026:RF-50: el operador añade un dominio, con su confirmación; queda en el registro.",
+        "operationId": "asistente_dominio_nuevo_api_asistente_internet_dominios_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DominioInternetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Asistente Dominio Nuevo Api Asistente Internet Dominios Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Asistente Dominio Nuevo"
+      }
+    },
     "/api/asistente/mejoras/{propuesta_id}/decision": {
       "post": {
         "description": "026:RF-28: lo que el operador decidió de una propuesta.",
@@ -13070,6 +13369,132 @@
           }
         },
         "summary": "Normativa Agregar"
+      }
+    },
+    "/api/normativa/fuentes": {
+      "get": {
+        "description": "107:RF-22, 026:RF-46: la huella de la fuente oficial de cada norma y su vigencia en ``fecha``; solo lee.",
+        "operationId": "normativa_fuentes_api_normativa_fuentes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "fecha",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fecha"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FuentesNormativaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Normativa Fuentes"
+      }
+    },
+    "/api/normativa/regenerar": {
+      "post": {
+        "description": "107:RF-22: corre el generador en una carpeta temporal y dice qué reglas entran, salen o cambian; no escribe\nen la biblioteca. Devuelve la ficha (``token``) para aplicarlo.",
+        "operationId": "normativa_regenerar_api_normativa_regenerar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegenerarPedido"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegenerarRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Normativa Regenerar"
+      }
+    },
+    "/api/normativa/regenerar/{token}/aplicar": {
+      "post": {
+        "description": "107:RF-22: escribe en la capa del usuario lo regenerado en la vista previa ``token``, si la biblioteca no\ncambió desde entonces; sin cambios, no escribe nada.",
+        "operationId": "normativa_regenerar_aplicar_api_normativa_regenerar__token__aplicar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AplicadaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Normativa Regenerar Aplicar"
       }
     },
     "/api/normativa/reglas": {

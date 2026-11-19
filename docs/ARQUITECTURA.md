@@ -329,6 +329,26 @@ también el diagnóstico y el expediente del PIT: sube al espacio el libro de la
 `web/vad_api.py` (070:RF-86); y abre o cierra una maniobra en una variación del plano y la estudia, por `web/plano_api.py`,
 sin tocar el caso base; y genera el benchmark anonimizado de la fuente TXT cargada con `tools/benchmark_anonimo.py`.
 
+**Con la 026 ampliada (RF-42 a RF-50, 2026-11-18):** el asistente lleva el ConverterSmartGrid de punta a punta por las
+mismas rutas que el operador. Hace el Estudio VNR por la Guía 232 (`/vnr/estudio`, 108) y la evolución de los clientes
+fijos (`/clientes-fijos/evolucion`, 105) con las entradas del espacio por defecto (RF-44). Comprueba la biblioteca normativa
+(huella de cada fuente oficial y su vigencia, solo lectura), agrega una norma a la capa del usuario y regenera un
+registro desde su fuente ya descargada (RF-46, 107:RF-22). La regeneración corre su generador de `tools/normativa` en una
+carpeta temporal: la vista previa no toca la biblioteca y dice qué reglas entran, salen o cambian, y `aplicar` escribe con
+su ficha solo si la biblioteca no cambió entretanto (`web/normativa_api.py`, `aplicacion/biblioteca_normativa.py`). Lo
+que escribe espera la confirmación del operador. Las tareas nuevas se miden en su propia prueba sellada
+(`asistente/prueba_sellada_026.py`); las de la 070, la 079 y la 107-112 conservan su huella
+(`tareas.TAREAS_SIN_SELLADA_070_079`). `fuga_evaluacion.fugas_de_las_selladas` cuenta las frases selladas que llegan a lo
+que entrena. Lee también páginas web (RF-50, `asistente/internet.py`) de una lista de dominios: las fuentes oficiales del
+sector, GitHub, PyPI y arXiv (`DOMINIOS_BASE`), más los que añada el operador con confirmación
+(`/api/asistente/internet/dominios`, en la configuración local y fuera de git). Solo pide la página con GET, sin datos de
+la red, del perfil ni correos, con la salida a internet encendida. La página vuelve como dato citado (dirección, fecha y
+huella) en `internet.jsonl`, nunca como una instrucción. Con `CSG_ASISTENTE_OLLAMA=0`, el cliente de Ollama no abre
+ninguna conexión y la orden sigue por la vía sin modelo; las pruebas de navegador lo ponen cuando corren sin modelo
+(`CSG_E2E_SIN_MODELO=1`), para no cargar el modelo en la máquina durante una e2e. El ejecutor nunca espera sin fin a la
+web (070:RF-87): cada petición lleva su límite, un trabajo «interrumpido» termina la espera y su paso falla, la espera
+de un trabajo tiene plazo total y una web que no responde varias veces seguidas se dice.
+
 ## Modelos (024, 026, 043, 045, 046, 060, 069, 075, 079, 085)
 
 Un modelo «en uso» es el que apunta `promovido.json`. El registro (`model_registry.py`) guarda candidatos y decisiones, y

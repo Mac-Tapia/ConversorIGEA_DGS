@@ -275,6 +275,11 @@ implementar la técnica y metodología de destilación para el entrenamiento de 
 - RF-71: SI un ensayo de la búsqueda falla con un error (no por poda), ENTONCES EL SISTEMA parará la búsqueda con el
   número del ensayo y su error, sin elegir entre los demás. (Suite del 2026-11-12: los tres ensayos fallaron por
   «CUDA error: out of memory» con la GPU compartida y el mensaje culpaba a un presupuesto que no se había agotado.)
+- RF-72: (amplía RF-43, usuario, 2026-11-18) EL SISTEMA llevará «el proyecto entero» desde el espacio vacío hasta los
+  entregables de todos los módulos: las entradas (026:RF-42), la fuente, el sistema, el «Caso base», las cargas, las
+  obras, los estudios, el PIDE y el informe, y además el PIT, el VAD y el VNR como etapas opcionales con lo que
+  requieren; SI falta un dato de una etapa opcional (sin libro PIT, sin datos VAD, sin paquete VNR), ENTONCES la saltará
+  con su motivo, nunca con un error, y seguirá con las demás.
 
 Auditoría del dataset de cada modelo (antes de entrenar)
 

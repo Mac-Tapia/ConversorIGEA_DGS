@@ -6,10 +6,15 @@ cliente rechaza cualquier dirección que no sea la propia. Si Ollama no está ar
 tarda más del tiempo máximo, la respuesta es ``None`` y el asistente pregunta al operador.
 
 También da los embeddings del índice del proyecto (``nomic-embed-text``).
+
+Con ``CSG_ASISTENTE_OLLAMA=0`` el cliente no abre ninguna conexión y responde como un Ollama apagado: lo usan las
+pruebas de navegador sin modelo (``CSG_E2E_SIN_MODELO=1``), para que la web de prueba no cargue el modelo en la máquina
+(18-11: 0,7 GB cargados en medio de una e2e). Sin la variable, nada cambia.
 """
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -21,6 +26,8 @@ from .tareas import TAREAS, descripcion_para_modelo, sistema_alumno
 from .contratos_salida import esquema_orden, validar_orden
 
 URL_LOCAL = 'http://127.0.0.1:11434'
+#: Con «0», el cliente no habla con Ollama (las pruebas de navegador sin modelo).
+VARIABLE_APAGADO = 'CSG_ASISTENTE_OLLAMA'
 #: Cuánto retiene Ollama el modelo en la GPU tras responder: con sus 5 minutos por defecto, una
 #: consulta dejaba 5 GB ocupados justo cuando la vigilancia lanzaba un reentrenamiento.
 RETENER = '60s'
@@ -64,6 +71,8 @@ class ClienteOllama:
         self.perfil_prompt = perfil_prompt
 
     def _pedir(self, ruta: str, cuerpo: dict | None = None) -> dict | None:
+        if os.environ.get(VARIABLE_APAGADO, '').strip() == '0':
+            return None                     # apagado por la variable: ni una conexión, como si Ollama no estuviera
         # Quien ya fija ``think`` en su petición manda: la revisión pide JSON y no puede gastar su tope en razonar.
         if ruta == '/api/chat' and cuerpo is not None and self.pensar is not None and 'think' not in cuerpo:
             cuerpo = {**cuerpo, 'think': self.pensar}

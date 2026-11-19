@@ -280,3 +280,8 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
 Revisión del 2026-11-03 de T29, T30 y T31: siguen abiertas. Ninguna spec posterior las midió en DIgSILENT:
 `docs/implementacion065/aceptacion_dominio.md` las lista como pendientes de corrida nativa (T29, hipercubo en
 copias de Nasca; T30, top-k de bancos en Chincha; T31, 30/10/10 y curva por familia), y 044 T4 sigue abierta.
+- [ ] T33. «El proyecto entero» hasta los entregables de todos los módulos: las entradas al principio y el PIT, el VAD y el
+      VNR como etapas opcionales con lo que requieren, saltadas con su motivo si falta su dato. (RF-72)
+      Hecho cuando: rojo por aserción (las etapas no se encadenan) y verde con la prueba del orquestador (omisión con
+      motivo, puntos de control) y la e2e F04 ampliada.
+      Bloqueada por su implementación en ASISTENTE-C, que va detrás en la cola (ce, 18-11). Siguiente acción: implementarla con su prueba en esa fila.

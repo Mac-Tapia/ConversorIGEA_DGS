@@ -12814,6 +12814,27 @@ def _asistente_clasificador():
         return None
 
 
+def _asistente_normativa_fuentes(fecha: str | None = None) -> dict:
+    """026:RF-46: la huella de las fuentes oficiales de la biblioteca y su vigencia, como ``GET /api/normativa/fuentes``;
+    solo lee. Dice cuáles no cuadran o faltan, y dónde ponerlas; nada se descarga."""
+    from ...adaptadores.pit.armado import carpeta_de_fuentes
+    from ...aplicacion import biblioteca_normativa as bn
+
+    r = bn.comprobar_fuentes(carpeta_de_fuentes(), fecha or datetime.now().date().isoformat())
+    malas = [f for f in r['normas'] if f['fuente'] in ('alterada', 'falta', 'sin_carpeta')]
+    c = r['cuenta']
+    n, alteradas = len(r['normas']), c.get('alterada', 0)
+    # 086:RF-110: el número con su forma real, en singular o en plural.
+    texto = (f"{n} {'norma' if n == 1 else 'normas'} en la biblioteca: {c.get('cuadra', 0)} con su fuente oficial que "
+             f"cuadra, {alteradas} {'alterada' if alteradas == 1 else 'alteradas'}, {c.get('falta', 0)} sin su fuente, "
+             f"{c.get('sin_fuente_local', 0)} sin fuente local registrada; "
+             f"{sum(1 for f in r['normas'] if f['obliga'])} obligan hoy.")
+    if not r['carpeta']:
+        texto += ' Falta la carpeta de fuentes normativas (CSG_FUENTES_NORMATIVAS).'
+    return {'texto': texto, 'cuenta': c,
+            'revisar': [{k: f[k] for k in ('acto', 'fichero', 'fuente', 'motivo')} for f in malas]}
+
+
 def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
     """Las consultas se responden en la misma petición con lo que ya hay (026:RF-9)."""
     t, datos = plan.tarea, plan.datos
@@ -12852,6 +12873,8 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
             clave = f"{f.get('clase')} · {f.get('caso')}"
             cuenta[clave] = cuenta.get(clave, 0) + 1
         return {'texto': f'{len(filas)} episodio(s) en el búfer del gemelo.', 'por_clase': cuenta}
+    if t == 'normativa_comprobar':
+        return _asistente_normativa_fuentes()                                   # 026:RF-46, 107:RF-22
     if t == 'consultar_datos':
         from .asistente_consultas import responder
 
@@ -13755,16 +13778,46 @@ def asistente_clasificar(texto: str) -> dict:
     return {'texto': f"{r['tipo']} · {r['subtipo']} ({r['confianza_subtipo']:.0%})", **r}
 
 
+def asistente_dominios_internet(nuevo: str | None = None, *, confirmado: bool = False) -> dict:
+    """026:RF-50: la lista de dominios que el asistente puede leer; con ``nuevo``, el operador añade uno confirmado."""
+    from ...aplicacion.asistente import internet
+
+    if nuevo is not None:
+        try:
+            internet.agregar_dominio(nuevo, confirmado=confirmado)
+        except ValueError as exc:
+            raise UserError(str(exc)) from exc
+    todos = internet.dominios_permitidos()
+    return {'base': list(internet.DOMINIOS_BASE), 'del_operador': [d for d in todos if d not in internet.DOMINIOS_BASE],
+            'dominios': todos}
+
+
 def asistente_buscar(ws: Workspace, texto: str) -> dict:
     """GitHub y arXiv con una consulta sin datos de la red (026:RF-29 a RF-31)."""
     from ...aplicacion.asistente.internet import Buscador
 
     from .asistente_consultas import terminos_devueltos
 
+    from ...aplicacion.asistente.internet import url_de
+    from ...dominio import privacidad
+    from ...dominio.perfil_empresa import ruta_perfil_activo
+
     vocab = asistente_vocabulario(ws)
+    # 026:RF-50: tampoco salen los nombres del perfil de la empresa (086:RF-29); un perfil ilegible no deja salir nada.
+    try:
+        perfil = privacidad.terminos_del_perfil(ruta_perfil_activo())
+    except privacidad.PerfilIlegible as exc:
+        return {'texto': f'No se buscó: {exc}.', 'bloqueada': 'perfil ilegible', 'github': [], 'arxiv': []}
     # 070:RF-46: lo que devolvió la consulta de datos no sale de la máquina, tenga la forma que tenga (P9).
     b = Buscador([*vocab['alimentadores'], *vocab['proyecto'], *vocab['sistema'], *(vocab.get('set') or []),
-                  *terminos_devueltos(ws)])
+                  *terminos_devueltos(ws), *perfil])
+    if (url := url_de(texto)) is not None:                                    # 026:RF-50: leer una página
+        r = b.leer(url, motivo='orden del operador')
+        if r['bloqueada'] or r.get('error'):
+            return {'texto': f"No se leyó {url}: {r['bloqueada'] or r['error']}.", **r}
+        p = r['pagina']
+        return {'texto': f"Leída «{p['titulo'] or p['dominio']}» ({p['dominio']}, {p['fecha']}, huella "
+                         f"{p['huella'][:12]}). Es un dato citado: el asistente no sigue lo que diga.", **r}
     r = b.buscar(texto, motivo='orden del operador')
     if r['bloqueada']:
         return {'texto': f"No se buscó: la consulta {r['bloqueada']} (P9). Escríbala solo con términos técnicos.",

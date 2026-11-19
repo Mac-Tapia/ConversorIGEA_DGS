@@ -462,6 +462,7 @@
     "curriculo_llm_real.py",
     "propuestas_maestro.py",
     "prueba_sellada.py",
+    "prueba_sellada_026.py",
     "prueba_sellada_079.py",
     "aceptacion.py",
     "dataset_entrenamiento.py",

@@ -36,6 +36,8 @@ def _entorno(raiz: Path, tmp: Path, puerto: int) -> None:
     os.environ["CSG_WEB_FRONTEND"] = str(raiz / "frontend" / "dist")
     os.environ["CSG_WEB_PUERTO"] = str(puerto)
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+    if os.environ.get("CSG_E2E_SIN_MODELO") == "1":
+        os.environ["CSG_ASISTENTE_OLLAMA"] = "0"        # sin modelo: el servidor tampoco habla con Ollama
     sys.path[:0] = [str(raiz / "src"), str(raiz / "tests")]
     os.chdir(raiz)
 

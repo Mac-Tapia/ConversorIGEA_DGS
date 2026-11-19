@@ -53,8 +53,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 023 VNR-GIS desde la copia de SQL Server de cualquier concesionaria | cumplida |  |
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |
   | 025 Calibración por año de medición | implementada | falta T27 |
-  | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | cumplida |  |
-  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T26 |
+  | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | aprobada | falta T16, T17, T19, T21, T22, T23 |
+  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T26, T33 |
   | 028 Escaneo del alimentador antes de recalibrar | cumplida |  |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
   | 030 Los años del PIDE en casos y escenarios de DIgSILENT | cumplida |  |

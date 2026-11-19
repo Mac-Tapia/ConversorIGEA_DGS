@@ -111,10 +111,10 @@ def test_casos_funcionales_cubren_catalogo_sin_usar_train():
     """047:RF-15, 070:RF-85 — el ensayo amplio no se limita a tres órdenes fáciles; las tareas de las specs 107 a 112
     se miden en su prueba sellada, no aquí."""
     from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus, casos_funcionales
-    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, TAREAS_107_112
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, TAREAS_SIN_SELLADA_070_079
     filas, _ = preparar_corpus({}, [], por_familia=2)
     casos = casos_funcionales(filas)
-    assert {r['tarea'] for r in casos} == set(TAREAS) - TAREAS_107_112
+    assert {r['tarea'] for r in casos} == set(TAREAS) - TAREAS_SIN_SELLADA_070_079
     assert all(r['particion'] == 'prueba' for r in casos)
 
 

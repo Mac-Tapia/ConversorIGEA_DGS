@@ -30,3 +30,7 @@
 - [x] T13. La lectura de cabecera del pronóstico libro a libro: un libro abierto a la vez, para todos los
       alimentadores y sus centrales, con el mismo resultado. (RF-114)
       Hecho cuando: `pytest -q tests/test_pronostico_demanda.py -k "memoria_de_la_cabecera or no_deja_abiertos or libro_a_libro"` (089:RF-114) en verde.
+- [x] T14. La GRU no cuenta los objetivos ausentes en la pérdida (C10 del diagnóstico del 18-11, H17): huecos a cero
+      solo en la entrada y máscara en el objetivo, sin reentrenar ni promover. (RF-115)
+      Hecho cuando: `pytest -q tests/test_pronostico_gru_huecos.py` en verde en CPU, con su rojo por aserción en la base
+      (la sonda H17 de D:/csg/INTEGRA_54/auditoria_c0 reproduce lo mismo).

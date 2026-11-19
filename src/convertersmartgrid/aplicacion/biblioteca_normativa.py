@@ -124,6 +124,86 @@ def agregar_norma(fichero: Path | str, *, capa_usuario: Path | None = None) -> l
     return actos or [str(datos['amplia'])]
 
 
+def _sha256(ruta: Path) -> str:
+    h = hashlib.sha256()
+    with ruta.open('rb') as f:                  # solo los bytes: el libro oficial nunca se abre con COM
+        for trozo in iter(lambda: f.read(1 << 20), b''):
+            h.update(trozo)
+    return h.hexdigest()
+
+
+def comprobar_fuentes(carpeta: Path | str | None, fecha: str, *, raiz: Path | None = None,
+                      capa_usuario: Path | None = None) -> dict:
+    """026:RF-46, 107:RF-22: la huella de la fuente oficial de cada norma contra la registrada, y su vigencia en
+    ``fecha``. Solo lee: cada norma con ``fichero_local`` dice «cuadra», «alterada» (y entonces no se regenera desde
+    ella), «falta» (dónde ponerla) o «sin_carpeta»; las que no traen fichero, «sin_fuente_local». Nada se descarga."""
+    registro = cargar_biblioteca(fecha, raiz=raiz, capa_usuario=capa_usuario)
+    base = Path(carpeta) if carpeta else None
+    filas = []
+    for acto in sorted(registro.normas):
+        n = registro.normas[acto]
+        fila = {'acto': acto, 'fichero': n.fichero_local, 'estado_juridico': n.estado_juridico,
+                'obliga': n.obligatoria_en(fecha), 'vigencia_desde': n.vigencia_desde,
+                'vigencia_hasta': n.vigencia_hasta, 'motivo': ''}
+        if not n.fichero_local or not n.sha256:
+            fila['fuente'] = 'sin_fuente_local'
+        elif base is None or not base.is_dir():
+            fila['fuente'], fila['motivo'] = 'sin_carpeta', 'falta la carpeta de fuentes normativas'
+        else:
+            ruta = base / n.fichero_local
+            if not ruta.is_file():
+                fila['fuente'], fila['motivo'] = 'falta', f'ponga la fuente oficial en {n.fichero_local}'
+            elif _sha256(ruta) != n.sha256.lower():
+                fila['fuente'], fila['motivo'] = 'alterada', ('su sha256 no es el registrado: recupere el original '
+                                                              '(del comprimido oficial); no se regenera desde ella')
+            else:
+                fila['fuente'] = 'cuadra'
+        filas.append(fila)
+    cuenta: dict[str, int] = {}
+    for f in filas:
+        cuenta[f['fuente']] = cuenta.get(f['fuente'], 0) + 1
+    return {'fecha': fecha, 'carpeta': bool(base and base.is_dir()), 'cuenta': cuenta, 'normas': filas}
+
+
+def _campos_regla(r: Regla) -> str:
+    return json.dumps({'valor': r.valor, 'unidad': r.unidad, 'articulo_o_anexo': r.articulo_o_anexo,
+                       'pagina': r.pagina, 'cita_literal': r.cita_literal}, sort_keys=True, default=str)
+
+
+def comparar_con_vigente(fichero: Path | str, *, raiz: Path | None = None,
+                         capa_usuario: Path | None = None) -> list[dict]:
+    """107:RF-22: qué reglas de un registro regenerado entran, salen o cambian frente a la biblioteca vigente, por
+    norma, y si cambia su vigencia o su estado. El fichero se valida como en ``agregar_norma``; no se escribe nada."""
+    origen = Path(fichero)
+    try:
+        datos = json.loads(origen.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RegistroError(f'{origen}: no se puede leer ({exc})') from exc
+    if not isinstance(datos, dict) or datos.get('esquema') != ESQUEMA:
+        raise RegistroError(f'{origen}: no es del esquema {ESQUEMA}')
+    vigente = cargar_biblioteca(raiz=raiz, capa_usuario=capa_usuario)
+    nuevas = [leer_norma(n, str(origen)) for n in datos.get('normas') or ()]
+    if datos.get('amplia'):
+        base = vigente.norma(datos['amplia'])
+        extra = tuple(leer_regla(r, f'{origen}:{base.acto}') for r in datos.get('reglas') or ())
+        nuevas.append(Norma(**{**{k: getattr(base, k) for k in Norma.__dataclass_fields__},
+                               'reglas': base.reglas + extra}))
+    salida = []
+    for n in nuevas:
+        antes = vigente.normas.get(n.acto)
+        viejas = {r.clave: _campos_regla(r) for r in (antes.reglas if antes else ())}
+        ahora = {r.clave: _campos_regla(r) for r in n.reglas}
+        vigencia = {} if antes is None else {
+            k: [getattr(antes, k), getattr(n, k)] for k in ('vigencia_desde', 'vigencia_hasta', 'estado_juridico')
+            if getattr(antes, k) != getattr(n, k)}
+        salida.append({'acto': n.acto, 'nueva': antes is None,
+                       'entran': sorted(set(ahora) - set(viejas)),
+                       'salen': sorted(set(viejas) - set(ahora)),
+                       'cambian': sorted(k for k in set(viejas) & set(ahora) if viejas[k] != ahora[k]),
+                       'vigencia': vigencia})
+    return salida
+
+
 def _fila_regla(norma: Norma, regla: Regla) -> dict:
     return {'acto': norma.acto, 'estado': norma.estado_juridico, 'vigencia_desde': norma.vigencia_desde,
             'vigencia_hasta': norma.vigencia_hasta, 'solo_referencia': norma.solo_referencia,

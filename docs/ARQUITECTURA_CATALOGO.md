@@ -8,39 +8,39 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 460 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 461 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 126 |
 | Interfaz | `frontend/src/` | 115 |
 | Pruebas de la interfaz | `frontend/test/` | 56 |
-| Pruebas | `tests/` | 599 |
+| Pruebas | `tests/` | 607 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 14002 líneas y 435 funciones, pendiente de partir (002).
+`web/services.py` tiene 14055 líneas y 437 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 84 |
-| aprobada | 21 |
+| cumplida | 83 |
+| aprobada | 22 |
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3865 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3880 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 193 |
-| aplicacion | Apl | 131 |
+| aplicacion | Apl | 132 |
 | dominio | Dom | 70 |
 | presentacion | Pre | 50 |
 | puertos | Pue | 5 |
 
-449 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+450 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -48,7 +48,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-161 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+163 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -57,8 +57,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `informes` | espacio | 11 |
 | `asistente` | espacio | 8 |
 | `powerfactory` | espacio | 8 |
+| `asistente` | general | 8 |
 | `digital-twin` | espacio | 7 |
-| `asistente` | general | 6 |
 | `lote` | espacio | 4 |
 | `catalog` | espacio | 3 |
 | `inputs` | espacio | 3 |
@@ -129,7 +129,7 @@ El intérprete acepta al modelo de órdenes con confianza 0.85, salvo que traiga
 | `riesgo` | no | sí | Revisa el riesgo de operación: si, según la evidencia, la propuesta deja cargas sin respaldo o sin servicio. |
 | `cliente_mcp` | no | sí | Un cliente MCP de esta máquina: solo las lecturas del proyecto. |
 
-### Tareas (59)
+### Tareas (64)
 
 Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. Todas están en las dos ediciones (086:RF-15).
 
@@ -194,6 +194,11 @@ Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. 
 | `plano_maniobra` | trabajo | sí | engine | `plano_api.registrar_rutas_plano` | alimentadores, proyecto? | Abre o cierra una maniobra de un alimentador en una variación del plano, sin tocar el caso base, y la estudia con DIgSILENT o con el motor abierto. |
 | `benchmark_anonimo` | proceso | sí | engine | `benchmark_anonimo` | — | Genera en local el benchmark anonimizado de la fuente TXT cargada; si el estudio no se reproduce o el control encuentra una fuga, no se emite nada. |
 | `entrenar_asistente` | proceso | sí | engine | `asistente_entrenar` | — | Reentrena el Transformer de órdenes y, solo si hay informes reales en su prueba, el clasificador de informes; lo que no pase sus puertas deja el modelo en uso (026:RF-20, 067:RF-28). |
+| `vnr_estudio` | trabajo | sí | engine | `vnr_api.registrar_rutas_vnr` | — | Estudio VNR de la red del espacio por la Guía 232-2017, con el SICODI de la empresa: el sector típico de la Guía y el del SICODI, su resolución, el año y la moneda (108:RF-20 a RF-25). |
+| `clientes_fijos_evolucion` | trabajo | sí | engine | `evolucion_fijas_api.registrar_rutas_evolucion` | alimentadores | Evolución mes a mes de los clientes fijos de los alimentadores que nombre la orden, con los libros de clientes del rango de meses (105:RF-17). |
+| `normativa_comprobar` | consulta | no | engine | `normativa_api.registrar_rutas_normativa` | — | Comprueba las fuentes oficiales de la biblioteca normativa: la huella de cada una contra la registrada y su vigencia hoy; solo lee y nada se descarga (107:RF-22). |
+| `normativa_agregar` | trabajo | sí | engine | `normativa_api.registrar_rutas_normativa` | ruta | Agrega a la capa del usuario de la biblioteca normativa la norma del fichero .json que nombre la orden (con el esquema de la biblioteca normativa); lo que no valida no entra (107:RF-21). |
+| `normativa_regenerar` | trabajo | sí | engine | `normativa_api.registrar_rutas_normativa` | — | Regenera un registro de la biblioteca desde su fuente oficial ya descargada, con su generador (Guía VNR 232, formatos 217, COES o reconsideraciones): comprueba la huella, dice qué reglas entran, salen o cambian y lo escribe en la capa del usuario (107:RF-22). |
 
 ### Etapas del proyecto entero
 
@@ -671,6 +676,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `curriculo_llm_real.py` | Apl | 047 | Solicitudes nuevas de prueba redactadas por el maestro. |
 | `propuestas_maestro.py` | Apl | 047 | Corpus separado de 200 propuestas únicas, con anotaciones y procedencia del maestro. |
 | `prueba_sellada.py` | Apl | 070 | La prueba sellada de las órdenes desde la 070: seis frases por tarea, un vocabulario propio y una huella fija. |
+| `prueba_sellada_026.py` | Apl | 026 | La prueba sellada de las cinco tareas nuevas de la 026 (el Estudio VNR, la evolución de clientes fijos y las tres órdenes de la biblioteca… |
 | `prueba_sellada_079.py` | Apl | 079 | La prueba sellada que decide desde la 079: seis frases por tarea escritas de una vez antes de medir, vocabulario inventado, huella fija y su método… |
 | `aceptacion.py` | Apl | 047 | Auditoría, evaluación del intérprete/plan y puertas de aceptación por alcance. |
 | `dataset_entrenamiento.py` | Apl | 043 | Custodia de datos reales, sintéticos y de contexto. |
@@ -695,7 +701,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `aplicacion/asistente/embeddings.py` | Apl | 043, 047, 097 | Pares contrastivos, métricas de recuperación (también hit@10), encoder CUDA local y persistencia de índices con hashes. |
 | `aplicacion/asistente/reranker.py` | Apl | 047 | Reranker por cross-encoder en CUDA, con revisión fijada, la política que lee la decisión de la evaluación sellada y los umbrales de abstención… |
 | `aplicacion/asistente/evaluacion_rag.py` | Apl | 047, 097 | Conjunto sintético sellado, medición de BM25, híbrido y rerankers, decisión según la política declarada, calibración de la abstención y su puerta en… |
-| `aplicacion/asistente/fuga_evaluacion.py` | Apl | 097 | Ninguna pregunta ni orden de un conjunto de evaluación en lo que la juzga: qué conjunto mide qué corpus, preguntas literales fuera de su fuente, de… |
+| `aplicacion/asistente/fuga_evaluacion.py` | Apl | 097, 026 | Ninguna pregunta ni orden de un conjunto de evaluación en lo que la juzga: qué conjunto mide qué corpus, preguntas literales fuera de su fuente, de… |
 | `aplicacion/asistente/pregunta_entregada.py` | Apl | 086, 097 | «Pregunta» en el programa instalado: calibra al construir el candidato la abstención por BM25 sobre los manuales y notas que se entregan, con la… |
 | `aplicacion/asistente/corpus_proyecto.py` | Apl | 077 | Corpus ampliado del índice: ficheros, troceado sin perder líneas, caché por fichero y medida de tamaño. |
 | `aplicacion/asistente/lectura_proyecto.py` | Apl | 077 | Lecturas del proyecto para el LLM y el MCP: leer un fichero, buscar un texto literal y consultar una ruta en el OpenAPI, con política local o… |
@@ -745,7 +751,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `nube.py` | Pre | 109 | Vínculos con la nube (`nube/vinculos.json`): aviso de revisión nueva, comparación con la copia vigente y aceptación solo confirmada. |
 | `nube_selector.py` | Pre | 109 | Página del selector de Google Picker y del File Picker v8 de OneDrive, con su propia CSP. |
 | `fuentes_api.py` | Pre | 109 | Las fuentes de la empresa en la web: listar, subir, la red del espacio y la ayuda que usan los módulos para tomar un libro o su subida. |
-| `normativa_api.py` | Pre | 107 | La biblioteca normativa general en la web: las normas con lo que obliga en una fecha, sus reglas con la cita y la subida de una norma a la capa del… |
+| `normativa_api.py` | Pre | 107 | La biblioteca normativa general en la web: las normas con lo que obliga en una fecha, sus reglas con la cita la subida de una norma a la capa del… |
 | `vad_api.py` | Pre | 108, 070 | Rutas `…/vad/estudios` (listar y crear el estudio con la empresa del perfil y un TdR del registro) y `…/vad/{estudio}/armar` (el caso subido a la… |
 | `vnr_api.py` | Pre | — | 108 T28: el estudio VNR desde la web (Guía del VNR, RCD 232-2017-OS/CD; 108:RF-21 a RF-25). |
 

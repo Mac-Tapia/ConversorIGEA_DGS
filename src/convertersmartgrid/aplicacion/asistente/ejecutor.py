@@ -18,7 +18,17 @@ from urllib.parse import quote
 
 from ...dominio.sesion_web import cabeceras_locales
 
-TERMINADOS = ('done', 'parcial', 'no_converge', 'failed', 'cancelled')
+#: 070:RF-87 (C2 del diagnóstico del 18-11, H03): «interrumpido» (096: la web cayó con el trabajo en marcha) también
+#: termina la espera; sin él, el asistente consultaba sin fin un trabajo que ya no iba a seguir.
+TERMINADOS = ('done', 'parcial', 'no_converge', 'failed', 'cancelled', 'interrumpido')
+#: 070:RF-87: cuánto espera una petición a la web (las subidas grandes incluidas) y la espera entera de un trabajo.
+TIEMPO_PETICION_S = 300.0
+PLAZO_TRABAJO_S = 24 * 3600.0
+#: 070:RF-87: cuántas consultas seguidas sin respuesta de la web dan la espera por perdida.
+FALLOS_SEGUIDOS = 5
+#: 070:RF-88: las rutas síncronas largas (cargar la fuente, preparar los planes, regenerar una norma, que espera su
+#: subproceso hasta 1800 s) llevan su plazo; con los 300 s comunes, la petición se cortaba con la web aún trabajando.
+PLAZO_SINCRONO_S = 1900.0
 _ENTREGABLE = re.compile(r'\.(dgs|docx|xlsx|zip|csv)$', re.IGNORECASE)
 
 
@@ -31,10 +41,32 @@ class Paso:
     archivos: Callable | None = None        # para subir un fichero (multipart)
     espera: bool = True
     formulario: bool = False                # ruta de formulario sin fichero (la carga sola, 070:RF-29)
+    plazo_s: float | None = None            # 070:RF-88: el plazo de su petición, si no es el común
 
 
 class PasoFallido(RuntimeError):
     """Un paso devolvió un error o su trabajo no terminó bien."""
+
+
+class PeticionSinRespuesta(PasoFallido):
+    """070:RF-88: la web no respondió a tiempo o se cayó la conexión. Es un :class:`PasoFallido` para quien ejecuta los
+    pasos (la orden falla con su motivo, no con la excepción de la biblioteca de red), y ``esperar`` lo sigue contando
+    como un fallo pasajero hasta ``FALLOS_SEGUIDOS``."""
+
+
+def _errores_de_red() -> tuple[type[BaseException], ...]:
+    errores: list[type[BaseException]] = [OSError, TimeoutError]
+    try:
+        import requests
+        errores.append(requests.RequestException)
+    except ImportError:
+        pass
+    try:
+        import httpx
+        errores.append(httpx.HTTPError)
+    except ImportError:
+        pass
+    return tuple(errores)
 
 
 @dataclass
@@ -47,6 +79,8 @@ class ClienteWeb:
     intervalo_s: float = 0.5
     cancelado: Callable[[], bool] = field(default=lambda: False)
     gobierno: Any = None
+    tiempo_peticion_s: float = TIEMPO_PETICION_S
+    plazo_trabajo_s: float = PLAZO_TRABAJO_S
 
     def _url(self, ruta: str) -> str:
         if ruta.startswith('/api/'):
@@ -65,7 +99,12 @@ class ClienteWeb:
         # 086:RF-19: la API también se lo exige a sí misma; solo sale si la dirección es de esta máquina.
         if credenciales := cabeceras_locales(self.base):
             kw['headers'] = {**credenciales, **(kw.get('headers') or {})}
-        r = self.http.request(metodo, self._url(ruta), **kw)
+        kw.setdefault('timeout', self.tiempo_peticion_s)          # 070:RF-87: ninguna petición espera sin límite
+        try:
+            r = self.http.request(metodo, self._url(ruta), **kw)
+        except _errores_de_red() as exc:                          # 070:RF-88
+            raise PeticionSinRespuesta(f"{metodo} {ruta}: la web no respondió en {float(kw['timeout']):g} s "
+                                       f'({type(exc).__name__})') from exc
         if r.status_code >= 300:
             try:
                 detalle = r.json().get('detail')
@@ -78,11 +117,36 @@ class ClienteWeb:
         return respuesta
 
     def esperar(self, trabajo: dict) -> dict:
+        """Hasta que el trabajo termina (también «interrumpido»), con un plazo total; si la web deja de responder
+        ``FALLOS_SEGUIDOS`` veces seguidas, lo dice y no sigue esperando (070:RF-87)."""
         cancelado = False
+        fin = time.monotonic() + self.plazo_trabajo_s
+        fallos = 0
         while True:
-            estado = self.pedir('GET', f"/api/jobs/{trabajo['id']}")
+            try:
+                estado = self.pedir('GET', f"/api/jobs/{trabajo['id']}")
+                fallos = 0
+            except PeticionSinRespuesta as exc:   # 070:RF-88: antes que PasoFallido, para seguir contando fallos
+                fallos += 1
+                if fallos >= FALLOS_SEGUIDOS:
+                    raise PasoFallido(f"la web no responde al consultar el trabajo {trabajo['id']} "
+                                      f'({fallos} veces seguidas): {exc}') from exc
+                time.sleep(self.intervalo_s)
+                continue
+            except PasoFallido:
+                raise
+            except Exception as exc:  # la web caída o lenta: requests, httpx u OSError
+                fallos += 1
+                if fallos >= FALLOS_SEGUIDOS:
+                    raise PasoFallido(f"la web no responde al consultar el trabajo {trabajo['id']} "
+                                      f'({fallos} veces seguidas): {type(exc).__name__}') from exc
+                time.sleep(self.intervalo_s)
+                continue
             if estado['status'] in TERMINADOS:
                 return estado
+            if time.monotonic() >= fin:
+                raise PasoFallido(f"el trabajo {trabajo['id']} no terminó en {self.plazo_trabajo_s / 3600:g} h: "
+                                  'sigue en la web; el asistente deja de esperarlo')
             if self.cancelado() and not cancelado:
                 self.pedir('POST', f"/api/jobs/{trabajo['id']}/cancel")
                 cancelado = True
@@ -233,7 +297,8 @@ def _pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> l
     if nuevos is not None:
         return nuevos
     nuevos = (_pasos_nube_y_correo(tarea, extras) or _pasos_pit(tarea, extras) or _pasos_vad(tarea, extras)
-              or _pasos_plano(tarea, datos, extras))
+              or _pasos_plano(tarea, datos, extras) or _pasos_026_rf44(tarea, feeders, extras)
+              or _pasos_026_rf46(tarea, datos, extras))
     if nuevos is not None:
         return nuevos
     raise ValueError(f'la tarea {tarea!r} no tiene pasos: es una consulta o un proceso')
@@ -376,6 +441,41 @@ def _pasos_vad(tarea: str, extras: Mapping[str, Any]) -> list[Paso] | None:
     return None
 
 
+def _pasos_026_rf44(tarea: str, feeders: list[str], extras: Mapping[str, Any]) -> list[Paso] | None:
+    """026:RF-44: el Estudio VNR (108) y la Evolución de clientes fijos (105) por sus rutas de la web. El VNR toma por
+    defecto la red que dejó la carga del espacio y el SICODI de sus fuentes, como la pestaña; aquí solo van sus datos."""
+    if tarea == 'vnr_estudio':
+        vnr = extras['vnr']
+        return [Paso('el estudio VNR por la Guía 232', 'POST', '/vnr/estudio',
+                     {k: vnr[k] for k in ('sector', 'sector_sicodi', 'resolucion', 'anio', 'moneda')}, formulario=True)]
+    if tarea == 'clientes_fijos_evolucion':
+        fijos = extras['clientes_fijos']
+        return [Paso('la evolución de los clientes fijos', 'POST', '/clientes-fijos/evolucion',
+                     {'alimentadores': feeders, 'desde': fijos['desde'], 'hasta': fijos['hasta'],
+                      'con_cabecera': bool(fijos.get('con_cabecera', True))})]   # el de la API, salvo que la orden diga otro
+    return None
+
+
+def _pasos_026_rf46(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> list[Paso] | None:
+    """026:RF-46: la biblioteca normativa por sus rutas (107:RF-21, RF-22). Agregar sube el .json a la capa del usuario;
+    regenerar primero corre el generador en una carpeta temporal y compara con la vigente (qué reglas entran, salen o
+    cambian), y solo después escribe con la ficha de esa vista previa; lo que entró va en el resultado."""
+    if tarea == 'normativa_agregar':
+        ruta = Path(datos['ruta'])
+
+        def fichero(_r):
+            return {'file': (ruta.name, ruta.read_bytes(), 'application/json')}
+
+        return [Paso('agregar la norma a la biblioteca', 'POST', '/api/normativa', None, archivos=fichero, espera=False)]
+    if tarea == 'normativa_regenerar':
+        generador = extras['normativa']['generador']
+        return [Paso('regenerar y comparar con la vigente', 'POST', '/api/normativa/regenerar',
+                     {'generador': generador}, espera=False),
+                Paso('escribir lo regenerado en la biblioteca', 'POST',
+                     lambda r: f"/api/normativa/regenerar/{r[-1]['token']}/aplicar", None, espera=False)]
+    return None
+
+
 def _pasos_plano(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> list[Paso] | None:
     """070:RF-79: el plano por sus rutas (111): la vista y su revisión, una variación, la maniobra y su estudio."""
     if tarea != 'plano_maniobra':
@@ -473,6 +573,17 @@ def ejecutar(lista: list[Paso], cliente: ClienteWeb, log: Callable[[str], None] 
     return _ejecutar(lista, cliente, log)
 
 
+#: 070:RF-88: las rutas que responden cuando terminan (no encolan): su petición lleva ``PLAZO_SINCRONO_S``.
+RUTAS_SINCRONAS_LARGAS = ('/load', '/lote/plan', '/pf/estudios/plan', '/api/normativa/regenerar')
+
+
+def plazo_del_paso(p: Paso, ruta: str) -> dict[str, float]:
+    """El ``timeout`` de la petición de un paso: el suyo, el de las rutas síncronas largas o el común (070:RF-88)."""
+    if p.plazo_s:
+        return {'timeout': float(p.plazo_s)}
+    return {'timeout': PLAZO_SINCRONO_S} if ruta in RUTAS_SINCRONAS_LARGAS else {}
+
+
 def _ejecutar(lista: list[Paso], cliente: ClienteWeb, log: Callable[[str], None]) -> dict:
     """Bucle compartido; el gobierno, cuando está vinculado, valida cada paso real."""
     resultados: list[Any] = []
@@ -485,14 +596,15 @@ def _ejecutar(lista: list[Paso], cliente: ClienteWeb, log: Callable[[str], None]
         ruta = p.ruta(resultados) if callable(p.ruta) else p.ruta
         cuerpo = p.cuerpo(resultados) if callable(p.cuerpo) else p.cuerpo
         log(f'Asistente: paso {i} de {len(lista)}, {p.nombre}…')
+        plazo = plazo_del_paso(p, ruta)                            # 070:RF-88
         if p.archivos is not None:
-            r = cliente.pedir(p.metodo, ruta, data=cuerpo or {}, files=p.archivos(resultados))
+            r = cliente.pedir(p.metodo, ruta, data=cuerpo or {}, files=p.archivos(resultados), **plazo)
         elif p.formulario:
-            r = cliente.pedir(p.metodo, ruta, data=cuerpo or {})
+            r = cliente.pedir(p.metodo, ruta, data=cuerpo or {}, **plazo)
         elif p.metodo == 'GET':
-            r = cliente.pedir('GET', ruta)
+            r = cliente.pedir('GET', ruta, **plazo)
         else:
-            r = cliente.pedir(p.metodo, ruta, json=cuerpo if cuerpo is not None else {})
+            r = cliente.pedir(p.metodo, ruta, json=cuerpo if cuerpo is not None else {}, **plazo)
         if p.espera and isinstance(r, dict) and r.get('id') and r.get('status'):
             fin = cliente.esperar(r)
             trabajos.append({'paso': p.nombre, 'trabajo': fin['id'], 'estado': fin['status'],

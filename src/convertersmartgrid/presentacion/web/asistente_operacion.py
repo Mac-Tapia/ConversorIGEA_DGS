@@ -689,6 +689,102 @@ def _pit(ws, plan, extras: dict) -> None:
     extras['pit'] = pit
 
 
+#: 026:RF-44: el sector típico de la Guía 232 por sus palabras; sin ninguna, el de la pestaña (urbano de densidad media-baja).
+_SECTOR_GUIA = (('urbano_rural', r'\burbano[\s-]+rural\b'), ('rural_ser', r'\b(rural|ser)\b'),
+                ('urbano_alta', r'\b(urbano[\s-]+)?(de\s+)?alta(\s+densidad)?\b'),
+                ('urbano_media_baja', r'\b(media|baja)\b'))
+_SECTOR_SICODI = re.compile(r'\bsector(?:\s+t[ií]pico)?\s+(?:del\s+)?sicodi\s+([\w-]+)', re.IGNORECASE)
+_RESOLUCION = re.compile(r'\bresoluci[oó]n\s+(?:n[º°.o]*\s*)?([\w./-]*\d[\w./-]*)', re.IGNORECASE)
+_MES = re.compile(r'\b(\d{4})-(0[1-9]|1[0-2])\b')
+
+
+def _vnr(plan, extras: dict) -> None:
+    """026:RF-44: los datos del Estudio VNR de la orden; la red y el SICODI, los del espacio (como la pestaña)."""
+    texto = normalizar(plan.texto)
+    sector = next((s for s, patron in _SECTOR_GUIA if re.search(patron, texto)), 'urbano_media_baja')
+    vnr: dict[str, Any] = {'sector': sector, 'moneda': 'PEN' if re.search(r'\b(soles|pen)\b', texto) else 'USD'}
+    if (m := _SECTOR_SICODI.search(plan.texto)) is not None:
+        vnr['sector_sicodi'] = m[1]
+    else:
+        plan.faltan.append('el sector típico del SICODI: por ejemplo, «sector SICODI 2».')
+    if (m := _RESOLUCION.search(plan.texto)) is not None:
+        vnr['resolucion'] = m[1]
+    else:
+        plan.faltan.append('la resolución del SICODI: por ejemplo, «resolución 158-2023-OS/CD».')
+    # El año de la valorización, sin contar el que va dentro de la resolución («158-2023-OS/CD»).
+    sin_resolucion = _RESOLUCION.sub(' ', plan.texto)
+    if (anios := _ANIO.findall(sin_resolucion)):
+        vnr['anio'] = int(anios[-1])
+    else:
+        plan.faltan.append('el año de la valorización: por ejemplo, «2025».')
+    extras['vnr'] = vnr
+
+
+def _clientes_fijos(plan, extras: dict) -> None:
+    """026:RF-44: el rango de meses de la orden (AAAA-MM a AAAA-MM, o un año o un rango de años entero)."""
+    meses = [f'{a}-{m}' for a, m in _MES.findall(plan.texto)]
+    if not meses and (rango := _RANGO_ANIOS.search(plan.texto)) is not None and int(rango[1]) <= int(rango[2]):
+        meses = [f'{rango[1]}-01', f'{rango[2]}-12']
+    elif not meses and (anios := _ANIO.findall(plan.texto)):
+        meses = [f'{anios[0]}-01', f'{anios[0]}-12']
+    if not meses:
+        plan.faltan.append('el rango de meses: por ejemplo, «de 2025-01 a 2025-12» o «de 2024 a 2025».')
+        return
+    desde, hasta = min(meses), max(meses)
+    extras['clientes_fijos'] = {'desde': desde, 'hasta': hasta,
+                                'con_cabecera': not re.search(r'\bsin\s+(la\s+)?cabecera\b', normalizar(plan.texto))}
+
+
+#: 026:RF-46: el generador de la biblioteca por sus palabras (107:RF-22); el orden importa: «guía VNR» antes que «217».
+_GENERADOR_NORMATIVA = (('guia_vnr_232', r'\b(guia\s+(del?\s+)?vnr|vnr|232)\b'),
+                        ('formatos_217', r'\b(formatos?|sombread\w*|217|norma tarifas)\b'),
+                        ('coes', r'\bcoes\b'), ('reconsideraciones', r'\breconsideraci\w*\b'))
+
+
+def _normativa(plan, extras: dict) -> None:
+    """026:RF-46: agregar pide el .json de la norma; regenerar, cuál de los generadores de la biblioteca."""
+    if plan.tarea == 'normativa_agregar':
+        ruta = str(plan.datos.get('ruta') or '')
+        if not ruta.lower().endswith('.json'):
+            plan.faltan.append('el fichero .json de la norma (con el esquema de la biblioteca normativa): por ejemplo, '
+                               '«agrega la norma D:/normas/rcd_123_2026.json».')
+        elif not Path(ruta).is_file():
+            plan.faltan.append(f'el fichero {Path(ruta).name}: no está en esa ruta.')
+        return
+    texto = normalizar(plan.texto)
+    generador = next((g for g, patron in _GENERADOR_NORMATIVA if re.search(patron, texto)), None)
+    if generador is None:
+        plan.faltan.append('qué registro regenerar: la Guía VNR 232, los formatos 217, el COES o las '
+                           'reconsideraciones.')
+        return
+    extras['normativa'] = {'generador': generador}
+
+
+def _texto_normativa(plan, resultado: dict) -> None:
+    """026:RF-46: lo que entró en la biblioteca, y qué reglas entran, salen o cambian si se regeneró."""
+    final = resultado.get('resultado') or {}
+    actos = ', '.join(final.get('actos') or []) or 'ninguna'
+    if plan.tarea == 'normativa_agregar':
+        resultado['texto'] = f'Norma agregada a la capa del usuario: {actos}.'
+        return
+    if final.get('sin_cambios'):
+        resultado['texto'] = 'Regenerado desde su fuente oficial: igual que el vigente, no se escribió nada.'
+        return
+    partes = []
+    for c in final.get('cambios') or []:
+        cuenta = (f"{len(c.get('entran') or [])} entran, {len(c.get('salen') or [])} salen, "
+                  f"{len(c.get('cambian') or [])} cambian")
+        vigencia = '; cambia su vigencia' if c.get('vigencia') else ''
+        partes.append(f"{c['acto']}{' (nueva)' if c.get('nueva') else ''}: {cuenta}{vigencia}")
+    resultado['texto'] = f"Regenerado y escrito en la capa del usuario ({actos}). " + '. '.join(partes) + '.'
+    if final.get('otros'):
+        otros = len(final['otros'])                              # 086:RF-110: singular o plural reales
+        resultado['texto'] += (f" También rehízo {otros} {'fichero que viaja' if otros == 1 else 'ficheros que viajan'} "
+                               'con el programa '
+                               '(no se escriben desde aquí).')
+    resultado['cambios'] = final.get('cambios') or []
+
+
 _GRUPO = re.compile(r'\bgrupo\s+(\d)\b', re.IGNORECASE)
 _ESTUDIO_VAD = re.compile(r'[\w-]+')
 
@@ -858,6 +954,8 @@ def presentar(ws, plan, resultado: dict, extras: dict | None = None) -> None:
         _texto_vad(plan, resultado)
     elif plan.tarea == 'plano_maniobra':
         _texto_plano(plan, resultado, extras or {})
+    elif plan.tarea in ('normativa_agregar', 'normativa_regenerar'):
+        _texto_normativa(plan, resultado)
     elif plan.tarea == 'descargar_resultados':
         trabajo = next((p['trabajo'] for p in resultado.get('pasos') or []), None)
         if trabajo:
@@ -930,6 +1028,12 @@ def requisitos(svc, ws, plan, extras: dict) -> None:
         _vad_crear(plan, extras)
     elif tarea == 'vad_empresa_modelo':
         _vad_empresa_modelo(ws, plan, extras)
+    elif tarea == 'vnr_estudio':                                           # 026:RF-44
+        _vnr(plan, extras)
+    elif tarea == 'clientes_fijos_evolucion':
+        _clientes_fijos(plan, extras)
+    elif tarea in ('normativa_agregar', 'normativa_regenerar'):             # 026:RF-46
+        _normativa(plan, extras)
     elif tarea == 'plano_maniobra':
         _plano(plan, extras)
     elif tarea == 'benchmark_anonimo':

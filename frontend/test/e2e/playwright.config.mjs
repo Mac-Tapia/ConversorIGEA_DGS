@@ -105,6 +105,9 @@ function servidor(programa, puertoDe, carpetaDe, extra = {}) {
       CSG_WEB_RELANZAR: '0',
       CSG_LIBROS_NUEVOS: '0',
       CSG_ASISTENTE_VECTORES: '0',
+      // Sin modelo (CSG_E2E_SIN_MODELO=1), tampoco el servidor habla con Ollama: el intérprete preguntaba en cada orden
+      // de F04 y cargaba el modelo en la máquina (18-11, 0,7 GB en medio de una e2e).
+      ...(process.env.CSG_E2E_SIN_MODELO === '1' ? { CSG_ASISTENTE_OLLAMA: '0' } : {}),
       ...extra,
     },
   };

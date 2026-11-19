@@ -1,6 +1,6 @@
 # Spec 070 — El asistente opera el conversor de punta a punta
 
-Estado: aprobada (2026-11-16: RF-79 a RF-86, el asistente cubre las specs 107 a 112, T16 a T22; 2026-11-15: 070:RF-78 v2, T14 por grupos de módulos; antes implementada)
+Estado: aprobada (2026-11-18: RF-87, esperas finitas del asistente, T23; 2026-11-16: RF-79 a RF-86, el asistente cubre las specs 107 a 112, T16 a T22; 2026-11-15: 070:RF-78 v2, T14 por grupos de módulos; antes implementada)
 
 Rama de trabajo: `asistente/070`.
 Cita: 026 (asistente), 027 (RF-19, RF-43, RF-44, RF-65), 028 (RF-21 a RF-31), 046 (RF-20 a RF-24), 047 (RF-11),
@@ -169,6 +169,20 @@ le estaban cerradas aunque el operador confirmara.
   histórica, como en la T8.
 - RF-86: EL SISTEMA dará al estudio de costos del VAD rutas de la web para crear el estudio y armar la empresa modelo
   como trabajo en cola, con progreso y cancelación, y las mismas rutas servirán a la web y al asistente (P5, P7).
+- RF-87: (diagnóstico del 2026-11-18, H03, tarjeta C2) EL SISTEMA hará que el asistente nunca espere sin fin a la web:
+  cada petición llevará su límite de espera; un trabajo «interrumpido» (096) terminará la espera y su paso fallará con
+  ese motivo; la espera de un trabajo tendrá un plazo total; y SI la web no responde varias veces seguidas, ENTONCES el
+  asistente lo dirá y dejará de esperar, sin cancelar ni tocar el trabajo en la web.
+- RF-88: (amplía RF-87; revisión de 1d del 2026-11-18) SI una petición del asistente a la web no recibe respuesta a
+  tiempo o pierde la conexión, ENTONCES EL SISTEMA la dará por un paso fallido con su motivo en español (la ruta, el
+  plazo y la causa), nunca como la excepción de la biblioteca de red, y la espera de un trabajo la seguirá contando como
+  un fallo pasajero de RF-87. Las rutas que responden al terminar y no encolan (cargar la fuente, preparar los planes de
+  cargas y de estudios, regenerar una norma, que espera su generador hasta 1800 s) llevarán su propio plazo, mayor que
+  ese tope.
+- RF-89: (pedido de c2 tras la e2e de 111-T16, 2026-11-18) SI la variable `CSG_ASISTENTE_OLLAMA` vale «0», ENTONCES el
+  cliente de Ollama no abrirá ninguna conexión y la orden seguirá por la vía compatible, como con Ollama apagado; sin la
+  variable, nada cambia. Las configuraciones de las pruebas de navegador la ponen cuando corren sin modelo, para que la
+  web de prueba no cargue el modelo en la máquina en medio de una e2e.
 
 ## Fuera de alcance
 

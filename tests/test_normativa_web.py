@@ -60,3 +60,27 @@ def test_107_rf21_la_web_sube_una_norma_y_rechaza_la_que_no_valida(web):
     assert r.status_code == 422 and not (capa / 'mala.json').exists()
     r = cliente.post('/api/normativa', files={'file': ('norma.pdf', b'%PDF', 'application/pdf')})
     assert r.status_code == 422
+
+
+def test_107_rf22_la_web_comprueba_las_fuentes_sin_escribir(web, monkeypatch):
+    """107:RF-22 — GET /api/normativa/fuentes da cada norma con el estado de su fuente oficial y no escribe nada."""
+    monkeypatch.delenv('CSG_FUENTES_NORMATIVAS', raising=False)
+    cliente, capa = web
+    r = cliente.get('/api/normativa/fuentes', params={'fecha': '2026-11-18'})
+    assert r.status_code == 200, r.text
+    assert isinstance(r.json().get('normas'), list) and not capa.exists()
+
+
+def test_107_rf22_la_web_no_regenera_sin_carpeta_de_fuentes(web, monkeypatch):
+    """107:RF-22 — sin la carpeta de las fuentes oficiales descargadas, regenerar se niega con su motivo (409)."""
+    monkeypatch.delenv('CSG_FUENTES_NORMATIVAS', raising=False)
+    cliente, capa = web
+    r = cliente.post('/api/normativa/regenerar', json={'generador': 'coes'})
+    assert r.status_code == 409 and 'fuentes' in r.json()['detail'] and not capa.exists()
+
+
+def test_107_rf22_la_web_no_aplica_una_regeneracion_que_no_existe(web):
+    """107:RF-22 — aplicar con una ficha que no salió de una vista previa no escribe nada (404)."""
+    cliente, capa = web
+    r = cliente.post('/api/normativa/regenerar/abcdef0123456789abcdef01/aplicar')
+    assert r.status_code == 404 and not capa.exists()
