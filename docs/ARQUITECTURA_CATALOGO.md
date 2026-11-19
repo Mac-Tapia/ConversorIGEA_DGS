@@ -11,8 +11,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 460 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 126 |
-| Interfaz | `frontend/src/` | 114 |
-| Pruebas de la interfaz | `frontend/test/` | 55 |
+| Interfaz | `frontend/src/` | 115 |
+| Pruebas de la interfaz | `frontend/test/` | 56 |
 | Pruebas | `tests/` | 599 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3864 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3865 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -1119,6 +1119,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/powerfactory/OperacionSet.tsx` | — | 063 | Panel para diagnosticar, evaluar o reforzar una SET existente, sin recrearla. |
 | `src/features/powerfactory/PerfilTension.tsx` | — | 094 | Perfil de tensión que deja la calibración: barras de media por su distancia a la cabecera, la troncal y el límite del perfil de la empresa. |
 | `src/features/powerfactory/TipoDeAnalisis.tsx` | — | 072 | El recuadro del tipo de análisis en la pestaña de su módulo (corto plazo, PIDE o planeamiento de largo plazo), fijo, con su horizonte, obras,… |
+| `src/features/powerfactory/guardadoOrdenado.ts` | — | 072 | El guardado del proyecto y los alimentadores del espacio con PUT /options: al momento en pantalla, y después solo la respuesta o el fallo del último… |
 | `src/features/powerfactory/TransferenciaPF.tsx` | — | 011, 104, 123 | Paso 4.3: transferencia de carga entre dos alimentadores. |
 | `src/features/powerfactory/alternativas.ts` | — | 042 | Las palabras y el orden de las alternativas por alimentador, las mismas del informe |
 | `src/features/powerfactory/clientesCatalogo.ts` | — | 004, 008, 025, 091 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |
@@ -1173,6 +1174,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/tarjetaOperador.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/tensionFuente.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/tiposDeAnalisis.test.mjs` | — | 072 | Selector explícito, ficha, pasos de cada tipo, aviso del PIDE sin corto plazo y cuerpo de «Planificar» por tipo. |
+| `test/guardadoOrdenado.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/ubicacionCarga.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/vadPanel.test.mjs` | — | 108 | Pruebas de la pestaña del VAD sin navegador: matriz de cobertura de las rutas del VAD (llamada, control y prueba del servidor), el panel con un… |
 

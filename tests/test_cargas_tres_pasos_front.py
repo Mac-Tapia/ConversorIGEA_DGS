@@ -54,8 +54,10 @@ def test_filtrar_proyectos():
 
 def test_alimentadores_marcados_al_elegir_y_compartidos():
     """008:RF-6 / 008:RF-7 — elegir un proyecto marca todos sus alimentadores, y los marcados
-    sirven a la calibración y a la integración."""
-    assert 'setOrder(projects.find((p) => ruta(p) === name)?.feeders ?? [])' in CARGAS
+    sirven a la calibración y a la integración. Con 072:RF-45 el proyecto y sus alimentadores son del espacio: se eligen
+    a la vez, en una sola escritura, y los alimentadores marcados salen de los del proyecto elegido."""
+    assert 'elegir(name, projects.find((p) => ruta(p) === name)?.feeders ?? [])' in CARGAS
+    assert 'const { project, order, setOrder, elegir } = useProyectoDelEspacio();' in CARGAS
     assert 'api.cargasPlan(ws.id, project, order,' in CARGAS
     assert 'feeders={order}' in CARGAS
 

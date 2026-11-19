@@ -169,7 +169,8 @@ export const api = {
   // Spec 018, RF-13: la última lista leída en el espacio, sin abrir DIgSILENT.
   // Spec 028, RF-21, RF-22: recalibrar el sistema del proyecto, aparte de la calibración inicial.
   recalibrarDatos: (id: string, project: string) =>
-    request<{ zonal: string; demanda_dir: string; grupo?: string; alimentadores?: string[]; del_sistema?: string[] }>(`${ws(id)}/demanda/recalibrar?project=${encodeURIComponent(project)}`),
+    request<{ zonal?: string; demanda_dir?: string; grupo?: string; alimentadores?: string[]; del_sistema?: string[];
+      disponible?: boolean; motivo?: string }>(`${ws(id)}/demanda/recalibrar?project=${encodeURIComponent(project)}`),
   // 028:RF-40: ``solo``, los alimentadores del sistema que se recalibran; vacío, todos.
   recalibrar: (id: string, body: { project: string; periodo: string; zonal?: string; demanda_dir?: string; transformadores?: boolean;
     criterio_fijas?: CriterioFijas; solo?: string[]; maximo_mes?: string[]; a_su_maxima?: string[] }) =>

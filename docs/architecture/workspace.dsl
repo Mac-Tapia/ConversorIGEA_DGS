@@ -78,7 +78,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Interfaz: conversión y perfil de la empresa"
                     }
                 }
-                cmpInterfazEstudios = component "Cargas, estudios, obras e informes" "«Cargas en DIgSILENT», demanda, estudios, obras e informes (24 ficheros)." "React + TypeScript" {
+                cmpInterfazEstudios = component "Cargas, estudios, obras e informes" "«Cargas en DIgSILENT», demanda, estudios, obras e informes (25 ficheros)." "React + TypeScript" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/src/features/powerfactory"
                     tags "Web"
                     properties {
@@ -106,7 +106,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Interfaz: asistente"
                     }
                 }
-                cmpInterfazPruebas = component "Pruebas de la interfaz" "Pruebas sin navegador de las pestañas y de la lógica (42 ficheros)." "Node test runner" {
+                cmpInterfazPruebas = component "Pruebas de la interfaz" "Pruebas sin navegador de las pestañas y de la lógica (43 ficheros)." "Node test runner" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/test"
                     tags "Web"
                     properties {

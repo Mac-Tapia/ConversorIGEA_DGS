@@ -19,7 +19,7 @@ test('F03 planificación: cada tipo del servidor en su pestaña, con su ficha, s
     expect(tipos.tipos.length, 'el servidor ofrece algún tipo de análisis').toBeGreaterThan(0);
 
     // 072:RF-43: «Cargas en DIgSILENT» sigue entera, sin el selector de los tipos que ya son pestañas.
-    await page.getByRole('tab', { name: 'Cargas en DIgSILENT' }).click();
+    await page.getByRole('tab', { name: 'Cargas en DIgSILENT', exact: true }).click();
     await expect(page.getByRole('radiogroup', { name: 'Tipo de análisis' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: '1 · Proyecto de DIgSILENT' })).toBeVisible();
     await revisarAxe(page, FLUJO, '0_cargas_sin_selector', testInfo);
@@ -52,5 +52,40 @@ test('F03 planificación: cada tipo del servidor en su pestaña, con su ficha, s
       await captura(page, FLUJO, `2_${t.clave}_pasos`);
       await revisarAxe(page, FLUJO, `2_${t.clave}_pasos`, testInfo);
     }
+    sinRedNiErrores(externas, errores);
+  });
+
+test('F03 072:RF-45 el proyecto de DIgSILENT elegido en Cargas vale en Corto plazo y PIDE, y queda en el espacio',
+  async ({ web: page, externas, errores }, testInfo) => {
+    // Sin DIgSILENT en esta prueba: solo la lista guardada de «Leer proyectos» se da hecha (lo que leería DIgSILENT).
+    // Elegir y guardar el proyecto va al servidor de verdad (PUT /options, workspace.json).
+    const inventario = { folder: 'ConverterSmartGrid', projects: [
+      { name: 'P1', path: 'Prueba/P1', feeders: ['F1', 'F2'] }, { name: 'P2', path: 'Prueba/P2', feeders: ['F3'] }] };
+    await page.route('**/powerfactory/projects', (r) => (r.request().method() === 'GET' ? r.fulfill({ json: inventario }) : r.continue()));
+    const wid = await page.locator('.ws-id span[title]').getAttribute('title');
+    // Las pestañas ya montadas pidieron la lista antes de la ruta: se recarga para que todas la lean con ella.
+    await page.reload({ waitUntil: 'networkidle' });
+    await expect(page.locator('.ws-id span[title]')).toHaveAttribute('title', wid ?? '');
+    const panel = () => page.locator('[role="tabpanel"]:not([hidden])');
+    const proyecto = () => panel().getByLabel(/^Proyecto \(/);
+    const opciones = async () => (await (await page.request.get(`/api/workspaces/${wid}`)).json()).options;
+
+    await page.getByRole('tab', { name: 'Cargas en DIgSILENT', exact: true }).click();
+    await expect(proyecto()).toBeVisible();
+    await proyecto().selectOption('Prueba/P2');
+    await expect.poll(async () => (await opciones()).pf_proyecto_elegido, { message: 'el servidor guarda el proyecto' }).toBe('Prueba/P2');
+    expect((await opciones()).pf_alimentadores_elegidos).toEqual(['F3']);
+
+    // Las otras pestañas lo tienen elegido, sin volver a elegirlo.
+    for (const nombre of ['Corto plazo', 'PIDE']) {
+      await page.getByRole('tab', { name: nombre, exact: true }).click();
+      await expect(proyecto(), `${nombre}: el proyecto del espacio`).toHaveValue('Prueba/P2');
+    }
+    // Y sigue tras recargar la página: es del espacio, no del navegador.
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.getByRole('tab', { name: 'PIDE', exact: true }).click();
+    await expect(proyecto(), 'tras recargar').toHaveValue('Prueba/P2');
+    await captura(page, FLUJO, '3_proyecto_compartido');
+    await revisarAxe(page, FLUJO, '3_proyecto_compartido', testInfo);
     sinRedNiErrores(externas, errores);
   });

@@ -226,3 +226,11 @@ otorga aprobación humana ni aceptación nativa, eléctrica o científica.
       el código de antes (salía «Tipo de análisis» al cargar) y pasa después, con `pytest tests/test_cargas_tres_pasos_front.py
       -k 072_rf44` en verde; `npm test`, `tsc`, el build, los `tests/*_front.py` y el e2e F03 en verde.
       Hecho en la fila TITULO-MODULO (f7, 18-11); evidencias en D:/csg/PM_IMPL/TITULO_MODULO.
+- [x] T22. El proyecto y sus alimentadores del paso 1, del espacio: `pf_proyecto_elegido` y `pf_alimentadores_elegidos`
+      en sus opciones (PUT /options, workspace.json atómico), `useProyectoDelEspacio` en las cuatro pestañas (una sola
+      escritura al elegir) y «proyecto_digsilent» compartida en config/modulos/vinculos.json. (RF-45)
+      Hecho cuando: `node --test --test-name-pattern="072:RF-45" test/modulosPlaneamiento.test.mjs` falla por aserción
+      con el código de antes (cada pestaña pedía elegir el proyecto) y pasa después; `pytest tests/test_web_api.py -k
+      072_rf45`, `tests/test_fuentes_empresa.py`, `npm test`, `tsc`, el build, los `tests/*_front.py` y la e2e
+      Cargas → PIDE en verde.
+      Hecho en la fila VINCULO-PROYECTO (f7, 18-11); evidencias en D:/csg/PM_IMPL/VINCULO_PROYECTO.

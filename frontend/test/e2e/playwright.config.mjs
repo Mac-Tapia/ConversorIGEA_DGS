@@ -63,7 +63,9 @@ export default defineConfig({
     viewport: { width: 1366, height: 900 },
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
-    serviceWorkers: 'block',
+    // Sin «serviceWorkers: 'block'»: Playwright toca navigator.serviceWorker en cada marco y en el de la vista
+    // previa (sandbox sin allow-same-origin) eso lanza un SecurityError que no es de la web. La web no registra
+    // ninguno y la red ya va cortada.
   },
   webServer: [servidor(`-m convertersmartgrid.presentacion.web`, puerto, carpeta),
     // 109 T19: la misma web con la nube simulada (tests/e2e_web_nube_simulada.py), en el puerto siguiente y con sus
@@ -95,6 +97,9 @@ function servidor(programa, puertoDe, carpetaDe, extra = {}) {
       LOCALAPPDATA: carpetaDe,
       CSG_RUNTIME_HOME: join(carpetaDe, 'runtime'),
       CSG_WEB_DATA: join(carpetaDe, 'web'),
+      // 086:RF-22: sin red. En la edición de desarrollo las teselas salen encendidas por defecto y el mapa de cargas del
+      // PIDE pedía su fondo a openstreetmap.org (la guardia lo cazó en F03); como el plano, la web de prueba las apaga.
+      CSG_SALIDA_TESELAS: '0',
       // Sin vigilancias de fondo: el recorrido ve solo lo que pide.
       CSG_ASISTENTE_VIGILANCIA: '0',
       CSG_WEB_RELANZAR: '0',

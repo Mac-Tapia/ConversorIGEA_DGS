@@ -72,6 +72,8 @@ class OpcionesRespuesta(Respuesta):
     export_tsv: bool
     workers: int
     hoja: Literal['A0', 'A1', 'A2', 'A3', 'A4'] | None
+    pf_proyecto_elegido: str | None = None                                     # 072:RF-45
+    pf_alimentadores_elegidos: list[str] | None = None
 
 
 class CapacidadesRespuesta(Respuesta):

@@ -48,6 +48,11 @@ async function cargar() {
           ws: { id: 'W', options: {}, inputs: {} },
           health: { edicion: { producto: true, beta: [] }, capabilities: {}, copia_datos: { vencida: false } },
           active: {}, run: async () => undefined, startJob: async () => undefined, jobs: {},
+        } }, createElement(CargasTab, modulo ? { modulo } : {})));
+        export const pintarCon = (modulo, extra) => renderToStaticMarkup(createElement(Ctx.Provider, { value: {
+          ws: { id: 'W', options: {}, inputs: {} },
+          health: { edicion: { producto: true, beta: [] }, capabilities: {}, copia_datos: { vencida: false } },
+          active: {}, run: async () => undefined, startJob: async () => undefined, jobs: {}, ...extra,
         } }, createElement(CargasTab, modulo ? { modulo } : {})));`,
       resolveDir: RAIZ, loader: 'tsx',
     },
@@ -133,4 +138,27 @@ test('072:RF-42 el PIDE ya no es beta: su paso no lleva la marca y la edición n
   assert.ok(html.includes('5 · Planificación PIDE y gemelo digital') && !html.includes('En beta'));
   const edicion = readFileSync(join(SRC, 'shared', 'edicion.ts'), 'utf-8');
   assert.ok(!/ClaveBeta = [^;]*'pide'/.test(edicion), 'ClaveBeta todavía tiene «pide»');
+});
+
+
+test('072:RF-45 el proyecto y sus alimentadores elegidos son del espacio: Cargas, Corto plazo, PIDE y Largo plazo los ven igual', async () => {
+  // El usuario (18-11): «lo que haga esta parte debe estar vinculado, evitar hacer doble trabajo». Las cuatro pestañas son
+  // el mismo CargasTab montado a la vez; antes cada una guardaba su proyecto y había que elegirlo otra vez en cada una.
+  const { pintarCon } = await cargar();
+  const lectura = { id: 'J1', kind: 'pf_projects', status: 'done', title: 'Leer proyectos',
+    result: { folder: 'ConverterSmartGrid', projects: [
+      { name: 'P1', path: 'Lote/P1', feeders: ['F1', 'F2'] }, { name: 'P2', path: 'Lote/P2', feeders: ['F3'] }] } };
+  const espacio = { id: 'W', inputs: {}, options: { pf_proyecto_elegido: 'Lote/P2', pf_alimentadores_elegidos: ['F3'] } };
+  for (const modulo of [undefined, 'corto_plazo', 'pide', 'largo_plazo']) {
+    const html = pintarCon(modulo, { ws: espacio, setWs: () => undefined, jobs: { J1: lectura } });
+    assert.match(html, /<option value="Lote\/P2" selected="">/, `${modulo ?? 'cargas'}: no tiene elegido el proyecto del espacio`);
+    assert.doesNotMatch(html, /<option value="" selected="">— elija un proyecto —/, `${modulo ?? 'cargas'}: pide elegir otra vez`);
+  }
+  // Otro espacio sin proyecto elegido: nada del anterior (la elección es de cada espacio, no del navegador).
+  const otro = { id: 'W2', inputs: {}, options: {} };
+  for (const modulo of [undefined, 'pide']) {
+    const html = pintarCon(modulo, { ws: otro, setWs: () => undefined, jobs: { J1: lectura } });
+    assert.match(html, /<option value="" selected="">— elija un proyecto —/, `${modulo ?? 'cargas'}: arrastra el proyecto de otro espacio`);
+    assert.doesNotMatch(html, /<option value="Lote\/P2" selected="">/, `${modulo ?? 'cargas'}: arrastra Lote/P2`);
+  }
 });

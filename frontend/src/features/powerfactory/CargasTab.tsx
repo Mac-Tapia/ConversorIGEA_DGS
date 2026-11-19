@@ -24,7 +24,7 @@ import { InformesPF } from './InformesPF';
 import { OperacionSet } from './OperacionSet';
 import { TransferenciaPF } from './TransferenciaPF';
 import { GemeloPIDE } from './GemeloPIDE';
-import { DESTINO, PrefijoPasos, SeguirDondeQuedo, TipoDeAnalisis, estadoConDisco, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
+import { DESTINO, PrefijoPasos, SeguirDondeQuedo, TipoDeAnalisis, estadoConDisco, useProyectoDelEspacio, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
 import type { ClaveTipoAnalisis } from '../../api/types';
 import { AvisoBeta, MarcaBeta } from '../../shared/MarcaBeta';
 import { betaActiva } from '../../shared/edicion';
@@ -176,9 +176,9 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
   const verNuevas = !modulo || modulo === 'corto_plazo';
   const verObras = !modulo || modulo !== 'largo_plazo';
   const verPlan = !modulo || modulo !== 'corto_plazo';
-  const [project, setProject] = useState('');
+  // 072:RF-45: el proyecto y sus alimentadores son del espacio, los mismos en las cuatro pestañas de DIgSILENT.
+  const { project, order, setOrder, elegir } = useProyectoDelEspacio();
   const [buscaProyecto, setBuscaProyecto] = useState('');
-  const [order, setOrder] = useState<string[]>([]);
   const [filter, setFilter] = useState('');
   const [demandas, setDemandas] = useState<File | null>(null);
   const [nuevas, setNuevas] = useState<File | null>(null);
@@ -313,8 +313,7 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
   const toggle = (f: string) => setOrder((o) => (o.includes(f) ? o.filter((x) => x !== f) : [...o, f]));
   // RF-6: al elegir un proyecto se marcan todos sus alimentadores.
   const choose = (name: string) => {
-    setProject(name);
-    setOrder(projects.find((p) => ruta(p) === name)?.feeders ?? []);
+    elegir(name, projects.find((p) => ruta(p) === name)?.feeders ?? []);
     setPlan(null);
   };
 

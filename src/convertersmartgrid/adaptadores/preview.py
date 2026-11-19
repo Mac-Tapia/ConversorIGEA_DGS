@@ -52,6 +52,15 @@ def recurso_leaflet(nombre: str) -> str:
     return (CARPETA_LEAFLET / nombre).read_text(encoding='utf-8')
 
 
+#: 086:RF-63 (18-11, axe dentro del marco del mapa en la e2e F03): lo que Leaflet trae de serie no pasa WCAG 2.2: el
+#: enlace de la atribución solo se distinguía por el color (2,55:1 frente al texto) y las casillas del control de capas
+#: medían 13 px. Va después de leaflet.css, en cada página que lo incluye.
+CSS_LEAFLET_ACCESIBLE = """/* f7-accesible */
+    .leaflet-control-attribution a { color: #00557a; text-decoration: underline; }
+    .leaflet-control-layers-selector { width: 24px; height: 24px; margin: 0 6px 0 0; vertical-align: middle; }
+    .leaflet-control-layers label { display: block; min-height: 24px; margin: 2px 0; }"""
+
+
 def politica_base() -> str:
     """Solo lo que va dentro del fichero, y las teselas si esa salida está encendida (086:RF-22)."""
     imagenes = f'data: {ORIGEN_TESELAS} {ORIGEN_SATELITE}' if salida_permitida('teselas') else 'data:'
@@ -378,6 +387,7 @@ def _write_leaflet_html(layers: PreviewLayers, path: Path) -> Path:
 {recurso_leaflet('leaflet.js')}
   </script>
   <style>
+{CSS_LEAFLET_ACCESIBLE}
     html, body, #map {{ height: 100%; margin: 0; }}
     .info {{
       position: absolute; z-index: 1000; top: 10px; left: 50px;

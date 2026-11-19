@@ -252,3 +252,24 @@ def test_104_rf1_el_recorrido_de_libros_nuevos_tiene_su_web_con_la_vigilancia_en
     config = (E2E_PRUEBA / 'playwright.config.mjs').read_text(encoding='utf-8')
     assert "CSG_LIBROS_NUEVOS: '1'" in config and 'CSG_LIBROS_INTERVALO_MIN' in config, 'sin la web con la vigilancia'
     assert 'puertoLibrosE2E' in (E2E_PRUEBA / 'entorno.mjs').read_text(encoding='utf-8')
+
+
+def test_086_rf22_la_web_de_los_recorridos_no_pide_teselas_a_internet():
+    """086:RF-22 (18-11, F03 de la e2e de VINCULO) — en la edición de desarrollo la salida de teselas está encendida por
+    defecto, y el mapa de cargas del paso de obras del PIDE pedía su fondo a openstreetmap.org: la guardia de red de la
+    e2e lo cazó. La web de los recorridos la apaga en su entorno (como hace el plano con la suya); la guardia no admite
+    excepciones."""
+    config = (E2E_PRUEBA / 'playwright.config.mjs').read_text(encoding='utf-8')
+    cuerpo = config.split('function servidor(', 1)[1]
+    assert "CSG_SALIDA_TESELAS: '0'" in cuerpo, 'la web de los recorridos puede pedir teselas a internet'
+    assert 'openstreetmap' not in (E2E_PRUEBA / 'comun.mjs').read_text(encoding='utf-8'), 'la guardia de red admite OSM'
+
+
+def test_072_rf45_la_e2e_no_bloquea_service_workers_en_marcos_aislados():
+    """072:RF-45 (18-11, F03 de la e2e de VINCULO) — con «serviceWorkers: 'block'» Playwright toca
+    navigator.serviceWorker en cada marco; en la vista previa (sandbox sin allow-same-origin) eso lanza un SecurityError
+    que la guardia de consola toma por un fallo de la web. La web no registra ninguno: el arnés no lo bloquea, como el
+    del plano; el sandbox y la guardia quedan como están."""
+    for config in (E2E_PRUEBA / 'playwright.config.mjs', RAIZ / 'frontend' / 'e2e' / 'playwright.config.ts'):
+        codigo = '\n'.join(l.split('//', 1)[0] for l in config.read_text(encoding='utf-8').splitlines())
+        assert 'serviceWorkers' not in codigo, f'{config.name} bloquea service workers en marcos aislados'

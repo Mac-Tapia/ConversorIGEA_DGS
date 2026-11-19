@@ -10,7 +10,8 @@
     "demanda": {"de_donde": "fuentes", "clase": "demanda", "descripcion": "Libros de cabecera, clientes y suministros de la calibración: el PIT (F-103) y el PIDE (análisis del mercado) parten de ellos.", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.demanda.potencia_desde_energia", "articulo": "art. 8.1 (Etapa 3)"}},
     "cargas_nuevas": {"de_donde": "fuentes", "clase": "cargas_nuevas", "descripcion": "Libro de cargas nuevas de planificación: corto plazo y usuarios libres del PIT (F-113 a F-118).", "cita": {"norma": "RCD 217-2013-OS/CD", "clave": "pit.formato.F-113", "articulo": "art. 30 (Título IV)"}},
     "interrupciones": {"de_donde": "fuentes", "clase": "interrupciones", "descripcion": "Histórico de interrupciones: calidad del VAD (6.11) y F06 del PIDE.", "cita": {"norma": "TdR VAD 2026", "clave": "vad.calidad.indicadores", "articulo": "Numeral 6.11 y Anexo N° 3, apartado 7"}},
-    "catalogo": {"de_donde": "fuentes", "clase": "catalogo", "descripcion": "Costos de las obras (libro CAPEX y módulos) del corto plazo y del PIDE.", "cita": {"decision_de_producto": "el libro CAPEX del perfil (072:RF-18); la norma del PIDE (F13) pide el detalle de costos sin fijar la fuente"}}
+    "catalogo": {"de_donde": "fuentes", "clase": "catalogo", "descripcion": "Costos de las obras (libro CAPEX y módulos) del corto plazo y del PIDE.", "cita": {"decision_de_producto": "el libro CAPEX del perfil (072:RF-18); la norma del PIDE (F13) pide el detalle de costos sin fijar la fuente"}},
+    "proyecto_digsilent": {"de_donde": "espacio", "descripcion": "El proyecto de DIgSILENT y sus alimentadores elegidos en el paso 1 de cualquiera de las cuatro pestañas de DIgSILENT; guardados en las opciones del espacio (workspace.json).", "cita": {"decision_de_producto": "lo elegido una vez vale para todos los módulos (orden del usuario, 17-11) y sin doble trabajo entre Cargas en DIgSILENT, Corto plazo, PIDE y Largo plazo (orden del usuario, 18-11; 072:RF-45)"}}
   },
   "modulos": {
     "vnr": {
@@ -91,7 +92,8 @@
         {"clase": "demanda", "de_donde": "fuentes", "para": "el análisis del mercado: históricos y clientes", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, art. 7, Análisis del Mercado Eléctrico"}},
         {"clase": "proyeccion", "de_donde": "fuentes", "para": "el F01 de proyección y la demanda de cada año del horizonte", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F01 Proyección"}},
         {"clase": "interrupciones", "de_donde": "fuentes", "para": "el F06 de calidad de suministro", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F06 Calidad de suministro"}},
-        {"clase": "catalogo", "de_donde": "fuentes", "para": "los costos de las obras (libro CAPEX y módulos) del F13", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F13 Detalle de costos"}}
+        {"clase": "catalogo", "de_donde": "fuentes", "para": "los costos de las obras (libro CAPEX y módulos) del F13", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F13 Detalle de costos"}},
+        {"clase": "proyecto_digsilent", "de_donde": "espacio", "para": "el proyecto de DIgSILENT y sus alimentadores del paso 1, los mismos de las demás pestañas", "cita": {"decision_de_producto": "lo elegido una vez vale para todos los módulos (orden del usuario, 17-11) y sin doble trabajo entre Cargas en DIgSILENT, Corto plazo, PIDE y Largo plazo (orden del usuario, 18-11; 072:RF-45)"}}
       ],
       "propias": [
         {"clase": "anio_presentacion", "formatos": ["dato de la pantalla"], "para": "el ciclo de 4 años y los años 4 a 7 del detalle", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, horizonte"}}
@@ -115,7 +117,8 @@
         {"clase": "demanda", "de_donde": "fuentes", "para": "el análisis del mercado: históricos y clientes", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, art. 7, Análisis del Mercado Eléctrico"}},
         {"clase": "proyeccion", "de_donde": "fuentes", "para": "el F01 de proyección y la demanda de cada año del horizonte", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F01 Proyección"}},
         {"clase": "interrupciones", "de_donde": "fuentes", "para": "el F06 de calidad de suministro", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F06 Calidad de suministro"}},
-        {"clase": "catalogo", "de_donde": "fuentes", "para": "los costos de las obras (libro CAPEX y módulos) del F13", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F13 Detalle de costos"}}
+        {"clase": "catalogo", "de_donde": "fuentes", "para": "los costos de las obras (libro CAPEX y módulos) del F13", "cita": {"norma": "RM 428-2017-MEM/DM", "articulo": "RM 428-2017-MEM/DM, F13 Detalle de costos"}},
+        {"clase": "proyecto_digsilent", "de_donde": "espacio", "para": "el proyecto de DIgSILENT y sus alimentadores del paso 1, los mismos de las demás pestañas", "cita": {"decision_de_producto": "lo elegido una vez vale para todos los módulos (orden del usuario, 17-11) y sin doble trabajo entre Cargas en DIgSILENT, Corto plazo, PIDE y Largo plazo (orden del usuario, 18-11; 072:RF-45)"}}
       ],
       "propias": [
       ],
@@ -137,7 +140,8 @@
       "compartidas": [
         {"clase": "red_convertida", "de_donde": "espacio", "para": "el proyecto de DIgSILENT calibrado en «Sin proyecto»", "cita": {"decision_de_producto": "un mismo proyecto calibrado para todos los estudios del espacio (memoria «caso base verificado»)"}},
         {"clase": "demanda", "de_donde": "fuentes", "para": "la calibración a la máxima de cabecera", "cita": {"decision_de_producto": "spec 015 y 025: calibración con los libros de medición de la empresa"}},
-        {"clase": "catalogo", "de_donde": "fuentes", "para": "el costo de las obras de la escalera", "cita": {"decision_de_producto": "spec 072:RF-18 y el libro CAPEX del perfil"}}
+        {"clase": "catalogo", "de_donde": "fuentes", "para": "el costo de las obras de la escalera", "cita": {"decision_de_producto": "spec 072:RF-18 y el libro CAPEX del perfil"}},
+        {"clase": "proyecto_digsilent", "de_donde": "espacio", "para": "el proyecto de DIgSILENT y sus alimentadores del paso 1, los mismos de las demás pestañas", "cita": {"decision_de_producto": "lo elegido una vez vale para todos los módulos (orden del usuario, 17-11) y sin doble trabajo entre Cargas en DIgSILENT, Corto plazo, PIDE y Largo plazo (orden del usuario, 18-11; 072:RF-45)"}}
       ],
       "propias": [
         {"clase": "cargas_nuevas", "formatos": [".xlsx"], "para": "las cargas que se integran en «Con proyecto»", "cita": {"decision_de_producto": "spec 004 y 008: el libro de cargas nuevas de planificación"}}

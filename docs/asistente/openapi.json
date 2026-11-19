@@ -8641,6 +8641,31 @@
             ],
             "title": "Input Mode"
           },
+          "pf_alimentadores_elegidos": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pf Alimentadores Elegidos"
+          },
+          "pf_proyecto_elegido": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pf Proyecto Elegido"
+          },
           "source_company": {
             "anyOf": [
               {
@@ -8787,6 +8812,33 @@
               }
             ],
             "title": "Input Mode"
+          },
+          "pf_alimentadores_elegidos": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 5000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pf Alimentadores Elegidos"
+          },
+          "pf_proyecto_elegido": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pf Proyecto Elegido"
           },
           "source_crs": {
             "anyOf": [
@@ -16980,6 +17032,7 @@
     },
     "/api/workspaces/{wid}/demanda/recalibrar": {
       "get": {
+        "description": "028:RF-21: los datos para recalibrar el proyecto. Que no se pueda (no salió de una conversión del espacio, o\nfaltan sus libros) es un estado esperado al elegir un proyecto: 200 con «disponible» falso y su motivo, no un\n400 que el navegador apunta como error (lo vio F03 en la e2e de VINCULO). Lanzar el trabajo sigue siendo 400.",
         "operationId": "recalibrar_datos_api_workspaces__wid__demanda_recalibrar_get",
         "parameters": [
           {

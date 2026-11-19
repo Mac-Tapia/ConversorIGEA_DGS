@@ -788,3 +788,41 @@ def test_rutas_del_pit_montadas_en_la_app(client):
     r = client.get('/api/pit/areas')
     assert r.status_code in (200, 422), r.text
     assert 'areas' in r.json() or 'detail' in r.json()
+
+
+def test_072_rf45_el_proyecto_elegido_es_del_espacio_y_lo_lee_otra_pestana(client, tmp_path):
+    """072:RF-45 (usuario, 2026-11-18: «evitar hacer doble trabajo») — el proyecto de DIgSILENT y sus alimentadores
+    elegidos en una pestaña («Cargas en DIgSILENT») son del espacio: otra pestaña («PIDE»), que pide el espacio por su
+    cuenta, lee los mismos, y quedan en su workspace.json (escritura atómica). Sin espacios sobrantes ni repetidos; «»
+    deja el espacio sin proyecto."""
+    wid = _workspace(client)
+    vacio = client.get(f'/api/workspaces/{wid}').json()['options']
+    assert vacio.get('pf_proyecto_elegido') is None and vacio.get('pf_alimentadores_elegidos') is None, vacio
+    r = client.put(f'/api/workspaces/{wid}/options',
+                   json={'pf_proyecto_elegido': ' Lote/P2 ', 'pf_alimentadores_elegidos': ['F3', ' F4', 'F3', '']})
+    assert r.status_code == 200, r.text
+    devuelto = r.json()['options']
+    assert (devuelto.get('pf_proyecto_elegido'), devuelto.get('pf_alimentadores_elegidos')) == ('Lote/P2', ['F3', 'F4']), devuelto
+    # Otra pestaña: una petición aparte, sin nada del navegador de la primera.
+    otra = client.get(f'/api/workspaces/{wid}').json()['options']
+    assert (otra.get('pf_proyecto_elegido'), otra.get('pf_alimentadores_elegidos')) == ('Lote/P2', ['F3', 'F4']), otra
+    guardado = json.loads((tmp_path / 'web' / wid / 'workspace.json').read_text(encoding='utf-8'))['options']
+    assert (guardado.get('pf_proyecto_elegido'), guardado.get('pf_alimentadores_elegidos')) == ('Lote/P2', ['F3', 'F4']), guardado
+    # Las demás opciones no se tocan, y «» quita el proyecto.
+    assert otra['target_crs'] == vacio['target_crs'] and otra['strict'] == vacio['strict']
+    r = client.put(f'/api/workspaces/{wid}/options', json={'pf_proyecto_elegido': ''})
+    assert r.status_code == 200 and r.json()['options'].get('pf_proyecto_elegido') is None
+
+
+def test_028_rf21_un_proyecto_que_no_se_puede_recalibrar_no_es_un_error_de_la_web(client):
+    """028:RF-21 (18-11, F03 de la e2e de VINCULO) — al elegir un proyecto que no salió de una conversión del espacio, la
+    pestaña pedía sus datos de recalibrar y la web respondía 400: el navegador lo apuntaba como error de consola en cada
+    pestaña que monta la demanda. Es un estado esperado: 200 con «disponible» falso y su motivo; lanzar el trabajo con ese
+    proyecto sigue siendo un 400."""
+    wid = _workspace(client)
+    r = client.get(f'/api/workspaces/{wid}/demanda/recalibrar', params={'project': 'Prueba/P2'})
+    assert r.status_code == 200, (r.status_code, r.text)
+    datos = r.json()
+    assert datos.get('disponible') is False and datos.get('causa') == 'no_recalibrable' and datos.get('motivo'), datos
+    assert client.post(f'/api/workspaces/{wid}/demanda/recalibrar',
+                       json={'project': 'Prueba/P2', 'periodo': '2026-07'}).status_code == 400

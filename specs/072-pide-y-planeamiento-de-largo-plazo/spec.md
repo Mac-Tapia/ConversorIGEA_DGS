@@ -70,6 +70,10 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
 - RF-44: (amplía RF-43, usuario, 2026-11-18) EN la pestaña de su módulo, EL SISTEMA titulará el recuadro del tipo con
   la etiqueta de esa pestaña (Corto plazo, PIDE o Largo plazo) también mientras llegan los tipos del servidor o si no
   llegan; nunca «Tipo de análisis».
+- RF-45: (amplía RF-42, usuario, 2026-11-18) EL SISTEMA hará que el proyecto de DIgSILENT y sus alimentadores
+  elegidos en el paso 1 de «Cargas en DIgSILENT», «Corto plazo», «PIDE» o «Largo plazo» sean del espacio: se
+  guardan en él (sus opciones, con escritura atómica) y las demás pestañas los ven al momento, sin volver a elegirlos.
+  En la matriz de vínculos de los módulos son una entrada compartida.
 
 ### Mercado y años
 

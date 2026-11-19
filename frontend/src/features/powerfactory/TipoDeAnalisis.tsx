@@ -1,6 +1,8 @@
-import { createContext, useContext, useEffect, useId, useState } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState } from 'react';
 import { api } from '../../api/client';
+import { useApp } from '../../shared/context';
 import type { AvanceDisco, ClaveTipoAnalisis, TipoAnalisis, TiposAnalisis } from '../../api/types';
+import { crearGuardado } from './guardadoOrdenado';
 
 /** Dónde está cada paso en «Cargas en DIgSILENT»: los `id` de sus secciones (072:RF-33). */
 export const DESTINO = {
@@ -15,6 +17,53 @@ export const DESTINO = {
  * paso» vaya a la sección de su propia pestaña.
  */
 export const PrefijoPasos = createContext('');
+
+/**
+ * 072:RF-45: el proyecto de DIgSILENT y sus alimentadores, elegidos una vez por espacio para «Cargas en DIgSILENT»,
+ * «Corto plazo», «PIDE» y «Largo plazo» (el mismo CargasTab montado cuatro veces). La fuente es el espacio en el
+ * servidor (sus opciones en workspace.json, con escritura atómica): elegir en una pestaña lo escribe con PUT /options y
+ * la respuesta actualiza el espacio de App, así que las pestañas ocultas lo ven sin recargar. Sin setWs en el contexto
+ * (una prueba que pinta la pestaña sola) cada pestaña guarda los suyos, como antes.
+ */
+export interface ProyectoElegido {
+  project: string; setProject: (p: string) => void;
+  order: string[]; setOrder: (o: string[] | ((previo: string[]) => string[])) => void;
+  /** El proyecto y sus alimentadores a la vez, en una sola escritura. */
+  elegir: (p: string, o: string[]) => void;
+}
+
+/** Una sola lista vacía: sin alimentadores elegidos, el gancho no devuelve una lista nueva en cada render. */
+const VACIO: string[] = [];
+
+export function useProyectoDelEspacio(): ProyectoElegido {
+  const { ws, setWs } = useApp();
+  const [local, setLocal] = useState<{ project: string; order: string[] }>({ project: '', order: [] });
+  const ultimo = useRef(ws);
+  ultimo.current = ws;
+  const secuencia = useRef(0);
+  if (!setWs || !ws?.id) {
+    return {
+      project: local.project, order: local.order,
+      setProject: (p) => setLocal((l) => ({ ...l, project: p })),
+      setOrder: (o) => setLocal((l) => ({ ...l, order: typeof o === 'function' ? o(l.order) : o })),
+      elegir: (p, o) => setLocal({ project: p, order: o }),
+    };
+  }
+  const opciones = ws.options ?? ({} as typeof ws.options);
+  // Al momento en todas las pestañas; el servidor lo guarda y la respuesta del ÚLTIMO envío manda (guardadoOrdenado).
+  const guardar = crearGuardado(() => ultimo.current, (w) => { ultimo.current = w; setWs(w); },
+    (id, cambio) => api.setOptions(id, cambio as Parameters<typeof api.setOptions>[1]), secuencia);
+  return {
+    project: opciones.pf_proyecto_elegido ?? '',
+    order: opciones.pf_alimentadores_elegidos ?? VACIO,
+    setProject: (p) => guardar({ pf_proyecto_elegido: p || null }),
+    setOrder: (o) => {
+      const previo = ultimo.current.options?.pf_alimentadores_elegidos ?? [];
+      guardar({ pf_alimentadores_elegidos: typeof o === 'function' ? o(previo) : o });
+    },
+    elegir: (p, o) => guardar({ pf_proyecto_elegido: p || null, pf_alimentadores_elegidos: o }),
+  };
+}
 
 /** Lo que ya consta del proyecto en la sesión, leído de sus trabajos (072:RF-33). */
 export interface EstadoPasos {

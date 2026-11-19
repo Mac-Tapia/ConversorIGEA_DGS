@@ -91,6 +91,11 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     'workers': 0,
     # None = hoja a medida y escala geográfica real; A0–A4 son formatos explícitos.
     'hoja': None,
+    # 072:RF-45: el proyecto de DIgSILENT y sus alimentadores elegidos en el espacio, uno para «Cargas en DIgSILENT»,
+    # «Corto plazo», «PIDE» y «Largo plazo» (lo elegido una vez vale para todos los módulos, usuario 17-11 y 18-11).
+    # None, nada elegido; nunca una lista por defecto (las opciones se copian sin copiar sus listas).
+    'pf_proyecto_elegido': None,
+    'pf_alimentadores_elegidos': None,
 }
 
 #: Las tres fuentes del conversor (spec 059).

@@ -924,6 +924,7 @@
     "src/features/powerfactory/OperacionSet.tsx",
     "src/features/powerfactory/PerfilTension.tsx",
     "src/features/powerfactory/TipoDeAnalisis.tsx",
+    "src/features/powerfactory/guardadoOrdenado.ts",
     "src/features/powerfactory/TransferenciaPF.tsx",
     "src/features/powerfactory/alternativas.ts",
     "src/features/powerfactory/clientesCatalogo.ts",
@@ -979,6 +980,7 @@
     "test/tarjetaOperador.test.mjs",
     "test/tensionFuente.test.mjs",
     "test/tiposDeAnalisis.test.mjs",
+    "test/guardadoOrdenado.test.mjs",
     "test/ubicacionCarga.test.mjs",
     "test/vadPanel.test.mjs"
    ]

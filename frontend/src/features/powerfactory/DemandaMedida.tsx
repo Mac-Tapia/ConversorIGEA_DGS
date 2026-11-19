@@ -1067,7 +1067,10 @@ function RecalibrarConCriterios({ project, periodo, feeders, criterioFijas, maxi
   useEffect(() => {
     setDatos(null); setError('');
     if (!project) return;
-    void api.recalibrarDatos(ws.id, project).then(setDatos).catch((e: Error) => setError(e.message));
+    // 028:RF-21: un proyecto que no se puede recalibrar llega como «disponible» falso con su motivo, no como un error.
+    void api.recalibrarDatos(ws.id, project)
+      .then((r) => (r.disponible === false ? setError(r.motivo ?? '') : setDatos(r)))
+      .catch((e: Error) => setError(e.message));
   }, [ws.id, project, libros]);                                               // 086:RF-62
   const calibrado = Object.keys(ws.calibraciones ?? {}).some((clave) => clave.split('@')[0] === project.trim());
   // 028:RF-40: en un sistema, solo los alimentadores de esta tabla; un proyecto de uno o de varios unidos, entero.
@@ -1293,7 +1296,8 @@ function Recalibrar({ project, criterioFijas, elegirCriterio }: {
     setError('');
     if (!project) return;
     void api.recalibrarDatos(ws.id, project).then((d) => {
-      setZonal(d.zonal); setCarpeta(d.demanda_dir); setAlimentadores(d.alimentadores ?? []);
+      if (d.disponible === false) { setError(d.motivo ?? ''); return; }      // 028:RF-21: el motivo, sin error de la web
+      setZonal(d.zonal ?? ''); setCarpeta(d.demanda_dir ?? ''); setAlimentadores(d.alimentadores ?? []);
       setDelSistema(d.del_sistema ?? []);
     })
       .catch((e: Error) => setError(e.message));

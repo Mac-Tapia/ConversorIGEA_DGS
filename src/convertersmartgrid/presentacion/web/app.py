@@ -274,6 +274,9 @@ class OptionsIn(BaseModel):
     export_tsv: bool | None = None
     workers: int | None = Field(None, ge=0, le=MAX_WORKERS)
     hoja: Literal['A0', 'A1', 'A2', 'A3', 'A4'] | None = None
+    # 072:RF-45: lo elegido en el paso 1 de cualquiera de las cuatro pestañas de DIgSILENT vale para las demás.
+    pf_proyecto_elegido: str | None = Field(None, max_length=1000)
+    pf_alimentadores_elegidos: list[str] | None = Field(None, max_length=5000)
 
 
 class ServerPathIn(BaseModel):
@@ -1275,8 +1278,14 @@ def create_app(
         changes = {
             key: value
             for key, value in body.model_dump(exclude_unset=True).items()
-            if value is not None or key in ('hoja', 'empresa_espacio')
+            if value is not None or key in ('hoja', 'empresa_espacio', 'pf_proyecto_elegido', 'pf_alimentadores_elegidos')
         }
+        # 072:RF-45: sin espacios sobrantes, sin vacíos y sin repetidos; «» es no tener proyecto.
+        if 'pf_proyecto_elegido' in changes:
+            changes['pf_proyecto_elegido'] = (changes['pf_proyecto_elegido'] or '').strip() or None
+        if 'pf_alimentadores_elegidos' in changes and changes['pf_alimentadores_elegidos'] is not None:
+            changes['pf_alimentadores_elegidos'] = list(dict.fromkeys(
+                f.strip() for f in changes['pf_alimentadores_elegidos'] if f and f.strip()))
         for key in ('source_crs', 'target_crs'):
             if key in changes:
                 changes[key] = changes[key].strip()
@@ -1940,7 +1949,15 @@ def create_app(
     # que usa el carril de DIgSILENT por la API: va en el carril del asistente, o se esperaría a sí mismo.
     @app.get('/api/workspaces/{wid}/demanda/recalibrar')
     def recalibrar_datos(wid: str, project: str) -> dict:
-        return services.recalibrar_datos(ws_or_404(wid), project)
+        """028:RF-21: los datos para recalibrar el proyecto. Que no se pueda (no salió de una conversión del espacio, o
+        faltan sus libros) es un estado esperado al elegir un proyecto: 200 con «disponible» falso y su motivo, no un
+        400 que el navegador apunta como error (lo vio F03 en la e2e de VINCULO). Lanzar el trabajo sigue siendo 400."""
+        ws = ws_or_404(wid)
+        try:
+            return services.recalibrar_datos(ws, project)
+        except UserError as exc:
+            # «causa» es la clave estable para quien la lea; «motivo», el texto para el operador.
+            return {'disponible': False, 'causa': 'no_recalibrable', 'motivo': str(exc)}
 
     @app.post('/api/workspaces/{wid}/demanda/recalibrar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def recalibrar(wid: str, body: RecalibrarIn) -> dict:

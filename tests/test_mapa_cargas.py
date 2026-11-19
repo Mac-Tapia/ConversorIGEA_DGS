@@ -224,6 +224,34 @@ def test_la_pagina_del_mapa_lleva_leaflet_dentro_y_los_fondos_solo_si_se_permite
     assert 'tile.openstreetmap.org' in encendida and ORIGEN_SATELITE in encendida and 'L.control.layers' in encendida
 
 
+def test_la_pagina_del_mapa_es_accesible_dentro_del_marco():
+    """086:RF-63 (18-11, F03 de la e2e de VINCULO, axe dentro del marco del paso de obras del PIDE) — el enlace de la
+    atribución se distingue sin depender del color (subrayado y contraste ≥ 4,5:1 sobre el fondo) y las casillas del
+    control de capas miden 24 px (WCAG 2.2, 2.5.8)."""
+    import re
+
+    from convertersmartgrid.adaptadores import mapa_cargas as mc
+
+    datos = {'project': 'PRY', 'alimentadores': {}, 'cargas': [], 'avisos': [], 'repetir_flujos': []}
+    pagina = mc.pagina_del_mapa(datos)
+    css = ' '.join(re.findall(r'<style>(.*?)</style>', pagina, re.S))
+    # Lo nuestro va tras leaflet.css (que trae sus propias reglas para lo mismo) y es lo que cuenta.
+    mio = css.split('/* f7-accesible */')[-1] if '/* f7-accesible */' in css else ''
+    regla = re.search(r'\.leaflet-control-attribution a\s*\{([^}]*)\}', mio)
+    assert regla and 'underline' in regla[1], 'el enlace de la atribución solo se distingue por el color'
+    color = re.search(r'color:\s*(#[0-9a-fA-F]{6})', regla[1])
+
+    def luminancia(h):
+        c = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        c = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+    assert color and (1.05) / (luminancia(color[1]) + 0.05) >= 4.5, 'el enlace no contrasta con el fondo blanco'
+    casilla = re.search(r'\.leaflet-control-layers-selector\s*\{([^}]*)\}', mio)
+    assert casilla and re.search(r'width:\s*24px', casilla[1]) and re.search(r'height:\s*24px', casilla[1]), \
+        'las casillas del control de capas no llegan a 24 px'
+
+
 # --------------------------------------------------------------------------- imagen del informe con fondo
 def _png(color) -> bytes:
     buf = io.BytesIO()
