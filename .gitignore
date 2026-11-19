@@ -126,3 +126,6 @@ secretos/
 
 # PIT-ANON-ELEMENTOS: la lista local de nombres de los elementos del registro normativo (fuera de git).
 config/normativa_local/
+
+# 102:RF-32: JUnit y veredicto de «puerta_calidad --ci»; la CI los sube como artefacto (fuera de git).
+/resultados_ci/

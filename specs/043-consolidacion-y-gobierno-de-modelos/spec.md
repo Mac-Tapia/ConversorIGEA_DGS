@@ -30,6 +30,14 @@ Dependencias y relación: 024, 026 y 027; integración selectiva del worktree de
 - RF-13: CUANDO el coordinador invoque un trabajador de entrenamiento o evaluación, EL SISTEMA usará un entrypoint existente con argumentos compatibles, conservará informe atómico de éxito, bloqueo o error, y distinguirá operación ejecutada de promoción, sin descargar datos ni activar candidatos implícitamente.
 - RF-14: EL SISTEMA construirá el dataset de entrenamiento con una orden propia, en una carpeta nueva, sin pisar el anterior.
 - RF-15: CUANDO se construya el dataset, EL SISTEMA dirá si está completo, y qué falta, midiendo solo datos reales revisados frente a los umbrales de la spec 027.
+- RF-16: (auditoría del 18-11, H09; amplía el harness de la 044, cumplida) CUANDO el harness de evaluación llame a un
+  proveedor con plazo por caso (`CSG_HARNESS_PLAZO_CASO_S`, por defecto 900 s en la etapa del coordinador) o con
+  presupuesto de la campaña (`CSG_HARNESS_PRESUPUESTO_S`, por defecto 14 400 s), EL SISTEMA esperará la respuesta
+  vigilando también la cancelación; el caso que pase su plazo queda en error con la causa, al proveedor atascado no se
+  le piden más casos y los que faltan quedan cancelados dentro del denominador; agotado el presupuesto, lo que falta
+  queda cancelado. El informe termina siempre con su estado, dice qué casos pueden seguir calculando (no se finge que
+  se detuvieron), no permite la promoción ni cambia el modelo activo. Un valor que no es un número positivo deja el de
+  por defecto.
 
 - RF-12: CUANDO se preparen dependencias y pesos locales, EL SISTEMA conservará versiones, revisiones, licencias, tamaños y hashes de los modelos seleccionados; verificará archivos completos y disponibilidad local sin activar candidatos ni declarar aceptación por descargarlos. Los fallos se guardarán con salida no exitosa y sin eliminar descargas parciales; con el archivo publicado y verificado, sus fragmentos se eliminarán. La instalación de paquetes conservará las versiones existentes del núcleo y acreditará imports y operaciones reales.
 

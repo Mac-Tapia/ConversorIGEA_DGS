@@ -69,6 +69,13 @@ Este cierre solo acredita los trabajadores/contratos de T7, no T3, 047 T7 ni 050
       Hecho cuando: el catálogo fijado, las pruebas de preparación, las descargas completas y las operaciones reales de bibliotecas/modelos tienen informes; `pip check` pasa sin cambiar las versiones previas del núcleo. Descargar no cierra entrenamiento, integración o aceptación eléctrica.
 - [x] T8. Orden que construye el dataset y dice si está completo. (RF-14, RF-15)
       Hecho cuando: `pytest -q tests/test_construir_dataset_entrenamiento.py` en verde.
+- [x] T10. PRESUPUESTO-HARNESS (auditoría del 18-11, C6: H09): `aplicacion/evaluacion_harness/ejecucion.py` acota cada
+  llamada al proveedor y la campaña, y `adaptadores/evaluacion_harness/integracion.py` pasa los topes del entorno a la
+  etapa del coordinador. (RF-16)
+      Hecho cuando: `tests/test_harness_presupuesto.py` (043:RF-16: proveedor bloqueado sin promoción, cancelación que
+      conserva todos los casos programados, presupuesto agotado, cancelación durante la llamada, topes no válidos) en
+      verde, con rojo previo por aserción, y las pruebas del harness sin regresión. Sin GPU ni modelo real: la
+      evaluación runtime real sigue en T9. Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/c6/`.
 
 T5: siete pruebas con Git y subprocesos reales pasaron; se verificaron las nueve
 copias públicas. Catálogo y reproducción en [reutilización GitHub](../../docs/REUSO_GITHUB_IA_2026-10-31.md).

@@ -379,6 +379,8 @@ def test_lifecycle_retoma_despues_de_la_muerte_real_del_hijo_y_se_detiene(tmp_pa
         def prevalidar(*_):
             intentos.append(1)
             if rechazar:
+                # El rechazo vuelve al vigilante, que lo anota después: la pausa abre siempre esa ventana.
+                time.sleep(0.3)
                 raise ValueError('requiere revisar ruta')
             return {'del_sistema': []}
         monkeypatch.setattr(services, 'recalibrar_datos', prevalidar)
@@ -393,6 +395,8 @@ def test_lifecycle_retoma_despues_de_la_muerte_real_del_hijo_y_se_detiene(tmp_pa
             if rechazar:
                 assert ejecuciones == []
                 assert not app.state.jobs.get(servidor['id']).relanzado
+                # 096:RF-6: la recuperación se anota en el hilo del vigilante; leerla antes era una carrera.
+                _hasta(lambda: servidor['id'] in app.state.recuperaciones_interrumpidas, segundos=6)
                 assert 'ruta' in app.state.recuperaciones_interrumpidas[servidor['id']]['motivo']
             else:
                 _hasta(lambda: bool(ejecuciones))

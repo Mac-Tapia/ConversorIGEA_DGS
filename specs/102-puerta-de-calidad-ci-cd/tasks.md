@@ -67,3 +67,16 @@
       puerta, deja su informe con «iguales» y los picos, y la constante queda con su medida.
 - [x] T21. El tope de la suite sintética en Actions con margen: `timeout-minutes` 180 en `ci.yml`. (RF-30)
       Hecho cuando: `pytest tests/test_puerta_calidad.py -k rf30` en verde. Hecho en esta entrega (FIX-CI-TOPE, 4d).
+- [x] T22. Los dos arneses de navegador en un punto de entrada y en GitHub Actions (auditoría del 18-11, C5: H06).
+      `frontend/test/e2e/todos.mjs` (`npm run e2e:todo`) y el trabajo `e2e` de `ci.yml`. (RF-31)
+      Hecho cuando: `tests/test_ci_e2e_y_evidencias.py -k rf31` en verde, con rojo previo por aserción, y
+      `npm run e2e:todo` corrido en local sobre la revisión con los dos arneses en verde.
+- [x] T23. JUnit, veredicto y evidencias de la CI conservados y subidos aunque falle (C5: H07). (RF-32)
+      Hecho cuando: `tests/test_ci_e2e_y_evidencias.py -k rf32` en verde, con rojo previo por aserción.
+- [x] T24. Auditoría de dependencias de npm y de Python en cada subida, con versión fijada (C5: H14). (RF-33)
+      Hecho cuando: `tests/test_ci_e2e_y_evidencias.py -k rf33` en verde, con rojo previo, y la auditoría local
+      registrada (D:/csg/INTEGRA_54/auditoria_c0/pip_audit_venv.txt). Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/c5/`.
+- [x] T25. El hook de sintaxis en todo el código del proyecto y las guías de Claude con rutas vigentes (auditoría
+      del 18-11, C7: H10 y H11). (RF-34)
+      Hecho cuando: `tests/test_gobierno_hook_y_guias.py` (102:RF-34) en verde, con rojo previo por aserción.
+      Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/c7/`.

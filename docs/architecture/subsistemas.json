@@ -956,6 +956,7 @@
     "test/e2e/playwright.config.mjs",
     "test/e2e/sin_omitidas.mjs",
     "test/e2e/teclado.e2e.mjs",
+    "test/e2e/todos.mjs",
     "test/e2e/vnr_sintetico.mjs",
     "test/edicionTodoActivo.test.mjs",
     "test/enviarInforme.test.mjs",

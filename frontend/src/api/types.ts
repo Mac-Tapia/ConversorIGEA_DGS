@@ -415,7 +415,8 @@ export interface EventItem {
   seq: number;
   ts: number;
   // 104:RF-39: «libros_nuevos» avisa de que cambió el carril de fondo, un aviso de libros o el dataset.
-  type: 'log' | 'job' | 'libros_nuevos';
+  // 086:RF-115: «historial_truncado» va delante cuando parte de lo pedido ya salió del registro del servidor.
+  type: 'log' | 'job' | 'libros_nuevos' | 'historial_truncado';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
 }

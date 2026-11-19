@@ -2,7 +2,7 @@
 name: convertersmartgrid-frontend
 description: >-
   Reglas de UX y checklist de la interfaz web del conversor ConverterSmartGrid (React + TypeScript
-  en frontend/, servida por la API FastAPI de src/convertersmartgrid/web/). Usar al editar
+  en frontend/, servida por la API FastAPI de src/convertersmartgrid/presentacion/web/). Usar al editar
   frontend/src/**, al añadir una opción o un botón que llame a la API, al tocar el
   Registro, el progreso o la cancelación, y al evaluar la interfaz. Es la única
   interfaz gráfica: la GUI Tkinter se retiró.
@@ -14,11 +14,11 @@ description: >-
 
 | Pieza | Dónde | Rol |
 | ----- | ----- | --- |
-| Estado | `src/useWorkspace.ts`, `src/context.tsx` | Espacio de trabajo, Registro en vivo por WebSocket, trabajos |
-| Cliente | `src/api.ts`, `src/types.ts` | `fetch` tipado; `ApiError` con el `detail` del servidor |
-| Paneles | `src/components/*.tsx` | Entradas, Opciones, Alimentadores, Módulos, Registro, barra de trabajos |
-| Estilo | `src/styles.css` | Tokens en `:root`, modo oscuro con `prefers-color-scheme` |
-| Servidor | `src/convertersmartgrid/web/` | La API sirve `frontend/dist`; ver el skill `convertersmartgrid-backend` |
+| Estado | `frontend/src/shared/useWorkspace.ts`, `frontend/src/shared/context.tsx` | Espacio de trabajo, Registro en vivo por WebSocket, trabajos |
+| Cliente | `frontend/src/api/client.ts`, `frontend/src/api/types.ts` (y `frontend/src/api/esquema.ts`, generado) | `fetch` tipado; `ApiError` con el `detail` del servidor |
+| Paneles | `frontend/src/app/*.tsx` y `frontend/src/features/<módulo>/` | Entradas, Opciones, Alimentadores, Módulos, Registro, barra de trabajos |
+| Estilo | `frontend/src/shared/styles.css` | Tokens en `:root`, modo oscuro con `prefers-color-scheme` |
+| Servidor | `src/convertersmartgrid/presentacion/web/` | La API sirve `frontend/dist`; ver el skill `convertersmartgrid-backend` |
 
 `run_gui.bat` abre la web; conserva ese nombre por los accesos directos ya creados. La
 interfaz de escritorio Tkinter se retiró (spec 001, RF-16) y `tests/test_sin_gui.py`

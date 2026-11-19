@@ -15,7 +15,8 @@
     "test": "node --test \"test/*.test.mjs\"",
     "preview": "vite preview --configLoader runner",
     "lint": "node scripts/fronteras.mjs",
-    "e2e": "playwright test -c test/e2e/playwright.config.mjs"
+    "e2e": "playwright test -c test/e2e/playwright.config.mjs",
+    "e2e:todo": "node test/e2e/todos.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",

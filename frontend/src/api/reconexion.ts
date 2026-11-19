@@ -24,6 +24,13 @@ export function fusionarTrabajos(previos: Record<string, Job>, delServidor: Job[
   return fusion;
 }
 
+/** La línea del Registro cuando el servidor ya no tiene parte de lo pedido (086:RF-115). */
+export function lineaDeTruncado(datos: { perdidos?: number }): string {
+  const n = Number(datos?.perdidos);
+  const cuantos = Number.isFinite(n) && n > 0 ? `${n} ${n === 1 ? 'evento antiguo' : 'eventos antiguos'}` : 'eventos antiguos';
+  return `Registro incompleto: faltan ${cuantos} que el servidor ya no guarda. Se relee el estado del espacio.`;
+}
+
 /** Los trabajos interrumpidos que el operador aún no dio por vistos, el más reciente primero. */
 export function interrumpidosPendientes(jobs: Record<string, Job>, espacio: string, vistos: string[]): Job[] {
   return Object.values(jobs)

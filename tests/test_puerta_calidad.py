@@ -503,9 +503,11 @@ def test_102_rf25_cada_accion_va_fijada_por_su_sha_con_la_etiqueta_al_lado():
     sueltas = [u for u in usos if not fijada.match(u)]
     assert not sueltas, f'102:RF-25: acciones sin fijar por SHA con su etiqueta: {sueltas}'
     flujo = _flujo_ci()
-    assert len(_pasos_que_usan(flujo, 'actions/checkout')) == 2
-    assert len(_pasos_que_usan(flujo, 'actions/setup-python')) == 1
-    assert len(_pasos_que_usan(flujo, 'actions/setup-node')) == 2
+    # 102:RF-31: el trabajo «e2e» trae su checkout, su Python y su Node, como el del backend.
+    assert len(_pasos_que_usan(flujo, 'actions/checkout')) == 3
+    assert len(_pasos_que_usan(flujo, 'actions/setup-python')) == 2
+    assert len(_pasos_que_usan(flujo, 'actions/setup-node')) == 3
+    assert len(_pasos_que_usan(flujo, 'actions/upload-artifact')) == 2   # 102:RF-32
 
 
 def test_102_rf26_el_flujo_solo_lee_el_repositorio():
@@ -519,7 +521,7 @@ def test_102_rf27_los_checkout_no_guardan_credenciales():
     """102:RF-27 — los dos ``actions/checkout`` llevan ``persist-credentials: false``; el del backend conserva
     ``fetch-depth: 0`` (la puerta compara con la historia)."""
     pasos = dict(_pasos_que_usan(_flujo_ci(), 'actions/checkout'))
-    assert set(pasos) == {'backend', 'frontend'}
+    assert set(pasos) == {'backend', 'frontend', 'e2e'}
     assert all(paso.get('with', {}).get('persist-credentials') is False for paso in pasos.values())
     assert pasos['backend']['with'].get('fetch-depth') == 0
 

@@ -44,9 +44,9 @@ comprueba; uno que no se pueda comprobar no es un principio.
    la vista de la copia de 19,8 GB del 2026-11-12. Sigue prohibido enviar estos datos a un modelo de IA de
    terceros o a destinatarios ajenos. Compartir un expediente o enviar un informe a terceros (specs 109 y 110)
    necesita la confirmación del operador en cada envío, y nunca incluye los datos crudos (TXT, MDB ni el paquete
-   VNR). *Se comprobará* con las pruebas de 109:RF-15 y 110:RF-5 (ninguna publicación ni envío sale sin la
-   confirmación del operador) y de 110:RF-11 (ningún adjunto lleva TXT, MDB ni VNR), cuando existan esas specs
-   implementadas. Mientras tanto no hay vía de publicación ni de envío a terceros en el código.
+   VNR). *Se comprueba* con las pruebas de 109:RF-15 y 110:RF-5 (ninguna publicación ni envío sale sin la
+   confirmación del operador) y de 110:RF-11 (ningún adjunto lleva TXT, MDB ni VNR): las vías de publicación (109) y
+   de envío (110) existen en el código y pasan siempre por esa confirmación.
 10. **Idioma y estilo.** Código, comentarios, mensajes y commits en español. Los
     comentarios explican el **porqué**, con el caso real que lo motivó.
 11. **Las pruebas son la puerta.** Una tarea termina con la suite en verde, y con datos

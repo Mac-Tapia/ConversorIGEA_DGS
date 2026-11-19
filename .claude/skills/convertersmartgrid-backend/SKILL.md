@@ -2,7 +2,8 @@
 name: convertersmartgrid-backend
 description: >-
   Reglas y checklist del motor de conversión CYMDIST TXT → DIgSILENT DGS y de su
-  API web. Usar al editar src/convertersmartgrid/*.py, src/convertersmartgrid/sources/, src/convertersmartgrid/web/, el CLI,
+  API web. Usar al editar src/convertersmartgrid/{dominio,puertos,aplicacion,adaptadores,presentacion}/ (las capas, spec 002), las
+  fuentes de adaptadores/sources/, la web de presentacion/web/, el CLI,
   el lote multi-alimentador, el lector de TXT, la validación, el rendimiento o la
   escala (10, 50, 200+ alimentadores), y al evaluar o endurecer el backend.
 ---
@@ -12,7 +13,7 @@ description: >-
 ## Alcance
 
 El «backend» es el motor Python, el CLI y la API web. La única interfaz gráfica es la
-web (`src/convertersmartgrid/web/` + `frontend/`); la Tkinter se retiró (spec 001, RF-16).
+web (`src/convertersmartgrid/presentacion/web/` + `frontend/`); la Tkinter se retiró (spec 001, RF-16).
 
 | Capa | Módulos | Rol |
 | ---- | ------- | --- |

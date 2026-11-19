@@ -31,10 +31,15 @@ const huella = (v: Vista) => createHash('sha256')
   .update(JSON.stringify(v.tramos.map((t) => [t.codigo, t.vertices]).sort((a, b) => String(a[0]).localeCompare(String(b[0])))))
   .digest('hex');
 
-async function tabularHasta(page: Page, cumple: () => Promise<boolean>, max = 80): Promise<void> {
+/** Pulsa Tab hasta que el foco cumpla `cumple`, como el operador: con Mayús+Tab si el destino (`hacia`) está antes del
+ *  foco en el documento. Solo hacia delante, volver a «Plano» tras el buscador daba la vuelta a toda la página y, con
+ *  el alimentador de algunas semillas y lo que dejan las specs anteriores, no llegaba en 80 pulsaciones. */
+async function tabularHasta(page: Page, cumple: () => Promise<boolean>, max = 80, hacia?: Locator): Promise<void> {
+  const atras = hacia ? await hacia.evaluate((el) => !!document.activeElement
+    && (el.compareDocumentPosition(document.activeElement) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0) : false;
   for (let i = 0; i < max; i++) {
     if (await cumple()) return;
-    await page.keyboard.press('Tab');
+    await page.keyboard.press(atras ? 'Shift+Tab' : 'Tab');
   }
   throw new Error('el foco no llegó a su destino con Tab');
 }
@@ -82,7 +87,7 @@ test('111 T23 — el unifilar con los códigos del plano, la misma selección y 
 
     // A la vista «Unifilar» con el teclado.
     const unifilar = seccion.getByRole('group', { name: 'Vista' }).getByRole('button', { name: 'Unifilar', exact: true });
-    await tabularHasta(page, enfocado(unifilar));
+    await tabularHasta(page, enfocado(unifilar), 80, unifilar);
     await page.keyboard.press('Enter');
     await expect(unifilar).toHaveAttribute('aria-pressed', 'true');
     const dibujo = seccion.getByRole('img', { name: `Unifilar del alimentador ${alimentador}` });
@@ -99,17 +104,17 @@ test('111 T23 — el unifilar con los códigos del plano, la misma selección y 
     const tramo = vista.tramos.find((t) => barras.has(t.desde) && barras.has(t.hasta))?.codigo;
     expect(tramo, 'el alimentador sorteado trae tramos').toBeTruthy();
     const buscar = seccion.getByLabel('Buscar por código');
-    await tabularHasta(page, enfocado(buscar));
+    await tabularHasta(page, enfocado(buscar), 80, buscar);
     await page.keyboard.type(tramo!);
     const hallado = seccion.locator('#plano-hallados').getByRole('button', { name: tramo!, exact: true });
-    await tabularHasta(page, enfocado(hallado));
+    await tabularHasta(page, enfocado(hallado), 80, hallado);
     await page.keyboard.press('Enter');
     await expect(seccion.getByRole('status').first()).toHaveText(`${tramo} seleccionado.`);
     await expect(dibujo.locator(`[data-codigo="${tramo}"]`).first()).toHaveClass(/unifilar-elegido/);
 
     // Volver a «Plano» deja el plano, y la red del operador no cambió.
     const planoBoton = seccion.getByRole('group', { name: 'Vista' }).getByRole('button', { name: 'Plano', exact: true });
-    await tabularHasta(page, enfocado(planoBoton));
+    await tabularHasta(page, enfocado(planoBoton), 80, planoBoton);
     await page.keyboard.press('Enter');
     await expect(seccion.locator('iframe.map-frame')).toBeVisible();
     expect(huella(await vistaDe(page, alimentador)), 'el unifilar tocó los vértices de la fuente').toBe(antes);

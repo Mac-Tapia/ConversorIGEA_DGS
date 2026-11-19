@@ -112,6 +112,28 @@ Instalación
 - RF-30: EL SISTEMA dará a la suite sintética de GitHub Actions un tope de tiempo de al menos 1,5 veces su duración
   medida en el runner, para que una corrida sin fallos no quede cortada por el reloj. (17-11: la corrida de main
   a05dad95 se canceló al minuto 90 con la suite en verde.)
+- RF-31: (auditoría del 18-11, H06) EL SISTEMA tendrá un solo punto de entrada de los recorridos en navegador,
+  `npm run e2e:todo`, que corre los dos arneses (`frontend/test/e2e` y `frontend/e2e`) aunque el primero falle y
+  sale en rojo si falla cualquiera; y GitHub Actions lo correrá en cada subida sobre el frontend compilado de la
+  revisión, sin modelo de lenguaje (`CSG_E2E_SIN_MODELO=1`, `CSG_ASISTENTE_OLLAMA=0`) ni teselas de internet
+  (`CSG_SALIDA_TESELAS=0`). Un recorrido omitido sigue dejando su arnés en rojo (086:RF-107). Los que necesitan un
+  modelo real o DIgSILENT quedan para la aceptación aparte; esta corrida no los da por cubiertos.
+- RF-32: (H07) `puerta_calidad --ci` conservará su JUnit con su sha256 y su `veredicto.json`, también si la suite
+  falla, en `CSG_CI_EVIDENCIA` (por defecto `resultados_ci/`, fuera de git), y el flujo subirá esas evidencias y las de
+  los dos arneses como artefacto con `if: always()`, `if-no-files-found: error` y 14 días de retención: sin JUnit la
+  subida no pasa por buena.
+- RF-33: (H14) GitHub Actions auditará las dependencias en cada subida: `npm audit --audit-level=high` sobre
+  `package-lock.json` y `pip-audit` (versión fijada, 2.9.0) sobre el `.venv` del flujo, sin el paquete editable. Un
+  aviso deja el flujo en rojo y se trata aquí (actualizar la dependencia o justificar la excepción con su id); la CI
+  nunca actualiza paquetes sola para borrarlo. 18-11: en el equipo de desarrollo, `tornado 6.6` (dependencia de
+  neuralforecast) tiene GHSA-5cjw-f85j-cv6r, corregido en 6.6.1; el flujo instala la versión corregida, y el `.venv`
+  local se actualiza fuera de una puerta en marcha.
+- RF-34: (auditoría del 18-11, H10 y H11) EL SISTEMA dará al arnés de trabajo de Claude un aviso inmediato de
+  sintaxis rota en todo el código del proyecto: el hook `.claude/hooks/check_py.py` rechazará (código 2) un .py
+  inválido en `src/`, `tools/`, `tests/`, `tests_ml/` y `.claude/hooks/` del proyecto (no una carpeta `src` de otro),
+  compilando en memoria sin escribir `__pycache__`; y las skills del proyecto y la constitución solo citarán rutas y
+  capacidades que existen (las capas de la spec 002 y `frontend/src/{api,shared,app,features}`; P9 con las pruebas
+  de 109 y 110). El hook no sustituye a la puerta de calidad.
 - Aclaración de RF-29 (auditor 3e, 2026-11-14): en `main` la corrida nueva NO cancelará la anterior, para que cada commit de `main` conserve su corrida entera como evidencia de la etiqueta.
 
 ## Requisitos no funcionales

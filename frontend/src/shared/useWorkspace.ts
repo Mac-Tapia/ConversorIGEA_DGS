@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
-import { fusionarTrabajos } from '../api/reconexion';
+import { fusionarTrabajos, lineaDeTruncado } from '../api/reconexion';
 import type { EventItem, FeederRow, Job, OutputFile, WorkspaceState } from '../api/types';
 
 const STORAGE_KEY = 'convertersmartgrid.workspace';
@@ -178,6 +178,13 @@ export function useWorkspace(onJobFinished: (job: Job) => void, onReconectado: (
     let timer: number | undefined;
     let alive = true;
 
+    // Lo que el servidor sabe del espacio y de sus trabajos manda sobre lo que veía la pestaña.
+    const releer = () => {
+      void refresh(id).then((ws) => {
+        if (alive) setJobs((prev) => fusionarTrabajos(prev, ws.jobs ?? [], id, Date.now() / 1000));
+      }).catch(() => undefined);
+    };
+
     const handle = (events: EventItem[]) => {
       if (!events.length) return;
       seqRef.current = events[events.length - 1].seq;
@@ -185,7 +192,11 @@ export function useWorkspace(onJobFinished: (job: Job) => void, onReconectado: (
       const jobUpdates: Job[] = [];
       let libros = 0;
       for (const ev of events) {
-        if (ev.type === 'log') {
+        if (ev.type === 'historial_truncado') {
+          // 086:RF-115: lo perdido no se presenta como historial completo; el estado se relee del servidor.
+          lines.push({ seq: ev.seq, ts: ev.ts, text: lineaDeTruncado(ev.data) });
+          queueMicrotask(() => releer());
+        } else if (ev.type === 'log') {
           for (const t of String(ev.data.text).split('\n')) {
             lines.push({ seq: ev.seq, ts: ev.ts, text: t, job: ev.data.job });
           }
@@ -226,9 +237,7 @@ export function useWorkspace(onJobFinished: (job: Job) => void, onReconectado: (
     // anterior. La pestaña seguía creyendo «cargada» la fuente, y convertir daba 400 hasta recargar la página.
     const reconciliar = () => {
       reconectadoRef.current();
-      void refresh(id).then((ws) => {
-        if (alive) setJobs((prev) => fusionarTrabajos(prev, ws.jobs ?? [], id, Date.now() / 1000));
-      }).catch(() => undefined);
+      releer();
     };
 
     let conectoAntes = false;

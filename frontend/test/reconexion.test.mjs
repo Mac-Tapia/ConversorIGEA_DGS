@@ -60,3 +60,15 @@ test('086:RF-16 en producto una beta dice su aviso y, apagada, no se ofrece', as
   assert.equal(betaActiva(h, 'asistente'), true);
   assert.equal(avisoBeta(h, 'confiabilidad'), 'En beta');
 });
+
+test('086:RF-115 el historial truncado se dice en una línea, sin requisitos ni «(s)»', async () => {
+  const { lineaDeTruncado } = await cargar('api/reconexion.ts');
+  const varios = lineaDeTruncado({ perdidos: 3, hasta: 9 });
+  assert.match(varios, /Registro incompleto/);
+  assert.match(varios, /3 eventos antiguos/);
+  assert.match(lineaDeTruncado({ perdidos: 1, hasta: 9 }), /1 evento antiguo[^s]/);
+  for (const texto of [varios, lineaDeTruncado({})]) {
+    assert.doesNotMatch(texto, /RF-|\(s\)/);
+    assert.equal(texto.split('\n').length, 1);
+  }
+});

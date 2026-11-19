@@ -66,6 +66,19 @@ INTERVALO_DIARIO_S = 2.0
 SUSPENSION_MINIMA_S = 5.0
 #: Últimos del residuo seguro; las identidades y cadenas protegidas quedan fuera de esta cap.
 MAX_INTERRUMPIDOS = 50
+#: 086:RF-114: trabajos en espera por espacio y carril (``CSG_TRABAJOS_EN_COLA_MAX``).
+COLA_MAX = 64
+#: 086:RF-114: terminados que se conservan en memoria por espacio (``CSG_TRABAJOS_TERMINADOS_MAX``).
+TERMINADOS_MAX = 200
+
+
+def tope_de_entorno(nombre: str, defecto: int) -> int:
+    """086:RF-114: el tope de la variable si es un entero positivo; si no, el de por defecto."""
+    try:
+        valor = int(os.environ.get(nombre, '').strip())
+    except ValueError:
+        return defecto
+    return valor if valor > 0 else defecto
 
 
 #: Código con que ``run_process`` informa de un guion terminado por pasar su límite de
@@ -145,12 +158,15 @@ class EventLog:
 
     def __init__(self, maxlen: int = 5000) -> None:
         self._events: deque[dict] = deque(maxlen=maxlen)
+        # 086:RF-115: el número del último evento que salió del registro; un cursor anterior tiene un hueco.
+        self._descartado_hasta: int | None = None
         # 086:RF-9: la numeración sigue creciendo entre arranques. Empezaba en 1 en cada proceso, y una pestaña
         # abierta que volvía con ``since=67`` no veía nada hasta que el servidor nuevo pasaba de 67 eventos.
         # Un proceso no escribe más de un evento por microsegundo vivido: el siguiente siempre empieza por encima.
         # Y en microsegundos cabe entero en un número de JavaScript, que llega a 2^53.
         self._last = int(time.time() * 1_000_000)
-        self._seq = itertools.count(self._last + 1)
+        self._primero = self._last + 1
+        self._seq = itertools.count(self._primero)
         self._cond = threading.Condition()
 
     @property
@@ -161,21 +177,37 @@ class EventLog:
         with self._cond:
             seq = next(self._seq)
             event = {'seq': seq, 'ts': time.time(), 'type': kind, 'data': data}
+            if self._events.maxlen is not None and len(self._events) == self._events.maxlen and self._events:
+                self._descartado_hasta = self._events[0]['seq']
             self._events.append(event)
             self._last = seq
             self._cond.notify_all()
             return event
 
+    def _desde(self, seq: int) -> list[dict]:
+        """Lo posterior a ``seq``; si parte ya se descartó, primero ``historial_truncado`` (086:RF-115).
+
+        Sin el marcador, una pestaña que volvía tras un lote largo recibía solo la cola del registro y la tomaba por
+        el historial entero. Su número es el del último descartado: el cursor del cliente sigue avanzando igual.
+        """
+        eventos = [e for e in self._events if e['seq'] > seq]
+        hasta = self._descartado_hasta
+        if hasta is not None and hasta > seq:
+            perdidos = hasta - max(seq, self._primero - 1)
+            eventos.insert(0, {'seq': hasta, 'ts': time.time(), 'type': 'historial_truncado',
+                               'data': {'perdidos': perdidos, 'hasta': hasta}})
+        return eventos
+
     def since(self, seq: int) -> list[dict]:
         with self._cond:
-            return [e for e in self._events if e['seq'] > seq]
+            return self._desde(seq)
 
     def wait(self, seq: int, timeout: float) -> list[dict]:
         """Bloquea hasta que haya eventos posteriores a ``seq`` o venza el plazo."""
         with self._cond:
             if self._last <= seq:
                 self._cond.wait(timeout)
-            return [e for e in self._events if e['seq'] > seq]
+            return self._desde(seq)
 
 
 @dataclass
@@ -785,6 +817,15 @@ class DiarioTrabajos:
         return [j for j in trabajos if j.id in conservar]
 
 
+def _descarga_en_disco(job: Job) -> bool:
+    """086:RF-114: una descarga preparada se sirve por su trabajo mientras el fichero exista."""
+    ruta = getattr(job, '_archivo_zip', None)
+    try:
+        return ruta is not None and Path(ruta).is_file()
+    except OSError:
+        return True
+
+
 class JobManager:
     def __init__(self, emit: Emit, *, diario: Path | None = None) -> None:
         self._emit = emit
@@ -889,6 +930,11 @@ class JobManager:
         if self._closing:
             raise RuntimeError('el servidor se está cerrando')
         self.comprobar_exclusivo()
+        # 086:RF-114: la cola tiene tope por espacio y carril; el rechazo va antes del recibo, el evento y la cola.
+        en_espera = sum(1 for j in self.list(workspace_id) if j.lane == lane and j.status == QUEUED)
+        if en_espera >= tope_de_entorno('CSG_TRABAJOS_EN_COLA_MAX', COLA_MAX):
+            raise TrabajoRechazado(f'Ya hay {en_espera} trabajos esperando su turno en esta cola del espacio: '
+                                   'espere a que avancen o cancele alguno antes de añadir otro.')
         activos = [j for j in self.list() if j.status not in FINISHED]
         if kind in EXCLUSIVOS and activos:
             raise TrabajoRechazado(f'Hay {len(activos)} trabajo(s) en curso: la copia se hace con la web en reposo.')
@@ -975,6 +1021,36 @@ class JobManager:
             raise OSError('El cierre terminó con cancelaciones sin confirmar: ' + '; '.join(errores))
 
     # -------------------------------------------------------------- interno
+    def _depurar(self, workspace_id: str) -> None:
+        """086:RF-114: deja como mucho el tope de terminados del espacio, quitando los más antiguos.
+
+        Nunca un interrumpido, uno de una cadena de relanzados, el último de cada tipo (el ajuste, la base y la
+        máxima lo buscan por su id) ni una descarga con su fichero en disco. Si solo quedan protegidos, se pasa del
+        tope: perder un recibo es peor que guardar unos pocos de más.
+        """
+        tope = tope_de_entorno('CSG_TRABAJOS_TERMINADOS_MAX', TERMINADOS_MAX)
+        with self._lock:
+            todos = list(self._jobs.values())
+        terminados = sorted((j for j in todos if j.workspace_id == workspace_id and j.status in FINISHED),
+                            key=lambda j: j.created_at)
+        sobran = len(terminados) - tope
+        if sobran <= 0:
+            return
+        cadenas = {j.relanzado_de for j in todos if j.relanzado_de} | {j.id for j in todos if j.relanzado_de}
+        ultimo_de_tipo = {j.kind: j.id for j in terminados}
+        quitar = []
+        for j in terminados:
+            if sobran <= 0:
+                break
+            if (j.status == INTERRUMPIDO or j.id in cadenas or ultimo_de_tipo[j.kind] == j.id
+                    or _descarga_en_disco(j)):
+                continue
+            quitar.append(j.id)
+            sobran -= 1
+        with self._lock:
+            for job_id in quitar:
+                self._jobs.pop(job_id, None)
+
     def _ensure_worker(self, lane: str) -> None:
         thread = self._threads.get(lane)
         if thread is not None and thread.is_alive():
@@ -1059,6 +1135,7 @@ class JobManager:
                 self._diario.terminar(job)
         except Exception as exc:  # noqa: BLE001 - ver arriba
             logging.getLogger(__name__).error('Diario del trabajo %s sin cerrar: %r', job.id, exc)
+        self._depurar(job.workspace_id)
         self._anotar()
         try:
             self._emit(job.workspace_id, 'job', job.public())

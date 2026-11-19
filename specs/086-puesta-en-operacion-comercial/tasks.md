@@ -369,3 +369,14 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
   Hecho cuando: `tests/test_subidas_presupuesto_ingreso.py` (086:RF-113: sin leer con Content-Length mayor; corte sin
   longitud o con una falsa; límite exacto y un byte más; espacio libre; GET sin contar) en verde, con rojo previo por
   aserción, y las pruebas de subidas sin regresión. Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/c3/`.
+- [x] T84 COLA-ACOTADA (auditoría del 18-11, C4: H05): `presentacion/web/jobs.py` rechaza con `TrabajoRechazado` el
+  trabajo que pasa el tope de espera de su espacio y carril antes de cualquier efecto, y depura los terminados al
+  terminar uno, con los protegidos de RF-114. (RF-114)
+  Hecho cuando: `tests/test_jobs_capacidad.py` (086:RF-114: cola llena sin efectos, otro carril y otro espacio libres,
+  depuración que no pierde lo referenciado, valores de entorno no válidos) en verde, con rojo previo por aserción, y las
+  pruebas de trabajos, recuperación y relanzado sin regresión. Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/c4/`.
+- [x] T85 HISTORIAL-TRUNCADO (auditoría del 18-11, C4: H15): `EventLog` antepone `historial_truncado` cuando el
+  cursor quedó por detrás de lo descartado; `useWorkspace.ts` lo anota en el Registro y relee el espacio. (RF-115)
+  Hecho cuando: `tests/test_eventos_truncados.py` (086:RF-115: buffer 2, cuatro eventos, cursor inicial y cursor al
+  día) y `frontend/test/reconexion.test.mjs` (la línea y la relectura) en verde, con rojo previo por aserción.
+  Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/c4/`.

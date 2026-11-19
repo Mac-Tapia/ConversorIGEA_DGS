@@ -2,15 +2,74 @@
 from __future__ import annotations
 
 import math
+import os
+import threading
 import time
 import uuid
 from collections import defaultdict
 from copy import deepcopy
 
 from ...dominio.evaluacion_harness.contratos import canonico, huella, validar
-from ...dominio.evaluacion_harness.metricas import clasificacion, comparar_pareado, entidades, recuperacion
+from ...dominio.evaluacion_harness.metricas import (
+    clasificacion,
+    comparar_pareado,
+    entidades,
+    recuperacion,
+)
 
 _RUNTIME_VIVOS: dict[str, str] = {}
+#: 043:RF-16: cada cuánto se mira la cancelación mientras el proveedor calcula.
+_VIGILANCIA_S = 0.05
+
+
+def segundos_de_entorno(nombre: str, defecto: float) -> float:
+    """043:RF-16: los segundos de la variable si son un número positivo y finito; si no, el de por defecto."""
+    try:
+        valor = float(os.environ.get(nombre, '').strip())
+    except ValueError:
+        return defecto
+    return valor if math.isfinite(valor) and valor > 0 else defecto
+
+
+class _SinRespuesta(Exception):
+    """El proveedor sigue calculando: pasó su plazo o se canceló a mitad (043:RF-16)."""
+
+    def __init__(self, motivo: str, *, cancelado: bool) -> None:
+        super().__init__(motivo)
+        self.cancelado = cancelado
+
+
+def _llamar(proveedor, args, *, plazo_s, cancelar, por_presupuesto=False):
+    """Llama al proveedor en un hilo y espera como mucho ``plazo_s``, mirando la cancelación.
+
+    Un hilo no se puede matar: si no vuelve, su cálculo puede seguir y su resultado se descarta. Por eso quien llama no
+    le pide más casos y el informe lo dice, en vez de dar por detenido lo que sigue en marcha.
+    """
+    hecho, caja = threading.Event(), {}
+
+    def correr():
+        try:
+            caja['salida'] = proveedor(*args)
+        except BaseException as exc:  # noqa: BLE001 - se relanza en el hilo del harness
+            caja['error'] = exc
+        finally:
+            hecho.set()
+
+    threading.Thread(target=correr, name='harness-proveedor', daemon=True).start()
+    limite = None if plazo_s is None else time.monotonic() + plazo_s
+    while not hecho.wait(_VIGILANCIA_S if limite is None else max(0.0, min(_VIGILANCIA_S, limite - time.monotonic()))):
+        if cancelar is not None and cancelar():
+            raise _SinRespuesta('cancelación solicitada durante la llamada; el cálculo del proveedor puede seguir y '
+                                'su resultado no se usa', cancelado=True)
+        if limite is not None and time.monotonic() >= limite and por_presupuesto:
+            raise _SinRespuesta('presupuesto de la campaña agotado durante la llamada; el cálculo del proveedor puede '
+                                'seguir y su resultado no se usa', cancelado=True)
+        if limite is not None and time.monotonic() >= limite:
+            raise _SinRespuesta(f'PlazoAgotado: el proveedor no respondió en el plazo de {plazo_s:g} s; su cálculo '
+                                'puede seguir y su resultado no se usa', cancelado=False)
+    if 'error' in caja:
+        raise caja['error']
+    return caja['salida']
 
 
 def _metrica(medidas, ruta):
@@ -122,13 +181,21 @@ def _comparaciones(cfg, filas, evaluadores, resultados=None):
     return salida
 
 
-def ejecutar(config: dict, proveedor, *, modo: str, cancelar=None, evaluadores=None) -> dict:
+def ejecutar(config: dict, proveedor, *, modo: str, cancelar=None, evaluadores=None,
+             plazo_caso_s: float | None = None, presupuesto_s: float | None = None) -> dict:
+    """Campaña pareada; con ``plazo_caso_s`` o ``presupuesto_s`` cada llamada queda acotada (043:RF-16)."""
     validar(config)
     if modo not in {'contract', 'replay', 'runtime'} or not callable(proveedor):
         raise ValueError('modo/proveedor inválido')
+    for tope in (plazo_caso_s, presupuesto_s):
+        if tope is not None and not (type(tope) in (int, float) and math.isfinite(tope) and tope > 0):
+            raise ValueError('plazo/presupuesto del harness inválido')
     cfg, evaluadores = deepcopy(config), evaluadores or {}
     inicio = time.monotonic()
     filas, cancelado = [], False
+    acotado = plazo_caso_s is not None or presupuesto_s is not None
+    sin_respuesta: list[dict] = []
+    motivo_corte = 'cancelación solicitada'
     for suite in cfg['suites']:
         descriptor = {k: deepcopy(suite[k]) for k in ('id', 'tipo', 'parametros') if k in suite}
         for caso in suite['casos']:
@@ -138,13 +205,22 @@ def ejecutar(config: dict, proveedor, *, modo: str, cancelar=None, evaluadores=N
                 fila = {'suite_id': suite['id'], 'record_id': caso['record_id'],
                         'group_id': caso['group_id'], 'rol': rol, 'origen': caso['origen'],
                         'esperado': deepcopy(caso['esperado']), 'entrada_hash': huella(caso['entrada'])}
+                restante = None if presupuesto_s is None else presupuesto_s - (time.monotonic() - inicio)
+                if not cancelado and restante is not None and restante <= 0:
+                    cancelado, motivo_corte = True, 'presupuesto de la campaña agotado'
                 if cancelado or (cancelar is not None and cancelar()):
                     cancelado = True
-                    filas.append({**fila, 'estado': 'cancelado', 'error': 'cancelación solicitada'})
+                    filas.append({**fila, 'estado': 'cancelado', 'error': motivo_corte})
                     continue
                 t = time.monotonic()
+                args = (deepcopy(modelo), deepcopy(descriptor), deepcopy(caso['entrada']))
                 try:
-                    salida = proveedor(deepcopy(modelo), deepcopy(descriptor), deepcopy(caso['entrada']))
+                    if acotado:
+                        plazo = min(p for p in (plazo_caso_s, restante) if p is not None)
+                        salida = _llamar(proveedor, args, plazo_s=plazo, cancelar=cancelar,
+                                         por_presupuesto=plazo_caso_s is None or plazo < plazo_caso_s)
+                    else:
+                        salida = proveedor(*args)
                     canonico(salida)
                     if (not isinstance(salida, dict) or not isinstance(salida.get('prediccion'), dict)
                             or salida.get('modelo_digest') != modelo['digest']
@@ -156,9 +232,20 @@ def ejecutar(config: dict, proveedor, *, modo: str, cancelar=None, evaluadores=N
                         raise ValueError('salida sin predicción, digest, backend o dispositivo verificable')
                     filas.append({**fila, 'estado': 'ok', 'salida': deepcopy(salida),
                                   'duracion_s': time.monotonic()-t})
+                except _SinRespuesta as exc:
+                    # 043:RF-16: el atascado no recibe más casos; los que faltan siguen en el denominador.
+                    sin_respuesta.append({'suite_id': suite['id'], 'record_id': caso['record_id'], 'rol': rol})
+                    cancelado = True
+                    motivo_corte = (('presupuesto de la campaña agotado' if str(exc).startswith('presupuesto') else
+                                     'cancelación solicitada') if exc.cancelado else
+                                    'proveedor sin respuesta: no se le piden más casos')
+                    filas.append({**fila, 'estado': 'cancelado' if exc.cancelado else 'error', 'error': str(exc),
+                                  'duracion_s': time.monotonic()-t})
                 except Exception as exc:  # noqa: BLE001 - frontera del proveedor; conserva el caso fallido.
                     filas.append({**fila, 'estado': 'error', 'error': type(exc).__name__+': '+str(exc),
                                   'duracion_s': time.monotonic()-t})
+    # 043:RF-16: el estado sale de las filas, igual que en validar_integridad (un atascado último no cancela nada).
+    cancelado = any(f['estado'] == 'cancelado' for f in filas)
     resultados, bloqueos, evidencia_real = {}, [], True
     for suite in cfg['suites']:
         propios = [f for f in filas if f['suite_id'] == suite['id']]
@@ -205,6 +292,7 @@ def ejecutar(config: dict, proveedor, *, modo: str, cancelar=None, evaluadores=N
         'suites': resultados, 'comparaciones': comps, 'mejora_demostrada': mejora,
         'promocion_permitida': completa and not cancelado and not bloqueos,
         'bloqueos': bloqueos, 'duracion_s': time.monotonic()-inicio,
+        'proveedor_sin_respuesta': sin_respuesta,
         'runtime_nonce': uuid.uuid4().hex if modo == 'runtime' else None,
         'aceptacion_electrica': False, 'modelo_promovido': False}
     resultado['sello_informe'] = huella(resultado)

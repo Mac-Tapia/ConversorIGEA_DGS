@@ -12,8 +12,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 126 |
 | Interfaz | `frontend/src/` | 114 |
-| Pruebas de la interfaz | `frontend/test/` | 54 |
-| Pruebas | `tests/` | 594 |
+| Pruebas de la interfaz | `frontend/test/` | 55 |
+| Pruebas | `tests/` | 599 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3857 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3864 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -1150,6 +1150,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/e2e/playwright.config.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/sin_omitidas.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/teclado.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/todos.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/vnr_sintetico.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/edicionTodoActivo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/enviarInforme.test.mjs` | — | 110 | Pruebas de la ventana «Enviar por correo»: sin cuenta, vista previa, avisos, confirmar sin doble envío e historial. |

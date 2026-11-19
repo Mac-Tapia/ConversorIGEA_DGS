@@ -454,6 +454,18 @@ mientras los demás casos pasaban a 1,0278.
   que se admitían) y el espacio libre de la carpeta temporal menos 1 GiB de reserva. Con un Content-Length mayor se
   responde 413 sin leer el cuerpo; sin Content-Length o con uno falso, al pasar el tope. El 413 dice en español si es la
   cuota o el disco. La cota de cada archivo (`CSG_UPLOAD_MAX_BYTES`, 16 GiB) no cambia.
+- RF-114: (auditoría del 18-11, H05) CUANDO se encole un trabajo, EL SISTEMA aceptará como mucho
+  `CSG_TRABAJOS_EN_COLA_MAX` trabajos en espera (por defecto 64) por espacio y carril; el siguiente se rechaza con 409 y
+  su motivo en español, antes de anotar su recibo, publicarlo o encolarlo. Y CUANDO termine un trabajo, EL SISTEMA
+  conservará en memoria como mucho `CSG_TRABAJOS_TERMINADOS_MAX` terminados por espacio (por defecto 200), quitando
+  primero los más antiguos, pero nunca un interrumpido, un trabajo de una cadena de relanzados, el último terminado de
+  cada tipo en su espacio (lo que usan el ajuste, la base o la máxima de cabecera) ni una descarga cuyo fichero sigue en
+  disco. Un valor que no es un entero positivo deja el de por defecto.
+- RF-115: (auditoría del 18-11, H15) CUANDO una pestaña pida los eventos desde un número cuyo siguiente ya salió del
+  registro acotado del espacio, EL SISTEMA antepondrá un evento `historial_truncado` (con los eventos perdidos y el
+  número hasta el que se perdieron) a los que conserva, por la consulta y por el WebSocket; un historial completo no
+  lo lleva. La pestaña lo dice en el Registro en una línea, sin citar requisitos, y relee del servidor el espacio y sus
+  trabajos sin duplicarlos.
 
 ## Fuera de alcance
 

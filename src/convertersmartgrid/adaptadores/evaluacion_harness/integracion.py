@@ -7,8 +7,18 @@ import tempfile
 from copy import deepcopy
 from pathlib import Path
 
+from ...aplicacion.evaluacion_harness.ejecucion import (
+    ejecutar,
+    segundos_de_entorno,
+    validar_integridad,
+    validar_promocion,
+)
 from ...dominio.evaluacion_harness.contratos import huella, validar
-from ...aplicacion.evaluacion_harness.ejecucion import ejecutar, validar_integridad, validar_promocion
+
+#: 043:RF-16: plazo de cada llamada al proveedor en la etapa del coordinador (``CSG_HARNESS_PLAZO_CASO_S``).
+PLAZO_CASO_S = 900
+#: 043:RF-16: presupuesto de la campaña entera (``CSG_HARNESS_PRESUPUESTO_S``).
+PRESUPUESTO_S = 14400
 from .publicacion import publicar
 
 
@@ -191,7 +201,9 @@ def crear_etapa(*, nombre: str, config: dict, proveedor, evaluadores: dict,
 
     def run():
         _destino(cfg, registro, manifest['modelo'], nombre=nombre, uses_gpu=uses_gpu)
-        informe = ejecutar(cfg, proveedor, modo=modo, evaluadores=evaluadores, cancelar=cancelar)
+        informe = ejecutar(cfg, proveedor, modo=modo, evaluadores=evaluadores, cancelar=cancelar,
+                           plazo_caso_s=segundos_de_entorno('CSG_HARNESS_PLAZO_CASO_S', PLAZO_CASO_S),
+                           presupuesto_s=segundos_de_entorno('CSG_HARNESS_PRESUPUESTO_S', PRESUPUESTO_S))
         publicar(Path(informe_path), informe)
         if informe['estado'] == 'CANCELADA':
             return {'status': 'BLOQUEADO_POR_DATOS', 'model': nombre,

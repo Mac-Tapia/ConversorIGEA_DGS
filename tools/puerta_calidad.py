@@ -823,9 +823,23 @@ def puerta_push(revisiones: Iterable[str], raiz: Path = RAIZ) -> int:
     return 0
 
 
+#: 102:RF-32: dónde deja la CI su JUnit y su veredicto, que el flujo sube como artefacto (``/resultados_ci/`` en .gitignore).
+VARIABLE_EVIDENCIA_CI = 'CSG_CI_EVIDENCIA'
+
+
 def puerta_ci(raiz: Path = RAIZ) -> int:
-    """102:RF-12, RF-14: la suite sintética; allí no hay datos reales y sus pruebas se omiten (RF-15)."""
-    return 0 if _informar(_pytest([], {}, raiz, procesos=_procesos_de_la_suite_entera()), omitidas_cuentan=False) else 1
+    """102:RF-12, RF-14: la suite sintética; allí no hay datos reales y sus pruebas se omiten (RF-15).
+
+    102:RF-32 (auditoría del 18-11, H07): el JUnit se conserva en ``CSG_CI_EVIDENCIA`` (por defecto
+    ``<raíz>/resultados_ci``) con su sha256, y ``veredicto.json`` se escribe también si la suite falla: antes el JUnit
+    vivía en un temporal y la corrida solo dejaba la consola."""
+    carpeta = Path(os.environ.get(VARIABLE_EVIDENCIA_CI) or raiz / 'resultados_ci')
+    carpeta.mkdir(parents=True, exist_ok=True)
+    juicio = _pytest([], {}, raiz, conservar=carpeta / 'ci', procesos=_procesos_de_la_suite_entera())
+    ok = _informar(juicio, omitidas_cuentan=False)
+    (carpeta / 'veredicto.json').write_text(json.dumps({'ok': ok, **juicio}, indent=2, ensure_ascii=False) + '\n',
+                                            encoding='utf-8')
+    return 0 if ok else 1
 
 
 def main(argv: list[str] | None = None) -> int:
