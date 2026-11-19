@@ -79,6 +79,81 @@ def _cerrojo_de(raiz: Path) -> threading.Lock:
         return _CERROJOS.setdefault(clave, threading.Lock())
 
 
+#: 086:RF-120: la identidad 043 deducida de los episodios que se grabaron sin ella, aparte de los objetos (no se
+#: reescriben: su huella es su contenido, 024:RF-10) y fuera del índice SQLite (se rehace desde los objetos y la
+#: perdería). Los 79 escenarios y 6 calibraciones reales del 2026-11-05 al 2026-11-09 se grabaron así, con la web aún
+#: sin 050:RF-23, y la ablación de 045 T3 no tenía ningún episodio con huella 043.
+ARCHIVO_IDENTIDAD_043 = 'identidad_043.jsonl'
+ESQUEMA_IDENTIDAD_043 = 'convertersmartgrid-twin-identity-043-v1'
+CAMPOS_IDENTIDAD_043 = ('period', 'criterio_fijas', 'profile_hash')
+
+
+def _fila_identidad(fila: object, donde: str) -> dict:
+    """Una fila del registro, validada: lo deducido siempre dice de dónde salió y quién lo declaró."""
+    if not isinstance(fila, dict) or fila.get('schema') != ESQUEMA_IDENTIDAD_043:
+        raise ValueError(f'{donde}: fila sin el esquema {ESQUEMA_IDENTIDAD_043}')
+    campos, origen = fila.get('campos'), fila.get('origen')
+    if not _SHA256.fullmatch(str(fila.get('episode_id') or '')):
+        raise ValueError(f'{donde}: episode_id no es la huella de un episodio')
+    if (not isinstance(campos, dict) or not campos or set(campos) - set(CAMPOS_IDENTIDAD_043)
+            or any(v is None or not str(v).strip() for v in campos.values())):
+        raise ValueError(f'{donde}: campos debe dar valores de {", ".join(CAMPOS_IDENTIDAD_043)}')
+    if not isinstance(origen, dict) or set(origen) != set(campos) or not all(str(v).strip() for v in origen.values()):
+        raise ValueError(f'{donde}: cada campo deducido lleva su origen')
+    if not str(fila.get('declarado_por') or '').strip() or not str(fila.get('fecha') or '').strip():
+        raise ValueError(f'{donde}: falta declarado_por o fecha')
+    return fila
+
+
+def leer_identidades_043(raiz: Path | str) -> dict[str, dict]:
+    """``episode_id → fila`` del registro aparte; un búfer sin él (todos los anteriores) da ``{}``.
+
+    Solo lee: la preparación del ciclo no puede escribir en el búfer que consume (050:RF-12).
+    """
+    ruta = Path(raiz) / ARCHIVO_IDENTIDAD_043
+    if not ruta.is_file():
+        return {}
+    filas: dict[str, dict] = {}
+    for n, linea in enumerate(ruta.read_text(encoding='utf-8').splitlines(), 1):
+        if linea.strip():
+            fila = _fila_identidad(json.loads(linea), f'{ruta.name}:{n}')
+            filas[fila['episode_id']] = fila
+    return filas
+
+
+def registrar_identidades_043(raiz: Path | str, filas: list[dict]) -> int:
+    """Añade al registro las filas de episodios que aún no tienen; devuelve cuántas añadió (086:RF-120).
+
+    Se escribe entero en un temporal y se reemplaza de una vez: un corte a mitad no deja una línea partida. Nunca
+    toca ``objetos/`` ni el índice, y no admite la fila de un episodio que no está en el búfer.
+    """
+    raiz = Path(raiz)
+    ruta = raiz / ARCHIVO_IDENTIDAD_043
+    with _cerrojo_de(raiz):
+        previas = leer_identidades_043(raiz)
+        nuevas: list[dict] = []
+        for i, fila in enumerate(filas):
+            fila = _fila_identidad(fila, f'fila {i}')
+            eid = fila['episode_id']
+            if not (raiz / 'objetos' / eid[:2] / f'{eid}.json').is_file():
+                raise ValueError(f'fila {i}: el episodio {eid} no está en {raiz / "objetos"}')
+            if eid not in previas and all(f['episode_id'] != eid for f in nuevas):
+                nuevas.append(fila)
+        if not nuevas:
+            return 0
+        texto = ruta.read_text(encoding='utf-8') if ruta.is_file() else ''
+        if texto and not texto.endswith('\n'):
+            texto += '\n'
+        texto += ''.join(json.dumps(f, ensure_ascii=False, sort_keys=True) + '\n' for f in nuevas)
+        with staging_publicacion(ruta) as tmp:
+            with open(tmp, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(texto)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, ruta)
+    return len(nuevas)
+
+
 class BuferEpisodios:
     def __init__(self, raiz: Path | str | None = None):
         self.raiz = Path(raiz) if raiz is not None else raiz_buffer()

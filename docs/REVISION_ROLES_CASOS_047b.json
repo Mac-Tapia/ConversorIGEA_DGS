@@ -1,0 +1,180 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T8 de la spec 047: el conjunto nuevo con que se mide si la revisión distingue una propuesta sana de una con defecto, declarado el 2026-11-19 antes de medir y escrito sin mirar los dictámenes del 2026-11-03. Ni son órdenes reales ni datos de una distribuidora. El defecto solo se ve leyendo la evidencia: las restricciones deterministas de cada caso se cumplen.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-19",
+    "sha256": "54f2a035bc7c173d87830a5faaf2e5fdca79851df448abb854efff60e2f4e910",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "b01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "subir el tap del transformador de potencia T2 de la SET S4 a la posición +2,5 %",
+        "tension_final_pu": 0.98,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Flujo con el tap de T2 en +2,5 %: tensión mínima 0,98 p.u. y máxima 1,03 p.u.; límites 0,95 y 1,05 p.u.",
+        "e2": "El tap de T2 se cambia con su regulador bajo carga, sin obra ni compra: coste 0 USD.",
+        "e3": "T2 tiene respaldo por T1 de la misma SET, que toma su carga en contingencia."
+      }
+    },
+    {
+      "id": "b02",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "reemplazar el interruptor de la celda C3 por uno de 12,5 kA de capacidad de ruptura",
+        "cortocircuito_ka": 11.0,
+        "coste_usd": 9500
+      },
+      "evidencia": {
+        "e1": "Cortocircuito trifásico máximo en la barra de la celda C3: 14,2 kA.",
+        "e2": "Interruptor de 12,5 kA de capacidad de ruptura, instalado en la celda: 9 500 USD.",
+        "e3": "La celda C3 tiene respaldo por la celda C4 con el acoplamiento de barras cerrado."
+      }
+    },
+    {
+      "id": "b03",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "instalar un reconectador nuevo en el poste P205",
+        "usuarios_protegidos": 610,
+        "coste_usd": 9000
+      },
+      "evidencia": {
+        "e1": "Con el reconectador en P205, una falla en el ramal aguas abajo deja de interrumpir a los 610 usuarios aguas arriba.",
+        "e2": "Reconectador: 9 000 USD; montaje, puesta a tierra y ajuste: 3 100 USD; total instalado 12 100 USD.",
+        "e3": "El reconectador de P205 coordina con el de cabecera según el estudio de protección del alimentador."
+      }
+    },
+    {
+      "id": "b04",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un seccionador de maniobra en el poste P118, entre los alimentadores A05 y A06",
+        "cargabilidad_final_pct": 71,
+        "coste_usd": 4200
+      },
+      "evidencia": {
+        "e1": "Flujo con el seccionador de P118 cerrado en contingencia de A05: cargabilidad máxima de A06 71 %; límite 100 %.",
+        "e2": "Seccionador de maniobra tripolar instalado en poste: 4 200 USD.",
+        "e3": "P118 es un poste de amarre con espacio para el seccionador; la transferencia entre A05 y A06 se maniobra en ese equipo."
+      }
+    },
+    {
+      "id": "b05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "ampliar la SED S-210 de 100 a 160 kVA",
+        "carga_final_pct": 68,
+        "coste_usd": 6800
+      },
+      "evidencia": {
+        "e1": "Demanda máxima de S-210: 109 kVA; con 160 kVA la carga queda en 68 %; límite 80 %.",
+        "e2": "Transformador de 160 kVA instalado, con retiro del de 100 kVA: 6 800 USD.",
+        "e3": "La ampliación se hace con un corte programado de 2 h; S-210 alimenta solo usuarios residenciales."
+      }
+    },
+    {
+      "id": "b06",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "reemplazar los aisladores del tramo T12 con el alimentador A03 desenergizado durante 6 h",
+        "cargabilidad_final_pct": 55,
+        "coste_usd": 5200
+      },
+      "evidencia": {
+        "e1": "Flujo tras el cambio: cargabilidad máxima de A03 55 %; límite 100 %.",
+        "e2": "Aisladores poliméricos instalados en 40 estructuras: 5 200 USD.",
+        "e3": "A03 alimenta al hospital H1, sin grupo electrógeno ni enlace con otro alimentador; su interrupción programada no puede pasar de 1 h."
+      }
+    },
+    {
+      "id": "b07",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "trasladar el reconectador R5 del alimentador A07 al poste P60",
+        "usuarios_aguas_abajo": 420,
+        "coste_usd": 1800
+      },
+      "evidencia": {
+        "e1": "Topología del alimentador A09: aguas abajo del poste P60 quedan 420 usuarios.",
+        "e2": "Traslado del reconectador con su montaje y ajuste: 1 800 USD.",
+        "e3": "El poste P60 del alimentador A07 tiene espacio para el reconectador."
+      }
+    },
+    {
+      "id": "b08",
+      "defecto": null,
+      "propuesta": {
+        "accion": "cambiar el fusible de la derivación D7 de 10 K a 15 K",
+        "corriente_max_a": 11.8,
+        "coste_usd": 60
+      },
+      "evidencia": {
+        "e1": "Corriente máxima de la derivación D7: 11,8 A; un fusible 15 K la conduce sin fundirse y coordina con el reconectador R2 aguas arriba.",
+        "e2": "Fusible 15 K con su cambio en el seccionador portafusible: 60 USD.",
+        "e3": "La derivación D7 tiene 18 usuarios; el cambio se hace con la derivación abierta 30 min."
+      }
+    },
+    {
+      "id": "b09",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "reconducir 1,2 km del tramo T33 a 120 mm²",
+        "cargabilidad_final_pct": 64,
+        "coste_usd": 30000,
+        "coste_anual_usd": 1500
+      },
+      "evidencia": {
+        "e1": "Flujo con T33 en 120 mm²: cargabilidad máxima 64 %; límite 100 %.",
+        "e2": "Inversión de 30 000 USD con vida útil de 30 años y tasa del 12 % anual: anualidad de 3 724 USD por año.",
+        "e3": "T33 tiene respaldo por el enlace del poste P40, cerrado en contingencia."
+      }
+    },
+    {
+      "id": "b10",
+      "defecto": null,
+      "propuesta": {
+        "accion": "pasar a trifásico 0,6 km del tramo monofásico T51",
+        "desbalance_final_pct": 4,
+        "coste_usd": 7400
+      },
+      "evidencia": {
+        "e1": "Flujo con T51 trifásico: desbalance de corriente máximo 4 %; límite 10 %.",
+        "e2": "Dos fases nuevas de 35 mm² en 0,6 km, con su ferretería: 7 400 USD.",
+        "e3": "T51 tiene respaldo por la derivación D9, cerrada en contingencia."
+      }
+    },
+    {
+      "id": "b11",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "transferir el ramal R4 al alimentador A11 abriendo y cerrando en el nodo N45",
+        "cargabilidad_a11_pct": 78,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Flujo con el ramal R4 en A11: cargabilidad máxima de A11 78 %; límite 100 %.",
+        "e2": "La transferencia es una maniobra, sin compra: coste 0 USD.",
+        "e3": "El nodo N45 es un empalme de conductores, sin seccionador ni interruptor."
+      }
+    },
+    {
+      "id": "b12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reemplazar 12 postes de madera del tramo T20 por postes de concreto",
+        "postes": 12,
+        "coste_usd": 10800
+      },
+      "evidencia": {
+        "e1": "Inspección del tramo T20: 12 postes de madera con pudrición en la base; los demás, en buen estado.",
+        "e2": "Poste de concreto de 12 m instalado, con traslado del conductor: 900 USD por poste; 12 postes, 10 800 USD.",
+        "e3": "El cambio se hace por tramos, con T20 alimentado por el enlace E2 mientras dura el trabajo."
+      }
+    }
+  ]
+}

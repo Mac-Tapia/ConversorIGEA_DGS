@@ -1,6 +1,6 @@
 # Spec 107 — Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario
 
-Estado: aprobada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-17, y orden del usuario del 2026-11-14:
+Estado: implementada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-17, y orden del usuario del 2026-11-14:
 «haz nuevos spec» para las brechas sin spec. G0: `D:/csg/G0_PLAN_MAESTRO/D/D_FILAS_BP.md`.
 
 ## Contexto y objetivo
@@ -131,6 +131,13 @@ común.
 - Aclaración de RF-10 (2026-11-14): el registro de observaciones da también el documento de absolución, con cada
   observación, su objeto, su respuesta y la traza de lo que cambió en el expediente por ella (veredicto de 7e; la
   propuesta n.º 19 del inventario queda absorbida aquí).
+- Aclaración de RF-9 y RF-10 (orden del usuario del 2026-11-19: «lo que no puede cerrar debe usar los archivos que descargaste de la página de Osinergmin del PIT, en los entregables; lo que publique o no Osinergmin u otras entidades no debería ser una limitación o exigencia para cierre»): la aceptación de los cuadros no espera «datos autorizados por la
+  empresa». Se hace con un expediente PUBLICADO por el regulador y ya descargado: el conversor calcula con su propio código
+  los cuadros que en el expediente se derivan de sus formatos de entrada (los resúmenes F-119 a F-122 desde F-109 a F-112 y
+  F-115 a F-118 del mismo libro), los compara celda a celda con los publicados, deja la referencia con su huella y da la
+  causa de cada diferencia; una diferencia sin causa no se emite. El cotejo de una muestra lo hace un revisor distinto del
+  implementador (otro modelo o sesión), con su acta y origen «maestro/revisor independiente», y entra como observaciones
+  por la vía de RF-10. Los datos reales se leen solo en la corrida de evidencia, fuera de git; las pruebas son sintéticas.
 - RF-11: EL SISTEMA no tendrá ningún valor de un área, de una empresa ni de un periodo en el código: van en el
   perfil o en el registro normativo (P13).
 - RF-12: CUANDO se lea el libro de la red, EL SISTEMA lo abrirá en cualquier formato de libro (.xlsx, .xlsm, .xls o

@@ -216,3 +216,35 @@ def test_la_web_usa_el_rango_de_la_ultima_maxima(monkeypatch, tmp_path):
     assert r['simulados'] == 0
     factores = sorted({e.factor_carga for e in pedidas})
     assert len(factores) == 4 and 0.3 <= factores[0] < 0.5 and factores[-1] <= 1.1
+
+
+@pytest.mark.parametrize('pedido', [True, False])
+def test_la_web_pide_el_flujo_equilibrado_a_la_copia(monkeypatch, tmp_path, pedido):
+    """045:RF-12 — el «equilibrado» de la petición llega al plan de los escenarios de la copia, y sin pedirlo el
+    plan no lo lleva: el guion decide el flujo con lo que dice el plan, nunca cambia el proyecto del operador."""
+    from threading import Lock
+    from types import SimpleNamespace
+
+    from convertersmartgrid.dominio import perfil_empresa
+    from convertersmartgrid.adaptadores.digital_twin import buffer, oraculo
+    from convertersmartgrid.presentacion.web import services
+
+    ws = SimpleNamespace(lock=Lock(), curvas_cabecera={}, out_dir=tmp_path, root=tmp_path)
+    planes = []
+
+    def guion_pf(_ws, _ctx, _guion, plan, **_k):
+        planes.append(plan)
+        return (0, {'tramos': ['L1'], 'grafo': {}}, None) if plan.get('solo_tramos') else (0, {'error': 'parado'}, None)
+
+    monkeypatch.setattr(services, 'native_action_context', lambda *a: {'feeders': ['F1']})
+    monkeypatch.setattr(services, 'carpeta_pf', lambda: 'c')
+    monkeypatch.setattr(services, '_guion_pf', guion_pf)
+    monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda *a, **k: {'gemelo': {}})
+    monkeypatch.setattr(buffer, 'BuferEpisodios', lambda *a, **k: SimpleNamespace(consultar=lambda _c: []))
+    monkeypatch.setattr(oraculo, 'incertidumbre_de_escenarios', lambda _g: None)
+    monkeypatch.setattr(es, 'elegir', lambda m, *a, **k: list(m)[:1])
+    with pytest.raises(services.UserError):
+        services.gemelo_aprender(ws, SimpleNamespace(log=lambda _m: None), 'P', ['F1'], n=1, equilibrado=pedido)
+    escenarios = [p for p in planes if not p.get('solo_tramos')]
+    assert len(escenarios) == 1 and escenarios[0]['escenarios']
+    assert escenarios[0].get('equilibrado', False) is pedido

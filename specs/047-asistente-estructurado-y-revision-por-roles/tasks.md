@@ -30,7 +30,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 - [x] T6. Auditar, materializar y evaluar 200 propuestas únicas, sin fuga y con puertas por alcance. (RF-13, RF-16, RF-17, RF-18)
       Hecho cuando: pruebas de `tests/test_aceptacion_agente.py` y regresiones de órdenes fijas/intérprete pasan; se ejecutan selección local de configuración y evaluación sellada de las 200 propuestas, con informe de métricas/errores/bloqueos y sin escrituras nativas.
 
-- [ ] T8. Que la revisión distinga una propuesta sana de una con defecto antes de autorizar nada. (RF-5, RF-6, RF-38, RF-39, RF-40, RF-41)
+- [ ] T8. Que la revisión distinga una propuesta sana de una con defecto antes de autorizar nada. (RF-5, RF-6, RF-38, RF-39, RF-40, RF-41, RF-43)
       Hecho cuando: `tools/asistente_comparar_revision.py` sobre sus 12 casos da 0 falsas alarmas sin perder defectos, con el
       informe en `docs/asistente/`, sin ajustar nada mirando esos casos (si hace falta, con un conjunto nuevo declarado antes de medir).
       Código, 2026-11-03 (rama `feat/027-047t8`): causa hallada en el código y en el encargo, sin leer el contenido de los
@@ -45,7 +45,16 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       como detección), al LLM solo la propuesta y los fragmentos, nombres opacos, dictámenes en el informe. Mismo
       conjunto, misma huella `102bdfbf…1ca6d`: no se cambió ni se declaró otro, porque la corrección no mira los casos.
       Pruebas: `tests/test_asistente_revision_roles.py` 26 aprobadas (las 5 nuevas fallaban antes del cambio).
-      Falta: medir con `tools/asistente_comparar_revision.py --modelo qwen3:8b --salida docs/asistente/COMPARACION_REVISION_047_T8.json`
+      Medido el 2026-11-03 con esos 12 casos: no pasa (ver «T8, 2026-11-03» abajo), y esos casos ya orientaron el diagnóstico.
+      Conjunto nuevo, 2026-11-19: `docs/REVISION_ROLES_CASOS_047b.json`, 12 casos sintéticos del maestro (6 sanos y 6 con un
+      defecto cada uno: física por cortocircuito, coste por suma incompleta y por anualidad, riesgo por carga crítica sin
+      respaldo y por maniobra en un nodo sin equipo, fuentes de otro alimentador), nombres opacos, escrito sin mirar los
+      dictámenes del 03-11 y declarado antes de medir con huella sha256
+      `54f2a035bc7c173d87830a5faaf2e5fdca79851df448abb854efff60e2f4e910` (2026-11-19), la misma en el fichero y en la
+      herramienta. `--conjunto` elige el conjunto, su huella va al informe y uno con otra huella o sin declarar no se mide
+      (RF-43). Pruebas: `tests/test_revision_conjunto_047b.py`, con un cliente LLM falso.
+      Bloqueada por la medida en su turno de GPU con el conjunto 047b (huella `54f2a035…f2e4e910`). Siguiente acción:
+      `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047b.json --salida docs/asistente/COMPARACION_REVISION_047_T8b.json`
       (pide la GPU). Se cierra con 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos.
 
 ## Evidencia de ejecución

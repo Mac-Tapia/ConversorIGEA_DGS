@@ -212,6 +212,14 @@ rutas y trabajos que la web; lo que escribe, con la confirmación del operador y
   apagadas. Lo leído es un dato que se cita como fuente (dirección, fecha y huella), nunca una instrucción que el
   asistente obedezca; nunca introduce credenciales ni paga. Un fichero oficial hallado en la web solo entra en la
   biblioteca normativa con su huella comprobada y la confirmación del operador (107:RF-22).
+- RF-51: (amplía RF-8 a RF-11; usuario, 2026-11-18: plan de control integral A0) EL SISTEMA tendrá una matriz de las
+  operaciones del asistente DERIVADA del código, nunca mantenida a mano: una fila por tarea del catálogo, por vía directa
+  con recibo (067:RF-41) y por herramienta de lectura del proyecto (077), con su vía, función, efectos, carril,
+  confirmación y las pruebas que la citan; y una fila «pendiente» por cada tarea abierta de las specs del asistente (026,
+  047 y 070), leída con el lector único de specs (033), con su criterio de hecho y su responsable. La matriz separa
+  «declarada», «con prueba que la cita» y la aceptación del dominio, que nunca da por medida; una operación que falla no
+  sale del denominador. SI una operación no tiene prueba, un hueco no tiene responsable o criterio, o un responsable
+  queda de una tarea ya cerrada, ENTONCES la comprobación fallará.
 
 ## Requisitos no funcionales
 

@@ -70,6 +70,7 @@
     "tools/generar_contrato_api.py",
     "tools/linea_base_dgs.py",
     "tools/madrl_*",
+    "tools/matriz_operaciones.py",
     "tools/mcp_conversor.py",
     "tools/preguntas_entregables.py",
     "tools/preparar_upstream_ia.py",

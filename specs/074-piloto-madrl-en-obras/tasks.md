@@ -20,6 +20,9 @@
 - [ ] T5 Volver a capturar y a medir. (RF-5, RF-7)
       Hecho cuando: en DIgSILENT se confirma `ntnum` y al menos una red con problemas pasa la fidelidad. Requiere turno de DIgSILENT
       sobre proyectos de prueba. Los episodios ya guardados conservan el grafo antiguo.
+      Avance del 2026-11-19 (59): captura nueva en DIgSILENT del proyecto de prueba importado el 2026-11-19 con
+      digital_twin_snapshot_pf.py (2 órdenes, 0 % fallidas) en la corrida «Con proyecto» (D:/csg/INTEGRA_54/cierre_tareas/digsilent/, corrida C2c). Falta confirmar
+      `ntnum` en esa captura y pasar la fidelidad en una red con problemas: sigue abierta.
 - [x] T6 Dependencias del aprendizaje en un entorno aparte. (RF-9)
       Hecho cuando: TorchRL y `sb3_contrib` corren con la versión de PyTorch del proyecto sin cambiar el `.venv` compartido.
       Verificado el 2026-11-02 con `requirements-madrl.txt` en `~/.convertersmartgrid/madrl_deps`: importan con torch 2.14.1 y GATv2

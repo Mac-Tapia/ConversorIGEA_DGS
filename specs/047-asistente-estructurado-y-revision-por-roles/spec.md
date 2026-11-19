@@ -59,6 +59,9 @@ Dependencias y relación: 043 y 044; conservar intérprete, resolución, herrami
 - RF-42: CUANDO una puerta rechace un modelo del asistente por una métrica, EL SISTEMA dirá si falta o si está bajo la
   puerta, con el valor medido y de cuántos ejemplos sale. Ciclo del 2026-11-08: «acierto_tarea ausente, inválido o bajo 0,98»
   escondía que el Transformer se midió (0,71 con 7 ejemplos).
+- RF-43: CUANDO se mida la revisión con un conjunto de casos, EL SISTEMA comprobará antes de medir que su huella es la
+  declarada, la escribirá en el informe, y no medirá un conjunto sin huella declarada o con otra. T8, 2026-11-19: los 12
+  casos del 2026-11-03 ya orientaron el diagnóstico, así que la medida que cierra la T8 usa otro conjunto declarado antes.
 
 ## Requisitos no funcionales
 

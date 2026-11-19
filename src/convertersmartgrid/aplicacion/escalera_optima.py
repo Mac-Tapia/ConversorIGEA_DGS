@@ -324,9 +324,53 @@ def _unidad_de(alternativa: str) -> str:
     return 'MVA' if alternativa == 'elevador' else 'Und' if alternativa in POR_UNIDAD else 'km'
 
 
-def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros) -> dict[str, dict[str, Any]]:
-    """Los del libro CAPEX, y los que el perfil da para las alternativas que el libro no tiene
-    (bancos y reguladores en una distribuidora real); el libro manda si tiene la alternativa.
+def _misma_unidad(a: str, b: str) -> bool:
+    def norma(u: str) -> str:
+        u = str(u or '').strip().casefold().rstrip('.')
+        return 'und' if u in ('u', 'und', 'unid', 'unidad', 'unidades') else u
+    return norma(a) == norma(b)
+
+
+def costos_osinergmin(tabla: Any, codigos: Mapping[str, str], *, sector: str, estructura: str,
+                      moneda: str) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    """072:RF-46: el costo estándar de Osinergmin (el SICODI vigente, leído por su huella con
+    ``costos_fuentes.leer_sicodi``) de cada alternativa que el perfil asigna a un código de instalación con su
+    letra de tensión (``escalera.costos_osinergmin.codigos``), con el sector típico y la estructura del perfil.
+
+    Solo el costo exacto (``TablaCostos.buscar``, nunca el más parecido, 072:RF-7): lo que no cruza queda en un aviso
+    con su motivo y sigue el orden de :func:`costos_de_alternativas`. Una moneda distinta de la de trabajo no se usa
+    sin tipo de cambio, y una unidad distinta de la que cuenta la escalera (km o Und), tampoco.
+    """
+    from .costos_fuentes import partir_codigo_vnr
+
+    f = tabla.fuente
+    cita = f'Osinergmin, SICODI {f.resolucion} ({f.anio})'
+    if moneda and f.moneda != moneda:
+        return {}, [f'{cita} está en {f.moneda} y la escalera trabaja en {moneda}: sin tipo de cambio no se usa']
+    out, avisos = {}, []
+    for alt, codigo_red in sorted((codigos or {}).items()):
+        codigo, tension = partir_codigo_vnr(codigo_red)
+        costo = tabla.buscar(codigo, tension, estructura, sector)
+        if costo is None:
+            avisos.append(f'{cita}: «{alt}» ({codigo_red}) sin costo: '
+                          f'{tabla.motivo_sin_costo(codigo, tension, estructura, sector)}')
+            continue
+        unidad = _unidad_de(alt)
+        if costo.unidad and not _misma_unidad(costo.unidad, unidad):
+            avisos.append(f'{cita}: «{alt}» ({codigo_red}) va por {costo.unidad} y la escalera la cuenta por {unidad}; '
+                          'no se usa')
+            continue
+        out[alt] = {'costo_unitario': float(costo.total), 'unidad': unidad,
+                    'origen': f'{cita}, {codigo_red} ({sector}, {estructura}), huella {f.huella[:16]}'}
+    return out, avisos
+
+
+def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros,
+                           oficiales: Mapping[str, Mapping[str, Any]] | None = None) -> dict[str, dict[str, Any]]:
+    """Los del libro CAPEX; después, los oficiales de Osinergmin (:func:`costos_osinergmin`, 072:RF-46) de las
+    alternativas que el libro no tiene; después, los que da el perfil (bancos y reguladores en una distribuidora real);
+    y lo que siga faltando se deduce o se toma de referencia, por confirmar (042:RF-54). El libro manda si tiene la
+    alternativa, y cada costo dice su origen.
 
     RF-77: el libro se pasa a la moneda de trabajo con ``escalera.escala_capex``. El de Electro
     Dunas está en miles de dólares y la escalera lo tomaba en dólares: la terna salía a 60,9 por
@@ -339,6 +383,9 @@ def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros
                                        if v.get('costo_unitario') else v.get('costo_unitario')),
                'origen': v.get('origen') or 'capex'}
            for k, v in capex.items()}
+    for alt, c in (oficiales or {}).items():                                       # 072:RF-46
+        if not (out.get(alt) or {}).get('costo_unitario') and c.get('costo_unitario'):
+            out[alt] = dict(c)
     for alt, costo_u in p.costos_unitarios.items():
         if alt not in out or not out[alt].get('costo_unitario'):
             out[alt] = {'costo_unitario': costo_u, 'unidad': _unidad_de(alt), 'origen': 'perfil'}

@@ -85,11 +85,19 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       Hecho cuando: consta en la arquitectura y una prueba lo comprueba.
 - [x] T12 El COyM del perfil en la propuesta del PIDE y en F10 a F12. (RF-22)
       Hecho cuando: `pytest -q tests/test_formatos_pide.py -k coym` en verde.
-- [ ] T11 Aceptación real de los dos entregables.
+- [x] T11 Aceptación real de los dos entregables.
       Hecho cuando: el usuario los revisa en una empresa.
+      Nota (orden del usuario del 2026-11-19, aclaración de RF-21): se acepta comparándolos con los entregables oficiales
+      custodiados, con acta. Hecho (2026-11-19, wt_59_osin): `adaptadores/aceptacion_publicada.py` lee los capítulos de
+      un documento (`titulos_de_docx`, el nivel que usa) y `acta_de_estructura` dice qué módulo cubre cada capítulo y
+      nombra los huecos, con origen «maestro/revisor independiente»; pruebas en `tests/test_aceptacion_publicada.py`
+      (rojo 5 failed por aserción, verde 5 passed). Corrida con los informes de largo plazo y PIDE custodiados de la
+      entrega de comprobación: 30 capítulos, 14 cubiertos por los 7 módulos y 16 huecos nombrados (objetivos,
+      antecedentes, anexos y capítulos propios de esa empresa); ningún módulo sin capítulo. Evidencia fuera de git:
+      `D:/csg/INTEGRA_54/cierre_tareas/osinergmin/evidencia_072/T11_acta_estructura.json`.
       P17 prepara una comparación de cabeceras declaradas con los ejemplos
       custodiados, sin filas reales ni aprobación: esto no cierra 027 T22 ni T11.
-- [ ] T13 Base real de módulos estándar de transmisión y una obra valorada con ella. (RF-5, RF-6, RF-9)
+- [x] T13 Base real de módulos estándar de transmisión y una obra valorada con ella. (RF-5, RF-6, RF-9)
       Hecho cuando: la carpeta de la Res. 181-2026-OS/CD (que sustituye la base de la 152-2026-OS/CD) está descargada fuera de git
       con su URL, fecha y huella, sus columnas declaradas a `leer_modulos_transmision`, y una obra de transmisión de una red real
       queda valorada con `valorar_obra`, con sus huecos nombrados.
@@ -112,6 +120,15 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       fecha 26-07-2026; no se volvió a descargar ni se declaró como base de la 181.
       La moneda y las unidades del archivo actualizado no están acreditadas.
       Evidencia externa `paralelo_p17_20261108/fuentes_oficiales/captura_fuentes.json`.
+      Nota (orden del usuario del 2026-11-19, aclaración de RF-9): la base es la publicada vigente ya descargada (152);
+      la 181 entra por su huella cuando se publique, no es requisito. Hecho (2026-11-19, wt_59_osin):
+      `aceptacion_publicada.base_vigente` versiona por huella y vigencia; `obra_desde_formatos_inversion` toma una obra
+      real de los F-301 y F-302 publicados y `comparar_valoracion` la valora con `valorar_obra` frente a la cifra
+      publicada, con la causa de cada diferencia (factor de costo de su columna, costo básico frente al total con
+      indirectos, otra base de precios en el libro) y los huecos del formato; pruebas en `tests/test_aceptacion_publicada.py`.
+      Corrida: 1 651 módulos de la 152 (sha256 670be02c…60cb), obra de la Alt1 del plan publicado de un área (39
+      elementos): 38 valorados, 27,43 M USD frente a 24,15 M publicados; sin costo el módulo propio del libro
+      `TP-060MTMT-040COE_R`, y 50 componentes sin módulo nombrados. Evidencia: `D:/csg/INTEGRA_54/cierre_tareas/osinergmin/evidencia_072/T13_valoracion.json`.
 - [ ] T14 Desde la 098 (2026-11-07): en cada año del PIDE, la obra que pida el año, encima de las anteriores y empezando
       por la de corto plazo del estudio de «Con proyecto» (098:RF-37), con el año en que esta vuelve a fallar
       (098:RF-39, RF-40) como punto de partida. Usuario (2026-11-07): el PIDE se integra como flujo propio, para
@@ -234,3 +251,12 @@ otorga aprobación humana ni aceptación nativa, eléctrica o científica.
       072_rf45`, `tests/test_fuentes_empresa.py`, `npm test`, `tsc`, el build, los `tests/*_front.py` y la e2e
       Cargas → PIDE en verde.
       Hecho en la fila VINCULO-PROYECTO (f7, 18-11); evidencias en D:/csg/PM_IMPL/VINCULO_PROYECTO.
+- [x] T23. Los costos de la escalera y del PIDE en el orden CAPEX real → SICODI vigente de Osinergmin → perfil →
+      deducido o de referencia, por confirmar, con su origen. (RF-46)
+      Hecho cuando: rojo por aserción (sin costo de Osinergmin, la alternativa sin libro salía de la referencia) y verde
+      con `tests/test_escalera_costos_osinergmin.py` (072:RF-46), con un SICODI sintético de `tests/fixtures/sicodi/`,
+      y `tests/test_escalera_optima.py`, `tests/test_obras_integrales.py`, `tests/test_procedencia_capex_web.py`,
+      `tests/test_estudio_y_costos.py` y `tests/test_entrega_universal.py` sin cambios en verde.
+      Hecho el 2026-11-18: `escalera_optima.costos_osinergmin` y el argumento `oficiales` de `costos_de_alternativas`;
+      `pit.armado.tablas_declaradas` como lector único de fuentes de costo (el PIT sigue con `tablas_de_costos`);
+      `escalera.costos_osinergmin` en el esquema y la guía del perfil.

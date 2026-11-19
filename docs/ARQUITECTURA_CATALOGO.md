@@ -8,39 +8,39 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 461 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 463 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
-| Herramientas y guiones | `tools/` | 126 |
+| Herramientas y guiones | `tools/` | 128 |
 | Interfaz | `frontend/src/` | 115 |
 | Pruebas de la interfaz | `frontend/test/` | 56 |
-| Pruebas | `tests/` | 611 |
+| Pruebas | `tests/` | 618 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 14089 líneas y 440 funciones, pendiente de partir (002).
+`web/services.py` tiene 14157 líneas y 442 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 83 |
-| aprobada | 22 |
+| cumplida | 84 |
+| aprobada | 21 |
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3887 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3892 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 193 |
+| adaptadores | Ada | 195 |
 | aplicacion | Apl | 132 |
 | dominio | Dom | 70 |
 | presentacion | Pre | 50 |
 | puertos | Pue | 5 |
 
-450 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+452 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -455,6 +455,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `aplicacion/metrados.py` | Apl | 072 | Metrados por código desde el modelo de la red, y su valoración con costos oficiales. |
 | `aplicacion/formatos_pide.py` | Apl | 072 | Los formatos 01 a 15 de un estudio con cada hueco nombrado y su motivo. |
 | `adaptadores/informes_planeamiento.py` | Ada | 072 | Los entregables de un estudio, un Word ligero por módulo, desde un mismo cálculo. |
+| `adaptadores/aceptacion_publicada.py` | Ada | 072 | Aceptación del PIDE y del largo plazo con lo publicado y custodiado (orden del 2026-11-19): base de módulos vigente por huella y vigencia, obra real… |
 | `dominio/registro_normativo.py` | Dom | 108, 107 | Registro normativo común de las specs 107 y 108 (tarjeta RN, dueña la 108): normas con estado jurídico (vigente_comprobada, modificada, prepublicada,… |
 | `adaptadores/entrada/capex.py` | Ada | 072, 024 | Recibo de la lectura CAPEX efectiva desde descriptor protegido. |
 | `adaptadores/pronostico_demanda.py` | Ada | 089 | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera,… |
@@ -474,6 +475,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `dominio/pit/observaciones.py` | Dom | 107 | Observaciones del regulador con su respuesta, enlazadas con la traza del expediente, y el documento de absolución con lo que cambió por cada una. |
 | `adaptadores/pit/alternativas.py` | Ada | 107 | Alternativas excluyentes: inversión, COyM, pérdidas, confiabilidad y valor presente con la misma demanda y motor. |
 | `adaptadores/pit/cuadros.py` | Ada | 107 | Cuadros desde su definición en el registro, formatos aplicables de la norma vigente (transcritos o nombrados), celdas con traza, vínculos entre… |
+| `adaptadores/pit/reproduccion.py` | Ada | 107 | Aceptación con un expediente publicado (orden del 2026-11-19): lee por contenido los formatos publicados del PIT, reproduce F-119 a F-122 con… |
 | `dominio/pit/f208.py` | Dom | 107 | Formato F-208 (fallas e índices de desempeño): estructura leída de la plantilla transcrita, celdas con traza desde las fuentes importadas, «Cumple»… |
 | `dominio/pit/reserva.py` | Dom | 107 | Transformadores de reserva compartida: horizonte, costo de la ENS, umbral de beneficio/costo y exclusión por tensión desde el registro. |
 | `adaptadores/pit/llenado.py` | Ada | 107 | Llenado de los formatos que exige el estudio del plan (regla del num. |
@@ -599,7 +601,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | --- | --- | --- | --- |
 | `adaptadores/digital_twin/__init__.py` | Ada | 024 | Paquete del gemelo digital: episodios, búfer y captura, sin PowerFactory ni PyTorch. |
 | `dominio/digital_twin/episode.py` | Dom | 024 | Contrato del episodio: clase y caso, fuente y proyecto, resultados del flujo (balance, pérdidas, cargabilidad, tensiones, confiabilidad, o el motivo… |
-| `adaptadores/digital_twin/buffer.py` | Ada | 024 | Búfer local e inmutable de episodios: un JSON por huella, escritura atómica e idempotente, colisión detectada, índice SQLite reconstruible con… |
+| `adaptadores/digital_twin/buffer.py` | Ada | 024, 086, 120 | Búfer local e inmutable de episodios: un JSON por huella, escritura atómica e idempotente, colisión detectada, índice SQLite reconstruible con… |
 | `adaptadores/digital_twin/capture.py` | Ada | 024 | Ensamblaje del episodio desde el contexto firmado, el resultado del guion y la lectura tras reabrir. |
 | `adaptadores/digital_twin/integration.py` | Ada | 024 | Captura tras cada acción nativa de la web: plan de lectura, norma de cada alimentador por su sistema y límites más estrictos, referencia del último… |
 | `adaptadores/digital_twin/native_snapshot.py` | Ada | 024 | Identidad estable de un objeto de DIgSILENT, huella SHA-256 de un trazado e islas por tramos cerrados, sin suponer red radial. |
@@ -934,7 +936,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `construir_dataset_entrenamiento.py` | — | 043 | Construye el dataset de entrenamiento en una carpeta nueva y dice si está completo con los umbrales de la spec 027. |
 | `reentrenar_modelos.py` | — | 043, 060 | CLI de coordinación, validación de configuración y rechazo de resultados incompletos. |
 | `aprendizaje_continuo.py` | — | 050 | Congela la instantánea, ejecuta el ciclo único con las etapas de `reentrenar_modelos` sobre las copias, muestra sus fases, lo cancela y vuelve al… |
-| `preparar_ciclo_aprendizaje.py` | — | 050 | Genera en una carpeta nueva el manifiesto de procedencia por registro, el contexto del ciclo, la vista del búfer, el complemento declarado, los casos… |
+| `preparar_ciclo_aprendizaje.py` | — | 050, 086, 120 | Genera en una carpeta nueva el manifiesto de procedencia por registro, el contexto del ciclo, la vista del búfer, el complemento declarado, los casos… |
+| `rellenar_identidad_043.py` | — | 086, 120 | Deduce el periodo y el criterio de fijas (de la calibración anterior del proyecto) y la huella del perfil vigente de los episodios del gemelo… |
 | `unir_dataset_lenguaje.py` | — | 050 | Une datasets v2 ya construidos en uno solo para las familias de lenguaje, con el particionador existente y sin mover registros de partición. |
 | `evaluar_evolutivos.py` | — | 043, 048 | Benchmark analítico calculado de GA, NSGA-II y DE (y los de pymoo si está) con al menos 30 semillas, el mismo presupuesto de evaluaciones reales y la… |
 | `reubicar_corpus_llm.py` | — | 047, 065 | Valida o publica una nueva versión custodiada del corpus tras un traslado exacto de datos. |
@@ -958,6 +961,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `arquitectura.py` | — | 065, 002 | Guarda AST de capas, ciclos y accesos privados con deuda explícita. |
 | `generar_contrato_api.py` | — | 065, 002 | Generación y comprobación determinista del contrato OpenAPI a TypeScript. |
 | `estado_specs.py` | — | 033 | Estado de las specs: lee numeración, tareas, estado y citas de las pruebas, y escribe `specs/README.md`. |
+| `matriz_operaciones.py` | — | 026 | Matriz de operaciones del asistente derivada del código: tareas, vías directas con recibo y lecturas, con sus pruebas, y los huecos de las specs del… |
 | `suite_por_tandas.py` | — | 081 | La suite nocturna en un proceso separado de la web, por tandas. |
 | `trazabilidad_candidato.py` | — | 065 | Matriz de requisitos, código, pruebas y ejecuciones vinculadas al candidato. |
 | `verificar_candidato.py` | — | 065 | Regresión de un candidato con hashes antes/después, JUnit y matriz de trazabilidad. |

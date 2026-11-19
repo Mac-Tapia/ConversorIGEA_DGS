@@ -61,7 +61,7 @@ from ...dominio.pit.programa import programar
 from ...aplicacion.pit.red_area import desde_ambito, leer_libro_red
 
 __all__ = ['LECTORES_DE_COSTOS', 'VARIABLE_FUENTES_NORMATIVAS', 'armar_expediente', 'carpeta_de_fuentes',
-           'leer_alternativas', 'tablas_de_costos']
+           'leer_alternativas', 'tablas_de_costos', 'tablas_declaradas']
 
 #: Lectores de una fuente de costos de ``pit.costos``.
 LECTORES_DE_COSTOS = ('modulos_transmision', 'sicodi')
@@ -144,24 +144,32 @@ def tablas_de_costos(perfil: Mapping[str, Any], raiz: Path, fecha: str) -> tuple
     """Las tablas de costos vigentes en ``fecha`` (``pit.costos``), cada fichero comprobado por su sha256 antes de
     leerlo, y lo que falta como pendiente nombrado."""
     declaradas = ((perfil.get('pit') or {}).get('costos') or {}) if isinstance(perfil, Mapping) else {}
-    tablas, pendientes = {}, []
     if not declaradas:
         return {}, ['sin pit.costos en el perfil: no hay costos con que comparar las alternativas']
+    return tablas_declaradas(declaradas, raiz, fecha, donde='pit.costos')
+
+
+def tablas_declaradas(declaradas: Mapping[str, Any], raiz: Path, fecha: str, *, donde: str
+                      ) -> tuple[dict[str, TablaCostos], list[str]]:
+    """Las tablas vigentes en ``fecha`` de una declaración de fuentes de costo por ámbito, con la forma de ``pit.costos``
+    (lector, fichero del espacio, sha256, vigencia, resolución, año, moneda, URL y fecha de descarga). La usan el PIT y
+    los costos oficiales de la escalera (``escalera.costos``, 072:RF-46): un solo lector, por huella y vigencia."""
+    tablas, pendientes = {}, []
     for ambito, fuentes in sorted(declaradas.items()):
         vigentes = [f for f in (fuentes or ()) if isinstance(f, Mapping) and _vigente(f, fecha)]
         if not vigentes:
-            pendientes.append(f'pit.costos.{ambito}: ninguna fuente vigente el {fecha}')
+            pendientes.append(f'{donde}.{ambito}: ninguna fuente vigente el {fecha}')
             continue
         f = max(vigentes, key=lambda x: str(x.get('vigencia_desde')))
-        donde = f'pit.costos.{ambito}'
+        aqui = f'{donde}.{ambito}'
         if f.get('lector') not in LECTORES_DE_COSTOS:
-            raise PitError(f'{donde}.lector: tiene que ser uno de {list(LECTORES_DE_COSTOS)}')
+            raise PitError(f'{aqui}.lector: tiene que ser uno de {list(LECTORES_DE_COSTOS)}')
         ruta = (Path(raiz) / str(f.get('fichero') or '')).resolve()
         if not f.get('fichero') or not ruta.is_relative_to(Path(raiz).resolve()) or not ruta.is_file():
-            raise PitError(f'{donde}.fichero: {f.get("fichero")!r} no es un fichero del espacio de trabajo')
+            raise PitError(f'{aqui}.fichero: {f.get("fichero")!r} no es un fichero del espacio de trabajo')
         real = hashlib.sha256(ruta.read_bytes()).hexdigest()
         if real != str(f.get('sha256') or '').lower():
-            raise PitError(f'{donde}: {ruta.name} tiene sha256 {real} y el perfil declara {f.get("sha256")!r}; '
+            raise PitError(f'{aqui}: {ruta.name} tiene sha256 {real} y el perfil declara {f.get("sha256")!r}; '
                            'no se lee')
         comunes = {k: f.get(k) for k in ('resolucion', 'anio', 'moneda', 'url', 'fecha_descarga')}
         try:
@@ -171,7 +179,7 @@ def tablas_de_costos(perfil: Mapping[str, Any], raiz: Path, fecha: str) -> tuple
                 tablas[ambito] = leer_modulos_transmision(ruta, columnas=f.get('columnas') or {}, hoja=f.get('hoja'),
                                                           unidad=f.get('unidad'), **comunes)
         except (CostosError, TypeError) as exc:
-            raise PitError(f'{donde}: {exc}') from exc
+            raise PitError(f'{aqui}: {exc}') from exc
     return tablas, pendientes
 
 

@@ -38,9 +38,11 @@ def _red(rnd: random.Random, n: int, red: int) -> dict:
     return {'version': VERSION_GRAFO, **contrato_fisico(), 'nodos': nodos, 'ramas': ramas}
 
 
-def _episodio(grafo: dict, familia: int):
+def _episodio(grafo: dict, familia: int, proyecto: str | None = None):
     p = orc.ModeloMallado().predecir(grafo)
     payload = _payload(clase='counterfactual')
+    if proyecto is not None:
+        payload['nativo']['project'] = proyecto
     payload['nativo']['feeders'] = [f'A{familia % 5}']
     payload['accion']['escenario'] = {'factor_carga': 1.0, 'tramos_abiertos': [f'T{familia}']}
     payload['topologia'] = {'grafo': grafo}
@@ -302,3 +304,25 @@ def test_alcance_de_las_ablaciones():
     uno, otro = (orc.muestra(_red(rnd, 6, r)) for r in (0, 1))
     assert bf.alcance_general({'entrenamiento': [uno], 'validacion': [], 'calibracion': [], 'prueba': [otro]})
     assert not bf.alcance_general({'entrenamiento': [uno], 'validacion': [], 'calibracion': [], 'prueba': [uno]})
+
+
+def test_la_muestra_de_un_episodio_lleva_su_proyecto():
+    """045:RF-13 — la red declarada de prueba queda entera en la prueba con cualquier muestra de episodio, no solo
+    con las del entrenamiento: ``reproducir`` y las ablaciones leen el episodio con ``muestra_de_episodio`` y, sin
+    su proyecto, volvían al reparto por huella con un modelo que se entrenó con la red declarada aparte."""
+    rnd = random.Random(47)
+    episodios = []
+    for r in range(3):
+        base = _red(rnd, rnd.randint(5, 9), r)
+        for k in range(4):
+            g = copy.deepcopy(base)
+            g['nodos'] = {n: orc.escalar_nodo(d, rnd.uniform(0.8, 1.2)) for n, d in g['nodos'].items()}
+            episodios.append(_episodio(g, r * 100 + k, proyecto=f'PRUEBA_{r}'))
+    muestras = [orc.muestra_de_episodio(e) for e in episodios]
+    assert [getattr(m, 'proyecto', '') for m in muestras] == [e.nativo['project'] for e in episodios]
+    por_huella = {orc.red_de(m) for m in orc.particionar(muestras, set())['prueba']}
+    elegida = next(f'PRUEBA_{r}' for r in range(3)
+                   if orc.red_de(muestras[4 * r]) not in por_huella)
+    grupos = orc.particionar(muestras, {elegida})
+    assert {m.proyecto for m in grupos['prueba']} == {elegida}
+    assert sum(m.proyecto == elegida for m in grupos['prueba']) == 4

@@ -45,6 +45,11 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
 - RF-8: EL SISTEMA no aplicará factores sobre los costos oficiales salvo que el estudio declare el factor y su sustento.
 - RF-9: EL SISTEMA guardará de cada fuente pública la URL de Osinergmin, su fecha de descarga y su huella, y usará el VNR
   aprobado de la empresa según su propia resolución de fijación.
+- Aclaración de RF-9 (orden del usuario del 2026-11-19: «lo que no puede cerrar debe usar los archivos que descargaste de la página de Osinergmin del PIT, en los entregables; lo que publique o no Osinergmin u otras entidades no debería ser una limitación o exigencia para cierre»): las obras de transmisión se valoran con la base de módulos PUBLICADA vigente ya
+  descargada (la de la Res. 152-2026-OS/CD, con su URL, fecha y huella). La resolución que la sustituya (la 181-2026-OS/CD)
+  no es requisito: cuando se descargue entra como versión nueva por su huella, la anterior se conserva y lo valorado con ella
+  queda marcado. La obra de una red real puede ser la de los formatos de inversión publicados de un PIT (F-301 y F-302),
+  comparada elemento a elemento con su cifra publicada y con la causa de cada diferencia.
 - RF-39: CUANDO el SICODI llegue como libro de cálculo (.xlsx, .xlsm, .xls o .xlsb), EL SISTEMA lo reconocerá por su
   contenido y leerá sus costos de inversión en la misma tabla que el zip, con su fuente, su huella y la columna de cada
   componente.
@@ -74,6 +79,15 @@ Ingeniero de planificación de cualquier distribuidora, desde la web; el asisten
   elegidos en el paso 1 de «Cargas en DIgSILENT», «Corto plazo», «PIDE» o «Largo plazo» sean del espacio: se
   guardan en él (sus opciones, con escritura atómica) y las demás pestañas los ven al momento, sin volver a elegirlos.
   En la matriz de vínculos de los módulos son una entrada compartida.
+- RF-46: (enmienda el orden de 042:RF-54 y 087:RF-37; usuario, 2026-11-18: «haz lo recomendado») EL SISTEMA costeará
+  cada alternativa de la escalera y del PIDE en este orden: el libro CAPEX real; después, el costo estándar de Osinergmin
+  del SICODI vigente (por RF-5 a RF-9: leído por su sha256 y su vigencia, reemplazable por periodo, solo el costo exacto
+  de RF-7 con el sector típico, la estructura y el código con su letra de tensión que declara
+  `escalera.costos_osinergmin` del perfil); después, el del perfil; y lo que siga faltando se deducirá o se tomará de
+  referencia, por confirmar, como hasta ahora (042:RF-54: ninguna obra queda sin solución). Cada costo dirá su origen
+  (la resolución, el año, el código y la huella si es de Osinergmin). SI el SICODI está en otra moneda que la de
+  trabajo, su unidad no es la de la alternativa (km o unidad) o falta su sector, su estructura o su fuente vigente,
+  ENTONCES no se usará y el aviso dirá por qué.
 
 ### Mercado y años
 
@@ -126,6 +140,10 @@ archivo no concede aceptación científica ni reemplaza una revisión humana.
   siguiendo su artículo paso a paso: del plan, el diagnóstico y la formulación de alternativas; del PIDE, la formulación en su
   periodo, la evaluación técnica, la económica, la priorización y selección, y la propuesta (usuario, 2026-11-02: «para que sea
   ligero los informes se haga por módulos y entregables»).
+- Aclaración de RF-21 (orden del usuario del 2026-11-19: «lo que no puede cerrar debe usar los archivos que descargaste de la página de Osinergmin del PIT, en los entregables; lo que publique o no Osinergmin u otras entidades no debería ser una limitación o exigencia para cierre»): la aceptación de los dos entregables no espera la revisión de una empresa. Se compara la
+  estructura de los módulos del conversor con la de los entregables oficiales custodiados (sus capítulos), en un acta con
+  origen «maestro/revisor independiente» que dice qué módulo cubre cada capítulo y nombra como hueco el que no tiene
+  sección.
 - RF-15: EL SISTEMA generará metrados desde la red de cada proyecto; sin metrado no habrá costo supuesto.
 - RF-16: SI un dato del entregable falta, ENTONCES EL SISTEMA dejará el hueco nombrado, sin inventarlo.
   Ampliado (H5, auditor b4, 2026-11-14): un dato que falta tampoco vale 0 en lo que se calcula con él. Una obra sin

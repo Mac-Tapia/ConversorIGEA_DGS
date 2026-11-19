@@ -476,6 +476,26 @@ mientras los demás casos pasaban a 1,0278.
   del gemelo lo encuentren sin índice válido, EL SISTEMA lo rehará una sola vez por proceso (cerrojo por carpeta,
   comprobando de nuevo dentro), con un temporal propio por llamada, y si otro proceso ya dejó un índice válido lo
   aceptará en vez de fallar; ninguna apertura falla por el bloqueo de ficheros de Windows y no quedan temporales.
+- RF-118 a RF-118: no se usa en esta rama: lo define REVISION-WEB (T88, T89), que integra después de gG5; al rebasarla, esta línea
+  se sustituye por su definición.
+- RF-119: (prueba funcional del 19-11; amplía 024:RF-55, cumplida) CUANDO el perfil no declare la hoja del libro
+  CAPEX, EL SISTEMA recorrerá todas las hojas del libro y leerá las que tengan, en una fila de cabecera, la columna del
+  nombre de la obra y la de su costo unitario (con los nombres de columna del perfil o, si no declara ninguno, los
+  habituales: «Proyecto», «Obra», «Denominación», «Costo Unitario», «Precio Unitario»…), y dirá en sus avisos qué hojas
+  leyó y cuáles no reconoció. SI ninguna hoja sirve, el error dirá en español qué columnas buscó, qué hojas tiene el
+  libro y qué declarar en el perfil (`planificacion.capex.hoja` y `columnas`), nunca «None». Con la hoja declarada,
+  nada cambia.
+- RF-120: (orden del integrador del 19-11 por la ablación de 045 T3; amplía 050:RF-23, sin RF nuevo en la 024 ni en la
+  050) CUANDO la web grabe un episodio del gemelo, EL SISTEMA guardará en él el periodo y el criterio de fijas de la
+  última calibración del proyecto que llegó a aplicarse en el espacio (una que falló entera no cuenta) y la huella del
+  perfil de empresa vigente. Y CUANDO un episodio ya grabado no los traiga, EL SISTEMA no reescribirá su objeto
+  (024:RF-10): `tools/rellenar_identidad_043.py` deducirá, en seco por defecto, el periodo y el criterio de la última
+  calibración del mismo proyecto anterior al episodio (capturada en el búfer o en los espacios) y la huella del perfil
+  vigente, diciendo de dónde sale cada campo; con `--aplicar` y un responsable lo escribirá de una vez en el registro
+  aparte `identidad_043.jsonl` del búfer, nunca en `objetos/` ni en el índice. `preparar_ciclo_aprendizaje.py`
+  combinará cada objeto con su fila, que completa lo que falta y nunca sustituye lo que el episodio dice (si lo
+  contradice, cuarentena con el motivo), congelará lo usado con la instantánea y dejará en cuarentena, con su motivo,
+  lo que no se pudo deducir. Un búfer sin el registro se sigue leyendo igual.
 
 ## Fuera de alcance
 

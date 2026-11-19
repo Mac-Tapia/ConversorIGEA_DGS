@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 """Rol único frente a cuatro roles con los mismos casos: errores hallados, coste y latencia (047 T3).
 
-    python tools/asistente_comparar_revision.py --solo-conjunto
-    python tools/asistente_comparar_revision.py --modelo <modelo de Ollama> --salida <informe.json>
+    python tools/asistente_comparar_revision.py --solo-conjunto [--conjunto <casos.json>]
+    python tools/asistente_comparar_revision.py --modelo <modelo de Ollama> [--conjunto <casos.json>] --salida <informe.json>
 
-`--solo-conjunto` comprueba los casos sin Ollama. La medición usa Ollama local y espera su turno de GPU; una salida
-existente se conserva, porque cada medición se hace una vez. Solo mide: no adopta nada ni autoriza ejecución.
+`--solo-conjunto` comprueba los casos sin Ollama. Sin `--conjunto`, los de `docs/REVISION_ROLES_CASOS_047.json`. Un
+conjunto se mide solo si su huella es la declarada antes de medir (047:RF-43): la de `DECLARADOS` y, si el fichero la
+trae, la de su clave `declaracion`; la huella va al informe. La medición usa Ollama local y espera su turno de GPU; una
+salida existente se conserva, porque cada medición se hace una vez. Solo mide: no adopta nada ni autoriza ejecución.
 """
 from __future__ import annotations
 
@@ -24,21 +26,52 @@ if str(RAIZ / 'src') not in sys.path:
 CONJUNTO = RAIZ / 'docs' / 'REVISION_ROLES_CASOS_047.json'
 #: Fijada antes de medir: si cambian los casos, cambia lo que se compara.
 HUELLA = '102bdfbf1c049c893aa5906594a1cc20503a1b5344a20dc62c905bb84a21ca6d'
+#: 047 T8: los 12 casos de 2026-11-03 orientaron el diagnóstico, así que la medida que cierra la T8 es con otro conjunto,
+#: declarado el 2026-11-19 antes de medir (su huella, también en la spec y en el fichero).
+HUELLA_047B = '54f2a035bc7c173d87830a5faaf2e5fdca79851df448abb854efff60e2f4e910'
+#: Conjuntos declarados, por nombre de fichero; el de siempre usa ``HUELLA``.
+DECLARADOS = {'REVISION_ROLES_CASOS_047b.json': HUELLA_047B}
+#: La clave del fichero que declara su huella; no entra en la huella.
+DECLARACION = 'declaracion'
 DEFECTOS = {None, 'fuentes', 'fisica', 'coste', 'riesgo'}
 #: El de ``revision_roles.TOKENS``, sin cargar el paquete para ``--help``.
 TOKENS = 512
 
 
-def huella() -> str:
-    # Del contenido y no de los bytes: un cambio de fin de línea al sacarlo de git no es otro conjunto.
-    contenido = json.loads(CONJUNTO.read_text(encoding='utf-8'))
+def _contenido(ruta: Path) -> dict:
+    return json.loads(Path(ruta).read_text(encoding='utf-8'))
+
+
+def huella(ruta: Path | None = None) -> str:
+    """Del contenido y no de los bytes: un cambio de fin de línea al sacarlo de git no es otro conjunto.
+
+    La clave ``declaracion`` queda fuera, para que el fichero pueda llevar su propia huella.
+    """
+    contenido = {k: v for k, v in _contenido(ruta or CONJUNTO).items() if k != DECLARACION}
     return hashlib.sha256(json.dumps(contenido, ensure_ascii=False, sort_keys=True).encode('utf-8')).hexdigest()
 
 
-def leer_casos() -> list[dict]:
-    if huella() != HUELLA:
-        raise ValueError('el conjunto de casos cambió: no es el declarado antes de medir')
-    casos = json.loads(CONJUNTO.read_text(encoding='utf-8'))['casos']
+def huella_declarada(ruta: Path | None = None) -> str:
+    """La huella fijada antes de medir; sin ninguna, el conjunto no se mide (047:RF-43)."""
+    ruta = Path(ruta or CONJUNTO)
+    if ruta.resolve() == CONJUNTO.resolve():
+        return HUELLA
+    propia = (_contenido(ruta).get(DECLARACION) or {}).get('sha256')
+    registrada = DECLARADOS.get(ruta.name)
+    if registrada and propia and propia != registrada:
+        raise ValueError(f'{ruta.name}: la huella de su declaración no es la registrada en la herramienta')
+    if not (registrada or propia):
+        raise ValueError(f'{ruta.name}: conjunto sin huella declarada antes de medir; no se mide')
+    return registrada or propia
+
+
+def leer_casos(ruta: Path | None = None) -> list[dict]:
+    ruta = Path(ruta or CONJUNTO)
+    declarada, medida = huella_declarada(ruta), huella(ruta)
+    if medida != declarada:
+        raise ValueError(f'el conjunto de casos cambió: no es el declarado antes de medir ({ruta.name}: huella '
+                         f'{medida[:12]}…, declarada {declarada[:12]}…)')
+    casos = _contenido(ruta)['casos']
     ids = [c['id'] for c in casos]
     if len(set(ids)) != len(ids) or any(c['defecto'] not in DEFECTOS or not c['evidencia'] for c in casos):
         raise ValueError('casos repetidos, sin evidencia o con un defecto desconocido')
@@ -67,12 +100,19 @@ def materializar(casos: list[dict], carpeta: Path) -> list[dict]:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--solo-conjunto', action='store_true', help='Comprueba los casos, sin Ollama.')
+    p.add_argument('--conjunto', type=Path, default=CONJUNTO,
+                   help='Casos JSON con su huella declarada (por defecto docs/REVISION_ROLES_CASOS_047.json).')
     p.add_argument('--modelo', help='Modelo de Ollama con que se mide.')
     p.add_argument('--salida', type=Path, help='Informe JSON; si existe, no se mide de nuevo.')
     p.add_argument('--tokens', type=int, default=TOKENS, help=f'Tope de tokens por intervención (por defecto {TOKENS}).')
     args = p.parse_args(argv)
-    casos = leer_casos()
-    resumen = {'casos': len(casos), 'con_defecto': sum(c['defecto'] is not None for c in casos), 'conjunto_sha256': huella()}
+    try:
+        casos = leer_casos(args.conjunto)
+    except (OSError, ValueError, KeyError) as e:
+        print(f'No se mide: {e}', file=sys.stderr)
+        return 2
+    resumen = {'casos': len(casos), 'con_defecto': sum(c['defecto'] is not None for c in casos),
+               'conjunto': args.conjunto.name, 'conjunto_sha256': huella(args.conjunto)}
     if args.solo_conjunto:
         print(json.dumps(resumen, ensure_ascii=True))
         return 0

@@ -131,8 +131,12 @@ def _periodo(valor: Any) -> Any:
     return valor.get('maxima') if isinstance(valor, dict) else valor
 
 
-def contexto_de_episodio(e, complemento: dict):
-    """050:RF-13/14: ``(ContextoExperimento, None)`` con los 14 campos, o ``(None, motivo)``."""
+def contexto_de_episodio(e, complemento: dict, registro: dict | None = None):
+    """050:RF-13/14: ``(ContextoExperimento, None)`` con los 14 campos, o ``(None, motivo)``.
+
+    086:RF-120: ``registro`` es la fila del registro aparte del búfer (``identidad_043.jsonl``) de este episodio, si la
+    tiene: completa lo que el episodio no trae, después de lo leído y antes del complemento, y no sustituye a ninguno.
+    """
     from convertersmartgrid.aplicacion.experimentos import ContextoExperimento
     fisico = e.contexto_fisico
     if fisico is None:
@@ -141,11 +145,16 @@ def contexto_de_episodio(e, complemento: dict):
         return None, f'identidad 043 incompleta: {fisico["ausente"]}'
     proyecto = str(e.nativo.get('project') or '')
     declarados = complemento['proyectos'].get(proyecto, {})
+    registrados = (registro or {}).get('campos') or {}
     leidos = {'year': fisico.get('year'), 'period': _periodo(fisico.get('period')),
               'criterio_fijas': fisico.get('criterio_fijas'), 'profile_hash': fisico.get('profile_hash')}
     valores = {}
     for campo in CAMPOS_COMPLEMENTO:
-        leido, declarado = leidos[campo], declarados.get(campo)
+        leido, registrado, declarado = leidos[campo], registrados.get(campo), declarados.get(campo)
+        if leido is not None and registrado is not None and leido != registrado:
+            return None, (f'el registro de identidad 043 contradice al episodio en {campo}: '
+                          f'episodio {leido!r}, registrado {registrado!r}')
+        leido = leido if leido is not None else registrado
         if leido is not None and declarado is not None and leido != declarado:
             return None, (f'complemento contradice al episodio en {campo}: '
                           f'episodio {leido!r}, declarado {declarado!r}')
@@ -257,8 +266,11 @@ def preparar_twin(p: Preparacion, twin: Path) -> dict:
     objetos = twin / 'objetos'
     if not objetos.is_dir():
         raise ValueError(f'{twin}: no tiene objetos/ de episodios')
+    from convertersmartgrid.adaptadores.digital_twin.buffer import leer_identidades_043
     tabla = p.referencias.setdefault('twin', {})
     no_ensenan, rutas, contextos, creados, ensenan = Counter(), {}, [], {}, {}
+    # 086:RF-120: lo deducido para los episodios grabados sin identidad, del registro aparte del búfer.
+    registro, usados = leer_identidades_043(twin), {}
     total = 0
     for ruta in sorted(objetos.glob('*/*.json')):
         total += 1
@@ -267,7 +279,9 @@ def preparar_twin(p: Preparacion, twin: Path) -> dict:
         except ValueError as exc:
             p.apartar('twin', ruta.stem, f'episodio inválido: {exc}')
             continue
-        contexto, motivo = contexto_de_episodio(e, p.complemento)
+        contexto, motivo = contexto_de_episodio(e, p.complemento, registro.get(e.episode_id))
+        if contexto is not None and e.episode_id in registro:
+            usados[e.episode_id] = registro[e.episode_id]
         ensena = por_que_no_ensena(e)
         if contexto is not None and e.nativo.get('reopen_verified') is True:
             contextos.append(contexto)
@@ -288,6 +302,14 @@ def preparar_twin(p: Preparacion, twin: Path) -> dict:
         rutas[e.episode_id] = ruta
         ensenan[e.episode_id] = (e, contexto)
     p.informe['twin'] = {'episodios': total, 'no_ensenan': dict(no_ensenan), 'con_referencia': len(tabla)}
+    if registro:
+        en_vista = {eid: f for eid, f in usados.items() if eid in tabla}
+        p.informe['twin']['identidad_043'] = {'registradas': len(registro), 'completan': len(usados),
+                                              'con_referencia': len(en_vista)}
+        if en_vista:
+            # Lo deducido viaja con la instantánea, como el complemento: con su origen y su responsable.
+            _escribir(p.salida / 'identidad_043.json', dict(sorted(en_vista.items())))
+            p.fuentes['identidad_043'] = str(p.salida / 'identidad_043.json')
     return {'rutas': rutas, 'contextos': contextos, 'creados': creados, 'ensenan': ensenan}
 
 

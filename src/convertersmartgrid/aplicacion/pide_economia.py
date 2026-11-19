@@ -75,12 +75,77 @@ def alternativa_de(*textos: str) -> str | None:
 
 
 
+#: Nombres de columna con que se reconoce una hoja del CAPEX cuando el perfil no declara ninguno
+#: (086:RF-119). Son los rótulos habituales de un presupuesto de inversiones, de cualquier empresa:
+#: el perfil que trae los suyos manda sobre estos.
+COLUMNAS_CAPEX: dict[str, tuple[str, ...]] = {
+    'nombre': ('Proyecto', 'Obra', 'Denominación', 'Nombre del proyecto', 'Nombre de la obra', 'Nombre'),
+    'zona': ('Zona',),
+    'objetivo': ('Objetivo',),
+    'descripcion': ('Descripción',),
+    'inversion': ('Inversión total', 'Inversión', 'Monto total'),
+    'cantidad': ('Cantidad',),
+    'unidad': ('Und', 'Unidad', 'U.M.'),
+    'costo_unitario': ('Costo Unitario', 'Precio Unitario', 'C.U.'),
+}
+#: Filas en que se busca la cabecera al reconocer una hoja por su contenido: una hoja sin
+#: cabecera de CAPEX no se recorre entera.
+FILAS_PARA_CABECERA = 50
+
+
+def _cabecera_capex(filas, nombres: Mapping[str, Sequence[str]], marca: str | None,
+                    limite: int | None = None) -> tuple[dict[str, int], dict[str, str]] | None:
+    """Índice de cada columna en la primera fila que es cabecera, y el rótulo hallado.
+
+    Con ``marca`` (la del perfil) la cabecera es la primera fila que la contiene, como siempre;
+    sin ella, la primera que tiene el nombre de la obra y su costo unitario (086:RF-119).
+    Consume ``filas`` hasta la cabecera: lo que queda son las obras.
+    """
+    for n, fila in enumerate(filas):
+        if limite is not None and n >= limite:
+            return None
+        planos = [_plano(v) for v in fila]
+        indice: dict[str, int] = {}
+        rotulo: dict[str, str] = {}
+        for clave, opciones in nombres.items():
+            for opcion in opciones:
+                if _plano(opcion) in planos:
+                    indice[clave] = planos.index(_plano(opcion))
+                    rotulo[clave] = opcion
+                    break
+        if (marca in planos) if marca else ('nombre' in indice and 'costo_unitario' in indice):
+            return indice, rotulo
+    return None
+
+
+def _obras_de_filas(filas, indice: Mapping[str, int], rotulo_nombre: str) -> list[ObraCapex]:
+    def celda(fila, clave):
+        i = indice.get(clave)
+        return fila[i] if i is not None and i < len(fila) else None
+
+    obras = []
+    for fila in filas:
+        nombre = celda(fila, 'nombre')
+        if not nombre or _plano(nombre) == _plano(rotulo_nombre):
+            continue
+        textos = [str(celda(fila, k) or '') for k in ('nombre', 'objetivo', 'descripcion')]
+        obras.append(ObraCapex(str(nombre).strip(), str(celda(fila, 'zona') or ''),
+                               str(celda(fila, 'objetivo') or ''), str(celda(fila, 'descripcion') or ''),
+                               str(celda(fila, 'unidad') or ''), finite_or_none(celda(fila, 'cantidad')),
+                               finite_or_none(celda(fila, 'costo_unitario')), finite_or_none(celda(fila, 'inversion')),
+                               alternativa_de(*textos)))
+    return obras
+
+
 def leer_capex(ruta: Path | str, config: Mapping[str, Any]) -> tuple[list[ObraCapex], list[str]]:
     """Obras del libro CAPEX con su alternativa del PIDE, por los nombres del perfil.
 
     Solo se leen las columnas del perfil: responsables, líderes y contratos del libro no
     salen de aquí (RF-56). Devuelve las obras y los avisos (RF-55): hoja o columna que no
     está y alternativas del PIDE sin ninguna obra en el libro.
+
+    Sin hoja en el perfil, se leen las hojas que lo son por su contenido (086:RF-119): el
+    trabajo de obras del 19-11 falló buscando una hoja llamada «None».
     """
     from contextlib import closing
     from openpyxl import load_workbook
@@ -88,42 +153,61 @@ def leer_capex(ruta: Path | str, config: Mapping[str, Any]) -> tuple[list[ObraCa
     columnas = dict(config.get('columnas') or {})
     hoja_nombre = config.get('hoja')
     with closing(load_workbook(ruta, read_only=True, data_only=True)) as libro:
-        if hoja_nombre not in libro.sheetnames:
-            raise EconomiaPideError(f'el libro no tiene la hoja «{hoja_nombre}» del perfil')
-        hoja = libro[hoja_nombre]
-        filas = hoja.iter_rows(values_only=True)
-        marca = _plano(config.get('fila_cabecera_contiene') or columnas.get('costo_unitario'))
-        indice: dict[str, int] = {}
-        for fila in filas:
-            planos = [_plano(v) for v in fila]
-            if marca in planos:
-                for clave, nombre in columnas.items():
-                    if _plano(nombre) in planos:
-                        indice[clave] = planos.index(_plano(nombre))
-                break
-        faltan = [c for c in columnas if c not in indice]
-        if 'nombre' in faltan or 'costo_unitario' in faltan:
-            raise EconomiaPideError(f'no se encontraron las columnas {faltan} en «{hoja_nombre}»')
-        avisos = [f'columna «{columnas[c]}» del perfil no encontrada' for c in faltan]
-
-        def celda(fila, clave):
-            i = indice.get(clave)
-            return fila[i] if i is not None and i < len(fila) else None
-
-        obras = []
-        for fila in filas:
-            nombre = celda(fila, 'nombre')
-            if not nombre or _plano(nombre) == _plano(columnas['nombre']):
-                continue
-            textos = [str(celda(fila, k) or '') for k in ('nombre', 'objetivo', 'descripcion')]
-            obras.append(ObraCapex(str(nombre).strip(), str(celda(fila, 'zona') or ''),
-                                   str(celda(fila, 'objetivo') or ''), str(celda(fila, 'descripcion') or ''),
-                                   str(celda(fila, 'unidad') or ''), finite_or_none(celda(fila, 'cantidad')),
-                                   finite_or_none(celda(fila, 'costo_unitario')), finite_or_none(celda(fila, 'inversion')),
-                                   alternativa_de(*textos)))
+        if hoja_nombre:
+            if hoja_nombre not in libro.sheetnames:
+                raise EconomiaPideError(f'el libro no tiene la hoja «{hoja_nombre}» del perfil')
+            filas = libro[hoja_nombre].iter_rows(values_only=True)
+            marca = _plano(config.get('fila_cabecera_contiene') or columnas.get('costo_unitario'))
+            indice, _ = _cabecera_capex(filas, {c: (n,) for c, n in columnas.items()}, marca) or ({}, {})
+            faltan = [c for c in columnas if c not in indice]
+            if 'nombre' in faltan or 'costo_unitario' in faltan:
+                raise EconomiaPideError(f'no se encontraron las columnas {faltan} en «{hoja_nombre}»')
+            avisos = [f'columna «{columnas[c]}» del perfil no encontrada' for c in faltan]
+            obras = _obras_de_filas(filas, indice, columnas['nombre'])
+        else:
+            obras, avisos = _capex_por_contenido(libro, config, columnas)
     sin = sorted(set(RUBRO_DE_ALTERNATIVA) - {o.alternativa for o in obras if o.alternativa})
     if sin:
         avisos.append(f'alternativas del PIDE sin obra en el libro CAPEX: {", ".join(sin)}')
+    return obras, avisos
+
+
+def _capex_por_contenido(libro, config: Mapping[str, Any],
+                         columnas: Mapping[str, str]) -> tuple[list[ObraCapex], list[str]]:
+    """Todas las hojas con nombre de obra y costo unitario en su cabecera (086:RF-119)."""
+    nombres = {c: (n,) for c, n in columnas.items()} if columnas else COLUMNAS_CAPEX
+    marca = _plano(config['fila_cabecera_contiene']) if config.get('fila_cabecera_contiene') else None
+    obras: list[ObraCapex] = []
+    leidas: list[str] = []
+    otras: list[str] = []
+    faltan_por_hoja: list[str] = []
+    for nombre_hoja in libro.sheetnames:
+        filas = libro[nombre_hoja].iter_rows(values_only=True)
+        hallada = _cabecera_capex(filas, nombres, marca, FILAS_PARA_CABECERA)
+        if not hallada or 'nombre' not in hallada[0] or 'costo_unitario' not in hallada[0]:
+            otras.append(nombre_hoja)
+            continue
+        indice, rotulo = hallada
+        leidas.append(nombre_hoja)
+        faltan = [c for c in nombres if c not in indice]
+        if faltan and columnas:
+            faltan_por_hoja.append(f'«{nombre_hoja}»: ' + ', '.join(f'«{columnas[c]}»' for c in faltan))
+        obras.extend(_obras_de_filas(filas, indice, rotulo['nombre']))
+    if not leidas:
+        def opciones(clave):
+            return ' o '.join(f'«{n}»' for n in nombres.get(clave) or COLUMNAS_CAPEX[clave])
+        raise EconomiaPideError(
+            'ninguna hoja del libro parece un CAPEX: se buscó una fila de cabecera con el nombre de la obra '
+            f'({opciones("nombre")}) y su costo unitario ({opciones("costo_unitario")}) en las hojas '
+            + ', '.join(f'«{h}»' for h in libro.sheetnames)
+            + '. Declare en el perfil la hoja (planificacion.capex.hoja) y los nombres de sus columnas '
+            '(planificacion.capex.columnas, al menos «nombre» y «costo_unitario»).')
+    avisos = [f'el perfil no declara la hoja del CAPEX: se leyó por su contenido {", ".join(f"«{h}»" for h in leidas)}']
+    if otras:
+        avisos.append('hojas del libro CAPEX sin cabecera de obras y costos, no leídas: '
+                      + ', '.join(f'«{h}»' for h in otras))
+    if faltan_por_hoja:
+        avisos.append('columnas del perfil no encontradas en ' + '; '.join(faltan_por_hoja))
     return obras, avisos
 
 

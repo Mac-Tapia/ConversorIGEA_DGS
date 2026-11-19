@@ -166,13 +166,30 @@ adaptador VNR (integrador f9).
        con la tolerancia de la 112 (0,005 p.u. en tensión, 1 % en corriente). (RF-2, RF-3, RF-5)
        Hecho cuando: la evidencia de la corrida (informe y registro) queda fuera de git con su huella y las diferencias
        entre motores están dentro de la tolerancia o explicadas elemento por elemento.
-- [ ] T15. Aceptación con datos reales autorizados por la empresa: reproducir, fila por fila, un cuadro de un PIT
+- [x] T15. Aceptación con datos reales autorizados por la empresa: reproducir, fila por fila, un cuadro de un PIT
        publicado para el área del primer caso, con sus diferencias explicadas. (RF-6, RF-9)
        Hecho cuando: el expediente trae el cuadro reproducido, su cuadro publicado de referencia con su huella, y cada
        diferencia con su causa.
-- [ ] T16. Cotejo de una muestra de celdas por un revisor independiente, con sus observaciones registradas por la vía de
+       Nota (orden del usuario del 2026-11-19, aclaración de RF-9 y RF-10): con el expediente publicado ya descargado, no
+       con datos autorizados por la empresa. Hecho (2026-11-19, wt_59_osin): `pit/reproduccion.py` lee por contenido los
+       formatos publicados y reproduce F-119 a F-122 con `demanda_resumen.resumen_demanda` desde F-109 a F-112 y F-115 a
+       F-118 del mismo libro; `escribir_en_expediente` no emite una diferencia sin causa. Pruebas sintéticas en
+       `tests/test_pit_reproduccion_publicada.py` (rojo 10 failed por aserción, verde 10 passed). Corrida con el F-100
+       publicado de la empresa de prueba (sha256 5b8982b9…40d1): F-120 a F-122, 1 452 de 1 485 celdas iguales cada uno;
+       las 33 restantes (una barra de 10 kV que suma por su nombre un libre declarado a 22,9 kV), dos barras con otro
+       sistema y una fila de resto de fórmula, con su causa; F-119, 132 celdas sin cifra del conversor porque un libre de
+       13,8 kV no está en los niveles del 12.1.1, cada una con la causa deducida (el publicado lo suma en MT). Evidencia
+       fuera de git: `D:/csg/INTEGRA_54/cierre_tareas/osinergmin/evidencia_107/`.
+- [x] T16. Cotejo de una muestra de celdas por un revisor independiente, con sus observaciones registradas por la vía de
        T11. (RF-9, RF-10)
        Hecho cuando: el expediente guarda el acta del cotejo, la muestra revisada y la respuesta a cada observación.
+       Nota (orden del usuario del 2026-11-19): el revisor es otro modelo en otra sesión, con origen «maestro/revisor
+       independiente». Hecho (2026-11-19, wt_59_osin): `reproduccion.cotejar` rechaza el acta del propio implementador o
+       sin origen, compara cada celda de la muestra con la reproducción y la registra con `observaciones.registrar`
+       (afecta «celda», con su traza); pruebas en `tests/test_pit_reproduccion_publicada.py`. Corrida: acta de 37 celdas
+       leídas por el revisor sin el código del conversor (`D:/csg/INTEGRA_54/cierre_tareas/osinergmin/evidencia_107/acta_cotejo_revisor.json`); las 37 lecturas
+       coinciden con la reproducción, 27 conformes y 10 respondidas con su diferencia y su causa
+       (`expediente/reproduccion_publicada/cotejo_*.json` y `observaciones_cotejo_*.json`).
 - [x] T17. Universalidad: el paquete `pit/` y `registro_normativo.py` sin números de área, titulares, tensiones, tasas ni
        años de una empresa o un periodo. (RF-11)
        Hecho cuando: `.venv/Scripts/python.exe -m pytest -rfs tests/test_entrega_universal.py tests/test_inventario.py`

@@ -1,4 +1,4 @@
-workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 450 módulos de Python en 37 subsistemas." {
+workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 452 módulos de Python en 37 subsistemas." {
 
     // Las relaciones de componentes no se suben solas a los contenedores: cada vista muestra solo lo declarado.
     !impliedRelationships false
@@ -333,7 +333,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             planning = container "PIDE y planeamiento" "Largo plazo y PIDE de distribución: diagnóstico, obras, costos oficiales y formatos." "Python" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/pide.py"
                 tags "Engine"
-                cmpPide = component "PIDE y planeamiento" "PIDE, economía, proyecciones de mercado y estudio de planeamiento (14 ficheros)." "Python" {
+                cmpPide = component "PIDE y planeamiento" "PIDE, economía, proyecciones de mercado y estudio de planeamiento (15 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/dominio/estudio_planeamiento.py"
                     tags "Engine"
                     properties {
@@ -349,7 +349,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                     "Estado" "en implementación"
                     "Spec" "107"
                 }
-                cmpPit = component "PIT" "Ámbito y red del área de demanda, demanda regulatoria, diagnóstico con la norma, alternativas, formatos, expediente e informe (30 ficheros)." "Python" {
+                cmpPit = component "PIT" "Ámbito y red del área de demanda, demanda regulatoria, diagnóstico con la norma, alternativas, formatos, expediente e informe (31 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/dominio/pit"
                     tags "Engine"
                     properties {
@@ -466,14 +466,14 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Herramientas: operación, datos y aceptación"
                     }
                 }
-                cmpHerrModelos = component "Modelos, asistente y MADRL" "Entrenamientos y auditorías del gemelo, del asistente, del pronóstico y del piloto MADRL (37 ficheros)." "Python" {
+                cmpHerrModelos = component "Modelos, asistente y MADRL" "Entrenamientos y auditorías del gemelo, del asistente, del pronóstico y del piloto MADRL (38 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/tools/digital_twin_entrenar.py"
                     tags "AI"
                     properties {
                         "Subsistemas" "Herramientas: modelos, asistente y MADRL"
                     }
                 }
-                cmpHerrCalidad = component "Calidad y entrega" "Capas, arquitectura generada, contrato de la API, estado de specs, suite por tandas y candidato (18 ficheros)." "Python" {
+                cmpHerrCalidad = component "Calidad y entrega" "Capas, arquitectura generada, contrato de la API, estado de specs, suite por tandas y candidato (19 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/tools/arquitectura.py"
                     tags "Engine"
                     properties {

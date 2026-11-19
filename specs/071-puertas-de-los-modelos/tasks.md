@@ -18,3 +18,8 @@
       `20261028-114528-e6f5` (Chincha, 4 944 nodos) entraba en dominio en 7 de 19 proyectos (Chincha, Nasca, W12882, NJA202);
       con esta spec, en ninguno. Sin medir: tiempo y obra elegida. En el grafo guardado de Chincha el flujo del oráculo no
       converge sin obras (`medir([], 0)`), así que la PINN no llega a usarse y antes y después dan lo mismo.
+      Avance del 2026-11-19 (59), medida «después» en DIgSILENT sobre el proyecto de prueba importado por la web
+      el 2026-11-19 (código 37585807): «Con proyecto» con 3 cargas nuevas → obra sección
+      AA24003D_22_9kV_FICHA en 63 tramos (15,88 km), definitiva, aplicada; obras_pf.py 24 órdenes, 0 % fallidas, 0,22 h
+      (D:/csg/INTEGRA_54/cierre_tareas/digsilent/, corrida C2c). Falta la medida «antes» (regla anterior) sobre el mismo
+      proyecto para comparar tiempo y obra: sigue abierta.

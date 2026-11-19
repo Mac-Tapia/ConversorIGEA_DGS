@@ -310,10 +310,10 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       `frontend/test/e2e/teclado.e2e.mjs` en verde con sus capturas revisadas a mano. Evidencia: `D:/csg/PM_IMPL/HEREDADAS_E6/T0c/`.
 - [ ] T79 Recorridos E2E F01–F04 con Playwright y axe-core (devDependencies fijadas), sobre una web aislada y sin red, con
       capturas y resultado por SHA. (RF-107)
-      Bloqueada por la spec 111 (F02, editor sobre el plano, sin implementar). Playwright y axe-core ya van
-      en `package.json` y `package-lock.json` (T0c v3); falta instalar los navegadores de Playwright.
-      Hecho cuando: `npx playwright test -c test/e2e/playwright.config.mjs` da F01, F03 y F04 en verde, y F02 en verde
-      tras la 111, con `output/e2e/<sha>/` sellado.
+      Aclaración (59, 19-11): F02 ya existe, es `frontend/e2e/plano.spec.ts` (111 T16 cerrada), y los navegadores de
+      Playwright están instalados; Playwright y axe-core van en `package.json` y `package-lock.json` (T0c v3).
+      Hecho cuando: `npm run e2e:todo` (los dos arneses: F01, F03 y F04 en `test/e2e`, F02 en `frontend/e2e`) da verde
+      sin omitidas sobre el SHA candidato, con `output/e2e/<sha>/` sellado (SHA256SUMS).
 - [ ] T80 COPIA-PREVIA: previa de la copia en la web (`GET /api/copia-datos/previa` sobre `planificar_copia`, ventana
       `PreviaCopia` con «Copiar» y «Cancelar», la API exige `confirmada`), listado de las copias del destino desde su
       manifiesto (`listar_copias`), el aviso que mira la carpeta recordada (`estado_copia(destino=…)`) y los seis textos.
@@ -392,3 +392,19 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
   Hecho cuando: `tests/test_buffer_indice_concurrente.py` (086:RF-117: 8 aperturas a la vez sin índice, seis vueltas,
   ninguna falla, 12 episodios indexados, sin temporales) en verde, con rojo previo por aserción (7 de 8 con
   PermissionError), y las pruebas del búfer y del gemelo sin regresión. Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/pfvigia/`.
+- [x] T90 CAPEX-SIN-HOJA (prueba funcional del 19-11): `aplicacion/pide_economia.py` `leer_capex` reconoce por su
+  contenido las hojas del CAPEX cuando el perfil no declara la hoja, y si ninguna sirve dice qué falta. (RF-119)
+  Hecho cuando: `tests/test_capex_sin_hoja.py` (086:RF-119: sin hoja ni columnas, una hoja de costos entre otras se
+  lee; sin hoja y ninguna válida, error en español sin «None» que nombra columnas, hojas y el perfil; con la hoja
+  declarada, igual que antes) en verde, con rojo previo por aserción, y `tests/test_pide_economia.py` y las de
+  procedencia del CAPEX sin regresión. Evidencia: `D:/csg/INTEGRA_54/cierre_tareas/capex_hoja/`.
+- [x] T94 TWIN-ID (orden del integrador del 19-11 por la ablación de 045 T3): `presentacion/web/services.py`
+  `identidad_de_captura` toma la última calibración aplicada; `adaptadores/digital_twin/buffer.py` lleva el registro
+  aparte `identidad_043.jsonl`; `tools/rellenar_identidad_043.py` lo rellena y `tools/preparar_ciclo_aprendizaje.py` lo
+  combina con los objetos. (RF-120)
+  Hecho cuando: `tests/test_identidad_043_relleno.py` (086:RF-120: captura tras una calibración fallida; en seco no
+  escribe; `--aplicar` solo escribe el registro y el ciclo saca el episodio de cuarentena; lo no deducible sigue apartado;
+  un registro que contradice no sustituye; registro atómico que sobrevive al índice y búfer viejo legible) en verde, con
+  rojo previo por aserción, las pruebas del búfer, del gemelo y del ciclo sin regresión, y el preflight sobre una copia
+  del búfer real con `proyectos_043` ≥ 1 y `contexto_hash` no nulo. Aplicar el relleno al búfer real lo decide el
+  integrador. Evidencia: `D:/csg/PM_IMPL/TWIN_ID/`.

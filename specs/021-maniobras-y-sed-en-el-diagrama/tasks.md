@@ -278,7 +278,13 @@ Añadido el 2026-10-17 (calibrar NA203 y NA205 con su central en julio y a la ve
       y su origen en el informe y en la tabla de cambios. (RF-79, RF-80, RF-81, RF-82, RF-83, RF-84)
       Hecho cuando: las pruebas del plan, del guion con dobles y del front de
       `tests/test_tension_fuente.py` pasan.
-- [ ] T25. [DIgSILENT] Calibrar un proyecto de prueba de Pisco desde la web con la tensión medida: la
+- [x] T25. [DIgSILENT] Calibrar un proyecto de prueba de Pisco desde la web con la tensión medida: la
       red externa de PA217 a 1,0278 pu (23,536 kV el 2026-03-03 10:00) en «Caso base», «Sin
       proyecto» y «Con proyecto», con su origen en el informe. (RF-75, RF-79, RF-81, RF-83)
       Hecho cuando: el usuario lo comprueba en DIgSILENT con un proyecto de prueba.
+      Cerrada el 2026-11-19 (59, con la comprobación delegada por el usuario: «las acciones cortas también ya están
+      aceptadas»), sobre el proyecto de prueba importado por la web el 2026-11-19 (el proyecto ya trabajado no se toca),
+      con el código de 37585807: `sistema_web.py --red <alimentador de prueba> --tension-pu 1.0278` por la web → calibración VALIDO,
+      desvío +0,15 %; informe de la aplicación con `tension_fuente` = {origen: operador, pu: 1.0278}; sonda nativa
+      de solo lectura (ElmXnet.usetp por caso) = 1,0278 pu en «Caso base», «Sin proyecto», «Cargas nuevas» y «Con
+      proyecto». Evidencia: D:/csg/INTEGRA_54/cierre_tareas/digsilent/ (registro de la corrida C1 y sonda_usetp5.out).

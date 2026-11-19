@@ -5223,8 +5223,7 @@ def identidad_de_captura(ws: Workspace, project: str | None, perfil: Mapping[str
     """
     from ...aplicacion.evaluacion_modelos import huella
 
-    calibracion = ajuste_aplicado_en_disco(ws, project) or {}
-    informes = calibracion.get('informes') or []
+    informes = _informes_de_la_calibracion_vigente(ws, project)
     periodo = next((str(c['periodo']) for c in (getattr(ws, 'criterio_cabecera', None) or {}).values()
                     if (c or {}).get('periodo')), None)
     if periodo is None:
@@ -5232,6 +5231,29 @@ def identidad_de_captura(ws: Workspace, project: str | None, perfil: Mapping[str
     criterio = next((i.get('criterio_fijas') for i in informes if i.get('criterio_fijas')), None)
     return {k: v for k, v in (('periodo', periodo), ('criterio_fijas', criterio), ('profile_hash', huella(dict(perfil))))
             if v is not None}
+
+
+def _informes_de_la_calibracion_vigente(ws: Workspace, project: str | None) -> list[dict[str, Any]]:
+    """Los informes de la última calibración del proyecto que llegó a aplicarse (086:RF-120).
+
+    Una calibración que falló entera (``error`` en todos sus informes, p. ej. «no existe el proyecto … en la carpeta
+    de DIgSILENT», como pasó con dos proyectos el 2026-11-05) no cambió la red ni trae objetivo ni criterio: con ella el episodio
+    salía sin periodo ni criterio de fijas aunque la anterior sí los tenía. Vale la anterior que se aplicó.
+    """
+    informes = (ajuste_aplicado_en_disco(ws, project) or {}).get('informes') or []
+    if not informes or not all(i.get('error') for i in informes):
+        return informes
+    rutas: dict[str, Path] = {}
+    for base, patron in ((getattr(ws, 'out_dir', None), 'ajuste_cabecera_aplicacion_*.json'),
+                         (getattr(ws, 'root', None), 'runs/*/salida/ajuste_cabecera_aplicacion_*.json')):
+        for ruta in (Path(base).glob(patron) if base else ()):
+            rutas.setdefault(str(ruta.resolve()).casefold(), ruta)
+    grupos = _ajustes_por_token(sorted(rutas.values()), str(project or '').strip(), None)
+    for filas in sorted(grupos.values(), key=lambda fs: max(p.stat().st_mtime for _, p, _ in fs), reverse=True):
+        propios = [i for _, _, i in sorted(filas, key=lambda f: f[0])]
+        if not all(i.get('error') for i in propios):
+            return propios
+    return []
 
 
 def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,
@@ -7670,7 +7692,10 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
             avisos += avisos_capex
         else:
             avisos.append('Sin libro CAPEX: solo se costean las alternativas que da el perfil.')
-        costos = eo.costos_de_alternativas(costos_capex, p)
+        oficiales, avisos_oficiales = _escalera_costos_osinergmin(getattr(ws, 'root', None), perfil,  # 072:RF-46
+                                                                  p.moneda)
+        avisos += avisos_oficiales
+        costos = eo.costos_de_alternativas(costos_capex, p, oficiales)
         # 042:RF-30, RF-34, RF-40: lo que falta se crea, a la tensión de cada alimentador y para cualquier empresa.
         lectura = obras_bibliotecas(ws, ctx, project, feeders, otro_proyecto=eo.BIBLIOTECA_TIPOS,
                                     secciones_nuevas=list(p.secciones or SECCIONES_DE_REFERENCIA),
@@ -9416,10 +9441,48 @@ def barra_del_tramo_partido(carga: dict, tramos: list[dict], media: dict) -> str
     return media.get(punta, punta)
 
 
+def _escalera_costos_osinergmin(raiz: Path | None, perfil: Mapping[str, Any], moneda: str) -> tuple[dict, list[str]]:
+    """072:RF-46: los costos oficiales de Osinergmin de la escalera, de ``escalera.costos_osinergmin`` del perfil.
+
+    El SICODI vigente hoy se lee con el lector único de fuentes de costo (``pit.armado.tablas_declaradas``), por su
+    sha256 y su vigencia: es reemplazable por periodo y nunca se fija por nombre ni versión. Sin la declaración, nada
+    cambia; lo que falta (fuente vigente, huella, código, sector o estructura) va a los avisos y la escalera sigue con el
+    perfil y la referencia, por confirmar (042:RF-54)."""
+    from ...aplicacion import escalera_optima as eo
+    from ...adaptadores.pit.armado import PitError, tablas_declaradas
+
+    conf = (perfil.get('escalera') or {}).get('costos_osinergmin') or {}
+    if not conf:
+        return {}, []
+    donde = 'escalera.costos_osinergmin'
+    if raiz is None:
+        return {}, [f'{donde}: sin el espacio de trabajo no se lee su SICODI; no se usan los costos oficiales']
+    fuentes = [f for f in (conf.get('fuentes') or ()) if isinstance(f, Mapping)]
+    if any(f.get('lector') != 'sicodi' for f in fuentes):
+        return {}, [f'{donde}.fuentes: el lector de la escalera es «sicodi»; no se usan los costos oficiales']
+    try:
+        tablas, pendientes = tablas_declaradas({'distribucion': fuentes}, Path(raiz), datetime.now().date().isoformat(),
+                                               donde=donde)
+    except PitError as exc:
+        return {}, [f'{exc}; no se usan los costos oficiales']
+    tabla = tablas.get('distribucion')
+    if tabla is None:
+        return {}, pendientes
+    sector, estructura = str(conf.get('sector_tipico') or '').strip(), str(conf.get('estructura') or '').strip()
+    if not sector or not estructura:
+        # 072:RF-7: sin sector y estructura no hay costo oficial; el aviso al operador no cita requisitos.
+        return {}, [f'{donde}: faltan sector_tipico o estructura; el SICODI no da costo sin ellos']
+    costos, avisos = eo.costos_osinergmin(tabla, conf.get('codigos') or {}, sector=sector, estructura=estructura,
+                                         moneda=moneda)
+    return costos, pendientes + avisos
+
+
 def _expreso_costo_y_area(perfil: Mapping[str, Any], capex: str | None, ramas: Sequence[Mapping[str, Any]],
                           datos: Mapping[str, Any], nuevas: Sequence[Mapping[str, Any]], hechas: Sequence[Mapping[str, Any]],
-                          nombre: str, avisos: list[str]) -> dict[str, Any]:
+                          nombre: str, avisos: list[str], *, raiz: Path | None = None) -> dict[str, Any]:
     """087:RF-34, RF-36 a RF-38: lo que cuesta el alimentador expreso (celda y km del libro CAPEX, con sus filas) y su área.
+
+    ``raiz``: el espacio, para los costos oficiales de Osinergmin que declara el perfil (072:RF-46); sin él, como antes.
 
     Sin el largo medido en DIgSILENT (la obra diferida al plan completo, 042:RF-23), la recta de la cabecera al nodo por
     el factor de las vías; sin el costo en el libro, el más parecido o la referencia, por confirmar (087:RF-37).
@@ -9446,7 +9509,11 @@ def _expreso_costo_y_area(perfil: Mapping[str, Any], capex: str | None, ramas: S
         except (EconomiaPideError, OSError) as exc:
             avisos.append(f'Libro CAPEX: {exc}; el expreso se costea con la referencia.')
     try:
-        costos = eo.costos_de_alternativas(costos_capex, eo.parametros(completo))
+        p_expreso = eo.parametros(completo)
+        oficiales, avisos_oficiales = (_escalera_costos_osinergmin(raiz, completo, p_expreso.moneda)
+                                       if raiz is not None else ({}, []))
+        avisos += avisos_oficiales
+        costos = eo.costos_de_alternativas(costos_capex, p_expreso, oficiales)
     except (ValueError, eo.EscaleraError) as exc:
         if procedencia_capex:
             procedencia_capex['contexto_unidades']['escala_aplicada'] = None
@@ -9608,7 +9675,8 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
             hecho = obras_ejecutar(ws, ctx, project, feeders, [ident], BIBLIOTECA_TIPOS, simular=False,
                                    anio_casos=anio_casos)
             hechas_e += (hecho.get('informe') or {}).get('obras') or [hecho]
-        resumen = _expreso_costo_y_area(perfil, capex, ramas, datos, a_set_nueva, hechas_e, nombre or 'EXPRESO', avisos)
+        resumen = _expreso_costo_y_area(perfil, capex, ramas, datos, a_set_nueva, hechas_e, nombre or 'EXPRESO', avisos,
+                                        raiz=ws.root)
         return {'ramas': [{k: r[k] for k in ('alimentador', 'nodo', 'entrada', 'destino', 'kw_existente')} for r in ramas],
                 'avisos': avisos, 'obras': hechas_e, **resumen}
     # 029:RF-6: la tasa del perfil, si la trae, vale para todos; si no, la medida de cada uno.

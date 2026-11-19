@@ -131,3 +131,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       salidas apagadas no se envía nada (`tests/test_asistente_026_internet.py` y `tests/test_asistente_internet.py`;
       la lista base en `internet.DOMINIOS_BASE`, la del operador en `config/internet_dominios.json` de la carpeta local,
       fuera de git, y `GET`/`POST /api/asistente/internet/dominios`).
+- [x] T25. Matriz de operaciones del asistente derivada del código, con sus pruebas y los huecos de las specs del
+      asistente con su responsable. (RF-51)
+      Hecho cuando: rojo por aserción (sin matriz) y verde con `tests/test_matriz_operaciones.py` (026:RF-51): todas las
+      tareas, vías directas y lecturas están, los huecos salen de `estado_specs` y `--comprobar` falla con una operación
+      sin prueba, un hueco sin dueño o un dueño de una tarea cerrada.
+      Hecho el 2026-11-18: `tools/matriz_operaciones.py` (A0 del plan de control integral de Codex); al corte, 75
+      operaciones con prueba que las cita y 12 huecos con dueño; aceptación del dominio, no medida.

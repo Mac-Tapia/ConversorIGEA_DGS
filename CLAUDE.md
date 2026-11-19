@@ -48,7 +48,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 018 Spec 018 - Vínculo de proyectos de DIgSILENT compartido entre espacios de trabajo | cumplida |  |
   | 019 Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables | cumplida |  |
   | 020 SED fijas sobrecargadas: aviso y transformadores nuevos desde la web | cumplida |  |
-  | 021 Maniobras en el extremo de la línea, SED unidas a su barra, curvas de todos los alimentadores y central térmica en la calibración | implementada | falta T25 |
+  | 021 Maniobras en el extremo de la línea, SED unidas a su barra, curvas de todos los alimentadores y central térmica en la calibración | cumplida | — |
   | 022 Red unida por zonal y SET | cumplida |  |
   | 023 VNR-GIS desde la copia de SQL Server de cualquier concesionaria | cumplida |  |
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |
@@ -99,7 +99,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
   | 070 El asistente opera el conversor de punta a punta | aprobada | falta T11, T14, T15 |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
-  | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T11, T13, T14, T18 |
+  | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T14, T18 |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | cumplida |  |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida |  |
@@ -134,7 +134,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 104 Los libros nuevos de demanda se reconocen solos | cumplida |  |
   | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |
   | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | aprobada | falta T2 |
-  | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | aprobada | falta T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30 |
+  | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | queda T14 (DIgSILENT) |
   | 108 Estudio de costos del VAD con la empresa modelo eficiente | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
   | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | implementada | queda T16 (DIgSILENT) |
   | 110 Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | |

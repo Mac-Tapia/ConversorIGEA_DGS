@@ -196,8 +196,12 @@ def muestra_de_episodio(e: Episodio) -> Muestra | None:
     """La muestra de un episodio que puede enseñar; ``None`` si no (``por_que_no_ensena``)."""
     if por_que_no_ensena(e) is not None:
         return None
-    return muestra(e.topologia['grafo'], e.flujo['tensiones']['valores'],
-                   familia({'nativo': e.nativo, 'accion': e.accion, 'topologia': e.topologia}))
+    m = muestra(e.topologia['grafo'], e.flujo['tensiones']['valores'],
+                familia({'nativo': e.nativo, 'accion': e.accion, 'topologia': e.topologia}))
+    # 045:RF-13: el proyecto viaja con la muestra. Solo lo ponía ``_muestras``, y ``reproducir`` sin
+    # particiones guardadas repartía por huella un modelo entrenado con la red de prueba declarada aparte.
+    m.proyecto = str((e.nativo or {}).get('project') or '')
+    return m
 
 
 # ------------------------------------------------------------------ física
@@ -1035,9 +1039,7 @@ def _muestras(bufer: BuferEpisodios, consulta: Consulta,
             if excluidos is not None:
                 excluidos[motivo] = excluidos.get(motivo, 0) + 1
             continue
-        m = muestra_de_episodio(e)
-        m.proyecto = str((e.nativo or {}).get('project') or '')
-        muestras.append(m)
+        muestras.append(muestra_de_episodio(e))
         ids.append(e.episode_id)
     return muestras, ids
 
