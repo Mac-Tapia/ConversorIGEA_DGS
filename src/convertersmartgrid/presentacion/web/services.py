@@ -12906,9 +12906,10 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
     if len(texto) > 2000:
         raise UserError('La orden es demasiado larga (máximo 2000 caracteres).')
     transformer, ollama = _asistente_modelos()
-    from ...aplicacion.asistente.senales import contexto_para
+    from ...aplicacion.asistente.senales import MemoriaConversacion, contexto_para
 
-    interp = interpretar(texto, transformer=transformer, ollama=ollama, contexto=contexto_para(texto),
+    memoria = MemoriaConversacion(ws.root)                                     # 027:RF-73: la del espacio
+    interp = interpretar(texto, transformer=transformer, ollama=ollama, contexto=contexto_para(texto, memoria=memoria),
                          umbrales=almacen.leer_json('umbrales') or {})                       # 027:RF-38
     plan = resolver(interp, asistente_vocabulario(ws), grupos=asistente_grupos(ws))
     if transformer is None:
@@ -12955,10 +12956,38 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
     almacen.anotar('ordenes', {'espacio': ws.id, 'plan': plan.id, 'texto': depurar_secretos(texto), 'tarea': plan.tarea,
                                'modelo': plan.interpretado_por, 'confianza': plan.confianza, 'listo': plan.listo})
     out = {'plan': publico}
-    # 086:RF-24: buscar en internet es una consulta y salía a la red al escribir la orden.
-    if plan.listo and plan.modo == 'consulta' and not plan.espera_confirmacion:
-        out['respuesta'] = _asistente_respuesta(ws, plan, trabajos or [])
+    try:
+        # 086:RF-24: buscar en internet es una consulta y salía a la red al escribir la orden.
+        if plan.listo and plan.modo == 'consulta' and not plan.espera_confirmacion:
+            out['respuesta'] = _asistente_respuesta(ws, plan, trabajos or [])
+    finally:
+        _asistente_recordar_turno(ws, memoria, plan, texto, out.get('respuesta'))
     return out
+
+
+def _asistente_recordar_turno(ws: Workspace, memoria, plan, texto: str, respuesta: Any) -> None:
+    """027:RF-73: el turno queda en la conversación del espacio; si el disco falla, la orden sigue y queda el aviso."""
+    from ...aplicacion.asistente import almacen
+
+    texto_respuesta = respuesta.get('texto') if isinstance(respuesta, dict) else None
+    try:
+        memoria.recordar(plan=plan.id, texto=texto, tarea=plan.tarea, datos=plan.datos, respuesta=texto_respuesta)
+    except OSError as e:
+        almacen.anotar('avisos', {'espacio': ws.id, 'plan': plan.id, 'memoria_no_guardada': str(e)[:300]})
+
+
+def asistente_memoria(ws: Workspace) -> dict:
+    """027:RF-75: la conversación que el asistente recuerda en este espacio, con sus topes."""
+    from ...aplicacion.asistente.senales import MemoriaConversacion
+
+    return MemoriaConversacion(ws.root).publico()
+
+
+def asistente_olvidar(ws: Workspace) -> dict:
+    """027:RF-75: el operador borra la conversación del espacio; queda el olvido con su fecha."""
+    from ...aplicacion.asistente.senales import MemoriaConversacion
+
+    return MemoriaConversacion(ws.root).olvidar()
 
 
 #: Tareas que necesitan la fuente del espacio (RED, CARGA y EQUIPOS, una .mdb o un VNR-GIS).
@@ -13687,6 +13716,11 @@ def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None,
                                {'tarea': tarea, 'datos': plan.datos})
     senales.reflexion(previo.texto, tarea, f'se entendió «{previo.tarea}» y el operador la corrigió',
                       f'la tarea es «{tarea}»')
+    try:
+        # 027:RF-73: la conversación recuerda lo corregido, no lo que se entendió.
+        senales.MemoriaConversacion(ws.root).corregir(plan=previo.id, nuevo=plan.id, tarea=tarea, datos=plan.datos)
+    except OSError as e:
+        almacen.anotar('avisos', {'espacio': ws.id, 'plan': plan.id, 'memoria_no_guardada': str(e)[:300]})
     if subtipo or tipo_informe:
         from ...aplicacion.asistente import clasificador
 

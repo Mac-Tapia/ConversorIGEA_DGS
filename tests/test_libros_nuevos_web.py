@@ -307,6 +307,10 @@ def test_cortar_un_libro_tarda_menos_de_2_s_y_el_proceso_va_en_prioridad_baja(ap
     corte.set()
     hilo.join(timeout=10)
     assert resultado['cedido'] - inicio < 2.0, resultado['cedido'] - inicio
+    # Fix de 59 (puerta gMEM del 19-11): Windows tarda un instante en terminar el hijo cortado; se espera a que salga.
+    import psutil
+
+    psutil.wait_procs(hijos, timeout=5)
     assert hijos and not any(h.is_running() for h in hijos)
     inicio = time.monotonic()
     app.state.libros_nuevos.parar()

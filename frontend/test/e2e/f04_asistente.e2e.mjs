@@ -23,6 +23,20 @@ async function ordenar(page, texto) {
   return tarjeta;
 }
 
+/** 027:RF-73, RF-75: la memoria del espacio se abre, enseña sus turnos y, si los hay, se olvida. */
+async function memoria(page, testInfo, ordenes) {
+  await page.getByText('Memoria de la conversación', { exact: true }).click();
+  const panel = page.locator('details').filter({ has: page.getByText('Memoria de la conversación', { exact: true }) });
+  await expect(panel).toContainText(/\d+ turno\(s\)/);
+  expect(await panel.innerText()).not.toMatch(ILEGIBLE);
+  for (const o of ordenes) await expect(panel).toContainText(o);
+  await revisarAxe(page, FLUJO, '3_memoria', testInfo);
+  if (ordenes.length) {
+    await panel.getByRole('button', { name: 'Olvidar la conversación', exact: true }).click();
+    await expect(panel).toContainText('0 turno(s)');
+  }
+}
+
 test('F04 asistente: una consulta se responde sin pedir confirmación y una orden que escribe la espera',
   async ({ web: page, externas, errores }, testInfo) => {
     await page.getByRole('tab', { name: /Asistente/ }).click();
@@ -36,6 +50,7 @@ test('F04 asistente: una consulta se responde sin pedir confirmación y una orde
       expect(texto).not.toMatch(ILEGIBLE);
       expect(SIN_MODELO, `la consulta no se interpretó: «${texto}» (CSG_E2E_SIN_MODELO=1 si la máquina no tiene modelo)`).toBe(true);
       await captura(page, FLUJO, '1_sin_modelo');
+      await memoria(page, testInfo, []);
       sinRedNiErrores(externas, errores);
       return;
     }
@@ -57,5 +72,6 @@ test('F04 asistente: una consulta se responde sin pedir confirmación y una orde
     }
     await captura(page, FLUJO, '2_orden_que_escribe');
     await revisarAxe(page, FLUJO, '2_orden_que_escribe', testInfo);
+    await memoria(page, testInfo, ['¿cómo se calibra una barra sin medidor?', 'calibra el sistema de prueba con julio de 2026']);
     sinRedNiErrores(externas, errores);
   });

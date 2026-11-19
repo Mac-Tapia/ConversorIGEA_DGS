@@ -497,6 +497,10 @@ export const api = {
   // 067:RF-37: las etapas que el operador ve antes de confirmarlas de una vez.
   agenteProyectoLista: (id: string, body: { sistema: string; periodo: string; ruta?: string; ruta_cargas?: string; reiniciar?: boolean }) =>
     request<import('./types').ListaProyecto>(`${ws(id)}/agente/proyecto/lista`, json('POST', body)),
+  // 027:RF-75: la conversación que el asistente recuerda en el espacio, y olvidarla.
+  asistenteMemoria: (id: string) => request<import('./types').AsistenteMemoria>(`${ws(id)}/asistente/memoria`),
+  asistenteOlvidar: (id: string) =>
+    request<{ olvidados: number; fecha: string }>(`${ws(id)}/asistente/memoria/olvidar`, { method: 'POST' }),
   // 067:RF-19: los planes que siguen por confirmar, también tras reiniciar la web.
   asistentePlanes: (id: string) =>
     request<{ planes: import('./types').AsistentePlan[]; ilegibles: number }>(`${ws(id)}/asistente/planes`),

@@ -285,3 +285,17 @@ copias de Nasca; T30, top-k de bancos en Chincha; T31, 30/10/10 y curva por fami
       Hecho cuando: rojo por aserción (las etapas no se encadenan) y verde con la prueba del orquestador (omisión con
       motivo, puntos de control) y la e2e F04 ampliada.
       Bloqueada por su implementación en ASISTENTE-C, que va detrás en la cola (ce, 18-11). Siguiente acción: implementarla con su prueba en esa fila.
+- [x] T34. Memoria a largo plazo del asistente, por espacio: últimos turnos y recuerdos parecidos como contexto,
+      correcciones recordadas, vista y olvido en la web, topes y compactación. (RF-73, RF-74, RF-75, RF-76)
+      Hecho cuando: rojo por aserción (sin memoria por espacio) y verde con `tests/test_asistente_memoria.py`
+      (027:RF-73 a RF-76), la orden real por la web y el panel del asistente en los dos arneses e2e.
+      Hecho el 2026-11-18: `MemoriaConversacion` en `aplicacion/asistente/senales.py` (JSONL de eventos con `fsync`,
+      compactación y olvido con `publicar_duradero`), `contexto_para(memoria=…)` en `asistente_orden`, la corrección en
+      `asistente_corregir`, `GET …/asistente/memoria` y `POST …/asistente/memoria/olvidar`, y la memoria en el panel.
+- [x] T35. Un dataset v1 dirigido al lector v2 se rechaza con su esquema y su remedio, y el reentrenamiento lo
+      comprueba antes de la GPU. (RF-77)
+      Hecho cuando: rojo por aserción (el mensaje no nombra el v1 y el ciclo llega al coordinador) y verde con
+      `tests/test_dataset_v1_antes_de_gpu.py` (027:RF-77).
+      Hecho el 2026-11-18: `leer_dataset_v2` compara el esquema del manifiesto; `tools/reentrenar_modelos.py run`
+      llama al lector antes del `TrainingCoordinator` si hay etapas en `ETAPAS_CON_DATASET_V2`. Reproducido sobre el
+      `<asistente>/dataset` real de la máquina (v1), que no se tocó.

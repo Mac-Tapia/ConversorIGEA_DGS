@@ -129,6 +129,10 @@ def _twin_de_trabajo(origen: Path, destino: Path) -> Path:
     return destino
 
 
+#: Las etapas que leen ``--dataset`` con el lector v2 (027:RF-77).
+ETAPAS_CON_DATASET_V2 = frozenset({'transformer', 'clasificador', 'embeddings'})
+
+
 def _etapas(args, run_dir: Path):
     from convertersmartgrid.aplicacion.asistente import almacen
     from convertersmartgrid.aplicacion.training_coordinator import TrainingStage
@@ -377,6 +381,17 @@ def main(argv=None) -> int:
                 args.cabeceras and args.zona_horaria and args.cadencia_temporal):
             p.error(f'{experimento.algoritmo} necesita --cabeceras, --zona-horaria y --cadencia-temporal')
         etapas = etapas_del_experimento(experimento, etapas, args, run_dir)
+    # 027:RF-77: el dataset v2 se comprueba aquí, antes de crear el coordinador y de liberar la GPU de Ollama. El
+    # <asistente>/dataset por defecto de una instalación que viene de antes es v1, y solo se descubría dentro del
+    # subproceso. El directorio heredado no se toca.
+    if ETAPAS_CON_DATASET_V2 & {e.name for e in etapas}:
+        from convertersmartgrid.aplicacion.trabajadores_ml import leer_dataset_v2
+        try:
+            leer_dataset_v2(Path(args.dataset))
+        except (OSError, ValueError, KeyError) as exc:
+            print(json.dumps({'ok': False, 'status': 'BLOQUEADO_POR_DATOS', 'reason': f'--dataset: {exc}'},
+                             ensure_ascii=False))
+            return 2
     entradas = {}
     for nombre in ('dataset', 'vocabulario', 'twin', 'cabeceras','llm_dataset'):
         ruta = getattr(args, nombre)

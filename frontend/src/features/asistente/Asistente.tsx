@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
 import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
-import type { AsistentePlan, AsistenteRespuesta, EstadoModelos, ListaProyecto } from '../../api/types';
+import type { AsistenteMemoria, AsistentePlan, AsistenteRespuesta, EstadoModelos, ListaProyecto } from '../../api/types';
 import type { EstadoAceptacionAgente } from '../../api/asistenteAceptacion';
 import { AvisoBeta } from '../../shared/MarcaBeta';
 import { MonitorAgente } from './MonitorAgente';
@@ -173,6 +173,31 @@ function Registro() {
   );
 }
 
+/** 027:RF-73, RF-75: lo que el asistente recuerda de la conversación en este espacio, y olvidarlo. */
+function Memoria() {
+  const { ws, run } = useApp();
+  const [memoria, setMemoria] = useState<AsistenteMemoria | null>(null);
+  const leer = () => void run(() => api.asistenteMemoria(ws.id)).then((r) => r && setMemoria(r));
+  const olvidar = () => void run(() => api.asistenteOlvidar(ws.id)).then((r) => r && leer());
+  return (
+    <details onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) leer(); }}>
+      <summary className="small">Memoria de la conversación</summary>
+      {memoria && (
+        <div className="stack small">
+          <p>{memoria.turnos.length} turno(s); cada orden usa los {memoria.topes.turnos} últimos.</p>
+          {memoria.turnos.length > 0 && (
+            <>
+              <ul>{memoria.turnos.slice(-memoria.topes.turnos).reverse().map((t) => (
+                <li key={t.plan}>«{t.texto}» → {t.tarea ?? 'sin entender'}</li>))}</ul>
+              <button className="btn btn-sm btn-ghost" onClick={olvidar}>Olvidar la conversación</button>
+            </>
+          )}
+        </div>
+      )}
+    </details>
+  );
+}
+
 /** 027:RF-43, RF-44: el agente hace el proyecto entero; si se corta, retoma donde quedó. */
 function ProyectoDesdeCero() {
   const { ws, run, startJob, active } = useApp();
@@ -319,6 +344,7 @@ export function Asistente() {
           onClick={() => startJob(() => api.asistenteEntrenar(ws.id))}>Reentrenar</button>
       </div>
       <Registro />
+      <Memoria key={ws.id} />
       <ProyectoDesdeCero />
       {[...historial].reverse().map((x, rev) => {
         const i = historial.length - 1 - rev;

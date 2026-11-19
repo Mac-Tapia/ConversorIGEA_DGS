@@ -35,9 +35,23 @@ def fallo(exc: Exception) -> dict:
             'promovido':False,'gates':{'approved':False}}
 
 
+#: 027:RF-77: el esquema que lee :func:`leer_dataset_v2`. Es el ``ESQUEMA_DATASET`` de ``asistente.dataset_entrenamiento``,
+#: escrito aquí para no cerrar el ciclo dataset_entrenamiento → embeddings → trabajadores_ml; una prueba los ata.
+ESQUEMA_DATASET_V2 = 'convertersmartgrid-training-dataset-v2'
+
+
 def leer_dataset_v2(dataset: Path) -> tuple[dict,dict]:
     if not dataset.is_dir():raise ValueError('no existe el dataset v2')
     manifest=json.loads((dataset/'manifest.json').read_text(encoding='utf-8'))
+    # 027:RF-77: un dataset de otro esquema (el v1 heredado de <asistente>/dataset) se nombra con su remedio; antes
+    # llegaba a las filas y salía «registro v2 sin grupo o duplicado», que no decía qué pasaba.
+    # Un manifiesto sin «schema» sigue el lector de siempre (sus filas se comprueban abajo); solo se rechaza aquí el que
+    # declara otro esquema.
+    esquema=manifest.get('schema') if isinstance(manifest,dict) else None
+    if esquema and esquema!=ESQUEMA_DATASET_V2:
+        raise ValueError(f'{dataset}: el dataset es {esquema}, no {ESQUEMA_DATASET_V2}; constrúyalo con '
+                         f'tools/construir_dataset_entrenamiento.py en una carpeta nueva o indique --dataset con uno v2 '
+                         f'(el original no se toca)')
     partes={};grupos={};textos={};ids=set()
     for parte in ('train','validation','test'):
         f=dataset/(parte+'.jsonl')

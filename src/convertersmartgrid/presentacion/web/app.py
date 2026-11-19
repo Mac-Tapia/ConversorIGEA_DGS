@@ -2588,6 +2588,16 @@ def create_app(
         """067:RF-13, RF-19: los planes que esperan confirmación, también tras un reinicio."""
         return services.asistente_planes_guardados(ws_or_404(wid))
 
+    @app.get('/api/workspaces/{wid}/asistente/memoria')
+    def asistente_memoria(wid: str) -> dict:
+        """027:RF-75: la conversación que el asistente recuerda en el espacio, con sus topes."""
+        return services.asistente_memoria(ws_or_404(wid))
+
+    @app.post('/api/workspaces/{wid}/asistente/memoria/olvidar')
+    def asistente_olvidar(wid: str) -> dict:
+        """027:RF-75: el operador borra la conversación del espacio."""
+        return services.asistente_olvidar(ws_or_404(wid))
+
     @app.post('/api/workspaces/{wid}/asistente/{plan_id}/confirmar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def asistente_confirmar(wid: str, plan_id: str, request: Request) -> dict:
         """026:RF-8, RF-10: el plan confirmado, por las rutas y trabajos de la web."""

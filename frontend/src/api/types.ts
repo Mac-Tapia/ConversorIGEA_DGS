@@ -2063,6 +2063,22 @@ export interface TiposAnalisis {
   tipos: TipoAnalisis[];
 }
 
+/** 027:RF-73, RF-75: un turno de la conversación que el asistente recuerda en el espacio. */
+export interface AsistenteTurno {
+  fecha?: string;
+  plan: string;
+  texto: string;
+  tarea?: string | null;
+  datos?: Record<string, unknown>;
+  respuesta?: string;
+}
+
+/** 027:RF-75, RF-76: la memoria del espacio con sus topes. */
+export interface AsistenteMemoria {
+  turnos: AsistenteTurno[];
+  topes: { turnos: number; recuerdos: number; filas: number };
+}
+
 /** Spec 026: el plan que arma el asistente a partir de una orden escrita. */
 export interface AsistentePlan {
   id: string;

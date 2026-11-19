@@ -15003,6 +15003,90 @@
         "summary": "Asistente Libreria"
       }
     },
+    "/api/workspaces/{wid}/asistente/memoria": {
+      "get": {
+        "description": "027:RF-75: la conversación que el asistente recuerda en el espacio, con sus topes.",
+        "operationId": "asistente_memoria_api_workspaces__wid__asistente_memoria_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Asistente Memoria Api Workspaces  Wid  Asistente Memoria Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Asistente Memoria"
+      }
+    },
+    "/api/workspaces/{wid}/asistente/memoria/olvidar": {
+      "post": {
+        "description": "027:RF-75: el operador borra la conversación del espacio.",
+        "operationId": "asistente_olvidar_api_workspaces__wid__asistente_memoria_olvidar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Asistente Olvidar Api Workspaces  Wid  Asistente Memoria Olvidar Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Asistente Olvidar"
+      }
+    },
     "/api/workspaces/{wid}/asistente/monitor": {
       "get": {
         "operationId": "asistente_monitor_api_workspaces__wid__asistente_monitor_get",

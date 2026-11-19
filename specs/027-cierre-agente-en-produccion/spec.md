@@ -281,6 +281,29 @@ implementar la técnica y metodología de destilación para el entrenamiento de 
   requieren; SI falta un dato de una etapa opcional (sin libro PIT, sin datos VAD, sin paquete VNR), ENTONCES la saltará
   con su motivo, nunca con un error, y seguirá con las demás.
 
+Memoria a largo plazo del asistente, por espacio (amplía RF-37; usuario, 2026-11-18: «incrementa la memoria»)
+
+Cada orden se interpretaba sola: «y ahora con el otro alimentador» no sabía de qué alimentador se hablaba, porque el
+contexto del intérprete era global (ejemplos confirmados y notas de reflexión) y no recordaba la conversación.
+
+- RF-73: CUANDO llegue una orden, EL SISTEMA dará al intérprete, además del contexto de RF-37 y RF-39, los últimos
+  turnos de la conversación de ese espacio, en orden, cada uno con su orden, su tarea, sus datos sencillos (textos,
+  números y listas cortas) y la respuesta de una consulta; la conversación se guarda en la carpeta del espacio
+  (`asistente_memoria/conversacion.jsonl`), nunca en git ni en los registros globales del asistente, sin credenciales
+  (086:RF-19), y la de un espacio nunca es contexto de otro. SI el operador corrige un plan, ENTONCES la memoria
+  recordará la tarea y los datos corregidos. SI el disco falla al guardar un turno, ENTONCES la orden seguirá y quedará
+  el aviso. Una línea cortada por un corte de luz se salta sin perder el resto.
+- RF-74: EL SISTEMA dará también, de los turnos que ya salieron de la ventana reciente, los recuerdos más parecidos a la
+  orden (memoria episódica por recuperación, con el mismo parecido sin modelo de RF-37), nunca más que su tope.
+- RF-75: EL SISTEMA enseñará en la web la conversación que recuerda el espacio, con sus topes, y el operador podrá
+  olvidarla: el olvido rehace el fichero de forma atómica (001:RF-5) solo con el evento de olvido y su fecha, de modo que
+  lo olvidado deja de estar en el disco, y no toca la memoria de otros espacios.
+- RF-76: EL SISTEMA tendrá topes con valor por defecto y variable: `CSG_ASISTENTE_MEMORIA_TURNOS` (6 turnos recientes),
+  `CSG_ASISTENTE_MEMORIA_RECUERDOS` (3 recuerdos) y `CSG_ASISTENTE_MEMORIA_FILAS` (500 filas); un valor que no es entero
+  da el de defecto y uno por debajo de 1 queda en 1. Compactación: SI el fichero pasa de su tope de filas, ENTONCES se
+  rehace de forma atómica con lo vigente desde el último olvido (el olvido, si lo hay, y las filas más recientes), así
+  que el fichero nunca crece sin límite.
+
 Auditoría del dataset de cada modelo (antes de entrenar)
 
 - RF-29: CUANDO se pida entrenar cualquier modelo, EL SISTEMA auditará antes su dataset y
@@ -288,6 +311,12 @@ Auditoría del dataset de cada modelo (antes de entrenar)
   etiquetada, rangos, valores no finitos y duplicados.
 - RF-30: SI el dataset tiene valores no finitos, ENTONCES EL SISTEMA no entrenará y nombrará
   los episodios que los traen.
+- RF-77: (amplía RF-29 y RF-30; auditoría de datasets de Codex, 2026-11-18, D0) SI el dataset que va a leer el lector
+  v2 declara otro esquema (el v1 heredado de la carpeta por defecto del asistente), ENTONCES EL SISTEMA lo rechazará
+  nombrando su esquema y cómo obtener uno v2, sin hablar de grupos ni duplicados; y el reentrenamiento integral lo
+  comprobará ANTES de crear el coordinador y de liberar la GPU, siempre que vaya a correr una etapa que lo lee
+  (transformer, clasificador o embeddings), saliendo con «bloqueado por datos» y sin tocar el directorio heredado. Un
+  manifiesto sin esquema sigue las comprobaciones de siempre.
 - RF-31: EL SISTEMA dirá en el informe cuántas ramas tienen la impedancia del tope de acoplador
   cerrado (10⁻⁶ p.u., ya fijado en la muestra) y la relación entre la mayor y la menor; el tope
   queda en el manifiesto, y cambiarlo invalida los pesos entrenados con el anterior.
