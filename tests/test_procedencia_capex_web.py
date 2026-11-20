@@ -63,7 +63,11 @@ def test_pide_guarda_plan_y_resultado_con_recibo_de_su_lectura(tmp_path, monkeyp
     esperado = ec.propuesta_pide(informe, p['planificacion'], costos=costos_usd,
                                 bancos_kvar=None, factor_carga=None, precio_compra_kwh=None, coym_pct_anual=None)
     assert r['obras']
-    assert [{k: v for k, v in obra.items() if k != 'procedencia_capex'} for obra in r['obras']] == esperado['obras']
+    # 072:RF-47: la web pasa el registro normativo y cada obra lleva su traza legal; las obras y sus costes no cambian.
+    assert all('normativa' in obra for obra in r['obras'])
+    fuera = ('procedencia_capex', 'normativa')
+    sin_traza = [{k: v for k, v in obra.items() if k != 'normativa'} for obra in esperado['obras']]
+    assert [{k: v for k, v in obra.items() if k not in fuera} for obra in r['obras']] == sin_traza
     con_costo = [o for o in r['obras'] if o['ci']]
     assert con_costo and all(o['ci'] == costos_usd[o['alternativa']]['costo_unitario'] for o in con_costo)
 

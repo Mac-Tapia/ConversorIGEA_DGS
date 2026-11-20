@@ -385,12 +385,15 @@ FORMATOS: dict[str, tuple[str, ...]] = {
 
 
 def escribir_formatos(ruta: Path, filas: Mapping[str, Sequence[Sequence[Any]]],
-                      huecos: Sequence[Mapping[str, Any]] = ()) -> Path:
+                      huecos: Sequence[Mapping[str, Any]] = (),
+                      normativa: Mapping[str, Any] | None = None) -> Path:
     """Los formatos 01 a 15 en un libro, una hoja por formato, con lo que haya (RF-63).
 
     Un formato sin filas queda con su encabezado y la nota de qué falta, para que se vea
     el hueco en vez de una hoja que parece completa. Con ``huecos`` (072:RF-16), la nota es
-    su motivo y una hoja más los reúne todos.
+    su motivo y una hoja más los reúne todos. Con ``normativa`` (072:RF-47, la de
+    ``pide_economia.traza_normativa_pide``), la hoja «Base normativa» da cada peso y criterio
+    del ranking con su norma, su estado legal, su leyenda y su motivo.
     """
     motivos = {h['formato']: h['motivo'] for h in huecos if h.get('campo') is None}
     from openpyxl import Workbook
@@ -410,6 +413,15 @@ def escribir_formatos(ruta: Path, filas: Mapping[str, Sequence[Sequence[Any]]],
         hoja.append(['Formato', 'Campo', 'Filas sin dato', 'Motivo'])
         for h in huecos:
             hoja.append([h['formato'], h.get('campo') or '(todo el formato)', h.get('filas'), h['motivo']])
+    if normativa:
+        hoja = libro.create_sheet('Base normativa')
+        hoja.append(['Criterio', 'Artículo', 'Peso', 'Norma', 'Estado legal', 'Leyenda', 'Motivo'])
+        for c in normativa.get('criterios') or ():
+            hoja.append([c['criterio'], c['articulo'], c.get('peso'), c['norma'], c['estado'], c['leyenda'],
+                         c['motivo']])
+        hoja.append([])
+        hoja.append(['Cita', normativa.get('cita')])
+        hoja.append(['Vigencia', normativa.get('vigencia_motivo')])
     ruta.parent.mkdir(parents=True, exist_ok=True)
     with staging_publicacion(ruta) as tmp:
         libro.save(tmp)

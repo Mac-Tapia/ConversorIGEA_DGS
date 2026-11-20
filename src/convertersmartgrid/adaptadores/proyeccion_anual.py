@@ -40,6 +40,7 @@ from .pronostico_demanda import (
     fabrica_modelo,
     guardar_dataset,
     huella_de_objetivos,
+    huellas_de_exogenas,
     malla,
     medir,
     predecir,
@@ -1514,7 +1515,9 @@ def proyectar(dataset: Dataset, competencia: Mapping[str, Any], *, proyecto: str
         validado = min(validado, min(limites))
     meses = min((int((v.get('validacion') or {}).get('meses') or 0) for v in grupos.values()), default=0)
     estado, via = aceptacion(validado, adelante_fin, orden)
+    # 089:RF-117: con la del dataset, las huellas del calendario, del clima y del registro anual firman lo medido.
     evaluacion = {'estado': estado, 'aceptacion': via, 'uso': 'planeamiento_anual', 'modelo': modelo, 'dataset_sha256': huella,
+                  'huellas_exogenas': huellas_de_exogenas(dataset.exogenas, exogenas_anuales),
                   'horizonte_anios': anio_fin, 'anios_a_validar': adelante_fin, 'horizonte_validado_anios': validado, 'horizonte_validado_meses': meses,
                   'anio_base': anio_base, 'anio_corto': anio_corto, 'anio_fin': anio_fin, 'anio_ultimo_dato': anio_datos, 'ultimo_mes_medido': _rotulo(fin_datos),
                   'tasa_de_largo_plazo': tasa_cola, 'exogenas_anuales': exo,
@@ -1648,7 +1651,7 @@ def pronosticar_estudio(fuentes: Fuentes, *, carpeta: Path | str, proyecto: str,
     if dataset is None:
         log('Leyendo los libros de demanda…')
         dataset = armar_dataset(fuentes)
-        dataset.huella = guardar_dataset(dataset, carpeta / 'dataset')
+        dataset.huella = guardar_dataset(dataset, carpeta / 'dataset', anuales=registro)
     series: list[SerieMercado] = []
     notas: list[str] = []
     construido = None

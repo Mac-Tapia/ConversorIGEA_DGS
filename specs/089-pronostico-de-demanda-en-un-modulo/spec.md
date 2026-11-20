@@ -1,6 +1,6 @@
 # Spec 089 — Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método
 
-Estado: aprobada (2026-11-18: RF-115, objetivos ausentes fuera de la pérdida de la GRU, T14) · Fecha: 2026-11-05
+Estado: aprobada (2026-11-19: RF-116 a RF-118, trazabilidad de la evaluación, T15 a T17; 2026-11-18: RF-115, objetivos ausentes fuera de la pérdida de la GRU, T14) · Fecha: 2026-11-05
 
 ## Contexto y objetivo
 
@@ -101,7 +101,7 @@ Modelos
 - RF-60: EL SISTEMA medirá modelos y perfiles en los mismos orígenes y registros.
 - RF-61: SI un modelo falla al ajustar o predecir, ENTONCES EL SISTEMA lo dejará en `ERROR_ENTORNO` con su motivo y seguirá con los demás.
 - RF-62: EL SISTEMA entrenará las redes solo en CUDA, sin pasar a la CPU.
-- RF-63: EL SISTEMA exigirá para promover un modelo un WAPE ponderado de prueba al menos un 2 % mejor que el del mejor perfil de elección.
+- RF-63: EL SISTEMA exigirá para promover un modelo un WAPE ponderado de prueba al menos un 2 % mejor que el del mejor perfil de elección. El origen de prueba es la retención que decide la promoción; entre los modelos que pasan la puerta, el ganador se elige solo con el WAPE de los orígenes de elección.
 - RF-64: EL SISTEMA exigirá que su error mediano de la máxima no sea peor que el de ese perfil.
 - RF-65: EL SISTEMA exigirá que la cobertura de su intervalo q05–q95 en prueba esté entre 0,85 y 0,95.
 - RF-66: SI ningún modelo pasa la puerta, ENTONCES EL SISTEMA dejará el perfil y lo dirá.
@@ -175,6 +175,19 @@ exacto. El mes ya lo daban la carpeta del año y el nombre (104:RF-27); el trasp
   SISTEMA no contará un objetivo ausente como un dato: los huecos de la serie irán a cero solo en la entrada, y en la
   pérdida un objetivo sin medida no contará (máscara), de modo que un lote sin ningún objetivo medido no ajuste nada.
   No cambia la arquitectura de la red ni obliga a reentrenar o promover modelos.
+- RF-116: (auditoría del Plan Maestro PM-02 a PM-05, tarjeta MEJ-089) CUANDO evalúa por orígenes una serie orientada,
+  EL SISTEMA dirá en la evaluación que el sentido se decide con los últimos 60 días hasta el último dato y nombrará las
+  series y los orígenes en que el sentido juzgado con lo anterior a cada origen, en cortes de 7 días sobre la curva sin
+  orientar, es otro. La serie se sigue orientando una sola vez al armar el dataset, como en la emisión, y ninguna cifra
+  del backtest ni de la competición cambia. Orientar en cada origen exigiría guardar la curva sin orientar y rehacer la
+  limpieza y las escaladas por origen: los registros contrarios ya no están en el dataset guardado.
+- RF-117: (MEJ-089) CUANDO guarda el dataset o escribe una evaluación, EL SISTEMA anotará la huella SHA-256 del
+  calendario, la del clima y la del registro de series anuales (PBI y población) con que se armó o midió, o vacía si no
+  hubo, junto a la huella del dataset: el manifiesto `dataset.json`, el backtest, la competición de modelos y el
+  `evaluacion.json` de la proyección anual las llevan.
+- RF-118: (MEJ-089) CUANDO ajusta un modelo multivariante de neuralforecast, EL SISTEMA anotará en lo que el ajuste
+  devuelve para el registro las exógenas quitadas, las usadas y el motivo «exógenas quitadas en multivariante» (fallo de
+  escala de neuralforecast 3.3); un univariante anotará las exógenas que usa.
 
 ## Fuera de alcance
 

@@ -320,7 +320,8 @@ def test_serie_invertida_entra_en_positivo_y_se_anota(tmp_path):
     libro = _libro_cabecera(tmp_path / 'c.xlsx', {'M1': [(t, -p, -q) for t, p, q in _serie(1)]})
     objetivos, apartados = pd_.objetivos_de_cabecera([libro], [('A1', 'M1')])
     assert not apartados
-    p = next(o for o in objetivos if o.magnitud == 'kW')
+    p = next((o for o in objetivos if o.magnitud == 'kW'), None)
+    assert p is not None, 'la cabecera sintética no dio el objetivo de kW'
     q = next(o for o in objetivos if o.magnitud == 'kVAR')
     assert all(v > 0 for _t, v in p.curva) and all(v > 0 for _t, v in q.curva)
     assert p.fuente['sentido_invertido'] is True
@@ -684,7 +685,8 @@ def test_el_sentido_se_juzga_por_lo_reciente(tmp_path):
     curva = [(t, -p if i < 100 * 96 else p, q) for i, (t, p, q) in enumerate(_serie(200))]
     objetivos, apartados = pd_.objetivos_de_cabecera([_libro_cabecera(tmp_path / 'c.xlsx', {'M1': curva})], [('A1', 'M1')])
     assert not apartados
-    p = next(o for o in objetivos if o.magnitud == 'kW')
+    p = next((o for o in objetivos if o.magnitud == 'kW'), None)
+    assert p is not None, 'la cabecera sintética no dio el objetivo de kW'
     assert all(v > 0 for _t, v in p.curva) and len(p.curva) == 100 * 96
     assert p.fuente['registros_contrarios'] == 100 * 96
 
@@ -1334,3 +1336,171 @@ def test_libro_a_libro_da_lo_mismo_que_alimentador_a_alimentador(tmp_path):
     assert [x for x in apartados if not x.get('libro_roto')] == por_separado
     assert [x for x in apartados if x.get('libro_roto')] == rotos and len(rotos) == 1
     assert {'AF', 'AC', 'A0'} <= {*(x['objetivo'].split(':')[1] for x in por_separado), *juntos}
+
+
+# ------------------------------------------------------------------------- trazabilidad de la evaluación (MEJ-089)
+def _invertida_hasta(tmp_path, dias_invertidos=100, dias=200):
+    """Una cabecera al revés en sus primeros días y en su sentido después: el último dato la da por normal."""
+    curva = [(t, -p if i < dias_invertidos * 96 else p, q) for i, (t, p, q) in enumerate(_serie(dias))]
+    objetivos, apartados = pd_.objetivos_de_cabecera([_libro_cabecera(tmp_path / 'c.xlsx', {'M1': curva})], [('A1', 'M1')])
+    assert not apartados
+    kw = next((o for o in objetivos if o.magnitud == 'kW'), None)
+    assert kw is not None, 'la cabecera sintética no dio el objetivo de kW'
+    return kw
+
+
+def test_la_evaluacion_dice_que_el_sentido_sale_del_ultimo_dato(tmp_path):
+    """089:RF-116 — el sentido se decide con el último dato; la evaluación lo dice y nombra los orígenes en que lo anterior
+    a cada uno daba otro, sin cambiar ninguna cifra del backtest."""
+    import json
+
+    p = _invertida_hasta(tmp_path)
+    sentido = p.fuente.get('sentido')
+    assert isinstance(sentido, dict), 'la fuente no dice con qué se orientó la serie'
+    assert sentido['decidido'] == 'normal' and sentido['dias'] == pd_.DIAS_DEL_SENTIDO
+    historia = sentido['historia']
+    assert historia[0]['sentido'] == 'invertido' and historia[-1]['sentido'] == 'normal'
+    r = pd_.backtest_objetivo(p, horizonte_dias=14, origenes=5)
+    assert r['status'] == 'EVALUADO'
+    orientacion = r.get('orientacion')
+    assert orientacion is not None, 'la evaluación no dice que la orientación usa el último dato'
+    assert orientacion['con_ultimo_dato'] is True and orientacion['sentido'] == 'normal'
+    origenes = {*r['origenes_seleccion'], r['origen_prueba']}
+    distintos = orientacion['distinto_en_origenes']
+    assert distintos and {d['origen'] for d in distintos} <= origenes
+    assert all(d['sentido'] != 'normal' for d in distintos)
+    # Decir la orientación no cambia lo medido: sin la anotación, las mismas cifras.
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
+
+    sin_nota = Objetivo(p.clase, p.ident, p.magnitud, p.unidad, p.curva, {k: v for k, v in p.fuente.items() if k != 'sentido'})
+    otra = pd_.backtest_objetivo(sin_nota, horizonte_dias=14, origenes=5)
+    assert 'orientacion' not in otra
+
+    def cifras(x):
+        return json.dumps(pd_._sin_infinitos({k: x[k] for k in ('metodo', 'seleccion', 'prueba', 'residuos')}), sort_keys=True)
+
+    assert cifras(otra) == cifras(r)
+    d = pd_.Dataset([p], [], [], {})
+    resumen = pd_.backtest(d, horizonte_dias=14, origenes=5).get('orientacion')
+    assert resumen is not None and resumen['con_ultimo_dato'] is True and str(pd_.DIAS_DEL_SENTIDO) in resumen['criterio']
+    assert [c['objetivo'] for c in resumen['series_con_otro_sentido']] == [p.nombre]
+
+
+def test_una_serie_que_no_cambia_de_sentido_no_se_nombra(tmp_path):
+    """089:RF-116 — en su sentido de principio a fin: la evaluación da el criterio y ninguna serie con otro sentido."""
+    objetivos, _ap = pd_.objetivos_de_cabecera([_libro_cabecera(tmp_path / 'c.xlsx', {'M1': _serie(120)})], [('A1', 'M1')])
+    p = next((o for o in objetivos if o.magnitud == 'kW'), None)
+    assert p is not None, 'la cabecera sintética no dio el objetivo de kW'
+    r = pd_.backtest_objetivo(p, horizonte_dias=14, origenes=4)
+    assert r.get('orientacion') == {'sentido': 'normal', 'con_ultimo_dato': True, 'distinto_en_origenes': []}
+    resumen = pd_.backtest(pd_.Dataset([p], [], [], {}), horizonte_dias=14, origenes=4).get('orientacion')
+    assert resumen is not None and resumen['series_con_otro_sentido'] == []
+
+
+def test_la_competicion_de_modelos_dice_la_orientacion(tmp_path):
+    """089:RF-116, 089:RF-63 — la competición nombra la serie orientada con el último dato; la puerta se mide en el origen
+    de prueba y el ganador sale del WAPE de elección, como antes."""
+    p = _invertida_hasta(tmp_path)
+    r = pd_.backtest_modelos([p], ['bueno'], horizonte_dias=14, origenes=5, fabrica=lambda _n, **_kw: _Falso(1.0))
+    assert r['status'] == 'EVALUADO'
+    orientacion = r.get('orientacion')
+    assert orientacion is not None, 'la competición no dice que la orientación usa el último dato'
+    nombres = [c['objetivo'] for c in orientacion['series_con_otro_sentido']]
+    assert nombres == [p.nombre]
+    assert set(orientacion['series_con_otro_sentido'][0]['origenes']) <= set(r['origenes'])
+    pasan = [n for n, e in r['modelos'].items() if e.get('supera_puerta')]
+    assert r['ganador'] == (min(pasan, key=lambda n: r['modelos'][n]['wape_eleccion']) if pasan else None)
+
+
+def test_dataset_y_evaluacion_guardan_las_huellas_de_las_exogenas(tmp_path):
+    """089:RF-117 — el manifiesto del dataset y la evaluación llevan la huella del calendario, del clima y de las series
+    anuales; otro feriado cambia la del calendario y no la del clima."""
+    import json
+    from dataclasses import replace
+    from types import SimpleNamespace
+
+    huellas = getattr(pd_, 'huellas_de_exogenas', None)
+    assert callable(huellas), 'no hay huellas de las exógenas'
+    carpeta = _exogenas(tmp_path)
+    d = pd_.armar_dataset(replace(_fuentes(tmp_path, dias=3, clientes=False), exogenas=carpeta))
+    pd_.guardar_dataset(d, tmp_path / 'ds')
+    meta = json.loads((tmp_path / 'ds/dataset.json').read_text(encoding='utf-8'))
+    h = meta.get('huellas_exogenas')
+    assert h is not None, 'el manifiesto del dataset no guarda las huellas de las exógenas'
+    assert all(re.fullmatch(r'[0-9a-f]{64}', h[k]) for k in ('calendario', 'clima')) and h['anuales'] is None
+    assert pd_.backtest(d).get('huellas_exogenas') == h
+    assert pd_.abrir_dataset(tmp_path / 'ds', d.exogenas).huella == meta['huella']
+    (carpeta / 'feriados.csv').write_text('fecha,no_laborable,norma\n2026-03-04,True,DS 1\n2026-03-06,True,DS 2\n', encoding='utf-8')
+    otra = huellas(pd_.leer_exogenas(carpeta))
+    assert otra['calendario'] != h['calendario'] and otra['clima'] == h['clima']
+    assert huellas(None) == {'calendario': None, 'clima': None, 'anuales': None}
+    registro = SimpleNamespace(huella='f' * 64)
+    pd_.guardar_dataset(d, tmp_path / 'ds2', anuales=registro)
+    meta2 = json.loads((tmp_path / 'ds2/dataset.json').read_text(encoding='utf-8'))
+    assert meta2['huellas_exogenas'] == {**h, 'anuales': 'f' * 64} and meta2['huella'] == meta['huella']
+    r = pd_.backtest_modelos(_objetivos_ml(1), ['bueno'], horizonte_dias=7, origenes=3, exogenas=d.exogenas,
+                             fabrica=lambda _n, **_kw: _Falso(1.0))
+    assert r.get('huellas_exogenas') == h
+
+
+def _neuralforecast_falso(monkeypatch):
+    """Lo justo de neuralforecast para ajustar sin GPU: guarda lo que recibe."""
+    import sys
+    import types
+
+    creados = []
+
+    class _Modelo:
+        def __init__(self, **kw):
+            self.kw = kw
+            creados.append(self)
+
+    class _NF:
+        def __init__(self, models, freq, local_scaler_type):
+            self.models = models
+
+        def fit(self, df):
+            self.df = df
+
+    raiz = types.ModuleType('neuralforecast')
+    modelos = types.ModuleType('neuralforecast.models')
+    for clase in ('iTransformer', 'TSMixerx', 'NHITS'):
+        setattr(modelos, clase, _Modelo)
+    perdidas = types.ModuleType('neuralforecast.losses')
+    pytorch = types.ModuleType('neuralforecast.losses.pytorch')
+    pytorch.MQLoss = lambda quantiles: None
+    raiz.NeuralForecast, raiz.models, raiz.losses, perdidas.pytorch = _NF, modelos, perdidas, pytorch
+    for nombre, modulo in (('neuralforecast', raiz), ('neuralforecast.models', modelos), ('neuralforecast.losses', perdidas),
+                           ('neuralforecast.losses.pytorch', pytorch)):
+        monkeypatch.setitem(sys.modules, nombre, modulo)
+    return creados
+
+
+def _adaptador_sin_gpu(algoritmo):
+    from convertersmartgrid.adaptadores.digital_twin.adaptador_neuralforecast import AdaptadorNeuralForecast
+
+    m = AdaptadorNeuralForecast.__new__(AdaptadorNeuralForecast)
+    m.algoritmo, m.horizonte, m.cadencia_min, m.pasos, m.lote, m.semilla = algoritmo, 8, 15, 2, 4, 0
+    m.contexto_pasos, m.series, m.nf = 32, [], None
+    return m
+
+
+@pytest.mark.parametrize('algoritmo', ['itransformer', 'tsmixerx'])
+def test_el_registro_dice_las_exogenas_quitadas_en_multivariante(monkeypatch, algoritmo):
+    """089:RF-118 — sin GPU: un multivariante entrena sin el calendario y lo que devuelve para el registro lo dice con su
+    motivo; un univariante dice las exógenas que usa."""
+    from pronostico_sintetico import PUNTOS_DIA, objetivos
+
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import construir_conjunto
+
+    creados = _neuralforecast_falso(monkeypatch)
+    c = construir_conjunto(objetivos(2, 40), cadencia_min=15, zona_horaria='UTC')
+    info = _adaptador_sin_gpu(algoritmo).ajustar(c, 30 * PUNTOS_DIA, 8, 0)
+    assert 'futr_exog_list' not in creados[-1].kw
+    exogenas = info.get('exogenas')
+    assert exogenas is not None, 'el registro no dice que se quitaron las exógenas'
+    assert exogenas['usadas'] == [] and exogenas['quitadas'] == list(c.covariables)
+    assert 'exógenas quitadas en multivariante' in exogenas['motivo'] and 'neuralforecast 3.3' in exogenas['motivo']
+    info = _adaptador_sin_gpu('nhits').ajustar(c, 30 * PUNTOS_DIA, 8, 0)
+    assert creados[-1].kw['futr_exog_list'] == list(c.covariables)
+    assert info.get('exogenas') == {'usadas': list(c.covariables), 'quitadas': [], 'motivo': None}

@@ -10,6 +10,10 @@ instalada de nuevos clientes para un horizonte de 20 años, tasa a privados»).
 Art. 15: entre las alternativas factibles técnica y económicamente, primero las de menor
 costo/kW, costo/kW.h, costo/usuario y costo/km con rentabilidad aceptable; después los
 criterios del art. 15.3 con los pesos del perfil. Puro: no lee DIgSILENT.
+
+072:RF-47 (auditoría PM-09): cada peso y criterio del ranking cita su norma con el estado legal que da el registro
+normativo (:func:`traza_normativa_pide`), como el PIT y el VAD. Mientras la RM 428-2017-MEM/DM figure «prepublicada»,
+el ranking es un criterio de una norma prepublicada y nunca sale como vigente.
 """
 from __future__ import annotations
 
@@ -17,12 +21,14 @@ import re
 import unicodedata
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 from pathlib import Path
 from statistics import median
 from typing import Any
 
 from .formatos_pide import filas_de_obras
 from .pide import RUBRO_DE_ALTERNATIVA
+from ..dominio.registro_normativo import RegistroError, RegistroNormativo
 from ..dominio.util import finite_or_none, frc
 from .valle import frase_valle
 
@@ -553,6 +559,103 @@ def priorizar(candidatas: Sequence[Candidata], pesos: Mapping[str, float]) -> li
     return orden + [c for c in candidatas if c.descartada]
 
 
+# ------------------------------------------------------------------ base normativa del ranking (072:RF-47)
+#: El acto cuyos criterios y metodología sigue el ranking (art. 14 y 15 del proyecto que prepublica).
+ACTO_CRITERIOS_PIDE = 'RM 428-2017-MEM/DM'
+#: La regla del registro que dice qué es ese acto (hoy, un proyecto prepublicado para comentarios).
+REGLA_CRITERIOS_PIDE = 'vinculo.pide.criterios_en_consulta'
+LEYENDA_PREPUBLICADA = 'criterio de una norma prepublicada (sin vigencia comprobada)'
+LEYENDA_HEURISTICO = 'heurístico, no conforme'
+#: El artículo de la metodología de cada indicador y de cada criterio del ranking.
+ARTICULO_DE_INDICADOR = 'art. 15.2 (indicadores de costo de las alternativas factibles)'
+ARTICULO_DE_CRITERIO = 'art. 15.3 (criterios de priorización, con los pesos del perfil)'
+
+
+def _dia_siguiente(fecha: str) -> str:
+    return (date.fromisoformat(fecha[:10]) + timedelta(days=1)).isoformat()
+
+
+def traza_normativa_pide(registro: RegistroNormativo | None, fecha: str | None = None, *,
+                         acto: str = ACTO_CRITERIOS_PIDE) -> dict[str, Any]:
+    """072:RF-47: la norma del ranking del PIDE con su estado legal, leída del registro normativo.
+
+    Vigente solo si el registro la da ``vigente_comprobada`` o ``modificada``, no es solo de referencia y ``fecha`` cae
+    en su vigencia. La vigencia sale del texto de la norma (``vigencia_desde`` y ``vigencia_hasta``, su cláusula); solo si
+    calla, del día siguiente de su publicación (art. 109 de la Constitución). Una norma ``prepublicada`` da
+    :data:`LEYENDA_PREPUBLICADA`; ``no_verificada``, ``derogada``, fuera de vigencia, ausente del registro o sin
+    registro, :data:`LEYENDA_HEURISTICO`, siempre con su motivo. Nunca cambia un número del ranking.
+    """
+    traza: dict[str, Any] = {'acto': acto, 'titulo': '', 'estado': 'no_verificada', 'vigente': False,
+                             'condicion': 'heuristico', 'leyenda': LEYENDA_HEURISTICO, 'motivo': '', 'cita': acto,
+                             'vigencia_desde': '', 'vigencia_hasta': '', 'vigencia_motivo': '', 'sha256': '',
+                             'fecha_consulta': fecha or ''}
+    if registro is None:
+        traza['motivo'] = 'sin registro normativo consultado: el estado legal de la norma no se comprobó'
+        return traza
+    try:
+        norma = registro.norma(acto)
+    except RegistroError as exc:
+        traza['motivo'] = f'{exc}: el estado legal de la norma no se comprobó'
+        return traza
+    regla = next((r for r in norma.reglas if r.clave == REGLA_CRITERIOS_PIDE), norma.reglas[0] if norma.reglas else None)
+    cita = acto
+    if regla is not None:
+        cita = ', '.join(x for x in (acto, regla.articulo_o_anexo, f'pág. {regla.pagina}' if regla.pagina else '') if x)
+    estado = norma.estado_juridico
+    desde, hasta = norma.vigencia_desde, norma.vigencia_hasta
+    if estado == 'prepublicada':
+        vigencia_motivo = 'un proyecto prepublicado no entra en vigencia'
+    elif desde:
+        vigencia_motivo = 'cláusula de vigencia de la norma'
+    elif norma.fecha_publicacion and estado in ('vigente_comprobada', 'modificada'):
+        desde = _dia_siguiente(norma.fecha_publicacion)
+        vigencia_motivo = ('la norma calla su vigencia: rige desde el día siguiente de su publicación '
+                           '(art. 109 de la Constitución)')
+    else:
+        vigencia_motivo = 'sin cláusula de vigencia ni fecha de publicación en el registro'
+    dia = str(fecha)[:10] if fecha else None
+    en_vigencia = dia is None or ((not desde or desde <= dia) and (not hasta or dia <= hasta))
+    # Como Norma.obligatoria_en (107:RF-8): la modificada obliga solo con su vigencia declarada.
+    vigente = (not norma.solo_referencia and en_vigencia
+               and (estado == 'vigente_comprobada' or (estado == 'modificada' and bool(desde))))
+    traza.update(titulo=norma.titulo, estado=estado, vigente=vigente, cita=cita, vigencia_desde=desde,
+                 vigencia_hasta=hasta, vigencia_motivo=vigencia_motivo, sha256=norma.sha256)
+    if vigente:
+        traza.update(condicion='conforme', leyenda=f'criterio de una norma vigente ({estado})',
+                     motivo=f'{acto} figura «{estado}» en el registro normativo, en vigencia'
+                            + (f' el {dia}' if dia else ''))
+    elif estado == 'prepublicada':
+        explicacion = regla.interpretacion if regla is not None and regla.interpretacion else norma.nota
+        traza.update(condicion='prepublicada', leyenda=LEYENDA_PREPUBLICADA,
+                     motivo=f'{acto} figura «prepublicada» en el registro normativo'
+                            + (f': {explicacion}' if explicacion else ''))
+    else:
+        if norma.solo_referencia:
+            por = f'es solo de referencia ({norma.solo_referencia})'
+        elif estado in ('vigente_comprobada', 'modificada'):
+            por = (f'figura «{estado}» pero ' + (f'el {dia} ' if dia else '')
+                   + f'está fuera de su vigencia ({vigencia_motivo})')
+        else:
+            por = f'figura «{estado}» en el registro normativo'
+        traza.update(condicion='heuristico', leyenda=LEYENDA_HEURISTICO, motivo=f'{acto} {por}')
+    return traza
+
+
+def criterios_con_su_norma(traza: Mapping[str, Any], pesos: Mapping[str, float]) -> list[dict[str, Any]]:
+    """072:RF-47: cada indicador (art. 15.2) y cada criterio con su peso (art. 15.3) del ranking, con la norma, su estado
+    legal y su leyenda; ninguno sale como vigente si su norma no lo está."""
+    comun = {'norma': traza['acto'], 'estado': traza['estado'], 'vigente': bool(traza['vigente']),
+             'leyenda': traza['leyenda'], 'motivo': traza['motivo']}
+    filas = [{'criterio': i, 'articulo': ARTICULO_DE_INDICADOR, 'peso': None, **comun} for i in INDICADORES]
+    claves = list(pesos) + [k for k in CRITERIOS_DEL_RANKING if k not in pesos]
+    filas += [{'criterio': k, 'articulo': ARTICULO_DE_CRITERIO, 'peso': pesos.get(k), **comun} for k in claves]
+    return filas
+
+
+#: Los criterios del art. 15.3 que puntúa la propuesta, aunque el perfil no les dé peso.
+CRITERIOS_DEL_RANKING = ('subsanacion_calidad', 'crecimiento_demanda')
+
+
 # ------------------------------------------------------------------ propuesta (RF-45 a RF-47)
 #: Causas de calidad del art. 15.3 («subsanación de deficiencias por calidad de producto»).
 CAUSAS_DE_CALIDAD = ('caida_de_tension', 'factor_de_potencia', 'sobretension')
@@ -622,7 +725,8 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
                    costos: Mapping[str, Mapping[str, Any]], bancos_kvar: Mapping[float, float] | None,
                    factor_carga: float | None = None, precio_compra_kwh: float | None = None,
                    valle: Mapping[str, Mapping[str, Any]] | None = None,
-                   coym_pct_anual: float | None = None) -> dict[str, Any]:
+                   coym_pct_anual: float | None = None, registro: RegistroNormativo | None = None,
+                   fecha_norma: str | None = None) -> dict[str, Any]:
     """Del diagnóstico año a año a las obras priorizadas, con su evaluación (RF-45, RF-52,
     RF-57 a RF-59), su obra de la spec 011 si se puede construir sola (RF-47) y las filas
     de los formatos (RF-63).
@@ -635,6 +739,10 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
     072:RF-22: ``coym_pct_anual`` es el COyM del perfil en % de la inversión, el mismo dato que usa la
     escalera (025:RF-53). Antes se pasaba siempre None y F10 a F12 salían sin COyM aunque el perfil lo
     diera; sin inversión conocida, el COyM tampoco se conoce y queda vacío.
+
+    072:RF-47: ``registro`` es el registro normativo (lo carga quien llama, como en el PIT) y ``fecha_norma`` el día en
+    que se juzga la vigencia. La propuesta lleva ``normativa`` (:func:`traza_normativa_pide` con sus ``criterios``) y
+    cada obra su ``normativa`` resumida; sin registro, el ranking es heurístico y lo dice. Ningún número cambia.
     """
     from .pide import (
         ALTERNATIVAS_POR_CAUSA,
@@ -714,7 +822,11 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
                                'denominacion': (costo or {}).get('denominacion'), 'ci': ci, 'kw_nuevos': kw,
                                'energia_kwh': kw * factor_carga * 8760 if factor_carga else None,
                                'obra_011': obra, 'motivo_sin_obra': motivo, 'candidata': c, 'valle': en_valle})
-    orden = priorizar(candidatas, plan.get('pesos_art_15_3') or {})
+    pesos = plan.get('pesos_art_15_3') or {}
+    orden = priorizar(candidatas, pesos)
+    traza = traza_normativa_pide(registro, fecha_norma)
+    normativa = {**traza, 'criterios': criterios_con_su_norma(traza, pesos)}
+    de_la_obra = {k: traza[k] for k in ('acto', 'estado', 'vigente', 'leyenda', 'cita')}
     prioridad = {c.codigo: i + 1 for i, c in enumerate(orden)}
     sin_costo = [c.codigo for c in candidatas if c.evaluacion.ci is None]
     if costos and sin_costo:
@@ -725,8 +837,9 @@ def propuesta_pide(informe: Mapping[str, Any], plan: Mapping[str, Any], *,
         f.update(prioridad=prioridad[c.codigo], puntaje=c.puntaje, sobredimensionada=c.sobredimensionada,
                  descartada=c.descartada, regulada=c.evaluacion.regulada, privada=c.evaluacion.privada,
                  indicadores=c.evaluacion.indicadores, avisos=c.evaluacion.avisos,
-                 sin_tipo_de_cambio=c.evaluacion.sin_tipo_de_cambio)
+                 sin_tipo_de_cambio=c.evaluacion.sin_tipo_de_cambio, normativa=dict(de_la_obra))
         if f['descartada'] and 'valle' in str(f['motivo_sin_obra']):
             f['descartada'] = 'no cumple en valle: ' + str(f['motivo_sin_obra'])
     filas_obra.sort(key=lambda f: f['prioridad'])
-    return {'obras': filas_obra, 'avisos': avisos, 'formatos': filas_de_obras(filas_obra, anios)}
+    return {'obras': filas_obra, 'avisos': avisos, 'formatos': filas_de_obras(filas_obra, anios),
+            'normativa': normativa}

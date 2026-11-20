@@ -29,6 +29,10 @@ VENTANAS_POR_TANDA = 64
 #: Multivariantes: piden ``n_series`` y ven todas las series juntas (046:RF-26). Con la tabla de los univariantes
 #: (cada tramo y cada ventana, una serie) iTransformer fallaba en la GPU: «missing n_series» (2026-11-10).
 MULTIVARIANTES = ('itransformer', 'tsmixerx')
+#: 089:RF-118: por qué un multivariante entrena sin el calendario; va en el registro de cada modelo que lo pierde.
+MOTIVO_SIN_EXOGENAS_MULTIVARIANTE = (
+    'exógenas quitadas en multivariante: neuralforecast 3.3 escala también las exógenas de un multivariante con la escala de '
+    'la ventana, y en una ventana corta el día de la semana es constante, con escala cero y salida NaN (2026-11-10)')
 
 
 def tramo_comun(conjunto: Any, fin: int, *, minimo: int) -> tuple[int, int]:
@@ -103,6 +107,14 @@ def argumentos_modelo(algoritmo: str, *, horizonte: int, contexto_pasos: int, se
     return kw
 
 
+def exogenas_del_modelo(algoritmo: str, covariables: Sequence[str]) -> dict[str, Any]:
+    """Qué exógenas ve el modelo y cuáles se le quitan, con su motivo, para el registro de la corrida (089:RF-118)."""
+    pedidas = list(covariables) if algoritmo in CON_CALENDARIO else []
+    if algoritmo in MULTIVARIANTES and pedidas:
+        return {'usadas': [], 'quitadas': pedidas, 'motivo': MOTIVO_SIN_EXOGENAS_MULTIVARIANTE}
+    return {'usadas': pedidas, 'quitadas': [], 'motivo': None}
+
+
 def tablas_prediccion(lote: Any, algoritmo: str):
     """Cada ventana es una serie propia: así predicen en las mismas emisiones que los demás (046:RF-5)."""
     import pandas as pd
@@ -163,6 +175,7 @@ class AdaptadorNeuralForecast:
         from neuralforecast.losses.pytorch import MQLoss
 
         minimo = self.contexto_pasos + horizonte
+        exogenas = exogenas_del_modelo(self.algoritmo, conjunto.covariables)
         kw = argumentos_modelo(self.algoritmo, horizonte=horizonte, contexto_pasos=self.contexto_pasos, semilla=semilla,
                                pasos=self.pasos, lote=self.lote, covariables=conjunto.covariables)
         if self.multivariante:
@@ -171,6 +184,7 @@ class AdaptadorNeuralForecast:
             kw['n_series'] = len(self.series)
             # Sin calendario: neuralforecast 3.3 escala también las exógenas de un multivariante con la escala de la
             # ventana, y en una ventana corta el día de la semana es constante: escala cero y todo sale NaN (2026-11-10).
+            # El registro lo dice con su motivo (089:RF-118).
             kw.pop('futr_exog_list', None)
         else:
             tabla = tabla_entrenamiento(conjunto, fin_entrenamiento, minimo=minimo)
@@ -180,7 +194,7 @@ class AdaptadorNeuralForecast:
             tabla = tabla[['unique_id', 'ds', 'y']]
         self.nf.fit(df=tabla)
         self.horizonte = horizonte
-        return {'pasos': self.pasos, 'series': int(tabla['unique_id'].nunique()), 'filas': len(tabla)}
+        return {'pasos': self.pasos, 'series': int(tabla['unique_id'].nunique()), 'filas': len(tabla), 'exogenas': exogenas}
 
     def predecir(self, lote: Any) -> np.ndarray:
         if self.nf is None:

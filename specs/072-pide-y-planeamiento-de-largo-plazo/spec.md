@@ -161,6 +161,14 @@ archivo no concede aceptación científica ni reemplaza una revisión humana.
   pasaba siempre el COyM vacío y la columna quedaba en blanco aunque el perfil lo diera.)
   Ampliado (H5, 2026-11-14): lo mismo para cada suma de F10 y F11 (demanda, energía, inversión, anualidad y costo
   anual): un grupo con alguna obra sin el dato queda vacío, no con la suma de las demás.
+- RF-47: (auditoría PM-09 del Plan Maestro, 2026-11-19) EL SISTEMA, en cada peso y criterio del ranking del PIDE (los
+  indicadores del art. 15.2 y los criterios del art. 15.3 con sus pesos del perfil) y en sus entregables (la propuesta,
+  la hoja «Base normativa» del libro de formatos y el módulo de priorización), citará la norma con el estado legal que
+  da el registro normativo (`config/normativa`), igual que el PIT y el VAD. Una norma `prepublicada` o `no_verificada`
+  nunca saldrá como vigente: el entregable dirá «criterio de una norma prepublicada (sin vigencia comprobada)» o
+  «heurístico, no conforme», con su motivo; lo mismo sin registro legible o fuera de la vigencia de la norma. La
+  vigencia sale del texto de la norma, de su cláusula; solo si calla, del día siguiente de su publicación (art. 109 de
+  la Constitución). La traza no cambia ningún número del ranking.
 
 ### Tipo de análisis en la web
 

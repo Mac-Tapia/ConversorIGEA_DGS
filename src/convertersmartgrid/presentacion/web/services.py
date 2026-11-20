@@ -5958,6 +5958,18 @@ def pide_anual_ejecutar(ws: Workspace, ctx: JobContext, plan: dict) -> dict:
     return informe
 
 
+def _registro_normativo_del_pide(avisos: list[str]):
+    """072:RF-47: el registro normativo del repositorio (``config/normativa``), el mismo que consulta el PIT. Si no se
+    puede leer, None: el ranking sale como heurístico, no conforme, con su motivo, y se avisa."""
+    from ...dominio.registro_normativo import RegistroError, cargar_registro
+
+    try:
+        return cargar_registro(project_root() / 'config' / 'normativa')
+    except RegistroError as exc:
+        avisos.append(f'Registro normativo sin leer ({exc}): el ranking del PIDE queda como heurístico, no conforme.')
+        return None
+
+
 def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
                   capex: str | None = None, implementar: bool = True, anio_presentacion: int | None = None,
                   formato_01: str | None = None, plazo: str | None = None,
@@ -6071,7 +6083,10 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                                factor_carga=plan_pide.get('factor_carga'),
                                precio_compra_kwh=plan_pide.get('precio_compra_kwh'),
                                # 072:RF-22: el COyM del perfil, el mismo dato de la escalera (025:RF-53).
-                               coym_pct_anual=(perfil.get('escalera') or {}).get('coym_pct_anual'))
+                               coym_pct_anual=(perfil.get('escalera') or {}).get('coym_pct_anual'),
+                               # 072:RF-47: el estado legal de la norma del ranking, del registro normativo.
+                               registro=_registro_normativo_del_pide(avisos),
+                               fecha_norma=datetime.now().date().isoformat())
     avisos += propuesta['avisos']
     avisos += _pide_optimizar(project, propuesta['obras'], limites, perfil, plan_pide, costos, ctx)
     propuesta['procedencia_capex'] = procedencia_capex
@@ -6098,7 +6113,8 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                                            factor_carga=plan_pide.get('factor_carga'),
                                            precio_compra_kwh=plan_pide.get('precio_compra_kwh'))
     formatos = _formatos_del_pide(ws, project, propuesta, informe, plan_pide, estudio, feeders, avisos)
-    libro = escribir_formatos(ws.out_dir / f'pide_{token}.xlsx', formatos['filas'], formatos['huecos'])
+    libro = escribir_formatos(ws.out_dir / f'pide_{token}.xlsx', formatos['filas'], formatos['huecos'],
+                              normativa=propuesta.get('normativa'))                    # 072:RF-47
     # 072:RF-34: el planeamiento de largo plazo escribe solo sus módulos; el PIDE, los dos, porque consume el plan (RF-4).
     informes_planeamiento = _informes_del_estudio(ws, token, project, estudio, formatos, informe, propuesta, con_y_sin,
                                                   perfil, avisos, plazo=plazo) if estudio else []
@@ -6125,6 +6141,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
             'huecos': formatos['huecos'], 'con_y_sin': con_y_sin,                # 072:RF-14, RF-16
             'informes_planeamiento': informes_planeamiento,                      # 072:RF-13, RF-14
             'comparacion_formatos': comparacion, 'procedencia_capex': procedencia_capex,
+            'normativa': propuesta.get('normativa'),                             # 072:RF-47
             'plazo': plazo}                                                      # 072:RF-29
 
 
@@ -6142,6 +6159,7 @@ def _informes_del_estudio(ws: Workspace, token: str, project: str, estudio, form
                               empresa=perfil.get('empresa'), proyecto=project, metodo_proyeccion=formatos.get('metodo'),
                               modelo=modelo, rotulos_cabecera=seccion.get('cabecera') or {},
                               procedencia_capex=propuesta.get('procedencia_capex'),
+                              normativa=propuesta.get('normativa'),                    # 072:RF-47
                               alternativas_escalera=alternativas_de_la_escalera(ws, project))    # 042:RF-58
     from ...dominio.estudio_planeamiento import ENTREGABLE_DE
 

@@ -39,3 +39,19 @@
       solo en la entrada y máscara en el objetivo, sin reentrenar ni promover. (RF-115)
       Hecho cuando: `pytest -q tests/test_pronostico_gru_huecos.py` en verde en CPU, con su rojo por aserción en la base
       (la sonda H17 de D:/csg/INTEGRA_54/auditoria_c0 reproduce lo mismo).
+- [x] T15. La evaluación dice que la orientación usa el último dato y nombra las series y los orígenes con otro sentido
+      anterior, sin cambiar cifras; aclaración de la puerta de RF-63. (RF-116, RF-63)
+      Hecho cuando: rojo por aserción y verde con su prueba: `pytest -q tests/test_pronostico_demanda.py -k "sentido_sale_del_ultimo_dato or no_cambia_de_sentido_no_se_nombra or competicion_de_modelos_dice_la_orientacion"`.
+      Hecho el 2026-11-19 (d8, fila MEJ1): rojo por aserción sobre 908f0fa9 (las 14 pruebas nuevas, 14 F por
+      AssertionError, D:/csg/PM_IMPL/MEJ1/rojo.log) y verde en el hueco de MEJ1 (D:/csg/PM_IMPL/MEJ1/estado.txt:
+      fase 1, verde_nuevas y seleccion_gpu).
+- [x] T16. Huellas del calendario, del clima y de las series anuales en el manifiesto del dataset y en las evaluaciones. (RF-117)
+      Hecho cuando: rojo por aserción y verde con su prueba: `pytest -q tests/test_pronostico_demanda.py -k huellas_de_las_exogenas`.
+      Hecho el 2026-11-19 (d8, fila MEJ1): rojo por aserción sobre 908f0fa9 (las 14 pruebas nuevas, 14 F por
+      AssertionError, D:/csg/PM_IMPL/MEJ1/rojo.log) y verde en el hueco de MEJ1 (D:/csg/PM_IMPL/MEJ1/estado.txt:
+      fase 1, verde_nuevas y seleccion_gpu).
+- [x] T17. El registro del ajuste dice las exógenas quitadas en multivariante, con su motivo. (RF-118)
+      Hecho cuando: rojo por aserción y verde con su prueba, en CPU: `pytest -q tests/test_pronostico_demanda.py -k exogenas_quitadas_en_multivariante`.
+      Hecho el 2026-11-19 (d8, fila MEJ1): rojo por aserción sobre 908f0fa9 (las 14 pruebas nuevas, 14 F por
+      AssertionError, D:/csg/PM_IMPL/MEJ1/rojo.log) y verde en el hueco de MEJ1 (D:/csg/PM_IMPL/MEJ1/estado.txt:
+      fase 1, verde_nuevas y seleccion_gpu).

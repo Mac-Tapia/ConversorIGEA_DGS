@@ -99,7 +99,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
   | 070 El asistente opera el conversor de punta a punta | aprobada | falta T11, T14, T15, T22 (GPU) |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
-  | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T14, T18 |
+  | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T14 |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | cumplida |  |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida |  |
@@ -116,7 +116,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | ver sus tareas |
   | 087 Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | cumplida |  |
   | 088 Q negativa desde el factor de potencia | cumplida |  |
-  | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T12, T7 |
+  | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T7 |
   | 090 La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida |  |
   | 091 De la calibración al estudio, en su orden y sin avisos que engañen | cumplida |  |
   | 092 El «Caso base» de una red reconstruida se verifica con lo que hay en disco | cumplida |  |

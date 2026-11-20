@@ -57,6 +57,11 @@ MEDIA_TENSION_MAX_KV = 35.0
 #: la serie va en ambos sentidos (089:RF-18, RF-20). Por debajo, unos pocos negativos en una serie normal.
 SENTIDO_INVERTIDO, SENTIDO_AMBOS = .95, .05
 DIAS_DEL_SENTIDO = 60
+#: 089:RF-116: cada cuántos días se vuelve a juzgar el sentido con sus ``DIAS_DEL_SENTIDO`` anteriores, para decir en la
+#: evaluación en qué orígenes otro corte habría orientado la serie de otro modo.
+PASO_HISTORIA_SENTIDO_DIAS = 7
+CRITERIO_ORIENTACION = (f'el sentido de cada serie se decide con sus últimos {DIAS_DEL_SENTIDO} días hasta el último dato, '
+                        'también al medir orígenes anteriores')
 DIAS_BAJA_CLIENTE = 45
 #: Días a cada lado del primer dato de un cliente para ver si la cabecera subió con él, y qué parte de su consumo debe subir para
 #: darlo por nuevo. Si sube menos, la carga ya estaba y lo que empezó fue su libro (089:RF-82 y RF-83).
@@ -422,6 +427,72 @@ def _orientar(curva: Curva) -> tuple[Curva, str, int]:
 MOTIVO_AMBOS = 'flujo en ambos sentidos: no es una serie de demanda; declare su central si la tiene'
 
 
+def historia_del_sentido(curva: Curva, *, dias: int = DIAS_DEL_SENTIDO, paso_dias: int = PASO_HISTORIA_SENTIDO_DIAS) -> list[dict]:
+    """El sentido juzgado con los ``dias`` anteriores a cada corte de ``paso_dias``, anotado solo donde cambia (089:RF-116).
+
+    Se calcula con la curva cruda, antes de orientarla: después ya no quedan los registros contrarios. El último corte es el
+    último dato, así que la última entrada es el sentido con que se orientó la serie.
+    """
+    if not len(curva):
+        return []
+    if isinstance(curva, CurvaCompacta):
+        t, p = curva.t, curva.columnas[0]
+    else:
+        t = np.array([f[0] for f in curva], dtype='datetime64[ns]')
+        p = np.array([f[1] for f in curva], dtype=float)
+    orden = np.argsort(t, kind='stable')
+    t, p = t[orden], p[orden]
+    paso, ventana = np.timedelta64(paso_dias, 'D'), np.timedelta64(dias, 'D')
+    cortes = [*np.arange(t[0] + paso, t[-1], paso), t[-1]]
+    historia: list[dict] = []
+    for corte in cortes:
+        # La misma ventana que ``_orientar``: desde ``corte - dias`` incluido hasta el corte.
+        a, b = np.searchsorted(t, corte - ventana, side='left'), np.searchsorted(t, corte, side='right')
+        sentido = sentido_de_serie(p[a:b])
+        if not historia or historia[-1]['sentido'] != sentido:
+            historia.append({'desde': str(corte)[:19], 'sentido': sentido})
+    return historia
+
+
+def sentido_en(historia: Sequence[Mapping], instante: np.datetime64) -> str | None:
+    """El sentido que daba la historia en ``instante``, o None si es anterior a su primer corte (089:RF-116)."""
+    actual = None
+    for entrada in historia:
+        if np.datetime64(entrada['desde']) > np.datetime64(instante):
+            break
+        actual = entrada['sentido']
+    return actual
+
+
+def _sentido_en_fuente(curva: Curva, sentido: str) -> dict[str, Any]:
+    """Lo que la fuente dice de la orientación: con qué se decidió y su historia (089:RF-116)."""
+    return {'decidido': sentido, 'criterio': CRITERIO_ORIENTACION, 'dias': DIAS_DEL_SENTIDO,
+            'paso_historia_dias': PASO_HISTORIA_SENTIDO_DIAS, 'historia': historia_del_sentido(curva)}
+
+
+def orientacion_en_origenes(o: Objetivo, origenes: Iterable[np.datetime64]) -> dict[str, Any] | None:
+    """En qué orígenes el sentido juzgado con lo anterior a cada uno no es el usado, que sale del último dato (089:RF-116)."""
+    s = (o.fuente or {}).get('sentido')
+    if not isinstance(s, Mapping):
+        return None
+    final = s.get('decidido')
+    distintos = []
+    for origen in origenes:
+        antes = sentido_en(s.get('historia') or (), origen)
+        if antes is not None and antes != final:
+            distintos.append({'origen': str(origen)[:19], 'sentido': antes})
+    return {'sentido': final, 'con_ultimo_dato': True, 'distinto_en_origenes': distintos}
+
+
+def _resumen_de_orientacion(filas: Iterable[tuple[str, Mapping | None]]) -> dict[str, Any]:
+    """El criterio de la orientación y las series en que otro origen la habría cambiado (089:RF-116)."""
+    cambios = [{'objetivo': nombre, 'origenes': [d['origen'] for d in o['distinto_en_origenes']],
+                'sentido_antes': sorted({d['sentido'] for d in o['distinto_en_origenes']}), 'sentido_usado': o['sentido']}
+               for nombre, o in filas if o and o['distinto_en_origenes']]
+    return {'criterio': CRITERIO_ORIENTACION, 'con_ultimo_dato': True,
+            'series_con_otro_sentido': sorted(cambios, key=lambda c: c['objetivo'])}
+
+
 def objetivos_de_cabecera(rutas, pares=None, *, centrales=None) -> tuple[list[Objetivo], list[dict]]:
     """kW y kVAR de cada ``(alimentador, medidor)``, en el sentido de la carga (046:RF-9, RF-10; 089:RF-18 a RF-21)."""
     curvas, apartados = curvas_de_cabecera(rutas, pares, centrales=centrales)
@@ -432,7 +503,8 @@ def objetivos_de_cabecera(rutas, pares=None, *, centrales=None) -> tuple[list[Ob
             apartados.append({'objetivo': f'cabecera:{alimentador}', 'motivo': MOTIVO_AMBOS})
             continue
         objetivos += _objetivos_kw_kvar('cabecera', alimentador, curva, {**d['fuente'], 'sentido_invertido': sentido == 'invertido',
-                                                                         'registros_contrarios': contrarios})
+                                                                         'registros_contrarios': contrarios,
+                                                                         'sentido': _sentido_en_fuente(d['curva'], sentido)})
     return objetivos, apartados
 
 
@@ -775,7 +847,7 @@ def armar_dataset(fuentes: Fuentes) -> Dataset:
             apartados.append({'objetivo': f'cabecera:{alimentador}', 'motivo': 'no operativo: ningún registro en su sentido'})
             continue
         fuente = {**d['fuente'], 'sentido_invertido': sentido == 'invertido', 'registros_contrarios': contrarios,
-                  'inicio_base': curva[0][0].isoformat()}
+                  'inicio_base': curva[0][0].isoformat(), 'sentido': _sentido_en_fuente(d['curva'], sentido)}
         if alimentador in de_apoyo and not d['fuente']['central_descontada']:
             orientada, _s, _c = _orientar(de_apoyo[alimentador]['curva'])
             curva, info = apoyar(curva, orientada)
@@ -1103,8 +1175,13 @@ def backtest_objetivo(o: Objetivo, *, horizonte_dias: int = HORIZONTE_DIAS, orig
     prueba = {m: por_origen[m][-1] for m in seleccion}
     return {**base, 'status': 'EVALUADO', 'metodo': elegido, 'seleccion': seleccion, 'prueba': prueba, 'error_prueba': prueba[elegido],
             'origenes_seleccion': [str(x)[:19] for x in fechas[:-1]], 'origen_prueba': str(fechas[-1])[:19],
-            'temperatura': temperatura,
+            'temperatura': temperatura, **_con_orientacion(o, fechas),
             'residuos': {'q05': float(np.quantile(errores, .05)), 'q95': float(np.quantile(errores, .95))} if len(errores) else None}
+
+
+def _con_orientacion(o: Objetivo, fechas: Iterable[np.datetime64]) -> dict[str, Any]:
+    orientacion = orientacion_en_origenes(o, fechas)
+    return {'orientacion': orientacion} if orientacion else {}
 
 
 def _sin_infinitos(valor: Any) -> Any:
@@ -1152,6 +1229,8 @@ def backtest(dataset: Dataset, *, horizonte_dias: int = HORIZONTE_DIAS, origenes
             'apoyo': {'usado': sum(bool(a.get('usado')) for a in apoyos), 'rechazado': sum(not a.get('usado') for a in apoyos),
                       'motivos': sorted({str(a.get('motivo')) for a in apoyos if a.get('motivo')})[:10]},
             'apartados': dataset.apartados, 'avisos': dataset.avisos, 'libros': dataset.libros, 'ultimo_dato': dataset.ultimo_dato,
+            'orientacion': _resumen_de_orientacion((r['objetivo'], r.get('orientacion')) for r in resultados),
+            'huellas_exogenas': huellas_de_exogenas(dataset.exogenas),
             'exogenas_sin_norma': [d.isoformat() for d in dataset.exogenas.sin_norma] if dataset.exogenas else []}
 
 
@@ -1592,7 +1671,9 @@ def backtest_modelos(objetivos: Sequence[Objetivo], nombres: Sequence[str], *, h
         'modelos': estados, 'origenes': [str(f)[:19] for f in fechas], 'objetivos': len(objetivos),
         'perfiles': {m: {'wape_prueba': _resumir(medidas(m, [prueba])), 'wape_eleccion': wape_seleccion(m), 'error_maxima': error_maximas(m),
                          'wape_por_horizonte': por_horizonte(m)} for m in METODOS},
-        'mejor_perfil': perfil})
+        'mejor_perfil': perfil,
+        'orientacion': _resumen_de_orientacion((o.nombre, orientacion_en_origenes(o, fechas)) for o in objetivos),
+        'huellas_exogenas': huellas_de_exogenas(exogenas)})
 
 
 #: 031:RF-3: la capa anual mide con las mismas funciones; se publican en vez de copiarlas (la guarda de capas veda lo privado).
@@ -1610,6 +1691,29 @@ def _liberar_gpu() -> None:
 
 
 # --------------------------------------------------------------------------- dataset guardado
+def _sha256_json(valor: Any) -> str:
+    import hashlib
+    import json
+
+    return hashlib.sha256(json.dumps(valor, sort_keys=True, ensure_ascii=True, default=str).encode('utf-8')).hexdigest()
+
+
+def huellas_de_exogenas(exogenas: Exogenas | None, anuales: Any = None) -> dict[str, str | None]:
+    """La huella del calendario, del clima y de las series anuales con que se armó o midió el dataset (089:RF-117).
+
+    Con la del dataset, firman lo medido: otro feriado, otra temperatura u otro registro de PBI y población dan otra
+    firma. ``anuales`` es el registro de la 031 (``RegistroExogenas``, con su ``huella``); None, sin series anuales.
+    """
+    anual = getattr(anuales, 'huella', None) if anuales is not None else None
+    if exogenas is None:
+        return {'calendario': None, 'clima': None, 'anuales': anual}
+    calendario = {'no_laborables': sorted(d.isoformat() for d in exogenas.no_laborables),
+                  'meses': sorted((d.isoformat(), int(m)) for d, m in exogenas.meses.items()),
+                  'sin_norma': sorted(d.isoformat() for d in exogenas.sin_norma)}
+    clima = sorted((t.isoformat(), float(v)) for t, v in exogenas.temperatura.items())
+    return {'calendario': _sha256_json(calendario), 'clima': _sha256_json(clima), 'anuales': anual}
+
+
 def huella_de_objetivos(objetivos: Iterable[Objetivo]) -> str:
     """La huella de lo medido: la misma al guardar, al abrir y en la evaluación de la proyección anual (089:RF-68, 031:RF-9)."""
     import hashlib
@@ -1686,8 +1790,8 @@ def perfil_del_dataset(dataset: Dataset) -> dict[str, Any]:
             'apartados': len(dataset.apartados), 'motivos_apartados': motivos, 'por_clase': por_clase, 'por_serie': series}
 
 
-def guardar_dataset(dataset: Dataset, carpeta: Path | str) -> str:
-    """Los objetivos limpios en Parquet con su huella: entrenar no vuelve a leer los libros (089:RF-68)."""
+def guardar_dataset(dataset: Dataset, carpeta: Path | str, *, anuales: Any = None) -> str:
+    """Los objetivos limpios en Parquet con su huella y las de sus exógenas: entrenar no vuelve a leer los libros (089:RF-68, RF-117)."""
     import json
 
     import pandas as pd
@@ -1709,7 +1813,9 @@ def guardar_dataset(dataset: Dataset, carpeta: Path | str) -> str:
     # Lo último: sin este fichero, el dataset no existe.
     publicar_duradero(carpeta / 'dataset.json', json.dumps({'huella': texto, 'objetivos': indice, 'apartados': dataset.apartados,
                                                             'libros': dataset.libros, 'ultimo_dato': dataset.ultimo_dato,
-                                                            'avisos': dataset.avisos}, ensure_ascii=False, default=str))
+                                                            'avisos': dataset.avisos,
+                                                            'huellas_exogenas': huellas_de_exogenas(dataset.exogenas, anuales)},
+                                                           ensure_ascii=False, default=str))
     return texto
 
 

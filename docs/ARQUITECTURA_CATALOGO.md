@@ -13,11 +13,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 128 |
 | Interfaz | `frontend/src/` | 116 |
 | Pruebas de la interfaz | `frontend/test/` | 63 |
-| Pruebas | `tests/` | 629 |
+| Pruebas | `tests/` | 630 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 14337 líneas y 450 funciones, pendiente de partir (002).
+`web/services.py` tiene 14355 líneas y 451 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3902 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3906 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -448,8 +448,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
-| `aplicacion/pide.py` | Apl | 024 | Metodología del PIDE (RM 428-2017-MEM/DM): proyección y densidad de carga por cuadrículas de la Tabla N.º 2, diagnóstico con su causa (caída, FP,… |
-| `aplicacion/pide_economia.py` | Apl | 024, 073 | Evaluación económica y priorización del PIDE: libro CAPEX por nombres del perfil (sin datos personales), anualidad, costo anual, VAN y TIR del art. |
+| `aplicacion/pide.py` | Apl | 024, 072 | Metodología del PIDE (RM 428-2017-MEM/DM): proyección y densidad de carga por cuadrículas de la Tabla N.º 2, diagnóstico con su causa (caída, FP,… |
+| `aplicacion/pide_economia.py` | Apl | 024, 073, 072 | Evaluación económica y priorización del PIDE: libro CAPEX por nombres del perfil (sin datos personales), anualidad, costo anual, VAN y TIR del art. |
 | `adaptadores/pide_dataset.py` | Ada | 024 | Corpus PIDE universal desde un expediente de la empresa en solo lectura: custodia, calidad y fragmentos de texto. |
 | `dominio/estudio_planeamiento.py` | Dom | 072 | Estudio de planeamiento: del año de presentación, cada 4 años, salen el año 00 y los años de largo plazo y del PIDE. |
 | `aplicacion/proyeccion_mercado.py` | Apl | 072 | Proyección anual por sistema desde el Formato 01: métodos comparados contra lo ocurrido, sin mirar el futuro. |

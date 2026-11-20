@@ -260,3 +260,14 @@ otorga aprobación humana ni aceptación nativa, eléctrica o científica.
       Hecho el 2026-11-18: `escalera_optima.costos_osinergmin` y el argumento `oficiales` de `costos_de_alternativas`;
       `pit.armado.tablas_declaradas` como lector único de fuentes de costo (el PIT sigue con `tablas_de_costos`);
       `escalera.costos_osinergmin` en el esquema y la guía del perfil.
+- [x] T24. El ranking del PIDE con la norma y su estado legal del registro normativo: `pide_economia.traza_normativa_pide`
+      y `criterios_con_su_norma`, el argumento `registro` de `propuesta_pide` (lo carga la web desde `config/normativa`,
+      como el PIT), la hoja «Base normativa» de `pide.escribir_formatos` y el párrafo del módulo de priorización. (RF-47)
+      Hecho cuando: rojo por aserción y verde con su prueba, `tests/test_pide_registro_normativo.py` (072:RF-47), con
+      registros sintéticos `prepublicada`, `vigente_comprobada` y `no_verificada` y el registro real con la RM 428-2017
+      prepublicada; y `tests/test_formatos_pide.py`, `tests/test_pide.py`, `tests/test_pide_web.py`,
+      `tests/test_informes_planeamiento.py`, `tests/test_procedencia_capex_web.py`, `tests/test_valle.py`,
+      `tests/test_capas.py` y `tests/test_inventario.py` sin cambios en verde.
+      Hecho el 2026-11-19 (d8, fila MEJ1): rojo por aserción sobre 908f0fa9 (las 14 pruebas nuevas, 14 F por
+      AssertionError, D:/csg/PM_IMPL/MEJ1/rojo.log) y verde en el hueco de MEJ1 (D:/csg/PM_IMPL/MEJ1/estado.txt:
+      fase 1, verde_nuevas y seleccion_gpu).

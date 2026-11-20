@@ -52,6 +52,8 @@ class DatosPlaneamiento:
     alternativas_escalera: Mapping[str, Any] = field(default_factory=dict)
     #: 072:RF-28: solo una lectura nueva vinculada; None no atribuye fuente a historia.
     procedencia_capex: Mapping[str, Any] | None = None
+    #: 072:RF-47: la norma del ranking con su estado legal (``pide_economia.traza_normativa_pide``); None no la cita.
+    normativa: Mapping[str, Any] | None = None
 
 
 class _EscritorDeModulo(Escritor):
@@ -244,6 +246,14 @@ def _evaluacion_economica(e: Escritor, datos: DatosPlaneamiento) -> None:
 
 
 def _priorizacion(e: Escritor, datos: DatosPlaneamiento) -> None:
+    if datos.normativa:
+        # 072:RF-47: cada peso y criterio con su norma y su estado legal; una norma prepublicada no sale como vigente.
+        n = datos.normativa
+        e.parrafo(f"Base normativa de los pesos y criterios: {n.get('cita') or n.get('acto')}, {n.get('leyenda')}. "
+                  f"{str(n.get('motivo') or '').rstrip('.')}.")
+        e.tabla(('Criterio', 'Artículo', 'Peso', 'Estado legal'),
+                [[c['criterio'], c['articulo'], _texto(c.get('peso')), c['estado']]
+                 for c in n.get('criterios') or ()])
     ultimo = max(datos.estudio.detalle_pide)
     del_periodo = [o for o in datos.obras if o['anio'] <= ultimo]
     if not del_periodo:

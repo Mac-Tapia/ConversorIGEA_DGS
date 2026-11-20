@@ -1251,8 +1251,9 @@ def costo(v: Variante, costos_alternativa: Mapping[str, Mapping[str, Any]], p: P
     return {**out, 'inversion': ci, 'avisos': avisos}
 
 
-#: 098:RF-37: el periodo de la de corto plazo si el perfil no lo da: el del PIDE (RM 428-2017-MEM/DM, art. 7.2: se
-#: presenta cada 4 años; ``config/pide_universal_2017.json``, ``ciclo_anios``).
+#: 098:RF-37: el periodo de la de corto plazo si el perfil no lo da: el del PIDE (art. 7.2 del proyecto prepublicado con
+#: la RM 428-2017-MEM/DM, de referencia y sin vigencia comprobada en el registro normativo, 072:RF-47: se presenta cada
+#: 4 años; ``config/pide_universal_2017.json``, ``ciclo_anios``).
 PERIODO_CORTO_PLAZO_DE_REFERENCIA = 4
 
 
