@@ -70,6 +70,22 @@ Todo esto sin tocar nunca el caso base ni la geometría de la fuente.
   alimentador o de la red elegida, sincronizado con el plano, la tabla y el inspector (el mismo código, 111:RF-2): un
   esquema que no cambia las geometrías físicas ni las impedancias, y que pinta los mismos resultados del estudio
   (111:RF-10, RF-11). Elegir un elemento en uno lo elige en el otro.
+- RF-24: (orden del usuario del 19-11: «debería poder seleccionar uno o más alimentadores a la vez para ver los puntos
+  de transferencia con diferentes colores de layers») EL SISTEMA dejará ver en el plano, junto al alimentador principal
+  (el de la variación y el unifilar), los alimentadores que el operador añada, cada uno con su color (en claro y en
+  oscuro) y su capa encendible, con una leyenda que dice qué color es cada uno; con uno solo, el color de siempre.
+- RF-25: CUANDO el plano tenga dos o más alimentadores, EL SISTEMA marcará sus puntos de transferencia: las barras de
+  frontera que la fuente nombra igual en los alimentadores que se tocan en ellas (en un trecho común, sus bordes), con
+  las maniobras de la fuente en esa barra y su estado. Una vista combinada (``A_B``) no se cruza con sus partes. Cada
+  punto se lista en la pestaña y lleva a su barra en todas las vistas (RF-20). Ningún punto ni maniobra se inventa.
+- RF-26: (orden del usuario del 19-11: «debería verse la opción de activar las etiquetas de potencia instalada de SED,
+  código de SED y sección de cables en los tramos») EL SISTEMA ofrecerá en el selector de capas tres etiquetas que se
+  encienden por separado: el código de la SED, su potencia instalada (kVA) y la sección del conductor de cada tramo
+  (mm², del código del catálogo; si no se deduce, ninguna). Empiezan apagadas y, por debajo del zoom en que se
+  taparían, no se dibujan y se dice que hay que acercarse.
+- RF-27: (orden del usuario del 19-11, «corregir este error»: el fondo de calles salía como «403 Access blocked») EL
+  SISTEMA pedirá cada tesela del fondo con el origen de la web como «Referer» (nunca la ruta ni sus parámetros), como
+  pide la política de uso de las teselas de OpenStreetMap, aunque el resto de la web siga sin «Referer».
 
 ## Requisitos no funcionales
 - Escala: un plano con todos los alimentadores de la entrega, sin bloquear la página mientras calcula, con capas por

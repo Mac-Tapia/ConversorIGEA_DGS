@@ -173,9 +173,15 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
 
     flujo = flujo_de_carga(app)
     if not flujo['converged']:
+        # 086:RF-125, 024:RF-4: la red se lee igual (el grafo no depende del flujo; sus tensiones quedan en
+        # ``None``) y la lectura dice que no converge: el episodio es «rejected» con esa causa. Sin el grafo,
+        # una calibración imposible (19-11) iba a cuarentena con «la lectura no trae el grafo eléctrico».
         lectura['flujo'] = None
+        lectura['flujo_converge'] = False
         lectura['avisos'].append('el flujo no converge tras reabrir')
+        lectura['topologia']['grafo'] = grafo(app, proyecto, raiz, lectura['feeders'])
         return lectura, 2
+    lectura['flujo_converge'] = True
     lectura['flujo'] = resultados(app, proyecto, raiz, lectura['feeders'])
     # 027:RF-1: con el grafo eléctrico, el episodio de cualquier calibración, obra o estudio
     # enseña al gemelo; los de Nasca y Chincha (2026-10-28) traían 4 067 tensiones y ningún
@@ -449,6 +455,13 @@ def resultados(app, proyecto, raiz: str, feeders: list[str]) -> dict:
     }
 
 
+def resumen_salida(lectura: dict, codigo: int) -> str:
+    """La línea del Registro: el código y, si no es 0, su causa (086:RF-125); «código 2» solo no decía por qué."""
+    texto = f"Lectura de {lectura.get('project')}: código {codigo}"
+    causa = lectura.get('error') or '; '.join(lectura.get('avisos') or [])
+    return f'{texto} ({causa})' if codigo and causa else texto
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Lectura de solo lectura de un proyecto de DIgSILENT '
                                             'tras una acción, para el gemelo digital (spec 024)')
@@ -476,7 +489,7 @@ def main(argv=None) -> int:
         lectura, codigo = {'project': plan.get('project'), 'error': repr(exc),
                            'traza': traceback.format_exc()}, 1
     salida.write_text(json.dumps(lectura, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-    print(f"Lectura de {plan.get('project')}: código {codigo}")
+    print(resumen_salida({'project': plan.get('project'), **lectura}, codigo))
     return codigo
 
 

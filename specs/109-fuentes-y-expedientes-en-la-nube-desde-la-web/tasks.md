@@ -118,6 +118,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       El recorrido de la web con el simulado (Nube y Correo, modo claro y oscuro, sin almacenamiento y sin citas a la
       vista) tiene su guion de Playwright, con la web de prueba en un puerto libre y sin cuenta real; su registro y sus
       capturas se anotan aquí al correrlo.
+      Guion (2026-11-19, aún sin correr): `frontend/test/e2e/f07_nube_correo.e2e.mjs`, en `[claro]` y `[oscuro]`: sin
+      `config/nube.json`, «Sin cuenta conectada…» sin ofrecer conectar; con el simulado, Google Drive para leer y OneDrive
+      para el correo, los permisos de cada cuenta, ningún token en el navegador y desconectar con confirmación.
       Hecho cuando: el documento existe y está enlazado desde `docs/MANUAL_INSTALACION.md`, las pruebas con el
       simulado de T1 a T13 están en verde y el recorrido de la web está anotado. Si el operador hace la prueba real, deja la copia con su huella y los recibos
       de la publicación y del permiso, con la carpeta de evidencia anotada aquí; sin ella, la 1.0 no queda bloqueada.
@@ -148,3 +151,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `config/modulos/vinculos.json` citada por el registro, y `npm test` entero en verde.
       Hecho en esta entrega (ESPACIO-VNR, 4d): tests/test_fuentes_empresa.py y tests/test_vnr_api.py en verde (213 passed
       con los del VNR, el inventario y la trazabilidad), `npm test` 268/268; ADR-010 y ADR-011.
+- [x] T21. Espacio sin red (revisión web del 19-11, W1): `GET /api/workspaces/{id}/fuentes/red` da 200 con
+      `disponible` falso y su motivo; VNR y PIT no lo toman por red. (RF-26)
+      Hecho cuando: `tests/test_revision_web_estados.py` (109:RF-26) en verde con rojo previo por aserción y el contrato
+      de la API regenerado. Hecho en esta entrega (ce): rojo VALIDO y verde 75 passed en `D:/csg/PM_IMPL/REVISION_WEB/w1/`.
+- [x] T22. Publicar los entregables del PIT y del VAD (revisión web del 19-11, W9): la publicación toma la carpeta del
+      módulo cuando todo lo elegido es de ella y la previa cuenta solo lo elegido. (RF-24)
+      Hecho cuando: `tests/test_revision_web_estados.py` (109:RF-24: se publica el diagnóstico del PIT con la nube simulada,
+      y el resto del espacio sigue fuera) en verde con rojo previo por aserción. Evidencia: `D:/csg/PM_IMPL/REVISION_WEB/w9/`.

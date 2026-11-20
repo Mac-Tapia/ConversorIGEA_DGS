@@ -139,3 +139,29 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
       cabecera, común con el unifilar del PIT (107:RF-15, mismas hojas); la vista del plano trae su unifilar y la
       pestaña lo enseña con los mismos códigos, la misma selección y las mismas bandas; pruebas:
       tests/test_plano_unifilar.py, frontend/test/unifilar.test.mjs y frontend/e2e/unifilar.spec.ts (claro y oscuro).
+- [x] T24. Varios alimentadores a la vez, cada uno con su color y su capa. (RF-24)
+      Hecho cuando: rojo por aserción (un solo alimentador y un solo color) y verde con sus pruebas del servidor y de la
+      pestaña, y comprobado en navegador real.
+      Hecho en la fila PLANO-VARIOS (ce, 19-11): «Ver también» en PlanoRed.tsx (casillas con filtro; el principal sigue en
+      su desplegable) pide el plano y su página con todos; pagina_plano.py da un color por alimentador
+      (COLORES_ALIMENTADOR, claro y oscuro), su capa en el selector y la leyenda; el resalte vuelve a su color; pruebas:
+      tests/test_plano_varios_alimentadores.py y frontend/test/planoVariosAlimentadores.test.mjs.
+- [x] T25. Los puntos de transferencia entre los alimentadores del plano. (RF-25)
+      Hecho cuando: rojo por aserción y verde con una barra común, un trecho común, una vista combinada y el contrato.
+      Hecho en la fila PLANO-VARIOS (ce, 19-11): plano_red.transferencias (barras de frontera con el mismo código; medido
+      en una entrega real: una barra común entre vecinos), en el resumen del plano, su contrato
+      (TransferenciaPlanoRespuesta) y la página (rombo con los alimentadores, la barra y sus maniobras); la pestaña los
+      lista y cada uno lleva a su barra; pruebas: tests/test_plano_varios_alimentadores.py y
+      frontend/test/planoVariosAlimentadores.test.mjs.
+- [x] T26. Etiquetas del código y la potencia de la SED y de la sección del conductor. (RF-26)
+      Hecho cuando: rojo por aserción y verde con las tres capas apagadas al abrir y la sección de cada tramo.
+      Hecho en la fila PLANO-VARIOS (ce, 19-11): la vista da `seccion_mm2` de cada tramo (catalog.seccion_de_codigo); la
+      página tiene tres capas de etiquetas desde ZOOM_ETIQUETAS y el aviso para acercarse; prueba:
+      tests/test_plano_varios_alimentadores.py.
+- [x] T27. El fondo de calles llega: las teselas piden con el origen como «Referer». (RF-27)
+      Hecho cuando: el «403 Access blocked» reproducido (sin «Referer», la imagen de bloqueo de 6,7 kB; con el origen, la
+      tesela de 19,7 kB), rojo por aserción y verde, y comprobado en navegador real.
+      Hecho en la fila PLANO-VARIOS (ce, 19-11): preview.REFERER_TESELAS en el `L.tileLayer` común (plano, vista previa y
+      mapa de las cargas nuevas); prueba: tests/test_plano_varios_alimentadores.py.
+      Comprobado en navegador real el 19-11 (claro y oscuro): frontend/e2e/plano_varios.spec.ts en verde, registro en
+      `D:/csg/PM_IMPL/GWEB2/hueco/e2e_plano.log`.

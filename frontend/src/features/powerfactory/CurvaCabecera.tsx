@@ -1,5 +1,5 @@
-import { fmtNum } from '../../shared/formato';
-import { colorSerie, marcas, tramos, useLetraFija } from '../../shared/graficos';
+import { fmtNum, cuenta } from '../../shared/formato';
+import { colorSerie, marcas, separarEtiquetas, tramos, useLetraFija } from '../../shared/graficos';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { api } from '../../api/client';
@@ -118,7 +118,7 @@ export function CurvaCabecera({ wsId, jobId, opciones, inicial, series = [] }: {
       const fm = new Date(c.maxima.fecha);
       const tm = fm.getTime();
       return {
-        clave: s.clave, color: s.color, fm, kwMax: c.maxima.kw,
+        clave: s.clave, etiqueta: s.etiqueta, color: s.color, fm, kwMax: c.maxima.kw,
         kw: tramos(ts.map((t, i) => [sx(t), sy(c.puntos[i][1])])),
         q: kvar ? tramos(ts.map((t, i) => [sx(t), c.puntos[i][2] == null ? null : sy(c.puntos[i][2]!)])) : [],
         // RF-19: la máxima de cada alimentador, con un punto de su color.
@@ -150,7 +150,15 @@ export function CurvaCabecera({ wsId, jobId, opciones, inicial, series = [] }: {
       for (; d.getTime() <= t1; d.setDate(d.getDate() + paso)) ejeX.push({ x: sx(d.getTime()), texto: dia(d) });
     }
     const ejeY = marcas(yMin, yMax).map((v) => ({ y: sy(v), texto: fmtNum(v) }));
-    return { t0, t1, trazos, franja, ejeX, ejeY, fm, mesTexto: fm.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }) };
+    // 086:RF-123: con varias curvas, cada máxima con su etiqueta (alimentador, kW y fecha), sin taparse entre ellas.
+    const conPico = varias ? trazos.filter((t) => t.pico) : [];
+    const alturas = separarEtiquetas(conPico.map((t) => t.pico!.y - 8), M.t + 10, H - M.b - 6, 14);
+    const etiquetas = conPico.map((t, k) => {
+      const izquierda = t.pico!.x > W * 0.6;
+      return { clave: t.clave, color: t.color, x: t.pico!.x + (izquierda ? -10 : 10), y: alturas[k], izquierda,
+        px: t.pico!.x, py: t.pico!.y, texto: `${t.etiqueta} · ${fmtNum(t.kwMax, 1)} kW · ${diaHora(t.fm)}` };
+    });
+    return { t0, t1, trazos, etiquetas, franja, ejeX, ejeY, fm, mesTexto: fm.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [datos, ocultas, firma, tramo, kvar, varias]);
 
@@ -273,6 +281,13 @@ export function CurvaCabecera({ wsId, jobId, opciones, inicial, series = [] }: {
                   </g>
                 )
             ))}
+            {g.etiquetas.map((e) => (
+              <g key={`e${e.clave}`} className="curva-etiqueta-pico">
+                {Math.abs(e.y - 4 - e.py) > 10 && <line className="curva-guia-pico" stroke={e.color} x1={e.px} y1={e.py} x2={e.x} y2={e.y - 4} />}
+                <text className="curva-texto curva-pico-texto" x={e.x} y={e.y} textAnchor={e.izquierda ? 'end' : 'start'}>
+                  <tspan style={{ fill: e.color }} aria-hidden="true">● </tspan>{e.texto}</text>
+              </g>
+            ))}
             {arrastre && (
               <rect className="curva-seleccion" x={Math.min(arrastre.x0, arrastre.x1)} y={M.t}
                 width={Math.abs(arrastre.x1 - arrastre.x0)} height={H - M.t - M.b} />
@@ -287,7 +302,7 @@ export function CurvaCabecera({ wsId, jobId, opciones, inicial, series = [] }: {
             Arrastre sobre la gráfica para ver un tramo con cada registro.
           </small>
           {fuera > 0 && (
-            <small className="muted">{fmtNum(fuera)} registro(s) sin fecha o sin kW numérico, fuera de la curva.</small>
+            <small className="muted">{cuenta(fuera, 'registro', 'registros')} sin fecha o sin kW numérico, fuera de la curva.</small>
           )}
         </>
       )}

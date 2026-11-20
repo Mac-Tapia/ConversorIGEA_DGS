@@ -56,3 +56,27 @@ export function tramos(xs: [number, number | null][]): string[] {
 /** Colores de las series: tokens de styles.css, con su versión oscura. */
 export const COLORES_SERIE = 8;
 export const colorSerie = (i: number) => `var(--serie-${i % COLORES_SERIE})`;
+
+/**
+ * 086:RF-123: las etiquetas de varios puntos sin taparse. Recibe la altura de cada punto (en px del viewBox) y devuelve
+ * la de su etiqueta: en orden de altura, cada una al menos `separacion` por debajo de la anterior y dentro de
+ * [`arriba`, `abajo`]; si no caben, se reparten por igual. Mismo orden que la entrada.
+ */
+export function separarEtiquetas(ys: number[], arriba: number, abajo: number, separacion: number): number[] {
+  const orden = ys.map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y || a.i - b.i);
+  const salida = new Array<number>(ys.length);
+  if (!orden.length) return salida;
+  if ((orden.length - 1) * separacion > abajo - arriba) {
+    const paso = orden.length > 1 ? (abajo - arriba) / (orden.length - 1) : 0;
+    orden.forEach((o, k) => { salida[o.i] = arriba + k * paso; });
+    return salida;
+  }
+  let previa = -Infinity;
+  const puestas = orden.map((o) => { previa = Math.max(o.y, arriba, previa + separacion); return previa; });
+  // Si la última se sale por abajo, se suben las de abajo lo justo (caben: se comprobó arriba).
+  for (let k = puestas.length - 1; k >= 0; k--) {
+    puestas[k] = Math.min(puestas[k], k === puestas.length - 1 ? abajo : puestas[k + 1] - separacion);
+  }
+  orden.forEach((o, k) => { salida[o.i] = puestas[k]; });
+  return salida;
+}

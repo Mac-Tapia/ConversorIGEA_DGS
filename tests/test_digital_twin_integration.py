@@ -246,3 +246,12 @@ def test_lectura_del_gemelo_con_su_limite_propio(tmp_path, monkeypatch, ajustes,
     monkeypatch.setattr(perfil_empresa, 'datos_perfil', lambda: {'gemelo': {'captura': False}})
     assert services._gemelo(Ws(), Ctx(), _plan(), informe, caso='sin_proyecto', rutas={}) is None
     assert limites == [limite]
+
+
+def test_episodio_rechazado_avisa_su_causa_en_el_registro(tmp_path):
+    """086:RF-125 — el Registro dice por qué se rechazó el episodio; antes solo avisaba la cuarentena."""
+    lectura = _lectura(flujo=None, flujo_converge=False, avisos=['el flujo no converge tras reabrir'])
+    out, _, avisos = _capturar(tmp_path, Caso.CON_PROYECTO, lectura=lectura)
+    assert out['clase'] == 'rejected'
+    assert any('rechazado' in a and 'no converg' in a for a in avisos), avisos
+    assert not any('QUARANTINE' in a for a in avisos), avisos

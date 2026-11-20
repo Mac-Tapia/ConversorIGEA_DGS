@@ -26,6 +26,7 @@ from typing import Any
 
 from .dgs import letras_de_fase, nombre_en_pf
 from ..dominio.disposicion_unifilar import unifilar_de_vista
+from ..aplicacion.catalog import seccion_de_codigo
 from ..dominio.model import FeederModel
 
 
@@ -139,6 +140,8 @@ def vista(model: FeederModel, geografia: Mapping[str, Any] | None, *, validacion
             'codigo': ln.section_id, 'nombre_pf': nombre[('tramo', ln.section_id)],
             'desde': ln.from_node, 'hasta': ln.to_node, 'fases': letras_de_fase(ln.phase), 'tipo': ln.type_key,
             'aereo': ln.overhead, 'longitud_m': ln.length_m,
+            # 111:RF-26: la sección del conductor para su etiqueta, del código del catálogo; sin deducirla, ninguna.
+            'seccion_mm2': seccion_de_codigo(str(ln.type_key)) or seccion_de_codigo(str(ln.source_type_code or '')),
             'vertices': [[p['lat'], p['lon']] for p in camino],
             'paralelo_con': sorted(s for s in trazos[frozenset((ln.from_node, ln.to_node))] if s != ln.section_id),
             'original': {'tipo': ln.source_type_code, 'fase': ln.phase,
@@ -174,8 +177,63 @@ def vista(model: FeederModel, geografia: Mapping[str, Any] | None, *, validacion
     return salida
 
 
-def resumen_plano(vistas: Iterable[Mapping[str, Any]]) -> dict[str, list[str]]:
-    """Los alimentadores del plano, en el orden dado, y los que no tienen coordenadas (listados, sin pintar)."""
+def resumen_plano(vistas: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """Los alimentadores del plano, en el orden dado, los que no tienen coordenadas (listados, sin pintar) y los
+    puntos de transferencia entre ellos (111:RF-25)."""
     vistas = list(vistas)
     return {'alimentadores': [v['alimentador'] for v in vistas],
-            'sin_coordenadas': [v['alimentador'] for v in vistas if v['sin_coordenadas']]}
+            'sin_coordenadas': [v['alimentador'] for v in vistas if v['sin_coordenadas']],
+            'transferencias': transferencias(vistas)}
+
+
+def transferencias(vistas: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """111:RF-25: los puntos donde se tocan dos o más alimentadores del plano, con la barra de la fuente.
+
+    La fuente da el mismo código a la barra de frontera en los alimentadores que se unen en ella (medido en una
+    entrega real, 19-11: una barra común entre vecinos). Cuando comparten un trecho entero, el punto es su borde: una
+    barra común con algún tramo hacia una barra que no lo es; un trecho común sin borde (un alimentador contenido en
+    otro) da sus barras comunes de grado 1. Las vistas combinadas (``A_B``, la suma de A y B) no se cruzan con sus partes.
+    Cada punto dice sus maniobras de la fuente en esa barra, con su estado; ninguna se inventa.
+    """
+    vistas = [v for v in vistas if v.get('barras')]
+    nombres = [v['alimentador'] for v in vistas]
+
+    def combinada(a: str, b: str) -> bool:
+        pa, pb = set(a.split('_')), set(b.split('_'))
+        return pa != pb and (pa <= pb or pb <= pa)
+
+    de: dict[str, list[str]] = {}
+    for v in vistas:
+        for b in v['barras']:
+            de.setdefault(b['codigo'], []).append(v['alimentador'])
+    salida: dict[str, dict[str, Any]] = {}
+    for v in vistas:
+        a = v['alimentador']
+        vecinos: dict[str, set[str]] = {}
+        for t in v['tramos']:
+            vecinos.setdefault(t['desde'], set()).add(t['hasta'])
+            vecinos.setdefault(t['hasta'], set()).add(t['desde'])
+        punto = {b['codigo']: b for b in v['barras']}
+        for codigo, b in punto.items():
+            otros = sorted({x for x in de[codigo] if x != a and not combinada(a, x)})
+            if not otros:
+                continue
+            ady = vecinos.get(codigo, set())
+            borde = any(sorted({x for x in de.get(n, []) if x != a}) != otros for n in ady) or len(ady) <= 1
+            if not borde:
+                continue
+            fila = salida.setdefault(codigo, {'barra': codigo, 'lat': b.get('lat'), 'lon': b.get('lon'),
+                                              'alimentadores': [], 'maniobras': []})
+            for x in (a, *otros):
+                if x not in fila['alimentadores']:
+                    fila['alimentadores'].append(x)
+            for m in v['maniobras']:
+                if m['barra'] == codigo and all(m['codigo'] != y['codigo'] for y in fila['maniobras']):
+                    fila['maniobras'].append({'codigo': m['codigo'], 'clase': m['clase'], 'estado': m['estado'],
+                                              'alimentador': a})
+            if fila['lat'] is None and b.get('lat') is not None:
+                fila['lat'], fila['lon'] = b['lat'], b['lon']
+    orden = {n: i for i, n in enumerate(nombres)}
+    for fila in salida.values():
+        fila['alimentadores'].sort(key=lambda x: orden.get(x, len(orden)))
+    return sorted(salida.values(), key=lambda f: (f['alimentadores'], f['barra']))

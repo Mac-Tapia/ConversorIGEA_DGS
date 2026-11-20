@@ -170,3 +170,21 @@ def test_el_nombre_del_escenario_de_un_estudio_no_es_una_variante(escenario, esp
     2026-11-06: ``dict('Con proyecto')`` mandaba cada episodio a cuarentena."""
     e = _construir(resultado={'status': 'OK', 'converged': True, 'escenario': escenario})
     assert {k: v for k, v in e.accion.items() if k.startswith('escenario')} == esperado
+
+
+def test_lectura_que_no_converge_tras_reabrir_es_rechazada_con_su_causa():
+    """086:RF-125 / 024:RF-4 — la acción convergió, pero al reabrir el flujo no converge: el episodio es «rejected»
+    con esa causa y guarda la red; antes iba a cuarentena diciendo que la lectura no traía el grafo."""
+    lectura = _lectura(flujo=None, flujo_converge=False, avisos=['el flujo no converge tras reabrir'])
+    e = _construir(lectura=lectura)
+    assert e.clase is Clase.REJECTED
+    assert any('no converg' in b for b in e.aceptacion['bloqueos'])
+    assert not any('grafo' in b for b in e.aceptacion['bloqueos'])
+    assert e.topologia['grafo']['nodos']
+    assert e.flujo and all('no converge' in v['ausente'] for v in e.flujo.values())
+
+
+def test_lectura_de_otro_proyecto_que_no_converge_sigue_en_cuarentena():
+    """086:RF-125 — una lectura que no vale (otro proyecto) no puede rechazar la acción: va a cuarentena."""
+    lectura = _lectura(project='OTRO', flujo=None, flujo_converge=False)
+    assert _construir(lectura=lectura).clase is Clase.QUARANTINE

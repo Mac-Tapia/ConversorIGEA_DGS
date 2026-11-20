@@ -95,7 +95,8 @@ empresa modelo**: esta spec crea ese cálculo separado.
 - RF-26: EL SISTEMA ofrecerá el estudio del VAD en su pestaña de la web, «Estudio VAD», como el VNR y el PIT: crear el
   estudio, subir el caso y armar la empresa modelo como trabajo con el estado de cada sistema, registrar y responder las
   observaciones del regulador, armar el Informe Definitivo como trabajo con cada documento sin fuente nombrado como
-  hueco, y descargar las salidas del estudio. Cada ruta de la web del VAD tendrá su control en la pantalla.
+  hueco, y descargar las salidas del estudio. Cada ruta de la web del VAD tendrá su control en la pantalla. Sin estudios,
+  la pestaña no enseña una lista vacía y dice qué falta para crear el primero.
 
 ## Requisitos no funcionales
 - Fidelidad geométrica: el hash de los vértices de cada tramo del modelo rural coincide con el del VNR.

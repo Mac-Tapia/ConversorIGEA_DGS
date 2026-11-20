@@ -38,7 +38,11 @@ class FuentesRespuesta(BaseModel):
 
 
 class RedDelEspacioRespuesta(BaseModel):
-    fuente: str
+    #: 109:RF-26 (revisión web del 19-11): un espacio sin red es un estado esperado, no un error: 200 con «disponible»
+    #: falso y su motivo; antes era un 404 que el navegador apuntaba como error en Estudio VNR y Estudio PIT.
+    disponible: bool = True
+    motivo: str = ''
+    fuente: str = ''
     empresa: str = ''
     alimentadores: list[str] = Field(default_factory=list)
     canonical: bool = False
@@ -92,5 +96,5 @@ def registrar_rutas_fuentes(app: FastAPI, *, ws_or_404, guardar_subida: Callable
         """109:RF-26: la red convertida del espacio, de qué fuente, empresa y alimentadores."""
         red = fe.red_del_espacio(Path(ws_or_404(wid).root))
         if red is None:
-            raise HTTPException(404, 'El espacio aún no tiene una red cargada.')
+            return {'disponible': False, 'motivo': 'El espacio aún no tiene una red cargada.'}
         return {**red, 'canonical': bool(red.get('canonical'))}

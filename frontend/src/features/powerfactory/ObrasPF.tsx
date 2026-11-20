@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { cuenta } from '../../shared/formato';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
 import { Ayuda, Toggle } from '../../shared/ui';
@@ -222,7 +223,7 @@ export function ObrasPF({ project, feeders }: { project: string; feeders: string
             <div className="chips">
               {(red?.tramos ?? []).map((t) => (
                 <button key={t.nombre} type="button" className={`chip ${tramos.includes(t.nombre) ? 'on' : ''}`}
-                  title={`${t.tipo ?? 'sin tipo'} · ${t.nlnum} terna(s)`} onClick={() => setTramos((xs) => alternar(xs, t.nombre))}>
+                  title={`${t.tipo ?? 'sin tipo'} · ${cuenta(t.nlnum, 'terna', 'ternas')}`} onClick={() => setTramos((xs) => alternar(xs, t.nombre))}>
                   {t.nombre}
                 </button>
               ))}

@@ -1,4 +1,4 @@
-import { fmtBytes, fmtNum } from '../../shared/formato';
+import { fmtBytes, fmtNum, cuenta } from '../../shared/formato';
 import { PfWarning } from '../../shared/PfWarning';
 import { useMemo, useState } from 'react';
 import { api } from '../../api/client';
@@ -40,7 +40,7 @@ export function ResultsTab() {
     <div className="module">
       <div className="toolbar">
         <input className="search" type="search" placeholder="Filtrar ficheros…" value={filter} onChange={(e) => setFilter(e.target.value)} />
-        <span className="muted">{files.length} fichero(s){selected.length ? ' de la selección' : ''}</span>
+        <span className="muted">{cuenta(files.length, 'fichero', 'ficheros')}{selected.length ? ' de la selección' : ''}</span>
         <span className="spacer" />
         {files.length > 0 && <DescargaZip feeders={selected}>Descargar .zip</DescargaZip>}
       </div>
@@ -113,7 +113,7 @@ export function CatalogTab() {
           <AvisosTrabajo paso="catalogo" />
           <button className="btn" disabled={!ws.loaded || Boolean(active.engine)}
             onClick={() => startJob(() => api.catalogBuild(ws.id, selected))}>
-            Auditar {selected.length ? `${selected.length} seleccionado(s)` : 'todos'}
+            Auditar {selected.length ? cuenta(selected.length, 'seleccionado', 'seleccionados') : 'todos'}
           </button>
           {hasFile && (
             <a className="link" href={api.fileUrl(ws.id, 'catalogo_parametros.xlsx', true)}>Descargar catalogo_parametros.xlsx</a>
@@ -126,7 +126,7 @@ export function CatalogTab() {
             if (!r) return;
             setWs(r.workspace);
             setApplied(r);
-            toast('ok', 'Catálogo aplicado', `${r.count} código(s). ${r.aviso}`);
+            toast('ok', 'Catálogo aplicado', `${cuenta(r.count, 'código', 'códigos')}. ${r.aviso}`);
           }}><span>Soltar .xlsx o <u>elegir</u></span></FileDrop>
           <small className="muted">Solo cuentan las filas con estado «ficha» o «derivado».</small>
         </div>
@@ -145,7 +145,7 @@ export function CatalogTab() {
 
       {applied && applied.changes.length > 0 && (
         <div className="alert alert-info">
-          <strong>Efecto sobre {applied.preview_feeder}: {applied.changes.length} característica(s)</strong>
+          <strong>Efecto sobre {applied.preview_feeder}: {cuenta(applied.changes.length, 'característica', 'características')}</strong>
           <ul>{applied.changes.slice(0, 15).map((c) => (
             <li key={c.line} className={c.variation_pct != null && Math.abs(c.variation_pct) >= 25 ? 'strong' : ''}>{c.line}</li>
           ))}</ul>

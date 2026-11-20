@@ -402,6 +402,7 @@ class Cuadre:
     con_q: bool = False                  # 035:RF-5: también la Q de cabecera
     q_estado: str | None = None          # Q_CUADRADA, Q_INCOHERENTE_* o Q_SIN_BASE
     q_extremo: dict[str, Any] | None = None   # 035:RF-30: el flujo que lo demostró
+    imposible: dict[str, Any] | None = None   # 086:RF-124: por qué no puede cuadrar (fijas, pérdidas, SED que más pesa)
     metodos: dict[str, int] = field(default_factory=dict)       # 083:RF-13
     fijas_sospechosas: bool = False                              # 083:RF-7
 
@@ -604,8 +605,12 @@ def cuadrar(
     con_q: bool = False,
     tolerancia_q: float = TOLERANCIA_Q,
     fp_minimo_escaladas: float | None = None,
+    factor_inicial: float | None = None,
 ) -> Cuadre:
     """Ajusta los factores del reparto hasta que la cabecera dé el objetivo (RF-11, RF-12).
+
+    086:RF-124: como en :func:`cuadrar_conjunto`, con las escaladas al mínimo (contra ``factor_inicial``, el de antes del
+    oráculo) un exceso pequeño se corrige en las fijas (083:RF-30) y uno mayor para el ajuste con su causa.
 
     ``flujo(reparto)`` escribe las demandas y ejecuta el flujo de carga. ``remedio(nombre,
     ajustes)`` aplica un remedio de :data:`ESCALERA` y dice qué cambió. Si no cuadra, el
@@ -671,6 +676,22 @@ def cuadrar(
                     res.q_estado = Q_CUADRADA
                 res.cuadrado = True
                 return res
+            exceso = m.kw - objetivo.kw
+            if (exceso > tolerancia * objetivo.kw
+                    and actual.a <= ESCALADAS_AL_MINIMO * (factor_inicial if factor_inicial is not None else reparto.a)):
+                suma_fijas = sum(p for p, _q in actual.fijas.values())
+                if exceso <= TOPE_CORRECCION_FIJAS * suma_fijas:
+                    # 083:RF-30, también con un solo alimentador (086:RF-124).
+                    factor = 1 - exceso / suma_fijas
+                    actual = meta = replace(actual, fijas={s: (p * factor, q * factor) for s, (p, q) in actual.fijas.items()})
+                    res.metodos['fijas_corregidas'] = res.metodos.get('fijas_corregidas', 0) + 1
+                    puntos_p.clear()
+                    continue
+                # 086:RF-124: ni las escaladas ni las fijas lo bajan: se para con su causa.
+                res.imposible = causa_imposible(objetivo.alimentador or objetivo.medidor or 'el alimentador', actual, float(m.kw), m.carga_kw, objetivo.kw)
+                res.fijas_sospechosas = True
+                res.motivo = res.imposible['texto']
+                break
             puntos_p.append((actual.a, m.kw))
             a = _siguiente(actual.a, m.kw, objetivo.kw, puntos_p,
                            sum(p for p, _ in actual.base.values()))
@@ -946,6 +967,9 @@ class CuadreConjunto:
     q_extremo: dict[str, dict[str, Any]] = field(default_factory=dict)   # 035:RF-30
     metodos: dict[str, int] = field(default_factory=dict)       # 083:RF-13
     fijas_sospechosas: bool = False                              # 083:RF-7
+    #: 086:RF-124: las claves que no pueden cuadrar (escaladas al mínimo y fijas más pérdidas por encima de su medida),
+    #: con su causa; las demás del proyecto siguen y se informan cada una con su estado.
+    imposibles: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def desvio(self, clave: str) -> float | None:
         """Error relativo de kW de una clave en el último flujo común que convergió."""
@@ -953,6 +977,11 @@ class CuadreConjunto:
         if m is None or not m.converge or m.kw.get(clave) is None:
             return None
         return _rel(m.kw[clave], self.objetivos[clave].kw)  # type: ignore[arg-type]
+
+    def cumple(self, clave: str) -> bool:
+        """086:RF-124: si esa clave está en tolerancia en el último flujo común, aunque el proyecto no cuadre entero."""
+        d = self.desvio(clave)
+        return d is not None and abs(d) <= self.tolerancia
 
 
 def cuadrar_conjunto(
@@ -970,8 +999,14 @@ def cuadrar_conjunto(
     con_q: Iterable[str] = (),
     tolerancia_q: float = TOLERANCIA_Q,
     fp_minimo_escaladas: float | None = None,
+    factores_iniciales: Mapping[str, float] | None = None,
 ) -> CuadreConjunto:
     """Ajusta a la vez un factor por clave hasta que todas den su objetivo (021:RF-54 a RF-58).
+
+    ``factores_iniciales`` son los de antes del arranque del oráculo (086:RF-124): «escaladas al mínimo» (083:RF-30) se
+    mide contra ellos; contra el del oráculo, que ya puede ser casi cero, no se alcanzaba nunca. Una clave con las
+    escaladas al mínimo y un exceso que no se corrige en sus fijas no puede cuadrar: se deja quieta con su causa y, si
+    las demás ya cumplen, se para en vez de gastar los flujos.
 
     Las claves son los alimentadores de un proyecto, o las zonas de uno con central: en el
     proyecto de NA203 y NA205 (2026-10-17) se iba a calibrar uno y después el otro, y el
@@ -1060,12 +1095,20 @@ def cuadrar_conjunto(
                 # 083:RF-30: con las escaladas al mínimo, lo que sobra solo puede salir de las fijas.
                 suma_fijas = sum(p for p, _q in r.fijas.values())
                 exceso = float(y) - objetivos[k].kw
-                if (exceso > tolerancia * objetivos[k].kw and r.a <= ESCALADAS_AL_MINIMO * repartos[k].a
+                inicial = float((factores_iniciales or {}).get(k, repartos[k].a))          # 086:RF-124
+                al_minimo = r.a <= ESCALADAS_AL_MINIMO * inicial
+                if (exceso > tolerancia * objetivos[k].kw and al_minimo
                         and exceso <= TOPE_CORRECCION_FIJAS * suma_fijas):
                     factor = 1 - exceso / suma_fijas
                     nuevo[k] = replace(r, fijas={s: (p * factor, q * factor) for s, (p, q) in r.fijas.items()})
                     res.metodos['fijas_corregidas'] = res.metodos.get('fijas_corregidas', 0) + 1
                     puntos[k].clear()
+                    continue
+                if exceso > tolerancia * objetivos[k].kw and al_minimo:
+                    # 086:RF-124: ni las escaladas ni la corrección de fijas lo bajan: no puede cuadrar. Se queda
+                    # quieto con su causa y no mueve a los demás.
+                    res.imposibles[k] = causa_imposible(k, r, float(y), m.carga_kw.get(k), objetivos[k].kw)
+                    res.fijas_sospechosas = True
                     continue
                 a = (r.a + paso[n_k]) if paso is not None else _siguiente(  # 083:RF-12
                     r.a, y, objetivos[k].kw, puntos[k], pendiente[k])  # type: ignore[arg-type]
@@ -1082,6 +1125,13 @@ def cuadrar_conjunto(
                         res.q_extremo[k] = _extremo_q(r, m.kvar[k], estado)  # type: ignore[arg-type]
                         r = r.al_perfil()                                    # 035:RF-29
                 nuevo[k] = r.con_factores(a if a > 0 else r.a / 2, b)
+            pendientes = [k for k in ajustables if k not in res.imposibles
+                          and not (abs(_rel(m.kw[k], objetivos[k].kw)) <= tolerancia  # type: ignore[arg-type]
+                                   and (k not in con_q or q_listas[k]))]
+            if res.imposibles and not pendientes:
+                # 086:RF-124: las demás ya cumplen y las imposibles no cambian con más flujos.
+                res.motivo = 'sin cuadrar todos: ' + '; '.join(c['texto'] for c in res.imposibles.values())
+                break
             actual = meta = nuevo
             continue
         # 083:RF-7: sin ningún flujo bueno, primero las escaladas casi en cero. Si ni así, no son ellas.
@@ -1129,6 +1179,30 @@ def cuadrar_conjunto(
         # La red queda con los últimos repartos que convergieron (006:RF-18, RF-56).
         res.medida = flujo(res.repartos)
     return res
+
+
+def causa_imposible(clave: str, r: Reparto, kw: float, carga_kw: float | None, objetivo_kw: float) -> dict[str, Any]:
+    """086:RF-124: por qué una clave no puede cuadrar: sus fijas, sus pérdidas y la SED fija que más pesa.
+
+    Las pérdidas son lo que entra por la cabecera menos lo que consumen sus cargas en el flujo; sin ese dato, ``None``.
+    """
+    fijas = {s: float(p) for s, (p, _q) in r.fijas.items()}
+    suma = sum(fijas.values())
+    perdidas = kw - carga_kw if carga_kw is not None else None
+    exceso = kw - objetivo_kw
+    sed, p_sed = max(fijas.items(), key=lambda x: x[1]) if fijas else ('', 0.0)
+    partes = [f'{clave}: con las escaladas al mínimo da {kw:,.1f} kW frente a {objetivo_kw:,.1f} kW medidos '
+              f'({exceso / objetivo_kw:+.1%}); sus fijas suman {suma:,.1f} kW']
+    if perdidas is not None:
+        partes.append(f'y sus pérdidas {perdidas:,.1f} kW')
+    texto = ' '.join(partes) + '; no puede cuadrar sin cambiar sus fijas'
+    if sed:
+        texto += (f'. La SED fija que más pesa es {sed}, con {p_sed:,.1f} kW ({p_sed / suma:.0%} de sus fijas): '
+                  'revise su registro y dónde se conecta')
+    return {'clave': clave, 'kw': kw, 'objetivo_kw': objetivo_kw, 'exceso_kw': exceso, 'fijas_kw': suma,
+            'perdidas_kw': perdidas, 'escaladas_factor': r.a,
+            'dominante': {'sed': sed, 'kw': p_sed, 'parte': (p_sed / suma) if suma else None} if sed else None,
+            'texto': texto + '.'}
 
 
 def fijas_corregidas(antes: Reparto, despues: Reparto) -> list[dict[str, Any]]:

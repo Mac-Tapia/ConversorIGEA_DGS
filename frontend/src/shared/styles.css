@@ -346,6 +346,9 @@ small.alert { display: block; margin: 4px 0 0; }
 .curva-serie { fill: none; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
 .curva-serie-kvar { fill: none; stroke-width: 1; stroke-dasharray: 4 3; opacity: .75; vector-effect: non-scaling-stroke; }
 .curva-pico-serie { stroke: var(--surface); stroke-width: 2; }
+/* 086:RF-123: la etiqueta de cada máxima, legible sobre las curvas (halo del color del fondo). */
+.curva-etiqueta-pico text { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.curva-guia-pico { stroke-width: 1; stroke-dasharray: 3 2; }
 .curva-series { display: flex; flex-wrap: wrap; gap: 6px; }
 .curva-serie-btn {
   display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface);
@@ -593,6 +596,17 @@ button.link { background: none; border: 0; padding: 0; color: var(--primary); fo
 .plano-espacio-mapa { min-width: 0; min-height: 0; }
 .plano-espacio-mapa .map-frame { height: 100%; }
 /* 111:RF-23: el unifilar en el sitio del plano, con los tokens del tema (claro y oscuro) y el elegido resaltado. */
+/* 111:RF-24: los alimentadores que se ven junto al principal; la lista flota sobre el plano y se cierra como un menú. */
+.selector-alimentadores { position: relative; }
+.selector-alimentadores > summary { cursor: pointer; padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: 6px;
+  background: var(--surface); }
+.selector-alimentadores-caja { position: absolute; z-index: 20; margin-top: 4px; padding: 8px; min-width: 220px;
+  max-height: 320px; overflow: auto; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .18); }
+.selector-alimentadores-caja fieldset { border: 0; margin: 6px 0 0; padding: 0; }
+.selector-alimentadores-caja .casilla { display: flex; align-items: center; min-height: 28px; gap: 4px; }
+.selector-alimentadores-caja .casilla input { width: 20px; height: 20px; }
+.plano-transferencias { margin: 6px 0; }
 .segmentado { display: inline-flex; gap: 0; }
 .segmentado button[aria-pressed="true"] { background: var(--primary); color: var(--primary-ink); }
 .unifilar { height: 100%; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }

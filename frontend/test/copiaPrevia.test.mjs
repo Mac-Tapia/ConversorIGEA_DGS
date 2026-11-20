@@ -20,7 +20,7 @@ async function cargar() {
         import { OptionsPanel } from './src/features/conversion/OptionsPanel';
         import { TipoDeAnalisis } from './src/features/powerfactory/TipoDeAnalisis';
         export { MARCADOR_CARPETA_COPIA, resumenCopia, ultimaBuena } from './src/app/AvisosDatos';
-        export { resumenAuto } from './src/features/conversion/InputsPanel';
+        export { resumenAuto, lineaDeEntrada } from './src/features/conversion/InputsPanel';
         export { textoPildoraPf } from './src/app/InstalacionesPowerFactory';
         export { textoNorma } from './src/features/powerfactory/TipoDeAnalisis';
         export { fmtBytes } from './src/shared/formato';
@@ -181,3 +181,14 @@ test('086:RF-110 la ayuda del CRS va plegada, detrás de su resumen', async () =
   assert.match(html, /<details class="ayuda"><summary>Qué CRS vale<\/summary><div class="muted">Cualquier EPSG <b>proyectado en metros<\/b>[^<]*100\.000 veces/);
   assert.ok(!/<details class="ayuda" open/.test(html), 'plegada al abrir la web');
 });
+
+test('086:RF-110 (W8) con la fuente ya cargada, la línea de la entrada no vuelve a pedir «Cargar / listar»', async () => {
+  const { lineaDeEntrada } = await cargar();
+  assert.equal(typeof lineaDeEntrada, 'function', 'falta lineaDeEntrada en InputsPanel (086:RF-110, W8)');
+  assert.equal(lineaDeEntrada(true, 'txt', true, []), 'Los tres TXT cargados.');
+  assert.equal(lineaDeEntrada(true, 'mdb', true, []), 'Base de datos cargada.');
+  assert.equal(lineaDeEntrada(true, 'vnr', true, []), 'Paquete VNR-GIS cargado.');
+  assert.match(lineaDeEntrada(true, 'txt', false, []), /Pulse «Cargar \/ listar alimentadores»/);
+  assert.equal(lineaDeEntrada(false, 'txt', false, ['RED', 'CARGA']), 'Pendientes: RED, CARGA.');
+});
+

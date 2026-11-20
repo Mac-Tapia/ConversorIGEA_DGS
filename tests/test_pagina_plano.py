@@ -171,7 +171,7 @@ def test_111_rf14_el_boton_de_capas_se_ve_con_la_politica_de_la_pagina(tmp_path)
     """111:RF-14 — la página va aislada (``img-src`` sin su propio origen) y el control de capas está plegado: el
     icono de Leaflet (``images/layers.png``) no carga y el botón quedaba invisible. El icono va en la página, como
     ``data:``, que la política sí admite; ninguna regla de estilo pide una imagen por URL relativa."""
-    html = _pagina().pagina(_vistas(tmp_path))
+    html = _pagina().pagina(_vistas(tmp_path)[0])
     reglas = re.findall(r'\.leaflet-control-layers-toggle\s*\{[^}]*\}', html)
     assert any('url("data:image/svg+xml' in r or "url('data:image/svg+xml" in r for r in reglas), reglas
     ultima = [r for r in reglas if 'background-image' in r][-1]

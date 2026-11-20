@@ -1,4 +1,5 @@
 import { api } from '../../api/client';
+import { cuenta } from '../../shared/formato';
 import { useApp } from '../../shared/context';
 import type { DatosEmpresa } from '../../api/types';
 import { AvisoBeta, MarcaBeta } from '../../shared/MarcaBeta';
@@ -40,7 +41,7 @@ export function DatosEmpresaPF({ project, feeders, libro, onCambio }: {
       {libro && (
         <>
           <ul className="small">
-            <li>Clases: {libro.clases.join(', ') || 'ninguna'}{libro.tipos.length > 0 && ` · ${libro.tipos.length} tipo(s) con fila propia`}</li>
+            <li>Clases: {libro.clases.join(', ') || 'ninguna'}{libro.tipos.length > 0 && ` · ${cuenta(libro.tipos.length, 'tipo', 'tipos')} con fila propia`}</li>
             <li>Equipos telemandados: {libro.telemandados} · bancos de condensadores: {libro.bancos.length}</li>
             <li>Energía de pérdidas: {libro.coste_energia_kwh ?? '—'} {libro.moneda && `${libro.moneda}/kWh`} · tasa de descuento:{' '}
               {libro.tasa_descuento == null ? '—' : `${(libro.tasa_descuento * 100).toFixed(2)} %`}</li>

@@ -11,13 +11,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 463 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 128 |
-| Interfaz | `frontend/src/` | 115 |
-| Pruebas de la interfaz | `frontend/test/` | 56 |
-| Pruebas | `tests/` | 618 |
+| Interfaz | `frontend/src/` | 116 |
+| Pruebas de la interfaz | `frontend/test/` | 62 |
+| Pruebas | `tests/` | 622 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 14157 líneas y 442 funciones, pendiente de partir (002).
+`web/services.py` tiene 14174 líneas y 443 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3892 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3902 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -1017,6 +1017,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/plano/logicaUnifilar.ts` | — | 111 | Lógica del unifilar sin reglas eléctricas: coordenadas del dibujo desde el nivel y el orden del servidor, tramos por sus barras y bandas de… |
 | `test/plano.test.mjs` | — | 111 | Pruebas de la pestaña del plano sin navegador: tipos del contrato, mensajes, teclado, tabla virtualizada, inspector, capas, comparación, ediciones,… |
 | `test/planoEspacio.test.mjs` | — | 111 | Pruebas del plano en el espacio de ingeniería sin navegador: la selección enlazada entre plano, tabla, inspector y capas, el hallazgo con su norma o… |
+| `test/planoVariosAlimentadores.test.mjs` | — | 111 | Pruebas del plano con varios alimentadores sin navegador: el principal primero y los añadidos sin repetir, las casillas con filtro, la lista que se… |
 | `test/unifilar.test.mjs` | — | 111 | Pruebas del unifilar sin navegador: disposición desde la cabecera, mismos códigos que el plano, la misma selección y los mismos resultados, con el… |
 | `test/puntosDeDiseno.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/app/ArchivoInformes.tsx` | — | 105 | Tarjeta para ver, poner y quitar la carpeta de archivo de los informes. |
@@ -1132,6 +1133,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/powerfactory/guardadoOrdenado.ts` | — | 072 | El guardado del proyecto y los alimentadores del espacio con PUT /options: al momento en pantalla, y después solo la respuesta o el fallo del último… |
 | `src/features/powerfactory/TransferenciaPF.tsx` | — | 011, 104, 123 | Paso 4.3: transferencia de carga entre dos alimentadores. |
 | `src/features/powerfactory/alternativas.ts` | — | 042 | Las palabras y el orden de las alternativas por alimentador, las mismas del informe |
+| `src/features/powerfactory/centralesDeSet.ts` | — | 086, 122 | La SET de cada central térmica del libro en la máxima por barra: las SET de los alimentadores analizados primero, el tramo de un alimentador de la… |
 | `src/features/powerfactory/clientesCatalogo.ts` | — | 004, 008, 025, 091 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |
 | `src/features/powerfactory/enviarInformeLogica.ts` | — | 110 | Lo que decide la ventana de envío: cuentas, motivo sin cuenta, petición de la vista previa, anulación al cambiar un campo y textos de estado. |
 | `src/features/powerfactory/formularioOperacionSet.ts` | — | 063 | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. |
@@ -1157,6 +1159,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/e2e/f04_asistente.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/f05_selector_unico.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/f06_vad_linea.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/e2e/f07_nube_correo.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/f10_libros_nuevos.e2e.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/playwright.config.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/e2e/sin_omitidas.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
@@ -1183,10 +1186,14 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/superficies.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/tarjetaOperador.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/tensionFuente.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/centralesDeSet.test.mjs` | — | 086, 122 | Pruebas de la SET de cada central térmica en la máxima por barra: primero las SET de los analizados, el tramo de la SET elegida y por qué una central… |
+| `test/maximaNoCoincidente.test.mjs` | — | 086, 126 | Pruebas del instante de la calibración: la máxima de cada alimentador (no coincidente) en los tres análisis, el valor por defecto sin cambiar y el… |
+| `test/etiquetasMaxima.test.mjs` | — | 086, 123 | Pruebas de las etiquetas de las máximas en la gráfica de curvas: 200 repartos sorteados (la semilla en el registro) sin taparse ni salir del gráfico. |
 | `test/tiposDeAnalisis.test.mjs` | — | 072 | Selector explícito, ficha, pasos de cada tipo, aviso del PIDE sin corto plazo y cuerpo de «Planificar» por tipo. |
 | `test/guardadoOrdenado.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/ubicacionCarga.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/vadPanel.test.mjs` | — | 108 | Pruebas de la pestaña del VAD sin navegador: matriz de cobertura de las rutas del VAD (llamada, control y prueba del servidor), el panel con un… |
+| `test/sinPluralEntreParentesis.test.mjs` | — | 086, 110 | Ningún texto de la interfaz con «palabra(s)» o «palabra(es)»: recorre los literales de `frontend/src` con el analizador de TypeScript (deja fuera… |
 
 ### Configuración, dependencias y entrega
 

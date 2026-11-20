@@ -3809,6 +3809,13 @@
             "title": "Centrales",
             "type": "object"
           },
+          "centrales_set": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Centrales Set",
+            "type": "object"
+          },
           "centrales_tramo": {
             "additionalProperties": {
               "type": "string"
@@ -7143,6 +7150,39 @@
         "title": "ManiobraPlanoRespuesta",
         "type": "object"
       },
+      "ManiobraTransferenciaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "alimentador": {
+            "title": "Alimentador",
+            "type": "string"
+          },
+          "clase": {
+            "title": "Clase",
+            "type": "string"
+          },
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "estado": {
+            "enum": [
+              "abierto",
+              "cerrado"
+            ],
+            "title": "Estado",
+            "type": "string"
+          }
+        },
+        "required": [
+          "codigo",
+          "clase",
+          "estado",
+          "alimentador"
+        ],
+        "title": "ManiobraTransferenciaRespuesta",
+        "type": "object"
+      },
       "MesClienteFijoRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -9759,6 +9799,14 @@
             "title": "Sin Coordenadas",
             "type": "array"
           },
+          "transferencias": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TransferenciaPlanoRespuesta"
+            },
+            "title": "Transferencias",
+            "type": "array"
+          },
           "vistas": {
             "items": {
               "$ref": "#/components/schemas/VistaPlanoRespuesta"
@@ -10481,12 +10529,18 @@
             "title": "Canonical",
             "type": "boolean"
           },
+          "disponible": {
+            "default": true,
+            "title": "Disponible",
+            "type": "boolean"
+          },
           "empresa": {
             "default": "",
             "title": "Empresa",
             "type": "string"
           },
           "fuente": {
+            "default": "",
             "title": "Fuente",
             "type": "string"
           },
@@ -10494,11 +10548,13 @@
             "default": "",
             "title": "Huella",
             "type": "string"
+          },
+          "motivo": {
+            "default": "",
+            "title": "Motivo",
+            "type": "string"
           }
         },
-        "required": [
-          "fuente"
-        ],
         "title": "RedDelEspacioRespuesta",
         "type": "object"
       },
@@ -11664,6 +11720,17 @@
             "title": "Paralelo Con",
             "type": "array"
           },
+          "seccion_mm2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seccion Mm2"
+          },
           "tipo": {
             "title": "Tipo",
             "type": "string"
@@ -11744,6 +11811,61 @@
           "project"
         ],
         "title": "TransferenciaIn",
+        "type": "object"
+      },
+      "TransferenciaPlanoRespuesta": {
+        "additionalProperties": false,
+        "description": "111:RF-25: una barra donde se tocan dos o más alimentadores del plano, con sus maniobras de la fuente.",
+        "properties": {
+          "alimentadores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alimentadores",
+            "type": "array"
+          },
+          "barra": {
+            "title": "Barra",
+            "type": "string"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lon"
+          },
+          "maniobras": {
+            "items": {
+              "$ref": "#/components/schemas/ManiobraTransferenciaRespuesta"
+            },
+            "title": "Maniobras",
+            "type": "array"
+          }
+        },
+        "required": [
+          "barra",
+          "lat",
+          "lon",
+          "alimentadores",
+          "maniobras"
+        ],
+        "title": "TransferenciaPlanoRespuesta",
         "type": "object"
       },
       "TransformadorCalcularIn": {

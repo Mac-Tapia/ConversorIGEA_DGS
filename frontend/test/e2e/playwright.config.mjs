@@ -67,9 +67,13 @@ export default defineConfig({
     // previa (sandbox sin allow-same-origin) eso lanza un SecurityError que no es de la web. La web no registra
     // ninguno y la red ya va cortada.
   },
-  webServer: [servidor(`-m convertersmartgrid.presentacion.web`, puerto, carpeta),
+  // 109 T16 (f07): la web de los recorridos nunca lee un config/nube.json del equipo (heredado del checkout primario):
+  // apunta a uno que no existe, así siempre dice «Sin cuenta conectada…» y ningún recorrido llega a una cuenta real.
+  webServer: [servidor(`-m convertersmartgrid.presentacion.web`, puerto, carpeta,
+    { CSG_NUBE_CONFIG: join(carpeta, 'sin_nube', 'nube.json') }),
     // 109 T19: la misma web con la nube simulada (tests/e2e_web_nube_simulada.py), en el puerto siguiente y con sus
-    // propias carpetas, para el recorrido del selector único (f05). Los demás recorridos no la usan.
+    // propias carpetas, para el recorrido del selector único (f05) y el de Nube y Correo (f07, 109 T16). Los demás
+    // recorridos no la usan.
     servidor(`"${join(RAIZ, 'tests', 'e2e_web_nube_simulada.py')}"`, puertoNube, carpetaNube),
     // 104 T6: la misma web con la vigilancia de libros nuevos encendida y un intervalo corto, para el recorrido F10.
     servidor(`-m convertersmartgrid.presentacion.web`, puertoLibros, carpetaLibros,

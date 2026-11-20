@@ -64,7 +64,8 @@ test('104:RF-31 el indicador de fondo dice lo que hace y calla cuando está libr
   const { textoDelFondo } = await cargar();
   assert.equal(textoDelFondo({ estado: 'libre', texto: null, por_verificar: 0 }), null);
   assert.equal(textoDelFondo({ estado: 'en_espera', texto: 'Revisión de libros en pausa' }), 'Revisión de libros en pausa');
-  assert.match(textoDelFondo({ estado: 'libre', por_verificar: 2 }), /2 libro\(s\) por verificar/);
+  assert.match(textoDelFondo({ estado: 'libre', por_verificar: 2 }), /2 libros por verificar/);
+  assert.match(textoDelFondo({ estado: 'libre', por_verificar: 1 }), /^1 libro por verificar/);
 });
 
 test('104:RF-38 el dataset desactualizado dice cuándo se regenerará', async () => {

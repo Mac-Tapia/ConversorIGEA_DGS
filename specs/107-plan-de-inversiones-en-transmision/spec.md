@@ -188,7 +188,8 @@ común.
 - RF-19: EL SISTEMA tomará las entradas del PIT de las fuentes de la empresa del espacio (109:RF-25): el libro de la red
   del área, la proyección y las alternativas, sin pedir otra vez lo que la empresa ya cargó; lo que se suba quedará en la
   empresa para los demás módulos. Las alternativas solo entrarán si se nombran. La pestaña dirá de qué carga y de qué
-  empresa es la red convertida del espacio, y avisará si no es la del perfil.
+  empresa es la red convertida del espacio, y avisará si no es la del perfil. Un perfil sin
+  áreas del PIT no es un error: la lista de áreas sale vacía con su motivo, sin un 422.
 - RF-20: EL SISTEMA leerá del registro normativo lo que la Norma Tarifas fija para el PIT, y no de la entrada: los años
   de la programación de la demanda (art. 5.9.4), con el año 1 en el primero pedido, y el horizonte de las alternativas
   (art. 3.14); el factor de potencia de las barras de MT de las SET (art. 12.1.8.c) para la Q de la demanda; el N-1

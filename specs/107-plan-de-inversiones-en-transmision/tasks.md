@@ -452,3 +452,7 @@ adaptador VNR (integrador f9).
       (`GET /api/normativa/fuentes`, `POST /api/normativa/regenerar` y `/regenerar/{token}/aplicar`: la vista previa
       corre el generador en una carpeta temporal, no toca la biblioteca y dice qué reglas entran, salen o cambian; aplicar
       escribe en la capa del usuario solo si la biblioteca no cambió), `test_biblioteca_normativa` y `test_pit_sombreadas`.
+- [x] T41. Perfil sin áreas del PIT (revisión web del 19-11, W2): `GET /api/pit/areas` da 200 con `areas` vacía y
+      su motivo. (RF-19)
+      Hecho cuando: `tests/test_revision_web_estados.py` (107:RF-19) en verde con rojo previo por aserción. Hecho en esta
+      entrega (ce): rojo VALIDO y verde 41 passed en `D:/csg/PM_IMPL/REVISION_WEB/w2/`.

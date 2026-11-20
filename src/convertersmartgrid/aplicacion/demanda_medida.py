@@ -3031,6 +3031,40 @@ class BarraMedida:
     barra suma los de todos, registro a registro."""
 
 
+def centrales_en_su_set(estructura, medidores: Sequence[MedidorBarra], alimentadores: Sequence[str],
+                        centrales_set: Mapping[str, str] | None = None,
+                        centrales_en_tramo: Mapping[str, str] | None = None,
+                        ) -> tuple[list[MedidorBarra], list[str]]:
+    """086:RF-122 (amplía 022:RF-88): cada central (CT…) en la SET que dice el operador y solo las que entran.
+
+    ``centrales_set`` es {medidor: código de SET} de la estructura; una SET que no está en ella no cambia nada. Una
+    central cuya SET (la elegida o la del libro) no tiene ninguno de los alimentadores analizados no entra en la
+    máxima por barra, y se dice por qué; la que está en el tramo de un alimentador se mide con él (RF-88) y no se toca.
+    """
+    from dataclasses import replace
+
+    elegida = {clave_codigo(k): v for k, v in (centrales_set or {}).items() if v}
+    en_tramo = {clave_codigo(k) for k, v in (centrales_en_tramo or {}).items() if v}
+    pedidas = {st.codigo for f in alimentadores if (st := estructura.set_de(f)) is not None}
+    salida: list[MedidorBarra] = []
+    avisos: list[str] = []
+    for m in medidores:
+        if not m.central or clave_codigo(m.medidor) in en_tramo:
+            salida.append(m)
+            continue
+        st = estructura.sets.get(elegida.get(clave_codigo(m.medidor), ''))
+        if st is not None:
+            m = replace(m, siglas=st.codigo)
+        else:
+            st = (estructura.set_de_texto(m.siglas) if m.siglas else None) or estructura.set_de_medidor(m.medidor)
+        if st is None or (pedidas and st.codigo not in pedidas):
+            donde = st.rotulo if st is not None else 'sin SET en la estructura'
+            avisos.append(f'{m.medidor}: su SET ({donde}) no tiene ninguno de los alimentadores analizados; no entra.')
+            continue
+        salida.append(m)
+    return salida, avisos
+
+
 def barras_de_calibracion(estructura, medidores: Sequence[MedidorBarra],
                           alimentadores: Sequence[str],
                           kv_de: dict[str, float],

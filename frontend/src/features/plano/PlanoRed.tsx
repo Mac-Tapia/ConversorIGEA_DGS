@@ -7,9 +7,9 @@ import { useApp } from '../../shared/context';
 import { CapasResultados, Comparacion } from './CapasResultados';
 import { EdicionesPlano } from './EdicionesPlano';
 import { InspectorElemento } from './InspectorElemento';
-import { ajustarPanel, almacenDelNavegador, buscarPorCodigo, elementosDe, hallazgosDe, leerVertices, panelesRecordados,
-  recordarPaneles, recordarVariacion, seleccionEnlazada, variacionRecordada, type Elemento, type Hallazgo,
-  type Paneles } from './logicaPlano';
+import { ajustarPanel, alimentadoresAnadibles, alimentadoresDelPlano, almacenDelNavegador, alternarAlimentador,
+  buscarPorCodigo, elementosDe, hallazgosDe, leerVertices, panelesRecordados, recordarPaneles, recordarVariacion,
+  seleccionEnlazada, variacionRecordada, type Elemento, type Hallazgo, type Paneles } from './logicaPlano';
 import { leerMensaje, mensajeAlPlano } from './mensajesPlano';
 import { TablaElementos } from './TablaElementos';
 import { TEXTOS } from './textosPlano';
@@ -29,6 +29,9 @@ export function PlanoRed() {
   const { ws, feeders, selected, run, startJob, active, jobs } = useApp();
   const opciones = useMemo(() => feeders.map((f) => f.feeder), [feeders]);
   const [alimentador, setAlimentador] = useState<string>(() => selected[0] ?? '');
+  // 111:RF-24: los alimentadores que se ven junto al principal, cada uno con su color en el plano.
+  const [extra, setExtra] = useState<string[]>(() => selected.slice(1));
+  const [filtro, setFiltro] = useState('');
   const [datos, setDatos] = useState<Plano | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [elegido, setElegido] = useState<string | null>(null);
@@ -48,18 +51,22 @@ export function PlanoRed() {
   // 111:RF-23: el plano o su unifilar en el mismo sitio, con la misma selección y los mismos resultados.
   const [modo, setModo] = useState<'plano' | 'unifilar'>('plano');
   const marco = useRef<HTMLIFrameElement>(null);
+  const listaAlimentadores = useRef<HTMLDetailsElement>(null);
   const espacio = useRef<HTMLDivElement>(null);
   const lado = useRef<HTMLDivElement>(null);
   const actual = alimentador || opciones[0] || '';
+  const elegidos = useMemo(() => alimentadoresDelPlano(actual, extra, opciones), [actual, extra, opciones]);
+  const claveElegidos = elegidos.join('|');
+  const anadibles = useMemo(() => alimentadoresAnadibles(opciones, actual, filtro), [opciones, actual, filtro]);
   const ocupado = Boolean(active.engine || active.powerfactory);
 
   useEffect(() => {
     if (!actual) return;
     let vivo = true;
-    void run(() => plano.datos(ws.id, [actual], proyecto || null)).then((d) => { if (vivo && d) setDatos(d); });
+    void run(() => plano.datos(ws.id, elegidos, proyecto || null)).then((d) => { if (vivo && d) setDatos(d); });
     return () => { vivo = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ws.id, actual, refresco]);
+  }, [ws.id, claveElegidos, refresco]);
 
   useEffect(() => {
     if (!actual) return;
@@ -86,6 +93,24 @@ export function PlanoRed() {
 
   useEffect(() => { setPaneles(panelesRecordados(almacenDelNavegador(), ws.id)); }, [ws.id]);
 
+  // 111:RF-24: la lista de «Ver también» flota sobre el plano; se cierra al pulsar fuera, al entrar en el plano (el
+  // marco se lleva el foco y la ventana lo pierde) o con Escape, para no tapar sus controles.
+  useEffect(() => {
+    const cerrar = () => { if (listaAlimentadores.current?.open) listaAlimentadores.current.open = false; };
+    const fuera = (e: PointerEvent) => {
+      if (!listaAlimentadores.current?.contains(e.target as Node)) cerrar();
+    };
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') cerrar(); };
+    document.addEventListener('pointerdown', fuera);
+    document.addEventListener('keydown', tecla);
+    window.addEventListener('blur', cerrar);
+    return () => {
+      document.removeEventListener('pointerdown', fuera);
+      document.removeEventListener('keydown', tecla);
+      window.removeEventListener('blur', cerrar);
+    };
+  }, []);
+
   // El estudio termina en el carril de trabajos; al acabar, se piden sus capas.
   const estudio = Object.values(jobs).find((j) => j.kind === 'plano_estudiar' && j.result?.variacion === variacion?.id);
   useEffect(() => {
@@ -97,7 +122,8 @@ export function PlanoRed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estudio?.status, estudio?.id]);
 
-  const vista = datos?.vistas[0] ?? null;
+  const vista = datos?.vistas.find((v) => v.alimentador === actual) ?? datos?.vistas[0] ?? null;
+  const transferencias = datos?.transferencias ?? [];
   const elementos = useMemo(() => elementosDe(datos?.vistas ?? []), [datos]);
   const hallados = useMemo(() => buscarPorCodigo(elementos, busqueda), [elementos, busqueda]);
   const seleccion: Elemento | null = elementos.find((e) => e.codigo === elegido) ?? null;
@@ -191,6 +217,24 @@ export function PlanoRed() {
             {opciones.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         </label>
+        <details className="selector-alimentadores" ref={listaAlimentadores}>
+          <summary>{TEXTOS.verTambien}{extra.length ? ` (${elegidos.length - 1})` : ''}</summary>
+          <div className="selector-alimentadores-caja">
+            <label>{TEXTOS.filtrarAlimentadores}{' '}
+              <input type="search" value={filtro} onChange={(e) => setFiltro(e.target.value)} />
+            </label>
+            <fieldset>
+              <legend className="sr-only">{TEXTOS.verTambien}</legend>
+              {anadibles.map((o) => (
+                <label key={o} className="casilla">
+                  <input type="checkbox" checked={elegidos.includes(o)} onChange={() => setExtra((x) => alternarAlimentador(x, o))} />
+                  {' '}{o}
+                </label>
+              ))}
+            </fieldset>
+            {extra.length > 0 && <button type="button" className="link" onClick={() => setExtra([])}>{TEXTOS.quitarTodos}</button>}
+          </div>
+        </details>
         <label>{TEXTOS.buscar}{' '}
           {/* aria-controls solo cuando la lista existe: apuntar a un id que no está es inválido (axe). */}
           <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
@@ -213,6 +257,23 @@ export function PlanoRed() {
         </ul>
       )}
       {datos && !datos.fondo.encendido && <p className="muted">{datos.fondo.motivo}</p>}
+      {elegidos.length > 1 && datos && (
+        // 111:RF-25: los puntos donde se tocan los alimentadores elegidos; cada uno lleva a su barra en todas las vistas.
+        <details className="plano-transferencias">
+          <summary>{TEXTOS.transferencias} ({transferencias.length})</summary>
+          {transferencias.length === 0 ? <p className="muted">{TEXTOS.sinTransferencias}</p> : (
+            <ul className="lista-compacta">
+              {transferencias.map((t) => (
+                <li key={t.barra}>
+                  <button type="button" className="link" onClick={() => elegir(t.barra)}>{t.barra}</button>{' '}
+                  <span className="muted">{t.alimentadores.join(' ↔ ')}
+                    {t.maniobras.length > 0 && ` · ${t.maniobras.map((m) => `${m.codigo} ${m.estado}`).join(', ')}`}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </details>
+      )}
       {vista?.sin_coordenadas && <p className="alert alert-info">{TEXTOS.sinCoordenadas}</p>}
       {vista && vista.avisos.length > 0 && <div className="alert alert-info">{vista.avisos.slice(0, 3).map((a) => <p key={a}>{a}</p>)}</div>}
       <div className="plano-espacio" ref={espacio}
@@ -220,8 +281,8 @@ export function PlanoRed() {
         <div className="plano-espacio-mapa">
           {modo === 'unifilar' && vista && <UnifilarRed vista={vista} elegido={elegido} capas={capas} onElegir={elegir} />}
           {modo === 'plano' && actual && (
-            <iframe ref={marco} key={`${actual}|${refresco}|${capas?.variacion ?? ''}`} className="map-frame" title={TEXTOS.marco}
-              src={plano.paginaUrl(ws.id, [actual], capas?.pintable ? capas.variacion ?? null : null)} sandbox="allow-scripts" />
+            <iframe ref={marco} key={`${claveElegidos}|${refresco}|${capas?.variacion ?? ''}`} className="map-frame" title={TEXTOS.marco}
+              src={plano.paginaUrl(ws.id, elegidos, capas?.pintable ? capas.variacion ?? null : null)} sandbox="allow-scripts" />
           )}
         </div>
         <div className="plano-separador plano-separador-v" role="separator" tabIndex={0} aria-orientation="vertical"

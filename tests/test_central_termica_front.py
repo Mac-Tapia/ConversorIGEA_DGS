@@ -24,7 +24,7 @@ def test_campo_central_con_tres_medidores_y_su_nodo():
     for campo in ("'generacion', 'Generación'", "'llegada', 'Llegada (lado SET)'",
                   "'salida', 'Salida (lado carga)'", 'Barra de la central en DIgSILENT'):
         assert campo in DEMANDA
-    assert 'api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && !instante,' in DEMANDA
+    assert 'api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && comun,'  # 086:RF-126 in DEMANDA
     assert 'alimentador: alimentadorDeCentral(f), medidor' in DEMANDA
     assert 'nodo: string;' in TIPOS
 
@@ -103,7 +103,7 @@ def test_mes_de_analisis_antes_de_buscar_la_maxima():
     # 025:RF-7: el mismo aviso dice también «todo el año» cuando el periodo es un año.
     assert 'La máxima se busca en {periodo.length === 4 ? `todo ${periodo}` : nombreMes(periodo)}' in DEMANDA
     assert "', el mes elegido en 2.3'" in DEMANDA
-    assert 'api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && !instante,' in DEMANDA
+    assert 'api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && comun,'  # 086:RF-126 in DEMANDA
     assert "periodo: criterio.periodo || null, instante: criterio.instante || null" in API
 
 
@@ -147,7 +147,8 @@ def test_instante_coincidente_de_la_maxima_de_un_alimentador():
     assert 'Máxima de la cabecera de {x.alimentador} · {x.fecha}' in DEMANDA
     assert 'Máxima coincidente de los seleccionados' in DEMANDA and '(por defecto)' in DEMANDA
     assert 'La máxima de cada alimentador' not in DEMANDA, 'mezclaba instantes: no es una opción'
-    assert "onChange={(e) => maxima(e.target.value ? e.target.value.replace(' ', 'T') : '')}" in DEMANDA
+    # 086:RF-126: «propia» pide la máxima de cada alimentador; el resto, el instante elegido como antes.
+    assert "maxima(e.target.value ? e.target.value.replace(' ', 'T') : ''))}" in DEMANDA
     assert 'se calibra a la vez, no en la máxima de cada uno' in DEMANDA
 
 
@@ -184,7 +185,7 @@ def test_maxima_por_barra_de_set_en_la_web():
     """022:RF-39, 022:RF-41, 022:RF-44, 028:RF-27 — la máxima por barra de SET en 2.2, la decide
     el tipo de proyecto y va en la búsqueda; la tabla de cada barra con su máxima, su central y
     sus alimentadores en esa fecha."""
-    assert 'máxima de barra de SET' in DEMANDA and 'por_barra: porBarra && !instante' in DEMANDA
+    assert 'máxima de barra de SET' in DEMANDA and 'por_barra: porBarra && comun' in DEMANDA
     assert '<BarrasDeSet barras={barrasSet} avisos=' in DEMANDA
     assert '<th>Alimentadores (en esa fecha)</th>' in DEMANDA
     assert 'por_barra: Boolean(criterio.por_barra),' in API

@@ -88,8 +88,8 @@ export function OptionsPanel() {
           {perfil.error && <small className="alert alert-error">Perfil de empresa: {perfil.error}</small>}
           {sinCrs && (
             <small className="alert alert-warn">
-              Sin perfil de empresa no se supone ningún CRS: elíjalo aquí, cargue un perfil con <code>crs_origen</code>
-              {' '}en «Perfil de la empresa» o desactive la georreferenciación.
+              Sin perfil de empresa no se supone ningún CRS: elíjalo aquí, dé el de su empresa en «Perfil de la empresa»
+              {' '}o desactive la georreferenciación.
             </small>
           )}
         </label>

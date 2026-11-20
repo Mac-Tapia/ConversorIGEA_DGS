@@ -5,3 +5,10 @@ export const fmtBytes = (n: number) =>
 
 export const fmtNum = (n: number | null | undefined, digits = 0) =>
   n == null ? '—' : n.toLocaleString('es-PE', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+
+/** 086:RF-110: la palabra que concuerda con la cuenta; la web no escribe «carga(s)». Con adjetivo, la frase entera:
+ * `plural(n, 'libro nuevo', 'libros nuevos')`. */
+export const plural = (n: number | null | undefined, uno: string, varios: string) => (n === 1 ? uno : varios);
+
+/** La cuenta con su palabra: «1 carga», «3 cargas»; sin dato, «— cargas», como fmtNum. */
+export const cuenta = (n: number | null | undefined, uno: string, varios: string) => `${fmtNum(n)} ${plural(n, uno, varios)}`;

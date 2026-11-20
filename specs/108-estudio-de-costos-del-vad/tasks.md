@@ -371,3 +371,8 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       caracteres, y el código que la Guía repite anotado), con la red y el SICODI del espacio. (RF-20, RF-23)
       Hecho cuando: `pytest tests/test_vnr_estudio.py tests/test_vnr_guia_registro.py tests/test_vnr_api.py` en verde.
       Hecho en esta entrega (CIERRES-17-11, 4d): tests/test_vnr_estudio.py, tests/test_vnr_guia_registro.py y tests/test_vnr_api.py en verde; junto con las demás candidatas, 424 passed sin omitidas (D:/csg/INTEGRA_54/cierre_tareas/hechas_r3.log).
+- [x] T32. Estudio VAD sin estudios (revisión web del 19-11, W3): sin lista vacía de estudios y con la línea de lo que
+      falta para crear el primero. (RF-26)
+      Hecho cuando: `frontend/test/vadPanel.test.mjs` (108 T32) en verde con rojo previo por aserción y `npm test` entero en
+      verde. Hecho en esta entrega (ce): rojo por aserción (1 F) y verde 4/4 en `D:/csg/PM_IMPL/REVISION_WEB/w3/`,
+      `npm test` 305/305 sobre gPF (`D:/csg/PM_IMPL/REVISION_WEB/gpf/npm_test.log`).

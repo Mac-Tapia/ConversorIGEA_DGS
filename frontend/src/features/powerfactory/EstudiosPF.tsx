@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { cuenta, plural } from '../../shared/formato';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
 import type { DiagnosticoCargas, EstadoDiagnostico, EstudiosCatalogo, EstudiosPlan, EstudiosResultado, EstudiosResumen,
@@ -192,7 +193,7 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
           <button className="btn" onClick={() => setPlan(null)}>Cerrar</button>
           <button className="btn btn-pf" disabled={pfBusy} onClick={ejecutar}>Ejecutar en DIgSILENT</button>
         </>}>
-          <p>Alimentadores: {plan.feeders.join(', ')} · {plan.estudios.length} estudio(s).
+          <p>Alimentadores: {plan.feeders.join(', ')} · {cuenta(plan.estudios.length, 'estudio', 'estudios')}.
             Orden de casos: {plan.casos.join(' → ')}. Hasta {Math.round(plan.limite_s / 60)} min por estudio y caso.</p>
           <Ayuda>«Cargas nuevas» se ejecuta si hay cargas nuevas; «Con proyecto», si hay cargas u obras.
             El diagnóstico se renueva con la calibración actual y muestra las cargas que no permiten converger.</Ayuda>
@@ -225,7 +226,7 @@ function ResultadoEstudios({ r, cancelado }: { r: EstudiosResultado; cancelado: 
       {(r.cancelado || cancelado) && <p className="alert alert-warn">Cancelado: se conservan los estudios terminados.</p>}
       {(r.casos.avisos ?? []).map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
       {diagnostico && <div className="small">
-        <p><strong>«{diagnostico.caso}»</strong>: {diagnostico.activas.length} carga(s) activa(s).</p>
+        <p><strong>«{diagnostico.caso}»</strong>: {cuenta(diagnostico.activas.length, 'carga activa', 'cargas activas')}.</p>
         {diagnostico.no_convergen.length > 0 && <div className="alert alert-warn">
           <strong>Cargas excluidas del diagnóstico:</strong>
           <ul>{diagnostico.no_convergen.map((c) => <li key={c.variacion}>{c.texto || c.variacion}</li>)}</ul>
@@ -357,7 +358,7 @@ function Propuestas({ propuestas }: { propuestas: PropuestaRed[] }) {
             <td>{p.tipo === 'reconectador' ? 'Reconectador' : 'Banco de condensadores'}</td><td>{p.caso}</td><td>{p.alimentador}</td>
             <td className="mono small">{p.tipo === 'reconectador' ? `${p.elemento} (tramo ${p.tramo ?? '—'})` : p.nodo}</td>
             <td className="small">{p.tipo === 'reconectador'
-              ? `mejora del conjunto: ${fmt(p.mejora_kwh)} kWh/a` : `${fmt(p.kvar)} kvar en ${p.pasos} paso(s) · coste anual ${fmt(p.coste_anual)}`}</td>
+              ? `mejora del conjunto: ${fmt(p.mejora_kwh)} kWh/a` : `${fmt(p.kvar)} kvar en ${cuenta(p.pasos, 'paso', 'pasos')} · coste anual ${fmt(p.coste_anual)}`}</td>
             <td>{aceptadas.has(i) ? <span className="badge ok">en 4.1</span>
               : <button className="btn btn-sm" disabled={p.tipo === 'reconectador' && !p.tramo}
                   onClick={() => aceptar(p, i)}>Aceptar como obra</button>}</td>
@@ -438,7 +439,7 @@ function ProteccionesPF({ project, feeders }: { project: string; feeders: string
         <label className="field"><span>Mes de análisis (AAAA-MM)</span>
           <input value={periodo} onChange={(e) => setPeriodo(e.target.value)} /></label>
         <button className="btn btn-primary" disabled={pfBusy || !fallas.length || !/^\d{4}-\d{2}$/.test(periodo)}
-          onClick={ejecutar}>Estudiar {fallas.length} falla(s)</button>
+          onClick={ejecutar}>Estudiar {cuenta(fallas.length, 'falla', 'fallas')}</button>
       </div>}
       {Object.entries(estado.evaluaciones).map(([rol, e]) => <EvaluacionProtecciones key={rol} rol={rol} e={e} />)}
       {estado.comparacion?.error && <p className="small muted">Sin comparación entre casos: {estado.comparacion.error}.</p>}
@@ -501,7 +502,7 @@ function AjustesProtecciones({ project, onGuardado }: { project: string; onGuard
           </table>
         </div>
         <div className="row">
-          <button className="btn btn-primary btn-sm" onClick={() => void guardar()}>Guardar {filas.length} equipo(s)</button>
+          <button className="btn btn-primary btn-sm" onClick={() => void guardar()}>Guardar {cuenta(filas.length, 'equipo', 'equipos')}</button>
           <small className="muted">Lo que siga faltando se dice en «Faltan datos»; el estudio usa solo los equipos completos.</small>
         </div>
       </>}
@@ -549,8 +550,8 @@ function DiagnosticoDeCargas({ project, feeders }: { project: string; feeders: s
         <details key={f} open={d.provocados > 0}>
           <summary><strong>{f}</strong>{' — '}
             {d.provocados
-              ? <>{d.tension.provocadas.length} barra(s) bajo {pu(d.limites.tension_min_pu)} p.u. y{' '}
-                {d.sobrecargas.provocadas.length} tramo(s) sobre {pct(d.limites.cargabilidad_max_pct)} % por las cargas
+              ? <>{cuenta(d.tension.provocadas.length, 'barra', 'barras')} bajo {pu(d.limites.tension_min_pu)} p.u. y{' '}
+                {cuenta(d.sobrecargas.provocadas.length, 'tramo', 'tramos')} sobre {pct(d.limites.cargabilidad_max_pct)} % por las cargas
                 {d.con_proyecto ? `; con las obras se corrigen ${d.corregidos} de ${d.provocados}` : '; aún sin «Con proyecto»'}</>
               : 'las cargas no ocasionan barras bajas ni sobrecargas'}
             {' · '}tensión mínima {pu(d.tension_min.sin)} → {pu(d.tension_min.cargas)} → {pu(d.tension_min.con)} p.u.
@@ -566,7 +567,7 @@ function DiagnosticoDeCargas({ project, feeders }: { project: string; feeders: s
               <td>{pu(b.con)}</td><td><EstadoDiag e={b.estado} /></td></tr>)}</tbody>
           </table></div>}
           {(d.tension.previas.length + d.sobrecargas.previas.length) > 0 && <p className="small muted">
-            Ya estaban sin las cargas: {d.tension.previas.length} barra(s) baja(s) y {d.sobrecargas.previas.length} sobrecarga(s).</p>}
+            Ya estaban sin las cargas: {cuenta(d.tension.previas.length, 'barra baja', 'barras bajas')} y {cuenta(d.sobrecargas.previas.length, 'sobrecarga', 'sobrecargas')}.</p>}
         </details>))}
     </div>
   );
@@ -577,8 +578,8 @@ function EvaluacionProtecciones({ rol, e }: { rol: string; e: ProteccionesEvalua
   return (
     <div>
       <h4>{e.caso ?? rol} <span className={`badge ${clase}`}>{texto}</span></h4>
-      <p className="small">{e.cobertura.evaluadas} de {e.cobertura.fallas} falla(s) evaluadas en DIgSILENT;
-        {' '}{e.violaciones.length} criterio(s) incumplido(s); {e.no_evaluados.length} sin evaluar.</p>
+      <p className="small">{e.cobertura.evaluadas} de {cuenta(e.cobertura.fallas, 'falla', 'fallas')} {plural(e.cobertura.evaluadas, 'evaluada', 'evaluadas')} en DIgSILENT;
+        {' '}{cuenta(e.violaciones.length, 'criterio incumplido', 'criterios incumplidos')}; {e.no_evaluados.length} sin evaluar.</p>
       {e.violaciones.length > 0 && <ul className="small">{e.violaciones.map((v, i) => (
         <li key={i}><strong>{v.tipo}</strong> {v.dispositivo}{v.falla ? ` en ${v.falla}` : ''}
           {v.valor != null && v.limite != null ? `: ${v.valor.toFixed(3)} frente a ${v.limite.toFixed(3)}` : ''}

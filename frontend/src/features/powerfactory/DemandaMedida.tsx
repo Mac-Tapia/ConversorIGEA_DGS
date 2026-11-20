@@ -1,9 +1,10 @@
-import { fmtNum } from '../../shared/formato';
+import { fmtNum, cuenta, plural } from '../../shared/formato';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { api, type DemandaTipo } from '../../api/client';
 import { estadoCatalogoClientes } from './clientesCatalogo';
+import { alimentadoresDeSet, motivoNoEntra, setDeLaCentral, setsPorAnalisis } from './centralesDeSet';
 import { useApp } from '../../shared/context';
-import type { BarraDeSet, CentralDeBarra, CentralTermica, ComparacionFijas, CriterioFijas, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos, ValorFija, WorkspaceState } from '../../api/types';
+import type { BarraDeSet, CentralDeBarra, CentralTermica, SetDeCentral, ComparacionFijas, CriterioFijas, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos, ValorFija, WorkspaceState } from '../../api/types';
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from '../../shared/ui';
 import { AvisosLibros } from './AvisosLibros';
@@ -83,7 +84,7 @@ function Libro({ tipo, titulo, ayuda }: (typeof LIBROS)[number]) {
       {meta && (
         <div className="row">
           <strong>{meta.name}</strong>
-          {meta.libros && !conIndice && <span className="muted small">({meta.libros.length} libro(s): {meta.libros.join(', ')})</span>}
+          {meta.libros && !conIndice && <span className="muted small">({cuenta(meta.libros.length, 'libro', 'libros')}: {meta.libros.join(', ')})</span>}
           <span className="muted small">{meta.origin === 'server' ? 'ruta del servidor' : 'subido'}</span>
           <button className="btn btn-ghost btn-sm" disabled={engineBusy} onClick={quitar}>Quitar</button>
         </div>
@@ -223,14 +224,14 @@ function LibrosPorAnio({ meta, tipo, indexando, bloqueado, actualizar }: {
       motivos: l.activo ? [] : l.avisos ?? [] }))
     : (meta.indice ?? []).map((l) => ({
       libro: l.relativa, anio: l.anio, meses: l.meses,
-      detalle: `${l.hojas.length} hoja(s) de medición`, usado: !l.error, motivos: l.error ? [l.error] : [] }));
+      detalle: `${cuenta(l.hojas.length, 'hoja', 'hojas')} de medición`, usado: !l.error, motivos: l.error ? [l.error] : [] }));
   const anios = [...new Set(filas.map((f) => f.anio))].sort((a, b) => (a ?? 0) - (b ?? 0));
   return <div className="stack compact">
     <div className="row">
       <button className="btn btn-sm" disabled={bloqueado} onClick={actualizar}>
         {indexando ? 'Actualizando índice…' : 'Actualizar índice'}
       </button>
-      {meta.indexado_en && <small className="muted">{filas.length} libro(s) indexado(s)
+      {meta.indexado_en && <small className="muted">{cuenta(filas.length, 'libro indexado', 'libros indexados')}
         {meta.anios?.length ? `, de ${meta.anios.join(', ')}` : ''}</small>}
     </div>
     {meta.avisos?.map((aviso) => <p className="alert alert-warn" key={aviso}>{aviso}</p>)}
@@ -315,12 +316,16 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   // barra de su SET (vacío) o en el tramo de un alimentador. Se piden en un sistema.
   const [centralesLibro, setCentralesLibro] = useState<CentralDeBarra[] | null>(null);
   const [centralTramo, setCentralTramo] = useState<Record<string, string>>({});
+  // 086:RF-122: la SET de cada central, elegida entre todas las de la estructura (primero las de los analizados).
+  const [setsCentrales, setSetsCentrales] = useState<SetDeCentral[]>([]);
+  const [centralSet, setCentralSet] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!porBarra || centralesLibro !== null || !ws.demanda?.medidores) return;
     let vigente = true;
     api.demandaCentrales(ws.id).then((r) => {
       if (!vigente) return;
       setCentralesLibro(r.centrales);
+      setSetsCentrales(r.sets ?? []);
       setCentralTramo(Object.fromEntries(r.centrales.filter((c) => c.tramo).map((c) => [c.medidor, c.tramo])));
     }).catch(() => { if (vigente) setCentralesLibro([]); });
     return () => { vigente = false; };
@@ -451,11 +456,13 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const aBuscar = [...elegidos, ...deCentrales.filter((p) => !elegidos.some((x) => x.medidor === p.medidor))];
   // 013:RF-11: la máxima del mes de análisis (el de los clientes); 021:RF-50: con un
   // instante, el registro de esa fecha y hora en todos, para calibrar a la vez.
-  const maxima = (instante = '') => {
+  // 086:RF-126: ``propia``, cada alimentador en su propia máxima (no coincidente), también por SET o por sistema.
+  const maxima = (instante = '', propia = false) => {
     if (!elegidos.length) { toast('error', 'Elija al menos un medidor', ''); return; }
-    startJob(() => api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && !instante,
-      sistema_60kv: tipoAnalisis === 'sistema' && !instante,
-      centrales_tramo: centralTramo, coincidente: !porBarra && !instante && feeders.length > 1,
+    const comun = !instante && !propia;
+    startJob(() => api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && comun,
+      sistema_60kv: tipoAnalisis === 'sistema' && comun,
+      centrales_tramo: centralTramo, centrales_set: centralSet, coincidente: !porBarra && comun && feeders.length > 1,
       centrales: Object.fromEntries(feeders.filter((f) => centralCompleta(centrales[f])).map((f) => [f, {
         generacion: centrales[f].generacion, llegada: centrales[f].llegada, salida: centrales[f].salida }])) }));
   };
@@ -465,7 +472,11 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const periodoBuscado = (ultimo?.result?.periodo as string | null | undefined) ?? '';
   // 028:RF-32: por defecto, el instante común de la mayor demanda conjunta; a mano, la máxima de una cabecera.
   const instantes = (ultimo?.result?.maximas_propias as { alimentador: string; fecha: string; kw: number }[] | undefined) ?? [];
-  const instanteElegido = ultimo?.result?.coincidente ? '' : instanteActual;
+  // 086:RF-126: la máxima de cada uno es la búsqueda sin barra, sin instante común y sin coincidente.
+  const deBarra = Boolean(ultimo?.result?.por_barra);
+  const propias = !deBarra && !ultimo?.result?.coincidente && !instanteActual && instantes.length > 1;
+  const instanteElegido = propias ? 'propia' : (ultimo?.result?.coincidente || deBarra) ? '' : instanteActual;
+  const alimentadoresBuscados = new Set(cabecera.map((r) => r.alimentador).filter(Boolean)).size;
   // Spec 028: el último escaneo de este proyecto en DIgSILENT (solo lectura).
   const trabajosDePf = Object.values(jobs).filter((j) => j.status === 'done' && (j.kind === 'pf_escaneo'
     || j.kind.startsWith('ajuste_') || j.kind.includes('recalibr'))).length;
@@ -730,13 +741,33 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           <strong>Centrales térmicas del libro (CT…): dónde se conectan</strong>
           <table className="small">
             <thead><tr><th>Medidor</th><th>SET</th><th>Nivel</th><th>Conexión</th></tr></thead>
-            <tbody>{centralesLibro.map((c) => (
-              <tr key={c.medidor}>
+            <tbody>{centralesLibro.map((c) => {
+              const suSet = setDeLaCentral(c, centralSet);
+              const { analizadas, otras } = setsPorAnalisis(setsCentrales, feeders);
+              const noEntra = motivoNoEntra(suSet, setsCentrales, feeders);
+              return (
+              <tr key={c.medidor} className={noEntra ? 'muted' : undefined}>
                 <td className="mono">{c.medidor}</td>
-                <td>{c.set_rotulo || c.set || '—'}</td>
+                <td>
+                  {setsCentrales.length ? (
+                    <select value={suSet} disabled={engineBusy} aria-label={`SET de ${c.medidor}`}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setCentralSet((m) => ({ ...m, [c.medidor]: v }));
+                        setCentralTramo((m) => { const n = { ...m }; delete n[c.medidor]; return n; });
+                      }}>
+                      {!suSet && <option value="">— elija la SET —</option>}
+                      {analizadas.length > 0 && <optgroup label="SET de los alimentadores analizados">
+                        {analizadas.map((x) => <option key={x.codigo} value={x.codigo}>{x.rotulo}</option>)}</optgroup>}
+                      {otras.length > 0 && <optgroup label="Otras SET">
+                        {otras.map((x) => <option key={x.codigo} value={x.codigo}>{x.rotulo}</option>)}</optgroup>}
+                    </select>
+                  ) : (c.set_rotulo || c.set || '—')}
+                  {noEntra && <div className="small">{noEntra}</div>}
+                </td>
                 <td>{c.kv === null ? '—' : `${fmtNum(c.kv, 1)} kV`}</td>
                 <td>
-                  <select value={centralTramo[c.medidor] ?? ''} disabled={engineBusy}
+                  <select value={centralTramo[c.medidor] ?? ''} disabled={engineBusy || Boolean(noEntra)}
                     aria-label={`Conexión de ${c.medidor}`}
                     onChange={(e) => setCentralTramo((m) => {
                       const n = { ...m };
@@ -744,11 +775,12 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
                       return n;
                     })}>
                     <option value="">En la barra de {c.kv === null ? '' : `${fmtNum(c.kv, 1)} kV `}de su SET</option>
-                    {c.alimentadores.map((a) => <option key={a} value={a}>En un tramo de {a}</option>)}
+                    {alimentadoresDeSet(suSet, setsCentrales, c).map((a) => <option key={a} value={a}>En un tramo de {a}</option>)}
                   </select>
                 </td>
               </tr>
-            ))}</tbody>
+              );
+            })}</tbody>
           </table>
           <small className="muted">En la barra: generador en esa barra de su SET con su
             medida en el instante de la barra de alta tensión. En un tramo (una central en la troncal de un alimentador): se
@@ -800,12 +832,16 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
               </tr>
             ))}</tbody>
           </table>
-          {instantes.length > 1 && (
+          {(instantes.length > 1 || (deBarra && alimentadoresBuscados > 1)) && (
             <label className="row">
               <span>Instante de la calibración</span>
               <select value={instanteElegido} disabled={engineBusy}
-                onChange={(e) => maxima(e.target.value ? e.target.value.replace(' ', 'T') : '')}>
-                <option value="">Máxima coincidente de los seleccionados{periodoBuscado ? ` en ${nombreMes(periodoBuscado)}` : ''} (por defecto)</option>
+                onChange={(e) => (e.target.value === 'propia' ? maxima('', true)
+                  : maxima(e.target.value ? e.target.value.replace(' ', 'T') : ''))}>
+                <option value="">{tipoAnalisis === 'sistema' ? 'Máxima coincidente del sistema eléctrico'
+                  : tipoAnalisis === 'set' ? 'Máxima de la barra de su SET'
+                  : 'Máxima coincidente de los seleccionados'}{periodoBuscado ? ` en ${nombreMes(periodoBuscado)}` : ''} (por defecto)</option>
+                <option value="propia">Máxima de cada alimentador (no coincidente)</option>
                 {instantes.map((x) => (
                   <option key={x.alimentador} value={x.fecha}>
                     Máxima de la cabecera de {x.alimentador} · {x.fecha} · {fmtNum(x.kw)} kW
@@ -821,6 +857,11 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           {instanteActual && (
             <small className="alert alert-info">Todos los medidores, también los de una central, en el
               registro del {instanteActual}: se calibra a la vez, no en la máxima de cada uno.</small>
+          )}
+          {propias && (
+            <small className="alert alert-warn">Máxima de cada alimentador (no coincidente):{' '}
+              {instantes.map((x) => `${x.alimentador} el ${x.fecha}`).join('; ')}. Esos instantes no ocurrieron juntos: se
+              calibran a la vez, cada uno con la demanda de su máxima.</small>
           )}
           <small className="muted">kVAR, kVA, FP y la tensión son del mismo registro que el kW máximo; la tensión en pu, de
             la nominal del alimentador en la conversión, va a su fuente en 2.4. * calculado con kW y kVAR.
@@ -936,18 +977,18 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
       exportada cargada (TXT, MDB o VNR-GIS).</p>
     <p className="small"><strong>Fijas: {criterioDe(cruce.criterio).texto}</strong> ({criterioDe(cruce.criterio).ayuda}).</p>
     {sinCoincidente.length > 0 && <div className="alert alert-error small">
-      <p>{fmtNum(sinCoincidente.length)} fija(s) sin su registro del instante de la máxima: no toman otro y el ajuste
+      <p>{cuenta(sinCoincidente.length, 'fija', 'fijas')} sin su registro del instante de la máxima: {plural(sinCoincidente.length, 'no toma', 'no toman')} otro y el ajuste
         (2.4) no se prepara hasta que elija el mes de los clientes de esa fecha o «{CRITERIOS_FIJAS[1].texto}».</p>
       <ul>{sinCoincidente.slice(0, 50).map((m) => <li key={m}>{m}</li>)}</ul></div>}
     {conMaxima && <p className="small">Clientes {maximoMes ? 'de' : 'en la máxima de'} {Object.entries(cruce.maximas ?? {})
       .map(([f, fecha]) => `${f} (${fecha ?? 'sin fecha'})`).join(', ')}: su P y su Q van a su SED como carga fija,
-      con factor de escala 1; las demás SED se escalan hasta la cabecera. {Object.keys(porSed).length} SED fija(s):
+      con factor de escala 1; las demás SED se escalan hasta la cabecera. {cuenta(Object.keys(porSed).length, 'SED fija', 'SED fijas')}:
       {' '}{fmtNum(Object.values(porSed).reduce((a, s) => a + s.p, 0), 1)} kW y
       {' '}{fmtNum(Object.values(porSed).reduce((a, s) => a + s.q, 0), 1)} kvar.</p>}
     {sinRegistro.length > 0 && <p className="alert alert-warn small">{sinRegistro.join('; ')}.
-      {' '}{fmtNum(fueraDelInstante.length)} cliente(s) sin hoja de 15 minutos van con su EA/ERI del mes con los dos
+      {' '}{cuenta(fueraDelInstante.length, 'cliente', 'clientes')} sin hoja de 15 minutos {plural(fueraDelInstante.length, 'va', 'van')} con su EA/ERI del mes con los dos
       criterios: por eso su «Registro» no coincide.</p>}
-    <p>{ali ? <>{fmtNum(t.cruzados)} cliente(s) de <strong>{ali}</strong> de {fmtNum(t.clientes)}</> : <>{fmtNum(t.cruzados)} de {fmtNum(t.clientes)} cruzados</>}
+    <p>{ali ? <>{cuenta(t.cruzados, 'cliente', 'clientes')} de <strong>{ali}</strong> de {fmtNum(t.clientes)}</> : <>{fmtNum(t.cruzados)} de {fmtNum(t.clientes)} cruzados</>}
       {' '}({fmtNum(t.por_actual)} por «Suministro Act», {fmtNum(t.por_anterior)} por «Suministro»{t.por_hoja ? `, ${fmtNum(t.por_hoja)} por su hoja` : ''}); {fmtNum(t.no_cruzados)} aparte
       {ali ? `, ${fmtNum(t.de_otros)} de otros alimentadores sin mostrar` : ''}.
       {cruce.libro && <small className="muted"> Libro {cruce.libro}{cruce.mes ? ` (${nombreMes(cruce.mes)})` : ''}.</small>}</p>
@@ -969,7 +1010,7 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
         <span>Diferencia mínima (%)</span>
         <input type="number" min={0} step={5} value={minPct} placeholder="todas" style={{ width: '6rem' }}
           onChange={(e) => setMinPct(e.target.value)} aria-label="Diferencia mínima en %" /></label>
-      <small className="muted">A su máxima: {aSuMaxima.length ? `${fmtNum(aSuMaxima.length)} cliente(s)` : 'ninguno'}
+      <small className="muted">A su máxima: {aSuMaxima.length ? cuenta(aSuMaxima.length, 'cliente', 'clientes') : 'ninguno'}
         {' '}(su P y su Q de máxima del mes; los demás, el criterio de su alimentador)</small>
       <button className="btn btn-ghost btn-sm" disabled={!aSuMaxima.length || bloqueado} onClick={desmarcarTodos}>
         Desmarcar todos «a su máxima»</button>
@@ -1044,7 +1085,7 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
         ))}</tbody>
       </table>
     </div>
-    {desconectados.size > 0 && <small className="muted">{fmtNum(desconectados.size)} cliente(s) desmarcado(s): no suman a su
+    {desconectados.size > 0 && <small className="muted">{cuenta(desconectados.size, 'cliente desmarcado', 'clientes desmarcados')}: {plural(desconectados.size, 'no suma', 'no suman')} a su
       SED en el ajuste, y la SED que se queda sin ningún cliente conectado queda fuera de servicio en el escenario de
       «Sin proyecto».</small>}
     {cruce.no_cruzados.length > 0 && (
@@ -1089,7 +1130,7 @@ function RecalibrarConCriterios({ project, periodo, feeders, criterioFijas, maxi
           maximo_mes: maximoMes.filter((a) => candidatos.includes(a)), a_su_maxima: aSuMaxima }))}>
         Recalibrar con estos criterios</button>
       <small className="muted">{motivo || `${criterioDe(criterioFijas).texto}; ${aSuMaxima.length
-        ? `${fmtNum(aSuMaxima.length)} cliente(s) a su máxima` : 'ningún cliente a su máxima'}${solo.length ? `; solo ${solo.join(', ')}` : ''}.`}</small>
+        ? `${cuenta(aSuMaxima.length, 'cliente', 'clientes')} a su máxima` : 'ningún cliente a su máxima'}${solo.length ? `; solo ${solo.join(', ')}` : ''}.`}</small>
     </div>
   );
 }
@@ -1219,9 +1260,9 @@ function DetectadoEnElEscaneo({ escaneo, centrales }: { escaneo: Escaneo; centra
     const enBarra = (d.generadores_en_barra ?? []).filter((g) => g.en_servicio);
     if (enBarra.length) avisos.push(`${f}, barra de cabecera: central ${enBarra.map((g) => `${g.generador} en ${g.barra}`).join(', ')}.`);
     const bancosBarra = (d.bancos_en_barra ?? []).filter((b) => b.en_servicio);
-    if (bancosBarra.length) avisos.push(`${f}, barra de cabecera: ${bancosBarra.length} banco(s) en ${bancosBarra[0].barra}.`);
+    if (bancosBarra.length) avisos.push(`${f}, barra de cabecera: ${cuenta(bancosBarra.length, 'banco', 'bancos')} en ${bancosBarra[0].barra}.`);
     const bancos = (d.bancos ?? []).filter((b) => b.en_servicio);
-    if (bancos.length) avisos.push(`${f}: ${bancos.length} banco(s) en servicio en el alimentador.`);
+    if (bancos.length) avisos.push(`${f}: ${cuenta(bancos.length, 'banco', 'bancos')} en servicio en el alimentador.`);
   });
   if (!avisos.length) return null;
   return (
@@ -1266,7 +1307,7 @@ function EscaneoTabla({ escaneo }: { escaneo: Escaneo }) {
         ))}</tbody>
       </table>
       {ajenas.length > 0 && <p className="muted">Variaciones hechas a mano: {ajenas.map((v) =>
-        `${v.variacion}${v.activa ? ' (activa)' : ''}, ${v.objetos} objeto(s)`).join('; ')}</p>}
+        `${v.variacion}${v.activa ? ' (activa)' : ''}, ${cuenta(v.objetos, 'objeto', 'objetos')}`).join('; ')}</p>}
       {escaneo.avisos.map((a) => <p key={a} className="muted">{a}</p>)}
     </div>
   );

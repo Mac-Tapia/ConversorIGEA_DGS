@@ -414,6 +414,9 @@ datos del servidor. Sobraban además seis textos de la vista inicial.
 - RF-110: EL SISTEMA no enseñará en la vista inicial contadores con «(s)», versiones técnicas, dos «:» seguidos,
   paréntesis que contradigan lo que dicen ni explicaciones largas a la vista, y sus marcadores valdrán para cualquier
   carpeta.
+- Aclaración de RF-110 (2026-11-19, revisión de la web en navegador real): vale para toda la web, no solo la vista
+  inicial: ningún texto con «palabra(s)» o «palabra(es)» (la cuenta concuerda), y el Registro nombra cada casilla como
+  la ve el operador («CARGA»), nunca por su clave interna («loads»).
 - Aclaración de RF-110 (2026-11-16): los seis textos de la prueba con la cuenta local: «0 fichero(s) asignados por
   contenido»; «PowerFactory 2024 · Python 3.12» en la cabecera (Python pasa a la ayuda); «Pendientes: la fuente: …»;
   «(proyecto: no se presenta como norma vigente)» de la RM 428-2017, ahora en una frase y solo con un tipo elegido
@@ -476,8 +479,10 @@ mientras los demás casos pasaban a 1,0278.
   del gemelo lo encuentren sin índice válido, EL SISTEMA lo rehará una sola vez por proceso (cerrojo por carpeta,
   comprobando de nuevo dentro), con un temporal propio por llamada, y si otro proceso ya dejó un índice válido lo
   aceptará en vez de fallar; ninguna apertura falla por el bloqueo de ficheros de Windows y no quedan temporales.
-- RF-118 a RF-118: no se usa en esta rama: lo define REVISION-WEB (T88, T89), que integra después de gG5; al rebasarla, esta línea
-  se sustituye por su definición.
+- RF-118: (revisión de la web en navegador real, 19-11) CUANDO la web liste los espacios, EL SISTEMA leerá y
+  analizará cada `workspace.json` una sola vez por listado y no lo volverá a leer mientras no cambien su fecha ni su
+  tamaño ni los de su copia anterior; un espacio dañado o de una versión futura sigue saliendo con su estado y su motivo
+  (RF-2, RF-5). Un `workspace.json` real llega a 12 MB y la web se quedaba en «Conectando con el conversor…».
 - RF-119: (prueba funcional del 19-11; amplía 024:RF-55, cumplida) CUANDO el perfil no declare la hoja del libro
   CAPEX, EL SISTEMA recorrerá todas las hojas del libro y leerá las que tengan, en una fila de cabecera, la columna del
   nombre de la obra y la de su costo unitario (con los nombres de columna del perfil o, si no declara ninguno, los
@@ -496,6 +501,39 @@ mientras los demás casos pasaban a 1,0278.
   combinará cada objeto con su fila, que completa lo que falta y nunca sustituye lo que el episodio dice (si lo
   contradice, cuarentena con el motivo), congelará lo usado con la instantánea y dejará en cuarentena, con su motivo,
   lo que no se pudo deducir. Un búfer sin el registro se sigue leyendo igual.
+- RF-121 a RF-121: no se usa en esta rama: lo define el tope del horizonte de entrenamiento de la 031, si llega a hacer
+  falta; al rebasarlo, esta línea se sustituye por la suya.
+- RF-122: (orden del usuario del 19-11: «aquí debería haber un selector de su SET de los que están conectados los
+  alimentadores … todas las SET deberían habilitarse para seleccionar su coincidencia; las centrales no pertenecen a
+  ninguna de las cargas analizadas»; amplía 022:RF-88, cumplida) EN la máxima por barra, EL SISTEMA dejará elegir la
+  SET de cada central térmica (CT…) del libro entre todas las de la estructura, primero las de los alimentadores
+  analizados; el tramo que se ofrece es de un alimentador de la SET elegida. Una central cuya SET no tiene ninguno de
+  los alimentadores analizados no entra en la máxima y se dice por qué, en la web y en los avisos del trabajo.
+- RF-123: (orden del usuario del 19-11: «aquí debe haber sus etiquetas de la potencia kW y fecha que ocurrió la máxima
+  de cada alimentador; en la imagen solo se ven los puntos») CUANDO la gráfica de curvas de cabecera tenga varias
+  curvas, EL SISTEMA pondrá junto al punto de la máxima de cada una su etiqueta con el alimentador, los kW y la fecha y
+  hora, en el color de su curva y repartidas para que no se tapen entre ellas ni salgan del gráfico.
+- RF-124: (orden del usuario del 19-11: «verificar qué pasó en la calibración … corregir, proponer la mejora e
+  implementarla» y «el mismo caso para la calibración de sistema eléctrico, de una SET»; amplía 083:RF-30, cumplida) EN
+  la calibración de un alimentador o de un proyecto (por alimentadores, por SET o por sistema eléctrico), CUANDO un
+  alimentador siga por encima de
+  su medida con las escaladas al mínimo (medido contra su factor de antes del arranque del oráculo) y su exceso no se
+  pueda corregir en sus fijas, EL SISTEMA lo dejará quieto con su causa (lo que da frente a lo medido, sus fijas, sus
+  pérdidas y la SED fija que más pesa) y, si los demás ya cumplen, parará sin gastar los flujos que quedan. Cada
+  alimentador se informa con su estado: el que cumple en el flujo común sale cuadrado y solo el imposible sale con su
+  causa. La calibración sigue siendo una, por proyecto, y nunca se borra nada del proyecto.
+- RF-125: (orden del usuario del 19-11 sobre su calibración real: «la lectura no trae el grafo eléctrico, corregir y
+  mejorar»; amplía 024:RF-4, cumplida) SI tras una acción nativa el flujo no converge al reabrir el proyecto, ENTONCES
+  EL SISTEMA leerá igual la red (el grafo, sin resultados), clasificará el episodio como `rejected` con la causa «el
+  flujo no converge tras reabrir» (no `accepted` sin flujo ni cuarentena por un grafo que faltaba), lo dirá en el
+  Registro y la línea del guion de lectura dirá la causa de su código; una lectura que no vale (otro proyecto,
+  alimentadores o caso) sigue en cuarentena.
+- RF-126: (orden del usuario del 19-11: «aquí debe haber también su máxima no coincidente de cada alimentador, ya sea
+  de dos alimentadores, SET, sistema eléctrico»; amplía 028:RF-27, RF-28, cumplida) EN «Instante de la calibración», EL
+  SISTEMA ofrecerá también «Máxima de cada alimentador (no coincidente)», con dos o más alimentadores, en el análisis de
+  una SET y en el de un sistema eléctrico. El valor por defecto de cada análisis no cambia (la coincidente, la barra de la SET o el sistema) y
+  la web lo sigue proponiendo según el proyecto. Elegida, la web y el informe de la calibración dicen la fecha y hora de
+  cada alimentador y avisan, sin bloquear, de que esos instantes no ocurrieron juntos.
 
 ## Fuera de alcance
 

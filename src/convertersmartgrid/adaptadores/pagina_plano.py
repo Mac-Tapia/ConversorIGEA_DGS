@@ -28,9 +28,21 @@ from typing import Any
 MENSAJES_ENTRADA = ('seleccionar', 'resaltar', 'deseleccionar', 'capa', 'propuesta')
 #: Lo que la página manda a la pestaña: que ya está lista, y el elemento que el operador seleccionó en el plano.
 MENSAJES_SALIDA = ('listo', 'seleccionado')
-#: Las capas por vista, con su nombre en el selector.
-CAPAS = (('tramos', 'Tramos'), ('barras', 'Barras'), ('sed', 'SED'), ('maniobras', 'Maniobras'),
-         ('resultados', 'Resultados'))
+#: Las capas por vista, con su nombre en el selector y si se ven al abrir. Las etiquetas empiezan apagadas y solo se
+#: dibujan desde :data:`ZOOM_ETIQUETAS` (111:RF-26); los puntos de transferencia, encendidos (111:RF-25).
+CAPAS = (('tramos', 'Tramos', True), ('barras', 'Barras', True), ('sed', 'SED', True), ('maniobras', 'Maniobras', True),
+         ('transferencias', 'Puntos de transferencia', True),
+         ('etiqueta_sed', 'Etiquetas: código de la SED', False),
+         ('etiqueta_kva', 'Etiquetas: potencia instalada de la SED (kVA)', False),
+         ('etiqueta_seccion', 'Etiquetas: sección del conductor (mm²)', False),
+         ('resultados', 'Resultados', True))
+#: 111:RF-26: por debajo de este zoom las etiquetas se taparían unas a otras; se dice y se dibujan al acercarse.
+ZOOM_ETIQUETAS = 15
+#: 111:RF-24: un color por alimentador, distinto del de las maniobras, los resaltes y los puntos de transferencia;
+#: claro y oscuro. Con un solo alimentador, el color de siempre (``--plano-tramo``).
+COLORES_ALIMENTADOR = (('#1d4ed8', '#60a5fa'), ('#c2410c', '#fb923c'), ('#7e22ce', '#c084fc'), ('#0e7490', '#22d3ee'),
+                       ('#a21caf', '#f0abfc'), ('#4d7c0f', '#a3e635'), ('#9f1239', '#fb7185'), ('#854d0e', '#facc15'),
+                       ('#334155', '#cbd5e1'), ('#065f46', '#34d399'))
 #: Nivel de detalle solo gráfico: desde ese zoom hacia abajo, ese ``smoothFactor`` de Leaflet. Acercarse lo devuelve
 #: a 0 (todos los vértices dibujados); los datos no cambian nunca.
 DETALLE_POR_ZOOM = ((17, 0.0), (15, 1.0), (13, 2.0), (0, 4.0))
@@ -59,10 +71,16 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
     """El HTML del plano de esas vistas (``plano_red.vista``) y, si se dan, las capas de un resultado pintable."""
     from .preview import politica_base, recurso_leaflet
 
-    datos = {'vistas': list(vistas), 'capas': dict(capas) if capas and capas.get('pintable') else None}
+    from .plano_red import transferencias
+
+    vistas = list(vistas)
+    datos = {'vistas': vistas, 'capas': dict(capas) if capas and capas.get('pintable') else None,
+             'transferencias': transferencias(vistas)}
     teselas, aviso = _fondo()
     nombre = html_std.escape(titulo)
-    capas_js = _json([{'clave': c, 'nombre': n} for c, n in CAPAS])
+    capas_js = _json([{'clave': c, 'nombre': n, 'visible': v} for c, n, v in CAPAS])
+    claros = '; '.join(f'--plano-a{i}: {c}' for i, (c, _o) in enumerate(COLORES_ALIMENTADOR))
+    oscuros = '; '.join(f'--plano-a{i}: {o}' for i, (_c, o) in enumerate(COLORES_ALIMENTADOR))
     detalle_js = _json([list(x) for x in DETALLE_POR_ZOOM])
     return f"""<!DOCTYPE html>
 <html lang="es">
@@ -84,12 +102,12 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
     :root {{ --plano-fondo: #f8fafc; --plano-texto: #0f172a; --plano-panel: rgba(255,255,255,.94);
       --plano-tramo: #1d4ed8; --plano-barra: #0f766e; --plano-sed: #7c3aed; --plano-abierto: #b91c1c;
       --plano-cerrado: #15803d; --plano-resalte: #f59e0b; --plano-normal: #15803d; --plano-alerta: #b91c1c;
-      --plano-borde: #334155; }}
+      --plano-borde: #334155; --plano-transferencia: #000000; {claros}; }}
     @media (prefers-color-scheme: dark) {{
       :root {{ --plano-fondo: #0b1220; --plano-texto: #e2e8f0; --plano-panel: rgba(15,23,42,.94);
         --plano-tramo: #60a5fa; --plano-barra: #2dd4bf; --plano-sed: #c4b5fd; --plano-abierto: #f87171;
         --plano-cerrado: #4ade80; --plano-resalte: #fbbf24; --plano-normal: #4ade80; --plano-alerta: #f87171;
-        --plano-borde: #94a3b8; }}
+        --plano-borde: #94a3b8; --plano-transferencia: #ffffff; {oscuros}; }}
     }}
     html, body, #mapa {{ height: 100%; margin: 0; background: var(--plano-fondo); color: var(--plano-texto); }}
     .panel {{ position: absolute; z-index: 1000; left: 10px; bottom: 18px; max-width: min(60%, 420px);
@@ -100,6 +118,15 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
     .icono-incumple {{ width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 50%;
       background: var(--plano-alerta); color: #fff; font: 700 12px system-ui, sans-serif;
       border: 1px solid var(--plano-borde); }}
+    #alimentadores {{ left: auto; right: 10px; bottom: 18px; }}
+    #alimentadores span.muestra {{ display: inline-block; width: 18px; height: 4px; margin-right: 6px; vertical-align: middle; }}
+    .etiqueta {{ background: var(--plano-panel); color: var(--plano-texto); border: 1px solid var(--plano-borde);
+      padding: 0 3px; font: 11px/1.3 system-ui, sans-serif; box-shadow: none; }}
+    .etiqueta::before {{ display: none; }}
+    .sin-etiquetas .etiqueta {{ display: none; }}
+    #aviso-etiquetas {{ top: 10px; left: auto; right: 60px; bottom: auto; }}
+    .icono-transferencia {{ width: 14px; height: 14px; transform: rotate(45deg); background: var(--plano-fondo);
+      border: 3px solid var(--plano-transferencia); box-sizing: border-box; }}
     .leaflet-container:focus-visible {{ outline: 3px solid var(--plano-resalte); outline-offset: -3px; }}
   </style>
 </head>
@@ -107,11 +134,15 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
   <div id="mapa" role="application" aria-label="{nombre}"></div>
   <div id="aviso" class="panel" role="status"{'' if aviso else ' hidden'}>{html_std.escape(aviso)}</div>
   <div id="leyenda" class="panel" aria-live="polite" hidden></div>
+  <div id="alimentadores" class="panel" hidden></div>
+  <div id="aviso-etiquetas" class="panel" role="status" hidden>Acerque el plano para ver las etiquetas.</div>
   <script type="application/json" id="datos-plano">{_json(datos)}</script>
   <script>
     const ENTRADA = {_json(list(MENSAJES_ENTRADA))};
     const CAPAS = {capas_js};
     const DETALLE = {detalle_js};
+    const ZOOM_ETIQUETAS = {ZOOM_ETIQUETAS};
+    const N_COLORES = {len(COLORES_ALIMENTADOR)};
     const datos = JSON.parse(document.getElementById('datos-plano').textContent);
     const css = getComputedStyle(document.documentElement);
     const token = (n) => css.getPropertyValue('--plano-' + n).trim();
@@ -119,7 +150,18 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
     const map = L.map('mapa', {{ preferCanvas: true, keyboard: true, zoomControl: true }});
     {teselas}
     const grupos = {{}};
-    CAPAS.forEach(function (c) {{ grupos[c.clave] = L.layerGroup().addTo(map); }});
+    CAPAS.forEach(function (c) {{ grupos[c.clave] = L.layerGroup(); if (c.visible) grupos[c.clave].addTo(map); }});
+    // con varios alimentadores, cada uno con su color y su capa encendible; con uno, el color de siempre.
+    const varios = datos.vistas.length > 1;
+    const colorDe = {{}};
+    const porAlimentador = {{}};
+    datos.vistas.forEach(function (v, i) {{
+      colorDe[v.alimentador] = varios ? token('a' + (i % N_COLORES)) : token('tramo');
+      porAlimentador[v.alimentador] = L.layerGroup().addTo(grupos.tramos);
+    }});
+    const etiqueta = (donde, contenido, lado) => L.tooltip({{ permanent: true, direction: lado, className: 'etiqueta',
+      offset: lado === 'left' ? [-6, 0] : [6, 0], interactive: false }}).setLatLng(donde).setContent(texto(contenido));
+    const numero = (x, d) => Number(x).toLocaleString('es-PE', {{ maximumFractionDigits: d }});
     const porCodigo = {{}};
     const lineas = [];
     function avisar(clase, codigo, alimentador) {{
@@ -128,9 +170,15 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
     datos.vistas.forEach(function (v) {{
       v.tramos.forEach(function (t) {{
         if (t.vertices.length < 2) return;
-        const capa = L.polyline(t.vertices, {{ color: token('tramo'), weight: 3, smoothFactor: 0 }})
-          .bindTooltip(texto(t.codigo)).on('click', function () {{ avisar('tramo', t.codigo, v.alimentador); }});
-        capa.addTo(grupos.tramos);
+        const color = colorDe[v.alimentador];
+        const capa = L.polyline(t.vertices, {{ color: color, colorBase: color, weight: 3, smoothFactor: 0 }})
+          .bindTooltip(texto(t.codigo) + (varios ? ' · ' + texto(v.alimentador) : ''))
+          .on('click', function () {{ avisar('tramo', t.codigo, v.alimentador); }});
+        capa.addTo(porAlimentador[v.alimentador]);
+        if (t.seccion_mm2 != null) {{
+          const medio = t.vertices[Math.floor((t.vertices.length - 1) / 2)];
+          etiqueta(medio, numero(t.seccion_mm2, 1) + ' mm²', 'right').addTo(grupos.etiqueta_seccion);
+        }}
         lineas.push(capa);
         porCodigo[t.codigo] = capa;
       }});
@@ -146,8 +194,12 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
       v.sed.forEach(function (s) {{
         if (!punto[s.barra]) return;
         L.circleMarker(punto[s.barra], {{ radius: 5, color: token('sed'), weight: 2, fillOpacity: 0.3 }})
-          .bindTooltip('SED ' + texto(s.codigo)).on('click', function () {{ avisar('sed', s.codigo, v.alimentador); }})
+          .bindTooltip('SED ' + texto(s.codigo) + (s.kva != null ? ' · ' + numero(s.kva, 1) + ' kVA' : ''))
+          .on('click', function () {{ avisar('sed', s.codigo, v.alimentador); }})
           .addTo(grupos.sed);
+        // el código a la derecha y la potencia instalada a la izquierda, para que no se tapen.
+        etiqueta(punto[s.barra], s.codigo, 'right').addTo(grupos.etiqueta_sed);
+        if (s.kva != null) etiqueta(punto[s.barra], numero(s.kva, 1) + ' kVA', 'left').addTo(grupos.etiqueta_kva);
       }});
       v.maniobras.forEach(function (m) {{
         if (!punto[m.barra]) return;
@@ -157,6 +209,25 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
           .on('click', function () {{ avisar('maniobra', m.codigo, v.alimentador); }}).addTo(grupos.maniobras);
       }});
     }});
+    // los puntos donde se tocan los alimentadores del plano, con sus maniobras de la fuente.
+    (datos.transferencias || []).forEach(function (p) {{
+      if (p.lat == null) return;
+      const maniobras = p.maniobras.map((m) => texto(m.codigo) + ' ' + texto(m.estado)).join(', ');
+      L.marker([p.lat, p.lon], {{ icon: L.divIcon({{ className: '', html: '<div class="icono-transferencia" aria-hidden="true"></div>',
+        iconSize: [14, 14] }}), keyboard: false, zIndexOffset: 500 }})
+        .bindTooltip('Transferencia ' + p.alimentadores.map(texto).join(' ↔ ') + ' · barra ' + texto(p.barra)
+          + (maniobras ? ' · ' + maniobras : ' · sin maniobra en la fuente'))
+        .on('click', function () {{ avisar('barra', p.barra, p.alimentadores[0]); }}).addTo(grupos.transferencias);
+    }});
+    if (varios) {{
+      const caja = document.getElementById('alimentadores');
+      const n = (datos.transferencias || []).length;
+      caja.innerHTML = datos.vistas.map((v) => '<div><span class="muestra" style="background:' + colorDe[v.alimentador]
+        + '"></span>' + texto(v.alimentador) + '</div>').join('')
+        + '<div><span class="muestra" style="background:' + token('transferencia') + '"></span>'
+        + (n === 0 ? 'ningún punto de transferencia' : n + (n === 1 ? ' punto' : ' puntos') + ' de transferencia') + '</div>';
+      caja.hidden = false;
+    }}
     function pintarResultados() {{
       const c = datos.capas;
       const leyenda = document.getElementById('leyenda');
@@ -191,6 +262,9 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
     pintarResultados();
     const capasControl = {{}};
     CAPAS.forEach(function (c) {{ capasControl[c.nombre] = grupos[c.clave]; }});
+    if (varios) datos.vistas.forEach(function (v) {{
+      capasControl['<span style="color:' + colorDe[v.alimentador] + '">■</span> ' + texto(v.alimentador)] = porAlimentador[v.alimentador];
+    }});
     L.control.layers(null, capasControl, {{ position: 'topright', collapsed: true }}).addTo(map);
     // Nivel de detalle solo gráfico: el lienzo simplifica el dibujo al alejarse; los vértices no cambian.
     function detalle() {{
@@ -199,11 +273,20 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
       lineas.forEach(function (l) {{ l.options.smoothFactor = factor; l.redraw(); }});
     }}
     map.on('zoomend', detalle);
+    // las etiquetas encendidas se dibujan desde ZOOM_ETIQUETAS; más lejos se dice que hay que acercarse.
+    function etiquetas() {{
+      const lejos = map.getZoom() < ZOOM_ETIQUETAS;
+      const alguna = ['etiqueta_sed', 'etiqueta_kva', 'etiqueta_seccion'].some((k) => map.hasLayer(grupos[k]));
+      map.getContainer().classList.toggle('sin-etiquetas', lejos);
+      document.getElementById('aviso-etiquetas').hidden = !(lejos && alguna);
+    }}
+    map.on('zoomend overlayadd overlayremove', etiquetas);
     const todo = L.featureGroup(lineas);
     try {{ map.fitBounds(todo.getBounds(), {{ padding: [24, 24], maxZoom: 18 }}); }} catch (e) {{ map.setView([0, 0], 2); }}
+    etiquetas();
     let resaltado = null;
     function resaltar(codigo) {{
-      if (resaltado && resaltado.setStyle) resaltado.setStyle({{ color: token('tramo'), weight: 3 }});
+      if (resaltado && resaltado.setStyle) resaltado.setStyle({{ color: resaltado.options.colorBase || token('tramo'), weight: 3 }});
       resaltado = porCodigo[codigo] || null;
       if (resaltado && resaltado.setStyle) resaltado.setStyle({{ color: token('resalte'), weight: 6 }});
       return resaltado;
@@ -225,6 +308,7 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
         resaltar(null);
       }} else if (m.tipo === 'capa' && typeof m.clave === 'string' && grupos[m.clave] && typeof m.visible === 'boolean') {{
         if (m.visible) grupos[m.clave].addTo(map); else map.removeLayer(grupos[m.clave]);
+        etiquetas();
       }} else if (m.tipo === 'propuesta' && Array.isArray(m.punto) && m.punto.length === 2
                  && m.punto.every((x) => typeof x === 'number' && isFinite(x))) {{
         L.circleMarker(m.punto, {{ radius: 7, color: token('resalte'), weight: 3, dashArray: '4 3' }})

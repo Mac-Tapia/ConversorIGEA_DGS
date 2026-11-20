@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { plural } from '../shared/formato';
 import { api, ApiError } from '../api/client';
 import { AcercaDe } from './AcercaDe';
 import { ArchivoInformes } from './ArchivoInformes';
@@ -140,9 +141,9 @@ function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
     body = <>
       {inf.cancelado && <p className="alert alert-warn">Cancelado: el alimentador en curso terminó; los siguientes no se empezaron.</p>}
       {inf.modo === 'simular'
-        ? <p>Simulación: se actualizarían <b>{n('actualizarian')}</b> demanda(s) y se crearían <b>{n('crearian')}</b> carga(s). Nada se escribió.</p>
-        : <p>Variación <b>{inf.variacion ?? '—'}</b>: <b>{n('actualizadas')}</b> demanda(s) actualizadas, <b>{n('creadas')}</b> carga(s) creadas,
-          {' '}<b>{n('fallos')}</b> fallo(s).</p>}
+        ? <p>Simulación: se actualizarían <b>{n('actualizarian')}</b> {plural(n('actualizarian'), 'demanda', 'demandas')} y se crearían <b>{n('crearian')}</b> {plural(n('crearian'), 'carga', 'cargas')}. Nada se escribió.</p>
+        : <p>Variación <b>{inf.variacion ?? '—'}</b>: <b>{n('actualizadas')}</b> {plural(n('actualizadas'), 'demanda actualizada', 'demandas actualizadas')}, <b>{n('creadas')}</b> {plural(n('creadas'), 'carga creada', 'cargas creadas')},
+          {' '}<b>{n('fallos')}</b> {plural(n('fallos'), 'fallo', 'fallos')}.</p>}
       <p>Omitidas: {inf.sin_alimentador.length} sin coincidencia, {inf.ambiguas.length} ambiguas, {inf.no_creadas.length} cargas nuevas no creadas.</p>
       {inf.flujo && <p className={inf.flujo.converged ? '' : 'alert alert-error'}>Flujo de carga: {inf.flujo.converged ? 'converge' : 'no converge'}.</p>}
       <p className="muted">El detalle por alimentador está en la pestaña «Cargas en DIgSILENT».</p>

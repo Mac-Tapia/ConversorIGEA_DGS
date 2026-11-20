@@ -855,6 +855,8 @@ class WorkspaceStore:
                 self.roots += (legacy,)
         self._items: dict[str, Workspace] = {}
         self._lock = threading.Lock()
+        # 086:RF-118: el resumen de cada espacio para el listado, por la huella de sus ficheros.
+        self._resumenes: dict[Path, tuple[tuple, dict[str, Any]]] = {}
         self.siembra: dict[str, int] | None = None
         self._sembrar_vinculos()
 
@@ -941,20 +943,29 @@ class WorkspaceStore:
 
     @staticmethod
     def _problema_de(folder: Path) -> dict[str, Any] | None:
+        return WorkspaceStore._examinar(folder)[0]
+
+    @staticmethod
+    def _examinar(folder: Path) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+        """El problema del espacio (o None) y su ``workspace.json`` leído UNA sola vez (086:RF-118)."""
         from ...dominio.util import ruta_copia_anterior
 
         try:
-            _leer_estado(folder)
+            return None, _leer_estado(folder)
         except EspacioVersionFutura as exc:
-            return {'estado': 'version_futura', 'motivo': str(exc), 'restaurable': False}
+            problema = {'estado': 'version_futura', 'motivo': str(exc), 'restaurable': False}
+            try:
+                datos = json.loads((folder / 'workspace.json').read_text(encoding='utf-8'))
+            except (OSError, ValueError):
+                datos = {}
+            return problema, datos if isinstance(datos, dict) else {}
         except EspacioDanado as exc:
             copia = ruta_copia_anterior(folder / 'workspace.json')
             try:
                 restaurable = isinstance(json.loads(copia.read_text(encoding='utf-8')), dict)
             except (OSError, ValueError):
                 restaurable = False
-            return {'estado': 'danado', 'motivo': str(exc), 'restaurable': restaurable}
-        return None
+            return {'estado': 'danado', 'motivo': str(exc), 'restaurable': restaurable}, {}
 
     def restaurar_copia(self, wid: str) -> Workspace:
         """Un espacio dañado vuelve a su copia anterior; lo dañado se aparta, no se borra (086:RF-2)."""
@@ -988,24 +999,45 @@ class WorkspaceStore:
             meta = folder / 'workspace.json'
             if not meta.is_file() and not ruta_copia_anterior(meta).is_file():
                 continue
-            modificado = (meta if meta.is_file() else ruta_copia_anterior(meta)).stat().st_mtime
-            # Dañado o más nuevo, se ve con su motivo: sin esto, el espacio desaparecía sin decir nada.
-            problema = self._problema_de(folder)
-            try:
-                data = json.loads(meta.read_text(encoding='utf-8'))
-                entradas = {k: v.get('name') for k, v in (data.get('inputs') or {}).items()}
-            except (OSError, ValueError, AttributeError):
-                data, entradas = {}, {}
-            if problema and problema['estado'] == 'danado':
-                data, entradas = {}, {}
-            out.append({
-                'id': data.get('id', folder.name),
-                'created_at': data.get('created_at'),
-                'inputs': entradas,
-                'modified_at': modificado,
-                **(problema or {'estado': 'ok'}),
-            })
+            out.append(self._resumen(folder, meta, ruta_copia_anterior(meta)))
         return sorted(out, key=lambda d: d['modified_at'], reverse=True)
+
+    @staticmethod
+    def _huella(ruta: Path) -> tuple:
+        try:
+            st = ruta.stat()
+        except OSError:
+            return ()
+        return (st.st_mtime_ns, st.st_size)
+
+    def _resumen(self, folder: Path, meta: Path, copia: Path) -> dict[str, Any]:
+        """Lo que el listado enseña de un espacio (086:RF-118).
+
+        Un workspace.json real llega a pesar más de 10 MB: el listado lo lee y lo analiza una sola vez y guarda su
+        resumen por la huella (fecha en ns y tamaño) del fichero y de su copia; mientras no cambien, no se vuelve a leer.
+        """
+        huella = (self._huella(meta), self._huella(copia))
+        with self._lock:
+            guardado = self._resumenes.get(folder)
+        if guardado is not None and guardado[0] == huella:
+            return dict(guardado[1])
+        modificado = (meta if meta.is_file() else copia).stat().st_mtime
+        # Dañado o más nuevo, se ve con su motivo: sin esto, el espacio desaparecía sin decir nada.
+        problema, data = self._examinar(folder)
+        try:
+            entradas = {k: v.get('name') for k, v in (data.get('inputs') or {}).items()}
+        except AttributeError:
+            entradas = {}
+        resumen = {
+            'id': data.get('id', folder.name),
+            'created_at': data.get('created_at'),
+            'inputs': entradas,
+            'modified_at': modificado,
+            **(problema or {'estado': 'ok'}),
+        }
+        with self._lock:
+            self._resumenes[folder] = (huella, resumen)
+        return dict(resumen)
 
     def delete(self, wid: str) -> bool:
         ws = self.get(wid)

@@ -812,6 +812,7 @@
     "src/features/plano/logicaUnifilar.ts",
     "test/plano.test.mjs",
     "test/planoEspacio.test.mjs",
+    "test/planoVariosAlimentadores.test.mjs",
     "test/unifilar.test.mjs",
     "test/puntosDeDiseno.test.mjs",
     "src/app/ArchivoInformes.tsx",
@@ -932,6 +933,7 @@
     "src/features/powerfactory/guardadoOrdenado.ts",
     "src/features/powerfactory/TransferenciaPF.tsx",
     "src/features/powerfactory/alternativas.ts",
+    "src/features/powerfactory/centralesDeSet.ts",
     "src/features/powerfactory/clientesCatalogo.ts",
     "src/features/powerfactory/enviarInformeLogica.ts",
     "src/features/powerfactory/formularioOperacionSet.ts",
@@ -958,6 +960,7 @@
     "test/e2e/f04_asistente.e2e.mjs",
     "test/e2e/f05_selector_unico.e2e.mjs",
     "test/e2e/f06_vad_linea.e2e.mjs",
+    "test/e2e/f07_nube_correo.e2e.mjs",
     "test/e2e/f10_libros_nuevos.e2e.mjs",
     "test/e2e/playwright.config.mjs",
     "test/e2e/sin_omitidas.mjs",
@@ -984,10 +987,14 @@
     "test/superficies.test.mjs",
     "test/tarjetaOperador.test.mjs",
     "test/tensionFuente.test.mjs",
+    "test/centralesDeSet.test.mjs",
+    "test/maximaNoCoincidente.test.mjs",
+    "test/etiquetasMaxima.test.mjs",
     "test/tiposDeAnalisis.test.mjs",
     "test/guardadoOrdenado.test.mjs",
     "test/ubicacionCarga.test.mjs",
-    "test/vadPanel.test.mjs"
+    "test/vadPanel.test.mjs",
+    "test/sinPluralEntreParentesis.test.mjs"
    ]
   }
  ]

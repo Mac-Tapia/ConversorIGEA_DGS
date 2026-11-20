@@ -358,14 +358,15 @@ def test_la_web_muestra_la_validacion_fisica_y_el_balance():
     assert '<ConsumoDistintoLista cargas={consumoDistinto.cargas} />' in ajuste
     # Los fallos de la validación (con «detalle») no se listan como escrituras rechazadas.
     assert '(inf.fallos ?? []).filter((x) => !x.detalle)' in ajuste
-    # 015:RF-66: los bancos a su máxima capacidad, con sus escalones.
-    assert 'puesto(s) a su máxima capacidad' in ajuste and 'bancos_puestos_a_maxima?:' in tipos
+    # 015:RF-66: los bancos a su máxima capacidad, con sus escalones (086:RF-110: con la cuenta concordada, sin «(s)»).
+    assert "cuenta(inf.bancos_puestos_a_maxima!.length, 'puesto', 'puestos')} a su máxima capacidad" in ajuste
+    assert 'bancos_puestos_a_maxima?:' in tipos
     # 015:RF-63: los clientes compensados, con FP real y corregido.
     assert 'Clientes fijos compensados por su banco propio' in ajuste
     assert 'FP real (EA/ERI)' in ajuste and 'fijas_compensadas?: {' in tipos
     # 015:RF-59 / 015:RF-60: clientes sobre su transformador (desde la 020, al principio del
     # resultado) y bancos instalados.
-    assert 'piden más que su potencia instalada' in ajuste
+    assert "plural(sobre.length, 'pide', 'piden')} más que su potencia instalada" in ajuste  # 086:RF-110: concordada, sin «(s)»
     assert 'Bancos de condensadores instalados en el proyecto' in ajuste
     assert 'fijas_sobre_su_transformador?: SedSobrecargada[]' in tipos and 'bancos?: {' in tipos
     # 015:RF-56: de dónde sale el factor de potencia de fijas y escaladas.

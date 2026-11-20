@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ClienteEvolucion, EvolucionResultado, TotalEvolucion } from '../../api/evolucionFijas';
-import { fmtNum } from '../../shared/formato';
+import { fmtNum, cuenta } from '../../shared/formato';
 import { CurvaCliente, GraficoMensual } from './Graficos';
 import {
   MAGNITUDES, avisosPorTipo, buscarClientes, claseVariacion, fmtInstante, fmtPct, nombreMes, seriesMensuales,
@@ -31,7 +31,7 @@ function TarjetaTotal({ t }: { t: TotalEvolucion }) {
       ? { v: d.p_max_coincidente, f: d.fecha_coincidente } : m), null);
   return (
     <article className="tarjeta tarjeta-total">
-      <h5>Total {t.alimentador} <small className="muted">· {t.clientes} cliente(s) fijo(s)</small></h5>
+      <h5>Total {t.alimentador} <small className="muted">· {cuenta(t.clientes, 'cliente fijo', 'clientes fijos')}</small></h5>
       <Indicadores r={t.resumen} />
       <p className="small muted">P máx del periodo: la de la suma de los fijos en un mismo instante
         ({fmtNum(coinc?.v, 1)} kW, crece {fmtPct(t.resumen.crecimiento.p_max_coincidente?.pct)}). Crecimiento, tendencia y
@@ -53,8 +53,8 @@ export function Tablero({ r, wsId, enlace }: { r: EvolucionResultado; wsId: stri
   return (
     <div className="tablero-fijas">
       <p className="muted small">
-        {r.alimentadores.join(', ')} · {nombreMes(r.desde)} a {nombreMes(r.hasta)} · {r.clientes.length} cliente(s) fijo(s)
-        según {r.suministros} · {r.libros.length} libro(s) de clientes
+        {r.alimentadores.join(', ')} · {nombreMes(r.desde)} a {nombreMes(r.hasta)} · {cuenta(r.clientes.length, 'cliente fijo', 'clientes fijos')}
+        según {r.suministros} · {cuenta(r.libros.length, 'libro', 'libros')} de clientes
         {r.renumeraciones.length > 0 && <> · renumerados: {r.renumeraciones.map((x) => `${x.anterior} → ${x.actual}`).join('; ')}</>}
       </p>
       <div className="row">
@@ -78,7 +78,7 @@ export function Tablero({ r, wsId, enlace }: { r: EvolucionResultado; wsId: stri
       <h4>Clientes fijos</h4>
       {conciliacion && (
         <p className="small">Conciliación de fuentes (suministros, resumen de los libros{r.red ? ' y red convertida' : ''}):
-          {' '}<span className="pill-ok">{conciliacion.confirmado} confirmado(s)</span>
+          {' '}<span className="pill-ok">{cuenta(conciliacion.confirmado, 'confirmado', 'confirmados')}</span>
           {' '}<span className={conciliacion.discrepa ? 'pill-warn' : 'muted'}>{conciliacion.discrepa} con discrepancias</span>
           {' '}<span className="muted">{conciliacion.una_fuente} en una sola fuente</span>
           {!r.red && <small className="muted"> · sin red cargada, la SED no se comprueba en la red</small>}</p>

@@ -1,4 +1,4 @@
-import { fmtNum } from '../../shared/formato';
+import { fmtNum, cuenta, plural } from '../../shared/formato';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
@@ -208,7 +208,7 @@ export function FeedersPanel() {
       <p className="muted">Antes del import, pandapower informará sobre conexión, islas y convergencia. Sus avisos no omiten ni bloquean
         la importación de los DGS.</p>
       {!joinedGroup && withDgs.length < selected.length && (
-        <p className="alert alert-warn">{selected.length - withDgs.length} seleccionado(s) no tienen DGS y se omitirán.</p>
+        <p className="alert alert-warn">{cuenta(selected.length - withDgs.length, 'seleccionado no tiene', 'seleccionados no tienen')} DGS y {plural(selected.length - withDgs.length, 'se omitirá', 'se omitirán')}.</p>
       )}
       {/* 091:RF-5: pedía tenerlo abierto, y abierto a mano el arnés no puede usarlo (019:RF-13). */}
       <p className="muted">Requisito: DIgSILENT instalado y cerrado: la web lo abre por su cuenta, y no puede usarlo si está abierto a mano.</p>
@@ -297,10 +297,10 @@ export function FeedersPanel() {
             <p className="alert alert-info">Catálogo corregido activo (<b>{ws.catalog_file}</b>): toda conversión lo aplica.</p>
           )}
           {cabecerasSinRed.length > 0 && (
-            <p className="alert alert-info"><b>{cabecerasSinRed.length} cabecera(s) sin red en la fuente</b> ({cabecerasSinRed.map((row) => row.feeder).join(', ')}): la entrega no trae tramos ni cargas suyos; no hay nada que convertir ni que reconstruir.</p>
+            <p className="alert alert-info"><b>{cuenta(cabecerasSinRed.length, 'cabecera', 'cabeceras')} sin red en la fuente</b> ({cabecerasSinRed.map((row) => row.feeder).join(', ')}): la entrega no trae tramos ni cargas suyos; no hay nada que convertir ni que reconstruir.</p>
           )}
           {blocked.length > 0 && (
-            <p className="alert alert-warn"><b>{blocked.length} alimentador(es) tienen datos incompletos.</b> Siguen seleccionables y se reconstruirán de forma auditable antes de convertir: {Array.from(new Set(blocked.flatMap((row) => row.blocking_codes))).join(', ')}.</p>
+            <p className="alert alert-warn"><b>{cuenta(blocked.length, 'alimentador tiene', 'alimentadores tienen')} datos incompletos.</b> Siguen seleccionables y se reconstruirán de forma auditable antes de convertir: {Array.from(new Set(blocked.flatMap((row) => row.blocking_codes))).join(', ')}.</p>
           )}
 
           <ReconstructionPanel />
@@ -308,7 +308,7 @@ export function FeedersPanel() {
           <div className="toolbar">
             <input className="search" type="search" placeholder="Filtrar por nombre o NetworkID…" value={filter}
               onChange={(e) => setFilter(e.target.value)} aria-label="Filtrar alimentadores" />
-            <span className="muted">{selected.length} seleccionado(s) de {feeders.length}</span>
+            <span className="muted">{cuenta(selected.length, 'seleccionado', 'seleccionados')} de {feeders.length}</span>
             {selected.length > 0 && <button className="link" onClick={() => setSelected([])}>Limpiar selección</button>}
           </div>
 
@@ -421,7 +421,7 @@ export function FeedersPanel() {
             {!!estructura?.deducidos?.length && (
               <small className="muted"
                 title={estructura.deducidos.map((d) => `${d.alimentador} → ${d.set} (${d.zonal}): ${d.regla}`).join('\n')}>
-                {estructura.deducidos.length} alimentador(es) que la tabla de la empresa no trae, colocados por la entrega:{' '}
+                {cuenta(estructura.deducidos.length, 'alimentador', 'alimentadores')} que la tabla de la empresa no trae, colocados por la entrega:{' '}
                 {estructura.deducidos.map((d) => `${d.alimentador} en ${d.set}`).join(', ')}
               </small>
             )}

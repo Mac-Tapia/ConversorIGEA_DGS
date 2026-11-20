@@ -128,7 +128,9 @@ def crear_router(jobs: Any, espacio: Callable[[str], Path], perfil: Callable[[],
                               for a in areas_del_perfil(datos)],
                     'empresa': str(datos.get('empresa') or datos.get('perfil') or '')}
         except PitError as exc:
-            raise HTTPException(422, str(exc)) from None
+            # 107:RF-19 (revisión web del 19-11): un perfil sin áreas del PIT es un estado esperado al abrir la pestaña,
+            # no un error: lista vacía con su motivo; antes, un 422 que el navegador apuntaba como error de consola.
+            return {'areas': [], 'empresa': '', 'motivo': str(exc)}
 
     @r.get('/capacidades')
     def capacidades() -> dict[str, Any]:

@@ -1,4 +1,4 @@
-import { fmtNum } from '../../shared/formato';
+import { fmtNum, cuenta } from '../../shared/formato';
 import { Ayuda } from '../../shared/ui';
 import { useEffect, useId, useState } from 'react';
 import { api } from '../../api/client';
@@ -264,7 +264,7 @@ function ResultadoPIDE({ r, ws, decidir, tipos }: { r: PideResultado; ws: string
   return (
     <div className="alert">
       {r.avisos.map((x) => <p key={x} className="alert alert-warn">{x}</p>)}
-      <p className="small">Años: {r.anios.map((a) => `${String(a.anio).padStart(2, '0')} (${a.problemas} problema(s), mín. ${fmtNum(a.vm_min ?? null, 3)} p.u.)`).join(' · ')}</p>
+      <p className="small">Años: {r.anios.map((a) => `${String(a.anio).padStart(2, '0')} (${cuenta(a.problemas, 'problema', 'problemas')}, mín. ${fmtNum(a.vm_min ?? null, 3)} p.u.)`).join(' · ')}</p>
       {r.implementadas.map((x) => <p key={x.codigo} className="alert alert-ok">{x.codigo} {x.alternativa}: {x.aviso}</p>)}
       <div className="table-wrap table-short">
         <table className="table">
@@ -394,7 +394,7 @@ function FuentesPide({ fuentes }: { fuentes: Record<string, unknown> }) {
 /** 072:RF-26, 072:RF-27: conserva resultado parcial y separa las aceptaciones. */
 export function VistaPideAnual({ r, ws }: { r: PideAnualResultado; ws: string }) {
   const medida = (m?: PideAnualResultado['anios'][number]['antes']) => m
-    ? `${m.converge ? 'Converge' : 'No converge'} · ${m.cumple ? 'Cumple' : 'Incumple'} · ${m.problemas.length} problema(s)`
+    ? `${m.converge ? 'Converge' : 'No converge'} · ${m.cumple ? 'Cumple' : 'Incumple'} · ${cuenta(m.problemas.length, 'problema', 'problemas')}`
     : 'Sin medir';
   return <section className="alert">
     <h4>Resultado anual: {r.estado.replaceAll('_', ' ')}</h4>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { cuenta } from '../../shared/formato';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
 import type {
@@ -80,7 +81,7 @@ export function ReconstructionPanel() {
         <div>
           <b>Diagnóstico y reconstrucción auditable</b>
           <p className="muted small">
-            Alcance: {all ? `todos (${feeders.length})` : `${selected.length} seleccionado(s)`}.
+            Alcance: {all ? `todos (${feeders.length})` : cuenta(selected.length, 'seleccionado', 'seleccionados')}.
             Los originales y sus SHA-256 no se modifican.
           </p>
         </div>

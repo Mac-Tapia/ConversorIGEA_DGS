@@ -238,6 +238,9 @@ def capturar_accion(plan: Mapping[str, Any], informe: Mapping[str, Any], *, caso
         return {'error': str(exc)}
     if episodio.clase is Clase.QUARANTINE:
         log(f"{AVISO_CUARENTENA}: {'; '.join(episodio.aceptacion.get('bloqueos') or [])}")
+    elif episodio.clase is Clase.REJECTED:
+        # 086:RF-125: el rechazo también dice su causa en el Registro; el episodio queda para aprender de él.
+        log(f"Gemelo digital: episodio rechazado ({'; '.join(episodio.aceptacion.get('bloqueos') or [])}).")
     return {'episode_id': episodio.episode_id, 'clase': episodio.clase.value,
             'caso': episodio.caso.value, 'bloqueos': list(episodio.aceptacion.get('bloqueos') or []),
             'violaciones': list(episodio.aceptacion.get('violaciones') or [])}

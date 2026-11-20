@@ -10,6 +10,7 @@ import { EquipoAsistente } from './EquipoAsistente';
 import { Aprendizaje } from './Aprendizaje';
 import { TarjetaOperador } from './TarjetaOperador';
 import { tarjetaDe } from './tarjetaOperadorLogica';
+import { cuenta } from '../../shared/formato';
 
 /** Spec 026: la consola del asistente. La orden se escribe en español; lo que escribe en
  * DIgSILENT o en disco espera la confirmación (RF-8) y se ejecuta como cualquier trabajo. */
@@ -184,7 +185,7 @@ function Memoria() {
       <summary className="small">Memoria de la conversación</summary>
       {memoria && (
         <div className="stack small">
-          <p>{memoria.turnos.length} turno(s); cada orden usa los {memoria.topes.turnos} últimos.</p>
+          <p>{cuenta(memoria.turnos.length, 'turno', 'turnos')}; cada orden usa los {memoria.topes.turnos} últimos.</p>
           {memoria.turnos.length > 0 && (
             <>
               <ul>{memoria.turnos.slice(-memoria.topes.turnos).reverse().map((t) => (

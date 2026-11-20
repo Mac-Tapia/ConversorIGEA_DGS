@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { cuenta, plural } from '../../shared/formato';
 import { api, type PerfilEstado } from '../../api/client';
 import { useApp } from '../../shared/context';
 
@@ -75,7 +76,7 @@ export function PerfilEmpresa() {
       </button>
       {necesarias.length > 0 && (
         <details>
-          <summary>Faltan {necesarias.length} dato(s) que conviene dar</summary>
+          <summary>{plural(necesarias.length, 'Falta', 'Faltan')} {cuenta(necesarias.length, 'dato', 'datos')} que conviene dar</summary>
           <ul>
             {necesarias.map((f) => <li key={f.clave}><code>{f.clave}</code>: {f.funcion}. Sin él: {f.si_falta}</li>)}
           </ul>

@@ -1,5 +1,5 @@
 import type { Alternativa, AvanceDisco } from '../../api/types';
-import { fmtNum } from '../../shared/formato';
+import { fmtNum, cuenta, plural } from '../../shared/formato';
 import { alcanceDe, plazoDe, porCosto, sorteosDe, tensionDe, valleDe } from './alternativas';
 import { aDelNodo, camposDePropuesta, medidaDelFormulario as medida, textoDeLaConexion } from './ubicacionCarga';
 import { useContext, useEffect, useRef, useState } from 'react';
@@ -523,7 +523,7 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
                 <strong>{warning.message}</strong>
                 {warning.elements.length > 0 && (
                   <details>
-                    <summary>{warning.elements.length} elemento(s) modificados</summary>
+                    <summary>{cuenta(warning.elements.length, 'elemento modificado', 'elementos modificados')}</summary>
                     <ul className="small">{warning.elements.map((element) => (
                       <li key={`${element.change}:${element.class}:${element.full_name}`}>
                         {element.change === 'added' ? 'Agregado' : element.change === 'removed' ? 'Eliminado' : 'Modificado'}:
@@ -590,7 +590,7 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
             <button className="btn btn-sm btn-ghost" onClick={() =>
               setOrder((o) => [...o, ...visible.filter((f) => !o.includes(f))])}>Marcar los visibles</button>
             <button className="btn btn-sm btn-ghost" disabled={!order.length} onClick={() => setOrder([])}>Ninguno</button>
-            <span className="muted">{order.length} de {current.feeders.length} marcado(s)</span>
+            <span className="muted">{order.length} de {current.feeders.length} {plural(order.length, 'marcado', 'marcados')}</span>
           </div>
           {current.feeders.length === 0 ? (
             <p className="empty">El proyecto no tiene alimentadores (ElmFeeder ni redes).</p>
@@ -863,8 +863,8 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
         </>}>
           <p>Alimentadores: {plan.feeders.join(' → ')}
             {plan.base ? <> · base: <span className="mono">{plan.base.variaciones.join(', ') || `calibración de ${plan.base.feeders.join(', ')} en «Sin proyecto»`}</span></> : ' · sin base del ajuste'}</p>
-          <p>{fmtNum(plan.n_demandas)} demanda(s) en el escenario de «Sin proyecto» y
-            {' '}{fmtNum(plan.n_nuevas)} carga(s) nueva(s), <strong>cada una en su propia variación</strong>. Se aplican primero las
+          <p>{cuenta(plan.n_demandas, 'demanda', 'demandas')} en el escenario de «Sin proyecto» y
+            {' '}{cuenta(plan.n_nuevas, 'carga nueva', 'cargas nuevas')}, <strong>cada una en su propia variación</strong>. Se aplican primero las
             demandas, después la carga del formulario y después las del libro; cada carga se mide con la base y sin las
             demás, y al terminar queda activa solo la base. Simule para ver qué coincide antes de aplicar.</p>
           {plan.avisos.map((a) => <p key={a} className="alert alert-warn">{a}</p>)}
@@ -872,7 +872,7 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
           {porQueNoAplicar && <p className="alert alert-warn">Para aplicar: {porQueNoAplicar}</p>}
           {!plan.applicable && <p className="alert alert-error">Ninguna fila válida: no hay nada que aplicar.</p>}
           {plan.row_errors.length > 0 && (
-            <div className="alert alert-warn"><strong>{plan.row_errors.length} fila(s) con error: se omiten, el resto se aplica.</strong>
+            <div className="alert alert-warn"><strong>{cuenta(plan.row_errors.length, 'fila con error', 'filas con error')}: {plural(plan.row_errors.length, 'se omite', 'se omiten')}, el resto se aplica.</strong>
               <ul>{plan.row_errors.slice(0, 30).map((e) => <li key={e}>{e}</li>)}</ul>
               {plan.row_errors.length > 30 && <small>… y {plan.row_errors.length - 30} más.</small>}</div>
           )}
@@ -881,7 +881,7 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
           )}
           {(plan.repetidas ?? []).length > 0 && (
             <div className="alert alert-warn">
-              <strong>{plan.repetidas!.length} fila(s) repetida(s) en el libro de {plan.feeders.join(', ')}: no se crean;
+              <strong>{cuenta(plan.repetidas!.length, 'fila repetida', 'filas repetidas')} en el libro de {plan.feeders.join(', ')}: {plural(plan.repetidas!.length, 'no se crea', 'no se crean')};
                 cuenta la última fila del mismo cliente.</strong>
               <div className="table-wrap table-short">
                 <table>
@@ -1052,7 +1052,7 @@ function CasoBase({ estado, ultimo }: { estado: Record<string, CasoBaseEstado>; 
       </table>
       {(ultimo?.feeders ?? []).filter((x) => x.avisos?.length).map((x) => (
         <details key={x.feeder}>
-          <summary>{x.feeder}: {x.avisos!.length} aviso(s)</summary>
+          <summary>{x.feeder}: {cuenta(x.avisos!.length, 'aviso', 'avisos')}</summary>
           <ul className="small">{x.avisos!.map((a) => <li key={a}>{a}</li>)}</ul>
         </details>
       ))}
@@ -1283,7 +1283,7 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
       {motivos('Ambiguas (omitidas)', inf.ambiguas, 'warn')}
       {motivos('Cargas nuevas no creadas', inf.no_creadas, 'warn')}
       {(inf.plan_errores_de_fila ?? []).length > 0 && (
-        <p className="muted">{inf.plan_errores_de_fila!.length} fila(s) con error en los libros no se enviaron.</p>
+        <p className="muted">{cuenta(inf.plan_errores_de_fila!.length, 'fila con error', 'filas con error')} en los libros {plural(inf.plan_errores_de_fila!.length, 'no se envió', 'no se enviaron')}.</p>
       )}
       <small className="muted">Informe completo: {resultado.report}, en «Resultados».</small>
     </div>
@@ -1298,7 +1298,7 @@ function CargasNuevasCaso({ c }: { c: NonNullable<CargasInforme['cargas_nuevas']
       <strong>«{c.caso}»</strong>: copia de «Sin proyecto» con las cargas nuevas, sin obras.{' '}
       {c.converge === false
         ? 'No converge ni sin cargas nuevas.'
-        : <>Converge con {c.activas.length} carga(s) nueva(s){fuera.length ? `; ${fuera.length} quedan inactivas porque con ellas ya no converge` : ''}.</>}
+        : <>Converge con {cuenta(c.activas.length, 'carga nueva', 'cargas nuevas')}{fuera.length ? `; ${fuera.length} quedan inactivas porque con ellas ya no converge` : ''}.</>}
       {fuera.length > 0 && (
         <ul className="small">{fuera.map((x) => <li key={x.variacion}>{x.texto ?? x.variacion}</li>)}</ul>
       )}
@@ -1446,13 +1446,13 @@ function AlternativasDe({ f, a, moneda }: { f: string; a: ConProyectoAlimentador
   const aparte = [['déficit previo', a.deficit_previo], ['sin comparación', a.sin_comparacion]] as const;
   return (
     <div>
-      <p><strong>{f}</strong>: {fmtNum(a.cargas)} carga(s), {fmtNum(a.kw / 1000, 2)} MW ·{' '}
+      <p><strong>{f}</strong>: {cuenta(a.cargas, 'carga', 'cargas')}, {fmtNum(a.kw / 1000, 2)} MW ·{' '}
         {a.ya_cumple ? 'ya cumple, sin obra para la carga'
           : a.cumple ? 'cumple con obra' : <span className="badge err">la escalera no basta</span>}</p>
       {(a.alternativas ?? []).length > 0 && <TablaAlternativas lista={a.alternativas!} moneda={moneda} />}
       {aparte.map(([rotulo, d]) => d && (
         <div key={rotulo}>
-          <p className="small"><strong>Obra aparte, {rotulo}</strong>: {fmtNum(d.barras.length)} barra(s) bajo el límite que
+          <p className="small"><strong>Obra aparte, {rotulo}</strong>: {cuenta(d.barras.length, 'barra', 'barras')} bajo el límite que
             la carga no causa. No está en «Con proyecto» ni en sus flujos; se midió con la máxima, sin sorteos.</p>
           <TablaAlternativas lista={d.alternativas} moneda={moneda} />
         </div>))}
@@ -1500,7 +1500,7 @@ function Escalera({ r }: { r: EscaleraResultado }) {
                     <td className="small">{Object.entries(v.u_cargas ?? {}).filter(([, u]) => u != null)
                       .map(([b, u]) => `${b}: ${fmtNum(u as number, 3)} p.u.`).join(' · ')}
                       {v.u_min_mt != null && <div className="muted">mínima de media {fmtNum(v.u_min_mt, 3)} p.u.</div>}
-                      {barrasAjenas(v) > 0 && <div className="muted">{barrasAjenas(v)} barra(s) bajo el límite que esta obra no resuelve</div>}</td>
+                      {barrasAjenas(v) > 0 && <div className="muted">{cuenta(barrasAjenas(v), 'barra', 'barras')} bajo el límite que esta obra no resuelve</div>}</td>
                     <td className="num">{v.fraccion == null ? '—' : `${fmtNum(100 * v.fraccion, 0)} %`}</td>
                     {/* 073:RF-30: la tensión máxima en valle, con su nodo y su fecha, o por qué no se comprobó. */}
                     <td className="small">{v.valle_texto ?? '—'}</td>

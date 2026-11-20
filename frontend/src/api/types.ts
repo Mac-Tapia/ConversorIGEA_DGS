@@ -921,6 +921,14 @@ export interface CentralDeBarra {
   tramo: string;
 }
 
+/** 086:RF-122: una SET de la estructura, con sus alimentadores, para elegir la de cada central. */
+export interface SetDeCentral {
+  codigo: string;
+  rotulo: string;
+  zonal: string;
+  alimentadores: string[];
+}
+
 export interface MedidoresExternos {
   medidores: { alimentador: string; medidor: string }[];
   centrales_perfil: Record<string, CentralTermica>;

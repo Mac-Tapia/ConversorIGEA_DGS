@@ -1,6 +1,6 @@
 # Spec 109 — Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web
 
-Estado: implementada (2026-11-17: T20, las fuentes de la empresa del espacio y la red convertida, hecha; queda T16 en DIgSILENT); antes aprobada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-23, BP-24 y BP-25, y orden del usuario del
+Estado: implementada (2026-11-17: T20, las fuentes de la empresa del espacio y la red convertida, hecha; queda T16, manual del usuario y sin DIgSILENT: correr el recorrido de Nube y Correo con el simulado y, opcional, la prueba real con una cuenta); antes aprobada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-23, BP-24 y BP-25, y orden del usuario del
 2026-11-14: «haz nuevos spec»; autorización del Drive propio del usuario (constitución, principio 9, enmienda del
 2026-11-14). G0: `D:/csg/G0_PLAN_MAESTRO/E/MATRIZ_CLOUD_PERMISOS_Y_FORMATOS.md`.
 
@@ -77,14 +77,16 @@ El operador o ingeniero en la web, con su propia cuenta de Google o de Microsoft
   lo cargará y dirá su nombre y los tipos que admite.
 - RF-24: CUANDO el operador guarde una salida (informe, libro, expediente o paquete), EL SISTEMA le dejará elegir la
   carpeta del equipo donde guardarla y, si hay una cuenta conectada, también publicarla en Google Drive u OneDrive por
-  RF-9.
+  RF-9. Vale también para los entregables que el PIT y el VAD guardan en su carpeta del espacio
+  (`expedientes_pit/`, `vad/`): se publica lo elegido y nada más del espacio.
 - RF-25: EL SISTEMA guardará los libros de la empresa del espacio (SICODI, PIT, VAD, TdR, PIDE, perfil, catálogo, .pfd,
   medición, demanda, cargas nuevas, proyección, alternativas, interrupciones) una sola vez, con su clase, su periodo y su
   huella, y cada módulo los tomará de ahí: la vigente de su clase por defecto, otra a elección o una nueva subida, que
   queda para todos. Una versión nueva de la misma clase y periodo pasa a vigente sin borrar las anteriores. (Orden del
   usuario, 17-11: «todos los módulos están relacionados y vinculados … con la empresa que se va a trabajar».)
 - RF-26: CUANDO la carga del espacio convierta una red, EL SISTEMA dejará para los módulos la red convertida (el modelo
-  canónico del VNR-GIS) con su fuente, su empresa y sus alimentadores, y ningún módulo pedirá otra vez ese inventario.
+  canónico del VNR-GIS) con su fuente, su empresa y sus alimentadores, y ningún módulo pedirá otra vez ese inventario. Un
+  espacio que todavía no tiene red no es un error: la consulta responde que no está disponible y por qué, sin un 404.
 
 ## Requisitos no funcionales
 - Lo local sigue funcionando sin cuenta y sin red: sin regresión en las entradas actuales.

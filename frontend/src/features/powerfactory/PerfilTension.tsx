@@ -1,4 +1,4 @@
-import { fmtNum } from '../../shared/formato';
+import { fmtNum, cuenta } from '../../shared/formato';
 import { useLetraFija } from '../../shared/graficos';
 
 import type { PerfilTension as Perfil } from '../../api/types';
@@ -72,9 +72,9 @@ export function PerfilTension({ perfil, feeder }: { perfil: Perfil; feeder: stri
       </svg>
       <small className="muted">
         {fmtNum(puntos.length)} barras de media; mínima {fmtNum(minima.u, 4)} p.u. en {minima.barra}, a {fmtNum(minima.km, 2)} km.
-        {' '}La línea es la troncal{perfil.ramales_largos.length ? ` (y hay ${perfil.ramales_largos.length} ramal(es) largo(s))` : ''}.
+        {' '}La línea es la troncal{perfil.ramales_largos.length ? ` (y hay ${cuenta(perfil.ramales_largos.length, 'ramal largo', 'ramales largos')})` : ''}.
         {banda && bajo != null
-          ? ` Límite del perfil de la empresa: ${fmtNum(banda[0], 2)} a ${fmtNum(banda[1], 2)} p.u.; ${fmtNum(bajo)} barra(s) por debajo.`
+          ? ` Límite del perfil de la empresa: ${fmtNum(banda[0], 2)} a ${fmtNum(banda[1], 2)} p.u.; ${cuenta(bajo, 'barra', 'barras')} por debajo.`
           : ' Sin el límite de tensión del perfil de la empresa.'}
       </small>
       {perfil.aviso && <p className="alert alert-warn">{perfil.aviso}</p>}

@@ -392,6 +392,19 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
   Hecho cuando: `tests/test_buffer_indice_concurrente.py` (086:RF-117: 8 aperturas a la vez sin índice, seis vueltas,
   ninguna falla, 12 episodios indexados, sin temporales) en verde, con rojo previo por aserción (7 de 8 con
   PermissionError), y las pruebas del búfer y del gemelo sin regresión. Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/pfvigia/`.
+- [x] T88 LISTADO-UNA-LECTURA (revisión web del 19-11, W4): `WorkspaceStore.list` analiza cada `workspace.json` una
+  vez (`_examinar` da el problema y los datos) y guarda el resumen por la huella del fichero y de su copia. (RF-118)
+  Hecho cuando: `tests/test_revision_web_estados.py` (086:RF-118: una lectura por espacio, ninguna en el segundo
+  listado, un cambio que se ve y un espacio dañado con su motivo) en verde con rojo previo por aserción, y las pruebas de
+  espacios sin regresión. Hecho en esta entrega (ce): rojo VALIDO (2 F) y verde 226 passed en
+  `D:/csg/PM_IMPL/REVISION_WEB/w4/`; con los datos del acceso directo, 52 espacios en 2,1 s el primero y 0 s después.
+- [x] T89 SIN-PLURAL-ENTRE-PARENTESIS (revisión web del 19-11, W5 a W8): `plural`/`cuenta` en `frontend/src/shared/formato.ts`,
+  los «(s)»/«(es)» de todas las pantallas con la cuenta concordada, el Registro con la etiqueta de la casilla, la ayuda
+  del CRS sin la clave del perfil y la línea de la entrada sin pedir otra carga cuando ya está cargada. (RF-110)
+  Hecho cuando: `frontend/test/sinPluralEntreParentesis.test.mjs` (recorre `frontend/src`) y
+  `tests/test_revision_web_estados.py::test_086_rf110_el_registro_nombra_la_casilla_como_la_ve_el_operador` en verde
+  con rojo previo por aserción, y `npm test` entero en verde. Hecho en esta entrega (ce): rojos por aserción en
+  `D:/csg/PM_IMPL/REVISION_WEB/w5/` a `w8/` y `gpf/w6/`, `npm test` 305/305 sobre gPF (`gpf/npm_test.log`), tsc rc=0.
 - [x] T90 CAPEX-SIN-HOJA (prueba funcional del 19-11): `aplicacion/pide_economia.py` `leer_capex` reconoce por su
   contenido las hojas del CAPEX cuando el perfil no declara la hoja, y si ninguna sirve dice qué falta. (RF-119)
   Hecho cuando: `tests/test_capex_sin_hoja.py` (086:RF-119: sin hoja ni columnas, una hoja de costos entre otras se
@@ -408,3 +421,47 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
   rojo previo por aserción, las pruebas del búfer, del gemelo y del ciclo sin regresión, y el preflight sobre una copia
   del búfer real con `proyectos_043` ≥ 1 y `contexto_hash` no nulo. Aplicar el relleno al búfer real lo decide el
   integrador. Evidencia: `D:/csg/PM_IMPL/TWIN_ID/`.
+- [ ] T96 CENTRALES-SET (orden del usuario del 19-11; amplía 022:RF-88): `demanda_centrales_de_barra` da todas las SET de
+      la estructura con sus alimentadores; la tabla de centrales de la máxima por barra (DemandaMedida.tsx, con
+      `centralesDeSet.ts`) elige la SET de cada una con dos grupos (las de los analizados y las otras), ofrece el tramo de
+      un alimentador de esa SET y dice «no entra» si su SET no tiene ninguno de los analizados; `centrales_set` llega al
+      trabajo y `demanda_medida.centrales_en_su_set` pone cada central en su SET y deja fuera las que no entran, con su
+      aviso. Pruebas: tests/test_centrales_de_set.py y frontend/test/centralesDeSet.test.mjs (rojo por aserción). (RF-122)
+      Hecho cuando: rojo por aserción (sin la lista de SET ni la SET elegida) y verde con sus pruebas, y, ya integrada, un
+      recorrido en navegador real por la web del operador (solo lectura, con sus libros y su estructura): la tabla de
+      centrales con el selector de SET, las de los analizados primero y el «no entra» de las que no lo son. Evidencia:
+      `D:/csg/PM_IMPL/CENTRALES_SET/` y `D:/csg/PM_IMPL/GWEB2/`.
+- [ ] T97 ETIQUETAS-MAXIMA (orden del usuario del 19-11): `CurvaCabecera.tsx` con varias curvas pinta la etiqueta de
+      cada máxima (alimentador · kW · fecha y hora), con su muestra de color, halo y guía al punto si se movió;
+      `graficos.separarEtiquetas` las reparte sin taparse y dentro del gráfico. Prueba:
+      frontend/test/etiquetasMaxima.test.mjs (200 casos sorteados con la semilla en el registro; rojo por aserción). (RF-123)
+      Hecho cuando: rojo por aserción (sin etiquetas ni su reparto) y verde con su prueba sorteada, y, ya integrada, la
+      gráfica de curvas de cabecera vista en navegador real en la web del operador con una etiqueta por máxima.
+      Evidencia: `D:/csg/PM_IMPL/CENTRALES_SET/` y `D:/csg/PM_IMPL/GWEB2/`.
+- [ ] T98 CALIB-IMPOSIBLE (orden del usuario del 19-11; amplía 083:RF-30): en una corrida real de cuatro alimentadores,
+      tres cumplían y el cuarto tenía fijas que con sus pérdidas pasaban de su cabecera; el oráculo dejó su factor casi en
+      cero, «escaladas al mínimo» se medía contra ese factor y el bucle gastó los 30 flujos sin causa, marcando a los cuatro
+      como violación. `cuadrar_conjunto(factores_iniciales=…)` mide el mínimo contra el factor de antes del oráculo; el
+      imposible queda en `CuadreConjunto.imposibles` con `causa_imposible` y se para si los demás cumplen;
+      `CuadreConjunto.cumple`; el guion pasa los factores, guarda la causa y da por cuadrado al que cumple. Lo mismo para
+      una SET o un sistema eléctrico (el mismo `_ejecutar_proyecto`) y con un solo alimentador: `cuadrar(factor_inicial=…)`
+      corrige las fijas (083:RF-30, que en ese camino no existía) o para con `Cuadre.imposible`. Pruebas:
+      tests/test_calibracion_imposible.py (red sintética sorteada; rojo por aserción: la base gasta los 30 flujos). (RF-124)
+      Hecho cuando: rojo por aserción sobre la base (gasta los 30 flujos sin causa) y verde con sus pruebas, las selladas de
+      la 083 en su orden, capas e inventario; la prueba real en DIgSILENT, en el turno que dé el integrador. Evidencia:
+      `D:/csg/PM_IMPL/CALIB_IMPOSIBLE/`.
+- [x] T99 GEMELO-NO-CONVERGE (orden del usuario del 19-11): `tools/digital_twin_snapshot_pf.py` lee el grafo aunque
+  el flujo no converja, marca `flujo_converge` y dice la causa en `resumen_salida`; `adaptadores/digital_twin/capture.py`
+  clasifica `rejected` con su causa una lectura válida que no converge, e `integration.py` avisa el rechazo en el
+  Registro. (RF-125)
+  Hecho cuando: `tests/test_digital_twin_snapshot_pf.py`, `tests/test_digital_twin_capture.py` y
+  `tests/test_digital_twin_integration.py` (086:RF-125) en verde, con rojo previo por aserción (4 F), y las pruebas del
+  gemelo sin regresión. Evidencia: `D:/csg/INTEGRA_54/cierre_tareas/gemelo/` (rojo2, 4 F) y `cierre_tareas/calib/verde2.log` (701 passed).
+- [ ] T100 MAXIMA-NO-COINCIDENTE (orden del usuario del 19-11; amplía 028:RF-27, RF-28): DemandaMedida.tsx ofrece «Máxima
+      de cada alimentador (no coincidente)» en el selector del instante, que sale también en el análisis de una SET o de un sistema; la pide
+      sin barra, sin sistema y sin coincidente (las máximas propias que ya da el servidor) y avisa con la fecha de cada
+      uno; tools/ajuste_cabecera_pf.py `aviso_de_instantes` lo dice en el informe sin bloquear. (RF-126)
+      Hecho cuando: rojo por aserción (sin la opción ni el selector por SET o por sistema) y verde con
+      frontend/test/maximaNoCoincidente.test.mjs y tests/test_centrales_de_set.py, y, ya integrada, un recorrido en
+      navegador real por la web del operador (solo lectura) con el selector en los tres análisis, el por defecto sin
+      cambiar y el aviso con la fecha de cada alimentador. Evidencia: `D:/csg/PM_IMPL/GWEB2/`.

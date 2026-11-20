@@ -131,3 +131,11 @@ test('108 T29 sin estudios lo dice, y sus trabajos avisan en su pestaña', async
   const app = readFileSync(join(SRC, 'app', 'App.tsx'), 'utf-8');
   assert.match(app, /\{ id: 'vad', label: 'Estudio VAD', el: <EstudioVad \/>, entradas: false \}/);
 });
+
+test('108 T32 sin estudios no enseña una lista vacía y dice qué falta para crearlo (108:RF-26)', async () => {
+  const { pintar } = await cargar();
+  const html = pintar();
+  assert.ok(!html.includes('<span>Estudio</span>'), 'la lista de estudios vacía no se enseña');
+  assert.match(html, /<button[^>]*disabled=""[^>]*>\s*Crear estudio<\/button>/);
+  assert.ok(html.includes('Para crearlo: periodo (2027-2031) y versión del TdR.'), 'el botón apagado dice qué falta');
+});

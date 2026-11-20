@@ -364,6 +364,8 @@ class DemandaMedidoresIn(BaseModel):
     # 022:RF-88: las centrales (CT…) conectadas en un tramo de su alimentador, no en la barra:
     # {medidor: alimentador}.
     centrales_tramo: dict[str, str] = Field(default_factory=dict)
+    # 086:RF-122: la SET de cada central que eligió el operador: {medidor: código de SET de la estructura}.
+    centrales_set: dict[str, str] = Field(default_factory=dict)
     # 028:RF-28: proyecto de alimentadores: su único instante de mayor demanda conjunta, con los
     # medidores de sus centrales: {alimentador: {generacion, llegada, salida}}.
     coincidente: bool = False
@@ -1402,7 +1404,9 @@ def create_app(
                     ws.invalidate()
                 ws.options['input_mode'] = group
                 ws.save()
-        ws.events.append('log', {'text': f'Archivo asignado a {slot}: {path.name}'
+        # 086:RF-110 (T89): el Registro nombra la casilla como la ve el operador, no por su clave interna.
+        etiqueta = str(SLOTS[slot].get('etiqueta') or slot).split(' — ')[0]
+        ws.events.append('log', {'text': f'Archivo asignado a «{etiqueta}»: {path.name}'
                                  + (f'  (AVISO: {warning.splitlines()[0]})' if warning else '')})
         return {'slot': slot, **meta, 'workspace': ws.public()}
 
@@ -2181,6 +2185,7 @@ def create_app(
                                                                instante=body.instante,
                                                                por_barra=body.por_barra,
                                                                centrales_tramo=body.centrales_tramo,
+                                                               centrales_set=body.centrales_set,
                                                                coincidente=body.coincidente,
                                                                centrales=body.centrales,
                                                                sistema_60kv=body.sistema_60kv),

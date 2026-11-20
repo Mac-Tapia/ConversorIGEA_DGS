@@ -200,3 +200,26 @@ export function ajustarPanel(actual: number, tecla: string, orientacion: 'vertic
   if (tecla === 'End') return LIMITES_PANEL.max;
   return null;
 }
+
+// ------------------------------------------------------------------ 111:RF-24, RF-25: varios alimentadores a la vez
+
+/** Los alimentadores del plano: el principal (el de la variación y el unifilar) y los añadidos, sin repetir y en el
+ * orden de la lista; un añadido que ya no está en la lista se olvida. */
+export function alimentadoresDelPlano(principal: string, extra: string[], opciones: string[]): string[] {
+  if (!principal) return [];
+  const vistos = new Set([principal]);
+  const salida = [principal];
+  for (const o of opciones) if (extra.includes(o) && !vistos.has(o)) { vistos.add(o); salida.push(o); }
+  return salida;
+}
+
+/** Pone o quita un alimentador de los añadidos. */
+export function alternarAlimentador(extra: string[], alimentador: string): string[] {
+  return extra.includes(alimentador) ? extra.filter((x) => x !== alimentador) : [...extra, alimentador];
+}
+
+/** Los alimentadores que se pueden añadir, filtrados por el texto (sin distinguir mayúsculas), sin el principal. */
+export function alimentadoresAnadibles(opciones: string[], principal: string, texto: string): string[] {
+  const q = texto.trim().toLocaleLowerCase('es');
+  return opciones.filter((o) => o !== principal && (!q || o.toLocaleLowerCase('es').includes(q)));
+}

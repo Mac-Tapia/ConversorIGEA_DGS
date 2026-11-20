@@ -89,10 +89,10 @@ export function EstudioVad() {
     <div className="estudio-vad">
       <AvisosTrabajo paso="vad" />
       <div className="form-grid">
-        <label className="field"><span>Estudio</span>
+        {estudios.length > 0 && <label className="field"><span>Estudio</span>
           <select value={elegido} onChange={(e) => setElegido(e.target.value)}>
             {estudios.map((e) => <option key={e.id} value={e.id}>{`G${e.grupo} ${e.periodo} · ${e.estado}`}</option>)}
-          </select></label>
+          </select></label>}
         <label className="field"><span>Grupo</span>
           <input type="number" min={1} max={9} value={grupo} onChange={(e) => setGrupo(e.target.value)} /></label>
         <label className="field"><span>Periodo</span>
@@ -103,6 +103,8 @@ export function EstudioVad() {
       <div className="row">
         <button className="btn" onClick={crear} disabled={!/^\d{4}-\d{4}$/.test(periodo.trim()) || !tdr.trim()}>
           Crear estudio</button>
+        {(!/^\d{4}-\d{4}$/.test(periodo.trim()) || !tdr.trim()) &&
+          <span className="muted">Para crearlo: periodo (2027-2031) y versión del TdR.</span>}
       </div>
 
       {d && (

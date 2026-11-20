@@ -165,3 +165,24 @@ def test_main_bloquea_un_plan_sin_contexto(guion, tmp_path):
     salida = tmp_path / 'lectura.json'
     assert guion.main(['--plan', str(plan), '--output-json', str(salida)]) == 2
     assert json.loads(salida.read_text(encoding='utf-8'))['status'] == 'BLOQUEADO_DATOS'
+
+
+def test_sin_converger_lee_el_grafo_y_dice_la_causa(guion):
+    """086:RF-125 / 024:RF-4 — sin convergencia tras reabrir, la lectura trae la red (el grafo no depende del flujo),
+    lo marca y dice la causa: antes no traía el grafo y el aviso del episodio decía «no trae el grafo eléctrico»."""
+    app = _app(('F1',))
+    app.ldf.limite = 0.01
+    lectura, rc = guion.ejecutar(app, _plan(('F1',)))
+    assert rc == 2 and lectura['flujo'] is None and lectura.get('flujo_converge') is False
+    assert (lectura['topologia'].get('grafo') or {}).get('nodos')
+    assert 'no converge' in getattr(guion, 'resumen_salida', lambda *_: '')(lectura, rc)
+
+
+def test_la_salida_del_guion_dice_la_causa_de_su_codigo(guion):
+    """086:RF-125 — «Lectura de P: código 2» sin más no decía por qué; con código 0 no añade nada."""
+    assert hasattr(guion, 'resumen_salida'), 'falta resumen_salida'
+    assert guion.resumen_salida({'project': 'P', 'error': 'el proyecto no tiene el caso «X»'}, 2) == \
+        'Lectura de P: código 2 (el proyecto no tiene el caso «X»)'
+    assert guion.resumen_salida({'project': 'P', 'avisos': ['el flujo no converge tras reabrir']}, 2) == \
+        'Lectura de P: código 2 (el flujo no converge tras reabrir)'
+    assert guion.resumen_salida({'project': 'P', 'avisos': []}, 0) == 'Lectura de P: código 0'

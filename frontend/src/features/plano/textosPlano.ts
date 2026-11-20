@@ -2,6 +2,11 @@
 export const TEXTOS = {
   titulo: 'Plano de la red',
   alimentador: 'Alimentador',
+  verTambien: 'Ver también',
+  filtrarAlimentadores: 'Filtrar alimentadores',
+  quitarTodos: 'Solo el principal',
+  transferencias: 'Puntos de transferencia',
+  sinTransferencias: 'Ningún punto de transferencia entre estos alimentadores.',
   buscar: 'Buscar por código',
   sinResultadosBusqueda: 'Ningún elemento con ese código.',
   sinCoordenadas: 'Sin coordenadas: se lista, pero no se dibuja.',

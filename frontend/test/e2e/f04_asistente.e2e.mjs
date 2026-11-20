@@ -27,13 +27,13 @@ async function ordenar(page, texto) {
 async function memoria(page, testInfo, ordenes) {
   await page.getByText('Memoria de la conversación', { exact: true }).click();
   const panel = page.locator('details').filter({ has: page.getByText('Memoria de la conversación', { exact: true }) });
-  await expect(panel).toContainText(/\d+ turno\(s\)/);
+  await expect(panel).toContainText(/\d+\s+turnos?/);
   expect(await panel.innerText()).not.toMatch(ILEGIBLE);
   for (const o of ordenes) await expect(panel).toContainText(o);
   await revisarAxe(page, FLUJO, '3_memoria', testInfo);
   if (ordenes.length) {
     await panel.getByRole('button', { name: 'Olvidar la conversación', exact: true }).click();
-    await expect(panel).toContainText('0 turno(s)');
+    await expect(panel).toContainText(/(^|[^0-9])0\s+turnos(?![a-z])/);
   }
 }
 

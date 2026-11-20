@@ -1,4 +1,4 @@
-import { fmtNum } from '../../shared/formato';
+import { fmtNum, cuenta, plural } from '../../shared/formato';
 import { Ayuda } from '../../shared/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
@@ -196,7 +196,7 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
                   generaba {fmtNum(r.generacion_kw, 1)} kW y por la cabecera entraban {fmtNum(r.cabecera_kw, 1)} kW.
                   {r.maxima_cabecera && !r.coincidente && <> La máxima de cabecera, {fmtNum(r.maxima_cabecera.kw, 1)} kW el {r.maxima_cabecera.fecha}, no es la de la demanda.</>}
                   {r.coincidente && <> Se calibra en este registro, el mismo para todos los alimentadores.</>}
-                  {r.descartados > 0 && !r.coincidente && <> {fmtNum(r.descartados)} registro(s) descartados: aguas arriba fuera de lo normal.</>}
+                  {r.descartados > 0 && !r.coincidente && <> {cuenta(r.descartados, 'registro descartado', 'registros descartados')}: aguas arriba fuera de lo normal.</>}
                   {r.avisos.map((x) => <span key={x}> Aviso: {x}.</span>)}
                 </>
               )}
@@ -268,7 +268,7 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
                   ? `${x.periodo.maxima} = ${x.client_evidence.file} (${x.periodo.clientes})`
                   : `${x.periodo.maxima ?? '—'} · sin libro de clientes`}</span>
                 <span>{x.feeder}: reparto</span>
-                <span>{x.n_sed_fijas} SED fija(s) · {x.n_sed_escaladas_estimadas} SED escalada(s)</span>
+                <span>{cuenta(x.n_sed_fijas, 'SED fija', 'SED fijas')} · {cuenta(x.n_sed_escaladas_estimadas, 'SED escalada', 'SED escaladas')}</span>
                 {/* 021:RF-83: la consigna de su fuente y de dónde sale. */}
                 <span>{x.feeder}: fuente</span>
                 <span>{x.tension_fuente
@@ -360,7 +360,7 @@ function InformeAjuste({ inf, report, cancelado, token }: {
       {!simular && !revertida && (
         <p className={!inf.cuadrado ? 'alert alert-error' : conQ && !qCuadrada ? 'alert alert-warn' : 'alert alert-ok'}>
           {inf.cuadrado
-            ? <>{conQ && qCuadrada ? 'Cuadrados kW y kVAR' : 'Cuadrado de kW'} al {fmtNum((inf.tolerancia ?? 0) * 100, 1)} % en {inf.flujos} flujo(s) de carga
+            ? <>{conQ && qCuadrada ? 'Cuadrados kW y kVAR' : 'Cuadrado de kW'} al {fmtNum((inf.tolerancia ?? 0) * 100, 1)} % en {cuenta(inf.flujos, 'flujo', 'flujos')} de carga
               {inf.status ? ` · ${inf.status}` : ''}.{' '}
               {!conQ ? 'La Q se cuadra en la recalibración.'
                 : qCuadrada ? '' : 'La recalibración solo cuadró la P: la Q no llega a la medida; el motivo está en los avisos.'}</>
@@ -446,7 +446,7 @@ function InformeAjuste({ inf, report, cancelado, token }: {
         <details>
           <summary>Bancos de condensadores instalados en el proyecto: {inf.bancos.length}
             {(inf.bancos_puestos_a_maxima ?? []).length > 0
-              ? ` · ${inf.bancos_puestos_a_maxima!.length} puesto(s) a su máxima capacidad` : ''}</summary>
+              ? ` · ${cuenta(inf.bancos_puestos_a_maxima!.length, 'puesto', 'puestos')} a su máxima capacidad` : ''}</summary>
           <small className="muted">Trabajan a su máxima capacidad (todos los escalones, en servicio); lo que
             entregan es su potencia por el cuadrado de la tensión de su barra.</small>
           {inf.bancos.length === 0 ? <small className="muted">El alimentador no tiene bancos en el proyecto.</small> : (
@@ -575,7 +575,7 @@ function Diagnostico({ d }: { d: NonNullable<AjusteInforme['diagnostico']> }) {
       <summary>Por qué no convergió</summary>
       <ul className="small">
         {d.tension_minima && <li>Tensión mínima: {fmtNum(d.tension_minima.u_pu, 3)} p.u. en {d.tension_minima.barra}.</li>}
-        {d.n_barras_sin_tension > 0 && <li>{d.n_barras_sin_tension} barra(s) sin tensión o aisladas:
+        {d.n_barras_sin_tension > 0 && <li>{cuenta(d.n_barras_sin_tension, 'barra sin tensión o aislada', 'barras sin tensión o aisladas')}:
           {' '}{d.barras_sin_tension.join(', ')}{d.n_barras_sin_tension > d.barras_sin_tension.length ? '…' : ''}</li>}
         {d.sobrecargados.length > 0 && <li>Sobrecargados: {d.sobrecargados.map((x) =>
           `${x.elemento} (${fmtNum(x.carga_pct, 0)} %)`).join(', ')}</li>}
@@ -695,7 +695,7 @@ function SedSobrecargadas({ inf, token }: { inf: AjusteInforme; token: string | 
       <strong>{inf.sed_sobre_umbral
         ? `${sobre.length} SED sobre el ${fmtNum(umbral ?? 100, 0)} % de su potencia instalada tras calibrar `
           + `(${mas100} por encima del 100 %).`
-        : `${sobre.length} SED fija(s) sobrecargada(s): piden más que su potencia instalada.`}</strong>
+        : `${cuenta(sobre.length, 'SED fija sobrecargada', 'SED fijas sobrecargadas')}: ${plural(sobre.length, 'pide', 'piden')} más que su potencia instalada.`}</strong>
       {causa
         ? <p>Es la causa probable de que la calibración no converja o no sea válida. Implemente los transformadores
           propuestos y se volverá a calibrar.</p>
@@ -757,7 +757,7 @@ function ConductoresConFicha({ r }: { r: ConductoresFicha }) {
   return (
     <div className="table-wrap">
       <strong>Conductores con su ficha en «Sin proyecto»{r.variacion ? ` (variación ${r.variacion})` : ''}:
-        {' '}{new Set(r.cambios.map((c) => c.codigo)).size} código(s)</strong>
+        {' '}{cuenta(new Set(r.cambios.map((c) => c.codigo)).size, 'código', 'códigos')}</strong>
       <p className="small muted">El «Caso base» sigue con los parámetros del archivo.</p>
       {r.cambios.length > 0 && (
         <table className="small">

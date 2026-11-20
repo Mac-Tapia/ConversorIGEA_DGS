@@ -70,8 +70,8 @@ def test_medidores_por_alimentador_y_maxima_en_un_trabajo():
     # Los elegidos y, en el mismo trabajo, los medidores de cada central (spec 021, RF-25).
     assert 'const aBuscar = [...elegidos, ' in DEMANDA
     # 022:RF-88: con las centrales en el tramo de su alimentador.
-    assert ('startJob(() => api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && !instante,'
-            in DEMANDA) and 'centrales_tramo: centralTramo, coincidente: !porBarra' in DEMANDA
+    assert ('startJob(() => api.demandaCabecera(ws.id, aBuscar, { project, periodo, instante, por_barra: porBarra && comun,'
+            in DEMANDA) and 'centrales_tramo: centralTramo, centrales_set: centralSet, coincidente: !porBarra' in DEMANDA  # 086:RF-122
 
 
 def test_clientes_de_los_marcados():
@@ -174,9 +174,9 @@ def test_conectar_al_nmt_mas_cercano():
 
 def test_cargas_rechazadas_con_su_motivo_en_el_plan():
     """025:RF-46 — el paso de cargas lista cada fila rechazada con su motivo y dice que el
-    resto se aplica."""
+    resto se aplica (086:RF-110: con la cuenta concordada, sin «fila(s)»)."""
     lista, aviso = _pos(CARGAS, 'plan.row_errors.slice(0, 30).map((e) => <li key={e}>{e}</li>)',
-                        'fila(s) con error: se omiten, el resto se aplica.')
+                        "'filas con error')}: {plural(plan.row_errors.length, 'se omite', 'se omiten')}, el resto se aplica.")
     assert abs(lista - aviso) < 400
 
 

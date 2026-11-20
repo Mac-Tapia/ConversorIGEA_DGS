@@ -3154,6 +3154,7 @@ def _libros_de_cabecera(ws: Workspace, periodo: str | None) -> list[Path]:
 def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]], *,
                      periodo: str | None = None, instante: datetime | None = None,
                      por_barra: bool = False, centrales_tramo: dict[str, str] | None = None,
+                     centrales_set: dict[str, str] | None = None,
                      coincidente: bool = False,
                      centrales: dict[str, dict[str, str]] | None = None,
                      sistema_60kv: bool = False) -> dict:
@@ -3170,7 +3171,8 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
         raise UserError('Indique al menos un medidor.')
     if por_barra and instante is None:
         return _demanda_por_barra(ws, ctx, pares, periodo, centrales_tramo,   # 022:RF-37 a RF-46, RF-88
-                                  sistema_60kv=sistema_60kv)                  # 028:RF-31
+                                  sistema_60kv=sistema_60kv,                  # 028:RF-31
+                                  centrales_set=centrales_set)                # 086:RF-122
     alimentadores = {a: m for a, m in pares if not a.startswith('Central ')}
     conjunto = None
     if coincidente and instante is None and len(alimentadores) > 1:           # 028:RF-28
@@ -3378,6 +3380,10 @@ def demanda_centrales_de_barra(ws: Workspace) -> dict:
     if e is not None:
         for a in e.alimentadores.values():
             de_set.setdefault(a.set_codigo, []).append(a.codigo)
+    # 086:RF-122: todas las SET de la estructura, con sus alimentadores, para elegir la de cada central; la web pone
+    # primero las de los alimentadores analizados y dice cuáles no entran.
+    sets = ([{'codigo': st.codigo, 'rotulo': st.rotulo, 'zonal': st.zonal, 'alimentadores': sorted(de_set.get(st.codigo, []))}
+             for st in sorted(e.sets.values(), key=lambda x: (_numero_de_set(x.codigo), x.codigo))] if e is not None else [])
     out = []
     for m in filas:
         if not m.central:
@@ -3387,12 +3393,20 @@ def demanda_centrales_de_barra(ws: Workspace) -> dict:
                     'set': st.codigo if st else '', 'set_rotulo': st.rotulo if st else '',
                     'alimentadores': sorted(de_set.get(st.codigo, [])) if st else [],
                     'tramo': del_perfil.get(clave_codigo(m.medidor), '')})
-    return {'centrales': out}
+    return {'centrales': out, 'sets': sets}
+
+
+def _numero_de_set(codigo: str) -> int:
+    """El número del código de una SET («SET» y su número), para ordenar las SET como se leen; sin número, al final."""
+    import re
+
+    m = re.search(r'(\d+)', codigo)
+    return int(m.group(1)) if m else 10 ** 6
 
 
 def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]],
                        periodo: str | None, centrales_tramo: dict[str, str] | None = None, *,
-                       sistema_60kv: bool = False) -> dict:
+                       sistema_60kv: bool = False, centrales_set: dict[str, str] | None = None) -> dict:
     """La máxima de cada barra de SET con medidor y sus alimentadores en esa fecha y hora
     (022:RF-37 a RF-46). El usuario, el 2026-10-17: «cuando se identifique el máximo valor
     en la barra, los alimentadores de la misma barra se deben calibrar con la misma fecha
@@ -3401,8 +3415,8 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
     """
     from collections import defaultdict
 
-    from ...aplicacion.demanda_medida import (DemandaError, balances_de_linea, barras_de_calibracion, leer_medidores_de_barra,
-                                  leer_medidores_de_linea, maximas_por_barra)
+    from ...aplicacion.demanda_medida import (DemandaError, balances_de_linea, barras_de_calibracion, centrales_en_su_set,
+                                  leer_medidores_de_barra, leer_medidores_de_linea, maximas_por_barra)
 
     estructura = estructura_del_espacio(ws)
     if estructura is None:
@@ -3428,8 +3442,11 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
     try:
         medidores = leer_medidores_de_barra(_demanda_ruta(ws, 'medidores'), alias)
         alimentadores = sorted({duenio(a).upper() for a, _m in pares if a})
+        # 086:RF-122: cada central en la SET que dijo el operador; la de una SET sin alimentadores analizados no entra.
+        medidores, fuera = centrales_en_su_set(estructura, medidores, alimentadores, centrales_set, en_tramo)
         barras, avisos = barras_de_calibracion(estructura, medidores, alimentadores,
                                                _kv_alimentadores(ws), en_tramo)
+        avisos = fuera + avisos
         balances = []
         if sistema_60kv:                                              # 028:RF-33, RF-34
             balances, de_lt = balances_de_linea(estructura, leer_medidores_de_linea(_demanda_ruta(ws, 'medidores'), alias),

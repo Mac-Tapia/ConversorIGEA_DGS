@@ -21,10 +21,15 @@
       mes por los datos y libro «día, hora» con más días que su mes. (RF-107 a RF-113)
       Hecho cuando: `tests/test_libros_formas.py` y `tests/test_libros_nuevos_web.py -k apartado_y_formato` fallan sin
       el arreglo y pasan con él (registros `D:/csg/D_todo_rojo_9063b8af.log` y `D:/csg/D_todo_verde.log`).
-- [ ] T12. Regenerar el dataset con los libros reales y repetir su perfil: «0225 Pulso e» y «0625 Pulso» entran.
+- [x] T12. Regenerar el dataset con los libros reales y repetir su perfil: «0225 Pulso e» y «0625 Pulso» entran.
       (RF-107, RF-109)
       Hecho cuando: el perfil del dataset regenerado fuera de git ya no aparta esos dos libros y sus cifras, sin datos de
       la distribuidora, están anotadas aquí. Lo hace quien tiene la orden de regenerar (no esta tarea de código).
+      Hecho el 2026-11-19 (ce): el perfil del dataset regenerado ya no aparta «0225 Pulso e» ni «0625 Pulso»
+      (20 apartados, ninguno de ellos): sus hojas sin títulos se leen por su contenido (RF-107) y las que no traen energía
+      en el mes se dicen una vez por libro (RF-109). 27 libros; 1002 objetivos (cabecera 89 kW / 87 kVAR, clientes 325 / 325,
+      escaladas 89 / 87). WAPE de prueba del perfil elegido: cabecera kW 0,108, kVAR 0,234; clientes kW 0,270, kVAR 0,316;
+      escaladas kW 0,118, kVAR 0,299. Evidencia fuera de git: `D:/csg/PM_IMPL/TURNOS_GPU/089_T12/`.
 - [ ] T7. Corrida larga real de todos los modelos.
       Hecho cuando: cada clase, magnitud y horizonte tiene su informe fuera de git, con la decisión y sus cifras anotadas aquí.
 - [x] T13. La lectura de cabecera del pronóstico libro a libro: un libro abierto a la vez, para todos los

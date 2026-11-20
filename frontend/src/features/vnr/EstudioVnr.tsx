@@ -26,7 +26,7 @@ export function EstudioVnr() {
   const [canonical, setCanonical] = useState<File | null>(null);
   const [sicodi, setSicodi] = useState<Fuente | File | null>(null);
   const [red, setRed] = useState<RedDelEspacio | null>(null);
-  useEffect(() => { void fuentes.red(ws.id).then(setRed).catch(() => setRed(null)); }, [ws.id]);
+  useEffect(() => { void fuentes.red(ws.id).then((r) => setRed(r.disponible === false ? null : r)).catch(() => setRed(null)); }, [ws.id]);
   const [sector, setSector] = useState('urbano_media_baja');
   const [sectorSicodi, setSectorSicodi] = useState('');
   const [resolucion, setResolucion] = useState('');

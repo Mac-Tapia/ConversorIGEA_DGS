@@ -35,6 +35,10 @@ URL_TESELAS = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 #: 086:RF-63: el fondo de satélite, el que pidió el usuario junto a las calles («como en Google Maps», 2026-11-12).
 ORIGEN_SATELITE = 'https://server.arcgisonline.com'
 URL_SATELITE = f'{ORIGEN_SATELITE}/ArcGIS/rest/services/World_Imagery/MapServer/tile/{{z}}/{{y}}/{{x}}'
+#: 111:RF-27 (086:RF-63): la web manda «Referrer-Policy: no-referrer» con todo (seguridad.py) y OpenStreetMap contesta a una tesela
+#: sin «Referer» con su imagen «403 Access blocked» (política de uso de sus teselas; navegador, 19-11). Cada tesela pide
+#: solo el origen de la web, nunca la ruta del espacio ni sus parámetros.
+REFERER_TESELAS = 'strict-origin-when-cross-origin'
 #: Cada fondo con su nombre en el selector, su dirección, su atribución y cómo se nombra en el aviso si no llega.
 #: El primero es el que se ve al abrir. Las atribuciones son las que piden sus licencias (ODbL de OSM; Esri).
 #: El último número es el zoom más alto que sirve cada uno: Esri no tiene imágenes de zoom 19 en todas partes
@@ -347,10 +351,12 @@ def guion_de_fondos() -> tuple[str, str]:
         fondos = json.dumps([{'nombre': n, 'url': u, 'atribucion': a, 'aviso': s, 'zoom': z}
                              for n, u, a, s, z in FONDOS_MAPA],
                             ensure_ascii=False).replace('<', '\\u003c')
+        politica = json.dumps(REFERER_TESELAS)
         return f"""const fondos = {{}};
     const sinFondo = [];
     {fondos}.forEach(function (f, i) {{
-      const capa = L.tileLayer(f.url, {{ maxZoom: 19, maxNativeZoom: f.zoom, attribution: f.atribucion }});
+      const capa = L.tileLayer(f.url, {{ maxZoom: 19, maxNativeZoom: f.zoom, attribution: f.atribucion,
+        referrerPolicy: {politica} }});
       capa.once('tileerror', function () {{
         sinFondo.push(f.aviso);
         const aviso = document.getElementById('sin-fondo');

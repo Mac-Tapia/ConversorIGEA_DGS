@@ -70,6 +70,13 @@ test('086:RF-59 con el CRS en el perfil, el campo lo enseña y no avisa de que f
   assert.ok(sin.includes('Sin perfil de empresa'));
 });
 
+test('086:RF-110 (W7) la ayuda del CRS no enseña la clave interna del perfil', async () => {
+  const { opciones } = await cargar();
+  const sin = opciones({ error: null });
+  assert.ok(sin.includes('Sin perfil de empresa'), sin);
+  assert.ok(!sin.includes('crs_origen'), 'la ayuda nombra «crs_origen», que el operador no ve en ninguna parte');
+});
+
 // rc5 (2026-11-12): asignados los libros en «2.1» y calibrado, «Recalibrar «Sin proyecto»» seguía diciendo «El espacio
 // no tiene libros de demanda…» hasta recargar: lo pedía al servidor solo al elegir el proyecto.
 async function claveLibros() {

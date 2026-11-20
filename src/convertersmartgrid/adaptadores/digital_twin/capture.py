@@ -107,8 +107,15 @@ def construir_episodio(plan: Mapping[str, Any], resultado: Mapping[str, Any],
     convergio = estado != 'NO_CONVERGE' and resultado.get('converged') is not False
     aplicada = resultado.get('aplicada', True) is not False
     bloqueos = _bloqueos_de_lectura(lectura, contexto, plan, caso)
+    # 086:RF-125, 024:RF-4: la acción convergió, pero al reabrir el flujo no converge. Con una lectura que vale
+    # (mismo proyecto, alimentadores y caso), el episodio es «rejected» con esa causa; antes salía «accepted» sin
+    # flujo, o en cuarentena por el grafo que la lectura no traía.
+    no_converge = bool(lectura) and lectura.get('flujo_converge') is False and not bloqueos and not revertido
+    causa_no_converge = 'el flujo no converge tras reabrir el proyecto en DIgSILENT'
 
-    if bloqueos and not revertido and convergio:
+    if no_converge:
+        evaluacion = Evaluacion(Clase.REJECTED, bloqueos=(causa_no_converge,))
+    elif bloqueos and not revertido and convergio:
         evaluacion = Evaluacion(Clase.QUARANTINE, bloqueos=tuple(bloqueos))
     else:
         evaluacion = evaluar(
@@ -144,7 +151,8 @@ def construir_episodio(plan: Mapping[str, Any], resultado: Mapping[str, Any],
                    **_escenario_de(resultado.get('escenario'))},
         'topologia': dict(lectura.get('topologia') or {}),
         'flujo': dict(flujo) if flujo else _flujo_ausente(
-            bloqueos[0] if bloqueos else 'la lectura no trae resultados del flujo'),
+            bloqueos[0] if bloqueos
+            else causa_no_converge if no_converge else 'la lectura no trae resultados del flujo'),
         'aceptacion': {'estado_nativo': estado, 'bloqueos': list(evaluacion.bloqueos),
                        'violaciones': list(evaluacion.violaciones),
                        'diagnostico': list(evaluacion.diagnostico)},

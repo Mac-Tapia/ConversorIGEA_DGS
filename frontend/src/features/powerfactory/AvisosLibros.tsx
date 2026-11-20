@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { cuenta } from '../../shared/formato';
 import { api } from '../../api/client';
 import type { LibrosNuevos } from '../../api/types';
 import { useApp } from '../../shared/context';
@@ -59,7 +60,7 @@ interface Dataset {
  */
 export function textoDelFondo(fondo: Fondo | null | undefined): string | null {
   if (!fondo || !fondo.estado || fondo.estado === 'libre') {
-    return fondo?.por_verificar ? `${fondo.por_verificar} libro(s) por verificar en la próxima revisión.` : null;
+    return fondo?.por_verificar ? `${cuenta(fondo.por_verificar, 'libro', 'libros')} por verificar en la próxima revisión.` : null;
   }
   return fondo.texto ?? null;
 }
@@ -72,7 +73,7 @@ export function textoDelDataset(dataset: Dataset | null | undefined, hora: (ts: 
   }
   if (dataset.estado !== 'desactualizado') return null;
   const n = dataset.libros_nuevos?.length ?? 0;
-  const base = `El dataset del pronóstico está desactualizado por ${n} libro(s) nuevo(s)`;
+  const base = `El dataset del pronóstico está desactualizado por ${cuenta(n, 'libro nuevo', 'libros nuevos')}`;
   const reposo = dataset.reposo_min ?? 5;
   if (dataset.espera === 'faltan_fuentes') return `${base}; se regenerará cuando estén la cabecera y los medidores.`;
   if (dataset.espera === 'motor_ocupado') return `${base}; se regenerará cuando el motor lleve ${reposo} min libre.`;

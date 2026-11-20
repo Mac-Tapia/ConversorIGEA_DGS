@@ -463,6 +463,37 @@ def registrar_rutas_nube(app: FastAPI, *, ws_or_404, submit, asignar_entrada, va
             raise HTTPException(404, 'Esa carpeta del expediente no existe en la salida del espacio.')
         return raiz
 
+    # 109:RF-24 (revisión web W9): el PIT y el VAD guardan sus entregables en su carpeta del espacio, no en la salida.
+    CARPETAS_DE_MODULO = ('expedientes_pit', 'vad')
+
+    def _raiz_publicacion(ws, body: PublicarPrevia) -> tuple[Path, tuple[str, ...]]:
+        """La raíz del ZIP y la selección dentro de ella: la salida o, si todo lo elegido es de una carpeta de módulo
+        del espacio, esa carpeta (sin salir del espacio ni seguir redirecciones)."""
+        primeros = {s.split('/', 1)[0] for s in body.seleccion}
+        if not body.salida and body.seleccion and len(primeros) == 1 and primeros <= set(CARPETAS_DE_MODULO):
+            carpeta = Path(ws.root) / primeros.pop()
+            base = Path(ws.root).resolve()
+            if carpeta.is_symlink() or carpeta.is_junction() or carpeta.resolve().parent != base or not carpeta.is_dir():
+                raise HTTPException(404, 'Esa carpeta del módulo no existe en el espacio.')
+            return carpeta.resolve(), tuple(s.split('/', 1)[1] for s in body.seleccion if '/' in s)
+        return _raiz_salida(ws, body.salida), tuple(body.seleccion)
+
+    def _origen(ws, raiz: Path) -> str:
+        """De dónde sale el paquete: su ruta en la salida o, para una carpeta de módulo, su ruta en el espacio."""
+        salida = Path(ws.out_dir).resolve()
+        if raiz == salida or salida in raiz.parents:
+            return raiz.relative_to(salida).as_posix() or '.'
+        return raiz.relative_to(Path(ws.root).resolve()).as_posix()
+
+    def _contar(raiz: Path, seleccion: tuple[str, ...]) -> int:
+        n = 0
+        for d, _s, nombres in os.walk(raiz):
+            for nombre in nombres:
+                rel = (Path(d) / nombre).relative_to(raiz).as_posix()
+                if not seleccion or any(rel in (f, f'{f}.dgs') or rel.startswith((f'{f}_', f'{f}/')) for f in seleccion):
+                    n += 1
+        return n
+
     def _sujeto_publicar(body: PublicarPrevia) -> str:
         return json.dumps([body.proveedor, body.carpeta_destino, body.nombre, body.salida, sorted(body.seleccion)])
 
@@ -470,8 +501,8 @@ def registrar_rutas_nube(app: FastAPI, *, ws_or_404, submit, asignar_entrada, va
     def nube_publicar_previa(wid: str, body: PublicarPrevia) -> dict:
         """109:RF-9: qué se va a subir y adónde, con la confirmación de un solo uso que exige publicar."""
         ws = ws_or_404(wid)
-        raiz = _raiz_salida(ws, body.salida)
-        ficheros = sum(len(n) for _d, _s, n in os.walk(raiz))
+        raiz, seleccion = _raiz_publicacion(ws, body)
+        ficheros = _contar(raiz, seleccion)
         return {'proveedor': body.proveedor, 'carpeta_destino': body.carpeta_destino, 'nombre': body.nombre,
                 'ficheros': ficheros, 'sobrescribe': False,
                 'confirmacion': confirmaciones.emitir(ws.id, 'publicar', _sujeto_publicar(body))}
@@ -482,7 +513,7 @@ def registrar_rutas_nube(app: FastAPI, *, ws_or_404, submit, asignar_entrada, va
         """109:RF-9, RF-12, RF-13: ZIP cerrado con su manifiesto, sin pisar nada, y su recibo."""
         solo_operador(request)
         ws = ws_or_404(wid)
-        raiz = _raiz_salida(ws, body.salida)
+        raiz, seleccion = _raiz_publicacion(ws, body)
         try:
             confirmaciones.consumir(body.confirmacion, ws.id, 'publicar', _sujeto_publicar(body))
         except Rechazo as exc:
@@ -495,11 +526,11 @@ def registrar_rutas_nube(app: FastAPI, *, ws_or_404, submit, asignar_entrada, va
             if body.proveedor == 'microsoft' and 'Files.ReadWrite' not in cuentas.permisos(ws.id, body.proveedor):
                 raise SinAcceso('Para publicar en OneDrive hace falta el permiso de escritura: vuelva a conectar la '
                                 'cuenta con «Publicar».')
-            hecho = preparar_zip(ws.id, raiz, tuple(body.seleccion), ctx)
+            hecho = preparar_zip(ws.id, raiz, seleccion, ctx)
             zip_preparado = ctx.job._archivo_zip
             try:
                 paquete = cerrar_paquete(zip_preparado, vinculos_nube.carpeta_paquetes(ws),
-                                         origen=raiz.relative_to(Path(ws.out_dir).resolve()).as_posix() or '.')
+                                         origen=_origen(ws, raiz))
             finally:
                 retirar_zip(zip_preparado, ctx.job.id, ws.id)
             ctx.check_cancel()

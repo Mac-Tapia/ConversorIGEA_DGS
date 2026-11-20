@@ -1007,6 +1007,8 @@ class TramoPlanoRespuesta(Respuesta):
     tipo: str
     aereo: bool
     longitud_m: float
+    #: 111:RF-26: la sección del conductor en mm², del código del catálogo; ``None`` si no se deduce.
+    seccion_mm2: float | None = None
     vertices: list[list[float]]
     paralelo_con: list[str]
     original: dict[str, JsonValue]
@@ -1098,9 +1100,26 @@ class FondoPlanoRespuesta(Respuesta):
     motivo: str
 
 
+class ManiobraTransferenciaRespuesta(Respuesta):
+    codigo: str
+    clase: str
+    estado: Literal['abierto', 'cerrado']
+    alimentador: str
+
+
+class TransferenciaPlanoRespuesta(Respuesta):
+    """111:RF-25: una barra donde se tocan dos o más alimentadores del plano, con sus maniobras de la fuente."""
+    barra: str
+    lat: float | None
+    lon: float | None
+    alimentadores: list[str]
+    maniobras: list[ManiobraTransferenciaRespuesta]
+
+
 class PlanoRespuesta(Respuesta):
     alimentadores: list[str]
     sin_coordenadas: list[str]
+    transferencias: list[TransferenciaPlanoRespuesta] = []
     vistas: list[VistaPlanoRespuesta]
     motor: MotorPlanoRespuesta
     fondo: FondoPlanoRespuesta

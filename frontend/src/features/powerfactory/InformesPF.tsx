@@ -1,4 +1,4 @@
-import { fmtNum } from '../../shared/formato';
+import { fmtNum, cuenta, plural } from '../../shared/formato';
 import { MapaCargas } from './MapaCargas';
 import { EnviarInforme } from './EnviarInforme';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -121,7 +121,7 @@ function DocumentosSolicitante({ tipo, varios, titulo, onLeido }: {
       {r && r.documentos.map((d) => (
         <details key={d.fichero} className={`alert ${d.avisos.length ? 'alert-warn' : 'alert-ok'}`}>
           <summary>{`${d.fichero} · ${CLASE_DOC[d.clase]} · ${d.paginas} pág. por ${d.metodo === 'texto' ? 'texto' : 'OCR'}`}
-            {` · ${Object.keys(d.datos).length} dato(s)`}{d.avisos.length ? ` · ${d.avisos.length} aviso(s)` : ''}</summary>
+            {` · ${cuenta(Object.keys(d.datos).length, 'dato', 'datos')}`}{d.avisos.length ? ` · ${cuenta(d.avisos.length, 'aviso', 'avisos')}` : ''}</summary>
           {d.avisos.map((a) => <p key={a} className="small">{a}</p>)}
           <table className="table"><tbody>{Object.entries(d.datos).map(([k, v]) => (
             <tr key={k}><td className="small">{DATO_LEIDO[k] ?? k}</td>
@@ -732,8 +732,8 @@ function InformeFactibilidad({ project, feeders, ctx, busy, limites, limitesOk, 
               </option>
             ))}
           </select>
-          {enBloque.length > 0 && <small className="muted">{enBloque.length} carga(s) del libro en bloque: el informe las
-            cita como solicitudes vigentes.</small>}
+          {enBloque.length > 0 && <small className="muted">{cuenta(enBloque.length, 'carga', 'cargas')} del libro en bloque: el informe {plural(enBloque.length, 'la', 'las')}
+            cita como {plural(enBloque.length, 'solicitud vigente', 'solicitudes vigentes')}.</small>}
         </label>
       </div>
       {carga && <>

@@ -121,7 +121,7 @@ test('105:RF-39 — buscador por NIS, CL, nombre (sin tildes y con erratas), SED
 test('105:RF-34 — el tablero dice el veredicto de cada cliente y sus discrepancias', async () => {
   const { pintar } = await cargar();
   const html = pintar(RESULTADO);
-  for (const t of ['1 confirmado(s)', '1 con discrepancias', 'confirmado en 2 fuentes',
+  for (const t of ['1 confirmado', '1 con discrepancias', 'confirmado en 2 fuentes',
     'discrepa: AL1 (suministros); libro de clientes 2026-05 dice AL2', 'Fuentes que discrepan', 'Buscar cliente',
     'Doña Ñusta · CL0001 · GENERADORA']) assert.ok(html.includes(t), t);
 });

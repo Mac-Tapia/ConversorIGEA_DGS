@@ -51,7 +51,7 @@ export function EstudioPit() {
       setArea((a) => a || r.areas[0]?.codigo || '');
     });
     // 107:RF-19: la red convertida del espacio, si la hay; sin carga, no hay nada que decir.
-    fuentes.red(ws.id).then(setRed).catch(() => setRed(null));
+    fuentes.red(ws.id).then((r) => setRed(r.disponible === false ? null : r)).catch(() => setRed(null));
     void run(() => pit.capacidades()).then((r) => { if (r) setCaps(r); });
   }, [run, ws.id]);
 

@@ -263,6 +263,14 @@ function Slot({ slot }: { slot: string }) {
  * por contenido» al subir un TXT que no era de la exportación de la red (prueba del 2026-11-16; 056:RF-5: el nombre del
  * programa de origen solo sale en la opción de entrada de los TXT).
  */
+/** 086:RF-110 (T89, revisión web W8): con la fuente ya cargada no se pide otra vez «Pulse «Cargar…»». */
+export function lineaDeEntrada(ready: boolean, mode: string | null, cargada: boolean, pendientes: string[]): string {
+  if (!ready) return `Pendientes: ${pendientes.join(', ')}.`;
+  const fuente = mode === 'mdb' ? 'Base de datos' : mode === 'vnr' ? 'Paquete VNR-GIS' : 'Los tres TXT';
+  if (cargada) return `${fuente} ${mode === 'mdb' ? 'cargada' : mode === 'vnr' ? 'cargado' : 'cargados'}.`;
+  return `${mode === 'mdb' ? 'Base de datos lista.' : mode === 'vnr' ? 'Paquete VNR-GIS listo.' : 'Los tres TXT están listos.'} Pulse «Cargar / listar alimentadores».`;
+}
+
 export function resumenAuto(r: { assigned: { slot: string; name: string }[]; unassigned: { name: string; reason: string }[] },
   casilla: (slot: string) => string): { tono: 'ok' | 'warn'; titulo: string; detalle: string } {
   const n = r.assigned.length;
@@ -387,9 +395,7 @@ export function InputsPanel() {
       )}
 
       <p className={`status-line ${ready ? 'ok' : ''}`}>
-        {ready
-          ? (mode === 'mdb' ? 'Base de datos lista.' : mode === 'vnr' ? 'Paquete VNR-GIS listo.' : 'Los tres TXT están listos.') + ' Pulse «Cargar / listar alimentadores».'
-          : `Pendientes: ${ws.missing_inputs.join(', ')}.`}
+        {lineaDeEntrada(ready, mode, Boolean(ws.loaded), ws.missing_inputs)}
       </p>
     </section>
   );

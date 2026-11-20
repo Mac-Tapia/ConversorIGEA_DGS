@@ -3015,6 +3015,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
 
         # 083:RF-1, RF-9, RF-13: lo mismo con un solo alimentador.
         para_muestras: dict = {}
+        factor_inicial = reparto.a                                      # 086:RF-124: el de antes del oráculo
         de_uno, informe['oraculo_arranque'] = _arranque_del_oraculo(
             app, alims, {feeder: {'central': False, 'cargas': cargas}}, {feeder: reparto}, {feeder: objetivo}, (),
             float(plan.get('tolerancia', 0.01)), para_muestras)
@@ -3026,8 +3027,11 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                       max_flujos=int(plan.get('max_flujos') or MAX_FLUJOS),
                       remedio=remedios.aplicar, cancelado=cancelado,
                       progreso=lambda n, m, t: print(f'  {t}'), con_q=con_q,
-                      fp_minimo_escaladas=plan.get('factor_potencia_minimo_escaladas'))
+                      fp_minimo_escaladas=plan.get('factor_potencia_minimo_escaladas'),
+                      factor_inicial=factor_inicial)
         informe['cuadre_metodos'] = {**res.metodos, 'fijas_sospechosas': res.fijas_sospechosas}  # 083:RF-13
+        if res.imposible:
+            informe['imposible'] = res.imposible                                             # 086:RF-124
         from convertersmartgrid.dominio.ajuste_cabecera import fijas_corregidas
 
         if res.reparto is not None and fijas_corregidas(reparto, res.reparto):              # 083:RF-30
@@ -3989,9 +3993,14 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
         return todos('ningún alimentador se puede calibrar')
     _catalogo_en_con(app, sin, con, [informes[f] for f in preps])          # 032:RF-27
     fuera = [f for f in feeders if f not in preps]
+    # 086:RF-126: con la máxima de cada alimentador (no coincidente) los instantes no ocurrieron juntos: se dice, sin bloquear.
+    aviso_instantes = aviso_de_instantes({f: (p['plan'].get('objetivo') or {}).get('fecha') for f, p in preps.items()})
     for f in preps:
         inf = informes[f]
         inf['calibrado_con'] = [x for x in preps if x != f]                       # RF-59
+        if aviso_instantes:
+            inf['avisos'].append(aviso_instantes)
+            inf['instantes_no_coincidentes'] = True
         if solo_medir:
             inf['avisos'].append('Primera pasada para medir lo que falta: no se guarda.')
         inf['escenario'] = escenario.loc_name
@@ -4132,6 +4141,8 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
         # 083:RF-1: la búsqueda corre primero en el oráculo y DIgSILENT arranca de lo hallado.
         crono.marca('centrales y demás')
         para_muestras: dict = {}
+        # 086:RF-124: «escaladas al mínimo» (083:RF-30) se mide contra el factor de antes del oráculo.
+        factores_iniciales = {f: r.a for f, r in repartos.items()}
         repartos, del_oraculo = _arranque_del_oraculo(app, alims, preps, repartos, objetivos, quietas, tolerancia, para_muestras)
         crono.marca('oráculo')
         if not del_oraculo.get('arranque'):
@@ -4144,9 +4155,12 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                                progreso=lambda n, m, t: print(f'  {t}'), con_q=con_q,
                                fp_minimo_escaladas=next(
                                    (p['plan'].get('factor_potencia_minimo_escaladas')
-                                    for p in preps.values()), None))
+                                    for p in preps.values()), None),
+                               factores_iniciales=factores_iniciales)
         for f, inf in informes.items():
             inf['cuadre_metodos'] = {**res.metodos, 'fijas_sospechosas': res.fijas_sospechosas}  # 083:RF-13
+            if f in res.imposibles:
+                inf['imposible'] = res.imposibles[f]                                         # 086:RF-124
             if res.repartos and f in res.repartos and f in preps and preps[f].get('reparto') is not None:
                 cambios = fijas_corregidas(preps[f]['reparto'], res.repartos[f])            # 083:RF-30
                 if cambios:
@@ -4349,6 +4363,16 @@ def _probabilistico_del_proyecto(res, preps: dict, informes: dict, objetivos, fl
     return res
 
 
+def aviso_de_instantes(fechas: dict) -> str:
+    """086:RF-126: si los alimentadores del proyecto se calibran en instantes distintos (la máxima de cada uno), el aviso
+    con la fecha y hora de cada uno; con un solo instante, nada."""
+    con_fecha = {f: str(x) for f, x in fechas.items() if x}
+    if len(set(con_fecha.values())) < 2:
+        return ''
+    return ('Máxima de cada alimentador (no coincidente): ' + '; '.join(f'{f} el {x}' for f, x in sorted(con_fecha.items()))
+            + '. Esos instantes no ocurrieron juntos: los flujos del proyecto suman demandas de momentos distintos.')
+
+
 def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict, rep, med,
                                     res, tolerancia: float, fallido, kvar_difference,
                                     con_q: bool = False) -> bool:
@@ -4372,7 +4396,12 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
                                      if med.carga_kw is not None else None),
             perdidas_de=('RESULTADOS_CARGAS_NATIVAS' if med.carga_kw is not None
                          else 'ENTRADAS_NOMINALES'))
-        if res.cuadrado:
+        # 086:RF-124: el que cumple en el último flujo común cuadra aunque otro del proyecto no pueda.
+        # Solo cuando lo que no cuadra son otros alimentadores imposibles; las pérdidas negativas (098:RF-3) u otra causa
+        # del proyecto entero no dan por cuadrado a ninguno.
+        cumple = res.cuadrado or (bool(res.imposibles) and feeder not in res.imposibles and res.cumple(feeder)
+                                  and (not con_q or res.q_estado.get(feeder) == 'CUADRADA'))
+        if cumple:
             inf['status'] = q_audit['status']
             inf['kvar_no_bloqueante'] = q_audit
             if q_audit['status'] == 'AVISO_KVAR' and not con_q:
@@ -4394,9 +4423,23 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
             if revision:                                                # 035:RF-20
                 inf['revision_bancos'] = revision
                 inf['avisos'].append(revision['aviso'])
-    if not res.cuadrado:
+    cumple = med is not None and (res.cuadrado or (bool(res.imposibles) and feeder not in res.imposibles
+                                                   and res.cumple(feeder)
+                                                   and (not con_q or res.q_estado.get(feeder) == 'CUADRADA')))
+    if not res.cuadrado and cumple:
+        # 086:RF-124: cuadra en el mismo flujo común; lo que no cuadra es otro del proyecto, y se nombra.
+        inf['cuadrado'] = True
+        inf['motivo'] = None
+        otros = ', '.join(sorted(res.imposibles)) or 'otro alimentador del proyecto'
+        inf['avisos'].append(f'Cumple el {tolerancia:.1%} en el flujo común del proyecto; el proyecto no cuadra entero '
+                             f'por {otros}. El escenario queda con ese reparto común.')
+    elif not res.cuadrado:
         inf['status'] = 'NO_CONVERGE' if med is None else 'VIOLACION_FISICA'
-        inf['avisos'].append(f'NO cumple el {tolerancia:.1%} en todo el proyecto: {res.motivo}. '
+        causa = res.imposibles.get(feeder)
+        if causa:
+            inf['motivo'] = causa['texto']                                               # 086:RF-124
+        inf['avisos'].append(f'NO cumple el {tolerancia:.1%} en todo el proyecto: '
+                             f"{causa['texto'] if causa else res.motivo}. "
                              'El escenario queda con el último reparto común que convergió.')
     valido = True
     if rep is not None and med is not None:
@@ -4408,7 +4451,7 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
             manuales=p['con_manual'])
         inf['validacion_posterior_nativa'] = validacion
         perfil_de_tension(app, alims, feeder, inf, p['plan'].get('banda_tension'))   # 094:RF-1, RF-3, RF-10
-        if res.cuadrado and not validacion['correcta']:
+        if cumple and not validacion['correcta']:
             valido = False
             inf['status'] = 'FALLO_VALIDACION_NATIVA'
             inf['resultado_carga_nativa'] = {'status': 'FALLO_VALIDACION_NATIVA', 'bloquea': True}
