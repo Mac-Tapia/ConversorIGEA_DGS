@@ -57,7 +57,7 @@ from ...aplicacion.costos_fuentes import (
 from ...aplicacion.metrados import metrados_de_lineas, valorar_metrados
 from ...aplicacion.pide_economia import frc
 from ...dominio.registro_normativo import RegistroError, RegistroNormativo, ReglaRemitida, ReglaVigente, regla_remitida
-from ...dominio.util import sha256_file
+from ...dominio.util import sha256_file, cuenta
 from ...aplicacion.vad import VadError
 from .dimensionamiento import Dimensionamiento
 
@@ -364,7 +364,7 @@ def costo_estandar(dimensionamiento: Dimensionamiento, *, sicodi: TablaCostos, h
     trazas = {t.tramo: t.huella for t in dim.modelo.tramos}
     cambiados = sorted(t.tramo for t in dim.tramos if trazas.get(t.tramo) != t.huella)
     if cambiados:
-        raise VadError(f'{len(cambiados)} tramo(s) dimensionados no tienen la huella del modelo rural: '
+        raise VadError(f'{cuenta(len(cambiados), "tramo dimensionado no tiene", "tramos dimensionados no tienen")} la huella del modelo rural: '
                        f'{", ".join(cambiados[:20])}')
     _ambito(sicodi, 'el SICODI del costo estándar')
     _exigir_firma(firma_sicodi, sicodi, huella_sicodi=huella_sicodi, huella_miembro=huella_miembro)
@@ -424,7 +424,7 @@ def costo_estandar(dimensionamiento: Dimensionamiento, *, sicodi: TablaCostos, h
     ref_sin_costo.extend(faltan_r)
     bt = sum(1 for t in dim.modelo.tramos if t.nivel == 'BT')
     if bt:
-        notas.append(f'BT: {bt} tramo(s) sin dimensionar en la T6; no se valoran en ninguna columna')
+        notas.append(f'BT: {cuenta(bt, "tramo sin dimensionar en la T6; no se valora", "tramos sin dimensionar en la T6; no se valoran")} en ninguna columna')
     contenido = {'dimensionamiento': dim.huella, 'sicodi': sicodi.fuente.huella,
                  'sicodi_firma': asdict(firma_sicodi),
                  'referencia_sicodi': referencia_tabla.fuente.huella, 'criterio': criterio,
@@ -573,8 +573,8 @@ def avnr_ser(costo: CostoEstandar, *, fp: float, registro: RegistroNormativo, ta
         valorado = ', '.join(f'{t:,.2f} {m}' for m, t in costo.total_por_moneda.items()) or 'nada valorado'
         huecos.append(f'sin VNR estándar en {costo.moneda_anexo or "la moneda del anexo"} ({valorado})')
     elif not costo.completo:
-        huecos.append(f'el VNR estándar no está completo ({len(costo.sin_costo)} elemento(s) sin costo, '
-                      f'{len(costo.huecos)} hueco(s) del costo y {len(costo.dimensionamiento.huecos)} del '
+        huecos.append(f'el VNR estándar no está completo ({cuenta(len(costo.sin_costo), "elemento", "elementos")} sin costo, '
+                      f'{cuenta(len(costo.huecos), "hueco", "huecos")} del costo y {len(costo.dimensionamiento.huecos)} del '
                       f'dimensionamiento): el aVNR tampoco')
     avnr = None if vnr is None else vnr * factor_anualidad
     factor = None

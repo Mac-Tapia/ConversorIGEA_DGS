@@ -17,7 +17,7 @@ mismo contrato (RF-38) y el resto del conversor funciona.
 """
 from __future__ import annotations
 
-from ...dominio.util import publicar_duradero
+from ...dominio.util import publicar_duradero, cuenta as _cuenta
 
 import hashlib
 import json
@@ -680,7 +680,7 @@ def motivos_de_dominio(m: Muestra, dominio: Mapping[str, Any]) -> list[str]:
     margen = 0.1 * np.maximum(hi - lo, 1e-6)
     fuera = (m.x < lo - margen) | (m.x > hi + margen)
     if fuera.any():
-        motivos.append(f'{int(fuera.any(axis=1).sum())} nodo(s) con datos fuera de lo aprendido')
+        motivos.append(f'{_cuenta(int(fuera.any(axis=1).sum()), "nodo", "nodos")} con datos fuera de lo aprendido')
     n_min, n_max = dominio['nodos']
     if not 0.5 * n_min <= len(m.ids) <= 2 * n_max:
         motivos.append(f'{len(m.ids)} nodos frente a {n_min}–{n_max} aprendidos')
@@ -1266,7 +1266,7 @@ def informe_conforme(oraculo: OraculoPINN, calibracion: Sequence[Muestra], prueb
     if oraculo.cuantil is None or not math.isfinite(oraculo.cuantil):
         motivo = 'sin cuantil calibrado'
     elif math.ceil((grupos + 1) * objetivo) > grupos:
-        motivo = f'{grupos} familia(s) de calibración no bastan para afirmar una cobertura de {objetivo:g}'
+        motivo = f'{_cuenta(grupos, "familia de calibración no basta", "familias de calibración no bastan")} para afirmar una cobertura de {objetivo:g}'
     cubiertas = barras = 0
     if oraculo.cuantil is not None and math.isfinite(oraculo.cuantil):
         for m in prueba:
@@ -1368,7 +1368,7 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     excluidos: dict[str, int] = {}
     muestras, ids = _muestras(bufer, consulta, excluidos)
     for motivo, cuantos in sorted(excluidos.items()):
-        log(f'Gemelo: {cuantos} episodio(s) no enseñan: {motivo}')
+        log(f'Gemelo: {_cuenta(cuantos, "episodio no enseña", "episodios no enseñan")}: {motivo}')
     if sistema:
         # 027:RF-68: solo los episodios de ese sistema (su red, por la huella de sus nodos).
         elegidos = [i for i, m in enumerate(muestras) if red_de(m).startswith(sistema)]
@@ -1599,7 +1599,7 @@ def deriva_por_familia(bufer: BuferEpisodios, *, minimo: int = 10, fraccion: flo
     motivos = []
     for nombre, f in sorted(familias.items()):
         if f['fuera_de_dominio']:
-            motivos.append(f"{nombre}: {f['fuera_de_dominio']} episodio(s) fuera del dominio del modelo")
+            motivos.append(f"{nombre}: {_cuenta(f['fuera_de_dominio'], 'episodio', 'episodios')} fuera del dominio del modelo")
         elif f['nuevos'] >= minimo:
             motivos.append(f"{nombre}: {f['nuevos']} episodios nuevos")
         elif f['nuevos'] and f['entrenamiento'] and f['nuevos'] >= fraccion * f['entrenamiento']:
@@ -1623,7 +1623,7 @@ def entrenar_si_toca(bufer: BuferEpisodios, *, minimo: int = 10,
     if not nuevos:
         return {'entrenado': False, 'motivo': 'sin episodios nuevos'}
     if len(nuevos) < minimo and not deriva(bufer, nuevos):
-        return {'entrenado': False, 'motivo': f'{len(nuevos)} episodio(s) nuevo(s), se espera a {minimo}'}
+        return {'entrenado': False, 'motivo': f'{_cuenta(len(nuevos), "episodio nuevo", "episodios nuevos")}, se espera a {minimo}'}
     return entrenar(bufer, log=log, registro=registro, publicar_individual=publicar_individual)
 
 

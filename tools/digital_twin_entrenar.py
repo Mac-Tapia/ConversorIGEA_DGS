@@ -19,7 +19,8 @@ aprendizaje (spec 027, RF-53). Con ``--buscar`` busca antes los hiperparámetros
 con los elegidos (spec 027, RF-7). Con ``--ablaciones CONTRATO`` compara física pura, red sin término
 físico, híbrido y PowerFlowNet sobre las mismas particiones y no promueve nada (spec 045, RF-8).
 
-Códigos de salida: 0 hecho (entrenado o no hacía falta), 2 sin PyTorch, 1 error.
+Códigos de salida: 0 hecho (entrenado o no hacía falta), 2 sin PyTorch, 3 sin GPU CUDA (el informe lo dice con
+``sin_gpu`` y su motivo: el gemelo nunca entrena en la CPU), 1 error.
 """
 from __future__ import annotations
 
@@ -29,6 +30,9 @@ import json
 import sys
 import traceback
 from pathlib import Path
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
 if str(REPO / 'src') not in sys.path:
@@ -61,6 +65,15 @@ def _reabrir(carpeta: Path) -> int:
         resultado = {**fallo(exc), 'ok': False}
     print(json.dumps(resultado, ensure_ascii=True))
     return 0 if resultado.get('ok') else 2
+
+
+def _sin_gpu(salida: Path, exc: Exception) -> int:
+    """086:RF-129: el informe sin GPU, con su motivo y el código 3; la web hace fallar el trabajo con ese motivo."""
+    motivo = str(exc) or 'no hay GPU CUDA: el gemelo no entrena en la CPU'
+    salida.write_text(json.dumps({'entrenado': False, 'sin_gpu': True, 'motivo': motivo, 'error': motivo},
+                                 ensure_ascii=False), encoding='utf-8')
+    _log(f'ERROR: {motivo}')
+    return 3
 
 
 def main(argv=None) -> int:
@@ -98,6 +111,8 @@ def main(argv=None) -> int:
 
     from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
 
+    from convertersmartgrid.aplicacion.training_coordinator import SinGPU
+
     try:
         from convertersmartgrid.adaptadores.digital_twin import oraculo
         oraculo.dispositivo()
@@ -106,6 +121,10 @@ def main(argv=None) -> int:
                           encoding='utf-8')
         print(f'ERROR: {exc}')
         return 2
+    except SinGPU as exc:
+        # 086:RF-129 (amplía 024:RF-39): solo se capturaba ``ImportError``; sin GPU el proceso salía sin informe y la
+        # web decía «terminó con el código 1 sin informe». Ahora el informe dice el motivo.
+        return _sin_gpu(salida, exc)
     from convertersmartgrid.aplicacion.asistente import almacen
     from convertersmartgrid.aplicacion.model_registry import RegistroModelo
     from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
@@ -160,7 +179,7 @@ def main(argv=None) -> int:
                 r = oraculo.evaluar(bufer)
                 for parte, d in r['por_particion'].items():
                     modelo = f", modelo {d['mae_modelo']:.5f}" if 'mae_modelo' in d else ''
-                    print(f"{parte}: {d['episodios']} episodio(s), física {d['mae_fisica']:.5f} p.u.{modelo}")
+                    print(f"{parte}: {cuenta(d['episodios'], 'episodio', 'episodios')}, física {d['mae_fisica']:.5f} p.u.{modelo}")
                 salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
                 return 0
             if args.buscar:
@@ -181,6 +200,8 @@ def main(argv=None) -> int:
                 r = oraculo.entrenar_si_toca(bufer, minimo=args.minimo, log=_log, registro=registro,
                                             publicar_individual=not args.sin_publicar)
         codigo = 0
+    except SinGPU as exc:
+        return _sin_gpu(salida, exc)                                            # 086:RF-129, también a media corrida
     except Exception as exc:  # noqa: BLE001 - el informe queda siempre escrito
         r, codigo = {'entrenado': False, 'error': repr(exc), 'traza': traceback.format_exc()}, 1
     salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')

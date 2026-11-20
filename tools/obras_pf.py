@@ -78,6 +78,7 @@ from casos_pf import (
     nombre_caso, sin_a_con_proyecto,
 )
 from estudios_pf import medida
+from _plural import cuenta, plural  # noqa: E402
 
 from convertersmartgrid.adaptadores.carpeta_pf import buscar_proyecto, nombre_de_perfil
 from convertersmartgrid.aplicacion.instalacion_ternas import factor_de_capacidad, instalacion
@@ -621,7 +622,7 @@ def anotar_valores(ctx, cambios: list[tuple]) -> None:
         try:
             escribir_aperturas(ruta, entradas)
         except OSError as exc:
-            ctx.fila.setdefault('avisos', []).append(f'No se pudo anotar en disco el cambio de {len(cambios)} valor(es): '
+            ctx.fila.setdefault('avisos', []).append(f'No se pudo anotar en disco el cambio de {cuenta(len(cambios), "valor", "valores")}: '
                                                      f'{exc}; si la orden muere, no se restituirán solos (098:RF-34).')
     for _clase, obj, atributo, nuevo, _caso in cambios:
         setattr(obj, atributo, nuevo)
@@ -756,10 +757,10 @@ def _otras_tomas(ctx, propios=()) -> None:
     otras_n = len(nombres)
     if ctx.plan.get('evaluando'):
         anotar_valores(ctx, [(c, t, a, 0, None) for c, t, a in otras])
-        ctx.fila['avisos'].append(f'Mientras se mide, {otras_n} equipo(s) con toma automática quedan con la toma '
-                                  f'fija ({lista}): la variante no cumple gracias a ellos; al borrarla vuelven.')
+        ctx.fila['avisos'].append(f'Mientras se mide, {cuenta(otras_n, "equipo", "equipos")} con toma automática '
+                                  f'{plural(otras_n, "queda", "quedan")} con la toma fija ({lista}): la variante no cumple gracias a ellos; al borrarla vuelven.')
     else:
-        ctx.fila['avisos'].append(f'Con el ajuste de tomas activo, también regulan {otras_n} equipo(s) con toma '
+        ctx.fila['avisos'].append(f'Con el ajuste de tomas activo, también {plural(otras_n, "regula", "regulan")} {cuenta(otras_n, "equipo", "equipos")} con toma '
                                   f'automática: {lista}.')
 
 
@@ -4746,7 +4747,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 break
             if primera_que_cumple is not None and len(filas) - primera_que_cumple >= p.variantes_tras_cumplir:
                 informe['avisos'].append(f'Se paró tras {p.variantes_tras_cumplir} variantes más desde la primera que '
-                                         f'cumple, con {len(clases_que_cumplen)} alternativa(s).')
+                                         f'cumple, con {cuenta(len(clases_que_cumplen), "alternativa", "alternativas")}.')
                 break
             if v['nombre'] in conocidas:
                 fila = {**conocidas[v['nombre']], 'reutilizada': True}

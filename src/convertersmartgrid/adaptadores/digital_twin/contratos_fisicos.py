@@ -16,6 +16,7 @@ from typing import Any
 
 from ...aplicacion.evaluacion_modelos import huella
 from .native_snapshot import componentes
+from ...dominio.util import cuenta
 
 #: Versión del grafo. La 2 traía los acopladores y la consigna de las fuentes. La 3 separa carga,
 #: generación y bancos, trae tomas, fases y alcance, y cuenta las unidades en paralelo: un
@@ -71,18 +72,18 @@ def _motivos_de_comldf(grafo: Mapping[str, Any]) -> list[str]:
     if comldf['iopt_at']:
         automaticas = [r.get('id') for r in grafo.get('ramas') or [] if (r.get('toma') or {}).get('automatica')]
         if automaticas:
-            motivos.append(f'{len(automaticas)} toma(s) automática(s) con iopt_at: la posición efectiva '
+            motivos.append(f'{cuenta(len(automaticas), "toma automática", "tomas automáticas")} con iopt_at: la posición efectiva '
                            f'no está representada (p. ej. {_muestra_de(automaticas)})')
     if comldf['iopt_asht']:
         bancos = [b.get('id') for b in grafo.get('bancos') or [] if b.get('en_servicio')]
         if bancos:
-            motivos.append(f'{len(bancos)} banco(s) con ajuste automático (iopt_asht): el escalón efectivo '
+            motivos.append(f'{cuenta(len(bancos), "banco", "bancos")} con ajuste automático (iopt_asht): el escalón efectivo '
                            f'no está representado (p. ej. {_muestra_de(bancos)})')
     if comldf['iopt_lev']:
         distintos = _consumo_distinto(grafo.get('nodos') or {})
         if distintos:
             # CA101 (2026-10-15) consumía el 73 % de lo escrito: iopt_lev vuelve las cargas impedancia.
-            motivos.append(f'adaptación automática del modelo (iopt_lev): {len(distintos)} barra(s) consumen '
+            motivos.append(f'adaptación automática del modelo (iopt_lev): {cuenta(len(distintos), "barra consume", "barras consumen")} '
                            f'otra cosa que lo escrito o no se midió (p. ej. {_muestra_de(distintos)})')
     return motivos
 
@@ -109,7 +110,7 @@ def _motivos_de_fuentes(grafo: Mapping[str, Any]) -> list[str]:
     motivos = []
     sin_consigna = [n for n in con_fuente if nodos[n].get('v_pu') is None]
     if sin_consigna:
-        motivos.append(f'{len(sin_consigna)} fuente(s) sin consigna de tensión (p. ej. {_muestra_de(sin_consigna)})')
+        motivos.append(f'{cuenta(len(sin_consigna), "fuente", "fuentes")} sin consigna de tensión (p. ej. {_muestra_de(sin_consigna)})')
     for f in grafo.get('fuentes') or []:
         if f.get('modo') not in (None, 'SL', 'referencia'):
             motivos.append(f"la fuente {f.get('id')} no es de referencia (modo {f.get('modo')})")

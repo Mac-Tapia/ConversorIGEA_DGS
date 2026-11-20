@@ -41,7 +41,7 @@ from .estudios_pf import CASO_BASE, CON_PROYECTO, SIN_PROYECTO
 from .instalacion_ternas import CONFIGURACIONES
 from ..dominio.naming import feeder_short_name, nombre_con_tension, sufijo_tension
 from ..dominio.troncal import Red, TroncalError, aguas_abajo, camino_hasta, camino_y_ramales
-from ..dominio.util import publicar_duradero
+from ..dominio.util import publicar_duradero, cuenta
 
 #: DIgSILENT no admite más en ``loc_name``.
 LARGO_MAXIMO = 40
@@ -1103,8 +1103,8 @@ def _migracion_camino(p: _Plan) -> None:
         p.elemento(ramal, 'ElmLne' if ramal in estado.tipo_tramo else 'ElmCoup', 'se abre: ramal que cuelga de la troncal que se migra')
     sin_alimentar = sorted(tr for tr, b in red.trafo_barra.items() if b in fuera)
     if camino.ramales:                                                           # RF-42f
-        p.avisos.append(f'Se abren {len(camino.ramales)} ramal(es) que cuelgan de la troncal: {len(sin_alimentar)} SED y '
-                        f'{len(fuera)} barra(s) quedan sin alimentar a {origen:g} kV, y su demanda sale del flujo de '
+        p.avisos.append(f'Se abren {cuenta(len(camino.ramales), "ramal que cuelga", "ramales que cuelgan")} de la troncal: {len(sin_alimentar)} SED y '
+                        f'{cuenta(len(fuera), "barra queda sin alimentar", "barras quedan sin alimentar")} a {origen:g} kV, y su demanda sale del flujo de '
                         f'«Con proyecto». Hay que alimentarlas por otra vía.')
     p.extra.update(kv_origen=origen, kv_destino=destino,
                    parte={'barras': len(camino.barras), 'tramos': len(lineas), 'seds': len(trafos), 'entrada': None,

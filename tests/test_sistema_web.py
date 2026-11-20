@@ -159,7 +159,7 @@ def test_convierte_importa_y_calibra_el_sistema(herramienta, capsys):
         '/powerfactory/caso-base') < rutas.index('/demanda/ajuste/plan') < rutas.index('/demanda/ajuste/t/aplicar')
     salida = capsys.readouterr().out
     assert 'Proyecto: P_PISCO' in salida and 'Sin medidor (demanda del archivo): PI101' in salida
-    assert '1 válido(s), 0 con fallos.' in salida
+    assert '1 válido, 0 con fallos.' in salida
 
 
 def test_sin_caso_base_verificado_lo_dice_y_sigue(herramienta, capsys):
@@ -412,7 +412,8 @@ def test_escanea_antes_de_calibrar_y_la_central_toma_su_barra(herramienta, monke
     assert rutas.index('/powerfactory/escanear') < rutas.index('/demanda/ajuste/plan')
     [plan] = web.planes
     assert plan['centrales']['PI102']['nodo'] == 'N5'
-    assert 'escaneo PI102: 1 generador(es)' in capsys.readouterr().out
+    central = next(iter(plan['centrales']))
+    assert f'escaneo {central}: 1 generador,' in capsys.readouterr().out
 
 
 def test_no_espera_al_trabajo_que_lo_lanzo(herramienta, monkeypatch):

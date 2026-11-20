@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
 from apoyo_pf_web import guion_falso  # noqa: E402,F401
+from convertersmartgrid.dominio.util import cuenta  # noqa: E402
 from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
 
 SIN, CON = 'Sin proyecto', 'Con proyecto'
@@ -176,7 +177,7 @@ def test_resumen_ejecutivo_del_resultado_guardado(client, semilla, monkeypatch):
     for f in feeders:
         assert f in texto
     # El falso da 0,97 p.u. en B1: con el mínimo en 0,98 cada alimentador viola la tensión, y se dice con cifras.
-    assert any(f'«{c}»: {len(feeders)} violación(es)' in x for c in casos for x in hecho['conclusiones'])
+    assert any(f'«{c}»: {cuenta(len(feeders), "violación", "violaciones")}' in x for c in casos for x in hecho['conclusiones'])
     assert '0,970' in tablas or '0.970' in tablas
     assert 'calibración' in texto
     assert client.get(f"/api/workspaces/{wid}/files/{hecho['docx']}").status_code == 200

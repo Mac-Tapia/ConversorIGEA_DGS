@@ -35,6 +35,10 @@ from ..dominio.contratos_aprendizaje import (
     ESQUEMA_INSTANTANEA_MIXTA,
     ESQUEMA_PROCEDENCIA,
     ESQUEMA_PLAN,
+    CAMPOS_MATRIZ_PLAN,
+    ESTADOS_MATRIZ,
+    FUENTES_POR_FAMILIA,
+    puertas_de_familia,
     ORIGENES,
     ETIQUETAS_FISICAS,
     ETIQUETAS,
@@ -70,15 +74,31 @@ from .training_coordinator import ORDEN_MODELOS, TrainingCoordinator, TrainingSt
 from ..puertos.puertos_muestras import ProductoresMuestras
 
 
+#: 050:RF-4: los once campos obligatorios del plan del ciclo.
+CAMPOS_PLAN = frozenset({'schema', 'workspace_id', 'raiz', 'contexto', 'fuentes', 'familias',
+                         'politica_hash', 'tiempo_s', 'memoria_gib', 'usa_gpu', 'parametros'})
+#: 050:RF-4: los parámetros que el ciclo admite del plan.
+PARAMETROS_PLAN = frozenset({'semillas', 'zona_horaria', 'cadencia_min', 'horizontes', 'embedding_model'})
+
+
 def cargar_plan_ciclo(ruta: Path | str) -> dict[str, Any]:
-    """050:RF-4/8: un plan declarativo explícito; ningún presupuesto ni comando implícitos."""
+    """050:RF-4/8: un plan declarativo explícito; ningún presupuesto ni comando implícitos.
+
+    050:RF-32/34: admite además ``datasets``, ``puertas`` y ``matriz`` (los tres juntos y con su forma); las
+    huellas y la existencia de las fuentes las comprueba ``validar_plan_ciclo``, que lee los datos.
+    """
     ruta = Path(ruta).resolve()
     contenido = ruta.read_bytes()
     plan = json.loads(contenido)
-    campos = {'schema', 'workspace_id', 'raiz', 'contexto', 'fuentes', 'familias',
-              'politica_hash', 'tiempo_s', 'memoria_gib', 'usa_gpu', 'parametros'}
+    campos = set(CAMPOS_PLAN)
+    if isinstance(plan, dict) and set(plan) & set(CAMPOS_MATRIZ_PLAN):
+        campos |= set(CAMPOS_MATRIZ_PLAN)
     if not isinstance(plan, dict) or set(plan) != campos or plan.get('schema') != ESQUEMA_PLAN:
         raise CicloBloqueado('campos del plan ausentes, desconocidos o esquema inválido')
+    if set(CAMPOS_MATRIZ_PLAN) <= set(plan):
+        forma = _motivos_forma_matriz(plan)
+        if forma:
+            raise CicloBloqueado('matriz del plan inválida: ' + '; '.join(forma))
     if any(not isinstance(plan[k], str) or not plan[k].strip()
            for k in ('workspace_id', 'raiz', 'contexto')):
         raise CicloBloqueado('plan sin espacio, raíz o contexto explícitos')
@@ -98,8 +118,7 @@ def cargar_plan_ciclo(ruta: Path | str) -> dict[str, Any]:
             or not isinstance(v, str) or not v.strip() for k, v in fuentes.items()):
         raise CicloBloqueado('fuentes del plan inválidas')
     parametros = plan['parametros']
-    if (not isinstance(parametros, dict) or set(parametros) - {
-            'semillas', 'zona_horaria', 'cadencia_min', 'horizontes', 'embedding_model'}
+    if (not isinstance(parametros, dict) or set(parametros) - PARAMETROS_PLAN
             or any(not isinstance(v, (str, int)) or isinstance(v, bool) for v in parametros.values())):
         raise CicloBloqueado('parámetros del plan inválidos')
     def absoluta(texto):
@@ -108,6 +127,132 @@ def cargar_plan_ciclo(ruta: Path | str) -> dict[str, Any]:
             'contexto': plan['contexto'] if _HEX.fullmatch(plan['contexto']) else absoluta(plan['contexto']),
             'fuentes': {k: absoluta(v) for k, v in fuentes.items()},
             'plan_hash': hashlib.sha256(contenido).hexdigest()}
+
+
+def huella_fuente(ruta: Path | str) -> dict[str, Any]:
+    """050:RF-32: la huella de una fuente del plan: la de sus ficheros por ruta relativa, como la instantánea."""
+    archivos = huellas_de(ruta)
+    return {'huella': _huella(archivos), 'ficheros': len(archivos)}
+
+
+def _motivos_forma_matriz(plan: Mapping[str, Any]) -> list[str]:
+    """050:RF-32/34: la forma de ``datasets``, ``puertas`` y ``matriz``, sin leer ningún dato."""
+    motivos = []
+    datasets, puertas, matriz = plan.get('datasets'), plan.get('puertas'), plan.get('matriz')
+    if not isinstance(datasets, dict) or any(
+            not isinstance(v, dict) or not isinstance(v.get('huella'), str) or not _HEX.fullmatch(v['huella'])
+            for v in datasets.values()):
+        motivos.append('cada dataset del plan lleva su huella SHA-256')
+    if not isinstance(puertas, dict) or any(
+            f not in ORDEN_MODELOS or not isinstance(v, list) or any(not isinstance(x, str) for x in v)
+            for f, v in puertas.items()):
+        motivos.append('las puertas van por familia conocida, como lista de nombres')
+    if not isinstance(matriz, dict) or any(
+            f not in ORDEN_MODELOS or not isinstance(v, dict) or v.get('estado') not in ESTADOS_MATRIZ
+            or not isinstance(v.get('motivos'), list) for f, v in matriz.items()):
+        motivos.append(f'la matriz va por familia conocida, con estado ({", ".join(ESTADOS_MATRIZ)}) y motivos')
+    return motivos
+
+
+def validar_plan_ciclo(plan: Mapping[str, Any], *, base: Path | str | None = None,
+                       comprobar_huellas: bool = True) -> list[str]:
+    """050:RF-33: todo lo que le falta al plan para preparar el ciclo, en palabras del operador.
+
+    Devuelve la lista entera (vacía si el plan está completo), no el primer fallo: el operador corrige de una
+    vez. Las rutas relativas se leen desde ``base`` (la carpeta del plan). Con ``comprobar_huellas`` se
+    recalcula la huella de cada dataset: un dataset que cambió después de preparar el plan no entra.
+    """
+    if not isinstance(plan, Mapping):
+        return ['El plan no es un objeto JSON.']
+    base = Path(base) if base is not None else Path.cwd()
+
+    def ruta(texto: Any) -> Path:
+        return Path(texto) if Path(texto).is_absolute() else base / str(texto)
+
+    faltan = []
+    if plan.get('schema') != ESQUEMA_PLAN:
+        faltan.append(f'El plan no declara el esquema {ESQUEMA_PLAN}.')
+    ausentes = sorted((CAMPOS_PLAN | set(CAMPOS_MATRIZ_PLAN)) - set(plan))
+    if ausentes:
+        faltan.append(f'Faltan en el plan los campos: {", ".join(ausentes)}.')
+    ajenos = sorted(set(plan) - CAMPOS_PLAN - set(CAMPOS_MATRIZ_PLAN) - {'plan_hash'})
+    if ajenos:
+        faltan.append(f'El plan trae campos que el ciclo no admite: {", ".join(ajenos)}; '
+                      'un plan es declarativo y no lleva órdenes.')
+    if not str(plan.get('workspace_id') or '').strip():
+        faltan.append('Falta el espacio de trabajo del ciclo (--workspace-id): no se deduce de los datos.')
+    if not str(plan.get('raiz') or '').strip():
+        faltan.append('Falta la carpeta de aprendizaje donde el ciclo deja instantáneas y ciclos (--raiz).')
+    contexto = plan.get('contexto')
+    if not isinstance(contexto, str) or not contexto.strip():
+        faltan.append('Falta el contexto del ciclo: ninguna fuente aportó identidad 043 ni documental.')
+    elif not _HEX.fullmatch(contexto) and not ruta(contexto).is_file():
+        faltan.append(f'El fichero de contexto del ciclo no existe: {ruta(contexto)}.')
+    if not isinstance(plan.get('politica_hash'), str) or not _HEX.fullmatch(plan['politica_hash']):
+        faltan.append('Falta la huella SHA-256 de la política de evaluación 044.')
+    for campo, opcion, que in (('tiempo_s', '--tiempo-s', 'el tiempo máximo del ciclo en segundos'),
+                               ('memoria_gib', '--memoria-gib', 'la memoria máxima del ciclo en GiB')):
+        valor = plan.get(campo)
+        if type(valor) not in (int, float) or not math.isfinite(valor) or valor <= 0:
+            faltan.append(f'Falta {que} ({opcion}): el presupuesto lo declara el operador.')
+    if type(plan.get('usa_gpu')) is not bool:
+        faltan.append('Falta declarar si el ciclo usa la GPU (usa_gpu).')
+    parametros = plan.get('parametros')
+    if not isinstance(parametros, Mapping) or set(parametros) - PARAMETROS_PLAN:
+        faltan.append(f'Los parámetros del plan solo admiten: {", ".join(sorted(PARAMETROS_PLAN))}.')
+    familias = plan.get('familias')
+    if not isinstance(familias, list) or not familias:
+        faltan.append('El plan no pide ninguna familia de modelo (--familias).')
+        familias = []
+    desconocidas = sorted({str(f) for f in familias} - set(ORDEN_MODELOS))
+    if desconocidas:
+        faltan.append(f'Familias desconocidas: {", ".join(desconocidas)}; las del ciclo son {", ".join(ORDEN_MODELOS)}.')
+    if len(set(map(str, familias))) != len(familias):
+        faltan.append('El plan repite una familia.')
+    familias = [f for f in dict.fromkeys(map(str, familias)) if f in ORDEN_MODELOS]
+    fuentes = plan.get('fuentes') if isinstance(plan.get('fuentes'), Mapping) else {}
+    if not fuentes:
+        faltan.append('El plan no declara ninguna fuente de datos.')
+    for nombre, valor in sorted(fuentes.items()):
+        if not isinstance(valor, str) or not valor.strip() or not ruta(valor).exists():
+            faltan.append(f'La fuente {nombre} no existe: {valor}.')
+    datasets = plan.get('datasets') if isinstance(plan.get('datasets'), Mapping) else {}
+    puertas = plan.get('puertas') if isinstance(plan.get('puertas'), Mapping) else {}
+    matriz = plan.get('matriz') if isinstance(plan.get('matriz'), Mapping) else {}
+    if set(CAMPOS_MATRIZ_PLAN) <= set(plan):
+        faltan += [f'Forma del plan: {m}.' for m in _motivos_forma_matriz(plan)]
+    for familia in familias:
+        fila = matriz.get(familia)
+        if not isinstance(fila, Mapping):
+            faltan.append(f'{familia}: no está en la matriz del plan.')
+        elif fila.get('estado') != 'listo_para_preflight':
+            # La matriz ya dice qué fuente falta y por qué: no se repite fuente a fuente.
+            motivos = '; '.join(map(str, fila.get('motivos') or ())) or 'sin motivo escrito'
+            faltan.append(f'{familia}: bloqueada por datos ({motivos}); resuélvalo o quítela de --familias.')
+            continue
+        for nombre in FUENTES_POR_FAMILIA[familia]:
+            if nombre not in fuentes:
+                faltan.append(f'{familia}: le falta la fuente {nombre}; declárela o quite la familia de --familias.')
+            elif nombre not in datasets:
+                faltan.append(f'{familia}: la fuente {nombre} no trae su huella en datasets.')
+        propias = puertas.get(familia)
+        quitadas = [p for p in puertas_de_familia(familia) if not isinstance(propias, list) or p not in propias]
+        if quitadas:
+            faltan.append(f'{familia}: le faltan las puertas {", ".join(quitadas)}; ninguna se quita desde el plan.')
+    if comprobar_huellas:
+        for nombre, dato in sorted(datasets.items()):
+            valor = fuentes.get(nombre)
+            if not isinstance(dato, Mapping) or not isinstance(valor, str) or not ruta(valor).exists():
+                continue
+            try:
+                ahora = huella_fuente(ruta(valor))['huella']
+            except (OSError, CicloBloqueado) as exc:
+                faltan.append(f'La fuente {nombre} no se puede leer entera: {exc}.')
+                continue
+            if ahora != dato.get('huella'):
+                faltan.append(f'El dataset {nombre} cambió desde que se preparó el plan (huella del plan '
+                              f'{str(dato.get("huella"))[:12]}…, ahora {ahora[:12]}…): prepare el plan de nuevo.')
+    return faltan
 
 
 def huella_parametros_ciclo(parametros: Mapping[str, Any]) -> str:

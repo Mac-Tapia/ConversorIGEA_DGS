@@ -14,6 +14,7 @@ import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass, field
 from typing import Any
+from convertersmartgrid.dominio.util import cuenta
 
 FASES, ISLA, DATOS, DEMANDA, DESCONOCIDA = 'fases', 'isla', 'datos', 'demanda', 'desconocida'
 #: Vueltas de corregir y medir: cada una ha de traer una corrección nueva.
@@ -65,7 +66,7 @@ def clasificar_causas(mensajes: str, *, hallazgos_fases: Iterable[str] = (),
     hallazgos = tuple(hallazgos_fases)
     fases = _MENSAJE_FASES.search(texto)
     if hallazgos or fases:
-        causas.append(Causa(FASES, fases.group(0) if fases else f'{len(hallazgos)} elemento(s) con fases que su barra no lleva', hallazgos))
+        causas.append(Causa(FASES, fases.group(0) if fases else f'{cuenta(len(hallazgos), "elemento", "elementos")} con fases que su barra no lleva', hallazgos))
     for tipo, patron in ((ISLA, _MENSAJE_ISLA), (DATOS, _MENSAJE_DATOS), (DEMANDA, _MENSAJE_DEMANDA)):
         visto = patron.search(texto)
         if visto:

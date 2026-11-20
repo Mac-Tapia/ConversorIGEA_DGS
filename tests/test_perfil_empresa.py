@@ -112,7 +112,7 @@ def test_la_forma_del_alimentador_solo_avisa(tmp_path):
     perfil = replace(EMPRESA_B, forma_alimentador=r'^[A-Z]{2}\d{3}$')
     manifiesto, _ = _convertir(tmp_path, perfil, 'out')
     assert manifiesto['summary']['ok'] == 2
-    assert any('no cumplen la forma' in w and 'AL01' in w for w in manifiesto['input_warnings'])
+    assert any('la forma del perfil de empresa' in w and 'AL01' in w for w in manifiesto['input_warnings'])
 
 
 # --------------------------------------------------------------------------- RF-32

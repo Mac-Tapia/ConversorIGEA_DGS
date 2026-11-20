@@ -45,6 +45,7 @@ from typing import Iterable, Sequence
 
 from ..dominio.model import CapacitorBank, Coupler, FeederModel, Line, LineType, Load, Node, Sed
 from ..dominio.naming import sufijo_tension
+from ..dominio.util import cuenta
 
 
 @dataclass(frozen=True)
@@ -231,8 +232,8 @@ class CombineReport:
             f'Nodos                : {self.nodes_in:,} por separado → {self.nodes_out:,} en la red '
             + (f'({self.merged_nodes:,} fusionados)' if self.merged_nodes
                else '(sin fusionar: los enlaces van con interruptor)'),
-            f'Puntos de enlace     : {self.tie_nodes}  →  {self.tie_switches} interruptor(es) '
-            f'NORMALMENTE ABIERTO(S) entre alimentadores',
+            f'Puntos de enlace     : {self.tie_nodes}  →  {cuenta(self.tie_switches, "interruptor NORMALMENTE ABIERTO", "interruptores NORMALMENTE ABIERTOS")} '
+            f'entre alimentadores',
             f'Tramos               : {self.lines:,}',
             f'Cargas               : {self.loads:,}',
             f'SED                  : {self.seds:,}',
@@ -491,8 +492,8 @@ def combine_models(
                     por_alimentador[a] = por_alimentador.get(a, 0) + 1
             informe.de_energised_by_feeder = por_alimentador
             informe.warnings.append(
-                f'{len(sin_alimentar)} nodo(s), {len(tramos)} tramo(s) y '
-                f'{len(cargas)} carga(s) ({informe.de_energised_kw:,.1f} kW) no tienen '
+                f'{cuenta(len(sin_alimentar), "nodo", "nodos")}, {cuenta(len(tramos), "tramo", "tramos")} y '
+                f'{cuenta(len(cargas), "carga", "cargas")} ({informe.de_energised_kw:,.1f} kW) no tienen '
                 f'camino a ninguna fuente. Se escriben FUERA DE SERVICIO para que el '
                 f'flujo converja —un área sin referencia de tensión estanca el Newton '
                 f'de toda la red (manual §24.6.3)—, pero siguen en el modelo y se '
@@ -613,7 +614,7 @@ def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str
         if sist in estructura.sistemas:
             info.sistemas[sist] = estructura.sistemas[sist]
     if info.sin_set:
-        avisos.append(f'{len(info.sin_set)} alimentador(es) sin SET en la estructura, con su '
+        avisos.append(f'{cuenta(len(info.sin_set), "alimentador", "alimentadores")} sin SET en la estructura, con su '
                       'red externa propia: ' + ', '.join(info.sin_set) + '.')
     if aviso := aviso_deducidos(estructura, (f.name for f in info.feeders)):
         avisos.append(aviso)                                                    # RF-78

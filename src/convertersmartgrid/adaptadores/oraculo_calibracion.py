@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 import time
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import numpy as np
@@ -188,7 +188,9 @@ def arranque_con_oraculo(grafo: Mapping[str, Any], nodo_de_sed: Mapping[str, Map
     salida.modelo, salida.motor, salida.evaluaciones, salida.v_min = flujo.modelo, flujo.motor, flujo.evaluaciones, flujo.v_min
     salida.motivo = res.motivo or ''
     if res.repartos:
-        salida.repartos = dict(res.repartos)
+        # 083:RF-33: solo sus factores, sobre los repartos con que entró: las fijas llegan a DIgSILENT a escala 1 y su
+        # corrección (083:RF-30) la decide el flujo de DIgSILENT con su tope, no el modelo aproximado del oráculo.
+        salida.repartos = {k: replace(repartos[k], a=r.a, b=r.b) for k, r in res.repartos.items()}
         salida.factores = {k: round(r.a, 6) for k, r in res.repartos.items()}
         if res.medida is not None and res.medida.converge:
             # 083:RF-28: el que sigue por encima con sus escaladas casi en cero no puede cuadrar: sus fijas y pérdidas ya pasan.

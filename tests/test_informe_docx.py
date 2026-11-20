@@ -17,6 +17,7 @@ from convertersmartgrid.adaptadores.informes import (
     Caso, ConfigInforme, Devanado, Encabezado, Etapa, Extremo, InformeError, Potencia, Solicitud,
     perdidas_anuales)
 from convertersmartgrid.adaptadores.libros_informe import DatosPerdidas
+from convertersmartgrid.dominio.util import cuenta
 
 #: Datos del modelo que no pueden aparecer en ningún informe generado.
 DEL_MODELO = ('GT-019-PR', 'CAIDA DE TENSIÓN DEL MODELO', '9999', '3 de 6', 'JAVIER')
@@ -698,7 +699,7 @@ def test_resumen_ejecutivo_con_sus_cifras(tmp_path, semilla):
         suyas = [v for v in r['violaciones'] if v['caso'] == c]
         vm = min(f['vm_min'] for f in r['resultados'] if f['caso'] == c)
         frase = next(x for x in hecho['conclusiones'] if x.startswith(f'«{c}»'))
-        assert (f'{len(suyas)} violación(es)' in frase) if suyas else ('sin violaciones' in frase)
+        assert (cuenta(len(suyas), 'violación', 'violaciones') in frase) if suyas else ('sin violaciones' in frase)
         assert numero(vm, 3) in frase and filas[c][1] == str(len(suyas)) and filas[c][3] == numero(vm, 3)
     assert f"{len(r['violaciones'])} violaciones" in texto and 'en los ficheros de la corrida' in texto
     assert ('AVISO' in texto) == (not r['calibrado'])

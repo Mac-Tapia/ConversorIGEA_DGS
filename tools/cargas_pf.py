@@ -52,6 +52,9 @@ from convertersmartgrid.dominio.native_action import native_action_block_report
 from convertersmartgrid.adaptadores.pf_arnes import borrar_en_su_proyecto
 from convertersmartgrid.dominio.troncal import Barra, Red, Tramo, cortar_trazado, punto_en_troncal, red_de
 from convertersmartgrid.dominio.troncal import troncal as troncal_de
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta, plural  # noqa: E402
 
 MAX_NOMBRE = 40               # loc_name de DIgSILENT
 REFERENCIAS_DIBUJO = 12       # barras dibujadas cercanas con que se mide la escala
@@ -1296,7 +1299,7 @@ def cifras_de_sed_adaptada(fila: dict, kv: float, n: int) -> str:
     kva = float(fila.get('kva_instalado') or 0.0) or math.hypot(kw, kvar)
     con_n, con_tres = corriente_por_fase_a(kva, kv, n), corriente_por_fase_a(kva, kv, 3)
     corriente = '' if con_n is None else f'; a {kv:g} kV, {con_n:.1f} A por fase frente a {con_tres:.1f} A con tres'
-    return f'{kva:g} kVA, {kw:g} kW y {kvar:g} kvar en {n} fase(s){corriente}.'
+    return f'{kva:g} kVA, {kw:g} kW y {kvar:g} kvar en {cuenta(n, "fase", "fases")}{corriente}.'
 
 
 def cifras_de_banco(kvar: float, kv: float, n: int) -> str:
@@ -1305,7 +1308,7 @@ def cifras_de_banco(kvar: float, kv: float, n: int) -> str:
 
     corriente = corriente_por_fase_a(kvar, kv, n)
     a_tension = f' a {kv:g} kV' if kv else ''
-    return (f'{kvar:g} kvar{a_tension} en {n} fase(s)'
+    return (f'{kvar:g} kvar{a_tension} en {cuenta(n, "fase", "fases")}'
             + ('' if corriente is None else f', {corriente:.1f} A por fase') + '.')
 
 
@@ -1595,11 +1598,11 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             barra, otra_dist, ubicacion = ubicar_sed_nueva(sed, barra, fases_punto, cercanas[feeder], punto)
             if ubicacion.reubicado:
                 dist, conexion = otra_dist, None
-                criterio = f'barra trifásica más cercana: {pedida} lleva {fases_punto} fase(s)'
+                criterio = f'barra trifásica más cercana: {pedida} lleva {cuenta(fases_punto, "fase", "fases")}'
                 avisos.append(ubicacion.nota)
             else:
                 fases_sed = ubicacion.n
-                criterio = f'{criterio}; adaptada a {fases_sed} fase(s)'
+                criterio = f'{criterio}; adaptada a {cuenta(fases_sed, "fase", "fases")}'
                 avisos.append(f"{ubicacion.nota} "
                               f"{cifras_de_sed_adaptada(fila, float(getattr(barra, 'uknom', 0) or 0), fases_sed)}")
         tipo, origen_tipo = None, ''
@@ -1663,8 +1666,8 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
     if de_otros:
         total = sum(de_otros.values())
         detalle = ', '.join(f'{f} ({n})' for f, n in sorted(de_otros.items()))
-        avisos.append(f'{total} carga(s) nueva(s) del libro son de alimentadores no marcados '
-                      f'({detalle}): no se crean.')
+        avisos.append(f'{cuenta(total, "carga nueva", "cargas nuevas")} del libro {plural(total, "es", "son")} de '
+                      f'alimentadores no marcados ({detalle}): {plural(total, "no se crea", "no se crean")}.')
     return resueltas, no_creadas, avisos
 
 
@@ -2774,8 +2777,9 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
     if not any(asignadas.values()) and not any(resueltas.values()):
         # 008:RF-21: con todas las filas ya en el proyecto, coinciden; no es que no coincida ninguna.
         informe['avisos'].append(
-            f'Nada nuevo que aplicar: las {len(reutilizadas)} carga(s) del libro ya están en el proyecto y se '
-            'reutilizan.' if reutilizadas else 'Nada que aplicar: ninguna fila coincide en el proyecto.')
+            'Nada nuevo que aplicar: ' + plural(len(reutilizadas), 'la carga del libro ya está en el proyecto y se reutiliza.',
+                                               f'las {len(reutilizadas)} cargas del libro ya están en el proyecto y se '
+                                               'reutilizan.') if reutilizadas else 'Nada que aplicar: ninguna fila coincide en el proyecto.')
         # 008:RF-21: los alimentadores del proyecto, aunque no se cree nada; la web los nombra en la escalera
         # de obras y decía «cambio de sección en , varias variantes» (PRUEBA_007, 2026-11-06).
         informe['feeders'] = [{'feeder': f, 'actualizadas': [], 'creadas': [], 'fallos': []} for f in alims.elegidos]

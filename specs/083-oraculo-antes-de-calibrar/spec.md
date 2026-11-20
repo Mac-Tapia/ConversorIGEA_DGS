@@ -1,6 +1,6 @@
 # Spec 083 — El oráculo antes de calibrar y recalibrar
 
-Estado: cumplida (2026-11-17: todas sus tareas cerradas); antes aprobada (2026-11-14: RF-32, H12; antes cumplida 2026-11-07, verificada en DIgSILENT en el Pisco de prueba) · Fecha: 2026-11-03 · Origen: petición del usuario
+Estado: cumplida (reabierta y cerrada el 2026-11-19 con MEJ3-CALIB por orden del usuario; su corrida en DIgSILENT va en 086 T105) · Fecha: 2026-11-03 · Origen: petición del usuario
 
 ## Contexto y objetivo
 
@@ -90,6 +90,13 @@ oráculo propone el arranque, nunca da una calibración por buena (024, principi
   trifásica en silencio: EL SISTEMA la contará aparte en el informe como «sin dato» y la nota dirá que, si alguna no es
   trifásica, el equilibrado también es una aproximación; un valor ilegible no detendrá el arranque con el oráculo (una
   excepción ahí apagaría el oráculo entero por RF-4).
+- RF-33: (orden del usuario del 19-11, revisión de la calibración de cargas; enmienda RF-28 y RF-30) CUANDO el oráculo
+  entrega su arranque, EL SISTEMA tomará de él solo los factores de cada alimentador sobre los repartos con que entró:
+  DIgSILENT arranca con las fijas a escala 1 y la corrección de fijas de RF-30 solo se aplica tras medir con el flujo de
+  DIgSILENT y con su tope. Antes el oráculo podía rebajarlas con su modelo aproximado y DIgSILENT nunca las subía.
+- RF-34: (misma orden; enmienda RF-30) EL SISTEMA medirá el tope del 10 % de RF-30 contra las fijas con que entró el
+  cuadre, sumando lo ya corregido: varias correcciones seguidas no bajan las fijas más del 10 % en total, y lo que pase
+  de ahí deja el alimentador imposible con su causa (086:RF-124).
 
 ## Fuera de alcance
 

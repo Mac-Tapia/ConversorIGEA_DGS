@@ -281,21 +281,60 @@ def test_sed_con_clientes_lleva_su_demanda(guion):
     assert [o['sed'] for o in informe['omitidas']] == ['ZZ9']
 
 
-def test_si_las_fijas_superan_objetivo_todas_quedan_marcadas_escalables(guion):
-    """006:RF-13 — cuando se escala todo, incluso la SED de cliente lleva i_scale=1.
-
-    Detecta clasificar por el origen histórico ``cliente`` en vez de por la participación
-    efectiva en el reparto escalado.
-    """
+def test_006_rf46_si_las_fijas_superan_el_objetivo_quedan_fijas_y_es_imposible(guion):
+    """006:RF-46 (cambia 006:RF-13), 086:RF-124 — las fijas que pasan de la cabecera siguen fijas (i_scale=0, su P),
+    las escaladas al mínimo y el alimentador sale imposible con su causa, sin darse por calibrado. Antes se escalaba
+    todo, incluida la SED del cliente."""
     app = _app()
     clientes = [{'codigo': '11', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.25}]
 
-    informe, rc = guion.ejecutar(app, _plan(kw=30.0, kvar=9.0, clientes=clientes))
+    informe, _rc = guion.ejecutar(app, _plan(kw=30.0, kvar=9.0, clientes=clientes))
 
-    assert rc == 0, informe
-    assert informe['todo_escala'] is True
-    assert informe['resultado_carga_nativa']['status'] == 'APLICADO_Y_VALIDADO'
-    assert all(_carga(app, fila['sed']).i_scale == 1 for fila in informe['sed'])
+    assert not informe.get('todo_escala'), informe
+    assert informe['imposible']['fijas_kw'] == pytest.approx(40.0) and not informe.get('cuadrado'), informe
+    assert informe['motivo'] == informe['imposible']['texto']
+    fija = _carga(app, 'F1_S2')
+    assert fija.i_scale == 0 and fija.plini * fija.scale0 == pytest.approx(0.040)
+    assert all(_carga(app, fila['sed']).i_scale == 1 for fila in informe['sed'] if fila['sed'] != 'F1_S2')
+
+
+def test_006_rf46_sin_escaladas_con_kva_no_se_calibra(guion):
+    """006:RF-46 — todas las SED del alimentador con clientes: no calibrable con su causa y sin tocar las cargas."""
+    app = _app(n=2)
+    clientes = [{'codigo': str(i), 'sed': f'F1_S{i}', 'pot': 10.0 * i, 'ea': 1.0, 'eri': 0.25} for i in (1, 2)]
+    antes = {s: (_carga(app, s).plini, _carga(app, s).scale0) for s in ('F1_S1', 'F1_S2')}
+
+    informe, rc = guion.ejecutar(app, _plan(kw=300.0, kvar=90.0, clientes=clientes))
+
+    assert rc == 2 and informe['no_calibrable']['estado'] == 'NO_CALIBRABLE', informe
+    assert 'no se puede repartir' in informe['error']
+    assert {s: (_carga(app, s).plini, _carga(app, s).scale0) for s in antes} == antes
+
+
+def test_015_rf71_la_validacion_cuenta_las_escaladas_bajo_1_kw_y_avisa(guion):
+    """015:RF-71 — tras el reparto, la validación cuenta las escaladas que consumen menos de 1 kW (antes 10 W) y, con un
+    factor común anormalmente bajo, no da la calibración por válida y avisa con las SED y la causa."""
+    from convertersmartgrid.dominio.ajuste_cabecera import Medida, Objetivo
+
+    app = _app(n=3)
+    cargas, reparto = _reparto_de(app, 1.0, fija='F1_S1')
+    for sed in ('F1_S2', 'F1_S3'):                   # 0,5 kW consumidos con un factor de 0,009
+        o = cargas[sed]
+        o.plini, o.qlini = 0.0005, 0.0001
+        object.__setattr__(o, 'm:Psum:bus1', 0.0005)
+        object.__setattr__(o, 'm:Qsum:bus1', 0.0001)
+        reparto.base[sed] = (0.5 / 0.009, 0.1 / 0.009)
+        reparto.demandas[sed] = SimpleNamespace(kw=0.5, kvar=0.1)
+    reparto.a = reparto.b = 0.009
+    validacion, _ = guion.validar_cargas_nativas(
+        cargas, reparto, Medida(True, 501.0, 100.2), Objetivo(501.0, 100.2, 'M1', 'F1'), 0.01)
+    part = validacion['participacion']
+    assert part['consumen'] == 0 and part['casi_cero']['cantidad'] == 2, part
+    fallo = next((f for f in validacion['fallos'] if f['tipo'] == 'ESCALADAS_CASI_CERO'), None)
+    assert fallo is not None, validacion['fallos']
+    assert sorted(fallo['sed']) == ['F1_S2', 'F1_S3'] and validacion['correcta'] is False
+    aviso = guion.aviso_casi_cero(validacion)
+    assert aviso and 'F1' in aviso and 'F1_S2' in aviso and 'fijas' in aviso and '(s)' not in aviso
 
 
 def test_cargas_sed_une_topologia_con_etiqueta_alimentador(guion):
@@ -1635,7 +1674,7 @@ def test_implementar_cambia_el_transformador_con_un_tipo_propio(guion):
     assert h['antes'] == {'tipo': 'TR2_F1', 'kva': pytest.approx(100.0), 'unidades': 1}
     assert h['despues']['tipo'] == nuevo.loc_name and h['despues']['kva'] == 400
     assert 'fijas_sobre_su_transformador' not in informe
-    assert any('transformador(es) nuevo(s) en «' in a for a in informe['avisos'])
+    assert any('1 transformador nuevo en «' in a for a in informe['avisos'])
 
 
 def test_implementar_unidades_en_paralelo(guion):
@@ -1670,7 +1709,8 @@ def test_un_transformador_que_ya_tiene_la_propuesta_no_se_anuncia_como_cambio(gu
     hecho = segundo['transformadores_implementados']
     assert hecho['cambios'] == [] and _tr(app, 'TR_F1_S2').typ_id is tipo
     assert [x['sed'] for x in hecho['sin_cambio']] == ['F1_S2']
-    assert not any('→' in a and 'transformador(es) nuevo(s) en «' in a for a in segundo['avisos'])
+    assert not any('→' in a and ('transformador nuevo en «' in a or 'transformadores nuevos en «' in a)
+               for a in segundo['avisos'])
     assert any('ya tiene' in a and 'F1_S2' in a for a in segundo['avisos'])
 
 
@@ -1799,7 +1839,7 @@ def test_si_tras_implementar_no_es_valida_es_un_fallo_con_lo_que_sigue_fallando(
     assert r['status'] == 'FALLO' and not r['calibracion_valida']
     assert any('12 cargas no consumen' in m for m in r['motivos'])
     assert any('adaptación automática' in m and 'iteraciones' not in m for m in r['motivos'])
-    assert 'se quedan' in r['aviso'] and 'ya no es la causa' in r['aviso']
+    assert 'se queda' in r['aviso'] and 'ya no es la causa' in r['aviso']
 
 
 def test_la_sed_cambiada_por_encima_del_umbral_se_nombra(guion):
@@ -2132,7 +2172,7 @@ def test_083_rf31_transformadores_de_la_ficha_en_la_misma_pasada(guion):
     hechos = informe['transformadores_implementados']['cambios']
     assert [h['sed'] for h in hechos] == ['F1_S2']
     assert not informe.get('fijas_sobre_su_transformador')
-    assert any('puestos antes de calibrar, en la misma pasada' in a for a in informe['avisos'])
+    assert any('1 transformador de la ficha puesto antes de calibrar, en la misma pasada' in a for a in informe['avisos'])
 
 
 def test_083_rf31_sin_el_plan_automatico_solo_se_propone(guion):

@@ -21,6 +21,7 @@ from typing import Any
 import numpy as np
 
 from ...dominio.benchmarks.geometria import largos_por_alimentador
+from ...dominio.util import cuenta
 
 MINIMOS = {'alimentadores': 5, 'tramos': 500}
 #: Cuantiles que se publican: p0, p10 … p100. Se redondean (longitud al metro, carga al kW) para no copiar un extremo.
@@ -114,7 +115,7 @@ def generar_publicable(trios: Sequence[tuple], destino: Path | str, *, semilla: 
                 originales[f'{k}:{red}'] = largos
         pillados = identificados(originales, sinteticos, AMPLITUD_POR_DEFECTO)
         if pillados:
-            raise AgregadoInsuficiente(f'no se emite: el control identifica {len(pillados)} alimentador(es) del '
+            raise AgregadoInsuficiente(f'no se emite: el control identifica {cuenta(len(pillados), "alimentador", "alimentadores")} del '
                                        'origen en la red sintética')
         huellas = [M.huella_ficheros(t) for t in trios]
         manifiesto = M.construir_publicable(huellas_origen=huellas, semilla_publica=publica, minimos=limites,

@@ -46,6 +46,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from ..dominio.model import FeederModel
+from ..dominio.util import cuenta
 
 #: Frecuencia de la red peruana, la misma que ``frnom`` en el DGS.
 FRECUENCIA_HZ = 60.0
@@ -147,10 +148,10 @@ class InformeOraculo:
         if not self.disponible:
             return f'oráculo no disponible: {self.motivo_no_disponible}'
         if not self.convergio:
-            return f'NO CONVERGE ({len(self.errores)} error(es))'
+            return f'NO CONVERGE ({cuenta(len(self.errores), "error", "errores")})'
         return (f'converge; V {self.v_min_pu:.3f}–{self.v_max_pu:.3f} p.u.; '
                 f'pérdidas {self.perdidas_mw * 1000:.1f} kW; '
-                f'{len(self.errores)} error(es), {len(self.avisos)} aviso(s)')
+                f'{cuenta(len(self.errores), "error", "errores")}, {cuenta(len(self.avisos), "aviso", "avisos")}')
 
     def as_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -209,7 +210,7 @@ def red_pandapower(model: FeederModel, consigna_pu: float = 1.0, *, por_fases: b
     if sin_definir:
         informe.hallazgos.append(Hallazgo(
             'aviso', 'nodo_sin_definir',
-            f'{len(sin_definir)} nodo(s) citados y sin definir, calculados sin camino a la fuente: '
+            f'{cuenta(len(sin_definir), "nodo citado y sin definir, calculado", "nodos citados y sin definir, calculados")} sin camino a la fuente: '
             + ', '.join(sin_definir[:5]) + ('…' if len(sin_definir) > 5 else '')))
     nodos = sorted(citados | set(model.nodes))
     info = getattr(model, 'combined', None)
@@ -304,12 +305,12 @@ def red_pandapower(model: FeederModel, consigna_pu: float = 1.0, *, por_fases: b
     if fuera_de_extremo:
         informe.hallazgos.append(Hallazgo(
             'aviso', 'maniobra_fuera_de_extremo',
-            f'{len(fuera_de_extremo)} maniobra(s) que no apuntan a un extremo de su tramo, puestas '
+            f'{cuenta(len(fuera_de_extremo), "maniobra que no apunta a un extremo de su tramo, puesta", "maniobras que no apuntan a un extremo de su tramo, puestas")} '
             'en el de origen: ' + ', '.join(fuera_de_extremo[:5])))
     if sin_tramo:
         informe.hallazgos.append(Hallazgo(
             'aviso', 'maniobra_sin_tramo',
-            f'{len(sin_tramo)} maniobra(s) de un tramo que no existe, sin efecto en el flujo: '
+            f'{cuenta(len(sin_tramo), "maniobra", "maniobras")} de un tramo que no existe, sin efecto en el flujo: '
             + ', '.join(sin_tramo[:5])))
     reguladores = 0
     for cp in model.couplers:
@@ -405,7 +406,7 @@ def red_pandapower(model: FeederModel, consigna_pu: float = 1.0, *, por_fases: b
     if sin_potencia:
         informe.hallazgos.append(Hallazgo(
             'aviso', 'banco_sin_potencia',
-            f'{len(sin_potencia)} banco(s) sin potencia en la fuente ni en el catálogo: '
+            f'{cuenta(len(sin_potencia), "banco", "bancos")} sin potencia en la fuente ni en el catálogo: '
             + ', '.join(sorted(sin_potencia)[:5])))
 
     informe.barras = len(net.bus)
@@ -542,13 +543,13 @@ def validar(model: FeederModel, *, comparar: bool = True) -> InformeOraculo:
         if con_carga:
             informe.hallazgos.append(Hallazgo(
                 'error', 'carga_sin_alimentar',
-                f'{len(con_carga)} barra(s) con carga sin camino a la fuente con las '
+                f'{cuenta(len(con_carga), "barra", "barras")} con carga sin camino a la fuente con las '
                 f'maniobras en su estado normal: {", ".join(con_carga[:5])}'
                 + ('…' if len(con_carga) > 5 else '')))
         else:
             informe.hallazgos.append(Hallazgo(
                 'aviso', 'barras_sin_alimentar',
-                f'{len(sin_alimentar)} barra(s) sin alimentar y sin carga (ramales tras un '
+                f'{cuenta(len(sin_alimentar), "barra", "barras")} sin alimentar y sin carga (ramales tras un '
                 'seccionador abierto)'))
         # pandapower las deja fuera del cálculo por su cuenta; se sigue.
 
@@ -591,13 +592,13 @@ def validar(model: FeederModel, *, comparar: bool = True) -> InformeOraculo:
             peores = ', '.join(f'{net.bus.at[b, "name"]} ({v:.2f})' for b, v in rotas.nsmallest(5).items())
             informe.hallazgos.append(Hallazgo(
                 'error', 'tension_imposible',
-                f'{len(rotas)} barra(s) por debajo de {TENSION_DATO_ROTO_PU} p.u.: {peores}. '
+                f'{cuenta(len(rotas), "barra", "barras")} por debajo de {TENSION_DATO_ROTO_PU} p.u.: {peores}. '
                 'No es una red cargada, es un dato roto (carga o transformador fuera de escala).'))
         fuera = vm[(vm < BANDA_AVISO_PU[0]) | (vm > BANDA_AVISO_PU[1])]
         if len(fuera) and not len(rotas):
             informe.hallazgos.append(Hallazgo(
                 'aviso', 'tension_fuera_de_banda',
-                f'{len(fuera)} barra(s) fuera de {BANDA_AVISO_PU[0]}–{BANDA_AVISO_PU[1]} p.u. '
+                f'{cuenta(len(fuera), "barra", "barras")} fuera de {BANDA_AVISO_PU[0]}–{BANDA_AVISO_PU[1]} p.u. '
                 f'(mínima {informe.v_min_pu} en {informe.barra_v_min}).'))
 
     if len(net.line):
@@ -609,7 +610,7 @@ def validar(model: FeederModel, *, comparar: bool = True) -> InformeOraculo:
             if len(sobre):
                 informe.hallazgos.append(Hallazgo(
                     'aviso', 'linea_sobrecargada',
-                    f'{len(sobre)} tramo(s) por encima de su ampacidad (máx. '
+                    f'{cuenta(len(sobre), "tramo", "tramos")} por encima de su ampacidad (máx. '
                     f'{informe.carga_linea_max_pct} % en {informe.linea_mas_cargada}).'))
     if len(net.trafo):
         carga = _carga_trafos(net)
@@ -620,7 +621,7 @@ def validar(model: FeederModel, *, comparar: bool = True) -> InformeOraculo:
             if len(sobre):
                 informe.hallazgos.append(Hallazgo(
                     'aviso', 'trafo_sobrecargado',
-                    f'{len(sobre)} transformador(es) de SED por encima de su potencia (máx. '
+                    f'{cuenta(len(sobre), "transformador", "transformadores")} de SED por encima de su potencia (máx. '
                     f'{informe.carga_trafo_max_pct} % en {informe.trafo_mas_cargado}).'))
 
     informe.p_fuente_mw = round(_p_fuente(net), 6)

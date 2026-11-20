@@ -1935,7 +1935,7 @@ def test_el_ajuste_del_flujo_va_al_caso_de_la_obra_y_deja_fijas_las_otras_tomas(
     ctx3 = obras.Contexto(app, app.proyecto, None, fila3, None, None, plan={**plan, 'evaluando': False})
     ctx3.casos = {'con': casos['con']}
     obras._activar_en_el_flujo(ctx3, 'iopt_at', 'las tomas')
-    assert int(trafo.ntrcn) == 1 and any('también regulan' in a for a in fila3['avisos'])
+    assert int(trafo.ntrcn) == 1 and any('también regula' in a for a in fila3['avisos'])  # «regula» o «regulan» (086:RF-110)
 
 
 def test_si_la_evaluacion_se_corta_al_crear_la_obra_se_restituye_lo_anotado(tmp_path, monkeypatch):

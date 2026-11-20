@@ -127,7 +127,12 @@ def main(argv=None) -> int:
             plan = ac.cargar_plan_ciclo(args.archivo)
             if plan['plan_hash'] != args.plan_hash:
                 raise ac.CicloBloqueado('el plan cambió después de encolarlo; requiere una solicitud nueva')
-            orden = ['--raiz', plan['raiz'], 'ciclo', '--contexto', plan['contexto'],
+            if 'matriz' in plan:
+                # 050:RF-33: un plan con matriz se vuelve a validar, huellas incluidas, antes de congelar nada.
+                faltan = ac.validar_plan_ciclo(plan)
+                if faltan:
+                    raise ac.CicloBloqueado('; '.join(faltan))
+            orden =['--raiz', plan['raiz'], 'ciclo', '--contexto', plan['contexto'],
                 '--familias', ','.join(plan['familias']), '--politica-hash', plan['politica_hash'],
                 '--tiempo-s', str(plan['tiempo_s']), '--memoria-gib', str(plan['memoria_gib'])]
             for nombre, ruta in plan['fuentes'].items():

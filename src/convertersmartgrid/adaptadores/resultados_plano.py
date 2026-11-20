@@ -31,14 +31,31 @@ from ..aplicacion.variacion_plano import ConflictoVariacion, tramos_nuevos
 MOTORES = {'DIgSILENT': 'DIgSILENT', 'abierto': 'motor abierto (pandapower)'}
 
 
-def elegir_motor(*, licencia: bool, vinculado: bool) -> dict[str, str]:
-    """DIgSILENT con licencia y el proyecto vinculado a esta red; si no, el motor abierto, con su motivo."""
-    if licencia and vinculado:
-        return {'motor': 'DIgSILENT', 'texto': MOTORES['DIgSILENT'],
-                'motivo': 'hay licencia y el proyecto está vinculado a la red cargada'}
-    motivo = ('no hay licencia de DIgSILENT' if not licencia
+#: 111:RF-29: lo que el operador puede pedir; «automatico» es la elección de siempre (RF-17).
+PEDIDOS = ('automatico', 'abierto', 'DIgSILENT')
+
+
+def elegir_motor(*, licencia: bool, vinculado: bool, pedido: str | None = None) -> dict[str, Any]:
+    """DIgSILENT si está disponible y el proyecto está vinculado a esta red; si no, el motor abierto, con su motivo.
+
+    ``licencia`` es que DIgSILENT esté disponible en el equipo (su API y el Python que pide); la licencia en sí solo se
+    sabe al conectar (111:RF-29: el motivo decía «no hay licencia» cuando faltaba la instalación). Con ``pedido``, el
+    operador elige: el abierto siempre; DIgSILENT solo si se puede, y si no, un error con su motivo (``ValueError``),
+    nunca un cambio de motor callado.
+    """
+    puede = bool(licencia and vinculado)
+    motivo = ('DIgSILENT está disponible y el proyecto está vinculado a la red cargada' if puede else
+              'DIgSILENT no está disponible en este equipo' if not licencia
               else 'el proyecto de DIgSILENT no está vinculado a la red cargada')
-    return {'motor': 'abierto', 'texto': MOTORES['abierto'], 'motivo': motivo}
+    pedido = pedido or 'automatico'
+    if pedido not in PEDIDOS:
+        raise ValueError(f'motor {pedido!r} desconocido; elija entre {", ".join(PEDIDOS)}')
+    if pedido == 'DIgSILENT' and not puede:
+        raise ValueError(f'No se puede estudiar con DIgSILENT: {motivo}. Estudie con el motor abierto.')
+    motor = 'abierto' if pedido == 'abierto' or not puede else 'DIgSILENT'
+    if pedido != 'automatico':
+        motivo = f'elegido por el operador ({motivo})' if motor == 'DIgSILENT' else 'elegido por el operador'
+    return {'motor': motor, 'texto': MOTORES[motor], 'motivo': motivo, 'digsilent_posible': puede}
 
 
 def _fase_de(model: FeederModel, letras: str, nodo: str) -> str:

@@ -50,6 +50,27 @@ APORTES = ('interpretacion', 'pronostico', 'estimacion_fisica', 'alternativas', 
 
 HEX_SHA256 = re.compile(r'[0-9a-f]{64}')
 
+#: 050:RF-32: las fuentes del plan que consume cada familia (las que leen sus productores con ``ruta_de``).
+FUENTES_POR_FAMILIA = {'transformer': ('dataset', 'procedencia'), 'clasificador': ('dataset', 'procedencia'),
+                       'embeddings': ('dataset', 'procedencia'), 'gru': ('cabeceras', 'procedencia'),
+                       'pinn': ('twin', 'procedencia'), 'evolutivos': ('twin', 'evolutivos_casos', 'procedencia'),
+                       'qlora': ('llm_dataset', 'procedencia')}
+
+#: 050:RF-34: las puertas de RF-6/RF-7 que toda familia del plan pasa; las físicas, además, la de RF-3.
+PUERTAS_COMUNES = ('preflight', 'retencion_por_contexto', 'reapertura', 'evaluacion_conjunta')
+PUERTA_FISICA = 'etiqueta_nativa'
+
+#: 050:RF-34: estados de una familia en la matriz del plan; el preflight del ciclo es quien la declara preparada.
+ESTADOS_MATRIZ = ('listo_para_preflight', 'bloqueado_por_datos')
+
+#: 050:RF-32: lo que el plan añade a sus once campos obligatorios; si viene uno, vienen los tres.
+CAMPOS_MATRIZ_PLAN = ('datasets', 'puertas', 'matriz')
+
+
+def puertas_de_familia(familia: str) -> tuple[str, ...]:
+    """050:RF-34: las puertas obligatorias de una familia; ninguna se quita desde el plan."""
+    return PUERTAS_COMUNES + ((PUERTA_FISICA,) if familia in FAMILIAS_FISICAS else ())
+
 class CicloBloqueado(ValueError):
     """050:RF-8: el ciclo no puede seguir; el conjunto aceptado no cambia."""
 

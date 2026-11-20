@@ -40,7 +40,7 @@ from ...adaptadores.powerfactory_env import (
 )
 from ...adaptadores.powerfactory_binding import alimentadores_vinculados
 from ...dominio.sesion_web import depurar_secretos
-from ...dominio.util import nombre_seguro, publicar_duradero, write_json_atomic
+from ...dominio.util import nombre_seguro, publicar_duradero, write_json_atomic, cuenta as _cuenta, plural
 from .jobs import LIMITE_ARRANQUE_PF_S, JobContext
 from .requisitos import UserError, require_active_source_run, require_loaded
 from .workspace import Workspace, leer_metadatos_espacio
@@ -149,16 +149,22 @@ def sin_conexion_digsilent() -> UserError:
     return UserError(causa_sin_conexion())
 
 
+def digsilent_disponible() -> bool:
+    """086:RF-131, 107:RF-23, 111:RF-29: DIgSILENT se puede usar desde la web: hay una instalación con su API y el
+    Python que esa versión pide. Es lo que dice la píldora de la web (``available``); no comprueba la licencia, que
+    solo se sabe al conectar."""
+    return bool(powerfactory_status().get('available'))
+
+
 def _require_pf() -> tuple[Path | None, Path]:
     status = powerfactory_status()
     pf_dir = Path(status['api_dir']) if status['api_dir'] else None
     if status['interpreter'] is None:
-        raise UserError(
-            f"La API de PowerFactory es para Python {status['api_version']}, pero el "
-            f"conversor corre sobre Python {status['running_python']}. powerfactory.pyd "
-            'solo carga en su versión exacta. Instale esa versión o indique el '
-            'intérprete en la variable de entorno CSG_PF_INTERPRETER.'
-        )
+        # 086:RF-131 (amplía 103:RF-4): la versión de Python la pide la PowerFactory detectada, sin ninguna fija, y el
+        # operador no instala nada: el programa trae el Python de cada versión (103:RF-6).
+        from ...adaptadores.powerfactory_env import falta_python_de_pf
+
+        raise UserError(falta_python_de_pf(status.get('instalacion'), status.get('api_version')))
     return pf_dir, Path(status['interpreter'])
 
 
@@ -397,7 +403,7 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
     reconstruidos = revisar_conductores(
         readiness, dataset, (d['codigo'] for d in entrada.conductores_deducidos))
     if reconstruidos:
-        ctx.log(f'{reconstruidos} alimentador(es) con conductores sin impedancia en la fuente: '
+        ctx.log(f'{_cuenta(reconstruidos, "alimentador", "alimentadores")} con conductores sin impedancia en la fuente: '
                 'reconstruidos con el catálogo de fichas al cargar (CONDUCTOR_RECONSTRUIDO).')
     with ws.lock:
         if (ws.active_run_id != snapshot.run_id
@@ -726,11 +732,11 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
     if all_feeders:
         ctx.log(f"Alcance: todos ({len(ws.inventory['feeders']) if ws.inventory else '?'})")
     else:
-        ctx.log(f'Alcance: {len(feeders or [])} seleccionado(s): '
+        ctx.log(f'Alcance: {_cuenta(len(feeders or []), "seleccionado", "seleccionados")}: '
                 + ', '.join((feeders or [])[:8]) + ('…' if len(feeders or []) > 8 else ''))
     if corrections:
         # 032:RF-2: el «Caso base» lleva los conductores del archivo; la ficha, en «Sin proyecto».
-        ctx.log(f'Catálogo corregido: {len(corrections)} código(s) con ficha; se aplicarán al '
+        ctx.log(f'Catálogo corregido: {_cuenta(len(corrections), "código", "códigos")} con ficha; se aplicarán al '
                 'calibrar «Sin proyecto», no en el «Caso base».')
     ctx.log('--- Inicio de conversión ---')
 
@@ -1462,7 +1468,7 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
                     group['capacitor_reread'] = capacitor_reread
                 ws.save()
         if metadata.get('status') == 'assigned':
-            ctx.log(f"  Columna Alimentador: {metadata.get('written', 0)} objeto(s) — "
+            ctx.log(f"  Columna Alimentador: {_cuenta(metadata.get('written', 0), 'objeto', 'objetos')} — "
                     f"{metadata.get('by_feeder', {})}")
         elif metadata.get('status') == 'failed':
             ctx.log(f"  ERROR columna Alimentador: {metadata.get('error')}")
@@ -1679,7 +1685,7 @@ def _log_conductores_deducidos(ctx: JobContext, manifest: dict) -> None:
     """032:RF-4: lo único del catálogo que entra en el «Caso base», dicho como deducido."""
     for c in manifest.get('conductores_deducidos') or []:
         ctx.log(f"  Conductor deducido {c['codigo']}: la entrada no trae sus parámetros; "
-                f"del catálogo {c['fuente']}, en {c['tramos']} tramo(s).")
+                f"del catálogo {c['fuente']}, en {_cuenta(c['tramos'], 'tramo', 'tramos')}.")
 
 
 def reglas_de(ws: Workspace):
@@ -1803,7 +1809,7 @@ def sistema_seleccion(ws: Workspace, zonales: list[str],
     pedidos = [z for z in zonales if z]
     desconocidos = [z for z in pedidos if z not in e.zonales]
     if desconocidos:
-        raise UserError(f"Zonal(es) que no están en la estructura: {', '.join(desconocidos)}.")
+        raise UserError(f"{plural(len(desconocidos), 'Zonal que no está', 'Zonales que no están')} en la estructura: {', '.join(desconocidos)}.")
     pedidas = [clave(s) for s in sets or () if clave(s)]
     desconocidas = [s for s in pedidas if s not in e.sets]
     if desconocidas:
@@ -2911,7 +2917,7 @@ def demanda_clientes_indexar(ws: Workspace, ctx: JobContext, *, ejecutar=None) -
             'indexado_en': time.time(),
         })
         ws.save()
-    ctx.progress(len(catalogo), len(catalogo), f'{len(catalogo)} libro(s)')
+    ctx.progress(len(catalogo), len(catalogo), f'{_cuenta(len(catalogo), "libro", "libros")}')
     return {'catalogo': publico, 'anios': anios, 'vigente': vigente, 'avisos': avisos}
 
 
@@ -2970,7 +2976,7 @@ def demanda_cabecera_indexar(ws: Workspace, ctx: JobContext, *, ejecutar=None) -
                        'indexado_en': time.time()})
         ws.save()
     utiles = sum(1 for x in indice if not x.get('error'))
-    ctx.progress(len(indice), len(indice), f'{utiles} de {len(indice)} libro(s) con medición')
+    ctx.progress(len(indice), len(indice), f'{utiles} de {_cuenta(len(indice), "libro", "libros")} con medición')
     return {'indice': indice, 'anios': anios, 'vigente': vigente, 'avisos': avisos}
 
 
@@ -3089,6 +3095,7 @@ def asistente_cancelar(ws: Workspace, ctx: JobContext, plan_id: str, cancelar: C
     plan = guardado['plan']
     if plan.tarea != 'cancelar_trabajo' or not plan.listo:
         raise UserError('El plan no es una orden de cancelar completa.')
+    _asistente_exigir_clic(guardado)                                          # 070:RF-90
     guardado['gobierno'].confirmar(plan)
     hechos = []
     for trabajo in guardado['extras'].get('cancelar') or []:
@@ -3101,7 +3108,7 @@ def asistente_cancelar(ws: Workspace, ctx: JobContext, plan_id: str, cancelar: C
 
     PlanesGuardados(ws.root).borrar(plan_id)
     return {'plan': plan.id, 'tarea': plan.tarea, 'completo': True, 'cancelados': hechos,
-            'texto': f'{len(hechos)} trabajo(s) con la cancelación pedida: ninguno empieza otra parte y los '
+            'texto': f'{_cuenta(len(hechos), "trabajo", "trabajos")} con la cancelación pedida: ninguno empieza otra parte y los '
                      'alimentadores en marcha terminan.'}
 
 
@@ -3196,7 +3203,7 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
     # Con un instante, el año es el suyo (021:RF-50): sus libros, no todos.
     libros = _libros_de_cabecera(ws, periodo or (instante.strftime('%Y') if instante else None))
     alias = demanda_alias()
-    ctx.log(f'Medición de cabecera: {", ".join(p.name for p in libros)} · {len(pares)} medidor(es)'
+    ctx.log(f'Medición de cabecera: {", ".join(p.name for p in libros)} · {_cuenta(len(pares), "medidor", "medidores")}'
             + (f' · registro del {instante}' if instante else f' · máxima de {periodo}' if periodo else ''))
     try:
         res = maximas(libros, pares, alias=alias, periodo=periodo, instante=instante,
@@ -3452,8 +3459,8 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
             balances, de_lt = balances_de_linea(estructura, leer_medidores_de_linea(_demanda_ruta(ws, 'medidores'), alias),
                                                 barras, alimentadores)
             avisos = avisos + de_lt
-        ctx.log(f'Máxima por barra de SET: {len(barras)} barra(s) con medidor para '
-                f'{len(alimentadores)} alimentador(es)' + (f' · {periodo}' if periodo else ''))
+        ctx.log(f'Máxima por barra de SET: {_cuenta(len(barras), "barra", "barras")} con medidor para '
+                f'{_cuenta(len(alimentadores), "alimentador", "alimentadores")}' + (f' · {periodo}' if periodo else ''))
         # 027:RF-25: los libros se leen en el proceso del trabajo, no en el de la API.
         res, info, avisos, de_barra, instantes = ctx.en_proceso(
             maximas_por_barra, libros, alias, barras, pares, periodo, avisos, comun_60kv=sistema_60kv,
@@ -5553,7 +5560,7 @@ def build_catalog(ws: Workspace, ctx: JobContext, feeders: list[str] | None) -> 
         if not wanted or m.name in wanted:
             models.append(m)
     if failed:
-        ctx.log(f'{failed} alimentador(es) no se pudieron construir y quedan fuera del catálogo.')
+        ctx.log(f'{_cuenta(failed, "alimentador no se pudo construir y queda", "alimentadores no se pudieron construir y quedan")} fuera del catálogo.')
     if not models:
         raise UserError('No se pudo construir ningún alimentador.')
     try:
@@ -6129,7 +6136,7 @@ def pide_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[st
                                         json.loads(ejemplos.read_text(encoding='utf-8')))
         ctx.log('PIDE: campos que coinciden con lo entregado: ' + ', '.join(
             f"{c} {v['coinciden']}/{v['campos']}" for c, v in comparacion.items()))
-    ctx.log(f"PIDE: {len(propuesta['obras'])} obra(s) propuesta(s), {len(implementadas)} aplicada(s) "
+    ctx.log(f"PIDE: {_cuenta(len(propuesta['obras']), 'obra propuesta', 'obras propuestas')}, {_cuenta(len(implementadas), 'aplicada', 'aplicadas')} "
             f'solas en «Con proyecto»; formatos en {libro.name}.')
     return {'project': project, 'feeders': feeders, 'report': report.name, 'formatos': libro.name,
             'estudio': estudio.resumen() if estudio else None,
@@ -6507,7 +6514,7 @@ def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: lis
                 o['motivo_sin_obra'] = str(exc)
     if not ids:
         return []
-    ctx.log(f'PIDE: simulando {len(ids)} obra(s) propia(s) antes de aplicarlas (RF-46)…')
+    ctx.log(f'PIDE: simulando {_cuenta(len(ids), "obra propia", "obras propias")} antes de aplicarlas (RF-46)…')
     metadata = {'eleccion': {'procedencia_capex': procedencia_capex}} if procedencia_capex else {}
     sim = obras_ejecutar(ws, ctx, project, feeders, list(ids), '', simular=True, **metadata)
     filas = (sim.get('informe') or {}).get('obras') or []
@@ -6521,7 +6528,7 @@ def _pide_implementar(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         ws.save()
     if not buenas:
         return []
-    ctx.log(f'PIDE: aplicando {len(buenas)} obra(s) en «Con proyecto» (RF-47)…')
+    ctx.log(f'PIDE: aplicando {_cuenta(len(buenas), "obra", "obras")} en «Con proyecto» (RF-47)…')
     hecho = obras_ejecutar(ws, ctx, project, feeders, buenas, '', simular=False, **metadata)
     out = []
     for f in (hecho.get('informe') or {}).get('obras') or []:
@@ -6598,7 +6605,7 @@ def gemelo_aprender(ws: Workspace, ctx: JobContext, project: str, feeders: list[
                       int(n), incertidumbre, hechos)
     if not elegidos:
         return {'project': project, 'simulados': 0, 'avisos': ['no quedan escenarios por simular']}
-    ctx.log(f'Gemelo: {len(elegidos)} escenario(s) en una copia de {project} '
+    ctx.log(f'Gemelo: {_cuenta(len(elegidos), "escenario", "escenarios")} en una copia de {project} '
             f'({"por incertidumbre" if incertidumbre else "por diversidad"})…')
     _rc, informe, report = _guion_pf(
         ws, ctx, 'escenarios_pf.py', {**base, 'escenarios': [asdict(e) for e in elegidos],
@@ -6621,14 +6628,50 @@ def gemelo_aprender(ws: Workspace, ctx: JobContext, project: str, feeders: list[
     out = {'project': project, 'simulados': sum(clases.values()), 'clases': clases,
            'avisos': list(informe.get('avisos') or [])}
     out['entrenamiento'] = gemelo_entrenar(ws, ctx)
+    if out['entrenamiento'].get('error') or out['entrenamiento'].get('sin_gpu'):
+        # 086:RF-129: los escenarios quedaron simulados y guardados; el entrenamiento no: el trabajo lo dice.
+        out['estado_trabajo'] = 'parcial'
+        out['motivo'] = f"El entrenamiento no se hizo: {_motivo_del_informe(out['entrenamiento'])}"
     return out
 
 
-def gemelo_entrenar(ws: Workspace, ctx: JobContext, *, forzar: bool = False) -> dict:
+def _motivo_del_informe(r: Mapping[str, Any]) -> str:
+    """El motivo de un informe de entrenamiento o pronóstico que no salió bien, en una línea."""
+    return str(r.get('motivo') or r.get('reason') or r.get('error') or 'sin motivo en el informe')
+
+
+def _fallo_del_informe(r: Mapping[str, Any]) -> None:
+    """086:RF-129 (amplía 024:RF-39, 046:RF-23): un informe sin GPU o con error hace fallar el trabajo con su motivo.
+
+    Sin esto el trabajo terminaba «done» con ``{'error': 'terminó con el código 1 sin informe'}``: el guion no
+    capturaba ``SinGPU``. Sin GPU se lanza ``SinGPU``, que la cola enseña en una línea, sin traza (086:RF-15).
+    """
+    from ...aplicacion.training_coordinator import SinGPU
+
+    if r.get('sin_gpu'):
+        raise SinGPU(_motivo_del_informe(r))
+    if r.get('error'):
+        raise UserError(_motivo_del_informe(r))
+
+
+def _leer_informe_ml(report: Path, rc: int, que: str) -> dict:
+    """El informe JSON de un trabajador de modelos; sin él, su error con el código de salida."""
+    try:
+        r = json.loads(report.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        r = None
+    if not isinstance(r, dict):
+        return {'entrenado': False, 'error': f'{que} terminó con el código {rc} sin informe: vea el Registro.'}
+    return r
+
+
+def gemelo_entrenar(ws: Workspace, ctx: JobContext, *, forzar: bool = False, estricto: bool = False) -> dict:
     """Entrena el oráculo en otro proceso (``tools/digital_twin_entrenar.py``, RF-39).
 
     Un fallo de memoria o de la GPU cae ese proceso, no la web: el 2026-10-22, entrenando
     dentro de la web con IN111–TA225 y 1,3 GB de RAM libre, la web se cayó.
+    Con ``estricto`` (el trabajo es solo entrenar), sin GPU o con error el trabajo falla con su motivo (086:RF-129);
+    sin él (dentro del aprendizaje activo) se devuelve el informe y quien llama lo dice.
     """
     import sys
 
@@ -6641,12 +6684,11 @@ def gemelo_entrenar(ws: Workspace, ctx: JobContext, *, forzar: bool = False) -> 
     if forzar:
         cmd.append('--forzar')
     rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
-    try:
-        r = json.loads(report.read_text(encoding='utf-8'))
-    except (OSError, ValueError):
-        r = {'entrenado': False, 'error': f'el entrenamiento terminó con el código {rc} sin informe'}
-    if r.get('error'):
-        ctx.log(f"Gemelo: el entrenamiento falló ({str(r['error'])[:200]}); la web sigue.")
+    r = _leer_informe_ml(report, rc, 'El entrenamiento')
+    if r.get('error') or r.get('sin_gpu'):
+        ctx.log(f"Gemelo: el entrenamiento no se hizo ({_motivo_del_informe(r)[:200]}); la web sigue.")
+        if estricto:
+            _fallo_del_informe(r)
     return {k: v for k, v in r.items() if k != 'traza'}
 
 
@@ -6687,11 +6729,10 @@ def gemelo_pronostico(ws: Workspace, ctx: JobContext, pedido: dict[str, Any]) ->
     if pedido.get('horizontes'):
         cmd += ['--horizontes', ','.join(str(int(h)) for h in pedido['horizontes'])]
     rc = ctx.run_process(cmd, cwd=str(project_root()), env=_entorno_del_trabajo(ctx))
-    try:
-        return json.loads(report.read_text(encoding='utf-8'))
-    except (OSError, ValueError):
-        return {'status': 'ERROR_ENTORNO', 'reason': f'el pronóstico terminó con el código {rc} sin informe',
-                'marca': 'pronostico', 'promovido': False}
+    r = _leer_informe_ml(report, rc, 'El pronóstico')
+    # 086:RF-129: sin GPU o con el informe de ``trabajadores_ml.fallo``, el trabajo falla con su motivo, no «done».
+    _fallo_del_informe(r)
+    return r
 
 
 def gemelo_temporal(ws: Workspace, ctx: JobContext, job_id: str, alimentadores: dict[str, str], *,
@@ -7013,9 +7054,9 @@ def escanear_alimentadores(ws: Workspace, ctx: JobContext, project: str, feeders
         raise UserError(f"Escaneo de {project}: {informe['error']}")
     informe['resumen'] = resumen(informe)
     for f, r in informe['resumen'].items():
-        ctx.log(f"Escaneo {f}: {r['generadores']} generador(es) ({r['generadores_del_operador']} del operador), "
-                f"{r['bancos']} banco(s) ({r['bancos_de_calibracion']} de la calibración), "
-                f"{r['cargas_cambiadas']} carga(s) cambiada(s)")
+        ctx.log(f"Escaneo {f}: {_cuenta(r['generadores'], 'generador', 'generadores')} ({r['generadores_del_operador']} del operador), "
+                f"{_cuenta(r['bancos'], 'banco', 'bancos')} ({r['bancos_de_calibracion']} de la calibración), "
+                f"{_cuenta(r['cargas_cambiadas'], 'carga cambiada', 'cargas cambiadas')}")
     with ws.lock:
         ws.escaneo[project.strip()] = informe
         ws.save()
@@ -7323,7 +7364,8 @@ def _variante_por_perfil(ws: Workspace, ctx: JobContext, ora, grafo: Mapping[str
     except Exception:  # noqa: BLE001 - el aviso informa, no decide
         aviso = ''
     ctx.log(f"{f}{etiqueta}: perfil de tensión de la troncal de {camino[0]['u']:.4f} a {camino[-1]['u']:.4f} p.u. en "
-            f"{camino[-1]['km']:.2f} km, con {len(ejes) - 1} ramal(es) de más de {ramal_largo:g} km; bancos según el perfil: {len(r['barras'])} × {banco_kvar:g} kvar"
+            f"{camino[-1]['km']:.2f} km, con {_cuenta(len(ejes) - 1, 'ramal', 'ramales')} de más de {ramal_largo:g} km; "
+            f"bancos según el perfil: {len(r['barras'])} × {banco_kvar:g} kvar"
             + (f" ({r['regla']}) en {', '.join(r['barras'])}" if r['barras'] else '')
             + f"; tensión mínima {r['v_min']:.4f} p.u. (sin bancos {r['v_min_sin_bancos']:.4f}); se para porque {motivo} "
               f"(094:RF-4, RF-8, RF-9).{aviso}")
@@ -7439,7 +7481,7 @@ def _variantes_de_traspaso(ws: Workspace, ctx: JobContext, comun: dict, f: str, 
         por_enlace, av_e = oi.variantes_por_enlace(f, d.get('enlaces') or [], p)
         avisos += av_e
         if por_enlace:
-            ctx.log(f'{f}: {len(por_enlace)} transferencia(s) por enlaces que ya existen, antes que un enlace nuevo '
+            ctx.log(f'{f}: {_cuenta(len(por_enlace), "transferencia", "transferencias")} por enlaces que ya existen, antes que un enlace nuevo '
                     '(098:RF-21).')
     caminos = d.get('caminos') or {}
     barra = next((b for b in barras if caminos.get(b)), None)
@@ -7471,7 +7513,7 @@ def _variantes_de_traspaso(ws: Workspace, ctx: JobContext, comun: dict, f: str, 
     vecinos = sorted({o['alimentador'] for v in vs for o in v.obras if o.get('clase') == 'enlace'}
                      | {o['vecino'] for v in vs for o in v.obras if o.get('clase') == 'maniobra'})
     if vs:
-        ctx.log(f"{f}: se prueban {len(vs)} variante(s) de transferencia y traslado con "
+        ctx.log(f"{f}: se prueban {_cuenta(len(vs), 'variante', 'variantes')} de transferencia y traslado con "
                 f"{', '.join(vecinos)} (087:RF-31, 098:RF-21).")
     return vs, vecinos, avisos + av
 
@@ -7590,7 +7632,7 @@ def _medidas_ya_hechas(ctx: JobContext, f: str, plan_ev: dict, memo: dict | None
             if motivo:
                 dudas.append(f"{v['nombre']}: {motivo}")
     if ya or dudas:
-        ctx.log(f'{f}: {len(ya)} variante(s) reutilizadas, medidas con la misma red, cargas, obras, instante y sorteos; '
+        ctx.log(f'{f}: {_cuenta(len(ya), "variante reutilizada, medida", "variantes reutilizadas, medidas")} con la misma red, cargas, obras, instante y sorteos; '
                 f'{len(nuevas)} se miden en DIgSILENT' + (' (de nuevo: ' + '; '.join(dudas[:5]) + ')' if dudas else '')
                 + ' (098:RF-32).')
     return ya, nuevas
@@ -7843,7 +7885,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         vecinos_f = list(dict.fromkeys(list(vecinos_f) + [o['vecino'] for v in de_enlace for o in v.obras
                                                           if o.get('clase') == 'maniobra' and o.get('vecino')]))
         if de_enlace and not aplicar:
-            ctx.log(f'{f}: DIgSILENT confirma {len(de_enlace)} transferencia(s) por enlace existente, con '
+            ctx.log(f'{f}: DIgSILENT confirma {_cuenta(len(de_enlace), "transferencia", "transferencias")} por enlace existente, con '
                     f"{', '.join(vecinos_f)} (098:RF-26).")
         elif objetivo_previo and vs:
             vs = _previas_con_oraculo(ws, ctx, comun, f, vs, barras, lectura.get('tipos') or [], p)    # 087:RF-48
@@ -8551,7 +8593,7 @@ def confirmar_conjunto(ws: Workspace, ctx: JobContext, project: str, feeders: li
         if not motivos and c.get('valle') is False:
             motivos.append('no cumple en el valle')
         ctx.log('Confirmación conjunta: el sistema entero no cumple: ' + ('; '.join(motivos[:5]) or 'sin motivo devuelto')
-                + (f"; {len(c['aisladas'])} barra(s) aisladas" if c.get('aisladas') else '') + ' (087:RF-46).')
+                + (f"; {_cuenta(len(c['aisladas']), 'barra aislada', 'barras aisladas')}" if c.get('aisladas') else '') + ' (087:RF-46).')
         for f, motivos in (c.get('por_alimentador') or {}).items():
             ctx.log(f"  {f}: {'; '.join(motivos[:3])} (087:RF-46).")
     return c
@@ -8597,7 +8639,7 @@ def _escalera_sin_cargas(ws: Workspace, ctx: JobContext, project: str, feeders: 
         if not barras:
             ctx.log(f'{f}: sin cargas nuevas y dentro de límites en «Con proyecto»: no lleva obras (098:RF-29).')
             continue
-        ctx.log(f"{f}: sin cargas nuevas, con {len(barras)} barra(s) bajo el límite en «Con proyecto» (la más baja "
+        ctx.log(f"{f}: sin cargas nuevas, con {_cuenta(len(barras), 'barra', 'barras')} bajo el límite en «Con proyecto» (la más baja "
                 f"{barras[0]}): sube su escalera, primero transfiriendo (098:RF-29).")
         comun = {'cargas_activas': activas, 'basta_una': True, 'memo': memo, 'por_alternativas': True,
                  'previas': {f: barras}, 'etiqueta_previas': 'sin cargas nuevas, fuera de límites', **opciones}
@@ -8762,7 +8804,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                 if resuelto(fila_e):
                     break                                                                      # 087:RF-3
             reg['resuelve'] = resuelto(fila_e)
-            ctx.log(f"{f}: escalón {nombre_esc}: " + (f"el oráculo dio {reg['oraculo']} candidata(s) y descartó "
+            ctx.log(f"{f}: escalón {nombre_esc}: " + (f"el oráculo dio {_cuenta(reg['oraculo'], 'candidata', 'candidatas')} y descartó "
                                                       f"{reg.get('descartadas', 0)} (ni cumplen ni son de las más cercanas); "
                                                       if orden else '')
                     + f"DIgSILENT midió {reg['confirmadas']} y cumplen {reg['cumplen']}"
@@ -8808,7 +8850,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
         if candidatas:
             costo_g, _i, fila, traspaso, tanda = min(candidatas, key=lambda c: (c[0], c[1]))
             e_g = fila.get('elegida')
-            ctx.log(f"{f}: entre {len(candidatas)} escalón(es) que cumplen se elige la más barata: "
+            ctx.log(f"{f}: entre {_cuenta(len(candidatas), 'escalón que cumple', 'escalones que cumplen')} se elige la más barata: "
                     f"{(e_g.get('nombre') if isinstance(e_g, dict) else e_g) or 'sin obra'}"
                     + (f', {costo_g:,.0f} al año' if costo_g not in (0.0, float('inf')) else '') + ' (098:RF-46).')
         for alt in fila.get('alternativas') or []:
@@ -8863,7 +8905,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             if not barras_bajas:
                 continue
             ctx.check_cancel()
-            ctx.log(f"{f}: {len(barras_bajas)} barra(s) bajas, {etiqueta}; se evalúa su obra, aparte de la de la carga (042:RF-64).")
+            ctx.log(f"{f}: {_cuenta(len(barras_bajas), 'barra baja', 'barras bajas')}, {etiqueta}; se evalúa su obra, aparte de la de la carga (042:RF-64).")
             previo = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=False,
                                     basta_una=True, memo=memo, por_alternativas=True, previas={f: barras_bajas},
                                     etiqueta_previas=etiqueta, **opciones)
@@ -8895,7 +8937,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                                         'margen': e_or.get('margen'), 'margen_con_obra': e_or.get('margen_con_obra')}
         # 086:RF-50: las cargas caben, lo que no siempre deja al alimentador entero dentro de sus límites.
         resto_bajo = ' El alimentador sigue con barras bajo el límite: vea sus avisos.' if queda_deficit(fila.get('bajo_limite')) else ''
-        ctx.log(f"{f}: {len(cs)} carga(s), {por_feeder[f]['kw'] / 1000:.2f} MW: "
+        ctx.log(f"{f}: {_cuenta(len(cs), 'carga', 'cargas')}, {por_feeder[f]['kw'] / 1000:.2f} MW: "
                 + ((f'cumple transfiriendo o trasladando carga a un vecino (087:RF-31).{resto_bajo}' if traspaso else
                     f'cumple con bancos, sección o terna (042:RF-24).{resto_bajo}') if ok else
                    'ni la escalera ni transferir o trasladar a un vecino bastan: va al alimentador nuevo o a la SET nueva '
@@ -8994,7 +9036,7 @@ def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders
                                   aplicar=True, memo=memo, **opciones)
     resto = orden[k:]
     if resto:
-        ctx.log(f"{len(resto)} carga(s) no caben en la red existente y van a la SET nueva: "
+        ctx.log(f"{_cuenta(len(resto), 'carga no cabe en la red existente y va', 'cargas no caben en la red existente y van')} a la SET nueva: "
                 f"{', '.join(str(c['sed']) for c in resto)} (042:RF-3).")
     campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
     return {'project': project.strip(), 'orden': [{k_: c.get(k_) for k_ in campos} for c in orden],
@@ -9175,7 +9217,7 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
                 confirmar=int(ajustes.get('transferencias_a_confirmar') or oo.TRANSFERENCIAS_A_CONFIRMAR),
                 evaluaciones_bayes=int(ajustes.get('evaluaciones_transferencia') or oo.EVALUACIONES_CON_TRANSFERENCIA))
             vs = list(vs) + extra
-            ctx.log(f"{f}: el oráculo genera {r_t['generadas']} transferencia(s) por enlace existente, descarta "
+            ctx.log(f"{f}: el oráculo genera {_cuenta(r_t['generadas'], 'transferencia', 'transferencias')} por enlace existente, descarta "
                     f"{len(r_t['descartadas'])}"
                     + (' (' + '; '.join(f"{x['nombre']}: {x['motivo']}" for x in r_t['descartadas'][:5]) + ')'
                        if r_t['descartadas'] else '')
@@ -9317,7 +9359,7 @@ def _optimizar_con_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
     s_pf = time.monotonic() - t_pf
     resto = orden[k:]
     if resto:
-        ctx.log(f"{len(resto)} carga(s) no caben en la red existente y van a la SET nueva: "
+        ctx.log(f"{_cuenta(len(resto), 'carga no cabe en la red existente y va', 'cargas no caben en la red existente y van')} a la SET nueva: "
                 f"{', '.join(str(c['sed']) for c in resto)} (042:RF-3).")
     tiempos = {'oraculo_s': round(s_oraculo, 1), 'digsilent_s': round(s_pf, 1),
                'total_s': round(time.monotonic() - t0, 1), 'flujos_oraculo': ora.evaluaciones}
@@ -9908,7 +9950,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
         # 042:RF-23: los expresos antes que las SET nuevas, y un solo flujo con el plan completo.
         diferidas.sort(key=lambda o: o['clase'] != 'expreso')
         ids = [obra_anadir(ws, o)['id'] for o in diferidas]
-        ctx.log(f'Plan completo: {len(ids)} obra(s) de {len(zonas)} zonas, medidas juntas (042:RF-23).')
+        ctx.log(f'Plan completo: {_cuenta(len(ids), "obra", "obras")} de {len(zonas)} zonas, medidas juntas (042:RF-23).')
         hecho = obras_ejecutar(ws, ctx, project, feeders, ids, BIBLIOTECA_TIPOS, simular=False,
                                anio_casos=anio_casos, en_conjunto=True)
         set_nueva['plan_completo'] = (hecho.get('informe') or {}).get('plan_completo')
@@ -10066,7 +10108,7 @@ def _buscar_anio_de_problemas(ws, ctx: JobContext, project: str, f: str, obras_c
                        f" ({'; '.join(out['motivos'][:2])})" if out.get('motivos') else '')
                     + '; la alternativa para ese año se plantea en el PIDE partiendo de la de corto plazo'
                     if out['anio'] else f"con «{nombre or 'lo que tiene'}», cumple hasta el horizonte de {horizonte} años")
-    ctx.log(f"{f}: {out['aviso']} (DIgSILENT midió {medidos} año(s); 098:RF-40).")
+    ctx.log(f"{f}: {out['aviso']} (DIgSILENT midió {_cuenta(medidos, 'año', 'años')}; 098:RF-40).")
     _anotar_en_la_elegida(ws, project, f, nombre, 'vuelve_a_fallar',
                           {k: out.get(k) for k in ('anio', 'barra', 'u', 'horizonte')})
     return out
@@ -10175,7 +10217,7 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     if sustituir and not simular:
         plan['sustituir'] = {**dict(sustituir), 'eleccion': eleccion, 'origen': origen}          # 098:RF-36
     modo = 'simulacion' if simular else 'aplicacion'
-    ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  {len(elegidas)} obra(s)")
+    ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  {_cuenta(len(elegidas), 'obra', 'obras')}")
     # 098:RF-36: la sustitución no se corta a mitad: su diario en disco la completa o la deshace si el proceso muere.
     rc, informe, report = _guion_pf(ws, ctx, 'obras_pf.py', plan, nombre=f'obras_{modo}',
                                     args=('--simular',) if simular else (), cancelable=not plan.get('sustituir'))
@@ -10335,7 +10377,7 @@ def protecciones_ajustes_leer(ws: Workspace, ctx: JobContext | None, project: st
             continue
         lectura = {**leer_ajustes(texto, ruta.name), 'fichero': ruta.name, 'avisos': list(avisos)}
         if ctx is not None:
-            ctx.log(f'{ruta.name}: {len(lectura["leidos"])} dato(s) leído(s); faltan {len(lectura["faltan"])}.')
+            ctx.log(f'{ruta.name}: {_cuenta(len(lectura["leidos"]), "dato leído", "datos leídos")}; faltan {len(lectura["faltan"])}.')
         lecturas.append(lectura)
     return {'project': project.strip(), 'lecturas': lecturas}
 
@@ -10455,7 +10497,7 @@ def protecciones_ejecutar(ws: Workspace, ctx: JobContext, plan: dict) -> dict:
     """Las fallas en DIgSILENT y su evaluación con los criterios del perfil (049:RF-4 a RF-7)."""
     from ...aplicacion.protecciones import ProteccionesError, escribir_reporte, evaluar_coordinacion
 
-    ctx.log(f"Protecciones: {len(plan['fallas'])} falla(s) en «{plan['caso']}» de {plan['project']}")
+    ctx.log(f"Protecciones: {_cuenta(len(plan['fallas']), 'falla', 'fallas')} en «{plan['caso']}» de {plan['project']}")
     rc, informe, report = _guion_pf(ws, ctx, 'protecciones_pf.py', plan, nombre='protecciones_fallas')
     if rc != 0 or informe.get('error'):
         return {'returncode': rc, 'report': report.name, 'informe': informe, 'evaluacion': None}
@@ -11128,8 +11170,8 @@ def transferencia_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders
             'seccionadores': _seccionadores_de_la_entrada(ws, feeders),
             'native_action_context': action_context, **temporal}
     ctx.log(f"Proyecto de DIgSILENT: {plan['project']}  ·  transferencia {feeders[0]} ↔ {feeders[1]}")
-    ctx.log(f"  {temporal['periodo']}: {temporal['cobertura']['instantes_comunes']} instante(s) comunes, "
-            f"{len(temporal['instantes'])} candidato(s) no dominado(s) que se verifican en DIgSILENT")
+    ctx.log(f"  {temporal['periodo']}: {_cuenta(temporal['cobertura']['instantes_comunes'], 'instante común', 'instantes comunes')}, "
+            f"{_cuenta(len(temporal['instantes']), 'candidato no dominado', 'candidatos no dominados')} que se verifican en DIgSILENT")
     rc, informe, report = _guion_pf(ws, ctx, 'transferencia_pf.py', plan, nombre='transferencia',
                                     args=('--fichero', str(fichero)))
     if informe.get('error') and not informe.get('resultados'):
@@ -11581,7 +11623,7 @@ def informe_estudio(ws: Workspace, ctx: JobContext | None, formulario: dict) -> 
     except InformeError as exc:
         raise UserError(str(exc)) from exc
     if ctx is not None:
-        ctx.log(f'Informe de estudio de {alimentador}: {destino.name} ({len(huecos)} hueco(s)).')
+        ctx.log(f'Informe de estudio de {alimentador}: {destino.name} ({_cuenta(len(huecos), "hueco", "huecos")}).')
     avisos_perfil = _avisos_de_la_plantilla(ctx, destino)                            # 086:RF-31
     libro = _libro_del_informe(ctx, destino, {'actual': imagenes.get('actual') or {},
                                               'proyectado': imagenes.get(clave) or {}})     # 066:RF-12
@@ -12007,7 +12049,7 @@ def informe_documentos(ws: Workspace, ctx: JobContext | None, tipo: str, rutas: 
             ctx.progress(i, len(rutas), ruta.name)
         doc = leer_documento(ruta, cancelado=ctx.check_cancel if ctx else None)
         if ctx:
-            ctx.log(f'{ruta.name}: {doc.paginas} página(s) por {doc.metodo}, {len(doc.datos)} dato(s).')
+            ctx.log(f'{ruta.name}: {_cuenta(doc.paginas, "página", "páginas")} por {doc.metodo}, {_cuenta(len(doc.datos), "dato", "datos")}.')
             for aviso in doc.avisos:
                 ctx.log(f'  {ruta.name}: {aviso}')
         documentos.append(doc)
@@ -12433,7 +12475,7 @@ def informe_factibilidad(ws: Workspace, ctx: JobContext | None, formulario: dict
     resumen = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
     if ctx is not None:
         ctx.log(f'Informe de factibilidad de {carga["sed"]} en {alimentador}: {destino.name} '
-                f'({len(huecos)} hueco(s)); {"factible" if resumen.get("factible") else "no factible"}.')
+                f'({_cuenta(len(huecos), "hueco", "huecos")}); {"factible" if resumen.get("factible") else "no factible"}.')
         for texto in resumen.get('textos_bajo_limite') or []:                        # 086:RF-48, RF-49
             ctx.log(f'{alimentador}: {texto}')
     avisos_perfil = _avisos_de_la_plantilla(ctx, destino)                            # 086:RF-31
@@ -12467,7 +12509,7 @@ def _libro_del_informe(ctx: JobContext | None, destino: Path, imagenes: dict) ->
     resumen = json.loads(destino.with_suffix('.json').read_text(encoding='utf-8'))
     hecho = generar_libro(config, destino, resumen, imagenes)
     if ctx is not None:
-        ctx.log(f'Libro del informe: {hecho.ruta.name} ({len(hecho.huecos)} hueco(s), {len(hecho.avisos)} aviso(s)).'
+        ctx.log(f'Libro del informe: {hecho.ruta.name} ({_cuenta(len(hecho.huecos), "hueco", "huecos")}, {_cuenta(len(hecho.avisos), "aviso", "avisos")}).'
                 if hecho.ruta else f'El libro no se generó: {hecho.motivo}. El Word sí está.')
     return {'libro_xlsx': hecho.ruta.name if hecho.ruta else None, 'sin_libro': hecho.motivo,
             'huecos_libro': list(hecho.huecos), 'avisos_libro': list(hecho.avisos)}
@@ -12615,6 +12657,7 @@ def gemelo_evaluar(ws: Workspace, ctx: JobContext) -> dict:
         r = json.loads(report.read_text(encoding='utf-8'))
     except (OSError, ValueError):
         raise UserError(f'La evaluación del gemelo terminó con el código {rc} sin informe.') from None
+    _fallo_del_informe(r)                                                      # 086:RF-129: sin GPU, su motivo
     return {'modelo': r.get('modelo'), 'por_particion': r.get('por_particion'), 'informe': report.name,
             'unidades': r.get('unidades'), 'reparto': r.get('reparto'), 'politica_hash': r.get('politica_hash')}
 
@@ -12633,6 +12676,7 @@ def gemelo_deriva(ws: Workspace, ctx: JobContext) -> dict:
         r = json.loads(report.read_text(encoding='utf-8'))
     except (OSError, ValueError):
         raise UserError(f'La revisión de la deriva terminó con el código {rc} sin informe.') from None
+    _fallo_del_informe(r)                                                      # 086:RF-129: sin GPU, su motivo
     for m in r.get('motivos') or []:
         ctx.log(f'Gemelo: {m}')
     return r
@@ -12966,7 +13010,7 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
                 'ultimo_fallido': fila(fallido) if fallido else None}
     if t == 'proyectos':
         nombres = [p.get('name') for p in pf_proyectos_guardados(ws).get('projects') or []]
-        return {'texto': f'{len(nombres)} proyecto(s) conocidos.' if nombres else
+        return {'texto': f'{_cuenta(len(nombres), "proyecto conocido", "proyectos conocidos")}.' if nombres else
                 'La web aún no leyó los proyectos de DIgSILENT: pida «lee los proyectos de DIgSILENT».',
                 'proyectos': nombres}
     if t == 'resultados_pide':
@@ -12978,8 +13022,8 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
         r = hechos[-1]['result']
         obras = [{k: o.get(k) for k in ('codigo', 'prioridad', 'anio', 'alternativa', 'alimentador', 'elemento',
                                         'ci', 'sobredimensionada', 'descartada')} for o in r.get('obras') or []]
-        return {'texto': f"PIDE de {r.get('project')}: {len(obras)} obra(s), "
-                         f"{len(r.get('implementadas') or [])} aplicada(s) solas; formatos en {r.get('formatos')}.",
+        return {'texto': f"PIDE de {r.get('project')}: {_cuenta(len(obras), 'obra', 'obras')}, "
+                         f"{_cuenta(len(r.get('implementadas') or []), 'aplicada sola', 'aplicadas solas')}; formatos en {r.get('formatos')}.",
                 'obras': obras, 'entregables': ([r['formatos']] if r.get('formatos') else [])
                 + list(r.get('informes_planeamiento') or []),
                 'avisos': r.get('avisos') or []}
@@ -12989,7 +13033,7 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
         for f in filas:
             clave = f"{f.get('clase')} · {f.get('caso')}"
             cuenta[clave] = cuenta.get(clave, 0) + 1
-        return {'texto': f'{len(filas)} episodio(s) en el búfer del gemelo.', 'por_clase': cuenta}
+        return {'texto': f'{_cuenta(len(filas), "episodio", "episodios")} en el búfer del gemelo.', 'por_clase': cuenta}
     if t == 'normativa_comprobar':
         return _asistente_normativa_fuentes()                                   # 026:RF-46, 107:RF-22
     if t == 'consultar_datos':
@@ -13283,6 +13327,23 @@ def _ejemplo_de(texto: str, tarea: str, datos: dict) -> dict:
     return {'texto': texto, 'tarea': tarea, 'datos': sorted(trozos)}
 
 
+def asistente_confirmado_por_operador(ws: Workspace, plan_id: str) -> dict:
+    """070:RF-90: el clic del operador en la ruta de confirmación, de un solo uso, para la próxima ejecución del plan.
+
+    Hasta el 2026-11-19 el servicio confirmaba solo cualquier plan que le llegara (``gobierno.confirmar``), y la única
+    barrera de lo que escribe era la condición de la ruta de la orden: otra vía que llamara al servicio escribía sin clic."""
+    guardado = asistente_plan(ws, plan_id)
+    guardado['confirmado_por_operador'] = True
+    return guardado
+
+
+def _asistente_exigir_clic(guardado: dict) -> None:
+    """070:RF-90: lo que espera al operador no se ejecuta sin su clic, diga lo que diga el intérprete; el clic se gasta."""
+    if guardado['plan'].espera_confirmacion and not guardado.pop('confirmado_por_operador', False):
+        raise UserError('Este plan espera la confirmación del operador en la web: sin su clic no se escribe, envía ni '
+                        'publica nada.')
+
+
 def asistente_ejecutar(ws: Workspace, ctx: JobContext, plan_id: str, base: str, http: Any = None,
                       revisor: Any = None) -> dict:
     """El plan confirmado, con su estado en disco: un corte a mitad se dirá como interrumpido, nunca se
@@ -13292,6 +13353,7 @@ def asistente_ejecutar(ws: Workspace, ctx: JobContext, plan_id: str, base: str, 
     guardado = asistente_plan(ws, plan_id)
     if guardado.get('terminado'):
         raise UserError('Este plan ya se ejecutó: escriba la orden de nuevo si quiere repetirlo.')
+    _asistente_exigir_clic(guardado)                                          # 070:RF-90
     disco = PlanesGuardados(ws.root)
     guardado['en_curso'] = True
     disco.marcar(plan_id, 'ejecutando')
@@ -13376,7 +13438,7 @@ def _asistente_ejecutar_plan(ws: Workspace, ctx: JobContext, guardado: dict, bas
     from .asistente_operacion import presentar
 
     presentar(ws, plan, resultado, guardado['extras'])                         # 070:RF-35, RF-37, RF-80
-    ctx.log(f"Asistente: «{plan.tarea}» terminado; {len(resultado.get('entregables') or [])} entregable(s).")
+    ctx.log(f"Asistente: «{plan.tarea}» terminado; {_cuenta(len(resultado.get('entregables') or []), 'entregable', 'entregables')}.")
     return {'plan': plan.id, 'tarea': plan.tarea, **resultado}
 
 
@@ -14122,7 +14184,7 @@ def asistente_buscar(ws: Workspace, texto: str) -> dict:
     if r['bloqueada']:
         return {'texto': f"No se buscó: la consulta {r['bloqueada']} (P9). Escríbala solo con términos técnicos.",
                 **r}
-    return {'texto': f"{len(r['github'])} repositorio(s) y {len(r['arxiv'])} artículo(s).", **r}
+    return {'texto': f"{_cuenta(len(r['github']), 'repositorio', 'repositorios')} y {_cuenta(len(r['arxiv']), 'artículo', 'artículos')}.", **r}
 
 
 def asistente_proponer_libreria(ws: Workspace, ctx: JobContext, paquete: str, motivo: str) -> dict:
@@ -14340,7 +14402,7 @@ def mapa_leer_en_digsilent(ws: Workspace, ctx: JobContext, project: str, aliment
             'anio_casos': anio,
             'cargas': [{'sed': c.get('sed'), 'alimentador': c.get('alimentador'), 'variacion': c.get('variacion')}
                        for c in cargas]}
-    ctx.log(f'Lectura en DIgSILENT, sin escribir, de {len(cargas)} carga(s) nueva(s) de {project}.')
+    ctx.log(f'Lectura en DIgSILENT, sin escribir, de {_cuenta(len(cargas), "carga nueva", "cargas nuevas")} de {project}.')
     _rc, informe, report = _guion_pf(ws, ctx, 'ubicacion_cargas_pf.py', plan, nombre='ubicacion_cargas',
                                               cancelable=False)
     if informe.get('error'):

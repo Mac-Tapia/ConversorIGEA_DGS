@@ -55,8 +55,12 @@ class Fuente:
         ruta = Path(ws.out_dir) / f'{alimentador}_geography.json'
         return ruta if ruta.is_file() else None
 
-    def licencia(self):
+    def disponible(self):
+        """111:RF-29: DIgSILENT disponible en el equipo (antes «licencia»)."""
         return self.lic
+
+    #: El nombre de antes, para que la prueba roja de 111:RF-28 corra sobre el código anterior y falle por aserción.
+    licencia = disponible
 
     def vinculo(self, ws, project, alimentadores):
         binding = {'project': project, 'folder': 'Carpeta', 'source_run_id': ws.active_run_id,

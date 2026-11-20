@@ -31,6 +31,7 @@ from .digital_twin.oraculo import S_BASE, muestra, sistema_de
 from ..aplicacion.escalera_optima import Parametros, Variante, cumple, obra_terna, rango as rango_escalon
 from ..aplicacion.estudios_pf import CON_PROYECTO
 from ..aplicacion.valle import CASOS_CARGAS, anotar_punto, sin_comprobar
+from ..dominio.util import cuenta
 
 #: Por debajo de esta tensión nominal una barra es de baja (la de cada SED): no la juzga la escalera.
 KV_MEDIA_MIN = 1.0
@@ -522,7 +523,7 @@ class Espacio:
             cantidades['terna'] = sum(float(t.get('largo_m') or 0.0) for t in ternas) / 1000
             if km_cambia:
                 cantidades['seccion'] = km_cambia
-            nombre.append(f'terna en {len(ternas)} tramo(s)')
+            nombre.append(f'terna en {cuenta(len(ternas), "tramo", "tramos")}')
         por_tipo: dict[str, list] = {}
         for t, o in zip(self.tramos, por_tramo, strict=True):
             if o.startswith('seccion:'):
@@ -536,7 +537,7 @@ class Espacio:
                                    'proyecto': ref.get('proyecto') or ''}})
             cantidades['seccion'] = cantidades.get('seccion', 0.0) + sum(
                 float(t.get('largo_m') or 0.0) for t in tramos) / 1000
-            nombre.append(f'sección {tipo} en {len(tramos)} tramo(s)')
+            nombre.append(f'sección {tipo} en {cuenta(len(tramos), "tramo", "tramos")}')
         # 042:RF-103: el conductor que cambia con la terna se costea como sección, pero la obra sigue siendo una terna.
         clases = {o['clase'] for o in obras}
         escalones = tuple(e for e, c in (('bancos', 'condensador'), ('terna', 'terna'), ('seccion', 'seccion')) if c in clases)

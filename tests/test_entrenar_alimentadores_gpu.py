@@ -52,7 +52,7 @@ def test_un_error_sigue_con_los_demas_y_termina_con_1(herramienta, tmp_path, mon
     resumen = json.loads((tmp_path / 'salida' / 'resumen.json').read_text(encoding='utf-8'))
     assert [r['status'] for r in resumen] == ['ERROR', 'ENTRENADO']
     assert 'CUDA sin memoria' in resumen[0]['error']
-    assert '1 entrenado(s), 1 con error: A.' in capsys.readouterr().out
+    assert '1 entrenado, 1 con error: A.' in capsys.readouterr().out
 
 
 def test_retoma_el_ya_entrenado_con_el_mismo_modelo(herramienta, tmp_path):

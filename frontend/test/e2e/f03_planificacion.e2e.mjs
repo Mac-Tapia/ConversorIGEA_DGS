@@ -9,6 +9,8 @@ import { test, expect, captura, revisarAxe, sinRedNiErrores } from './comun.mjs'
 const FLUJO = 'F03_planificacion';
 /** La pestaña de cada tipo (App.tsx; modulosPlaneamiento.test.mjs fija las mismas). */
 const PESTANA = { corto_plazo: 'Corto plazo', pide: 'PIDE', largo_plazo: 'Largo plazo' };
+// 100:RF-12: la pestaña de un estudio puede anunciar «Sin validar» o «No disponible» tras su nombre.
+const pestanaDe = (page, nombre) => page.getByRole('tab', { name: new RegExp(`^${nombre}( Sin validar| No disponible)?$`) });
 
 test('F03 planificación: cada tipo del servidor en su pestaña, con su ficha, su año y sus pasos; «Cargas» no lo repite',
   async ({ web: page, externas, errores }, testInfo) => {
@@ -27,7 +29,7 @@ test('F03 planificación: cada tipo del servidor en su pestaña, con su ficha, s
     for (const t of tipos.tipos) {
       const pestana = PESTANA[t.clave];
       expect(pestana, `el tipo ${t.clave} del servidor no tiene pestaña`).toBeTruthy();
-      await page.getByRole('tab', { name: pestana, exact: true }).click();
+      await pestanaDe(page, pestana).click();
       // El tipo va fijo: su título como encabezado, sin ofrecer cambiarlo, y su ficha.
       await expect(page.getByRole('heading', { name: t.titulo, exact: true })).toBeVisible();
       await expect(page.getByRole('radiogroup', { name: 'Tipo de análisis' })).toHaveCount(0);
@@ -78,12 +80,12 @@ test('F03 072:RF-45 el proyecto de DIgSILENT elegido en Cargas vale en Corto pla
 
     // Las otras pestañas lo tienen elegido, sin volver a elegirlo.
     for (const nombre of ['Corto plazo', 'PIDE']) {
-      await page.getByRole('tab', { name: nombre, exact: true }).click();
+      await pestanaDe(page, nombre).click();
       await expect(proyecto(), `${nombre}: el proyecto del espacio`).toHaveValue('Prueba/P2');
     }
     // Y sigue tras recargar la página: es del espacio, no del navegador.
     await page.reload({ waitUntil: 'networkidle' });
-    await page.getByRole('tab', { name: 'PIDE', exact: true }).click();
+    await pestanaDe(page, 'PIDE').click();
     await expect(proyecto(), 'tras recargar').toHaveValue('Prueba/P2');
     await captura(page, FLUJO, '3_proyecto_compartido');
     await revisarAxe(page, FLUJO, '3_proyecto_compartido', testInfo);

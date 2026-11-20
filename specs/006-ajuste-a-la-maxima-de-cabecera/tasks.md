@@ -66,3 +66,12 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_ajuste_cabecera_guion.py`).
 - [x] T15. Letra de los ejes de las gráficas del mismo tamaño en pantalla que el título. (RF-45)
       Hecho cuando: `frontend/test/letraFija.test.mjs` (006:RF-45) en verde.
+- [x] T16. MEJ3-CALIB (orden del usuario del 19-11): `reparto_inicial` deja las fijas siempre con su P y Q; con las
+      fijas que llenan la cabecera, `Reparto.causa` IMPOSIBLE, escaladas a 0, un flujo y `Cuadre.imposible` (086:RF-124),
+      también en `cuadrar_conjunto` del proyecto; sin escaladas con kVA, `Reparto.causa` NO_CALIBRABLE,
+      `Cuadre.no_calibrable` sin flujos, y el guion devuelve el error sin escribir. (RF-46)
+      Hecho cuando: rojo por aserción sobre faf67626 y verde con `tests/test_ajuste_cabecera.py -k rf46`,
+      `tests/test_calibracion_imposible.py -k rf46` y `tests/test_ajuste_cabecera_guion.py -k rf46`; la corrida en
+      DIgSILENT va en el bloque de 086 T105.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).

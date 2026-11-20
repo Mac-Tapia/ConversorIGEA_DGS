@@ -27,7 +27,7 @@ from ..dominio.perfil_empresa import SIN_PERFIL, PerfilEmpresa
 from .registro_modulos import Resolucion, adaptador, instalar_en_proceso, resolver
 from .reglas import REGLAS_PROYECTO, Reglas, aplicar_reglas, auditar_completitud, preparar_dataset, project_root
 from ..dominio.runtime_paths import raiz_local
-from ..dominio.util import nombre_seguro, write_json_atomic
+from ..dominio.util import nombre_seguro, write_json_atomic, cuenta
 from ..dominio.runtime_paths import staging_publicacion
 
 ProgressCallback = Callable[[str, int, int], None]
@@ -552,7 +552,7 @@ def convert_selection(
         [feeder_short_name(n) for n in networks])
     if fuera_de_forma:
         input_warnings.append(
-            f'{len(fuera_de_forma)} alimentador(es) no cumplen la forma del perfil de '
+            f'{cuenta(len(fuera_de_forma), "alimentador no cumple", "alimentadores no cumplen")} la forma del perfil de '
             f'empresa ({(perfil or SIN_PERFIL).forma_alimentador}): '
             f'{", ".join(fuera_de_forma[:10])}.')
     disambiguated = {

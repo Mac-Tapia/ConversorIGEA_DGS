@@ -11,6 +11,7 @@ import math
 from dataclasses import dataclass, field
 
 from convertersmartgrid.adaptadores.entrada.vnr.models import CanonicalModel
+from convertersmartgrid.dominio.util import cuenta
 
 
 def apparent_power(kw: float, kvar: float) -> float:
@@ -61,7 +62,7 @@ def enrich_electrical(
         report.missing['conductors'] = missing_codes
         if require_catalog_mapping:
             report.notes.append(
-                f'{len(missing_codes)} conductor(es) sin parámetros R/X aprobados.'
+                f'{cuenta(len(missing_codes), "conductor", "conductores")} sin parámetros R/X aprobados.'
             )
 
     sin_tension = sorted(
@@ -80,7 +81,7 @@ def enrich_electrical(
         l.load_id for l in model.loads if l.kw == 0.0 and l.kvar == 0.0
     )
     if sin_carga:
-        report.notes.append(f'{len(sin_carga)} carga(s) sin P/Q medida (kw=kvar=0).')
+        report.notes.append(f'{cuenta(len(sin_carga), "carga", "cargas")} sin P/Q medida (kw=kvar=0).')
 
     # Secuencia de disponibilidad (U17): sin tensión no se puede ni emplazar la red
     # (NORMALIZED); con tensión pero con conductores/fases sin resolver la topología

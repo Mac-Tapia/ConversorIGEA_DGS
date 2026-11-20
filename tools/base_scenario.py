@@ -39,6 +39,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / 'src'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 for _flujo in (sys.stdout, sys.stderr):
     try:
@@ -116,7 +117,7 @@ def informe_de_datos(dataset) -> dict:
     for i, (dato, estudios) in enumerate(faltantes.items(), start=1):
         entrada = entradas[dato]
         print()
-        print(f'{i}. {dato}   [{entrada.estado}]  → desbloquea {len(estudios)} estudio(s)')
+        print(f'{i}. {dato}   [{entrada.estado}]  → desbloquea {cuenta(len(estudios), "estudio", "estudios")}')
         print(f'   De dónde sale : {entrada.donde}')
         print(f'   Sin esto      : {entrada.sin_esto}')
         print(f'   Afecta a      : {", ".join(estudios)}')

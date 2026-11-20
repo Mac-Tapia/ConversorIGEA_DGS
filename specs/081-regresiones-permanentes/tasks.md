@@ -113,3 +113,11 @@ de durabilidad, joins fuera del cerrojo y resultado completo de 8 MiB sin trunca
 Los recibos/cortes son de procesos propios y los datos son de contrato; no cierran
 T10/T11/T12/T13/T14/T31, 086:T33/T36 ni 096:T3. La corrección conserva fuente y alcance
 de la revisión previa. Resultados y corte exacto: `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/correccion_revision_p21_20261108/HANDOFF.md`.
+
+- [x] T32 Inventario de los casos adversariales del §10.7 del Plan Maestro, con la prueba que cubre cada uno o su hueco
+  declarado (tarjeta MEJ-070-INYECCION, 2026-11-19). (RF-86)
+  Hecho cuando: la sección «Pruebas adversariales» de la spec tiene A1 a A11 y
+  `tests/test_asistente_inyeccion.py::test_081_rf86_cada_caso_adversarial_del_inventario_nombra_pruebas_que_existen`
+  comprueba que cada prueba nombrada existe. Ejecutada su función con `python -c` (sin pytest, B44); el pytest lo corre el
+  integrador d8. Los huecos (A1, A2, A4, A5, A7 parciales; A3, A6, A10, A11 sin prueba directa) cierran en la spec de su
+  módulo, no aquí.

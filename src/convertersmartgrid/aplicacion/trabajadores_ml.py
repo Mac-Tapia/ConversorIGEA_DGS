@@ -28,11 +28,13 @@ def semillas_de(texto: str) -> tuple[int,...]:
 
 
 def fallo(exc: Exception) -> dict:
-    from .training_coordinator import MemoriaMLInsuficiente
+    from .training_coordinator import MemoriaMLInsuficiente,SinGPU
     datos=isinstance(exc,(ValueError,FileNotFoundError)) and not isinstance(exc,MemoriaMLInsuficiente)
+    # 086:RF-129: sin GPU lo dice aparte, para que la web lo enseñe en una línea y el trabajo falle con ese motivo.
+    sin_gpu={'sin_gpu':True,'motivo':str(exc)} if isinstance(exc,SinGPU) else {}
     return {'status':'BLOQUEADO_POR_DATOS' if datos else 'ERROR_ENTORNO',
             'error':str(exc),'reason':str(exc),'training_completed':False,'entrenado':False,
-            'promovido':False,'gates':{'approved':False}}
+            'promovido':False,'gates':{'approved':False},**sin_gpu}
 
 
 #: 027:RF-77: el esquema que lee :func:`leer_dataset_v2`. Es el ``ESQUEMA_DATASET`` de ``asistente.dataset_entrenamiento``,

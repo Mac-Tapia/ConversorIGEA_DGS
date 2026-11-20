@@ -78,5 +78,5 @@ def test_eleccion_del_motor():
     assert elegir_motor(None, licencia=False) == 'abierto'
     assert elegir_motor(None, licencia=True) == 'abierto'
     assert elegir_motor('digsilent', licencia=True) == 'digsilent'
-    with pytest.raises(PitError, match='licencia'):
+    with pytest.raises(PitError, match='no está disponible'):  # 107:RF-23: disponible, no licencia
         elegir_motor('digsilent', licencia=False)

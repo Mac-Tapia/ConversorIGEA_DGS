@@ -169,7 +169,7 @@ def test_los_transformadores_de_la_primera_pasada_quedan_en_el_informe_que_vale(
     from apoyo import cargar_herramienta
 
     guion = cargar_herramienta('ajuste_cabecera_pf.py', 'ajuste_rf14', tools_en_path=True)
-    aviso = '1 transformador(es) de la ficha puestos antes de calibrar, en la misma pasada: SE20701.'
+    aviso = '1 transformador de la ficha puesto antes de calibrar, en la misma pasada: SE20701.'
     primera = {'transformadores_implementados': {'cambios': [{'sed': 'SE20701', 'kva': 630, 'unidades': 3}]},
                'avisos': ['Primera pasada para medir lo que falta: no se guarda.', aviso]}
     segunda = {'avisos': ['Calibrado a la vez que CHN102']}

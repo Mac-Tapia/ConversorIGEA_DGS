@@ -15,6 +15,7 @@ from typing import Any
 
 from .escenarios import MINIMOS, reparto_del_sistema
 from .oraculo import Entrenamiento, Muestra, OraculoPINN, entrenar_miembro, mae, red_de
+from ...dominio.util import cuenta as _cuenta
 
 #: Mejora relativa por debajo de la cual, con un 20 % más de episodios, se da por convergido.
 MEJORA_MIN = 0.05
@@ -48,7 +49,7 @@ def curva(entrenamiento: Sequence[Muestra], validacion: Sequence[Muestra], cfg: 
         dominio = _dominio(entrenamiento)
         error = mae(OraculoPINN([estado], cfg, dominio), validacion)
         puntos.append({'episodios': n, 'mae_validacion': error})
-        log(f'  curva: {n} episodio(s) → {error:.3e} p.u. en validación')
+        log(f'  curva: {_cuenta(n, "episodio", "episodios")} → {error:.3e} p.u. en validación')
     previo, ultimo = puntos[-2]['mae_validacion'], puntos[-1]['mae_validacion']
     mejora = (previo - ultimo) / previo if previo else 0.0
     # 027:RF-69: si empeora más del umbral al añadir datos, no ha convergido: es inestable.

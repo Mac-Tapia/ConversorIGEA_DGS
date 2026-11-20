@@ -13,7 +13,8 @@ from __future__ import annotations
 import math
 
 from ..dominio.runtime_paths import staging_publicacion
-from ..dominio.util import write_json_atomic
+from ..dominio import traza
+from ..dominio.util import write_json_atomic, cuenta
 
 import io
 import os
@@ -566,6 +567,11 @@ def _guardar(documento, destino: Path, resumen: Mapping[str, Any]) -> None:
     """Prepara Word y JSON fuera del checkout antes de publicarlos (RF-25, RF-27)."""
     destino = Path(destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
+    # 086:RF-127: la referencia de soporte del trabajo que lo hizo, en las propiedades del Word y en su JSON par.
+    referencia = traza.actual()
+    if referencia:
+        documento.core_properties.identifier = referencia
+        resumen = {**resumen, 'traza': referencia}
     with staging_publicacion(destino) as tmp_docx:
         documento.save(tmp_docx)
         # 001:RF-5: el JSON se serializa antes de publicar nada; el Word se publica después.
@@ -743,7 +749,7 @@ def conclusiones_resumen(resultado: Mapping[str, Any]) -> list[str]:
         carga = [f['cargabilidad_max'] for f in suyas if isinstance(f.get('cargabilidad_max'), (int, float))]
         sin_conv = sorted({str(f.get('alimentador')) for f in suyas if f.get('converge') is False})
         if v:
-            texto = (f'«{caso}»: {len(v)} violación(es) de los límites en {len(alims)} alimentador(es) '
+            texto = (f'«{caso}»: {cuenta(len(v), "violación", "violaciones")} de los límites en {cuenta(len(alims), "alimentador", "alimentadores")} '
                      f'({", ".join(alims)})')
         else:
             texto = f'«{caso}»: sin violaciones de los límites'

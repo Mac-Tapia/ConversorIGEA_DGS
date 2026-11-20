@@ -387,6 +387,18 @@ def test_el_que_no_puede_cuadrar_se_nombra_y_no_tumba_el_arranque():
     assert r.sin_cuadre['F']['fijas_kw'] == 900.0 and r.informe()['sin_cuadre']
 
 
+def test_083_rf33_el_oraculo_devuelve_solo_factores_y_las_fijas_llegan_a_escala_1():
+    """083:RF-33 (enmienda 083:RF-28, RF-30) — una fija que con las pérdidas pasa un poco de la medida: el oráculo puede
+    bajarla para cuadrar su modelo, pero a DIgSILENT le entrega solo sus factores sobre el reparto original; las fijas
+    llegan con su P y Q y su corrección la decide DIgSILENT con su tope."""
+    nodos, ramas = _datos()
+    rep = Reparto(fijas={'SA': (820.0, 100.0)}, base={'SB': (500.0, 100.0)}, origen={'SA': 'cliente', 'SB': 'kva'},
+                  kva={'SA': 400.0, 'SB': 630.0}, a=1.0, b=1.0, solo_kw=True)
+    r = arranque_con_oraculo(_grafo(), nodos, ramas, {'F': rep}, {'F': Objetivo(800.0, 100.0, 'M')}, max_evaluaciones=30)
+    assert r.repartos and r.repartos['F'].fijas == rep.fijas, r.repartos and r.repartos['F'].fijas
+    assert r.repartos['F'].base == rep.base and r.factores['F'] == pytest.approx(r.repartos['F'].a, abs=1e-4)
+
+
 def test_el_ajuste_heredado_vuelve_a_cero_en_los_dos_casos_y_no_en_el_del_operador():
     """083:RF-26 — «Sin» y «Con proyecto» tienen cada uno su ComLdf; el caso activo se conserva; sin caso del sistema no se toca."""
     from types import SimpleNamespace
@@ -445,17 +457,26 @@ def test_las_variaciones_del_conversor_vuelven_a_estar_activas_en_los_dos_casos(
 
 
 def test_las_fijas_que_pasan_de_la_medida_se_corrigen_hasta_el_tope():
-    """083:RF-30 — PA219: la fija y sus pérdidas pasan de la cabecera. Dentro del tope se baja y queda dicho; las escaladas siguen con carga."""
+    """083:RF-30, 083:RF-33 — PA219: la fija y sus pérdidas pasan de la cabecera. El oráculo cuadra su modelo pero entrega
+    las fijas como entraron; el cuadre con el flujo (aquí, el doble de DIgSILENT) las baja dentro del tope y queda
+    dicho; las escaladas siguen con carga."""
     from convertersmartgrid.dominio.ajuste_cabecera import fijas_corregidas
 
     nodos, ramas = _datos()
     rep = Reparto(fijas={'SA': (820.0, 100.0)}, base={'SB': (500.0, 100.0)}, origen={'SA': 'cliente', 'SB': 'kva'},
                   kva={'SA': 400.0, 'SB': 630.0}, a=1.0, b=1.0, solo_kw=True)
-    r = arranque_con_oraculo(_grafo(), nodos, ramas, {'F': rep}, {'F': Objetivo(800.0, 100.0, 'M')}, max_evaluaciones=30)
-    assert r.cuadrado and not r.sin_cuadre
-    cambios = fijas_corregidas(rep, r.repartos['F'])
-    assert cambios[0]['sed'] == 'SA' and cambios[0]['antes_kw'] == 820.0 and cambios[0]['despues_kw'] < 800.0
-    assert r.repartos['F'].a > 0
+    obj = {'F': Objetivo(800.0, 100.0, 'M')}
+    r = arranque_con_oraculo(_grafo(), nodos, ramas, {'F': rep}, obj, max_evaluaciones=30)
+    assert r.cuadrado and not r.sin_cuadre and not fijas_corregidas(rep, r.repartos['F'])
+
+    def flujo_pf(reps):
+        c = reps['F'].totales()[0]
+        return MedidaConjunta(True, kw={'F': c * 1.04}, kvar={'F': 0.0}, carga_kw={'F': c})
+
+    res = cuadrar_conjunto(r.repartos, obj, flujo_pf, tolerancia=0.01, factores_iniciales={'F': rep.a})
+    cambios = fijas_corregidas(rep, res.repartos['F'])
+    assert res.cuadrado and cambios[0]['sed'] == 'SA' and cambios[0]['antes_kw'] == 820.0
+    assert 0.9 * 820.0 <= cambios[0]['despues_kw'] < 800.0 and res.repartos['F'].a > 0
 
 
 

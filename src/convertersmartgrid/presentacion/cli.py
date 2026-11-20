@@ -13,6 +13,7 @@ from ..aplicacion.batch import convert_selection, load_aliases
 from ..adaptadores.dataset import CymdistDataset
 from ..aplicacion.inventory import build_dataset_inventory, format_inventory_report, write_inventory
 from ..dominio.naming import feeder_short_name, sort_key_feeder
+from ..dominio.util import cuenta, plural
 
 
 def _common(parser: argparse.ArgumentParser) -> None:
@@ -420,7 +421,7 @@ def main(argv=None) -> int:
                 correcciones_catalogo = leer_catalogo(ruta)
             except CatalogError as exc:
                 raise SystemExit(f'Catálogo: {exc}') from exc
-            print(f'Catálogo: {ruta} — {len(correcciones_catalogo)} tipo(s) con valor '
+            print(f'Catálogo: {ruta} — {cuenta(len(correcciones_catalogo), "tipo", "tipos")} con valor '
                   'de ficha; el DGS lleva los del archivo (032:RF-2).', flush=True)
             catalogo = ruta if not args.literal else None
 
@@ -456,7 +457,7 @@ def main(argv=None) -> int:
                 zonales = [z for z in args.por_sistema if z]
                 fuera = [z for z in zonales if z not in estructura.zonales]
                 if fuera:
-                    raise SystemExit(f"Zonal(es) que no están en la estructura: {', '.join(fuera)}")
+                    raise SystemExit(f"{plural(len(fuera), 'Zonal que no está', 'Zonales que no están')} en la estructura: {', '.join(fuera)}")
                 a = asignar(estructura, todos)
                 selectors = ([f for f in todos if f.upper() in a.set_de
                               and estructura.sets[a.set_de[f.upper()]].zonal in zonales]
@@ -483,9 +484,9 @@ def main(argv=None) -> int:
             por_set = grupo.get('estructura')
             if por_set:
                 ora = (por_set.get('oraculo') or {}).get('general') or {}
-                print(f"Por zonal y SET: {len(por_set['zonales'])} zonal(es), "
+                print(f"Por zonal y SET: {cuenta(len(por_set['zonales']), 'zonal', 'zonales')}, "
                       f"{sum(len(z) for z in por_set['zonales'].values())} SET, "
-                      f"{len(por_set['sin_set'])} sin SET, {len(por_set['aperturas'])} apertura(s); "
+                      f"{len(por_set['sin_set'])} sin SET, {cuenta(len(por_set['aperturas']), 'apertura', 'aperturas')}; "
                       f"oráculo: {ora.get('resumen', 'no disponible')}")
             print(f"{'Sistema eléctrico' if estructura is not None else 'Red unida'} {grupo['name']}: {grupo['status']} — "
                   f"{grupo.get('errors_total')} errores de validación, completitud "

@@ -20,7 +20,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from ...dominio.util import publicar_duradero
+from ...dominio.util import publicar_duradero, cuenta, plural
 from .api_contract import JobRespuesta
 
 KIND = 'mapa_cargas_digsilent'
@@ -91,7 +91,7 @@ def confirmar_puntos(ws, body: ConfirmarPuntoPeticion) -> dict:
     guardados = guardar_puntos(ws.root, body.project, elegidas, lectura=body.lectura)
     feeders = sorted({str(g.get('alimentador')) for g in guardados})
     return {'guardados': guardados, 'repetir_flujos': feeders,
-            'aviso': (f'Punto de diseño guardado para {len(guardados)} carga(s). La imagen, el mapa y el informe lo '
+            'aviso': (f'Punto de diseño guardado para {cuenta(len(guardados), "carga", "cargas")}. La imagen, el mapa y el informe lo '
                       f'usan desde ahora; repita los flujos de 4.2 de {", ".join(feeders)} para que el informe mida '
                       'la red con este punto.')}
 
@@ -130,8 +130,9 @@ def dar_de_alta(ws, body: ConfirmarPuntoPeticion) -> dict:
     publicar_duradero(ws.out_dir / f'cargas_pf_aplicacion_{token}.json', json.dumps(aplicacion, indent=2, ensure_ascii=False))
     nombres = ', '.join(str(f['sed']) for f in filas)
     return {'altas': [str(f['sed']) for f in filas], 'token': token,
-            'aviso': f'{nombres}: dada(s) de alta como carga(s) sola(s) con lo que guarda DIgSILENT; ya sirven para el '
-                     'informe de factibilidad. Repita los flujos de 4.2 si aún no la(s) incluyen.'}
+            'aviso': f'{nombres}: {plural(len(filas), "dada de alta como carga sola", "dadas de alta como cargas solas")} con lo que '
+                     f'guarda DIgSILENT; ya {plural(len(filas), "sirve", "sirven")} para el informe de factibilidad. Repita los '
+                     f'flujos de 4.2 si aún no {plural(len(filas), "la", "las")} incluyen.'}
 
 
 def registrar_rutas_mapa(app: FastAPI, *, ws_or_404, submit) -> None:

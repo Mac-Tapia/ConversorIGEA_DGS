@@ -27,6 +27,7 @@ from .instalacion_ternas import capacidad_de_tramos
 from .pide_economia import costo_anual
 from ..dominio.perfil_empresa import TASA_CRECIMIENTO_DE_REFERENCIA
 from .set_nueva import margen_sin_tasa
+from ..dominio.util import cuenta
 
 #: Orden de la escalera: bancos, cambio de sección, terna y, al final, regulador (063:RF-21; cambia
 #: 025:RF-44). Usuario, 2026-11-01: «primero debe comenzar con bancos y luego con cambio de sección
@@ -1137,7 +1138,7 @@ def cumple(sin: Mapping[str, Any], con: Mapping[str, Any], barras_cargas: Sequen
     if 'aisladas' in con and 'aisladas' in sin:
         nuevas = sorted(set(con['aisladas']) - set(sin['aisladas']))
         if nuevas:
-            motivos.append(f"{len(nuevas)} barra(s) de media quedan aisladas, sin servicio: {', '.join(nuevas[:5])}")
+            motivos.append(f"{cuenta(len(nuevas), 'barra de media queda aislada', 'barras de media quedan aisladas')}, sin servicio: {', '.join(nuevas[:5])}")
     lo, hi = p.tension_min_pu, p.tension_max_pu
     u_con, u_sin = con.get('u') or {}, sin.get('u') or {}
     for b in barras_cargas:

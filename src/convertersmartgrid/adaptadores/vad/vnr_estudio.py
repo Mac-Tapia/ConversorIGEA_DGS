@@ -18,6 +18,7 @@ from ...aplicacion.vad.vnr_guia import (EQUIPO_POR_PREFIJO, RAICES_ANEXO2, ItemM
                        TramoAdaptado, VnrGuiaError, adaptar_equipo, adaptar_red_bt, adaptar_red_mt, adaptar_sed,
                        calcular_vnr, codigo_de_equipo, codigo_de_sed, items_de_red, kva_adaptado, porciones_por_zona,
                        zonificar)
+from ...dominio.util import cuenta as _cuenta
 
 POSTES = {'urbano_alta': 'C', 'urbano_media_baja': 'C', 'urbano_rural': 'C', 'rural_ser': 'A'}  # Tabla 11: C/A
 _FORMA = re.compile(r'(?<![\d,])(\d)(?:-1)?x(\d+(?:,\d+)?) mm2')
@@ -182,26 +183,26 @@ def _equipos(modelo, sector: str, registro: RegistroNormativo, anexo2: Mapping, 
     salida, notas = [], set()
     for (prefijo, kv, sub), n in sorted(cuenta.items(), key=lambda x: (x[0][0], x[0][1] or 0, x[0][2])):
         if not prefijo:
-            huecos.append(f'{n} equipo(s) de maniobra sin tipo en VNR-GIS: no se valorizan')
+            huecos.append(f'{_cuenta(n, "equipo de maniobra sin tipo en VNR-GIS: no se valoriza", "equipos de maniobra sin tipo en VNR-GIS: no se valorizan")}')
             continue
         adaptado, cita = '', ''
         if prefijo in EQUIPO_POR_PREFIJO:
             try:
                 adaptado, cita = adaptar_equipo(EQUIPO_POR_PREFIJO[prefijo], sub, sector, registro, fecha=fecha)
             except VnrGuiaError as exc:
-                huecos.append(f'{n} equipo(s) {prefijo}: {exc}')
+                huecos.append(f'{_cuenta(n, "equipo", "equipos")} {prefijo}: {exc}')
                 continue
         try:
             codigo, nota = codigo_de_equipo(anexo2, prefijo, kv, adaptado)
         except VnrGuiaError as exc:
-            huecos.append(f'{n} equipo(s) {prefijo}: {exc}')
+            huecos.append(f'{_cuenta(n, "equipo", "equipos")} {prefijo}: {exc}')
             continue
         letra = letra_de_tension(anexo2, kv) if kv else None
         if letra is None:
-            huecos.append(f'{n} equipo(s) {prefijo}: tensión {kv} kV sin código en la Tabla 9 del Anexo 3; no se valoriza')
+            huecos.append(f'{_cuenta(n, "equipo", "equipos")} {prefijo}: tensión {kv} kV sin código en la Tabla 9 del Anexo 3; no se valoriza')
             continue
         notas.add(nota)
-        items.append(ItemMetrado(codigo, n, letra, 'X' if sub else POSTES[sector], f'{n} equipo(s) {prefijo}'))
+        items.append(ItemMetrado(codigo, n, letra, 'X' if sub else POSTES[sector], f'{_cuenta(n, "equipo", "equipos")} {prefijo}'))
         salida.append({'prefijo': prefijo, 'cantidad': n, 'kv': kv, 'subterraneo': sub, 'adaptado': adaptado,
                        'codigo': codigo, 'regla': cita})
     huecos.extend(sorted(notas))

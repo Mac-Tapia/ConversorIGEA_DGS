@@ -20,6 +20,7 @@ from typing import Any
 
 from ..pide_dataset import ContratoPide
 from ...aplicacion.asistente.sinteticos import normalizar
+from ...dominio.util import cuenta
 
 #: Ejemplos que se guardan por artículo y PIDE, y fragmentos de cada uno que se citan.
 POR_ARTICULO = 5
@@ -186,7 +187,7 @@ def resumen(datos: Mapping[str, Any]) -> Iterable[str]:
     yield f"Formatos entregados: {c['formatos']} de 15" + (
         f"; ausentes: {', '.join(c['formatos_ausentes'])}" if c['formatos_ausentes'] else '')
     for k, v in datos['informes'].items():
-        yield f"Informe {k}: {v['fuentes']} fichero(s), {len(v['secciones'])} secciones"
+        yield f"Informe {k}: {cuenta(v['fuentes'], 'fichero', 'ficheros')}, {len(v['secciones'])} secciones"
 
 
 def _palabras(texto: str) -> set[str]:

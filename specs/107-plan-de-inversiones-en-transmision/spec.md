@@ -1,6 +1,6 @@
 # Spec 107 — Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario
 
-Estado: implementada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-17, y orden del usuario del 2026-11-14:
+Estado: implementada (2026-11-19: el PIT con DIgSILENT desde la web, T42 y T43 cerradas; queda T14 en DIgSILENT) · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-17, y orden del usuario del 2026-11-14:
 «haz nuevos spec» para las brechas sin spec. G0: `D:/csg/G0_PLAN_MAESTRO/D/D_FILAS_BP.md`.
 
 ## Contexto y objetivo
@@ -206,6 +206,16 @@ común.
   coincide, no regenerará y dirá por qué; leerá los libros oficiales solo en copia, nunca con COM; comparará el registro
   nuevo con el vigente y dirá qué reglas entran, salen o cambian antes de escribirlo; y tomará la vigencia del texto de
   la norma (su cláusula; el art. 109 solo si calla). Sin la fuente, dirá cuál falta y dónde ponerla; nunca la descargará.
+- RF-23: (revisión de motores del 19-11, hallazgo 1; amplía RF-3, RF-5) CUANDO DIgSILENT esté disponible en el equipo
+  (una instalación con su API y el Python que pide, la misma comprobación que la web usa para los demás estudios de
+  DIgSILENT) y el operador lo pida, EL SISTEMA encolará `tools/pit_pf.py` en el carril `powerfactory` para el
+  diagnóstico y el expediente, con el proyecto de transmisión del área y el caso de estudio de cada año (del pedido o de
+  `pit.digsilent` del perfil), y leerá su informe de vuelta con el motor que lo dio; sin proyecto o sin el caso de un
+  año, lo dirá antes de encolar. El expediente arma sus cuadros con el motor abierto y lleva al lado el estudio de
+  DIgSILENT, y lo dice. La pestaña ofrecerá DIgSILENT cuando esté disponible.
+- RF-24: (revisión de motores del 19-11, hallazgo 8; amplía 081:RF-17) SI el caso base de un año no converge, con el
+  motor abierto o con DIgSILENT, ENTONCES EL SISTEMA terminará el diagnóstico con el estado «no converge» y su motivo;
+  SI el diagnóstico queda incompleto, con el estado «parcial» y su motivo; un diagnóstico entero termina «hecho».
 
 ## Requisitos no funcionales
 - Universal: cualquier área de demanda y titular. Las pruebas usan al menos dos perfiles sintéticos.

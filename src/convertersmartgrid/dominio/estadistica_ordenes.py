@@ -32,7 +32,9 @@ def registro(orden: Mapping[str, Any], codigo: int, segundos: float, causa: str 
     return {'fecha': (ahora or datetime.now()).isoformat(timespec='seconds'), 'id': str(orden.get('id') or ''),
             'guion': str(orden.get('guion') or '?'), 'modo': [a for a in argv if a.startswith('--') and a not in
                                                                ('--plan', '--report', '--cancel-file')],
-            'codigo': int(codigo or 0), 'segundos': round(float(segundos), 1), 'causa': causa_corta(causa)}
+            'codigo': int(codigo or 0), 'segundos': round(float(segundos), 1), 'causa': causa_corta(causa),
+            # 086:RF-127: la referencia de soporte del trabajo, si la orden la trae.
+            **({'traza': str(orden['traza'])} if orden.get('traza') else {})}
 
 
 def causa_corta(texto: str) -> str:

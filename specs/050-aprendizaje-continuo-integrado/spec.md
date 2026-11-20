@@ -42,6 +42,10 @@ su sincronización. Esta spec amplía 024/027 y consume 043–048, sin reabrir s
 - RF-29: CUANDO una consulta reservada de recuperación la redacte el maestro, EL SISTEMA la marcará con ese origen y la informará por separado de las humanas al evaluar.
 - RF-30: CUANDO prepare las órdenes del ciclo, EL SISTEMA calculará la huella de la política a partir de las políticas 044 con que se evalúa.
 - RF-31: EL SISTEMA medirá el presupuesto de memoria del ciclo con el mismo criterio que cada trabajador: en Windows, el margen comprometible con al menos 0,5 GiB físicos.
+- RF-32: CUANDO se prepare el plan del ciclo, EL SISTEMA lo construirá desde las fuentes declaradas o presentes en el almacén del asistente, con la huella SHA-256 de cada dataset, sin escoger espacio, contexto, dataset ni presupuesto que el operador no declare.
+- RF-33: CUANDO valide el plan del ciclo, EL SISTEMA enumerará todo lo que falta o ya no coincide, por campo, familia, fuente y huella, en palabras del operador con la opción que lo resuelve; un plan con faltas no se escribe y la cola lo revalida antes de congelar.
+- RF-34: EL SISTEMA incluirá en el plan una matriz de las siete familias con fuentes y huellas, contexto, referencias, cuarentena, recursos, revisión, puertas obligatorias y estado `listo_para_preflight` o `bloqueado_por_datos` con su motivo; ninguna puerta obligatoria se quita desde el plan.
+- RF-35: MIENTRAS solo prepara el plan, EL SISTEMA escribirá únicamente los manifiestos en la carpeta nueva declarada y el plan en la ruta declarada, sin congelar instantánea, crear ciclos ni entrenar.
 
 ## Requisitos no funcionales
 

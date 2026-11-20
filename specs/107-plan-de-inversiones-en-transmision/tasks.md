@@ -456,3 +456,18 @@ adaptador VNR (integrador f9).
       su motivo. (RF-19)
       Hecho cuando: `tests/test_revision_web_estados.py` (107:RF-19) en verde con rojo previo por aserción. Hecho en esta
       entrega (ce): rojo VALIDO y verde 41 passed en `D:/csg/PM_IMPL/REVISION_WEB/w2/`.
+- [x] T42. El PIT con DIgSILENT desde la web: `crear_router` recibe la disponibilidad real (`services.digsilent_disponible`)
+      y `services.guion_pf` con `tools/pit_pf.py`; las rutas del diagnóstico y del expediente encolan el guion en el
+      carril `powerfactory` en vez del 409; `pit/motores.py` arma el plan (`plan_pf`) y lee el informe
+      (`leer_informe_pf`); `EstudioPit.tsx` ofrece DIgSILENT si está disponible. (RF-23)
+      Hecho cuando: rojo por aserción y verde con su prueba: `tests/test_motores_web_mej4.py` (107:RF-23) y las vecinas
+      `tests/test_pit_web.py`, `tests/test_pit_motores.py`, `tests/test_pit_pf_guion.py` y `frontend/test/pitPanel.test.mjs`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T43. El diagnóstico que no converge o queda incompleto lo dice la cola: `estado_trabajo` «no_converge» o
+      «parcial» con su motivo (`motores.estado_de_trabajo`), con los dos motores; la pestaña enseña el resultado y su
+      motivo también en esos estados. (RF-24)
+      Hecho cuando: rojo por aserción y verde con su prueba: `tests/test_motores_web_mej4.py` (107:RF-24) y
+      `tests/test_pit_web.py`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).

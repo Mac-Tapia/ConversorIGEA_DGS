@@ -1058,3 +1058,40 @@ def test_el_aviso_cuenta_la_copia_de_la_carpeta_recordada(tmp_path, monkeypatch)
         copia.recordar_carpeta(str(destino))
         aviso = cliente.get('/api/health').json()['copia_datos']
         assert aviso['vencida'] is False and aviso['ruta'] == hecha['ruta'], aviso
+
+
+# ---------------------------------------------------------------- RF-128: restauración comprobada antes y después
+def test_restaurar_comprueba_las_huellas_de_lo_restaurado_en_su_sitio(tmp_path):
+    """086:RF-128 — tras publicar, cada nombre restaurado (datos y ``_asistente``) se vuelve a leer en su sitio y su huella
+    cuadra con el manifiesto; el resultado dice cuántos se comprobaron."""
+    from convertersmartgrid.presentacion.web.copia_datos import crear_copia, restaurar_copia
+
+    raiz, _wid = _crear_datos(tmp_path)
+    m = crear_copia(tmp_path / 'copias', raices={'datos': raiz})
+    esperado = {f['ruta']: f['sha256'] for f in _todos(m)}
+    assert any(r.startswith('_asistente/') for r in esperado)
+    r = restaurar_copia(Path(m['ruta']), raices={'datos': raiz})
+    assert r.get('comprobados_despues') == len(esperado), r
+    assert _estado(raiz) == esperado
+
+
+def test_si_lo_restaurado_no_cuadra_se_niega_y_vuelve_lo_de_antes(tmp_path, monkeypatch):
+    """086:RF-128 — un fichero que, ya publicado, no da su huella (el disco o la sincronización lo cambió) hace que la
+    restauración se niegue diciendo cuál, y los datos vuelven a como estaban antes de restaurar."""
+    from convertersmartgrid.presentacion.web import copia_datos as copia
+
+    raiz, wid = _crear_datos(tmp_path)
+    m = copia.crear_copia(tmp_path / 'copias', raices={'datos': raiz})
+    (raiz / wid / 'workspace.json').write_text('{roto', encoding='utf-8')
+    antes = _estado(raiz)
+    original = copia.sincronizar_carpeta
+
+    def sincronizar_y_estropear(carpeta):
+        original(carpeta)
+        publicado = raiz / 'vinculos_pf.json'
+        if publicado.is_file() and publicado.read_bytes() != b'estropeado':
+            publicado.write_bytes(b'estropeado')
+    monkeypatch.setattr(copia, 'sincronizar_carpeta', sincronizar_y_estropear)
+    with pytest.raises(copia.CopiaNoValida, match='vinculos_pf.json'):
+        copia.restaurar_copia(Path(m['ruta']), raices={'datos': raiz})
+    assert _estado(raiz) == antes

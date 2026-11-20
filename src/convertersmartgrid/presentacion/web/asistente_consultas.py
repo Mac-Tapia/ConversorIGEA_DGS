@@ -12,6 +12,7 @@ from collections.abc import Sequence
 
 from ...aplicacion.asistente.lectura_proyecto import terminos_de_dato
 from ...aplicacion.asistente.sinteticos import normalizar
+from ...dominio.util import cuenta
 
 #: Lo que devolvió la consulta, por espacio: la búsqueda en internet no puede sacarlo de la máquina (P9, 070:RF-46).
 _DEVUELTOS: dict[str, set[str]] = {}
@@ -66,7 +67,7 @@ def _alimentadores(svc, ws) -> dict:
     filas = svc.feeder_rows(ws)
     if not filas:
         return _no_lo_encuentro('alimentadores', 'Cargue la fuente del espacio: «carga la fuente».')
-    return _hallado(ws, 'alimentadores', filas, 'el inventario de la fuente cargada', f'{len(filas)} alimentador(es).')
+    return _hallado(ws, 'alimentadores', filas, 'el inventario de la fuente cargada', f'{cuenta(len(filas), "alimentador", "alimentadores")}.')
 
 
 def _sed(svc, ws, feeders: list[str]) -> dict:
@@ -93,12 +94,12 @@ def _medidores(svc, ws, feeders: list[str]) -> dict:
     fuente = f"el libro de medidores {meta.get('name') or ''}".strip()
     if not feeders:
         lista = svc.demanda_alimentadores(ws).get('alimentadores') or []
-        return _hallado(ws, 'medidores', lista, fuente, f'{len(lista)} alimentador(es) con medidor.')
+        return _hallado(ws, 'medidores', lista, fuente, f'{cuenta(len(lista), "alimentador", "alimentadores")} con medidor.')
     medidores = svc.medidores_por_alimentador(ws, feeders)
     filas = [{'alimentador': a, 'medidores': m} for a, m in medidores.items() if m]
     if not filas:
         return _no_lo_encuentro('medidores', f"{', '.join(feeders)} no está en el libro de medidores.")
-    return _hallado(ws, 'medidores', filas, fuente, f'{sum(len(f["medidores"]) for f in filas)} medidor(es).')
+    return _hallado(ws, 'medidores', filas, fuente, f'{cuenta(sum(len(f["medidores"]) for f in filas), "medidor", "medidores")}.')
 
 
 def _maximas_vivas(trabajos: list[dict]) -> list[dict]:
@@ -113,7 +114,7 @@ def _maximas(ws, trabajos: list[dict]) -> dict:
     ultima = vivas[-1]
     filas = [{k: r.get(k) for k in ('alimentador', 'medidor', 'fecha', 'kw', 'kvar', 'fp', 'error')}
              for r in (ultima.get('result') or {}).get('resultados') or []]
-    return _hallado(ws, 'maximas', filas, f"el trabajo «{ultima.get('title')}» de esta sesión", f'{len(filas)} medidor(es) en la última búsqueda.')
+    return _hallado(ws, 'maximas', filas, f"el trabajo «{ultima.get('title')}» de esta sesión", f'{cuenta(len(filas), "medidor", "medidores")} en la última búsqueda.')
 
 
 def _clientes(svc, ws, feeders: list[str], periodo: str | None, trabajos: list[dict]) -> dict:
@@ -137,7 +138,7 @@ def _clientes(svc, ws, feeders: list[str], periodo: str | None, trabajos: list[d
     if not filas:
         return _no_lo_encuentro('clientes', f"Ningún cliente del libro cruza con {', '.join(feeders)}.")
     return _hallado(ws, 'clientes', filas, f"el libro de clientes {meta.get('name') or ''} cruzado con la fuente".strip(),
-                    f'{len(filas)} cliente(s) fijos.')
+                    f'{cuenta(len(filas), "cliente fijo", "clientes fijos")}.')
 
 
 def _anios(ws) -> dict:
@@ -155,7 +156,7 @@ def _catalogo(svc, ws) -> dict:
     if not informe and not fichas:
         return _no_lo_encuentro('catalogo', 'Cargue la fuente: el catálogo de equipos sale de ella.')
     filas = [{'codigo': c, **(f if isinstance(f, dict) else {})} for c, f in sorted(fichas.items())]
-    return _hallado(ws, 'catalogo', filas, 'el catálogo de la fuente cargada y las fichas técnicas', f'{len(filas)} ficha(s) de conductor.')
+    return _hallado(ws, 'catalogo', filas, 'el catálogo de la fuente cargada y las fichas técnicas', f'{cuenta(len(filas), "ficha", "fichas")} de conductor.')
 
 
 def _variaciones(ws, proyecto: str | None) -> dict:
@@ -168,14 +169,14 @@ def _variaciones(ws, proyecto: str | None) -> dict:
     if not guardado:
         return _no_lo_encuentro('variaciones', f'{proyecto} no se ha escaneado: pida «escanea {proyecto}».')
     filas = [{'alimentador': a, **r} for a, r in (guardado.get('resumen') or {}).items()]
-    return _hallado(ws, 'variaciones', filas, f'el último escaneo de {proyecto}', f'Escaneo de {len(filas)} alimentador(es).')
+    return _hallado(ws, 'variaciones', filas, f'el último escaneo de {proyecto}', f'Escaneo de {cuenta(len(filas), "alimentador", "alimentadores")}.')
 
 
 def _proyectos(svc, ws) -> dict:
     nombres = [p.get('name') for p in svc.pf_proyectos_guardados(ws).get('projects') or [] if p.get('name')]
     if not nombres:
         return _no_lo_encuentro('proyectos', 'La web aún no los leyó: pida «lee los proyectos de DIgSILENT».')
-    return _hallado(ws, 'proyectos', nombres, 'la última lectura de DIgSILENT', f'{len(nombres)} proyecto(s).')
+    return _hallado(ws, 'proyectos', nombres, 'la última lectura de DIgSILENT', f'{cuenta(len(nombres), "proyecto", "proyectos")}.')
 
 
 def _calibracion(svc, ws, proyecto: str | None) -> dict:
@@ -185,7 +186,8 @@ def _calibracion(svc, ws, proyecto: str | None) -> dict:
     if ajuste is None:
         return _no_lo_encuentro('calibracion', f'{proyecto} no tiene calibración aplicada en este espacio: pida calibrarlo.')
     filas = [{k: i.get(k) for k in ('feeder', 'status', 'cuadrado', 'objetivo', 'desvio', 'caso')} for i in ajuste.get('informes') or []]
-    return _hallado(ws, 'calibracion', filas, f"el informe {ajuste.get('report')}", f"Última calibración de {proyecto}: {len(filas)} alimentador(es).")
+    return _hallado(ws, 'calibracion', filas, f"el informe {ajuste.get('report')}",
+                    f"Última calibración de {proyecto}: {cuenta(len(filas), 'alimentador', 'alimentadores')}.")
 
 
 def responder(svc, ws, plan, trabajos: list[dict]) -> dict:

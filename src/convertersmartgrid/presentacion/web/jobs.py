@@ -31,9 +31,13 @@ import time
 import traceback
 import uuid
 from collections import deque
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
+from convertersmartgrid.dominio.util import cuenta
+
+from ...dominio import traza as referencia_soporte
 
 #: «asistente» (spec 026) solo espera: sus pasos encolan en los otros dos carriles, así que
 #: no compite con ellos por el motor ni por DIgSILENT.
@@ -110,8 +114,13 @@ def limite_memoria_mb() -> float:
         return float(LIMITE_MEMORIA_MB)
 
 
-def _en_hijo(fn, args, kwargs, cola, cancelado) -> None:
-    """Lo que corre en el proceso del trabajo: la función con su avance y su Registro."""
+def _en_hijo(fn, args, kwargs, cola, cancelado, traza: str | None = None) -> None:
+    """Lo que corre en el proceso del trabajo: la función con su avance y su Registro.
+
+    086:RF-127: con la referencia de soporte de su trabajo, en el contexto y en ``CSG_TRAZA`` para sus hijos.
+    """
+    if referencia_soporte.valida(traza):
+        os.environ[referencia_soporte.VARIABLE] = traza
     try:
         res = fn(*args, progreso=lambda i, n, m='': cola.put(('progreso', (i, n, m))),
                  log=lambda texto: cola.put(('log', texto)), cancelado=cancelado.is_set, **kwargs)
@@ -131,6 +140,55 @@ EXCLUSIVOS = frozenset({'copia_datos'})
 
 class TrabajoRechazado(RuntimeError):
     """La cola no admite el trabajo mientras corre uno exclusivo, ni uno exclusivo con otros en curso (086:RF-86)."""
+
+
+#: 086:RF-132 (amplía 028:RF-21): los trabajos que, mientras corren, llevan DIgSILENT de su espacio paso a paso por la
+#: web (``tools/sistema_web.py``). Entre dos pasos el carril ``powerfactory`` queda libre unos segundos, y una acción del
+#: operador que entraba ahí dejaba al paso siguiente un 409 que tumbaba la recalibración a media corrida.
+RESERVAN_DIGSILENT = frozenset({'recalibrar'})
+#: La cabecera con la que ``tools/sistema_web.py`` dice de qué trabajo de la web es la petición (``CSG_TRABAJO_PROPIO``).
+CABECERA_TRABAJO_PROPIO = 'x-csg-trabajo-propio'
+#: El trabajo dueño de la petición en curso; vacío si la pide el navegador.
+TRABAJO_PROPIO: ContextVar[str] = ContextVar('trabajo_propio', default='')
+
+
+def reserva_de_digsilent(activos: list['Job'], workspace_id: str, lane: str, propio: str) -> str | None:
+    """086:RF-132: por qué no se admite un trabajo de DIgSILENT en un espacio con una recalibración en curso, o ``None``.
+
+    Los pasos de la propia recalibración (los que piden con su cabecera) sí entran; los demás se rechazan antes de
+    empezar con su motivo, y la recalibración sigue.
+    """
+    if lane != 'powerfactory':
+        return None
+    duenos = [j for j in activos if j.workspace_id == workspace_id and j.kind in RESERVAN_DIGSILENT
+              and j.status not in FINISHED]
+    if not duenos or any(j.id == propio for j in duenos):
+        return None
+    return (f'«{duenos[0].title}» está usando DIgSILENT en este espacio: espere a que termine o cancélela; esta '
+            'acción no se lanzó.')
+
+
+class TrabajoPropio:
+    """086:RF-132: guarda la cabecera del trabajo dueño de la petición para la reserva de DIgSILENT de la cola.
+
+    Middleware ASGI puro: la variable de contexto llega a la ruta, también a las síncronas, que corren con una copia
+    del contexto de la petición.
+    """
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope.get('type') != 'http':
+            await self.app(scope, receive, send)
+            return
+        propio = next((v.decode('latin-1') for k, v in scope.get('headers') or ()
+                       if k.decode('latin-1').lower() == CABECERA_TRABAJO_PROPIO), '')
+        marca = TRABAJO_PROPIO.set(propio.strip())
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            TRABAJO_PROPIO.reset(marca)
 
 
 class JobCancelled(Exception):
@@ -240,6 +298,8 @@ class Job:
     proceso: dict | None = None
     # 096:RF-4/6: una instantánea vieja no puede publicarse después de cancelar o finalizar.
     diario_gate: Any = field(default_factory=threading.RLock, repr=False, compare=False)
+    # 086:RF-127: la referencia de soporte de la petición que lo encoló; sin petición, una propia.
+    traza: str = field(default_factory=lambda: referencia_soporte.actual() or referencia_soporte.nueva())
 
     def public(self) -> dict:
         return {
@@ -256,6 +316,7 @@ class Job:
             'started_at': self.started_at,
             'finished_at': self.finished_at,
             'cancel_requested': self.cancel.is_set(),
+            'traza': self.traza,
         }
 
 
@@ -325,7 +386,7 @@ class JobContext:
         ctx = mp.get_context('spawn')
         cola = ctx.Queue()
         cancelado = ctx.Event()
-        proc = ctx.Process(target=_en_hijo, args=(fn, args, kwargs, cola, cancelado), daemon=True,
+        proc = ctx.Process(target=_en_hijo, args=(fn, args, kwargs, cola, cancelado, self.job.traza), daemon=True,
                            name=f'csg-motor-{self.job.id}')
         self._reservar_proceso()
         try:
@@ -426,6 +487,8 @@ class JobContext:
         # bloques de 8 KB; y en Windows la consola por defecto no es UTF-8.
         full_env.setdefault('PYTHONUNBUFFERED', '1')
         full_env.setdefault('PYTHONIOENCODING', 'utf-8')
+        # 086:RF-127: el guion (y la orden de DIgSILENT que deja) lleva la referencia de soporte de su trabajo.
+        full_env.setdefault(referencia_soporte.VARIABLE, self.job.traza)
         es_pf = 'PF_PYTHON' in full_env
         limite_implicito = es_pf and limite_arranque_s is None
         if limite_implicito:
@@ -682,7 +745,7 @@ class DiarioTrabajos:
                     'pid': self._mi_pid, 'inicio_proceso': self._mi_inicio,
                     'reanudar': job.reanudar, 'relanzado': job.relanzado,
                     'relanzado_de': job.relanzado_de, 'cancel_requested': job.cancel.is_set(),
-                    'proceso': job.proceso,
+                    'proceso': job.proceso, 'traza': job.traza,
                 })
                 return True
             except (OSError, ValueError) as exc:
@@ -778,7 +841,8 @@ class DiarioTrabajos:
                           finished_at=datos.get('finished_at'),
                           reanudar=datos.get('reanudar') if isinstance(datos.get('reanudar'), dict) else None,
                           relanzado_de=datos.get('relanzado_de'), proceso=datos.get('proceso'),
-                          relanzado=bool(datos.get('relanzado')))
+                          relanzado=bool(datos.get('relanzado')),
+                          traza=referencia_soporte.valida(datos.get('traza')) or referencia_soporte.nueva())
             except (OSError, ValueError, KeyError, TypeError) as exc:
                 logging.getLogger(__name__).warning('Diario de trabajos ilegible, %s: %s', ruta.name, exc)
                 continue
@@ -956,7 +1020,10 @@ class JobManager:
                                    'espere a que avancen o cancele alguno antes de añadir otro.')
         activos = [j for j in self.list() if j.status not in FINISHED]
         if kind in EXCLUSIVOS and activos:
-            raise TrabajoRechazado(f'Hay {len(activos)} trabajo(s) en curso: la copia se hace con la web en reposo.')
+            raise TrabajoRechazado(f'Hay {cuenta(len(activos), "trabajo", "trabajos")} en curso: la copia se hace con la web en reposo.')
+        reservado = reserva_de_digsilent(activos, workspace_id, lane, TRABAJO_PROPIO.get())
+        if reservado:
+            raise TrabajoRechazado(reservado)                                    # 086:RF-132
         job = Job(kind=kind, title=title, workspace_id=workspace_id, lane=lane, fn=fn,
                   reanudar=reanudar, relanzado_de=relanzado_de)
         # 086:RF-112: con diario, ningún trabajo (nuevo o sucesor) entra en la cola sin su recibo durable.
@@ -1121,7 +1188,7 @@ class JobManager:
         while True:
             dormido_antes = suspendido_s()
             try:
-                with sin_suspender():                                                   # 096:RF-1
+                with sin_suspender(), referencia_soporte.en_traza(job.traza):          # 096:RF-1, 086:RF-127
                     job.result = job.fn(ctx)
                 break
             except JobCancelled:

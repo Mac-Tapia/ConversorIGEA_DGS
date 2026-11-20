@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ...dominio.digital_twin.episode import Caso, Clase
+from ...dominio.util import cuenta
 
 
 @dataclass(frozen=True)
@@ -72,7 +73,7 @@ def _sin_tension(flujo: dict) -> list[str]:
     if not barras:
         return []
     ejemplos = ', '.join(str(b).rsplit('\\', 1)[-1] for b in barras[:3])
-    return [f'{len(barras)} barra(s) sin tensión, en islas sin fuente (p. ej. {ejemplos})']
+    return [f'{cuenta(len(barras), "barra", "barras")} sin tensión, en islas sin fuente (p. ej. {ejemplos})']
 
 
 def _fuera_de_norma(flujo: dict, lim: Limites) -> list[str]:

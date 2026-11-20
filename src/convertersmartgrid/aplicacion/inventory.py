@@ -8,7 +8,7 @@ from typing import Any
 
 from ..dominio.dataset import TABLAS_TIPOS_LINEA, CymdistDataset
 from ..dominio.naming import feeder_short_name, sort_key_feeder
-from ..dominio.util import write_json_atomic
+from ..dominio.util import write_json_atomic, cuenta
 
 
 def cabecera_xy(dataset: CymdistDataset, network_id: str) -> list[float] | None:
@@ -149,7 +149,7 @@ def build_dataset_inventory(
             'severity': 'warning',
             'code': 'empty_section_blocks',
             'message': (
-                f'{len(stubs)} alimentador(es) con FEEDER=/SOURCE pero 0 filas SECTION '
+                f'{cuenta(len(stubs), "alimentador", "alimentadores")} con FEEDER=/SOURCE pero 0 filas SECTION '
                 f'(se convierten dibujando solo su barra de cabecera; no son redes '
                 f'modeladas): ' + ', '.join(stubs)
             ),

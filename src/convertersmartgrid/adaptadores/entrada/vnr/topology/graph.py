@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from convertersmartgrid.adaptadores.entrada.vnr.models import CanonicalModel
+from convertersmartgrid.dominio.util import cuenta
 
 
 def _require_networkx():
@@ -112,7 +113,7 @@ def validate_topology(
             if not allow_islands:
                 report.issues.append(TopologyIssue(
                     'island',
-                    f'{len(islands)} nodo(s) sin camino a fuente: '
+                    f'{cuenta(len(islands), "nodo", "nodos")} sin camino a fuente: '
                     f'{", ".join(islands[:10])}.', 'error'))
         # Cargas/huérfanos inalcanzables a fluir.
         for load in model.loads:
@@ -122,7 +123,7 @@ def validate_topology(
         if report.orphan_load_count and not allow_islands:
             report.issues.append(TopologyIssue(
                 'orphan_load',
-                f'{report.orphan_load_count} carga(s) sin camino a fuente.', 'error'))
+                f'{cuenta(report.orphan_load_count, "carga", "cargas")} sin camino a fuente.', 'error'))
 
     # Terminales de interruptores/transformadores deben existir como nodos.
     node_ids = {n.node_id for n in model.nodes}

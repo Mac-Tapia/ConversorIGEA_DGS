@@ -26,6 +26,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from starlette.exceptions import HTTPException
 
+from ...dominio import traza
 from ...dominio.edicion import motivo_ruta_negada
 from ...dominio.sesion_web import (CABECERA_TOKEN, HOSTS_LOCALES, PARAMETRO_ACCESO, VARIABLE_PUERTO, FiltroSecretos,
                           Sesion, leer_sesion)
@@ -396,6 +397,32 @@ class SeguridadWeb:
                                 (b'x-frame-options', b'DENY'), (b'content-security-policy', _SIN_MARCO),
                                 (b'content-length', b'0')]})
         await send({'type': 'http.response.body', 'body': b''})
+
+
+class TrazaPeticion:
+    """086:RF-127: cada petición con su referencia de soporte, la del cliente en ``X-CSG-Traza`` si es válida y si no
+    una nueva; la ruta y lo que encola la ven en ``dominio.traza.actual()`` y la respuesta la devuelve en su cabecera.
+    Va por fuera de todo: también un rechazo de la puerta lleva la suya."""
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope['type'] not in ('http', 'websocket'):
+            await self.app(scope, receive, send)
+            return
+        recibida = _cabeceras(scope).get(traza.CABECERA.lower())
+        referencia = traza.valida(recibida) or traza.nueva()
+        cabecera = (traza.CABECERA.lower().encode('latin-1'), referencia.encode('latin-1'))
+
+        async def con_referencia(mensaje):
+            if mensaje['type'] == 'http.response.start':
+                mensaje = {**mensaje, 'headers': [*[(k, v) for k, v in mensaje.get('headers', ())
+                                                    if k.lower() != cabecera[0]], cabecera]}
+            await send(mensaje)
+
+        with traza.en_traza(referencia):
+            await self.app(scope, receive, con_referencia)
 
 
 class AlcanceEdicion:

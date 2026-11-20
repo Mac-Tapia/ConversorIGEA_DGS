@@ -1,6 +1,6 @@
 # Spec 070 — El asistente opera el conversor de punta a punta
 
-Estado: aprobada (2026-11-18: RF-87, esperas finitas del asistente, T23; 2026-11-16: RF-79 a RF-86, el asistente cubre las specs 107 a 112, T16 a T22; 2026-11-15: 070:RF-78 v2, T14 por grupos de módulos; antes implementada)
+Estado: aprobada (2026-11-19: RF-90 y RF-91, contexto defensivo frente a instrucciones escondidas en documentos, T26; 2026-11-18: RF-87, esperas finitas del asistente, T23; 2026-11-16: RF-79 a RF-86, el asistente cubre las specs 107 a 112, T16 a T22; 2026-11-15: 070:RF-78 v2, T14 por grupos de módulos; antes implementada)
 
 Rama de trabajo: `asistente/070`.
 Cita: 026 (asistente), 027 (RF-19, RF-43, RF-44, RF-65), 028 (RF-21 a RF-31), 046 (RF-20 a RF-24), 047 (RF-11),
@@ -183,6 +183,15 @@ le estaban cerradas aunque el operador confirmara.
   cliente de Ollama no abrirá ninguna conexión y la orden seguirá por la vía compatible, como con Ollama apagado; sin la
   variable, nada cambia. Las configuraciones de las pruebas de navegador la ponen cuando corren sin modelo, para que la
   web de prueba no cargue el modelo en la máquina en medio de una e2e.
+- RF-90: (tarjeta MEJ-070-INYECCION, 2026-11-19; Plan Maestro PM-19, PM-23 y §10.7) EL SISTEMA ejecutará un plan que
+  espera al operador (escribe, usa la licencia, sale a la red o lleva el aviso de RF-91) solo tras el clic del operador
+  en la ruta de confirmación, de un solo uso, diga lo que diga el intérprete: el servicio que ejecuta lo exige aunque lo
+  llame otra vía, y SI la confirmación llega con el token de la web o un `Bearer` (un programa), ENTONCES la ruta la
+  rechazará con 403. La barrera está en el código (catálogo, plan, gobierno del equipo, rutas), no en el modelo.
+- RF-91: SI la orden trae texto que da instrucciones al asistente (un documento pegado que dice «ignora lo anterior»,
+  «omite las verificaciones», «sin pedir confirmación», «ignore previous instructions»), ENTONCES EL SISTEMA lo tratará
+  como dato del documento, lo dirá en la propuesta con el trozo citado, y el plan esperará al operador aunque su tarea
+  solo lea o solo prepare un envío; la tarea y sus efectos siguen saliendo del catálogo, nunca del texto.
 
 ## Fuera de alcance
 
@@ -198,4 +207,5 @@ guiones como tareas; rellenar el formulario del informe desde el PDF, que sigue 
 - El corpus sellado del ajuste generativo (047) sigue con las tareas de hasta la 069.
 - Las etiquetas de plata de los textos reales (068) se pusieron con el catálogo anterior: alguna orden que hoy es de una tarea nueva puede enseñar la antigua. La prueba sellada es sintética: el 98 % de las humanas sigue midiéndose con solo las que haya confirmado el operador.
 - La huella b800c6ca1a11d9ba incluía las 3 humanas de entonces. Con más órdenes confirmadas no se reproduce literalmente; lo comparable es la huella de sus filas sintéticas, y salen las que repitan el texto de una humana nueva (047:RF-11).
+- El aviso de RF-91 reconoce las instrucciones por su forma (frases en español e inglés); una redacción que no reconoce no lleva aviso, y la protege igual RF-90: lo que escribe o envía espera el clic del operador.
 - El factor de potencia de una carga sola, si la orden no lo trae, es el que propone el formulario 3.2 (008:RF-27), y el plan lo dice.

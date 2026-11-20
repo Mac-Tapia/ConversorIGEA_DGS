@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from ..dominio.runtime_paths import raiz_local, raiz_programa as project_root
+from ..dominio.util import cuenta, plural
 
 #: Marcador de tipo para los tramos puente mientras se construye el modelo. Se funden
 #: antes de escribir y ningún DGS lo lleva (lo comprueba la auditoría).
@@ -191,8 +192,8 @@ def preparar_dataset(dataset, *, catalogo: Path | str | None = None) -> InformeE
                     'fuente': Path(catalogo).name + (
                         f' (por sección y material, de {origen})' if origen and origen != c else '')})
             añadidos = len(codigos_faltan) - len(eq.sin_resolver)
-            informe.catalogo = (f'Catálogo del proyecto: {añadidos} código(s) de conductor que la '
-                                f'entrada no traía, tomados de {Path(catalogo).name}.')
+            informe.catalogo = (f'Catálogo del proyecto: {cuenta(añadidos, "código", "códigos")} de conductor que la '
+                                f'entrada no traía, {plural(añadidos, "tomado", "tomados")} de {Path(catalogo).name}.')
             if eq.sin_resolver:
                 informe.catalogo += f' Sin parámetros en ningún sitio: {", ".join(eq.sin_resolver)}.'
 

@@ -13,6 +13,10 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 
 def main(argv=None) -> int:
@@ -74,13 +78,13 @@ def main(argv=None) -> int:
                                  args.costo_terna_km, args.candidatos, args.max_bancos)
     r = comparar_controles(grafo, zonas, parametros, medir_nsga2=lambda e: control_nsga2_sistema(
         e, generaciones=args.generaciones, poblacion=args.poblacion))
-    print(f"{len(grafo['nodos'])} barras, {len(zonas)} agente(s); al inicio: en norma {r['inicio']['en_norma']}, "
+    print(f"{len(grafo['nodos'])} barras, {cuenta(len(zonas), 'agente', 'agentes')}; al inicio: en norma {r['inicio']['en_norma']}, "
           f"mínima {r['inicio']['vm_min']:.4f} p.u.")
     for clave in ('escalera', 'nsga2'):
         c = r[clave]
         print(f"{clave}: en norma {c['en_norma']}, costo {c['costo']:.1f}, mínima {c['vm_min']:.4f} p.u., "
-              f"{len(c['obras'])} obra(s), en norma {c['alimentadores_en_norma']}/{c['alimentadores']} alimentadores, "
-              f"{c['evaluaciones']} evaluación(es)")
+              f"{cuenta(len(c['obras']), 'obra', 'obras')}, en norma {c['alimentadores_en_norma']}/{c['alimentadores']} alimentadores, "
+              f"{cuenta(c['evaluaciones'], 'evaluación', 'evaluaciones')}")
     if args.salida:
         args.salida.write_text(json.dumps(r, ensure_ascii=False, indent=2), encoding='utf-8')
     return 0

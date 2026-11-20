@@ -17,6 +17,7 @@ from .fases_red import fases_de_carga_que_llegan, fases_desde_la_cabecera
 from .dataset import (TABLAS_TIPOS_AEREO, TABLAS_TIPOS_LINEA,
                        TABLAS_TIPOS_SUBTERRANEO)
 from .naming import feeder_short_name
+from .util import cuenta
 
 # Optional equipment/substation suffix in customer/device IDs (utility-specific
 # coding). Matches a trailing token like SE40699, M40699, TR12, SUB-01 — not
@@ -922,7 +923,7 @@ def apply_georeferenced_lengths(model: FeederModel, dataset: CymdistDataset) -> 
     model.section_by_id = {line.section_id: line for line in new_lines}
     if updated:
         model.warnings.append(
-            f'Longitudes de {updated} tramo(s) MT actualizadas desde nodos georreferenciados '
+            f'Longitudes de {cuenta(updated, "tramo", "tramos")} MT actualizadas desde nodos georreferenciados '
             f'(FromNode/ToNode + intermedios); {kept_txt} conservaron {palabras_de(model.fuente)["longitud"]}.'
         )
     return model
@@ -979,7 +980,7 @@ def check_length_scale_agreement(
 
     p = palabras_de(model.fuente)
     detail = (
-        f'{compared} tramo(s) comparados: razón georreferencia/{p["fuente"]} mediana '
+        f'{cuenta(compared, "tramo comparado", "tramos comparados")}: razón georreferencia/{p["fuente"]} mediana '
         f'{median_ratio:.4g} (MAD {mad:.3g}); {outside} fuera de '
         f'[{warn_band[0]:g}, {warn_band[1]:g}]'
     )
@@ -1164,8 +1165,8 @@ def describe_islands(name: str, source_node: str, islands: dict) -> str:
     sample = ', '.join(sections[:8])
     more = '' if len(sections) <= 8 else f' (+{len(sections) - 8} más)'
     detalle = (
-        f'{name}: {len(sections)} tramo(s), {len(islands["nodes"])} nodo(s), '
-        f'{len(islands["loads"])} carga(s) y {len(islands["seds"])} SED desconectados '
+        f'{name}: {cuenta(len(sections), "tramo", "tramos")}, {cuenta(len(islands["nodes"]), "nodo", "nodos")}, '
+        f'{cuenta(len(islands["loads"]), "carga", "cargas")} y {len(islands["seds"])} SED desconectados '
         f'del SOURCE ({source_node}). Revise SECTION/FromNode/ToNode en el RED. '
         f'Ejemplos: {sample}{more}'
     )
@@ -1295,7 +1296,7 @@ def _fases_coherentes(name: str, source_node: str, lines: list[Line],
         nuevas_cargas.append(c if llegan == propias else replace(c, phase=llegan))
     avisos = []
     if cambiados or por_carga:
-        avisos.append(f'{name}: FASE_RECONSTRUIDA, {len(cambiados)} tramo(s) y {len(por_carga)} SED o carga(s) con fases que '
+        avisos.append(f'{name}: FASE_RECONSTRUIDA, {cuenta(len(cambiados), "tramo", "tramos")} y {cuenta(len(por_carga), "SED o carga", "SED o cargas")} con fases que '
                       'no les llegaban desde la cabecera, corregidos aguas arriba o tomando las del tramo padre.')
     return nuevas_lineas, nuevas_cargas, avisos + por_carga
 
@@ -1521,7 +1522,7 @@ def build_feeder_model(
     warnings: list[str] = list(aviso_fases)
     if node_aliases:
         warnings.append(
-            f'{name}: {len(node_aliases)} extremo(s) DEFAULT corto(s) conectado(s) a su '
+            f'{name}: {cuenta(len(node_aliases), "extremo DEFAULT corto conectado", "extremos DEFAULT cortos conectados")} a su '
             'nodo eléctrico coincidente por coordenadas (tolerancia 1 cm).'
         )
     auto_aliased = {
@@ -1606,7 +1607,7 @@ def build_feeder_model(
         more = '' if len(proof['errors']) <= 12 else f' (+{len(proof["errors"]) - 12} más)'
         message = (
             f'{name}: prueba de conexión MT/SED falló '
-            f'({proof["errors_total"]} error(es)): {detail}{more}'
+            f'({cuenta(proof["errors_total"], "error", "errores")}): {detail}{more}'
         )
         if strict:
             raise ModelBuildError(message)
@@ -1621,7 +1622,7 @@ def build_feeder_model(
         if proof['lines_without_coords'] or proof['seds_without_coords']:
             summary += (
                 f' Sin georreferencia (geografía desactivada): '
-                f'{proof["lines_without_coords"]} tramo(s) y '
+                f'{cuenta(proof["lines_without_coords"], "tramo", "tramos")} y '
                 f'{proof["seds_without_coords"]} SED conservan la longitud {palabras_de(model.fuente)["del"]}.'
             )
         if scale['compared']:

@@ -34,7 +34,7 @@ from .demanda_medida import (
     registros_de_hoja,
 )
 from .libros_por_anio import arbol_de_libros
-from ..dominio.util import publicar_duradero
+from ..dominio.util import publicar_duradero, cuenta
 
 #: Un mes «repite» otro si al menos esta fracción de sus registros es igual (RF-15). Abril de 2026 frente a marzo:
 #: el 100 %; marzo frente a febrero, del 2 al 4 %; mayo frente a abril, el 0 %.
@@ -364,7 +364,7 @@ def curvas_de_cabecera_por_hoja(path: Path | str, alias=ALIAS) -> tuple[dict[str
         curva = [(r.fecha, r.valores.get('kw'), r.valores.get('kvar')) for r in registros
                  if isinstance(r.fecha, datetime) and r.valores.get('kw') is not None]
         if len(curva) < len(registros):
-            avisos.append(f'{hoja}: {len(registros) - len(curva)} registro(s) sin fecha y hora o sin kW.')
+            avisos.append(f'{hoja}: {cuenta(len(registros) - len(curva), "registro", "registros")} sin fecha y hora o sin kW.')
         salida[hoja] = sorted(curva, key=lambda f: f[0])
     return salida, avisos
 

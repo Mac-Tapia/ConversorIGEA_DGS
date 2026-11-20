@@ -41,6 +41,7 @@ from ...dominio.pit.ambito import AreaPit
 from .motores import ejecutar
 from ...aplicacion.pit.red_area import RedArea
 from .red_pandapower import ResultadoFlujo
+from ...dominio.util import cuenta as _cuenta
 
 __all__ = ['Diagnostico', 'agregar_demanda', 'diagnosticar', 'emergencia_rm129', 'limites_de_tension',
            'limites_del_estudio']
@@ -639,7 +640,7 @@ def _resumen_referencias(diag: Diagnostico, tension: Mapping[str, Any],
         else:
             rango = 'no se compara: falta ' + '; '.join(e.get('falta') or ())
         peor = max(fuera, key=lambda x: abs(x['valor'] - x['limite']), default=None)
-        detalle = (f'; fuera de rango en {len(fuera)} caso(s), el peor {peor["valor"]:.4f} p.u. ({peor["caso"]}) '
+        detalle = (f'; fuera de rango en {_cuenta(len(fuera), "caso", "casos")}, el peor {peor["valor"]:.4f} p.u. ({peor["caso"]}) '
                    f'contra {peor["limite"]:g}' if peor else '')
         diag.avisos.append(f'tensión de referencia, no cuenta como violación: barra {barra}, {cifra}; {rango}'
                            f'{detalle}; fuente: {e["fuente"]}')

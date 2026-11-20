@@ -41,6 +41,11 @@
 - [x] T7. Decisiones del integrador para las siete familias: criterio único de cabeceras, identidad en la captura, dataset único, consultas reservadas del maestro, casos desde escaleras y huella de política. (RF-22, RF-23, RF-24, RF-25, RF-26, RF-27, RF-28, RF-29, RF-30)
       Hecho cuando: `pytest -q tests/test_preparar_ciclo_aprendizaje.py` pasa y el preflight real de las siete familias consta con sus motivos. No acredita T1b ni T2b.
       Hecho el 2026-11-08: pruebas en verde y preflight real de las siete familias en `preparado`, tras regenerar los manifiestos en el árbol principal, donde está el perfil local.
+- [x] T8. Plan del ciclo con esquema validado, preparado desde el almacén con `--solo-preparar` y con la matriz por familia de la auditoría de datasets del 2026-11-18 (D1, D7). (RF-32, RF-33, RF-34, RF-35)
+      Hecho cuando: `pytest -q tests/test_plan_ciclo_aprendizaje.py tests/test_aprendizaje_cola.py tests/test_arquitectura_aprendizaje.py tests/test_preparar_ciclo_aprendizaje.py` pasa, y el plan real generado por el integrador en `output/web/_asistente/aprendizaje/plan.json` carga con `cargar_plan_ciclo`, `validar_plan_ciclo` no devuelve faltas y la matriz de las siete familias consta con sus motivos. No acredita T3b, T4b ni T5b.
+      Avance 2026-11-19 (MEJ-050-PLAN): esquema, validador, `--solo-preparar` y matriz implementados con ocho pruebas sobre un almacén sintético en `tmp_path`, rojas por aserción sobre el árbol faf67626. Ensayo de solo lectura sobre el almacén real, con salida fuera de él: las siete familias en `bloqueado_por_datos` (dataset por defecto v1, sin `--cabeceras`, `--llm-dataset` ni casos, búfer sin identidad 043 completa) y ningún plan escrito; falta la declaración del operador (espacio, presupuesto, fuentes) y la puerta pytest.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
 
 ## Evidencia y límites actuales
 

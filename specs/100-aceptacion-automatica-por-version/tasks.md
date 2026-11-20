@@ -12,3 +12,11 @@
       Hecho en 016498fc (LOTE-1); pruebas: tests/test_aceptacion_version.py -k veredicto.
 - [ ] T4. [DIgSILENT] Primera corrida completa de la matriz sobre una versión candidata, en proyectos de prueba. (Todos)
       Hecho cuando: el informe de la versión da todos los casos aceptados.
+- [x] T5. La matriz estudio × motor en el dominio, su ruta `GET /api/estudios/matriz` y el recurso del estado de las specs para el programa instalado. (RF-8, RF-9, RF-10, RF-11, RF-13)
+      Hecho cuando: `pytest -q tests/test_matriz_estudios.py` en verde, con su rojo sobre faf67626 (el módulo no existe).
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T6. La marca «Sin validar» o el apagado «No disponible» en la web, en cada estudio con el motor de su botón. (RF-12)
+      Hecho cuando: `node --test test/matrizEstudios.test.mjs` y `tsc` en verde, con su rojo sobre faf67626.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).

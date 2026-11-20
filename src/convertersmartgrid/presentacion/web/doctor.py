@@ -87,8 +87,13 @@ def _capacidades(diagnostico: Mapping[str, Any]) -> list[Comprobacion]:
     return salida
 
 
-def _digsilent(carpeta: Callable[[], Path | None]) -> Comprobacion:
-    """No se conecta: abrir DIgSILENT gasta licencia y aquí solo se pregunta si está."""
+def _digsilent(carpeta: Callable[[], Path | None],
+               interprete: Callable[[Path], tuple[Path | None, str]] | None = None) -> Comprobacion:
+    """No se conecta: abrir DIgSILENT gasta licencia y aquí solo se pregunta si está.
+
+    086:RF-131 (amplía 103:RF-4): dice qué Python pide la PowerFactory detectada y si el programa lo tiene; sin él,
+    DIgSILENT no se puede usar aunque su API esté (antes salía «bien» y la acción fallaba al lanzarse).
+    """
     pf = carpeta()
     afecta = 'Importar en DIgSILENT, calibrar, estudios, obras e informes. Convertir a DGS sigue funcionando.'
     # 103:RF-4: ninguna versión fija; se dice lo instalado y qué le falta a cada una.
@@ -102,10 +107,19 @@ def _digsilent(carpeta: Callable[[], Path | None]) -> Comprobacion:
     if not (Path(pf) / 'powerfactory.pyd').is_file():
         return Comprobacion('digsilent', 'DIgSILENT PowerFactory', False, False, f'En {pf} no está powerfactory.pyd.', afecta, arreglo)
     # 103:RF-6: qué Python trae el programa para las PowerFactory que no cargan con el suyo.
-    from ...adaptadores.powerfactory_env import interpretes_embebidos
+    from ...adaptadores.powerfactory_env import falta_python_de_pf, interpretes_embebidos, pf_api_version, python_for_pf
     embebidos = interpretes_embebidos()
     extra = f' Python para otras PowerFactory: {", ".join(embebidos)}.' if embebidos else ''
-    return Comprobacion('digsilent', 'DIgSILENT PowerFactory', True, False, f'API en {pf}.{extra}', afecta, '')
+    pf = Path(pf)
+    version = pf_api_version(pf)
+    instalacion = pf.parent.parent.name if pf.parent.name == 'Python' else None
+    elegido, motivo = (interprete or python_for_pf)(pf)
+    if elegido is None:
+        return Comprobacion('digsilent', 'DIgSILENT PowerFactory', False, False,
+                            f'API en {pf}; pide Python {version or "?"} y el programa no lo encuentra.{extra}', afecta,
+                            falta_python_de_pf(instalacion, version))
+    pide = f' Pide Python {version}: {motivo}.' if version else ''
+    return Comprobacion('digsilent', 'DIgSILENT PowerFactory', True, False, f'API en {pf}.{pide}{extra}', afecta, '')
 
 
 def _interfaz(programa: Path) -> Comprobacion:
@@ -368,7 +382,8 @@ def diagnosticar(
     python_ok = bool(capacidades['python_valido'])
     comprobaciones = [
         Comprobacion('python', 'Python', python_ok, True, f'Python {capacidades["python"]}.',
-                     'Todo el programa, y hablar con DIgSILENT, cuya API solo carga en 3.12.',
+                     # 086:RF-131: DIgSILENT no depende de este Python: usa el que pide su versión (fila «digsilent»).
+                     'Todo el programa. DIgSILENT usa aparte el Python que pide su versión.',
                      '' if python_ok else f'Se requiere 3.12. {_REINSTALAR}'),
         *_capacidades(capacidades), _interfaz(raiz), *_carpeta_datos(raiz, espacio_minimo_mb),
         _digsilent(carpeta_pf), _perfil(), _calibracion_del_perfil(), _ia(buscar_modulo),

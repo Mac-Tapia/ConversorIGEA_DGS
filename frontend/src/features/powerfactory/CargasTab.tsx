@@ -27,6 +27,7 @@ import { GemeloPIDE } from './GemeloPIDE';
 import { DESTINO, PrefijoPasos, SeguirDondeQuedo, TipoDeAnalisis, estadoConDisco, useProyectoDelEspacio, useTiposAnalisis, type EstadoPasos } from './TipoDeAnalisis';
 import type { ClaveTipoAnalisis } from '../../api/types';
 import { AvisoBeta, MarcaBeta } from '../../shared/MarcaBeta';
+import { MarcaValidacion } from '../../shared/MarcaValidacion';
 import { betaActiva } from '../../shared/edicion';
 import { Ayuda, FileDrop, Modal, Toggle, useToast } from '../../shared/ui';
 import { RESUMEN_SIN_CARGAS, proyectoDeEstudio, textosObras, type CargaAplicadaEnDisco, ofrecerObrasEstadoActual } from './obrasEstadoActual';
@@ -574,7 +575,7 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
 
       <fieldset disabled={bindingBlocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       <div className="step-box" id={pref + DESTINO.calibracion} tabIndex={-1}>
-        <h3>2 · Alimentadores y calibración{current ? ` de ${current.name}` : ''}</h3>
+        <h3>2 · Alimentadores y calibración{current ? ` de ${current.name}` : ''} <MarcaValidacion estudio="calibracion" motor="digsilent" /></h3>
         <AvisosTrabajo paso="pf-calibracion" />
         {!current ? <>
           <p className="muted">Elija un proyecto en el paso 1.</p>
@@ -782,7 +783,7 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
 
       {/* Spec 011, RF-42 y RF-98: con el mismo proyecto y los mismos alimentadores marcados. */}
       {verObras && <div className="step-box" id={pref + DESTINO.obras} tabIndex={-1}>
-        <h3>4 · Obras y estudios</h3>
+        <h3>4 · Obras y estudios <MarcaValidacion estudio="obras" motor="digsilent" /></h3>
         <div className="row">
           <label className="field"><span>Proyecto que se estudia</span>
             <select value={estudioProyecto || (current ? project : '')}

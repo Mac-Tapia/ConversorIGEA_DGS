@@ -159,7 +159,9 @@ def enviar(guion: str, argv: list[str], cola: Path, *, dormir=time.sleep,
     tmp.write_text(json.dumps({'id': ident, 'guion': guion, 'argv': argv,
                                'raiz': pf_arnes.carpeta_del_codigo(__file__),       # 019:RF-27
                                'cliente': os.getpid(),
-                               'cliente_inicio': pf_arnes.inicio_proceso(os.getpid())}),
+                               'cliente_inicio': pf_arnes.inicio_proceso(os.getpid()),
+                               # 086:RF-127: la referencia de soporte del trabajo, para el registro del servidor.
+                               'traza': os.environ.get('CSG_TRAZA') or None}),
                    encoding='utf-8')
     orden = cola / f'{ident}.orden.json'
     en_curso = cola / f'{ident}.en_curso.json'

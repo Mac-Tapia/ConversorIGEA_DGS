@@ -417,6 +417,11 @@ datos del servidor. Sobraban además seis textos de la vista inicial.
 - Aclaración de RF-110 (2026-11-19, revisión de la web en navegador real): vale para toda la web, no solo la vista
   inicial: ningún texto con «palabra(s)» o «palabra(es)» (la cuenta concuerda), y el Registro nombra cada casilla como
   la ve el operador («CARGA»), nunca por su clave interna («loads»).
+- Aclaración de RF-110 (2026-11-19, W5b): vale también para los textos que manda el servidor (avisos, motivos,
+  `detail`, Registro, informes y cabeceras de los libros): el número concuerda con su nombre, su adjetivo y su verbo.
+- Aclaración de RF-110 (2026-11-19, T104): vale también para los guiones de `tools/`, los que corren con el intérprete
+  de DIgSILENT PowerFactory incluidos, porque sus avisos, su resumen y su Registro llegan a la web: la cuenta concuerda
+  con su nombre, su adjetivo y su verbo, sin cambiar cálculos, claves ni órdenes a DIgSILENT.
 - Aclaración de RF-110 (2026-11-16): los seis textos de la prueba con la cuenta local: «0 fichero(s) asignados por
   contenido»; «PowerFactory 2024 · Python 3.12» en la cabecera (Python pasa a la ayuda); «Pendientes: la fuente: …»;
   «(proyecto: no se presenta como norma vigente)» de la RM 428-2017, ahora en una frase y solo con un tipo elegido
@@ -534,6 +539,36 @@ mientras los demás casos pasaban a 1,0278.
   una SET y en el de un sistema eléctrico. El valor por defecto de cada análisis no cambia (la coincidente, la barra de la SET o el sistema) y
   la web lo sigue proponiendo según el proyecto. Elegida, la web y el informe de la calibración dicen la fecha y hora de
   cada alimentador y avisan, sin bloquear, de que esos instantes no ocurrieron juntos.
+- RF-127: (Plan Maestro PM-14 y PM-25, soporte en producción) EL SISTEMA dará a cada petición de la API una referencia
+  de soporte: la que trae el cliente en `X-CSG-Traza` si son de 8 a 64 letras, cifras, guiones o guiones bajos, y si no
+  una nueva; la respuesta la devuelve en esa cabecera. El trabajo que la petición encola la hereda (uno encolado sin
+  petición lleva la suya), la publica con el trabajo y la guarda en su diario; el motor la recibe en `CSG_TRAZA` (los
+  guiones de DIgSILENT y los procesos aparte del motor), y la orden de DIgSILENT la apunta en el registro del servidor
+  y en su fila de `ordenes.jsonl`. El informe Word la lleva en sus propiedades y su JSON par en `traza`. La web deja
+  copiar la referencia de un trabajo fallido o interrumpido, con texto para el operador y sin citas internas.
+- RF-128: (Plan Maestro PM-25; amplía RF-10 y RF-47, cumplidas) AL restaurar una copia de los datos (`output/web`, con
+  `_asistente`, y las demás raíces del manifiesto), EL SISTEMA comprobará las huellas SHA-256 de la copia antes de
+  tocar nada (como hasta ahora) y, ya publicada la restauración, volverá a leer cada nombre restaurado en su sitio y lo
+  comparará con el tamaño y la huella del manifiesto. SI alguno no cuadra, ENTONCES se negará diciendo cuál y dejará
+  los datos como estaban antes de restaurar; si cuadran todos, el resultado dirá cuántos se comprobaron.
+- RF-129: (revisión de motores del 19-11, hallazgo 2; amplía 024:RF-39, 046:RF-23 y RF-15, cumplidas) SI el gemelo o
+  el pronóstico no tienen GPU CUDA, ENTONCES EL SISTEMA dejará el informe del entrenamiento con `sin_gpu` y su motivo,
+  y el trabajo de la web terminará con error y ese motivo en una línea, sin traza; un informe que falta o trae error
+  hará fallar el trabajo con su causa. Dentro del aprendizaje activo, los escenarios simulados se conservan y el
+  trabajo termina «parcial» con el motivo del entrenamiento.
+- RF-130: (revisión de motores del 19-11, hallazgo 3; amplía 019:RF-2 y 091:RF-1, cumplidas) SI una acción no pudo
+  usar DIgSILENT porque el turno lo tiene otra sesión viva, ENTONCES EL SISTEMA dirá «DIgSILENT está ocupado por otra
+  sesión; espere su turno», con quién lo tiene y desde cuándo, y no lo atribuirá a la licencia; el servidor de
+  DIgSILENT del propio programa no cuenta como otra sesión.
+- RF-131: (revisión de motores del 19-11, hallazgo 10; amplía 103:RF-4, cumplida) EL SISTEMA dirá en el diagnóstico y
+  al lanzar una acción de DIgSILENT la versión de Python que pide la PowerFactory detectada y si el programa la tiene;
+  si falta, que se reinstale el programa (que trae el Python de cada versión) o se elija otra instalación. Ningún
+  mensaje fija una versión de Python ni pide instalarla.
+- RF-132: (revisión de motores del 19-11, hallazgo 11; amplía 028:RF-21, cumplida) MIENTRAS una recalibración lleve
+  DIgSILENT de su espacio paso a paso, EL SISTEMA rechazará antes de empezar, con su motivo, cualquier otro trabajo de
+  DIgSILENT de ese espacio, y dejará entrar los pasos de la propia recalibración, que se identifican con su trabajo; un
+  paso que encuentra su carril ocupado esperará a que termine el trabajo que lo ocupa y repetirá, sin abortar la
+  recalibración.
 
 ## Fuera de alcance
 

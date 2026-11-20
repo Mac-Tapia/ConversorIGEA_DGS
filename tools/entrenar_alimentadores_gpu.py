@@ -22,6 +22,9 @@ if str(REPO / 'src') not in sys.path:
     sys.path.insert(0, str(REPO / 'src'))
 
 from convertersmartgrid.adaptadores.digital_twin import pronostico as pr  # noqa: E402
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 CADENCIA_MIN = 15
 ZONA_HORARIA = 'America/Lima'
@@ -111,7 +114,7 @@ def main(argv=None) -> int:
     exigir_memoria_ml(minimo_fisico_gib=1.0, minimo_commit_gib=4.0)
     puntos, _avisos = equivalencias(args.equivalencia)
     alimentadores = seleccion(puntos, args.alimentadores, args.limite)
-    print(f'{len(alimentadores)} alimentador(es), uno tras otro.', flush=True)
+    print(f'{cuenta(len(alimentadores), "alimentador", "alimentadores")}, uno tras otro.', flush=True)
     fuentes = {'cabecera': args.cabecera, 'equivalencia': args.equivalencia, 'clientes': args.clientes,
                'suministros': args.suministros}
     resultados = []
@@ -130,7 +133,7 @@ def main(argv=None) -> int:
                                               encoding='utf-8')
     errores = [r['alimentador'] for r in resultados if r['status'] == 'ERROR']
     entrenados = sum(r['status'] == 'ENTRENADO' for r in resultados)
-    print(f'{entrenados} entrenado(s), {len(errores)} con error{": " + ", ".join(errores) if errores else ""}.')
+    print(f'{cuenta(entrenados, "entrenado", "entrenados")}, {len(errores)} con error{": " + ", ".join(errores) if errores else ""}.')
     # 089:RF-90: un error no se esconde en el resumen; la orden termina con código 1.
     return 1 if errores else 0
 

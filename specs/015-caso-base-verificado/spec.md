@@ -1,6 +1,6 @@
 # Spec 015 — «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas
 
-Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: revisión de la aceptación de CA101 del 2026-10-14
+Estado: cumplida (reabierta y cerrada el 2026-11-19 con MEJ3-CALIB por orden del usuario; su corrida en DIgSILENT va en 086 T105) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: revisión de la aceptación de CA101 del 2026-10-14
 
 ## Contexto y objetivo
 
@@ -269,6 +269,16 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
 - RF-70: SI el proyecto no tiene ninguna conversión vinculada, ENTONCES EL SISTEMA lo calibrará con los datos del
   propio proyecto de DIgSILENT, sin exigir un «Caso base» verificado contra un DGS, y lo dirá en sus avisos. (Regla
   del usuario, 2026-11-13: se calibra cualquier proyecto que esté en DIgSILENT, convertido o no por el conversor.)
+- RF-71: (regla del usuario del 2026-11-06, AL209, y orden del 19-11; amplía RF-68) CUANDO valida la calibración, EL
+  SISTEMA contará por alimentador las escaladas con potencia instalada que consumen menos de 1 kW
+  (`ESCALADA_CASI_CERO_KW`, antes 10 W) y comprobará el factor común de las escaladas; SI alguna queda bajo 1 kW o el
+  factor es menor que 0,05 (`FACTOR_ESCALADAS_ANORMAL`), ENTONCES EL SISTEMA lo dirá en un aviso con las SED, el factor y
+  la suma de las fijas frente a la cabecera, y con el factor por debajo de 0,05 no dará la calibración por válida
+  (`ESCALADAS_CASI_CERO`; RF-69 deja grabado el reparto). Una SED pequeña bajo 1 kW con el factor normal se avisa sin
+  invalidar. AL209 con las fijas del máximo de cada mes daba un factor de 0,0097 y 39 SED bajo 1 kW como válida.
+- RF-72: (regla del usuario del 2026-10-15 y orden del 19-11; amplía RF-66) CUANDO calibra un alimentador con central en
+  su tramo, solo o en el proyecto, EL SISTEMA pondrá también sus bancos existentes a su máxima capacidad antes de medir,
+  fuera de la etapa de la central, y dirá en el informe los que cambió.
 
 ## Requisitos que esta spec cambia
 

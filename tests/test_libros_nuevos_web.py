@@ -652,7 +652,7 @@ def test_104_rf20_rf21_el_aviso_es_una_linea_lo_visto_se_borra_y_no_vuelve():
     from convertersmartgrid.presentacion.web.libros_nuevos import clave_de_aviso, compactar_avisos, resumen_de_aviso
 
     largo = '0226clientesImportantes.xlsb: queda fuera del dataset del pronóstico: ' + '; '.join(
-        f'18100{i}: 288 registro(s) de la hoja «h{i}» sin fecha o sin EA.' for i in range(76))
+        f'18100{i}: 288 registros de la hoja «h{i}» sin fecha o sin EA.' for i in range(76))
     corto = resumen_de_aviso(largo)
     assert len(corto) < 300 and corto.endswith('y 75 más (detalle en el Registro)')
     assert resumen_de_aviso('Llegó octubre 2026') == 'Llegó octubre 2026'

@@ -26,6 +26,7 @@ from typing import Any, Mapping, Sequence
 from ..aplicacion.estudios_pf import EstudiosError, Limites
 from ..aplicacion.instalacion_ternas import describir as describir_ternas
 from ..dominio.perfil_empresa import PerfilError, moneda_informes
+from ..dominio.util import cuenta
 
 #: Los dos tipos de informe (RF-1, RF-1b).
 TIPOS = ('factibilidad', 'estudio')
@@ -747,7 +748,7 @@ def frases_diagnostico(d: Mapping[str, Any] | None) -> list[str]:
         partes.append(f"{len(tension['provocadas'])} barras bajo {numero(d['limites']['tension_min_pu'], 2)} p.u. "
                       f"(la más baja, {peor['barra']}, a {numero(peor['cargas'], 3)} p.u.)")
     if sobre:
-        tramos = (f"{len(trechos)} trecho(s) de " + ', '.join(f"{t['desde']} a {t['hasta']}" for t in trechos)
+        tramos = (f"{cuenta(len(trechos), 'trecho', 'trechos')} de " + ', '.join(f"{t['desde']} a {t['hasta']}" for t in trechos)
                   if trechos else ', '.join(f['elemento'] for f in sobre))
         partes.append(f'{len(sobre)} tramos sobrecargados ({tramos})')
     frases = [f"Sin obras, la carga nueva ocasiona {' y '.join(partes)}."]

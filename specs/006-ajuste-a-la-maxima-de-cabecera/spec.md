@@ -1,6 +1,6 @@
 # Spec 006 — Ajuste de las demandas a la máxima de cabecera
 
-Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: uso de la demanda medida (spec 004, RF-22 a RF-43) con los libros reales, 2026-10-09
+Estado: cumplida (reabierta y cerrada el 2026-11-19 con MEJ3-CALIB por orden del usuario; su corrida en DIgSILENT va en 086 T105) · aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: uso de la demanda medida (spec 004, RF-22 a RF-43) con los libros reales, 2026-10-09
 
 ## Contexto y objetivo
 
@@ -99,7 +99,7 @@ Cuadre con las pérdidas
   también se cuadra la Q, moviendo solo la de las escaladas.
 - RF-13: SI las SED con clientes importantes ya superan el objetivo, o no dejan nada que
   repartir, ENTONCES EL SISTEMA las escalará también, junto con las demás, hasta cuadrar,
-  y lo dirá.
+  y lo dirá. Cambiado por RF-46 (orden del usuario del 19-11): las fijas ya no se escalan nunca.
 - RF-14: SI el kW cumple la tolerancia, ENTONCES EL SISTEMA aceptará el ajuste con estado
   `OK` o `AVISO_KVAR`. El informe y la interfaz mostrarán siempre el objetivo de kVAR,
   el resultado del flujo nativo, la diferencia firmada y relativa, la tolerancia y
@@ -126,6 +126,14 @@ Cuadre con las pérdidas
   de clientes fijos) medirán en pantalla lo mismo que el texto del título, sea cual sea el ancho de la gráfica. (Usuario,
   2026-11-12: «disminuir el tamaño de las letras y números de las etiquetas de los ejes al mismo tamaño del título»; en
   una pantalla ancha medían unos 26 px.)
+- RF-46: (orden del usuario del 19-11, revisión de la calibración de cargas: «las fijas con su P y Q, a escala 1»;
+  cambia RF-13) EL SISTEMA no aplicará ningún factor de escala a las SED fijas. SI las fijas llenan o superan la máxima de
+  cabecera y hay escaladas con potencia instalada, ENTONCES EL SISTEMA dejará las escaladas al mínimo, ejecutará un flujo
+  para medir sus pérdidas y dará el alimentador por imposible con su causa (086:RF-124: lo que da frente a lo medido, sus
+  fijas, sus pérdidas y la SED fija que más pesa), sin darlo por calibrado. SI no hay ninguna escalada con potencia
+  instalada conocida, ENTONCES EL SISTEMA lo dará por no calibrable con su causa («no se puede repartir»), sin ejecutar
+  flujos ni escribir cargas. Antes, con 5 000 kW de cabecera, 10 000 kVA de escaladas y 5 010 kW de fijas, las fijas
+  quedaban en 1 691 kW, cuando con 4 990 kW de fijas quedaban en 4 990 kW.
 
 Convergencia
 

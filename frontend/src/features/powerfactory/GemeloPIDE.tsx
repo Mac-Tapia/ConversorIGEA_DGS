@@ -3,6 +3,7 @@ import { Ayuda } from '../../shared/ui';
 import { useEffect, useId, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
+import { MarcaValidacion } from '../../shared/MarcaValidacion';
 import { CampoAnioPresentacion, motivoAnio } from './TipoDeAnalisis';
 import type { ClaveTipoAnalisis, EpisodioResumen, ObraPIDE, PideResultado, PideAnualResultado, PideFuentes, PideSolicitud,
   TiposAnalisis } from '../../api/types';
@@ -120,7 +121,8 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
   if (!feeders.length) return <p className="muted">Marque al menos un alimentador en el paso 2.</p>;
   return (
     <div>
-      <h4>5.1 · Plan de inversiones (PIDE)</h4>
+      <h4>5.1 · Plan de inversiones (PIDE) <MarcaValidacion estudio={plazoPeticion === 'largo_plazo' ? 'largo_plazo' : 'pide'}
+        motor="digsilent" /></h4>
       <label className="field"><span>Flujo de planeamiento</span>
         <select value={modo} disabled={pfBusy} onChange={(e) => setModo(e.target.value as typeof modo)}>
           <option value="historico">Diagnóstico y propuesta del horizonte</option>
@@ -169,7 +171,7 @@ export function GemeloPIDE({ project, feeders, plazo = null, anio: anioExterno, 
 
       {/* 086:RF-15 (usuario, 2026-11-13): el gemelo, también en la edición de producto. */}
       <>
-      <h4>5.2 · Gemelo digital</h4>
+      <h4>5.2 · Gemelo digital <MarcaValidacion estudio="gemelo" motor="pinn" /></h4>
       <Ayuda>Aprende de cada acción en DIgSILENT. Aquí simula escenarios (demanda y tramos fuera de servicio)
         en una copia del proyecto, que se borra al terminar, y reentrena el modelo si toca.</Ayuda>
       <div className="row">

@@ -47,7 +47,7 @@ from ..aplicacion.demanda_medida import (
 from .digital_twin.pronostico import Objetivo
 from ..aplicacion.libros_nuevos import mes_anterior, nombre_de_mes, repite_otro_mes
 from ..dominio.perfil_empresa import PerfilError, centrales_termicas, datos_perfil
-from ..dominio.util import publicar_duradero
+from ..dominio.util import publicar_duradero, cuenta
 
 Curva = Sequence[tuple[datetime, float, float | None]]
 
@@ -903,7 +903,7 @@ def armar_dataset(fuentes: Fuentes) -> Dataset:
         avisos.append('sin libro de suministros no se sabe de qué alimentador es cada cliente: no se dan escaladas')
     sin_alimentador = len(por_alimentador.get('', []))
     if sin_alimentador:
-        avisos.append(f'{sin_alimentador} cliente(s) sin alimentador en el libro de suministros: sus escaladas quedan sin restarlos')
+        avisos.append(f'{cuenta(sin_alimentador, "cliente", "clientes")} sin alimentador en el libro de suministros: sus escaladas quedan sin restarlos')
     ultimos = [c0.t[-1] for lista in por_alimentador.values() for c0 in lista if len(c0)]
     ultimo_clientes = max(ultimos).astype('datetime64[us]').item() if ultimos else None
     primeros = [c0.t[0] for lista in por_alimentador.values() for c0 in lista if len(c0)]

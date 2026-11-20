@@ -173,7 +173,7 @@
 
   <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
   <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo.</p>
-  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107, 108, 109, 111). 452 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
+  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107, 108, 109, 111). 455 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
 
   <div class="c4-toolbar">
     <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
@@ -329,28 +329,28 @@
         normativa: { label: 'Biblioteca normativa', tech: 'Vigencia y cita de cada regla', path: 'src/convertersmartgrid/aplicacion/biblioteca_normativa.py', kind: 'engine', detail: 'Normas nacionales e internacionales con su vigencia, sus modificaciones y la cita de cada regla; vale para toda empresa, estudio y módulo, y para el asistente.' },
         bench: { label: 'Benchmarks anonimizados', tech: 'Desidentificados, solo en local', path: 'specs/112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md', kind: 'ai', detail: 'Datos de referencia desidentificados, solo en local, y protocolos por cohortes de empresa y de tiempo.' },
         // Componentes (subsistemas de docs/architecture/subsistemas.json; uno por componente de workspace.dsl)
-        cInterfaz: { label: 'Interfaz común', tech: '84 ficheros', path: 'frontend/src', kind: 'web', detail: 'Compilación, cliente tipado de la API y piezas comunes de las pestañas.' },
+        cInterfaz: { label: 'Interfaz común', tech: '87 ficheros', path: 'frontend/src', kind: 'web', detail: 'Compilación, cliente tipado de la API y piezas comunes de las pestañas.' },
         cInterfazConversion: { label: 'Conversión y perfil', tech: '7 ficheros', path: 'frontend/src/features/conversion', kind: 'web', detail: 'Entradas, alimentadores, opciones, reconstrucción y perfil de la empresa.' },
         cInterfazEstudios: { label: 'Cargas, estudios, obras e informes', tech: '26 ficheros', path: 'frontend/src/features/powerfactory', kind: 'web', detail: '«Cargas en DIgSILENT», demanda, estudios, obras e informes.' },
         cInterfazRegulatorio: { label: 'Módulos regulatorios', tech: '4 ficheros', path: 'frontend/src/features/pit', kind: 'web', detail: 'Pestañas del PIT, del VAD, del VNR y de la biblioteca normativa.' },
         cInterfazNube: { label: 'Nube y correo', tech: '5 ficheros', path: 'frontend/src/features/nube', kind: 'web', detail: 'Elegir fuentes de la nube, publicar expedientes y ver versiones nuevas.' },
         cInterfazAsistente: { label: 'Asistente en la web', tech: '8 ficheros', path: 'frontend/src/features/asistente', kind: 'web', detail: 'Órdenes, equipo, monitor, tarjeta del operador y aprendizaje.' },
-        cInterfazPruebas: { label: 'Pruebas de la interfaz', tech: '49 ficheros', path: 'frontend/test', kind: 'web', detail: 'Pruebas sin navegador de las pestañas y de la lógica.' },
-        cWeb: { label: 'Web', tech: '40 ficheros', path: 'src/convertersmartgrid/presentacion/web', kind: 'web', detail: 'Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo.' },
+        cInterfazPruebas: { label: 'Pruebas de la interfaz', tech: '50 ficheros', path: 'frontend/test', kind: 'web', detail: 'Pruebas sin navegador de las pestañas y de la lógica.' },
+        cWeb: { label: 'Web', tech: '41 ficheros', path: 'src/convertersmartgrid/presentacion/web', kind: 'web', detail: 'Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo.' },
         cNube: { label: 'Nube', tech: '11 ficheros', path: 'src/convertersmartgrid/adaptadores/nube', kind: 'web', detail: 'Proveedores Google Drive y OneDrive, OAuth, cuentas, cofre y salida a la nube.' },
         cVnr: { label: 'VNR-GIS', tech: '52 ficheros', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'engine', detail: 'Conectores, descubrimiento, GIS, validación y puente al modelo común.' },
-        cTransversales: { label: 'Transversales', tech: '19 ficheros', path: 'src/convertersmartgrid/dominio/runtime_paths.py', kind: 'engine', detail: 'Rutas de ejecución, nombres, perfil de empresa, privacidad, edición y salidas a la red.' },
+        cTransversales: { label: 'Transversales', tech: '20 ficheros', path: 'src/convertersmartgrid/dominio/runtime_paths.py', kind: 'engine', detail: 'Rutas de ejecución, nombres, perfil de empresa, privacidad, edición y salidas a la red.' },
         cEntrada: { label: 'Entrada de datos', tech: '17 ficheros', path: 'src/convertersmartgrid/adaptadores/sources', kind: 'engine', detail: 'Lectores TXT, MDB y VNR, contrato de fuente, copia fija, identificación e inventario.' },
         cFachadas: { label: 'Fachadas fuera del paquete', tech: '1 ficheros', path: 'src/vnr_etl.py', kind: 'engine', detail: 'Entrada de órdenes del VNR fuera del paquete.' },
         cReconstruccion: { label: 'Reconstrucción y catálogo', tech: '8 ficheros', path: 'src/convertersmartgrid/aplicacion/reconstruction_pipeline.py', kind: 'engine', detail: 'Completa lo que falta con el catálogo y anota cada supuesto.' },
         cModelo: { label: 'Modelo y reglas', tech: '9 ficheros', path: 'src/convertersmartgrid/dominio/model.py', kind: 'engine', detail: 'FeederModel, reglas comunes, puentes, fases y capacidades.' },
         cConversion: { label: 'Conversión, red unida y oráculo', tech: '8 ficheros', path: 'src/convertersmartgrid/aplicacion/batch.py', kind: 'engine', detail: 'Lote, red unida, enlaces, estructura y oráculo de convergencia.' },
-        cSalida: { label: 'Salida y módulos enchufables', tech: '18 ficheros', path: 'src/convertersmartgrid/adaptadores/dgs.py', kind: 'engine', detail: 'Esquemas versionados, escritor DGS, validación y módulos enchufables.' },
+        cSalida: { label: 'Salida y módulos enchufables', tech: '19 ficheros', path: 'src/convertersmartgrid/adaptadores/dgs.py', kind: 'engine', detail: 'Esquemas versionados, escritor DGS, validación y módulos enchufables.' },
         cEnlace: { label: 'Enlace con DIgSILENT', tech: '9 ficheros', path: 'src/convertersmartgrid/adaptadores/pf_arnes.py', kind: 'native', detail: 'Arnés de turno exclusivo, entorno, metadatos y vínculo fuente-proyecto.' },
-        cGuiones: { label: 'Guiones de DIgSILENT', tech: '38 ficheros', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importan, verifican, calibran, insertan cargas, aplican obras y corren estudios.' },
+        cGuiones: { label: 'Guiones de DIgSILENT', tech: '39 ficheros', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importan, verifican, calibran, insertan cargas, aplican obras y corren estudios.' },
         cDemanda: { label: 'Demanda y calibración', tech: '19 ficheros', path: 'src/convertersmartgrid/aplicacion/demanda_medida.py', kind: 'engine', detail: 'Libros por año y libros nuevos, cabecera, cargas y reparto.' },
         cObras: { label: 'Obras y optimización', tech: '16 ficheros', path: 'src/convertersmartgrid/aplicacion/obras_pf.py', kind: 'ai', detail: 'Escalera, troncal, perfil de tensión, reguladores, obras integrales y optimización.' },
-        cEstudios: { label: 'Estudios', tech: '12 ficheros', path: 'src/convertersmartgrid/aplicacion/estudios_pf.py', kind: 'engine', detail: 'Estudios de red, protecciones y transferencia.' },
+        cEstudios: { label: 'Estudios', tech: '13 ficheros', path: 'src/convertersmartgrid/aplicacion/estudios_pf.py', kind: 'engine', detail: 'Estudios de red, protecciones y transferencia.' },
         cInformes: { label: 'Informes', tech: '15 ficheros', path: 'src/convertersmartgrid/adaptadores/informes.py', kind: 'engine', detail: 'Word, libros, mapas del informe y mapa de cargas.' },
         cNormativa: { label: 'Biblioteca normativa y fuentes de la empresa', tech: '5 ficheros', path: 'src/convertersmartgrid/aplicacion/biblioteca_normativa.py', kind: 'engine', detail: 'Registro normativo con esquema, huellas de términos, fuentes de la empresa y vínculos del .pfd.' },
         cPide: { label: 'PIDE y planeamiento', tech: '15 ficheros', path: 'src/convertersmartgrid/dominio/estudio_planeamiento.py', kind: 'engine', detail: 'PIDE, economía, proyecciones de mercado y estudio de planeamiento.' },

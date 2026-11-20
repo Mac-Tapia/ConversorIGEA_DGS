@@ -2268,6 +2268,43 @@
         "title": "CatalogoRespuesta",
         "type": "object"
       },
+      "CeldaMatrizRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "estado": {
+            "enum": [
+              "validado",
+              "sin_validar",
+              "no_disponible"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "evidencia": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenciaMatrizRespuesta"
+            },
+            "title": "Evidencia",
+            "type": "array"
+          },
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          },
+          "motor": {
+            "title": "Motor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "motor",
+          "estado",
+          "motivo",
+          "evidencia"
+        ],
+        "title": "CeldaMatrizRespuesta",
+        "type": "object"
+      },
       "CentralIn": {
         "description": "Central térmica en el troncal de un alimentador (spec 021, RF-25).",
         "properties": {
@@ -5218,6 +5255,22 @@
       "EstudiarPlanoPeticion": {
         "additionalProperties": false,
         "properties": {
+          "motor": {
+            "anyOf": [
+              {
+                "enum": [
+                  "automatico",
+                  "abierto",
+                  "DIgSILENT"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motor"
+          },
           "project": {
             "anyOf": [
               {
@@ -5232,6 +5285,33 @@
           }
         },
         "title": "EstudiarPlanoPeticion",
+        "type": "object"
+      },
+      "EstudioMatrizRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "celdas": {
+            "items": {
+              "$ref": "#/components/schemas/CeldaMatrizRespuesta"
+            },
+            "title": "Celdas",
+            "type": "array"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clave",
+          "nombre",
+          "celdas"
+        ],
+        "title": "EstudioMatrizRespuesta",
         "type": "object"
       },
       "EstudiosIn": {
@@ -5341,6 +5421,33 @@
           "aprendidas_de"
         ],
         "title": "EvaluacionAccionesRespuesta",
+        "type": "object"
+      },
+      "EvidenciaMatrizRespuesta": {
+        "additionalProperties": false,
+        "description": "100:RF-9: una spec de la evidencia de una celda y la palabra de su línea ``Estado:`` (``None`` si no se lee).",
+        "properties": {
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado"
+          },
+          "spec": {
+            "title": "Spec",
+            "type": "string"
+          }
+        },
+        "required": [
+          "spec",
+          "estado"
+        ],
+        "title": "EvidenciaMatrizRespuesta",
         "type": "object"
       },
       "EvolucionFijasPeticion": {
@@ -6937,6 +7044,17 @@
             "title": "Title",
             "type": "string"
           },
+          "traza": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traza"
+          },
           "workspace_id": {
             "title": "Workspace Id",
             "type": "string"
@@ -7374,6 +7492,42 @@
         "title": "ManiobraTransferenciaRespuesta",
         "type": "object"
       },
+      "MatrizEstudiosRespuesta": {
+        "additionalProperties": false,
+        "description": "100:RF-8, RF-10, RF-13: la matriz estudio × motor que sirve ``GET /api/estudios/matriz`` y de dónde salen sus estados.",
+        "properties": {
+          "estudios": {
+            "items": {
+              "$ref": "#/components/schemas/EstudioMatrizRespuesta"
+            },
+            "title": "Estudios",
+            "type": "array"
+          },
+          "motores": {
+            "items": {
+              "$ref": "#/components/schemas/MotorMatrizRespuesta"
+            },
+            "title": "Motores",
+            "type": "array"
+          },
+          "origen": {
+            "enum": [
+              "specs",
+              "recurso",
+              "ninguno"
+            ],
+            "title": "Origen",
+            "type": "string"
+          }
+        },
+        "required": [
+          "origen",
+          "motores",
+          "estudios"
+        ],
+        "title": "MatrizEstudiosRespuesta",
+        "type": "object"
+      },
       "MesClienteFijoRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -7664,10 +7818,34 @@
         "title": "MiembroRespuesta",
         "type": "object"
       },
+      "MotorMatrizRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "MotorMatrizRespuesta",
+        "type": "object"
+      },
       "MotorPlanoRespuesta": {
         "additionalProperties": false,
-        "description": "111:RF-17, RF-18: con qué motor se estudiaría ahora y por qué.",
+        "description": "111:RF-17, RF-18: con qué motor se estudiaría ahora y por qué; RF-29: si el operador puede pedir DIgSILENT.",
         "properties": {
+          "digsilent_posible": {
+            "default": false,
+            "title": "DIgSILENT posible",
+            "type": "boolean"
+          },
           "motivo": {
             "title": "Motivo",
             "type": "string"
@@ -9354,6 +9532,31 @@
             "title": "Area",
             "type": "string"
           },
+          "carpeta_pf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carpeta Pf"
+          },
+          "casos_pf": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Casos Pf"
+          },
           "fuente_proyeccion": {
             "anyOf": [
               {
@@ -9409,6 +9612,17 @@
             ],
             "title": "Proyeccion"
           },
+          "proyecto_pf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proyecto Pf"
+          },
           "workspace_id": {
             "title": "Workspace Id",
             "type": "string"
@@ -9457,6 +9671,31 @@
           "area": {
             "title": "Area",
             "type": "string"
+          },
+          "carpeta_pf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carpeta Pf"
+          },
+          "casos_pf": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Casos Pf"
           },
           "fuente_alternativas": {
             "anyOf": [
@@ -9528,6 +9767,17 @@
               }
             ],
             "title": "Proyeccion"
+          },
+          "proyecto_pf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proyecto Pf"
           },
           "workspace_id": {
             "title": "Workspace Id",
@@ -13540,6 +13790,25 @@
         "summary": "Copia Previa"
       }
     },
+    "/api/estudios/matriz": {
+      "get": {
+        "description": "100:RF-8 a RF-10, RF-13: cada estudio de la web con cada motor, y de dónde salen sus estados.",
+        "operationId": "matriz_estudios_api_estudios_matriz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatrizEstudiosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Matriz Estudios"
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "health_api_health_get",
@@ -15679,7 +15948,7 @@
     },
     "/api/workspaces/{wid}/asistente/{plan_id}/confirmar": {
       "post": {
-        "description": "026:RF-8, RF-10: el plan confirmado, por las rutas y trabajos de la web.",
+        "description": "026:RF-8, RF-10: el plan confirmado, por las rutas y trabajos de la web.\n\n070:RF-90: la confirmación es el clic del operador en el navegador (su cookie); un programa con el token de la web\no un ``Bearer`` (el ejecutor del asistente, una herramienta, un cliente que obedece a un documento) no confirma.",
         "operationId": "asistente_confirmar_api_workspaces__wid__asistente__plan_id__confirmar_post",
         "parameters": [
           {

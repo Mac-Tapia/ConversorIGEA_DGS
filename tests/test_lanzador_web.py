@@ -152,7 +152,7 @@ def test_otra_version_con_trabajos_no_se_cierra(uvicorn_falso, capsys):
     finally:
         falso.cerrar()
     assert falso.cierres == 0 and uvicorn_falso == []
-    assert '1 trabajo(s) en curso' in capsys.readouterr().err
+    assert '1 trabajo en curso' in capsys.readouterr().err
 
 
 def test_version_antigua_sin_recuento_se_mira_por_espacios(uvicorn_falso):

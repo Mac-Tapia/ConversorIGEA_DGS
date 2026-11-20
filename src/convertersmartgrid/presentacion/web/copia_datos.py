@@ -668,6 +668,31 @@ def verificar_copia(copia: Path) -> dict[str, Any]:
             'nombres': sum(len(_nombres(i)) for i in manifiesto['ficheros'])}
 
 
+def _comprobar_restaurado(manifiesto: dict[str, Any], destinos: dict[str, Path], tipos: dict[str, str]) -> int:
+    """086:RF-128: cada nombre restaurado, leído en su sitio final, con el tamaño y la huella del manifiesto.
+
+    La huella de la preparación se calcula al escribir; la de aquí, al releer lo ya publicado: un disco, un antivirus o
+    una carpeta sincronizada que cambie un fichero entre una y otra se descubre antes de dar la restauración por buena.
+    """
+    distintos: list[str] = []
+    comprobados = 0
+    for item in manifiesto['ficheros']:
+        for raiz, ruta in _nombres(item):
+            final = destinos[raiz] if tipos[raiz] == 'archivo' else destinos[raiz] / ruta
+            comprobados += 1
+            try:
+                igual = final.stat().st_size == item['bytes'] and sha256_file(final) == item['sha256']
+            except OSError:
+                igual = False
+            if not igual:
+                distintos.append(f'{raiz}/{ruta}')
+    if distintos:
+        muestra = ', '.join(distintos[:5]) + (f' y {len(distintos) - 5} más' if len(distintos) > 5 else '')
+        raise CopiaNoValida(f'Lo restaurado no cuadra con las huellas de la copia ({muestra}): se deja todo como '
+                            'estaba antes de restaurar.')
+    return comprobados
+
+
 def restaurar_copia(copia: Path, *, raices: dict[str, Path] | None = None) -> dict[str, Any]:
     """Devuelve los datos al estado de la copia; lo que hubiera queda apartado, sin borrar nada.
 
@@ -780,6 +805,8 @@ def restaurar_copia(copia: Path, *, raices: dict[str, Path] | None = None) -> di
             if apartado is not None:
                 pendientes_originales.pop()
             sincronizar_carpeta(destino.parent)
+        # 086:RF-128: ya publicado, cada nombre se vuelve a leer en su sitio; uno que no da su huella revierte todo.
+        comprobados_despues = _comprobar_restaurado(manifiesto, destinos, tipos)
         if 'datos' in destinos:
             # Lo restaurado es de antes de crear la copia, y sin esto avisaría de que no hay ninguna.
             write_json_atomic(_registro_ultima(destinos['datos']), {
@@ -807,6 +834,7 @@ def restaurar_copia(copia: Path, *, raices: dict[str, Path] | None = None) -> di
         raise
     return {'restaurados': comprobado['nombres'], 'ficheros_fisicos': comprobado['ficheros'],
             'enlaces': enlaces, 'copias_de_nombres': copias_de_nombres, 'apartados': apartados,
+            'comprobados_despues': comprobados_despues,
             'creada': manifiesto.get('creada'),
             'rutas_externas_sin_copiar': manifiesto.get('rutas_externas_sin_copiar') or []}
 

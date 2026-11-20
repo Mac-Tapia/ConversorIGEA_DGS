@@ -16,6 +16,7 @@ import hashlib
 import json
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
+from convertersmartgrid.dominio.util import cuenta
 
 #: Por debajo de esto una barra está a cero: un resultado de 0,01 p.u. no alimenta nada.
 UMBRAL_PU = 0.01
@@ -48,8 +49,8 @@ def comprobar_tras_flujo(barras: Iterable[Mapping[str, Any]], cargas: Iterable[M
 
 
 def texto_tras_flujo(tras: Mapping[str, Any]) -> str:
-    return (f"{tras.get('barras_bt_a_cero', 0)} barra(s) de baja con carga a 0 p.u. y "
-            f"{tras.get('cargas_sin_consumo', 0)} carga(s) que no consumen aunque el flujo convergió")
+    return (f"{cuenta(tras.get('barras_bt_a_cero', 0), 'barra', 'barras')} de baja con carga a 0 p.u. y "
+            f"{cuenta(tras.get('cargas_sin_consumo', 0), 'carga que no consume', 'cargas que no consumen')} aunque el flujo convergió")
 
 
 #: Lo que no quedó calibrado aunque el trabajo termine: ``VIOLACION_FISICA`` converge y no cumple.

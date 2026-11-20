@@ -21,6 +21,7 @@ import webbrowser
 from ...dominio.salidas_red import preparar_entorno_sin_red
 from ...dominio.sesion_web import (VARIABLE_PUERTO, cabeceras_locales, crear_sesion, devolver_sesion, ruta_sesion,
                           url_de_entrada)
+from ...dominio.util import cuenta
 
 
 def puerto_ocupado(host: str, port: int) -> bool:
@@ -316,7 +317,7 @@ def resolver_puerto(host: str, port: int, abrir: bool) -> tuple[str, int]:
             return ('arrancar', nuevo) if nuevo else ('salir', 2)
         en_curso = trabajos_en_curso(url, salud)
         if en_curso != 0:
-            motivo = (f'tiene {en_curso} trabajo(s) en curso' if en_curso
+            motivo = (f'tiene {cuenta(en_curso, "trabajo", "trabajos")} en curso' if en_curso
                       else 'no se pudo saber si tiene trabajos en curso')
             print(f'En {url} hay otra versión del Conversor que {motivo}: no se cierra para no '
                   'perder ese trabajo y se muestra en el navegador. Cuando termine, cierre su '

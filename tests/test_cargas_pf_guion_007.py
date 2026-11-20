@@ -658,6 +658,7 @@ def test_008_rf21_todo_reutilizado_lo_dice_y_nombra_sus_alimentadores(guion):
     assert rc == 0, primero
     segundo, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', **_cerca(app, 'F1_B2'))]), simular=False)
     assert rc == 0, segundo
-    assert any('ya están en el proyecto y se reutilizan' in a for a in segundo['avisos'])
+    # Con una sola carga el aviso va en singular («ya está en el proyecto y se reutiliza»); con varias, en plural.
+    assert any('en el proyecto y se reutiliza' in a for a in segundo['avisos']), segundo['avisos']
     assert not any('ninguna fila coincide' in a for a in segundo['avisos'])
     assert [f['feeder'] for f in segundo['feeders']] == ['F1']

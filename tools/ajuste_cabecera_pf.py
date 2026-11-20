@@ -69,10 +69,12 @@ from casos_pf import NOMBRES, casos_del_proyecto, es_de_carga_nueva, preparar_si
 from casos_pf import anio_del_plan, caso_cargas_nuevas, nombre_caso
 from casos_pf import caso as caso_del_sistema
 import transferencia_operador_pf as transferencia_pf
+from _plural import cuenta, plural
 
 from convertersmartgrid.dominio.comprobacion_flujo import huella_de_caso
 from convertersmartgrid.aplicacion.demanda_medida import BANDA_TENSION_FUENTE_PU, origen_de_la_tension
 from convertersmartgrid.dominio.native_action import native_action_block_report
+from convertersmartgrid.dominio.ajuste_cabecera import ESCALADA_CASI_CERO_KW, escaladas_casi_cero
 
 #: Tensión (p.u.) por debajo de la cual una barra cuenta como caída en el diagnóstico.
 TENSION_CAIDA = 0.5
@@ -837,8 +839,8 @@ def cambios_en_la_red(informe: dict) -> list[dict]:
             pasos = x.get('escalones')
             servicio = '' if x.get('en_servicio') else ', fuera de servicio'
             lados[lado] = {
-                'descripcion': (f'{pasos:g} escalón(es) × {q:g} kvar{servicio}' if pasos is not None
-                                and q is not None else f'{pasos} escalón(es){servicio}'),
+                'descripcion': (f'{pasos:g} {plural(pasos, "escalón", "escalones")} × {q:g} kvar{servicio}' if pasos is not None
+                                and q is not None else f'{pasos} {plural(pasos, "escalón", "escalones")}{servicio}'),
                 'potencia': (pasos * q if pasos is not None and q is not None
                              and x.get('en_servicio') else 0.0 if not x.get('en_servicio') else None),
                 'unidad': 'kvar'}
@@ -1119,17 +1121,17 @@ def resultado_transformadores(cambiados: list[dict], sobre: list[dict], fijas: d
         if not motivos:
             motivos.append('la calibración no cuadra con la máxima de cabecera')
     if sobre:
-        motivos.append(f'{len(sobre)} SED fija(s) siguen por encima de su potencia instalada: '
+        motivos.append(f'{len(sobre)} SED {plural(len(sobre), "fija sigue", "fijas siguen")} por encima de su potencia instalada: '
                        + ', '.join(f"{x['sed']} ({x['carga_pct']:,.0f} %)" for x in sobre[:10]))
     if sobre_umbral:
-        motivos.append(f'{len(sobre_umbral)} SED cambiada(s) por encima del umbral del '
+        motivos.append(f'{len(sobre_umbral)} SED {plural(len(sobre_umbral), "cambiada", "cambiadas")} por encima del umbral del '
                        f'{umbral:g} %: ' + ', '.join(f"{x['sed']} ({x['carga_pct']:,.0f} %)"
                                                     for x in sobre_umbral))
     status = 'VALIDO' if not motivos else 'FALLO'
     aviso = None
     if status == 'FALLO':
-        aviso = (f"TRANSFORMADORES: {len(cambiados)} cambiado(s) en «{caso}», que se "
-                 'quedan, pero ' + ('la calibración no es válida' if not calibracion_valida
+        aviso = (f"TRANSFORMADORES: {cuenta(len(cambiados), 'cambiado', 'cambiados')} en «{caso}», que se "
+                 + plural(len(cambiados), 'queda', 'quedan') + ', pero ' + ('la calibración no es válida' if not calibracion_valida
                                     else 'la comprobación no pasa')
                  + '; la sobrecarga ya no es la causa. Sigue fallando: ' + '; '.join(motivos)
                  + '.')
@@ -1141,8 +1143,8 @@ def resultado_transformadores(cambiados: list[dict], sobre: list[dict], fijas: d
 def aviso_sobrecarga(sobre: list[dict]) -> str:
     """020:RF-4: la sobrecarga como causa probable de que la calibración no salga."""
     con = sum(1 for x in sobre if (x.get('propuesta') or {}).get('kva'))
-    return (f'SOBRECARGA: {len(sobre)} SED fija(s) piden más que su potencia instalada y son '
-            'la causa probable de que la calibración no converja o no sea válida: '
+    return (f'SOBRECARGA: {len(sobre)} SED {plural(len(sobre), "fija pide", "fijas piden")} más que su potencia '
+            f'instalada y {plural(len(sobre), "es", "son")} la causa probable de que la calibración no converja o no sea válida: '
             + ', '.join(f"{x['sed']} ({x['carga_pct']:,.0f} %)" for x in sobre[:10])
             + (f'. Hay propuesta de transformadores nuevos para {con}: márquelas e '
                'implemente los transformadores.' if con else
@@ -1516,11 +1518,24 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
         'escaladas': len(escaladas),
         'con_escala': sum(1 for d in escaladas if d['i_scale'] == 1),
         'con_potencia': len(escaladas) - len(sin_potencia),
-        'consumen': (sum(1 for d in escaladas if (d['p_consumida_kw'] or 0) > CONSUMO_ABS)
+        'consumen': (sum(1 for d in escaladas if (d['p_consumida_kw'] or 0) >= ESCALADA_CASI_CERO_KW)
                      if medida.converge else None),
         'factor_comun': factor_p,
         'sin_potencia_instalada': sin_potencia,
     }
+    # 015:RF-71: ninguna SED casi en cero (usuario, 2026-11-06): las escaladas con potencia instalada bajo 1 kW, con lo
+    # que consumen en el flujo (o lo escrito, sin flujo), y un factor común anormal, con su causa por alimentador.
+    con_kw = {d['sed']: (d['p_consumida_kw'] if medida.converge and d['p_consumida_kw'] is not None else d['p_kw'])
+              for d in escaladas if d['sed'] not in sin_potencia}
+    casi = escaladas_casi_cero(getattr(objetivo, 'alimentador', '') or getattr(objetivo, 'medidor', '')
+                               or 'El alimentador', con_kw,
+                               factor_p if factor_p is not None else getattr(reparto, 'a', None),
+                               sum(d['p_kw'] for d in detalles if d['clase'] == 'FIJA'), objetivo.kw)
+    participacion['casi_cero'] = casi
+    if casi and casi['invalida']:
+        fallos.append({'tipo': 'ESCALADAS_CASI_CERO', 'cantidad': casi['cantidad'], 'sed': casi['sed'],
+                       'factor': casi['factor'], 'fijas_kw': casi['fijas_kw'], 'cabecera_kw': casi['cabecera_kw'],
+                       'aviso': casi['aviso']})
     reconstruido = None
     if not fallos:
         a = reparto.a if factor_p is None else factor_p
@@ -2046,7 +2061,7 @@ def _conductores_con_ficha(app, plan: dict, feeders: list[str], alims, informes:
         if not r.get('error') and r.get('cambios'):
             codigos = sorted({c['codigo'] for c in r['cambios']})
             inf['avisos'].append(
-                f"{len(codigos)} conductor(es) con los parámetros de su ficha en «Sin proyecto» "
+                f"{cuenta(len(codigos), 'conductor', 'conductores')} con los parámetros de su ficha en «Sin proyecto» "
                 f"(variación {r.get('variacion')}): " + ', '.join(codigos[:30])
                 + '; el «Caso base» sigue con los del archivo.')
 
@@ -2258,7 +2273,7 @@ def _preparar_central(app, plan: dict, informe: dict, *, elm, feeder: str, carga
                   for s in fuera],
         criterio_cuadre='ZONAS_DE_LA_CENTRAL')
     informe['avisos'].append(
-        f'{feeder} con central en {barra.loc_name}: {len(arriba)} carga(s) aguas arriba y '
+        f'{feeder} con central en {barra.loc_name}: {cuenta(len(arriba), "carga", "cargas")} aguas arriba y '
         f'{len(abajo)} aguas abajo; se calibra cada zona con su factor de escala.')
     for r in repartos.values():
         informe['avisos'] += [a for a in r.avisos if a not in informe['avisos']]
@@ -2311,6 +2326,14 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
             for z, r in repartos.items():
                 for sed in r.demandas:
                     zonas[z][sed].i_scale = 1 if sed in r.base else 0
+            # 015:RF-72 (amplía RF-66): con central en el tramo, los bancos existentes también a su máxima, antes de
+            # medir y fuera de la etapa de la central.
+            al_maximo = bancos_a_su_maxima_capacidad(alims, feeder)
+        if al_maximo:
+            informe['bancos_puestos_a_maxima'] = al_maximo
+            informe['avisos'].append(
+                'Bancos existentes puestos a su máxima capacidad (todos los escalones, en '
+                'servicio): ' + ', '.join(c['banco'] for c in al_maximo) + '.')
         for obj in apagar.values():
             obj.outserv = 1
         informe['central'].update(central_en_sin_proyecto(                     # RF-35, RF-36
@@ -2355,6 +2378,8 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
                 fp_escaladas=None if rep.todo_escala else (fp_cargas or obj_z.fp),
                 manuales=con_manual)
         informe['validacion_posterior_nativa'] = validaciones
+        for v in validaciones.values():
+            _avisar_casi_cero(informe, v)                                    # 015:RF-71
         invalida = [z for z, v in validaciones.items() if not v['correcta']]
         if res.cuadrado and invalida:
             informe['cuadrado'] = False
@@ -2466,11 +2491,27 @@ def aviso_consumo_fisico(validacion: dict, historial=None, sobre=None,
     if sobre:
         lista = ', '.join(f"{s['sed']} {s['kva_carga']:,.0f} kVA en {s['kva']:,.0f} kVA "
                           f"({s['carga_pct']:.0f} %)" for s in sobre[:5])
-        partes.append(f'{len(sobre)} SED fija(s) piden más que su transformador ({lista}): '
+        partes.append(f'{len(sobre)} SED {plural(len(sobre), "fija pide", "fijas piden")} más que su transformador ({lista}): '
                       'corrija en «Sin proyecto» su transformador o el cruce del cliente '
                       'con su SED y vuelva a calibrar (015:RF-59)')
     return ('VALIDACION_FISICA: ' + '; '.join(partes)
             + '. La calibración no es válida y las cargas vuelven a como estaban.')
+
+
+def aviso_casi_cero(validacion: dict | None) -> str | None:
+    """El aviso de las escaladas casi en cero de un alimentador, con sus SED y su causa (015:RF-71), o ``None``."""
+    casi = ((validacion or {}).get('participacion') or {}).get('casi_cero')
+    return casi['aviso'] if casi else None
+
+
+def _avisar_casi_cero(informe: dict, validacion: dict | None) -> None:
+    """015:RF-71: el aviso en el informe del alimentador, una vez, y el recuento para la web."""
+    aviso = aviso_casi_cero(validacion)
+    if aviso:
+        informe['escaladas_casi_cero'] = validacion['participacion']['casi_cero']
+        if aviso not in informe.setdefault('avisos', []):
+            informe['avisos'].append(aviso)
+            print(f'  {aviso}', flush=True)
 
 
 def _leer_huella_caso_base(app, anio: int | None) -> dict | None:
@@ -2590,7 +2631,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
         informe['avisos'].extend(hecho.get('avisos') or [])                 # 032:RF-12
         if hecho['cambios']:
             informe['avisos'].append(
-                f"{len(hecho['cambios'])} transformador(es) nuevo(s) en «{nombre_caso('sin', anio_del_plan(plan))}», en la "
+                f"{cuenta(len(hecho['cambios']), 'transformador nuevo', 'transformadores nuevos')} en «{nombre_caso('sin', anio_del_plan(plan))}», en la "
                 'red: ' + '; '.join(
                     f"{h['sed']} {h['antes']['unidades']} × {h['antes']['kva']:,.0f} kVA → "
                     f"{h['despues']['unidades']} × {h['despues']['kva']:g} kVA "
@@ -2638,8 +2679,8 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     if compensadas:
         informe['fijas_compensadas'] = compensadas
         informe['avisos'].append(
-            f'{len(compensadas)} cliente(s) fijo(s) con FP por debajo de {fp_min_fijas:.2f} en su '
-            f'EA/ERI se escriben a {fp_min_fijas:.2f}, como compensados por su banco propio: '
+            f'{cuenta(len(compensadas), "cliente fijo", "clientes fijos")} con FP por debajo de {fp_min_fijas:.2f} en su '
+            f'EA/ERI {plural(len(compensadas), "se escribe", "se escriben")} a {fp_min_fijas:.2f}, como compensados por su banco propio: '
             + '; '.join(f"{c['sed']} FP {c['fp_ea_eri']:.3f} → {c['fp_escrito']:.3f} "
                         f"(Q {c['q_ea_eri_kvar']:,.1f} → {c['q_escrita_kvar']:,.1f} kvar)"
                         for c in compensadas) + '.')
@@ -2673,8 +2714,9 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     if manuales:
         informe['cargas_manuales'] = manuales
         informe['avisos'].append(
-            f'{len(manuales)} carga(s) con la demanda cambiada a mano respecto de {ultimo}: '
-            'quedan fijas con su valor y no se sobrescriben: ' + '; '.join(
+            f'{cuenta(len(manuales), "carga", "cargas")} con la demanda cambiada a mano respecto de {ultimo}: '
+            + plural(len(manuales), 'queda fija con su valor y no se sobrescribe: ',
+                     'quedan fijas con su valor y no se sobrescriben: ') + '; '.join(
                 f"{m['sed']} {m['manual']['kw']:.1f} kW (el ajuste dejó "
                 f"{m['ajuste']['kw']:.1f} kW)" for m in manuales[:50]))
     comun = dict(cargas=cargas, ambiguas=ambiguas, poblacion_nativa=poblacion_nativa,
@@ -2711,7 +2753,8 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
             informe['avisos'].extend(hecho.get('avisos') or [])
             if hecho['cambios']:
                 informe['avisos'].append(
-                    f"{len(hecho['cambios'])} transformador(es) de la ficha puestos antes de calibrar, en la misma "
+                    f"{cuenta(len(hecho['cambios']), 'transformador', 'transformadores')} de la ficha "
+                    f"{plural(len(hecho['cambios']), 'puesto', 'puestos')} antes de calibrar, en la misma "
                     'pasada: ' + ', '.join(h['sed'] for h in hecho['cambios']) + '.')
                 kva, kva_origen = kva_por_sed(cargas, plan.get('kva_entrada') or {})
                 comun.update(kva=kva, kva_origen=kva_origen)
@@ -2721,7 +2764,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     if sobre:
         informe['fijas_sobre_su_transformador'] = sobre
         informe['avisos'].append(
-            f'{len(sobre)} SED fija(s) con más demanda que su potencia instalada; revise el '
+            f'{len(sobre)} SED {plural(len(sobre), "fija", "fijas")} con más demanda que su potencia instalada; revise el '
             'cruce del cliente con su SED o el transformador: ' + '; '.join(
                 f"{x['sed']} ({', '.join(x['clientes']) or 'cambio manual'}) "
                 f"{x['kva_carga']:,.0f} kVA en {x['kva']:,.0f} kVA ({x['carga_pct']:,.0f} %)"
@@ -2737,6 +2780,10 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
                                   fp=fp_cargas)
     except AjusteError as exc:
         return {**informe, 'error': str(exc), 'ambiguas': ambiguas}, 2
+    if (reparto.causa or {}).get('estado') == 'NO_CALIBRABLE':
+        # 006:RF-46: sin escaladas con kVA no hay qué repartir; no se escribe nada y las fijas no se escalan.
+        return {**informe, 'error': reparto.causa['texto'], 'no_calibrable': reparto.causa,
+                'ambiguas': ambiguas, 'avisos': informe['avisos'] + reparto.avisos}, 2
     antes = {s: potencia_efectiva(o) for s, o in cargas.items()}
     antes_nativo = _foto_cargas_nativas(cargas)
     antes_apagar = {s: int(getattr(o, 'outserv', 0) or 0) for s, o in apagar.items()}
@@ -2964,7 +3011,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             if informe['con_proyecto']['corregidas']:
                 informe['avisos'].append(
                     f"«Con proyecto» no tenía la demanda de «Sin proyecto» en "
-                    f"{informe['con_proyecto']['corregidas']} carga(s): se le escribió "
+                    f"{cuenta(informe['con_proyecto']['corregidas'], 'carga', 'cargas')}: se le escribió "
                     '.')
             # 014:RF-31 a RF-34: y lo demás hecho en «Sin proyecto», como los bancos a su
             # máxima capacidad (015:RF-66) o uno creado a mano.
@@ -3127,6 +3174,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 manuales=con_manual,
             )
             informe['validacion_posterior_nativa'] = validacion_posterior
+            _avisar_casi_cero(informe, validacion_posterior)                 # 015:RF-71
             if not simular:
                 perfil_de_tension(app, alims, feeder, informe, plan.get('banda_tension'))   # 094:RF-1, RF-3, RF-10
             if res.cuadrado and not informe['fallos'] and validacion_posterior['correcta']:
@@ -3445,8 +3493,8 @@ def poner_bancos(app, alims, sin, base, con, pedidos: dict[str, tuple[int, float
                 # otra barra de la troncal; antes no se ponían, y la calibración se quedaba sin esos kvar.
                 elegidas += barras_para_bancos(red_alim, cab.loc_name, n - len(elegidas), set(barras) - trifasicas)
             if len(elegidas) < n:
-                avisos.append(f'{feeder}: su troncal solo tiene {len(elegidas)} barra(s) para {n} banco(s) '
-                              f'pedidos de {kvar:g} kvar; una barra no repite banco.')
+                avisos.append(f'{feeder}: su troncal solo tiene {cuenta(len(elegidas), "barra", "barras")} para '
+                              f'{cuenta(n, "banco pedido", "bancos pedidos")} de {kvar:g} kvar; una barra no repite banco.')
             for k, nombre in enumerate(elegidas, 1):
                 barra = barras[nombre]
                 red = barra.GetParent()
@@ -3498,9 +3546,10 @@ def trasladar_transformadores_de_la_primera(primera: dict, segunda: dict) -> Non
         return
     segunda['transformadores_implementados'] = {**hecho, 'pasada': 'primera'}
     segunda.setdefault('avisos', [])
-    # El aviso de los transformadores de la ficha puestos en la primera pasada, por su texto (no por una cita).
+    # El aviso de los transformadores de la ficha puestos en la primera pasada, por su texto (no por una cita); sin
+    # «puesto»/«puestos», que concuerda con la cuenta (086:RF-110).
     segunda['avisos'] += [a for a in primera.get('avisos') or []
-                          if 'puestos antes de calibrar, en la misma pasada' in a and a not in segunda['avisos']]
+                          if 'antes de calibrar, en la misma pasada' in a and a not in segunda['avisos']]
 
 
 def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) -> list[tuple[dict, int]]:
@@ -3557,7 +3606,7 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
         if ya:
             # 028:RF-14: en Nasca (2026-10-28) se acumulaban entre corridas (8 en NA205); lo que
             # ya hay lo cuenta el flujo y lo demás lo decide el operador.
-            avisos.append(f"{f}: ya tiene {len(ya)} banco(s) de la calibración ({', '.join(ya)}); "
+            avisos.append(f"{f}: ya tiene {cuenta(len(ya), 'banco', 'bancos')} de la calibración ({', '.join(ya)}); "
                           'no se ponen más.')
             continue
         q_red, q_medido = _deficit(inf, plan)
@@ -3578,7 +3627,7 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
         elif n:
             pedidos[f] = (n, tamano)
             avisos.append(f'{f}: la red da {q_red:,.0f} kVAR frente a {q_medido:,.0f} medidos: '
-                          f'{n} banco(s) de {tamano:g} kvar.')
+                          f'{cuenta(n, "banco", "bancos")} de {tamano:g} kvar.')
         else:
             avisos.append(f'{f}: la red da {q_red:,.0f} kVAR frente a {q_medido:,.0f} medidos: '
                           'no falta ningún banco.')
@@ -3695,7 +3744,7 @@ def _desde_la_ultima_calibracion(repartos: dict, planes: dict) -> dict:
     salen = dict(repartos)
     for f, plan in planes.items():
         a = (plan.get('ultima_calibracion') or {}).get('factor_escala')
-        if f in salen and isinstance(a, (int, float)) and a > 0:
+        if f in salen and isinstance(a, (int, float)) and a > 0 and not getattr(salen[f], 'causa', None):   # 006:RF-46: el imposible, al mínimo
             salen[f] = salen[f].con_factores(float(a))
     return salen
 
@@ -4021,13 +4070,12 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
             inf['variaciones_de_ajustes_previos'] = viejos
             inf['avisos'].append('Ajustes de antes de la spec 015 activos en «Sin proyecto» (no '
                                  'se tocan; la calibración va al escenario): ' + ', '.join(viejos))
-        if not p['central']:
-            al_maximo = bancos_a_su_maxima_capacidad(alims, f)                    # 015:RF-66
-            if al_maximo:
-                inf['bancos_puestos_a_maxima'] = al_maximo
-                inf['avisos'].append(
-                    'Bancos existentes puestos a su máxima capacidad (todos los escalones, en '
-                    'servicio): ' + ', '.join(c['banco'] for c in al_maximo) + '.')
+        al_maximo = bancos_a_su_maxima_capacidad(alims, f)                    # 015:RF-66, RF-72: con central también
+        if al_maximo:
+            inf['bancos_puestos_a_maxima'] = al_maximo
+            inf['avisos'].append(
+                'Bancos existentes puestos a su máxima capacidad (todos los escalones, en '
+                'servicio): ' + ', '.join(c['banco'] for c in al_maximo) + '.')
 
     # 035:RF-22, RF-24: al recalibrar, cada alimentador cuadra también su Q, con bancos o sin.
     con_q = []
@@ -4450,6 +4498,7 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
                           else (p['fp_cargas'] or objetivo.fp)),               # 035:RF-12
             manuales=p['con_manual'])
         inf['validacion_posterior_nativa'] = validacion
+        _avisar_casi_cero(inf, validacion)                                   # 015:RF-71
         perfil_de_tension(app, alims, feeder, inf, p['plan'].get('banda_tension'))   # 094:RF-1, RF-3, RF-10
         if cumple and not validacion['correcta']:
             valido = False
@@ -4531,6 +4580,8 @@ def _cerrar_central_en_proyecto(app, feeder: str, p: dict, inf: dict, reps: dict
                 fp_escaladas=None if rep[z].todo_escala else (p['fp_cargas'] or obj_z.fp),
                 manuales=p['con_manual'])
     inf['validacion_posterior_nativa'] = validaciones
+    for v in validaciones.values():
+        _avisar_casi_cero(inf, v)                                            # 015:RF-71
     invalida = [z for z, v in validaciones.items() if not v['correcta']]
     if res.cuadrado and invalida:
         inf['status'] = 'FALLO_VALIDACION_NATIVA'

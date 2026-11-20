@@ -13,3 +13,11 @@ Una herramienta sobre lo que ya existe, y no pruebas de pytest con DIgSILENT, po
 ## Pruebas
 
 Sintéticas con una web falsa: orden de la matriz, relanzado, informe, veredicto y que ninguna fuente se mezcle.
+
+## Matriz estudio × motor (RF-8 a RF-12)
+
+- `src/convertersmartgrid/dominio/matriz_estudios.py`, nuevo y puro: la tabla de evidencias y motivos, y `matriz(estado_de)` (RF-8, RF-9, RF-11).
+- `src/convertersmartgrid/presentacion/web/matriz_estudios_api.py`, nuevo: `GET /api/estudios/matriz`, con el lector de la línea `Estado:` de `lectura_proyecto.estado_de_spec`; el contrato `MatrizEstudiosRespuesta` en `api_contract.py` (RF-10).
+- Frontend: `api/matrizEstudios.ts`, `shared/matrizEstudios.ts` y `shared/MarcaValidacion.tsx`; la marca en los estudios de «4.2», en los pasos de calibración y obras, en el PIDE y el gemelo, y en las pestañas del VNR, PIT, VAD, PIDE y largo plazo (RF-12). No se quita nada de la web: se añade la marca y el apagado.
+
+Decisión: el estado sale de las specs y no de una lista escrita a mano, para que reabrir una spec quite el «validado» sin tocar el código. La entrega excluye `specs/` (`config/entrega.json`), así que `tools/estado_specs.py --escribir` escribe también `src/convertersmartgrid/recursos/estado_specs.json` (`{spec: estado}` y la huella del README), que entra en la entrega y en la rueda (`recursos/*.json` en package-data); la ruta lo lee cuando no hay `specs/` (RF-13). Sin ninguno de los dos, nada sale validado. Las specs cuya tarea de DIgSILENT se cerró sin corrida propia, con su comprobación pasada a esta spec (011, 042, 049, 052, 087, y la 012 y la 045), llevan la 100 en la evidencia de sus celdas: no validan nada hasta que se cumpla la T4.

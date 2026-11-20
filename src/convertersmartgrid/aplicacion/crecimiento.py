@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from ..dominio.util import publicar_duradero
+from ..dominio.util import publicar_duradero, cuenta
 
 Curva = Sequence[tuple[Any, float | None, Any]]
 
@@ -95,7 +95,7 @@ def curvas_por_anio(libros_por_anio: Mapping[int, Sequence[Path | str]], pares: 
     for anio, libros in sorted(libros_por_anio.items()):
         if cancelado():
             break
-        log(f'Crecimiento: leyendo la cabecera de {anio} ({len(libros)} libro(s))…')
+        log(f'Crecimiento: leyendo la cabecera de {anio} ({cuenta(len(libros), "libro", "libros")})…')
         res = maximas(list(libros), list(pares), alias=alias, periodo=str(anio), cancelado=cancelado,
                       progreso=progreso)
         por_alim: dict[str, list] = {}

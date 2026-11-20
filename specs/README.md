@@ -12,7 +12,7 @@ retirada.
 | [003](003-integracion-web-retiro-gui/spec.md) | Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | retirada | 0 | 0 | — |
 | [004](004-cargas-en-powerfactory/spec.md) | Cargas en un proyecto existente de DIgSILENT | implementada | 110 | 110 | T30 (DIgSILENT) |
 | [005](005-carpeta-de-proyectos-pf/spec.md) | Carpeta de proyectos importados en DIgSILENT | cumplida | 24 | 24 | — |
-| [006](006-ajuste-a-la-maxima-de-cabecera/spec.md) | Ajuste de las demandas a la máxima de cabecera | cumplida | 45 | 45 | — |
+| [006](006-ajuste-a-la-maxima-de-cabecera/spec.md) | Ajuste de las demandas a la máxima de cabecera | cumplida | 46 | 46 | — |
 | [007](007-cargas-nuevas-sobre-el-ajuste/spec.md) | Cargas nuevas sobre el alimentador ajustado, una variación por carga | cumplida | 41 | 41 | — |
 | [008](008-pestana-cargas-en-tres-pasos/spec.md) | Pestaña «Cargas en DIgSILENT» en tres pasos | cumplida | 29 | 29 | — |
 | [009](009-inventario-del-repositorio/spec.md) | Inventario del repositorio: cada fichero con su módulo y su spec | cumplida | 15 | 15 | — |
@@ -21,7 +21,7 @@ retirada.
 | [012](012-confiabilidad-y-capacidad-de-la-red/spec.md) | Confiabilidad y capacidad de la red calibrada | implementada | 92 | 92 | T17 (DIgSILENT) |
 | [013](013-mes-de-analisis-y-transferencia/spec.md) | Mes de análisis y transferencia entre dos alimentadores | cumplida | 32 | 32 | — |
 | [014](014-calibracion-en-sin-proyecto/spec.md) | Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto» | cumplida | 34 | 34 | — |
-| [015](015-caso-base-verificado/spec.md) | «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida | 70 | 70 | — |
+| [015](015-caso-base-verificado/spec.md) | «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida | 72 | 72 | — |
 | [016](016-troncal-y-enlace-entre-alimentadores/spec.md) | Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo | cumplida | 89 | 89 | — |
 | [017](017-informes-de-estudio-y-factibilidad/spec.md) | Informes de estudio eléctrico y de factibilidad de suministro | cumplida | 148 | 148 | — |
 | [018](018-vinculo-compartido-entre-espacios/spec.md) | Spec 018 - Vínculo de proyectos de DIgSILENT compartido entre espacios de trabajo | cumplida | 19 | 19 | — |
@@ -56,7 +56,7 @@ retirada.
 | [047](047-asistente-estructurado-y-revision-por-roles/spec.md) | Asistente estructurado y revisión por roles | aprobada | 43 | 43 | T4, T8, T7 |
 | [048](048-optimizacion-mixta-evolutiva-y-pnl/spec.md) | Optimización mixta evolutiva y PNL | cumplida | 9 | 9 | — |
 | [049](049-protecciones-nativas-y-coordinacion/spec.md) | Protecciones nativas y coordinación | cumplida | 10 | 10 | — |
-| [050](050-aprendizaje-continuo-integrado/spec.md) | Aprendizaje continuo integrado | aprobada | 31 | 31 | T3b, T4b, T5b |
+| [050](050-aprendizaje-continuo-integrado/spec.md) | Aprendizaje continuo integrado | aprobada | 35 | 35 | T3b, T4b, T5b |
 | [051](051-medicion-de-cabecera-en-libro-ancho/spec.md) | Medición de cabecera en libro ancho: una columna por alimentador | cumplida | 11 | 11 | — |
 | [052](052-optimizacion-con-proyecto-con-el-oraculo/spec.md) | Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT | cumplida | 19 | 19 | — |
 | [053](053-catalogo-de-fichas-que-crece/spec.md) | El catálogo de fichas crece con cada código nuevo | cumplida | 9 | 9 | — |
@@ -76,7 +76,7 @@ retirada.
 | [067](067-asistente-operativo/spec.md) | Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | cumplida | 41 | 41 | — |
 | [068](068-dataset-real-del-maestro/spec.md) | Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida | 42 | 42 | — |
 | [069](069-interprete-con-codificador-preentrenado/spec.md) | Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | 40 | 40 | T7 |
-| [070](070-asistente-de-punta-a-punta/spec.md) | El asistente opera el conversor de punta a punta | aprobada | 89 | 89 | T11 (DIgSILENT), T22 |
+| [070](070-asistente-de-punta-a-punta/spec.md) | El asistente opera el conversor de punta a punta | aprobada | 91 | 91 | T11 (DIgSILENT), T22 |
 | [071](071-puertas-de-los-modelos/spec.md) | Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | 8 | 8 | T5 |
 | [072](072-pide-y-planeamiento-de-largo-plazo/spec.md) | PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | 47 | 47 | T9b, T14 |
 | [073](073-bancos-limitados-por-valle/spec.md) | El número de bancos lo define la tensión en las ventanas de valle | cumplida | 41 | 41 | — |
@@ -87,14 +87,14 @@ retirada.
 | [078](078-senales-de-convergencia/spec.md) | Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | cumplida | 35 | 35 | — |
 | [079](079-afinado-del-interprete-de-ordenes/spec.md) | Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida | 64 | 64 | — |
 | [080](080-acceso-directo-a-paquetes-vnrgis/spec.md) | Acceso directo a los paquetes VNR-GIS de cada distribuidora | aprobada | 61 | 61 | T13 |
-| [081](081-regresiones-permanentes/spec.md) | Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | cumplida | 85 | 85 | — |
+| [081](081-regresiones-permanentes/spec.md) | Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | cumplida | 86 | 86 | — |
 | [082](082-oraculo-completo-y-por-fases/spec.md) | El oráculo calcula todo lo del modelo, y por fases | cumplida | 15 | 15 | — |
-| [083](083-oraculo-antes-de-calibrar/spec.md) | El oráculo antes de calibrar y recalibrar | cumplida | 32 | 32 | — |
+| [083](083-oraculo-antes-de-calibrar/spec.md) | El oráculo antes de calibrar y recalibrar | cumplida | 34 | 34 | — |
 | [084](084-seis-reglas-con-requisito/spec.md) | Seis reglas del operador pasan de notas a requisitos con prueba | cumplida | 30 | 30 | — |
 | [085](085-ordenes-del-maestro-con-grupos-apartados/spec.md) | Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida | 33 | 33 | — |
-| [086](086-puesta-en-operacion-comercial/spec.md) | Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | 125 | 122 | T9 (DIgSILENT), T36 (DIgSILENT), T40 (DIgSILENT), T41, T78, T79, T80, T32 (DIgSILENT), T33 (DIgSILENT), T34, T96, T97, T98, T100 |
+| [086](086-puesta-en-operacion-comercial/spec.md) | Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | 131 | 128 | T9 (DIgSILENT), T36 (DIgSILENT), T40 (DIgSILENT), T41, T78, T79, T80, T32 (DIgSILENT), T33 (DIgSILENT), T34, T96, T97, T98, T100, T105 (DIgSILENT) |
 | [087](087-seleccion-de-obras-con-metodos-y-medicion/spec.md) | Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | cumplida | 57 | 57 | — |
-| [088](088-q-de-cabecera-desde-el-factor-de-potencia/spec.md) | Q negativa desde el factor de potencia | cumplida | 12 | 12 | — |
+| [088](088-q-de-cabecera-desde-el-factor-de-potencia/spec.md) | Q negativa desde el factor de potencia | cumplida | 14 | 14 | — |
 | [089](089-pronostico-de-demanda-en-un-modulo/spec.md) | Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | 105 | 105 | T7 |
 | [090](090-arquitectura-generada/spec.md) | La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida | 19 | 19 | — |
 | [091](091-flujo-calibracion-a-estudio/spec.md) | De la calibración al estudio, en su orden y sin avisos que engañen | cumplida | 33 | 33 | — |
@@ -106,16 +106,16 @@ retirada.
 | [097](097-vectores-multilingues-del-rag/spec.md) | Vectores multilingües para la búsqueda del asistente | aprobada | 23 | 22 | T5 |
 | [098](098-transferencia-del-operador-en-calibracion-y-obras/spec.md) | La transferencia de carga del operador, en la calibración y en las obras | cumplida | 50 | 50 | — |
 | [099](099-cargas-del-libro-duplicadas-por-el-nombre-del-cliente/spec.md) | Cargas del libro duplicadas por el nombre del cliente | cumplida | 8 | 8 | — |
-| [100](100-aceptacion-automatica-por-version/spec.md) | Aceptación automática por versión, sin tareas pendientes por proyecto | implementada | 7 | 7 | T4 (DIgSILENT) |
+| [100](100-aceptacion-automatica-por-version/spec.md) | Aceptación automática por versión, sin tareas pendientes por proyecto | implementada | 13 | 13 | T4 (DIgSILENT) |
 | [101](101-calibracion-cambia-los-transformadores-sola/spec.md) | La calibración cambia sola los transformadores que impiden converger | cumplida | 14 | 14 | — |
 | [102](102-puerta-de-calidad-ci-cd/spec.md) | Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | 34 | 34 | T20 |
 | [103](103-digsilent-de-cualquier-version/spec.md) | DIgSILENT de cualquier versión instalada | cumplida | 7 | 7 | — |
 | [104](104-libros-nuevos-se-reconocen-solos/spec.md) | Los libros nuevos de demanda se reconocen solos | cumplida | 48 | 48 | — |
 | [105](105-evolucion-de-clientes-fijos-por-alimentador/spec.md) | Evolución de los clientes fijos de cualquier alimentador | cumplida | 40 | 40 | — |
 | [106](106-un-turno-de-gpu-para-la-suite-y-los-entrenamientos/spec.md) | Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | aprobada | 20 | 20 | T2 |
-| [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | 22 | 22 | T14 (DIgSILENT) |
+| [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | 24 | 24 | T14 (DIgSILENT) |
 | [108](108-estudio-de-costos-del-vad/spec.md) | Estudio de costos del VAD con la empresa modelo eficiente | aprobada | 26 | 26 | T13 |
 | [109](109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md) | Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | implementada | 26 | 26 | T16 (DIgSILENT) |
 | [110](110-envio-de-informes-por-correo-desde-la-web/spec.md) | Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | 14 | 14 | — |
-| [111](111-editor-electrico-sobre-el-plano-gis/spec.md) | Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | aprobada | 27 | 27 | T17, T18 (DIgSILENT) |
+| [111](111-editor-electrico-sobre-el-plano-gis/spec.md) | Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | aprobada | 29 | 29 | T17, T18 (DIgSILENT) |
 | [112](112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md) | Datasets de referencia anonimizados y benchmarks reproducibles | cumplida | 14 | 14 | — |

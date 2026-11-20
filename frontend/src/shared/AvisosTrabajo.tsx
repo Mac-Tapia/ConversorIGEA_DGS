@@ -45,6 +45,20 @@ const QUE_LE_PASO: Record<string, string> = {
   interrumpido: 'Trabajo interrumpido', failed: 'Trabajo fallido', cancelled: 'Trabajo cancelado',
 };
 
+/** 086:RF-127: la referencia de soporte del trabajo, para copiarla y enviarla a quien da soporte. */
+export function ReferenciaSoporte({ traza }: { traza?: string | null }) {
+  const [copiada, setCopiada] = useState(false);
+  if (!traza) return null;
+  const copiar = () => {
+    void navigator.clipboard?.writeText(traza).then(() => setCopiada(true), () => setCopiada(false));
+  };
+  return (
+    <p className="muted small referencia-soporte">Referencia para soporte: <code>{traza}</code>{' '}
+      <button className="btn btn-sm btn-ghost" onClick={copiar} title="Copia la referencia para enviarla a soporte">
+        {copiada ? 'Copiada' : 'Copiar'}</button></p>
+  );
+}
+
 /** 086:RF-9, RF-72: un trabajo que no terminó bien, con lo que alcanzó a escribir. */
 export function AvisoTrabajo({ aviso, conPaso = false }: { aviso: Aviso; conPaso?: boolean }) {
   const { ws, run, startJob, active } = useApp();
@@ -61,6 +75,7 @@ export function AvisoTrabajo({ aviso, conPaso = false }: { aviso: Aviso; conPaso
         {anteriores.length > 0 && <span className="muted small"> · también {anteriores.length === 1 ? '1 vez' : `${anteriores.length} veces`} antes</span>}
         {conPaso && aviso.paso && <span className="muted small"> · de «{PASOS[aviso.paso].titulo}»</span>}</p>
       {job.error && <p>{job.error}</p>}
+      <ReferenciaSoporte traza={job.traza} />
       <div className="row">
         {repetir && (
           <button className="btn btn-sm" disabled={ocupado} title={ocupado ? 'Espere a que termine el trabajo en curso' : undefined}

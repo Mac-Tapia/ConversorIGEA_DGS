@@ -22,6 +22,7 @@ from ..dominio.conciliacion_clientes import (
 from ..dominio import evolucion_mensual as em
 from ..dominio.meses_copiados import mes_de_registro, meses_copiados
 from .pronostico_demanda import curvas_de_cabecera, curvas_por_cliente, equivalencias, libros_con_mes, sentido_de_serie
+from ..dominio.util import cuenta
 
 Serie = tuple[np.ndarray, np.ndarray, np.ndarray]
 #: Más alimentadores que esto no se nombran uno a uno en la carpeta: la ruta de Windows tiene un tope.
@@ -280,7 +281,7 @@ def _cabecera(fuentes: FuentesEvolucion, alimentadores: Sequence[str], desde: st
             if sobre:
                 avisos.append({'tipo': 'fijos_sobre_cabecera', 'texto': (
                     f"{alimentador}: la suma de los fijos supera la cabecera más un {MARGEN_CABECERA:.0%} en "
-                    f"{sobre['registros']} registro(s); el mayor, {em.iso_minuto(sobre['instante'])}: "
+                    f"{cuenta(sobre['registros'], 'registro', 'registros')}; el mayor, {em.iso_minuto(sobre['instante'])}: "
                     f"{sobre['fijos_kw']:.1f} kW de fijos con {sobre['cabecera_kw']:.1f} kW de cabecera; por mes: "
                     + ', '.join(f'{m}: {k}' for m, k in sobre['por_mes'].items())
                     + '. Revise la asignación de clientes, el medidor o un corte de la cabecera.')})
@@ -416,7 +417,7 @@ def calcular_evolucion(fuentes: FuentesEvolucion, alimentadores: Sequence[str], 
         t['cabecera'] = cabecera.get(t['alimentador'])
     fuera = conc['sin_suministro']
     if fuera:
-        avisos.append({'tipo': 'sin_suministro', 'texto': f'{len(fuera)} cliente(s) de los libros no están en el libro de '
+        avisos.append({'tipo': 'sin_suministro', 'texto': f'{cuenta(len(fuera), "cliente de los libros no está", "clientes de los libros no están")} en el libro de '
                        f'suministros y no se sabe su alimentador: ' + ', '.join(fuera[:10]) + (' …' if len(fuera) > 10 else '')})
     meses_con_datos = sorted({d['mes'] for c in clientes for d in c['meses']})
     datos = {

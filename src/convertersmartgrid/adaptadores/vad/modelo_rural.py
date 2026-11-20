@@ -36,6 +36,7 @@ from ...dominio.model import FeederModel
 from ...dominio.registro_normativo import RegistroError, RegistroNormativo
 from ...dominio.troncal import Barra, Tramo, TroncalError, red_de, troncal
 from ...aplicacion.vad import VadError
+from ...dominio.util import cuenta
 
 #: Regla del registro en la que se apoya el modelo: sin ella no se arma (108:RF-9).
 REGLA_TRAZA = 'vad.anexo6.traza_real'
@@ -348,5 +349,5 @@ def comprobar_trazas(modelo: ModeloRural, fuente: CanonicalModel | Iterable[tupl
     esperadas = {c.tramo: hash_vertices(c.vertices) if c.vertices else '' for c in crudos}
     distintos = sorted(t.tramo for t in modelo.tramos if esperadas.get(t.tramo, None) != t.huella)
     if distintos:
-        raise VadError(f'la traza de {len(distintos)} tramo(s) no es la de la fuente: {", ".join(distintos[:20])}'
+        raise VadError(f'la traza de {cuenta(len(distintos), "tramo", "tramos")} no es la de la fuente: {", ".join(distintos[:20])}'
                        f'{" …" if len(distintos) > 20 else ""}. Se respetarán las trazas (vad.anexo6.trazas)')

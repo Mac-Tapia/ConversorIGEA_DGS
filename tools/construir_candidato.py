@@ -49,6 +49,7 @@ sys.path.insert(0, str(RAIZ / 'src'))
 sys.path.insert(0, str(RAIZ / 'tools'))
 
 import comprobar_entrega as CE  # noqa: E402  (herramienta hermana, sin instalar)
+from _plural import cuenta  # noqa: E402
 
 LOCK = RAIZ / 'requirements-nucleo.lock'
 COMPLEMENTO_IA = RAIZ / 'requirements-complemento-ia.txt'
@@ -1327,13 +1328,13 @@ def corpus_neutro(salida: Path, terminos: CE.Terminos) -> dict[str, Any]:
                     del faltan[e.tarea]
         semilla += 1
     if faltan:
-        raise CE.EntregaError(f'El corpus neutro no completa {sum(faltan.values())} orden(es) sin términos de la lista '
+        raise CE.EntregaError(f'El corpus neutro no completa {cuenta(sum(faltan.values()), "orden", "órdenes")} sin términos de la lista '
                               'de la entrega: no se entrega.')
     fijas = ordenes_fijas.generar({})
     # Las órdenes fijas están escritas a mano: una con un término de la lista es un defecto y rechaza la entrega.
     halladas = sorted({t for e in fijas for t, _ in CE._buscar(e.texto, terminos, memoria)})
     if halladas:
-        raise CE.EntregaError(f'El corpus neutro lleva {len(halladas)} término(s) de la lista de la entrega: no se entrega.')
+        raise CE.EntregaError(f'El corpus neutro lleva {cuenta(len(halladas), "término", "términos")} de la lista de la entrega: no se entrega.')
     filas = [fila(e) for e in [*validas, *fijas]]
     ruta = salida / 'corpus' / 'ordenes_neutras.json'
     ruta.parent.mkdir(parents=True, exist_ok=True)

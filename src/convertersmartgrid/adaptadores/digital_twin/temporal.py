@@ -18,6 +18,7 @@ from datetime import datetime
 from typing import Any
 
 import numpy as np
+from convertersmartgrid.dominio.util import cuenta
 
 #: Puntos por día con medidas cada 15 minutos.
 PUNTOS_DIA = 96
@@ -370,7 +371,7 @@ def pseudo_medidas(barra: Sequence[float], medidas: Mapping[str, Sequence[float]
         serie = resto * s / total_kva + fijas.get(a, 0.0)
         out[a] = {'kw': serie.tolist(), 'inferior': (serie * (1 - sigma_pct / 100)).tolist(),
                   'superior': (serie * (1 + sigma_pct / 100)).tolist(), 'estimada': True,
-                  'aviso': (f'{negativos} instante(s) en que lo medido supera a la barra: estimado 0'
+                  'aviso': (f'{cuenta(negativos, "instante", "instantes")} en que lo medido supera a la barra: estimado 0'
                             if negativos else None)}
     return out
 

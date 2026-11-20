@@ -122,7 +122,10 @@ def test_070_rf79_pit_el_diagnostico_sube_los_ficheros_y_sigue_su_trabajo(web, t
     assert (raiz / 'entradas_pit' / 'proyeccion.json').read_bytes() == proyeccion.read_bytes()
     assert (raiz / 'expedientes_pit' / caso['area'] / 'diagnostico_de_trabajo.json').is_file()
     assert fin['result']['texto'].startswith('Diagnóstico del PIT')
-    assert [p['estado'] for p in fin['result']['pasos']] == ['done']
+    # 107:RF-24: un diagnóstico que no salió entero termina «parcial» con su motivo, no «done» callado.
+    diag = json.loads((raiz / 'expedientes_pit' / caso['area'] / 'diagnostico_de_trabajo.json').read_text(encoding='utf-8'))
+    esperado = 'done' if diag.get('completo', True) else 'parcial'
+    assert [p['estado'] for p in fin['result']['pasos']] == [esperado], diag.get('completo')
 
 
 def test_070_rf79_pit_la_ruta_de_entradas_solo_admite_libros_y_json(web):

@@ -75,6 +75,9 @@ from convertersmartgrid.aplicacion.catalog import (  # noqa: E402
     leer_catalogo,
 )
 from convertersmartgrid.dominio.model import build_feeder_model  # noqa: E402
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 
 def _cargar_dataset(args: argparse.Namespace):
@@ -218,9 +221,10 @@ def main(argv: list[str] | None = None) -> int:
     km_totales = sum(c.km for c in resumen)
     tipos = {c.codigo for c in resumen}
     print()
-    print(f'{len(resumen)} característica(s) corregidas en {len(tipos)} tipo(s), '
+    print(f'{cuenta(len(resumen), "característica corregida", "características corregidas")} en '
+          f'{cuenta(len(tipos), "tipo", "tipos")}, '
           f'sobre {km_totales:,.1f} km de red '
-          f'y {len(cambios_por_alimentador)} alimentador(es).')
+          f'y {cuenta(len(cambios_por_alimentador), "alimentador", "alimentadores")}.')
     print()
     print('La identidad de cada elemento se conserva: el código, el material y la '
           'sección salen del export y no se tocan.')

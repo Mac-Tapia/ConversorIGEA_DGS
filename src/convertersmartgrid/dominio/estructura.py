@@ -17,6 +17,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
+from convertersmartgrid.dominio.util import cuenta, plural
 
 
 class EstructuraError(ValueError):
@@ -358,8 +359,8 @@ def aviso_deducidos(estructura: Estructura, alimentadores: Iterable[str]) -> str
         lineas.append(f'{a} en {st.rotulo} ({st.zonal}): {estructura.deducidos[a]}')
     if not lineas:
         return ''
-    return (f'{len(lineas)} alimentador(es) que la estructura no traía, colocados por la '
-            'entrega: ' + '; '.join(lineas) + '.')
+    return (f'{cuenta(len(lineas), "alimentador", "alimentadores")} que la estructura no traía, '
+            f'{plural(len(lineas), "colocado", "colocados")} por la entrega: ' + '; '.join(lineas) + '.')
 
 
 # =========================================================================== asignación

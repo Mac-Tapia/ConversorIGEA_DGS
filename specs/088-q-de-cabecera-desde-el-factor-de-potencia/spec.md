@@ -1,6 +1,6 @@
 # Spec 088 — Q negativa desde el factor de potencia
 
-Estado: cumplida · Fecha: 2026-11-05
+Estado: cumplida (reabierta y cerrada el 2026-11-19 con MEJ3-CALIB por orden del usuario; su corrida en DIgSILENT va en 086 T105) · Fecha: 2026-11-05
 
 ## Contexto y objetivo
 
@@ -24,6 +24,11 @@ Los signos se dan en el sentido de la carga: inductivo es Q con el signo de P, y
 - RF-10: CUANDO se calcule la Q de algún registro, EL SISTEMA dirá en las columnas del resultado que la Q es calculada.
 - RF-12: SI la Q calculada supera el kVA del registro, ENTONCES EL SISTEMA conservará el kVAR de su columna.
 - RF-11: EL SISTEMA no llevará en el código ningún medidor ni alimentador de una empresa para esta regla.
+- RF-13: (orden del usuario del 19-11, revisión de la calibración de cargas) SI un cliente fijo no trae EA o ERI y la
+  máxima de cabecera es capacitiva, ENTONCES EL SISTEMA calculará su Q con el FP de las fijas del perfil de empresa o, sin
+  él, con el FP de la cabecera como inductivo, y lo dirá en un aviso: una cabecera capacitiva no da Q negativa a una carga.
+- RF-14: (misma orden) CUANDO la máxima de cabecera no trae kVAR y sí FP, EL SISTEMA dará a su Q el signo de RF-2 y RF-3
+  según su FP declarado (`lead` o `lag`) y, sin él, el signo de su medida (un FP negativo es capacitivo).
 
 ## Fuera de alcance
 

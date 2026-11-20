@@ -23,6 +23,8 @@ export type CapaPlano = S['CapaPlanoRespuesta'];
 export type ElementoCapa = S['ElementoCapaRespuesta'];
 export type ComparacionPlano = S['ComparacionPlanoRespuesta'];
 export type ElementoComparado = S['ElementoComparadoRespuesta'];
+/** 111:RF-29: el motor que pide el operador al estudiar una variación. */
+export type MotorPedido = NonNullable<S['EstudiarPlanoPeticion']['motor']>;
 
 const ruta = (id: string) => `/api/workspaces/${encodeURIComponent(id)}/plano`;
 const variacion = (id: string, vid: string) => `${ruta(id)}/variaciones/${encodeURIComponent(vid)}`;
@@ -56,8 +58,9 @@ export const plano = {
     request<VariacionPlano>(`${variacion(id, vid)}/confirmar`, json('POST', { version })),
   ajuste: (id: string, vid: string, punto: [number, number]) =>
     request<PropuestaAjuste>(`${variacion(id, vid)}/ajuste`, json('POST', { punto })),
-  estudiar: (id: string, vid: string, project: string | null) =>
-    request<Job>(`${variacion(id, vid)}/estudiar`, json('POST', { project: project || null })),
+  /** 111:RF-29: el operador elige el motor; «automatico» es la elección de siempre. */
+  estudiar: (id: string, vid: string, project: string | null, motor: MotorPedido = 'automatico') =>
+    request<Job>(`${variacion(id, vid)}/estudiar`, json('POST', { project: project || null, motor })),
   resultados: (id: string, vid: string) =>
     request<CapasPlano>(`${ruta(id)}/resultados?${new URLSearchParams({ variacion: vid })}`),
   comparar: (id: string, a: string, b: string) =>

@@ -21,6 +21,11 @@ from convertersmartgrid.dominio.ajuste_cabecera import (
     objetivo_de,
     reparto_inicial,
 )
+from convertersmartgrid.dominio import ajuste_cabecera as ac
+
+CALIBRACION_IMPOSIBLE = getattr(ac, 'CALIBRACION_IMPOSIBLE', 'IMPOSIBLE')
+NO_CALIBRABLE = getattr(ac, 'NO_CALIBRABLE', 'NO_CALIBRABLE')
+SEMILLA = random.SystemRandom().randrange(1, 2 ** 31)
 
 
 def _maxima(**kw):
@@ -191,24 +196,76 @@ def test_sed_sin_demanda_queda_en_cero_y_se_avisa():
     assert any('E3' in a and 'cero' in a and 'potencia instalada' in a for a in r.avisos)
 
 
-def test_clientes_que_superan_el_objetivo_escalan_todo():
-    """006:RF-13 — si las fijas superan el objetivo, todas escalan juntas y se dice."""
-    o = objetivo_de(_maxima(kw=100.0, kvar=30.0))
-    fijas = fijas_de([_cliente('1', 'E1', 150.0, 1.0, 0.3)], o)
-    r = reparto_inicial(o, fijas, {'E1': (10.0, 1.0), 'E2': (150.0, 30.0)},
-                        {'E1': 100.0, 'E2': 150.0 / o.fp})
-    assert r.todo_escala and r.avisos
-    assert r.demandas['E1'].origen == 'cliente'
-    assert sum(x.kw for x in r.demandas.values()) == pytest.approx(100.0)
-    assert r.demandas['E2'].kw == pytest.approx(r.demandas['E1'].kw)
+def _escaladas(n, kva_total):
+    """``n`` SED escaladas que suman ``kva_total`` kVA, sorteadas con la semilla del módulo."""
+    rnd = random.Random(SEMILLA)
+    pesos = [rnd.uniform(1.0, 5.0) for _ in range(n)]
+    kva = {f'S{i}': kva_total * w / sum(pesos) for i, w in enumerate(pesos, 1)}
+    return {s: (0.0, 0.0) for s in kva}, kva
 
 
-def test_todas_las_sed_con_clientes_escalan():
-    """006:RF-13 — sin SED que repartir, las fijas escalan hasta el objetivo."""
+def _flujo_con_perdidas(r):
+    """Una red sintética: entra por la cabecera lo que consumen sus cargas más un 2 %."""
+    p, q = r.totales()
+    return Medida(True, kw=p * 1.02, kvar=q * 1.02, carga_kw=p, carga_kvar=q)
+
+
+@pytest.mark.parametrize('fijas_kw', (5010.0, 5000.0, 7300.0))
+def test_006_rf46_fijas_que_llenan_la_cabecera_no_escalan_y_es_imposible(fijas_kw):
+    """006:RF-46 (cambia 006:RF-13; 086:RF-124) — cabecera 5 000 kW, escaladas 10 000 kVA y fijas que llenan o pasan la
+    cabecera: las fijas siguen con su P y Q (escala 1), las escaladas al mínimo y el alimentador sale imposible con su
+    causa, en un flujo. Antes se escalaban también las fijas: con 5 010 kW quedaban en 1 691 kW."""
+    o = objetivo_de(_maxima(kw=5000.0, kvar=1000.0))
+    cargas, kva = _escaladas(40, 10000.0)
+    fijas = fijas_de([_cliente('1', 'F1', fijas_kw, ea=1.0, eri=0.3)], o)
+    r = reparto_inicial(o, fijas, {'F1': (1.0, 0.1), **cargas}, kva)
+    assert not r.todo_escala and r.fijas == {'F1': (fijas_kw, pytest.approx(0.3 * fijas_kw))}, r
+    assert r.causa and r.causa['estado'] == CALIBRACION_IMPOSIBLE and r.a == 0.0, r.causa
+    assert r.demandas['F1'].kw == fijas_kw and r.demandas['F1'].origen == 'cliente'
+    res = cuadrar(r, o, _flujo_con_perdidas, tolerancia=0.01)
+    assert not res.cuadrado and res.imposible and res.flujos == 1, (res.flujos, res.motivo)
+    assert res.reparto.demandas['F1'].kw == fijas_kw and res.imposible['fijas_kw'] == fijas_kw
+    assert res.imposible['dominante']['sed'] == 'F1' and res.motivo == res.imposible['texto']
+    assert '(s)' not in res.motivo and 'RF-' not in res.motivo
+
+
+def test_006_rf46_no_hay_salto_entre_fijas_justo_por_debajo_y_justo_por_encima():
+    """006:RF-46 — con 4 990 kW de fijas las escaladas toman lo que falta; con 5 010 kW las fijas no bajan a 1 691 kW: en
+    los dos lados las fijas quedan con su P."""
+    o = objetivo_de(_maxima(kw=5000.0, kvar=1000.0))
+    cargas, kva = _escaladas(40, 10000.0)
+    for fijas_kw in (4990.0, 5010.0):
+        fijas = fijas_de([_cliente('1', 'F1', fijas_kw, ea=1.0, eri=0.3)], o)
+        r = reparto_inicial(o, fijas, {'F1': (1.0, 0.1), **cargas}, kva)
+        assert r.demandas['F1'].kw == fijas_kw, (fijas_kw, r.demandas['F1'])
+        assert sum(d.kw for s, d in r.demandas.items() if s != 'F1') == pytest.approx(max(0.0, 5000.0 - fijas_kw))
+
+
+@pytest.mark.parametrize('kva', ({}, {'E1': 100.0, 'E2': None}))
+def test_006_rf46_sin_escaladas_con_kva_no_se_calibra_y_las_fijas_no_cambian(kva):
+    """006:RF-46 — todas las SED con clientes, o las escaladas sin kVA conocido: no se puede repartir. Sale no
+    calibrable con su causa, sin flujos, y ningún factor se aplica a las fijas (antes escalaban hasta el objetivo)."""
     o = objetivo_de(_maxima(kw=1000.0, kvar=300.0))
     fijas = fijas_de([_cliente('1', 'E1', 100.0, 1.0, 0.3)], o)
-    r = reparto_inicial(o, fijas, {'E1': (5.0, 1.0)})
-    assert r.todo_escala and r.demandas['E1'].kw == pytest.approx(1000.0)
+    r = reparto_inicial(o, fijas, {'E1': (5.0, 1.0), 'E2': (40.0, 4.0)} if kva else {'E1': (5.0, 1.0)}, kva)
+    assert not r.todo_escala and r.causa and r.causa['estado'] == NO_CALIBRABLE, r
+    assert r.demandas['E1'].kw == 100.0 and r.fijas['E1'][0] == 100.0
+    res = cuadrar(r, o, lambda _r: pytest.fail('un alimentador no calibrable no ejecuta flujos'))
+    assert not res.cuadrado and res.flujos == 0 and res.no_calibrable == r.causa
+    assert 'no se puede repartir' in res.motivo and '(s)' not in res.motivo
+
+
+def test_006_rf46_sorteado_las_fijas_nunca_cambian():
+    """006:RF-46 — con fijas y escaladas sorteadas, por encima o por debajo de la cabecera, ninguna fija cambia su P."""
+    rnd = random.Random(SEMILLA)
+    for _ in range(200):
+        o = objetivo_de(_maxima(kw=rnd.uniform(500.0, 8000.0), kvar=rnd.uniform(-500.0, 2000.0)))
+        cargas, kva = _escaladas(rnd.randint(1, 30), rnd.uniform(100.0, 20000.0))
+        clientes = [_cliente(str(i), f'F{i}', rnd.uniform(10.0, 6000.0), 1.0, rnd.uniform(0.0, 0.6))
+                    for i in range(rnd.randint(1, 4))]
+        fijas = fijas_de(clientes, o)
+        r = reparto_inicial(o, fijas, {**{f.sed: (1.0, 0.1) for f in fijas.values()}, **cargas}, kva)
+        assert all(r.demandas[f.sed].kw == pytest.approx(f.kw) for f in fijas.values()), (SEMILLA, o, r.avisos)
 
 
 def test_el_kvar_de_las_escaladas_sigue_su_propio_fp():
@@ -726,3 +783,60 @@ def test_tamano_de_banco_en_el_perfil():
     assert bancos_kvar_por_tension({}) is None
     with pytest.raises(PerfilError):
         bancos_kvar_por_tension({'calibracion': {'bancos_kvar_por_tension': {'22.9': 0}}})
+
+
+def _casi_cero_ejemplo(fijas_kw):
+    """Un alimentador como el alimentador del ejemplo (2026-11-06): 69 escaladas con 10 675 kVA y cabecera de 6 272 kW."""
+    o = objetivo_de(_maxima(alimentador='el alimentador del ejemplo', kw=6272.0, kvar=1200.0))
+    cargas, kva = _escaladas(69, 10675.0)
+    fijas = fijas_de([_cliente('1', 'F1', fijas_kw, 1.0, 0.3)], o)
+    return o, reparto_inicial(o, fijas, {'F1': (1.0, 0.1), **cargas}, kva)
+
+
+def test_015_rf71_escaladas_casi_en_cero_se_avisan_con_sus_sed_y_su_causa():
+    """015:RF-71 — con las fijas del máximo de cada mes (6 174 kW) el factor queda en 0,0094 y varias escaladas bajo
+    1 kW: se cuentan, se nombran por alimentador con la causa (las fijas casi igualan la cabecera) y el reparto no es
+    válido. Con las fijas coincidentes (5 124 kW) ninguna escalada queda casi en cero y no hay aviso."""
+    assert getattr(ac, 'ESCALADA_CASI_CERO_KW', None) == 1.0, 'sin umbral de 1 kW con nombre'
+    o, r = _casi_cero_ejemplo(6174.0)
+    casi = ac.escaladas_casi_cero_del_reparto(r, o)
+    assert r.a == pytest.approx(98.0 / (10675.0 * o.fp)) and casi is not None
+    bajo = sorted(s for s, d in r.demandas.items() if d.origen == 'escala' and d.kw < 1.0)
+    assert bajo and casi['cantidad'] == len(bajo) and sorted(casi['sed']) == bajo
+    assert casi['factor_anormal'] and casi['invalida'] and casi['fijas_kw'] == 6174.0
+    for parte in ('el alimentador del ejemplo', 'por debajo de 1 kW', 'fijas suman 6,174.0 kW', '6,272.0 kW', bajo[0]):
+        assert parte in casi['aviso'], (parte, casi['aviso'])
+    assert '(s)' not in casi['aviso'] and 'RF-' not in casi['aviso']
+    o, r = _casi_cero_ejemplo(5124.0)
+    assert ac.escaladas_casi_cero_del_reparto(r, o) is None, r.a
+
+
+def test_015_rf71_una_sed_pequena_bajo_1_kw_con_factor_normal_se_avisa_sin_invalidar():
+    """015:RF-71 — una SED de 2 kVA con el factor común normal queda bajo 1 kW: se nombra, pero el factor no es anormal y
+    el reparto sigue siendo válido."""
+    assert hasattr(ac, 'escaladas_casi_cero_del_reparto'), 'sin recuento de escaladas casi en cero'
+    o = objetivo_de(_maxima(alimentador='A1', kw=1000.0, kvar=200.0))
+    r = reparto_inicial(o, {}, {'S1': (0.0, 0.0), 'S2': (0.0, 0.0)}, {'S1': 2.0, 'S2': 4000.0})
+    casi = ac.escaladas_casi_cero_del_reparto(r, o)
+    assert casi and casi['sed'] == ['S1'] and not casi['factor_anormal'] and not casi['invalida'], casi
+
+
+def test_088_rf13_fija_sin_ea_eri_no_hereda_la_q_negativa_de_una_cabecera_capacitiva():
+    """088:RF-13 — cabecera de 5 000 kW y −500 kvar: una fija de 300 kW sin EA/ERI no queda capacitiva (antes −30 kvar);
+    toma el FP de las fijas del perfil o, sin él, el de la cabecera como inductivo, y se avisa."""
+    o = objetivo_de(_maxima(kw=5000.0, kvar=-500.0))
+    sin_perfil = fijas_de([_cliente('7', 'E1', 300.0)], o)['E1']
+    assert sin_perfil.kvar == pytest.approx(30.0) and any('inductivo' in a for a in sin_perfil.avisos), sin_perfil
+    con_perfil = fijas_de([_cliente('7', 'E1', 300.0)], o, fp_minimo=0.98)['E1']
+    assert con_perfil.kvar == pytest.approx(300.0 * math.tan(math.acos(0.98)))
+    inductiva = objetivo_de(_maxima(kw=5000.0, kvar=500.0))
+    assert fijas_de([_cliente('7', 'E1', 300.0)], inductiva)['E1'].kvar == pytest.approx(30.0)
+
+
+@pytest.mark.parametrize('fp, columna, signo', ((-0.8, None, -1), (0.8, 'PF lead mean', -1), (0.8, 'PF lag mean', 1),
+                                                (0.8, None, 1)))
+def test_088_rf14_maxima_sin_kvar_respeta_el_signo_de_su_fp(fp, columna, signo):
+    """088:RF-14 (088:RF-2, RF-3) — una máxima sin kVAR saca la Q de su FP con el signo que da su medida (FP negativo) o su
+    FP declarado (`lead` capacitivo, `lag` inductivo); antes siempre salía positiva."""
+    o = objetivo_de(_maxima(kvar=None, fp=fp, columnas={'fp': columna} if columna else {}))
+    assert o.kvar == pytest.approx(signo * 750.0)

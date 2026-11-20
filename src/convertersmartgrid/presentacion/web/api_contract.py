@@ -101,6 +101,7 @@ class JobRespuesta(Respuesta):
     started_at: float | None
     finished_at: float | None
     cancel_requested: bool
+    traza: str | None = None
 
 
 class OpcionesRespuesta(Respuesta):
@@ -1133,10 +1134,12 @@ class VistaPlanoRespuesta(Respuesta):
 
 
 class MotorPlanoRespuesta(Respuesta):
-    """111:RF-17, RF-18: con qué motor se estudiaría ahora y por qué."""
+    """111:RF-17, RF-18: con qué motor se estudiaría ahora y por qué; RF-29: si el operador puede pedir DIgSILENT."""
     motor: Literal['DIgSILENT', 'abierto']
     texto: str
     motivo: str
+    # 086:RF-60: el título del esquema, con la I mayúscula (Pydantic lo deriva del nombre del campo).
+    digsilent_posible: bool = Field(default=False, title='DIgSILENT posible')
 
 
 class FondoPlanoRespuesta(Respuesta):
@@ -1226,6 +1229,8 @@ class PropuestaAjusteRespuesta(Respuesta):
 class EstudiarPlanoPeticion(BaseModel):
     model_config = ConfigDict(extra='forbid')
     project: str | None = Field(default=None, max_length=255)
+    #: 111:RF-29: el motor que pide el operador; sin él (o «automatico»), la elección de siempre (RF-17).
+    motor: Literal['automatico', 'abierto', 'DIgSILENT'] | None = None
 
 
 class NormaHallazgoRespuesta(Respuesta):
@@ -1316,3 +1321,34 @@ class ComparacionPlanoRespuesta(Respuesta):
     comparable: bool
     motivo: str
     elementos: list[ElementoComparadoRespuesta]
+
+
+class EvidenciaMatrizRespuesta(Respuesta):
+    """100:RF-9: una spec de la evidencia de una celda y la palabra de su línea ``Estado:`` (``None`` si no se lee)."""
+    spec: str
+    estado: str | None
+
+
+class CeldaMatrizRespuesta(Respuesta):
+    motor: str
+    estado: Literal['validado', 'sin_validar', 'no_disponible']
+    motivo: str
+    evidencia: list[EvidenciaMatrizRespuesta]
+
+
+class EstudioMatrizRespuesta(Respuesta):
+    clave: str
+    nombre: str
+    celdas: list[CeldaMatrizRespuesta]
+
+
+class MotorMatrizRespuesta(Respuesta):
+    clave: str
+    nombre: str
+
+
+class MatrizEstudiosRespuesta(Respuesta):
+    """100:RF-8, RF-10, RF-13: la matriz estudio × motor que sirve ``GET /api/estudios/matriz`` y de dónde salen sus estados."""
+    origen: Literal['specs', 'recurso', 'ninguno']
+    motores: list[MotorMatrizRespuesta]
+    estudios: list[EstudioMatrizRespuesta]

@@ -7,8 +7,9 @@
 - ``GET/PATCH …/plano/variaciones/{vid}``: lee o edita la variación con su versión; una edición que no vale es ``422``
   con el motivo y una versión vieja o una red cambiada, ``409`` (RF-4 a RF-8).
 - ``POST …/plano/variaciones/{vid}/deshacer|rehacer|confirmar`` (RF-9) y ``…/ajuste`` (propuesta, RF-7).
-- ``POST …/plano/variaciones/{vid}/estudiar``: un trabajo en su carril, ``powerfactory`` con licencia y el proyecto
-  vinculado a la red cargada, ``engine`` con el motor abierto si no (RF-17, RF-18).
+- ``POST …/plano/variaciones/{vid}/estudiar``: un trabajo en su carril, ``powerfactory`` con DIgSILENT disponible y el
+  proyecto vinculado a la red cargada, ``engine`` con el motor abierto si no (RF-17, RF-18); el operador puede pedir
+  uno u otro (RF-29), y un flujo que no converge termina «no converge» con su motivo (RF-28).
 - ``GET …/plano/pagina``: la página del plano (``pagina_plano.py``), aislada como toda página generada (RF-14).
 - ``GET …/plano/resultados`` y ``…/plano/comparar``: las capas y la comparación de dos casos (RF-10 a RF-13, RF-19).
 
@@ -59,11 +60,15 @@ class FuenteWeb:
         ruta = Path(ws.out_dir) / f'{alimentador}_geography.json'
         return ruta if ruta.is_file() else None
 
-    def licencia(self) -> bool:
-        """DIgSILENT se puede usar: su API y un intérprete que la cargue."""
+    def disponible(self) -> bool:
+        """111:RF-29: DIgSILENT se puede usar en este equipo: una instalación con su API y el Python que pide.
+
+        Se llamaba «licencia» y miraba solo si había intérprete: sin PowerFactory instalada daba el de la web y el
+        estudio iba a DIgSILENT para fallar. La licencia solo se sabe al conectar, y su error lo dice el trabajo.
+        """
         from . import services
 
-        return services.powerfactory_status().get('interpreter') is not None
+        return services.digsilent_disponible()
 
     def vinculo(self, ws, project: str, alimentadores: list[str]) -> tuple[Any, bool]:
         """El vínculo del proyecto y si es el de la ejecución de la fuente que se ve en el plano."""
@@ -92,7 +97,7 @@ class FuenteWeb:
         from .requisitos import UserError
 
         estado = services.powerfactory_status()
-        if estado.get('interpreter') is None:
+        if not services.digsilent_disponible():
             raise UserError('DIgSILENT no se puede usar en este equipo: estudie con el motor abierto.')
         pf_dir = Path(estado['api_dir']) if estado.get('api_dir') else None
         token = uuid.uuid4().hex[:12]
@@ -160,13 +165,13 @@ def _ejecutar(funcion, *args, **kwargs) -> dict:
         raise HTTPException(422, str(exc)) from exc
 
 
-def estudiar(fuente, ws, ctx, vid: str, project: str | None) -> dict:
+def estudiar(fuente, ws, ctx, vid: str, project: str | None, pedido: str | None = None) -> dict:
     """El trabajo de estudiar una variación: en DIgSILENT si toca, con el motor abierto si no; guarda el resultado."""
     v = variacion_plano.leer(ws.root, vid)
     modelo, vista, revision = _vista_y_revision(fuente, ws, v['alimentador'])
     if revision != v['revision'] or v.get('revision_cambiada'):
         raise variacion_plano.ConflictoVariacion('La red cambió desde que se abrió la variación: no se estudia.')
-    motor, binding = _motor(fuente, ws, project, v['alimentador'])
+    motor, binding = _motor(fuente, ws, project, v['alimentador'], pedido)
     if motor['motor'] == 'DIgSILENT':
         from ...dominio.native_action import build_native_action_context
 
@@ -190,8 +195,14 @@ def estudiar(fuente, ws, ctx, vid: str, project: str | None) -> dict:
     ruta = _ruta_resultado(ws, vid)
     ruta.parent.mkdir(parents=True, exist_ok=True)
     write_json_atomic(ruta, resultado)
-    return {'variacion': vid, 'motor': resultado['motor'], 'convergio': bool(resultado.get('convergio')),
-            'mensajes': list(resultado.get('mensajes') or ())}
+    out = {'variacion': vid, 'motor': resultado['motor'], 'convergio': bool(resultado.get('convergio')),
+           'mensajes': list(resultado.get('mensajes') or ())}
+    if not out['convergio']:
+        # 111:RF-28 (amplía 081:RF-17): un flujo que no converge terminaba «done» como uno bueno; ahora la cola lo
+        # marca «no converge», con el motivo del motor. El resultado se guarda igual: las capas dicen por qué no pintan.
+        texto = '; '.join(str(m) for m in out['mensajes'][:3]) or 'el motor no dio el motivo'
+        out.update(estado_trabajo='no_converge', motivo=f'El flujo no converge con {resultado["motor"]}: {texto}')
+    return out
 
 
 def _normas(limites=None) -> dict:
@@ -211,10 +222,11 @@ def _campo(binding: Any, nombre: str) -> Any:
     return binding.get(nombre) if isinstance(binding, dict) else getattr(binding, nombre, None)
 
 
-def _motor(fuente, ws, project: str | None, alimentador: str) -> tuple[dict, Any]:
-    licencia = bool(fuente.licencia())
-    binding, vinculado = (fuente.vinculo(ws, project, [alimentador]) if licencia and project else (None, False))
-    return resultados_plano.elegir_motor(licencia=licencia, vinculado=vinculado), binding
+def _motor(fuente, ws, project: str | None, alimentador: str, pedido: str | None = None) -> tuple[dict, Any]:
+    """111:RF-17, RF-29: el motor de la variación y el vínculo; ``pedido`` es la elección del operador."""
+    disponible = bool(fuente.disponible())
+    binding, vinculado = (fuente.vinculo(ws, project, [alimentador]) if disponible and project else (None, False))
+    return resultados_plano.elegir_motor(licencia=disponible, vinculado=vinculado, pedido=pedido), binding
 
 
 def registrar_rutas_plano(app: FastAPI, *, ws_or_404, submit, fuente: Any = None) -> None:
@@ -312,10 +324,14 @@ def registrar_rutas_plano(app: FastAPI, *, ws_or_404, submit, fuente: Any = None
         _modelo, _vista, revision = _vista_y_revision(fuente, ws, v['alimentador'])
         if v.get('revision_cambiada') or v['revision'] != revision:
             raise HTTPException(409, 'La red cambió desde que se abrió la variación: ábrala de nuevo sobre la red actual.')
-        motor, _binding = _motor(fuente, ws, body.project, v['alimentador'])
+        try:
+            motor, _binding = _motor(fuente, ws, body.project, v['alimentador'], body.motor)
+        except ValueError as exc:
+            # 111:RF-29: pedir DIgSILENT sin poder usarlo es un error antes de encolar, no un cambio de motor callado.
+            raise HTTPException(422, str(exc)) from exc
         carril = 'powerfactory' if motor['motor'] == 'DIgSILENT' else 'engine'
         return submit(ws, 'plano_estudiar', f'Plano · {v["alimentador"]} · {v["caso"]} ({motor["texto"]})',
-                      lambda ctx: estudiar(fuente, ws, ctx, vid, body.project), lane=carril)
+                      lambda ctx: estudiar(fuente, ws, ctx, vid, body.project, body.motor), lane=carril)
 
     @app.get(f'{base}/resultados', response_model=CapasPlanoRespuesta)
     def resultados(wid: str, variacion: str = Query(..., min_length=1)) -> dict:

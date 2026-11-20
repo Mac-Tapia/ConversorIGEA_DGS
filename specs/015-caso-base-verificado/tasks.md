@@ -246,3 +246,17 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T27. Retro (033, 2026-10-29): RF-68, RF-69, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-68, RF-69)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_ajuste_cabecera_guion.py`).
+- [x] T28. MEJ3-CALIB (orden del usuario del 19-11): `escaladas_casi_cero` y `escaladas_casi_cero_del_reparto` en el
+      dominio; `validar_cargas_nativas` cuenta con `ESCALADA_CASI_CERO_KW` (1 kW, antes `CONSUMO_ABS` de 10 W), guarda
+      `participacion['casi_cero']`, añade el fallo `ESCALADAS_CASI_CERO` con el factor anormal y el guion lo avisa por
+      alimentador (`aviso_casi_cero`) en uno, en el proyecto y en las zonas de una central. (RF-71)
+      Hecho cuando: rojo por aserción sobre faf67626 y verde con `tests/test_ajuste_cabecera.py -k rf71` y
+      `tests/test_ajuste_cabecera_guion.py -k rf71`; la corrida en DIgSILENT va en el bloque de 086 T105.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T29. MEJ3-CALIB: `bancos_a_su_maxima_capacidad` también en `_ejecutar_con_central` (con las centrales apagadas)
+      y en `_ejecutar_proyecto` para el alimentador con central. (RF-72)
+      Hecho cuando: rojo por aserción sobre faf67626 y verde con `tests/test_ajuste_central_guion.py -k rf72`; la Q de
+      cabecera antes y después en DIgSILENT va en el bloque de 086 T105.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).

@@ -8,16 +8,16 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 463 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 467 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
-| Herramientas y guiones | `tools/` | 128 |
-| Interfaz | `frontend/src/` | 116 |
-| Pruebas de la interfaz | `frontend/test/` | 63 |
-| Pruebas | `tests/` | 630 |
+| Herramientas y guiones | `tools/` | 129 |
+| Interfaz | `frontend/src/` | 119 |
+| Pruebas de la interfaz | `frontend/test/` | 64 |
+| Pruebas | `tests/` | 637 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 14355 líneas y 451 funciones, pendiente de partir (002).
+`web/services.py` tiene 14417 líneas y 457 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 6 |
 | retirada | 1 |
 
-112 specs con 3906 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3936 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -36,11 +36,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | --- | --- | --- |
 | adaptadores | Ada | 195 |
 | aplicacion | Apl | 132 |
-| dominio | Dom | 70 |
-| presentacion | Pre | 50 |
+| dominio | Dom | 72 |
+| presentacion | Pre | 51 |
 | puertos | Pue | 5 |
 
-452 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+455 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -252,6 +252,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `dominio/edicion.py` | Dom | 086 | Qué edición corre (el programa instalado siempre es de producto) y las funciones en beta, activas y desactivables por el operador. |
 | `dominio/salidas_red.py` | Dom | 086 | Lista de cada salida a la red con su interruptor: encendidas en desarrollo, apagadas en la edición de producto. |
 | `dominio/sesion_web.py` | Dom | 086 | Token de la sesión de la web: el lanzador lo crea en un fichero solo del usuario y los clientes locales lo leen. |
+| `dominio/traza.py` | Dom | 086, 127 | Referencia de soporte de cada petición (`X-CSG-Traza`), que el trabajo hereda, el motor recibe en `CSG_TRAZA` y el informe lleva en sus metadatos. |
 | `adaptadores/registro_rotativo.py` | Ada | 086 | Registro del programa en ficheros rotativos, fuera de la carpeta del programa. |
 | `presentacion/cli.py` | Pre | 001, 022 | Orden `convertersmartgrid`: `list`, `convert` y `web`.; `--por-sistema [ZONAL]` y `--estructura`, aparte de `--unir` |
 | `dominio/privacidad.py` | Dom | 112, 086 | Patrones que tapan rutas, correos, IP, códigos y nombres, y los términos del perfil de una empresa (un perfil ilegible es un error, nunca «ningún… |
@@ -342,6 +343,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `adaptadores/export_tables.py` | Ada | 034 | DGS a Excel multihoja o TSV. |
 | `adaptadores/preview.py` | Ada | 034, 086 | Vista previa georreferenciada del modelo, con Leaflet propio dentro del fichero y su política de contenido. |
 | `recursos/NOTAS_VERSION.md` | — | 086 | Notas de la versión que muestra la pantalla «Acerca de». |
+| `recursos/estado_specs.json` | — | 100 | El estado de cada spec y la huella del `specs/README.md` del que sale, para la matriz estudio × motor del programa instalado, que no lleva `specs/`. |
 | `recursos/leaflet/leaflet.js` | — | 086 | Leaflet, copia exacta con huella comprobada. |
 | `recursos/leaflet/leaflet.css` | — | 086 | Estilos de Leaflet, copia exacta con huella comprobada. |
 | `recursos/leaflet/LICENSE` | — | 086 | Licencia de la copia de Leaflet que sirve la propia web, sin salir a internet. |
@@ -412,6 +414,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `aplicacion/estudios_pf.py` | Apl | 011, 012, 049 | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen (los de la 012 según el libro de la empresa y la… |
+| `dominio/matriz_estudios.py` | Dom | 100 | Matriz estudio × motor (DIgSILENT, motores abiertos, oráculo PINN y cálculo del conversor): por estudio de la web, la evidencia de cada celda (las… |
 | `aplicacion/estudios_red_pf.py` | Apl | 012 | Resultados de confiabilidad y capacidad sin DIgSILENT: índices por alimentador y su comprobación por cargas, ENS total y diferencias, aportes, mejora… |
 | `aplicacion/datos_empresa.py` | Apl | 012, 049 | Libro de la empresa de la confiabilidad, la capacidad y las protecciones: hojas, columnas y unidades validadas con hoja, fila y columna. |
 | `adaptadores/entradas_estudios.py` | Ada | 012 | Entradas que faltan a los estudios cargadas por el operador: texto de TXT, PDF o imagen (OCR), tablas con cualquier separador, columnas por su… |
@@ -757,6 +760,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `nube_selector.py` | Pre | 109 | Página del selector de Google Picker y del File Picker v8 de OneDrive, con su propia CSP. |
 | `fuentes_api.py` | Pre | 109 | Las fuentes de la empresa en la web: listar, subir, la red del espacio y la ayuda que usan los módulos para tomar un libro o su subida. |
 | `normativa_api.py` | Pre | 107 | La biblioteca normativa general en la web: las normas con lo que obliga en una fecha, sus reglas con la cita la subida de una norma a la capa del… |
+| `matriz_estudios_api.py` | Pre | 100 | `GET /api/estudios/matriz`: la matriz estudio × motor con el estado de las specs releído en cada petición: de `specs/` si está, si no del recurso… |
 | `vad_api.py` | Pre | 108, 070 | Rutas `…/vad/estudios` (listar y crear el estudio con la empresa del perfil y un TdR del registro) y `…/vad/{estudio}/armar` (el caso subido a la… |
 | `vnr_api.py` | Pre | — | 108 T28: el estudio VNR desde la web (Guía del VNR, RCD 232-2017-OS/CD; 108:RF-21 a RF-25). |
 
@@ -837,6 +841,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
+| `_plural.py` | — | 086, 110 | Concordancia de número de los textos de los guiones de `tools/` (`cuenta`, `plural`), con la biblioteca estándar de Python 3.9 para los que corren en… |
 | `powerfactory_acceptance.py` | — | 034, 010, 015, 054, 078 | Puerta de aceptación: importa un DGS en PowerFactory, o adopta un proyecto existente, y verifica su «Caso base» frente al archivo original. |
 | `casos_pf.py` | — | 011, 014, 015, 016, 025, 037, 073 | Guion de DIgSILENT: los casos «Caso base», «Sin proyecto» y «Con proyecto», cada uno con su escenario y sus variaciones. |
 | `ajuste_cabecera_pf.py` | — | 006, 008, 011, 014, 015, 020, 021, 022, 025, 032, 035, 039, 041, 094, 095, 091 | Guion de DIgSILENT: ajusta un alimentador a su máxima de cabecera, en el escenario de «Sin proyecto». |
@@ -939,7 +944,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `construir_dataset_entrenamiento.py` | — | 043, 026 | Construye el dataset de entrenamiento en una carpeta nueva, con las operaciones acabadas de los diarios de los espacios medidas y sin promover, y… |
 | `reentrenar_modelos.py` | — | 043, 060 | CLI de coordinación, validación de configuración y rechazo de resultados incompletos. |
 | `aprendizaje_continuo.py` | — | 050 | Congela la instantánea, ejecuta el ciclo único con las etapas de `reentrenar_modelos` sobre las copias, muestra sus fases, lo cancela y vuelve al… |
-| `preparar_ciclo_aprendizaje.py` | — | 050, 086, 120 | Genera en una carpeta nueva el manifiesto de procedencia por registro, el contexto del ciclo, la vista del búfer, el complemento declarado, los casos… |
+| `preparar_ciclo_aprendizaje.py` | — | 050, 086, 120 | Prepara y valida el plan del ciclo desde el almacén con su matriz por familia (`--solo-preparar`, sin congelar ni entrenar) y genera en una carpeta… |
 | `rellenar_identidad_043.py` | — | 086, 120 | Deduce el periodo y el criterio de fijas (de la calibración anterior del proyecto) y la huella del perfil vigente de los episodios del gemelo… |
 | `unir_dataset_lenguaje.py` | — | 050 | Une datasets v2 ya construidos en uno solo para las familias de lenguaje, con el particionador existente y sin mover registros de partición. |
 | `evaluar_evolutivos.py` | — | 043, 048 | Benchmark analítico calculado de GA, NSGA-II y DE (y los de pymoo si está) con al menos 30 semillas, el mismo presupuesto de evaluaciones reales y la… |
@@ -1034,6 +1039,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/api/client.ts` | — | 001, 011, 021, 022, 025, 039, 061 | Cliente tipado de la API.; conversión por sistema eléctrico y máxima por barra |
 | `src/api/fuentes.ts` | — | 109 | La API de las fuentes de la empresa del espacio y de su red convertida. |
 | `src/api/normativa.ts` | — | 107 | Cliente de la biblioteca normativa (listar, reglas, agregar) y el filtro por acto o título. |
+| `src/api/matrizEstudios.ts` | — | 100 | Cliente de la matriz estudio × motor (`GET /api/estudios/matriz`) con sus tipos. |
 | `src/api/nube.ts` | — | 109 | Cliente de la nube: cuentas, conectar y desconectar, selector, importar, versiones, publicar, compartir y recibos. |
 | `src/api/pit.ts` | — | 107 | API del PIT (107 T13) con los tipos del contrato: áreas, motores, subida de entradas, diagnóstico y expediente como trabajos, observaciones y la… |
 | `src/api/reconexion.ts` | — | 086 | Pone al día los trabajos de la pestaña al volver a conectar, y lista los interrumpidos por ver. |
@@ -1054,6 +1060,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/shared/AvisosTrabajo.tsx` | — | 086 | El aviso de un trabajo interrumpido, fallido o cancelado en su paso, con «Reintentar», «Ver su registro» y «Dar por visto». |
 | `src/shared/ElegirFuente.tsx` | — | 109 | Elegir el libro que ya cargó la empresa del espacio (la vigente de su clase) o subir otro, que queda para todos los módulos. |
 | `src/shared/MarcaBeta.tsx` | — | 086 | La marca y el aviso de una función en beta. |
+| `src/shared/MarcaValidacion.tsx` | — | 100 | La matriz estudio × motor del servidor, pedida una vez por página, y la marca «Sin validar» o «No disponible» junto a un estudio. |
+| `src/shared/matrizEstudios.ts` | — | 100 | La celda de un estudio con su motor, su marca (aviso o apagado con su motivo) y el estudio y el motor de cada pestaña de módulo. |
 | `src/shared/PfWarning.tsx` | — | 002, 008 | Aviso de disponibilidad de PowerFactory común a conversión y operación. |
 | `src/shared/SinPantallaEnBlanco.tsx` | — | 042 | Si una pantalla falla al dibujarse, lo dice y deja recargar |
 | `src/shared/accionesOperador.tsx` | — | 002, 070 | El contrato de lo que la tarjeta de operador del asistente usa de la nube y del correo. |
@@ -1173,6 +1181,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/edicionTodoActivo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/enviarInforme.test.mjs` | — | 110 | Pruebas de la ventana «Enviar por correo»: sin cuenta, vista previa, avisos, confirmar sin doble envío e historial. |
 | `test/estudiosCasos.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/matrizEstudios.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/evolucionFijas.test.mjs` | — | 105 | Lógica y render real del tablero de la evolución de los clientes fijos y su buscador. |
 | `test/fondoMapa.test.mjs` | — | 086 | Pruebas del interruptor «Fondo de mapa»: se cambia, se bloquea si lo fija la variable y explica que vale para las conversiones siguientes. |
 | `test/fronteras.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

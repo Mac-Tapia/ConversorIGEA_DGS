@@ -18,6 +18,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from .model import FeederModel, decode_phase
+from .util import cuenta
 
 MAS_FASES = 'mas_fases'
 NO_LLEGAN = 'no_llegan'
@@ -78,7 +79,7 @@ class InformeFases:
         if not self.hallazgos:
             return 'fases: todos los elementos caben en sus barras.'
         por_clase = ', '.join(f'{n} {clase}' for clase, n in self.conteo.items())
-        return f'fases: {len(self.hallazgos)} elemento(s) no cuadran ({por_clase}).'
+        return f'fases: {cuenta(len(self.hallazgos), "elemento no cuadra", "elementos no cuadran")} ({por_clase}).'
 
 
 def comprobar(elementos: Iterable[Elemento], barras: Mapping[str, Barra],
@@ -228,7 +229,7 @@ def ubicar_nuevo(clase: str, nombre: str, n: int, pedida: Barra,
     if aptas:
         d, destino = min(aptas)
         return Ubicacion(destino, n, reubicado=True,
-                         nota=f'{clase} {nombre}: {pedida.nombre} lleva {pedida.n} fase(s) y necesita {n}; '
+                         nota=f'{clase} {nombre}: {pedida.nombre} lleva {cuenta(pedida.n, "fase", "fases")} y necesita {n}; '
                               f'va a {destino}, a {d:.0f} m.')
     return Ubicacion(pedida.nombre, pedida.n, adaptado=True,
                      nota=f'{clase} {nombre}: ninguna barra cercana lleva {n} fases; queda en {pedida.nombre} '

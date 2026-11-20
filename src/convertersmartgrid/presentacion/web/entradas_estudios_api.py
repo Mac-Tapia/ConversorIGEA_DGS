@@ -26,7 +26,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...adaptadores.entradas_estudios import ESQUEMAS, EntradasError, cumplidas, esquemas_publicos, guardable, leer_entrada, texto_de
-from ...dominio.util import nombre_seguro, publicar_duradero
+from ...dominio.util import nombre_seguro, publicar_duradero, cuenta
 from .api_contract import JobRespuesta
 
 KIND = 'entradas_estudios'
@@ -119,7 +119,7 @@ def leer_ficheros(ws, project: str, clave: str, ficheros: list[tuple[Path, str]]
             cabecera_previa = next((ln for ln in texto.splitlines() if ln.strip() and not ln.lstrip().startswith('#')),
                                    None)
         if ctx is not None:
-            ctx.log(f'{nombre}: {len(lec.filas)} fila(s) leídas por {metodo}'
+            ctx.log(f'{nombre}: {cuenta(len(lec.filas), "fila leída", "filas leídas")} por {metodo}'
                     + (f'; {len(lec.errores)} a revisar' if lec.errores else ''))
         total['filas'] += lec.filas
         total['avisos'] += lec.avisos

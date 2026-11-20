@@ -285,6 +285,18 @@ def python_for_pf(pf_dir: Path | None) -> tuple[Path | None, str]:
     return interprete_para(wanted)
 
 
+def falta_python_de_pf(instalacion: str | None, version: str | None) -> str:
+    """086:RF-131 (amplía 103:RF-4): el mensaje cuando falta el Python que pide la PowerFactory detectada.
+
+    Decía «solo carga en 3.12» e «instale esa versión», y el programa ya trae el Python de cada versión soportada
+    (103:RF-6): si falta, la instalación del programa está incompleta.
+    """
+    quien = instalacion or 'La versión de DIgSILENT encontrada'
+    pide = f'Python {version}' if version else 'su versión de Python'
+    return (f'{quien} pide {pide} y el programa no lo encuentra. Reinstale el programa, que trae el Python de cada '
+            'versión de DIgSILENT, o elija otra instalación de DIgSILENT en la web.')
+
+
 def carpeta_del_paquete() -> Path:
     """La carpeta que contiene el paquete ``convertersmartgrid``: ``src`` en desarrollo, ``site-packages`` instalado."""
     return Path(__file__).resolve().parent.parent.parent

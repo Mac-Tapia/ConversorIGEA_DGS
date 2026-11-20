@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from ...dominio.runtime_paths import staging_publicacion
-from ...dominio.util import publicar_duradero
+from ...dominio.util import publicar_duradero, cuenta
 from . import almacen, corpus_normativo, corpus_proyecto, lectura_proyecto
 from .ollama import MODELO_EMBEDDINGS
 from .sinteticos import normalizar
@@ -810,7 +810,7 @@ def responder(indice: Indice, pregunta: str, ollama: Any = None, k: int = 6, *, 
         if pedidas and 'lectura' not in metodos:
             metodos = [*metodos, 'lectura']
         if descartadas:
-            avisos.append(f'{descartadas} lectura(s) pedidas por el modelo, descartadas')
+            avisos.append(f'{cuenta(descartadas, "lectura pedida por el modelo, descartada", "lecturas pedidas por el modelo, descartadas")}')
         base.update(metodos=metodos, recuperacion=_recuperacion(metodos, avisos, motivo))
     citas = [{'n': i + 1, **c} for i, c in enumerate(citas)]
     if all(c.get('vigencia') == 'historico' for c in citas):

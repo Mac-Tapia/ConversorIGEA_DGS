@@ -30,6 +30,12 @@ from __future__ import annotations
 import argparse
 
 from convertersmartgrid.adaptadores import entradas_estudios as ee
+import sys
+from pathlib import Path
+
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta, plural  # noqa: E402
 
 #: Nombres de lo que crea el estudio en el proyecto; todo se borra al terminar.
 NOMBRE_SHC = 'CSG_cortocircuito'
@@ -225,10 +231,10 @@ def cuasi_dinamica(app, plan: dict, alims, feeders: list[str], informe: dict) ->
     # fuera sigue constante, y se dice en vez de callarlo.
     fuera = len(app.GetCalcRelevantObjects('*.ElmLod') or []) - len(con) - len(sin)
     if fuera > 0:
-        informe['avisos'].append(f'{fuera} carga(s) fuera de los alimentadores estudiados quedan con su demanda '
-                                 'constante en la cuasi-dinámica.')
+        informe['avisos'].append(f'{cuenta(fuera, "carga", "cargas")} fuera de los alimentadores estudiados '
+                                 f'{plural(fuera, "queda", "quedan")} con su demanda constante en la cuasi-dinámica.')
     if sin:
-        return (f'{len(sin)} carga(s) sin perfil de su alimentador ni de su tipo: ' + ', '.join(sin[:20])
+        return (f'{cuenta(len(sin), "carga", "cargas")} sin perfil de su alimentador ni de su tipo: ' + ', '.join(sin[:20])
                 + ('…' if len(sin) > 20 else ''))
     biblioteca = app.GetProjectFolder('chars') or app.GetProjectFolder('lib')
     if biblioteca is None:

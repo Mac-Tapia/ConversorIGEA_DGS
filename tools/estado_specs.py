@@ -6,20 +6,28 @@ que antes se mantenía a mano en `CLAUDE.md` y se desfasaba (revisión del 2026-
 
 Uso:
     python tools/estado_specs.py                 # imprime la tabla
-    python tools/estado_specs.py --escribir      # reescribe specs/README.md
-    python tools/estado_specs.py --comprobar     # sale con 1 si specs/README.md no está al día
+    python tools/estado_specs.py --escribir      # reescribe specs/README.md y el recurso de la entrega
+    python tools/estado_specs.py --comprobar     # sale con 1 si alguno de los dos no está al día
+
+El recurso ``src/convertersmartgrid/recursos/estado_specs.json`` lleva el estado de cada spec y la huella del README
+del que sale (100:RF-13): la entrega excluye ``specs/`` (``config/entrega.json``) y sin él la matriz estudio × motor
+del programa instalado diría «sin validar» también de lo validado.
 """
 from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import io
+import json
 import re
 import sys
 import tokenize
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
+#: El estado de las specs que viaja en la entrega (100:RF-13), relativo a la raíz.
+RECURSO = Path('src/convertersmartgrid/recursos/estado_specs.json')
 ESTADOS = ('borrador', 'aprobada', 'implementada', 'cumplida', 'reservada', 'retirada')
 #: Una tarea de DIgSILENT (033:RF-7); la frase antigua sigue valiendo para las de la 009.
 DIGSILENT = re.compile(r'\[DIgSILENT\]|a cargo del usuario|la hace el usuario', re.I)
@@ -230,24 +238,34 @@ def tabla(raiz: Path = RAIZ) -> str:
     ])
 
 
+def recurso(raiz: Path = RAIZ, readme: str | None = None) -> str:
+    """El contenido del recurso de la entrega: ``{spec: estado}`` y la huella SHA-256 del README del que sale."""
+    readme = tabla(raiz) if readme is None else readme
+    datos = {'version': 1, 'huella_readme': hashlib.sha256(readme.encode('utf-8')).hexdigest(),
+             'estados': {s.numero: s.estado for s in leer_specs(raiz)}}
+    return json.dumps(datos, ensure_ascii=False, indent=1, sort_keys=True) + '\n'
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description='Estado de las specs de specs/ (spec 033).')
     grupo = parser.add_mutually_exclusive_group()
-    grupo.add_argument('--escribir', action='store_true', help='reescribe specs/README.md')
+    grupo.add_argument('--escribir', action='store_true', help='reescribe specs/README.md y el recurso de la entrega')
     grupo.add_argument('--comprobar', action='store_true',
                        help='sale con 1 si specs/README.md no coincide con lo generado')
     args = parser.parse_args(argv)
     contenido = tabla()
-    destino = RAIZ / 'specs' / 'README.md'
+    destinos = {RAIZ / 'specs' / 'README.md': contenido, RAIZ / RECURSO: recurso(RAIZ, contenido)}
     if args.escribir:
-        destino.write_text(contenido, encoding='utf-8', newline='\n')
-        print(f'Escrito {destino.relative_to(RAIZ)}')
+        for destino, texto in destinos.items():
+            destino.write_text(texto, encoding='utf-8', newline='\n')
+            print(f'Escrito {destino.relative_to(RAIZ)}')
         return 0
     if args.comprobar:
-        actual = destino.read_text(encoding='utf-8') if destino.is_file() else ''
-        if actual != contenido:
-            print('specs/README.md no está al día: python tools/estado_specs.py --escribir')
-            return 1
+        for destino, texto in destinos.items():
+            actual = destino.read_text(encoding='utf-8') if destino.is_file() else ''
+            if actual != texto:
+                print(f'{destino.relative_to(RAIZ).as_posix()} no está al día: python tools/estado_specs.py --escribir')
+                return 1
         return 0
     sys.stdout.reconfigure(encoding='utf-8')
     print(contenido)

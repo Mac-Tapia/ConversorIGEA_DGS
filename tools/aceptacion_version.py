@@ -38,6 +38,9 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
 ESQUEMA = 'aceptacion_matriz_v1'
@@ -211,7 +214,7 @@ def borrador_de_regresion(caso: Mapping[str, Any], version: str, carpeta: Path) 
     ruta.write_text(
         f'# Aceptación de la versión {version[:12]}: falla el caso «{caso["id"]}»\n\n'
         f'## Síntoma\nEl caso {caso["id"]} ({caso["fuente"]}, {caso["alcance"]}) terminó en «{caso["estado"]}» con '
-        f'rc={caso["rc"]} tras {caso["intentos"]} intento(s).\n{evidencia}\n\n'
+        f'rc={caso["rc"]} tras {cuenta(caso["intentos"], "intento", "intentos")}.\n{evidencia}\n\n'
         f'## Causa\n{caso["causa"]}\n\n'
         '## Comprobación permanente\nPor escribir en el cambio que lo corrige: la comprobación que impide que vuelva.\n\n'
         '## Prueba\nPor escribir: la prueba que reproduce el fallo con datos sintéticos; con ella, esta entrada sube a '

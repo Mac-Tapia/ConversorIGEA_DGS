@@ -213,3 +213,40 @@ def test_la_marca_fija_se_restaura_con_las_centrales_apagadas(guion):
         assert activas == [obra], 'solo las de central se apagan'
     assert set(v.loc_name for v in activas) == {'Central_NA205', 'Obra_X'}
     assert registro == [('off', 'Central_NA205'), ('on', 'Central_NA205')]
+
+
+def test_015_rf72_con_central_los_bancos_existentes_tambien_a_su_maxima(guion):
+    """015:RF-72 (amplía 015:RF-66) — un alimentador con central en su tramo calibra por zonas; sus bancos existentes
+    también trabajan a su máxima capacidad (todos los escalones y en servicio) y el informe lo dice. Antes solo se ponía
+    sin central, y un alimentador con central calibraba con los bancos como estuvieran."""
+    from test_ajuste_cabecera_guion import _banco
+
+    app = _app()
+    banco = _banco(app, 'F1', 'Banco F1', 100.0)
+    banco.ncapx, banco.ncapa, banco.outserv = 3, 1, 1
+    informe, rc = guion.ejecutar(app, _plan())
+    assert rc == 0, informe
+    assert (banco.ncapa, banco.outserv) == (3, 0)
+    (cambio,) = informe['bancos_puestos_a_maxima']
+    assert cambio['banco'] == 'Banco F1' and cambio['despues'] == {'escalones': 3, 'en_servicio': True}
+    assert any('máxima capacidad' in a and 'Banco F1' in a for a in informe['avisos'])
+
+
+def test_015_rf72_en_el_proyecto_el_alimentador_con_central_pone_sus_bancos_a_su_maxima():
+    """015:RF-72 — en la calibración del proyecto (por SET o por sistema) los bancos de cada alimentador van a su máxima
+    también si tiene central: la llamada ya no depende de que no la tenga."""
+    import ast
+    from pathlib import Path
+
+    fuente = (Path(__file__).resolve().parents[1] / 'tools' / 'ajuste_cabecera_pf.py').read_text(encoding='utf-8')
+    arbol = ast.parse(fuente)
+    proyecto = next(n for n in ast.walk(arbol) if isinstance(n, ast.FunctionDef) and n.name == '_ejecutar_proyecto')
+    llamadas = [n for n in ast.walk(proyecto) if isinstance(n, ast.Call)
+                and getattr(n.func, 'id', None) == 'bancos_a_su_maxima_capacidad']
+    assert llamadas, 'el proyecto no pone los bancos a su máxima'
+    padres = {h: p for p in ast.walk(proyecto) for h in ast.iter_child_nodes(p)}
+    for llamada in llamadas:
+        n = llamada
+        while n in padres:
+            n = padres[n]
+            assert not (isinstance(n, ast.If) and "p['central']" in ast.unparse(n.test)), ast.unparse(n.test)

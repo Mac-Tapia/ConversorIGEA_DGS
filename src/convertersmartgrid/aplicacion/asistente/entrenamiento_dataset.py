@@ -4,6 +4,7 @@ from dataclasses import asdict
 import math
 from pathlib import Path
 import uuid
+from convertersmartgrid.dominio.util import cuenta
 
 
 def puertas_dataset(solo: str, prueba: dict, reales: dict | None,
@@ -31,7 +32,7 @@ def puertas_dataset(solo: str, prueba: dict, reales: dict | None,
             if not valida(medidas, clave):
                 fallos.append(f'{nombre}: {clave} ausente o inválido')
             elif medidas[clave] < minimo:
-                fallos.append(f"{nombre}: {clave} {medidas[clave]:.3f} bajo {minimo} con {medidas.get('ejemplos')} ejemplo(s)")
+                fallos.append(f"{nombre}: {clave} {medidas[clave]:.3f} bajo {minimo} con {cuenta(medidas.get('ejemplos'), 'ejemplo', 'ejemplos')}")
     if en_uso is not None:
         for clave in limites:
             if not valida(en_uso, clave) or not valida(prueba, clave) or prueba[clave] < en_uso[clave] - 1e-9:

@@ -17,6 +17,7 @@ from typing import Any
 from ...aplicacion.asistente.plan import ETIQUETA_DEL_DATO
 from ...aplicacion.asistente.sinteticos import normalizar
 from ...aplicacion.asistente.tareas import sin_citas
+from ...dominio.util import cuenta as _cuenta
 
 _TIPO_CAMBIO = re.compile(r'tipo de cambio\s*(?:de|:|=)?\s*(\d+(?:[.,]\d+)?)')
 _DIRECTO = re.compile(r'\bdirect[oa]\b.*\bset nueva\b|\bset nueva\b.*\bdirect[oa]\b|\bsin (?:probar )?escalera\b')
@@ -259,7 +260,7 @@ def _buscar_maxima(svc, ws, plan, extras: dict) -> None:
                         'por_barra': alcance != 'alimentadores', 'sistema_60kv': alcance == 'sistema',
                         'coincidente': alcance == 'alimentadores' and len(feeders) > 1,
                         'centrales': {a: {k: c[k] for k in ('generacion', 'llegada', 'salida')} for a, c in centrales.items()}}
-    plan.razonamiento.append(f'alcance: {alcance}, con {len(feeders)} alimentador(es) y {len(pares)} medidor(es).')
+    plan.razonamiento.append(f'alcance: {alcance}, con {_cuenta(len(feeders), "alimentador", "alimentadores")} y {_cuenta(len(pares), "medidor", "medidores")}.')
 
 
 def _cruzar_clientes(plan, extras: dict) -> None:
@@ -1023,7 +1024,7 @@ def _texto_vad(plan, resultado: dict) -> None:
         resultado['texto'] = f"Estudio del VAD {final.get('id') or ''} creado ({final.get('estado') or 'sin estado'})."
     else:
         estados = list((final.get('sistemas') or {}).values())
-        resultado['texto'] = (f"Empresa modelo armada: {estados.count('OK')} de {len(estados)} sistema(s) en OK; el "
+        resultado['texto'] = (f"Empresa modelo armada: {estados.count('OK')} de {_cuenta(len(estados), 'sistema', 'sistemas')} en OK; el "
                               f"estudio está «{final.get('estado_estudio') or 'sin estado'}».")
 
 
@@ -1212,11 +1213,11 @@ def _texto_pit(plan, resultado: dict) -> None:
     if plan.tarea == 'pit_diagnostico':
         avisos = r.get('avisos') or []
         resultado['texto'] = (f"Diagnóstico del PIT {'completo' if r.get('completo') else 'incompleto'}, con "
-                              f"{len(avisos)} aviso(s); queda en {Path(str(r.get('salida') or '')).name or 'el espacio'}.")
+                              f"{_cuenta(len(avisos), 'aviso', 'avisos')}; queda en {Path(str(r.get('salida') or '')).name or 'el espacio'}.")
     else:
         pendientes = r.get('pendientes') or []
         resultado['texto'] = (f"Expediente del PIT {r.get('tipo') or ''} ({r.get('estado') or 'sin estado'}), con "
-                              f"{len(pendientes)} pendiente(s).").replace('  ', ' ')
+                              f"{_cuenta(len(pendientes), 'pendiente', 'pendientes')}.").replace('  ', ' ')
 
 
 #: 070:RF-80: lo que dice cada tarjeta antes del clic del operador.

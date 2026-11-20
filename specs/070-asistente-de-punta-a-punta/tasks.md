@@ -97,3 +97,12 @@
   las pruebas de navegador sin modelo. (RF-89)
   Hecho cuando: `pytest -q tests/test_asistente_ollama_apagado.py` (070:RF-89) en verde; lo trajo ASISTENTE-A y le
   faltaba su RF (lo cazó test_trazabilidad_specs en el verde amplio de ce del 18-11).
+- [x] T26 Contexto defensivo (tarjeta MEJ-070-INYECCION, 19-11): una prueba negativa por cada herramienta que escribe (45) y
+  por cada una que envía o publica (5), con un intérprete doble que obedece al documento; el servicio exige el clic, la
+  ruta de confirmación rechaza a los programas y la propuesta avisa de las instrucciones. (RF-90, RF-91)
+  Hecho cuando: `pytest -q tests/test_asistente_inyeccion.py` en verde con su rojo por aserción en la base (faf67626), y
+  `tests/test_modelo_provisional.py`, `tests/test_asistente_equipo_web.py`, `tests/test_asistente_nube_correo.py`,
+  `tests/test_asistente_web.py` y `tests/test_asistente_operativo.py` sin cambios en verde. Rojo y verde de sus funciones
+  ejecutados sin pytest (B44); el pytest lo corre el integrador d8.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).

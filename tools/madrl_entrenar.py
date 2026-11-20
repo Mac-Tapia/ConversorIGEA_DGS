@@ -16,6 +16,9 @@ import json
 import os
 import sys
 from pathlib import Path
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 
 def _entorno_gym(plano):
@@ -121,7 +124,7 @@ def main(argv=None) -> int:
               'multiplicadores': plano.e.lagrange.multiplicadores, 'dispositivo': args.dispositivo}
     for clave in ('escalera', 'nsga2', args.politica):
         c = salida[clave]
-        print(f"{clave}: en norma {c['en_norma']}, costo {c['costo']:.1f}, mínima {c['vm_min']:.4f} p.u., {len(c['obras'])} obra(s)")
+        print(f"{clave}: en norma {c['en_norma']}, costo {c['costo']:.1f}, mínima {c['vm_min']:.4f} p.u., {cuenta(len(c['obras']), 'obra', 'obras')}")
     if args.salida:
         args.salida.write_text(json.dumps(salida, ensure_ascii=False, indent=2, default=float), encoding='utf-8')
     return 0

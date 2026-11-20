@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type Keyboard
   type PointerEvent as EventoPuntero } from 'react';
 
 import { plano, type CapasPlano, type ComparacionPlano, type EdicionPlano, type Plano, type PropuestaAjuste,
-  type VariacionesPlano, type VariacionPlano } from '../../api/plano';
+  type MotorPedido, type VariacionesPlano, type VariacionPlano } from '../../api/plano';
 import { useApp } from '../../shared/context';
 import { CapasResultados, Comparacion } from './CapasResultados';
 import { EdicionesPlano } from './EdicionesPlano';
@@ -37,6 +37,7 @@ export function PlanoRed() {
   const [elegido, setElegido] = useState<string | null>(null);
   const [caso, setCaso] = useState('Caso base');
   const [proyecto, setProyecto] = useState('');
+  const [motorPedido, setMotorPedido] = useState<MotorPedido>('automatico');
   const [variacion, setVariacion] = useState<VariacionPlano | null>(null);
   // Lo guardado vive en el servidor; el navegador solo recuerda cuál se miraba (si puede).
   const [lista, setLista] = useState<VariacionesPlano | null>(null);
@@ -114,7 +115,8 @@ export function PlanoRed() {
   // El estudio termina en el carril de trabajos; al acabar, se piden sus capas.
   const estudio = Object.values(jobs).find((j) => j.kind === 'plano_estudiar' && j.result?.variacion === variacion?.id);
   useEffect(() => {
-    if (!variacion || !estudio || estudio.status !== 'done') return;
+    // 111:RF-28: un flujo que no converge también trae su resultado y su motivo.
+    if (!variacion || !estudio || !['done', 'parcial', 'no_converge'].includes(estudio.status)) return;
     void run(() => plano.resultados(ws.id, variacion.id)).then((c) => {
       if (c) { setCapas(c); setAnuncio(c.pintable ? 'Resultados listos sobre el plano.' : c.motivo); }
     });
@@ -323,12 +325,24 @@ export function PlanoRed() {
           </label>
         )}
         {variacion && (
-          <button type="button" disabled={ocupado} onClick={() => void startJob(() => plano.estudiar(ws.id, variacion.id, proyecto || null))}>
+          <label>{TEXTOS.motor}{' '}
+            <select value={motorPedido} onChange={(e) => setMotorPedido(e.target.value as MotorPedido)}>
+              <option value="automatico">{TEXTOS.motorAutomatico}</option>
+              <option value="abierto">{TEXTOS.motorAbierto}</option>
+              <option value="DIgSILENT" disabled={!datos?.motor.digsilent_posible}>DIgSILENT</option>
+            </select>
+          </label>
+        )}
+        {variacion && (
+          <button type="button" disabled={ocupado} onClick={() => void startJob(() => plano.estudiar(ws.id, variacion.id, proyecto || null, motorPedido))}>
             {TEXTOS.estudiar}
           </button>
         )}
       </div>
       {datos && <p className="muted">{datos.motor.texto}: {datos.motor.motivo}</p>}
+      {estudio?.status === 'no_converge' && estudio.result?.motivo && (
+        <p className="alert alert-warn" role="status">{String(estudio.result.motivo)}</p>
+      )}
       {variacion && vista && (
         <>
           <EdicionesPlano variacion={variacion} ocupado={ocupado}

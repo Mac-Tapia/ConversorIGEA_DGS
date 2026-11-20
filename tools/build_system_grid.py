@@ -37,6 +37,9 @@ for _flujo in (sys.stdout, sys.stderr):
 
 from convertersmartgrid.aplicacion.combine import build_combined  # noqa: E402
 from convertersmartgrid.adaptadores.dgs import write_dgs  # noqa: E402
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 
 def _cargar_dataset(args: argparse.Namespace):
@@ -180,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
         except CatalogError as exc:
             print(f'Catálogo: {exc}', file=sys.stderr)
             return 2
-        print(f'Catálogo aplicado: {len(cambios)} característica(s) corregidas.')
+        print(f'Catálogo aplicado: {cuenta(len(cambios), "característica corregida", "características corregidas")}.')
 
     print(informe.text())
     if informe.voltage_conflicts:
@@ -189,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f'  AVISO: {w}')
     if informe.skipped:
         print()
-        print(f'  {len(informe.skipped)} alimentador(es) no convertibles, excluidos:')
+        print(f'  {cuenta(len(informe.skipped), "alimentador no convertible, excluido", "alimentadores no convertibles, excluidos")}:')
         for s in informe.skipped[:5]:
             print(f'    {s}')
 

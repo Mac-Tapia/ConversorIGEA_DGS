@@ -35,6 +35,7 @@ from .oraculo import (
     politica_pinn,
     red_de,
 )
+from ...dominio.util import cuenta
 
 #: Parte de ``evaluacion_modelos.Particiones`` → la del entrenamiento del gemelo.
 PARTE_DEL_GEMELO = {'entrenamiento': 'entrenamiento', 'seleccion': 'validacion',
@@ -122,7 +123,7 @@ def comparar_fisicas(experimento: ExperimentoSpec, particiones: Particiones, *, 
     if fuera:
         # Comparar con menos ejemplos que los declarados no sería comparar sobre las mismas particiones.
         return {'completo': False, 'status': 'BLOQUEADO_POR_DATOS', 'evaluation_completed': False,
-                'motivo': f'{len(fuera)} episodio(s) de las particiones no enseñan', 'episodios_fuera': fuera}
+                'motivo': f'{cuenta(len(fuera), "episodio de las particiones no enseña", "episodios de las particiones no enseñan")}', 'episodios_fuera': fuera}
     base = cfg or Entrenamiento()
     prueba = grupos['prueba']
     exponente = elegir_exponente(grupos['entrenamiento'], fisica=base.fisica)
@@ -157,7 +158,7 @@ def comparar_fisicas(experimento: ExperimentoSpec, particiones: Particiones, *, 
         _vaciar_vram()
         inicio = time.perf_counter()
         try:
-            log(f'Ablación {nombre}: {len(semillas)} semilla(s) sobre las mismas particiones')
+            log(f'Ablación {nombre}: {cuenta(len(semillas), "semilla", "semillas")} sobre las mismas particiones')
             modelo, terminos = ajustar(grupos, c, semillas, dominio, log)
             brazos[nombre] = medir(modelo, nombre, terminos, inicio)
             if isinstance(modelo, OraculoPINN):

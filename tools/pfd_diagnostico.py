@@ -55,6 +55,9 @@ from convertersmartgrid.adaptadores.carpeta_pf import (  # noqa: E402
     LARGO_MAXIMO, NO_ADMITIDOS, CarpetaError, alimentadores_de, asegurar_carpeta, nombre_de_perfil, nombre_libre,
     proyectos_de, validar_nombre,
 )
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 ESQUEMA = 'csg-pfd-diagnostico-v1'
 #: Prefijo de la marca que el guion deja en ``desc`` del proyecto que importa (RF-82, RF-101).
@@ -584,7 +587,7 @@ def importar(app, usuario, destino, pfd: Path, sha: str, antes_de_nombrar=None, 
     if rc not in (None, 0) or not proyectos:
         if not _contenido(carpeta):
             carpeta.Delete()
-        raise ErrorDeImportacion(f'ComPfdimport.Execute() devolvió {rc} y dejó {len(proyectos)} proyecto(s); '
+        raise ErrorDeImportacion(f'ComPfdimport.Execute() devolvió {rc} y dejó {cuenta(len(proyectos), "proyecto", "proyectos")}; '
                                  'mire la ventana de salida de DIgSILENT.')
     if antes_de_nombrar is not None:
         antes_de_nombrar()
@@ -678,7 +681,7 @@ def informe_texto(informe: dict) -> str:
             lineas.append(f'  AVISO: {a}')
         red = d.get('red') or {}
         for r in red.get('redes', []):
-            lineas.append(f"  Red {r['red']}: {len(r['alimentadores'])} alimentador(es): {', '.join(r['alimentadores'])}")
+            lineas.append(f"  Red {r['red']}: {cuenta(len(r['alimentadores']), 'alimentador', 'alimentadores')}: {', '.join(r['alimentadores'])}")
         if red.get('alimentadores_sin_red'):
             lineas.append(f"  Alimentadores sin red: {', '.join(red['alimentadores_sin_red'])}")
         for c in d.get('casos', []):
@@ -691,17 +694,17 @@ def informe_texto(informe: dict) -> str:
         for e in d.get('escenarios', []):
             lineas.append(f"  Escenario {e['escenario']}: casos {', '.join(e['casos']) or '—'}")
         for v in d.get('variaciones', []):
-            lineas.append(f"  Variación {v['variacion']}: {len(v['etapas'])} etapa(s)")
+            lineas.append(f"  Variación {v['variacion']}: {cuenta(len(v['etapas']), 'etapa', 'etapas')}")
             for e in v['etapas']:
                 donde = '; '.join(f"{x['caso']} ({x['escenario']})" for x in e.get('estudiada_en', [])) or 'ningún caso'
-                lineas.append(f"    Etapa {e['etapa']} ({e['fecha']}, año {e['anio']}): {e['altas']} alta(s), "
-                              f"{e['bajas']} baja(s), {e['cambiados']} cambio(s); se estudia en {donde}")
+                lineas.append(f"    Etapa {e['etapa']} ({e['fecha']}, año {e['anio']}): {cuenta(e['altas'], 'alta', 'altas')}, "
+                              f"{cuenta(e['bajas'], 'baja', 'bajas')}, {cuenta(e['cambiados'], 'cambio', 'cambios')}; se estudia en {donde}")
                 for x in e['cambios']:
                     lineas.append(f"      {x['tipo']}: {x['clase']} {x['nombre']}")
         for dif in d.get('diferencias', []):
-            lineas.append(f"  {dif['caso']} frente a {dif['referencia']}: {len(dif['solo_en_el_caso'])} carga(s) solo "
+            lineas.append(f"  {dif['caso']} frente a {dif['referencia']}: {cuenta(len(dif['solo_en_el_caso']), 'carga', 'cargas')} solo "
                           f"en el caso, {len(dif['solo_en_la_referencia'])} solo en la referencia, "
-                          f"{len(dif['distintas'])} valor(es) distinto(s)")
+                          f"{cuenta(len(dif['distintas']), 'valor distinto', 'valores distintos')}")
         rec = d.get('recuento') or {}
         if rec:
             lineas.append('  Elementos: ' + ', '.join(f'{k} {v}' for k, v in rec.get('elementos', {}).items()))
@@ -787,7 +790,7 @@ def main(argv=None) -> int:
             print(f'ERROR: {e}', flush=True)
         for a in informe['avisos']:
             print(f'AVISO: {a}', flush=True)
-        print(f"Diagnóstico de {pfd.name}: {len(informe['proyectos'])} proyecto(s), código {codigo}.", flush=True)
+        print(f"Diagnóstico de {pfd.name}: {cuenta(len(informe['proyectos']), 'proyecto', 'proyectos')}, código {codigo}.", flush=True)
 
 
 if __name__ == '__main__':

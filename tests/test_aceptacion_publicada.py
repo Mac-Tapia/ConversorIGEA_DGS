@@ -35,7 +35,7 @@ def test_la_base_vigente_es_la_ultima_por_vigencia_y_la_siguiente_entra_por_su_h
     nueva = {'resolucion': 'R-2', 'sha256': SHA_B, 'vigencia_desde': '2030-10-01'}
     r = ap.base_vigente([nueva, anterior])
     assert r['vigente']['resolucion'] == 'R-2' and [v['resolucion'] for v in r['anteriores']] == ['R-1']
-    assert 'anterior(es) conservada(s)' in r['aviso']
+    assert '1 versión anterior conservada; lo valorado con ella queda marcado' in r['aviso']  # 086:RF-110
     with pytest.raises(CostosError, match='huella'):
         ap.base_vigente([{'resolucion': 'R-3', 'sha256': 'x', 'vigencia_desde': '2030-01-01'}])
     with pytest.raises(CostosError, match='vigencia'):

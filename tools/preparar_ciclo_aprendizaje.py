@@ -692,7 +692,13 @@ def preparar(args) -> dict:
     if args.dataset is None:
         p.pendiente('dataset', 'falta --dataset')
     else:
-        preparar_dataset(p, args.dataset, list(args.observaciones))
+        try:
+            preparar_dataset(p, args.dataset, list(args.observaciones))
+        except ValueError as exc:
+            if not getattr(args, 'solo_preparar', False):
+                raise
+            # 050:RF-32: al preparar el plan, un dataset de otro esquema bloquea sus familias; no se elige otro.
+            p.pendiente('dataset', motivo_dataset(args.dataset, exc))
     if args.vocabulario is not None:
         p.fuentes['vocabulario'] = str(args.vocabulario)
     rutas, contextos = {}, []
@@ -749,6 +755,156 @@ def preparar(args) -> dict:
     return resumen
 
 
+# ------------------------------------------------------------------ plan del ciclo (050:RF-32 a RF-35)
+
+#: La fuente cuyas referencias enseñan a cada familia.
+PRINCIPAL = {'transformer': 'dataset', 'clasificador': 'dataset', 'embeddings': 'dataset', 'gru': 'cabeceras',
+             'pinn': 'twin', 'evolutivos': 'evolutivos_casos', 'qlora': 'llm_dataset'}
+ESQUEMA_PREPARACION_PLAN = 'convertersmartgrid-learning-plan-preparation-v1'
+
+
+def motivo_dataset(dataset: Path, exc: Exception) -> str:
+    """050:RF-33: por qué el dataset no sirve y qué otras versiones hay junto a él, sin escoger ninguna."""
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import ESQUEMA_DATASET
+    otras = []
+    for carpeta in sorted(dataset.parent.glob('dataset*')):
+        if carpeta == dataset or not (carpeta / 'manifest.json').is_file():
+            continue
+        try:
+            esquema = json.loads((carpeta / 'manifest.json').read_text(encoding='utf-8')).get('schema')
+        except (OSError, ValueError, AttributeError):
+            continue
+        if esquema == ESQUEMA_DATASET:
+            otras.append(carpeta.name)
+    texto = f'{dataset} no se lee como dataset v2: {exc}'
+    if otras:
+        texto += (f'; en el almacén hay otras versiones v2 ({", ".join(otras)}), que solo entran si se declaran '
+                  'con --dataset tras revisar su contenido')
+    return texto
+
+
+def fuentes_del_almacen(args) -> None:
+    """050:RF-32: lo que no se declara se busca en su sitio del almacén; lo que no está ahí queda pendiente."""
+    almacen = getattr(args, 'almacen', None)
+    if almacen is None:
+        return
+    almacen = Path(almacen)
+    if args.dataset is None and (almacen / 'dataset').is_dir():
+        args.dataset = almacen / 'dataset'
+    if not args.observaciones:
+        args.observaciones = [r for r in (almacen / 'ejemplos.jsonl', almacen / 'informes.jsonl') if r.is_file()]
+    if args.vocabulario is None and (almacen / 'vocabulario.json').is_file():
+        args.vocabulario = almacen / 'vocabulario.json'
+    twin = almacen.parent / '_digital_twin'
+    if args.twin is None and (twin / 'objetos').is_dir():
+        args.twin = twin
+    if getattr(args, 'raiz', None) is None:
+        args.raiz = almacen / 'aprendizaje'
+
+
+def _revision() -> str | None:
+    import subprocess
+    try:
+        r = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=REPO, capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return (r.stdout.strip() or None) if r.returncode == 0 else None
+
+
+def matriz_por_familia(resumen: dict, familias: list[str], datasets: dict, recursos: dict,
+                       revision: str | None) -> dict:
+    """050:RF-34 (D7): por familia, dataset con huella, contexto, referencias, recursos y motivo de bloqueo."""
+    from convertersmartgrid.dominio.contratos_aprendizaje import FUENTES_POR_FAMILIA, ORDEN_MODELOS
+    fuentes, pendientes = resumen['fuentes'], resumen['pendientes']
+    informe_dataset = resumen['informe'].get('dataset') or {}
+    matriz = {}
+    for familia in ORDEN_MODELOS:
+        motivos = []
+        for nombre in FUENTES_POR_FAMILIA[familia]:
+            if nombre not in fuentes:
+                motivos.append(f'falta la fuente {nombre}: '
+                               f'{(pendientes.get(nombre) or {}).get("motivo") or "no se declaró ni está en el almacén"}')
+        principal = PRINCIPAL[familia]
+        referencias = resumen['referencias'].get(principal, 0)
+        if principal in fuentes and not referencias:
+            motivos.append(f'ningún registro de {principal} tiene procedencia demostrable; ver cuarentena.json')
+        if familia == 'clasificador' and informe_dataset.get('sin_informes'):
+            motivos.append(informe_dataset['sin_informes'])
+        if familia == 'embeddings' and 'dataset' in fuentes and 'retrieval_train' not in informe_dataset:
+            motivos.append('el dataset no da consultas de recuperación de entrenamiento; ver cuarentena.json')
+        matriz[familia] = {
+            'estado': 'bloqueado_por_datos' if motivos else 'listo_para_preflight', 'en_plan': familia in familias,
+            'fuentes': {n: (datasets.get(n) or {}).get('huella') for n in FUENTES_POR_FAMILIA[familia]},
+            'referencias': referencias, 'cuarentena': resumen['cuarentena'].get(principal, 0),
+            'contexto_hash': resumen['contexto_hash'],
+            'particiones': 'las fija el preflight del ciclo sobre la instantánea congelada',
+            'recursos': recursos, 'revision_codigo': revision, 'motivos': motivos}
+    return matriz
+
+
+def plan_desde_preparacion(resumen: dict, args, salida: Path) -> dict:
+    """050:RF-32: el plan con lo preparado y lo declarado; lo no declarado queda vacío para que se diga."""
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import ESQUEMA_PLAN, huella_fuente
+    from convertersmartgrid.dominio.contratos_aprendizaje import ORDEN_MODELOS, puertas_de_familia
+    familias = ([f.strip() for f in args.familias.split(',') if f.strip()] if args.familias
+                else list(ORDEN_MODELOS))
+    fuentes = {n: str(Path(r).resolve()) for n, r in sorted(resumen['fuentes'].items())}
+    datasets = {n: huella_fuente(r) for n, r in fuentes.items() if Path(r).exists()}
+    recursos = {'tiempo_s': args.tiempo_s, 'memoria_gib': args.memoria_gib, 'usa_gpu': not args.sin_gpu}
+    contexto = salida / 'contexto_ciclo.json'
+    parametros = {k: v for k, v in (('semillas', args.semillas), ('zona_horaria', args.zona_horaria),
+                                    ('cadencia_min', args.cadencia_min), ('horizontes', args.horizontes),
+                                    ('embedding_model', args.embedding_model)) if v is not None}
+    return {'schema': ESQUEMA_PLAN, 'workspace_id': args.workspace_id or '',
+            'raiz': str(Path(args.raiz).resolve()) if args.raiz else '',
+            'contexto': str(contexto.resolve()) if contexto.is_file() else '',
+            'fuentes': fuentes, 'familias': familias, 'politica_hash': resumen['politica']['huella'],
+            'tiempo_s': args.tiempo_s, 'memoria_gib': args.memoria_gib, 'usa_gpu': not args.sin_gpu,
+            'parametros': parametros, 'datasets': datasets,
+            'puertas': {f: list(puertas_de_familia(f)) for f in familias if f in ORDEN_MODELOS},
+            'matriz': matriz_por_familia(resumen, familias, datasets, recursos, _revision())}
+
+
+def _escribir_plan(ruta: Path, plan: dict) -> None:
+    """Escritura en sitio: un fichero temporal en la misma carpeta y ``os.replace``; nada más se toca."""
+    import os
+    import tempfile
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f'.{ruta.name}.', suffix='.tmp', dir=ruta.parent)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(json.dumps(plan, ensure_ascii=False, sort_keys=True, indent=1) + '\n')
+        os.replace(tmp, ruta)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
+def solo_preparar(args) -> tuple[int, dict]:
+    """050:RF-32 a RF-35: manifiestos en ``--salida`` y plan validado en ``--plan-salida``; sin congelar ni entrenar.
+
+    El plan solo se escribe si ``validar_plan_ciclo`` no encuentra nada que falte; si falta algo, se dice todo
+    y no se escribe ningún plan, para que la vigilancia no encole uno incompleto.
+    """
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import validar_plan_ciclo
+    if args.plan_salida is None:
+        raise ValueError('declare --plan-salida: la ruta donde se escribe el plan del ciclo')
+    plan_salida = Path(args.plan_salida)
+    fuentes_del_almacen(args)
+    for ruta in (args.dataset, args.twin, args.llm_dataset, args.cabeceras):
+        if ruta is not None and plan_salida.resolve().is_relative_to(Path(ruta).resolve()):
+            raise ValueError(f'{plan_salida}: el plan no puede escribirse dentro de la fuente {ruta}')
+    resumen = preparar(args)
+    plan = plan_desde_preparacion(resumen, args, Path(args.salida))
+    faltan = validar_plan_ciclo(plan)
+    if not faltan:
+        _escribir_plan(plan_salida, plan)
+    informe = {'schema': ESQUEMA_PREPARACION_PLAN, 'plan_escrito': None if faltan else str(plan_salida),
+               'faltan': faltan, 'matriz': plan['matriz'], 'plan': plan,
+               'pendientes': resumen['pendientes'], 'entrenamiento_ejecutado': False}
+    return (2 if faltan else 0), informe
+
+
 def main(argv=None) -> int:
     a = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     a.add_argument('--salida', type=Path, required=True, help='Carpeta nueva; datos de la distribuidora, fuera de git')
@@ -773,8 +929,23 @@ def main(argv=None) -> int:
     a.add_argument('--horizontes', help='Horizontes en pasos, separados por coma')
     a.add_argument('--semillas', default=SEMILLAS)
     a.add_argument('--embedding-model', default=MODELO_EMBEDDINGS)
+    plan = a.add_argument_group('plan del ciclo (050:RF-32 a RF-35)')
+    plan.add_argument('--solo-preparar', action='store_true',
+                      help='Prepara y valida el plan del ciclo sin congelar ni entrenar; lo escribe solo en --plan-salida')
+    plan.add_argument('--almacen', type=Path, help='Datos del asistente (_asistente): fuentes no declaradas; solo se lee')
+    plan.add_argument('--plan-salida', type=Path, help='Ruta del plan.json; solo se escribe si está completo')
+    plan.add_argument('--workspace-id', help='Espacio de trabajo del ciclo; no se deduce')
+    plan.add_argument('--raiz', type=Path, help='Carpeta de aprendizaje del ciclo; por defecto <almacen>/aprendizaje')
+    plan.add_argument('--familias', help='Familias del plan, separadas por coma; por defecto las siete')
+    plan.add_argument('--tiempo-s', type=float, help='Tiempo máximo del ciclo, en segundos')
+    plan.add_argument('--memoria-gib', type=float, help='Memoria máxima del ciclo, en GiB')
+    plan.add_argument('--sin-gpu', action='store_true', help='El ciclo no usa la GPU')
     args = a.parse_args(argv)
     try:
+        if args.solo_preparar:
+            rc, informe = solo_preparar(args)
+            print(json.dumps(informe, ensure_ascii=False, indent=1))
+            return rc
         resumen = preparar(args)
     except (OSError, ValueError) as exc:
         print(f'error: {exc}', file=sys.stderr)

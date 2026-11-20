@@ -55,6 +55,9 @@ from convertersmartgrid.dominio.puentes import es_puente, fundir_puentes  # noqa
 from convertersmartgrid.dominio.sed_potencia import redimensionar_sobrecargadas  # noqa: E402
 from convertersmartgrid.dominio.trafomix import excluir_trafomix  # noqa: E402
 from convertersmartgrid.adaptadores.validate import parse_dgs, validate_dgs  # noqa: E402
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 #: Tipo de marcador de CYMDIST. Solo sirve para que los tramos puente tengan un tipo
 #: mientras se construye el modelo: se funden antes de escribir y ninguno llega al
@@ -127,7 +130,7 @@ def construir_grupo(dataset, nombre: str, nets: list[str], *, correcciones, crs:
         print(f'  {m.name}: {len(m.lines)} líneas, {len(m.couplers)} seccionadores sin tramo, '
               f'{len(m.loads)} cargas, {len(m.seds)} SED — {puentes.texto()}')
         if cambios:
-            print(f'    catálogo: {len(cambios)} característica(s) reemplazadas por ficha')
+            print(f'    catálogo: {cuenta(len(cambios), "característica reemplazada", "características reemplazadas")} por ficha')
         for r in redimensiones:
             print(f'    SED redimensionada — {r.linea()}')
 

@@ -21,6 +21,7 @@ from .informes import ConfigInforme, InformeError
 from ..aplicacion.protecciones import ProteccionesError, criterios_de_perfil
 from ..dominio.perfil_empresa import (PerfilEmpresa, PerfilError, bancos_kvar_por_tension, centrales_termicas, datos_perfil,
                              factor_potencia_cargas, moneda_informes, transformadores_sed)
+from ..dominio.util import cuenta
 
 _TIPOS = {'string': str, 'object': Mapping, 'array': (list, tuple)}
 
@@ -198,6 +199,8 @@ def texto_del_resultado(r: Resultado) -> str:
             lineas.append('')
     if not lineas:
         return 'El perfil está completo: da todas las claves del esquema.'
-    lineas.append(f'Resultado: {len(r.errores)} error(es), {len(r.faltan)} clave(s) sin dar, {len(r.desconocidas)} desconocida(s). '
+    lineas.append(f'Resultado: {cuenta(len(r.errores), "error", "errores")}, '
+                  f'{cuenta(len(r.faltan), "clave", "claves")} sin dar, '
+                  f'{cuenta(len(r.desconocidas), "desconocida", "desconocidas")}. '
                   'Nada de lo que falta impide trabajar.')
     return '\n'.join(lineas)

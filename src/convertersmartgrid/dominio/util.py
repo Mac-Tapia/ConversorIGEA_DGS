@@ -141,6 +141,24 @@ def frc(tasa: float, anios: float) -> float:
     return tasa * f / (f - 1)
 
 
+def plural(n: Any, uno: str, varios: str) -> str:
+    """La forma que concuerda con ``n``: ``uno`` con 1 y ``varios`` con cualquier otro número (086:RF-110).
+
+    Los textos que ve el operador no llevan «alimentador(es)» ni «fichero(s)»; es la regla de
+    ``frontend/src/shared/formato.ts`` (``plural``). Con adjetivo, la frase entera:
+    ``plural(n, 'libro nuevo', 'libros nuevos')``. Lo que no es un número toma el plural.
+    """
+    try:
+        return uno if float(n) == 1 else varios
+    except (TypeError, ValueError):
+        return varios
+
+
+def cuenta(n: Any, uno: str, varios: str) -> str:
+    """El número con su palabra, «1 carga», «3 cargas» (086:RF-110; ``cuenta`` de ``formato.ts``)."""
+    return f'{n} {plural(n, uno, varios)}'
+
+
 def importar_opcional(modulo: str, error: Exception) -> ModuleType:
     """Importa una dependencia opcional o lanza ``error``, que elige quien llama.
 

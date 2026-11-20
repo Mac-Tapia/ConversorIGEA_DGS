@@ -22,6 +22,9 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parents[1]
 DOCS = RAIZ / 'docs' / 'asistente'
@@ -718,7 +721,7 @@ def _verificar() -> int:
     errores += errores_de_corpus(filas)
     for e in errores:
         print(e)
-    print(f'{len(filas)} filas, {len(hechos)} hechos, {len(reglas)} reglas sin código: {len(errores)} error(es).')
+    print(f'{len(filas)} filas, {len(hechos)} hechos, {len(reglas)} reglas sin código: {cuenta(len(errores), "error", "errores")}.')
     print(f'huella {huella(filas)}')
     print(f"sellado {huella([f for f in filas if f['reparto'] == 'sellado'])}")
     print(f'hechos {huella(hechos)}')

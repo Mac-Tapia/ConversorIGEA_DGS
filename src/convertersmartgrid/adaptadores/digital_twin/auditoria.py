@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 
 from ...aplicacion.asistente.ajuste_condicionado import MIN_ORDENES_REALES
+from ...dominio.util import cuenta
 
 
 @dataclass(frozen=True)
@@ -69,16 +70,16 @@ def auditar_muestras(muestras: Sequence[Any], ids: Sequence[str], *, parametros:
                                       for m in muestras})
     avisos: list[str] = []
     if no_finitos:
-        avisos.append(f'{len(no_finitos)} campo(s) con valores no finitos: no se entrena.')
+        avisos.append(f'{cuenta(len(no_finitos), "campo", "campos")} con valores no finitos: no se entrena.')
     if redes < u.min_redes:
         quien = 'una sola red' if redes == 1 else f'{redes} redes'
         avisos.append(f'{quien} en el dataset: el error de prueba no mide la generalización a otra red.')
     if fuera:
-        avisos.append(f'{len(fuera)} episodio(s) con tensiones fuera de {u.v_min_pu}–{u.v_max_pu} p.u.; '
+        avisos.append(f'{cuenta(len(fuera), "episodio", "episodios")} con tensiones fuera de {u.v_min_pu}–{u.v_max_pu} p.u.; '
                       'se mantienen: las calculó DIgSILENT.')
     if parametros and etiquetas:
         avisos.append(f'{parametros:,} parámetros frente a {etiquetas:,} tensiones etiquetadas de '
-                      f'{redes} red(es).')
+                      f'{cuenta(redes, "red", "redes")}.')
     return {
         'apto': not no_finitos,
         'muestras': len(muestras), 'redes': redes,

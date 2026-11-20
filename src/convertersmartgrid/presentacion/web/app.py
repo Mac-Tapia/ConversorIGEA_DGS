@@ -45,7 +45,7 @@ from ...dominio.runtime_paths import rutas_runtime, staging_publicacion, tempora
 from . import services
 from .copia_datos import carpeta_recordada, estado_copia
 from .jobs import FINISHED, JobManager, TrabajoRechazado
-from .seguridad import AlcanceEdicion, PresupuestoIngreso, instalar_seguridad
+from .seguridad import AlcanceEdicion, PresupuestoIngreso, TrazaPeticion, instalar_seguridad
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, VersionRespuesta, DiagnosticoRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
     ArchivoRespuesta, AmbitoFuenteRespuesta, ElegirPowerFactoryPeticion, EstadoPowerFactoryRespuesta,
@@ -57,6 +57,7 @@ from .services import UserError
 from .workspace import (
     BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, EspacioNoUtilizable, Workspace, WorkspaceStore, safe_filename,
 )
+from ...dominio.util import cuenta
 
 
 LOOPBACK_HOSTS = frozenset({'127.0.0.1', 'localhost', '::1'})
@@ -951,8 +952,16 @@ def create_app(
     from convertersmartgrid.dominio.perfil_empresa import datos_perfil
     from convertersmartgrid.adaptadores.pit.armado import carpeta_de_fuentes
     from convertersmartgrid.presentacion.web.rutas_pit import crear_router as crear_router_pit
-    app.include_router(crear_router_pit(jobs, lambda wid: ws_or_404(wid).root, datos_perfil,
-                                        project_root() / 'config' / 'normativa', fuentes=carpeta_de_fuentes))
+    # 107:RF-23: con DIgSILENT disponible (la misma comprobación que la píldora y los demás estudios de DIgSILENT), el
+    # diagnóstico y el expediente encolan ``tools/pit_pf.py`` en el carril ``powerfactory`` con ``guion_pf``.
+    app.include_router(crear_router_pit(
+        jobs, lambda wid: ws_or_404(wid).root, datos_perfil, project_root() / 'config' / 'normativa',
+        licencia=services.digsilent_disponible, fuentes=carpeta_de_fuentes,
+        digsilent=lambda wid, ctx, plan, nombre: services.guion_pf(ws_or_404(wid), ctx, 'pit_pf.py', plan,
+                                                                   nombre=nombre, cancelable=False)[:2]))
+    # 086:RF-132: el trabajo dueño de cada petición (la cabecera de ``tools/sistema_web.py``), para la reserva de DIgSILENT.
+    from .jobs import TrabajoPropio
+    app.add_middleware(TrabajoPropio)
 
     # Solo el servidor de desarrollo de Vite. En producción el front se sirve desde
     # este mismo origen y CORS no interviene.
@@ -962,7 +971,7 @@ def create_app(
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(origenes_dev),
-        allow_methods=['*'], allow_headers=['*'],
+        allow_methods=['*'], allow_headers=['*'], expose_headers=['X-CSG-Traza'],
     )
     # 086:RF-16: dentro de la puerta: una petición sin sesión no llega a saber qué se vende y qué no.
     app.add_middleware(AlcanceEdicion)
@@ -971,6 +980,8 @@ def create_app(
     # Por fuera de CORS, y de todo lo demás: Host, Origin, token y política de contenido (086:RF-17 a RF-21).
     if sesion_web.EXIGIR_SEGURIDAD:
         instalar_seguridad(app, origenes_dev)
+    # 086:RF-127: la referencia de soporte, por fuera de todo; la última que se añade es la primera que atiende.
+    app.add_middleware(TrazaPeticion)
 
     @app.exception_handler(TrabajoRechazado)
     async def _trabajo_rechazado(_request: Request, exc: TrabajoRechazado):
@@ -1070,7 +1081,7 @@ def create_app(
             raise HTTPException(403, 'Solo el lanzador de esta máquina puede cerrar el servidor.')
         en_curso = jobs.en_curso()
         if en_curso:
-            raise HTTPException(409, f'Hay {en_curso} trabajo(s) en curso: no se cierra.')
+            raise HTTPException(409, f'Hay {cuenta(en_curso, "trabajo", "trabajos")} en curso: no se cierra.')
         if not _cierre:
             raise HTTPException(503, 'Este servidor no admite el cierre por petición.')
         _motivo_cierre[:] = [request.headers.get(CABECERA_MOTIVO) or 'petición del lanzador, sin motivo']
@@ -1699,7 +1710,7 @@ def create_app(
 
         ws = ws_or_404(wid)
         names = _check_selection(ws, body)
-        return submit(ws, 'diagnose', f'Diagnosticar {len(names)} alimentador(es)',
+        return submit(ws, 'diagnose', f'Diagnosticar {cuenta(len(names), "alimentador", "alimentadores")}',
                       lambda ctx: diagnose_selection(
                           ws, body.feeders, all_feeders=body.all, ctx=ctx))
 
@@ -1709,7 +1720,7 @@ def create_app(
 
         ws = ws_or_404(wid)
         names = _check_selection(ws, body)
-        return submit(ws, 'reconstruct', f'Reconstruir {len(names)} alimentador(es)',
+        return submit(ws, 'reconstruct', f'Reconstruir {cuenta(len(names), "alimentador", "alimentadores")}',
                       lambda ctx: reconstruct_selection(
                           ws, body.feeders, all_feeders=body.all, ctx=ctx))
 
@@ -1749,7 +1760,7 @@ def create_app(
                           lambda ctx: services.convert_group(
                               ws, ctx, feeders, nombre, requested_feeders=requested))
         n = len(ws.inventory['feeders']) if body.all and ws.inventory else len(body.feeders)
-        title = f'Convertir {"TODOS" if body.all else ""} {n} alimentador(es) a DGS'.replace('  ', ' ')
+        title = f'Convertir {"TODOS" if body.all else ""} {cuenta(n, "alimentador", "alimentadores")} a DGS'.replace('  ', ' ')
         return submit(ws, 'convert', title,
                       lambda ctx: services.convert(ws, ctx, body.feeders, body.all))
 
@@ -2181,7 +2192,7 @@ def create_app(
             raise HTTPException(422, 'Indique al menos un medidor.')
         if body.coincidente:                                                   # 070:RF-57
             services.comprobar_analisis_por_alimentadores(services.alimentadores_del_analisis(pares))
-        return submit(ws, 'demanda_cabecera', f'Máxima de cabecera ({len(pares)} medidor(es))',
+        return submit(ws, 'demanda_cabecera', f'Máxima de cabecera ({cuenta(len(pares), "medidor", "medidores")})',
                       lambda ctx: {**services.demanda_cabecera(ws, ctx, pares, periodo=body.periodo,
                                                                instante=body.instante,
                                                                por_barra=body.por_barra,
@@ -2262,7 +2273,7 @@ def create_app(
             raise HTTPException(422, 'Busque antes la máxima de cabecera de los alimentadores.')
         feeders = [a.strip() for a in body.alimentadores if a.strip()] or list(body.maximas)
         return submit(ws, 'demanda_comparar_fijas',
-                      f'Comparar los criterios de las fijas ({len(feeders)} alimentador(es))',
+                      f'Comparar los criterios de las fijas ({cuenta(len(feeders), "alimentador", "alimentadores")})',
                       lambda ctx: services.comparar_criterios_fijas(
                           ws, ctx, body.project, feeders, body.maximas, body.periodo))
 
@@ -2474,7 +2485,8 @@ def create_app(
         ws = ws_or_404(wid)
         forzar = bool((body or {}).get('forzar'))
         return submit(ws, 'gemelo_entrenar', 'Gemelo · reentrenar la PINN',
-                      lambda ctx: services.gemelo_entrenar(ws, ctx, forzar=forzar))
+                      # 086:RF-129: el trabajo es solo entrenar: sin GPU o con error, falla con su motivo.
+                      lambda ctx: services.gemelo_entrenar(ws, ctx, forzar=forzar, estricto=True))
 
     @app.post('/api/workspaces/{wid}/digital-twin/evaluar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def gemelo_evaluar(wid: str) -> dict:
@@ -2606,11 +2618,19 @@ def create_app(
 
     @app.post('/api/workspaces/{wid}/asistente/{plan_id}/confirmar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def asistente_confirmar(wid: str, plan_id: str, request: Request) -> dict:
-        """026:RF-8, RF-10: el plan confirmado, por las rutas y trabajos de la web."""
+        """026:RF-8, RF-10: el plan confirmado, por las rutas y trabajos de la web.
+
+        070:RF-90: la confirmación es el clic del operador en el navegador (su cookie); un programa con el token de la web
+        o un ``Bearer`` (el ejecutor del asistente, una herramienta, un cliente que obedece a un documento) no confirma."""
         ws = ws_or_404(wid)
+        if (request.headers.get(sesion_web.CABECERA_TOKEN)
+                or request.headers.get('authorization', '').lower().startswith('bearer')):
+            raise HTTPException(403, 'El plan del asistente lo confirma el operador en la web: un programa con el token '
+                                     'de la web no confirma planes.')
         plan = services.asistente_plan(ws, plan_id)['plan']
         if not plan.listo:
             raise HTTPException(422, 'El plan no está completo: ' + '; '.join(plan.faltan))
+        services.asistente_confirmado_por_operador(ws, plan_id)
         return _asistente_job(ws, plan_id, request)
 
     @app.post('/api/workspaces/{wid}/asistente/{plan_id}/corregir')
@@ -2864,7 +2884,7 @@ def create_app(
             destino = carpeta / safe_filename(f.filename or 'ajustes.txt')
             _save_upload(destino, f)
             rutas.append(destino)
-        return submit(ws, 'protecciones_ajustes', f'Leer {len(rutas)} fichero(s) de ajustes de protecciones',
+        return submit(ws, 'protecciones_ajustes', f'Leer {cuenta(len(rutas), "fichero", "ficheros")} de ajustes de protecciones',
                       lambda ctx: services.protecciones_ajustes_leer(ws, ctx, project, rutas), lane='engine')
 
     @app.put('/api/workspaces/{wid}/pf/protecciones/dispositivos')
@@ -3012,7 +3032,7 @@ def create_app(
         carpeta = services.informes_carpeta_documentos(ws, tipo)
 
         def encolar(rutas: list[Path]) -> dict:
-            return submit(ws, 'informe_documentos', f'Leer {len(rutas)} documento(s) del solicitante',
+            return submit(ws, 'informe_documentos', f'Leer {cuenta(len(rutas), "documento", "documentos")} del solicitante',
                           lambda ctx: services.informe_documentos(ws, ctx, tipo, rutas), lane='engine')
 
         return _reemplazar_carpeta(ws, carpeta, files, 'documento.pdf', encolar,
@@ -3181,7 +3201,7 @@ def create_app(
             result = services.apply_catalog(ws, tmp, preview_feeder)
         finally:
             _limpiar_upload(tmp)
-        ws.events.append('log', {'text': f"Catálogo corregido aplicado: {result['count']} código(s). "
+        ws.events.append('log', {'text': f"Catálogo corregido aplicado: {cuenta(result['count'], 'código', 'códigos')}. "
                                          f"{result['aviso']}"})
         return {**result, 'workspace': ws.public()}
 
@@ -3262,6 +3282,10 @@ def create_app(
 
     registrar_rutas_vad(app, ws_or_404=ws_or_404, submit=submit, raiz_config=project_root() / 'config',
                         guardar_subida=_save_upload)
+    # 100:RF-8 a RF-10: con qué motor está validado cada estudio, desde el estado de las specs.
+    from .matriz_estudios_api import registrar_rutas_matriz
+
+    registrar_rutas_matriz(app, raiz=project_root())
 
     # ------------------------------------------------------------ front compilado
     dist = frontend_dist()

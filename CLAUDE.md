@@ -97,7 +97,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | cumplida | |
   | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida |  |
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
-  | 070 El asistente opera el conversor de punta a punta | aprobada | falta T11, T14, T15, T22 (GPU) |
+  | 070 El asistente opera el conversor de punta a punta | aprobada | falta T11, T14, T15, T22 (GPU), T26 (pytest del integrador) |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
   | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T14 |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | cumplida |  |
@@ -127,18 +127,18 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 097 Vectores multilingües para la búsqueda del asistente | aprobada | falta T5 |
   | 098 La transferencia de carga del operador, en la calibración y en las obras | cumplida |  |
   | 099 Cargas del libro duplicadas por el nombre del cliente | cumplida |  |
-  | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | implementada | queda T4 (DIgSILENT) |
+  | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | implementada | falta T4 (DIgSILENT) |
   | 101 La calibración cambia sola los transformadores que impiden converger | cumplida |  |
   | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | falta T12, T13, T14, T15, T16, T17, T20 |
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
   | 104 Los libros nuevos de demanda se reconocen solos | cumplida |  |
   | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |
   | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | aprobada | falta T2 |
-  | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | queda T14 (DIgSILENT) |
+  | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | falta T14 (DIgSILENT) |
   | 108 Estudio de costos del VAD con la empresa modelo eficiente | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
   | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | implementada | queda T16 (recorrido de Nube y Correo con el simulado, sin DIgSILENT) |
   | 110 Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | |
-  | 111 Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | aprobada | falta T1, T2, T13, T16, T17, T18 (DIgSILENT), T19 |
+  | 111 Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | aprobada | falta T1, T2, T13, T16, T17, T18 (DIgSILENT), T19, T28, T29 |
   | 112 Datasets de referencia anonimizados y benchmarks reproducibles | cumplida | |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,

@@ -14,7 +14,7 @@ from typing import Any
 
 import numpy as np
 
-from ...dominio.util import write_json_atomic
+from ...dominio.util import write_json_atomic, cuenta
 from .jobs import JobContext
 from .requisitos import UserError
 from .workspace import Workspace
@@ -194,6 +194,6 @@ def calcular(ws: Workspace, ctx: JobContext, alimentadores: list[str], desde: st
     carpeta.mkdir(parents=True, exist_ok=True)
     _guardar_series(carpeta, evolucion.series)
     write_json_atomic(carpeta / 'ultimo.json', datos)
-    ctx.log(f"Libro: {rel.as_posix()} ({len(datos['clientes'])} cliente(s)).")
+    ctx.log(f"Libro: {rel.as_posix()} ({cuenta(len(datos['clientes']), 'cliente', 'clientes')}).")
     return {'libro': datos['libro'], 'clientes': len(datos['clientes']), 'archivo': datos['archivo'],
             'avisos': len(datos['avisos'])}

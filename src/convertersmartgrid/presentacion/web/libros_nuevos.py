@@ -38,6 +38,7 @@ from .fondo import (
 )
 from .jobs import inicio_de_proceso, proceso_pendiente
 from .requisitos import UserError
+from ...dominio.util import cuenta
 
 log = logging.getLogger(__name__)
 
@@ -384,7 +385,7 @@ class VigilanciaLibros:
             return False
         if not leer:
             n = sum(len(c['nuevos']) + len(c['cambiados']) for c in pendientes.values())
-            self._poner_fondo(ws, 'al_abrir', f'Hay {n} libro(s) nuevos o cambiados: se leen al abrir el espacio.')
+            self._poner_fondo(ws, 'al_abrir', f'Hay {cuenta(n, "libro nuevo o cambiado", "libros nuevos o cambiados")}: se leen al abrir el espacio.')
             return False
         with self._cv:
             self._pedidos[ws.id] = self._pedidos.get(ws.id, False) or todos

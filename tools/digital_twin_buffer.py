@@ -27,6 +27,9 @@ from convertersmartgrid.dominio.digital_twin.episode import (
     episodio_a_dict,
     leer_episodio,
 )
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 
 def _leer_json(ruta: str) -> dict:
@@ -70,7 +73,7 @@ def main(argv=None) -> int:
             print(f'registrado: {bufer.guardar(e)}')
             return 0
         n = bufer.reconstruir_indice()
-        print(f'índice rehecho con {n} episodio(s); en cuarentena: {len(bufer.cuarentena())}')
+        print(f'índice rehecho con {cuenta(n, "episodio", "episodios")}; en cuarentena: {len(bufer.cuarentena())}')
         return 0
     except EpisodioInvalido as exc:
         print(f'ERROR: episodio no válido: {exc}', file=sys.stderr)

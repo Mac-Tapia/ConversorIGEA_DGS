@@ -143,3 +143,64 @@ def test_086_rf124_por_set_y_por_sistema_electrico_van_por_el_mismo_cuadre_del_p
     assert guion.count('_ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado') >= 2
     assert 'factor_inicial = reparto.a' in guion and 'factor_inicial=factor_inicial)' in guion
     assert "informe['imposible'] = res.imposible" in guion
+
+
+def _flujo_que_encadena(originales: dict[str, float]):
+    """Pérdidas sintéticas que crecen al bajar las fijas: cada corrección de 083:RF-30 deja otro exceso pequeño."""
+    def perdidas(k, r):
+        fijas = sum(p for p, _q in r.fijas.values())
+        return 80.0 + 0.5 * (originales[k] - fijas)
+
+    def uno(r):
+        c = r.totales()[0]
+        return ac.Medida(True, kw=c + perdidas('U', r), kvar=0.0, carga_kw=c, carga_kvar=0.0)
+
+    def conjunto(reps):
+        carga = {k: r.totales()[0] for k, r in reps.items()}
+        return MedidaConjunta(True, kw={k: carga[k] + perdidas(k, r) for k, r in reps.items()},
+                              kvar={k: 0.0 for k in reps}, carga_kw=carga)
+    return uno, conjunto
+
+
+def test_083_rf34_el_tope_del_10_por_ciento_es_contra_las_fijas_originales():
+    """083:RF-34 (enmienda 083:RF-30) — con pérdidas que crecen al bajar las fijas, cada corrección dejaba otro exceso
+    menor que el 10 % de las fijas del momento y se encadenaban hasta bajarlas un 16 %. El tope se mide contra las fijas
+    originales: no bajan más del 10 % en total y el alimentador sale imposible con su causa."""
+    from convertersmartgrid.dominio.ajuste_cabecera import cuadrar
+
+    rng = random.Random(SEMILLA)
+    f0 = rng.uniform(900.0, 1100.0)
+    base = {f'U-S{i}': rng.uniform(5.0, 20.0) for i in range(1, 5)}
+    uno, conjunto = _flujo_que_encadena({'U': f0})
+    obj = Objetivo(f0, 0.3 * f0, 'U', 'U')
+    res = cuadrar(_reparto({'U-F1': f0}, base, 1e-6), obj, uno, tolerancia=0.01, factor_inicial=0.3)
+    final = sum(p for p, _q in res.reparto.fijas.values())
+    assert final >= 0.9 * f0 - 1e-6 and not res.cuadrado and res.imposible, (SEMILLA, final / f0, res.motivo)
+    rc = cuadrar_conjunto({'U': _reparto({'U-F1': f0}, base, 1e-6)}, {'U': obj}, conjunto, tolerancia=0.01,
+                          factores_iniciales={'U': 0.3})
+    final = sum(p for p, _q in (rc.repartos or {})['U'].fijas.values())
+    assert final >= 0.9 * f0 - 1e-6 and not rc.cuadrado and set(rc.imposibles) == {'U'}, (SEMILLA, final / f0)
+
+
+def test_006_rf46_086_rf124_en_el_proyecto_las_fijas_que_llenan_su_cabecera_quedan_a_escala_1():
+    """006:RF-46, 086:RF-124 — en el proyecto, un alimentador cuyas fijas ya llenan su cabecera antes del primer flujo
+    queda imposible con su causa y sus fijas con su P; los demás cuadran en el mismo flujo y se para pronto."""
+    from convertersmartgrid.dominio.ajuste_cabecera import fijas_de, objetivo_de, reparto_inicial
+
+    rng = random.Random(SEMILLA)
+    repartos, objetivos = {}, {}
+    for k in ('A1', 'A2', 'A3'):
+        cab = rng.uniform(1000.0, 4000.0)
+        o = objetivo_de({'medidor': k, 'alimentador': k, 'kw': cab, 'kvar': 0.3 * cab})
+        kva = {f'{k}-S{i}': rng.uniform(50.0, 630.0) for i in range(1, 8)}
+        pot = cab * (rng.uniform(1.0, 1.2) if k == 'A2' else rng.uniform(0.1, 0.4))
+        fijas = fijas_de([{'codigo': '1', 'sed': f'{k}-F1', 'pot': pot, 'ea': 1.0, 'eri': 0.3}], o)
+        repartos[k] = reparto_inicial(o, fijas, {f'{k}-F1': (1.0, 0.1), **{s: (0.0, 0.0) for s in kva}}, kva)
+        objetivos[k] = o
+    assert 'A2-F1' in repartos['A2'].fijas, ('las fijas de A2 pasan a escalar', repartos['A2'].avisos)
+    pot_a2 = repartos['A2'].fijas['A2-F1'][0]
+    res = cuadrar_conjunto(repartos, objetivos, _flujo, tolerancia=0.01,
+                           factores_iniciales={k: r.a for k, r in repartos.items()})
+    assert set(res.imposibles) == {'A2'} and not res.cuadrado, (SEMILLA, res.motivo)
+    assert res.repartos['A2'].fijas['A2-F1'][0] == pot_a2 and res.imposibles['A2']['fijas_kw'] == pot_a2
+    assert all(res.cumple(k) for k in ('A1', 'A3')) and res.flujos < ac.MAX_FLUJOS // 2, (SEMILLA, res.flujos)

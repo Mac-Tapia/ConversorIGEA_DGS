@@ -53,6 +53,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta, plural  # noqa: E402
 
 
 def _sha256_file(path: Path) -> str:
@@ -2683,7 +2686,7 @@ def resumen_caso_base(report: dict[str, Any], equipos: dict[str, list],
         nuevos += [f"ElmShnt {b.get('loc_name')} en {b.get('terminal')} ({b.get('catalog_kvar') or ''} kvar)"
                    for b in reread.get('banks') or []][int(reread.get('expected') or 0):]
     if nuevos:
-        avisos.append(f'{len(nuevos)} equipo(s) en DIgSILENT que el archivo original no trae '
+        avisos.append(f'{cuenta(len(nuevos), "equipo", "equipos")} en DIgSILENT que el archivo original no trae '
                       f"(cambio del operador): {', '.join(nuevos[:10])}"
                       + (f' y {len(nuevos) - 10} más' if len(nuevos) > 10 else '') + '.')
     curvas = (report.get('diagram') or {}).get('curvas_grid_mapa') or {}
@@ -3208,7 +3211,7 @@ def run_acceptance(
         # quedaba sin calibrar por 296 curvas del unifilar con el mapa perfecto.
         if curvas.get('distintas'):
             warnings.append(
-                f"{curvas['distintas']} línea(s) tienen en la grid otra curva que en el mapa "
+                f"{cuenta(curvas['distintas'], 'línea', 'líneas')} {plural(curvas['distintas'], 'tiene', 'tienen')} en la grid otra curva que en el mapa "
                 f"geográfico (más de {TOLERANCIA_CURVA_M:g} m); ejemplos: {curvas['muestra']}. "
                 'Reimporte el DGS actual si quiere el unifilar igual al mapa.')
 

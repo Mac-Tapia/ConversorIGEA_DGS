@@ -128,6 +128,17 @@ Lenguaje: `tools/unir_dataset_lenguaje.py` usa `particionar_dataset` y bloquea s
 barras de `banco_en` y `enlaces` de la escalera, módulo y costo del perfil, banda de la norma; normalización con ideal cero y
 nadir medido o inversión máxima, y un caso por proyecto, problema y partición de la observación en la vista PINN.
 
+### Plan del ciclo con matriz por familia (T8, RF-32 a RF-35, 2026-11-19)
+
+El plan conserva sus once campos (`cargar_plan_ciclo`) y añade, los tres juntos, `datasets` (huella de cada fuente
+por ruta relativa, como la instantánea), `puertas` (las de `puertas_de_familia`: preflight, retención por contexto,
+reapertura y evaluación conjunta; las físicas, además, etiqueta nativa) y `matriz` (las siete familias, con estado
+`listo_para_preflight` o `bloqueado_por_datos` y motivos). `validar_plan_ciclo` devuelve la lista entera de faltas;
+`tools/preparar_ciclo_aprendizaje.py --solo-preparar` reutiliza `preparar` para los manifiestos y escribe el plan solo
+si no hay faltas. La entrada `plan` de la cola revalida un plan con matriz antes de congelar. Espacio, presupuesto y
+dataset alternativo los declara el operador: un dataset v1 por defecto bloquea sus familias y se nombran las versiones
+v2 vecinas sin escoger ninguna. El estado `listo_para_preflight` no sustituye al preflight del ciclo.
+
 ### Contratos de integración concretados el 2026-11-07
 
 RF-1/T1b: un ciclo de varios proyectos usa un mapa ordenado de identidad de proyecto

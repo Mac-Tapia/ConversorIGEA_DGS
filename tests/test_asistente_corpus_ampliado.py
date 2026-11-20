@@ -327,7 +327,7 @@ def test_lectura_mala_del_llm_se_descarta(repo, mala):
     """077:RF-29 — fuera del catálogo o rechazada: se descarta, se dice y se responde igual."""
     r = _responder(repo, 'berenjena azul', ollama=_Ollama([mala]), lector=_lector(repo))
     assert r['sabe'] and not any(c.get('origen') == 'lectura' for c in r['citas'])
-    assert 'descartadas' in r['recuperacion'] and 'kiwi' not in json.dumps(r, ensure_ascii=False)
+    assert 'descartada' in r['recuperacion'] and 'kiwi' not in json.dumps(r, ensure_ascii=False)
 
 
 def test_lo_leido_son_datos():

@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from convertersmartgrid.dominio.fases_red import fases_de_carga_que_llegan, fases_desde_la_cabecera
-from convertersmartgrid.dominio.util import finite_or_none
+from convertersmartgrid.dominio.util import finite_or_none, cuenta as _cuenta, plural
 from convertersmartgrid.adaptadores.entrada.vnr.reglas_tramo import SIN_REGLA_BT, estado_o_anota, medio_o_anota
 from convertersmartgrid.adaptadores.entrada.vnr.models import (Capacitor, CanonicalModel, ConductorType, Load,
                                                              LowVoltageSection, Node, Regulator, Section, Source,
@@ -489,8 +489,9 @@ def coherencia_de_fases(modelo: CanonicalModel, salida: str, cabecera: str,
             cambios += 1
     if cambios:
         avisos.append({'code': 'FASE_RECONSTRUIDA', 'source_id': salida,
-                       'detalle': f'{cambios} tramo(s) o SED con fases que no les llegaban desde la '
-                                  'cabecera, corregidos aguas arriba o tomando las del tramo padre'})
+                       'detalle': f'{_cuenta(cambios, "tramo", "tramos")} o SED con fases que no '
+                                  f'{plural(cambios, "le llegaban", "les llegaban")} desde la cabecera, '
+                                  f'{plural(cambios, "corregido", "corregidos")} aguas arriba o tomando las del tramo padre'})
 
 
 def fases_de_sed(norma: str, en_el_nodo: str) -> str:

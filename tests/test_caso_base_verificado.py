@@ -200,7 +200,7 @@ def test_equipos_que_el_archivo_no_trae_se_avisan_con_su_nombre():
         {'loc_name': 'Shunt/Filter', 'terminal': 'Terminal', 'catalog_kvar': 300.0}]}
     r = tool.resumen_caso_base(_report(capacitor_reread=reread), equipos, [], [])
     assert r['status'] == 'VERIFICADO'
-    assert any('2 equipo(s)' in a and 'SEC_1_a' in a and 'Shunt/Filter' in a for a in r['avisos'])
+    assert any('2 equipos' in a and 'SEC_1_a' in a and 'Shunt/Filter' in a for a in r['avisos'])
 
 @pytest.mark.parametrize('flujo, estado', [
     ({'return_code': 1, 'ldf_valid': False}, 'NO_CONVERGE'),

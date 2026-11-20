@@ -39,3 +39,14 @@
       desviación frente al desequilibrado; las ramas sin dato de fases o ilegibles van aparte. (RF-32 y su aclaración)
       Hecho cuando: `pytest -q -rfs tests/test_oraculo_calibracion.py -k representacion` en verde.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_oraculo_calibracion.py -k representacion.
+- [x] T18 MEJ3-CALIB (orden del usuario del 19-11): `arranque_con_oraculo` devuelve los repartos de entrada con los
+      factores del oráculo (`replace(repartos[k], a=…, b=…)`); la corrección de fijas queda para el cuadre con
+      DIgSILENT. (RF-33)
+      Hecho cuando: rojo por aserción sobre faf67626 y verde con `tests/test_oraculo_calibracion.py -k "rf33 or tope"`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T19 MEJ3-CALIB: `cuadrar` y `cuadrar_conjunto` miden el tope del 10 % contra las fijas originales, sumando lo
+      corregido. (RF-34)
+      Hecho cuando: rojo por aserción sobre faf67626 y verde con `tests/test_calibracion_imposible.py -k rf34`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).

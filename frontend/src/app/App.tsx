@@ -27,6 +27,8 @@ import { InstalacionesPowerFactoryModal, textoPildoraPf } from './InstalacionesP
 import { JobBar } from './JobBar';
 import { LogPanel } from './LogPanel';
 import { MarcaBeta } from '../shared/MarcaBeta';
+import { MarcaValidacion } from '../shared/MarcaValidacion';
+import { refDePestana } from '../shared/matrizEstudios';
 import { CatalogTab, ResultsTab, SystemTab } from '../features/conversion/Modules';
 import { OptionsPanel } from '../features/conversion/OptionsPanel';
 import { PerfilEmpresa } from '../features/conversion/PerfilEmpresa';
@@ -37,7 +39,7 @@ import { useWorkspace } from '../shared/useWorkspace';
 import { PanelPestana, PestanasModulos } from './Pestanas';
 import { REGISTRO_INICIAL, REGISTRO_MIN, UMBRAL_PULSACION, alturaAlPulsar, alturaPorTecla, useFlechasEnGrupos } from './teclado';
 import { avisosDeTrabajos, avisosPorPestana } from '../shared/pasoDeTrabajo';
-import { useVistos } from '../shared/AvisosTrabajo';
+import { ReferenciaSoporte, useVistos } from '../shared/AvisosTrabajo';
 
 // ``entradas``: la pestaña necesita la entrega cargada. «Cargas en DIgSILENT» trabaja
 // sobre un proyecto que ya está en DIgSILENT y se ve siempre (spec 008, RF-1).
@@ -98,9 +100,9 @@ function JobSummary({ job, onClose }: { job: Job; onClose: () => void }) {
   const r = job.result;
   let body: ReactNode = <p>Terminado. El detalle está en el Registro.</p>;
   if (job.status === 'interrumpido') {
-    body = <><p className="alert alert-warn">{job.error}</p><p className="muted">Su registro sigue disponible en el aviso de arriba.</p></>;
+    body = <><p className="alert alert-warn">{job.error}</p><p className="muted">Su registro sigue disponible en el aviso de arriba.</p><ReferenciaSoporte traza={job.traza} /></>;
   } else if (job.status === 'failed') {
-    body = <><p className="alert alert-error">{job.error}</p><p className="muted">El detalle completo está en el Registro.</p></>;
+    body = <><p className="alert alert-error">{job.error}</p><p className="muted">El detalle completo está en el Registro.</p><ReferenciaSoporte traza={job.traza} /></>;
   } else if (job.status === 'cancelled' && !r) {
     body = <p>Cancelado. Lo ya terminado se conserva; el alimentador en curso se descartó entero, nunca a medias.</p>;
   } else if (job.kind === 'load' && r) {
@@ -332,7 +334,9 @@ export default function App() {
                 {/* 086:RF-75: el aviso de un trabajo espera en su paso; la pestaña dice que lo hay. */}
                 <PestanasModulos actual={actual.id} montadas={visitadas.current} onElegir={(id) => setTab(id as typeof tab)}
                   pestanas={tabs.map((t) => ({ id: t.id, avisos: avisosPestana[t.id],
-                    etiqueta: <>{t.label}{t.id === 'asistente' && <> <MarcaBeta clave="asistente" /></>}</> }))} />
+                    etiqueta: <>{t.label}{t.id === 'asistente' && <> <MarcaBeta clave="asistente" /></>}
+                      {/* 100:RF-12: el módulo dice si su cálculo está sin validar. */}
+                      {refDePestana(t.id) && <> <MarcaValidacion {...refDePestana(t.id)!} /></>}</> }))} />
                 {/* 091:RF-8: otro espacio las vuelve a montar, sin lo del anterior. */}
                 <div key={w.state.id}>
                   {tabs.filter((t) => visitadas.current.has(t.id)).map((t) => (

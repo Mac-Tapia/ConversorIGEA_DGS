@@ -25,6 +25,7 @@ from ..dominio.dataset import TABLAS_TIPOS_LINEA
 
 from dataclasses import dataclass, field
 from typing import Any, Iterable
+from ..dominio.util import cuenta
 
 #: Estados posibles de una entrada de datos.
 DISPONIBLE = 'disponible'
@@ -88,7 +89,7 @@ class Estudio:
         return not self.bloqueantes
 
     def resumen(self) -> str:
-        estado = 'listo' if self.defendible else f'{len(self.bloqueantes)} dato(s) faltan'
+        estado = 'listo' if self.defendible else f'{cuenta(len(self.bloqueantes), "dato falta", "datos faltan")}'
         return f'[{estado}] {self.nombre} ({self.clase_pf}, cap. {self.capitulo})'
 
 
@@ -545,7 +546,7 @@ def auditar_datos(dataset: Any, modelos: Iterable[Any] = ()) -> AuditoriaDatos:
     if aud.subestaciones:
         aud.hallazgos.append(
             f"Subestaciones de cabecera: {aud.subestaciones} en {p['tabla_subestaciones']}, con "
-            f'{aud.subestaciones_distintas} juego(s) distinto(s) de impedancia. '
+            f'{cuenta(aud.subestaciones_distintas, "juego distinto", "juegos distintos")} de impedancia. '
             + (f"{p['por_defecto']}: el cortocircuito "
                'saldría igual en toda la red.' if aud.subestaciones_distintas <= 1
                else 'Hay impedancias diferenciadas.')

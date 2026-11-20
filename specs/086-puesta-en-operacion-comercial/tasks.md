@@ -465,3 +465,81 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       frontend/test/maximaNoCoincidente.test.mjs y tests/test_centrales_de_set.py, y, ya integrada, un recorrido en
       navegador real por la web del operador (solo lectura) con el selector en los tres análisis, el por defecto sin
       cambiar y el aviso con la fecha de cada alimentador. Evidencia: `D:/csg/PM_IMPL/GWEB2/`.
+- [x] T101 REFERENCIA-SOPORTE (Plan Maestro PM-14 y PM-25): `dominio/traza.py` (referencia en curso, validación y
+      `CSG_TRAZA`); `seguridad.TrazaPeticion`, por fuera de todo en `app.py`, la fija por petición y la devuelve en
+      `X-CSG-Traza`; `jobs.Job.traza` la hereda, sale en `public()` y en el diario, y el trabajo corre con ella en su
+      contexto, en `run_process` (`CSG_TRAZA`) y en `en_proceso`; `tools/pf_cliente.py` la deja en la orden,
+      `tools/pf_servidor.py` la dice en `servidor.log` y `estadistica_ordenes.registro` en `ordenes.jsonl`;
+      `informe_docx._guardar` la pone en las propiedades del Word y en su JSON; `JobRespuesta.traza` con el contrato
+      regenerado; `ReferenciaSoporte` en el aviso del trabajo y en su resumen. (RF-127)
+      Hecho cuando: rojo por aserción sobre faf67626 y verde con tests/test_traza_soporte.py, sin regresión en
+      tests/test_pf_servidor.py, tests/test_jobs_capacidad.py, tests/test_jobs_resiliencia.py, tests/test_jobs_en_proceso.py
+      y tests/test_informe_docx.py, el contrato sin deriva (`tools/generar_contrato_api.py --check`), capas e inventario.
+      Evidencia: `D:/csg/PM_IMPL/MEJ_TRAZA/`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T102 RESTAURACION-COMPROBADA (Plan Maestro PM-25; amplía RF-10 y RF-47): `copia_datos._comprobar_restaurado`
+      relee cada nombre restaurado en su sitio y revierte todo si uno no da su huella; `restaurar_copia` devuelve
+      `comprobados_despues`. (RF-128)
+      Hecho cuando: rojo por aserción sobre faf67626 y verde con
+      tests/test_copia_datos.py::test_restaurar_comprueba_las_huellas_de_lo_restaurado_en_su_sitio y
+      ::test_si_lo_restaurado_no_cuadra_se_niega_y_vuelve_lo_de_antes, y el resto de tests/test_copia_datos.py sin
+      regresión. Evidencia: `D:/csg/PM_IMPL/MEJ_TRAZA/`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T103 SIN-PLURAL-SERVIDOR (revisión web del 19-11, W5b; completa T89 en el servidor): `plural`/`cuenta` en
+      `dominio/util.py`, la regla de `formato.ts`; los literales de `src/convertersmartgrid` que llegan al operador
+      (avisos, motivos, `detail`, Registro, informes y cabeceras de los libros) concuerdan con su cuenta, verbo y adjetivo
+      incluidos («1 carga no cabe», «3 cargas no caben»), sin cambiar cálculos ni claves de JSON. (RF-110)
+      Hecho cuando: rojo por aserción y verde con su prueba, `tests/test_sin_plural_entre_parentesis_servidor.py`
+      (086:RF-110: recorre con `ast` los literales y los trozos de las f-strings, sin docstrings ni comentarios; un
+      grupo opcional de expresión regular, `medidor(es)?`, no cuenta), y las pruebas que leen esos textos sin regresión.
+      Evidencia: `D:/csg/PM_IMPL/MEJ_W5B/`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T104 SIN-PLURAL-TOOLS (revisión web del 19-11, W5c; completa T89 y T103 en `tools/`): `tools/_plural.py` con
+      `cuenta`/`plural` (biblioteca estándar, Python 3.9, la regla de `formato.ts`) y los 86 literales de 22 guiones de
+      `tools/`, los de DIgSILENT incluidos, concuerdan con su cuenta, verbo y adjetivo incluidos («1 SED fija pide»,
+      «3 SED fijas piden»), sin cambiar cálculos, claves ni órdenes a DIgSILENT; la copia del aviso de los transformadores
+      de la primera pasada se reconoce por «antes de calibrar, en la misma pasada», que no depende de la cuenta. (RF-110)
+      Hecho cuando: rojo por aserción sobre el árbol `faf67626` y verde con `tests/test_sin_plural_entre_parentesis_tools.py`
+      (086:RF-110: recorre con `ast` los literales de `tools/`, sin docstrings ni comentarios), y las pruebas que leen esos
+      textos sin regresión. Evidencia: `D:/csg/PM_IMPL/MEJ_W5C/`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [ ] T105 MEJ3-CALIB-DIGSILENT [DIgSILENT] (orden del usuario del 19-11; bloque de DIgSILENT del 20-11, con 086 T98):
+      corrida real sobre una copia de prueba de un proyecto con fijas que llenan su cabecera, uno con central y bancos y
+      uno con escaladas pequeñas: las fijas quedan con su P en «Sin proyecto» y el alimentador sale imposible con su
+      causa (006:RF-46), el aviso de escaladas casi en cero (015:RF-71), los bancos a su máxima con central (015:RF-72),
+      DIgSILENT arranca con las fijas del oráculo sin rebajar (083:RF-33) y el tope acumulado (083:RF-34).
+      Hecho cuando: el informe de la corrida en DIgSILENT trae esos cinco puntos con su cita del registro y ningún
+      proyecto trabajado se toca. Evidencia: `D:/csg/PM_IMPL/MEJ3_CALIB/`.
+- [x] T106 SIN-GPU-CLARO: `tools/digital_twin_entrenar.py` captura `SinGPU` (informe con `sin_gpu`, código 3);
+      `trabajadores_ml.fallo` lo marca; `services.gemelo_entrenar(estricto=True)` (la ruta de reentrenar),
+      `gemelo_pronostico`, `gemelo_evaluar` y `gemelo_deriva` fallan con el motivo; el aprendizaje activo queda
+      «parcial». (RF-129)
+      Hecho cuando: rojo por aserción y verde con su prueba: `tests/test_motores_web_mej4.py` (086:RF-129) y las vecinas
+      `tests/test_asistente_maestro.py`, `tests/test_asistente_equipo_web.py` y `tests/test_aprendizaje_continuo.py`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T107 OCUPADO-NO-ES-LICENCIA: `pf_arnes.causa_sin_conexion` mira el turno (`ocupado_por_otra_sesion`) antes de la
+      última causa y de la licencia. (RF-130)
+      Hecho cuando: rojo por aserción y verde con su prueba: `tests/test_motores_web_mej4.py` (086:RF-130) y las vecinas
+      `tests/test_flujo_a_estudio.py` y `tests/test_pf_arnes_sin_atajos.py`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T108 VERSION-DE-PYTHON-DE-PF: `powerfactory_env.falta_python_de_pf` en `_require_pf` y en la fila «digsilent»
+      del doctor, que dice el Python que pide la instalación; la fila «python» deja de atribuir a DIgSILENT el 3.12.
+      (RF-131)
+      Hecho cuando: rojo por aserción y verde con su prueba: `tests/test_motores_web_mej4.py` (086:RF-131) y las vecinas
+      `tests/test_powerfactory_versiones.py` y `tests/test_instalacion_programa.py`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T109 RECALIBRACION-SIN-CORTES: `jobs.reserva_de_digsilent` en la admisión de la cola, el middleware
+      `TrabajoPropio` con la cabecera `X-CSG-Trabajo-Propio`, y `tools/sistema_web.py` que la envía y espera su carril
+      ante «Ya hay un trabajo en curso». (RF-132)
+      Hecho cuando: rojo por aserción y verde con su prueba: `tests/test_motores_web_mej4.py` (086:RF-132) y las vecinas
+      `tests/test_web_api.py`, `tests/test_jobs_capacidad.py`, `tests/test_jobs_en_proceso.py`, `tests/test_jobs_resiliencia.py`
+      y `tests/test_sistema_web.py`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).

@@ -86,6 +86,14 @@ Todo esto sin tocar nunca el caso base ni la geometría de la fuente.
 - RF-27: (orden del usuario del 19-11, «corregir este error»: el fondo de calles salía como «403 Access blocked») EL
   SISTEMA pedirá cada tesela del fondo con el origen de la web como «Referer» (nunca la ruta ni sus parámetros), como
   pide la política de uso de las teselas de OpenStreetMap, aunque el resto de la web siga sin «Referer».
+- RF-28: (revisión de motores del 19-11, hallazgo 8; amplía RF-17 y 081:RF-17) SI el flujo de una variación no
+  converge, con el motor abierto o con DIgSILENT, ENTONCES EL SISTEMA terminará el estudio con el estado «no converge» y
+  el motivo que dio el motor, y guardará el resultado igual; la web lo enseña junto al plano.
+- RF-29: (revisión de motores del 19-11, hallazgo 7; amplía RF-17, RF-18) EL SISTEMA dejará al operador elegir el motor
+  de cada estudio del plano (el abierto, DIgSILENT o la elección de siempre, que queda por defecto); pedir DIgSILENT
+  cuando no se puede usar será un error con su motivo antes de encolar, nunca un cambio de motor callado. «DIgSILENT
+  disponible» es una instalación con su API y el Python que pide, no solo un intérprete, y el motivo no lo llama
+  licencia.
 
 ## Requisitos no funcionales
 - Escala: un plano con todos los alimentadores de la entrega, sin bloquear la página mientras calcula, con capas por

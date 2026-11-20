@@ -7,6 +7,8 @@ import type { DiagnosticoCargas, EstadoDiagnostico, EstudiosCatalogo, EstudiosPl
 import { DatosEmpresaPF } from './DatosEmpresaPF';
 import { EntradasEstudios } from './EntradasEstudios';
 import { betaActiva } from '../../shared/edicion';
+import { MarcaDeCelda, useMatrizEstudios } from '../../shared/MarcaValidacion';
+import { marcaDe } from '../../shared/matrizEstudios';
 import { GuionesPF } from './GuionesPF';
 import { Ayuda, FileDrop, Modal } from '../../shared/ui';
 
@@ -72,6 +74,7 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
 }) {
   const { ws, run, startJob, active, jobs, health } = useApp();
   const [catalogo, setCatalogo] = useState<EstudiosCatalogo | null>(null);
+  const matriz = useMatrizEstudios();
   const [elegidos, setElegidos] = useState<string[]>(['flujo']);
   // Al cambiar de proyecto, o al releerlo, se vuelve a los del conversor que tenga.
   const claveCasos = casos.join('\n');
@@ -143,12 +146,17 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
         tiene la calibración. El orden es calibración, recalibración y estudio: recalibre en el paso 2.4. Puede preparar
         los estudios igual; el plan lo anota.</p>}
       <div className="chips">
-        {catalogo.ofrecidos.map((e) => (
-          <button key={e.clave} type="button" className={`chip ${elegidos.includes(e.clave) ? 'on' : ''}`}
-            onClick={() => setElegidos((xs) => (xs.includes(e.clave) ? xs.filter((x) => x !== e.clave) : [...xs, e.clave]))}>
-            {e.nombre}
-          </button>
-        ))}
+        {/* 100:RF-12: cada estudio dice si está sin validar en DIgSILENT; uno no disponible no se puede elegir. */}
+        {catalogo.ofrecidos.map((e) => {
+          const marca = marcaDe(matriz, { estudio: e.clave, motor: 'digsilent' });
+          return (
+            <button key={e.clave} type="button" className={`chip ${elegidos.includes(e.clave) ? 'on' : ''}`}
+              aria-pressed={elegidos.includes(e.clave)} disabled={marca?.deshabilitado} title={marca?.titulo}
+              onClick={() => setElegidos((xs) => (xs.includes(e.clave) ? xs.filter((x) => x !== e.clave) : [...xs, e.clave]))}>
+              {e.nombre}{marca && <> <MarcaDeCelda marca={marca} /></>}
+            </button>
+          );
+        })}
       </div>
       {betaActiva(health, 'confiabilidad') && <DatosEmpresaPF project={project} feeders={feeders} libro={catalogo.datos_empresa} onCambio={cargar} />}
       <OpcionesRed elegidos={elegidos} opciones={opciones} setOpciones={setOpciones} />

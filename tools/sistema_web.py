@@ -50,6 +50,9 @@ from convertersmartgrid.aplicacion.demanda_medida import (MAX_ALIMENTADORES_ANAL
                                      clasificar_carpeta_demanda, descubrir_libro_suministros)
 from convertersmartgrid.dominio.sesion_web import cabeceras_locales
 from convertersmartgrid.dominio.util import nombre_seguro
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 # 086:RF-9: un trabajo que cortó un reinicio de la web queda «interrumpido»; sin él aquí, el cliente lo esperaba para siempre
 # (PE102 de prueba, 2026-11-07: «Esperando Optimizar Con proyecto» de un Pisco ya cortado).
@@ -70,18 +73,48 @@ class Web:
         # (ConnectionError)» cada pocos segundos con un alimentador VNR-GIS, 2026-11-01).
         self.http.headers['Connection'] = 'close'
 
-    def _pedir(self, metodo: str, ruta: str, **kw):
+    #: 086:RF-132: veces que un paso espera a que se libere su carril, ocupado por otro trabajo, antes de rendirse.
+    ESPERAS_CARRIL = 6
+
+    def _una(self, metodo: str, ruta: str, **kw):
         for intento in range(self.reintentos):
             try:
                 # 086:RF-19: se lee cada vez, porque un reinicio de la web a media corrida cambia el token.
                 self.http.headers.update(cabeceras_locales(self.url))
-                r = self.http.request(metodo, self.url + ruta, timeout=300, **kw)
-                break
+                propio = os.environ.get('CSG_TRABAJO_PROPIO', '')
+                if propio:
+                    # 086:RF-132: los pasos de este trabajo entran en la reserva de DIgSILENT de su espacio
+                    # (``jobs.CABECERA_TRABAJO_PROPIO``); las acciones de otros esperan o se rechazan antes de empezar.
+                    self.http.headers['X-CSG-Trabajo-Propio'] = propio
+                return self.http.request(metodo, self.url + ruta, timeout=300, **kw)
             except requests.RequestException as exc:
                 if intento + 1 == self.reintentos:
                     raise
                 print(f'  la web no respondió ({exc.__class__.__name__}); reintento', flush=True)
                 time.sleep(self.pausa)
+        raise RuntimeError(f'{metodo} {ruta}: sin intentos')  # solo con reintentos=0
+
+    def _esperar_a_los_demas(self) -> None:
+        """086:RF-132: espera a los trabajos del espacio que no son de este proceso, sin cortarlos."""
+        propio = os.environ.get('CSG_TRABAJO_PROPIO', '')
+        otros = [t for t in self._pedir('GET', f'/api/workspaces/{self.espacio}').get('jobs') or []
+                 if t.get('status') not in TERMINADOS and t.get('id') != propio]
+        for trabajo in otros:
+            print(f"  su carril lo tiene «{trabajo.get('title')}»: se espera a que termine", flush=True)
+            self.esperar(trabajo)
+        if not otros:
+            time.sleep(self.pausa)
+
+    def _pedir(self, metodo: str, ruta: str, **kw):
+        for vuelta in range(self.ESPERAS_CARRIL + 1):
+            r = self._una(metodo, ruta, **kw)
+            # 086:RF-132 (amplía 028:RF-21): una acción del operador entre dos pasos ocupaba el carril y el paso
+            # siguiente recibía «Ya hay un trabajo en curso»: la recalibración se caía a media corrida. Ahora espera.
+            if (r.status_code == 409 and metodo == 'POST' and 'Ya hay un trabajo en curso' in r.text
+                    and vuelta < self.ESPERAS_CARRIL):
+                self._esperar_a_los_demas()
+                continue
+            break
         if r.status_code >= 300:
             raise RuntimeError(f'{metodo} {ruta}: {r.status_code} {r.text[:1500]}')
         return r.json()
@@ -465,10 +498,11 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     for a, r in (escaneo.get('resumen') or {}).items():
         if (r['generadores'] or r['bancos'] or r['cargas_cambiadas']
                 or r.get('tramos_nuevos') or r.get('tramos_cambiados')):
-            print(f"  escaneo {a}: {r['generadores']} generador(es), {r['bancos']} banco(s), "
-                  f"{r['cargas_cambiadas']} carga(s) cambiada(s), {r.get('tramos_nuevos', 0)} "
-                  f"tramo(s) nuevo(s), {r.get('tramos_cambiados', 0)} tramo(s) cambiado(s) a mano "
-                  '', flush=True)
+            print(f"  escaneo {a}: {cuenta(r['generadores'], 'generador', 'generadores')}, "
+                  f"{cuenta(r['bancos'], 'banco', 'bancos')}, "
+                  f"{cuenta(r['cargas_cambiadas'], 'carga cambiada', 'cargas cambiadas')}, "
+                  f"{cuenta(r.get('tramos_nuevos', 0), 'tramo nuevo', 'tramos nuevos')}, "
+                  f"{cuenta(r.get('tramos_cambiados', 0), 'tramo cambiado', 'tramos cambiados')} a mano", flush=True)
     try:
         perfil = centrales_termicas(datos_perfil())
     except PerfilError:
@@ -605,7 +639,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
             return 2
         validos, fallidos = _resumen(ultimo)
     _escribir_resumen(ultimo)
-    print(f'{validos} válido(s), {fallidos} con fallos.')
+    print(f'{cuenta(validos, "válido", "válidos")}, {fallidos} con fallos.')
     return 0 if validos and not fallidos else 1
 
 

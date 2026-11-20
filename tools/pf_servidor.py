@@ -225,7 +225,9 @@ def servir(inactividad_s: float = pf_arnes.INACTIVIDAD_S, *,
             _decir(f"Orden {orden['id']} es de {raiz}, no de este servidor: vuelve a la cola, donde esta orden "
                    f'espera para correr con {raiz}, y este servidor se cierra.')
             return 0
-        _decir(f"Orden {orden['id']}: {orden['guion']}")
+        # 086:RF-127: con la referencia de soporte del trabajo, la línea de la orden se encuentra desde la web.
+        _decir(f"Orden {orden['id']}: {orden['guion']}"
+               + (f" (referencia {orden['traza']})" if isinstance(orden.get('traza'), str) and orden['traza'] else ''))
         inicio = reloj()
         try:
             codigo = atender(orden, cola)

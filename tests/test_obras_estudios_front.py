@@ -28,8 +28,8 @@ def _pos(texto: str, *piezas: str) -> list[int]:
 
 def test_paso_4_despues_de_la_integracion_en_tres_partes():
     """011:RF-42, 011:RF-98 — el paso 4 va después del 3, con obras, estudios y transferencia
-    en ese orden."""
-    tres, cuatro, a, b, c = _pos(CARGAS, '<h3>3 · Integración de nuevas</h3>', '<h3>4 · Obras y estudios</h3>',
+    en ese orden. 100:RF-12: el título del paso 4 puede llevar su marca de validación detrás."""
+    tres, cuatro, a, b, c = _pos(CARGAS, '<h3>3 · Integración de nuevas</h3>', '<h3>4 · Obras y estudios',
                                  '<h4>4.1 · Obras de mejora</h4>', '<h4>4.2 · Estudios</h4>',
                                  '<h4>4.3 · Transferencia de carga</h4>')
     assert tres < cuatro < a < b < c

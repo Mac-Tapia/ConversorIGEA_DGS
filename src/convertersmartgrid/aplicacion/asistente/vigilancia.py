@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from . import almacen
+from ...dominio.util import cuenta
 
 #: Fallos con remedio conocido: reintentar (el 4002 de la spec 019).
 TRANSITORIOS = (
@@ -138,19 +139,19 @@ def revisar_calidad(trabajos: Iterable[Mapping[str, Any]], tolerancia_pct: float
                        and v is False]
         if no_converge:
             avisos.append(Aviso(f"converge:{t['id']}", 'error',
-                                f"«{t['title']}»: {len(no_converge)} flujo(s) sin converger.", trabajo=t['id'],
+                                f"«{t['title']}»: {cuenta(len(no_converge), 'flujo', 'flujos')} sin converger.", trabajo=t['id'],
                                 propuesta=f'verifica el caso base de {proyecto} {feeders}'.strip()
                                 if proyecto else None))
         fuera = [abs(v) for ruta, v in _recorrer(r) if re.search(r'error_pct$', ruta)
                  and isinstance(v, (int, float)) and abs(v) > tolerancia_pct]
         if fuera:
             avisos.append(Aviso(f"calibracion:{t['id']}", 'aviso',
-                                f"«{t['title']}»: {len(fuera)} calibración(es) fuera de ±{tolerancia_pct:g} % "
+                                f"«{t['title']}»: {cuenta(len(fuera), 'calibración', 'calibraciones')} fuera de ±{tolerancia_pct:g} % "
                                 f'(peor {max(fuera):.2f} %).', trabajo=t['id']))
         violaciones = r.get('violaciones')
         if isinstance(violaciones, list) and violaciones and proyecto:
             avisos.append(Aviso(f"norma:{t['id']}", 'aviso',
-                                f"«{t['title']}»: {len(violaciones)} violación(es) de la norma.",
+                                f"«{t['title']}»: {cuenta(len(violaciones), 'violación', 'violaciones')} de la norma.",
                                 trabajo=t['id'], propuesta=f'haz el pide de {proyecto} {feeders}'.strip()))
     return avisos
 

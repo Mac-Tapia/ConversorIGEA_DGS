@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from ..evaluacion_modelos import Particiones, PoliticaEvaluacion, particionar_registros
+from ...dominio.util import cuenta
 
 FRASE_UNA_EMPRESA = 'La generalización entre empresas no está demostrada: solo hay datos de una empresa'
 #: Reparto de lo que no es prueba, por componentes: entrenamiento, selección y calibración.
@@ -108,7 +109,7 @@ def por_empresa(registros: Sequence[Registro], comp: dict[str, str]) -> list[Coh
         empresas_de.setdefault(comp[r.id], set()).add(r.empresa)
     mixtos = [c for c, e in empresas_de.items() if len(e) > 1]
     if mixtos:
-        raise ValueError(f'{len(mixtos)} componente(s) unen alimentadores de más de una empresa: dejar una empresa '
+        raise ValueError(f'{cuenta(len(mixtos), "componente une", "componentes unen")} alimentadores de más de una empresa: dejar una empresa '
                          'fuera mezclaría las particiones')
     cohortes = []
     for empresa in sorted({r.empresa for r in registros}):

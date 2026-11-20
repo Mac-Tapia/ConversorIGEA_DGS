@@ -42,6 +42,7 @@ from ..dominio.compat_pf import zip_estricto
 from ..dominio.numeros_medidos import clave_codigo, numero
 from ..dominio.estructura import Estructura, EstructuraError, construir
 from .libros_por_anio import EXTENSIONES, DemandaError
+from ..dominio.util import cuenta, plural
 
 FILAS_CABECERA = 30          # dónde se busca la fila de cabecera de un libro
 FILAS_DATOS_MINIMAS = 2      # una hoja de medición con menos no es un medidor
@@ -1039,7 +1040,7 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
         f: (r.valores['v'], r.fuente_tension or '') for r in registros
         if r.valores.get('v') is not None and (f := _como_datetime(r.fecha)) is not None})
     if corruptos:
-        resultado.avisos.append(f'{corruptos} registro(s) con kVA negativo descartados: no son '
+        resultado.avisos.append(f'{cuenta(corruptos, "registro con kVA negativo descartado: no es", "registros con kVA negativo descartados: no son")} '
                                 'físicos (desborde del contador del medidor).')
     if mejor is None:
         resultado.error = (f'sin registro con kW numérico el {_iso(instante)}' if instante
@@ -1053,7 +1054,7 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
         iguales = [r for r in registros if r is not mejor and r.valores.get('kw') == v['kw'] and en_periodo(r.fecha, periodo)
                    and (r.valores.get('kva') is None or r.valores['kva'] >= 0)]
         if iguales:
-            mas = f' y {len(iguales) - 1} registro(s) más' if len(iguales) > 1 else ''
+            mas = f' y {cuenta(len(iguales) - 1, "registro", "registros")} más' if len(iguales) > 1 else ''
             resultado.avisos.append(f"El mismo máximo, {v['kw']:g} kW, también el {_iso(iguales[0].fecha)}{mas}: "
                                     f'se toma el más antiguo, el {resultado.fecha}.')
     resultado.columnas.pop('fp', None)
@@ -1434,7 +1435,7 @@ class Cabecera:
         if calculados:
             res.columnas['kvar'] = 'calculado con el FP de los registros con kVAR negativo'
         if conservados:
-            res.avisos.append(f'{conservados} registro(s) con kVAR negativo sin FP que lo calcule: conservan '
+            res.avisos.append(f'{cuenta(conservados, "registro", "registros")} con kVAR negativo sin FP que lo calcule: conservan '
                               'el kVAR de su columna.')
         return res
 
@@ -1752,7 +1753,7 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
     comunes = sorted(set(cab) & set(gen) & set(lle) & set(sal))
     res.registros_comunes = len(comunes)
     if len(comunes) < FILAS_DATOS_MINIMAS:
-        res.error = (f'solo {len(comunes)} registro(s) con fecha y hora en los cuatro medidores '
+        res.error = (f'solo {cuenta(len(comunes), "registro", "registros")} con fecha y hora en los cuatro medidores '
                      '(cabecera, generación, llegada y salida)')
         return res
 
@@ -1777,7 +1778,7 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
     arriba, validos = _zona_arriba_valida(cab, lle, sl, comunes)
     res.descartados = len(comunes) - len(validos)
     if res.descartados:
-        res.avisos.append(f'{res.descartados} registro(s) con la zona aguas arriba a más de '
+        res.avisos.append(f'{cuenta(res.descartados, "registro", "registros")} con la zona aguas arriba a más de '
                           f'{RANGOS_IQR:g} rangos intercuartílicos de su mediana '
                           '(maniobras o transferencias de carga): no cuentan para la máxima')
     if instante is not None:
@@ -1895,7 +1896,7 @@ def libros_de_suministros(carpeta: Path | str, alias=ALIAS) -> tuple[dict[Path, 
 
 def aviso_libros_de_clientes(nombres: Sequence[str]) -> str:
     """El aviso del hueco de suministros con libros de clientes (004:RF-63)."""
-    return (f'{", ".join(nombres)}: libro(s) de clientes importantes (hoja «resumen»); '
+    return (f'{", ".join(nombres)}: {plural(len(nombres), "libro", "libros")} de clientes importantes (hoja «resumen»); '
             'no se usan como suministros: van en «Clientes importantes».')
 
 
@@ -2207,7 +2208,7 @@ def huella_de_aviso(texto: str) -> str | None:
 def _aviso_de_formato(libro: str, esquema: Mapping[str, Any], hojas: Sequence[str]) -> str:
     """089:RF-109: lo reconocido, lo que falta y la huella, una vez por formato y libro."""
     n = len(hojas)
-    cuales = f'{n} hoja(s) de cliente ({", ".join(hojas[:3])}{"…" if n > 3 else ""})'
+    cuales = f'{cuenta(n, "hoja", "hojas")} de cliente ({", ".join(hojas[:3])}{"…" if n > 3 else ""})'
     reconocido = '; '.join(esquema['reconocido']) or 'nada'
     if esquema['como'] == 'sin_energia':
         return (f'{libro}: {cuales} sin títulos y sin energía en todo el mes (todas sus columnas en cero o vacías): no '
@@ -2380,7 +2381,7 @@ def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None, *
                     dias_de_mas.append((propio, ultimo))
                 curva, fuera = _curva_por_dia(datos, antigua, mes)
                 if fuera:
-                    avisos.append(f'{propio}: {fuera} registro(s) de la hoja «{hoja}» sin fecha o sin EA.')
+                    avisos.append(f'{propio}: {cuenta(fuera, "registro", "registros")} de la hoja «{hoja}» sin fecha o sin EA.')
                 curva.sort(key=lambda p: p[0])
                 out[propio] = curva
                 continue
@@ -2404,7 +2405,7 @@ def curvas_de_clientes(path: Path | str, codigos: Iterable[str] | None = None, *
             eri = numero(_celda(f, cols['eri'])) if 'eri' in cols else None
             curva.append((t, ea * 4.0, None if eri is None else eri * 4.0))
         if fuera:
-            avisos.append(f'{codigo}: {fuera} registro(s) de la hoja «{hoja}» sin fecha o sin EA.')
+            avisos.append(f'{codigo}: {cuenta(fuera, "registro", "registros")} de la hoja «{hoja}» sin fecha o sin EA.')
         curva.sort(key=lambda p: p[0])
         out[codigo] = curva
     nombre = Path(path).name
@@ -2812,7 +2813,7 @@ def del_alimentador(cruzados: Sequence[ClienteImportante], aparte: Sequence[Clie
 
 # =========================================================================== salida
 CABECERA_COLUMNAS = (
-    ('alimentador', 'Alimentador'), ('medidor', 'Medidor'), ('libro', 'Libro'), ('hojas', 'Hoja(s)'),
+    ('alimentador', 'Alimentador'), ('medidor', 'Medidor'), ('libro', 'Libro'), ('hojas', 'Hojas'),
     ('fecha', 'Fecha y hora del kW máximo'), ('kw', 'kW máximo'), ('kvar', 'kVAR'), ('kva', 'kVA'),
     ('fp', 'FP'), ('kva_calculado', 'kVA calculado'), ('fp_calculado', 'FP calculado'),
     ('error', 'Error'), ('avisos', 'Avisos'),
@@ -3405,7 +3406,7 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
                                            and not r.alimentador.lower().startswith('central ')])
         comun = instante_de_barras_de_alta(altas, periodo, generacion, maniobras)
         if comun and comun.get('descartados'):
-            avisos.append(f"{comun['descartados']} registro(s) con algún alimentador en maniobra o transferencia de carga "
+            avisos.append(f"{cuenta(comun['descartados'], 'registro', 'registros')} con algún alimentador en maniobra o transferencia de carga "
                           'no cuentan para el instante del sistema.')
         if comun is None:
             raise DemandaError('El análisis de sistema eléctrico necesita barras de 60 kV con registros comunes'

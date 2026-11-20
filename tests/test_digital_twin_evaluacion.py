@@ -138,7 +138,7 @@ def test_barras_sin_tension_no_son_subtension():
     flujo = _flujo()
     flujo['tensiones']['sin_tension'] = ['ElmTerm:Red\\3092.ElmTerm', 'ElmTerm:Red\\3093.ElmTerm']
     base = _evaluar(Caso.CASO_BASE, flujo)
-    assert base.clase is Clase.ACCEPTED and any('2 barra(s) sin tensión' in d for d in base.diagnostico)
+    assert base.clase is Clase.ACCEPTED and any('2 barras sin tensión' in d for d in base.diagnostico)
     con = _evaluar(Caso.CON_PROYECTO, flujo, referencia=_flujo())
     assert con.clase is Clase.CONVERGED_WITH_VIOLATIONS
     assert any('3092.ElmTerm' in v for v in con.violaciones)

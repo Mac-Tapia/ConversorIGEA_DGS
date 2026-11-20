@@ -340,15 +340,42 @@ def ultima_causa(cola: Path | None = None) -> str | None:
     return errores[-1].split('ERROR:', 1)[1].strip() if errores else None
 
 
-def causa_sin_conexion(abierto: Callable[[], list[int]] | None = None, cola: Path | None = None) -> str:
+#: 086:RF-130: lo que dice la web cuando el motor lo tiene otra sesión; no es un problema de licencia.
+OCUPADO_POR_OTRA_SESION = 'DIgSILENT está ocupado por otra sesión; espere su turno'
+
+
+def ocupado_por_otra_sesion(dueno: dict | None, *, vivo: Callable[[dict | None], bool] = dueno_vivo,
+                            propio: str | None = None) -> bool:
+    """086:RF-130: el turno lo tiene un proceso vivo que no es el servidor de DIgSILENT de este programa.
+
+    El servidor propio que se quedó abierto tras un fallo no es «otra sesión»: la causa es otra y se busca después.
+    """
+    if not dueno or not vivo(dueno):
+        return False
+    if propio is None:
+        from .powerfactory_env import tools_dir
+
+        propio = os.path.normcase(str(tools_dir().resolve()))
+    return not (dueno.get('guion') == SERVIDOR and os.path.normcase(str(dueno.get('codigo') or '')) == propio)
+
+
+def causa_sin_conexion(abierto: Callable[[], list[int]] | None = None, cola: Path | None = None,
+                       turno: Callable[[], dict | None] | None = None) -> str:
     """091:RF-1 a RF-3: por qué una acción no pudo usar DIgSILENT, y qué hacer.
 
     La web decía «Ábralo y reintente» y lo que hacía falta era cerrarlo (019:RF-13): TM102, 2026-11-05.
+    086:RF-130 (revisión de motores del 19-11): tras esperar diez minutos a que otra sesión soltase el motor, el guion
+    sale con 3 y la web decía «compruebe su licencia»; ahora se mira antes quién tiene el turno. Con una ``cola``
+    explícita (otra cola, una prueba) el turno se pasa también explícito: el de la máquina sería el de otra cola.
     """
     manuales = (abierto or _abierto_a_mano)()
     if manuales:
         return (f'DIgSILENT está abierto a mano (proceso {", ".join(map(str, manuales))}): ciérrelo y vuelva a '
                 'intentarlo; la acción necesita usarlo sola.')
+    dueno = (turno or (leer_turno if cola is None else (lambda: None)))()
+    if ocupado_por_otra_sesion(dueno):
+        desde = f' desde {dueno.get("desde")}' if dueno.get('desde') else ''
+        return f'{OCUPADO_POR_OTRA_SESION} y vuelva a intentarlo (lo tiene {dueno.get("guion")}{desde}).'
     causa = ultima_causa(cola)
     if causa:
         return f'No se pudo usar DIgSILENT: {causa}'

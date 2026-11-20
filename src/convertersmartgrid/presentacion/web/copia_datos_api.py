@@ -17,6 +17,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query
 
 from .api_contract import CopiaDatosCarpetaRespuesta, CopiaDatosPeticion, CopiaDatosPreviaRespuesta, JobRespuesta
+from ...dominio.util import cuenta
 
 KIND = 'copia_datos'
 
@@ -73,7 +74,7 @@ def registrar_rutas_copia(app: FastAPI, *, ws_or_404, submit, en_curso: Callable
         # Copiar en medio de una calibración guardaría una mezcla de antes y de después (086:RF-10).
         ocupados = en_curso()
         if ocupados:
-            raise HTTPException(409, f'Hay {ocupados} trabajo(s) en curso: la copia se hace con la web en reposo.')
+            raise HTTPException(409, f'Hay {cuenta(ocupados, "trabajo", "trabajos")} en curso: la copia se hace con la web en reposo.')
         try:
             carpeta = copia.recordar_carpeta(body.carpeta)
         except ValueError as exc:

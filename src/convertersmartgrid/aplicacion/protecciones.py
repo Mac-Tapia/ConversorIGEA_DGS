@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from .experimentos import ContextoExperimento, clave_contexto, como_datos
+from ..dominio.util import cuenta, plural
 
 
 class ProteccionesError(ValueError):
@@ -331,8 +332,8 @@ def disponibilidad_protecciones(inventario: Mapping[str, Any], capacidades: Mapp
     if not dispositivos:
         texto = 'los dispositivos de protección con su curva, ajustes y poder de corte (libro de la empresa, hoja «Protecciones»)'
         if fuente.get('por_defecto') and not fuente.get('reales'):
-            texto += (f"; la fuente solo trae {fuente['por_defecto']} fila(s) DEFAULT con poder de corte 0, "
-                      'que no son fichas')
+            texto += (f"; la fuente solo trae {cuenta(fuente['por_defecto'], 'fila', 'filas')} DEFAULT con poder de corte 0, "
+                      f"{plural(fuente['por_defecto'], 'que no es ficha', 'que no son fichas')}")
         faltan.append(texto)
     completos, clases_pf, errores = [], [], []
     vistos: set[str] = set()

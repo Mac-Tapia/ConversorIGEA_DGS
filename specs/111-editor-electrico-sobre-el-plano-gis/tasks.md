@@ -165,3 +165,16 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
       mapa de las cargas nuevas); prueba: tests/test_plano_varios_alimentadores.py.
       Comprobado en navegador real el 19-11 (claro y oscuro): frontend/e2e/plano_varios.spec.ts en verde, registro en
       `D:/csg/PM_IMPL/GWEB2/hueco/e2e_plano.log`.
+- [x] T28. El estudio de una variación que no converge termina «no converge» con el motivo del motor; el plano pide sus
+      capas también en ese estado y enseña el motivo. (RF-28)
+      Hecho cuando: rojo por aserción y verde con su prueba: `tests/test_motores_web_mej4.py` (111:RF-28) y las vecinas
+      `tests/test_plano_api.py`, `tests/test_resultados_plano.py` y `frontend/test/plano.test.mjs`.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T29. Selector del motor en `PlanoRed.tsx` («Elegir solo», «Motor abierto», DIgSILENT si es posible); `motor` en
+      `EstudiarPlanoPeticion` y `digsilent_posible` en `MotorPlanoRespuesta`; `FuenteWeb.disponible` con
+      `services.digsilent_disponible`. (RF-29)
+      Hecho cuando: rojo por aserción y verde con su prueba: `tests/test_motores_web_mej4.py` (111:RF-29),
+      `tests/test_plano_api.py` y `tests/test_resultados_plano.py`, con el contrato de la API regenerado.
+      Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
+      hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).

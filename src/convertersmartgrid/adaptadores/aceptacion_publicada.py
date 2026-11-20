@@ -28,6 +28,7 @@ from typing import Any
 
 from ..aplicacion.costos_fuentes import CostosError, TablaCostos, valorar_obra
 from ..aplicacion.demanda_medida import abrir_libro, filas_de_hoja
+from ..dominio.util import cuenta, plural
 
 __all__ = ['ORIGEN_ACTA', 'acta_de_estructura', 'base_vigente', 'comparar_valoracion',
            'obra_desde_formatos_inversion', 'titulos_de_docx']
@@ -66,7 +67,8 @@ def base_vigente(versiones: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     vigente = orden[-1]
     return {'vigente': dict(vigente), 'anteriores': [dict(v) for v in orden[:-1]],
             'aviso': (f'base vigente: {vigente.get("resolucion")} (sha256 {str(vigente["sha256"])[:12]}…); '
-                      + (f'{len(orden) - 1} versión(es) anterior(es) conservada(s); lo valorado con ellas queda marcado'
+                      + (f'{cuenta(len(orden) - 1, "versión anterior conservada", "versiones anteriores conservadas")}; lo valorado con '
+                         f'{plural(len(orden) - 1, "ella", "ellas")} queda marcado'
                          if len(orden) > 1 else 'una sola versión descargada; la siguiente entra por su huella'))}
 
 

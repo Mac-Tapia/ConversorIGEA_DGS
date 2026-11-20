@@ -63,6 +63,8 @@ export const TEXTOS = {
   umbral: 'Umbral',
   norma: 'Norma',
   motor: 'Motor',
+  motorAutomatico: 'Elegir solo',
+  motorAbierto: 'Motor abierto',
   quitarSeleccion: 'Quitar la selección',
   criterioEmpresa: 'Criterio de la empresa, no norma',
   vista: 'Vista',

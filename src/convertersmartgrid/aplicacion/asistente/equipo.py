@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 from ...dominio.salidas_red import es_ruta_de_la_nube, lectura_de_la_nube
 from . import almacen, lectura_proyecto
 from .tareas import EFECTOS, TAREAS, TAREAS_107_112_NUBE, requiere_confirmacion
+from ...dominio.util import cuenta, plural
 
 ROLES_REVISION = ('fuentes', 'fisica', 'coste', 'riesgo')
 #: Quién puede pedir una lectura del proyecto (077:RF-33): el rol lo fija el servidor, nunca el modelo.
@@ -139,7 +140,7 @@ def dictamen_del_equipo(tarea: str, evidencia: Mapping[str, Mapping], *, context
             propios = [('revisar', sin_corridas, '')]
         decision = max((d for d, _m, _i in propios), key=DECISIONES_DICTAMEN.index, default='favorable')
         motivos = [m for d, m, _i in propios if d == decision] or [
-            f'las {len(usadas)} corrida(s) custodiada(s) no muestran nada en contra']
+            f'las {cuenta(len(usadas), "corrida custodiada", "corridas custodiadas")} {plural(len(usadas), "no muestra", "no muestran")} nada en contra']
         dictamenes.append({'rol': rol, 'decision': decision, 'motivos': motivos,
                            'evidencia_ids': sorted({i for _d, _m, i in propios if i} or set(usadas))})
     decision = max((d['decision'] for d in dictamenes), key=DECISIONES_DICTAMEN.index)
@@ -147,7 +148,7 @@ def dictamen_del_equipo(tarea: str, evidencia: Mapping[str, Mapping], *, context
     malos = [f"{nombre_rol[d['rol']]}: {m}" for d in dictamenes if d['decision'] == decision != 'favorable' for m in d['motivos']]
     resumen = ('Dictamen del equipo antes de escribir: ' + {'favorable': 'favorable', 'revisar': 'revisar',
                'riesgo': 'riesgo'}[decision] + ('; ' + '; '.join(malos) if malos else
-               f'; {len(usadas)} corrida(s) custodiada(s) lo sostienen') + '.')
+               f'; {cuenta(len(usadas), "corrida custodiada", "corridas custodiadas")} {plural(len(usadas), "lo sostiene", "lo sostienen")}') + '.')
     pregunta = ('El equipo ve riesgo en lo que se va a escribir (' + '; '.join(malos) + '): no se escribe. '
                 '¿Quiere rehacer antes esa corrida? Corríjala y repita la orden.') if decision == 'riesgo' else ''
     return {'tarea': tarea, 'decision': decision, 'dictamenes': dictamenes, 'evidencia_ids': sorted(usadas),

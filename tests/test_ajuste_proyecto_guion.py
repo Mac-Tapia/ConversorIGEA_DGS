@@ -219,7 +219,7 @@ def test_pone_los_bancos_que_faltan_y_recalibra(guion, monkeypatch):
     filas = [c for c in inf['cambios_en_la_red'] if c['elemento'] in nombres]
     assert filas and all(c['original']['potencia'] == 0.0 and c['nuevo']['potencia'] == 2.0
                          for c in filas)
-    assert any('kVAR frente a' in a and 'banco(s) de' in a for a in inf['avisos'])
+    assert any('kVAR frente a' in a and ('banco de' in a or 'bancos de' in a) for a in inf['avisos'])
 
 
 def test_los_bancos_que_faltan_con_la_variacion_del_operador_grabando(guion):

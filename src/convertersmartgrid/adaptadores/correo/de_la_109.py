@@ -32,6 +32,7 @@ from ..nube.oauth import PERMISOS, NoRegistrado
 from ..nube.proveedor import ErrorNube
 from ...dominio.salidas_red import SalidaApagada
 from ...puertos.correo import PROVEEDORES, CuentaNoConectada
+from ...dominio.util import cuenta as _cuenta
 
 #: El permiso que la 110 necesita en la cuenta: el último del alcance «enviar» de la 109 (P5: una vía).
 PERMISO_ENVIAR = {p: PERMISOS[p]['enviar'][-1] for p in PROVEEDORES}
@@ -96,5 +97,5 @@ class CompartidorDeLa109:
         concedidos = {str(f.get('destinatario', '')).lower() for f in filas}
         faltan = [d for d in destinatarios if d.lower() not in concedidos]
         if faltan:
-            return {'estado': 'rechazado', 'motivo': f'sin permiso para {len(faltan)} destinatario(s)', 'id': None}
+            return {'estado': 'rechazado', 'motivo': f'sin permiso para {_cuenta(len(faltan), "destinatario", "destinatarios")}', 'id': None}
         return {'estado': 'concedido', 'motivo': '', 'id': ','.join(str(f.get('id_remoto') or '') for f in filas)}

@@ -38,6 +38,7 @@ import traceback
 from pathlib import Path
 
 from cargas_pf import activar_proyecto, error_inesperado, etapas_al_dia, nombre_pf
+from _plural import cuenta, plural  # noqa: E402
 from convertersmartgrid.dominio.native_action import native_action_block_report
 from convertersmartgrid.aplicacion.obras_pf import PREFIJO_VARIACION
 from convertersmartgrid.aplicacion.valle import nombre_caso_valle
@@ -399,8 +400,9 @@ def sin_a_con_proyecto(app, casos: dict, excluir=()) -> dict:
             casos['con'].Activate()
             escenario = app.GetActiveScenario()
             if escenario is None:
-                out['avisos'].append('«Con proyecto» no tiene escenario activo: no se copian '
-                                     f'{len(cambios)} dato(s) de operación de «Sin proyecto».')
+                out['avisos'].append('«Con proyecto» no tiene escenario activo: no se '
+                                     f'{plural(len(cambios), "copia", "copian")} {cuenta(len(cambios), "dato", "datos")} '
+                                     'de operación de «Sin proyecto».')
             else:
                 for obj, nombre, attr, valor, antes in cambios:
                     obj.SetAttribute(attr, valor)
@@ -412,8 +414,8 @@ def sin_a_con_proyecto(app, casos: dict, excluir=()) -> dict:
                                  'proyecto»: ' + ', '.join(out['variaciones']))
         if out['copiados']:
             out['avisos'].append(
-                f"«Con proyecto» toma de «Sin proyecto» {len(out['copiados'])} dato(s) de "
-                'operación cambiados a mano: ' + ', '.join(
+                f"«Con proyecto» toma de «Sin proyecto» {cuenta(len(out['copiados']), 'dato', 'datos')} de "
+                f"operación {plural(len(out['copiados']), 'cambiado', 'cambiados')} a mano: " + ', '.join(
                     f"{c['objeto']}.{c['dato']}" for c in out['copiados'][:10]) + '.')
         if out['conflictos']:
             out['avisos'].append(
@@ -479,7 +481,7 @@ def operacion_de_las_obras(app, casos_anio: dict) -> dict:
             escenario = app.GetActiveScenario()
             if escenario is None:
                 out['avisos'].append(f'«{casos_anio["con"].loc_name}» no tiene escenario activo: '
-                                     f'no se copian {len(cambios)} dato(s) de operación de las obras.')
+                                     f'no se {plural(len(cambios), "copia", "copian")} {cuenta(len(cambios), "dato", "datos")} de operación de las obras.')
             else:
                 for obj, attr, valor, antes in cambios:
                     obj.SetAttribute(attr, valor)

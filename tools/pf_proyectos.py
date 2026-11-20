@@ -39,6 +39,9 @@ from convertersmartgrid.adaptadores.carpeta_pf import (  # noqa: E402
     validar_nombre,
 )
 from convertersmartgrid.adaptadores.powerfactory_binding import native_inventory_evidence  # noqa: E402
+if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, también cargado suelto (086:RF-110)
+    sys.path.append(str(Path(__file__).resolve().parent))
+from _plural import cuenta  # noqa: E402
 
 
 def _misma_identidad(a, b):
@@ -126,7 +129,7 @@ def leer(app, carpeta: str) -> dict:
                 'native_reread_at': native_reread_at,
                 'native_warning': native_warning,
             })
-            print(f'  {ruta}: {len(feeders)} alimentador(es)')
+            print(f'  {ruta}: {cuenta(len(feeders), "alimentador", "alimentadores")}')
     finally:
         _restituir(app, anterior)
     return {'folder': carpeta, 'exists': True, 'aviso': None, 'projects': proyectos}
@@ -162,7 +165,7 @@ def main(argv=None) -> int:
     Path(args.output_json).write_text(
         json.dumps(datos, indent=2, ensure_ascii=False) + '\n', encoding='utf-8',
     )
-    print(f'{len(datos["projects"])} proyecto(s) en {carpeta!r}.')
+    print(f'{cuenta(len(datos["projects"]), "proyecto", "proyectos")} en {carpeta!r}.')
     return 0
 
 

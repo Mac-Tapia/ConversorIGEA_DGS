@@ -60,6 +60,7 @@ from ..oraculo import (
 from ...dominio.registro_normativo import RegistroError, RegistroNormativo, ReglaVigente
 from ...aplicacion.vad import VadError
 from .modelo_rural import ModeloRural, TramoRural, hash_vertices
+from ...dominio.util import cuenta
 
 REGLA_SED = 'vad.anexo6.sed'
 REGLA_CALIBRE_MT = 'vad.anexo6.mt.calibre_economico'
@@ -295,7 +296,7 @@ def _dimensionar_sed(modelo: ModeloRural, regla: ReglaVigente, demanda: Mapping[
             # «Para demandas superiores a 350 kVA, se adoptan múltiples módulos iguales de 300 kVA» (6798-6799).
             n = math.ceil(kva / modulo)
             kva_modelo, modulos = n * modulo, n
-            nota.append(f'{n} módulo(s) de {modulo:g} kVA (demanda sobre {tope:g} kVA)')
+            nota.append(f'{cuenta(n, "módulo", "módulos")} de {modulo:g} kVA (demanda sobre {tope:g} kVA)')
             if modulo not in lista:
                 notas.append(f'SED {s.sed}: el módulo de {modulo:g} kVA no tiene costo en el SICODI para '
                              f'({sector}, {tipo})')
@@ -631,7 +632,7 @@ def dimensionar(modelo: ModeloRural, *, registro: RegistroNormativo, cabeceras: 
                      f'da la equivalencia; se elige con la corriente de fase del flujo desequilibrado')
     bt = sorted(t.tramo for t in modelo.tramos if t.nivel == 'BT')
     if bt:
-        huecos.append(f'BT: {len(bt)} tramo(s) sin dimensionar; la demanda viene por SED y no por tramo, y los '
+        huecos.append(f'BT: {cuenta(len(bt), "tramo", "tramos")} sin dimensionar; la demanda viene por SED y no por tramo, y los '
                       f'calibres de {REGLA_BT} necesitan la de cada tramo')
     huecos.append(f'{REGLA_TERCEROS}: la fuente no da el propietario de cada tramo; no se excluyen km de terceros')
 

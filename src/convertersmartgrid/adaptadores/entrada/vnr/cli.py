@@ -12,7 +12,7 @@ import sys
 from datetime import UTC
 from pathlib import Path
 
-from convertersmartgrid.dominio.util import publicar_duradero
+from convertersmartgrid.dominio.util import publicar_duradero, cuenta
 
 from . import __version__
 from .config import Settings
@@ -442,7 +442,7 @@ def _discovery(args) -> int:
         for pub in pubs:
             print(f'{pub.publication_id}  {pub.company or pub.company_code:20} '
                   f'{pub.publication_type:28} {pub.period_label:12} {pub.published_at}')
-        print(f'{len(pubs)} publicación(es).')
+        print(f'{cuenta(len(pubs), "publicación", "publicaciones")}.')
         return 0
     if args.command == 'download-vnr':
         from .discovery import DownloadManager

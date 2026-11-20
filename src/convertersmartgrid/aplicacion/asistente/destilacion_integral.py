@@ -26,7 +26,7 @@ from .sinteticos import Ejemplo, expandir, normalizar
 from .tareas import TAREAS, TAREAS_HASTA_069, TAREAS_SIN_SELLADA_070_079
 from . import modelos_en_uso as mu, ordenes_maestro as ordenes_maestro_085
 from ...dominio.runtime_paths import raiz_programa
-from ...dominio.util import publicar_duradero
+from ...dominio.util import publicar_duradero, cuenta as _cuenta
 
 #: Variantes con erratas de cada texto real etiquetado (068:RF-38).
 VARIANTES_POR_TEXTO_REAL = 8
@@ -169,7 +169,7 @@ def _con_la_prueba_sellada(filas: list[dict]) -> tuple[list[dict], dict, dict]:
     # Una orden humana igual a una frase sellada no es fuga: las dos son prueba (070:RF-76).
     choques = [r for r in filas if r['particion'] != 'entrenamiento' and r['quality'] != 'gold_human' and coincide(r)]
     if choques:
-        raise ValueError(f'la prueba sellada coincide con {len(choques)} fila(s) de selección, calibración o prueba')
+        raise ValueError(f'la prueba sellada coincide con {_cuenta(len(choques), "fila", "filas")} de selección, calibración o prueba')
     conservadas = [r for r in filas if r['particion'] != 'entrenamiento' or not coincide(r)]
     quitadas = len(filas) - len(conservadas)
     # 079:RF-46: la anterior orientó esta spec: se mide con su huella, y ya no decide.

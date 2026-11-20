@@ -15,6 +15,7 @@ from typing import Any
 
 from ...dominio.evaluacion_harness.contratos import canonico, huella
 from ..evaluacion_harness.publicacion import leer_json, publicar
+from ...dominio.util import cuenta
 
 NOMBRE_PRUEBA = 'prueba_sellada.json'
 ESQUEMA_PRUEBA = 'csg-prueba-sellada-v1'
@@ -64,7 +65,7 @@ def informe(resultados: Sequence[Resultado], ruta: Path | str, *, plan, metrica:
     cohortes = {c.nombre for c in plan.cohortes}
     ajenas = sorted({r.cohorte for r in resultados} - cohortes)
     if ajenas:
-        raise ValueError(f'resultados de {len(ajenas)} cohorte(s) que no están en el plan: no se publican')
+        raise ValueError(f'resultados de {cuenta(len(ajenas), "cohorte que no está en el plan", "cohortes que no están en el plan")}: no se publican')
     base = {}
     for r in resultados:
         if r.es_base:

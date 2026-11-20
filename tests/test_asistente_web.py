@@ -99,7 +99,7 @@ def test_lo_que_escribe_espera_la_confirmacion(client, monkeypatch):
     espera; confirmado, va por la ruta de la web, deja sus entregables y la orden queda como
     ejemplo confirmado."""
     monkeypatch.setattr(services, 'gemelo_entrenar',
-                        lambda ws, ctx, forzar=False: {'entrenado': True, 'forzar': forzar, 'informe': 'gemelo.xlsx'})
+                        lambda ws, ctx, forzar=False, estricto=False: {'entrenado': True, 'forzar': forzar, 'informe': 'gemelo.xlsx'})
     wid = _wid(client)
     r = _orden(client, wid, 'reentrena la pinn')
     plan = r['plan']
@@ -182,7 +182,7 @@ def test_un_reintento_con_el_error_y_vuelta_al_operador(client, monkeypatch):
     reintenta una sola vez y, si vuelve a fallar, se devuelve al operador."""
     llamadas = []
 
-    def entrenar(ws, ctx, forzar=False):
+    def entrenar(ws, ctx, forzar=False, estricto=False):
         llamadas.append(forzar)
         if len(llamadas) == 1:
             raise services.UserError('DIgSILENT ocupado (4002)')
@@ -199,7 +199,7 @@ def test_un_reintento_con_el_error_y_vuelta_al_operador(client, monkeypatch):
     assert '4002' in revisor.textos[-1], 'el modelo ve el error'
     # Falla dos veces: un solo reintento y vuelve al operador.
     llamadas.clear()
-    monkeypatch.setattr(services, 'gemelo_entrenar', lambda ws, ctx, forzar=False: (
+    monkeypatch.setattr(services, 'gemelo_entrenar', lambda ws, ctx, forzar=False, estricto=False: (
         llamadas.append(1), (_ for _ in ()).throw(services.UserError('sin GPU')))[1])
     plan = _orden(client, wid, 'reentrena la pinn')['plan']
     fin = _esperar(client, client.post(f"/api/workspaces/{wid}/asistente/{plan['id']}/confirmar").json()['id'])
@@ -228,7 +228,7 @@ def test_senales_preferencias_y_reflexiones(client, monkeypatch):
     par de preferencia y nota; rechazar, penalización; el registro las suma por tarea."""
     from convertersmartgrid.aplicacion.asistente import senales
 
-    monkeypatch.setattr(services, 'gemelo_entrenar', lambda ws, ctx, forzar=False: {'entrenado': True})
+    monkeypatch.setattr(services, 'gemelo_entrenar', lambda ws, ctx, forzar=False, estricto=False: {'entrenado': True})
     wid = _wid(client)
     plan = _orden(client, wid, 'reentrena la pinn')['plan']
     assert _esperar(client, client.post(f"/api/workspaces/{wid}/asistente/{plan['id']}/confirmar").json()['id'])['status'] == 'done'

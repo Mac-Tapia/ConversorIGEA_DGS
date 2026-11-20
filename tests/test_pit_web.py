@@ -86,7 +86,8 @@ def test_rutas_propias_capacidades_y_areas(tmp_path):
     r = cliente.post('/api/pit/diagnostico', json={'workspace_id': 'ws1', 'area': caso['area'], 'anios': [1],
                                                    'libro_red': 'red.xlsx', 'proyeccion': 'proyeccion.json',
                                                    'motor': 'digsilent'})
-    assert r.status_code == 422 and 'licencia' in r.json()['detail']
+    # 107:RF-23: lo que se comprueba es que DIgSILENT esté disponible en el equipo, no la licencia.
+    assert r.status_code == 422 and 'no está disponible' in r.json()['detail']
 
 
 def test_fuera_del_espacio_y_observaciones(tmp_path):

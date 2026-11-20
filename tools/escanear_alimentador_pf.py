@@ -26,6 +26,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(RAIZ / 'src'), str(RAIZ / 'tools')]
+from _plural import cuenta  # noqa: E402
 
 from convertersmartgrid.aplicacion.escaneo import CLASES_GENERADOR, origen_de  # noqa: E402
 
@@ -253,10 +254,12 @@ def main(argv=None) -> int:
         if d.get('error'):
             print(f"  {f}: {d['error']}", flush=True)
         else:
-            print(f"  {f}: {len(d['generadores'])} generador(es), {len(d['bancos'])} banco(s), "
-                  f"{len(d['cargas_cambiadas'])} carga(s) cambiada(s), "
-                  f"{len(d.get('tramos_nuevos') or [])} tramo(s) nuevo(s), "
-                  f"{len(d.get('tramos_cambiados') or [])} cambiado(s) a mano", flush=True)
+            nuevos, cambiados = len(d.get('tramos_nuevos') or []), len(d.get('tramos_cambiados') or [])
+            print(f"  {f}: {cuenta(len(d['generadores']), 'generador', 'generadores')}, "
+                  f"{cuenta(len(d['bancos']), 'banco', 'bancos')}, "
+                  f"{cuenta(len(d['cargas_cambiadas']), 'carga cambiada', 'cargas cambiadas')}, "
+                  f"{cuenta(nuevos, 'tramo nuevo', 'tramos nuevos')}, "
+                  f"{cuenta(cambiados, 'cambiado', 'cambiados')} a mano", flush=True)
     print(f"Escaneo de {plan.get('project')}: código {codigo}")
     return codigo
 

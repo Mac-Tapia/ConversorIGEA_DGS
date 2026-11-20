@@ -26,6 +26,33 @@ from .tareas import EFECTOS, TAREAS, descripcion_para_operador, requiere_confirm
 _PIDE_BORRAR = re.compile(r'\b(?:borr(?:a|ar|e|en|ame)|elimin(?:a|ar|e|en)|suprim(?:e|ir|a|an)|quit(?:a|ar|e|en)|'
                           r'limpi(?:a|ar|e|en))\b')
 
+#: 070:RF-91: lo que un documento pegado en la orden dice al asistente en lugar de al lector: «ignora lo anterior»,
+#: «omite las verificaciones», «sin pedir confirmación». Es dato del documento, nunca una orden; el plan lo avisa y espera.
+_INSTRUCCION_INCRUSTADA = re.compile(
+    r'\b(?:ignora\w*|olvida\w*|omite|omitir|omitiendo|salta\w*)\b[^.\n]{0,40}?'
+    r'\b(?:anterior\w*|instruccion\w*|reglas?|verificacion\w*|confirmacion\w*|comprobacion\w*|controles?)\b'
+    r'|\bignore\b[^.\n]{0,30}?\b(?:previous|prior|above|instructions?)\b'
+    r'|\b(?:sin|no)\s+(?:pedir|pidas|pida|esperar|esperes|espere|preguntar|preguntes)\b[^.\n]{0,20}?'
+    r'\b(?:confirmacion\w*|permiso|operador)\b'
+    r'|\b(?:system prompt|prompt del sistema|a partir de ahora eres|ahora eres)\b')
+
+
+def instrucciones_incrustadas(texto: str) -> list[str]:
+    """070:RF-91: los trozos de la orden que dan instrucciones al asistente, tal como se escribieron."""
+    t = normalizar(texto)                                   # misma longitud: las posiciones valen en el original
+    return [texto[m.start():m.end()] for m in _INSTRUCCION_INCRUSTADA.finditer(t)]
+
+
+def _avisar_instrucciones(plan: Plan, texto: str) -> None:
+    """070:RF-91: el aviso en la propuesta y, aunque la tarea solo lea, la espera del operador."""
+    trozos = instrucciones_incrustadas(texto)
+    if not trozos:
+        return
+    plan.solo_con_confirmacion = True
+    plan.avisos.append(f'La orden trae texto con instrucciones para el asistente («{trozos[0][:80]}»): se trata como dato '
+                       'del documento, no como orden. El plan espera su confirmación y nada se escribe, envía ni publica '
+                       'sin ella.')
+
 
 @dataclass
 class Plan:
@@ -216,6 +243,7 @@ def resolver(interp: Interpretacion, vocab: Mapping[str, Sequence[str]], *, grup
     """
     plan = Plan(uuid.uuid4().hex[:12], interp.texto, interp.tarea, False, '', interpretado_por=interp.modelo,
                 confianza=interp.confianza, alternativas=list(interp.alternativas))
+    _avisar_instrucciones(plan, interp.texto)                                     # 070:RF-91
     if interp.consultados:
         plan.razonamiento.append(f"Consulté: {', '.join(interp.consultados)}.")
     if interp.tarea not in TAREAS and _PIDE_BORRAR.search(normalizar(interp.texto)):

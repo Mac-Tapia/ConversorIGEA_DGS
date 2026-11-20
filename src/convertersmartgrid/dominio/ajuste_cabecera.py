@@ -64,7 +64,11 @@ def objetivo_de(maxima: Mapping[str, Any]) -> Objetivo:
         fp = numero(maxima.get('fp'))
         if fp is None or not 0 < abs(fp) <= 1:
             raise AjusteError(f'{medidor}: la máxima de cabecera no trae kVAR ni FP.')
-        kvar = kw * math.tan(math.acos(abs(fp)))
+        # 088:RF-14 (RF-2, RF-3): el signo de la Q lo da su FP declarado (``lead`` capacitivo, ``lag`` inductivo) o, sin
+        # él, el signo de su medida (un FP negativo es capacitivo, como lo deja ``maxima_de_registros``).
+        palabras = str((maxima.get('columnas') or {}).get('fp') or '').lower().split()
+        capacitivo = 'lead' in palabras or ('lag' not in palabras and fp < 0)
+        kvar = math.copysign(kw * math.tan(math.acos(abs(fp))), -1.0 if capacitivo else 1.0)
     return Objetivo(kw=kw, kvar=kvar, medidor=medidor,
                     alimentador=str(maxima.get('alimentador') or ''), fecha=maxima.get('fecha'))
 
@@ -146,6 +150,14 @@ def derivacion_cliente(c: Mapping[str, Any], tan_objetivo: float, fp_objetivo: f
         tan = tan_objetivo
         metodo = 'FP_CABECERA_FALLBACK'
         aviso = f'{codigo}: sin EA o ERI; su kVAR con el FP del objetivo ({fp_objetivo:.3f}).'
+        if tan < 0:
+            # 088:RF-13: una cabecera capacitiva no hace capacitiva a una carga: el FP de las fijas del perfil o, sin
+            # él, el de la cabecera como inductivo.
+            fp_fija = fp_minimo if fp_minimo is not None else fp_objetivo
+            tan = math.tan(math.acos(fp_fija))
+            metodo = 'FP_FIJAS_PERFIL' if fp_minimo is not None else 'FP_CABECERA_INDUCTIVO'
+            aviso = (f'{codigo}: sin EA o ERI y con la cabecera capacitiva; su kVAR con FP {fp_fija:.3f} inductivo '
+                     + ('de las fijas del perfil.' if fp_minimo is not None else 'de la cabecera.'))
     else:
         tan = eri / ea
         metodo = 'ERI/EA'
@@ -216,10 +228,12 @@ class Reparto:
     kva: dict[str, float | None]
     a: float
     b: float
-    todo_escala: bool = False
+    todo_escala: bool = False           # 006:RF-46: ya no se escalan las fijas; queda para leer informes de antes
     solo_kw: bool = False
     omitidas: list[dict[str, str]] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
+    #: 006:RF-46: por qué no se puede cuadrar antes de ningún flujo (``estado`` CALIBRACION_IMPOSIBLE o NO_CALIBRABLE).
+    causa: dict[str, Any] | None = None
 
     def con_factores(self, a: float, b: float | None = None) -> Reparto:
         """El mismo reparto con otros factores; en «solo kW» el kVAR sigue al kW (RF-14)."""
@@ -336,21 +350,79 @@ def reparto_inicial(objetivo: Objetivo, fijas: Mapping[str, Fija],
         return Reparto(fijas=fijas_pf, base=base, origen=origen, kva=kvas, a=a, b=a,
                        solo_kw=True, omitidas=omitidas, avisos=avisos)
 
-    # Los clientes ya llenan la cabecera, o no queda demanda que escalar: escala todo
-    # (RF-13), las fijas con su P y Q como punto de partida.
-    todo = {**base, **fijas_pf}
-    bp = sum(p for p, _ in todo.values())
-    if bp <= 0:
+    # 006:RF-46 (cambia RF-13, orden del usuario del 19-11): las fijas van siempre a escala 1, con su P y Q. Si ya
+    # llenan la cabecera, las escaladas quedan al mínimo y no se puede cuadrar (086:RF-124); si no hay escaladas con
+    # kVA, no hay qué repartir. Antes se escalaban también las fijas: 5 010 kW frente a 5 000 kW de cabecera y 10 000
+    # kVA de escaladas dejaban las fijas en 1 691 kW, cuando con 4 990 kW quedaban en 4 990 kW.
+    if not fijas_pf and p_base <= 0:
         raise AjusteError('No hay demanda que escalar: ninguna SED tiene demanda en el archivo '
                           'original ni clientes importantes con potencia.')
-    avisos.append(
-        f'Los clientes importantes suman {p_fijas:,.1f} kW frente a un objetivo de '
-        f'{objetivo.kw:,.1f} kW: se escalan todas las SED, también las suyas.'
-        if base else
-        'Todas las SED del alimentador tienen clientes importantes: se escalan sus demandas.')
-    a = objetivo.kw / bp
-    return Reparto(fijas={}, base=todo, origen=origen, kva=kvas, a=a, b=a, todo_escala=True,
-                   solo_kw=True, omitidas=omitidas, avisos=avisos)
+    clave = objetivo.alimentador or objetivo.medidor or 'El alimentador'
+    if p_base > 0:
+        texto = (f'{clave}: sus fijas suman {p_fijas:,.1f} kW frente a {objetivo.kw:,.1f} kW de cabecera; las fijas '
+                 'siguen con su P y Q, las escaladas quedan al mínimo y no puede cuadrar sin cambiar sus fijas.')
+        causa = {'estado': CALIBRACION_IMPOSIBLE, 'codigo': 'FIJAS_LLENAN_LA_CABECERA', 'fijas_kw': p_fijas,
+                 'objetivo_kw': objetivo.kw, 'texto': texto}
+        a = 0.0
+    else:
+        texto = (f'{clave}: no se puede repartir: '
+                 + ('ninguna SED escalada tiene potencia instalada conocida' if base else
+                    'todas sus SED tienen clientes importantes')
+                 + f'; sus fijas suman {p_fijas:,.1f} kW frente a {objetivo.kw:,.1f} kW de cabecera y no se escalan.')
+        causa = {'estado': NO_CALIBRABLE, 'codigo': 'SIN_ESCALADAS_CON_KVA' if base else 'SIN_ESCALADAS',
+                 'fijas_kw': p_fijas, 'objetivo_kw': objetivo.kw, 'texto': texto}
+        a = 1.0
+    avisos.append(texto)
+    return Reparto(fijas=fijas_pf, base=base, origen=origen, kva=kvas, a=a, b=a, solo_kw=True,
+                   omitidas=omitidas, avisos=avisos, causa=causa)
+
+
+#: 006:RF-46: estados de un reparto que no se puede cuadrar antes de ningún flujo.
+CALIBRACION_IMPOSIBLE, NO_CALIBRABLE = 'IMPOSIBLE', 'NO_CALIBRABLE'
+#: 015:RF-71: una escalada que consume menos de esto está casi en cero (usuario, 2026-11-06: un alimentador real tenía 39 bajo 1 kW).
+ESCALADA_CASI_CERO_KW = 1.0
+#: 015:RF-71: un factor común de las escaladas (fracción de su potencia instalada) por debajo de esto es anormal.
+FACTOR_ESCALADAS_ANORMAL = 0.05
+
+
+def escaladas_casi_cero(clave: str, escaladas: Mapping[str, float], factor: float | None, fijas_kw: float | None,
+                        cabecera_kw: float | None, *, umbral_kw: float = ESCALADA_CASI_CERO_KW,
+                        factor_anormal: float = FACTOR_ESCALADAS_ANORMAL) -> dict[str, Any] | None:
+    """Las escaladas casi en cero de un alimentador y su causa (015:RF-71), o ``None`` si no hay ninguna.
+
+    ``escaladas``: el kW de cada escalada con potencia instalada (escrito o consumido en el flujo). Un factor común por
+    debajo de ``factor_anormal`` no da la calibración por válida; una escalada bajo ``umbral_kw`` con el factor normal
+    (una SED muy pequeña) se avisa sin invalidar.
+    """
+    bajo = sorted((s for s, kw in escaladas.items() if kw < umbral_kw), key=lambda s: (escaladas[s], s))
+    anormal = factor is not None and 0 <= factor < factor_anormal
+    if not bajo and not anormal:
+        return None
+    fraccion = fijas_kw / cabecera_kw if fijas_kw is not None and cabecera_kw else None
+    n = len(bajo)
+    partes = [f'{clave}: {n} de {len(escaladas)} SED escaladas '
+              f"{'queda' if n == 1 else 'quedan'} por debajo de {umbral_kw:g} kW"]
+    if factor is not None:
+        partes.append(f"con un factor de escala de {factor:.4f}{', anormalmente bajo' if anormal else ''}")
+    texto = ' '.join(partes)
+    if bajo:
+        texto += ': ' + ', '.join(bajo[:50]) + (f' y {n - 50} más' if n > 50 else '')
+    if fijas_kw is not None and cabecera_kw:
+        texto += (f'. Las fijas suman {fijas_kw:,.1f} kW frente a {cabecera_kw:,.1f} kW de cabecera ({fraccion:.0%})'
+                  + (' y dejan casi nada para repartir; revise las fijas y el instante de sus registros'
+                     if anormal else ''))
+    texto += '.' if anormal else '; la calibración vale, pero conviene revisar sus potencias instaladas.'
+    return {'clave': clave, 'umbral_kw': umbral_kw, 'cantidad': n, 'escaladas': len(escaladas), 'sed': bajo,
+            'factor': factor, 'factor_anormal': anormal, 'invalida': anormal, 'fijas_kw': fijas_kw,
+            'cabecera_kw': cabecera_kw, 'fraccion_fijas': fraccion, 'aviso': texto}
+
+
+def escaladas_casi_cero_del_reparto(reparto: Reparto, objetivo: Objetivo) -> dict[str, Any] | None:
+    """:func:`escaladas_casi_cero` con lo que deja el reparto (015:RF-71): las escaladas con potencia instalada."""
+    d = reparto.demandas
+    escaladas = {s: d[s].kw for s, (p, _q) in reparto.base.items() if p > 0}
+    return escaladas_casi_cero(objetivo.alimentador or objetivo.medidor or 'El alimentador', escaladas, reparto.a,
+                               sum(p for p, _q in reparto.fijas.values()), objetivo.kw)
 
 
 # =========================================================================== cuadre
@@ -403,6 +475,7 @@ class Cuadre:
     q_estado: str | None = None          # Q_CUADRADA, Q_INCOHERENTE_* o Q_SIN_BASE
     q_extremo: dict[str, Any] | None = None   # 035:RF-30: el flujo que lo demostró
     imposible: dict[str, Any] | None = None   # 086:RF-124: por qué no puede cuadrar (fijas, pérdidas, SED que más pesa)
+    no_calibrable: dict[str, Any] | None = None   # 006:RF-46: sin escaladas con kVA, no se puede repartir
     metodos: dict[str, int] = field(default_factory=dict)       # 083:RF-13
     fijas_sospechosas: bool = False                              # 083:RF-7
 
@@ -620,6 +693,30 @@ def cuadrar(
     """
     res = Cuadre(cuadrado=False, reparto=None, medida=None, objetivo=objetivo,
                  tolerancia=tolerancia, avisos=list(reparto.avisos), con_q=con_q)
+    causa = reparto.causa or {}
+    if causa.get('estado') == NO_CALIBRABLE:
+        # 006:RF-46: sin escaladas con kVA no hay qué repartir; no se ejecuta ningún flujo ni se tocan las fijas.
+        res.no_calibrable, res.motivo = causa, causa['texto']
+        return res
+    if causa.get('estado') == CALIBRACION_IMPOSIBLE:
+        # 006:RF-46, 086:RF-124: las fijas ya llenan la cabecera. Un flujo con las fijas a escala 1 y las escaladas al
+        # mínimo mide sus pérdidas para la causa; no se busca ningún factor.
+        actual = reparto.con_factores(0.0, 0.0)
+        m = flujo(actual)
+        res.flujos = 1
+        res.historial.append({'flujo': 1, 'a': 0.0, 'b': 0.0, 'converge': m.converge, 'kw': m.kw, 'kvar': m.kvar,
+                              'carga_kw': m.carga_kw, 'carga_kvar': m.carga_kvar, 'motivo': m.motivo})
+        medido = m.converge and m.kw is not None
+        if medido:
+            res.reparto, res.medida = actual, m
+        res.imposible = causa_imposible(objetivo.alimentador or objetivo.medidor or 'el alimentador', actual,
+                                        float(m.kw) if medido else actual.totales()[0],
+                                        m.carga_kw if medido else None, objetivo.kw)
+        res.fijas_sospechosas = True
+        res.motivo = res.imposible['texto']
+        return res
+    #: 083:RF-34: el tope de 083:RF-30 se mide contra las fijas con que entró el cuadre, no contra las del momento.
+    fijas_originales = sum(p for p, _q in reparto.fijas.values())
     puntos_p: list[tuple[float, float]] = []
     puntos_q: list[tuple[float, float]] = []
     if con_q:
@@ -680,7 +777,7 @@ def cuadrar(
             if (exceso > tolerancia * objetivo.kw
                     and actual.a <= ESCALADAS_AL_MINIMO * (factor_inicial if factor_inicial is not None else reparto.a)):
                 suma_fijas = sum(p for p, _q in actual.fijas.values())
-                if exceso <= TOPE_CORRECCION_FIJAS * suma_fijas:
+                if suma_fijas > 0 and exceso + (fijas_originales - suma_fijas) <= TOPE_CORRECCION_FIJAS * fijas_originales:
                     # 083:RF-30, también con un solo alimentador (086:RF-124).
                     factor = 1 - exceso / suma_fijas
                     actual = meta = replace(actual, fijas={s: (p * factor, q * factor) for s, (p, q) in actual.fijas.items()})
@@ -1021,13 +1118,18 @@ def cuadrar_conjunto(
     """
     quietas = set(quietas)
     claves = tuple(repartos)
-    pendiente = {k: (0.0 if k in quietas else sum(p for p, _ in r.base.values()))
+    # 006:RF-46, 086:RF-124: la clave cuyas fijas ya llenan su cabecera entra con las escaladas al mínimo y no se mueve.
+    llenas = {k for k, r in repartos.items() if k not in quietas
+              and (r.causa or {}).get('estado') == CALIBRACION_IMPOSIBLE}
+    repartos = {k: (r.con_factores(0.0, 0.0) if k in llenas else r) for k, r in repartos.items()}
+    pendiente = {k: (0.0 if k in quietas or k in llenas else sum(p for p, _ in r.base.values()))
                  for k, r in repartos.items()}
     ajustables = tuple(k for k in claves if pendiente[k] > 0)
     res = CuadreConjunto(cuadrado=False, repartos=None, medida=None, objetivos=objetivos,
                          tolerancia=tolerancia, ajustables=ajustables)
-    if not ajustables:
+    if not ajustables and not llenas:
         raise AjusteError('Ninguno de los alimentadores tiene cargas que escalar.')
+    originales = {k: sum(p for p, _q in r.fijas.values()) for k, r in repartos.items()}    # 083:RF-34
     puntos: dict[str, list[tuple[float, float]]] = {k: [] for k in claves}
     con_q = tuple(k for k in con_q if k in ajustables)
     puntos_q: dict[str, list[tuple[float, float]]] = {k: [] for k in con_q}
@@ -1054,15 +1156,26 @@ def cuadrar_conjunto(
             else 'no converge'))
         if medido:
             res.repartos, res.medida = dict(actual), m
+            for k in sorted(llenas - set(res.imposibles)):
+                # 006:RF-46: su causa con lo que da el flujo, sus fijas a escala 1 y sus pérdidas.
+                kw_k = m.kw.get(k)
+                res.imposibles[k] = causa_imposible(k, actual[k], float(kw_k) if kw_k is not None
+                                                    else actual[k].totales()[0],
+                                                    m.carga_kw.get(k) if kw_k is not None else None,
+                                                    objetivos[k].kw)
+                res.fijas_sospechosas = True
         # 021:RF-58: un flujo final común válido también puede recibirse cancelado.
         if cancelado():
             res.cancelado, res.motivo = True, 'cancelado por el operador'
             break
+        if medido and not ajustables:
+            res.motivo = 'sin cuadrar todos: ' + '; '.join(c['texto'] for c in res.imposibles.values())
+            break
         if medido:
             q_listas = {k: k in res.q_estado or cuadrado_kvar(m.kvar.get(k), objetivos[k], tolerancia_q)
                         for k in con_q}
-            if all(abs(_rel(m.kw[k], objetivos[k].kw)) <= tolerancia  # type: ignore[arg-type]
-                   for k in ajustables) and all(q_listas.values()):
+            if not llenas and all(abs(_rel(m.kw[k], objetivos[k].kw)) <= tolerancia  # type: ignore[arg-type]
+                                  for k in ajustables) and all(q_listas.values()):
                 negativas = [
                     f'{k} ({m.kw[k] - m.carga_kw[k]:,.1f} kW)'  # type: ignore[operator]
                     for k in ajustables if m.carga_kw.get(k) is not None
@@ -1097,8 +1210,8 @@ def cuadrar_conjunto(
                 exceso = float(y) - objetivos[k].kw
                 inicial = float((factores_iniciales or {}).get(k, repartos[k].a))          # 086:RF-124
                 al_minimo = r.a <= ESCALADAS_AL_MINIMO * inicial
-                if (exceso > tolerancia * objetivos[k].kw and al_minimo
-                        and exceso <= TOPE_CORRECCION_FIJAS * suma_fijas):
+                if (exceso > tolerancia * objetivos[k].kw and al_minimo and suma_fijas > 0     # 083:RF-34: contra las originales
+                        and exceso + (originales[k] - suma_fijas) <= TOPE_CORRECCION_FIJAS * originales[k]):
                     factor = 1 - exceso / suma_fijas
                     nuevo[k] = replace(r, fijas={s: (p * factor, q * factor) for s, (p, q) in r.fijas.items()})
                     res.metodos['fijas_corregidas'] = res.metodos.get('fijas_corregidas', 0) + 1

@@ -125,7 +125,7 @@ version = {attr = "convertersmartgrid.__version__"}
 
 [tool.setuptools.package-data]
 # 086:RF-36: «_programa» solo existe en el árbol que prepara tools/construir_candidato.py; en desarrollo no hay nada.
-convertersmartgrid = ["schemas/*.json", "recursos/leaflet/*", "recursos/*.md", "_programa/**/*"]
+convertersmartgrid = ["schemas/*.json", "recursos/leaflet/*", "recursos/*.md", "recursos/*.json", "_programa/**/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
@@ -425,6 +425,9 @@ deuda = "docs/implementacion065/deuda_arquitectura.json"
 "convertersmartgrid.dominio.edicion" = "dominio"
 "convertersmartgrid.dominio.salidas_red" = "dominio"
 "convertersmartgrid.dominio.sesion_web" = "dominio"
+"convertersmartgrid.dominio.traza" = "dominio"
+"convertersmartgrid.dominio.matriz_estudios" = "dominio"
+"convertersmartgrid.presentacion.web.matriz_estudios_api" = "presentacion"
 "convertersmartgrid.adaptadores.schema" = "adaptadores"
 "convertersmartgrid.dominio.sed_potencia" = "dominio"
 "convertersmartgrid.aplicacion.set_nueva" = "aplicacion"

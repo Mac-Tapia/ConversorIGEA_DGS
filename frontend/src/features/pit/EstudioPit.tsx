@@ -8,11 +8,19 @@ import { ElegirFuente } from '../../shared/ElegirFuente';
 import { fuentes, type Fuente, type RedDelEspacio } from '../../api/fuentes';
 import { FileDrop, GuardarSalida } from '../../shared/ui';
 
-interface ResultadoDiagnostico { salida_relativa?: string | null; completo?: boolean; avisos?: string[] }
+interface ResultadoDiagnostico {
+  salida_relativa?: string | null; completo?: boolean; avisos?: string[]; motor?: string; motivo?: string;
+}
 interface ResultadoExpediente {
   tipo?: string; estado?: string; carpeta_relativa?: string | null; salidas_relativas?: Record<string, string>;
-  pendientes?: { causa?: string }[]; libro_f000?: { motivo?: string };
+  pendientes?: { causa?: string }[]; libro_f000?: { motivo?: string }; motivo?: string;
+  estudio_digsilent?: { completo?: boolean; salida_relativa?: string | null };
 }
+
+/** 107:RF-23: el nombre de cada motor como lo lee el operador. */
+const NOMBRE_MOTOR: Record<string, string> = { abierto: 'Motor abierto', digsilent: 'DIgSILENT' };
+/** 107:RF-24: un trabajo que terminó con resultado, también incompleto o sin converger, se enseña con su motivo. */
+const CON_RESULTADO = ['done', 'parcial', 'no_converge'];
 
 const nombre = (rel: string) => rel.split('/').pop() ?? rel;
 /** 107:RF-19: una entrada de la empresa elegida (su fuente) o subida ahora, que queda en la empresa (109:RF-25). */
@@ -20,7 +28,8 @@ type Entrada = Fuente | File | null;
 
 /** El último trabajo terminado de un tipo en este espacio. */
 function ultimo<R>(jobs: Record<string, Job>, wsId: string, kind: string): Job<R> | undefined {
-  return Object.values(jobs).filter((j) => j.kind === kind && j.workspace_id === wsId && j.status === 'done').pop();
+  return Object.values(jobs).filter((j) => j.kind === kind && j.workspace_id === wsId && CON_RESULTADO.includes(j.status))
+    .pop();
 }
 
 /**
@@ -35,6 +44,7 @@ export function EstudioPit() {
   const [periodo, setPeriodo] = useState('');
   const [aniosTexto, setAniosTexto] = useState('');
   const [motor, setMotor] = useState('abierto');
+  const [proyectoPf, setProyectoPf] = useState('');
   const [libro, setLibro] = useState<Entrada>(null);
   const [proyeccion, setProyeccion] = useState<Entrada>(null);
   const [alternativas, setAlternativas] = useState<Entrada>(null);
@@ -55,21 +65,25 @@ export function EstudioPit() {
     void run(() => pit.capacidades()).then((r) => { if (r) setCaps(r); });
   }, [run, ws.id]);
 
-  const ocupado = Boolean(active.engine);
+  // 107:RF-23: con DIgSILENT el trabajo va a su carril, y la red y la demanda son las del proyecto de transmisión.
+  const conMotorPf = motor === 'digsilent';
+  const ocupado = Boolean(conMotorPf ? active.powerfactory : active.engine);
   const anios = leerAnios(aniosTexto);
-  const listo = Boolean(area && anios && libro && proyeccion);
-  const listoExpediente = listo && Boolean(periodo.trim()) && (!alternativas || Boolean(elegida.trim()));
+  const listo = Boolean(area && anios && (conMotorPf || (libro && proyeccion)));
+  const pf = conMotorPf && proyectoPf.trim() ? { proyecto_pf: proyectoPf.trim() } : {};
+  const listoExpediente = Boolean(area && anios && libro && proyeccion) && Boolean(periodo.trim())
+    && (!alternativas || Boolean(elegida.trim()));
 
   /** El id de la fuente de cada entrada; lo subido se registra antes en la empresa y lo usan todos los módulos. */
   const idDe = async (e: Entrada, clase: string) => (e instanceof File ? (await fuentes.subir(ws.id, clase, e)).id : e?.id ?? null);
   const diagnosticar = () => startJob(async () => pit.diagnostico({
-    workspace_id: ws.id, area, anios: anios!, motor,
+    workspace_id: ws.id, area, anios: anios!, motor, ...pf,
     fuente_red_area: await idDe(libro, 'red_area'), fuente_proyeccion: await idDe(proyeccion, 'proyeccion'),
   }));
   const armar = () => startJob(async () => {
     const alt = await idDe(alternativas, 'alternativas');
     return pit.expediente({
-      workspace_id: ws.id, area, periodo: periodo.trim(), anios: anios!, motor,
+      workspace_id: ws.id, area, periodo: periodo.trim(), anios: anios!, motor, ...pf,
       fuente_red_area: await idDe(libro, 'red_area'), fuente_proyeccion: await idDe(proyeccion, 'proyeccion'),
       fuente_alternativas: alt, alternativa_elegida: alt ? elegida.trim() : null,
     });
@@ -107,10 +121,17 @@ export function EstudioPit() {
           <span>Motor</span>
           <select value={motor} disabled={ocupado} onChange={(e) => setMotor(e.target.value)}>
             {(caps?.motores ?? ['abierto']).map((m) => (
-              <option key={m} value={m} disabled={m === 'digsilent'}>{m}</option>
+              <option key={m} value={m} disabled={m === 'digsilent' && !caps?.licencia}>{NOMBRE_MOTOR[m] ?? m}</option>
             ))}
           </select>
         </label>
+        {conMotorPf && (
+          <label className="field">
+            <span>Proyecto de DIgSILENT</span>
+            <input value={proyectoPf} placeholder="El del perfil de la empresa" disabled={ocupado}
+              onChange={(e) => setProyectoPf(e.target.value)} />
+          </label>
+        )}
         <ElegirFuente clase="red_area" etiqueta="Libro de la red" accept={LIBROS_RED} disabled={ocupado} onElegir={setLibro} />
         <ElegirFuente clase="proyeccion" etiqueta="Proyección de la demanda" accept=".json" disabled={ocupado}
           onElegir={setProyeccion} />
@@ -147,7 +168,9 @@ export function EstudioPit() {
       {diag && (
         <section className="resultado-pit" aria-label="Diagnóstico del PIT">
           <p><strong>Diagnóstico {diag.completo ? 'completo' : 'incompleto'}</strong>
+            {diag.motor ? ` · ${NOMBRE_MOTOR[diag.motor] ?? diag.motor}` : ''}
             {diag.avisos?.length ? ` · ${diag.avisos.length} avisos` : ''}</p>
+          {diag.motivo && <p className="alert alert-warn">{diag.motivo}</p>}
           {diag.salida_relativa && (
             <GuardarSalida url={api.fileUrl(ws.id, diag.salida_relativa, true)} nombre={nombre(diag.salida_relativa)}
               rel={diag.salida_relativa} />
@@ -157,6 +180,11 @@ export function EstudioPit() {
       {exp && (
         <section className="resultado-pit" aria-label="Expediente del PIT">
           <p><strong>{exp.tipo}</strong> · {exp.estado}</p>
+          {exp.motivo && <p className="alert alert-warn">{exp.motivo}</p>}
+          {exp.estudio_digsilent?.salida_relativa && (
+            <GuardarSalida url={api.fileUrl(ws.id, exp.estudio_digsilent.salida_relativa, true)}
+              nombre={nombre(exp.estudio_digsilent.salida_relativa)} rel={exp.estudio_digsilent.salida_relativa} />
+          )}
           {Object.entries(exp.salidas_relativas ?? {}).map(([k, rel]) => (
             <GuardarSalida key={k} url={api.fileUrl(ws.id, rel, true)} nombre={nombre(rel)} rel={rel} />
           ))}
