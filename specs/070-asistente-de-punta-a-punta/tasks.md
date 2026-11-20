@@ -76,8 +76,13 @@
 - [x] T20 Tarea del benchmark anonimizado. (RF-79)
   Hecho cuando: `pytest -q tests/test_asistente_107_112.py -k benchmark` en verde.
       Hecho en e2a99c73 (PUERTA3); pruebas: tests/test_asistente_107_112.py -k benchmark.
-- [ ] T21 Frases del maestro, sintéticos y la prueba sellada nueva con su huella; la anterior, histórica. (RF-84, RF-85)
+- [x] T21 Frases del maestro, sintéticos y la prueba sellada nueva con su huella; la anterior, histórica. (RF-84, RF-85)
   Hecho cuando: `pytest -q tests/test_prueba_sellada_107_112.py tests/test_asistente_maestro.py tests/test_maestro_real.py tests/test_asistente_sinteticos.py` en verde, y la destilación la mide (con la T22).
+      Hecho el 2026-11-19 (ASISTENTE-C, wt_ce_c): `destilacion_integral.medir_selladas_nuevas` mide el candidato en la
+      sellada 107-112 y en la 026, cada una con su huella comprobada, sin decidir; va en `metrics` y en `decision.json`
+      como `selladas_nuevas`, y sus ficheros en `codigo_hashes`. Rojo VALIDO (2 failed, 2 passed) en
+      D:/csg/PM_IMPL/ASISTENTE_C/070_T21/rojo.log; verde D:/csg/PM_IMPL/ASISTENTE_C/verde/verde_c.log (461 passed, rc=0) con las cuatro pruebas,
+      `test_destilacion_integral.py` y `test_afinado_ordenes.py`. La medida real la da la T22 en la GPU.
 - [ ] T22 [GPU] Reentrenar el modelo de órdenes con las tareas nuevas y pasar sus puertas (085). (RF-84)
   Hecho cuando: el candidato pasa sus puertas, o queda el modelo en uso con su diagnóstico.
 - [x] T23 Esperas finitas del asistente (C2 del diagnóstico del 18-11, H03): «interrumpido» termina la espera, cada

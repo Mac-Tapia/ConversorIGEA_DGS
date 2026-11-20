@@ -579,3 +579,29 @@ ESTILO_REAL['normativa_regenerar'] = ('regenera la guia vnr', 'regenera los form
                                       'rehaz las reconsideraciones', 'regenera la normativa del vnr',
                                       'actualiza la guia vnr desde su fuente', 'regenera el registro 217',
                                       'rehaz el coes')
+
+# 026:RF-42 y RF-43: repetir el último trabajo que falló y las órdenes de las entradas, con la regla de las cuatro
+# columnas. Sintéticas: no copian órdenes del operador ni ninguna prueba, ni nombran empresa real (P9, P13).
+FAMILIAS.update({
+    'repetir_trabajo': ('repite el ultimo trabajo que fallo', 'vuelve a lanzar lo que fallo con los mismos datos',
+                        'reintenta el trabajo fallido del espacio', 'lanza de nuevo el ultimo que salio mal'),
+    'asignar_entrada': ('asigna {ruta} a la casilla de la red', 'pon {ruta} en la casilla de las cargas',
+                        'asigna la base de la red {ruta}', 'usa {ruta} como paquete del vnr gis en la entrada'),
+    'subir_fuente_empresa': ('sube el sicodi {ruta} del 2025 a las fuentes de la empresa',
+                             'registra el libro de demanda {ruta} del 2024 en las fuentes de la empresa',
+                             'sube las interrupciones {ruta} de 2025', 'agrega el perfil {ruta} a los libros de la empresa'),
+})
+ESTILO_REAL['repetir_trabajo'] = ('repite lo que fallo', 'reintenta', 'vuelve a lanzar el que fallo',
+                                  'repite el ultimo', 'otra vez el que fallo', 'reintenta el trabajo',
+                                  'repite el trabajo fallido', 'vuelve a intentarlo', 'lanza otra vez lo que fallo',
+                                  'repite con los mismos datos', 'reintenta lo ultimo', 'repite el que se cayo')
+ESTILO_REAL['asignar_entrada'] = ('asigna {ruta} a la red', 'asigna {ruta} a las cargas', 'asigna {ruta} a los equipos',
+                                  'pon {ruta} en la casilla de la red', 'asigna la base {ruta}', 'asigna el vnr {ruta}',
+                                  'asigna {ruta} como estudio', 'asigna los alias {ruta}', 'pon {ruta} en la entrada',
+                                  'asigna el archivo {ruta}', 'asigna {ruta} a la casilla', 'asigna el mdb {ruta}')
+ESTILO_REAL['subir_fuente_empresa'] = ('sube el sicodi {ruta} del 2025', 'sube la demanda {ruta} del 2024',
+                                       'registra el sicodi {ruta}', 'sube el catalogo {ruta}', 'sube el perfil {ruta}',
+                                       'sube las interrupciones {ruta} del 2023', 'registra las interrupciones {ruta}',
+                                       'sube {ruta} a las fuentes de la empresa', 'registra el libro de demanda {ruta}',
+                                       'guarda {ruta} en los libros de la empresa', 'sube el libro de demanda {ruta}',
+                                       'registra el catalogo {ruta}')

@@ -71,6 +71,8 @@ SALIDA = Dato('ruta', 'ruta', obligatorio=False, descripcion='la carpeta de la s
 ENTRADAS_PIT = Dato('ruta', 'ruta', descripcion='el libro de la red y la proyección del área (y las alternativas)')
 CASO_VAD = Dato('ruta', 'ruta', descripcion='la carpeta del caso del VAD, con su sistemas.json')
 NORMA_JSON = Dato('ruta', 'ruta', descripcion='el fichero .json de la norma, con el esquema de la biblioteca normativa')
+FICHERO_ENTRADA = Dato('ruta', 'ruta', descripcion='el fichero de la máquina que entra en la casilla')
+LIBRO_EMPRESA = Dato('ruta', 'ruta', descripcion='el libro de la empresa que se sube a sus fuentes')
 
 _TAREAS = (
     # ------------------------------------------------------------ consultas (sin confirmar)
@@ -252,6 +254,13 @@ _TAREAS = (
               '[cancela|cancelar|para] lo que [está|esta] corriendo', '[para|detén|deten] ese trabajo',
               'ya no sigas con ese trabajo', 'cancela el trabajo en curso'),
           frases_literales=(r'\bcancel(a|ar|alo|en)\b', r'\b(para|deten|detener) (ese|este|el) trabajo\b', r'\bya no sigas\b')),
+    # 026:RF-43: repetir el último trabajo que falló, con sus mismos datos: se rehace su plan (con el sello de ahora y su
+    # confirmación de siempre), como una corrección del operador; nunca se relanza el trabajo viejo a ciegas.
+    Tarea('repetir_trabajo', 'Repite el último trabajo del espacio que falló, con sus mismos datos (026:RF-43).', (),
+          True, 'trabajo', 'asistente_plan_repetido', (
+              '[repite|repetir|vuelve a lanzar] el [último|ultimo] trabajo que fall[ó|o]', '[reintenta|repite] lo que fall[ó|o]',
+              'vuelve a intentarlo con los mismos datos', 'lanza otra vez el trabajo que fall[ó|o]'),
+          frases_literales=(r'\b(repite|repetir|reintenta|vuelve a lanzar)\b.*\b(fall\w*|mismos datos)\b',)),
     Tarea('convertir_set', 'Convierte una SET sola, con sus alimentadores y su barra (022:RF-82).', (SET,), True,
           'trabajo', 'sistema_seleccion', (
               'convierte [solo|] la set {set}', 'dgs de la set {set}', 'arma la set {set} con sus alimentadores',
@@ -326,7 +335,10 @@ _TAREAS = (
     Tarea('descargar_resultados', 'Prepara el ZIP de los resultados y da el enlace para bajarlo (spec 001).', (A_OPC,), False,
           'trabajo', 'feeder_rows', (
               'pásame los resultados en zip', 'prepara la descarga de {alimentadores}', 'descarga los resultados del espacio'),
-          frases_literales=(r'\bzip\b', r'\bdescarg\w*\b.*\bresultados\b', r'\bpasame los resultados\b')),
+          # 026:RF-45 (T19): también los entregables de un módulo (PIDE, PIT, VAD, VNR o los informes); va antes que el
+          # expediente del PIT en el catálogo: «descarga el expediente del PIT» lo baja, no lo vuelve a armar.
+          frases_literales=(r'\bzip\b', r'\bdescarg\w*\b.*\bresultados\b', r'\bpasame los resultados\b',
+                            r'\b(descarg\w*|baja\w*|pasame)\b.*\b(pide|pit|vad|vnr|informes?|entregables?|expediente)\b')),
     Tarea('pronostico', 'Pronóstico de demanda de cabecera o de clientes fijos, con su competencia de modelos (spec 046). '
           'Es un pronóstico, nunca una medición.', (Dato('ruta', 'ruta', descripcion='libro de la medición'), A_OPC), True,
           'trabajo', 'gemelo_temporal', (
@@ -445,6 +457,26 @@ _TAREAS = (
               'regenera las reconsideraciones'),
           frases_literales=((r'\b(regener\w*|rehaz\w*|actualiz\w*)\b.*\b(registro|biblioteca|guia vnr|formatos 217|'
                              r'coes|reconsideracion\w*)\b'),)),
+    # 026:RF-42 (T16): las entradas del espacio por el asistente, por las mismas rutas que la web: la casilla recibe el
+    # fichero de la máquina por su subida (se valida antes de tocar la vigente, 086:RF-3) y el libro de la empresa entra
+    # en sus fuentes con su clase y su año (109:RF-25). De la nube, el fichero lo elige el operador en el selector.
+    Tarea('asignar_entrada', 'Asigna un fichero de la máquina a una casilla de entrada del espacio (la red, las cargas, '
+          'los equipos, la base de la red, el estudio, el paquete del VNR-GIS o los alias), como la subida de la web; lo '
+          'que la casilla no admite no entra y la entrada vigente se queda (026:RF-42).', (FICHERO_ENTRADA,), True,
+          'trabajo', 'app.create_app', (
+              'asigna {ruta} a la casilla de la red', 'pon {ruta} en la entrada de las cargas',
+              'usa {ruta} como base de la red del espacio', 'asigna el paquete del vnr gis {ruta}'),
+          frases_literales=(r'\basign\w*\b.*\b(casilla|entrada|red|cargas?|equipos?|base|mdb|vnr|gis|alias\w*|'
+                            r'estudio|fichero|archivo)\b',
+                            r'\b(pon\w*|coloca\w*|mete\w*|usa)\b.*\b(en|a|como) (la )?(casilla|entrada)\b')),
+    Tarea('subir_fuente_empresa', 'Sube un libro de las fuentes de la empresa (demanda, SICODI, perfil, interrupciones, '
+          'catálogo y los demás de la empresa) a su carpeta y a su año, como la web; queda vigente para todos los módulos '
+          '(026:RF-42).', (LIBRO_EMPRESA,), True, 'trabajo', 'fuentes_api.registrar_rutas_fuentes', (
+              'sube el sicodi {ruta} de 2025 a las fuentes de la empresa', 'registra el libro de demanda {ruta} del 2024',
+              'sube las interrupciones {ruta} del 2025', 'agrega el catalogo {ruta} a las fuentes de la empresa'),
+          frases_literales=(r'\b(sub\w*|registr\w*|agreg\w*|guard\w*)\b.*\b(fuentes?|libros?) de la empresa\b',
+                            r'\b(sub\w*|registr\w*)\b.*\b(sicodi|interrupciones|perfil de la empresa|catalogo|'
+                            r'libro de (la )?demanda)\b')),
 )
 
 TAREAS: dict[str, Tarea] = {t.nombre: t for t in _TAREAS}
@@ -473,11 +505,13 @@ EFECTOS: dict[str, tuple[str, ...]] = {
     # 026:RF-46 (T20): comprobar solo lee; agregar y regenerar escriben en la capa del usuario de la biblioteca.
     'normativa_comprobar': (LEE,),
     **dict.fromkeys(TAREAS_026_RF46 := ('normativa_agregar', 'normativa_regenerar'), (ESCRIBE,)),
+    # 026:RF-42 (T16): asignar una casilla y subir un libro de la empresa escriben en el espacio.
+    **dict.fromkeys(TAREAS_026_RF42 := ('asignar_entrada', 'subir_fuente_empresa'), (ESCRIBE,)),
     **dict.fromkeys(('leer_proyectos', 'escanear', 'verificar_convergencia'), (LICENCIA,)),
     'buscar_internet': (RED,),
     **dict.fromkeys(('cargar_fuente', 'convertir', 'unir', 'convertir_sistema', 'convertir_set', 'gemelo_entrenar',
                      'gemelo_temporal', 'informe_estudio', 'leer_solicitud', 'pronostico', 'entrenar_asistente',
-                     'cancelar_trabajo'), (ESCRIBE,)),
+                     'cancelar_trabajo', 'repetir_trabajo'), (ESCRIBE,)),
     **dict.fromkeys(('sistema_completo', 'set_completo', 'alimentadores_completo', 'flujo', 'verificar_caso_base',
                      'cargas_nuevas', 'obras', 'estudios', 'obras_escalera', 'optimizar_con_proyecto', 'transferencia',
                      'pide', 'gemelo_aprender', 'informe_factibilidad', 'evaluar_carga_nueva', 'calibrar',
@@ -512,8 +546,11 @@ TAREAS_107_112: frozenset[str] = frozenset((*TAREAS_107_112_NUBE, *TAREAS_107_11
 #: 026:RF-44 y RF-46 (2026-11-18): las tareas de la 026 posteriores a la 107-112, medidas en su propia prueba sellada
 #: (``prueba_sellada_026``), con el mismo criterio que la 070:RF-85.
 TAREAS_026: frozenset[str] = frozenset((*TAREAS_026_RF44, 'normativa_comprobar', *TAREAS_026_RF46))
+#: 026:RF-42 y RF-43 (2026-11-19): repetir el último trabajo que falló y las órdenes de las entradas, con su propia
+#: prueba sellada (``prueba_sellada_026.selladas_control``); la de la 026 de arriba conserva su huella.
+TAREAS_026_CONTROL: frozenset[str] = frozenset(('repetir_trabajo', *TAREAS_026_RF42))
 #: Lo que las pruebas selladas de la 070 y la 079 no miden: así conservan su huella con cada tarea nueva.
-TAREAS_SIN_SELLADA_070_079: frozenset[str] = TAREAS_107_112 | TAREAS_026
+TAREAS_SIN_SELLADA_070_079: frozenset[str] = TAREAS_107_112 | TAREAS_026 | TAREAS_026_CONTROL
 
 
 #: 072:RF-29: los tres tipos de análisis, por las palabras de la orden, y la tarea del catálogo que hace cada uno. Sin

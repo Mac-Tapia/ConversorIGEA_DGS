@@ -45,6 +45,72 @@
         "title": "AbrirVariacionPeticion",
         "type": "object"
       },
+      "AccionesAprendidasRespuesta": {
+        "additionalProperties": false,
+        "description": "026:RF-49: lo aprendido del operador, con su evaluación sobre casos que no vio y sus puertas.",
+        "properties": {
+          "evaluacion": {
+            "$ref": "#/components/schemas/EvaluacionAccionesRespuesta"
+          },
+          "huella": {
+            "title": "Huella",
+            "type": "string"
+          },
+          "intacto": {
+            "title": "Intacto",
+            "type": "boolean"
+          },
+          "promovido": {
+            "title": "Promovido",
+            "type": "boolean"
+          },
+          "promovido_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promovido En"
+          },
+          "promovido_por": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promovido Por"
+          },
+          "puertas": {
+            "$ref": "#/components/schemas/PuertasAccionesRespuesta"
+          },
+          "tabla": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Tabla",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tabla",
+          "evaluacion",
+          "puertas",
+          "huella",
+          "promovido",
+          "intacto"
+        ],
+        "title": "AccionesAprendidasRespuesta",
+        "type": "object"
+      },
       "AceptarPeticion": {
         "additionalProperties": false,
         "properties": {
@@ -504,6 +570,95 @@
           "sin_cambios"
         ],
         "title": "AplicadaRespuesta",
+        "type": "object"
+      },
+      "AprendidoPreviaRespuesta": {
+        "additionalProperties": false,
+        "description": "026:RF-49: lo que se promovería, con la confirmación de un solo uso para ese candidato.",
+        "properties": {
+          "candidato": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccionesAprendidasRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confirmacion": {
+            "title": "Confirmacion",
+            "type": "string"
+          },
+          "en_uso": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccionesAprendidasRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          },
+          "se_puede_promover": {
+            "title": "Se Puede Promover",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "candidato",
+          "en_uso",
+          "se_puede_promover",
+          "motivo",
+          "confirmacion"
+        ],
+        "title": "AprendidoPreviaRespuesta",
+        "type": "object"
+      },
+      "AprendidoRespuesta": {
+        "additionalProperties": false,
+        "description": "026:RF-49: el candidato medido, lo que está en uso y si el operador puede promover el candidato.",
+        "properties": {
+          "candidato": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccionesAprendidasRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "en_uso": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccionesAprendidasRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          },
+          "se_puede_promover": {
+            "title": "Se Puede Promover",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "candidato",
+          "en_uso",
+          "se_puede_promover",
+          "motivo"
+        ],
+        "title": "AprendidoRespuesta",
         "type": "object"
       },
       "ArchivoDelLibroRespuesta": {
@@ -5150,6 +5305,42 @@
           "project"
         ],
         "title": "EstudiosIn",
+        "type": "object"
+      },
+      "EvaluacionAccionesRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "acierto": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acierto"
+          },
+          "aciertos": {
+            "title": "Aciertos",
+            "type": "integer"
+          },
+          "aprendidas_de": {
+            "title": "Aprendidas De",
+            "type": "integer"
+          },
+          "casos": {
+            "title": "Casos",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "casos",
+          "aciertos",
+          "acierto",
+          "aprendidas_de"
+        ],
+        "title": "EvaluacionAccionesRespuesta",
         "type": "object"
       },
       "EvolucionFijasPeticion": {
@@ -9953,6 +10144,29 @@
         "title": "ProgresoRespuesta",
         "type": "object"
       },
+      "PromoverAprendidoPeticion": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmacion": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Confirmacion",
+            "type": "string"
+          },
+          "huella": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Huella",
+            "type": "string"
+          }
+        },
+        "required": [
+          "huella",
+          "confirmacion"
+        ],
+        "title": "PromoverAprendidoPeticion",
+        "type": "object"
+      },
       "PropuestaAjusteRespuesta": {
         "additionalProperties": false,
         "description": "111:RF-7: el nodo cercano como propuesta, con la distancia; no cambia nada.",
@@ -10243,6 +10457,38 @@
           "publication_id"
         ],
         "title": "PublicationIn",
+        "type": "object"
+      },
+      "PuertasAccionesRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "acierto_minimo": {
+            "title": "Acierto Minimo",
+            "type": "number"
+          },
+          "casos_minimos": {
+            "title": "Casos Minimos",
+            "type": "integer"
+          },
+          "fallos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fallos",
+            "type": "array"
+          },
+          "superadas": {
+            "title": "Superadas",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "superadas",
+          "fallos",
+          "acierto_minimo",
+          "casos_minimos"
+        ],
+        "title": "PuertasAccionesRespuesta",
         "type": "object"
       },
       "PuntoFichaIn": {
@@ -12911,6 +13157,83 @@
           }
         },
         "summary": "Asistente Aceptacion"
+      }
+    },
+    "/api/asistente/aprendido": {
+      "get": {
+        "description": "026:RF-49: el candidato con su evaluación y sus puertas, lo que está en uso y si se puede promover.",
+        "operationId": "asistente_aprendido_api_asistente_aprendido_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AprendidoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Asistente Aprendido"
+      }
+    },
+    "/api/asistente/aprendido/previa": {
+      "post": {
+        "description": "026:RF-49: lo que se promovería, con la confirmación de un solo uso para ese candidato; no promueve.",
+        "operationId": "asistente_aprendido_previa_api_asistente_aprendido_previa_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AprendidoPreviaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Asistente Aprendido Previa"
+      }
+    },
+    "/api/asistente/aprendido/promover": {
+      "post": {
+        "description": "026:RF-49: promueve el candidato revisado; falla con su motivo (sin confirmar, puertas, huella).",
+        "operationId": "asistente_aprendido_promover_api_asistente_aprendido_promover_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromoverAprendidoPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AprendidoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Asistente Aprendido Promover"
       }
     },
     "/api/asistente/aprendizaje": {

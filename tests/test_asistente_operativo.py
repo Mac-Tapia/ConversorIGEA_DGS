@@ -866,9 +866,9 @@ def test_lista_que_cambio_se_rechaza(api, monkeypatch, cambio):
 
 
 def test_lista_inventario_dice_la_verdad():
-    """067:RF-40 — el inventario declara la lista única y qué herramientas cubre."""
+    """067:RF-40 — el inventario declara la lista única y qué herramientas cubre; desde la 027:RF-72, hasta los módulos."""
     from convertersmartgrid.aplicacion.asistente.equipo import inventario_equipo
-    from convertersmartgrid.aplicacion.asistente.orquestador import ETAPAS
+    from convertersmartgrid.aplicacion.asistente.orquestador import ETAPAS_PROYECTO_ENTERO as ETAPAS
 
     inventario = inventario_equipo()
     proyecto = inventario['proyecto_entero']

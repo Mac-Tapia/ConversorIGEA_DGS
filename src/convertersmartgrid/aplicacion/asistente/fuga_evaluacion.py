@@ -181,5 +181,35 @@ def fugas_de_las_selladas() -> dict[str, int]:
     from . import prueba_sellada_026, prueba_sellada_107_112
 
     entrena = textos_que_entrenan()
-    return {s.CONJUNTO: sum(1 for v in s.FRASES.values() for p in v if texto_canonico(p) in entrena)
-            for s in (prueba_sellada_107_112, prueba_sellada_026)}
+    cuenta = {s.CONJUNTO: sum(1 for v in s.FRASES.values() for p in v if texto_canonico(p) in entrena)
+              for s in (prueba_sellada_107_112, prueba_sellada_026)}
+    # 026:RF-42, RF-43: el conjunto de control de la 026, con su propia cuenta.
+    cuenta[prueba_sellada_026.CONJUNTO_CONTROL] = sum(1 for v in prueba_sellada_026.FRASES_CONTROL.values() for p in v
+                                                       if texto_canonico(p) in entrena)
+    return cuenta
+
+
+def frases_selladas() -> dict[str, frozenset[str]]:
+    """026:RF-49: las frases de cada prueba sellada de las tareas nuevas, en forma canónica, por conjunto.
+
+    Lo que el asistente aprende del operador y del programa entra en el corpus de entrenamiento, nunca en una sellada:
+    quien lo importa aparta lo que coincida con una de estas, y ``fugas_de_lo_aprendido`` lo cuenta."""
+    from ..evaluacion_modelos import texto_canonico
+    from . import prueba_sellada_026, prueba_sellada_107_112
+
+    return {prueba_sellada_107_112.CONJUNTO: frozenset(texto_canonico(p) for v in prueba_sellada_107_112.FRASES.values()
+                                                       for p in v),
+            prueba_sellada_026.CONJUNTO: frozenset(texto_canonico(p) for v in prueba_sellada_026.FRASES.values()
+                                                   for p in v),
+            prueba_sellada_026.CONJUNTO_CONTROL: frozenset(texto_canonico(p)
+                                                           for v in prueba_sellada_026.FRASES_CONTROL.values()
+                                                           for p in v)}
+
+
+def fugas_de_lo_aprendido(textos: Iterable[str]) -> dict[str, int]:
+    """026:RF-49: cuántos textos aprendidos del diario de operaciones (061) son frases de una prueba sellada, por
+    conjunto. Solo cuentas, como ``fugas_del_interprete``: lo del operador no sale ni en el mensaje de una prueba."""
+    from ..evaluacion_modelos import texto_canonico
+
+    canon = {texto_canonico(t) for t in textos if str(t).strip()}
+    return {nombre: len(canon & frases) for nombre, frases in sorted(frases_selladas().items())}

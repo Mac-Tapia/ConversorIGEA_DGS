@@ -16,6 +16,9 @@ export interface PideAnualResultado {
 }
 
 export type EstadoAprendizaje = components['schemas']['EstadoAprendizajeRespuesta'];
+/** 026:RF-49: lo aprendido del operador, con sus puertas, lo que está en uso y la previa de promoverlo. */
+export type AprendidoEstado = components['schemas']['AprendidoRespuesta'];
+export type AprendidoPrevia = components['schemas']['AprendidoPreviaRespuesta'];
 export type CancelacionAprendizaje = components['schemas']['CancelacionAprendizajeRespuesta'];
 // 086:RF-67 a RF-69: las salidas a la red y quién decide cada una.
 export type SalidaRed = components['schemas']['SalidaRedRespuesta'];
@@ -2117,10 +2120,28 @@ export interface AsistentePlan {
 /** 067:RF-37: lo que hará el proyecto entero antes del único clic. */
 export interface ListaProyecto {
   etapas: { nombre: string; tarea: string; descripcion: string; escribe: boolean;
-    estado: 'pendiente' | 'hecha' | 'se_omitira' | 'falta_dato'; falta: string[] }[];
+    estado: 'pendiente' | 'hecha' | 'se_omitira' | 'falta_dato'; falta: string[]; motivo?: string; condicion?: string }[];
   etapas_escritura: string[];
   bloqueo: string;
   confirmacion: string;
+  /** 026:RF-48: el camino que propone el asistente (siguiente etapa, con qué y por qué). */
+  camino?: CaminoProyecto;
+  /** 026:RF-49: lo que propone porque lo aprendió del operador; solo si está promovido e intacto. */
+  aprendido?: PropuestaAprendida;
+}
+
+export interface PropuestaAprendida {
+  accion: string;
+  confirma_el_operador: boolean;
+  motivo: string;
+}
+
+export interface CaminoProyecto {
+  siguiente: string | null;
+  motivo: string;
+  confirma_el_operador: string[];
+  lo_hace_el_asistente_solo: string[];
+  parametros_que_faltan: string[];
 }
 
 export interface AsistenteRespuesta {

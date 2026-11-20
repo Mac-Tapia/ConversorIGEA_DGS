@@ -82,7 +82,7 @@ def custodiar_trabajo(ws: Any, trabajo: dict) -> str | None:
     documento = {
         'contexto': {'workspace_id': ws.id, 'project': proyecto, 'source_fingerprint': fuente,
                      'source_mode': getattr(ws, 'loaded_source_mode', None)},
-        'trabajo': {k: trabajo.get(k) for k in ('id', 'kind', 'title', 'created_at', 'finished_at')},
+        'trabajo': {k: trabajo.get(k) for k in ('id', 'kind', 'title', 'status', 'created_at', 'finished_at')},
         # Antes que el resultado: el revisor lee un fragmento del principio, y estas huellas son lo verificable.
         'entregables': _entregables(raiz, resultado),
         'resultado': _acotado(resultado)}

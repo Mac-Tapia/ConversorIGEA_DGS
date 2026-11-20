@@ -480,7 +480,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/cabecera_ancha.py` | Herramienta de la spec 051: pasa la medición de cabecera a lo ancho o las máximas mensuales al formato de la calibración, con `NOMBRE_EN_DIGSILENT=CODIGO`. | 051 (RF-8) |
 | `tools/estado_specs.py` | Estado de las specs: lee numeración, tareas, estado y citas de las pruebas, y escribe `specs/README.md`. | 033 (RF-1 a RF-22) |
 | `tools/matriz_operaciones.py` | Matriz de operaciones del asistente derivada del código: tareas, vías directas con recibo y lecturas, con sus pruebas, y los huecos de las specs del asistente con su dueño. | 026 (RF-51) |
-| `tools/construir_dataset_entrenamiento.py` | Construye el dataset de entrenamiento en una carpeta nueva y dice si está completo con los umbrales de la spec 027. | 043 |
+| `tools/construir_dataset_entrenamiento.py` | Construye el dataset de entrenamiento en una carpeta nueva, con las operaciones acabadas de los diarios de los espacios medidas y sin promover, y dice si está completo con los umbrales de la spec 027. | 043, 026 |
 | `tools/construir_dataset_pide.py` | Construye el corpus PIDE universal de una empresa con `pide_dataset`. | 024 |
 | `tools/convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo, a escala real por defecto. | 034, 021 |
 | `tools/fidelidad_seleccion.py` | Comprueba que una selección pasa entera del TXT al DGS. | 009 |
@@ -678,7 +678,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/aplicacion/asistente/lectura_proyecto.py` | Lecturas del proyecto para el LLM y el MCP: leer un fichero, buscar un texto literal y consultar una ruta en el OpenAPI, con política local o restringida y exclusiones de secretos, sellados y examen humano; sin escritura ni red. | 077 |
 | `src/convertersmartgrid/aplicacion/asistente/corpus_proyecto.py` | Corpus ampliado del índice: ficheros, troceado sin perder líneas, caché por fichero y medida de tamaño. | 077 |
 | `src/convertersmartgrid/aplicacion/asistente/corpus_normativo.py` | La biblioteca normativa en el asistente, leída por su API: un fragmento por regla en el índice ampliado, su huella, la comprobación de una cita normativa y la lectura `consultar_norma`. | 077 (RF-78, RF-79, RF-80) |
-| `src/convertersmartgrid/aplicacion/asistente/fuga_evaluacion.py` | Ninguna pregunta ni orden de un conjunto de evaluación en lo que la juzga: qué conjunto mide qué corpus, preguntas literales fuera de su fuente, de cualquier longitud al formar un conjunto, órdenes de examen en el entrenamiento del intérprete, y frases de las selladas de las tareas nuevas en lo que entrena. | 097 (RF-19, RF-20, RF-21), 026 (RF-44, RF-46) |
+| `src/convertersmartgrid/aplicacion/asistente/fuga_evaluacion.py` | Ninguna pregunta ni orden de un conjunto de evaluación en lo que la juzga: qué conjunto mide qué corpus, preguntas literales fuera de su fuente, de cualquier longitud al formar un conjunto, órdenes de examen en el entrenamiento del intérprete, y frases de las selladas de las tareas nuevas en lo que entrena o en lo aprendido del operador. | 097 (RF-19, RF-20, RF-21), 026 (RF-44, RF-46, RF-49) |
 | `src/convertersmartgrid/aplicacion/asistente/rutas_historicas.py` | Las rutas de fichero de antes de que cada módulo pasara a su paquete de capa: los conjuntos sellados no se reescriben y sus rutas se leen con las de hoy. | 002 (RF-1, RF-21) |
 | `tools/mcp_conversor.py` | Servidor MCP local, solo stdio y solo lectura, con las lecturas del asistente; restringido salvo `--datos-locales`; dependencia opcional. | 077 |
 | `tools/asistente_indice_ampliado.py` | Sin GPU: tamaño de los dos corpus, BM25 con el reparto `corpus` de la 076 y formación de los conjuntos nuevos, sin las preguntas que el corpus ya lleva; rehace la calibración; suma el conjunto del maestro de la 097 (`docs/CONJUNTO_MAESTRO_CALIBRACION_097.json`) y sus «fuera» a la calibración. | 077, 097 (RF-19) |
@@ -687,7 +687,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/preguntas_entregables.py` | Preguntas de metodología y criterios por entregable: verifica fuentes, cifras y nombres, reparte en corpus y sellado, exporta e importa la hoja de revisión del operador, informa por entregable, genera preguntas estocásticas de la web con semilla y escribe lo marcado «sí» como documento del corpus ampliado. | 076 |
 | `tools/asistente_qlora.py` | Adaptador del coordinador al ajuste generativo NF4 existente y su corpus sellado; conserva pesos candidatos. | 043 (RF-13), 047 (RF-19, RF-20) |
 | `src/convertersmartgrid/aplicacion/experimentos.py` | Contexto exacto y contratos inmutables de configuración, con SHA-256 canónico. | 043 (RF-2) |
-| `src/convertersmartgrid/aplicacion/asistente/dataset_entrenamiento.py` | Custodia de datos reales, sintéticos y de contexto; agrupación de registros. | 043 (RF-3, RF-4) |
+| `src/convertersmartgrid/aplicacion/asistente/dataset_entrenamiento.py` | Custodia de datos reales, sintéticos y de contexto; agrupación de registros; las operaciones del diario anonimizadas al corpus del planificador, evaluadas antes de usarse y promovidas solo por el operador. | 043 (RF-3, RF-4), 026 (RF-49) |
 | `src/convertersmartgrid/aplicacion/asistente/calidad_datos.py` | Calidad y contaminación entre particiones sin inflar el conjunto humano. | 043 (RF-3, RF-4) |
 | `src/convertersmartgrid/adaptadores/digital_twin/series_causales.py` | Cadencia, unidades, huecos, disponibilidad de covariables, particiones por día y ventanas causales. | 046 (RF-1 a RF-3, RF-5) |
 | `src/convertersmartgrid/adaptadores/pronostico_demanda.py` | Pronóstico de demanda en un módulo: libros descubiertos en cada carga, equivalencia alimentador–medidor con su clase, limpieza y sentido, cabecera, clientes y escaladas, apoyo de años anteriores, métodos por perfil, backtest por origen, exógenas con su disponibilidad y filas con la marca `pronostico`. | 089 |
@@ -765,7 +765,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
-| `src/convertersmartgrid/aplicacion/asistente/observacion.py` | Diario SQLite por espacio, contexto inmutable, informes custodiados y control de identidad de reanudación, sin promoción. | 061 (RF-1, RF-2, RF-3, RF-7, RF-8, RF-9) |
+| `src/convertersmartgrid/aplicacion/asistente/observacion.py` | Diario SQLite por espacio, contexto inmutable, informes custodiados y control de identidad de reanudación, sin promoción. | 061 (RF-1, RF-2, RF-3, RF-7, RF-8, RF-9), 026 (RF-49) |
 | `frontend/src/features/asistente/MonitorAgente.tsx` | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. | 061 (RF-2, RF-3, RF-4, RF-5, RF-9), 062 (RF-8) |
 | `tools/asistente_observar.py` | Incorpora y verifica informes locales del aprendizaje sin activar modelos. | 061 (RF-8) |
 | `src/convertersmartgrid/presentacion/web/suspension.py` | Tiempo suspendido del equipo y petición a Windows de no suspender mientras corre un trabajo. | 096 (RF-1, RF-2) |

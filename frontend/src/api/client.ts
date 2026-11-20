@@ -488,6 +488,12 @@ export const api = {
       json('POST', { decision, comentario })),
   asistenteModelos: () => request<import('./types').EstadoModelos>('/api/asistente/modelos'),
   asistenteAprendizaje: () => request<import('./types').EstadoAprendizaje>('/api/asistente/aprendizaje'),
+  // 026:RF-49: lo aprendido del operador; se promueve con su previa y una confirmación de un solo uso.
+  asistenteAprendido: () => request<import('./types').AprendidoEstado>('/api/asistente/aprendido'),
+  asistenteAprendidoPrevia: () =>
+    request<import('./types').AprendidoPrevia>('/api/asistente/aprendido/previa', { method: 'POST' }),
+  asistentePromoverAprendido: (huella: string, confirmacion: string) =>
+    request<import('./types').AprendidoEstado>('/api/asistente/aprendido/promover', json('POST', { huella, confirmacion })),
   cancelarAprendizaje: (clave: string) => request<import('./types').CancelacionAprendizaje>(
     `/api/asistente/aprendizaje/${encodeURIComponent(clave)}/cancelar`, { method: 'POST' }),
   asistenteMonitor: (id: string) => request<import('./types').MonitorAgenteEstado>(`/api/workspaces/${id}/asistente/monitor`),

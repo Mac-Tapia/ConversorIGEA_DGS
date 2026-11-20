@@ -428,17 +428,68 @@ def _etapas_en_palabras(lista: dict) -> list[str]:
     return [fila(e) for e in lista['etapas']]
 
 
+def _modulos_del_proyecto_entero(ws, plan) -> tuple[dict, dict]:
+    """027:RF-72: el PIT, el VAD y el VNR del proyecto entero, con lo que la orden y el espacio dan de cada uno.
+
+    Se leen con lo mismo que sus órdenes sueltas (``_pit``, ``_vad_empresa_modelo``, ``_vnr``) sobre una copia del plan:
+    lo que a un módulo le falte no entra en ``plan.faltan`` (no impide el resto), sino en su motivo para saltarlo.
+    """
+    from dataclasses import replace
+
+    from ...aplicacion.asistente.orquestador import MOTIVO_SIN_DATO
+
+    datos: dict[str, Any] = {}
+    omitir: dict[str, str] = {}
+    for nombre, tarea, leer in (('pit', 'pit_expediente', lambda p, x: _pit(ws, p, x)),
+                                ('vad', 'vad_empresa_modelo', lambda p, x: _vad_empresa_modelo(ws, p, x)),
+                                ('vnr', 'vnr_estudio', _vnr)):
+        copia = replace(plan, tarea=tarea, datos=dict(plan.datos), faltan=[], razonamiento=[], avisos=[])
+        extras: dict[str, Any] = {}
+        try:
+            leer(copia, extras)
+        except Exception as exc:  # noqa: BLE001 - un módulo que no se puede leer se salta con su motivo (027:RF-72)
+            copia.faltan.append(str(exc))
+        if copia.faltan or not extras.get(nombre):
+            omitir[nombre] = f"{MOTIVO_SIN_DATO[nombre]}: {sin_citas('; '.join(copia.faltan))}".rstrip(': ')
+        else:
+            datos[nombre] = extras[nombre]
+    return datos, omitir
+
+
 def _datos_del_proyecto_entero(plan) -> dict:
     return {k: plan.datos[k] for k in ('sistema', 'periodo', 'ruta') if plan.datos.get(k)}
 
 
+def camino_del_proyecto(ws, lista: dict, datos: dict) -> dict:
+    """026:RF-48: el camino entero con su motivo, con la norma vigente hoy y el perfil de la empresa."""
+    from datetime import date
+
+    from ...aplicacion.asistente.orquestador import ETAPAS_PROYECTO_ENTERO, camino_de, norma_de_la_biblioteca
+    from ...dominio.perfil_empresa import datos_perfil
+
+    try:
+        perfil = datos_perfil()
+    except Exception:  # noqa: BLE001 - sin perfil legible, sus parámetros quedan como falta, nunca inventados
+        perfil = None
+    try:
+        norma = norma_de_la_biblioteca(date.today().isoformat())
+    except Exception:  # noqa: BLE001 - sin biblioteca legible, ídem
+        norma = None
+    return camino_de(lista, datos, norma=norma, perfil=perfil, etapas=ETAPAS_PROYECTO_ENTERO)
+
+
 def _proyecto_entero(svc, ws, plan, extras: dict) -> None:
     _libros_de_la_demanda(svc, ws, plan)
-    lista = svc.agente_proyecto_lista(ws, _datos_del_proyecto_entero(plan))
+    datos = _datos_del_proyecto_entero(plan)
+    modulos, omitir = _modulos_del_proyecto_entero(ws, plan)
+    datos.update(modulos)
+    lista = svc.agente_proyecto_lista(ws, datos, omitir=omitir)
     if lista['bloqueo']:
         plan.faltan.append(lista['bloqueo'])
     extras['lista_confirmacion'] = lista['confirmacion']
     extras['etapas_en_palabras'] = _etapas_en_palabras(lista)
+    extras['camino'] = camino = camino_del_proyecto(ws, lista, datos)                    # 026:RF-48
+    plan.razonamiento.append(camino['motivo'])
 
 
 def _ruta_de_control_de_carga(plan_datos: dict) -> str:
@@ -578,7 +629,9 @@ def ejecutar_etapas(svc, ws, ctx, plan, extras: dict, base: str, http: Any) -> d
                 'texto': (f"Carga {datos['sed']}: " + ('factible' if conclusion is True else 'no factible' if conclusion is False else 'sin conclusión')
                           + '; vea el informe.')}
     datos = _datos_del_proyecto_entero(plan)
-    lista = svc.agente_proyecto_lista(ws, datos)
+    modulos, omitir = _modulos_del_proyecto_entero(ws, plan)                 # 027:RF-72: lo mismo que se enseñó
+    datos.update(modulos)
+    lista = svc.agente_proyecto_lista(ws, datos, omitir=omitir)
     if lista['confirmacion'] != extras.get('lista_confirmacion'):
         raise svc.UserError('La lista de etapas cambió desde que se mostró: escriba la orden de nuevo.')
     svc.agente_proyecto_anotar(ws, datos, lista)
@@ -609,10 +662,119 @@ def _informe_cerrado(ws, plan) -> str | None:
     return max(cerrados, key=lambda p: (p.stat().st_mtime_ns, p.name)).name if cerrados else None
 
 
+#: 026:RF-45 (T19): el módulo cuyos entregables nombra la orden, por sus palabras (sin las rutas); el orden importa: «el
+#: expediente del PIT» no es el PIDE, y «el informe del VNR» es del VNR.
+_MODULOS_ENTREGABLES = (('pit', re.compile(r'\bpit\b')), ('vad', re.compile(r'\bvad\b')),
+                        ('vnr', re.compile(r'\bvnr\b|\bvalor nuevo de reemplazo\b')), ('pide', re.compile(r'\bpide\b')),
+                        ('informes', re.compile(r'\binformes?\b')))
+NOMBRE_DEL_MODULO = {'pit': 'el PIT', 'vad': 'el VAD', 'vnr': 'el VNR', 'pide': 'el PIDE', 'informes': 'los informes'}
+#: 026:RF-45: el PIT y el VAD dejan sus entregables en su carpeta del espacio, fuera de la salida (``app.get_file``
+#: los sirve); la nube y el correo de la web solo publican y adjuntan lo que está en la salida.
+_MODULOS_EN_LA_RAIZ = ('pit', 'vad')
+
+
+def modulo_entregable_de(texto: str) -> str | None:
+    """026:RF-45: el módulo que nombra la orden; ninguno si no nombra o si nombra varios (no se elige por el operador)."""
+    t = normalizar(_RUTA_EN_ORDEN.sub(' ', texto))
+    nombrados = [m for m, rx in _MODULOS_ENTREGABLES if rx.search(t)]
+    if len(nombrados) > 1 and nombrados[-1] == 'informes':
+        nombrados.pop()                                   # «el informe del VNR» es del VNR
+    return nombrados[0] if len(nombrados) == 1 else None
+
+
+def _informes_cerrados(ws, plan) -> list[str]:
+    """Los informes cerrados de la salida (el que nombra la orden, o todos), cada uno con su PDF y su libro si están."""
+    salida = Path(ws.out_dir)
+    nombrado = _informe_cerrado(ws, plan) if plan.datos.get('ruta') else None
+    docx = ([salida / nombrado] if nombrado else
+            sorted(p for p in salida.glob('*.docx') if p.with_suffix('.json').is_file()) if salida.is_dir() else [])
+    return [p.with_suffix(e).name for p in docx for e in ('.docx', '.pdf', '.xlsx') if p.with_suffix(e).is_file()]
+
+
+def _seleccion_en_la_salida(ws, plan, modulo: str) -> list[str]:
+    """026:RF-45: lo que el ZIP de la salida toma del módulo (``preparar_zip`` elige por nombre o por prefijo)."""
+    salida = Path(ws.out_dir)
+    if modulo == 'informes':
+        return _informes_cerrados(ws, plan)
+    if not salida.is_dir():
+        return []
+    if modulo == 'vnr':
+        return ['vnr'] if any(p.is_file() for p in (salida / 'vnr').rglob('*')) else []
+    return sorted(p.name for p in salida.iterdir() if p.is_file() and p.name.lower().startswith('pide_'))
+
+
+def _ultimo_trabajo(extras: dict, *tipos: str) -> dict | None:
+    hechos = [j for j in extras.get('_trabajos') or [] if j.get('kind') in tipos and j.get('status') == 'done']
+    return max(hechos, key=lambda j: str(j.get('finished_at') or j.get('created_at') or '')) if hechos else None
+
+
+def _entrega(ws, plan, extras: dict, modulo: str) -> None:
+    """026:RF-45: dónde están los entregables del módulo, para bajarlos por la ruta que los sirve en la web."""
+    que = NOMBRE_DEL_MODULO[modulo]
+    if modulo == 'pit':
+        trabajo = _ultimo_trabajo(extras, 'pit_expediente', 'pit_diagnostico')
+        if trabajo is None:
+            plan.faltan.append(f'los entregables de {que}: aún no hay ningún expediente ni diagnóstico terminado en este '
+                               'espacio; ármelo antes, por ejemplo «arma el expediente del PIT con …».')
+            return
+        extras['entrega'] = {'modulo': modulo, 'trabajo': str(trabajo['id'])}
+        return
+    if modulo == 'vad':
+        estudios = sorted(p.parent.name for p in (Path(ws.root) / 'vad').glob('*/estudio.json'))
+        nombrado = [e for e in estudios if e.lower() in plan.texto.lower()]
+        if len(nombrado) == 1 or (not nombrado and len(estudios) == 1):
+            extras['entrega'] = {'modulo': modulo, 'estudio': (nombrado or estudios)[0]}
+        elif estudios:
+            plan.faltan.append('el estudio del VAD: diga cuál de ' + ', '.join(estudios) + '.')
+        else:
+            plan.faltan.append(f'los entregables de {que}: aún no hay ningún estudio del VAD en este espacio.')
+        return
+    seleccion = _seleccion_en_la_salida(ws, plan, modulo)
+    if not seleccion:
+        plan.faltan.append(f'los entregables de {que}: aún no hay ninguno en la salida del espacio.')
+        return
+    extras['entrega'] = {'modulo': modulo, 'seleccion': seleccion}
+
+
+def _descarga(ws, plan, extras: dict) -> None:
+    """026:RF-45: «descarga el PIDE» baja los entregables de ese módulo; sin módulo, el ZIP de siempre."""
+    if (modulo := modulo_entregable_de(plan.texto)) is not None:
+        _entrega(ws, plan, extras, modulo)
+
+
+def _publicar_modulo(ws, plan, extras: dict, modulo: str) -> None:
+    """026:RF-45: la tarjeta de publicar lleva la selección del módulo en la salida (109:RF-24)."""
+    que = NOMBRE_DEL_MODULO[modulo]
+    if modulo in _MODULOS_EN_LA_RAIZ:
+        plan.faltan.append(f'publicar {que}: sus entregables están en su carpeta del espacio, fuera de la salida, y la web '
+                           f'solo publica la salida. Bájelos con «descarga {que}» y súbalos usted.')
+        return
+    # El PIDE, por el prefijo de sus libros en la salida; el VNR, por su carpeta; un informe, el que nombra la orden o el
+    # último cerrado (la tarjeta publica una sola selección).
+    salida = (_informe_cerrado(ws, plan) if modulo == 'informes' else
+              modulo if _seleccion_en_la_salida(ws, plan, modulo) else None)
+    if salida:
+        extras['salida'] = salida
+    else:
+        plan.faltan.append(f'los entregables de {que}: aún no hay ninguno en la salida del espacio.')
+
+
 def _nube_y_correo(ws, plan, extras: dict) -> None:
     """070:RF-79, RF-80, RF-83: lo que la tarjeta necesita, sacado de la orden escrita por el operador."""
     extras['proveedor'] = _proveedor_de(plan.texto)
     extras['para'] = list(dict.fromkeys(m.lower() for m in _CORREO.findall(plan.texto)))
+    modulo = modulo_entregable_de(plan.texto) if plan.tarea in ('enviar_informe', 'publicar_nube') else None
+    if plan.tarea == 'publicar_nube' and modulo is not None:
+        _publicar_modulo(ws, plan, extras, modulo)                             # 026:RF-45
+        return
+    if plan.tarea == 'enviar_informe' and modulo not in (None, 'informes'):
+        # 026:RF-45, 110:RF-3: el correo de la web lleva un informe cerrado y sus adjuntos; nunca otro libro en su lugar.
+        que = NOMBRE_DEL_MODULO[modulo]
+        extras['informe'] = None
+        plan.faltan.append(f'enviar {que} por correo: el correo de la web solo lleva un informe cerrado con su PDF y su '
+                           f'libro. ' + (f'Bájelo con «descarga {que}».' if modulo in _MODULOS_EN_LA_RAIZ else
+                                         f'Publíquelo con «publica {que} en drive» y comparta el enlace.'))
+        return
     if plan.tarea == 'enviar_informe':
         extras['informe'] = _informe_cerrado(ws, plan)
         if not extras['informe']:
@@ -899,6 +1061,143 @@ def _texto_plano(plan, resultado: dict, extras: dict) -> None:
                           f"({p.get('caso')}), estudiada con {motor}: véala en el plano; el caso base no cambió.")
 
 
+#: 026:RF-42 (T16): la casilla por las palabras de la orden (sin sus rutas), en este orden: «la base de equipos» no es la
+#: base de la red, y «los equipos complementarios» no son los equipos.
+_CASILLA_POR_PALABRAS = (
+    ('aliases', r'\balias\w*\b'), ('vnr_package', r'\b(vnr|gis|paquete)\b'), ('study', r'\bestudio\b|\bzxst\b'),
+    ('equipment_extra', r'\bequipos?\b.*\bcomplementari\w*\b|\bcomplementari\w*\b.*\bequipos?\b'),
+    ('equipment_mdb', r'\bbase de (los )?equipos\b|\bequipos?\b.*\bmdb\b'),
+    ('equipment', r'\bequipos?\b|\bcatalogo de conductores\b'), ('loads', r'\bcargas?\b'),
+    ('mdb', r'\bbase\b|\bmdb\b|\baccess\b'), ('red', r'\bred\b|\btopologia\b'))
+#: Lo que se deduce del fichero cuando la orden no nombra la casilla: su extensión, sin adivinar entre los TXT.
+_CASILLA_POR_EXTENSION = {'.mdb': 'mdb', '.accdb': 'mdb', '.zxst': 'study', '.gdb': 'vnr_package', '.gpkg': 'vnr_package'}
+_NUBE_EN_ORDEN = re.compile(r'\b(nube|drive|onedrive|google drive)\b')
+
+
+def _fichero_de_la_orden(plan, que: str) -> Path | None:
+    """El único fichero que nombra la orden, si existe en la máquina; si no, lo que falta va al plan. Manda la ruta
+    escrita en la orden (entre comillas o con su unidad); la del intérprete, solo si la orden no trae ninguna: una ruta
+    con espacios la recortaba y contaba como otra."""
+    rutas = list(dict.fromkeys(next(g for g in m.groups() if g) for m in _RUTA_EN_ORDEN.finditer(plan.texto)))
+    if not rutas and plan.datos.get('ruta'):
+        dato = plan.datos['ruta']
+        rutas = [str(d) for d in (dato if isinstance(dato, list) else [dato])]
+    if len(rutas) != 1:
+        plan.faltan.append(f'{que}: escriba en la orden su ruta entre comillas.' if not rutas
+                           else f'{que}: la orden nombra varios; deje solo uno.')
+        return None
+    ruta = Path(rutas[0])
+    if not ruta.is_file():
+        plan.faltan.append(f'{que}: «{ruta.name}» no está en esa ruta.')
+        return None
+    return ruta
+
+
+def casilla_de(texto: str, ruta: Path | None) -> str | None:
+    """026:RF-42: la casilla que nombra la orden; sin palabras, la de la extensión del fichero, si solo cabe en una."""
+    t = normalizar(_RUTA_EN_ORDEN.sub(' ', texto))
+    por_palabras = next((c for c, patron in _CASILLA_POR_PALABRAS if re.search(patron, t)), None)
+    if por_palabras is not None:
+        return por_palabras
+    return _CASILLA_POR_EXTENSION.get(ruta.suffix.lower()) if ruta is not None else None
+
+
+def _asignar_entrada(plan, extras: dict) -> None:
+    """026:RF-42: el fichero y su casilla; de la nube lo elige el operador en el selector (109:RF-3, 070:RF-81)."""
+    from .workspace import SLOTS
+
+    if not _RUTA_EN_ORDEN.search(plan.texto) and _NUBE_EN_ORDEN.search(normalizar(plan.texto)):
+        plan.faltan.append('el fichero de la nube: lo elige usted en el selector de su cuenta; pídalo con «importa el '
+                           'libro desde google drive» y elija la casilla allí.')
+        return
+    ruta = _fichero_de_la_orden(plan, 'el fichero que entra en la casilla')
+    if ruta is None:
+        return
+    casilla = casilla_de(plan.texto, ruta)
+    if casilla is None:
+        plan.faltan.append('la casilla: diga en la orden si es la red, las cargas, los equipos, la base de la red, el '
+                           'estudio, el paquete del VNR-GIS o los alias.')
+        return
+    extras['entrada'] = {'casilla': casilla, 'ruta': str(ruta), 'etiqueta': SLOTS[casilla]['etiqueta']}
+
+
+#: 026:RF-42: la clase del libro de la empresa por sus palabras (``fuentes_empresa.CLASES``), en este orden: «el caso del
+#: VAD» no es el estudio del VAD, ni «las cargas nuevas» la demanda.
+_CLASE_POR_PALABRAS = (
+    ('sicodi', r'\bsicodi\b'), ('interrupciones', r'\binterrupcion\w*\b'), ('perfil', r'\bperfil\b'),
+    ('catalogo', r'\bcatalogo\b'), ('tdr', r'\btdr\b|\bterminos de referencia\b'), ('pfd', r'\bpfd\b'),
+    ('vad_caso', r'\bcaso\b.*\bvad\b'), ('vad', r'\bvad\b'), ('red_area', r'\bred del area\b'),
+    ('cargas_nuevas', r'\bcargas nuevas\b'), ('proyeccion', r'\bproyeccion\b'), ('alternativas', r'\balternativas\b'),
+    ('medicion', r'\bmedicion\w*\b'), ('demanda', r'\bdemanda\b'), ('pit', r'\bpit\b'), ('pide', r'\bpide\b'))
+NOMBRE_DE_LA_CLASE = {'sicodi': 'el SICODI', 'interrupciones': 'las interrupciones', 'perfil': 'el perfil de la empresa',
+                      'catalogo': 'el catálogo', 'tdr': 'los términos de referencia', 'pfd': 'el proyecto de DIgSILENT',
+                      'vad_caso': 'el caso del VAD', 'vad': 'el estudio del VAD', 'red_area': 'la red del área',
+                      'cargas_nuevas': 'las cargas nuevas', 'proyeccion': 'la proyección', 'alternativas': 'las alternativas',
+                      'medicion': 'la medición', 'demanda': 'la demanda', 'pit': 'el PIT', 'pide': 'el PIDE',
+                      'otro': 'otro libro'}
+#: Los libros que valen igual para todos los años: el resto entra en su año (RF-42: «a su carpeta y a su año»).
+_CLASES_SIN_ANIO = ('perfil', 'catalogo', 'tdr', 'pfd')
+_PERIODO_DE_LIBRO = re.compile(r'\b(20\d\d)(?:-(0[1-9]|1[0-2]))?\b')
+
+
+def _subir_fuente(plan, extras: dict) -> None:
+    """026:RF-42: el libro, su clase y su año, sacados de la orden; lo que no dice, lo pregunta el plan."""
+    from ...aplicacion import fuentes_empresa as fe
+
+    ruta = _fichero_de_la_orden(plan, 'el libro de la empresa')
+    t = normalizar(_RUTA_EN_ORDEN.sub(' ', plan.texto))
+    clase = next((c for c, patron in _CLASE_POR_PALABRAS if re.search(patron, t)), None)
+    if clase is None or clase not in fe.CLASES:
+        plan.faltan.append('qué libro es: el SICODI, la demanda, el perfil de la empresa, las interrupciones, el catálogo '
+                           'u otro de la empresa.')
+        return
+    m = _PERIODO_DE_LIBRO.search(_RUTA_EN_ORDEN.sub(' ', plan.texto))
+    periodo = '' if m is None else m.group(1) + (f'-{m.group(2)}' if m.group(2) else '')
+    if not periodo and clase not in _CLASES_SIN_ANIO:
+        plan.faltan.append(f'el año de {NOMBRE_DE_LA_CLASE[clase]}: escríbalo en la orden, por ejemplo «del 2025».')
+        return
+    if ruta is not None:
+        extras['fuente'] = {'clase': clase, 'periodo': periodo, 'ruta': str(ruta)}
+
+
+def _texto_entradas(plan, resultado: dict, extras: dict) -> None:
+    """026:RF-42: lo que entró y dónde, con el aviso de la casilla si lo dio."""
+    final = resultado.get('resultado') or {}
+    if plan.tarea == 'asignar_entrada':
+        e = extras.get('entrada') or {}
+        resultado['texto'] = f"«{Path(e.get('ruta') or '').name}» entró en la casilla «{e.get('etiqueta') or ''}»."
+        if final.get('warning'):
+            resultado['texto'] += f" Aviso: {final['warning']}"
+        return
+    f = extras.get('fuente') or {}
+    periodo = final.get('periodo') or f.get('periodo')
+    resultado['texto'] = (f"«{final.get('nombre') or Path(f.get('ruta') or '').name}» quedó en las fuentes de la empresa "
+                          f"como {NOMBRE_DE_LA_CLASE.get(f.get('clase') or '', 'libro')}"
+                          f"{f' del {periodo}' if periodo else ''}; lo usan todos los módulos.")
+
+
+def _texto_descarga(ws, plan, resultado: dict, extras: dict) -> None:
+    """La descarga: el ZIP de la salida (de un módulo o de todo) o, del PIT y el VAD, sus ficheros uno por uno."""
+    entrega = extras.get('entrega') or {}
+    que = NOMBRE_DEL_MODULO.get(entrega.get('modulo') or '', '')
+    final = resultado.get('resultado') or {}
+    if entrega.get('trabajo') or entrega.get('estudio'):
+        if entrega.get('trabajo'):
+            r = final.get('result') or {}
+            rutas = list((r.get('salidas_relativas') or {}).values()) or [r.get('salida_relativa')]
+        else:
+            rutas = list(final.get('salidas') or [])
+        rutas = [x for x in rutas if isinstance(x, str) and x and '..' not in x]
+        resultado['entregables'] = rutas                  # el panel los enlaza con su descarga (``app.get_file``)
+        resultado['texto'] = (f"Los entregables de {que}: {len(rutas)} {'fichero' if len(rutas) == 1 else 'ficheros'}, "
+                              'cada uno con su enlace.' if rutas else f'{que.capitalize()} no tiene entregables todavía.')
+        return
+    trabajo = next((p['trabajo'] for p in resultado.get('pasos') or []), None)
+    if trabajo:
+        resultado['enlace'] = f'/api/workspaces/{ws.id}/outputs.zip?job={trabajo}'
+        resultado['texto'] = f'ZIP de {que} preparado: bájelo del enlace.' if que else 'ZIP preparado: bájelo del enlace.'
+
+
 def _benchmark(ws, plan) -> None:
     """070:RF-79: el benchmark sale de la fuente TXT cargada en el espacio; sin ella, el plan lo dice."""
     faltan = [n for s, n in (('red', 'RED'), ('loads', 'CARGA'), ('equipment', 'EQUIPOS'))
@@ -957,10 +1256,9 @@ def presentar(ws, plan, resultado: dict, extras: dict | None = None) -> None:
     elif plan.tarea in ('normativa_agregar', 'normativa_regenerar'):
         _texto_normativa(plan, resultado)
     elif plan.tarea == 'descargar_resultados':
-        trabajo = next((p['trabajo'] for p in resultado.get('pasos') or []), None)
-        if trabajo:
-            resultado['enlace'] = f'/api/workspaces/{ws.id}/outputs.zip?job={trabajo}'
-            resultado['texto'] = 'ZIP preparado: bájelo del enlace.'
+        _texto_descarga(ws, plan, resultado, extras or {})                     # 026:RF-45
+    elif plan.tarea in ('asignar_entrada', 'subir_fuente_empresa'):
+        _texto_entradas(plan, resultado, extras or {})                         # 026:RF-42
     elif plan.tarea == 'pronostico':
         r = resultado.get('resultado') or {}
         lineas = []
@@ -1036,5 +1334,11 @@ def requisitos(svc, ws, plan, extras: dict) -> None:
         _normativa(plan, extras)
     elif tarea == 'plano_maniobra':
         _plano(plan, extras)
+    elif tarea == 'descargar_resultados':                                  # 026:RF-45
+        _descarga(ws, plan, extras)
+    elif tarea == 'asignar_entrada':                                       # 026:RF-42
+        _asignar_entrada(plan, extras)
+    elif tarea == 'subir_fuente_empresa':
+        _subir_fuente(plan, extras)
     elif tarea == 'benchmark_anonimo':
         _benchmark(ws, plan)

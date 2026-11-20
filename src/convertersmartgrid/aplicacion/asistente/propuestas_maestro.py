@@ -158,3 +158,11 @@ PLANTILLAS.update({
     'normativa_regenerar': ('Regenera el registro de la Guía VNR desde su fuente oficial',
                             'Actualiza el registro del COES desde su fuente descargada'),
 })
+
+# 026:RF-42 y RF-43: repetir lo que falló y las órdenes de las entradas (maestro de la sesión, 2026-11-19).
+PLANTILLAS.update({
+    'repetir_trabajo': ('Repite el último trabajo que falló con sus mismos datos', 'Vuelve a lanzar el trabajo que falló'),
+    'asignar_entrada': ('Asigna «{ruta}» a la casilla de la red del espacio', 'Pon «{ruta}» en la entrada de las cargas'),
+    'subir_fuente_empresa': ('Sube el SICODI «{ruta}» del 2025 a las fuentes de la empresa',
+                             'Registra el libro de demanda «{ruta}» del 2024 en las fuentes de la empresa'),
+})

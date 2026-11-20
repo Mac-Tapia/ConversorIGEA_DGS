@@ -38,3 +38,47 @@ def test_070_rf85_ninguna_frase_sellada_esta_en_lo_que_entrena():
     entrena = {texto_canonico(x) for d in (cm.FAMILIAS, cm.ESTILO_REAL, pm.PLANTILLAS) for v in d.values() for x in v}
     entrena |= {texto_canonico(p) for t in TAREAS.values() for p in t.plantillas}
     assert not [p for v in _sellada().FRASES.values() for p in v if texto_canonico(p) in entrena]
+
+
+def test_070_rf85_la_destilacion_mide_las_selladas_nuevas_con_su_huella_y_no_deciden():
+    """070:RF-85 (T21) — el candidato del reentrenamiento se mide también en las selladas nuevas (la de 107 a 112 y la de
+    la 026), cada una con su huella y sus tareas; informan y no deciden: la anterior queda como histórica hasta que la
+    070 T22 incorpore sus tareas. Con un alumno de prueba que acierta siempre, la medida es completa."""
+    from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
+    from convertersmartgrid.aplicacion.asistente import prueba_sellada_026 as s026
+    from convertersmartgrid.aplicacion.asistente.tareas import TAREAS_026, TAREAS_107_112
+
+    assert hasattr(di, 'medir_selladas_nuevas'), 'la destilación no mide las selladas nuevas (070 T21)'
+    s107 = _sellada()
+    respuestas = {texto_canonico(r['texto']): r for s in (s107, s026) for r in s.selladas()}
+
+    class AlumnoQueAcierta:
+        def predecir(self, texto):
+            r = respuestas[texto_canonico(texto)]
+            datos: dict = {}
+            for a, b, t in r['datos']:
+                datos.setdefault(t, []).append({'valor': texto[a:b].strip()})
+            return {'tarea': r['tarea'], 'confianza': 1.0, 'datos': datos}
+
+    medidas = di.medir_selladas_nuevas(AlumnoQueAcierta())
+    assert set(medidas) == {s107.CONJUNTO, s026.CONJUNTO}
+    assert medidas[s107.CONJUNTO]['huella'] == s107.HUELLA and medidas[s026.CONJUNTO]['huella'] == s026.HUELLA
+    assert set(medidas[s107.CONJUNTO]['tareas']) == set(TAREAS_107_112)
+    assert set(medidas[s026.CONJUNTO]['tareas']) == set(TAREAS_026)
+    for m in medidas.values():
+        assert m['decide'] is False and m['filas'] == m['medida']['ejemplos'] > 0
+        assert m['medida']['acierto_tarea'] == 1.0 and m['medida']['f1_datos'] == 1.0
+
+
+def test_070_rf85_una_frase_tocada_para_la_medida_de_las_selladas_nuevas(monkeypatch):
+    """070:RF-85 — si alguien toca una frase de la sellada nueva, su huella lo delata y la destilación no la mide."""
+    import pytest
+
+    from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
+
+    assert hasattr(di, 'medir_selladas_nuevas'), 'la destilación no mide las selladas nuevas (070 T21)'
+    s = _sellada()
+    tocadas = {**s.FRASES, 'benchmark_anonimo': (*s.FRASES['benchmark_anonimo'][:-1], 'otra frase del benchmark')}
+    monkeypatch.setattr(s, 'FRASES', tocadas)
+    with pytest.raises(ValueError, match='huella'):
+        di.medir_selladas_nuevas(object())

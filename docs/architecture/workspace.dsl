@@ -106,7 +106,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Interfaz: asistente"
                     }
                 }
-                cmpInterfazPruebas = component "Pruebas de la interfaz" "Pruebas sin navegador de las pestañas y de la lógica (48 ficheros)." "Node test runner" {
+                cmpInterfazPruebas = component "Pruebas de la interfaz" "Pruebas sin navegador de las pestañas y de la lógica (49 ficheros)." "Node test runner" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/test"
                     tags "Web"
                     properties {
@@ -129,7 +129,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 tags "API"
             }
 
-            api = container "API web" "REST y WebSocket: 165 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
+            api = container "API web" "REST y WebSocket: 168 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/presentacion/web/app.py"
                 tags "API"
                 cmpWeb = component "Web" "Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo (40 ficheros)." "Python" {
@@ -406,7 +406,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 }
             }
 
-            assistant = container "Asistente y su equipo" "64 tareas; interpreta órdenes, muestra el plan y ejecuta solo tras confirmación; revisan fuentes, física, coste y riesgo." "Reglas + codificador de órdenes + LLM local" {
+            assistant = container "Asistente y su equipo" "67 tareas; interpreta órdenes, muestra el plan y ejecuta solo tras confirmación; revisan fuentes, física, coste y riesgo." "Reglas + codificador de órdenes + LLM local" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/asistente"
                 tags "AI"
                 cmpAsisNucleo = component "Núcleo y operación" "Tareas, intérprete, plan, planes guardados, ejecutor y orquestador (17 ficheros)." "Python" {

@@ -72,6 +72,36 @@ test('F04 asistente: una consulta se responde sin pedir confirmación y una orde
     }
     await captura(page, FLUJO, '2_orden_que_escribe');
     await revisarAxe(page, FLUJO, '2_orden_que_escribe', testInfo);
-    await memoria(page, testInfo, ['¿cómo se calibra una barra sin medidor?', 'calibra el sistema de prueba con julio de 2026']);
+
+    // 026:RF-42 (T16): asignar un fichero a su casilla por orden escrita también espera la confirmación.
+    const asigna = await ordenar(page, 'asigna el fichero CARGA.txt de esta maquina a la casilla de cargas');
+    await expect(asigna).not.toContainText('Trabajo «');
+    expect(await asigna.innerText()).not.toMatch(ILEGIBLE);
+    await captura(page, FLUJO, '2b_asignar_casilla');
+    await memoria(page, testInfo, ['¿cómo se calibra una barra sin medidor?', 'calibra el sistema de prueba con julio de 2026',
+      'asigna el fichero CARGA.txt de esta maquina a la casilla de cargas']);
     sinRedNiErrores(externas, errores);
   });
+
+// 027:RF-72 (T33) y 026:RF-48 (T22): «Ver las etapas» del proyecto entero no necesita el intérprete: los módulos sin su
+// dato (PIT, VAD, VNR) se saltan con su motivo y el asistente propone la siguiente etapa con el porqué.
+test('F04 asistente: el proyecto entero enseña los módulos que se saltan con su motivo y el camino propuesto',
+  async ({ web: page, externas, errores }, testInfo) => {
+    await page.getByRole('tab', { name: /Asistente/ }).click();
+    const titulo = page.getByText('Proyecto desde cero (el agente hace todas las etapas)', { exact: true });
+    await titulo.click();
+    const panel = page.locator('details').filter({ has: titulo });
+    await panel.getByRole('textbox', { name: 'Sistema eléctrico' }).fill('Sistema de prueba');
+    await panel.getByRole('textbox', { name: 'Periodo' }).fill('2026-07');
+    await panel.getByRole('button', { name: 'Ver las etapas', exact: true }).click();
+    for (const modulo of ['pit', 'vad', 'vnr']) {
+      const fila = panel.locator('li').filter({ has: page.locator('b', { hasText: new RegExp(`^${modulo}$`) }) });
+      await expect(fila).toContainText(/se omitirá: \S/);
+    }
+    await expect(panel).toContainText(/Siguiente etapa|Nada que hacer/);
+    expect(await panel.innerText()).not.toMatch(ILEGIBLE);
+    await captura(page, FLUJO, '4_proyecto_entero');
+    await revisarAxe(page, FLUJO, '4_proyecto_entero', testInfo);
+    sinRedNiErrores(externas, errores);
+  });
+

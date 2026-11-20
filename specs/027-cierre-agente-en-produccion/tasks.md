@@ -284,7 +284,14 @@ copias de Nasca; T30, top-k de bancos en Chincha; T31, 30/10/10 y curva por fami
       VNR como etapas opcionales con lo que requieren, saltadas con su motivo si falta su dato. (RF-72)
       Hecho cuando: rojo por aserción (las etapas no se encadenan) y verde con la prueba del orquestador (omisión con
       motivo, puntos de control) y la e2e F04 ampliada.
-      Bloqueada por su implementación en ASISTENTE-C, que va detrás en la cola (ce, 18-11). Siguiente acción: implementarla con su prueba en esa fila.
+      Implementada el 2026-11-19 (ASISTENTE-C, wt_ce_c): `ETAPAS_MODULOS` (pit, vad, vnr, opcionales) y
+      `ETAPAS_PROYECTO_ENTERO`, por defecto en la web; `falta_del_modulo` salta cada módulo con su motivo (sin su dato,
+      a medias o sin su fichero) y sigue; la orden del proyecto entero lee los datos de cada módulo con sus órdenes
+      sueltas y la lista los enseña antes del clic. Rojo VALIDO (4 failed) en D:/csg/PM_IMPL/ASISTENTE_C/027_T33/rojo.log; verde
+      D:/csg/PM_IMPL/ASISTENTE_C/verde/verde_c.log (461 passed, rc=0) con `tests/test_orquestador_027_modulos.py` y
+      `test_agente_orquestador.py`.
+      Bloqueada por la e2e F04 ampliada (las etapas de los módulos), que corre en el FIN2 de esta fila. Siguiente
+      acción: ampliar `frontend/test/e2e/f04_asistente.e2e.mjs` y correrla con los dos arneses.
 - [x] T34. Memoria a largo plazo del asistente, por espacio: últimos turnos y recuerdos parecidos como contexto,
       correcciones recordadas, vista y olvido en la web, topes y compactación. (RF-73, RF-74, RF-75, RF-76)
       Hecho cuando: rojo por aserción (sin memoria por espacio) y verde con `tests/test_asistente_memoria.py`

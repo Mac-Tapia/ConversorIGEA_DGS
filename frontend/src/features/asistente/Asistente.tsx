@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
 import { AvisosTrabajo } from '../../shared/AvisosTrabajo';
-import type { AsistenteMemoria, AsistentePlan, AsistenteRespuesta, EstadoModelos, ListaProyecto } from '../../api/types';
+import type { AprendidoEstado, AprendidoPrevia, AsistenteMemoria, AsistentePlan, AsistenteRespuesta, EstadoModelos, ListaProyecto,
+  PropuestaAprendida } from '../../api/types';
 import type { EstadoAceptacionAgente } from '../../api/asistenteAceptacion';
 import { AvisoBeta } from '../../shared/MarcaBeta';
 import { MonitorAgente } from './MonitorAgente';
@@ -199,6 +200,61 @@ function Memoria() {
   );
 }
 
+const casos = (n: number) => (n === 1 ? '1 caso' : `${n} casos`);
+
+/** 026:RF-49: lo aprendido del operador con su evaluación y sus puertas; se pone en uso solo si las pasó, tras su
+ * previa y su confirmación. */
+export function VistaAprendido({ estado, previa, onPrevia, onPromover }: { estado: AprendidoEstado;
+  previa: AprendidoPrevia | null; onPrevia: () => void; onPromover: (p: AprendidoPrevia) => void }) {
+  const c = estado.candidato;
+  return (
+    <div className="stack small">
+      {c && <p>Acierta {c.evaluacion.aciertos} de {casos(c.evaluacion.casos)} que no vio
+        {c.puertas.superadas ? '; pasa sus puertas.' : '.'}</p>}
+      {c && c.tabla.length > 0 && <ul>{c.tabla.map((f) => <li key={f.join('|')}>Fuente {f[0]}, tras {f[1]}: {f[2]}</li>)}</ul>}
+      {estado.en_uso && <p>En uso{estado.en_uso.promovido_en ? ` desde ${estado.en_uso.promovido_en}` : ''}.</p>}
+      {!estado.se_puede_promover && estado.motivo && <p className="muted">{estado.motivo}</p>}
+      {estado.se_puede_promover && !previa &&
+        <button className="btn btn-sm" onClick={onPrevia}>Revisar para ponerlo en uso</button>}
+      {estado.se_puede_promover && previa && <div className="stack">
+        <p>Se pondrán en uso {previa.candidato?.tabla.length ?? 0} propuestas. El asistente las ofrecerá; cada una se
+          confirma como cualquier otra.</p>
+        <button className="btn btn-sm btn-primary" onClick={() => onPromover(previa)}>Confirmar y poner en uso</button>
+      </div>}
+    </div>
+  );
+}
+
+function LoAprendido() {
+  const { run } = useApp();
+  const [estado, setEstado] = useState<AprendidoEstado | null>(null);
+  const [previa, setPrevia] = useState<AprendidoPrevia | null>(null);
+  const leer = () => void run(api.asistenteAprendido).then((r) => { if (r) { setEstado(r); setPrevia(null); } });
+  return (
+    <details onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) leer(); }}>
+      <summary className="small">Lo aprendido del operador</summary>
+      {estado && <VistaAprendido estado={estado} previa={previa}
+        onPrevia={() => void run(api.asistenteAprendidoPrevia).then((r) => r && setPrevia(r))}
+        onPromover={(p) => void run(() => api.asistentePromoverAprendido(p.candidato?.huella ?? '', p.confirmacion))
+          .then((r) => { if (r) { setEstado(r); setPrevia(null); } })} />}
+    </details>
+  );
+}
+
+/** 026:RF-49: lo que el asistente propone porque lo aprendió del operador; no se lanza solo. */
+export function VistaPropuestaAprendida({ propuesta }: { propuesta: PropuestaAprendida }) {
+  return <p>Aprendido del operador: {propuesta.accion}. <span className="muted">{propuesta.motivo}; se confirma como
+    cualquier otra.</span></p>;
+}
+
+const TEXTO_ETAPA = { pendiente: 'se hará', hecha: 'ya hecha, no se repite', se_omitira: 'se omitirá', falta_dato: 'falta un dato' } as const;
+
+/** 027:RF-72: cada etapa con su estado; la que se salta dice por qué (un módulo sin su dato), la que espera, qué le falta. */
+export function lineaDeEtapa(e: ListaProyecto['etapas'][number]): string {
+  const detalle = e.estado === 'se_omitira' && e.motivo ? e.motivo : e.falta.join(', ');
+  return detalle ? `${TEXTO_ETAPA[e.estado]}: ${detalle}` : TEXTO_ETAPA[e.estado];
+}
+
 /** 027:RF-43, RF-44: el agente hace el proyecto entero; si se corta, retoma donde quedó. */
 function ProyectoDesdeCero() {
   const { ws, run, startJob, active } = useApp();
@@ -214,7 +270,6 @@ function ProyectoDesdeCero() {
   // Cualquier cambio deja de ser lo que el operador revisó: el botón de confirmar desaparece.
   useEffect(() => { setLista(null); }, [ws.id, sistema, periodo, ruta, cargas, reiniciar]);
   const escrituras = lista?.etapas_escritura ?? [];
-  const textoEtapa = { pendiente: 'se hará', hecha: 'ya hecha, no se repite', se_omitira: 'se omitirá', falta_dato: 'falta un dato' } as const;
   return (
     <details>
       <summary className="small">Proyecto desde cero (el agente hace todas las etapas)</summary>
@@ -239,8 +294,12 @@ function ProyectoDesdeCero() {
         {lista && <div className="stack">
           <p>Un solo clic confirma las {escrituras.length} etapas que escriben en DIgSILENT o en disco:</p>
           <ol>{lista.etapas.map((e) => <li key={e.nombre}>
-            <b>{e.nombre}</b>: {e.descripcion} <span className="muted">({textoEtapa[e.estado]}{e.falta.length > 0 && `: ${e.falta.join(', ')}`})</span>
+            <b>{e.nombre}</b>: {e.descripcion} <span className="muted">({lineaDeEtapa(e)})</span>
           </li>)}</ol>
+          {lista.camino && <p>{lista.camino.motivo}</p>}
+          {lista.aprendido && <VistaPropuestaAprendida propuesta={lista.aprendido} />}
+          {lista.camino && lista.camino.parametros_que_faltan.length > 0 &&
+            <p className="muted">Sin norma ni perfil: {lista.camino.parametros_que_faltan.join('; ')}.</p>}
           {lista.bloqueo && <p className="alert alert-warn">{lista.bloqueo}</p>}
           <button className="btn btn-primary" disabled={Boolean(active.asistente) || Boolean(lista.bloqueo) || escrituras.length === 0
               || lista.etapas.some((e) => e.estado === 'falta_dato')}
@@ -346,6 +405,7 @@ export function Asistente() {
       </div>
       <Registro />
       <Memoria key={ws.id} />
+      <LoAprendido />
       <ProyectoDesdeCero />
       {[...historial].reverse().map((x, rev) => {
         const i = historial.length - 1 - rev;

@@ -3,7 +3,9 @@
 
 El constructor existía, pero ninguna orden lo lanzaba: el dataset quedó en el del 2026-10-25, anterior a
 las specs 054 a 064, sin que nada lo dijera. Esta orden importa el historial de la web, construye las
-particiones en una carpeta nueva (nunca pisa una anterior) y mide los umbrales de la spec 027: 200
+particiones en una carpeta nueva (nunca pisa una anterior), con las operaciones acabadas del diario de cada espacio
+(026:RF-49, anonimizadas, evaluadas y sin promover; el candidato queda en el almacén del asistente para que el
+operador lo promueva desde la web), y mide los umbrales de la spec 027: 200
 órdenes reales y 10 episodios. Los registros sintéticos o de contexto no cuentan como reales. Los
 episodios guardan su proyecto en ``sistema``: el mínimo se mide por proyecto y el informe lo dice así.
 
@@ -51,18 +53,31 @@ def veredicto(registros, *, ordenes_minimas: int = ORDENES_REALES_MINIMAS,
 
 def construir(raiz_web: Path, raiz_asistente: Path, raiz_gemelo: Path, destino: Path) -> dict:
     from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import (
-        construir_dataset, escribir_particiones, importar_historial_web, particionar_dataset,
+        construir_dataset, escribir_particiones, evaluar_acciones_aprendidas, guardar_candidato_acciones,
+        importar_historial_web, particionar_dataset,
     )
 
     if destino.exists() and any(destino.iterdir()):
         raise ValueError(f'{destino} ya tiene contenido: el dataset anterior no se pisa.')
     historial = importar_historial_web(raiz_web, raiz_asistente / 'conversion_outbox')
     normativa = raiz_asistente / 'normativa'
-    hecho = construir_dataset(raiz_asistente, raiz_gemelo,
+    # 026:RF-49: las operaciones acabadas de cada espacio (diario de la 061), anonimizadas, entran en el corpus.
+    hecho = construir_dataset(raiz_asistente, raiz_gemelo, raiz_web=raiz_web,
                               raiz_normativa=normativa if normativa.is_dir() else None)
-    manifiesto = escribir_particiones(particionar_dataset(hecho.registros), destino)
+    partes = particionar_dataset(hecho.registros)
+    manifiesto = escribir_particiones(partes, destino)
+    # Lo aprendido se mide con lo que no vio y sale sin promover: lo promueve el operador.
+    acciones = evaluar_acciones_aprendidas(partes['train'], partes['validation'] + partes['test'])
+    # 026:RF-49: el candidato entero queda en el almacén del asistente (fuera de git) para que el operador lo vea y lo
+    # promueva desde la web; antes solo iba su resumen al informe y lo aprendido nunca llegaba a proponerse.
+    try:
+        guardado = {'guardado': str(guardar_candidato_acciones(raiz_asistente, acciones))}
+    except (OSError, ValueError) as exc:
+        guardado = {'guardado': None, 'motivo': str(exc)}
     return {'destino': str(destino), 'historial': historial, 'manifiesto_sha256': manifiesto['sha256'],
             'particiones': {k: v['count'] for k, v in manifiesto['partitions'].items()},
+            'acciones_aprendidas': {**{k: acciones[k] for k in ('evaluacion', 'puertas', 'promovido', 'huella')},
+                                    **guardado},
             **veredicto(hecho.registros)}
 
 

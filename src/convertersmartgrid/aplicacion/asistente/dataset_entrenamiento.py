@@ -11,6 +11,7 @@ import re
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Any
 
 from .calidad_datos import CALIDADES, auditar_contaminacion, texto_canonico
@@ -426,6 +427,105 @@ def importar_normativa(raiz: Path | str) -> tuple[RegistroEntrenamiento, ...]:
     return tuple(salida)
 
 
+#: 026:RF-49: cómo acabó una operación del diario (061), en las palabras del corpus. «interrumpido» es un fallo: la web
+#: cayó con el trabajo dentro y no se sabe qué dejó.
+RESULTADO_ACCION = {'done': 'hecho', 'parcial': 'parcial', 'failed': 'fallido', 'no_converge': 'fallido',
+                    'interrumpido': 'fallido', 'cancelled': 'cancelado'}
+#: La tarea de los registros de acciones: no es una de ``TAREAS``, así que el entrenamiento del intérprete de órdenes
+#: (``entrenamiento_dataset``) no las toma por órdenes; las lee el planificador (``evaluar_acciones_aprendidas``).
+TAREA_ACCION = 'proponer_accion'
+_CLASE_TRABAJO = re.compile(r'^[a-z][a-z0-9_]{0,63}$')
+
+
+def _anonimo(prefijo: str, valor: Any) -> str:
+    return f'{prefijo}-{hashlib.sha256(f"csg-{prefijo}:{valor}".encode()).hexdigest()[:12]}' if valor else ''
+
+
+def normalizar_accion_operador(fila: dict[str, Any], *, espacio: str,
+                               anterior: tuple[str, str] | None = None,
+                               selladas: frozenset[str] = frozenset()) -> RegistroEntrenamiento:
+    """026:RF-49: una operación acabada del diario (061), anonimizada, con su contexto y su resultado.
+
+    Del trabajo solo se queda lo que no identifica a nadie: su clase (``convert``, ``pf_calibrar``…, un código del
+    programa), cómo acabó, la fuente del espacio (txt, mdb o vnr) y qué se hizo antes en el mismo espacio. Nada del
+    título, del error ni del resultado detallado (llevan alimentadores, proyectos y rutas); el espacio, la huella de la
+    fuente y el trabajo, por su huella con sal; de los proyectos de DIgSILENT, cuántos hay, nunca sus nombres. Un texto
+    que coincida con una frase sellada (``fuga_evaluacion.frases_selladas``) va a cuarentena: lo aprendido entrena, nunca
+    examina."""
+    from ..evaluacion_modelos import texto_canonico as canon
+
+    contexto = fila.get('contexto') if isinstance(fila.get('contexto'), dict) else {}
+    clase = str(fila.get('kind') or '')
+    resultado = RESULTADO_ACCION.get(str(fila.get('status') or ''), '')
+    modo = str(contexto.get('source_mode') or '').casefold()
+    fuente = modo if modo in {'txt', 'mdb', 'vnr'} else 'sin_fuente'
+    previa = f'{anterior[0]} {anterior[1]}' if anterior else 'nada'
+    # Lo que hace el propio programa (el asistente encola sus trabajos con su prefijo) se aprende igual, con su
+    # procedencia: «de lo que el operador hace en la web y de lo que hace el programa» (usuario, 2026-11-18).
+    procedencia = 'programa' if clase.startswith('asistente') else 'operador_web'
+    valida = bool(_CLASE_TRABAJO.match(clase) and resultado)
+    quien = 'el asistente' if procedencia == 'programa' else 'el operador'
+    trabajo = _anonimo('trabajo', fila.get('id'))
+    # El texto lleva la operación (anonimizada): dos operaciones del mismo contexto son dos casos distintos, no el mismo
+    # texto repetido. Sin ella, ``particionar_dataset`` las juntaba en una partición por su texto y lo que evalúa nunca
+    # tenía un contexto que se hubiera aprendido: la puerta no se podía pasar nunca.
+    texto = (f'Operación {trabajo}. Espacio con fuente {fuente}; antes: {previa}. Lo siguiente que lanzó {quien}: '
+             f'{clase}; acabó {resultado}.' if valida else f'Operación {trabajo} del diario sin clase o sin resultado.')
+    sellada = valida and canon(texto) in selladas
+    espacio_anonimo = _anonimo('espacio', espacio)
+    proyectos = contexto.get('proyectos_registrados')
+    provenance = {'origen': 'diario_operaciones_061', 'procedencia': procedencia, 'espacio': espacio_anonimo,
+                  'trabajo': trabajo,
+                  'source_fingerprint': _anonimo('huella', contexto.get('source_fingerprint')),
+                  'proyectos_registrados': len(proyectos) if isinstance(proyectos, dict) else 0,
+                  'creado': fila.get('created_at'), 'diario_seq': fila.get('seq_registro')}
+    quality = ('quarantine' if not valida or sellada else
+               'gold_human' if procedencia == 'operador_web' else 'silver_deterministic')
+    return _crear(
+        group_basis={'tipo': 'accion_operador', 'espacio': espacio_anonimo, 'trabajo': provenance['trabajo']},
+        tipo='accion_operador', quality=quality, tarea=TAREA_ACCION, texto=texto, sistema='', sets=(),
+        alimentadores=(), mensajes=({'role': 'user', 'content': texto},), datos=(),
+        resultado={'accion': clase, 'resultado': resultado, 'fuente': fuente, 'anterior': previa},
+        provenance=provenance, evidence_hashes=(), license='internal',
+        verification='' if quality == 'quarantine' else (
+            'operator_action_observed' if procedencia == 'operador_web' else 'program_action_observed'),
+        motivo=('' if quality != 'quarantine' else 'texto de una prueba sellada' if sellada
+                else 'operación sin clase o sin resultado válidos'))
+
+
+def importar_diarios_operaciones(raiz_web: Path | str) -> tuple[RegistroEntrenamiento, ...]:
+    """026:RF-49: las operaciones acabadas de los diarios de cada espacio (061) al corpus del planificador.
+
+    Cada espacio tiene su diario en su ``salida`` (o en la de cada corrida); el espacio es la carpeta. Lo de antes de
+    cada operación es la anterior acabada del mismo espacio: así se aprende «tras convertir, calibrar»."""
+    from .fuga_evaluacion import frases_selladas
+
+    base = Path(raiz_web)
+    if not base.is_dir():
+        return ()
+    selladas = frozenset().union(*frases_selladas().values())
+    salida: list[RegistroEntrenamiento] = []
+    diarios = sorted({*base.glob('*/salida/observacion/operaciones.sqlite3'),
+                      *base.glob('*/runs/*/salida/observacion/operaciones.sqlite3')})
+    for diario in diarios:
+        salida.extend(_acciones_del_diario(diario, diario.relative_to(base).parts[0], selladas))
+    return tuple(salida)
+
+
+def _acciones_del_diario(diario: Path, espacio: str, selladas: frozenset[str]) -> list[RegistroEntrenamiento]:
+    """Las operaciones acabadas de un diario, en orden, cada una con la anterior acabada que no fue a cuarentena."""
+    from .observacion import RegistroOperaciones
+
+    salida: list[RegistroEntrenamiento] = []
+    anterior: tuple[str, str] | None = None
+    for fila in RegistroOperaciones(diario, espacio).terminadas():
+        registro = normalizar_accion_operador(fila, espacio=espacio, anterior=anterior, selladas=selladas)
+        salida.append(registro)
+        if registro.quality != 'quarantine':
+            anterior = (registro.resultado['accion'], registro.resultado['resultado'])
+    return salida
+
+
 def auditar_registro(registro: RegistroEntrenamiento) -> list[str]:
     errores = []
     pendientes=[registro.as_dict()]
@@ -448,6 +548,7 @@ def construir_dataset(
     raiz_asistente: Path | str, raiz_gemelo: Path | str, *,
     raices_contexto: list[tuple[str, Path | str]] | None = None,
     raiz_normativa: Path | str | None = None,
+    raiz_web: Path | str | None = None,
 ) -> DatasetConstruido:
     registros: list[RegistroEntrenamiento] = []
     ejemplos = Path(raiz_asistente) / 'ejemplos.jsonl'
@@ -481,6 +582,8 @@ def construir_dataset(
         registros.extend(importar_artefactos_contexto(raiz_contexto, origen=origen))
     if raiz_normativa is not None:
         registros.extend(importar_normativa(raiz_normativa))
+    if raiz_web is not None:
+        registros.extend(importar_diarios_operaciones(raiz_web))      # 026:RF-49
     unicos = {r.record_id: r for r in registros if not auditar_registro(r)}
     ordenados = tuple(unicos[k] for k in sorted(unicos))
     inventario = Counter(r.quality for r in ordenados)
@@ -625,3 +728,156 @@ def consultas_recuperacion(dataset: Path, partes: dict, *, entrenamiento: bool) 
     if len(consultas) != len(pares):
         raise CicloBloqueado('embeddings: consultas distintas de las consumidas')
     return [(f'{nombre}:{_hash(r)}', r) for r in consultas]
+
+
+#: 026:RF-49: lo aprendido del operador se usa solo si, con casos que no vio al aprender, acierta lo que hizo el operador
+#: al menos así y con al menos tantos casos. Con menos no se sabe: se dice cuántos faltan.
+ACIERTO_MINIMO_ACCIONES = 0.8
+MIN_CASOS_ACCIONES = 5
+ESQUEMA_ACCIONES = 'convertersmartgrid-acciones-aprendidas-v1'
+
+
+def _acciones(registros) -> list[dict[str, Any]]:
+    filas = [r.as_dict() if isinstance(r, RegistroEntrenamiento) else dict(r) for r in registros]
+    return [f for f in filas if f.get('tipo') == 'accion_operador' and f.get('quality') != 'quarantine']
+
+
+def _huella_acciones(candidato: Mapping[str, Any]) -> str:
+    return _hash({k: candidato.get(k) for k in ('schema', 'tabla', 'evaluacion', 'puertas')})
+
+
+def acciones_intactas(candidato: Mapping[str, Any] | None) -> bool:
+    """026:RF-49: si lo aprendido es lo que se midió (su huella cuadra con su tabla, evaluación y puertas)."""
+    return bool(candidato) and candidato.get('huella') == _huella_acciones(candidato)
+
+
+def evaluar_acciones_aprendidas(entrenamiento, evaluacion) -> dict[str, Any]:
+    """026:RF-49: aprende de ``entrenamiento`` qué lanza el operador en cada contexto (fuente del espacio y lo de antes)
+    y lo mide con ``evaluacion``, que no puede compartir registro ni grupo con lo aprendido (027:RF-18).
+
+    En cada contexto se queda la acción que más veces acabó bien, restando las que fallaron o se cancelaron allí: un
+    paso que el operador lanza y siempre falla no se propone. El candidato sale con sus puertas y **sin promover**: lo
+    promueve el operador (``promover_acciones_aprendidas``), nunca esta función ni un ciclo (027:RF-21, 061:RF-8)."""
+    aprende, examina = _acciones(entrenamiento), _acciones(evaluacion)
+    if ({f['record_id'] for f in aprende} & {f['record_id'] for f in examina}
+            or {f['group_id'] for f in aprende} & {f['group_id'] for f in examina}):
+        raise ValueError('lo que evalúa las acciones aprendidas comparte registros o grupos con lo que aprende')
+    puntos: Counter = Counter()
+    for f in aprende:
+        r = f['resultado']
+        peso = {'hecho': 1, 'fallido': -1, 'cancelado': -1}.get(r['resultado'], 0)
+        puntos[(r['fuente'], r['anterior'], r['accion'])] += peso
+    mejor: dict[tuple[str, str], tuple[int, str]] = {}
+    for (fuente, previa, accion), n in sorted(puntos.items()):
+        if n > 0 and (n, accion) > mejor.get((fuente, previa), (0, '')):
+            mejor[(fuente, previa)] = (n, accion)
+    tabla = [[fuente, previa, accion] for (fuente, previa), (_, accion) in sorted(mejor.items())]
+    propone = {(fuente, previa): accion for fuente, previa, accion in tabla}
+    casos = [f['resultado'] for f in examina if f['resultado']['resultado'] == 'hecho']
+    aciertos = sum(propone.get((r['fuente'], r['anterior'])) == r['accion'] for r in casos)
+    acierto = round(aciertos / len(casos), 4) if casos else None
+    fallos = []
+    if len(casos) < MIN_CASOS_ACCIONES:
+        fallos.append(f'faltan casos de evaluación: {len(casos)} de {MIN_CASOS_ACCIONES}')
+    elif acierto < ACIERTO_MINIMO_ACCIONES:
+        fallos.append(f'acierto {acierto} bajo {ACIERTO_MINIMO_ACCIONES} con {len(casos)} casos')
+    candidato = {'schema': ESQUEMA_ACCIONES, 'tabla': tabla,
+                 'evaluacion': {'casos': len(casos), 'aciertos': aciertos, 'acierto': acierto,
+                                'aprendidas_de': len(aprende)},
+                 'puertas': {'superadas': not fallos, 'fallos': fallos,
+                             'acierto_minimo': ACIERTO_MINIMO_ACCIONES, 'casos_minimos': MIN_CASOS_ACCIONES}}
+    return {**candidato, 'huella': _huella_acciones(candidato), 'promovido': False}
+
+
+def promover_acciones_aprendidas(candidato: Mapping[str, Any], *, confirmado_por: str) -> dict[str, Any]:
+    """026:RF-49: el operador promueve lo aprendido, y solo si pasó sus puertas y nadie lo tocó después de medirlo."""
+    if candidato.get('huella') != _huella_acciones(candidato):
+        raise ValueError('las acciones aprendidas cambiaron después de evaluarse: hay que evaluarlas de nuevo')
+    if not (candidato.get('puertas') or {}).get('superadas'):
+        raise ValueError('las acciones aprendidas no pasaron sus puertas: ' +
+                         '; '.join((candidato.get('puertas') or {}).get('fallos') or ['sin evaluar']))
+    if not str(confirmado_por or '').strip():
+        raise ValueError('promover lo aprendido lo confirma el operador')
+    return {**candidato, 'promovido': True, 'promovido_por': str(confirmado_por)}
+
+
+def propuesta_aprendida(candidato: Mapping[str, Any] | None, *, fuente: str, anterior: str) -> dict[str, Any] | None:
+    """026:RF-49: lo que propone el asistente porque lo aprendió del operador, o ``None`` si no hay nada promovido,
+    evaluado e intacto para ese contexto. La propuesta se confirma como cualquier otra: aprender no da permiso."""
+    if (not candidato or candidato.get('promovido') is not True
+            or candidato.get('huella') != _huella_acciones(candidato)
+            or not (candidato.get('puertas') or {}).get('superadas')):
+        return None
+    for f, previa, accion in candidato.get('tabla') or ():
+        if f == fuente and previa == anterior:
+            ev = candidato['evaluacion']
+            return {'accion': accion, 'confirma_el_operador': True,
+                    'motivo': (f'el operador lo lanzó en este contexto; aprendido y evaluado con {ev["casos"]} casos '
+                               f'que no vio (acierto {ev["acierto"]})')}
+    return None
+
+
+#: 026:RF-49: dónde queda lo aprendido en el almacén del asistente (fuera de git). El candidato medido y lo que el
+#: operador promovió van en ficheros distintos: construir el dataset otra vez rehace el candidato y nunca toca lo que
+#: está en uso, que solo cambia cuando el operador promueve.
+CARPETA_ACCIONES = 'acciones_aprendidas'
+
+
+def _rutas_acciones(raiz: Path | str) -> tuple[Path, Path]:
+    base = Path(raiz) / CARPETA_ACCIONES
+    return base / 'candidato.json', base / 'en_uso.json'
+
+
+def _leer_acciones(ruta: Path) -> dict[str, Any] | None:
+    try:
+        datos = json.loads(ruta.read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        raise ValueError(f'{ruta.name} de lo aprendido no se puede leer: {exc}') from exc
+    return datos if isinstance(datos, dict) else None
+
+
+def guardar_candidato_acciones(raiz: Path | str, candidato: Mapping[str, Any]) -> Path:
+    """026:RF-49: deja el candidato entero (tabla, evaluación, puertas y huella) para que el operador lo vea y decida.
+
+    Siempre sin promover, y nunca encima de uno promovido: lo promovido no se rehace construyendo el dataset."""
+    ruta, _ = _rutas_acciones(raiz)
+    if candidato.get('promovido') is not False or candidato.get('schema') != ESQUEMA_ACCIONES:
+        raise ValueError('lo aprendido se guarda como candidato, medido y sin promover')
+    previo = _leer_acciones(ruta)
+    if previo and previo.get('promovido') is True:
+        raise ValueError('ya hay unas acciones aprendidas promovidas en el sitio del candidato: no se pisan')
+    publicar_duradero(ruta, json.dumps(dict(candidato), ensure_ascii=False, indent=2) + '\n')
+    return ruta
+
+
+def leer_acciones_aprendidas(raiz: Path | str) -> dict[str, Any]:
+    """026:RF-49: el candidato medido y lo que está en uso, tal como están en el almacén (``None`` si no hay)."""
+    candidato, en_uso = _rutas_acciones(raiz)
+    return {'candidato': _leer_acciones(candidato), 'en_uso': _leer_acciones(en_uso)}
+
+
+def promover_y_guardar_acciones(raiz: Path | str, *, huella: str, confirmado_por: str, fecha: str) -> dict[str, Any]:
+    """026:RF-49: el operador promueve el candidato que vio (``huella``); queda aparte, en uso, de forma atómica.
+
+    Falla con su motivo si no hay candidato, si no es el que vio, si no pasó sus puertas o si lo tocaron tras medirlo."""
+    candidato_ruta, en_uso_ruta = _rutas_acciones(raiz)
+    candidato = _leer_acciones(candidato_ruta)
+    if not candidato:
+        raise ValueError('no hay acciones aprendidas que promover: construya antes el dataset')
+    if candidato.get('huella') != huella:
+        raise ValueError('las acciones aprendidas no son las que se revisaron: vuelva a revisarlas')
+    promovido = {**promover_acciones_aprendidas(candidato, confirmado_por=confirmado_por), 'promovido_en': fecha}
+    publicar_duradero(en_uso_ruta, json.dumps(promovido, ensure_ascii=False, indent=2) + '\n')
+    return promovido
+
+
+def anterior_del_espacio(diario: Path | str, espacio: str) -> str:
+    """026:RF-49: lo último acabado en el espacio, en la forma del corpus («convert hecho» o «nada»), con la misma
+    anonimización y la misma cuarentena con que se aprendió: la propuesta busca el contexto tal como se midió."""
+    from .fuga_evaluacion import frases_selladas
+
+    hechas = [r for r in _acciones_del_diario(Path(diario), espacio, frozenset().union(*frases_selladas().values()))
+              if r.quality != 'quarantine']
+    return f'{hechas[-1].resultado["accion"]} {hechas[-1].resultado["resultado"]}' if hechas else 'nada'

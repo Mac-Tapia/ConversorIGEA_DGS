@@ -298,7 +298,7 @@ def _pasos(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any]) -> l
         return nuevos
     nuevos = (_pasos_nube_y_correo(tarea, extras) or _pasos_pit(tarea, extras) or _pasos_vad(tarea, extras)
               or _pasos_plano(tarea, datos, extras) or _pasos_026_rf44(tarea, feeders, extras)
-              or _pasos_026_rf46(tarea, datos, extras))
+              or _pasos_026_rf46(tarea, datos, extras) or _pasos_026_rf42(tarea, extras))
     if nuevos is not None:
         return nuevos
     raise ValueError(f'la tarea {tarea!r} no tiene pasos: es una consulta o un proceso')
@@ -355,7 +355,8 @@ def _pasos_070(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, Any], 
         return [Paso('leer los documentos del solicitante', 'POST', '/informes/documentos',
                      {'tipo': extras.get('tipo_documentos') or 'factibilidad'}, archivos=ficheros)]
     if tarea == 'descargar_resultados':
-        return [Paso('preparar el ZIP de los resultados', 'POST', '/outputs/archive', {'feeders': feeders})]
+        return _pasos_026_rf45(extras) or [
+            Paso('preparar el ZIP de los resultados', 'POST', '/outputs/archive', {'feeders': feeders})]
     if tarea == 'pronostico':
         return [Paso('pronóstico de demanda', 'POST', '/digital-twin/temporal',
                      {**(extras.get('pronostico') or {}), 'modo': 'pronostico'})]
@@ -473,6 +474,52 @@ def _pasos_026_rf46(tarea: str, datos: Mapping[str, Any], extras: Mapping[str, A
                      {'generador': generador}, espera=False),
                 Paso('escribir lo regenerado en la biblioteca', 'POST',
                      lambda r: f"/api/normativa/regenerar/{r[-1]['token']}/aplicar", None, espera=False)]
+    return None
+
+
+#: 026:RF-45: cómo se nombra cada módulo en los pasos que el operador confirma.
+_DEL_MODULO = {'pide': 'del PIDE', 'pit': 'del PIT', 'vad': 'del VAD', 'vnr': 'del VNR', 'informes': 'de los informes'}
+
+
+def _pasos_026_rf45(extras: Mapping[str, Any]) -> list[Paso] | None:
+    """026:RF-45: los entregables de un módulo por las rutas que los sirven en la web. Los de la salida (PIDE, VNR e
+    informes) van en el ZIP de la salida con su selección (``preparar_zip`` elige por nombre o por prefijo); el PIT y el
+    VAD los dejan en su carpeta del espacio y se leen de su trabajo o de su estudio, para enlazarlos uno por uno."""
+    entrega = extras.get('entrega') or {}
+    if not entrega:
+        return None
+    del_modulo = _DEL_MODULO.get(entrega.get('modulo') or '', '')
+    if entrega.get('trabajo'):
+        return [Paso(f'leer los entregables {del_modulo}', 'GET', f"/api/jobs/{quote(str(entrega['trabajo']))}",
+                     espera=False)]
+    if entrega.get('estudio'):
+        return [Paso(f'leer los entregables {del_modulo}', 'GET', f"/vad/{quote(str(entrega['estudio']))}", espera=False)]
+    return [Paso(f'preparar el ZIP {del_modulo}', 'POST', '/outputs/archive', {'feeders': list(entrega['seleccion'])})]
+
+
+def _pasos_026_rf42(tarea: str, extras: Mapping[str, Any]) -> list[Paso] | None:
+    """026:RF-42: las entradas del espacio por las rutas de la web. La casilla recibe el fichero por su subida, que lo
+    valida en su sitio aparte antes de tocar la entrada vigente (086:RF-3); el libro entra en las fuentes de la empresa
+    con su clase y su año (109:RF-25)."""
+    if tarea == 'asignar_entrada':
+        entrada = extras['entrada']
+        ruta = Path(entrada['ruta'])
+
+        def fichero(_r):
+            return {'file': (ruta.name, ruta.read_bytes(), 'application/octet-stream')}
+
+        return [Paso(f"asignar «{ruta.name}» a la casilla «{entrada['etiqueta']}»", 'POST',
+                     f"/inputs/{quote(entrada['casilla'])}", None, archivos=fichero, espera=False)]
+    if tarea == 'subir_fuente_empresa':
+        fuente = extras['fuente']
+        ruta = Path(fuente['ruta'])
+
+        def libro(_r):
+            return {'file': (ruta.name, ruta.read_bytes(), 'application/octet-stream')}
+
+        return [Paso(f"subir «{ruta.name}» a las fuentes de la empresa"
+                     + (f" ({fuente['periodo']})" if fuente.get('periodo') else ''), 'POST', '/fuentes',
+                     {'clase': fuente['clase'], 'periodo': fuente.get('periodo') or ''}, archivos=libro, espera=False)]
     return None
 
 

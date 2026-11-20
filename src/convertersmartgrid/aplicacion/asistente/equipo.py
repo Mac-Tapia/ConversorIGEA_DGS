@@ -6,10 +6,12 @@ Este gobierno no acredita calidad del LLM ni aceptación eléctrica (027/047/061
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import contextmanager
 from copy import deepcopy
 import hashlib
 import json
+import math
 from pathlib import Path
 import threading
 import uuid
@@ -36,6 +38,124 @@ class PermisoDenegado(ValueError):
     """Una acción no pertenece al permiso concedido por el servidor."""
 
 
+#: 026:RF-47: las tareas que escriben un entregable (informes, el PIDE, el expediente del PIT, la empresa modelo del VAD y
+#: el Estudio VNR): antes de escribir, el equipo da su dictamen sobre lo que ya calcularon las corridas.
+TAREAS_ENTREGABLE = frozenset({'informe_estudio', 'informe_factibilidad', 'pide', 'pit_expediente',
+                               'vad_empresa_modelo', 'vnr_estudio'})
+#: De menos a más grave; la del dictamen es la peor de sus cuatro roles.
+DECISIONES_DICTAMEN = ('favorable', 'revisar', 'riesgo')
+#: Palabras de una clave de coste en el resultado custodiado de una corrida.
+_COSTE = ('costo', 'coste', 'capex', 'inversion', 'vnr_total', 'valor_nuevo')
+#: Palabras de una clave que cuenta cargas o usuarios sin servicio o sin respaldo tras la corrida.
+_SIN_SERVICIO = ('sin_servicio', 'sin_respaldo', 'carga_no_servida', 'energia_no_suministrada')
+
+
+def _numeros(valor, ruta: str = ''):
+    """Cada número del resultado custodiado con su clave, en profundidad."""
+    if isinstance(valor, Mapping):
+        for k, v in valor.items():
+            yield from _numeros(v, f'{ruta}.{k}' if ruta else str(k))
+    elif isinstance(valor, list):
+        for v in valor:
+            yield from _numeros(v, ruta)
+    elif isinstance(valor, (int, float)) and not isinstance(valor, bool):
+        yield ruta, float(valor)
+
+
+def _leer_evidencia(registro: Mapping) -> tuple[dict | None, str]:
+    """El documento custodiado de una corrida, solo si su huella es la registrada; si no, por qué."""
+    try:
+        with Path(registro['archivo']).open('rb') as archivo:
+            crudo = archivo.read()
+    except (OSError, KeyError, TypeError) as exc:
+        return None, f'la evidencia {registro.get("archivo")} no se puede leer: {exc}'
+    if hashlib.sha256(crudo).hexdigest() != registro.get('sha256'):
+        return None, f'la evidencia {Path(str(registro["archivo"])).name} cambió después de custodiarse'
+    try:
+        documento = json.loads(crudo)
+    except ValueError as exc:
+        return None, f'la evidencia {Path(str(registro["archivo"])).name} no es JSON: {exc}'
+    return (documento, '') if isinstance(documento, dict) else (None, 'la evidencia no es un objeto JSON')
+
+
+def dictamen_del_equipo(tarea: str, evidencia: Mapping[str, Mapping], *, contexto: Mapping,
+                        ilegible: str = '') -> dict | None:
+    """026:RF-47: el dictamen de los cuatro revisores (fuentes, física, coste y riesgo) antes de escribir un entregable.
+
+    Sale de lo que ya calcularon las corridas custodiadas del mismo proyecto y fuente (``evidencias_web``, 067:RF-1 a
+    RF-5), nunca de un cálculo nuevo: solo lee sus documentos y compara las huellas de sus entregables. De cada clase de
+    trabajo vale la corrida más reciente (la que la rehízo sustituye a la anterior). Sin corridas, cada rol dice
+    «revisar» y por qué; un rol que ve riesgo hace que el dictamen sea «riesgo», y el asistente no escribe: lo enseña y
+    pregunta. Ningún modelo interviene ni concede autoridad (065).
+    """
+    if tarea not in TAREAS_ENTREGABLE:
+        return None
+    hallazgos: dict[str, list[tuple[str, str, str]]] = {r: [] for r in ROLES_REVISION}
+    vistos: set[str] = set()
+    usadas: list[str] = []
+    if ilegible:
+        hallazgos['fuentes'].append(('riesgo', ilegible, ''))
+    for ident, registro in evidencia.items():
+        documento, problema = _leer_evidencia(registro)
+        if documento is None:
+            hallazgos['fuentes'].append(('riesgo', problema, ident))
+            continue
+        trabajo = documento.get('trabajo') or {}
+        clase = str(trabajo.get('kind') or ident)
+        if clase in vistos:                         # ya está la corrida más reciente de esta clase
+            continue
+        vistos.add(clase)
+        usadas.append(ident)
+        nombre = trabajo.get('title') or clase
+        raiz = Path(str(registro['archivo'])).parents[2]
+        for e in documento.get('entregables') or []:
+            ruta = raiz / str(e.get('archivo'))
+            if not ruta.is_file():
+                hallazgos['fuentes'].append(('revisar', f'el entregable {e.get("archivo")} de «{nombre}» ya no está', ident))
+                continue
+            with ruta.open('rb') as f:
+                if hashlib.file_digest(f, 'sha256').hexdigest() != e.get('sha256'):
+                    hallazgos['fuentes'].append(
+                        ('riesgo', f'el entregable {e.get("archivo")} de «{nombre}» cambió después de su corrida', ident))
+        resultado = documento.get('resultado')
+        res = resultado if isinstance(resultado, Mapping) else {}
+        if (trabajo.get('status') == 'no_converge' or res.get('status') == 'no_converge' or res.get('converge') is False
+                or res.get('convergencia') is False):
+            hallazgos['fisica'].append(('riesgo', f'«{nombre}» no convergió: lo escrito no tendría física detrás', ident))
+        for clave, valor in _numeros(resultado):
+            hoja = clave.rsplit('.', 1)[-1].lower()
+            if any(c in hoja for c in _COSTE) and (not math.isfinite(valor) or valor < 0):
+                hallazgos['coste'].append(('riesgo', f'«{nombre}» da {clave} = {valor}, un coste imposible', ident))
+            if any(c in hoja for c in _SIN_SERVICIO) and valor > 0:
+                hallazgos['riesgo'].append(('riesgo', f'«{nombre}» deja {clave} = {valor:g}', ident))
+        if trabajo.get('status') == 'parcial' or res.get('status') == 'parcial':
+            hallazgos['riesgo'].append(('revisar', f'«{nombre}» terminó parcial: no cubre todo lo pedido', ident))
+    sin_corridas = (f'ninguna corrida custodiada de {contexto.get("proyecto") or "(sin proyecto)"} con esta fuente '
+                    'sostiene lo que se va a escribir')
+    dictamenes = []
+    for rol in ROLES_REVISION:
+        propios = hallazgos[rol]
+        if not usadas and not propios:
+            propios = [('revisar', sin_corridas, '')]
+        decision = max((d for d, _m, _i in propios), key=DECISIONES_DICTAMEN.index, default='favorable')
+        motivos = [m for d, m, _i in propios if d == decision] or [
+            f'las {len(usadas)} corrida(s) custodiada(s) no muestran nada en contra']
+        dictamenes.append({'rol': rol, 'decision': decision, 'motivos': motivos,
+                           'evidencia_ids': sorted({i for _d, _m, i in propios if i} or set(usadas))})
+    decision = max((d['decision'] for d in dictamenes), key=DECISIONES_DICTAMEN.index)
+    nombre_rol = {'fuentes': 'fuentes', 'fisica': 'física', 'coste': 'coste', 'riesgo': 'riesgo'}
+    malos = [f"{nombre_rol[d['rol']]}: {m}" for d in dictamenes if d['decision'] == decision != 'favorable' for m in d['motivos']]
+    resumen = ('Dictamen del equipo antes de escribir: ' + {'favorable': 'favorable', 'revisar': 'revisar',
+               'riesgo': 'riesgo'}[decision] + ('; ' + '; '.join(malos) if malos else
+               f'; {len(usadas)} corrida(s) custodiada(s) lo sostienen') + '.')
+    pregunta = ('El equipo ve riesgo en lo que se va a escribir (' + '; '.join(malos) + '): no se escribe. '
+                '¿Quiere rehacer antes esa corrida? Corríjala y repita la orden.') if decision == 'riesgo' else ''
+    return {'tarea': tarea, 'decision': decision, 'dictamenes': dictamenes, 'evidencia_ids': sorted(usadas),
+            'contexto': {'proyecto': contexto.get('proyecto'), 'fuente': contexto.get('fuente')},
+            'resumen': resumen, 'pregunta': pregunta, 'de_lo_calculado': True, 'calculo_nuevo': False,
+            'modelo_concede_autoridad': False, 'autoriza_ejecucion': False}
+
+
 def _huella(dato: Any) -> str:
     return hashlib.sha256(json.dumps(dato, ensure_ascii=False, sort_keys=True,
                                     default=str, allow_nan=False).encode('utf-8')).hexdigest()
@@ -58,7 +178,7 @@ def inventario_equipo() -> dict:
     067:RF-40: el proyecto entero se confirma con una lista única, y aquí se dice. El inventario
     declaraba «confirmación obligatoria» por herramienta mientras un clic las confirmaba todas.
     """
-    from .orquestador import ETAPAS
+    from .orquestador import ETAPAS_PROYECTO_ENTERO as ETAPAS      # 027:RF-72: hasta los módulos
 
     en_proyecto = {e.tarea for e in ETAPAS}
     return {'modelos_conceden_permisos': False, 'autonomia_habilitada': False,
@@ -85,7 +205,11 @@ def inventario_equipo() -> dict:
                                   'examen_humano': list(lectura_proyecto.EXAMEN_HUMANO)},
             'politica_por_defecto': 'restringida'},
         'concurrencia': {'por_espacio': 1, 'motor_nativo': 'carril powerfactory de JobManager',
-                         'revision': 'secuencial; máximo dos rondas'}}
+                         'revision': 'secuencial; máximo dos rondas'},
+        # 026:RF-47: antes de un entregable, el dictamen de lo ya calculado; con «riesgo» no se escribe.
+        'dictamen_antes_de_entregable': {'tareas': sorted(TAREAS_ENTREGABLE), 'roles': list(ROLES_REVISION),
+                                         'decisiones': list(DECISIONES_DICTAMEN), 'riesgo_bloquea': True,
+                                         'de_lo_calculado': True, 'modelo_concede_autoridad': False}}
 
 
 def _fila_accion(*, plan: str | None, herramienta: str, responsable: str, alcance: dict, entradas: Any,
@@ -191,12 +315,18 @@ class GobiernoEquipo:
         instancia.lectura = (plan.tarea in TAREAS and not TAREAS[plan.tarea].escribe
                              and not requiere_confirmacion(plan.tarea))          # 086:RF-24
         instancia._activa = False
+        instancia.dictamen = None
         return instancia
+
+    def dictaminar(self, evidencia: Mapping[str, Mapping], contexto: Mapping, *, ilegible: str = '') -> dict | None:
+        """026:RF-47: el dictamen del equipo sobre el entregable de este plan, sellado con él."""
+        self.dictamen = dictamen_del_equipo(self.tarea, evidencia, contexto=contexto, ilegible=ilegible)
+        return self.dictamen
 
     def sello(self) -> dict:
         """Lo que se selló al proponer el plan, para guardarlo con él (067:RF-12)."""
         return {'firma': self.firma, 'alcance': deepcopy(self.alcance), 'rol': self.rol,
-                'archivos_entrada': dict(self.archivos_entrada)}
+                'archivos_entrada': dict(self.archivos_entrada), 'dictamen': deepcopy(self.dictamen)}
 
     @classmethod
     def restaurar(cls, ws, plan, *, extras: dict | None, sello: dict):
@@ -208,6 +338,7 @@ class GobiernoEquipo:
             raise PermisoDenegado('el plan guardado no coincide con su firma; proponga otro plan')
         instancia.alcance = deepcopy(sello['alcance'])
         instancia.archivos_entrada = dict(sello.get('archivos_entrada') or {})
+        instancia.dictamen = deepcopy(sello.get('dictamen'))                    # 026:RF-47
         return instancia
 
     def confirmar(self, plan) -> None:
@@ -239,6 +370,9 @@ class GobiernoEquipo:
             raise PermisoDenegado('el plan está incompleto')
         if not self.lectura and not self.confirmado:
             raise PermisoDenegado('la escritura requiere confirmación del operador')
+        if (self.dictamen or {}).get('decision') == 'riesgo':
+            # 026:RF-47: con «riesgo» el asistente no escribe, aunque el operador haya confirmado: lo enseña y pregunta.
+            raise PermisoDenegado(self.dictamen['pregunta'])
 
     def publico(self) -> dict:
         """Permiso y límites del plan; nunca incorpora pesos ni datos empresariales."""
@@ -252,7 +386,8 @@ class GobiernoEquipo:
                 'permiso_efectivo': efectivo, 'motivo': motivo,
                 'revision': 'confirmacion_operador; no es aceptación científica',
                 'carril': 'powerfactory' if self.tarea in _NATIVAS else 'engine',
-                'limite_concurrente_espacio': 1, 'autonomia_habilitada': False}
+                'limite_concurrente_espacio': 1, 'autonomia_habilitada': False,
+                'dictamen': deepcopy(self.dictamen)}
 
     @contextmanager
     def accion(self, *, cancelado=lambda: False):

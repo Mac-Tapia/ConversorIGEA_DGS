@@ -12,12 +12,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 128 |
 | Interfaz | `frontend/src/` | 116 |
-| Pruebas de la interfaz | `frontend/test/` | 62 |
-| Pruebas | `tests/` | 622 |
+| Pruebas de la interfaz | `frontend/test/` | 63 |
+| Pruebas | `tests/` | 629 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 14174 líneas y 443 funciones, pendiente de partir (002).
+`web/services.py` tiene 14337 líneas y 450 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -48,16 +48,16 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-165 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+168 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
 | `demanda` | espacio | 30 |
 | `pf` | espacio | 24 |
 | `informes` | espacio | 11 |
+| `asistente` | general | 11 |
 | `asistente` | espacio | 10 |
 | `powerfactory` | espacio | 8 |
-| `asistente` | general | 8 |
 | `digital-twin` | espacio | 7 |
 | `lote` | espacio | 4 |
 | `catalog` | espacio | 3 |
@@ -129,7 +129,7 @@ El intérprete acepta al modelo de órdenes con confianza 0.85, salvo que traiga
 | `riesgo` | no | sí | Revisa el riesgo de operación: si, según la evidencia, la propuesta deja cargas sin respaldo o sin servicio. |
 | `cliente_mcp` | no | sí | Un cliente MCP de esta máquina: solo las lecturas del proyecto. |
 
-### Tareas (64)
+### Tareas (67)
 
 Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. Todas están en las dos ediciones (086:RF-15).
 
@@ -167,6 +167,7 @@ Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. 
 | `no_disponible` | consulta | no | engine | `estudios_catalogo` | estudio?, proyecto? | Dice por qué un estudio no está disponible: cortocircuito, protecciones, optimización no lineal y los que el catálogo no ofrece, sin ejecutar nada (070:RF-47). |
 | `evaluar_carga_nueva` | etapas | sí | powerfactory | `agente_proyecto` | proyecto, alimentadores, sed, periodo?, ruta? | Evalúa una carga nueva de una vez: diagnóstico, calibración si hace falta, carga, informe y obras solo si hay problemas (070:RF-50). |
 | `cancelar_trabajo` | trabajo | sí | engine | `pf_projects` | — | Cancela los trabajos en curso del espacio, nombrándolos antes (070:RF-32). |
+| `repetir_trabajo` | trabajo | sí | engine | `asistente_plan_repetido` | — | Repite el último trabajo del espacio que falló, con sus mismos datos (026:RF-43). |
 | `convertir_set` | trabajo | sí | engine | `sistema_seleccion` | set | Convierte una SET sola, con sus alimentadores y su barra (022:RF-82). |
 | `set_completo` | proceso | sí | powerfactory | `sistema_web` | set, periodo, ruta? | Una SET de punta a punta: convertir, importar y calibrar con su máxima de barra (070:RF-21). |
 | `alimentadores_completo` | proceso | sí | powerfactory | `sistema_web` | alimentadores, periodo, ruta? | Uno o varios alimentadores de punta a punta: convertir, importar y calibrar (028:RF-25). |
@@ -199,6 +200,8 @@ Carril donde corre si se ejecuta; `opcional?` es un dato que no hace falta dar. 
 | `normativa_comprobar` | consulta | no | engine | `normativa_api.registrar_rutas_normativa` | — | Comprueba las fuentes oficiales de la biblioteca normativa: la huella de cada una contra la registrada y su vigencia hoy; solo lee y nada se descarga (107:RF-22). |
 | `normativa_agregar` | trabajo | sí | engine | `normativa_api.registrar_rutas_normativa` | ruta | Agrega a la capa del usuario de la biblioteca normativa la norma del fichero .json que nombre la orden (con el esquema de la biblioteca normativa); lo que no valida no entra (107:RF-21). |
 | `normativa_regenerar` | trabajo | sí | engine | `normativa_api.registrar_rutas_normativa` | — | Regenera un registro de la biblioteca desde su fuente oficial ya descargada, con su generador (Guía VNR 232, formatos 217, COES o reconsideraciones): comprueba la huella, dice qué reglas entran, salen o cambian y lo escribe en la capa del usuario (107:RF-22). |
+| `asignar_entrada` | trabajo | sí | engine | `app.create_app` | ruta | Asigna un fichero de la máquina a una casilla de entrada del espacio (la red, las cargas, los equipos, la base de la red, el estudio, el paquete del VNR-GIS o los alias), como la subida de la web; lo que la casilla no admite no entra y la entrada vigente se queda (026:RF-42). |
+| `subir_fuente_empresa` | trabajo | sí | engine | `fuentes_api.registrar_rutas_fuentes` | ruta | Sube un libro de las fuentes de la empresa (demanda, SICODI, perfil, interrupciones, catálogo y los demás de la empresa) a su carpeta y a su año, como la web; queda vigente para todos los módulos (026:RF-42). |
 
 ### Etapas del proyecto entero
 
@@ -645,7 +648,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `equipo.py` | Apl | 065 | Gobierno de herramientas y permisos sellados por plan, rol y fuente. |
 | `revision_roles.py` | Apl | 065, 047 | Revisión local por roles sin autorización de escrituras nativas, y su comparación contra un revisor único. |
 | `evidencias_web.py` | Apl | 067 | Custodia como evidencia del espacio el resultado de los informes y estudios que terminan bien, con su proyecto y su fuente verdaderos, para la… |
-| `observacion.py` | Apl | 061 | Diario SQLite por espacio, contexto inmutable, informes custodiados y control de identidad de reanudación, sin promoción. |
+| `observacion.py` | Apl | 061, 026 | Diario SQLite por espacio, contexto inmutable, informes custodiados y control de identidad de reanudación, sin promoción. |
 | `vigilancia.py` | Apl | 026, 050 | Vigilancia de trabajos (fallos, tiempos, colas, reintento del 4002), modelos, calidad de resultados y suite nocturna con el RF de cada fallo. |
 | `mejoras.py` | Apl | 026 | Mejoras en una rama aparte (git worktree) con spec y pruebas y su suite. |
 | `internet.py` | Apl | 026 | Búsquedas en GitHub, PyPI y arXiv con el filtro de identificadores de la red y rutas. |
@@ -681,7 +684,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `prueba_sellada_026.py` | Apl | 026 | La prueba sellada de las cinco tareas nuevas de la 026 (el Estudio VNR, la evolución de clientes fijos y las tres órdenes de la biblioteca… |
 | `prueba_sellada_079.py` | Apl | 079 | La prueba sellada que decide desde la 079: seis frases por tarea escritas de una vez antes de medir, vocabulario inventado, huella fija y su método… |
 | `aceptacion.py` | Apl | 047 | Auditoría, evaluación del intérprete/plan y puertas de aceptación por alcance. |
-| `dataset_entrenamiento.py` | Apl | 043 | Custodia de datos reales, sintéticos y de contexto. |
+| `dataset_entrenamiento.py` | Apl | 043, 026 | Custodia de datos reales, sintéticos y de contexto. |
 | `calidad_datos.py` | Apl | 043 | Calidad y contaminación entre particiones sin inflar el conjunto humano. |
 | `entrenamiento_dataset.py` | Apl | 043 | Ajuste de clasificadores pequeños sobre particiones v2 explícitas. |
 | `destilacion.py` | Apl | 027 | Destilación del modelo local de Ollama (maestro) al Transformer de órdenes: k votos con temperatura por orden sin etiqueta, filtro por acuerdo y… |
@@ -933,7 +936,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `preguntas_entregables.py` | — | 076 | Preguntas de metodología y criterios por entregable: verifica fuentes, cifras y nombres, reparte en corpus y sellado, exporta e importa la hoja de… |
 | `llm_destilar.py` | — | 047, 060 | Prepara el corpus del alumno LLM a partir de fuentes verificadas de este proyecto. |
 | `aceptar_agente.py` | — | 047 | Materializa propuestas, selecciona configuración local y evalúa las 200 sin ejecutar acciones nativas. |
-| `construir_dataset_entrenamiento.py` | — | 043 | Construye el dataset de entrenamiento en una carpeta nueva y dice si está completo con los umbrales de la spec 027. |
+| `construir_dataset_entrenamiento.py` | — | 043, 026 | Construye el dataset de entrenamiento en una carpeta nueva, con las operaciones acabadas de los diarios de los espacios medidas y sin promover, y… |
 | `reentrenar_modelos.py` | — | 043, 060 | CLI de coordinación, validación de configuración y rechazo de resultados incompletos. |
 | `aprendizaje_continuo.py` | — | 050 | Congela la instantánea, ejecuta el ciclo único con las etapas de `reentrenar_modelos` sobre las copias, muestra sus fases, lo cancela y vuelve al… |
 | `preparar_ciclo_aprendizaje.py` | — | 050, 086, 120 | Genera en una carpeta nueva el manifiesto de procedencia por registro, el contexto del ciclo, la vista del búfer, el complemento declarado, los casos… |
@@ -1148,6 +1151,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | --- | --- | --- | --- |
 | `test/accesibilidad.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/alternativas.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/asistenteAprendido.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/avisosEnSuPaso.test.mjs` | — | 086 | Pruebas de los avisos de trabajo en su paso: tabla completa de los `kind` del servidor, render de cada paso, resolución automática y lo que queda… |
 | `test/carriles.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/contratoNubeCorreo.test.mjs` | — | 109, 110 | Pruebas de que los clientes de la nube y del correo usan el contrato generado: sin tipos provisionales ni interfaces propias, modelos que existen y… |

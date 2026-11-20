@@ -38,12 +38,11 @@ SPECS_DEL_ASISTENTE = ('026', '047', '070')
 #: Responsable de cada hueco, del tablero del 18-11 (acta A0–A6 de ce). Solo puede bajar: una tarea que se cierra sale de
 #: aquí, y una abierta sin fila hace fallar ``--comprobar``.
 RESPONSABLES: dict[str, str] = {
-    '026:T16': 'ce (ASISTENTE-B)', '026:T17': 'ce (ASISTENTE-B)', '026:T19': 'ce (ASISTENTE-B)',
-    '026:T21': 'ce (ASISTENTE-C)', '026:T22': 'ce (ASISTENTE-C, con A1)', '026:T23': 'ce (ASISTENTE-C)',
+    '026:T16': 'ce (ASISTENTE-B)',
     '047:T4': 'sin asignar: evaluación real (GPU)', '047:T7': 'sin asignar: destilación del LLM (GPU)',
     '047:T8': 'sin asignar: revisión que distingue defectos',
-    '070:T11': 'usuario: candidato en DIgSILENT', '070:T21': 'sin asignar: frases y sellada nueva',
-    '070:T22': 'sin asignar: reentreno en GPU',
+    '070:T11': 'usuario: candidato en DIgSILENT',
+    '070:T22': 'ce: reentreno en GPU (turno 6 de TURNOS_GPU_ce_2026-11-19)',
 }
 
 _VIA = {'consulta': 'consulta', 'trabajo': 'plan', 'proceso': 'proceso', 'etapas': 'etapas'}

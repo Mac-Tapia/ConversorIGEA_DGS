@@ -14,6 +14,7 @@ async function cargar() {
     import { renderToStaticMarkup } from 'react-dom/server';
     import { GemeloPIDE } from './src/features/powerfactory/GemeloPIDE';
     import { Asistente } from './src/features/asistente/Asistente';
+    export { lineaDeEtapa } from './src/features/asistente/Asistente';
     import { Ctx } from './src/shared/context';
     const valor = (producto) => ({ ws:{id:'W',options:{},inputs:{}}, jobs:{}, active:{},
       health:{edicion:{producto,beta:[]}}, run: async () => undefined, startJob: async () => undefined });
@@ -41,3 +42,13 @@ test('086:RF-15, RF-16 el asistente ofrece reentrenar, modelos, aprendizaje y ac
   for (const t of ['Reentrenar', 'Estado de los modelos', 'propuestas y aceptación del agente']) assert.ok(html.includes(t), t);
   assert.equal(html, asistente(false), 'las dos ediciones pintan lo mismo');
 });
+
+test('027:RF-72 la etapa de un módulo que se salta dice su motivo, no solo «se omitirá»', async () => {
+  const { lineaDeEtapa } = await cargar();
+  assert.equal(typeof lineaDeEtapa, 'function', 'falta lineaDeEtapa en Asistente.tsx (027:RF-72)');
+  const base = { nombre: 'pit', tarea: 'pit', descripcion: 'PIT', escribe: true, falta: [] };
+  assert.equal(lineaDeEtapa({ ...base, estado: 'se_omitira', motivo: 'sin el libro del PIT' }), 'se omitirá: sin el libro del PIT');
+  assert.equal(lineaDeEtapa({ ...base, estado: 'falta_dato', falta: ['periodo'] }), 'falta un dato: periodo');
+  assert.equal(lineaDeEtapa({ ...base, estado: 'pendiente' }), 'se hará');
+});
+

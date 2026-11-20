@@ -20,7 +20,7 @@ import random
 
 from ..evaluacion_modelos import huella, texto_canonico
 from .sinteticos import expandir
-from .tareas import TAREAS_026
+from .tareas import TAREAS_026, TAREAS_026_CONTROL
 
 POR_FRASE = 8
 RUIDO = .06
@@ -66,15 +66,14 @@ FRASES: dict[str, tuple[str, ...]] = {
 }
 
 
-def filas() -> list[dict]:
-    """Las filas de la prueba, sin comprobar su huella: las mismas con cualquier espacio."""
-    if set(FRASES) != set(TAREAS_026):
-        raise ValueError('la prueba sellada de la 026 no cubre exactamente sus tareas')
+def _filas(frases: dict[str, tuple[str, ...]], tareas: frozenset[str], conjunto: str) -> list[dict]:
+    if set(frases) != set(tareas):
+        raise ValueError(f'la prueba sellada {conjunto} no cubre exactamente sus tareas')
     salida, vistos = [], {}
-    for tarea in sorted(FRASES):
-        for j, plantilla in enumerate(FRASES[tarea]):
+    for tarea in sorted(frases):
+        for j, plantilla in enumerate(frases[tarea]):
             rnd = random.Random(SEMILLA + j + int(huella(tarea)[:8], 16))
-            grupo = huella({CONJUNTO: plantilla, 'tarea': tarea})
+            grupo = huella({conjunto: plantilla, 'tarea': tarea})
             for _ in range(POR_FRASE):
                 e = expandir(plantilla, tarea, rnd, VOCABULARIO, ruido=RUIDO)
                 clave = texto_canonico(e.texto)
@@ -84,10 +83,15 @@ def filas() -> list[dict]:
                     continue
                 vistos[clave] = tarea
                 r = {'texto': e.texto, 'tarea': tarea, 'datos': [list(d) for d in sorted(e.datos)], 'group_id': grupo,
-                     'particion': 'prueba', 'quality': 'silver_teacher_verified', 'del_maestro': True, 'conjunto': CONJUNTO}
+                     'particion': 'prueba', 'quality': 'silver_teacher_verified', 'del_maestro': True, 'conjunto': conjunto}
                 r['record_id'] = huella(r)
                 salida.append(r)
     return sorted(salida, key=lambda r: r['record_id'])
+
+
+def filas() -> list[dict]:
+    """Las filas de la prueba, sin comprobar su huella: las mismas con cualquier espacio."""
+    return _filas(FRASES, TAREAS_026, CONJUNTO)
 
 
 def huella_de(registros: list[dict]) -> str:
@@ -99,4 +103,48 @@ def selladas() -> list[dict]:
     registros = filas()
     if huella_de(registros) != HUELLA:
         raise ValueError(f'la huella de {CONJUNTO} no coincide: las frases o su expansión cambiaron')
+    return registros
+
+
+# --- 026:RF-42 y RF-43: repetir el último trabajo que falló y las órdenes de las entradas ---------------------------
+#
+# Método declarado: el mismo autor, Claude, las escribió de una vez el 2026-11-19, en una sola pasada y sin mirar ningún
+# modelo, seis por tarea, con otra redacción que la de ``curriculo_maestro``, ``propuestas_maestro`` y las plantillas del
+# catálogo; su huella se fijó antes de entrenar o medir nada con ellas. Van en su propio conjunto para que la sellada de
+# arriba conserve la suya. Lo que no garantiza, lo mismo que la de arriba.
+CONJUNTO_CONTROL = 'sellada_026_control'
+#: 026:RF-42, RF-43: la huella de sus filas; se fijó antes de medir nada con ellas.
+HUELLA_CONTROL = '54a19b36009d381b'
+FRASES_CONTROL: dict[str, tuple[str, ...]] = {
+    'repetir_trabajo': ('el trabajo de antes se cayo, mandalo de nuevo igual',
+                        'otra vez lo mismo que no termino bien, con sus datos',
+                        'relanza la tarea que quedo en error',
+                        'insiste con lo ultimo que no salio',
+                        'dale una segunda vuelta al que reviento',
+                        'retoma el encargo que termino con fallo'),
+    'asignar_entrada': ('quiero que la casilla de topologia tome {ruta}',
+                        'la entrada de cargas debe ser {ruta}, asignala',
+                        'asigna al espacio la base access {ruta}',
+                        'el catalogo de conductores del espacio es {ruta}, asignalo a equipos',
+                        'deja asignado {ruta} en la casilla del paquete gis',
+                        'asigna este fichero de alias {ruta}'),
+    'subir_fuente_empresa': ('el sicodi vigente esta en {ruta}, registralo para el 2026',
+                             'quiero subir a los libros de la empresa la medicion {ruta} del 2025',
+                             'registra para el 2024 las interrupciones que estan en {ruta}',
+                             'sube como catalogo de la empresa el libro {ruta}',
+                             'deja en las fuentes de la empresa la demanda {ruta} de 2023',
+                             'registra el perfil de la empresa que esta en {ruta}'),
+}
+
+
+def filas_control() -> list[dict]:
+    """026:RF-42, RF-43: las filas del conjunto de control, sin comprobar su huella."""
+    return _filas(FRASES_CONTROL, TAREAS_026_CONTROL, CONJUNTO_CONTROL)
+
+
+def selladas_control() -> list[dict]:
+    """Las filas del conjunto de control, comprobadas por su huella."""
+    registros = filas_control()
+    if huella_de(registros) != HUELLA_CONTROL:
+        raise ValueError(f'la huella de {CONJUNTO_CONTROL} no coincide: las frases o su expansión cambiaron')
     return registros

@@ -36,6 +36,51 @@ class CancelacionAprendizajeRespuesta(Respuesta):
     mensaje: str
 
 
+class EvaluacionAccionesRespuesta(Respuesta):
+    casos: int
+    aciertos: int
+    acierto: float | None
+    aprendidas_de: int
+
+
+class PuertasAccionesRespuesta(Respuesta):
+    superadas: bool
+    fallos: list[str]
+    acierto_minimo: float
+    casos_minimos: int
+
+
+class AccionesAprendidasRespuesta(Respuesta):
+    """026:RF-49: lo aprendido del operador, con su evaluación sobre casos que no vio y sus puertas."""
+    tabla: list[list[str]]
+    evaluacion: EvaluacionAccionesRespuesta
+    puertas: PuertasAccionesRespuesta
+    huella: str
+    promovido: bool
+    intacto: bool
+    promovido_por: str | None = None
+    promovido_en: str | None = None
+
+
+class AprendidoRespuesta(Respuesta):
+    """026:RF-49: el candidato medido, lo que está en uso y si el operador puede promover el candidato."""
+    candidato: AccionesAprendidasRespuesta | None
+    en_uso: AccionesAprendidasRespuesta | None
+    se_puede_promover: bool
+    motivo: str
+
+
+class AprendidoPreviaRespuesta(AprendidoRespuesta):
+    """026:RF-49: lo que se promovería, con la confirmación de un solo uso para ese candidato."""
+    confirmacion: str
+
+
+class PromoverAprendidoPeticion(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    huella: str = Field(min_length=1, max_length=128)
+    confirmacion: str = Field(min_length=1, max_length=256)
+
+
 class ProgresoRespuesta(Respuesta):
     index: int
     total: int

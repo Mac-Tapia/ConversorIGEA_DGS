@@ -50,7 +50,8 @@ from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, Vers
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
     ArchivoRespuesta, AmbitoFuenteRespuesta, ElegirPowerFactoryPeticion, EstadoPowerFactoryRespuesta,
     InstalacionesPowerFactoryRespuesta, EstadoAprendizajeRespuesta,
-    CancelacionAprendizajeRespuesta, CambiarSalidaPeticion, SalidasRedRespuesta)
+    CancelacionAprendizajeRespuesta, CambiarSalidaPeticion, SalidasRedRespuesta,
+    AprendidoRespuesta, AprendidoPreviaRespuesta, PromoverAprendidoPeticion)
 from .api_contract import FormatoPeticion, LibrosNuevosRespuesta, RevisarLibrosRespuesta    # specs 089 y 104
 from .services import UserError
 from .workspace import (
@@ -2652,6 +2653,45 @@ def create_app(
         return {'solicitada': solicitada, 'mensaje': (
             'Cancelación solicitada: la etapa en curso termina y no empieza la siguiente.'
             if solicitada else 'Este ciclo ya no está en curso.')}
+
+    # 026:RF-49: lo aprendido del operador llega al operador; lo promueve él, con su previa y una confirmación de un
+    # solo uso (el patrón de la nube, 109:RF-15), y nunca un programa con el token de la web.
+    from ...adaptadores.salida.nube import Confirmaciones as _Confirmaciones, Rechazo as _Rechazo
+    confirmaciones_aprendido = _Confirmaciones()
+
+    def _solo_operador_aprendido(request: Request) -> None:
+        if (request.headers.get(sesion_web.CABECERA_TOKEN)
+                or request.headers.get('authorization', '').lower().startswith('bearer')):
+            raise HTTPException(403, 'Lo aprendido lo promueve el operador desde la web: el asistente y los programas '
+                                     'no promueven nada.')
+
+    @app.get('/api/asistente/aprendido', response_model=AprendidoRespuesta)
+    def asistente_aprendido() -> dict:
+        """026:RF-49: el candidato con su evaluación y sus puertas, lo que está en uso y si se puede promover."""
+        return services.asistente_aprendido()
+
+    @app.post('/api/asistente/aprendido/previa', response_model=AprendidoPreviaRespuesta)
+    def asistente_aprendido_previa(request: Request) -> dict:
+        """026:RF-49: lo que se promovería, con la confirmación de un solo uso para ese candidato; no promueve."""
+        _solo_operador_aprendido(request)
+        estado = services.asistente_aprendido()
+        if not estado['candidato']:
+            raise HTTPException(409, estado['motivo'])
+        return {**estado, 'confirmacion': confirmaciones_aprendido.emitir(
+            '_asistente', 'promover_aprendido', estado['candidato']['huella'])}
+
+    @app.post('/api/asistente/aprendido/promover', response_model=AprendidoRespuesta)
+    def asistente_aprendido_promover(body: PromoverAprendidoPeticion, request: Request) -> dict:
+        """026:RF-49: promueve el candidato revisado; falla con su motivo (sin confirmar, puertas, huella)."""
+        _solo_operador_aprendido(request)
+        try:
+            confirmaciones_aprendido.consumir(body.confirmacion, '_asistente', 'promover_aprendido', body.huella)
+        except _Rechazo as exc:
+            raise HTTPException(409, str(exc).replace('el envío', 'lo aprendido')) from exc
+        try:
+            return services.asistente_promover_aprendido(body.huella, 'operador (sesión del navegador)')
+        except UserError as exc:
+            raise HTTPException(409, str(exc)) from exc
 
     @app.get('/api/asistente/aceptacion')
     def asistente_aceptacion() -> dict:

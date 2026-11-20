@@ -63,6 +63,21 @@ class RegistroOperaciones:
             salida.append({**d,'contexto':json.loads(contexto),'seguimiento':seguimiento,'seq_registro':seq})
         return salida
 
+    def terminadas(self) -> list[dict]:
+        """026:RF-49: las operaciones acabadas del espacio, de la más antigua a la más reciente, con el contexto fijado
+        al encolarlas: qué se lanzó tras qué y cómo acabó, que es lo que aprende el asistente. Sin el tope de ``leer``
+        (la vista del monitor), y sin las vivas: una a medias todavía no enseña nada."""
+        if not self.ruta.is_file():return []
+        with closing(sqlite3.connect(f'{self.ruta.resolve().as_uri()}?mode=ro',uri=True,timeout=2)) as db:
+            filas=db.execute('SELECT job,creado,contexto,payload,seq FROM trabajos WHERE espacio=? ORDER BY creado,seq',
+                             (self.workspace_id,)).fetchall()
+        salida=[]
+        for job,creado,contexto,payload,seq in filas:
+            d=json.loads(payload)
+            if d.get('status') in ('queued','running'):continue
+            salida.append({**d,'id':job,'created_at':creado,'contexto':json.loads(contexto),'seq_registro':seq})
+        return salida
+
 
 #: 067:RF-1: lo que produce la propia web, que no es de ninguna familia de modelos.
 FAMILIA_OPERACION='operacion_web'

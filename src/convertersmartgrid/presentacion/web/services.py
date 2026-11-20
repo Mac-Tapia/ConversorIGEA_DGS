@@ -12929,9 +12929,23 @@ def _asistente_respuesta(ws: Workspace, plan, trabajos: list[dict]) -> dict:
         # La propia orden no es un trabajo del operador: «1 trabajo(s) en curso: Interpretar la orden» (auditor, 2026-11-14).
         en_curso = [j for j in trabajos if j.get('status') not in ('done', 'parcial', 'no_converge', 'failed', 'cancelled')
                     and j.get('kind') not in ('asistente_interpretar', 'asistente_control', 'asistente_indice')]
-        texto = (f"{'Fuente cargada' if ws.dataset is not None else 'Sin fuente cargada'}; {len(filas)} "
-                 f'alimentador(es); {len(en_curso)} trabajo(s) en curso; {len(salidas)} fichero(s) de salida.')
-        return {'texto': texto, 'trabajos': [{'titulo': j['title'], 'estado': j['status']} for j in en_curso]}
+        def n(k, uno, varios):                                  # 086:RF-110: singular o plural reales
+            return f'{k} {uno if k == 1 else varios}'
+
+        # 026:RF-43: de cada trabajo, su carril, su avance y su resultado; y el último que falló, para repetirlo.
+        def fila(j):
+            return {'titulo': j.get('title'), 'estado': j.get('status'), 'carril': j.get('lane'),
+                    'avance': j.get('progress'), 'error': j.get('error') or None}
+        propios = [j for j in trabajos if j.get('kind') not in ('asistente_interpretar', 'asistente_control',
+                                                                 'asistente_indice')]
+        fallido = next((j for j in reversed(propios) if j.get('status') == 'failed'), None)
+        texto = (f"{'Fuente cargada' if ws.dataset is not None else 'Sin fuente cargada'}; "
+                 f"{n(len(filas), 'alimentador', 'alimentadores')}; {n(len(en_curso), 'trabajo en curso', 'trabajos en curso')}"
+                 f"; {n(len(salidas), 'fichero de salida', 'ficheros de salida')}.")
+        if fallido:
+            texto += f" El último que falló: «{fallido.get('title')}» ({fallido.get('error') or 'sin motivo'})."
+        return {'texto': texto, 'trabajos': [fila(j) for j in en_curso],
+                'ultimo_fallido': fila(fallido) if fallido else None}
     if t == 'proyectos':
         nombres = [p.get('name') for p in pf_proyectos_guardados(ws).get('projects') or []]
         return {'texto': f'{len(nombres)} proyecto(s) conocidos.' if nombres else
@@ -12997,6 +13011,8 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
     interp = interpretar(texto, transformer=transformer, ollama=ollama, contexto=contexto_para(texto, memoria=memoria),
                          umbrales=almacen.leer_json('umbrales') or {})                       # 027:RF-38
     plan = resolver(interp, asistente_vocabulario(ws), grupos=asistente_grupos(ws))
+    if plan.tarea == 'repetir_trabajo':                       # 026:RF-43: el plan del último trabajo que falló
+        plan = asistente_plan_repetido(ws, plan)
     if transformer is None:
         # 067:RF-8 a RF-10: seguir con Ollama está bien; callarlo, no.
         from ...aplicacion.asistente.plan import aviso_sin_transformer
@@ -13034,8 +13050,12 @@ def asistente_orden(ws: Workspace, texto: str, trabajos: list[dict] | None = Non
         publico['pasos'] = describir(plan.tarea, plan.datos, extras)
     elif plan.tarea and plan.modo == 'etapas':
         publico['pasos'] = list(extras.get('etapas_en_palabras') or [])         # 070:RF-31, RF-51
+        if extras.get('camino'):
+            publico['camino'] = extras['camino']                                 # 026:RF-48
     gobierno = GobiernoEquipo.desde_plan(ws, plan, extras=extras)
+    _asistente_dictamen(ws, plan, gobierno)                                      # 026:RF-47
     publico['equipo'] = gobierno.publico()
+    publico.update(avisos=list(plan.avisos), razonamiento=list(plan.razonamiento))
     _asistente_guardar_plan(ws, plan, extras, gobierno)
     # 086:RF-19: la orden se guarda entera para auditar y aprender; un token pegado en ella, no.
     almacen.anotar('ordenes', {'espacio': ws.id, 'plan': plan.id, 'texto': depurar_secretos(texto), 'tarea': plan.tarea,
@@ -13073,6 +13093,28 @@ def asistente_olvidar(ws: Workspace) -> dict:
     from ...aplicacion.asistente.senales import MemoriaConversacion
 
     return MemoriaConversacion(ws.root).olvidar()
+
+
+def _asistente_dictamen(ws: Workspace, plan, gobierno) -> dict | None:
+    """026:RF-47: antes de escribir un entregable, el dictamen del equipo (fuentes, física, coste y riesgo) sacado de las
+    corridas custodiadas del mismo proyecto y fuente (067:RF-1 a RF-5), sellado con el plan y enseñado con la
+    confirmación. Con «riesgo», el asistente no escribe: lo enseña y pregunta (``GobiernoEquipo._validar``)."""
+    from ...aplicacion.asistente.equipo import TAREAS_ENTREGABLE
+    from ...aplicacion.asistente.evidencias_web import evidencias_del_contexto, huella_fuente
+
+    if plan.tarea not in TAREAS_ENTREGABLE:
+        return None
+    proyecto = plan.datos.get('proyecto')
+    fuente = huella_fuente(ws, proyecto)
+    try:
+        evidencia, ilegible = evidencias_del_contexto(ws.out_dir, proyecto, fuente), ''
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        evidencia, ilegible = {}, f'la evidencia del espacio no acredita su integridad: {exc}'
+    dictamen = gobierno.dictaminar(evidencia, {'proyecto': proyecto, 'fuente': fuente}, ilegible=ilegible)
+    plan.razonamiento.append(dictamen['resumen'])
+    if dictamen['decision'] == 'riesgo':
+        plan.avisos.append(dictamen['pregunta'])
+    return dictamen
 
 
 #: Tareas que necesitan la fuente del espacio (RED, CARGA y EQUIPOS, una .mdb o un VNR-GIS).
@@ -13428,8 +13470,9 @@ def _proyecto_con_libros(ws: Workspace, datos: dict) -> dict:
 
 def agente_proyecto_lista(ws: Workspace, datos: dict, reiniciar: bool = False, *, etapas: tuple | None = None,
                           control: str = 'agente_proyecto.json', omitir: dict | None = None) -> dict:
-    """Las etapas antes del clic; solo lee (067:RF-37, 070:RF-51)."""
-    from ...aplicacion.asistente.orquestador import ETAPAS, lista_de_etapas
+    """Las etapas antes del clic; solo lee (067:RF-37, 070:RF-51). Sin ``etapas``, las del proyecto entero hasta los
+    módulos (027:RF-72)."""
+    from ...aplicacion.asistente.orquestador import ETAPAS_PROYECTO_ENTERO as ETAPAS, lista_de_etapas
 
     datos = _proyecto_con_libros(ws, datos)
     ruta = ws.out_dir / control
@@ -13437,8 +13480,91 @@ def agente_proyecto_lista(ws: Workspace, datos: dict, reiniciar: bool = False, *
         guardado = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
     except (OSError, ValueError) as exc:
         raise UserError(f'El punto de control del proyecto no se puede leer: {exc}') from exc
-    return lista_de_etapas(datos, guardado if isinstance(guardado, dict) else {}, _agente_identidad(ws), reiniciar=reiniciar,
-                           etapas=etapas or ETAPAS, omitir=omitir)
+    lista = lista_de_etapas(datos, guardado if isinstance(guardado, dict) else {}, _agente_identidad(ws), reiniciar=reiniciar,
+                            etapas=etapas or ETAPAS, omitir=omitir)
+    if etapas is None:
+        # 026:RF-48: el camino que propone el asistente va con la lista que ve el operador, sin depender del intérprete.
+        from .asistente_operacion import camino_del_proyecto
+
+        lista['camino'] = camino_del_proyecto(ws, lista, datos)
+    if (aprendido := _propuesta_aprendida(ws)) is not None:
+        lista['aprendido'] = aprendido
+    return lista
+
+
+def _propuesta_aprendida(ws: Workspace) -> dict | None:
+    """026:RF-49: lo que el asistente propone porque lo aprendió del operador, solo si está promovido e intacto y su
+    contexto (la fuente del espacio y lo último acabado en su diario) es uno de los aprendidos. Nunca ejecuta: se
+    confirma como cualquier otra propuesta. Lo que no se puede leer no propone nada; el estado lo dice
+    ``asistente_aprendido``."""
+    import sqlite3
+
+    from ...aplicacion.asistente import almacen
+    from ...aplicacion.asistente.dataset_entrenamiento import (anterior_del_espacio, leer_acciones_aprendidas,
+                                                              propuesta_aprendida)
+
+    try:
+        en_uso = leer_acciones_aprendidas(almacen.raiz())['en_uso']
+        if not en_uso:
+            return None
+        modo = str(ws.loaded_source_mode or '').casefold()
+        return propuesta_aprendida(en_uso, fuente=modo if modo in {'txt', 'mdb', 'vnr'} else 'sin_fuente',
+                                   anterior=anterior_del_espacio(ws.out_dir / 'observacion/operaciones.sqlite3', ws.id))
+    except (OSError, ValueError, sqlite3.Error):
+        return None
+
+
+def _acciones_para_la_web(acciones: dict | None) -> dict | None:
+    from ...aplicacion.asistente.dataset_entrenamiento import acciones_intactas
+
+    if not acciones:
+        return None
+    return {'tabla': [[str(x) for x in fila] for fila in acciones.get('tabla') or []],
+            'evaluacion': acciones.get('evaluacion'), 'puertas': acciones.get('puertas'),
+            'huella': str(acciones.get('huella') or ''), 'promovido': acciones.get('promovido') is True,
+            'intacto': acciones_intactas(acciones), 'promovido_por': acciones.get('promovido_por'),
+            'promovido_en': acciones.get('promovido_en')}
+
+
+def asistente_aprendido() -> dict:
+    """026:RF-49: el candidato que dejó el dataset, con sus puertas, lo que está en uso y si se puede promover."""
+    from ...aplicacion.asistente import almacen
+    from ...aplicacion.asistente.dataset_entrenamiento import acciones_intactas, leer_acciones_aprendidas
+
+    try:
+        leido = leer_acciones_aprendidas(almacen.raiz())
+    except ValueError as exc:
+        raise UserError(str(exc)) from exc
+    candidato, en_uso = leido['candidato'], leido['en_uso']
+    if not candidato:
+        motivo = 'Aún no hay nada aprendido: se mide al construir el dataset.'
+    elif not acciones_intactas(candidato):
+        motivo = 'Lo aprendido cambió después de medirse: hay que construir el dataset de nuevo.'
+    elif not (candidato.get('puertas') or {}).get('superadas'):
+        motivo = 'No pasó sus puertas: ' + '; '.join((candidato.get('puertas') or {}).get('fallos') or ['sin evaluar'])
+    elif en_uso and en_uso.get('huella') == candidato.get('huella'):
+        motivo = 'Ya está en uso.'
+    else:
+        motivo = ''
+    try:
+        return {'candidato': _acciones_para_la_web(candidato), 'en_uso': _acciones_para_la_web(en_uso),
+                'se_puede_promover': not motivo, 'motivo': motivo}
+    except (TypeError, AttributeError) as exc:
+        raise UserError(f'Lo aprendido no tiene la forma esperada: {exc}') from exc
+
+
+def asistente_promover_aprendido(huella: str, confirmado_por: str) -> dict:
+    """026:RF-49: promueve el candidato que el operador revisó; falla con su motivo si no se puede."""
+    from ...aplicacion.asistente import almacen
+    from ...aplicacion.asistente.dataset_entrenamiento import promover_y_guardar_acciones
+
+    try:
+        promover_y_guardar_acciones(almacen.raiz(), huella=huella, confirmado_por=confirmado_por, fecha=almacen.ahora())
+    except ValueError as exc:
+        raise UserError(f'No se promueve: {exc}.') from exc
+    almacen.anotar('decisiones', {'decision': 'acciones_aprendidas_promovidas', 'huella': huella,
+                                  'confirmado_por': confirmado_por})
+    return asistente_aprendido()
 
 
 def agente_proyecto_anotar(ws: Workspace, datos: dict, lista: dict) -> None:
@@ -13463,7 +13589,7 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
     import sys
 
     from ...aplicacion.asistente.ejecutor import ClienteWeb, PasoFallido
-    from ...aplicacion.asistente.orquestador import ETAPAS, ejecutar_proyecto
+    from ...aplicacion.asistente.orquestador import ETAPAS_PROYECTO_ENTERO as ETAPAS, ejecutar_proyecto
     from ...aplicacion.asistente.observacion import preparar_control
 
     datos = _proyecto_con_libros(ws, datos)
@@ -13502,6 +13628,8 @@ def agente_proyecto(ws: Workspace, ctx: JobContext, datos: dict, base: str, http
         plan = Plan(uuid.uuid4().hex[:12], 'Etapa autorizada del proyecto supervisado', tarea,
                     definicion.escribe, definicion.modo, datos=dict(datos_etapa))
         gobierno = GobiernoEquipo.desde_plan(ws, plan, extras=extras)
+        # 026:RF-47: la etapa que escribe un entregable también lleva el dictamen del equipo; con «riesgo», no escribe.
+        _asistente_dictamen(ws, plan, gobierno)
         # El operador aceptó esta etapa en la lista única que vio antes del clic (067:RF-37, RF-40).
         gobierno.confirmar(plan)
         gobierno.validar_cliente(cliente)
@@ -13764,12 +13892,55 @@ def _asistente_clasificar_generado(ws: Workspace, plan, nombres: list[str]) -> d
     return {'tipo': tipo, 'subtipo': subtipo, 'clasificador': r}
 
 
+def _asistente_plan_desde(ws: Workspace, texto: str, tarea: str, datos: Mapping[str, Any], origen: str, motivo: str):
+    """Un plan nuevo con la tarea y los datos dados, resuelto con el vocabulario y el sello de ahora: la corrección del
+    operador (026:RF-15) y la repetición de un trabajo que falló (026:RF-43)."""
+    from ...aplicacion.asistente.interprete import Interpretacion
+    from ...aplicacion.asistente.plan import resolver
+    from ...aplicacion.asistente.tareas import TAREAS
+
+    por_tipo: dict[str, list[dict]] = {}
+    for d in TAREAS[tarea].datos:
+        v = datos.get(d.nombre)
+        for x in (v if isinstance(v, list) else [v]):
+            if x not in (None, ''):
+                por_tipo.setdefault(d.tipo, []).append({'valor': str(x), 'confianza': 1.0})
+    interp = Interpretacion(texto, tarea, 1.0, origen, por_tipo, [], [motivo])
+    plan = resolver(interp, asistente_vocabulario(ws), grupos=asistente_grupos(ws))
+    _asistente_con_modelo_provisional(plan)
+    return plan
+
+
+def asistente_plan_repetido(ws: Workspace, plan):
+    """026:RF-43: «repite el último trabajo que falló»: el último plan del asistente en este espacio que falló (no el
+    cancelado por el operador) vuelve como un plan NUEVO con su misma tarea y sus mismos datos, con el sello de ahora y
+    su confirmación de siempre; nunca se relanza el trabajo viejo a ciegas. Sin ninguno, la orden lo dice."""
+    from ...aplicacion.asistente.planes_guardados import PlanesGuardados, plan_de
+    from ...aplicacion.asistente.tareas import TAREAS
+
+    fallidos = [d for d in PlanesGuardados(ws.root).listar()
+                if d.get('ultimo_error') and d.get('ultimo_error') != 'cancelado por el operador']
+    if not fallidos:
+        plan.tarea = None
+        plan.faltan.append('no hay ningún trabajo del asistente que haya fallado en este espacio')
+        return plan
+    doc = fallidos[-1]                                         # el último en fallar (por la hora de su fichero)
+    previo = plan_de(doc)
+    if previo.tarea not in TAREAS:
+        plan.tarea = None
+        plan.faltan.append(f'el trabajo que falló era «{previo.tarea}», que esta versión ya no tiene')
+        return plan
+    nuevo = _asistente_plan_desde(ws, previo.texto, previo.tarea, previo.datos, 'repeticion',
+                                  f"repite «{previo.texto}», que falló: {str(doc['ultimo_error'])[:200]}")
+    if previo.datos.get('subtipo') and not nuevo.datos.get('subtipo'):
+        nuevo.datos['subtipo'] = previo.datos['subtipo']
+    return nuevo
+
+
 def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None, datos: dict | None = None,
                        tipo_informe: str | None = None, subtipo: str | None = None) -> dict:
     """La corrección del operador: un plan nuevo y un ejemplo corregido para aprender (026:RF-15, RF-19)."""
     from ...aplicacion.asistente import almacen
-    from ...aplicacion.asistente.interprete import Interpretacion
-    from ...aplicacion.asistente.plan import resolver
     from ...aplicacion.asistente.tareas import TAREAS
 
     guardado = asistente_plan(ws, plan_id)
@@ -13778,15 +13949,7 @@ def asistente_corregir(ws: Workspace, plan_id: str, *, tarea: str | None = None,
     if tarea not in TAREAS:
         raise UserError(f'Tarea desconocida: {tarea}.')
     datos = {**previo.datos, **(datos or {})}
-    por_tipo: dict[str, list[dict]] = {}
-    for d in TAREAS[tarea].datos:
-        v = datos.get(d.nombre)
-        for x in (v if isinstance(v, list) else [v]):
-            if x not in (None, ''):
-                por_tipo.setdefault(d.tipo, []).append({'valor': str(x), 'confianza': 1.0})
-    interp = Interpretacion(previo.texto, tarea, 1.0, 'operador', por_tipo, [], ['corrección del operador'])
-    plan = resolver(interp, asistente_vocabulario(ws), grupos=asistente_grupos(ws))
-    _asistente_con_modelo_provisional(plan)
+    plan = _asistente_plan_desde(ws, previo.texto, tarea, datos, 'operador', 'corrección del operador')
     if subtipo:
         plan.datos['subtipo'] = subtipo
     almacen.anotar('ejemplos', {**_ejemplo_de(previo.texto, tarea, plan.datos), 'origen': 'corregido'})

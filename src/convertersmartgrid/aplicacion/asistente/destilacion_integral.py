@@ -818,6 +818,28 @@ def evaluar_alumno(modelo, registros: list[dict]) -> dict:
             'familias': familias}
 
 
+#: 070:RF-85 (T21): las pruebas selladas de las tareas que la 070 y la 079 no miden, cada una con su huella.
+SELLADAS_NUEVAS = ('prueba_sellada_107_112', 'prueba_sellada_026')
+
+
+def medir_selladas_nuevas(modelo) -> dict:
+    """070:RF-85 (T21): el candidato se mide también en las selladas nuevas, cada una con su huella comprobada.
+
+    Informan y no deciden: la 070 y la 079 siguen como antes (la anterior, histórica), y las selladas nuevas solo
+    decidirán cuando el reentrenamiento (070 T22) incorpore sus tareas. Una frase tocada se delata por la huella y para
+    la medida: medir sobre otras filas no sería esta prueba.
+    """
+    from importlib import import_module
+
+    medidas = {}
+    for nombre in SELLADAS_NUEVAS:
+        s = import_module(f'{__package__}.{nombre}')
+        filas = s.selladas()
+        medidas[s.CONJUNTO] = {'huella': s.HUELLA, 'filas': len(filas), 'tareas': sorted({r['tarea'] for r in filas}),
+                               'decide': False, 'medida': evaluar_alumno(modelo, filas)}
+    return medidas
+
+
 def comprobar_codificador_guardado(carpeta: Path, nombre: str, revision: str) -> None:
     """069:RF-34: cada candidato, nada más guardarlo, anota el codificador con que se entrenó; si no, se para ahí.
 
@@ -1039,7 +1061,8 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
                  'codigo_hashes': {p.name: huella(p.read_text(encoding='utf-8')) for p in
                      (Path(__file__), Path(tr.__file__), Path(co.__file__), Path(__file__).with_name('curriculo_maestro.py'),
                       Path(__file__).with_name('maestro_real.py'), Path(__file__).with_name('prueba_sellada.py'),
-                      Path(__file__).with_name('prueba_sellada_079.py'), Path(vc.__file__), Path(af.__file__))},
+                      Path(__file__).with_name('prueba_sellada_079.py'), Path(vc.__file__), Path(af.__file__),
+                      *(Path(__file__).with_name(f'{n}.py') for n in SELLADAS_NUEVAS))},
                  'entorno': {'python': platform.python_version(), 'torch': tr.modulo_torch().__version__,
                              'cuda': tr.modulo_torch().version.cuda,
                              'gpu': tr.modulo_torch().cuda.get_device_name(0) if tr.modulo_torch().cuda.is_available() else None}}
@@ -1130,6 +1153,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     sellada_079 = ({**(meta.get('prueba_sellada_079') or {}), 'decide': decide_079,
                     'medida': sinteticas if decide_079 else evaluar_alumno(modelo, filas_079)}
                    if filas_079 else meta.get('prueba_sellada_079'))
+    selladas_nuevas = medir_selladas_nuevas(modelo)                                            # 070:RF-85
     rechazo = medir_rechazo(modelo, reservados) if reservados else None
     cobertura = cobertura_por_umbral(modelo, prueba_sintetica)
     # 085:RF-17, RF-18: la tercera cifra, aparte de humanas y sintéticas, con su denominador y por tarea.
@@ -1190,7 +1214,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         dataset_manifest=protocolo, metrics={'sinteticas': sinteticas, 'humanas': humanas,
         'seleccion': candidatos, 'calibracion': calibracion, 'funcionamiento': funcionamiento,
         'rechazo': rechazo, 'cobertura': cobertura, 'en_uso': en_uso, 'prueba_historica': historica,
-        'prueba_sellada': sellada_anterior, 'prueba_sellada_079': sellada_079,
+        'prueba_sellada': sellada_anterior, 'prueba_sellada_079': sellada_079, 'selladas_nuevas': selladas_nuevas,
         'examen_maestro': examen_maestro, 'humanas_por_orden': humanas_por_orden,
         'validacion_cruzada': bloque_cruzada, 'regla_ollama': regla_ollama, 'regla_elegida': regla_elegida,
         'confusiones': confundidas},
@@ -1203,6 +1227,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'rechazo': rechazo, 'cobertura': cobertura, 'modelo_en_uso': en_uso,              # 069:RF-20, RF-27
         'prueba_sellada': sellada_anterior, 'prueba_historica': historica,                # 070:RF-72, 079:RF-46
         'prueba_sellada_079': sellada_079, 'humanas_por_orden': humanas_por_orden,       # 079:RF-45, RF-47; 069:RF-39
+        'selladas_nuevas': selladas_nuevas,                                                # 070:RF-85
         'elegido': elegido, 'candidato': candidato, 'sinteticas': sinteticas, 'humanas': humanas,
         'examen_maestro': examen_maestro,                                                  # 085:RF-17
         'tres_cifras': tres_cifras(humanas, examen_maestro, sinteticas),

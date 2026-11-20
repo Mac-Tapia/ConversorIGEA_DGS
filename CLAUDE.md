@@ -53,8 +53,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 023 VNR-GIS desde la copia de SQL Server de cualquier concesionaria | cumplida |  |
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |
   | 025 Calibración por año de medición | implementada | falta T27 |
-  | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | aprobada | falta T16, T17, T19, T21, T22, T23 |
-  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T26, T33 |
+  | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | aprobada | falta T16 (e2e F04 con modelo) |
+  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T26, T33 (e2e F04) |
   | 028 Escaneo del alimentador antes de recalibrar | cumplida |  |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
   | 030 Los años del PIDE en casos y escenarios de DIgSILENT | cumplida |  |
@@ -97,7 +97,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | cumplida | |
   | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida |  |
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
-  | 070 El asistente opera el conversor de punta a punta | aprobada | falta T11, T14, T15 |
+  | 070 El asistente opera el conversor de punta a punta | aprobada | falta T11, T14, T15, T22 (GPU) |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
   | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T14, T18 |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | cumplida |  |

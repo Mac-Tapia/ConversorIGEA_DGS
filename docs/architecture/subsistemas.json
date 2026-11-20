@@ -949,6 +949,7 @@
    "ficheros": [
     "test/accesibilidad.test.mjs",
     "test/alternativas.test.mjs",
+    "test/asistenteAprendido.test.mjs",
     "test/avisosEnSuPaso.test.mjs",
     "test/carriles.test.mjs",
     "test/contratoNubeCorreo.test.mjs",
