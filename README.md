@@ -133,7 +133,7 @@ los ejemplos de `config/` y se rellenan en local, fuera de git:
 - `config/demanda_medida_alias.json`: otros nombres de columna de los libros de medición.
 - `config/line_type_aliases.json`: equivalencias de tipos de línea, revisadas a mano.
 - Clave `vias` del perfil: el enrutador con que el enlace se traza por la vía pública
-  (OSRM sobre OpenStreetMap en el perfil de Electro Dunas). Solo se envían las
+  (OSRM sobre OpenStreetMap en el perfil de Empresa A). Solo se envían las
   coordenadas de los dos extremos del enlace; sin la clave, el enlace va en recta y no
   sale nada del equipo (spec 016, RF-81 a RF-87).
 

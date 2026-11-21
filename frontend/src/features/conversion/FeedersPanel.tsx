@@ -225,7 +225,7 @@ export function FeedersPanel() {
   const allReady = feeders.length > 0 && feeders.every((row) => row.source_run_id === ws.active_run_id);
   const pfReady = selectedRows.length === selected.length && selectedRows.every((row) => row.conversion?.status === 'ok');
   // Una cabecera sin tramos ni cargas no es un dato incompleto: no hay red que reconstruir.
-  // El 2026-11-01, CA103, CHN103, PI101 y PN208 de Electro Dunas salían como «datos incompletos
+  // El 2026-11-01, CA103, CHN103, PI101 y PN208 de Empresa A salían como «datos incompletos
   // que se reconstruirán», y no traen nada en la entrega.
   const sinRed = (row: FeederRow) => row.sections === 0 && row.loads === 0;
   const blocked = feeders.filter((row) => ['INVENTORY_ONLY', 'NEEDS_OPERATOR_REVIEW'].includes(row.readiness)

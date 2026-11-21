@@ -2207,3 +2207,188 @@ def test_el_perfil_lleva_la_banda_de_tension_del_perfil_de_la_empresa(guion):
     informe, rc = guion.ejecutar(app, {**_plan(), 'banda_tension': [0.95, 1.05]})
     assert rc == 0, informe
     assert informe['perfil_tension']['banda'] == [0.95, 1.05]
+
+
+def _grabado(codigo, **informe):
+    base = {'project': 'P', 'feeder': 'F1', 'modo': 'aplicar', 'status': 'VIOLACION_FISICA', 'avisos': [],
+            'escenarios': [{'escenario': 'Sin proyecto', 'cargas': 3, 'fallos': []}]}
+    return {**base, **informe}, codigo
+
+
+def test_083_rf29_conserva_las_variaciones_si_el_reparto_queda_grabado(guion):
+    """083:RF-29 con 015:RF-69 y 064:RF-11 — una calibración que termina en VIOLACION_FISICA con el reparto grabado pide al
+    servidor que no apague ``SED_NTP_`` ni ``Fichas_``: las cargas grabadas son las de esos transformadores. El 2026-11-20 el
+    servidor la apagó y la verificación y el gemelo dejaron de converger."""
+    from convertersmartgrid.adaptadores import pf_estado
+
+    assert hasattr(guion, 'conservar_lo_grabado'), 'la calibración no declara qué conservar'
+    pf_estado.olvidar_conservar()
+    try:
+        resultados = [_grabado(2)]
+        assert guion.conservar_lo_grabado([{'project': 'P'}], resultados) == ['Fichas_P', 'SED_NTP_P']
+        assert pf_estado.pedidos_de_conservar() == ['Fichas_P', 'SED_NTP_P']
+        assert resultados[0][0]['variaciones_conservadas'] == ['Fichas_P', 'SED_NTP_P']
+    finally:
+        pf_estado.olvidar_conservar()
+
+
+@pytest.mark.parametrize('resultado', [
+    _grabado(0, status='CALIBRADO'),                       # termina bien: no hay restitución
+    _grabado(2, escenarios=[]),                            # no se grabó nada: la restitución sigue igual
+    _grabado(2, modo='simular'),
+    ({'project': 'P', 'modo': 'aplicar', 'error': 'ZeroDivisionError: x', 'avisos': []}, 1),
+])
+def test_083_rf29_sin_reparto_grabado_no_conserva_nada(guion, resultado):
+    """064:RF-11 / 015:RF-69 — sin cargas escritas, o si termina bien, no se pide nada y el servidor restituye como siempre."""
+    from convertersmartgrid.adaptadores import pf_estado
+
+    assert hasattr(guion, 'conservar_lo_grabado'), 'la calibración no declara qué conservar'
+    pf_estado.olvidar_conservar()
+    assert guion.conservar_lo_grabado([{'project': 'P'}], [resultado]) == []
+    assert pf_estado.pedidos_de_conservar() == []
+    assert 'variaciones_conservadas' not in resultado[0]
+
+
+def test_083_rf29_el_main_declara_lo_que_conserva(guion, tmp_path, monkeypatch):
+    """083:RF-29 / 064:RF-11 — el ``main`` que atiende el servidor lo declara antes de salir con 2, y el informe lo dice."""
+    import json
+    import sys
+    import types
+
+    from convertersmartgrid.adaptadores import pf_estado
+
+    assert hasattr(pf_estado, 'conservar_tras_fallo'), 'el servidor no tiene por dónde saber qué conservar'
+    app = _app()
+    monkeypatch.setitem(sys.modules, 'powerfactory', types.SimpleNamespace(GetApplicationExt=lambda: app))
+    monkeypatch.setattr(guion, 'ejecutar_proyecto', lambda _app, planes, **_k: [_grabado(2) for _ in planes])
+    plan = tmp_path / 'plan.json'
+    plan.write_text(json.dumps(_plan()), encoding='utf-8')
+    salida = tmp_path / 'informe.json'
+    pf_estado.olvidar_conservar()
+    try:
+        assert guion.main(['--plan', str(plan), '--output-json', str(salida)]) == 2
+        assert pf_estado.pedidos_de_conservar() == ['Fichas_P', 'SED_NTP_P']
+        assert json.loads(salida.read_text(encoding='utf-8')).get('variaciones_conservadas') == ['Fichas_P', 'SED_NTP_P']
+    finally:
+        pf_estado.olvidar_conservar()
+
+
+# =========================================================================== MEJ10-FIJAS (orden del 20-11)
+def _evidencia(codigo='11', registros=5, exceso=162.0):
+    """015:RF-73 (a): lo que la web pone en el plan cuando el cliente mide más que su cabecera."""
+    return {codigo: {'supera_cabecera': {'registros': registros, 'exceso_max_kw': exceso,
+                                         'fecha': '2026-03-18 08:15:00'}}}
+
+
+def _escrituras_elmlod(app):
+    return [e for e in app.escrituras if getattr(e[0], '_clase', '') == 'ElmLod']
+
+
+def test_015_rf73_fija_a_revisar_para_antes_de_escribir(guion):
+    """015:RF-73 (enmienda 015:RF-69), 006:RF-47 — con una fija cuyo cliente mide más que su cabecera, la calibración
+    para con FIJA_A_REVISAR y su evidencia, sin ejecutar flujos ni escribir ninguna carga: queda lo anterior. Hoy se
+    reparte, se cuadra y se graba."""
+    app = _app()
+    plan = _plan(clientes=[{'codigo': '11', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.25}])
+    plan['evidencia_fijas'] = _evidencia()
+    antes = {o.loc_name: (o.plini, o.scale0) for o in app.proyecto.GetContents('*.ElmLod', 1)}
+
+    informe, rc = guion.ejecutar(app, plan)
+
+    assert rc == 2, informe
+    revisar = informe.get('fijas_a_revisar') or {}
+    assert revisar.get('estado') == 'FIJA_A_REVISAR' and revisar['a_revisar'] == ['F1_S2'], informe
+    assert 'F1_S2' in informe['error'] and 'calibración anterior' in informe['error']
+    assert not _escrituras_elmlod(app), 'ni una carga escrita'
+    assert {o.loc_name: (o.plini, o.scale0) for o in app.proyecto.GetContents('*.ElmLod', 1)} == antes
+    assert not informe.get('flujos') and 'transformadores_implementados' not in informe
+
+
+def test_015_rf73_sin_evidencia_ni_fija_dudosa_se_calibra_como_siempre(guion):
+    """015:RF-73 — la comprobación no estorba: sin evidencia y con las fijas plausibles, cuadra y lo dice."""
+    app = _app()
+    plan = _plan(clientes=[{'codigo': '11', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.25}])
+    informe, rc = guion.ejecutar(app, plan)
+    assert rc == 0 and informe['cuadrado'], informe
+    assert (informe.get('plausibilidad_fijas') or {}).get('estado', 'falta') is None
+
+
+def test_006_rf47_en_el_proyecto_el_alimentador_a_revisar_no_frena_a_los_demas(guion):
+    """006:RF-47, 015:RF-73 — en la calibración del proyecto, el alimentador con una fija a revisar sale con su causa
+    sin escribir sus cargas, y el otro se calibra."""
+    import copy as _copy
+
+    from apoyo import contexto_nativo
+
+    app = _app(escenario=True)
+    f1 = _plan(clientes=[{'codigo': '11', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.25}])
+    f1['evidencia_fijas'] = _evidencia()
+    f2 = _copy.deepcopy(_plan())
+    f2['feeder'] = 'F2'
+    f2['objetivo'].update(kw=220.0, medidor='M_F2', alimentador='F2')
+    f2['native_action_context'] = contexto_nativo('P', ['F2'], 'ajuste')
+    (i1, rc1), (i2, rc2) = guion.ejecutar_proyecto(app, [f1, f2])
+    assert rc1 == 2 and (i1.get('fijas_a_revisar') or {}).get('estado') == 'FIJA_A_REVISAR', i1
+    assert rc2 == 0 and i2['cuadrado'], i2
+    escritas = {e[0].loc_name for e in _escrituras_elmlod(app)}
+    assert escritas and not any(n.startswith('F1_') for n in escritas), escritas
+
+
+def test_020_rf64_sin_propuesta_para_una_fija_a_revisar(guion):
+    """020:RF-64, 101:RF-15 — ``sed_sobre_el_umbral`` no propone transformador para una fija a revisar y lo dice; hoy
+    propone con el dato dudoso (5 × 630 kVA en una distribuidora real)."""
+    app = _app(n=3)
+    cargas = {o.loc_name: o for o in app.proyecto.GetContents('*.ElmLod', 1) if o.loc_name.startswith('F1_')}
+    for o in cargas.values():
+        o.plini, o.qlini = 5.0, 1.0                       # 5 MW en SED de 50 a 150 kVA: todas sobre el umbral
+    fijas = {'F1_S1': SimpleNamespace(clientes=['11'], kw=5000.0, kvar=1000.0)}
+    plan = {'transformadores_sed': None}
+    plaus = {'fijas': [{'sed': 'F1_S1', 'a_revisar': True, 'kva_grupo': 50.0}]}
+    try:
+        r = guion.sed_sobre_el_umbral(plan, cargas, {s: 50.0 * (i + 1) for i, s in enumerate(sorted(cargas))}, fijas,
+                                      {}, plaus)
+    except TypeError:
+        r = None
+    assert r is not None, '020:RF-64: sed_sobre_el_umbral no recibe la plausibilidad de las fijas'
+    fila = next((x for x in r['sed'] if x['sed'] == 'F1_S1'), None)
+    assert fila is not None
+    assert fila['propuesta']['kva'] is None and 'revisar' in fila['propuesta']['motivo'], fila
+    assert 'revisar' in fila.get('aviso', '')
+
+
+def test_101_rf15_la_propuesta_parte_de_los_kva_del_grupo_de_la_fuente(guion):
+    """101:RF-15, 020:RF-64 — con los kVA de la fuente de su grupo que ya llevan la carga, sin propuesta y dicho; con la
+    media del mes del cliente que no cabe en ellos, la propuesta va anotada como reconstrucción con las dos cifras."""
+    app = _app(n=3)
+    plan = {**_plan(kw=600.0, kvar=150.0, clientes=_sobrecargada(app), kva_entrada={'F1_S2': 500.0}),
+            'transformadores_sed': _fichas_plan()}
+    informe, rc = guion.ejecutar(app, plan)
+    assert rc == 0, informe
+    (x,) = informe['fijas_sobre_su_transformador']
+    assert x['propuesta']['kva'] is None and '500' in x['propuesta']['motivo'], x['propuesta']
+
+    app = _app(n=3)
+    clientes = [{**c, 'ea': 200.0 * 744} for c in _sobrecargada(app)]          # media de 200 kW con 100 kVA
+    plan = {**_plan(kw=600.0, kvar=150.0, clientes=clientes, kva_entrada={'F1_S2': 100.0}),
+            'transformadores_sed': _fichas_plan()}
+    informe, rc = guion.ejecutar(app, plan)
+    assert rc == 0, informe
+    (x,) = informe['fijas_sobre_su_transformador']
+    p = x['propuesta']
+    assert p['kva'] == 400, p
+    rec = p.get('reconstruccion') or {}
+    assert rec.get('motivo') == 'kVA de la fuente incoherente con la medida', p
+    assert rec['p_media_kw'] == pytest.approx(200.0) and rec['kva_grupo'] == pytest.approx(100.0)
+    assert (informe.get('plausibilidad_fijas') or {}).get('kva_fuente_incoherente') == ['F1_S2']
+
+
+def test_015_rf75_el_informe_dice_el_kva_de_la_fuente_y_del_grupo(guion):
+    """015:RF-75 — en cada SED del informe, además de ``kva`` (de DIgSILENT, con sus variaciones), ``kva_fuente`` y
+    ``kva_grupo``; hoy no existen y el informe ocultaba los kVA de la fuente."""
+    app = _app()
+    informe, rc = guion.ejecutar(app, _plan(kva_entrada={'F1_S1': 40.0, 'F1_S3': 125.0}))
+    assert rc == 0, informe
+    fila = _sed(informe, 'F1_S1')
+    assert fila['kva'] == pytest.approx(50.0) and fila['kva_de'] == 'pf'
+    assert fila.get('kva_fuente') == pytest.approx(40.0) and fila.get('kva_grupo') == pytest.approx(40.0), fila
+    assert _sed(informe, 'F1_S2').get('kva_fuente', 'falta') is None

@@ -33,4 +33,4 @@
       T6 RF-40: `tests/test_interactive_architecture.py::test_silent_broad_excepts_do_not_grow_beyond_registered_debt` (línea 698).
       T4 a T6 hechas el 2026-11-15 (MARCAS-PISTA3; código de 79d1da10): rojo sobre 00d30651 con solo la prueba,
       `D:/csg/PM_IMPL/PISTA3/MARCAS-PISTA3/humo_034_rojo.log` (5 F por aserción, rojo=VALIDO: falta la TO-BE, los ADR y la
-      deuda); verde `humo_034_verde.log` (5 passed) y la suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log:1202` «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.»
+      deuda); verde `humo_034_verde.log` (5 passed) y la suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log` (línea 1202) «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.»

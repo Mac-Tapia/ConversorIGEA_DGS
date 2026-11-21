@@ -43,8 +43,8 @@ def test_inventario_conserva_custodia_clasifica_y_deduplica(tmp_path):
     copia.mkdir(parents=True)
     (copia / 'FORMATO 08 copia.xlsx').write_bytes(b'PK\x03\x04contenido-igual')
     (entrega / '~$temporal.xlsx').write_bytes(b'lock')
-    (raiz / 'ELOR25_V2').mkdir()
-    (raiz / 'ELOR25_V2' / 'ELOR25_V2').write_bytes(b'TAPE' + bytes(20))
+    (raiz / 'EMPB25_V2').mkdir()
+    (raiz / 'EMPB25_V2' / 'EMPB25_V2').write_bytes(b'TAPE' + bytes(20))
 
     archivos = inventariar(raiz, 'EMPRESA DEMO', cargar_contrato(CONTRATO))
 

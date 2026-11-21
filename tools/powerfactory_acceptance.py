@@ -2461,7 +2461,7 @@ def inventory_network(net: Any) -> dict[str, int]:
         # Dentro de una SED solo son internas su barra de baja (``<SED>_BT``) y, sin barra
         # propia, la de media, que se llama como la SED. La barra propia (021:RF-12)
         # conserva el nombre de su nodo y la de una SET (022:RF-9) es de la red: en la
-        # entrega de Electro Dunas por SET se contaban 5 910 barras de menos.
+        # entrega de Empresa A por SET se contaban 5 910 barras de menos.
         # DIgSILENT renombra con «(n)» la barra que choca con otro objeto de la SED: en
         # SISTEMA_ICA desde VNR-GIS (2026-10-18), SE42014 y SE42176 se contaban de la red.
         nombre = re.sub(r'\(\d+\)$', '', _name(term))

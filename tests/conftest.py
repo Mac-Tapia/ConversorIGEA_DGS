@@ -37,6 +37,17 @@ if not os.environ.get('CSG_RUNTIME_HOME'):
 for _variable, _carpeta in (('CSG_ASISTENTE_DATA', '_asistente'), ('CSG_TWIN_DATA', '_digital_twin')):
     if not os.environ.get(_variable):
         os.environ[_variable] = str(_SESION_DE_DATOS / _carpeta)
+# 102:RF-5 (MEJ15-T20): un trabajador de xdist hereda del controlador el runtime y los dos almacenes de la sesión, y dos
+# trabajadores escribían a la vez en el mismo almacén del asistente: en el ensayo con -n 2 del 2026-11-13,
+# test_final_entrena_con_todas_las_que_pueden contó 17 órdenes donde esperaba 8. Cada trabajador tiene los suyos dentro
+# de la carpeta de la sesión, que se borra con ella, como una sesión sola; una ruta que fijó otro (no la de la sesión) se
+# respeta.
+TRABAJADOR_XDIST = os.environ.get('PYTEST_XDIST_WORKER', '')
+if TRABAJADOR_XDIST:
+    for _variable, _carpeta in (('CSG_RUNTIME_HOME', 'runtime'), ('CSG_ASISTENTE_DATA', '_asistente'),
+                                ('CSG_TWIN_DATA', '_digital_twin')):
+        if os.environ.get(_variable) == str(_SESION_DE_DATOS / _carpeta):
+            os.environ[_variable] = str(_SESION_DE_DATOS / TRABAJADOR_XDIST / _carpeta)
 _TAMANOS_DE_REGISTROS: dict[Path, int] = {}
 if RUNTIME_REAL is not None and RUNTIME_REAL.parent.is_dir():
     for _registro in RUNTIME_REAL.parent.glob('*/registros/*.log'):

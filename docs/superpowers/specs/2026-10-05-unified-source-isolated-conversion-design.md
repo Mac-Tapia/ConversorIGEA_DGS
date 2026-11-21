@@ -87,7 +87,7 @@ La interfaz permite:
 - mostrar empresa, periodo, capas, esquema, CRS, huella y fecha de publicación;
 - rechazar PDF regulatorios como fuentes convertibles;
 - enumerar todos los valores no vacíos de `CODSALIDAMT` como alimentadores;
-- filtrar Electro Dunas mediante códigos/alias oficiales sin inferencia difusa.
+- filtrar Empresa A mediante códigos/alias oficiales sin inferencia difusa.
 
 La Resolución 154-2026 encontrada es un proyecto de publicación del VNR adaptado al
 31-12-2025. Hasta disponer de un paquete de datos oficial completo, la interfaz debe

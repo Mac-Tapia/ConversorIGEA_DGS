@@ -1,6 +1,6 @@
 # Spec 006 — Ajuste de las demandas a la máxima de cabecera
 
-Estado: cumplida (reabierta y cerrada el 2026-11-19 con MEJ3-CALIB por orden del usuario; su corrida en DIgSILENT va en 086 T105) · aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: uso de la demanda medida (spec 004, RF-22 a RF-43) con los libros reales, 2026-10-09
+Estado: cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario: RF-47) · antes cumplida (reabierta y cerrada el 2026-11-19 con MEJ3-CALIB por orden del usuario; su corrida en DIgSILENT va en 086 T105) · aprobada (2026-10-09) · Fecha: 2026-10-09 · Origen: uso de la demanda medida (spec 004, RF-22 a RF-43) con los libros reales, 2026-10-09
 
 ## Contexto y objetivo
 
@@ -134,6 +134,8 @@ Cuadre con las pérdidas
   instalada conocida, ENTONCES EL SISTEMA lo dará por no calibrable con su causa («no se puede repartir»), sin ejecutar
   flujos ni escribir cargas. Antes, con 5 000 kW de cabecera, 10 000 kVA de escaladas y 5 010 kW de fijas, las fijas
   quedaban en 1 691 kW, cuando con 4 990 kW de fijas quedaban en 4 990 kW.
+- RF-47: (orden del usuario del 20-11; amplía RF-46) SI una fija está a revisar (015:RF-73), ENTONCES EL SISTEMA no
+  calibrará ese alimentador ni escribirá sus cargas, y lo dirá con su causa; nunca escala ni rebaja la fija para cuadrar.
 
 Convergencia
 

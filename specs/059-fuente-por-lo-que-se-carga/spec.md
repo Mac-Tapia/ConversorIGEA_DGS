@@ -1,7 +1,7 @@
 # Spec 059 — La fuente es la del fichero que se carga, sin valor por defecto
 
 Estado: cumplida (2026-11-01) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01,
-al abrir la web tras la spec 058 y verla «como TXT» con el espacio de Electro Oriente (VNR-GIS):
+al abrir la web tras la spec 058 y verla «como TXT» con el espacio de Empresa B (VNR-GIS):
 «no debe haber por defecto; debe ser claro y definido cada archivo según qué corresponde; si el
 conversor es inteligente no debe volver a pasar»; «el conversor tiene tres tipos de archivos y
 cada uno debe ser el correcto; nada debe ser por defecto, debe ser según el archivo que se carga».
@@ -9,8 +9,8 @@ cada uno debe ser el correcto; nada debe ser por defecto, debe ser según el arc
 ## Contexto y objetivo
 
 El espacio nuevo nacía con `input_mode = 'txt'` (`DEFAULT_OPTIONS`). El 2026-11-01 la spec 058
-cambió la clave con la que el navegador recuerda su espacio; la web no encontró el de Electro
-Oriente (`aee74107…`, VNR-GIS), creó uno vacío y lo mostró como «Tres TXT de CYMDIST», como si la
+cambió la clave con la que el navegador recuerda su espacio; la web no encontró el de Empresa B
+(`aee74107…`, VNR-GIS), creó uno vacío y lo mostró como «Tres TXT de CYMDIST», como si la
 fuente fuera esa. Dos fallos: perder el espacio (058:RF-6) y suponer una fuente que nadie cargó.
 
 El conversor tiene tres fuentes: los TXT de CYMDIST, la base Access (.mdb) y el paquete VNR-GIS.
@@ -55,5 +55,5 @@ fuente; y el navegador vuelve al espacio con el que trabajaba.
 ## Criterios de finalización
 
 - `grep -rnoE "059:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-8.
-- La web abierta desde el acceso directo muestra el espacio de Electro Oriente como VNR-GIS, y
+- La web abierta desde el acceso directo muestra el espacio de Empresa B como VNR-GIS, y
   un espacio nuevo, sin ninguna alternativa marcada.

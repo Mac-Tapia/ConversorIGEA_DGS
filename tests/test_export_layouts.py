@@ -241,8 +241,14 @@ class TestLaEntregaRealLarga:
 
     @pytest.fixture
     def entrega(self):
+        import os
         from pathlib import Path
-        base = Path('D:/BaseDatosElectroDunas/260919BaseDatos/exportarTXT')
+        # La carpeta sale de CSG_MDB (<datos>/260919BaseDatos/202603/260924.mdb), la variable que ya fija la suite: la ruta
+        # de la distribuidora no se escribe en el repositorio (MEJ7-NOMBRES).
+        mdb = os.environ.get('CSG_MDB', '').strip()
+        if not mdb:
+            pytest.skip('la entrega larga no está en esta máquina (sin CSG_MDB)')
+        base = Path(mdb).parents[1] / 'exportarTXT'
         trio = (base / '260922Red.txt', base / '260922Cargas.txt',
                 base / '260922Equipos.txt')
         if not all(p.is_file() for p in trio):

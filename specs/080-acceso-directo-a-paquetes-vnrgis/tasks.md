@@ -1,20 +1,20 @@
 # Tareas — Spec 080
 
 - [x] T1. Descubrimiento de ciclos, clasificación por sección y vigente por empresa. (RF-1, RF-2, RF-3, RF-4, RF-5, RF-6, RF-7, RF-8, RF-9, RF-10)
-      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py tests/test_vnr_etl.py` en verde y, contra el portal real, salen Electro Sur Este y Luz del Sur con su resolución vigente.
+      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py tests/test_vnr_etl.py` en verde y, contra el portal real, salen Empresa D y Empresa C con su resolución vigente.
 - [x] T2. Extraer la copia del paquete y asignarla; extractor de RAR fuera del PATH. (RF-18, RF-19, RF-20, RF-21, RF-22, RF-23, RF-24)
       Hecho cuando: `pytest tests/test_vnr_accesos_directos.py tests/test_vnr_official_web.py` en verde.
 - [x] T3. La entrada VNR-GIS de la web, por distribuidora, con las puertas A–H que informan sin bloquear. (RF-11, RF-12, RF-13, RF-14, RF-15, RF-16, RF-17, RF-56, RF-57)
       Hecho cuando: `npx tsc --noEmit -p frontend` y `npm run build` correctos, y las pruebas de API en verde. Y `pytest tests/test_vnr_web_adapter.py` en verde: la incidencia de G/H llega al resultado de la carga en la web.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_vnr_web_adapter.py.
 - [x] T5. El motor puede abrir la copia custodiada de una empresa nueva. (RF-25, RF-26)
-      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py tests/test_vnr_sqlserver.py` en verde y la carga real de Electro Sur Este, base nunca restaurada, pasa de RESTORE.
+      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py tests/test_vnr_sqlserver.py` en verde y la carga real de Empresa D, base nunca restaurada, pasa de RESTORE.
 - [x] T6. Ninguna salida con red se pierde y cada alimentador conserva su nombre. (RF-27, RF-28, RF-32, RF-33)
       Hecho cuando: `pytest tests/test_vnr_accesos_directos.py tests/test_vnr_sqlserver.py` en verde y la suite completa sin nombres cambiados en la fuente TXT.
 - [x] T8. El CRS que declara la propia fuente. (RF-34)
       Hecho cuando: `pytest tests/test_vnr_accesos_directos.py` en verde y `TI01` convierte por la web sin pedir CRS.
 - [x] T7. Herramienta de cruce de la totalidad. (RF-29, RF-30, RF-31)
-      Hecho cuando: `tools/validar_totalidad_vnr.py` da OK con Electro Sur Este y con Luz del Sur cargadas por la web.
+      Hecho cuando: `tools/validar_totalidad_vnr.py` da OK con Empresa D y con Empresa C cargadas por la web.
 - [x] T9. Celdas, derivaciones, kvar de los bancos y aviso de lo no modelado. (RF-35, RF-36, RF-37)
       Hecho cuando: `pytest tests/test_vnr_accesos_directos.py tests/test_vnr_sqlserver.py` en verde.
 - [x] T10. Reguladores hasta el DGS; pararrayos y seccionadores cerrados fuera. (RF-38, RF-39, RF-40, RF-41)
@@ -23,8 +23,12 @@
       Hecho cuando: `pytest tests/test_vnr_accesos_directos.py` en verde y `TI01` pasa la verificación previa.
 - [x] T12. Códigos operativos de las SED y reguladores en el recuento esperado. (RF-46, RF-47, RF-48)
       Hecho cuando: `pytest tests/test_vnr_accesos_directos.py` en verde y `TI01` y `C+æ02` en DIgSILENT con sus SED por código operativo y `equipment_pass` verdadero.
-- [ ] T13. Un catálogo por empresa, con semilla sin datos de ninguna, reguladores a 60 Hz, y cada tramo aéreo o cable, con su tipo, su estado y la capacitancia de los cables. (RF-49, RF-50, RF-51, RF-52, RF-53, RF-54, RF-55, RF-58)
-      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py tests/test_catalogo_crece.py` en verde y dos alimentadores reales de prueba en DIgSILENT sin filas de otra empresa en su catálogo. Y `pytest tests/test_vnr_cymdist_bridge.py tests/test_vnr_web_adapter.py tests/test_catalog_resolution.py tests/test_vnr_etl.py tests/test_vnr_sqlserver.py` en verde, con `comparar_red` vacío de SQL → GeoPackage → capas en tramos MT y BT, nodos, SED y equipos, y un alimentador real en una copia da su `vm_min` antes y después.
+- [x] T13. Un catálogo por empresa, con semilla sin datos de ninguna, reguladores a 60 Hz, y cada tramo aéreo o cable, con su tipo, su estado y la capacitancia de los cables. (RF-49, RF-50, RF-51, RF-52, RF-53, RF-54, RF-55, RF-58)
+      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py tests/test_catalogo_crece.py` en verde y dos alimentadores reales de prueba en DIgSILENT sin filas de otra empresa en su catálogo. Y `pytest tests/test_vnr_cymdist_bridge.py tests/test_vnr_web_adapter.py tests/test_catalog_resolution.py tests/test_vnr_etl.py tests/test_vnr_sqlserver.py` en verde, con `comparar_red` vacío de SQL → GeoPackage → capas en tramos MT y BT, nodos, SED y equipos, y un alimentador real en una copia da su `vm_min` antes y después.
+      Ampliado (2026-11-20, MEJ17): RF-49 dice ahora «Lo comprobará en cada carga: SI el fichero de la empresa trae filas añadidas al aparecer otra (un fichero copiado de otra carpeta, un código de empresa cambiado), ENTONCES EL SISTEMA lo dirá en los avisos y en la procedencia de la carga (`CATALOGO_CON_FILAS_DE_OTRA_EMPRESA`, con sus códigos) y en el registro del trabajo, sin bloquearla; la semilla no es de ninguna empresa.»: `catalog.filas_de_otra_empresa` (por la empresa que dice cada fila y, con los códigos de la fuente, por su código), usada por `sources/vnr._cargar_copia_sql` y por el registro de `web/services`. La importación en DIgSILENT y el `vm_min` pasan a T19, que lleva su guion.
+      Hecho el 2026-11-20 (MEJ17, wt_d8_080 sobre el árbol c4326366): rojo D:/csg/PM_IMPL/MEJ17_080T13/rojo_202949.log (sobre el árbol base con solo la prueba nueva: 3 F, las 3 por aserción; la de la vía de capas real pasa ya con el código de antes); verde D:/csg/PM_IMPL/MEJ17_080T13/verde_nucleo_203509.log (las siete pruebas de la tarea con test_capas, test_inventario, test_trazabilidad_specs, test_textos_sin_requisitos, test_json_atomico y test_sin_nombres_reales: 538 passed, 0 F, 0 omitidas), las 197 vecinas de la puerta en verde_vecinas_203936.log (4 730 passed; sus 5 F y 16 E, todas «SinGPU» por correr sin GPU, y la omitida por falta de node_modules, repetidas con la GPU en verde_gpu_212551.log: 62 passed, 0 F, 0 omitidas). Con la copia real de la suite (`CSG_VNR_BAK`): `test_copia_real_sql_geopackage_capas_da_la_misma_red` y `test_dos_alimentadores_reales_con_el_catalogo_de_su_empresa` (dos alimentadores, uno con cables, al DGS con el catálogo de su empresa creado con la semilla: 0 filas de otra, tipos de su fuente o de la semilla, cada cable con `bline` > 0 y todo a 60 Hz); y la empresa entera por SQL → GeoPackage → capas con `comparar_red` vacío en 15 206 tramos MT, 137 292 BT, 15 241 nodos, 7 024 SED, 221 maniobras y 80 bancos (la copia no trae reguladores), en 21 s y 0,56 GiB: D:/csg/PM_IMPL/MEJ17_080T13/comparar_red_empresa_entera.log.
+- [ ] T19. La parte nativa de T13 en DIgSILENT: dos alimentadores reales de prueba de una copia VNR-GIS importados por la web con el catálogo de su empresa, y uno de ellos en una copia del proyecto con su `vm_min` antes (los tipos de cable con `bline` 0, como salían antes de RF-58) y después (con su capacitancia). (RF-49, RF-52, RF-53, RF-58)
+      Hecho cuando: con la puerta parada y DIgSILENT libre, `python tools/sistema_web.py --espacio <id> --red <COD1> <COD2> --demanda-dir <CSG_DEMANDA_DIR> --periodo <AAAA-MM>` importa los dos (uno con tramos de cable) sin el aviso `CATALOGO_CON_FILAS_DE_OTRA_EMPRESA`; ningún `TypLne` del proyecto tiene un código que no sea de la fuente ni de la semilla; cada `TypLne` de cable tiene `bline` > 0 y cada `TypVoltreg`, 60 Hz; y en una copia del proyecto el flujo da su `vm_min` con los cables como están y con su `bline` a 0, los dos anotados con la ruta de la evidencia.
 - [x] T14. Índices por salida en la lectura de la copia de SQL Server: ninguna tabla se recorre una vez por salida. (RF-59)
       Hecho cuando: `pytest tests/test_vnr_sqlserver.py -k "no_recorre_las_tablas"` falla antes del cambio (las tablas crecen de 2 a 6 copias) y pasa después, y `pytest tests/test_vnr_sqlserver.py tests/test_vnr_web_adapter.py tests/test_vnr_cymdist_bridge.py` sigue en verde.
       Hecho en a9918f93 (GRUPO-G); pruebas: tests/test_vnr_cymdist_bridge.py tests/test_vnr_sqlserver.py tests/test_vnr_web_adapter.py -k no_recorre_las_tablas.
@@ -53,4 +57,4 @@
       el trabajo iba al carril «engine») y pasa con el nuevo, y el recorrido F01 de `test/e2e` pasa en el navegador.
       Encontrado (2026-11-16, 4d) por F01 en navegador real: sin red, la búsqueda automática dejaba la entrada bloqueada.
 - [x] T4. Prueba en el navegador real con el portal real. (Todos)
-      Hecho cuando: en el navegador, Electro Sur Este queda con `ELSE_VNR_22_REC.bak` asignada y su carga lista sus alimentadores, y Luz del Sur muestra su paquete de la RCD 184-2026.
+      Hecho cuando: en el navegador, Empresa D queda con `ELSE_VNR_22_REC.bak` asignada y su carga lista sus alimentadores, y Empresa C muestra su paquete de la RCD 184-2026.

@@ -528,10 +528,10 @@
   },
   "external_inputs_requested": [
     {
-      "scope": "R5_Electro_Oriente",
+      "scope": "R5_Empresa_B",
       "state": "solicitud_retirada_por_aclaracion_expresa_producto_universal",
       "items": [
-        "paramVNRGISELOR_22_APR compatible con ELOR2022",
+        "paramVNRGISELOR_22_APR compatible con EMPB2022",
         "VNRGISGART compatible",
         "ConfigBD o manifiesto de esas entregas"
       ],

@@ -19,7 +19,7 @@
 - Producir DGS, importar, releer y converger son estados separados.
 - Un supuesto permite continuar, pero nunca se etiqueta como dato original ni como solución eléctrica definitiva.
 - Toda mutación PowerFactory usa el mismo plan y `source_run_id` verificados en preflight.
-- Electro Dunas/IN111 es evidencia de aceptación, no una dependencia funcional.
+- Empresa A/IN111 es evidencia de aceptación, no una dependencia funcional.
 - El fundamento metodológico se conserva en la especificación: McMorran, Özdamar, Yang et al., Valverde et al. y la tesis doctoral sobre redes con datos limitados.
 
 ## Review Focus
@@ -52,7 +52,7 @@
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-def test_vnr_single_scope_is_detected_without_eldu_default():
+def test_vnr_single_scope_is_detected_without_EMPA_default():
     scope = inspect_source_scope(snapshot_for(company='GENERIC_CO', period='2031'))
     assert scope.selected_company == 'GENERIC_CO'
     assert scope.selected_period == '2031'
@@ -63,16 +63,16 @@ def test_vnr_multiple_companies_requires_explicit_selection():
     assert scope.selected_company is None
 ```
 
-Add API/UI contract assertions that `ELDU`, `IN111` and Electro Dunas do not appear as defaults and that a multi-scope package exposes selectors.
+Add API/UI contract assertions that `EMPA`, `IN111` and Empresa A do not appear as defaults and that a multi-scope package exposes selectors.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `pytest tests/test_universal_source_scope.py -q`
-Expected: FAIL because `source_scope` does not exist and VNR defaults to `ELDU`.
+Expected: FAIL because `source_scope` does not exist and VNR defaults to `EMPA`.
 
 - [ ] **Step 3: Implement source-scope inspection**
 
-Add `inspect_source_scope(snapshot: SourceSnapshot) -> SourceScope`, remove the `ELDU` default from `canonicalize_vnr_package`, and pass explicit workspace selections into `VnrSourceAdapter(company: str | None, period: str | None)`. A single discovered scope is automatic; multiple scopes raise `SOURCE_SCOPE_SELECTION_REQUIRED` only at load time.
+Add `inspect_source_scope(snapshot: SourceSnapshot) -> SourceScope`, remove the `EMPA` default from `canonicalize_vnr_package`, and pass explicit workspace selections into `VnrSourceAdapter(company: str | None, period: str | None)`. A single discovered scope is automatic; multiple scopes raise `SOURCE_SCOPE_SELECTION_REQUIRED` only at load time.
 
 - [ ] **Step 4: Implement API and selectors**
 
@@ -299,7 +299,7 @@ git commit -m "feat: reconstruct incomplete feeders before conversion"
 
 - [ ] **Step 1: Write failing API/UI contract tests**
 
-Assert generic labels, no `ELDU`/IN111 defaults, selectable incomplete feeders, semantic status tones, report links and disabled mutation only for active-job or stale-run conditions.
+Assert generic labels, no `EMPA`/IN111 defaults, selectable incomplete feeders, semantic status tones, report links and disabled mutation only for active-job or stale-run conditions.
 
 - [ ] **Step 2: Run tests to verify they fail**
 

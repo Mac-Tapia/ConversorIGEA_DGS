@@ -9,7 +9,7 @@ cargas y SED.
 ## 1. Objetivo
 
 El conversor debe funcionar para cualquier empresa, periodo, CRS, nomenclatura de
-alimentadores y combinación válida de equipos. Electro Dunas e IN111 son conjuntos
+alimentadores y combinación válida de equipos. Empresa A e IN111 son conjuntos
 de aceptación disponibles, no reglas del producto.
 
 Una entrada incompleta no se descarta. El sistema conserva los originales,
@@ -65,7 +65,7 @@ Cada decisión tendrá uno de estos niveles:
 
 ## 4. Selección universal de empresa y periodo
 
-El adaptador VNR no tendrá `ELDU` como valor predeterminado. Primero inventariará
+El adaptador VNR no tendrá `EMPA` como valor predeterminado. Primero inventariará
 empresas y periodos:
 
 - si existe uno de cada uno, los selecciona y registra;
@@ -165,7 +165,7 @@ preflight.
 - Tres alternativas mutuamente excluyentes: TXT, MDB y VNR-GIS.
 - Empresa y periodo detectados, con selector cuando sean ambiguos.
 - Banda permanente con modalidad, empresa, periodo, `source_run_id` y fingerprint.
-- Electro Dunas no aparece como marca del producto.
+- Empresa A no aparece como marca del producto.
 
 ### 10.2 Alimentadores
 
@@ -226,7 +226,7 @@ hash de artefacto y plan preflight.
 
 ### 13.1 Automatizadas
 
-- fuentes y nombres genéricos, sin códigos de Electro Dunas;
+- fuentes y nombres genéricos, sin códigos de Empresa A;
 - selección universal de empresa/periodo;
 - aislamiento TXT/MDB/VNR-GIS;
 - custodia y preservación de originales;
@@ -249,7 +249,7 @@ hash de artefacto y plan preflight.
 ### 13.3 Reales
 
 - Fixtures universales prueban la lógica general.
-- Electro Dunas/IN111 se usa como aceptación real disponible, no como requisito.
+- Empresa A/IN111 se usa como aceptación real disponible, no como requisito.
 - TXT y MDB se ejecutan en runs independientes.
 - Un VNR-GIS se declara real solo con paquete oficial/completo.
 - PowerFactory exige relectura efectiva y `ComLdf`; éxito de comando no basta.

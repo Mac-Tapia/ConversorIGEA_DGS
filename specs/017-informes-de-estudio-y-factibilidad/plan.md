@@ -126,7 +126,7 @@ de RF-25 es el contrato entre las dos mitades.
   local. Las pruebas usan modelos `.docx` sintéticos, creados en la propia prueba. Ninguna
   lee `referencia/`.
 - P13 (universal): banda, umbral, bandas de coloreado, modelos, libro y proyecto de
-  transmisión salen del perfil. Las de Electro Dunas van en `config/perfiles/electro_dunas.json`
+  transmisión salen del perfil. Las de Empresa A van en `config/perfiles/electro_dunas.json`
   como convenciones, con rutas relativas al espacio de trabajo.
 - Escala: las medidas y las etapas van por alimentador marcado, sin número fijo. Cada
   imagen se recorta al alimentador, sin recorrer la red entera por alimentador.

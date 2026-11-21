@@ -26,7 +26,7 @@ Spec: `specs/020-sed-sobrecargadas/spec.md` (aprobada el 2026-10-16).
    intermedio que la web tendría que conocer.
 4. **Las tablas van en el perfil de empresa** (P13), en `calibracion.transformadores_sed`:
    `umbral_carga_pct` y `tablas` con `norma`, `kv_min`, `kv_max` (primaria, con `kv_min`
-   excluido) y `fichas` por kVA, `[po_w, pc_w, io_pct, uk_pct]`. Electro Dunas: las Tablas 6
+   excluido) y `fichas` por kVA, `[po_w, pc_w, io_pct, uk_pct]`. Empresa A: las Tablas 6
    y 7 de FONAFE 2017 (NTP 370.400-2013). La lectura y la validación (RF-29 a RF-31) van en
    `perfil_empresa.py`, al lado de `factor_potencia_cargas`.
 5. **Nombre del tipo propio:** `TR_<kVA>kVA_<norma corta>_<AT>-<BT V>V_<grupo>`, por ejemplo

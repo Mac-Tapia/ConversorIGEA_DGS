@@ -150,7 +150,7 @@ Obras para conectar
   Acotada por 087:RF-49: solo si sus sorteos quedan cerca del criterio.
 
 - RF-34: CUANDO las cargas nuevas que se evalúan suman más que el umbral del perfil
-  (`planificacion.set_nueva_desde_kw`; Electro Dunas, 10 000 kW), EL SISTEMA planteará como solución
+  (`planificacion.set_nueva_desde_kw`; Empresa A, 10 000 kW), EL SISTEMA planteará como solución
   una SET nueva, sin probar la escalera de bancos, secciones y ternas. (Usuario, 2026-11-01: «a las
   cargas que suman superior a 10 MW la alternativa de solución debe plantear una nueva SET».)
 

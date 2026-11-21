@@ -76,7 +76,7 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   la elección de DIgSILENT, las salidas, el archivo de informes, la copia de datos, los módulos permitidos y
   los catálogos se buscan bajo esa misma carpeta de la sesión; lo versionado (`config/perfiles`, `config/fichas`…)
   sigue siendo del programa, y la puerta de calidad lee su `config/suite_completa.json`. (Mismo día, auditor: con
-  el `perfil_empresa.json` de Electro Dunas, una prueba pasaba en esta máquina y fallaba en otra, P13.)
+  el `perfil_empresa.json` de Empresa A, una prueba pasaba en esta máquina y fallaba en otra, P13.)
 - RF-18: DONDE el equipo tiene en Windows un adaptador NVIDIA cuyo controlador trae `nvdxgdmal64.dll`, EL SISTEMA dejará
   esa DLL fijada en memoria antes del primer inicio de CUDA de cada proceso del producto y de cada sesión de pruebas; sin
   Windows, sin NVIDIA, sin la clave del registro o sin la DLL no hará nada ni fallará. La fijará con cualquier versión del

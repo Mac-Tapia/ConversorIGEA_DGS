@@ -1101,3 +1101,90 @@ def test_102_rf30_la_suite_sintetica_tiene_margen_sobre_lo_que_tarda():
     tope = re.search(r'timeout-minutes:\s*(\d+)', flujo.split('name: Suite sintética', 1)[1])
     assert tope, 'el trabajo de la suite sintética no tiene timeout-minutes'
     assert int(tope.group(1)) >= 1.5 * DURACION_MEDIDA_MIN, (tope.group(1), DURACION_MEDIDA_MIN)
+
+
+# 102:RF-5, T20 (MEJ15): la comparación de la suite entera con N = 1, 2 y 3 (tools/comparar_suite_repartida.py).
+def _comparador():
+    spec = importlib.util.spec_from_file_location('comparar_suite_repartida',
+                                                  RAIZ / 'tools' / 'comparar_suite_repartida.py')
+    modulo = importlib.util.module_from_spec(spec)
+    sys.modules['comparar_suite_repartida'] = modulo
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def _junit_t20(ruta: Path, casos: dict[str, str], tiempo: float = 1.0) -> Path:
+    cuerpo = {'passed': '', 'failed': '<failure message="x"/>', 'error': '<error message="x"/>',
+              'skipped': '<skipped message="falta"/>'}
+    filas = ''.join(f'<testcase classname="tests.test_a" name="{n}">{cuerpo[e]}</testcase>' for n, e in casos.items())
+    ruta.write_text(f'<testsuites><testsuite time="{tiempo}">{filas}</testsuite></testsuites>', encoding='utf-8')
+    return ruta
+
+
+def _corrida_t20(n: int, veredictos: dict[str, str], **extra) -> dict:
+    return {'n': n, 'corrida': True, 'veredictos': veredictos, 'libre_min_gib': 4.0, 'arbol_cambiado': False,
+            'disco_cambiado': [], 'pico_por_sesion_gib': {'suite': 4.4} if n == 1 else {'serie': 3.1, 'reparto': 2.2},
+            **extra}
+
+
+def test_102_t20_iguales_solo_con_los_mismos_veredictos_prueba_a_prueba(tmp_path):
+    """102:RF-5 (T20) — «iguales» compara el veredicto de cada prueba, no solo el recuento: con N = 2 una prueba que pasa
+    a fallar, otra que falta o una omitida lo impiden; y GIB_POR_PROCESO sale del mayor proceso con N ≥ 2."""
+    import math
+
+    CS = _comparador()
+    uno = CS.veredictos_de([_junit_t20(tmp_path / 'n1.suite.junit.xml', {'a': 'passed', 'b': 'passed'})])
+    assert uno == {'tests.test_a::a': 'passed', 'tests.test_a::b': 'passed'}
+    problemas, propuesta = CS.comparar({1: _corrida_t20(1, uno), 2: _corrida_t20(2, dict(uno))})
+    assert problemas == [] and propuesta == math.ceil(3.1 * CS.MARGEN_POR_PROCESO * 4) / 4
+    problemas, _ = CS.comparar({1: _corrida_t20(1, uno), 2: _corrida_t20(2, {'tests.test_a::a': 'failed'})})
+    assert any('1 fallidas' in p for p in problemas)
+    assert any('1 faltan' in p and '1 con otro veredicto' in p for p in problemas)
+    problemas, _ = CS.comparar({1: _corrida_t20(1, uno),
+                                2: _corrida_t20(2, dict(uno), libre_min_gib=1.2, disco_cambiado=['+ output/x'])})
+    assert any('libre mínima' in p for p in problemas) and any('output/x' in p for p in problemas)
+    problemas, _ = CS.comparar({1: _corrida_t20(1, uno), 2: {'n': 2, 'corrida': False, 'motivo': 'sin memoria'}})
+    assert 'sin memoria' in problemas and any('no hay con qué comparar' in p for p in problemas)
+    assert CS.segundos_por_sesion([_junit_t20(tmp_path / 'n2.serie.junit.xml', {'a': 'passed'}, 7.5)]) == {'serie': 7.5}
+
+
+def test_102_t20_cada_proceso_con_su_sesion_y_cada_fichero_con_su_memoria(tmp_path):
+    """102:RF-5 (T20) — el medidor nombra cada proceso por su sesión (el junit de su orden; el trabajador de xdist y el
+    hijo de una prueba, por su padre), y el complemento deja lo que cada fichero añadió a su proceso."""
+    import json
+
+    CS = _comparador()
+    assert CS.etiqueta_de(['python', '-m', 'pytest', '--junitxml=C:/t/junit.serie.xml'], None) == 'serie'
+    assert CS.etiqueta_de(['python', '-m', 'pytest', '--junitxml=C:/t/junit.xml'], None) == 'suite'
+    assert CS.etiqueta_de(['python', '-c', 'import sys;exec(eval(sys.stdin.readline()))'], 'reparto') == \
+        'reparto/trabajador'
+    assert CS.etiqueta_de(['python', '-c', 'import sys;exec(eval(sys.stdin.readline()))'], 'reparto/trabajador') ==         'reparto/trabajador', 'el intérprete que abre el lanzador del .venv es el mismo trabajador'
+    assert CS.etiqueta_de(['tesseract', 'x.png'], 'serie') == 'serie/hijo'
+    assert CS.etiqueta_de(['tesseract', 'x.png'], 'serie/hijo') == 'serie/hijo'
+    assert not CS.es_de_pytest('serie/hijo') and CS.es_de_pytest('reparto/trabajador')
+    filas = [{'t': 1.0, 'pid': 9, 'fichero': 'tests/test_a.py', 'privada_mib': 900, 'hilos': 3},
+             {'t': 2.0, 'pid': 9, 'fichero': 'tests/test_b.py', 'privada_mib': 1500, 'hilos': 9}]
+    (tmp_path / 'memoria_9.jsonl').write_text('\n'.join(json.dumps(f) for f in filas), encoding='utf-8')
+    deltas = {f['fichero']: (f['delta_privada_mib'], f['delta_hilos']) for f in CS.memoria_por_fichero(tmp_path)}
+    assert deltas == {'tests/test_a.py': (0, 0), 'tests/test_b.py': (600, 6)}
+    compile(CS.COMPLEMENTO, CS.NOMBRE_COMPLEMENTO, 'exec')
+
+
+def test_102_t20_lo_que_una_prueba_deja_en_el_disco_se_ve(tmp_path):
+    """102:RF-5 (T20) — un fichero nuevo, uno cambiado o uno borrado en el worktree (también en output/, que git ignora)
+    sale en la comparación: dos sesiones a la vez comparten el disco; lo que compila Python y la salida, no."""
+    CS = _comparador()
+    (tmp_path / 'docs').mkdir()
+    (tmp_path / 'docs' / 'a.md').write_text('a', encoding='utf-8')
+    (tmp_path / 'docs' / 'b.md').write_text('b', encoding='utf-8')
+    (tmp_path / 'salida').mkdir()
+    antes = CS.estado_del_arbol(tmp_path, tmp_path / 'salida')
+    (tmp_path / 'output').mkdir()
+    (tmp_path / 'output' / 'x.json').write_text('{}', encoding='utf-8')
+    (tmp_path / 'docs' / 'a.md').write_text('otro', encoding='utf-8')
+    (tmp_path / 'docs' / 'b.md').unlink()
+    (tmp_path / 'salida' / 'n1.json').write_text('{}', encoding='utf-8')
+    (tmp_path / '__pycache__').mkdir()
+    (tmp_path / '__pycache__' / 'm.pyc').write_bytes(b'x')
+    despues = CS.estado_del_arbol(tmp_path, tmp_path / 'salida')
+    assert CS.cambios_del_disco(antes, despues) == ['+ output/x.json', '- docs/b.md', '~ docs/a.md']

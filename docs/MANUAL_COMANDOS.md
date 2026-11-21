@@ -350,7 +350,7 @@ opcionales.
 
 El conversor no supone ningún CRS (spec 002): lo toma de `--source-crs`, si no del perfil
 de empresa (`crs_origen` en `config/perfil_empresa.json`, o el de `--perfil NOMBRE`), y si
-ninguno lo da se niega a georreferenciar y dice cómo elegirlo. Para Electro Dunas, el
+ninguno lo da se niega a georreferenciar y dice cómo elegirlo. Para Empresa A, el
 caso de prueba, basta con `config/perfil_empresa.json` = `{"perfil": "electro_dunas"}`.
 
 `--source-crs` debe ser un sistema **proyectado en metros** (un UTM regional, por
@@ -418,7 +418,7 @@ rem Alternativa 1 — TXT
 
 rem Alternativa 2 — base Access
 > .venv\Scripts\python.exe -m convertersmartgrid.presentacion.cli convert ^
-    --mdb "D:\BaseDatosElectroDunas\BaseDatos.mdb" ^
+    --mdb "<DATOS>\BaseDatos.mdb" ^
     --feeder PA217 --source-crs EPSG:32718 --out-dir output\pa217_mdb
 ```
 
@@ -829,7 +829,7 @@ queda fuera. Una modificación manual del proyecto es un aviso, nunca un bloqueo
 
 La calibración lee la cabecera con una hoja por medidor y el libro de medidores. Si la empresa
 la entrega a lo ancho (una hoja por sistema y magnitud, fecha y hora en dos columnas y una
-columna por alimentador, como los perfiles del PIDE de Electro Oriente) o solo como tabla de
+columna por alimentador, como los perfiles del PIDE de Empresa B) o solo como tabla de
 máximas mensuales por salida, `tools/cabecera_ancha.py` la pasa a ese formato en una carpeta
 del espacio de trabajo, nunca en la de los datos de la distribuidora:
 
@@ -859,7 +859,7 @@ hora ni reactiva: la calibración ajusta solo la activa y no supone factor de po
 - **Calibración** (la primera): cuadra solo la P (kW) al ±1 %; las escaladas con el FP del perfil.
 - **Recalibración**: cuadra la P y la Q al ±1 % **si la medida de cabecera es coherente**: la red la
   alcanza con las escaladas entre FP 1 y su mínimo (`calibracion.factor_potencia_minimo_escaladas`
-  del perfil; Electro Dunas, 0,90). Si no es coherente (NA203: 2 454 kvar con las escaladas a FP 1
+  del perfil; Empresa A, 0,90). Si no es coherente (NA203: 2 454 kvar con las escaladas a FP 1
   frente a 1 777 medidos), no se fuerza: queda la Q que da DIgSILENT con las escaladas a su FP de
   perfil, y el informe y la web lo dicen con el flujo que lo demostró y recomiendan revisar
   bancos y medición. Los bancos existentes trabajan a su máxima capacidad y la medida de
@@ -1190,6 +1190,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `generar_arquitectura.py` | Genera `docs/ARQUITECTURA_CATALOGO.md`: `--escribir`, `--comprobar` e `--instalar-ganchos`. | |
 | `generar_c4.py` | Pone al día las cifras del C4 (`docs/architecture/workspace.dsl` y su página) desde el catálogo y el Estado de cada spec: ficheros de cada componente, módulos, subsistemas, rutas, tareas, carriles y «en implementación». `--escribir` o `--comprobar`; va después de `generar_arquitectura.py --escribir`. | |
 | `puerta_calidad.py` | Puerta de calidad (spec 102): `--commit` (gancho pre-commit: gobierno y las pruebas del commit), `--push` (gancho pre-push: suite completa sin fallidas ni omitidas, con `config/suite_completa.json`) y `--ci` (GitHub Actions: suite sintética; deja su JUnit y `veredicto.json` en `CSG_CI_EVIDENCIA`, por defecto `resultados_ci/`, también si falla, 102:RF-32). Los recorridos en navegador de los dos arneses, con `npm run e2e:todo` en `frontend/` (102:RF-31). | |
+| `comparar_suite_repartida.py` | `--salida DIR [--n 1 2 3] [--pruebas "tests/a.py …"] [--candado DIR --quien TEXTO] [--no-lanzar-si-existe RUTA] [--objetos]`: la suite entera con N = 1, 2 y 3 procesos sobre el mismo árbol por la propia puerta, sin dejar veredicto (spec 102, T20). Mide la memoria privada del árbol de procesos y, con un complemento de pytest, la de cada proceso y sus hilos al acabar cada fichero; compara el veredicto de cada prueba, mira que el disco del worktree no cambie y propone `GIB_POR_PROCESO`. `--solo-comparar` rehace el informe. Sale con 0 si «iguales». De desarrollo: no se entrega. | |
 | `rutas_sin_modelo.py` | Rutas de `/api` sin modelo de respuesta (spec 002, RF-38): sin opciones las lista; `--escribir` rehace `docs/architecture/rutas_sin_modelo.json`, que solo baja y conserva el motivo de cada ruta. Crea la aplicación sobre una carpeta temporal, sin DIgSILENT ni red. | |
 | `build_interactive_architecture.py` | Genera la página de la arquitectura C4 interactiva desde `docs/architecture/`. | |
 | `check_pf_license.py` | Qué módulos de PowerFactory permite la licencia. | PF |
@@ -1203,14 +1204,16 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `construir_dataset_entrenamiento.py` | `[--destino CARPETA] [--output-json INFORME.json]`: importa el historial de la web y las operaciones acabadas del diario de cada espacio (anonimizadas) y construye las particiones en una carpeta nueva, sin pisar la anterior; el informe dice si está completo (200 órdenes reales, 10 episodios por proyecto) y qué falta, y cómo salen en su evaluación las acciones aprendidas del operador, sin promoverlas (spec 043, RF-14 y RF-15; spec 026, RF-49). | Ninguno |
 | `construir_dataset_pide.py` | Corpus PIDE universal de una empresa: `--raiz`, `--destino`, `--empresa`, `--contrato` (solo lee el expediente); `--solo-ejemplos` saca de él los ejemplos del agente por artículo, formato e informe (spec 027, RF-48 y RF-50). | |
 | `benchmark_anonimo.py` | `--red --carga --equipo --destino` (más `--dataset-089`, `--perfil`, `--tolerancia`, `--carpeta-semilla` y `--geometria-publica`): benchmark anonimizado y reproducible de una red, en local (spec 112). Seudónimos con una semilla secreta que se queda en la carpeta local, series del 089 si se dan, y su manifiesto; no publica nada por su cuenta. | |
+| `interempresa_loco.py` | `vnr` o `pronostico`, con `--empresas CARPETA --salida INFORME.json` (`--umbral` y `--tolerancia` en `vnr`, `--margen` en `pronostico`): deja una empresa fuera cada vez, una subcarpeta por empresa, y dice si lo aprendido de las demás vale para la retenida; con menos de 3 empresas, «NO DEMOSTRADA». Sale con 0 si está demostrada y con 3 si no, con el informe escrito en los dos casos (spec 112). | |
+| `benchmark_escala_web.py` | `[--tamanos 10 50 200] [--repeticiones 30] [--salida escala.json]` (más `--semilla`, `--tramos`, `--cargas` y `--tope`): escala de la web y su API con redes sintéticas, sin datos de ninguna empresa (spec 112). Cada tamaño en un proceso propio: carga de la red, p50 y p95 de las peticiones que hace la pantalla (la primera llamada aparte), tamaño de cada respuesta, memoria pico del proceso y el commit con que se midió. El dibujo de la pantalla necesita navegador y queda «no medido». En local, sin DIgSILENT ni red; la de 200 tarda, se corre aparte de la suite. | |
 | `vnr_publico_empresa.py` | `--empresa NOMBRE --destino CARPETA` (`--plan` dice qué bajaría sin bajar nada; `--catalogo` usa otro catálogo): baja bajo demanda el paquete VNR-GIS vigente de una empresa tal como lo publica Osinergmin, a una carpeta fuera del programa, para contrastar la geometría pública con la de un benchmark (spec 112). | |
 | `convertir_grupos_mdb.py` | Varios alimentadores de una base en un DGS, importado y con flujo. | PF |
 | `fidelidad_seleccion.py` | Que una selección pase entera del TXT al modelo y al DGS. | |
 | `linea_base_dgs.py` | Línea base de DGS antes de una reorganización, y comparación después. | |
 | `costos_cruce.py` | Mide cuánto de una red convertida encuentra costo en el SICODI público y nombra lo que no (spec 072). |
-| `corpus_redaccion_pide.py` | Revisión humana del corpus PIDE que enseña a redactar: lista lo pendiente, registra decisiones con su revisor y exporta lo aprobado sin cifras (spec 072, RF-19). |
+| `corpus_redaccion_pide.py` | Revisión humana del corpus PIDE que enseña a redactar: lista lo pendiente, registra decisiones con su revisor y su origen (`--origen` humano o maestro, o el de un `decisiones.json`), exporta lo aprobado, marcado con su origen, sin cifras ni nombres (`--catalogo`) y lo sella para `asistente_qlora.py` (`--sellar`), que lo entrena con su propio prompt (spec 072, RF-19, RF-48 a RF-51). |
 | `madrl_entrenar.py` | Entrena el control MaskablePPO del piloto MADRL y lo compara con la escalera y NSGA-II; dependencias en `requirements-madrl.txt` (spec 074). |
-| `medir_mejora.py` | Registra una corrida de «Con proyecto» y compara dos métodos o versiones: tiempo, recursos, obras, normas y contraste de hipótesis (spec 087). | |
+| `medir_mejora.py` | Registra una corrida de «Con proyecto» y compara dos métodos o versiones: tiempo, recursos, obras, normas y contraste de hipótesis (spec 087); `dominio`, si la PINN decidiría con la regla anterior y con la de 071:RF-2 en cada red (071 T5). | |
 | `madrl_obras.py` | Mide la escalera, NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios (spec 074). |
 | `proyeccion_mercado.py` | Compara métodos de proyección anual contra lo ocurrido con el Formato 01 (spec 072). |
 | `proyeccion_anual.py` | Pronostica todos los años de un estudio del PIDE con el mejor modelo por métricas y escribe proyección y evaluación; construye el Formato 01 con la cabecera si la empresa no lo tiene (spec 031). |

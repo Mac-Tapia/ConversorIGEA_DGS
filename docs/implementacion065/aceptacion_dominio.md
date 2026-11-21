@@ -50,12 +50,12 @@ conserva las identidades por workspace. Estos inventarios no cierran tareas.
 | D, PA217 | `5f11283a33c94ea5` / `20261029T075656-8d7c41066e13` | `20261029-075804_IGEA_PA217`, TXT |
 | E, TM105 | `5f11283a33c94ea5` / `20261025T222907-188f45cc53b5` | `20261025-222951_IGEA_TM105`, MDB |
 | F, SI213/PN107 | `5f11283a33c94ea5` / `20261016T092722-e8e14c73784b` | `20261016-093124_IGEA_SI213` / `20261016-095754_IGEA_PN107`, MDB |
-| G, Electro Oriente | `db9fa4d6c0ad4945` / `20261101T094918-9d614f5934f3` | `20261101-095744_CSG_NJA202` / `20261101-101524_CSG_0205`, VNR |
+| G, Empresa B | `db9fa4d6c0ad4945` / `20261101T094918-9d614f5934f3` | `20261101-095744_CSG_NJA202` / `20261101-101524_CSG_0205`, VNR |
 
 A y B comparten huella TXT `c3df248bfe29a734a1c34139cc1259d9962a223ca574f45c4cf45c152198c708`,
 pero conservan identidades distintas. G usa huella
 `66d8d93d9043694c3f4c3f59cfcc986bb9a77bfebe9c0848fd902a700f22b59f`;
-no se combina con Electro Dunas. Los períodos de calibración se toman del informe
+no se combina con Empresa A. Los períodos de calibración se toman del informe
 correspondiente, nunca de la fecha del TXT o del nombre del proyecto.
 
 El run de A en 374e contiene 34 archivos, **33 782 606 bytes**, y `workspace.json`
@@ -133,7 +133,7 @@ la etapa autorizada y a la exclusión del motor compartida.
 | 049:T4 | caso conocido con datos/curvas/licencia | ajustes/tiempos/fallas y readback; flujo no demuestra selectividad |
 | 051:T3 | G/NJA202 2024-11 y R205 2022-01 | identidad R205 frente a 0205 sin suponer alias; cabeceras <1%, R205 activa |
 | 052:T4 | B, período del plan | cronómetro <20 min y comparación oráculo/native; evidencia COPARA no prueba tiempo |
-| 055:T2 | G, estructura VNR Electro Oriente | sistemas/SET y conversión de un sistema por web |
+| 055:T2 | G, estructura VNR Empresa B | sistemas/SET y conversión de un sistema por web |
 | 056:T3 | G/NJA202, VNR propio | importación y vocabulario según fuente |
 | 058:T7 | alimentador de fuente declarada | importación nueva con nombre CSG y readback |
 | 063:T7 | A/INKA, tres casos de su ajuste | botón 4.4, trabajo completo y comparación informe manual |

@@ -77,9 +77,26 @@ def _codigo_ws(cliente, ruta: str, cabeceras: dict) -> int | None:
         destino = ruta if ruta.startswith('ws:') else f'ws://127.0.0.1:{PUERTO}{ruta}'
         with cliente.websocket_connect(destino, headers=cabeceras) as w:
             w.receive_json()
-            return None
+        _despertar_websocket(cliente, ruta)
+        return None
     except WebSocketDisconnect as exc:
         return exc.code
+
+
+def _despertar_websocket(cliente, ruta: str) -> None:
+    """MEJ8: el servidor solo ve el cierre al mandar el siguiente latido (15 s); se le despierta sin añadir eventos.
+
+    El bucle del WebSocket espera en ``events.wait`` y manda ``[]`` al vencer el plazo; despertado antes, manda el
+    mismo latido vacío a la conexión cerrada y termina. El registro de eventos no cambia.
+    """
+    hallado = re.search(r'/api/workspaces/([^/?]+)/ws', ruta)
+    espacio = cliente.app.state.store.get(hallado.group(1)) if hallado else None
+    if espacio is None:
+        return
+    for _ in range(20):          # por si el hilo aún no había vuelto a esperar: como mucho 1 s
+        with espacio.events._cond:
+            espacio.events._cond.notify_all()
+        time.sleep(0.05)
 
 
 # ------------------------------------------------------------ RF-17, Host
@@ -282,6 +299,7 @@ def test_cada_arranque_tiene_token_nuevo_y_el_anterior_solo_releva(tmp_path, mon
                                  headers={**cookie, 'Origin': BASE}) as w:
             assert any(k.lower() == b'set-cookie' and nueva.token.encode() in v for k, v in w.extra_headers or ())
             w.receive_json()
+        _despertar_websocket(c, f'/api/workspaces/{wid}/ws')
         ahora = time.monotonic()
         monkeypatch.setattr(seguridad.time, 'monotonic', lambda: ahora + seguridad.RELEVO_S + 1)
         assert c.get('/api/health', headers=cookie).status_code == 401

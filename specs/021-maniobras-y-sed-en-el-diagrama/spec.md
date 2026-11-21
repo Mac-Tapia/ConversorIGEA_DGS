@@ -309,7 +309,7 @@ tensión se suba a la fuente en pu en DIgSILENT»)
 - Determinismo: el DGS sigue idéntico byte a byte con `workers=1` y `workers>1`.
 - Escala: ninguna regla depende del número de alimentadores; las curvas se piden una vez
   por alimentador, no una vez por punto.
-- Universal (constitución 13): nada depende del patrón de nombres de Electro Dunas; el
+- Universal (constitución 13): nada depende del patrón de nombres de Empresa A; el
   trafomix de RF-7 es el que define el perfil.
 - Idioma: español.
 

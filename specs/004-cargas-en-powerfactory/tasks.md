@@ -166,3 +166,17 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       libro y devuelve el orden pedido, y la curva y las tensiones de cada resultado son `CurvaMedida` y
       `TensionesMedidas`. (RF-108)
       Hecho cuando: `pytest -q tests/test_demanda_medida.py -k "memoria or compactas or abiertos"` (004:RF-108) en verde.
+- [x] T33. MEJ10-FIJAS (orden del usuario del 20-11): `factores_de_medidor` y `fm_cambiados` en `aplicacion/demanda_medida.py`; la web avisa `FM_CAMBIADO` en la fila del cliente de la tabla cruzada (`_fm_cambiados`, `_anotar_medidor`). (RF-111)
+      Hecho cuando: rojo por aserción sobre 2f9de358 y verde con `tests/test_demanda_medida.py -k rf111`; la corrida en DIgSILENT la decide d8.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ10_FIJAS/rojo.log (16 F por aserción sobre 2f9de358, con test_004_rf111_fm_cambiado_con_el_salto_de_su_energia);
+      verde D:/csg/PM_IMPL/MEJ10_FIJAS/verde_py.log (665 passed); verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).
+- [x] T34. MEJ11-MAXIMA (orden del usuario del 20-11): `maxima_de_registros` con la máxima sostenida de una hora, el pico
+      de 15 minutos, el promedio sin ceros ni vacíos y el factor de carga; las ventanas en `instante_coincidente`,
+      `maxima_de_barra`, `valor_de_barra_en` e `instante_de_barras_de_alta`; la tabla de 2.2 con cada dato en su columna
+      (`frontend/src/features/powerfactory/tablaMaxima.ts`). (RF-112, RF-113, RF-114, RF-115, RF-116)
+      Hecho cuando: rojo por aserción sobre d6582a8e y verde con `pytest -q tests/test_maxima_sostenida.py` y
+      `node --test test/tablaMaxima.test.mjs`; la revisión con datos reales en el navegador y en DIgSILENT la decide d8.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ11_MAXIMA/rojo_py.log (14 F) y rojo_front.log (5 F) sobre d6582a8e; verde
+      D:/csg/PM_IMPL/MEJ11_MAXIMA/verde_npm_test.log (334 pass, 0 fail); verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).

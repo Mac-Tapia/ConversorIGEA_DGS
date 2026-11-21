@@ -20,7 +20,7 @@ La spec 001 va antes: deja cada responsabilidad en un solo sitio, y esta spec la
 en su capa.
 
 El conversor es universal: carga TXT, MDB y VNR-GIS de cualquier distribuidora
-(constitución P13). Los datos de Electro Dunas son un caso de prueba y de aceptación
+(constitución P13). Los datos de Empresa A son un caso de prueba y de aceptación
 antes de producción, no el diseño. Hoy hay tres convenciones suyas fijadas en el motor:
 el CRS `EPSG:32718` por defecto (`batch.py`, `geography.py`, `cli.py`, `web/services.py`),
 la exclusión de SED `M…` activada por defecto (`reglas.py`) y la escala del diagrama de
@@ -115,7 +115,7 @@ Universalidad (constitución P13)
 - RF-34: SI un módulo de `dominio`, `puertos` o `aplicacion` contiene, fuera de
   comentarios, un código de alimentador, un CRS o un prefijo de nombre de una empresa
   concreta, ENTONCES la comprobación de universalidad fallará.
-- RF-35: EL SISTEMA incluirá el perfil de Electro Dunas como un perfil más, y con él
+- RF-35: EL SISTEMA incluirá el perfil de Empresa A como un perfil más, y con él
   reproducirá los DGS de la línea base (RF-20).
 - RF-36: CUANDO se ejecuta la suite, las pruebas sintéticas convertirán la misma red con
   al menos dos perfiles de empresa distintos.

@@ -11,7 +11,7 @@ porque se presenta cada 4 años». Sobre los costos: «el VNR y SICODI, como los
 están en la página de Osinergmin de cada empresa».
 
 Hoy el conversor diagnostica por años y da una propuesta parcial de obras, pero no genera ninguno de los dos entregables.
-La referencia son los entregables de Electro Oriente: `PIDE 2026` (4.1 largo plazo y 4.2 PIDE, año 0 = 2025) y `PIDE 2021`
+La referencia son los entregables de Empresa B: `PIDE 2026` (4.1 largo plazo y 4.2 PIDE, año 0 = 2025) y `PIDE 2021`
 (informes sucesivos). Sus cifras son referencia de forma y contenido, no verdad: tienen incoherencias propias (103
 proyectos en ALT1 y 81 hojas de evaluación; años 02-07 frente a los 04-07 de la norma).
 
@@ -129,6 +129,17 @@ si el proyecto objetivo difiere del inicialmente activo. La interfaz muestra
 fuentes, faltantes, obras acumuladas y aceptación nativa pendiente; subir un
 archivo no concede aceptación científica ni reemplaza una revisión humana.
 - Aclaración de RF-24: una carga desequilibrada exige P/Q explícitas de sus fases r/s/t, con suma coherente con el total y unidades verificadas; su representación anual conserva la conexión y el modo físicos originales.
+- Aclaración de RF-25 y RF-26 (T14, 2026-11-20; usuario, 2026-11-07: «en cada año del PIDE, la obra que pida el año, encima
+  de las anteriores»): una obra es lo declarado para un año con la misma alternativa (sin ella, todo lo del año va
+  junto, como una sección con su maniobra); las alternativas de un año van en el orden de la escalera (042:RF-56), y cada
+  obra es candidata desde su año. En el año que incumple, EL SISTEMA probará, encima de las ya acumuladas, cada obra aún
+  no puesta de ese año o de los anteriores, una a una y en su orden, y se quedará con la primera que cumple; la que no cumple se retira y sigue
+  disponible para los años siguientes; SI ninguna sola basta, ENTONCES las probará juntas, y SI tampoco, el año queda
+  bloqueado. El informe da de cada año las probadas, con su resultado, y la elegida. El punto de partida es el año en
+  que el estudio de «Con proyecto» dijo que la de corto plazo vuelve a fallar (098:RF-39, RF-40), que trae su
+  aceptación; EL SISTEMA lo comparará con el primer año que falla medido con la proyección aceptada y, SI difieren,
+  ENTONCES lo dirá, sin bloquear. La proyección aceptada es la que emite la 031 (`tools/proyeccion_anual.py`), no el
+  pronóstico a 28 días de la 089.
 
 ### Entregables
 
@@ -209,9 +220,33 @@ los dos entregables.
 
 - RF-18: EL SISTEMA dará al asistente herramientas para ejecutar cada paso del estudio por las mismas rutas que la web, con
   plan y confirmación.
-- RF-19: EL SISTEMA podrá usar los entregables de Electro Oriente para entrenar al asistente, con revisión humana, solo para
+- RF-19: EL SISTEMA podrá usar los entregables de Empresa B para entrenar al asistente, con revisión humana, solo para
   redactar y dar formato, nunca como verdad eléctrica. Cambia 027:RF-47 por orden del usuario del 2026-11-02, a la propuesta
-  «¿autorizas usar los resultados de ELOR para entrenar, con revisión humana?»: «has la 3 y 4 según lo recomendado».
+  «¿autorizas usar los resultados de EMPB para entrenar, con revisión humana?»: «has la 3 y 4 según lo recomendado».
+- RF-48: (revisión de T9b con origen «maestro», 2026-11-20, hallazgo 1) CUANDO se registre una decisión sobre un
+  fragmento del corpus de redacción, EL SISTEMA guardará su origen, `humano` o `maestro`, el que declare la orden
+  (`--origen`, `humano` por defecto) y, si lo trae, el de la propia decisión; un fichero de decisiones cuyo origen no
+  coincide con el declarado no se aplica, ni en parte, y una decisión cuya huella del texto ya no es la del fragmento
+  tampoco. Por orden del usuario del 2026-11-19 («no deberían ser limitaciones otras personas para cerrar»), la revisión
+  de RF-19 la puede hacer una persona o un revisor independiente marcado `maestro`: lo aprobado con cualquiera de los dos
+  orígenes se exporta y se sella, cada ejemplo con su origen y el corpus con su recuento por origen; el origen nunca se
+  cambia ni se omite, y una decisión de otro origen (o sin él) no se registra ni entra.
+- RF-49: (misma revisión, hallazgo 2) EL SISTEMA, al exportar o sellar lo aprobado, ocultará además de las cifras y los
+  códigos los nombres de empresa, sede e instalación: los de un catálogo que llega en tiempo de ejecución desde los datos
+  del espacio (la empresa que declara cada fragmento y la lista que se pase, sin distinguir mayúsculas ni tildes) y, sin
+  catálogo, el nombre que sigue a «SET», a una subestación, central o sede, y la razón social terminada en «S.A.A.»,
+  «S.A.» o semejantes, con `‹empresa›`, `‹sede›`, `‹instalación›` o `‹nombre›`. Ningún nombre real va en el código ni en
+  las pruebas (RF-20).
+- RF-50: (misma revisión, hallazgo 3) EL SISTEMA convertirá lo aprobado (RF-48) y anonimizado en un corpus sellado con
+  el mismo formato de particiones, huellas y custodia de fuentes que lee `tools/asistente_qlora.py`
+  (`sellar_particiones` de 047), con su propio prompt de redacción, un documento entero por partición, los textos
+  repetidos una sola vez, el fragmento de origen custodiado, el origen de cada ejemplo y el recuento `por_origen` en el
+  manifiesto; sin ninguna aprobación de origen declarado no sella nada. El preflight de `asistente_qlora.py` lo audita
+  (particiones, huellas, fuente, anonimato, origen y que el recuento por origen sea el de sus ejemplos).
+- RF-51: (d8, 2026-11-20) CUANDO `tools/asistente_qlora.py entrenar` reciba un corpus sellado, EL SISTEMA elegirá el
+  lector y el prompt de sistema por el tipo que declara su manifiesto: sin tipo, el corpus de órdenes con el prompt del
+  alumno, como hasta ahora; `redaccion_pide`, el corpus de redacción con el prompt que selló; otro tipo, rechazado. El
+  ajuste sigue en CUDA, sin promover el candidato (047:RF-8).
 
 ### Casos de prueba
 

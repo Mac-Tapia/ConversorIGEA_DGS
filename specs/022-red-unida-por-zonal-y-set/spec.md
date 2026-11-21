@@ -9,7 +9,7 @@ En NA203 + NA205 (2026-10-17) cada «External Grid» alimentaba su isla, y la ca
 proyecto (021:RF-54) no tenía nada que acoplar. Los alimentadores de una misma SET comparten
 su barra de media tensión, y la empresa los agrupa en zonales y sistemas eléctricos con su
 sector típico y su norma (NTCSE, NTCSER). El usuario, el 2026-10-17, con la tabla pública
-«Sistemas eléctricos Electrodunas» (4 zonales: Chincha, Pisco, Ica y Nasca; cada SET con sus
+«Sistemas eléctricos EmpresaA» (4 zonales: Chincha, Pisco, Ica y Nasca; cada SET con sus
 alimentadores): «propón la conversión por sistema eléctrico y SET en un solo DGS unido por
 sistemas eléctricos y SET». El objetivo es un DGS con todos los alimentadores de la entrega
 colgados de la barra de su SET y agrupados por zonal y sistema eléctrico, sin suponer nada
@@ -41,8 +41,8 @@ Estructura de la empresa
   cada zonal con sus SET, cada SET con sus alimentadores.
 - RF-2: EL SISTEMA leerá de cada alimentador de la estructura su código, su SET, su
   sistema eléctrico (código y nombre), su sector típico y su norma.
-- RF-3: El perfil de Electro Dunas traerá la estructura de la tabla pública «Sistemas
-  eléctricos Electrodunas» (zonales Chincha, Pisco, Ica y Nasca).
+- RF-3: El perfil de Empresa A traerá la estructura de la tabla pública «Sistemas
+  eléctricos EmpresaA» (zonales Chincha, Pisco, Ica y Nasca).
 - RF-4: CUANDO el operador sube en la web la tabla de la estructura en Excel, EL SISTEMA la
   usará en lugar de la del perfil para ese espacio.
 - RF-5: SI la tabla subida tiene un alimentador sin SET, una SET sin zonal o un código
@@ -59,7 +59,7 @@ Conversión unida por zonal y SET
 - RF-9: EL SISTEMA escribirá cada SET como una subestación con su código y su nombre («SET
   21 El Carmen»).
 - RF-10: EL SISTEMA pondrá en cada SET una barra por cada tensión de media de sus
-  alimentadores en la entrega (10 kV y 22,9 kV en Electro Dunas).
+  alimentadores en la entrega (10 kV y 22,9 kV en Empresa A).
 - RF-11: EL SISTEMA pondrá una red externa por barra de SET, con la consigna de tensión del
   perfil o 1,0 pu sin ella.
 - RF-12: EL SISTEMA unirá la cabecera de cada alimentador a la barra de su SET y tensión
@@ -163,10 +163,10 @@ por ejemplo, la barra B-PA2T1, 22,9, PA, es la barra de 22,9 kV de la SET Paraca
   barra de 10 kV de Pedregal), EL SISTEMA pondrá la central en esa barra con la P y Q
   medidas en el registro objetivo de la barra, como la central de 021:RF-35.
 - RF-45: SI unas siglas del libro no están en la estructura, ENTONCES EL SISTEMA las tomará
-  como una barra suelta propia (alimentadores nuevos: CHN, PO y Chiribamba en Electro
-  Dunas, usuario 2026-10-17), con su red externa, a la que colgarán los alimentadores de la
+  como una barra suelta propia (alimentadores nuevos: CHN, PO y Chiribamba en Empresa A
+  , usuario 2026-10-17), con su red externa, a la que colgarán los alimentadores de la
   entrega con esas siglas, calibrada con su medidor, y lo dirá.
-- RF-46: La estructura del perfil de Electro Dunas dará a SEIN las siglas SI (B-SI1T1 es su
+- RF-46: La estructura del perfil de Empresa A dará a SEIN las siglas SI (B-SI1T1 es su
   barra de 10 kV).
 
 Una opción propia, sin mezclas (usuario, 2026-10-18: «este es otra opción, por sistema
@@ -256,7 +256,7 @@ la costa a la sierra, de SET 51 Nasca a SET 56, y su diagrama único no cabe en 
   de la SET de menor código, abierto (RF-27) y dibujado en su diagrama.
 - RF-69: EL SISTEMA importará, verificará el «Caso base» y calibrará por sistema eléctrico un
   proyecto con redes por SET igual que uno con una red por zonal.
-- RF-70: La estructura del perfil de Electro Dunas marcará el zonal Nasca como dividido por
+- RF-70: La estructura del perfil de Empresa A marcará el zonal Nasca como dividido por
   SET.
 
 SET y alimentadores nuevos de la entrega (usuario, 2026-10-23: «en los TXT cargados existe
@@ -288,10 +288,10 @@ por zonal los dejaba fuera)
 - RF-78: EL SISTEMA avisará de cada alimentador colocado por RF-71 a RF-74, con su SET, su
   zonal y la regla que lo colocó, en el resumen de la estructura y en el informe de la
   conversión, sin bloquear.
-- RF-79: La estructura del perfil de Electro Dunas tendrá la SET Chincha Nueva (siglas CN),
+- RF-79: La estructura del perfil de Empresa A tendrá la SET Chincha Nueva (siglas CN),
   en el zonal Chincha, con CN101, CN102, CN103 y CN201 en el sistema eléctrico SE0043
   Chincha (usuario, 2026-10-23).
-- RF-80: La estructura del perfil de Electro Dunas pondrá PO101, de la SET 35 Pampa de
+- RF-80: La estructura del perfil de Empresa A pondrá PO101, de la SET 35 Pampa de
   Ocas, en el sistema eléctrico SE0046 Pisco (usuario, 2026-10-23).
 - RF-81: CUANDO una SET de la estructura declare varias siglas, EL SISTEMA tratará como el
   mismo alimentador los códigos que solo difieren en esas siglas: en la estructura, en el
@@ -299,7 +299,7 @@ por zonal los dejaba fuera)
   nueva Chincha Nueva viene en RED_231026 como CN101 a CN201 y en los libros de la empresa
   como CHN101 a CHN201, con el medidor de barra CHNB1T1; en la web sus alimentadores no
   encontraban medidor y su barra quedaba suelta (usuario, 2026-10-27). El perfil de
-  Electro Dunas da a la SET CHN las siglas CN y CHN; sin siglas declaradas no se casa nada.
+  Empresa A da a la SET CHN las siglas CN y CHN; sin siglas declaradas no se casa nada.
 - RF-82: La web tendrá, junto a «Convertir sistema», un desplegable con las SET de la
   entrega (las del sistema elegido, o todas), cada una con sus alimentadores, y un botón
   «Convertir SET» que convierte solo esa SET como en su sistema: su red, sus barras y la
@@ -378,7 +378,7 @@ Informe
 - Escala: ninguna regla depende del número de alimentadores, SET ni zonales; la estructura
   se indexa una vez, no se recorre por alimentador.
 - Universal (constitución 13): zonales, SET, sistemas eléctricos y normas vienen del perfil
-  o de la tabla subida; el código no conoce ningún nombre de Electro Dunas.
+  o de la tabla subida; el código no conoce ningún nombre de Empresa A.
 - Las fuentes son independientes: TXT, MDB y VNR-GIS se convierten igual con la estructura.
 - Idioma: español.
 
@@ -421,7 +421,7 @@ Informe
 - Cada RF citado por al menos una prueba (`grep -rnoE "022:RF-[0-9]+" tests`).
 - Suite en verde con los TXT, la MDB y VNR-GIS reales, y DGS idéntico con `workers=1` y
   `workers>1`.
-- Probado en DIgSILENT: la entrega de Electro Dunas importada como un proyecto, con los
+- Probado en DIgSILENT: la entrega de Empresa A importada como un proyecto, con los
   cuatro zonales, sus SET y un flujo que converge; NA203 + NA205 calibrados juntos en SET
   51 Nasca.
 

@@ -83,3 +83,73 @@ def test_main_escribe_informe_tambien_si_revienta(guion, tmp_path, monkeypatch):
     assert guion.main(['--plan', str(plan), '--output-json', str(salida)]) == 1
     informe = json.loads(salida.read_text(encoding='utf-8'))
     assert informe['modo'] == 'verificar' and 'ZeroDivisionError' in informe['error']
+
+
+#: Lo que escribió DIgSILENT en la verificación del 2026-11-20 (``DIAG_NOCONV/corrida_2/ventana_ldf.txt``), recortado.
+VENTANA_SIN_CONVERGER = (['info - Grid split into 4 isolated areas']
+                         + [f'info - Load flow iteration: {i}' for i in range(76)]
+                         + ['warn - Newton-Raphson Algorithm did not converge. Maximum number of iterations reached.',
+                            'err  - No convergence in load flow.', 'err  - Load flow calculation not executed.'])
+
+
+def _ventana_al_ejecutar(app, lineas):
+    original = app.ldf.Execute
+
+    def ejecutar():
+        rc = original()
+        app.salida.extend(lineas)
+        return rc
+
+    object.__setattr__(app.ldf, 'Execute', ejecutar)
+
+
+def test_008_rf30_sin_converger_trae_lo_que_dice_digsilent(guion):
+    """008:RF-30 / 025:RF-66 — sin convergencia, el informe dice por qué con las palabras de DIgSILENT: sus errores y
+    advertencias, no las 76 líneas de iteración. El 2026-11-20 solo decía ``return_code 1``."""
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=3, bt=True, flujo=True)
+    app.ldf.limite = 0.01
+    _ventana_al_ejecutar(app, VENTANA_SIN_CONVERGER)
+    app.escrituras.clear()                              # lo de la preparación no cuenta
+    informe, rc = guion.ejecutar(app, _plan(['F1']))
+    assert rc == 2 and not informe['flujo']['converged']
+    assert informe.get('mensajes') == VENTANA_SIN_CONVERGER[-3:], informe.get('mensajes')
+    assert app.escrituras == [] and app.creados == []
+
+
+def test_008_rf30_con_convergencia_no_hay_mensajes(guion):
+    """008:RF-30 — si converge, ``mensajes`` va vacío: la ventana no se lleva al informe."""
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=3, bt=True, flujo=True)
+    _ventana_al_ejecutar(app, ['info - Load flow iteration: 0'])
+    informe, rc = guion.ejecutar(app, _plan(['F1']))
+    assert rc == 0 and informe.get('mensajes') == []
+
+
+def test_008_rf31_avisa_de_sed_ntp_apagada_sin_encenderla(guion):
+    """008:RF-31 / 008:RF-18 — ``SED_NTP_P`` existe y está apagada: el informe lo dice con sus transformadores y cuántos
+    quedan por encima del 100 % con lo activo, sin activarla ni escribir. El 2026-11-20 eran 7, el más cargado al 2 048 %."""
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=3, bt=True, flujo=True)
+    carga = next((c for c in app.GetCalcRelevantObjects('*.ElmLod') if c.loc_name == 'F1_S1'), None)
+    assert carga is not None
+    carga.plini = 0.3                                   # 300 kW sobre 100 kVA del archivo; con la etapa, 630 kVA
+    variacion = fake_pf.variacion_del_conversor_apagada(app, 'SED_NTP_P', {'TR_F1_S1': 630.0, 'TR_F1_S2': 250.0})
+    assert all(t.typ_id.strn == 0.1 for t in app.GetCalcRelevantObjects('*.ElmTr2')), 'el doble la deja apagada'
+    informe, rc = guion.ejecutar(app, _plan(['F1']))
+    assert rc == 0
+    [fila] = informe.get('variaciones_del_conversor_apagadas') or [None]
+    assert fila is not None, informe
+    assert (fila['variacion'], fila['transformadores'], fila['sobre_100']) == ('SED_NTP_P', 2, 1)
+    assert fila['maxima_pct'] == pytest.approx(100.0 * 300.0 / 0.95 / 100.0, rel=1e-3)
+    assert fila['aviso'] in informe['avisos'] and 'SED_NTP_P' in fila['aviso'] and '2 transformadores' in fila['aviso']
+    assert variacion not in app.variaciones_activas and 'SED_NTP_P' not in informe['variaciones_activas']
+    assert app.escrituras == [] and app.creados == []
+
+
+def test_008_rf31_activa_o_sin_variacion_no_avisa(guion):
+    """008:RF-31 — sin ``Fichas_``/``SED_NTP_``, o con ellas activas, no hay aviso."""
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=3, bt=True, flujo=True)
+    informe, _rc = guion.ejecutar(app, _plan(['F1']))
+    assert 'variaciones_del_conversor_apagadas' not in informe and informe['avisos'] == []
+    variacion = fake_pf.variacion_del_conversor_apagada(app, 'SED_NTP_P', {'TR_F1_S1': 630.0})
+    variacion.Activate()
+    informe, _rc = guion.ejecutar(app, _plan(['F1']))
+    assert 'variaciones_del_conversor_apagadas' not in informe

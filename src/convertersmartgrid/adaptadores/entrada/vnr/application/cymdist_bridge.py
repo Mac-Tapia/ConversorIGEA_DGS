@@ -457,8 +457,8 @@ def canonical_to_cymdist(
             blocking.append('MISSING_NOMINAL_VOLTAGE')
         if not mapped_loads.get(feeder):
             # Una red sin cargas se convierte igual, como en la vía TXT (alimentadores
-            # fuera de servicio o vacíos: SC215, SI114 y TM101 de la copia de Electro
-            # Dunas, 2026-10-18); se dice, no bloquea (023:RF-10).
+            # fuera de servicio o vacíos: tres alimentadores de la copia de Empresa A,
+            # 2026-10-18); se dice, no bloquea (023:RF-10).
             avisos.append('MISSING_LOADS')
         codes = {
             line_configurations[sid].get('LineCableID', '') for sid in section_ids

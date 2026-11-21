@@ -193,3 +193,117 @@ test('F-11 la página enlaza el teclado, el salto al contenido y el estado de la
   assert.match(app, /<span className="sr-only">: \{estado\}<\/span>/);
   assert.ok(!/<Pill tone=\{caps\.\w+ \? 'ok' : 'muted'\}/.test(app), 'ninguna capacidad dice su estado solo con el color');
 });
+
+// ---------------------------------------------------------------- MEJ6-A11Y (111 T17): diálogo, notas y monitor
+
+async function cargarMej6() {
+  const salida = await build({ stdin: { contents: `
+    import { createElement } from 'react';
+    import { renderToStaticMarkup } from 'react-dom/server';
+    import * as ui from './src/shared/ui';
+    import * as acerca from './src/app/AcercaDe';
+    import * as monitor from './src/features/asistente/MonitorAgente';
+    const { Modal } = ui;
+    // Por el espacio de nombres: sobre el código anterior a MEJ6 falta lo nuevo y la prueba falla por aserción.
+    export const enlazarDialogo = ui['enlazarDialogo'];
+    export const bloquesMarkdown = acerca['bloquesMarkdown'];
+    export const filasLegibles = monitor['filasLegibles'];
+    export const sinRutas = monitor['sinRutas'];
+    const NotasVersion = acerca['NotasVersion'];
+    const DatosLegibles = monitor['DatosLegibles'];
+    export const modal = (title) => renderToStaticMarkup(createElement(Modal, { title, onClose: () => undefined }, 'cuerpo'));
+    export const dosModales = () => renderToStaticMarkup(createElement('div', null,
+      createElement(Modal, { title: 'Uno', onClose: () => undefined }, 'a'),
+      createElement(Modal, { title: 'Dos', onClose: () => undefined }, 'b')));
+    export const notas = (texto) => renderToStaticMarkup(createElement(NotasVersion, { texto }));
+    export const datos = (d) => renderToStaticMarkup(createElement(DatosLegibles, { datos: d }));`,
+    resolveDir: fileURLToPath(new URL('..', import.meta.url)), loader: 'tsx' },
+    bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent' });
+  const modulo = { exports: {} };
+  new Function('require', 'module', 'exports', salida.outputFiles[0].text)(createRequire(import.meta.url), modulo, modulo.exports);
+  return modulo.exports;
+}
+
+test('MEJ6 D1 (4.1.2) el diálogo se nombra con su título: aria-labelledby apunta al id del h2', async () => {
+  const { modal, dosModales } = await cargarMej6();
+  const html = modal('Nuevo espacio de trabajo');
+  const ref = html.match(/<dialog[^>]*aria-labelledby="([^"]+)"/);
+  assert.ok(ref, `el dialog no tiene aria-labelledby: ${html.slice(0, 160)}`);
+  const h2 = html.match(/<h2[^>]*id="([^"]+)"[^>]*>([^<]*)<\/h2>/);
+  assert.ok(h2, 'el h2 del título no tiene id');
+  assert.equal(h2[1], ref[1], 'aria-labelledby y el id del h2 coinciden');
+  assert.equal(h2[2], 'Nuevo espacio de trabajo');
+  // Dos diálogos en la misma página no comparten id (useId).
+  const ids = [...dosModales().matchAll(/<h2[^>]*id="([^"]+)"/g)].map((m) => m[1]);
+  assert.equal(ids.length, 2);
+  assert.notEqual(ids[0], ids[1]);
+});
+
+test('MEJ6 D2 (2.4.3) al cerrar el diálogo el foco vuelve al elemento que lo abrió, si sigue en la página', async () => {
+  const { enlazarDialogo } = await cargarMej6();
+  assert.equal(typeof enlazarDialogo, 'function', 'Modal no tiene la función que guarda y devuelve el foco');
+  const enfocados = [];
+  const boton = { isConnected: true, focus: () => enfocados.push('boton') };
+  const dialogo = { open: false, showModal() { this.open = true; } };
+  const soltar = enlazarDialogo(dialogo, boton);
+  assert.equal(dialogo.open, true, 'se abre como modal');
+  assert.deepEqual(enfocados, [], 'al abrir no se toca el foco del que abre');
+  soltar();
+  assert.deepEqual(enfocados, ['boton'], 'el foco vuelve al botón que lo abrió');
+  // Si el que lo abrió ya no está en la página, no se fuerza el foco sobre un nodo suelto.
+  const suelto = { isConnected: false, focus: () => enfocados.push('suelto') };
+  enlazarDialogo({ open: false, showModal() { this.open = true; } }, suelto)();
+  assert.deepEqual(enfocados, ['boton']);
+  // Ya abierto y sin elemento activo: ni se reabre ni falla.
+  enlazarDialogo({ open: true, showModal() { throw new Error('ya abierto'); } }, null)();
+});
+
+test('MEJ6 D3 y M2 las notas de la versión: zona con nombre y alcanzable con Tab, Markdown con formato y escapado', async () => {
+  const { notas, bloquesMarkdown } = await cargarMej6();
+  assert.equal(typeof bloquesMarkdown, 'function', 'AcercaDe no da formato a las notas');
+  const md = '# Notas de la versión\n\n## 1.0.0\n\n- Primera **línea** con `codigo`\n- Segunda\n\nTexto <b>sin</b> marcar.';
+  const html = notas(md);
+  assert.match(html, /<div[^>]*role="region"/, 'la zona desplazable es una región');
+  assert.match(html, /aria-label="Notas de la versión"/);
+  assert.match(html, /tabindex="0"/i, 'la zona desplazable entra en el orden del teclado (2.1.1)');
+  assert.doesNotMatch(html, /<pre/, 'el Markdown no sale en crudo dentro de un pre');
+  assert.doesNotMatch(html, /(^|>)#+ /, 'sin almohadillas a la vista');
+  assert.match(html, /<h4[^>]*>1\.0\.0<\/h4>/);
+  assert.match(html, /<ul[^>]*><li>Primera <strong>línea<\/strong> con <code>codigo<\/code><\/li><li>Segunda<\/li><\/ul>/);
+  assert.doesNotMatch(html, /\*\*/);
+  assert.match(html, /Texto &lt;b&gt;sin&lt;\/b&gt; marcar\./, 'el HTML del texto se escapa, nunca se interpreta');
+  assert.doesNotMatch(html, /Notas de la versión<\/h4>/, 'el título que repite el de la sección no se duplica');
+  assert.equal(bloquesMarkdown('').length, 0);
+  assert.match(notas(''), /Sin notas\./);
+});
+
+test('MEJ6 M1 el monitor presenta los datos como lista en español, sin claves en inglés ni rutas absolutas', async () => {
+  const { datos, filasLegibles, sinRutas } = await cargarMej6();
+  assert.equal(typeof filasLegibles, 'function', 'el monitor no tiene la lista legible');
+  const trabajo = {
+    id: 'j1', kind: 'agente_proyecto', status: 'done', lane: 'engine', cancel_requested: false,
+    created_at: 1763600000, finished_at: 1763600100, error: null,
+    result: { informe: 'C:\\Usuarios\\alguien\\espacios\\w1\\salida\\informe.docx', rutas: ['/home/x/a.xlsx'] },
+  };
+  const filas = filasLegibles(trabajo);
+  const etiquetas = filas.map((f) => f.etiqueta);
+  for (const e of ['Estado', 'Carril', 'Cancelación solicitada', 'Creado', 'Terminado']) assert.ok(etiquetas.includes(e), e);
+  assert.ok(!etiquetas.some((e) => /cancel_requested|finished_at|lane|created_at/.test(e)), etiquetas.join(', '));
+  assert.equal(filas.find((f) => f.etiqueta === 'Estado').valor, 'Ejecución terminada');
+  assert.equal(filas.find((f) => f.etiqueta === 'Cancelación solicitada').valor, 'No');
+  assert.ok(!filas.some((f) => f.etiqueta === 'Error'), 'los vacíos no ocupan pantalla');
+  assert.ok(!String(filas.find((f) => f.etiqueta === 'Terminado').valor).includes('1763600100'), 'fecha legible, no Unix');
+  const html = datos(trabajo);
+  assert.match(html, /<dl/);
+  assert.match(html, /informe\.docx/);
+  assert.doesNotMatch(html, /Usuarios|\/home\/x|C:\\/, 'ninguna ruta absoluta, ni en el detalle técnico');
+  assert.match(html, /<details><summary>Detalle técnico<\/summary><pre>/);
+  assert.deepEqual(sinRutas({ a: 'D:\\x\\y\\z.json', b: ['\\\\srv\\c\\d.txt', 'texto normal', 'a/b relativa'], c: 3 }),
+    { a: 'z.json', b: ['d.txt', 'texto normal', 'a/b relativa'], c: 3 });
+});
+
+test('MEJ6 M1 el monitor ya no pinta JSON en crudo fuera del detalle técnico', () => {
+  const t = leer('../src/features/asistente/MonitorAgente.tsx');
+  assert.equal((t.match(/<pre>\{JSON\.stringify\((?!sinRutas\()/g) ?? []).length, 0, 'cada JSON pasa por DatosLegibles, sin rutas');
+  assert.ok((t.match(/<DatosLegibles /g) ?? []).length >= 4, 'las cuatro vistas de datos usan la lista legible');
+});

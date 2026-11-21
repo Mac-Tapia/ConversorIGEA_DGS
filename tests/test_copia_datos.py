@@ -542,12 +542,12 @@ def test_la_web_avisa_de_la_copia(tmp_path):
 def _datos_con_enlaces(tmp_path) -> tuple[Path, bytes]:
     """Como el 2026-11-12: el mismo paquete en varias ejecuciones, por enlaces duros, y una copia idéntica aparte."""
     raiz = tmp_path / 'web'
-    paquete = raiz / 'original' / 'ELOR25_V2.zip'
+    paquete = raiz / 'original' / 'EMPB25_V2.zip'
     paquete.parent.mkdir(parents=True)
     contenido = os.urandom(256 * 1024)
     paquete.write_bytes(contenido)
     for n in range(4):
-        enlace = raiz / f'corrida_{n}' / 'entradas' / 'ELOR25_V2.zip'
+        enlace = raiz / f'corrida_{n}' / 'entradas' / 'EMPB25_V2.zip'
         enlace.parent.mkdir(parents=True)
         os.link(paquete, enlace)
     (raiz / 'otra').mkdir()
@@ -556,8 +556,8 @@ def _datos_con_enlaces(tmp_path) -> tuple[Path, bytes]:
     return raiz, contenido
 
 
-_RUTAS_PAQUETE = ['original/ELOR25_V2.zip', 'otra/mismo_contenido.zip',
-                  *(f'corrida_{n}/entradas/ELOR25_V2.zip' for n in range(4))]
+_RUTAS_PAQUETE = ['original/EMPB25_V2.zip', 'otra/mismo_contenido.zip',
+                  *(f'corrida_{n}/entradas/EMPB25_V2.zip' for n in range(4))]
 
 
 def test_la_copia_guarda_una_vez_cada_fichero_fisico_con_todos_sus_nombres(tmp_path):
@@ -608,8 +608,8 @@ def test_sin_enlaces_duros_en_el_destino_cada_nombre_vuelve_como_copia(tmp_path,
     destino = tmp_path / 'otra_unidad'
     r = copia.restaurar_copia(Path(m['ruta']), raices={'datos': destino})
     assert r['enlaces'] == 0 and r['copias_de_nombres'] == 5
-    assert (destino / 'corrida_3/entradas/ELOR25_V2.zip').read_bytes() == contenido
-    assert os.stat(destino / 'corrida_3/entradas/ELOR25_V2.zip').st_nlink == 1
+    assert (destino / 'corrida_3/entradas/EMPB25_V2.zip').read_bytes() == contenido
+    assert os.stat(destino / 'corrida_3/entradas/EMPB25_V2.zip').st_nlink == 1
 
 
 def test_la_verificacion_detecta_un_fichero_alterado_y_no_restaura(tmp_path):
@@ -665,7 +665,7 @@ def test_un_manifiesto_de_version_2_se_sigue_restaurando(tmp_path):
     destino = tmp_path / 'restaurado'
     r = copia.restaurar_copia(folder, raices={'datos': destino})
     assert r['restaurados'] == 7 and r['enlaces'] == 0
-    assert (destino / 'corrida_2/entradas/ELOR25_V2.zip').read_bytes() == contenido
+    assert (destino / 'corrida_2/entradas/EMPB25_V2.zip').read_bytes() == contenido
 
 
 def test_antes_de_copiar_se_dice_cuanto_ocupa_y_si_no_cabe_no_se_empieza(tmp_path, monkeypatch):

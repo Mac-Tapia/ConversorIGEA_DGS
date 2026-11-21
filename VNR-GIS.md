@@ -641,7 +641,7 @@ This design permits immediate implementation against the real OSINERGMIN ArcGIS 
 
 ## U1. Universal scope
 
-The converter MUST NOT contain company-specific conversion logic. Electro Dunas (`ELDU`) is a validation fixture/case, never the canonical schema.
+The converter MUST NOT contain company-specific conversion logic. Empresa A (`EMPA`) is a validation fixture/case, never the canonical schema.
 
 Supported dimensions are discovered at runtime:
 
@@ -739,7 +739,7 @@ distinct_count
 
 Forbidden:
 ```python
-if company == "ELDU":
+if company == "EMPA":
     # conversion rules
 ```
 
@@ -754,7 +754,7 @@ Company-specific exceptions, if unavoidable, belong in declarative configuration
 
 ```yaml
 overrides:
-  - company: ELDU
+  - company: EMPA
     valid_from: null
     valid_to: null
     reason: "documented source exception"
@@ -896,7 +896,7 @@ If explicit topology and geometry disagree, retain both and emit a conflict. Nev
 ## U13. Multi-company validation suite
 
 Minimum fixtures:
-- Electro Dunas dataset/sample;
+- Empresa A dataset/sample;
 - at least one different OSINERGMIN company;
 - synthetic edge cases.
 
@@ -1022,7 +1022,7 @@ READ-ONLY PROJECT AUDIT
 → SIMULATOR QA
 ```
 
-Do not start by rewriting the DGS writer or by special-casing Electro Dunas.
+Do not start by rewriting the DGS writer or by special-casing Empresa A.
 
 
 # UNIVERSAL VNRGIS DISCOVERY & DOWNLOAD MANAGER — v1.5
@@ -1263,10 +1263,10 @@ RAR support is optional-driver based. If unavailable, report the exact missing d
 Examples:
 
 ```bash
-python -m vnr_etl search-vnr --company "Electro Dunas"
+python -m vnr_etl search-vnr --company "Empresa A"
 python -m vnr_etl search-vnr --all-companies --latest
-python -m vnr_etl list-vnr --company "Electro Dunas"
-python -m vnr_etl download-vnr --company "Electro Dunas" --period latest
+python -m vnr_etl list-vnr --company "Empresa A"
+python -m vnr_etl download-vnr --company "Empresa A" --period latest
 python -m vnr_etl download-vnr --all-companies --period latest
 python -m vnr_etl sync-vnr --all-companies
 ```
@@ -1280,8 +1280,8 @@ python -m vnr_etl sync-vnr --all-companies
 Natural requests should map to deterministic selection:
 
 ```text
-"descarga el VNRGIS más reciente de Electro Dunas"
-→ company=resolved(Electro Dunas)
+"descarga el VNRGIS más reciente de Empresa A"
+→ company=resolved(Empresa A)
 → source_family=REGULATORY_VNRGIS_PACKAGE
 → period=latest
 → show selected official publication

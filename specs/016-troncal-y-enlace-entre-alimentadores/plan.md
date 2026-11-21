@@ -190,7 +190,7 @@ Cada prueba cita `016:RF-n`.
   por la vía más los accesos, la recta, los metros fuera de vía (`waypoints[].distance`)
   y el servicio. `pedir` se inyecta en las pruebas: ninguna sale a la red.
 - Configuración en el perfil de empresa, clave `vias`: `servicio` (`osrm`), `url`,
-  `perfil` (`driving`), `fuera_de_via_max_m` y `tiempo_max_s`. El de Electro Dunas apunta
+  `perfil` (`driving`), `fuera_de_via_max_m` y `tiempo_max_s`. El de Empresa A apunta
   al servidor público de OSRM sobre OpenStreetMap. Sin la clave, recta y nada sale (RF-86).
 - `tools/obras_pf.py`, `construir_enlace`: el `GPScoords` y el `dline` de la línea salen
   de la ruta; fallo o sin ruta → recta y aviso (RF-85).

@@ -642,6 +642,20 @@ class AvisoLibroRespuesta(Respuesta):
     ficha: dict[str, Any] | None = None
 
 
+class CorreccionMedidorRespuesta(Respuesta):
+    """039:RF-23: una corrección fechada del factor del medidor de un cliente."""
+    codigo: str
+    factor: float
+    desde: str
+    motivo: str = ''
+    registrada: str
+
+
+class CorreccionesMedidorRespuesta(Respuesta):
+    """039:RF-23: las correcciones del factor de medidor registradas en el espacio."""
+    correcciones: list[CorreccionMedidorRespuesta]
+
+
 class LibrosNuevosRespuesta(Respuesta):
     """104:RF-1, RF-2, RF-20 a RF-23: avisos sin ver, revisiones y estado del dataset del pronóstico."""
     avisos: list[AvisoLibroRespuesta]

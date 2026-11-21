@@ -9,14 +9,14 @@ debe hacer todos los tramos y SED de todos los alimentadores, nada debe ser omit
 el oráculo nada» y «todo esto debe incluirse en los spec y debe implementarse en el proyecto conversor,
 esto debe aplicarse ya, es de mejora continua universal».
 
-La spec 057 dejó el oráculo equilibrado por escrito, y con Electro Oriente lo que se corrigió fue
+La spec 057 dejó el oráculo equilibrado por escrito, y con Empresa B lo que se corrigió fue
 DIgSILENT (054:RF-7), no el oráculo. Medido con DIgSILENT el 2026-11-03, sobre los proyectos importados
 de cada empresa:
 
 | Alimentador | Oráculo equilibrado sin bancos | DIgSILENT desequilibrado | Efecto |
 | --- | --- | --- | --- |
-| TI01 de Electro Sur Este | Vmin 0,802 p.u. | Vmin 0,790 p.u. | Se importó por debajo del umbral |
-| C+æ02 de Luz del Sur, 3 bancos | Vmin 0,804 p.u. con 4,63 MW | Vmin 0,934 p.u. con 4,63 MW | Se le quitó el 57 % de su demanda sin motivo |
+| TI01 de Empresa D | Vmin 0,802 p.u. | Vmin 0,790 p.u. | Se importó por debajo del umbral |
+| C+æ02 de Empresa C, 3 bancos | Vmin 0,804 p.u. con 4,63 MW | Vmin 0,934 p.u. con 4,63 MW | Se le quitó el 57 % de su demanda sin motivo |
 
 El oráculo por fases, con los bancos, queda a +0,00 y −0,34 puntos de media de DIgSILENT, con un
 máximo de 2,5 y 1,3 puntos, frente a los 10 puntos de media de C+æ02 sin bancos. El flujo equilibrado de DIgSILENT deja sin calcular las SED

@@ -149,7 +149,9 @@ def test_lo_escrito_lo_lee_la_calibracion(tmp_path):
     assert (salida / '2024' / 'cabecera_2024.xlsx').is_file(), 'una subcarpeta por año (025:RF-1)'
     (r,) = dm.maximas([salida / '2024' / 'cabecera_2024.xlsx'], [('ALIM_A', 'NJ202')], periodo='2024')
     assert r.error is None
-    mayor = max(v[0] for t, v in esperado['NJ202'].items() if t.year == 2024)
+    # 004:RF-112: la máxima es la mayor media de una hora seguida (4 registros de 15 min) del año.
+    serie = [v[0] for _t, v in sorted((t, v) for t, v in esperado[codigos[0]].items() if t.year == 2024)]
+    mayor = max(sum(serie[k - 3:k + 1]) / 4 for k in range(3, len(serie)))
     assert r.kw == pytest.approx(mayor)
 
 

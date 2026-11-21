@@ -75,3 +75,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       DIgSILENT va en el bloque de 086 T105.
       Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
       hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T17. MEJ10-FIJAS (orden del usuario del 20-11): el guion para en `_preparar_alimentador` con `FIJA_A_REVISAR`, sin flujos ni escrituras, y en el proyecto sigue con los demás alimentadores. (RF-47)
+      Hecho cuando: rojo por aserción sobre 2f9de358 y verde con `tests/test_ajuste_cabecera_guion.py -k rf47`; la corrida en DIgSILENT la decide d8.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ10_FIJAS/rojo.log (test_006_rf47_en_el_proyecto_el_alimentador_a_revisar_no_frena_a_los_demas);
+      verde D:/csg/PM_IMPL/MEJ10_FIJAS/verde_py.log; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).

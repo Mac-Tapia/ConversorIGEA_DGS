@@ -23,7 +23,8 @@ import math
 import traceback
 from pathlib import Path
 
-from cargas_pf import _cerrado, activar_proyecto, clave_pf, flujo_de_carga, trazado_de
+from cargas_pf import (_cerrado, activar_proyecto, clave_pf, flujo_de_carga, trazado_de,
+                       variaciones_del_conversor_apagadas)
 from estudios_pf import _num, medida
 
 from convertersmartgrid.dominio.compat_pf import zip_estricto
@@ -171,6 +172,12 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
                             'barras': info, 'huellas_gps': huellas,
                             'estados': _estados(app, set(plan.get('estados_de') or []))}
 
+    # 008:RF-31: ``Fichas_``/``SED_NTP_`` apagadas, dicho sin encenderlas: tras una calibración no válida el servidor
+    # apagaba ``SED_NTP_`` y aquí solo se leía «no converge tras reabrir» (2026-11-20).
+    apagadas = variaciones_del_conversor_apagadas(app, plan['project'])
+    if apagadas:
+        lectura['variaciones_del_conversor_apagadas'] = apagadas
+        lectura['avisos'].extend(x['aviso'] for x in apagadas)
     flujo = flujo_de_carga(app)
     if not flujo['converged']:
         # 086:RF-125, 024:RF-4: la red se lee igual (el grafo no depende del flujo; sus tensiones quedan en

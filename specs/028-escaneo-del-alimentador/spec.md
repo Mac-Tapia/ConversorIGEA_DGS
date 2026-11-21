@@ -1,6 +1,6 @@
 # Spec 028 — Escaneo del alimentador antes de recalibrar
 
-Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (revisión 033 del 2026-10-29) · pedida por el usuario el 2026-10-28 («en el interfaz debe tener un campo donde escanea
+Estado: cumplida (reabierta el 2026-11-20 con MEJ11-MAXIMA por orden del usuario: RF-43, RF-44, T17) · antes cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (revisión 033 del 2026-10-29) · pedida por el usuario el 2026-10-28 («en el interfaz debe tener un campo donde escanea
 al alimentador para hacer la recalibración donde identifique los cambios y centrales térmicas
 en cualquier alimentador; recuerda que este proyecto es universal, general, nada debe estar
 fijo»), tras decir que las centrales y los bancos de NA205 los pone él a mano en DIgSILENT.
@@ -161,6 +161,21 @@ alimentador o barra de cabecera»)
 - RF-41: CUANDO se recalibran solo unos alimentadores del sistema, EL SISTEMA tomará el instante del sistema igual que con
   todos, y no escribirá las cargas de los demás: conservan las que dejó su última calibración.
 - RF-42: SI un alimentador elegido no es del sistema del proyecto, ENTONCES EL SISTEMA lo dirá antes de empezar y no recalibrará.
+
+Tabla de la máxima según el ámbito (orden del usuario del 20-11, MEJ11-MAXIMA). En una captura con el ámbito «Sistema
+eléctrico», cada alimentador mostraba su propia fecha: cuatro fechas distintas. El servidor ya daba un único instante
+al sistema (RF-31), pero la tabla seguía siendo la de una búsqueda anterior con otro ámbito sin decirlo, y no se veía
+qué instante era común. «Son cosas diferentes, no se debe mezclar».
+
+- RF-43: EL SISTEMA dirá con cada resultado de la máxima su ámbito: alimentador, coincidente (RF-28), no coincidente
+  (086:RF-126), instante elegido a mano (RF-32), SET o sistema eléctrico (RF-31); SI la tabla mostrada es de otro ámbito
+  que el elegido, ENTONCES la web lo dirá y pedirá volver a buscar.
+- RF-44: DONDE el ámbito sea coincidente o de sistema eléctrico, EL SISTEMA mostrará el instante común sobre la tabla y,
+  en las columnas de cada alimentador (fecha y hora, kW, kVAR, kVA, FP y V), sus valores en ese mismo instante, que son los
+  que se cargan en DIgSILENT; la máxima sostenida propia de cada uno y su pico de 15 minutos irán solo como referencia en
+  columnas aparte (004:RF-115). DONDE sea no coincidente, cada alimentador mostrará y cargará su propia máxima sostenida
+  con su fecha y hora. El objetivo de la calibración, las fijas coincidentes y la cabecera serán exactamente esas filas
+  (006:RF-1); un alimentador sin medida en el instante (RF-38) se señala en su fecha.
 
 ## Fuera de alcance
 

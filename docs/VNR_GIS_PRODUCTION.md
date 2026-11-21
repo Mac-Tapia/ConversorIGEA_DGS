@@ -109,7 +109,7 @@ de cualquier otro.
   la aceptación de una publicación VNRGIS empresarial concreta.
 - Descubrimiento oficial final: la página GRT 2026 produjo tres PDF regulatorios
   del proyecto VNR al 31-12-2025, no un paquete empresarial VNR-GIS completo. La
-  conversión real de Electro Dunas permanece `BLOCKED_MISSING_OFFICIAL_PACKAGE`
+  conversión real de Empresa A permanece `BLOCKED_MISSING_OFFICIAL_PACKAGE`
   hasta obtener y custodiar ese paquete original.
 
 ## Fundamento científico y técnico

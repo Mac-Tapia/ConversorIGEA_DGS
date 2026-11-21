@@ -1405,6 +1405,55 @@ def asegurar_catalogo_empresa(ruta: Path | str) -> Path:
             os.replace(temporal, ruta)
     return ruta
 
+
+#: 080:RF-49: lo que :func:`ampliar_catalogo` escribe en «observaciones» de una fila añadida: la empresa de la fuente
+#: en la que apareció el código (``origen``: «<empresa>» o «<empresa> (<copia>)»), antes de la cita de la spec.
+_AL_APARECER_EN = re.compile(r'al aparecer en (?P<origen>.+?) \(spec 053\)')
+
+
+def empresa_de_la_fila(fila: dict[str, Any]) -> str:
+    """080:RF-49: la empresa en cuya fuente apareció la fila (``''`` si no lo dice: la semilla o una ficha a mano)."""
+    m = _AL_APARECER_EN.search(str(fila.get('observaciones') or ''))
+    return m.group('origen').split(' (')[0].strip() if m else ''
+
+
+def filas_de_otra_empresa(ruta: Path | str, empresa: str,
+                          codigos: Iterable[str] | None = None) -> list[dict[str, Any]]:
+    """080:RF-49: las filas del catálogo de ``empresa`` que son de otra; vacío si el fichero es solo suyo.
+
+    Una fila es de otra empresa si se añadió al aparecer en la fuente de otra (lo dice su «observaciones», que escribe
+    :func:`ampliar_catalogo`) o, si se dan los ``codigos`` de la fuente de la empresa, si su código no es de ellos ni de
+    la semilla, que no es de ninguna (RF-50). Cada una sale con ``codigo``, ``hoja``, ``empresa`` (la que dice su fila)
+    y ``motivo``. El catálogo no se toca.
+
+    Por qué: con un fichero único, un alimentador de una distribuidora tomaba filas añadidas al aparecer otra (usuario,
+    2026-11-03); un fichero copiado de otra carpeta o un código de empresa cambiado lo repetiría sin que nada lo dijera.
+    """
+    from openpyxl import load_workbook
+
+    propia = (empresa or '').strip().upper()
+    semilla = {str(f['codigo']).upper() for filas in filas_semilla().values() for f in filas}
+    de_la_fuente = None if codigos is None else {str(c or '').strip().upper() for c in codigos}
+    ajenas: list[dict[str, Any]] = []
+    libro = load_workbook(ruta, read_only=True, data_only=True)
+    try:
+        for hoja in libro.worksheets:
+            for fila in _filas_de(hoja):
+                codigo = str(fila.get('codigo') or '').strip()
+                origen = empresa_de_la_fila(fila)
+                if origen and origen.upper() != propia:
+                    motivo = f'añadida al aparecer en {origen}'
+                elif (de_la_fuente is not None and codigo.upper() not in semilla
+                      and codigo.upper() not in de_la_fuente):
+                    motivo = 'su código no está en la fuente de la empresa ni en la semilla'
+                else:
+                    continue
+                ajenas.append({'codigo': codigo, 'hoja': hoja.title, 'empresa': origen, 'motivo': motivo})
+    finally:
+        libro.close()
+    return ajenas
+
+
 _BLOQUEO_CATALOGO: list = []
 
 

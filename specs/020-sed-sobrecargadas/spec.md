@@ -1,6 +1,6 @@
 # Spec 020 — SED fijas sobrecargadas: aviso y transformadores nuevos desde la web
 
-Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-16) · Fecha: 2026-10-16
+Estado: cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario: RF-64) · antes cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-16) · Fecha: 2026-10-16
 
 > Cambiada por la spec 032 (2026-10-28): los transformadores van en la variación
 > `SED_NTP_<proyecto>`, no en la red (RF-16), porque el «Caso base» conserva los kVA del
@@ -150,11 +150,15 @@ potencia cambiada con sus respectivos códigos SED»)
   origen; las del perfil, si las trae, mandan. Cambia la regla de 020:RF-29 («la norma va en el perfil»). Usuario
   (2026-11-11): «las fichas deben ser parte del conversor, eso sí debe ir». Programa instalado sin perfil (2026-11-11): CA101
   no quedó válido porque SE20701 no se pudo cambiar por su ficha.
+- RF-64: (orden del usuario del 20-11) EL SISTEMA no propondrá transformador nuevo para una fija a revisar
+  (015:RF-73), y la propuesta de una fija partirá de los kVA de la fuente de su grupo (015:RF-75): si ya la llevan, no se
+  propone nada. SI la media del mes del cliente no cabe en esos kVA, ENTONCES la propuesta se anotará como «kVA de la
+  fuente incoherente con la medida», con las dos cifras.
 
 ## Requisitos no funcionales
 
 - Ninguna norma, potencia ni umbral en el código: todo viene del perfil de empresa (P13).
-  Electro Dunas: NTP 370.400-2013, Tablas 6 (AT ≤ 17,5 kV) y 7 (17,5 < AT ≤ 36 kV) de las
+  Empresa A: NTP 370.400-2013, Tablas 6 (AT ≤ 17,5 kV) y 7 (17,5 < AT ≤ 36 kV) de las
   especificaciones de FONAFE (2017, rev. 2), de 15 a 630 kVA, y umbral del 80 %.
 - La propuesta se calcula con lo que ya leyó la calibración: no añade flujos.
 - Mensajes en español (P10).

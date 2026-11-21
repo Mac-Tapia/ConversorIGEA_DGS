@@ -134,7 +134,8 @@ def test_objetivo_es_la_maxima_de_la_tabla(client):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body['feeder'] == 'A1'
-    assert body['objetivo']['kw'] == 107.0 and body['objetivo']['kvar'] == 10.0
+    # 004:RF-112: la media de la hora 104–107 kW, la misma que la fila de la tabla (028:RF-44).
+    assert body['objetivo']['kw'] == 105.5 and body['objetivo']['kvar'] == 10.0
     assert body['tolerancia'] == 0.01
     assert any('suministros' in a for a in body['avisos'])
     assert any('fuente canónica activa' in a.lower() for a in body['avisos'])
@@ -146,7 +147,7 @@ def test_varios_medidores_hay_que_elegir(client):
     r = _plan(client, wid, job)
     assert r.status_code == 400 and 'elija el medidor' in r.json()['detail']
     r = _plan(client, wid, job, medidor='M1')
-    assert r.status_code == 200 and r.json()['objetivo']['kw'] == 107.0
+    assert r.status_code == 200 and r.json()['objetivo']['kw'] == 105.5
     # M2 solo trae kW: sin kVAR ni FP no hay objetivo (RF-3).
     assert _plan(client, wid, job, medidor='M2').status_code == 400
 
@@ -441,6 +442,44 @@ def test_orden_y_eleccion_de_los_medidores(client):
     r = _plan(client, wid, job)
     assert r.status_code == 400 and 'A1 tiene M1, M3' in r.json()['detail']
     assert _plan(client, wid, job, medidores=['M3']).json()['feeders'] == ['A1']
+
+
+def _cabecera_sostenida():
+    """A1 con un registro suelto de 900 kW y una hora seguida de 400 kW; A2 con su hora de 300 kW en otro momento."""
+    from datetime import datetime, timedelta
+
+    t0, q = datetime(2026, 7, 1), timedelta(minutes=15)
+    a1 = lambda i: 900.0 if i == 2 else 400.0 if 8 <= i <= 11 else 100.0     # noqa: E731
+    a2 = lambda i: 300.0 if 16 <= i <= 19 else 50.0                          # noqa: E731
+    cab = [['Local Time', 'kVAR tot', 'kW tot']]
+    return ({'M1': cab + [[t0 + i * q, 30.0, a1(i)] for i in range(24)],
+             'M3': cab + [[t0 + i * q, 12.0, a2(i)] for i in range(24)]},
+            [(t0 + k * q).isoformat(sep=' ') for k in range(24)])
+
+
+@pytest.mark.parametrize('coincidente', [True, False])
+def test_el_objetivo_de_cada_modo_es_la_fila_de_la_tabla(client, coincidente):
+    """028:RF-44, 004:RF-112 — lo que se carga en DIgSILENT es la fila que enseña la tabla: en el coincidente, todos en
+    el instante común; en el no coincidente, la máxima sostenida de cada uno. El pico y la propia, nunca."""
+    hojas, t = _cabecera_sostenida()
+    wid = client.post('/api/workspaces').json()['id']
+    assert client.post(f'/api/workspaces/{wid}/demanda/cabecera',
+                       files=[('files', ('SISTEMA C.xlsx', _xlsx(hojas)))]).status_code == 200
+    job = client.post(f'/api/workspaces/{wid}/demanda/cabecera/buscar', json={'coincidente': coincidente, 'medidores': [
+        {'alimentador': a, 'medidor': m} for a, m in (('A1', 'M1'), ('A2', 'M3'))]}).json()
+    estado = esperar_trabajo(client, job)
+    assert estado['status'] == 'done', estado
+    tabla = {r['alimentador']: r for r in estado['result']['resultados']}
+    esperado = ({'A1': (t[11], 400.0), 'A2': (t[11], 50.0)} if coincidente
+                else {'A1': (t[11], 400.0), 'A2': (t[19], 300.0)})
+    assert {a: (r['fecha'], r['kw']) for a, r in tabla.items()} == esperado
+    r = _plan(client, wid, job['id'])
+    assert r.status_code == 200, r.text
+    cargado = {a['objetivo']['alimentador']: a['objetivo'] for a in r.json()['ajustes']}
+    for a, fila in tabla.items():
+        assert (cargado[a]['fecha'], cargado[a]['kw'], cargado[a]['kvar']) == (fila['fecha'], fila['kw'], fila['kvar'])
+        assert cargado[a]['kw'] != fila['pico']['kw'] or fila['pico']['kw'] == fila['kw']
+    assert cargado['A1']['kw'] != 900.0, 'el pico suelto de 15 min no se carga'
 
 
 def test_un_medidor_sin_maxima_no_para_los_demas(client):

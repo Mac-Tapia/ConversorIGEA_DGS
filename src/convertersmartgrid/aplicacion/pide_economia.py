@@ -238,8 +238,8 @@ def costos_en_moneda_de_trabajo(costos: Mapping[str, Mapping[str, Any]],
                                 escala: float | None) -> dict[str, dict[str, Any]]:
     """Los costos del libro en la moneda de trabajo, con la escala del perfil (025:RF-77), una sola vez.
 
-    Es la regla de la escalera (``escalera_optima.costos_de_alternativas``) para el PIDE: el libro de Electro
-    Dunas está en miles de dólares y el PIDE lo tomaba en dólares (hallazgo H1, 2026-11-14). Con costos y sin
+    Es la regla de la escalera (``escalera_optima.costos_de_alternativas``) para el PIDE: el libro de Empresa A
+    está en miles de dólares y el PIDE lo tomaba en dólares (hallazgo H1, 2026-11-14). Con costos y sin
     escala no se supone 1: :class:`EconomiaPideError`. Cada costo guarda la ``escala_aplicada``, y uno que ya
     la trae no se vuelve a escalar.
     """

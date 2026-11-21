@@ -140,3 +140,47 @@ def test_turno_comun_en_el_alumno_llm():
     fuente = (RAIZ / 'tools/llm_destilar.py').read_text(encoding='utf-8')
     assert fuente.count('with turno_gpu(') == 3 and 'BloqueoGPU' not in fuente
     assert 'convertersmartgrid-gpu.lock' not in fuente
+
+
+def _grafo_prueba(n):
+    """Una red radial sintética de ``n`` barras, sin bloqueos de alcance físico."""
+    nodos = {'B0': {'kv': 10.0, 'fuente': True, 'v_pu': 1.0}}
+    ramas = []
+    for i in range(1, n):
+        nodos[f'B{i}'] = {'kv': 10.0, 'p_mw': 0.05, 'q_mvar': 0.01}
+        ramas.append({'id': f'L{i}', 'clase': 'ElmLne', 'desde': f'B{i - 1}', 'hasta': f'B{i}',
+                      'r_ohm': 0.3, 'x_ohm': 0.3, 'inom_ka': 0.2, 'cerrada': True})
+    return {'nodos': nodos, 'ramas': ramas, 'version': o.VERSION_GRAFO, 'bloqueos_heredados': []}
+
+
+@pytest.mark.parametrize('caso, cambia', [('sin_redes', True), ('su_red', False), ('pequena', False)])
+def test_medida_de_la_regla_de_red_antes_y_despues(tmp_path, caso, cambia):
+    """071:RF-2 (T5): la herramienta dice, red a red, si la PINN decidía antes y si decide ahora."""
+    grafo = _grafo_prueba(6)
+    m = o.muestra(grafo)
+    dominio = {'x_min': m.x.min(axis=0).tolist(), 'x_max': m.x.max(axis=0).tolist(), 'nodos': [6, 6],
+               'version_grafo': o.VERSION_GRAFO}
+    if caso == 'su_red':
+        dominio['redes'] = [o.red_de(m)]
+    if caso == 'pequena':
+        dominio['nodos'] = [60, 60]
+    modelo = tmp_path / 'modelo'
+    modelo.mkdir()
+    (modelo / 'modelo.json').write_text(json.dumps({'version': 'v-prueba', 'dominio': dominio}), encoding='utf-8')
+    episodio = tmp_path / 'episodio.json'
+    episodio.write_text(json.dumps({'topologia': {'grafo': grafo}}), encoding='utf-8')
+    salida = tmp_path / 'dominio.json'
+    try:
+        codigo = _herramienta('medir_mejora').main(['dominio', '--modelo', str(modelo), '--grafo', str(episodio),
+                                                    '--json', str(salida)])
+    except SystemExit as exc:          # una orden que la herramienta no conoce sale por argparse
+        codigo = exc.code
+    assert codigo == 0
+    r = json.loads(salida.read_text(encoding='utf-8'))
+    fila = r['redes'][0]
+    assert fila['nodos'] == 6 and fila['cambia'] is cambia and r['cambian'] == int(cambia)
+    esperado = {'sin_redes': ('pinn', 'fisica'), 'su_red': ('pinn', 'pinn'), 'pequena': ('fisica', 'fisica')}[caso]
+    assert (fila['antes']['decide'], fila['despues']['decide']) == esperado
+    if caso == 'sin_redes':
+        assert fila['despues']['motivos'] == ['el modelo no declara en qué redes se probó']
+    assert ('ninguna red cambia' in r['conclusion']) is not cambia

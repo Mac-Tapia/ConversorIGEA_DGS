@@ -87,7 +87,8 @@ def test_q_positiva_sigue_con_su_columna(tmp_path):
     r = _maxima(tmp_path, [(900.0, 7.0, None, 95.0), (800.0, 0.0, 95.0, None)])
     assert [q for _t, _p, q in r.curva] == [7.0, 0.0]
     assert r.columnas['kvar'] == 'kVAR tot mean'
-    assert not r.avisos
+    # 004:RF-112: con dos registros no hay una hora seguida, y eso se dice; de la Q, ningún aviso.
+    assert not [a for a in r.avisos if 'hora seguida' not in a]
 
 
 def test_el_kw_no_cambia(tmp_path):
@@ -124,8 +125,11 @@ def test_medicion_real():
     if not libros:
         pytest.skip('sin el libro de cabecera de ese sistema en CSG_DEMANDA_DIR')
     r = Cabecera(libros).maxima('CHB2T1')
-    assert r.kw == pytest.approx(1884.458, abs=.01)
-    assert r.kvar == pytest.approx(-220.34, abs=.01)
+    # 004:RF-112: el registro de 1884,458 kW queda como pico de referencia; lo que se carga es la media de su hora,
+    # que no lo supera, y la Q de esa hora sigue capacitiva.
+    assert r.pico['kw'] == pytest.approx(1884.458, abs=.01)
+    assert r.kw <= r.pico['kw']
+    assert r.kvar < 0
     assert 'calculad' in r.columnas['kvar']
 
 

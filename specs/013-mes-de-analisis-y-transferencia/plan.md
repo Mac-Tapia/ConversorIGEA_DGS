@@ -140,7 +140,7 @@ el catálogo impide vincularlos a meses distintos sin evidencia.
    - dar prioridad a la asignación manual explícita;
    - elegir, entre duplicados, el mayor `(mtime_ns, nombre)` y avisar ambos nombres.
 
-   El patrón de Electro Dunas tendrá grupos nombrados `mes` y `anio`, por ejemplo
+   El patrón de Empresa A tendrá grupos nombrados `mes` y `anio`, por ejemplo
    `^(?P<mes>0[1-9]|1[0-2])(?P<anio>\\d{2})clientesImportantes\\.(xlsb|xlsx)$`.
 
 2. Ejecutar RED:

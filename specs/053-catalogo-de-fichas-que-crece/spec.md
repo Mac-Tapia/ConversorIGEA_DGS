@@ -1,7 +1,7 @@
 # Spec 053 — El catálogo de fichas crece con cada código nuevo
 
 Estado: cumplida · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al convertir la
-copia VNR-GIS de Electro Oriente («debes usar para recalibración el catálogo y completar según
+copia VNR-GIS de Empresa B («debes usar para recalibración el catálogo y completar según
 fichas técnicas; las fichas técnicas de cada equipo son universales, no tienen un nombre de la
 empresa»; «las fichas técnicas son de uso universal, se usan para cualquier empresa; el flujo es
 lo mismo para cualquier empresa del conversor»; «añade; cada vez debe crecer el catálogo»).
@@ -13,7 +13,7 @@ la X, la B1 y la ampacidad de cada tipo de conductor por su código de norma, co
 del fabricante. Las fichas son universales: el mismo código vale para cualquier distribuidora.
 
 Hoy el catálogo se escribe de una vez a partir de los tipos que usaba la red de la que se sacó, y
-un código que no está en él queda sin parámetros. Al convertir NJA202 y R205 de Electro Oriente
+un código que no está en él queda sin parámetros. Al convertir NJA202 y R205 de Empresa B
 (2026-11-01), seis códigos no estaban (`AS03503G`, `AS05003G`, `AS07003G`, `CS03503G`,
 `AA24003G`, `N230003G`) y sus tramos salían con R = X = 0: el oráculo lo detectaba y el flujo de
 NJA202 solo convergía con la demanda al 11,3 %.
@@ -63,4 +63,4 @@ ficha del fabricante.
 ## Criterios de finalización
 
 - `grep -rnoE "053:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-9.
-- NJA202 y R205 de Electro Oriente reconvertidos sin ningún tramo de impedancia nula.
+- NJA202 y R205 de Empresa B reconvertidos sin ningún tramo de impedancia nula.

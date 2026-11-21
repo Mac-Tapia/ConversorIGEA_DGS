@@ -11,7 +11,7 @@ tipos (constitución P4) y un alias equivocado cambia la impedancia sin avisar.
         [--write-draft config/line_type_aliases.draft.json]
 
 Sin ``--codes`` toma todos los códigos del RED que faltan en el catálogo. Antes traía
-fijos tres códigos de una exportación de Electro Dunas (spec 009, RF-8).
+fijos tres códigos de una exportación de Empresa A (spec 009, RF-8).
 """
 
 from __future__ import annotations

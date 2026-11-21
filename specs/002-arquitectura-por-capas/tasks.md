@@ -4,7 +4,7 @@ Pendientes de aprobar el plan. Una tarea cada vez; cada una deja la suite en ver
 las tres variables `CSG_*` y la línea base de DGS idéntica (RF-20).
 
 T1 y T5 se adelantaron el 2026-10-12 a petición del usuario («siempre debe ser universal;
-Electro Dunas es un ejemplo de aplicación para pruebas»): no dependen de las capas. La
+Empresa A es un ejemplo de aplicación para pruebas»): no dependen de las capas. La
 línea base con el perfil `electro_dunas` es idéntica a la de antes en TXT, red unida y
 Access.
 
@@ -25,7 +25,7 @@ Access.
       Hecho cuando: la lista de privados permitidos está vacía.
       Del 2026-11-03: eran 36 al medir de nuevo, no 12; pasan a nombres públicos y `test_no_quedan_nombres_privados_entre_modulos` lo fija.
 - [x] T5. Perfil de empresa: CRS, patrón de SED de medición, escala y forma del
-      alimentador; perfil de Electro Dunas; pedir el CRS si falta; manifiesto. (RF-31 a RF-37)
+      alimentador; perfil de Empresa A; pedir el CRS si falta; manifiesto. (RF-31, RF-32, RF-33, RF-34, RF-35, RF-36, RF-37)
       Hecho cuando: `pytest -q tests/test_perfil_empresa.py` en verde y `git grep EPSG:32718 -- src tools`
       solo encuentra el perfil.
 - [x] T6. Puertos, registro de módulos por entry points y lista de permitidos. (RF-7 a RF-15, RF-23 a RF-30)
@@ -56,7 +56,7 @@ van después de T7. T11 reordena `frontend/src` y pide probar la web en el naveg
       RF-6: `tests/test_instalacion_programa.py::test_rueda_incluye_adaptador_vnr_y_ambos_launchers_sin_instalar` (línea 82).
       RF-22: `tests/test_vnr_etl.py::test_sqlite_probe_cli_real_codigo_y_json` (línea 175).
       Hecho el 2026-11-15 (MARCAS-PISTA3): en e182c823 no queda `src/vnr_etl/` (solo la fachada `src/vnr_etl.py` del CLI,
-      RF-22), y la puerta de regresión real es la suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log:1202` «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.» Incluye `tests/test_vnr_etl.py` y `tests/test_linea_base_001.py`.
+      RF-22), y la puerta de regresión real es la suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log` (línea 1202) «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.» Incluye `tests/test_vnr_etl.py` y `tests/test_linea_base_001.py`.
 - [x] T9. Retirar las reexportaciones; `tools/` y las pruebas usan las rutas nuevas. (RF-21)
       Hecho cuando: `test_capas.py` no encuentra ningún módulo que solo reexporte.
       Compatibilidad pendiente: `src/vnr_etl.py` (CLI público conservado por contrato) y

@@ -33,3 +33,12 @@
   Hecho cuando: el registro deja un candidato PROMOVIDO, medido con una prueba que no haya orientado el ajuste.
   Su puerta de no regresión compara con el modelo en uso fuera de muestra (aclaración de RF-38 y RF-39, 2026-11-13):
   hasta entonces comparaba con la medida dentro de muestra de prov-8fd8a405 y ningún candidato honesto podía pasar.
+- [ ] T13 Partición de las órdenes humanas por empresa y por fecha, sin paráfrasis de una misma petición en dos
+      particiones (Plan Maestro PM-18). (RF-41)
+      Hecho cuando: `tests/test_interprete_codificador.py` (069:RF-41) parte un conjunto de humanas con su empresa, su
+      fecha y su grupo de paráfrasis y comprueba que ninguna empresa retenida, fecha de prueba ni grupo cae en dos
+      particiones.
+      Bloqueada por datos (2026-11-20, MEJ13 de d8): las humanas guardadas traen la fecha en que se anotaron, pero no la
+      empresa ni el grupo de paráfrasis, que no se pueden deducir del texto sin inventarlos; no se escribe código hasta
+      tenerlos. Siguiente acción: el usuario o sus revisores etiquetan las humanas con su empresa y su grupo; después, el código y su
+      prueba.

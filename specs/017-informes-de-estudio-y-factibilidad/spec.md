@@ -278,7 +278,7 @@ el modelo no se incluyen.
 - RF-64: SI el alimentador no está en el libro de pérdidas, ENTONCES EL SISTEMA dará las
   pérdidas técnicas calculadas y dejará señalado el hueco de lo reconocido.
 - RF-65: EL SISTEMA obtendrá la cargabilidad del transformador de potencia de la SET del
-  proyecto de transmisión de DIgSILENT que indique el perfil de empresa. (En Electro Dunas,
+  proyecto de transmisión de DIgSILENT que indique el perfil de empresa. (En Empresa A,
   `AD08_MPIT25-29_v4`: solo transmisión, sin redes de media tensión; cada alimentador es
   una carga concentrada en la barra de 10 kV o de 22,9 kV de su SET, y el proyecto sirve
   para ver la cargabilidad de la SET.)
@@ -358,7 +358,7 @@ captura de Google Earth.
   ese coloreado, con sus bandas, colores y anchuras de línea.
 - Aclaración de RF-115 (086:RF-35): si el perfil no da las bandas, se piden en la web; sin dato, salen de la banda de tensión y del umbral, con aviso.
 - RF-115: EL SISTEMA tomará las bandas de los dos coloreados del perfil de empresa. (Las del
-  modelo, que irán en el perfil de Electro Dunas: tensión 85, 90, 95 y 105 % de la
+  modelo, que irán en el perfil de Empresa A: tensión 85, 90, 95 y 105 % de la
   nominal; cargabilidad 80, 90, 95, 105 y 150 %.)
 - RF-116: EL SISTEMA aplicará esas bandas al coloreado del diagrama de DIgSILENT antes de
   exportar y dejará después el coloreado que tenía.

@@ -8,6 +8,7 @@ import type { BarraDeSet, CentralDeBarra, CentralTermica, SetDeCentral, Comparac
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from '../../shared/ui';
 import { AvisosLibros } from './AvisosLibros';
+import { conPropiaDeReferencia, fmtFactor, fueraDelInstante, horaDeLaVentana, modoDeLaTabla, type ResultadoMaxima } from './tablaMaxima';
 
 const LIBROS: { tipo: DemandaTipo; titulo: string; ayuda: string }[] = [
   { tipo: 'medidores', titulo: 'Medidor por alimentador', ayuda: 'Columnas «codigo alimentador» y «Medidor».' },
@@ -303,6 +304,14 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   };
   const conmutarMaxima = (codigo: string) => void guardarASuMaxima(
     aSuMaxima.includes(codigo) ? aSuMaxima.filter((c) => c !== codigo) : [...aSuMaxima, codigo]);
+  // 039:RF-23, 004:RF-111: el operador aplica el FM anterior a un cliente con FM_CAMBIADO; el libro no se toca.
+  const corregirMedidor = async (c: ClienteImportante) => {
+    const fm = c.fm_cambiado;
+    if (!fm?.mes) return;
+    const r = await run(() => api.demandaCorreccionMedidor(ws.id, { codigo: c.codigo, factor: fm.factor_propuesto,
+      desde: fm.mes!, motivo: fm.texto }));
+    if (r) toast('ok', `${c.codigo}: FM corregido ×${fmtNum(fm.factor_propuesto, 4)}`, `Desde ${fm.mes}; vuelva a cruzar.`);
+  };
   // Spec 025, RF-22: el año de las mediciones, siempre elegido por el operador; con él,
   // ``periodo`` es «AAAA» (todo el año) o uno de sus meses.
   const [anio, setAnio] = useState('');
@@ -477,6 +486,11 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const propias = !deBarra && !ultimo?.result?.coincidente && !instanteActual && instantes.length > 1;
   const instanteElegido = propias ? 'propia' : (ultimo?.result?.coincidente || deBarra) ? '' : instanteActual;
   const alimentadoresBuscados = new Set(cabecera.map((r) => r.alimentador).filter(Boolean)).size;
+  // 004:RF-116, 028:RF-43, RF-44: cada dato en su columna; en el coincidente, el instante común y la propia aparte.
+  const modo = modoDeLaTabla(ultimo?.result as ResultadoMaxima | undefined, tipoAnalisis);
+  const propiaDeReferencia = conPropiaDeReferencia(modo);
+  const conMaximaPeriodo = cabecera.some((r) => r.maxima_periodo);
+  const columnasDeDatos = 11 + (propiaDeReferencia ? 2 : 0) + (conMaximaPeriodo ? 1 : 0);
   // Spec 028: el último escaneo de este proyecto en DIgSILENT (solo lectura).
   const trabajosDePf = Object.values(jobs).filter((j) => j.status === 'done' && (j.kind === 'pf_escaneo'
     || j.kind.startsWith('ajuste_') || j.kind.includes('recalibr'))).length;
@@ -799,33 +813,64 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       })()}
       {cabecera.length > 0 && (
         <div className="table-wrap table-short">
-          <table className="table">
-            <thead><tr><th>Alimentador</th><th>Medidor</th><th>Fecha y hora del kW máx.</th><th className="num">kW máx.</th>
+          {/* 028:RF-43: la tabla de otro ámbito no se lee como la del elegido. */}
+          {modo?.deOtroAmbito && (
+            <small className="alert alert-warn">Esta tabla es de otro ámbito: pulse «Buscar la máxima».</small>
+          )}
+          {/* 028:RF-44: en el coincidente, un único instante para todos; es el que se carga en DIgSILENT. */}
+          {modo?.instanteComun && (
+            <p className="row small"><strong>Instante común: <span className="mono">{modo.instanteComun}</span></strong>
+              {modo.totalComunKw != null && <span>{fmtNum(modo.totalComunKw, 1)} kW en conjunto</span>}</p>
+          )}
+          <table className="table tabla-maxima">
+            <thead><tr><th>Alimentador</th><th>Medidor</th>
+              <th title="Fin de la hora cuya media se carga en DIgSILENT">{modo?.tituloFecha ?? 'Fecha y hora (máx. 1 h)'}</th>
+              <th className="num" title="Media de una hora (4 registros de 15 min): lo que se carga">{modo?.instanteComun ? 'kW' : 'kW máx.'}</th>
               <th className="num">kVAR</th><th className="num">kVA</th><th className="num">FP</th>
-              <th className="num" title="Tensión de línea del mismo registro">V (kV)</th>
+              <th className="num" title="Tensión de línea de la misma hora">V (kV)</th>
               <th className="num" title="En pu de la tensión nominal del alimentador">V (pu)</th>
+              {propiaDeReferencia && <>
+                <th className="num" title="Máxima sostenida de cada alimentador, solo como referencia">Máx. propia (kW)</th>
+                <th>Fecha máx. propia</th></>}
+              <th className="num" title="El mayor registro del periodo, solo como referencia">Pico 15 min (kW)</th>
+              <th>Fecha del pico</th>
+              <th className="num" title="Media de los registros del periodo, sin ceros ni vacíos">Promedio (kW)</th>
+              <th className="num" title="Promedio entre la máxima sostenida">F. carga</th>
+              {conMaximaPeriodo && <th title="La máxima sostenida de todo lo medido">Máx. del periodo</th>}
               <th>Libro › hoja</th></tr></thead>
             <tbody>{cabecera.map((r) => (
               <tr key={`${r.alimentador}-${r.medidor}`}>
                 <td>{r.alimentador || '—'}</td>
                 <td className="strong">{r.medidor}</td>
-                {r.error ? <td colSpan={8} className="alert-error small">{r.error}</td> : <>
-                  <td className="mono">{r.fecha}
-                    {/* 013:RF-14: junto a la del mes, la del periodo entero y su mes. */}
-                    {r.maxima_periodo && (
-                      <div className="muted small">Periodo: {fmtNum(r.maxima_periodo.kw, 2)} kW
-                        en {nombreMes(r.maxima_periodo.mes)} ({r.maxima_periodo.fecha})</div>)}</td>
+                {r.error ? <td colSpan={columnasDeDatos} className="alert-error small">{r.error}</td> : <>
+                  <td className="mono" title={horaDeLaVentana(r) ? `Media de ${horaDeLaVentana(r)}` : 'Un registro'}>
+                    {r.fecha}
+                    {fueraDelInstante(r, modo) && (
+                      <span className="aviso-icono" role="img" aria-label="Fuera del instante común"
+                        title="Sin medida en el instante común: se carga su máxima del mes"> ⚠</span>)}</td>
                   <td className="num">{fmtNum(r.kw, 2)}</td>
                   <td className="num">{fmtNum(r.kvar, 2)}</td>
                   <td className="num" title={r.kva_calculado ? 'Calculado con kW y kVAR' : undefined}>
                     {fmtNum(r.kva, 2)}{r.kva_calculado ? ' *' : ''}</td>
                   <td className="num" title={r.columnas.fp}>{fp(r.fp)}{r.fp_calculado ? ' *' : ''}</td>
-                  {/* 021:RF-77: la tensión del mismo instante; sin ella o sin nominal, el porqué. */}
+                  {/* 021:RF-77: la tensión de la misma hora; sin ella o sin nominal, el porqué en un icono (004:RF-116). */}
                   <td className="num" title={r.tension_columna ?? r.tension_aviso ?? undefined}>
                     {r.tension_kv == null ? '—' : fmtNum(r.tension_kv, 3)}</td>
                   <td className="num" title={r.tension_aviso ?? (r.tension_nominal_kv ? `de ${fmtNum(r.tension_nominal_kv, 1)} kV nominales` : undefined)}>
                     {r.tension_pu == null ? '—' : fmtNum(r.tension_pu, 4)}
-                    {r.tension_aviso && <div className="muted small">{r.tension_aviso}</div>}</td>
+                    {r.tension_aviso && <span className="aviso-icono" role="img" aria-label={r.tension_aviso}> ⓘ</span>}</td>
+                  {propiaDeReferencia && <>
+                    <td className="num muted">{fmtNum(r.sostenida?.kw, 2)}</td>
+                    <td className="mono muted">{r.sostenida?.fecha ?? '—'}</td></>}
+                  <td className="num muted">{fmtNum(r.pico?.kw, 2)}</td>
+                  <td className="mono muted">{r.pico?.fecha ?? '—'}</td>
+                  <td className="num" title={r.registros_promedio ? `${cuenta(r.registros_promedio, 'registro', 'registros')}` : undefined}>
+                    {fmtNum(r.promedio_kw, 2)}</td>
+                  <td className="num" title={r.factor_carga_pico != null ? `Con el pico de 15 min: ${fmtFactor(r.factor_carga_pico)}` : undefined}>
+                    {fmtFactor(r.factor_carga)}</td>
+                  {/* 013:RF-14: la del periodo entero y su mes, en su columna. */}
+                  {conMaximaPeriodo && <td className="small" title={r.maxima_periodo?.fecha}>
+                    {r.maxima_periodo ? `${fmtNum(r.maxima_periodo.kw, 2)} kW · ${nombreMes(r.maxima_periodo.mes)}` : '—'}</td>}
                 </>}
                 <td className="small">{r.libro ? `${r.libro} › ${r.hojas.join(', ')}` : ''}
                   {r.avisos.length > 0 && <div className="muted">{r.avisos.join(' · ')}</div>}</td>
@@ -855,16 +900,17 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           )}
           {barrasSet.length > 0 && <BarrasDeSet barras={barrasSet} avisos={(ultimo?.result?.avisos as string[] | undefined) ?? []} />}
           {instanteActual && (
-            <small className="alert alert-info">Todos los medidores, también los de una central, en el
-              registro del {instanteActual}: se calibra a la vez, no en la máxima de cada uno.</small>
+            <small className="alert alert-info">Todos los medidores, también los de una central, en la hora
+              que termina el {instanteActual}: se calibra a la vez, no en la máxima de cada uno.</small>
           )}
           {propias && (
             <small className="alert alert-warn">Máxima de cada alimentador (no coincidente):{' '}
               {instantes.map((x) => `${x.alimentador} el ${x.fecha}`).join('; ')}. Esos instantes no ocurrieron juntos: se
               calibran a la vez, cada uno con la demanda de su máxima.</small>
           )}
-          <small className="muted">kVAR, kVA, FP y la tensión son del mismo registro que el kW máximo; la tensión en pu, de
-            la nominal del alimentador en la conversión, va a su fuente en 2.4. * calculado con kW y kVAR.
+          <small className="muted">kW, kVAR, kVA, FP y V son la media de la hora que termina en esa fecha y hora: es lo
+            que se carga en DIgSILENT. El pico de 15 min{propiaDeReferencia ? ' y la máxima propia' : ''} son solo
+            referencia. * calculado con kW y kVAR.
             {ultimo?.status === 'cancelled' ? ' Cancelado: faltan medidores.' : ''}</small>
         </div>
       )}
@@ -897,7 +943,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       </div>
       {cruce && <Cruce cruce={cruce} visibles={visibles} filtro={filtro} setFiltro={setFiltro}
         desconectados={desconectados} conmutar={conmutar} aSuMaxima={aSuMaxima} conmutarMaxima={conmutarMaxima}
-        desmarcarTodos={() => void guardarASuMaxima([])} bloqueado={engineBusy || cruzando} />}
+        desmarcarTodos={() => void guardarASuMaxima([])} bloqueado={engineBusy || cruzando}
+        corregirMedidor={(c) => void corregirMedidor(c)} />}
       {cruce && <RecalibrarConCriterios project={project} periodo={periodo} feeders={feeders} criterioFijas={criterioFijas}
         maximoMes={maximoMes} aSuMaxima={aSuMaxima} />}
       {comparacion && <CompararFijas comparacion={comparacion} />}
@@ -919,11 +966,13 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
 }
 
 function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmutar, aSuMaxima, conmutarMaxima,
-  desmarcarTodos, bloqueado }: {
+  desmarcarTodos, bloqueado, corregirMedidor }: {
   cruce: ClientesCruce; visibles: ClienteImportante[]; filtro: string; setFiltro: (v: string) => void;
   desconectados: Set<string>; conmutar: (codigo: string) => void;
   /** 039:RF-12, RF-13: los clientes a su máxima y las acciones de marcar, desmarcar y desmarcar todos. */
   aSuMaxima: string[]; conmutarMaxima: (codigo: string) => void; desmarcarTodos: () => void; bloqueado: boolean;
+  /** 039:RF-23: registrar la corrección del FM de un cliente con FM_CAMBIADO (004:RF-111). */
+  corregirMedidor?: (c: ClienteImportante) => void;
 }) {
   const t = cruce.totales;
   const ali = cruce.alimentadores.join(', ');
@@ -1048,7 +1097,8 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
               {c.radial_libro && c.radial_libro !== c.radial && <small className="muted"> Libro: {c.radial_libro}.</small>}
               {c.nota_asignacion && <p className="small">{c.nota_asignacion}</p>}
             </td><td className="num">{fmtNum(c.ea, 2)}</td>
-            <td className="num">{fmtNum(c.eri, 2)}</td><td className="num">{fmtNum(c.pot, 2)}</td>
+            <td className="num">{fmtNum(c.eri, 2)}</td><td className="num">{fmtNum(c.pot, 2)}
+              <MedidorDelCliente c={c} corregir={corregirMedidor} bloqueado={bloqueado} /></td>
             {conMaxima ? <>
               {(() => {
                 const marcada = marcadas.has(c.codigo);
@@ -1098,6 +1148,22 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
 
 /** 039:RF-17: recalibrar desde 2.3 con los criterios de la tabla (el general, los alimentadores con «máximo del mes»
  * y los clientes a su máxima), por la misma vía que «Recalibrar» (028:RF-21). */
+/** 004:RF-111, 039:RF-23: el FM del cliente cambió con el salto de su energía, o ya va corregido; poco texto. */
+function MedidorDelCliente({ c, corregir, bloqueado }: {
+  c: ClienteImportante; corregir?: (c: ClienteImportante) => void; bloqueado: boolean;
+}) {
+  if (c.correccion_medidor) {
+    const k = c.correccion_medidor;
+    return <span className="badge ok" title={`${k.motivo || 'corrección del operador'} · desde ${k.desde}`}>
+      FM ×{fmtNum(k.factor, 4)}</span>;
+  }
+  const fm = c.fm_cambiado;
+  if (!fm) return null;
+  return <span className="small"> <span className="badge err" title={fm.texto}>FM ×{fmtNum(fm.razon_fm, 2)}</span>
+    {corregir && <button className="btn btn-ghost btn-sm" disabled={bloqueado} onClick={() => corregir(c)}
+      title="registrar en el espacio el FM anterior; el libro no se toca">×{fmtNum(fm.factor_propuesto, 4)}</button>}</span>;
+}
+
 function RecalibrarConCriterios({ project, periodo, feeders, criterioFijas, maximoMes, aSuMaxima }: {
   project: string; periodo: string; feeders: string[]; criterioFijas: CriterioFijas; maximoMes: string[]; aSuMaxima: string[];
 }) {

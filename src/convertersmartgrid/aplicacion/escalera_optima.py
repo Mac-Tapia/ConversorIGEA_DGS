@@ -373,8 +373,8 @@ def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros
     y lo que siga faltando se deduce o se toma de referencia, por confirmar (042:RF-54). El libro manda si tiene la
     alternativa, y cada costo dice su origen.
 
-    RF-77: el libro se pasa a la moneda de trabajo con ``escalera.escala_capex``. El de Electro
-    Dunas está en miles de dólares y la escalera lo tomaba en dólares: la terna salía a 60,9 por
+    RF-77: el libro se pasa a la moneda de trabajo con ``escalera.escala_capex``. El de Empresa A
+    está en miles de dólares y la escalera lo tomaba en dólares: la terna salía a 60,9 por
     km y SI213 eligió terna y sección por las pérdidas (2026-10-24).
     """
     if any(v.get('costo_unitario') for v in capex.values()) and not p.escala_capex:

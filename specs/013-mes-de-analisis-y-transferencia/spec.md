@@ -167,7 +167,7 @@ Aclaraciones de la revisión 033 (2026-10-29): lo que el código hace distinto
 ## Requisitos no funcionales
 
 - Universal (P13): el patrón del nombre de los libros (`MMAA` + `clientesImportantes` en
-  Electro Dunas) va en el perfil de empresa, no en el código.
+  Empresa A) va en el perfil de empresa, no en el código.
 - Escala (P2): cualquier número de libros en la carpeta y de alimentadores marcados; las
   pruebas sortean cuántos.
 - Nada largo dentro de una petición (P7): leer la carpeta y buscar las máximas son
@@ -217,7 +217,7 @@ instante.
   índice se reconstruye al abrirla para incorporar libros nuevos sin cambiar configuración.
 - El selector empieza vacío y el operador elige el mes. Ni la máxima anual ni el porcentaje
   de utilización seleccionan o cambian el mes automáticamente.
-- El patrón `MMAA` + `clientesImportantes` pertenece al perfil de Electro Dunas. Cuando el
+- El patrón `MMAA` + `clientesImportantes` pertenece al perfil de Empresa A. Cuando el
   nombre no resuelve el mes, se intenta una fecha interna inequívoca y después asignación
   manual.
 - Las máximas mensuales independientes sirven para el ajuste individual del paso 2, pero

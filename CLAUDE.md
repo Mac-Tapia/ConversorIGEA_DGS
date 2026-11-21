@@ -31,42 +31,42 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 001 Reorganización: una responsabilidad, un sitio | cumplida |  |
   | 002 Arquitectura por capas y módulos enchufables | cumplida |  |
   | 003 Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | retirada |  |
-  | 004 Cargas en un proyecto existente de DIgSILENT | implementada | queda T30 (DIgSILENT) |
+  | 004 Cargas en un proyecto existente de DIgSILENT | implementada | T30 |
   | 005 Carpeta de proyectos importados en DIgSILENT | cumplida |  |
-  | 006 Ajuste de las demandas a la máxima de cabecera | cumplida |  |
+  | 006 Ajuste de las demandas a la máxima de cabecera | cumplida | — |
   | 007 Cargas nuevas sobre el alimentador ajustado, una variación por carga | cumplida |  |
-  | 008 Pestaña «Cargas en DIgSILENT» en tres pasos | cumplida |  |
+  | 008 Pestaña «Cargas en DIgSILENT» en tres pasos | cumplida | — |
   | 009 Inventario del repositorio: cada fichero con su módulo y su spec | cumplida |  |
   | 010 Trazado GPS de las líneas | cumplida |  |
   | 011 Estudios y obras de mejora sobre la red calibrada | cumplida | |
   | 012 Confiabilidad y capacidad de la red calibrada | implementada | queda T17 (DIgSILENT) |
   | 013 Mes de análisis y transferencia entre dos alimentadores | cumplida |  |
   | 014 Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto» | cumplida |  |
-  | 015 «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida |  |
+  | 015 «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida | — |
   | 016 Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo | cumplida |  |
   | 017 Informes de estudio eléctrico y de factibilidad de suministro | cumplida |  |
   | 018 Spec 018 - Vínculo de proyectos de DIgSILENT compartido entre espacios de trabajo | cumplida |  |
   | 019 Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables | cumplida |  |
-  | 020 SED fijas sobrecargadas: aviso y transformadores nuevos desde la web | cumplida |  |
+  | 020 SED fijas sobrecargadas: aviso y transformadores nuevos desde la web | cumplida | — |
   | 021 Maniobras en el extremo de la línea, SED unidas a su barra, curvas de todos los alimentadores y central térmica en la calibración | cumplida | — |
   | 022 Red unida por zonal y SET | cumplida |  |
   | 023 VNR-GIS desde la copia de SQL Server de cualquier concesionaria | cumplida |  |
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |
   | 025 Calibración por año de medición | implementada | falta T27 |
   | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | aprobada | falta T16 (e2e F04 con modelo) |
-  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | falta T11, T26, T33 (e2e F04) |
-  | 028 Escaneo del alimentador antes de recalibrar | cumplida |  |
+  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | T11, T26 |
+  | 028 Escaneo del alimentador antes de recalibrar | cumplida | — |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
   | 030 Los años del PIDE en casos y escenarios de DIgSILENT | cumplida |  |
-  | 031 Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | aprobada | falta T4, T5 |
+  | 031 Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | aprobada | falta T5 |
   | 032 «Caso base» con los datos originales; fichas y potencias en «Sin proyecto» | cumplida |  |
   | 033 Trazabilidad y estado de las specs | cumplida |  |
   | 034 Motor base de conversión y contrato universal de fuentes | cumplida |  |
-  | 035 Fijas de la tabla en el instante de la máxima, Q de cabecera con bancos y unidades de DIgSILENT | cumplida |  |
+  | 035 Fijas de la tabla en el instante de la máxima, Q de cabecera con bancos y unidades de DIgSILENT | cumplida | — |
   | 036 Auditoría de raíz y correcciones del arranque | cumplida |  |
   | 037 Caso «Cargas nuevas» en los estudios de la web | cumplida |  |
   | 038 Pertenencia de las SED y notas en la web | cumplida | — |
-  | 039 Fijas del máximo del mes o coincidentes con la cabecera | cumplida |  |
+  | 039 Fijas del máximo del mes o coincidentes con la cabecera | cumplida | — |
   | 040 Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida |  |
   | 041 Reparto probabilístico de las SED escaladas | cumplida |  |
   | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | cumplida |  |
@@ -91,15 +91,15 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 061 Observación y operación integrada del agente | cumplida | T1–T5 cerradas; evidencia en docs/INTEGRACION_MONITOR_AGENTE_2026-11-01.md |
   | 062 Retención diaria de ejecuciones y temporales | cumplida | T1–T4 verificadas; primera revisión real sin errores |
   | 063 Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | cumplida |  |
-  | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida |  |
+  | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida | — |
   | 065 Cierre verificable de la auditoría integral | cumplida |  |
   | 066 Cada informe con su libro Excel, según el perfil de la empresa | cumplida |  |
   | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | cumplida | |
   | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida |  |
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
   | 070 El asistente opera el conversor de punta a punta | aprobada | falta T11, T14, T15, T22 (GPU), T26 (pytest del integrador) |
-  | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | aprobada | falta T5 |
-  | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b, T14 |
+  | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | cumplida |  |
+  | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | cumplida |  |
   | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida |  |
@@ -107,7 +107,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | cumplida | |
   | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | cumplida |  |
   | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida |  |
-  | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | aprobada | falta T3, T13, T14 |
+  | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | aprobada | falta T19 (DIgSILENT) |
   | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | cumplida |  |
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
   | 083 El oráculo antes de calibrar y recalibrar | cumplida | |
@@ -128,7 +128,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 098 La transferencia de carga del operador, en la calibración y en las obras | cumplida |  |
   | 099 Cargas del libro duplicadas por el nombre del cliente | cumplida |  |
   | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | implementada | falta T4 (DIgSILENT) |
-  | 101 La calibración cambia sola los transformadores que impiden converger | cumplida |  |
+  | 101 La calibración cambia sola los transformadores que impiden converger | cumplida | — |
   | 102 Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | falta T12, T13, T14, T15, T16, T17, T20 |
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
   | 104 Los libros nuevos de demanda se reconocen solos | cumplida |  |
@@ -136,10 +136,10 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | aprobada | falta T2 |
   | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | falta T14 (DIgSILENT) |
   | 108 Estudio de costos del VAD con la empresa modelo eficiente | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
-  | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | implementada | queda T16 (recorrido de Nube y Correo con el simulado, sin DIgSILENT) |
+  | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | cumplida | — |
   | 110 Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | |
   | 111 Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | aprobada | falta T1, T2, T13, T16, T17, T18 (DIgSILENT), T19, T28, T29 |
-  | 112 Datasets de referencia anonimizados y benchmarks reproducibles | cumplida | |
+  | 112 Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | falta T16 (corrida con los paquetes públicos), T18, T19 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que
@@ -158,10 +158,12 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 
 ## Pruebas
 
+`<DATOS>` es la carpeta local de los datos de prueba de la distribuidora, fuera de git: su ruta y los nombres reales de sus ficheros no se escriben en el repositorio público (MEJ7-NOMBRES); los fija el entorno de la suite de integración, también fuera de git.
+
 ```bash
 .venv/Scripts/python.exe -m pytest -q                      # sintéticas: omiten las de datos reales
-CSG_RED="D:/BaseDatosElectroDunas/referencia_retirada_20261102/RED_030826(1).txt" CSG_LOADS="D:/BaseDatosElectroDunas/referencia_retirada_20261102/CARGA_030826(1).txt" \
-CSG_EQUIPMENT="D:/BaseDatosElectroDunas/referencia_retirada_20261102/BD_Equipo_V261124 (1)(1).txt" .venv/Scripts/python.exe -m pytest -q
+CSG_RED="<DATOS>/referencia_retirada_20261102/RED_030826(1).txt" CSG_LOADS="<DATOS>/referencia_retirada_20261102/CARGA_030826(1).txt" \
+CSG_EQUIPMENT="<DATOS>/referencia_retirada_20261102/BD_Equipo_V261124 (1)(1).txt" .venv/Scripts/python.exe -m pytest -q
 ```
 
 La puerta de calidad (spec 102) lo exige: el gancho `pre-commit` corre las pruebas de gobierno y las del commit, y
@@ -174,12 +176,12 @@ completa se corre una vez al integrar en `main`. Se activan una vez por clon con
 Sin las tres variables `CSG_*`, la mayoría de las pruebas de integración se omiten en
 silencio y la suite «pasa» sin haber probado nada real. `CSG_TXT_DIR` no basta. La suite se da
 por buena solo sin ninguna omitida: con las nueve variables (las tres de los TXT, las dos
-de Access de abajo, `CSG_DEMANDA_DIR="D:/BaseDatosElectroDunas/referencia_retirada_20261102"`,
-`CSG_VNR_BAK="D:/BaseDatosElectroDunas/referencia_retirada_20261102/Electro Dunas VNRGIS/DAT_VNR/ELDU_VNR_24_APR.bak"`, con SQL Server
+de Access de abajo, `CSG_DEMANDA_DIR="<DATOS>/referencia_retirada_20261102"`,
+`CSG_VNR_BAK="<DATOS>/referencia_retirada_20261102/Empresa A VNRGIS/DAT_VNR/EMPA_VNR_24_APR.bak"`, con SQL Server
 Express en marcha, spec 023, y las dos de los PDF del solicitante, spec 017:
-`CSG_SOLICITUD_PDF="D:/BaseDatosElectroDunas/referencia_retirada_20261102/Carta_Sol_Fact_AMPC_480A1000.pdf"` e
-`CSG_SOLICITUD_DIR="D:/BaseDatosElectroDunas/referencia_retirada_20261102/ampliaciondecarga"`, y el histórico de interrupciones
-de la confiabilidad, spec 012: `CSG_INTERRUPCIONES="D:/BaseDatosElectroDunas/referencia_retirada_20261102/BASE INTERRUPCIONES 2020 - 2026.xlsx"`) y `-rs` pasan todas. El OCR de esas
+`CSG_SOLICITUD_PDF="<DATOS>/referencia_retirada_20261102/Carta_Sol_Fact_AMPC_480A1000.pdf"` e
+`CSG_SOLICITUD_DIR="<DATOS>/referencia_retirada_20261102/ampliaciondecarga"`, y el histórico de interrupciones
+de la confiabilidad, spec 012: `CSG_INTERRUPCIONES="<DATOS>/referencia_retirada_20261102/BASE INTERRUPCIONES 2020 - 2026.xlsx"`) y `-rs` pasan todas. El OCR de esas
 pruebas usa Tesseract; el idioma `spa` puede ir en `~/.convertersmartgrid/tessdata` (o `CSG_TESSDATA`)
 si no se puede escribir en la carpeta de Tesseract.
 
@@ -199,8 +201,8 @@ presta su `input/` (106:RF-17), así que sin esta variable la línea base nunca 
 
 Para la vía Access (`tests/test_access_input.py`) hacen falta dos bases, porque la red
 más reciente no trae catálogo de equipos:
-`CSG_MDB="D:/BaseDatosElectroDunas/260919BaseDatos/202603/260924.mdb"` e
-`CSG_EQUIPMENT_MDB="D:/BaseDatosElectroDunas/260919BaseDatos/202603/BASE JUL25 1.mdb"`.
+`CSG_MDB="<DATOS>/260919BaseDatos/202603/260924.mdb"` e
+`CSG_EQUIPMENT_MDB="<DATOS>/260919BaseDatos/202603/BASE JUL25 1.mdb"`.
 
 Las fuentes son independientes: un TXT, una `.mdb` o un paquete VNR-GIS se convierten
 y se prueban cada uno por su cuenta, sean de la empresa y la fecha que sean. No hay
@@ -211,7 +213,7 @@ además `CSG_DEMANDA_DIR`.
 ## Probar en DIgSILENT
 
 - Siempre por la web, como el operador: un sistema eléctrico entero con
-  `.venv/Scripts/python.exe tools/sistema_web.py --espacio <id> --zonal Pisco --demanda-dir D:/BaseDatosElectroDunas/referencia_retirada_20261102 --periodo 2026-07`
+  `.venv/Scripts/python.exe tools/sistema_web.py --espacio <id> --zonal Pisco --demanda-dir <DATOS>/referencia_retirada_20261102 --periodo 2026-07`
   (convierte, importa y calibra; retoma lo hecho). Nada de guiones del scratchpad que
   repitan la API.
 - Tras cambiar `src/convertersmartgrid/presentacion/web/` o `src/convertersmartgrid/*.py` que use la web, reiniciarla: parar
@@ -229,9 +231,9 @@ además `CSG_DEMANDA_DIR`.
 ## Reglas que más se rompen
 
 - Una fuente por vez: TXT, MDB y VNR-GIS son entradas distintas, de empresas y fechas distintas. Nunca se mezclan en una conversión, una línea base, una prueba, un espacio de la web ni una orden: cada una se carga, se convierte, se prueba y se regenera sola (`linea_base_001.json` del TXT, `linea_base_001_mdb.json` de Access, cada una con su orden). Ninguna prueba compara una con otra y ningún mensaje pide la otra fuente ni la misma fecha.
-- Universal: TXT, MDB y VNR-GIS de cualquier distribuidora. Electro Dunas es un caso de prueba; sus convenciones (CRS `EPSG:32718`, SED `M…`, escala NA205) van en un perfil de empresa, nunca como valor por defecto (constitución P13).
+- Universal: TXT, MDB y VNR-GIS de cualquier distribuidora. Empresa A es un caso de prueba; sus convenciones (CRS `EPSG:32718`, SED `M…`, escala NA205) van en un perfil de empresa, nunca como valor por defecto (constitución P13).
 - El número de alimentadores es variable (10, 50, 200…): nada de recorrer una tabla entera por alimentador, y nada de tamaños fijos en las pruebas. Ver la sección «Escala» del skill.
 - Dos disposiciones de export (reducida y completa): todo cambio en el lector se prueba con las dos.
 - Determinismo: el DGS es idéntico byte a byte con `workers=1` y con `workers>1`.
 - Idioma: código, comentarios, mensajes y commits en español, con el estilo de los existentes. Los comentarios explican **por qué**, con el caso real que lo motivó.
-- Los datos de prueba se retiraron del proyecto el 2026-11-02: están en `D:/BaseDatosElectroDunas/referencia_retirada_20261102` y la web los carga por su ruta; ningún código los lee directamente. Esos ficheros y `D:\BaseDatosElectroDunas` son datos de la distribuidora: nunca se publican ni se suben a git. Desde el 2026-10-27 el usuario autoriza leerlos (sin `deny` en `.claude/settings.json`) para diagnosticar; las pruebas los siguen leyendo por las variables `CSG_*`.
+- Los datos de prueba se retiraron del proyecto el 2026-11-02: están en `<DATOS>/referencia_retirada_20261102` y la web los carga por su ruta; ningún código los lee directamente. Esos ficheros y `<DATOS>` son datos de la distribuidora: nunca se publican ni se suben a git. Desde el 2026-10-27 el usuario autoriza leerlos (sin `deny` en `.claude/settings.json`) para diagnosticar; las pruebas los siguen leyendo por las variables `CSG_*`.

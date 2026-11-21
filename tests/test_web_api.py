@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -316,6 +317,20 @@ def test_websocket_entrega_el_registro(client, export):
         batch = ws.receive_json()
     # 086:RF-9: la numeración no empieza en 1: sigue creciendo de un arranque a otro.
     assert batch and [e['seq'] for e in batch] == sorted(e['seq'] for e in batch)
+    _despertar_websocket(client, wid)
+
+
+def _despertar_websocket(client, wid: str) -> None:
+    """MEJ8: el servidor solo ve el cierre al mandar el siguiente latido (15 s); se le despierta sin añadir eventos.
+
+    El bucle del WebSocket espera en ``events.wait`` y manda ``[]`` al vencer el plazo; despertado antes, manda el
+    mismo latido vacío a la conexión cerrada y termina. El registro de eventos no cambia.
+    """
+    eventos = client.app.state.store.get(wid).events
+    for _ in range(20):          # por si el hilo aún no había vuelto a esperar: como mucho 1 s
+        with eventos._cond:
+            eventos._cond.notify_all()
+        time.sleep(0.05)
 
 
 def test_un_fichero_en_la_casilla_equivocada_avisa_pero_entra(client, export):

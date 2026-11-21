@@ -88,3 +88,10 @@ cuando el usuario ponga a mano la central de NA205.
       Hecho el 2026-11-02: con NA203_NA205 en el navegador, «Detectado en DIgSILENT» y el formulario de la central
       salen del escaneo guardado, sin casilla de barra y sin errores en la consola; la búsqueda por la web da
       2026-09-25 12:00 y 19 641,5 kW, con 651 registros de maniobra descartados.
+- [x] T17. MEJ11-MAXIMA (orden del usuario del 20-11): el resultado de la máxima dice su ámbito; la tabla de 2.2 da en el
+      coincidente el instante común en las columnas de todos y la máxima propia y el pico aparte, en el no coincidente
+      la máxima de cada uno, y avisa si es de otro ámbito; el plan del ajuste toma esas mismas filas. (RF-43, RF-44)
+      Hecho cuando: rojo por aserción sobre d6582a8e y verde con `pytest -q tests/test_maxima_sostenida.py -k modo` y
+      `node --test test/tablaMaxima.test.mjs`; la comprobación con datos reales en DIgSILENT la decide d8.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ11_MAXIMA/rojo_py.log y rojo_front.log sobre d6582a8e; verde D:/csg/PM_IMPL/MEJ11_MAXIMA/verde_npm_test.log; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).

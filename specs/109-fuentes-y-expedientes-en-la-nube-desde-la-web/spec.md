@@ -1,6 +1,6 @@
 # Spec 109 — Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web
 
-Estado: implementada (2026-11-17: T20, las fuentes de la empresa del espacio y la red convertida, hecha; queda T16, manual del usuario y sin DIgSILENT: correr el recorrido de Nube y Correo con el simulado y, opcional, la prueba real con una cuenta); antes aprobada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-23, BP-24 y BP-25, y orden del usuario del
+Estado: cumplida (2026-11-17: T20, las fuentes de la empresa del espacio y la red convertida, hecha; queda T16, manual del usuario y sin DIgSILENT: correr el recorrido de Nube y Correo con el simulado y, opcional, la prueba real con una cuenta); antes aprobada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-23, BP-24 y BP-25, y orden del usuario del
 2026-11-14: «haz nuevos spec»; autorización del Drive propio del usuario (constitución, principio 9, enmienda del
 2026-11-14). G0: `D:/csg/G0_PLAN_MAESTRO/E/MATRIZ_CLOUD_PERMISOS_Y_FORMATOS.md`.
 

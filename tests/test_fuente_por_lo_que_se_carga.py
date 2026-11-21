@@ -177,7 +177,7 @@ def test_la_copia_sql_no_es_un_paquete_de_capas(tmp_path):
     ConfigBD.config y, sin él, ningún error."""
     from convertersmartgrid.presentacion.web.source_scope import inspect_package_scope
 
-    copia = tmp_path / 'ELOR25_V2'
+    copia = tmp_path / 'EMPB25_V2'
     copia.write_bytes(b'TAPE' + b'\x00' * 64)
     scope = inspect_package_scope(copia)
     assert scope.companies == () and not scope.ambiguous

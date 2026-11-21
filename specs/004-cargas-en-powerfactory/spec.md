@@ -1,6 +1,6 @@
 # Spec 004 — Cargas en un proyecto existente de DIgSILENT
 
-Estado: implementada (2026-11-17: código cerrado; queda T30 en DIgSILENT); antes aprobada (2026-11-14: RF-81 a RF-107, importar y diagnosticar un .pfd, T27 a T31; cumplida el 2026-11-12: RF-72 a RF-80, la ubicación de la carga nueva antes de conectarla; 2026-11-08: T20 en DIgSILENT, PE102 con CH_13 y CH_22, TR_CH_22 al 81 % aceptado por el usuario; 2026-11-06: faltaba T20, RF-68 y RF-69 del transformador de ficha; antes cumplida el 2026-10-14, verificación RF por RF; RF-58 a RF-61 el 2026-10-21); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
+Estado: implementada (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario: RF-111; y con MEJ11-MAXIMA: RF-112 a RF-116) · antes implementada (2026-11-17: código cerrado; queda T30 en DIgSILENT); antes aprobada (2026-11-14: RF-81 a RF-107, importar y diagnosticar un .pfd, T27 a T31; cumplida el 2026-11-12: RF-72 a RF-80, la ubicación de la carga nueva antes de conectarla; 2026-11-08: T20 en DIgSILENT, PE102 con CH_13 y CH_22, TR_CH_22 al 81 % aceptado por el usuario; 2026-11-06: faltaba T20, RF-68 y RF-69 del transformador de ficha; antes cumplida el 2026-10-14, verificación RF por RF; RF-58 a RF-61 el 2026-10-21); aprobada el 2026-10-08; cambio «Demanda medida» (RF-22 a RF-41) aprobado el 2026-10-08 · Fecha: 2026-10-08 · Origen: revisión del módulo de cargas del 2026-10-08
 
 ## Contexto y objetivo
 
@@ -272,7 +272,7 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
   hora; sin hoja o sin ese registro, su kVAR sigue con el ERI/EA del mes (RF-6). Con su
   registro, el FP de la SED fija es el de la EA y el ERI de esa fecha y hora, sin llevarlo
   al mínimo de 015:RF-62, que solo vale para el cociente del mes; las escaladas siguen con
-  el FP del perfil (0,98 en Electro Dunas, 015:RF-54) (usuario, 2026-10-28).
+  el FP del perfil (0,98 en Empresa A, 015:RF-54) (usuario, 2026-10-28).
 - RF-67: CUANDO el objetivo del alimentador tenga su fecha y hora (el instante de su barra de
   60 kV, 022:RF-84, o su propia máxima), EL SISTEMA tomará de la hoja de 15 minutos de cada
   cliente fijo el registro de ese mismo instante, con su kW (EA × 4) y su kVAR (ERI × 4), en vez
@@ -409,6 +409,46 @@ desde un DGS; los `.pfd` versionados se renombran y se conservan.
 - RF-110: EL SISTEMA guardará con cada vínculo su evidencia (el fichero con su huella, la hoja o la página y el texto
   que lo nombra); el nombre de un fichero parecido no bastará, y un fichero que no se pueda leer se dirá aparte con
   su motivo, nunca vinculado por suposición.
+- RF-111: (orden del usuario del 20-11, verificación de las fijas) CUANDO lee el libro de clientes de un mes y el
+  del mes anterior traen «maestro_lib», EL SISTEMA comparará el factor de multiplicación (`fm`) y el número del medidor
+  de cada cliente; SI el FM cambia y la energía del primer día del mes frente a la del último día del mes anterior salta
+  en la razón de los FM (± 20 %), ENTONCES EL SISTEMA avisará `FM_CAMBIADO` en la tabla cruzada con los dos FM, el salto
+  y el factor que devuelve el FM anterior, sin corregir solo ni bloquear: la corrección la registra el operador
+  (039:RF-23). Un cliente real pasó de FM 545,4545 a 1818,1818 con el cambio de medidor y su fija subió ×3,33 sin que su
+  cabecera subiera.
+
+Máxima sostenida y tabla «Buscar la máxima» (orden del usuario del 20-11, MEJ11-MAXIMA). «Las máximas no deben ser los
+picos de 15 minutos»: un registro suelto por una transferencia o una maniobra fijaba la máxima de diseño y el instante con
+que se calibra. Criterio elegido y su fuente: la normativa define la máxima demanda como la potencia media integrada en el
+intervalo de 15 minutos de mayor demanda (glosario de los procedimientos técnicos del COES, «Máxima demanda mensual a
+nivel de generación»), y la NTCSE (D.S. 020-97-EM) registra por intervalos de 15 minutos; ese valor es el de las
+transacciones y la facturación y aquí se conserva como el «pico de 15 min». Para planeamiento, los Criterios y
+Metodología del Plan de Transmisión (R.M. 129-2009-MEM-DM, numeral 14.9 b) piden la máxima demanda con su factor de
+carga. Ninguna de las specs 006, 013, 021, 025, 028 y 039 define una ventana de integración para la máxima de cabecera:
+021:RF-32 y 028:RF-39 ya descartan registros de maniobra por rango intercuartílico, y esta ventana los completa sin
+contradecirlos. Cambia RF-27 y RF-28: el «kW máximo» pasa a ser la media de la hora, y kVAR, kVA, FP y tensión son de
+esa misma hora, no de un registro.
+
+- RF-112: EL SISTEMA tomará como máxima de cada medidor la mayor media de una hora seguida de registros (4 de 15 minutos,
+  o los que dé el intervalo del libro, 1 si es horario), con la fecha y hora de su último registro; kVAR, kVA, FP y la
+  tensión serán la media de esa misma hora. SI el periodo no tiene ninguna hora seguida (huecos), ENTONCES tomará el
+  mayor registro y lo dirá. El mayor registro del periodo (el pico de 15 minutos) irá aparte, con su fecha y hora, solo
+  como referencia. El instante común de varios alimentadores (028:RF-28), la máxima de una barra de SET (022:RF-39) y
+  el instante del sistema eléctrico (028:RF-31) serán también el final de la mayor hora seguida de su suma, y el valor
+  de una barra en un instante (022:RF-84), la media de esa hora. La calibración a valle (073:RF-16), que elige su
+  instante registro a registro, sigue con el registro de ese instante.
+- RF-113: EL SISTEMA dará por cada medidor el promedio de los registros del periodo analizado, sin los registros en cero
+  ni los vacíos, y cuántos entraron.
+- RF-114: EL SISTEMA dará el factor de carga de cada medidor, el promedio (RF-113) entre la máxima sostenida (RF-112),
+  con tres decimales, y el del pico de 15 minutos solo como referencia en el detalle de la celda.
+- RF-115: CUANDO la máxima se pide en un instante dado (021:RF-50, 028:RF-28, RF-31), EL SISTEMA dará en las columnas de
+  cada medidor la media de la hora que termina en ese instante y, aparte y solo como referencia, su máxima sostenida
+  propia del periodo y su pico de 15 minutos.
+- RF-116: EL SISTEMA mostrará la tabla «Buscar la máxima» con cada dato en su columna, en una línea: fecha y hora, kW,
+  kVAR, kVA, FP, V (kV), V (pu), la máxima propia cuando no es la que se carga, el pico de 15 minutos y su fecha, el
+  promedio, el factor de carga y, con un mes elegido, la máxima del periodo entero (013:RF-14) en su propia columna. El
+  aviso de tensión irá en un icono con su texto al pasar el puntero, sin ocupar las columnas de tensión. No se quita
+  ningún dato de los que ya mostraba (línea base de la web).
 
 ## Requisitos no funcionales
 

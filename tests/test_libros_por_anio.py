@@ -243,7 +243,7 @@ def test_varios_patrones_en_el_perfil(tmp_path):
 
 # =========================================================================== medidor → hoja (T3)
 def _libro_cabecera(path: Path, hojas: dict[str, float]) -> Path:
-    """Un libro de cabecera: cada hoja con 4 registros y su kW máximo dado."""
+    """Un libro de cabecera: cada hoja con 4 registros horarios y su kW máximo dado."""
     path.parent.mkdir(parents=True, exist_ok=True)
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
@@ -251,7 +251,8 @@ def _libro_cabecera(path: Path, hojas: dict[str, float]) -> Path:
         hoja = wb.create_sheet(nombre)
         hoja.append(['Local Time', 'kW tot', 'kVAR tot'])
         for i, kw in enumerate([pico / 2, pico, pico / 3, pico / 4]):
-            hoja.append([datetime(2025, 5, 1) + timedelta(minutes=15 * i), kw, kw / 5])
+            # Registros horarios: la hora es el registro (004:RF-112); aquí se mira qué hoja y qué libro.
+            hoja.append([datetime(2025, 5, 1) + timedelta(hours=i), kw, kw / 5])
     wb.save(path)
     return path
 

@@ -1,6 +1,6 @@
 # Spec 015 — «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas
 
-Estado: cumplida (reabierta y cerrada el 2026-11-19 con MEJ3-CALIB por orden del usuario; su corrida en DIgSILENT va en 086 T105) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: revisión de la aceptación de CA101 del 2026-10-14
+Estado: cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario: RF-73 a RF-75) · antes cumplida (reabierta y cerrada el 2026-11-19 con MEJ3-CALIB por orden del usuario; su corrida en DIgSILENT va en 086 T105) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: revisión de la aceptación de CA101 del 2026-10-14
 
 ## Contexto y objetivo
 
@@ -279,6 +279,23 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
 - RF-72: (regla del usuario del 2026-10-15 y orden del 19-11; amplía RF-66) CUANDO calibra un alimentador con central en
   su tramo, solo o en el proyecto, EL SISTEMA pondrá también sus bancos existentes a su máxima capacidad antes de medir,
   fuera de la etapa de la central, y dirá en el informe los que cambió.
+- RF-73: (orden del usuario del 20-11; enmienda RF-69 y amplía RF-71) ANTES del primer flujo y de cambiar ningún
+  transformador, EL SISTEMA comprobará la plausibilidad de cada fija con cliente: (a) su cliente mide más que la
+  cabecera de su alimentador en algún registro del mes con la cabecera > 0; (b) pide más de 4 veces los kVA de su grupo
+  en la fuente (RF-75) cuando la media de su mes sí cabe en ellos; (c) las fijas pasan del 90 % de la cabecera y dejan a
+  las escaladas un factor inicial menor que 0,05 (la fija con cliente que más pesa). SI alguna falla, ENTONCES EL
+  SISTEMA dará la fija por a revisar (`FIJA_A_REVISAR`) con su evidencia, no ejecutará flujos ni grabará el reparto de
+  ese alimentador —RF-69 no se aplica y queda la calibración anterior— y seguirá con los demás del proyecto. SI la media
+  del mes no cabe en los kVA del grupo, el dudoso es el kVA de la fuente: se anota (`KVA_FUENTE_INCOHERENTE`, 020:RF-64)
+  sin parar. Las fijas sin cliente (cambios manuales, demandas medidas de la SED) no se ponen en duda. Una distribuidora
+  real grabó 70 SED casi en cero (factor 0,0008) por una fija inflada por el FM de su medidor.
+- RF-74: (orden del usuario del 20-11; amplía RF-43 y RF-44) Las SED «<fija>-n» del mismo alimentador (y, si la fuente
+  trae su energía, con 0 kWh) son de la instalación del cliente: EL SISTEMA repartirá la P y la Q de la fija en el grupo
+  por kVA y no las escalará aparte, y su kVA contará para la carga del cliente (RF-59). Antes cada hermana se escalaba y
+  el grupo cargaba de más.
+- RF-75: (orden del usuario del 20-11; amplía RF-68) EL SISTEMA dirá en cada SED del informe de la calibración, además de
+  `kva` y `kva_de`, `kva_fuente` (DGS o TXT, sin las variaciones de DIgSILENT) y `kva_grupo` (la SED y sus hermanas
+  «<sed>-n» en la fuente). Con `SED_NTP_` encendida el informe decía 3 150 kVA y ocultaba los 100 kVA de la fuente.
 
 ## Requisitos que esta spec cambia
 

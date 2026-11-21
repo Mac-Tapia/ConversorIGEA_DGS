@@ -11,7 +11,7 @@ salida. Sirve para revisar una entrega nueva antes de convertirla toda.
 
 Sin ``--alimentadores`` toma los ``--muestra`` primeros convertibles y el primero con
 tramos en paralelo (doble circuito), que es donde se han perdido tramos otras veces.
-Antes tenía fijadas las rutas de los TXT de Electro Dunas, cinco de sus alimentadores y
+Antes tenía fijadas las rutas de los TXT de Empresa A, cinco de sus alimentadores y
 su CRS: ahora todo llega por argumentos (spec 009, RF-8; constitución P13).
 
 Códigos de salida: 0 fiel, 2 hay desajustes o errores.

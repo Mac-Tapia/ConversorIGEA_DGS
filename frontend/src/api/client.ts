@@ -1,5 +1,5 @@
 import type { AvanceDisco, DiagnosticoCargas, Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SetDeCentral, SistemaDelProyecto, EstructuraResumen,
-  AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CriterioFijas, CurvaCabecera, DemandaMedidores,
+  AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CorreccionMedidor, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, EstudiosResumen, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
   ObraGuardada, Options, OutputFile, LibrosNuevos, RevisarLibros, PfInventario, PowerFactoryStatus, PreviaCopiaDatos, InstalacionesPowerFactory, ReconstructionReport, SalidasRed, WorkspaceState, EpisodioResumen } from './types';
@@ -352,6 +352,9 @@ export const api = {
   // 039:RF-13, RF-15: la selección «a su máxima» de la tabla cruzada, guardada en el espacio.
   demandaASuMaxima: (id: string, codigos: string[]) =>
     request<{ a_su_maxima: string[] }>(`${ws(id)}/demanda/clientes/a-su-maxima`, json('PUT', { codigos })),
+  // 039:RF-23: la corrección fechada del factor del medidor de un cliente, en el espacio (004:RF-111).
+  demandaCorreccionMedidor: (id: string, body: { codigo: string; factor: number; desde: string; motivo?: string }) =>
+    request<{ correcciones: CorreccionMedidor[] }>(`${ws(id)}/demanda/clientes/correccion-medidor`, json('PUT', body)),
   // 039:RF-5: los dos criterios frente a la cabecera y a la red simulada, como trabajo.
   demandaCompararFijas: (id: string, body: { project: string; alimentadores: string[]; periodo?: string;
     maximas: Record<string, { fecha: string | null; kw: number | null; kvar: number | null; fp: number | null }> }) =>

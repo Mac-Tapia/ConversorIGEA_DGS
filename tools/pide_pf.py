@@ -5,8 +5,10 @@ Para cada año pedido escala la demanda con el factor de escala de cargas del ``
 ((1 + tasa)^año), ejecuta el flujo en el caso pedido y diagnostica con la norma del perfil
 (``convertersmartgrid.aplicacion.pide``). Al terminar devuelve el factor a su valor. Con
 ``casos_por_anio`` conserva casos/escenarios propios; ``modo=anual`` continúa las
-copias del corto plazo, con una proyección anual aceptada y obras físicas declaradas.
-Nunca cambia los casos originales ni sustituye un perfil anual ausente por la tasa.
+copias del corto plazo, con una proyección anual aceptada y obras físicas declaradas:
+en el año que falla prueba, encima de las acumuladas, las obras candidatas en el orden de
+la escalera (``alternativa``) y se queda con la primera que cumple (072 T14). Nunca cambia los casos
+originales ni sustituye un perfil anual ausente por la tasa.
 
     python tools/pide_pf.py --plan plan.json --output-json informe.json
 
@@ -14,7 +16,8 @@ El plan: ``{"project", "folder", "feeders", "case", "tasa", "anios": [0, 4, 8, .
 "limites": {...}, "native_action_context"}``.
 El modo anual recibe además ``estudio_id``, ``corto_plazo``, ``anio_fin`` y
 ``proyeccion_anual`` (ruta/SHA del perfil con su evaluación). La spec 072 y
-``leer_proyeccion_anual`` documentan el contrato; 089 a 28 días no lo satisface.
+``leer_proyeccion_anual`` documentan el contrato; la emite ``tools/proyeccion_anual.py``
+(spec 031), no el pronóstico a 28 días de la 089.
 
 Códigos de salida: 0 leído (con o sin problemas), 2 sin proyecto, sin caso o sin tasa,
 1 error inesperado, 3 sin API.
@@ -499,6 +502,43 @@ def ejecutar_anual(app, plan: dict, *, cancelado=None) -> tuple[dict, int]:
     return informe, codigo
 
 
+def anio_que_vuelve_a_fallar(evidencia: dict) -> int | None:
+    """072 T14, 098:RF-39, RF-40: el año en que el estudio dijo que la de corto plazo vuelve a fallar.
+
+    La aceptación del corto plazo lo trae como ``vuelve_a_fallar`` del estudio de «Con proyecto»: un
+    ``{'anio': n, ...}`` o uno por alimentador; vale el primero. Sin él, ``None``: no se inventa.
+    """
+    dato = evidencia.get('vuelve_a_fallar') if isinstance(evidencia, dict) else None
+    if not isinstance(dato, dict):
+        return None
+    filas = [dato] if 'anio' in dato else [v for v in dato.values() if isinstance(v, dict)]
+    anios = [f['anio'] for f in filas if type(f.get('anio')) is int]
+    return min(anios) if anios else None
+
+
+def cerrar_punto_de_partida(informe: dict) -> None:
+    """072 T14: el primer año que falla medido en DIgSILENT frente al que dio el estudio, y un aviso si difieren.
+
+    El estudio busca ese año con el oráculo y lo confirma en dos años (098:RF-39); el PIDE lo mide con la
+    proyección aceptada, que puede ser otra demanda. La diferencia se dice; no bloquea ni se corrige sola.
+    """
+    punto = informe.get('punto_de_partida')
+    if not punto:
+        return
+    medido = informe.get('primer_anio_incumplimiento')
+    punto['primer_anio_medido'] = medido
+    estudio = punto.get('anio_del_estudio')
+    if estudio is None or (medido is None and informe.get('estado') != 'completo'):
+        punto['coincide'] = None
+        return
+    punto['coincide'] = estudio == medido
+    if not punto['coincide']:
+        informe['avisos'].append(
+            f'El estudio de «Con proyecto» dio que la obra de corto plazo vuelve a fallar en el año {estudio}; '
+            + (f'con la proyección aceptada falla en el año {medido}.' if medido is not None
+               else 'con la proyección aceptada no falla en ningún año del horizonte.'))
+
+
 def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict, int]:
     """072:RF-23 a RF-28 — continúa copias del corto plazo con demanda anual aceptada.
 
@@ -597,16 +637,25 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
         variaciones = {clave_pf(v): v for v in app.GetProjectFolder('scheme').GetContents('*.IntScheme', 1)}
         representacion = {key: {a: getattr(c, a, None) for a in ('i_sym', 'phtech', 'mode_inp')}
                           for key, (c, _f) in cargas.items()}
-        obras = {}
         declaradas = set()
+        # 072 T14 (aclaración de RF-25): una obra es lo declarado para un año con la misma ``alternativa`` (sin ella,
+        # todo lo del año, como siempre: una sección con su maniobra va junta); las alternativas de un año van en el
+        # orden de la escalera (1 bancos, 2 sección, …). Cada obra es candidata desde su año y la que no se usa sigue
+        # disponible para los años siguientes.
+        grupos: dict[tuple[int, int], list[str]] = {}
         for obra in plan.get('obras_por_anio') or []:
-            anio, identidad = obra['anio'], obra['variacion']
+            anio, identidad, alternativa = obra['anio'], obra['variacion'], obra.get('alternativa', 0)
             if type(anio) is not int or anio not in datos['por_anio'] or identidad not in variaciones:
                 raise PideError(f'obra anual sin variación física identificada: {identidad}')
+            if type(alternativa) is not int or alternativa < 0:
+                raise PideError(f'alternativa no válida de la obra anual {identidad}')
             if identidad in activas_corto or identidad in declaradas:
                 raise PideError(f'obra anual ya activa o declarada dos veces: {identidad}')
             declaradas.add(identidad)
-            obras.setdefault(anio, []).append(identidad)
+            grupos.setdefault((anio, alternativa), []).append(identidad)
+        candidatas = [(anio, ids) for (anio, _alt), ids in sorted(grupos.items())]
+        informe['punto_de_partida'] = {'anio_del_estudio': anio_que_vuelve_a_fallar(evidencia),
+                                       'primer_anio_medido': None, 'coincide': None}
         informe['proyeccion'] = {'modelo': datos['modelo'], 'dataset_sha256': datos['dataset_sha256'],
                                   'archivo_sha256': plan['proyeccion_anual']['sha256'], 'anio_base': datos['anio_base']}
         # La aceptación documental no cubre un cambio posterior de la red: el
@@ -646,23 +695,52 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
                           'casos': {r: c['caso'] for r, c in casos.items()}, 'obras_aplicadas': []}
             informe['anios'].append(fila_anual)
             comprobar_cancelacion()
+            despues = None
             if not antes['cumple']:
                 if informe['primer_anio_incumplimiento'] is None:
                     informe['primer_anio_incumplimiento'] = anio
-                if not obras.get(anio):
+                disponibles = [ids for a, ids in candidatas if a <= anio and not set(ids) & acumuladas]
+                if not disponibles:
                     raise PideError(f'año {anio}: falta una obra física para los incumplimientos medidos')
-                for identidad in obras[anio]:
-                    comprobar_cancelacion()
-                    if identidad not in acumuladas:
+                # 072 T14: la obra que pida el año, encima de las acumuladas: una a una en el orden de la
+                # escalera, y se para en la primera que cumple; la que no cumple se retira y sigue disponible.
+                fila_anual['obras_probadas'] = []
+                elegidas, descartadas = None, []
+                for ids in disponibles:
+                    for identidad in ids:
+                        comprobar_cancelacion()
                         if variaciones[identidad].Activate() != 0:
                             raise PideError(f'no se activó la obra {identidad}')
-                        fila_anual['obras_aplicadas'].append(identidad)
+                    medida = _medida_anual(app, proyecto, plan, barras, por_fase=por_fase,
+                        cargas=cargas, filas=filas, representacion=representacion,
+                        comprobar_cancelacion=comprobar_cancelacion)
+                    fila_anual['obras_probadas'].append({'variaciones': list(ids), 'cumple': medida['cumple'],
+                                                         'problemas': len(medida.get('problemas') or [])})
+                    if medida['cumple'] or len(disponibles) == 1:
+                        # Con una sola candidata, su medida es la de «después»: si no cumple, el año se bloquea.
+                        elegidas, despues = list(ids), medida
+                        break
+                    for identidad in reversed(ids):
+                        if variaciones[identidad].Deactivate() != 0:
+                            raise PideError(f'no se retiró la obra probada {identidad}')
+                    descartadas.extend(ids)
+                if elegidas is None:
+                    # Ninguna sola basta: todas las disponibles juntas (la combinación de la escalera, 042:RF-56).
+                    elegidas, descartadas = [i for ids in disponibles for i in ids], []
+                    for identidad in elegidas:
+                        comprobar_cancelacion()
+                        if variaciones[identidad].Activate() != 0:
+                            raise PideError(f'no se activó la obra {identidad}')
+                fila_anual['obras_aplicadas'] = list(elegidas)
                 activas = {clave_pf(v) for v in app.GetActiveNetworkVariations() or []} - variaciones_demanda
-                if not (acumuladas | set(obras[anio])).issubset(activas):
+                if not (acumuladas | set(elegidas)).issubset(activas):
                     raise PideError('la relectura no conserva las obras acumuladas')
-                acumuladas |= set(obras[anio])
+                if activas & set(descartadas):
+                    raise PideError('una obra probada que no cumple quedó activa')
+                acumuladas |= set(elegidas)
             comprobar_cancelacion()
-            fila_anual['despues'] = _medida_anual(app, proyecto, plan, barras, por_fase=por_fase,
+            fila_anual['despues'] = despues if despues is not None else _medida_anual(
+                app, proyecto, plan, barras, por_fase=por_fase,
                 cargas=cargas, filas=filas, representacion=representacion,
                 comprobar_cancelacion=comprobar_cancelacion)
             fila_anual['obras_acumuladas'] = sorted(acumuladas)
@@ -678,6 +756,7 @@ def _ejecutar_anual_en_activo(app, plan: dict, *, cancelado=None) -> tuple[dict,
         informe['error'] = f'{type(exc).__name__}: {exc}'
         informe['estado'] = 'incompleto' if informe['anios'] else 'bloqueado'
     finally:
+        cerrar_punto_de_partida(informe)
         diferencias = []
         try:
             for etapa, fecha in fechas_etapas:

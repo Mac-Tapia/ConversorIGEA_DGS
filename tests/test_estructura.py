@@ -295,9 +295,10 @@ def test_maxima_de_la_barra_suma_sus_transformadores():
     from convertersmartgrid.aplicacion.demanda_medida import maxima_de_barra
 
     t0 = datetime(2026, 7, 1)
-    t1 = [(t0 + timedelta(minutes=15 * i), 100.0 + i, 10.0) for i in range(10)]
-    t2 = [(t0 + timedelta(minutes=15 * i), 200.0 - 3 * i, 20.0) for i in range(1, 11)]
+    # Registros horarios: la hora es el registro (004:RF-112); aquí se mira la suma y las fechas comunes.
+    t1 = [(t0 + timedelta(hours=i), 100.0 + i, 10.0) for i in range(10)]
+    t2 = [(t0 + timedelta(hours=i), 200.0 - 3 * i, 20.0) for i in range(1, 11)]
     m = maxima_de_barra([t1, t2])
-    assert m['fecha'] == t0 + timedelta(minutes=15) and m['kw'] == pytest.approx(101 + 197)
+    assert m['fecha'] == t0 + timedelta(hours=1) and m['kw'] == pytest.approx(101 + 197)
     assert m['registros'] == 9 and m['kvar'] == pytest.approx(30.0)
     assert maxima_de_barra([t1, t2], periodo='2026-08') is None

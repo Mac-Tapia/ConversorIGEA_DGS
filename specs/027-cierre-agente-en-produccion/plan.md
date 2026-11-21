@@ -63,7 +63,7 @@ Estado: borrador del 2026-10-28, pendiente de aprobación junto con la spec.
    informes). Es el patrón de Jia, Cui y Hug (2024-2025): el modelo razona y el simulador
    ejecuta y realimenta el error, con la traza auditable de ReAct.
 11. **El corpus PIDEELOR como contexto y ejemplos, no como norma (RF-46 a RF-48)**: los PIDE 2021
-   y 2026 de Electro Oriente enseñan la forma de los entregables. La norma es el contrato de
+   y 2026 de Empresa B enseñan la forma de los entregables. La norma es el contrato de
    2017. Recuperación con cita (Gao et al., 2023-2024), igual que el índice del proyecto.
 
 ## Pruebas

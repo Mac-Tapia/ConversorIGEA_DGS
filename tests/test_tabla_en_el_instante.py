@@ -358,3 +358,36 @@ def test_la_seleccion_se_guarda_en_el_espacio_y_vale_sin_mandarla(client):
     assert client.put(f'/api/workspaces/{cruzar.wid}/demanda/clientes/a-su-maxima',
                       json={'codigos': []}).json() == {'a_su_maxima': []}
     assert Workspace.load(ws.root).fijas_a_su_maxima == []
+
+
+def test_039_rf23_la_correccion_del_medidor_se_registra_y_se_ve_en_la_tabla(client):
+    """039:RF-23, 004:RF-111 — el operador registra en el espacio una corrección fechada del factor del medidor de un
+    cliente (sin tocar el libro): se guarda, se lee, y desde su mes la tabla cruzada lleva su EA, su registro y su P
+    por ese factor, con la corrección en la fila. Un mes mal escrito no se admite."""
+    from convertersmartgrid.presentacion.web.workspace import Workspace
+
+    wid = client.post('/api/workspaces').json()['id']
+    _subir(client, wid, 'suministros', {'s': [['Suministro', 'Suministro Act', 'SED', 'RADIAL'],
+                                              [11, 9011, 'E1', 'A1'], [12, 9012, 'E1', 'A1']]}, 'sum.xlsx')
+    _subir(client, wid, 'clientes', {
+        'resumen': [['x'], ['Nis', 'EA', 'ERI', 'Pot'], [11, 900.0, 300.0, 400.0], [12, 500.0, 100.0, 50.0]],
+        'maestro_lib': [['numero_suministro', 'nombre_hoja_exportacion'], ['11', 'cli11']],
+        'cli11': _hoja_15min(9)}, 'ci.xlsx')
+    url = f'/api/workspaces/{wid}/demanda/clientes/correccion-medidor'
+    r = client.put(url, json={'codigo': '11', 'factor': 0.3, 'desde': '2026-07', 'motivo': 'FM del medidor nuevo'})
+    assert r.status_code == 200, r.text
+    (corr,) = r.json()['correcciones']
+    assert (corr['codigo'], corr['factor'], corr['desde']) == ('11', 0.3, '2026-07') and corr['registrada']
+    assert client.get(url).json()['correcciones'] == [corr]
+    assert Workspace.load(client.app.state.store.get(wid).root).correcciones_medidor == [corr]
+    assert client.put(url, json={'codigo': '11', 'factor': 0.3, 'desde': '2026-13'}).status_code == 422
+    maxima = {'fecha': '2026-07-01T00:30:00', 'kw': 1000.0, 'kvar': 250.0, 'fp': None}
+    r = client.post(f'/api/workspaces/{wid}/demanda/clientes/cruzar',
+                    json={'alimentadores': ['A1'], 'maximas': {'A1': maxima}})
+    assert r.status_code == 200, r.text
+    filas = {c['codigo']: c for c in r.json()['cruzados']}
+    f11, f12 = filas['11'], filas['12']
+    assert f11['correccion_medidor']['factor'] == 0.3 and 'correccion_medidor' not in f12
+    assert f11['ea'] == pytest.approx(270.0) and f11['p_kw'] == pytest.approx(12.0 * 4 * 0.3)
+    assert f11['valores']['coincidente']['p_kw'] == pytest.approx(12.0 * 4 * 0.3)
+    assert f12['ea'] == pytest.approx(500.0)

@@ -2330,9 +2330,14 @@ def flujo_de_carga(app, *, extremos: bool = True, monofasicos: bool | None = Non
     return out
 
 
-def flujo_con_mensajes(app) -> tuple[bool, list[str]]:
-    """El flujo del caso activo y, si no converge, lo que dice DIgSILENT en su ventana de
-    salida (errores y advertencias), para decir por qué (025:RF-66)."""
+def flujo_de_carga_con_mensajes(app) -> dict:
+    """:func:`flujo_de_carga` y, si no converge, ``mensajes``: lo que dice DIgSILENT en su ventana
+    de salida (errores y advertencias) para decir por qué (025:RF-66, 008:RF-30).
+
+    La verificación (2026-11-20) decía «no converge» con solo ``return_code 1``; la ventana
+    decía «Newton-Raphson … Maximum number of iterations reached». Limpiar la ventana no
+    escribe en el proyecto.
+    """
     ventana = None
     try:
         ventana = app.GetOutputWindow()
@@ -2341,7 +2346,7 @@ def flujo_con_mensajes(app) -> tuple[bool, list[str]]:
         ventana = None
     flujo = flujo_de_carga(app)
     if flujo['converged']:
-        return True, []
+        return flujo
     lineas = []
     if ventana is not None:
         try:
@@ -2349,10 +2354,97 @@ def flujo_con_mensajes(app) -> tuple[bool, list[str]]:
         except Exception:  # noqa: BLE001, S110
             lineas = []
     # DIgSILENT marca sus líneas con «err  -» y «warn -»; un flujo que no arranca (código 1,
-    # IC_11 de TA225 sin su obra, 2026-10-24) no dice «error» ni «converg».
-    utiles = [x for x in lineas if re.match(r'(?i)(err|warn)\b', x)
-              or re.search(r'(?i)error|converg|iteration|iteraci', x)]
-    return False, (utiles[-5:] or [f"el flujo no converge (código {flujo['return_code']})"])
+    # IC_11 de TA225 sin su obra, 2026-10-24) no dice «error» ni «converg». Primero las
+    # marcadas: el Newton escribe una línea por iteración («Load flow iteration: 0 … 75»).
+    marcadas = [x for x in lineas if re.match(r'(?i)(err|warn)\b', x)]
+    utiles = marcadas or [x for x in lineas if re.search(r'(?i)error|converg|iteration|iteraci', x)]
+    flujo['mensajes'] = utiles[-5:] or [f"el flujo no converge (código {flujo['return_code']})"]
+    return flujo
+
+
+def flujo_con_mensajes(app) -> tuple[bool, list[str]]:
+    """El flujo del caso activo y, si no converge, lo que dice DIgSILENT en su ventana de
+    salida (errores y advertencias), para decir por qué (025:RF-66)."""
+    flujo = flujo_de_carga_con_mensajes(app)
+    return bool(flujo['converged']), list(flujo.get('mensajes') or [])
+
+
+def _carga_kva_de_la_sed(trafo) -> float:
+    """S de las cargas en servicio de la SED del transformador, en kVA (MW y Mvar, 035:RF-14)."""
+    padre = trafo.GetParent() if hasattr(trafo, 'GetParent') else None
+    total_p = total_q = 0.0
+    for c in (padre.GetContents('*.ElmLod', 1) if padre is not None else []) or []:
+        if int(getattr(c, 'outserv', 0) or 0):
+            continue
+        escala = float(getattr(c, 'scale0', 1.0) or 1.0)
+        total_p += float(getattr(c, 'plini', 0.0) or 0.0) * escala
+        total_q += float(getattr(c, 'qlini', 0.0) or 0.0) * escala
+    return 1000.0 * math.hypot(total_p, total_q)
+
+
+def _kva_del_trafo(trafo) -> float | None:
+    tipo = getattr(trafo, 'typ_id', None)
+    kva = float(getattr(tipo, 'strn', 0) or 0) * 1000.0 * max(1, int(getattr(trafo, 'ntnum', 1) or 1))
+    return kva or None
+
+
+def variaciones_del_conversor_apagadas(app, proyecto: str) -> list[dict]:
+    """008:RF-31: ``Fichas_<proyecto>`` y ``SED_NTP_<proyecto>`` que existen y no están activas, sin activarlas.
+
+    Lo que hay en sus etapas se lee como está guardado (008:RF-18: la verificación no escribe ni activa nada). De cada una:
+    cuántos transformadores tiene su etapa y, de esos, cuántos quedan por encima del 100 % con lo activo (las cargas de su
+    SED frente a los kVA del archivo). El 2026-11-20 la calibración dejó las cargas para los de ``SED_NTP_`` y el servidor
+    la apagó: 7 transformadores, todos por encima del 100 %, el más cargado al 2 048 %, y nadie lo decía.
+    """
+    from convertersmartgrid.aplicacion.escaneo import PREFIJOS_CATALOGO
+
+    carpeta = app.GetProjectFolder('scheme') if hasattr(app, 'GetProjectFolder') else None
+    if carpeta is None:
+        return []
+    todas = carpeta.GetContents('*.IntScheme', 1) or []
+    activas = list(app.GetActiveNetworkVariations() or [])
+    activos = None
+    out: list[dict] = []
+    for prefijo in PREFIJOS_CATALOGO:
+        nombre = nombre_pf(f'{prefijo}{proyecto}')
+        variacion = next((v for v in todas if v.loc_name == nombre or v.loc_name.startswith(nombre + '(')), None)
+        if variacion is None or any(a is variacion or _misma(variacion, a) for a in activas):
+            continue
+        fila = {'variacion': variacion.loc_name, 'transformadores': 0, 'objetos': 0,
+                'sobre_100': None, 'maxima_pct': None, 'aviso': ''}
+        try:
+            trafos = []
+            for etapa in variacion.GetContents('*.IntSstage') or []:
+                fila['objetos'] += len(etapa.GetContents('*', 1) or [])
+                trafos += list(etapa.GetContents('*.ElmTr2', 1) or [])
+            nombres = sorted({t.loc_name for t in trafos})
+            fila['transformadores'] = len(nombres)
+            if nombres:
+                if activos is None:
+                    activos = {t.loc_name: t for t in (app.GetCalcRelevantObjects('*.ElmTr2') or [])}
+                pct = []
+                for nombre_tr in nombres:
+                    tr = activos.get(nombre_tr)
+                    kva = _kva_del_trafo(tr) if tr is not None else None
+                    if kva:
+                        pct.append(100.0 * _carga_kva_de_la_sed(tr) / kva)
+                if pct:
+                    fila['sobre_100'] = sum(1 for x in pct if x > 100.0)
+                    fila['maxima_pct'] = round(max(pct), 1)
+        except Exception as exc:  # noqa: BLE001 - el aviso va igual, sin las cifras que no se pudieron leer
+            fila['lectura'] = f'{type(exc).__name__}: {exc}'
+        if fila['transformadores']:
+            texto = (f"«{fila['variacion']}» existe y está apagada: sus {fila['transformadores']} transformadores "
+                     'vuelven a los kVA del archivo')
+            if fila['sobre_100'] is not None:
+                texto += f"; {fila['sobre_100']} quedan por encima del 100 % con lo activo"
+                if fila['sobre_100']:
+                    texto += f" (el más cargado, al {fila['maxima_pct']:.0f} %)"
+        else:
+            texto = f"«{fila['variacion']}» existe y está apagada: sus {fila['objetos']} cambios no se aplican"
+        fila['aviso'] = texto + '. No se activa al verificar; una calibración la enciende.'
+        out.append(fila)
+    return out
 
 
 def estado_del_alimentador(alims, feeder: str) -> dict:

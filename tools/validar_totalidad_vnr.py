@@ -4,7 +4,7 @@
     python tools/validar_totalidad_vnr.py --espacio <id> --web http://127.0.0.1:8765
 
 El usuario, 2026-11-02: «validar de cada empresa que lo cargado sea la totalidad de alimentadores,
-sin excepción alguna». Lo que dice el propio conversor no vale como prueba: Electro Sur Este
+sin excepción alguna». Lo que dice el propio conversor no vale como prueba: Empresa D
 listaba 1 993 alimentadores sin aviso y perdía 47 salidas con su SED. Por eso aquí se cuenta con
 consultas propias a la base, sin usar el lector. Termina con error si algo no cuadra.
 """
@@ -40,7 +40,7 @@ def cruzar(base: dict, web: list[dict]) -> dict:
     """080:RF-29 a RF-31: qué falta, qué sobra y qué no tiene red que cargar."""
     en_web = {str(f.get('network_id') or f.get('feeder')).strip(): f for f in web}
     salidas = base['salidas']
-    # La web lista el código operativo (056:RF-7): «A01» de Luz del Sur es la salida 100683102.
+    # La web lista el código operativo (056:RF-7): «A01» de Empresa C es la salida 100683102.
     # Una salida se da por cargada por su código o por su etiqueta, sin tomar una por otra.
     etiquetas = base.get('etiquetas') or {}
     nombres = {c: {c, etiquetas.get(c, '')} - {''} for c in salidas}
@@ -95,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if not espacio.get('loaded'):
         # Tras reiniciar la web un espacio queda sin cargar: 0 frente a 2 113 no es una carga
-        # incompleta, y decir «no cuadra» confundía (Electro Sur Este, 2026-11-03).
+        # incompleta, y decir «no cuadra» confundía (Empresa D, 2026-11-03).
         print('Ese espacio no está cargado: pulse «Cargar / listar alimentadores» antes de validar.',
               file=sys.stderr)
         return 2

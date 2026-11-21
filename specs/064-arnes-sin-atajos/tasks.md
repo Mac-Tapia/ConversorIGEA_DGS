@@ -22,6 +22,11 @@
       Hecho cuando: `pytest -q tests/test_pf_servidor.py -k no_surte_efecto` en verde para caso,
       caso que no cambia sin avisar, escenario y variación, y falla con el código de `ac1c316b`.
 
+- [x] T10. La orden fallida que dejó algo grabado conserva sus variaciones al restituir. (RF-11; 083:RF-29)
+      Hecho cuando: `pytest -q tests/test_pf_servidor.py -k conserva` y
+      `pytest -q tests/test_ajuste_cabecera_guion.py -k conserva` fallan por aserción sobre `a0ebd973` y pasan
+      después, con los vecinos de `pf_servidor`, `pf_estado` y `ajuste_cabecera` en verde.
+
 Evidencia de T7. El primer cierre (sonda directa sobre `pf_estado.restituir` y, aparte, una
 orden fallida por la web sin estado que reponer) no probaba la cadena entera; la auditoría del
 2026-11-02 (H3) lo señaló y T7 se reabrió. Cerrada de nuevo el 2026-11-02 con
@@ -36,3 +41,6 @@ exclusiva `PRUEBA064_*`, borrada al terminar; el original no se modifica:
   hora de estudio repuesta a 1792309657», y la orden de lectura siguiente devolvió la foto
   inicial entera;
 - copia de `20261101-101524_CSG_0205` (`…/aceptacion_T7_064.json`): caso y hora, igual.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ9_NOCONV/rojo_a0ebd973.txt (3 F en test_pf_servidor y 6 en test_ajuste_cabecera_guion «conserva»);
+      verde D:/csg/PM_IMPL/MEJ9_NOCONV/verde_nuevas.txt y verde_vecinos.txt; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).

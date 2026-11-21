@@ -7,6 +7,6 @@
       Hecho cuando: `tests/test_datos_duraderos.py` (059:RF-3, mismo nombre rechazado) en verde.
 
 - [x] T2. La web sin alternativa marcada sin fuente y con el espacio recuperado. (RF-5, RF-6)
-      Hecho cuando: en el navegador real el espacio de Electro Oriente abre como VNR-GIS y uno nuevo sin fuente.
-      Hecho el 2026-11-01: en el navegador, espacio nuevo sin entrada marcada; el de Electro Oriente
+      Hecho cuando: en el navegador real el espacio de Empresa B abre como VNR-GIS y uno nuevo sin fuente.
+      Hecho el 2026-11-01: en el navegador, espacio nuevo sin entrada marcada; el de Empresa B
       abre como VNR-GIS con la copia y sus 168 alimentadores listos.

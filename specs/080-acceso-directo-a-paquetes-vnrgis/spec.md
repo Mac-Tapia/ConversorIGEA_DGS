@@ -4,7 +4,7 @@ Estado: aprobada · Fecha: 2026-11-02
 
 ## Contexto y objetivo
 
-El usuario, 2026-11-02, tras localizar a mano los paquetes de Electro Sur Este y Luz del Sur: «en la
+El usuario, 2026-11-02, tras localizar a mano los paquetes de Empresa D y Empresa C: «en la
 web también ponlo, esa ruta para acceso directo cuando se desee trabajar con VNR-GIS», para probar
 con otras distribuidoras.
 
@@ -43,7 +43,7 @@ Descubrimiento
 Vigente por empresa
 
 - RF-9: EL SISTEMA marcará como vigente, por empresa, el paquete del VNR más reciente y, dentro de él, el de la resolución más reciente.
-- RF-10: EL SISTEMA tratará como una sola empresa dos nombres del mismo ciclo cuando uno sea el comienzo del otro («Pluz Energia» y «Pluz Energia Peru»).
+- RF-10: EL SISTEMA tratará como una sola empresa dos nombres del mismo ciclo cuando uno sea el comienzo del otro («Empresa V Energia» y «Empresa V Energia Peru»).
 
 Web
 
@@ -70,13 +70,13 @@ Restauración
 - RF-25: SI el motor de SQL Server no puede abrir la copia, ENTONCES EL SISTEMA dará permiso de lectura a la cuenta del motor solo sobre ese fichero y volverá a intentarlo.
 - RF-26: SI ese permiso no se puede dar, ENTONCES EL SISTEMA dirá qué fichero y qué cuenta son y qué hacer.
 
-Carga completa (usuario, 2026-11-02: «validar de cada empresa que lo cargado sea la totalidad de alimentadores, sin excepción alguna»; Electro Sur Este perdía 47 salidas con su SED)
+Carga completa (usuario, 2026-11-02: «validar de cada empresa que lo cargado sea la totalidad de alimentadores, sin excepción alguna»; Empresa D perdía 47 salidas con su SED)
 
 - RF-27: SI todos los tramos de una salida tienen sus extremos en un mismo punto, ENTONCES EL SISTEMA la cargará igualmente, con un tramo mínimo, su SED y un aviso.
-- RF-32: SI una salida tiene SED con coordenadas y ningún tramo, ENTONCES EL SISTEMA la cargará con un tramo mínimo en su SED, con el conductor más usado de su tensión y un aviso (`748055397` de Luz del Sur, 3 SED).
-- RF-33: SI varios tramos raíz de una salida ya están en un mismo punto, ENTONCES EL SISTEMA seguirá la carga sin unirlos: por `11953196` no se cargaba ninguna salida de Luz del Sur.
-- RF-34: DONDE la fuente cargada declare su CRS, EL SISTEMA lo usará antes que el del perfil de empresa, y lo que elija el operador prevalecerá sobre ambos (Electro Sur Este es WGS84 18S y Luz del Sur PSAD56 18S: suponer uno desplaza la red del otro).
-- RF-28: EL SISTEMA no recortará el nombre de un alimentador a un último trozo solo numérico (`AN01-642-001` no es `001`: 498 salidas de Electro Sur Este se llamaban así).
+- RF-32: SI una salida tiene SED con coordenadas y ningún tramo, ENTONCES EL SISTEMA la cargará con un tramo mínimo en su SED, con el conductor más usado de su tensión y un aviso (`748055397` de Empresa C, 3 SED).
+- RF-33: SI varios tramos raíz de una salida ya están en un mismo punto, ENTONCES EL SISTEMA seguirá la carga sin unirlos: por `11953196` no se cargaba ninguna salida de Empresa C.
+- RF-34: DONDE la fuente cargada declare su CRS, EL SISTEMA lo usará antes que el del perfil de empresa, y lo que elija el operador prevalecerá sobre ambos (Empresa D es WGS84 18S y Empresa C PSAD56 18S: suponer uno desplaza la red del otro).
+- RF-28: EL SISTEMA no recortará el nombre de un alimentador a un último trozo solo numérico (`AN01-642-001` no es `001`: 498 salidas de Empresa D se llamaban así).
 - RF-29: EL SISTEMA dará una herramienta que cruce, por una consulta propia a la base restaurada, las salidas, los tramos y las SED con lo que lista la web.
 - RF-30: SI una salida o una SED de la base no está en la web, y la salida tiene tramos o SED, ENTONCES esa herramienta terminará con error y la nombrará.
 - RF-31: esa herramienta nombrará las salidas sin tramos ni SED, que no tienen red que cargar, y no las contará como fallo.
@@ -88,25 +88,25 @@ Equipos (usuario, 2026-11-03: «debes modelar todos los equipos que existen en l
 - RF-37: SI un equipo es de un tipo que el lector no modela, ENTONCES EL SISTEMA lo anotará con su código y su tipo, en vez de perderlo en silencio.
 - RF-38: EL SISTEMA modelará los bancos de regulación de tensión (`BR`) en serie en su tramo, con los datos de la leyenda de VNR-GIS (unidades, corriente y tensión), como `ElmVoltreg` en el DGS y con la toma en posición neutra.
 - RF-39: EN la entrada VNR-GIS, EL SISTEMA no modelará los pararrayos (`PA`) ni los seccionadores cerrados (`SE`, `SF`, `SC`), y dirá cuántos dejó fuera de cada tipo (usuario, 2026-11-03: «no modeles los pararrayos ni seccionadores»).
-- RF-40: EL SISTEMA conservará los seccionadores abiertos, porque definen dónde termina la red: Luz del Sur tiene 458 y, sin ellos, las ramas desconectadas quedarían conectadas.
+- RF-40: EL SISTEMA conservará los seccionadores abiertos, porque definen dónde termina la red: Empresa C tiene 458 y, sin ellos, las ramas desconectadas quedarían conectadas.
 - RF-41: EL SISTEMA anotará como deducidos el rango y los pasos de un `BR`, que la leyenda no trae.
 
-Convergencia del «Caso base» (`TI01` de Electro Sur Este: 508 km a 22,9 kV; sus 14,5 MW son la potencia instalada por un factor fijo y no convergen)
+Convergencia del «Caso base» (`TI01` de Empresa D: 508 km a 22,9 kV; sus 14,5 MW son la potencia instalada por un factor fijo y no convergen)
 
-- RF-42: EL SISTEMA tratará como demanda de relleno (057:RF-2) la de un alimentador cuyas SED tengan casi todas la misma proporción entre demanda y potencia instalada: seis razones o menos cubren el 90 % o más, con 20 SED o más (Electro Sur Este: solo 56 valores de kW en 11 813 SED).
+- RF-42: EL SISTEMA tratará como demanda de relleno (057:RF-2) la de un alimentador cuyas SED tengan casi todas la misma proporción entre demanda y potencia instalada: seis razones o menos cubren el 90 % o más, con 20 SED o más (Empresa D: solo 56 valores de kW en 11 813 SED).
 - RF-43: EL SISTEMA buscará en la corrección de 057:RF-3 el mayor factor con el que el flujo converge sin tensiones imposibles, porque con ellas la importación se rechaza.
 
 - RF-44: EN la entrada VNR-GIS, EL SISTEMA tratará como SED toda carga de la tabla `Sed`, sea cual sea el formato de su código: `004SED000188` y `12027990` no se reconocían, y sus alimentadores quedaban sin transformadores ni potencia instalada.
 
-- RF-45: SI el flujo del oráculo sigue sin converger con la demanda de relleno corregida, o la demanda es propia de cada SED, ENTONCES EL SISTEMA reducirá por igual todas las cargas hasta el mayor factor con el que converge sin tensiones imposibles (015:RF-38, adelantado al oráculo como pide 057), conservará su reparto y anotará el factor. `C+æ02` de Luz del Sur: 10,77 MW en 105 km a 10 kV.
+- RF-45: SI el flujo del oráculo sigue sin converger con la demanda de relleno corregida, o la demanda es propia de cada SED, ENTONCES EL SISTEMA reducirá por igual todas las cargas hasta el mayor factor con el que converge sin tensiones imposibles (015:RF-38, adelantado al oráculo como pide 057), conservará su reparto y anotará el factor. `C+æ02` de Empresa C: 10,77 MW en 105 km a 10 kV.
 
 - RF-46: EL SISTEMA nombrará cada SED con su código operativo (`Sed.EtiquetaCampo`), no con el interno de VNR-GIS (`CodSed`), como ya hace con los alimentadores (056:RF-7): el usuario, 2026-11-03: «debe usar los códigos operativos, no los del VNR, de cada empresa».
 - RF-47: SI varias SED comparten código operativo, ENTONCES EL SISTEMA añadirá un sufijo determinista a las siguientes y lo anotará; sin código operativo, conservará el de VNR-GIS y lo anotará.
 - RF-48: EL SISTEMA contará los reguladores en lo que espera encontrar en DIgSILENT.
 
-Sin mezclar empresas (usuario, 2026-11-03: «cada empresa debe ser con sus propios archivos, no debe mezclarse entre empresas»; `TI01` de Electro Sur Este usaba en 508,3 de 508,5 km filas añadidas al aparecer en Electro Oriente). Cambia 053:RF-8 («uno y universal») para la entrada VNR-GIS.
+Sin mezclar empresas (usuario, 2026-11-03: «cada empresa debe ser con sus propios archivos, no debe mezclarse entre empresas»; `TI01` de Empresa D usaba en 508,3 de 508,5 km filas añadidas al aparecer en Empresa B). Cambia 053:RF-8 («uno y universal») para la entrada VNR-GIS.
 
-- RF-49: EN una copia VNR-GIS, EL SISTEMA leerá y ampliará el catálogo de conductores propio de la empresa que dice la fuente, y ningún fichero de catálogo llevará filas de dos empresas.
+- RF-49: EN una copia VNR-GIS, EL SISTEMA leerá y ampliará el catálogo de conductores propio de la empresa que dice la fuente, y ningún fichero de catálogo llevará filas de dos empresas. Lo comprobará en cada carga: SI el fichero de la empresa trae filas añadidas al aparecer otra (un fichero copiado de otra carpeta, un código de empresa cambiado), ENTONCES EL SISTEMA lo dirá en los avisos y en la procedencia de la carga (`CATALOGO_CON_FILAS_DE_OTRA_EMPRESA`, con sus códigos) y en el registro del trabajo, sin bloquearla; la semilla no es de ninguna empresa.
 - RF-50: CUANDO una empresa no tenga catálogo, EL SISTEMA lo creará con una semilla que no lleve datos de ninguna empresa: R y amperios de la ficha del fabricante.
 - RF-51: EL SISTEMA calculará la X de una línea aérea de la semilla por su geometría (radio del conductor y separación de fases de 1,2 m, a 60 Hz) y lo anotará, porque ninguna ficha de fabricante la da.
 - RF-52: EL SISTEMA escribirá los reguladores a 60 Hz, como el resto de la red.
@@ -141,5 +141,5 @@ Memoria de la lectura de la red BT (hallazgo del integrador, 2026-11-15: con `co
 
 ## Criterios de aceptación
 
-- En el navegador real, con el portal real: elegir Electro Sur Este y dejar `ELSE_VNR_22_REC.bak` asignada; elegir Luz del Sur y ver su paquete de la RCD 184-2026.
+- En el navegador real, con el portal real: elegir Empresa D y dejar `ELSE_VNR_22_REC.bak` asignada; elegir Empresa C y ver su paquete de la RCD 184-2026.
 - La carga de esa copia por la web lista sus alimentadores.

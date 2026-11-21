@@ -8,39 +8,39 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 467 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 469 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
-| Herramientas y guiones | `tools/` | 129 |
-| Interfaz | `frontend/src/` | 119 |
-| Pruebas de la interfaz | `frontend/test/` | 64 |
-| Pruebas | `tests/` | 637 |
+| Herramientas y guiones | `tools/` | 132 |
+| Interfaz | `frontend/src/` | 120 |
+| Pruebas de la interfaz | `frontend/test/` | 65 |
+| Pruebas | `tests/` | 643 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 14417 líneas y 457 funciones, pendiente de partir (002).
+`web/services.py` tiene 14550 líneas y 464 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 84 |
+| cumplida | 85 |
 | aprobada | 21 |
-| implementada | 6 |
+| implementada | 5 |
 | retirada | 1 |
 
-112 specs con 3936 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3973 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 195 |
+| adaptadores | Ada | 196 |
 | aplicacion | Apl | 132 |
-| dominio | Dom | 72 |
+| dominio | Dom | 73 |
 | presentacion | Pre | 51 |
 | puertos | Pue | 5 |
 
-455 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+457 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -48,11 +48,11 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-168 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+170 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
-| `demanda` | espacio | 30 |
+| `demanda` | espacio | 32 |
 | `pf` | espacio | 24 |
 | `informes` | espacio | 11 |
 | `asistente` | general | 11 |
@@ -592,6 +592,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `adaptadores/benchmarks/publicable.py` | Ada | 112 | Benchmark publicable: red sintética con los agregados de la entrega (al menos 5 alimentadores y 500 tramos, que se suben y no se bajan), sin un tramo… |
 | `dominio/benchmarks/sintetico.py` | Dom | 112, 034 | Generador de exports CYMDIST sintéticos y sorteados (antes en `tests/synthetic_export.py`, que lo reexporta), con longitudes y cargas por cuantiles… |
 | `adaptadores/benchmarks/evaluacion.py` | Ada | 112 | Sellado de la prueba antes de elegir modelo (apertura exclusiva, huella fijada, rechazo si cambia) e informe publicado con todos los resultados,… |
+| `dominio/benchmarks/interempresa.py` | Dom | 112 | Dejar una empresa fuera cada vez, sin E/S: un pliegue por empresa que ajusta con las demás y mide en la retenida, el veredicto (con menos de 3… |
+| `adaptadores/benchmarks/interempresa.py` | Ada | 112 | Dejar una empresa fuera cada vez con datos en disco: el trío TXT de cada empresa para la conversión VNR, los benchmarks de series para el pronóstico… |
 | `aplicacion/benchmarks/cohortes.py` | Apl | 112 | Cohortes de evaluación por empresa (una fuera) y por tiempo con franja de separación, por componente conexo de alimentadores y clientes, validadas… |
 | `dominio/benchmarks/redes.py` | Dom | 112 | Benchmark de redes: el trío TXT de CYMDIST con una lista cerrada de secciones y columnas, en la disposición del origen, sin texto libre y con el… |
 | `adaptadores/benchmarks/reproduccion.py` | Ada | 112 | El mismo estudio (reglas y oráculo) en el original y en el benchmark, comparado alimentador a alimentador con la tolerancia del estudio o la de por… |
@@ -916,6 +918,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `vad_estudio.py` | — | 108 | Guion del estudio VAD sin DIgSILENT ni web: comprueba el estudio con el registro y arma la empresa modelo de un caso (`--caso` o `CSG_VAD_CASO`, con… |
 | `vnr_publico_empresa.py` | — | 112, 080 | Baja bajo demanda el paquete VNR-GIS vigente de una empresa de lo publicado por Osinergmin (`--plan` sin bajar nada), a una carpeta fuera del… |
 | `benchmark_anonimo.py` | — | 112 | Genera en local el benchmark anonimizado de una red (y de las series del 089) con su manifiesto. |
+| `interempresa_loco.py` | — | 112 | Deja una empresa fuera cada vez (`vnr` con el trío de los paquetes públicos, `pronostico` con los benchmarks de series) y escribe el informe con su… |
+| `benchmark_escala_web.py` | — | 112 | Mide la escala de la web y su API con redes sintéticas de 10, 50 y 200 alimentadores (carga de la red, p50 y p95 de las peticiones de la pantalla,… |
 | `normativa/biblioteca.py` | — | 107 | La biblioteca normativa general desde la consola: listar, añadir una norma a la capa del usuario y exportar el dataset de normas y reglas. |
 | `normativa/generar_guia_vnr_232.py` | — | — | 108 T23 (RF-20): la «Guía de Elaboración del Valor Nuevo de Reemplazo de las Instalaciones de Distribución Eléctrica» |
 
@@ -959,7 +963,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `entrenar_alimentadores_gpu.py` | — | 089 | Una red de pronóstico por alimentador, uno tras otro en la GPU, con los libros por argumento. |
 | `evaluar_harness.py` | — | 043, 044, 047 | Entrada de consola para el arnés integral de evaluación. |
 | `lanzar_pronostico_pide_gpu.py` | — | 031 | El pronóstico del PIDE en la GPU en un paso: comprueba CUDA y memoria y pasa a `proyeccion_anual.py` las redes como candidatos y el quinquenio y… |
-| `medir_mejora.py` | — | 087 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
+| `medir_mejora.py` | — | 087, 071 | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste. |
 | `pronostico_demanda.py` | — | 089 | Dataset y backtest de demanda desde las carpetas que haya. |
 
 ### Herramientas: calidad y entrega
@@ -983,6 +987,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `generar_arquitectura.py` | — | 090 | Genera `docs/ARQUITECTURA_CATALOGO.md` desde el repositorio: ficheros, capas, rutas, tareas del asistente y roles de su equipo. |
 | `generar_c4.py` | — | 090 | Pone al día las cifras del C4 de `docs/architecture/` desde el catálogo generado y el Estado de cada spec. |
 | `puerta_calidad.py` | — | 102 | Puerta de calidad: los ganchos `pre-commit` y `pre-push` de `.githooks/` y GitHub Actions corren con ella las pruebas del commit, la suite completa… |
+| `comparar_suite_repartida.py` | — | 102 | La suite entera con N = 1, 2 y 3 procesos sobre el mismo árbol: memoria privada del árbol de procesos y por fichero, veredicto de cada prueba… |
 | `rutas_sin_modelo.py` | — | 002 | Lista las rutas de /api sin modelo de respuesta y escribe la lista de excepciones, que solo baja. |
 | `verificar_entrega_integral.py` | — | 065, 086 | Consolida backend, frontend, auditorías y ML sin confundir regresión con aceptación eléctrica u operativa. |
 
@@ -1151,6 +1156,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/powerfactory/obrasEstadoActual.ts` | — | 086 | Cuándo la web ofrece obras para el estado actual sin cargas nuevas, y cómo resume su resultado. |
 | `src/features/powerfactory/solicitudLeida.ts` | — | 063 | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. |
 | `src/features/powerfactory/tensionFuente.ts` | — | 021 | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. |
+| `src/features/powerfactory/tablaMaxima.ts` | — | 004, 116, 028 | Cómo se lee la tabla de la máxima de 2.2: su ámbito, el instante común, si la máxima propia va de referencia, la fila fuera del instante y el factor… |
 | `src/features/powerfactory/ubicacionCarga.ts` | — | 004 | La ubicación de una carga nueva en la web: el rechazo con su propuesta junto al formulario, el nodo más cercano y la línea de conexión. |
 
 ### Interfaz: pruebas de `frontend/test/`
@@ -1199,6 +1205,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/superficies.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/tarjetaOperador.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/tensionFuente.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/tablaMaxima.test.mjs` | — | 004, 112, 116, 028 | Pruebas de la tabla de la máxima: el instante común y la propia de referencia en el coincidente, la propia en el no coincidente, la tabla de otro… |
 | `test/centralesDeSet.test.mjs` | — | 086, 122 | Pruebas de la SET de cada central térmica en la máxima por barra: primero las SET de los analizados, el tramo de la SET elegida y por qué una central… |
 | `test/maximaNoCoincidente.test.mjs` | — | 086, 126 | Pruebas del instante de la calibración: la máxima de cada alimentador (no coincidente) en los tres análisis, el valor por defecto sin cambiar y el… |
 | `test/etiquetasMaxima.test.mjs` | — | 086, 123 | Pruebas de las etiquetas de las máximas en la gráfica de curvas: 200 repartos sorteados (la semilla en el registro) sin taparse ni salir del gráfico. |

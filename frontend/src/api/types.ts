@@ -886,7 +886,21 @@ export interface MaximaCabecera {
   tension_aviso?: string | null;
   /** 021:RF-79, RF-85: la tensión medida que va a su fuente (la de su barra de SET si la mide). */
   tension_fuente?: TensionFuente | null;
+  /** 004:RF-112: el mayor registro del periodo (15 min), solo como referencia. */
+  pico?: { fecha: string; kw: number; minutos: number | null } | null;
+  /** 004:RF-112, RF-115: la máxima sostenida propia (media de una hora); con un instante común, la referencia. */
+  sostenida?: { fecha: string; kw: number; sostenida: boolean; registros: number; minutos: number | null } | null;
+  /** 004:RF-112: la hora de lo que se carga (kW, kVAR, FP y V son su media). */
+  ventana?: { inicio: string; fin: string; registros: number; minutos: number | null } | null;
+  /** 004:RF-113, RF-114: el promedio del periodo sin ceros ni vacíos y el factor de carga. */
+  promedio_kw?: number | null;
+  registros_promedio?: number;
+  factor_carga?: number | null;
+  factor_carga_pico?: number | null;
 }
+
+/** 028:RF-43: con qué criterio salió la tabla de la máxima. */
+export type AmbitoMaxima = 'alimentador' | 'coincidente' | 'propia' | 'instante' | 'set' | 'sistema';
 
 /** 021:RF-79: la consigna de la fuente de un alimentador en el plan: la medida o la del operador. */
 export interface TensionFuente {
@@ -1024,7 +1038,21 @@ export interface ClienteImportante {
   /** 039:RF-10: P de su máxima del mes menos la coincidente, en kW y en % de la coincidente. */
   diferencia_kw?: number;
   diferencia_pct?: number | null;
+  /** 004:RF-111: su FM cambió frente al libro del mes anterior con un salto de energía igual. */
+  fm_cambiado?: FmCambiado;
+  /** 039:RF-23: la corrección del factor de su medidor que se le aplicó. */
+  correccion_medidor?: CorreccionMedidor;
 }
+
+/** 004:RF-111: el aviso FM_CAMBIADO de un cliente, con el factor que devuelve el FM anterior. */
+export interface FmCambiado {
+  codigo: string; aviso: 'FM_CAMBIADO'; fm_anterior: number; fm_actual: number; razon_fm: number;
+  salto_energia: number; factor_propuesto: number; mes: string | null; texto: string;
+  medidor_anterior?: string; medidor_actual?: string;
+}
+
+/** 039:RF-23: una corrección fechada del factor del medidor de un cliente, registrada en el espacio. */
+export type CorreccionMedidor = components['schemas']['CorreccionMedidorRespuesta'];
 
 /** 039:RF-1: fijas coincidentes con la máxima de cabecera o en su máximo del mes. */
 export type CriterioFijas = 'coincidente' | 'maximo_mes';
@@ -1596,6 +1624,17 @@ export interface VerificarInforme {
     vm_max_bus?: string;
   };
   feeders: { feeder: string; cabecera: { kw: number; kvar: number } | null; motivo: string | null }[];
+  /** 008:RF-30: si no converge, lo que dice DIgSILENT (errores y advertencias de su ventana de salida). */
+  mensajes?: string[];
+  /** 008:RF-31: variaciones del conversor que existen apagadas, leídas sin activarlas. */
+  variaciones_del_conversor_apagadas?: {
+    variacion: string;
+    transformadores: number;
+    objetos: number;
+    sobre_100: number | null;
+    maxima_pct: number | null;
+    aviso: string;
+  }[];
 }
 
 /** Spec 015: el «Caso base» de un alimentador en el vínculo del proyecto. */

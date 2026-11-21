@@ -280,7 +280,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
 Revisión del 2026-11-03 de T29, T30 y T31: siguen abiertas. Ninguna spec posterior las midió en DIgSILENT:
 `docs/implementacion065/aceptacion_dominio.md` las lista como pendientes de corrida nativa (T29, hipercubo en
 copias de Nasca; T30, top-k de bancos en Chincha; T31, 30/10/10 y curva por familia), y 044 T4 sigue abierta.
-- [ ] T33. «El proyecto entero» hasta los entregables de todos los módulos: las entradas al principio y el PIT, el VAD y el
+- [x] T33. «El proyecto entero» hasta los entregables de todos los módulos: las entradas al principio y el PIT, el VAD y el
       VNR como etapas opcionales con lo que requieren, saltadas con su motivo si falta su dato. (RF-72)
       Hecho cuando: rojo por aserción (las etapas no se encadenan) y verde con la prueba del orquestador (omisión con
       motivo, puntos de control) y la e2e F04 ampliada.
@@ -292,6 +292,9 @@ copias de Nasca; T30, top-k de bancos en Chincha; T31, 30/10/10 y curva por fami
       `test_agente_orquestador.py`.
       Bloqueada por la e2e F04 ampliada (las etapas de los módulos), que corre en el FIN2 de esta fila. Siguiente
       acción: ampliar `frontend/test/e2e/f04_asistente.e2e.mjs` y correrla con los dos arneses.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/ASISTENTE_C/027_T33/rojo.log (4 F); verde D:/csg/PM_IMPL/ASISTENTE_C/verde/verde_c.log (461 passed); e2e F04 ampliada en
+      D:/csg/PM_IMPL/MEJ567/e2e_20261120_163024.log («F04 asistente: el proyecto entero enseña los módulos que se saltan…»); verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).
 - [x] T34. Memoria a largo plazo del asistente, por espacio: últimos turnos y recuerdos parecidos como contexto,
       correcciones recordadas, vista y olvido en la web, topes y compactación. (RF-73, RF-74, RF-75, RF-76)
       Hecho cuando: rojo por aserción (sin memoria por espacio) y verde con `tests/test_asistente_memoria.py`

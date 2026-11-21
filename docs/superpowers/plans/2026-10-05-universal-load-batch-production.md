@@ -18,7 +18,7 @@
 - Los valores actuales y propuestos viven en columnas diferentes.
 - El plan se verifica contra proyecto, alimentadores, archivos y hashes antes de escribir.
 - Cada alimentador se relee y ejecuta `ComLdf`; un fallo revierte solo su mutación.
-- Electro Dunas/IN111 se usa como prueba real disponible, no como dependencia.
+- Empresa A/IN111 se usa como prueba real disponible, no como dependencia.
 - Los cambios locales preexistentes del módulo se auditan y se incorporan por hunks; no se absorben ediciones ajenas.
 
 ## Review Focus
@@ -214,7 +214,7 @@ git commit -m "feat: expose universal load batch workflow"
 
 - [ ] **Step 1: Write failing generic acceptance test**
 
-Use projects/feeders `UTILITY_PROJECT`, `F-A`, `F-B` and SED codes unrelated to Electro Dunas. Require a mixed workbook and an injected second-feeder failure.
+Use projects/feeders `UTILITY_PROJECT`, `F-A`, `F-B` and SED codes unrelated to Empresa A. Require a mixed workbook and an injected second-feeder failure.
 
 - [ ] **Step 2: Run test to verify it fails**
 

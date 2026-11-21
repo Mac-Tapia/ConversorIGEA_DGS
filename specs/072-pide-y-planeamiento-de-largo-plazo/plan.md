@@ -68,7 +68,7 @@ Se reutilizan `pide.py`, `pide_economia.py`, `tools/pide_pf.py`, `crecimiento.py
   `frontend/test/tiposDeAnalisis.test.mjs` (selector, pasos y cuerpo de la petición).
 
 Fuentes públicas ubicadas el 2026-11-02, en Procesos Regulatorios de Osinergmin: SICODI y VNR al 31-12-2025 (Res. 184-2026-OS/CD);
-VNR de Electro Oriente, fijación 2022 (Res. 186-2023-OS/CD). Falta el fichero de módulos estándar (Res. 152-2026-OS/CD; su base la sustituyó la Res. 181-2026-OS/CD, 2026-11-06): el
+VNR de Empresa B, fijación 2022 (Res. 186-2023-OS/CD). Falta el fichero de módulos estándar (Res. 152-2026-OS/CD; su base la sustituyó la Res. 181-2026-OS/CD, 2026-11-06): el
 adaptador `costos_fuentes.leer_modulos_transmision` pide sus columnas declaradas y `valorar_obra` separa los ámbitos (T3); el
 fichero real es T13. La base de la 152 trae una hoja por tipo de módulo y no dice la unidad: se leen las hojas declaradas, con la
 unidad de cada una declarada (T13).

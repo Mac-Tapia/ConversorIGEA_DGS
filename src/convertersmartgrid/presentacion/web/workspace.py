@@ -354,6 +354,9 @@ class Workspace:
     # 039:RF-15: códigos de los clientes fijos que el operador subió «a su máxima» en la tabla
     # cruzada (calidad de producto: su valor coincidente no es su operación crítica).
     fijas_a_su_maxima: list[str] = field(default_factory=list)
+    # 039:RF-23: correcciones fechadas del factor del medidor de un cliente, registradas por el operador mientras la
+    # distribuidora confirma; el libro original no se toca. Cada una: codigo, factor, desde (AAAA-MM), motivo, registrada.
+    correcciones_medidor: list[dict[str, Any]] = field(default_factory=list)
     # 086:RF-3: lo que apunta a un fichero que hoy no está. Fuera de ``inputs`` y compañía, porque
     # quien los lee da por hecho que el fichero existe; save() lo vuelve a escribir tal cual.
     no_disponibles: dict[str, Any] = field(default_factory=dict)
@@ -447,6 +450,7 @@ class Workspace:
             'datos_empresa': {**(nd.get('datos_empresa') or {}), **self.datos_empresa},
             'sin_licencia': self.sin_licencia,
             'fijas_a_su_maxima': self.fijas_a_su_maxima,                       # 039:RF-15
+            'correcciones_medidor': self.correcciones_medidor,                 # 039:RF-23
         }
         payload = {k: relativizar_rutas(v, self.root) if k in CAMPOS_CON_RUTAS else v
                    for k, v in payload.items()}
@@ -521,6 +525,7 @@ class Workspace:
                                       if p not in ws.datos_empresa and d.get('path')})
         ws.sin_licencia = [str(m) for m in data.get('sin_licencia') or []]
         ws.fijas_a_su_maxima = [str(c) for c in data.get('fijas_a_su_maxima') or [] if str(c).strip()]
+        ws.correcciones_medidor = [dict(c) for c in data.get('correcciones_medidor') or [] if isinstance(c, dict)]
         run_id = data.get('active_run_id')
         if run_id and (root / 'runs' / str(run_id) / 'source_manifest.json').is_file():
             ws.active_run_id = str(run_id)

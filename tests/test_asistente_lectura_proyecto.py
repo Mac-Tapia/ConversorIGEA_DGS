@@ -144,7 +144,7 @@ def test_lista_negra(tmp_path, negra):
 
 
 @pytest.mark.parametrize('ruta', ['../fuera.md', 'docs/../../fuera.md', 'docs/../output/resultado.md', '..\\fuera.md',
-                                  'docs\\..\\..\\fuera.md', 'D:/BaseDatosElectroDunas/x.txt', 'D:\\BaseDatosElectroDunas\\x.txt',
+                                  'docs\\..\\..\\fuera.md', 'D:/BaseDatosEmpresaA/x.txt', 'D:\\BaseDatosEmpresaA\\x.txt',
                                   'D:fuera.md', '/etc/passwd', '\\\\servidor\\c\\x.md', '//servidor/c/x.md', 'C:\\Windows\\win.ini',
                                   './docs/GUIA.md', 'docs//GUIA.md', 'docs/%2e%2e/%2e%2e/fuera.md'])
 def test_rutas_que_salen(tmp_path, ruta):
@@ -259,7 +259,7 @@ def test_nombres_en_la_pregunta(tmp_path):
     assert ('consultar_api', {'ruta': '/api/jobs/{job_id}'}) in r['pedidas'] and not r['rechazadas']
     assert lp.nombradas_en(repo, 'que hace barra.py')['pedidas'] == []
     assert lp.nombradas_en(repo, 'que dice GUIA.md')['pedidas'][0][1]['ruta'] == 'docs/GUIA.md'
-    negadas = lp.nombradas_en(repo, 'abre .env y D:/BaseDatosElectroDunas/x.txt y ../secreto.md')
+    negadas = lp.nombradas_en(repo, 'abre .env y D:/BaseDatosEmpresaA/x.txt y ../secreto.md')
     assert not negadas['pedidas'] and len(negadas['rechazadas']) == 3
     assert lp.nombradas_en(repo, 'como se calibra una barra de 60 kv')['pedidas'] == []
     # Lo que solo tiene forma de ruta no se lee ni se avisa: el operador no pidió ningún fichero.

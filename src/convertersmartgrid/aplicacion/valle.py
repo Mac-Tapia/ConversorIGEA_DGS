@@ -567,7 +567,9 @@ def filas_de_calibracion(rutas: Iterable[Path | str], pares: Sequence[tuple[str,
                          alias=ALIAS, cabecera=None) -> list[dict[str, Any]]:
     """La cabecera de cada medidor en el instante de valle, con la lectura de la máxima coincidente
     (021:RF-50), en la forma que recibe la calibración (RF-16)."""
-    return [r.to_dict() for r in maximas(rutas, list(pares), alias=alias, instante=instante, cabecera=cabecera)]
+    # 004:RF-112: el valle elige su instante registro a registro; se calibra con ese registro, no con su hora.
+    return [r.to_dict() for r in maximas(rutas, list(pares), alias=alias, instante=instante, cabecera=cabecera,
+                                         sostenida=False)]
 
 
 def plan_calibracion_valle(v: Valle, filas: Sequence[Mapping[str, Any]], anio: int | None) -> dict[str, Any]:

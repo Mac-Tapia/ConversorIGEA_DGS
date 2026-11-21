@@ -1,17 +1,17 @@
 # Spec 055 — Estructura de sistemas y SET desde la propia fuente, para cualquier empresa
 
 Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al cerrar la
-prueba de Electro Oriente («después, para cerrar de Electro Oriente, debe ver si se cargaron
+prueba de Empresa B («después, para cerrar de Empresa B, debe ver si se cargaron
 todos los alimentadores y sistemas y SET en la web para hacer cualquier conversión»; «de
 cualquier empresa debería cargar todos los alimentadores, ya sea si se carga TXT, MDB y
 VNR-GIS»).
 
 ## Contexto y objetivo
 
-La web carga todos los alimentadores de una fuente (Electro Oriente: 168 de su VNR-GIS 2025,
+La web carga todos los alimentadores de una fuente (Empresa B: 168 de su VNR-GIS 2025,
 todos convertibles), pero la estructura zonal → SET → alimentadores, que permite convertir un
 sistema eléctrico o una SET entera (spec 022), solo sale de un Excel subido o del perfil de
-empresa. El perfil activo es el de Electro Dunas, y con la fuente de Electro Oriente la web
+empresa. El perfil activo es el de Empresa A, y con la fuente de Empresa B la web
 mostraba 0 sistemas, 0 SET y los 168 alimentadores «sin SET», aunque la copia VNR-GIS trae su
 estructura: cada salida con su SET (`CodSet`, con nombre) y su sistema eléctrico
 (`CodSisElectrico`, con nombre).
@@ -35,8 +35,8 @@ nada.
 - RF-5: Todos los alimentadores cargados aparecerán en la web y serán convertibles, tengan o no
   estructura.
 
-Perfil de otra empresa (añadido el 2026-11-01: NJA202 de Electro Oriente se importó en la
-carpeta «sistemaeletricoELD» de Electro Dunas, porque el perfil local hereda del suyo)
+Perfil de otra empresa (añadido el 2026-11-01: NJA202 de Empresa B se importó en la
+carpeta «sistemaeletricoELD» de Empresa A, porque el perfil local hereda del suyo)
 
 - RF-6: SI la fuente es de una empresa distinta de la del perfil de empresa, ENTONCES EL
   SISTEMA no le aplicará las convenciones de ese perfil (carpeta de DIgSILENT, CRS, SED de
@@ -52,5 +52,5 @@ carpeta «sistemaeletricoELD» de Electro Dunas, porque el perfil local hereda d
 ## Criterios de finalización
 
 - `grep -rnoE "055:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-5.
-- Electro Oriente en la web con sus sistemas eléctricos y sus SET, y un sistema convertido por
+- Empresa B en la web con sus sistemas eléctricos y sus SET, y un sistema convertido por
   la web.

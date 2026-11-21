@@ -245,6 +245,60 @@ def test_otro_proyecto_activo_no_se_toca(cola, servidor, monkeypatch):
     assert app.caso is app.casos['Con']
 
 
+def test_064_rf11_la_orden_que_falla_conserva_lo_que_declaro(cola, servidor, monkeypatch):
+    """064:RF-11 / 083:RF-29 — la calibración termina con 2 tras grabar el reparto (015:RF-69) y declara ``SED_NTP_``: el
+    servidor repone lo demás y la deja activa. El 2026-11-20 la apagaba y el proyecto dejaba de converger."""
+    from convertersmartgrid.adaptadores import pf_estado
+
+    assert hasattr(pf_estado, 'conservar_tras_fallo'), 'la orden no tiene por dónde declarar qué conservar'
+    app = _App()
+    app.vars['SED_NTP_P'] = _Obj(app, 'var', 'SED_NTP_P')
+
+    def main(argv):
+        app.vars['SED_NTP_P'].Activate()
+        app.vars['Obra'].Activate()
+        pf_estado.conservar_tras_fallo(['SED_NTP_P', 'Fichas_P'])
+        return 2
+
+    monkeypatch.setattr(servidor, '_cargar', lambda guion: SimpleNamespace(main=main))
+    assert servidor.atender({'id': 'c', 'guion': 'ajuste_cabecera_pf.py', 'argv': []}, cola, app=app) == 2
+    assert app.var == {'Bancos', 'SED_NTP_P'}, 'Obra vuelve a apagarse; SED_NTP_P se queda'
+    log = (cola / 'c.log').read_text(encoding='utf-8')
+    assert 'variaciones desactivadas: Obra' in log and 'se quedan activas' in log and 'SED_NTP_P' in log
+    assert pf_estado.pedidos_de_conservar() == [], 'la declaración es de esa orden'
+
+
+def test_064_rf11_conserva_solo_en_la_orden_que_lo_declara(cola, servidor, monkeypatch):
+    """064:RF-11 / 064:RF-5 — lo declarado en una orden no vale para la siguiente: sin declaración se restituye todo."""
+    from convertersmartgrid.adaptadores import pf_estado
+
+    assert hasattr(pf_estado, 'conservar_tras_fallo'), 'la orden no tiene por dónde declarar qué conservar'
+    app = _App()
+    app.vars['SED_NTP_P'] = _Obj(app, 'var', 'SED_NTP_P')
+    pedidos = iter([lambda: pf_estado.conservar_tras_fallo(['SED_NTP_P']) or 0,
+                    lambda: app.vars['SED_NTP_P'].Activate() or 2])
+
+    monkeypatch.setattr(servidor, '_cargar', lambda guion: SimpleNamespace(main=lambda argv: next(pedidos, lambda: 0)()))
+    assert servidor.atender({'id': 'a', 'guion': 'ajuste_cabecera_pf.py', 'argv': []}, cola, app=app) == 0
+    assert servidor.atender({'id': 'b', 'guion': 'ajuste_cabecera_pf.py', 'argv': []}, cola, app=app) == 2
+    assert app.var == {'Bancos'}
+
+
+def test_064_rf11_restituir_con_conservar_acepta_la_copia_renombrada():
+    """064:RF-11 / 064:RF-10 — ``SED_NTP_P(1)``, como la renombra DIgSILENT, también se conserva y la foto final cuadra."""
+    from convertersmartgrid.adaptadores import pf_estado
+
+    app = _App()
+    app.vars['SED_NTP_P(1)'] = _Obj(app, 'var', 'SED_NTP_P(1)')
+    foto = pf_estado.fotografiar(app)
+    app.vars['SED_NTP_P(1)'].Activate()
+    app.vars['Obra'].Activate()
+    assert 'conservar' in pf_estado.restituir.__code__.co_varnames, 'restituir no recibe qué conservar'
+    hecho = pf_estado.restituir(app, foto, conservar=['SED_NTP_P'])
+    assert app.var == {'Bancos', 'SED_NTP_P(1)'}
+    assert any('se quedan activas' in h and 'SED_NTP_P(1)' in h for h in hecho)
+
+
 def test_si_restituir_falla_se_anota_y_el_servidor_sigue(cola, servidor, monkeypatch):
     """064:RF-7 — una restitución que revienta no tumba la orden ni el servidor."""
     app = _App()

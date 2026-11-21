@@ -8,7 +8,7 @@ VNR-GIS es el sistema del regulador con el que todas las concesionarias entregan
 mismo modelo de datos para todas. La entrega real no es un paquete de capas, que es lo que lee
 la vía VNR-GIS de hoy (spec 001, RF-4), sino una copia de seguridad de SQL Server (`.bak`) con
 su base de parámetros y un `ConfigBD.config` que dice la empresa y los nombres de las bases. La
-de Electro Dunas (`ELDU_VNR_24_APR.bak`, 819 MB) es el caso de prueba, no el diseño: el usuario,
+de Empresa A (`EMPA_VNR_24_APR.bak`, 819 MB) es el caso de prueba, no el diseño: el usuario,
 el 2026-10-18, «este conversor debe ser funcional para cualquier empresa concesionaria». Una
 `.bak` no se puede leer sin restaurarla en un motor de SQL Server (la vía estándar y gratuita:
 `RESTORE DATABASE … WITH MOVE` y lectura por ODBC); los convertidores que la abren sin motor son
@@ -89,10 +89,10 @@ la base de VNR-GIS.
 ## Criterios de finalización
 
 Cada RF citado por una prueba (`grep "023:RF-"`); las sintéticas sin SQL Server con un doble del
-motor; la copia de Electro Dunas restaurada y un alimentador convertido e importado en
+motor; la copia de Empresa A restaurada y un alimentador convertido e importado en
 DIgSILENT; suite completa sin omitidas.
 
 ## Dudas abiertas
 
 - [NECESITA ACLARACIÓN] Qué tablas y columnas trae la base restaurada: se exploran al
-  restaurar la copia de Electro Dunas, antes del plan.
+  restaurar la copia de Empresa A, antes del plan.

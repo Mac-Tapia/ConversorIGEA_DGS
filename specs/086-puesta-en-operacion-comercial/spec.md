@@ -10,7 +10,7 @@ Usuario: «has un plan de de tdo lo que falta y integarcion y listo para poner c
 lsito para implmentarlo todo». Cuatro revisiones de solo lectura sobre `f50146e8` (flujos, instalación y seguridad, universalidad, código y
 modelos) dan la conclusión: el motor de ingeniería es sólido, pero **hoy es un árbol de desarrollo que corre en sitio, no un producto**.
 Falta probar con el código final los flujos que se venderían, y faltan cosas que ninguna spec cubría: instalador, licencia, seguridad de la
-web, durabilidad de los datos y separar lo que es de Electro Dunas.
+web, durabilidad de los datos y separar lo que es de Empresa A.
 
 El objetivo es una **versión 1.0** para una distribuidora, instalable en un equipo limpio, en la que cada flujo vendido se haya probado
 en DIgSILENT real con el código congelado. Nada queda apagado: lo que aún no se ha probado en DIgSILENT se marca como beta, sin
@@ -46,7 +46,7 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - D5 Comentarios con casos reales en el código entregado. Recomendado: **neutralizarlos en la línea de producto**, conservando el motivo
   sin el nombre del cliente. Choca con la regla de `CLAUDE.md` de citar el caso real.
 - D6 Datos para las corridas: libro real de confiabilidad, fuente de «CA101 13», y qué hacer con PA217 en 025 T21 (es un proyecto vetado).
-- D7 Asesoría legal: licencia comercial, DIgSILENT, datos de Osinergmin y Electro Dunas, modelos. **No es decisión técnica**: la revisión solo
+- D7 Asesoría legal: licencia comercial, DIgSILENT, datos de Osinergmin y Empresa A, modelos. **No es decisión técnica**: la revisión solo
   señala qué mirar.
 - Decisiones del usuario del 2026-11-07 («de la B, haz todo según tu recomendación»): D1 **solo Perú** en la 1.0; D2 **puesto local
   por licencia**; D3 se mantiene (público, MIT); D4 **empaquetada**, sin `tests/`, `specs/`, `.claude/` ni `.git`; D5 los comentarios
@@ -156,13 +156,18 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - RF-29: EL SISTEMA no mostrará en la web nombres ni tensiones de una empresa concreta como ejemplo fijo.
 - RF-30: EL SISTEMA validará el perfil con un esquema, con una orden que diga qué falta y qué función afecta.
 - RF-31: DONDE la empresa no trae modelo de informe, EL SISTEMA generará el informe con una plantilla neutra y lo dirá.
-- RF-32: EL SISTEMA entregará un perfil plantilla y otro ficticio, sin el de Electro Dunas.
+- RF-32: EL SISTEMA entregará un perfil plantilla y otro ficticio, sin el de Empresa A.
 - RF-33: EL SISTEMA comprobará en cada versión que lo entregado no contiene términos de una lista prohibida guardada fuera de git.
 - Aclaración de RF-33 (auditoría de lanzamiento, 2026-11-14): el candidato **final** sin la lista local no se arma ni se da por
   comprobado (es un error, no un aviso); uno de prueba lo avisa. Las huellas en git cubren las siglas, paquetes, corpus, códigos de
   alimentador y sistemas de cada distribuidora con la que se trabajó, un término partido por un salto de línea cuenta, y al
   neutralizar un comentario (D5) se quitan también las cifras de su línea. El rc6 llevaba comentarios con códigos y cifras de la red
   de otra distribuidora.
+- Aclaración de RF-33 (MEJ7-NOMBRES, 2026-11-20): tampoco el repositorio público. Más de cien ficheros seguidos por git (specs,
+  planes, manuales, pruebas, comentarios y la web) escribían el nombre de la distribuidora de prueba y el de otras; se cambian por
+  genéricos («Empresa A», «Empresa B»…) y `tests/test_sin_nombres_reales.py` falla si vuelve uno, con la lista como huellas. Quedan
+  fuera, con su motivo en la prueba: el perfil excluido de la entrega y su identificador, la normativa pública de
+  `config/normativa/` (sus nombres son claves del registro) y las líneas que son a su vez una lista negra.
 - RF-34: EL SISTEMA no entregará pesos entrenados con datos de otra empresa.
 - RF-35: DONDE el perfil no define las bandas y la tensión nominal, EL SISTEMA las pedirá en vez de tomar valores de una empresa.
 
@@ -280,7 +285,7 @@ corresponde de la web». Las dos interrupciones ya no valían: después el mismo
 - RF-76: CUANDO se optimiza «Con proyecto» en alimentadores marcados sin ninguna carga nueva aplicada, EL SISTEMA
   subirá la escalera de 098:RF-29 en cada uno que viole límites y aplicará la obra elegida; el que cumple quedará sin
   obras, sin reponer cargas ni consultar el oráculo de cargas. SI se pidieron cargas concretas y ninguna está
-  aplicada, ENTONCES lo rechazará diciendo cuáles. (Electro Oriente NJA202, T32: 0,568 p.u. y ninguna obra ofrecida.)
+  aplicada, ENTONCES lo rechazará diciendo cuáles. (Empresa B NJA202, T32: 0,568 p.u. y ninguna obra ofrecida.)
 - RF-77: MIENTRAS el proyecto elegido está calibrado, con alimentadores marcados y sin cargas nuevas integradas, la
   pestaña de DIgSILENT ofrecerá «Obras para el estado actual», con el tipo de cambio y el libro CAPEX, y mostrará su
   resultado diciendo que lo medido es el estado actual. SI en disco hay cargas nuevas aplicadas en los alimentadores
@@ -364,7 +369,7 @@ instalador recibió `/DVersion` a mano; y «Acerca de» enseñaba las notas del 
 ### Copia de los datos sin duplicados, a un destino que sincroniza (2026-11-12)
 
 La web avisaba «Aún no hay ninguna copia de sus datos». La orden `tools/copia_datos.py crear` iba a escribir unos 95 GB
-de unos datos que ocupaban unos 21 en el disco: el paquete VNR-GIS `ELOR25_V2` (5,4 GB) estaba en once ejecuciones de
+de unos datos que ocupaban unos 21 en el disco: el paquete VNR-GIS `EMPB25_V2` (5,4 GB) estaba en once ejecuciones de
 `output/web` y en su original como enlaces duros de un solo fichero físico, y lo mismo `BASE JUL25 1.mdb` y los TXT. El
 destino del usuario es Google Drive (`G:\Mi unidad\ConverterSmartGrid\copias_de_datos\`), con unos 41 GB libres, sin
 enlaces duros y que bloquea un fichero mientras lo sincroniza. Amplía RF-10 y RF-47.
@@ -447,7 +452,7 @@ mientras los demás casos pasaban a 1,0278.
 ### Aceptación
 
 - RF-45: CUANDO se congela un candidato, cada flujo vendido tendrá evidencia en DIgSILENT, por la web y ligada a esa revisión, antes de aceptarlo.
-- RF-46: La 1.0 se aceptará en un equipo limpio, con una empresa distinta de Electro Dunas y con un corte de luz simulado a media corrida.
+- RF-46: La 1.0 se aceptará en un equipo limpio, con una empresa distinta de Empresa A y con un corte de luz simulado a media corrida.
 - Aclaración de RF-46 (usuario, 2026-11-04: «haslo todo con este local; para otro local o usuario se debe dejar un manual»): la aceptación se hace en este equipo, con su DIgSILENT y por turnos, instalando con el `setup.exe` en un entorno sin nada de desarrollo. No demuestra lo que dependa de lo que este Windows ya tiene: el manual de instalación explica cómo llevarlo a otro equipo o usuario, y el primer cliente se acompaña.
 - RF-112: (auditoría del 18-11, H01 y H02) CUANDO falle la observación (el evento de un trabajo) o el diario de
   trabajos, EL SISTEMA no dejará un trabajo «en curso» con su hilo muerto ni ejecutará un trabajo sin su recibo durable:

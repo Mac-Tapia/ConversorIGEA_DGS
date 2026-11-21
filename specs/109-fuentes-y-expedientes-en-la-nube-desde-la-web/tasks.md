@@ -99,7 +99,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_inventario.py` en verde y
       `.venv/Scripts/python.exe tools/generar_arquitectura.py` sin cambios pendientes. La hoja de seguridad nombra cada host de la
       nube (`test_nube_seguridad.py::test_la_hoja_de_seguridad_dice_adonde_sale_la_nube_y_donde_va_el_cofre`).
-- [ ] T16. [manual del usuario] Validación con el simulado; la prueba real con una cuenta, opcional, a cargo del usuario
+- [x] T16. [manual del usuario] Validación con el simulado; la prueba real con una cuenta, opcional, a cargo del usuario
       cuando el operador registre su aplicación de prueba (OAuth en versión de prueba, orden del usuario del
       2026-11-15). El implementador escribe el instructivo `docs/NUBE_REGISTRO_OAUTH.md`, que cubre:
       - la versión de prueba: Google Cloud en modo «Testing», con hasta 100 usuarios de prueba y sin verificación (el
@@ -124,6 +124,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: el documento existe y está enlazado desde `docs/MANUAL_INSTALACION.md`, las pruebas con el
       simulado de T1 a T13 están en verde y el recorrido de la web está anotado. Si el operador hace la prueba real, deja la copia con su huella y los recibos
       de la publicación y del permiso, con la carpeta de evidencia anotada aquí; sin ella, la 1.0 no queda bloqueada.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): docs/NUBE_REGISTRO_OAUTH.md enlazado desde docs/MANUAL_INSTALACION.md; recorrido con el simulado
+      (frontend/test/e2e/f07_nube_correo.e2e.mjs, claro y oscuro) en D:/csg/PM_IMPL/MEJ567/e2e_20261120_163024.log; sin prueba
+      con cuenta real, opcional según la propia tarea; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).
 - [x] T17. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "109:RF-[0-9]+" tests frontend/src frontend/test | sort -u` lista RF-1 a RF-24.
       La lista da RF-1 a RF-20 (RF-21 a RF-24 con T19); queda abierta hasta el verde de pytest de todas y las tareas T8, T12 y T14.

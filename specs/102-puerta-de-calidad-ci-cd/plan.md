@@ -73,8 +73,11 @@ Revisadas y en paralelo, con su motivo:
 - Candados: `test_util`, `test_experimentos_runner` y los de la 106 los crean en `tmp_path`; la guardia de GPU de cada
   prueba es suya (102:RF-22).
 - Datos de la sesión: cada sesión de pytest tiene su `CSG_SUITE_DATOS`, su runtime, los almacenes del asistente y del
-  gemelo y las sesiones de la web (conftest, 106:RF-16 y RF-17); los trabajadores de xdist comparten los de su
-  controlador. La comparación de T20 dirá si algo depende del orden entre sesiones.
+  gemelo y las sesiones de la web (conftest, 106:RF-16 y RF-17); cada trabajador de xdist hereda la carpeta de
+  su controlador y tiene dentro, bajo su nombre, su runtime y sus dos almacenes (MEJ15-T20: en el ensayo con -n 2 del
+  13-11, dos trabajadores en el mismo almacén del asistente contaron 17 órdenes donde había 8). La comparación de T20
+  (`tools/comparar_suite_repartida.py`) dirá si algo más depende del orden o del disco común: compara el veredicto de
+  cada prueba, mide la memoria privada de cada proceso y por fichero, y mira que el disco del worktree no cambie.
 
 ## Pruebas
 

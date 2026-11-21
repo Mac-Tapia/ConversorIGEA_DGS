@@ -18,6 +18,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
+import math
 import re
 import shutil
 import tempfile
@@ -360,8 +361,9 @@ def load_dataset(ws: Workspace, ctx: JobContext) -> dict:
         raise UserError(f'SOURCE_RUN_INTEGRITY: {exc}') from exc
     dataset, catalog_report = loaded.dataset, loaded.catalog_report
     for aviso in (loaded.provenance or {}).get('vnr_avisos') or ():
-        if aviso.get('code') == 'BASE_VNR_RESTAURADA_DE_NUEVO':
-            ctx.log(aviso['detalle'])               # 023:RF-4: la base de la huella no estaba en línea
+        # 023:RF-4: la base de la huella no estaba en línea; 080:RF-49: el catálogo de la empresa trae filas de otra.
+        if aviso.get('code') in ('BASE_VNR_RESTAURADA_DE_NUEVO', 'CATALOGO_CON_FILAS_DE_OTRA_EMPRESA'):
+            ctx.log(aviso['detalle'])
     # 080:RF-55: si la vía de capas dejó objetos fuera, es lo primero que lee el operador en el registro.
     if (loaded.provenance or {}).get('capas_sin_modelar'):
         ctx.log(((loaded.provenance or {}).get('puertas_vnr') or {}).get('resumen') or 'Quedaron capas sin modelar.')
@@ -3233,6 +3235,9 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
             'cancelado': len(res) < len(pares),
             'periodo': periodo, 'instante': instante.isoformat(sep=' ') if instante else None,
             'coincidente': ({**conjunto, 'fecha': instante.isoformat(sep=' ')} if conjunto else None),
+            # 028:RF-43: con qué criterio salió la tabla, para que la web no la muestre bajo otro ámbito.
+            'ambito': ('coincidente' if conjunto else 'instante' if instante else
+                       'propia' if len(alimentadores) > 1 else 'alimentador'),
             'maximas_propias': _maximas_propias(res, alimentadores, periodo)}
 
 
@@ -3242,7 +3247,7 @@ def _maximas_propias(res, alimentadores: dict[str, str], periodo: str | None) ->
     Sale de la curva y no del resultado: con un instante común, ``r.fecha`` y ``r.kw`` son los de ese
     registro, y el desplegable se quedaba con una sola fecha repetida por alimentador.
     """
-    from ...aplicacion.demanda_medida import en_periodo
+    from ...aplicacion.demanda_medida import sostenida_de_curva
 
     if len(alimentadores) < 2:
         return []
@@ -3250,11 +3255,11 @@ def _maximas_propias(res, alimentadores: dict[str, str], periodo: str | None) ->
     for r in res:
         if alimentadores.get(r.alimentador) != r.medidor:
             continue
-        puntos = [(f, kw) for f, kw, _q in r.curva or []
-                  if f is not None and kw is not None and (not periodo or en_periodo(f, periodo))]
-        if puntos:
-            f, kw = max(puntos, key=lambda p: (p[1], -p[0].timestamp()))
-            propias.append({'alimentador': r.alimentador, 'fecha': f.isoformat(sep=' '), 'kw': kw})
+        # 004:RF-112: la máxima sostenida de una hora, la misma que da la tabla en el modo no coincidente.
+        hallada = sostenida_de_curva(r.curva, periodo)
+        if hallada is not None:
+            propias.append({'alimentador': r.alimentador, 'fecha': hallada['fecha'].isoformat(sep=' '),
+                            'kw': hallada['kw']})
     return propias
 
 
@@ -3492,6 +3497,7 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
                                              'instantes': instantes}}
     return {'resultados': _con_tension_de_la_fuente(res, info), 'cancelado': False, 'periodo': periodo,
             'instante': None, 'por_barra': True, 'barras': info, 'avisos': avisos,
+            'ambito': 'sistema' if sistema_60kv else 'set',                    # 028:RF-43
             'sistema_60kv': ({'fecha': next(iter(x['fecha'] for x in info), None),
                               # 028:RF-36: la demanda del sistema: lo neto de sus barras más lo que generan sus centrales.
                               'total_kw': (sum(x['kw'] or 0.0 for x in info if x['alta'])
@@ -3718,6 +3724,83 @@ def guardar_a_su_maxima(ws: Workspace, codigos: list[str]) -> dict:
     return {'a_su_maxima': limpios}
 
 
+def registrar_correccion_medidor(ws: Workspace, codigo: str, factor: float, desde: str, motivo: str = '') -> dict:
+    """039:RF-23: una corrección fechada del factor del medidor de un cliente, en el espacio; el libro no se toca.
+
+    Vale desde el mes ``desde`` (``AAAA-MM``) y multiplica EA, ERI, POT y su registro (004:RF-111: con el FM anterior,
+    ``factor_propuesto``). Con factor 1 se anula. Se guarda con su fecha; la última registrada manda.
+    """
+    codigo = str(codigo or '').strip()
+    if not codigo:
+        raise UserError('Indique el cliente de la corrección.')
+    if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', str(desde or '').strip()):
+        raise UserError('La corrección necesita su mes de inicio (AAAA-MM).')
+    if not (isinstance(factor, (int, float)) and math.isfinite(factor) and 0 < factor <= 100):
+        raise UserError('El factor de la corrección debe ser un número positivo.')
+    fila = {'codigo': codigo, 'factor': float(factor), 'desde': str(desde).strip(), 'motivo': str(motivo or '').strip(),
+            'registrada': datetime.now().isoformat(timespec='seconds')}
+    with ws.lock:
+        ws.correcciones_medidor = [*ws.correcciones_medidor, fila]
+        ws.save()
+        return {'correcciones': list(ws.correcciones_medidor)}
+
+
+def correcciones_medidor(ws: Workspace) -> dict:
+    """039:RF-23: las correcciones del factor de medidor registradas en el espacio."""
+    with ws.lock:
+        return {'correcciones': list(ws.correcciones_medidor)}
+
+
+def _corregir_cliente(ws: Workspace, c, mes: str | None) -> dict | None:
+    """039:RF-23: aplica al cliente su corrección vigente del factor de su medidor y la devuelve para la fila."""
+    from ...aplicacion.demanda_medida import aplicar_correccion, correccion_vigente
+
+    with ws.lock:
+        correccion = correccion_vigente(ws.correcciones_medidor, c.codigo, mes)
+    if correccion is None or aplicar_correccion(c, correccion) is None:
+        return None
+    return correccion
+
+
+def _registro_corregido(reg, correccion: dict | None):
+    """039:RF-23: el registro ``(fecha, kVAR, kW)`` de una fija por el factor de su corrección."""
+    if not reg or not correccion:
+        return reg
+    f = float(correccion['factor'])
+    return (reg[0], None if reg[1] is None else reg[1] * f, None if reg[2] is None else reg[2] * f)
+
+
+def _anotar_medidor(fila: dict, cambios_fm: dict, correccion: dict | None, avisos: list[str]) -> None:
+    """004:RF-111, 039:RF-23: en la fila del cliente, su aviso FM_CAMBIADO y la corrección que se le aplicó."""
+    from ...aplicacion.demanda_medida import clave_codigo
+
+    if correccion:
+        fila['correccion_medidor'] = correccion
+    cambio = cambios_fm.get(clave_codigo(fila.get('codigo')))
+    if cambio:
+        fila['fm_cambiado'] = cambio
+        if not correccion and cambio['texto'] not in avisos:
+            avisos.append(cambio['texto'])
+
+
+def _fm_cambiados(ws: Workspace, libro: Path, mes: str | None, codigos: list[str]) -> dict[str, dict]:
+    """004:RF-111: cliente (``clave_codigo``) → su aviso FM_CAMBIADO frente al libro del mes anterior, si lo hay."""
+    from ...aplicacion.demanda_medida import DemandaError, clave_codigo, fm_cambiados
+
+    if not mes or not codigos or not re.fullmatch(r'\d{4}-\d{2}', mes):
+        return {}
+    anio, numero_mes = int(mes[:4]), int(mes[5:7])
+    anterior = f'{anio - 1}-12' if numero_mes == 1 else f'{anio}-{numero_mes - 1:02d}'
+    try:
+        libro_anterior = _demanda_ruta(ws, 'clientes', periodo=anterior)
+        if Path(libro_anterior) == Path(libro):
+            return {}
+        cambios = fm_cambiados(libro, libro_anterior, mes, anterior, codigos)
+    except (DemandaError, UserError, OSError, ValueError):
+        return {}
+    return {clave_codigo(x['codigo']): x for x in cambios}
+
+
 def _a_su_maxima(c, reg_max: dict, avisos: list[str]) -> None:
     """039:RF-12, RF-20: el cliente marcado con el registro de su POT del mes (RF-2), sin kW del instante.
 
@@ -3743,6 +3826,45 @@ def _valor_fija(fila: dict, reg, en_el_instante: bool, obj, fp_min) -> dict | No
     if d is None:
         return None
     return {'p_kw': d['p_kw'], 'q_kvar': d['q_kvar'], 'fecha': d.get('fecha'), 'metodo': d['metodo']}
+
+
+def _evidencia_fijas(ws: Workspace, job_id: str | None, periodo: str | None, clientes: list[dict],
+                     medidor: str) -> dict[str, dict]:
+    """015:RF-73 (a): cliente → los registros de su mes en que mide más que la cabecera de su alimentador.
+
+    La cabecera es la curva de la máxima buscada (``ws.curvas_cabecera``) y el cliente, la de su hoja de 15 minutos del
+    libro del mes. Sin una de las dos no hay evidencia y no se para: el guion sigue con las otras pruebas.
+    """
+    from ...aplicacion.demanda_medida import DemandaError, clave_codigo, curvas_de_clientes
+    from ...dominio.ajuste_cabecera import cliente_supera_cabecera
+
+    codigos = [str(c.get('codigo') or '').strip() for c in clientes if str(c.get('codigo') or '').strip()]
+    if not codigos or not medidor:
+        return {}
+    with ws.lock:
+        curvas_cab = dict((ws.curvas_cabecera or {}).get(job_id or '') or {})
+    nombre = next((m for m in curvas_cab if clave_codigo(m) == clave_codigo(medidor)), None)
+    cabecera = (curvas_cab.get(nombre) or {}).get('curva') if nombre else None
+    if not cabecera:
+        return {}
+    try:
+        libro = _demanda_ruta(ws, 'clientes', periodo=periodo)
+        curvas, _avisos = curvas_de_clientes(libro, codigos, mes=periodo)
+    except (DemandaError, UserError, OSError, ValueError):
+        return {}
+    from ...aplicacion.demanda_medida import correccion_vigente
+
+    out: dict[str, dict] = {}
+    for codigo, curva in curvas.items():
+        with ws.lock:
+            correccion = correccion_vigente(ws.correcciones_medidor, codigo, periodo)           # 039:RF-23
+        if correccion:
+            f = float(correccion['factor'])
+            curva = [(t, kw * f, None if q is None else q * f) for t, kw, q in curva]
+        sup = cliente_supera_cabecera(curva, cabecera)
+        if sup is not None:
+            out[codigo] = {'supera_cabecera': sup}
+    return out
 
 
 def _sin_coincidente(codigo: str, instante: datetime | None) -> str:
@@ -3819,14 +3941,18 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
             avisos_r = avisos_r + [str(exc)]
     avisos_max: list[str] = []
     filas = []
+    cambios_fm = _fm_cambiados(ws, libro, mes or periodo, [c.codigo for c in cruzados])      # 004:RF-111
+    avisos_fm: list[str] = []
     for c in cruzados:
         marcado = c.codigo in suyos_marcados
         if marcado:
             _a_su_maxima(c, reg_max, avisos_max)
         elif registro.get(c.codigo):
             c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = registro[c.codigo]
+        correccion = _corregir_cliente(ws, c, mes or periodo)                                 # 039:RF-23
         fila = c.to_dict()
         fila['a_su_maxima'] = marcado
+        _anotar_medidor(fila, cambios_fm, correccion, avisos_fm)
         if marcado:
             fila['criterio'] = CRITERIO_A_SU_MAXIMA                              # 039:RF-14
         # Sin instante (la tabla sin máxima buscada) no hay con qué coincidir: su POT.
@@ -3834,7 +3960,7 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
         elif c.codigo in registro and registro[c.codigo] is None:
             fila['sin_coincidente'] = _sin_coincidente(c.codigo, instante)       # 039:RF-4
         filas.append(fila)
-    avisos_c = avisos_c + avisos_r + avisos_max
+    avisos_c = avisos_c + avisos_r + avisos_max + avisos_fm
     return {
         'alimentadores': alimentadores,
         'libro': libro.name,
@@ -3955,14 +4081,17 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
         except DemandaError:
             reg_max, reg_inst = (registro, {}) if not coincidente else ({}, registro)
         por_clave = {clave_codigo(f): f for f in feeders}
+        cambios_fm = _fm_cambiados(ws, libro, mes, [c.codigo for c in suyos])          # 004:RF-111
         for c in suyos:
             marcado = clave_codigo(c.codigo) in marcados
             if marcado:
                 _a_su_maxima(c, reg_max, avisos_max)                               # 039:RF-12
             elif registro.get(c.codigo):
                 c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = registro[c.codigo]
+            correccion = _corregir_cliente(ws, c, mes)                             # 039:RF-23
             fila = c.to_dict()
             fila['a_su_maxima'] = marcado
+            _anotar_medidor(fila, cambios_fm, correccion, avisos)
             # 039:RF-4: con hoja y sin su registro del instante (o sin fecha de la máxima,
             # sin nada con qué coincidir): no toma otro y lo dice. 039:RF-21: el marcado, no.
             if coincidente and not marcado and (c.codigo in registro and registro[c.codigo] is None
@@ -3985,8 +4114,9 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
                                 compensado=d.get('compensado'))
                 # 039:RF-9: sin la fecha de la máxima, o sin el registro de ese instante, no hay coincidente.
                 sin_inst = instante is None or (c.codigo in reg_inst and reg_inst[c.codigo] is None)
-                coinc = None if sin_inst else _valor_fija(fila, reg_inst.get(c.codigo), True, obj, fp_min)
-                maxi = _valor_fija(fila, reg_max.get(c.codigo), False, obj, fp_min)
+                coinc = None if sin_inst else _valor_fija(fila, _registro_corregido(reg_inst.get(c.codigo), correccion),
+                                                          True, obj, fp_min)
+                maxi = _valor_fija(fila, _registro_corregido(reg_max.get(c.codigo), correccion), False, obj, fp_min)
                 fila['valores'] = {CRITERIO_COINCIDENTE: coinc, CRITERIO_MAXIMO_MES: maxi}
                 # 039:RF-10: cuánto sube su P de la coincidente a su máxima del mes.
                 if coinc is not None and maxi is not None:
@@ -4704,6 +4834,9 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'objetivo': {'kw': objetivo.kw, 'kvar': objetivo.kvar, 'medidor': objetivo.medidor,
                          'alimentador': alimentador, 'fecha': objetivo.fecha},
             'clientes': clientes, 'desconectados': apagados, 'kva_entrada': kva_entrada,
+            # 015:RF-73 (a): los registros del mes en que un cliente mide más que su cabecera; el guion para con ellos.
+            'evidencia_fijas': (_evidencia_fijas(ws, job_id, client_period.period, clientes, objetivo.medidor)
+                                if clientes and not central else {}),
             'tolerancia': tolerancia,
             # 022:RF-41b, RF-44: la barra de SET con medidor del alimentador, si la tiene.
             'barra_set': next((b for b in barras or []

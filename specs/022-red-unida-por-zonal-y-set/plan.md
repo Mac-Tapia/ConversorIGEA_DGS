@@ -138,7 +138,7 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
 - `enlaces`: anillos, caminos entre SET y entre alimentadores, con y sin punto de enlace.
 - Oráculo: red unida que converge, y una isla que no, nombrando SET y barra.
 - Guion: `fake_pf` con dos alimentadores en la misma barra de SET, medida de cada uno.
-- Datos reales: TXT, MDB y VNR con la estructura de Electro Dunas.
+- Datos reales: TXT, MDB y VNR con la estructura de Empresa A.
 - DIgSILENT: la entrega importada como un proyecto; flujo; NA203 + NA205 en SET 51.
 
 ## Riesgos

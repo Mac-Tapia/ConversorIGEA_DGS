@@ -1,6 +1,6 @@
 # Spec 064 — Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido
 
-Estado: cumplida · Fecha: 2026-11-01
+Estado: cumplida (reabierta el 2026-11-20: RF-11, T10, la orden fallida conserva las variaciones de lo que grabó) · cumplida · Fecha: 2026-11-01
 
 La auditoría de arquitectura del 2026-11-01 encontró que la spec 019, cumplida, dejaba
 caminos fuera del arnés. Siete guiones de `tools/` conectan con `GetApplication()` sin
@@ -53,6 +53,15 @@ cerrar y podía tumbar el servidor (H2).
   releerá lo activo, escribirá la hora solo en el caso de la foto y comparará la foto final;
   SI algo no quedó como al empezar, ENTONCES lo dirá como restitución fallida, sin anunciarlo
   como hecho.
+
+Ampliación del 2026-11-20 (diagnóstico `PM_IMPL/DIAG_NOCONV`): una calibración que no cuadra deja
+grabado el reparto con que convergió (015:RF-69) y termina con código 2; restituir apagaba la
+variación de sus transformadores (083:RF-29) y el proyecto dejaba de converger.
+
+- RF-11: SI la orden que falla declara al servidor las variaciones de las que depende lo que dejó
+  grabado, ENTONCES EL SISTEMA no las desactivará al restituir, repondrá lo demás como en RF-5 y
+  escribirá en el registro de la orden cuáles se quedan activas. La declaración vale solo para esa
+  orden; sin ella, RF-5 sigue igual.
 
 ## Fuera de alcance
 

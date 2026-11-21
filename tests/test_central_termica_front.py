@@ -127,8 +127,9 @@ def test_aviso_si_el_mes_no_es_el_de_la_maxima():
 
 def test_maxima_del_periodo_junto_a_la_del_mes():
     """013:RF-14 — junto a la máxima del mes elegido, la del periodo entero y su mes."""
-    assert 'r.maxima_periodo && (' in DEMANDA
-    assert 'en {nombreMes(r.maxima_periodo.mes)} ({r.maxima_periodo.fecha})' in DEMANDA
+    # 004:RF-116: en su propia columna, con el mes y su fecha al pasar el puntero; no dentro de la fecha.
+    assert 'conMaximaPeriodo && <td className="small" title={r.maxima_periodo?.fecha}>' in DEMANDA
+    assert '${nombreMes(r.maxima_periodo.mes)}' in DEMANDA and '>Máx. del periodo</th>' in DEMANDA
     assert 'maxima_periodo?: { fecha: string; kw: number; mes: string } | null;' in TIPOS
 
 

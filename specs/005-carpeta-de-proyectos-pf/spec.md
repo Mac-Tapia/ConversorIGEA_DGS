@@ -151,7 +151,7 @@ PowerFactory que no responde (añadido el 2026-10-14)
 
 ## Dudas abiertas
 
-- Resuelta el 2026-10-09: el perfil de Electro Dunas lleva «sistemaeletricoELD», tal como
+- Resuelta el 2026-10-09: el perfil de Empresa A lleva «sistemaeletricoELD», tal como
   lo escribió el usuario; corregir la grafía es cambiar el perfil, no el código.
 - [NECESITA ACLARACIÓN: ¿el perfil de empresa de la web es hoy el sitio donde va el
   nombre, o debe esperar al perfil de empresa de la spec 002, RF-31? Se resuelve en el

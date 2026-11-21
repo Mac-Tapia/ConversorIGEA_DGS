@@ -202,3 +202,24 @@ def test_072_rf44_el_recuadro_del_modulo_se_titula_como_su_pestana():
     etiquetas = dict(re.findall(r"(corto_plazo|pide|largo_plazo): '([^']+)'", tipo.split('export const ETIQUETA_DEL_MODULO')[1].split('};')[0]))
     pestanas = dict(re.findall(r"label: '([^']+)', el: <CargasTab modulo=\"(\w+)\"", APP))
     assert {v: k for k, v in pestanas.items()} == etiquetas, (etiquetas, pestanas)
+
+
+def _tarjeta_de_convergencia() -> str:
+    return CARGAS[CARGAS.index('function Verificacion('):CARGAS.index('function lista(')]
+
+
+def test_008_rf30_la_tarjeta_dice_lo_que_informa_digsilent():
+    """008:RF-30 — sin convergencia, la tarjeta enseña los mensajes de DIgSILENT, plegados si pasan de dos líneas."""
+    tarjeta = _tarjeta_de_convergencia()
+    assert 'inf.mensajes' in tarjeta and '!f?.converged' in tarjeta
+    assert '<details>' in tarjeta and 'length > 2' in tarjeta
+    tipos = (SRC / 'api' / 'types.ts').read_text(encoding='utf-8')
+    assert 'mensajes?: string[];' in tipos[tipos.index('export interface VerificarInforme'):]
+
+
+def test_008_rf31_la_tarjeta_avisa_de_lo_del_conversor_apagado():
+    """008:RF-31 — la misma tarjeta enseña el aviso de ``Fichas_``/``SED_NTP_`` apagadas, el texto del informe."""
+    tarjeta = _tarjeta_de_convergencia()
+    assert 'inf.variaciones_del_conversor_apagadas' in tarjeta and 'v.aviso' in tarjeta
+    tipos = (SRC / 'api' / 'types.ts').read_text(encoding='utf-8')
+    assert 'variaciones_del_conversor_apagadas?:' in tipos[tipos.index('export interface VerificarInforme'):]

@@ -1,7 +1,7 @@
 # Spec 054 — Fases reales en el DGS: tramos y SED monofásicos y bifásicos
 
 Estado: cumplida · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al calibrar
-NJA202 y R205 de Electro Oriente («del R5 y del alimentador de Amazonas debe ver los tramos
+NJA202 y R205 de Empresa B («del R5 y del alimentador de Amazonas debe ver los tramos
 monofásicos, todos debes calibrar, y los SED monofásicos»; «haz la recomendación; recuerda que
 debes implementar todas estas mejoras para que sea universal»).
 
@@ -9,7 +9,7 @@ debes implementar todas estas mejoras para que sea universal»).
 
 El escritor del DGS (`src/convertersmartgrid/adaptadores/dgs.py`) escribe todas las líneas con `TypLne.nlnph = 3` y
 todos los transformadores de SED con `TypTr2.nt2ph = 3`, sea cual sea la fuente (TXT, MDB o
-VNR-GIS) y la empresa. Las fases que trae la fuente se pierden: en NJA202 (Electro Oriente) hay
+VNR-GIS) y la empresa. Las fases que trae la fuente se pierden: en NJA202 (Empresa B) hay
 3 531 tramos monofásicos (698 km) y 166 bifásicos frente a 1 880 trifásicos, y unas 780 SED
 monofásicas (normas `SM…01`, 1×5 a 1×37 kVA) que se importan como trifásicas D-YN. Un ramal
 monofásico modelado como trifásico reparte su corriente en tres conductores: la caída de tensión

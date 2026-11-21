@@ -139,7 +139,7 @@ Cada proyecto se importa una vez por la web (`tools/sistema_web.py`) y sirve a v
 | G1 | CA101 + PE104, TXT (086 T24, R1) | 008 T7, 011 T19, 012 T13, 013 T7, 017 T13, T14, T19, 037 T4, 044 T4, 048 T4 |
 | G2 | Pisco, TXT (086 T26, R3) | 028 T15, 042 T37, T44, T48, T50, 073 T8, 081 T24, 083 T3, 087 T12, T13, T27, 092 T2, 084 T8, T9 |
 | G3 | NA203 + NA205, TXT (086 T27, R4) | 039 T4, 042 T6, 052 T4, 028 T6, 067 T9 |
-| G4 | NJA202 y R205, VNR-GIS de Electro Oriente (086 T28, R5) | 051 T3, 055 T2, 056 T3, 042 T29, 087 T14, 081 T16, 058 T7 |
+| G4 | NJA202 y R205, VNR-GIS de Empresa B (086 T28, R5) | 051 T3, 055 T2, 056 T3, 042 T29, 087 T14, 081 T16, 058 T7 |
 | G5 | SI213 y PN107, MDB (086 T25, R2) | 016 T18, 081 T20 |
 | G6 | Copias de prueba de AL209, PA217/TM105 y PE102 | 094 T5, 093 T2, 025 T21, 004 T20, 042 T42 |
 | G7 | Asistente desde la consola | 026 T12, 070 T9, T10, 078 T6, T7, 027 T14, T22, T29–T31, 086 T30 |

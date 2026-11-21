@@ -8,6 +8,9 @@ from ...puertos import VERSION_PUERTOS, Modulo
 from ...puertos.sources.base import SourceLoadResult, provenance, validate_snapshot
 from ...dominio.sources.snapshot import SourceSnapshot
 
+#: 080:RF-49: cuántas filas de otra empresa se citan en el aviso y en la procedencia de la carga.
+EJEMPLOS_AJENAS = 20
+
 
 class VnrSourceAdapter:
     mode = 'vnr'
@@ -86,6 +89,17 @@ class VnrSourceAdapter:
                                             catalogo=catalogo)
         if ampliado:
             fichas = fichas_del_catalogo(modelo, catalogo)
+        # 080:RF-49: un fichero con filas añadidas al aparecer otra empresa (copiado de otra carpeta, un código de
+        # empresa cambiado) se dice en la carga, con sus códigos; no la bloquea: el operador decide si las quita.
+        from ...aplicacion.catalog import filas_de_otra_empresa
+
+        ajenas = filas_de_otra_empresa(catalogo, alcance['company'])
+        if ajenas:
+            avisos.append({
+                'code': 'CATALOGO_CON_FILAS_DE_OTRA_EMPRESA', 'source_id': catalogo.name,
+                'detalle': ((f'1 fila del catálogo de {alcance["company"]} es' if len(ajenas) == 1 else
+                             f'{len(ajenas)} filas del catálogo de {alcance["company"]} son') + ' de otra empresa: '
+                            + ', '.join(f"{f['codigo']} ({f['motivo']})" for f in ajenas[:EJEMPLOS_AJENAS]))})
         bridge = canonical_to_cymdist(modelo, source_path=bak, patron_cable=patron_cable_del_perfil())
         _guardar_red(snapshot.root, modelo, alcance.get('company') or '')
         source = provenance(snapshot)
@@ -99,6 +113,7 @@ class VnrSourceAdapter:
             'vnr_avisos': avisos,
             'fichas_del_catalogo': fichas,
             'catalogo_ampliado': ampliado,
+            'catalogo_filas_de_otra_empresa': ajenas[:EJEMPLOS_AJENAS],
             'bridge_issues': bridge.issues,
             # 080:RF-56: las puertas A–H, solo para informar; nunca bloquean la carga.
             'puertas_vnr': puertas_informativas(modelo),

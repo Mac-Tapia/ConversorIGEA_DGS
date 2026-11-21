@@ -186,3 +186,19 @@ def test_la_salida_del_guion_dice_la_causa_de_su_codigo(guion):
     assert guion.resumen_salida({'project': 'P', 'avisos': ['el flujo no converge tras reabrir']}, 2) == \
         'Lectura de P: código 2 (el flujo no converge tras reabrir)'
     assert guion.resumen_salida({'project': 'P', 'avisos': []}, 0) == 'Lectura de P: código 0'
+
+
+def test_008_rf31_la_lectura_avisa_de_sed_ntp_apagada(guion):
+    """008:RF-31 — tras reabrir, ``SED_NTP_P`` apagada se dice con sus transformadores, sin encenderla: el 2026-11-20 la
+    lectura solo decía «el flujo no converge tras reabrir»."""
+    app = _app(('F1',))
+    variacion = fake_pf.variacion_del_conversor_apagada(app, 'SED_NTP_P', {'TR_F1_S1': 630.0, 'TR_F1_S3': 160.0})
+    app.ldf.limite = 0.01
+    app.escrituras.clear()                              # lo de la preparación no cuenta
+    lectura, rc = guion.ejecutar(app, _plan(('F1',)))
+    assert rc == 2
+    [fila] = lectura.get('variaciones_del_conversor_apagadas') or [None]
+    assert fila is not None and (fila['variacion'], fila['transformadores'], fila['sobre_100']) == ('SED_NTP_P', 2, 0)
+    assert fila['aviso'] in lectura['avisos'] and 'el flujo no converge tras reabrir' in lectura['avisos']
+    assert 'SED_NTP_P' in guion.resumen_salida(lectura, rc)
+    assert variacion not in app.variaciones_activas and app.escrituras == []

@@ -7,7 +7,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       RF-25b)
       Hecho cuando: `pytest tests/test_estructura.py` en verde (tablas sorteadas).
 - [x] T2. Transcribir la tabla pública a `config/perfiles/electro_dunas.estructura.json` y
-      enlazarla desde el perfil de Electro Dunas, con las siglas de cada SET. (RF-3, RF-46)
+      enlazarla desde el perfil de Empresa A, con las siglas de cada SET. (RF-3, RF-46)
       Hecho cuando: el perfil carga 4 zonales y todos los alimentadores de la tabla.
 - [x] T3. `estructurar` en `combine.py`: barras de SET por tensión, interruptor de cabecera
       cerrado para todos, una fuente por barra. (RF-10 a RF-13, RF-21)
@@ -42,11 +42,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       unir, botón con el zonal en la web, `--por-sistema` en el CLI, registro de tipo
       «sistema»; unir vuelve a no usar la estructura.
       Hecho cuando: pruebas del lote, la API, el CLI y el front en verde; `npm run build`.
-- [x] T11. DIgSILENT: la entrega de Electro Dunas con su estructura, importada como un
+- [x] T11. DIgSILENT: la entrega de Empresa A con su estructura, importada como un
       proyecto; zonas, SET, flujo; NA203 + NA205 calibrados juntos en SET 51. (todos)
       Hecho cuando: importa, converge y el ajuste del proyecto cuadra.
-      2026-10-18: la entrega de Electro Dunas (93 alimentadores) importada como
-      «ELECTRODUNAS_POR_SET_4»: 4 zonales, 19 SET, 20 zonas, 35 fuentes (una por barra y una
+      2026-10-18: la entrega de Empresa A (93 alimentadores) importada como
+      «EMPRESAA_POR_SET_4»: 4 zonales, 19 SET, 20 zonas, 35 fuentes (una por barra y una
       por «Sin SET»: PA219, COH101, SC215), 52 aperturas; el flujo converge y el «Caso base»
       sale verificado, con todos los conteos iguales. Arreglado por el camino: la red del
       zonal en la metadata y en las cargas sin SED, la aceptación con varias redes y el DGS
@@ -122,7 +122,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       sigue en T16. Cerrada el 2026-10-29 con esa evidencia (usuario: no repetir en DIgSILENT lo ya probado).
 - [x] T15. SET y alimentadores nuevos: `completar` en la estructura, `cabecera_xy` en el
       inventario, web y CLI con la estructura completada, aviso, Chincha Nueva y PO101 en el
-      perfil. (RF-71 a RF-80)
+      perfil. (RF-71, RF-72, RF-73, RF-74, RF-75, RF-76, RF-77, RF-78, RF-79, RF-80)
       Hecho cuando: `pytest -q tests/test_estructura.py tests/test_estructura_nuevos.py` en
       verde con entregas sorteadas, y con RED_231026 CN101 a CN201 en Chincha y PA219 en SET
       32 Paracas en la conversión por sistema de la web.

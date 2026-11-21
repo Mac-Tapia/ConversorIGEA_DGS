@@ -840,3 +840,125 @@ def test_088_rf14_maxima_sin_kvar_respeta_el_signo_de_su_fp(fp, columna, signo):
     FP declarado (`lead` capacitivo, `lag` inductivo); antes siempre salía positiva."""
     o = objetivo_de(_maxima(kvar=None, fp=fp, columnas={'fp': columna} if columna else {}))
     assert o.kvar == pytest.approx(signo * 750.0)
+
+
+# =========================================================================== MEJ10-FIJAS (orden del 20-11)
+def _funcion(nombre):
+    """La función del dominio, o una aserción que dice que falta (rojo por aserción sobre el árbol de antes)."""
+    f = getattr(ac, nombre, None)
+    assert f is not None, f'falta ajuste_cabecera.{nombre}'
+    return f
+
+
+def _fija(sed, codigo, kw, kvar=0.0, ea=None):
+    f = ac.Fija(sed, kw, kvar, clientes=[codigo])
+    f.derivaciones.append({'cliente': codigo, 'p_kw': kw, 'q_kvar': kvar, 'ea': ea})
+    return f
+
+
+def test_015_rf73_cliente_por_encima_de_su_cabecera_queda_a_revisar():
+    """015:RF-73 (a), 006:RF-47 — un cliente que mide más que su cabecera en un registro del mes es imposible: la fija
+    queda FIJA_A_REVISAR con su evidencia antes de ningún flujo. Hoy se acepta y se reparte."""
+    from datetime import datetime as dt
+
+    supera = _funcion('cliente_supera_cabecera')
+    plaus = _funcion('plausibilidad_fijas')
+    t0, t1, t2 = dt(2026, 10, 15, 15, 0), dt(2026, 10, 15, 15, 15), dt(2026, 10, 15, 15, 30)
+    cabecera = [(t0, 2000.0, 500.0), (t1, 1700.0, 450.0), (t2, 0.0, 0.0)]
+    cliente = [(t0, 1500.0, 300.0), (t1, 1806.5, 320.0), (t2, 900.0, 100.0)]
+    evid = supera(cliente, cabecera)
+    assert evid == {'registros': 1, 'exceso_max_kw': pytest.approx(106.5), 'fecha': '2026-10-15 15:15:00'}, \
+        'con la cabecera en 0 no se compara'
+    objetivo = ac.Objetivo(2503.0, 800.0, 'M1', 'A1', '2026-10-15 15:15:00')
+    r = plaus(objetivo, {'S1': _fija('S1', '900001', 1806.5, 960.0)}, p_base_escaladas=6000.0,
+              evidencia={'900001': {'supera_cabecera': evid}}, horas_mes=744.0)
+    assert r['estado'] == 'FIJA_A_REVISAR' and r['a_revisar'] == ['S1']
+    assert r['fijas'][0]['motivos'][0]['codigo'] == 'SUPERA_LA_CABECERA'
+    assert 'S1' in r['texto'] and 'queda la calibración anterior' in r['texto']
+
+
+def test_015_rf73_fijas_que_dejan_casi_nada_a_las_escaladas_quedan_a_revisar():
+    """015:RF-73 (c) — Σfijas/cabecera > 0,9 con un factor inicial < 0,05: la fija que más pesa, a revisar; con el
+    factor normal o con las fijas por debajo del 90 %, nada."""
+    plaus = _funcion('plausibilidad_fijas')
+    objetivo = ac.Objetivo(2503.0, 800.0, 'M1', 'A1', '2026-10-15 15:15:00')
+    fijas = {'S1': _fija('S1', '900001', 1806.5), 'S2': _fija('S2', '900002', 518.0)}
+    r = plaus(objetivo, fijas, p_base_escaladas=6741.0 * 0.98)
+    assert r['estado'] == 'FIJA_A_REVISAR' and r['a_revisar'] == ['S1'], r
+    assert r['factor_inicial'] == pytest.approx((2503.0 - 2324.5) / (6741.0 * 0.98))
+    assert r['fijas'][0]['motivos'][0]['codigo'] == 'FIJAS_DEJAN_SIN_ESCALADAS'
+    sanas = {'S1': _fija('S1', '900001', 542.0), 'S2': _fija('S2', '900002', 518.0)}
+    assert plaus(objetivo, sanas, p_base_escaladas=6741.0 * 0.98)['estado'] is None
+    assert plaus(objetivo, fijas, p_base_escaladas=1000.0)['estado'] is None, 'factor inicial normal'
+    # Las fijas del operador cuentan en la suma, pero no se ponen en duda: si pesan más que la fija del cliente, nada.
+    op = plaus(objetivo, {'S2': fijas['S2']}, p_base_escaladas=6741.0 * 0.98, otras_fijas_kw=1806.5)
+    assert op['fraccion_fijas'] == pytest.approx(2324.5 / 2503.0) and op['estado'] is None
+
+
+def test_015_rf73_kva_de_la_fuente_incoherente_se_anota_sin_parar():
+    """015:RF-73 (b), 020:RF-64 — si la media del mes no cabe en los kVA del grupo, el dudoso es el kVA: se anota y no
+    para; si la media cabe y la fija pide más de cuatro veces el grupo, la fija queda a revisar."""
+    plaus = _funcion('plausibilidad_fijas')
+    horas = _funcion('horas_del_mes')
+    objetivo = ac.Objetivo(4452.0, 900.0, 'M1', 'A1', '2026-10-15 15:15:00')
+    kva = {'S1': 125.0, 'S2': 100.0}
+    fijas = {'S1': _fija('S1', '900001', 366.7, 0.0, ea=204.0 * 744),
+             'S2': _fija('S2', '900002', 450.0, 0.0, ea=50.0 * 744)}
+    assert horas('2026-10-15') == 744.0 and horas('2026-02') == 672.0 and horas('') is None
+    r = plaus(objetivo, fijas, p_base_escaladas=20000.0, kva_grupo=kva, horas_mes=744.0)
+    s1, s2 = r['fijas']
+    assert s1['kva_fuente_incoherente']['p_media_kw'] == pytest.approx(204.0) and not s1['a_revisar']
+    assert r['kva_fuente_incoherente'] == ['S1']
+    assert s2['a_revisar'] and s2['motivos'][0]['codigo'] == 'SUPERA_SU_GRUPO' and r['estado'] == 'FIJA_A_REVISAR'
+
+
+def test_015_rf74_hermanas_de_una_fija_son_del_cliente_y_no_se_escalan():
+    """015:RF-74 — SE1-2 y SE1-3 del mismo alimentador son de la instalación del cliente de SE1: su P y Q se reparten
+    en el grupo por kVA y no se escalan. Hoy quedan ``origen='escala'`` con a·kVA·0,98."""
+    objetivo = ac.Objetivo(1000.0, 200.0, 'M1', 'A1')
+    fijas = fijas_de([_cliente('900001', 'SE1', 300.0, 1.0, 0.25)], objetivo)
+    cargas = {s: (0.0, 0.0) for s in ('SE1', 'SE1-2', 'SE1-3', 'SE12', 'SE9')}
+    kva = {'SE1': 100.0, 'SE1-2': 100.0, 'SE1-3': 800.0, 'SE12': 500.0, 'SE9': 500.0}
+    r = reparto_inicial(objetivo, fijas, cargas, kva, fp=0.98)
+    assert r.origen['SE1-2'] == 'cliente' and r.origen['SE1-3'] == 'cliente', r.origen
+    assert r.origen['SE12'] == 'escala', '«SE12» no es «SE1-2»'
+    d = r.demandas
+    assert d['SE1'].kw == pytest.approx(30.0) and d['SE1-3'].kw == pytest.approx(240.0)
+    assert sum(d[s].kw for s in ('SE1', 'SE1-2', 'SE1-3')) == pytest.approx(300.0)
+    assert set(r.base) == {'SE12', 'SE9'} and r.a == pytest.approx(700.0 / (1000.0 * 0.98))
+    assert getattr(r, 'grupos', None) == {'SE1': ['SE1-2', 'SE1-3']}
+
+
+def test_015_rf74_una_hermana_con_energia_en_la_fuente_es_otro_cliente():
+    """015:RF-74 — con la energía de la fuente, la hermana que consume es de otro cliente y sigue escalada."""
+    objetivo = ac.Objetivo(1000.0, 200.0, 'M1', 'A1')
+    fijas = fijas_de([_cliente('900001', 'SE1', 300.0, 1.0, 0.25)], objetivo)
+    cargas = {s: (0.0, 0.0) for s in ('SE1', 'SE1-2', 'SE1-3', 'SE9')}
+    kva = {'SE1': 100.0, 'SE1-2': 100.0, 'SE1-3': 800.0, 'SE9': 500.0}
+    try:
+        r = reparto_inicial(objetivo, fijas, cargas, kva, fp=0.98, kwh={'SE1-2': 0.0, 'SE1-3': 1200.0})
+    except TypeError:
+        r = None
+    assert r is not None, '015:RF-74: reparto_inicial no recibe la energía de la fuente'
+    assert r.origen['SE1-2'] == 'cliente' and r.origen['SE1-3'] == 'escala'
+
+
+def test_015_rf75_kva_del_grupo_de_la_fuente():
+    """015:RF-75 — los kVA de la SED y de sus hermanas «<sed>-n» en la fuente."""
+    grupo = _funcion('kva_de_grupo')
+    kva = {'SE1': 100.0, 'SE1-2': 100.0, 'SE1-3': 1130.0, 'SE12': 50.0}
+    assert grupo('SE1', kva, kva) == pytest.approx(1330.0)
+    assert grupo('SE12', kva, kva) == pytest.approx(50.0) and grupo('SE7', kva, kva) is None
+
+
+def test_035_rf32_fija_sin_consumo_en_el_instante_es_su_registro():
+    """035:RF-32 — con P = 0 y Q = 0 en el registro del instante, el método es REGISTRO_DEL_INSTANTE (no ERI/EA), con
+    su Q del registro y el aviso «fija sin consumo en el instante» con la EA del mes."""
+    d = ac.derivacion_cliente({'codigo': '900003', 'pot': 0.23, 'ea': 60.0, 'eri': 10.0, 'p_registro_kw': 0.0,
+                               'q_registro_kvar': 0.0, 'fecha_registro': '15/10/2026 15:15'}, 0.3, 0.95)
+    assert d['metodo'] == 'REGISTRO_DEL_INSTANTE', d
+    assert d['p_kw'] == 0.0 and d['q_kvar'] == 0.0 and d.get('sin_consumo') is True
+    assert 'sin consumo en el instante' in d.get('aviso', '') and '60' in d['aviso']
+    q = ac.derivacion_cliente({'codigo': '900003', 'pot': 0.23, 'ea': 60.0, 'eri': 10.0, 'p_registro_kw': 0.0,
+                               'q_registro_kvar': 1.5, 'fecha_registro': '15/10/2026 15:15'}, 0.3, 0.95)
+    assert q['q_kvar'] == pytest.approx(1.5) and q['metodo'] == 'REGISTRO_DEL_INSTANTE'

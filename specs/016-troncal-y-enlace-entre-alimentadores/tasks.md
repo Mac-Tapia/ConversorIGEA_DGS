@@ -126,7 +126,7 @@ Cierre
 
 - [x] T15. Trazado del enlace por la vía: `vias.py` con pruebas que inyectan la respuesta
       de OSRM (ruta, sin ruta, error de red, extremo lejos de la vía, sin perfil), el
-      enlace en `obras_pf.py` con su trazado y el perfil de Electro Dunas con `vias`.
+      enlace en `obras_pf.py` con su trazado y el perfil de Empresa A con `vias`.
       (RF-81 a RF-87)
       Hecho cuando: las pruebas que citan 016:RF-81 a RF-87 pasan y un enlace en DIgSILENT
       sale con el trazado de la vía.

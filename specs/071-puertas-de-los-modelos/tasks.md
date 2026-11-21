@@ -12,7 +12,7 @@
       Hecho cuando: `pytest -q tests/test_puertas_modelos.py -k "monitor or vigilancia"` en verde.
 - [x] T4 Turno de GPU común. (RF-7, RF-8)
       Hecho cuando: `pytest -q tests/test_puertas_modelos.py -k turno` en verde.
-- [ ] T5 Medir antes y después en una red de prueba: tiempo de `optimizar_con_proyecto` y si cambia la obra elegida. (RF-2)
+- [x] T5 Medir antes y después en una red de prueba: tiempo de `optimizar_con_proyecto` y si cambia la obra elegida. (RF-2)
       Hecho cuando: la medida está anotada aquí, sin tocar proyectos ya trabajados.
       Avance del 2026-11-02, sin DIgSILENT, con los grafos guardados en los episodios: con la regla anterior, la PINN
       `20261028-114528-e6f5` (Chincha, 4 944 nodos) entraba en dominio en 7 de 19 proyectos (Chincha, Nasca, W12882, NJA202);
@@ -23,3 +23,14 @@
       AA24003D_22_9kV_FICHA en 63 tramos (15,88 km), definitiva, aplicada; obras_pf.py 24 órdenes, 0 % fallidas, 0,22 h
       (D:/csg/INTEGRA_54/cierre_tareas/digsilent/, corrida C2c). Falta la medida «antes» (regla anterior) sobre el mismo
       proyecto para comparar tiempo y obra: sigue abierta.
+      Hecho el 2026-11-20 (MEJ18, wt_d8_obras): la medida «antes» (la regla sin 071:RF-2) y «después» (la vigente),
+      con `tools/medir_mejora.py dominio`, sobre los grafos del gemelo capturados en esa misma corrida C2c del proyecto de
+      prueba (7 episodios con grafo, de 1 344 y 1 355 nodos; el octavo no trae grafo y se dice) y la PINN promovida
+      `20261028-114528-e6f5`: con las dos reglas decide el flujo físico en los 7, porque la regla anterior ya la dejaba
+      fuera (flujo desequilibrado, grafo de otra versión y 1 355 nodos frente a los 4 944 aprendidos). «Con proyecto» corre
+      el mismo camino con las dos: la obra elegida no cambia (la sección de la corrida C2c, 63 tramos, 15,88 km) y el
+      tiempo de `optimizar_con_proyecto` tampoco (C2c: 16 min 42 s de trabajo; obras_pf.py 24 órdenes en 0,22 h), salvo la
+      comprobación de dominio, de 0,08 a 0,25 ms por red. Una red donde la regla sí cambia la decisión la marca la
+      herramienta («CAMBIA: medir en DIgSILENT»). Prueba: `tests/test_puertas_modelos.py::test_medida_de_la_regla_de_red_antes_y_despues`
+      (rojo por aserción con la herramienta de la base; verde). Evidencia fuera de git:
+      `D:/csg/PM_IMPL/MEJ18_OBRAS/T5_dominio_red_de_prueba.json` y `.log`, sin tocar proyectos ya trabajados.

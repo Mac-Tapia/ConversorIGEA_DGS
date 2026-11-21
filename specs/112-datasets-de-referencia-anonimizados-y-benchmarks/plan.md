@@ -133,6 +133,20 @@ limpia pasa.
   todas las cohortes, también los que pierden contra la base o no pasan la puerta, con su motivo. No hay filtro previo:
   una prueba comprueba que un candidato peor que el ingenuo aparece en el informe (RF-8).
 
+### Escala de la web (RF-20, RF-21)
+
+- `tools/benchmark_escala_web.py`: para cada tamaño lanza un proceso hijo (`--un-tamano N`), así la memoria pico de 200
+  no arrastra la de 10. El hijo genera el trío con `ExportSpec(feeders=N, seed, size_cycle=10)` (los mismos tramos por
+  alimentador en todos los tamaños), levanta `create_app` en una carpeta temporal con la sesión del lanzador en otra
+  temporal (cabecera de token y Origin, cliente 127.0.0.1) y sin perfil de empresa, sube las tres casillas, carga la red
+  (`POST /load` hasta su estado final) y cronometra `GET` del espacio, de `feeders` y de las SED de un alimentador.
+- p50 y p95 con interpolación lineal sobre las llamadas que siguen a la primera; la primera, la fría, va aparte. La
+  memoria pico es el máximo de la memoria residente muestreada con psutil cada 20 ms.
+- El resultado lleva el commit, el árbol del índice y si había cambios sin registrar, para repetir la medición sobre el
+  mismo SHA. El dibujo del frontend va como «no medido» con su motivo (RF-21).
+- La prueba rápida mide 10 alimentadores con 3 repeticiones y comprueba la forma, no los tiempos; la corrida de 10, 50 y
+  200 con 30 repeticiones es aparte (T18), y el dibujo con navegador, otra (T19).
+
 ## Decisiones
 
 - Benchmark de redes como trío TXT de CYMDIST, el formato que el conversor ya lee. Descartado: exportar la red de
@@ -211,3 +225,24 @@ limpia pasa.
   densas, casi todas encuentran pareja, así que da por identificada también la red sintética y no distingue nada.
   En una simulación con numpy (sin datos ni motor), el rango a rango da de media 0,03 (n = 10) a 0,30 (n = 1000) en
   muestras independientes de la misma distribución, y 1,0 en la red perturbada al ±5 %.
+
+## Dejar una empresa fuera cada vez (2026-11-20, RF-15 a RF-19; Plan Maestro PM-17)
+- **Dominio sin E/S.** `dominio/benchmarks/interempresa.py`: `dejar_una_fuera(datos, ajustar, medir, criterio)` hace un
+  pliegue por empresa; `ajustar` recibe solo las demás y `medir` solo la retenida. El veredicto: con menos de 3 empresas,
+  «NO DEMOSTRADA» y por qué (con 2 se miden los pliegues igual, para verlos); con 3 o más, «DEMOSTRADA» solo si pasan
+  todas. Ahí van también el catálogo de fichas y su medida, que usan la misma regla del modelo para el conductor sin ficha
+  (`suggest_catalog_code`), así que lo medido es lo que la conversión haría.
+- **Adaptador.** `adaptadores/benchmarks/interempresa.py`: una subcarpeta por empresa, renombrada `E1…En` por la huella
+  de su nombre (`seudonimos_de_empresa` de las cohortes). VNR: el trío TXT que saca `vnr-etl` del paquete público, leído
+  con `redes.leer_fichero`. Pronóstico: el benchmark de series de la T5, leído con `series.leer`, y medido con `predecir`
+  y `medir` del 089 (la base «semanal» y su WAPE): no se copia ninguna métrica (P5). El informe, con `write_json_atomic`.
+- **Herramienta.** `tools/interempresa_loco.py vnr|pronostico --empresas CARPETA --salida INFORME.json`; sale con 0 si
+  «DEMOSTRADA» y con 3 si no, con el informe escrito. Es de desarrollo y no se entrega (`config/entrega.json`).
+- **Por qué esas medidas.** En la conversión VNR lo único que se aprende de otras empresas es el catálogo de conductores
+  (053): una empresa nueva se convierte bien si las fichas de las demás le dan la impedancia de los suyos. En el
+  pronóstico, los métodos de base del 089 son de cada serie; lo transferible es la forma semanal, y se compara con la base
+  propia de la retenida en el mismo origen y sin ver nada posterior a él.
+- **Límites.** Las series del benchmark van con semanas desplazadas (T5): no se alinean en el calendario entre empresas,
+  así que la forma de las demás puede ser de otras fechas que el origen de la retenida; para la forma semanal no importa,
+  pero el informe no dice nada de la estación. Hoy en local solo hay datos de una empresa: la corrida real (T16) da «NO
+  DEMOSTRADA» hasta tener los paquetes públicos de al menos tres.

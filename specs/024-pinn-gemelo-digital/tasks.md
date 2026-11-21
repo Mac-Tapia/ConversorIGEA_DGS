@@ -91,7 +91,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       libro CAPEX y propuestas e implementación propias. (RF-33, RF-34, RF-45 a RF-48, RF-54 a
       RF-59)
       Hecho cuando: `pytest -q tests/test_pide_economia.py tests/test_pide_web.py en verde`.
-      Hecho el 2026-10-22: pliego de Electro Dunas del 2026-10-04 y NTCSER en el perfil; bancos y ternas
+      Hecho el 2026-10-22: pliego de Empresa A del 2026-10-04 y NTCSER en el perfil; bancos y ternas
       se aplican solos tras simularlos; el resto queda propuesto con su motivo.       Faltan en el perfil
       `crecimiento_demanda_anual`, `factor_carga` y `precio_compra_kwh`: sin ellos se avisa (RF-58e).
 

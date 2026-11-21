@@ -1780,3 +1780,28 @@ def proyecto(nombre='P', *, alimentadores=('F1', 'F2'), cargas_por_alim=3, escen
     app.escrituras.clear()
     app.creados.clear()
     return app
+
+
+def variacion_del_conversor_apagada(app, nombre: str, trafos: dict[str, float]) -> Variacion:
+    """``SED_NTP_<proyecto>`` grabada y después apagada, como la deja el servidor tras una calibración no válida (008:RF-31).
+
+    ``trafos``: nombre del ``ElmTr2`` → kVA que le pone la etapa. Al apagarla los transformadores vuelven a su tipo del
+    archivo y la etapa conserva el cambio, como en DIgSILENT. No deja escrituras ni creados que cuenten para la prueba.
+    """
+    previo = app.atributos_en_variacion
+    tipos = {}
+    for tr, kva in trafos.items():
+        tipos[tr] = app.carpetas['equip'].CreateObject('TypTr2', f'TR_{int(kva)}kVA_{tr}')
+        tipos[tr].strn = kva / 1000.0
+    app.atributos_en_variacion = True
+    variacion = app.carpetas['scheme'].CreateObject('IntScheme', nombre)
+    variacion.NewStage('Etapa_sed_ntp', int(getattr(app.caso, 'iStudyTime', 0) or 0), 1)
+    por_nombre = {t.loc_name: t for t in app.GetCalcRelevantObjects('*.ElmTr2')}
+    for tr, tipo in tipos.items():
+        por_nombre[tr].typ_id = tipo
+    variacion.Deactivate()
+    app.grabando = None
+    app.atributos_en_variacion = previo
+    app.escrituras.clear()
+    app.creados.clear()
+    return variacion

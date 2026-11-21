@@ -32,7 +32,7 @@ def _wid(client):
 
 
 def _cabecera(path: Path, hojas: dict[str, tuple[datetime, float]]) -> Path:
-    """Cada hoja: cuatro registros cada 15 min desde su fecha, con el pico dado."""
+    """Cada hoja: cuatro registros horarios desde su fecha, con el pico dado."""
     path.parent.mkdir(parents=True, exist_ok=True)
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
@@ -40,7 +40,8 @@ def _cabecera(path: Path, hojas: dict[str, tuple[datetime, float]]) -> Path:
         h = wb.create_sheet(nombre)
         h.append(['Local Time', 'kW tot', 'kVAR tot'])
         for i, kw in enumerate([pico / 2, pico, pico / 3, pico / 4]):
-            h.append([t0 + timedelta(minutes=15 * i), kw, kw / 5])
+            # Registros horarios: la hora es el registro (004:RF-112); aquí se mira el libro de cada año.
+            h.append([t0 + timedelta(hours=i), kw, kw / 5])
     wb.save(path)
     return path
 

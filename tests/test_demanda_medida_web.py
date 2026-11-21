@@ -117,7 +117,8 @@ def test_maxima_de_cabecera_es_un_trabajo(client):
     estado = esperar_trabajo(client, job.json())
     assert estado['status'] == 'done', estado
     res = estado['result']['resultados']
-    assert [(x['medidor'], x['kw']) for x in res] == [('M1', 107.0), ('M2', 7.0), ('NO', None)]
+    # 004:RF-112: M1, la media de su última hora (104 a 107 kW); M2, un solo registro.
+    assert [(x['medidor'], x['kw']) for x in res] == [('M1', 105.5), ('M2', 7.0), ('NO', None)]
     assert res[0]['fecha'] == (T0 + timedelta(minutes=105)).isoformat(sep=' ')
     assert res[0]['fp'] == pytest.approx(0.95) and res[0]['kvar'] == 10.0
     assert 'no está' in res[2]['error']
@@ -692,7 +693,7 @@ def _libros_por_barra(client, wid, monkeypatch, kv_alta=220, pico_alta=None, esc
     filas = {k: [['Local Time', 'kW tot', 'kVAR tot']]
              for k in ('M1', 'M3', 'M4', 'M5', 'B-X1T1', 'B-X1T2', 'B-X6T1', 'CT_X')}
     for i in range(8):
-        t = T0 + timedelta(minutes=15 * i)
+        t = T0 + timedelta(hours=i)     # horarios: la hora es el registro (004:RF-112)
         pico = 500.0 if i == 3 else 0.0
         filas['M1'].append([t, 100.0 + 10 * i, 5.0])          # su máxima, el registro 7
         if i != hueco_m3:
@@ -733,7 +734,7 @@ def test_desplegable_con_la_maxima_de_cada_cabecera_y_eleccion_a_mano(client, mo
     url = f'/api/workspaces/{wid}/demanda/cabecera/buscar'
     auto = esperar_trabajo(client, client.post(url, json={'medidores': pares, 'coincidente': True}).json())['result']
     propias = {x['alimentador']: x for x in auto['maximas_propias']}
-    fecha_a1 = (T0 + timedelta(minutes=15 * 7)).isoformat(sep=' ')
+    fecha_a1 = (T0 + timedelta(hours=7)).isoformat(sep=' ')
     assert propias['A1']['fecha'] == fecha_a1 and propias['A1']['kw'] == pytest.approx(170.0)
     assert propias['A2']['fecha'] == T0.isoformat(sep=' ') and propias['A2']['kw'] == pytest.approx(300.0)
     assert auto['coincidente'] is not None and auto['instante'] not in {fecha_a1}
@@ -797,14 +798,14 @@ def test_maxima_por_barra_y_sus_alimentadores_en_esa_fecha(client, monkeypatch):
     estado = esperar_trabajo(client, job.json())
     assert estado['status'] == 'done', estado
     res = estado['result']
-    t3 = (T0 + timedelta(minutes=45)).isoformat(sep=' ')
+    t3 = (T0 + timedelta(hours=3)).isoformat(sep=' ')
     [b] = res['barras']
     assert b['clave'] == 'SET X 10 kV' and b['medidores'] == ['B-X1T1', 'B-X1T2']
     assert b['fecha'] == t3 and b['kw'] == pytest.approx(700.0 + 153.0)
     assert b['centrales'] == [{'medidor': 'CT_X', 'kw': 43.0, 'kvar': -2.0}]
     fechas = {r['medidor']: r['fecha'] for r in res['resultados']}
     assert fechas['M1'] == fechas['M3'] == t3
-    assert fechas['M4'] == (T0 + timedelta(minutes=15 * 7)).isoformat(sep=' ')
+    assert fechas['M4'] == (T0 + timedelta(hours=7)).isoformat(sep=' ')
     kw = {r['medidor']: r['kw'] for r in res['resultados']}
     assert kw['M1'] == pytest.approx(130.0) and kw['M3'] == pytest.approx(270.0)
     m5 = next(r for r in res['resultados'] if r['medidor'] == 'M5')
@@ -826,7 +827,7 @@ def test_central_en_un_tramo_no_va_a_la_barra(client, monkeypatch):
     estado = esperar_trabajo(client, job.json())
     assert estado['status'] == 'done', estado
     res = estado['result']
-    t5 = (T0 + timedelta(minutes=75)).isoformat(sep=' ')
+    t5 = (T0 + timedelta(hours=5)).isoformat(sep=' ')
     assert all(b['centrales'] == [] for b in res['barras']), 'en el tramo, no en la barra'
     ct = next(x for x in res['resultados'] if x['medidor'] == 'CT_X')
     assert ct['alimentador'] == 'Central A1' and ct['fecha'] == t5 and ct['kw'] == pytest.approx(45.0)
@@ -854,7 +855,7 @@ def test_maxima_de_la_barra_de_60_kv_da_el_instante_a_toda_la_set(client, monkey
     estado = esperar_trabajo(client, job.json())
     assert estado['status'] == 'done', estado
     res = estado['result']
-    t5 = (T0 + timedelta(minutes=75)).isoformat(sep=' ')
+    t5 = (T0 + timedelta(hours=5)).isoformat(sep=' ')
     por = {b['clave']: b for b in res['barras']}
     alta = por['SET X 60 kV']
     assert alta['alta'] and alta['fecha'] == t5 and alta['kw'] == pytest.approx(9999.0)
@@ -865,7 +866,7 @@ def test_maxima_de_la_barra_de_60_kv_da_el_instante_a_toda_la_set(client, monkey
     assert media['centrales'] == [{'medidor': 'CT_X', 'kw': 45.0, 'kvar': -2.0}]
     fechas = {r['medidor']: r['fecha'] for r in res['resultados']}
     assert fechas['M1'] == fechas['M3'] == t5
-    assert fechas['M4'] == (T0 + timedelta(minutes=15 * 7)).isoformat(sep=' ')
+    assert fechas['M4'] == (T0 + timedelta(hours=7)).isoformat(sep=' ')
     kw = {r['medidor']: r['kw'] for r in res['resultados']}
     assert kw['M1'] == pytest.approx(150.0) and kw['M3'] == pytest.approx(250.0)
     assert not any('revise la unidad' in a for a in res['avisos']), '9 999 kW > 310 kW de su media'
@@ -882,7 +883,7 @@ def test_instante_de_60_kv_con_registro_en_todos_sus_alimentadores(client, monke
     estado = esperar_trabajo(client, job.json())
     assert estado['status'] == 'done', estado
     res = estado['result']
-    t5 = (T0 + timedelta(minutes=75)).isoformat(sep=' ')
+    t5 = (T0 + timedelta(hours=5)).isoformat(sep=' ')
     alta = next(b for b in res['barras'] if b['alta'])
     assert alta['fecha'] != t5 and alta['kw'] == pytest.approx(1000.0)
     assert any('registro en todos' in a or 'ningún registro común con sus alimentadores' in a for a in res['avisos'])
@@ -900,7 +901,7 @@ def test_barra_de_60_kv_menor_que_su_media_se_avisa(client, monkeypatch):
     estado = esperar_trabajo(client, job.json())
     assert estado['status'] == 'done', estado
     res = estado['result']
-    t5 = (T0 + timedelta(minutes=75)).isoformat(sep=' ')
+    t5 = (T0 + timedelta(hours=5)).isoformat(sep=' ')
     assert next(b for b in res['barras'] if b['alta'])['fecha'] == t5
     assert any('SET X 60 kV' in a and 'revise la unidad' in a for a in res['avisos'])
 

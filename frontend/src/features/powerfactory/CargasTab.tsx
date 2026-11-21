@@ -1071,6 +1071,21 @@ function Verificacion({ inf }: { inf: VerificarInforme }) {
           máxima {fmtNum(f.vm_max ?? 0, 3)} p.u. ({f.vm_max_bus})</>}</p>
       <small className="muted">Variaciones activas: {inf.variaciones_activas?.length ? inf.variaciones_activas.join(', ') : 'ninguna'}
         {inf.escenario ? ` · escenario ${inf.escenario}` : ''}</small>
+      {/* 008:RF-31: lo del conversor que está apagado, sin encenderlo. */}
+      {(inf.variaciones_del_conversor_apagadas ?? []).map((v) => (
+        <p key={v.variacion} className="small"><span className="badge warn">Apagada</span> {v.aviso}</p>
+      ))}
+      {/* 008:RF-30: por qué no converge, con las palabras de DIgSILENT; plegado si es largo. */}
+      {!f?.converged && (inf.mensajes ?? []).length > 0 && (
+        (inf.mensajes ?? []).length > 2 ? (
+          <details>
+            <summary className="small">DIgSILENT: {inf.mensajes![inf.mensajes!.length - 1]}</summary>
+            <ul className="small">{inf.mensajes!.map((m, i) => <li key={i}><code>{m}</code></li>)}</ul>
+          </details>
+        ) : (
+          <ul className="small">{inf.mensajes!.map((m, i) => <li key={i}><code>{m}</code></li>)}</ul>
+        )
+      )}
       {inf.feeders.length > 0 && (
         <div className="table-wrap">
           <table className="table">

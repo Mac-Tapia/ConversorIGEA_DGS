@@ -1,4 +1,4 @@
-workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 455 módulos de Python en 37 subsistemas." {
+workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 457 módulos de Python en 37 subsistemas." {
 
     // Las relaciones de componentes no se suben solas a los contenedores: cada vista muestra solo lo declarado.
     !impliedRelationships false
@@ -42,9 +42,8 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
 
         nube = softwareSystem "Nube del operador" "Google Drive y OneDrive con la cuenta del operador." {
             url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/specs/109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md"
-            tags "External,en implementación"
+            tags "External"
             properties {
-                "Estado" "en implementación"
                 "Spec" "109"
             }
         }
@@ -78,7 +77,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Interfaz: conversión y perfil de la empresa"
                     }
                 }
-                cmpInterfazEstudios = component "Cargas, estudios, obras e informes" "«Cargas en DIgSILENT», demanda, estudios, obras e informes (26 ficheros)." "React + TypeScript" {
+                cmpInterfazEstudios = component "Cargas, estudios, obras e informes" "«Cargas en DIgSILENT», demanda, estudios, obras e informes (27 ficheros)." "React + TypeScript" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/src/features/powerfactory"
                     tags "Web"
                     properties {
@@ -106,7 +105,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Interfaz: asistente"
                     }
                 }
-                cmpInterfazPruebas = component "Pruebas de la interfaz" "Pruebas sin navegador de las pestañas y de la lógica (50 ficheros)." "Node test runner" {
+                cmpInterfazPruebas = component "Pruebas de la interfaz" "Pruebas sin navegador de las pestañas y de la lógica (51 ficheros)." "Node test runner" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/test"
                     tags "Web"
                     properties {
@@ -129,7 +128,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 tags "API"
             }
 
-            api = container "API web" "REST y WebSocket: 168 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
+            api = container "API web" "REST y WebSocket: 170 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/presentacion/web/app.py"
                 tags "API"
                 cmpWeb = component "Web" "Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo (41 ficheros)." "Python" {
@@ -153,9 +152,8 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
 
             cloudConn = container "Conector de nube" "Elige fuentes en la nube, avisa de cambios y sube expedientes; cada estudio usa una copia fija con huella." "Python" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/specs/109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md"
-                tags "API,en implementación"
+                tags "API"
                 properties {
-                    "Estado" "en implementación"
                     "Spec" "109"
                 }
                 cmpNube = component "Nube" "Proveedores Google Drive y OneDrive, OAuth, cuentas, cofre y salida a la nube (11 ficheros)." "Python" {
@@ -393,11 +391,12 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
 
             bench = container "Benchmarks anonimizados" "Datos de referencia desidentificados, solo en local, y protocolos por cohortes de empresa y de tiempo." "Python" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/specs/112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md"
-                tags "AI"
+                tags "AI,en implementación"
                 properties {
+                    "Estado" "en implementación"
                     "Spec" "112"
                 }
-                cmpBench = component "Benchmarks anonimizados" "Seudónimos, geometría pública, cohortes, series, control de reidentificación y reproducción (16 ficheros)." "Python" {
+                cmpBench = component "Benchmarks anonimizados" "Seudónimos, geometría pública, cohortes, series, control de reidentificación y reproducción (18 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/benchmarks"
                     tags "AI"
                     properties {
@@ -459,7 +458,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             tooling = container "Herramientas de órdenes" "Operación, aceptación, entrenamientos y calidad desde la línea de órdenes." "Python" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/tools"
                 tags "Engine"
-                cmpHerrOperacion = component "Operación, datos y aceptación" "Flujo completo por la web, informes de casos guardados y aceptación nativa (33 ficheros)." "Python" {
+                cmpHerrOperacion = component "Operación, datos y aceptación" "Flujo completo por la web, informes de casos guardados y aceptación nativa (35 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/tools/sistema_web.py"
                     tags "Engine"
                     properties {
@@ -473,7 +472,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Herramientas: modelos, asistente y MADRL"
                     }
                 }
-                cmpHerrCalidad = component "Calidad y entrega" "Capas, arquitectura generada, contrato de la API, estado de specs, suite por tandas y candidato (19 ficheros)." "Python" {
+                cmpHerrCalidad = component "Calidad y entrega" "Capas, arquitectura generada, contrato de la API, estado de specs, suite por tandas y candidato (20 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/tools/arquitectura.py"
                     tags "Engine"
                     properties {

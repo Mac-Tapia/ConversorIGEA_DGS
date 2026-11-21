@@ -240,7 +240,7 @@ copia local `output/normativa_pide_20261025/textos/fb5341703a3c….txt`, o la p�
       Avance (2026-11-15, f4/RN-IMP): la RCD 185-2026-OS/CD lleva en `impugnada` los seis recursos de
       reconsideración de la hoja informativa de Osinergmin (audiencia del 27-11-2026), pendientes de resolución, con
       los conceptos que impugna cada uno y su cita. Solo CVC Energía impugna FE, los de MT (PPMT y PEMT) de su SDT2:
-      el aviso va en esas filas (`<clave>.<fila>`), no en BT, y lo que pide queda como dato del recurso; Egepsa los
+      el aviso va en esas filas (`<clave>.<fila>`), no en BT, y lo que pide queda como dato del recurso; Empresa N los
       excluye y nadie impugna los coeficientes. ESDE Selva va como tercero, con su RUC, sin casarla con ninguna
       empresa. El estudio (`EstudioVad.avisos`, en `estudio.json`) lleva
       el aviso de los conceptos impugnados que usa, sin cambiar su estado: la 185 sigue obligatoria (art. 216.1 del

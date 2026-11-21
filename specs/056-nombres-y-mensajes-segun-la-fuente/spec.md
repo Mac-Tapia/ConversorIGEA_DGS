@@ -1,14 +1,14 @@
 # Spec 056 — Nombres y mensajes según la fuente: cada fuente con sus propias palabras
 
 Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (2026-11-03) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al convertir
-NJA202 (W12882) de Electro Oriente desde su VNR-GIS: «¿por qué aparece IGEA y CYMDIST? Esto no
+NJA202 (W12882) de Empresa B desde su VNR-GIS: «¿por qué aparece IGEA y CYMDIST? Esto no
 debería aparecer, la otra empresa no usa esos software; si es universal, nada debería aparecer
 como o con esos».
 
 ## Contexto y objetivo
 
 La fuente VNR-GIS (spec 023) se traduce por dentro a tablas con la forma de CYMDIST, y los
-textos se escribieron para los TXT. Una conversión de Electro Oriente salió el 2026-11-01 con
+textos se escribieron para los TXT. Una conversión de Empresa B salió el 2026-11-01 con
 el proyecto `20261101-063543_IGEA_W12882`, la cabecera del DGS «CYMDIST to DIgSILENT DGS
 converter … IGEA», avisos como «0 conservaron Length del TXT», «CYMDIST B1/B0», «Full IGEA line
 geometry» o «el RED export no trae REGULATOR SETTING (solo catálogo BD_Equipo)», y la web

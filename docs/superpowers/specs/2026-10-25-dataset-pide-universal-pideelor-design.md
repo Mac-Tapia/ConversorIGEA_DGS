@@ -42,8 +42,8 @@ archivo original, su empresa custodio y su huella SHA-256.
 
 ## No objetivos
 
-- Copiar los resultados numéricos de ELOR como resultados esperados para otra empresa.
-- Suponer que un alimentador de otra empresa tiene la topología, demanda o restricciones de ELOR.
+- Copiar los resultados numéricos de EMPB como resultados esperados para otra empresa.
+- Suponer que un alimentador de otra empresa tiene la topología, demanda o restricciones de EMPB.
 - Presentar la prepublicación metodológica o un entregable empresarial como norma vigente.
 - Declarar convergencia o cumplimiento porque existe un archivo `.pfd`, `.BAK` o un informe.
 - Convertir automáticamente documentos empresariales en ejemplos de entrenamiento `gold`.
@@ -53,7 +53,7 @@ archivo original, su empresa custodio y su huella SHA-256.
 El sistema se considerará incorrecto si:
 
 - pierde la empresa o el archivo de origen;
-- memoriza identificadores ELOR como reglas universales;
+- memoriza identificadores EMPB como reglas universales;
 - mezcla revisiones, alternativas o años incompatibles;
 - promueve una observación, borrador o copia como versión definitiva;
 - rellena campos ausentes por inferencia silenciosa;
@@ -167,10 +167,10 @@ calculan para la red diagnosticada.
 - Pruebas metamórficas: renombrar empresa, SET y alimentadores no debe cambiar la secuencia
   metodológica.
 - Ningún identificador empresarial podrá ser condición de una regla universal.
-- Los valores de ELOR no funcionarán como valores predeterminados.
+- Los valores de EMPB no funcionarán como valores predeterminados.
 - La ausencia de datos generará `sin_evidencia`, no imputación silenciosa.
 - La recuperación semántica siempre devolverá procedencia, versión y estado jurídico.
-- La respuesta distinguirá “así se hizo en ELOR” de “esto exige el contrato PIDE”.
+- La respuesta distinguirá “así se hizo en EMPB” de “esto exige el contrato PIDE”.
 
 ## Hallazgos iniciales que condicionan la implementación
 
@@ -209,7 +209,7 @@ calculan para la red diagnosticada.
 
 1. **Dataset universal con procedencia empresarial — elegida.** Mantiene un contrato común y
    conserva cada empresa como instancia auditable. Permite generalizar sin perder custodia.
-2. **Entrenamiento directo con ELOR.** Más rápido, pero memoriza nombres, valores y decisiones
+2. **Entrenamiento directo con EMPB.** Más rápido, pero memoriza nombres, valores y decisiones
    particulares; no demuestra transferencia a otra empresa.
 3. **Anonimización irreversible y mezcla de empresas.** Reduce identificadores visibles, pero
    destruye linaje, dificulta corregir errores y puede mezclar resultados incompatibles.
@@ -239,7 +239,7 @@ solución determinista.
 - Los 20 artículos poseen contrato, evidencia esperada y estado de cobertura.
 - Los formatos canónicos no contienen nombres empresariales en su definición.
 - Un caso puede sustituir todos sus identificadores empresariales sin alterar la metodología.
-- ELOR puede reconstruirse como instancia sin contaminar valores predeterminados universales.
+- EMPB puede reconstruirse como instancia sin contaminar valores predeterminados universales.
 - Ninguna fuente documental se declara aceptación nativa, eléctrica o regulatoria.
 - Los archivos ilegibles o propietarios quedan inventariados con causa y siguiente verificación.
 - La suite enfocada y la suite completa terminan sin omisiones ocultas.

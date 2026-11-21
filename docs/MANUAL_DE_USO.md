@@ -69,8 +69,8 @@ El conversor hace ese trabajo de punta a punta:
 4. **Integra** demandas medidas y cargas nuevas, y **estudia** la red con los módulos nativos de
    DIgSILENT: obras de mejora, confiabilidad, capacidad y transferencias.
 
-Sirve para cualquier distribuidora: las convenciones de cada una van en su perfil (§8). Electro
-Dunas aparece en este libro solo como ejemplo real.
+Sirve para cualquier distribuidora: las convenciones de cada una van en su perfil (§8). Empresa A
+aparece en este libro solo como ejemplo real.
 
 ## 2. Conceptos que usa todo el libro
 
@@ -242,9 +242,9 @@ que puede heredar de un perfil de `config/perfiles/`, por ejemplo `{"perfil": "e
 | --- | --- |
 | CRS de origen | Las coordenadas de la fuente; sin él se pide y no se supone. |
 | Carpeta de DIgSILENT | Dónde están los proyectos importados. |
-| `calibracion.factor_potencia_cargas` | FP de las SED escaladas (Electro Dunas: 0,98). |
+| `calibracion.factor_potencia_cargas` | FP de las SED escaladas (Empresa A: 0,98). |
 | `calibracion.factor_potencia_minimo_fijas` | FP mínimo de un cliente fijo, por su banco propio. |
-| `calibracion.factor_potencia_minimo_escaladas` | Hasta dónde puede bajar el FP de las escaladas al cuadrar la Q (Electro Dunas: 0,90). Sin él, su FP de perfil. |
+| `calibracion.factor_potencia_minimo_escaladas` | Hasta dónde puede bajar el FP de las escaladas al cuadrar la Q (Empresa A: 0,90). Sin él, su FP de perfil. |
 | `calibracion.reparto_probabilistico` | `dispersion`, `pendiente` y `n` del reparto probabilístico cuando un alimentador no tiene 5 fijas para estimarlas. Sin ella, no se supone. |
 | `calibracion.bancos_kvar_por_tension` | Tamaño de los bancos que se proponen por tensión. |
 | `calibracion.transformadores_sed` | Fichas (NTP 370.400) para proponer transformadores nuevos. |

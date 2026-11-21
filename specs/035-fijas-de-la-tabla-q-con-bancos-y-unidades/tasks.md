@@ -58,3 +58,7 @@ Estado: pedida por el usuario el 2026-10-29. Plan: [plan.md](plan.md).
       cabecera 2 519,6 frente a 2 506 medidos (+0,5 %, coherente) con las escaladas a FP 0,985,
       validación nativa VALIDO. NA203: medida no coherente (2 453,6 kvar a FP 1 frente a 1 777),
       Q real de DIgSILENT a FP 0,98 y dicho (RF-28 a RF-30).
+- [x] T12. MEJ10-FIJAS (orden del usuario del 20-11): `derivacion_cliente` con P = 0 en el registro del instante. (RF-32)
+      Hecho cuando: rojo por aserción sobre 2f9de358 y verde con `tests/test_ajuste_cabecera.py -k rf32`; la corrida en DIgSILENT la decide d8.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ10_FIJAS/rojo.log (test_035_rf32_fija_sin_consumo_en_el_instante_es_su_registro); verde ídem; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).

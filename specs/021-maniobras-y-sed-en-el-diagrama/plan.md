@@ -102,7 +102,7 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
 - 9 Datos de la distribuidora: las pruebas con libros reales solo con `CSG_DEMANDA_DIR`;
   las sintéticas inventan sus series.
 - 13 Universal: ningún nombre de medidor o de central en el código; la central de NA205
-  solo en el perfil de Electro Dunas.
+  solo en el perfil de Empresa A.
 
 ## Estrategia de pruebas
 

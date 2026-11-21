@@ -3,7 +3,7 @@
 
     python tools/show_pf_diagram.py --feeder ALIMENTADOR [--project-substr TEXTO] [--wait 3]
 
-El alimentador se pide: antes traía uno de Electro Dunas por defecto (spec 009, RF-8).
+El alimentador se pide: antes traía uno de Empresa A por defecto (spec 009, RF-8).
 """
 from __future__ import annotations
 

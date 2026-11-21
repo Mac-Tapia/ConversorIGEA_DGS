@@ -31,9 +31,11 @@ from .pronostico_demanda import (
     CON_TEMPERATURA,
     HISTORIA_MINIMA_DIAS,
     PUERTA,
+    REDES,
     Dataset,
     Exogenas,
     Fuentes,
+    MemoriaGPUInsuficiente,
     armar_dataset,
     arreglos,
     error_de_maxima,
@@ -64,6 +66,10 @@ MIN_ERRORES_BANDA = 8
 FACTOR_DE_AVISO = 3.0
 #: Instantes más altos del alimentador en que se busca el dato de cada carga: unos diez días de máximas.
 INSTANTES_DE_MAXIMA = 1000
+#: 031:RF-27: las redes de neuralforecast compiten en el PIDE con la serie diaria en TODOS los orígenes y en la emisión, aunque
+#: un origen tenga un solo mes de horizonte: así cada red se mide con una sola resolución y las cuatro con la misma. Lo que
+#: el PIDE lee de cada mes (media y máxima, ``_agregar_curva``) sale de la curva de 15 minutos reconstruida (RF-28).
+RESOLUCION_REDES = 'diaria'
 
 #: 031:RF-4 — fijada antes de la primera medición y escrita en la evaluación antes de medir. Cambiarla exige otra versión.
 REGLA = {'version': 1,
@@ -704,17 +710,27 @@ def _competir_grupo(objetivos: Sequence[Objetivo], candidatos: Sequence[str], mo
     log(f'{len(series)} objetivos y {len(origenes)} orígenes medidos')
     finales: dict[str, dict] = {}
     for c in modelos:
+        memoria: list[dict] = []
         try:
-            finales[c] = _competir_modelo(c, series, origenes, pred[c], semilla=semilla, exogenas=exogenas, ajustes=ajustes, fabrica=fabrica, log=log)
+            finales[c] = _competir_modelo(c, series, origenes, pred[c], semilla=semilla, exogenas=exogenas, ajustes=ajustes, fabrica=fabrica, log=log,
+                                          memoria=memoria)
         except Exception as exc:  # noqa: BLE001 - la librería lanza Exception a secas; un modelo roto o sin GPU no se lleva a los demás (089:RF-61)
             pred[c] = {}
             estados[c] = {'status': 'NO_DISPONIBLE', 'familia': 'modelo', 'motivo': f'{type(exc).__name__}: {exc}'[:300]}
+            if isinstance(exc, MemoriaGPUInsuficiente):
+                # 031:RF-25: la evaluación dice que fue la memoria de la GPU, con lo que pidió y lo que había, no solo «no disponible».
+                estados[c].update(causa='memoria_gpu', motivo=str(exc)[:600], memoria_gpu=[*memoria, exc.detalle])
             log(f'{c}: no disponible ({exc})')
+            continue
+        if memoria:
+            estados[c]['memoria_gpu'] = memoria
     # Un candidato sin predicciones o con muy pocos orígenes no compite: no puede estrechar la comparación de los demás a casi nada.
     aplicables = [c for c in pred if len({o for _n, o in pred[c]}) > MIN_ORIGENES]
     for c in pred:
         if c not in aplicables and estados[c]['status'] == 'EVALUADO':
-            estados[c] = {'status': 'NO_APLICA', 'familia': _familia(c), 'motivo': f'no alcanza {MIN_ORIGENES + 1} orígenes con esta historia'}
+            # 031:RF-24: lo que entrenó en la GPU se sigue diciendo aunque no compita (el ensayo de la T5 con dos orígenes la perdía).
+            estados[c] = {'status': 'NO_APLICA', 'familia': _familia(c), 'motivo': f'no alcanza {MIN_ORIGENES + 1} orígenes con esta historia',
+                          **({'memoria_gpu': estados[c]['memoria_gpu']} if 'memoria_gpu' in estados[c] else {})}
     referencia = REFERENCIA if REFERENCIA in aplicables else REFERENCIA_SIN_DOS_ANIOS
     resultado.update(referencia=referencia)
     comunes = _claves_comunes(pred, aplicables, referencia)
@@ -778,8 +794,22 @@ def elegir(eleccion: Mapping[str, Mapping[str, float]], referencia: str) -> tupl
     return ganador, f"{ganador} mejora a {referencia}: WAPE {eleccion[ganador]['wape']:.4f} frente a {base['wape']:.4f}", puertas
 
 
-def _competir_modelo(nombre: str, series, origenes, destino: dict, *, semilla: int, exogenas, ajustes, fabrica, log) -> dict[str, dict]:
-    """Un modelo global de la clase y magnitud, reentrenado en cada origen sin ver el futuro; devuelve lo que da tras el último dato."""
+def ajustes_de_red(nombre: str, ajustes: Mapping | None) -> dict:
+    """Los ajustes con que se crea cada candidato: las redes de neuralforecast, con la serie diaria (031:RF-27) salvo que el
+    operador pida otra resolución; la GRU y LightGBM, tal cual."""
+    salida = dict(ajustes or {})
+    if nombre in REDES and nombre != 'gru':
+        salida.setdefault('resolucion', RESOLUCION_REDES)
+    return salida
+
+
+def _competir_modelo(nombre: str, series, origenes, destino: dict, *, semilla: int, exogenas, ajustes, fabrica, log,
+                     memoria: list | None = None) -> dict[str, dict]:
+    """Un modelo global de la clase y magnitud, reentrenado en cada origen sin ver el futuro; devuelve lo que da tras el último dato.
+
+    031:RF-24: cada origen suelta la red y la caché de la GPU antes del siguiente, y en ``memoria`` queda, por origen, el lote
+    de series con que entrenó, lo que pedía cada serie y la VRAM libre medida.
+    """
     meses_finales = 12
     objetos = [s.objetivo for s in series.values()]
     modelo_final: dict[str, dict] = {}
@@ -796,21 +826,33 @@ def _competir_modelo(nombre: str, series, origenes, destino: dict, *, semilla: i
             continue
         fin = max(max(futuros_de[s.nombre]) for s in vivos)
         pasos = int((_inicio(fin + 1) - _inicio(hasta_mes + 1)) / np.timedelta64(15, 'm'))
-        modelo = fabrica(nombre, semilla=semilla, **dict(ajustes or {}))
+        modelo = fabrica(nombre, semilla=semilla, **ajustes_de_red(nombre, ajustes))
         objs = [o for o in objetos if o.nombre in {s.nombre for s in vivos}]
+        rotulo = 'emisión' if origen is None else 'origen ' + _rotulo(origen)
         try:
-            modelo.ajustar(objs, hasta, pasos, exogenas, semilla)
-        except ValueError as exc:                    # en los primeros orígenes ninguna serie llega a su historia mínima: ese origen no cuenta
-            log(f'{nombre}: {"emisión" if origen is None else "origen " + _rotulo(origen)} sin entrenar ({exc})')
-            continue
-        futuro = malla(hasta, hasta + np.timedelta64(pasos * 15, 'm'))
-        for clave, p in modelo.predecir_todos(objs, hasta, pasos, exogenas).items():
-            if origen is None:
-                modelo_final[clave] = _agregar_curva(futuro, np.asarray(p, dtype=float), futuros_de[clave])
-            else:
-                destino[(clave, origen)] = _agregar_curva(futuro, np.asarray(p, dtype=float), futuros_de[clave])
-        del modelo
-        log(f'{nombre}: {"emisión" if origen is None else "origen " + _rotulo(origen)} listo')
+            try:
+                modelo.ajustar(objs, hasta, pasos, exogenas, semilla)
+            except ValueError as exc:                    # en los primeros orígenes ninguna serie llega a su historia mínima: ese origen no cuenta
+                log(f'{nombre}: {rotulo} sin entrenar ({exc})')
+                continue
+            registro = getattr(modelo, 'memoria', None)
+            if memoria is not None and registro:
+                memoria.append({'origen': rotulo, **registro})
+                if registro.get('reintentos'):
+                    log(f'{nombre}: {rotulo} sin memoria en la GPU; entrena con {registro["series_por_lote"]} series por lote '
+                        f'tras {registro["reintentos"]} reintentos')
+            futuro = malla(hasta, hasta + np.timedelta64(pasos * 15, 'm'))
+            for clave, p in modelo.predecir_todos(objs, hasta, pasos, exogenas).items():
+                if origen is None:
+                    modelo_final[clave] = _agregar_curva(futuro, np.asarray(p, dtype=float), futuros_de[clave])
+                else:
+                    destino[(clave, origen)] = _agregar_curva(futuro, np.asarray(p, dtype=float), futuros_de[clave])
+        finally:
+            liberar = getattr(modelo, 'liberar', None)
+            if liberar is not None:
+                liberar()
+            del modelo
+        log(f'{nombre}: {rotulo} listo')
     return modelo_final
 
 

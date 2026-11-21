@@ -25,7 +25,7 @@ test('096:RF-8 retoma el último espacio con datos, no uno vacío recién creado
   const lista = [
     { id: 'vacio_nuevo', modified_at: 300, inputs: {}, estado: 'ok' },
     { id: 'antiguo', modified_at: 100, inputs: { red: 'RED.txt' }, estado: 'ok' },
-    { id: 'reciente', modified_at: 200, inputs: { vnr_package: 'ELOR' }, estado: 'ok' },
+    { id: 'reciente', modified_at: 200, inputs: { vnr_package: 'EMPB' }, estado: 'ok' },
   ];
   assert.equal(espacioParaRetomar(lista), 'reciente');
 });

@@ -63,8 +63,8 @@
 - [ ] T20. La suite entera repartida da lo mismo que en una sola sesión: con N = 1, 2 y 3 sobre el mismo árbol, las
       mismas pruebas, 0 fallidas y 0 omitidas, el pico del árbol de procesos con ≥ 1,5 GiB libres, y `GIB_POR_PROCESO`
       fijado con el pico medido; es la T20 la que sube PROCESOS_MAXIMOS (hoy 1, FIX-XDIST-UNO) al N medido. (RF-5)
-      Hecho cuando: el guion de comparación (PUERTA-XDIST/comparar_n.py), lanzado por b3 por los carriles en un hueco sin
-      puerta, deja su informe con «iguales» y los picos, y la constante queda con su medida.
+      Hecho cuando: el guion de comparación (`tools/comparar_suite_repartida.py`, MEJ15), lanzado por los carriles en
+      un hueco sin puerta, deja su informe con «iguales» y los picos, y la constante queda con su medida.
 - [x] T21. El tope de la suite sintética en Actions con margen: `timeout-minutes` 180 en `ci.yml`. (RF-30)
       Hecho cuando: `pytest tests/test_puerta_calidad.py -k rf30` en verde. Hecho en esta entrega (FIX-CI-TOPE, 4d).
 - [x] T22. Los dos arneses de navegador en un punto de entrada y en GitHub Actions (auditoría del 18-11, C5: H06).

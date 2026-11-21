@@ -7,6 +7,10 @@ proyecto, ejecuta el flujo de carga con lo que esté activo —variaciones y esc
 tal como los dejó el operador— y mide lo que entra por la cabecera de cada alimentador
 pedido (RF-19). No crea variación ni escribe nada en el proyecto.
 
+Si no converge, el informe trae lo que dice DIgSILENT (``mensajes``, RF-30), y si las
+variaciones del conversor existen apagadas lo avisa sin encenderlas (RF-31): el 2026-11-20 la
+verificación decía «no converge» con ``SED_NTP_`` apagada tras una calibración, y nada más.
+
     python tools/verificar_pf.py --plan plan.json --output-json informe.json
 
 El plan: ``{"project": ruta, "folder": carpeta, "feeders": [...]}``.
@@ -21,7 +25,8 @@ import json
 import traceback
 from pathlib import Path
 
-from cargas_pf import activar_proyecto, error_inesperado, flujo_de_carga, leer_cabecera
+from cargas_pf import (activar_proyecto, error_inesperado, flujo_de_carga_con_mensajes, leer_cabecera,
+                       variaciones_del_conversor_apagadas)
 from convertersmartgrid.dominio.native_action import native_action_block_report
 
 
@@ -36,7 +41,14 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     informe['variaciones_activas'] = sorted(v.loc_name for v in variaciones)
     escenario = app.GetActiveScenario()
     informe['escenario'] = escenario.loc_name if escenario is not None else None
-    informe['flujo'] = flujo = flujo_de_carga(app)
+    # 008:RF-31: sin activar nada (RF-18), lo que falta de lo del conversor, con sus transformadores.
+    apagadas = variaciones_del_conversor_apagadas(app, plan['project'])
+    if apagadas:
+        informe['variaciones_del_conversor_apagadas'] = apagadas
+        informe['avisos'].extend(x['aviso'] for x in apagadas)
+    informe['flujo'] = flujo = flujo_de_carga_con_mensajes(app)
+    # 008:RF-30 (con 025:RF-66): por qué no converge, con las palabras de DIgSILENT.
+    informe['mensajes'] = list(flujo.pop('mensajes', None) or [])
     elms = {f.loc_name: f for f in proyecto.GetContents('*.ElmFeeder', 1)}
     for feeder in plan.get('feeders') or []:
         fila = {'feeder': feeder, 'cabecera': None, 'motivo': None}

@@ -2,6 +2,7 @@
 """Ajuste generativo de un alumno NF4 fijado; conserva candidato sin activarlo (043/047).
 
 Uso: python tools/asistente_qlora.py --help
+El corpus de redacción del PIDE sellado (072:RF-50, RF-51) se audita con lo suyo y entrena con su propio prompt.
 """
 from __future__ import annotations
 import argparse
@@ -34,8 +35,16 @@ def main(argv=None):
     args.salida.mkdir(parents=True,exist_ok=True)
     try:
         from convertersmartgrid.aplicacion.asistente.llm_destilacion import auditar_fuentes_corpus,entrenar_epoca,ficha_base
+        from convertersmartgrid.aplicacion.asistente.corpus_redaccion import (TIPO_CORPUS,auditar_corpus_redaccion,
+            leer_particion_redaccion,tipo_corpus)
+        # 072:RF-51: el lector de cada tipo de corpus; sin tipo, el de órdenes de siempre.
+        lectores={TIPO_CORPUS:leer_particion_redaccion}
         if not args.dataset.is_dir():raise ValueError('no existe el corpus generativo sellado')
-        auditoria=auditar_fuentes_corpus(args.dataset)
+        if tipo_corpus(args.dataset)==TIPO_CORPUS:
+            # 072:RF-50: el corpus de redacción del PIDE tiene su auditoría; entrenar_epoca usa su prompt sellado.
+            auditoria=auditar_corpus_redaccion(args.dataset)
+        else:
+            auditoria=auditar_fuentes_corpus(args.dataset)
         base=ficha_base()
         if args.accion=='preflight':
             resultado={'status':'RECHAZADO','reason':'preflight de datos; entrenamiento no solicitado',
@@ -48,7 +57,7 @@ def main(argv=None):
             with turno_gpu('qlora-generativo'):
                 for epoca in range(1,args.epocas+1):
                     estado=entrenar_epoca(args.dataset,args.salida/f'epoca_{epoca}',epoca=epoca,
-                                         desde=desde,semilla=args.semilla)
+                                         desde=desde,semilla=args.semilla,lectores=lectores)
                     desde=Path(estado['checkpoint']);checkpoints.append(estado)
             resultado={'status':'RECHAZADO','candidate_status':'CANDIDATO','entrenado':True,
                 'training_completed':True,'promovido':False,'base':base,'auditoria':auditoria,

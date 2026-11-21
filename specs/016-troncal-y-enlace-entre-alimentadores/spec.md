@@ -330,7 +330,7 @@ Cable hasta la carga nueva (usuario, 2026-10-16)
 - Escala: la troncal y el tramo más cercano se calculan por alimentador con un recorrido
   de su red, sin recorrer la red entera del proyecto por cada alimentador ni por cada
   carga (constitución P2).
-- Universal: nada de nombres de Electro Dunas ni de un CRS fijo; las coordenadas son las
+- Universal: nada de nombres de Empresa A ni de un CRS fijo; las coordenadas son las
   del proyecto y los límites, los del perfil de empresa (P13).
 - Idioma: mensajes e informe en español.
 

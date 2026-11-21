@@ -359,7 +359,7 @@ def test_la_copia_sin_extension_se_reconoce_por_su_cabecera(monkeypatch, tmp_pat
     from convertersmartgrid.adaptadores.sources.vnr import VnrSourceAdapter
     from convertersmartgrid.adaptadores.entrada.vnr.discovery.official import OfficialDiscoveryError, validate_vnr_package_file
 
-    copia = tmp_path / 'ELOR25_V2'
+    copia = tmp_path / 'EMPB25_V2'
     copia.write_bytes(b'TAPE\x00\x00\x03\x00' + b'\x00' * 64)
     otro = tmp_path / 'NOTAS'
     otro.write_bytes(b'hola mundo')
@@ -386,6 +386,180 @@ def test_copia_real_de_vnr_gis():
     """023:RF-3 / 023:RF-9 — la copia real se restaura y da sus salidas con tramos y SED."""
     modelo, _avisos, alcance = sv.cargar_copia(os.environ['CSG_VNR_BAK'])
     assert alcance['base_red'].startswith('CSG_VNR_') and modelo.sections and modelo.loads
+
+
+def _filas_de_otra_empresa():
+    """080 T13: la comprobación del catálogo de una empresa es lo nuevo; su ausencia es la falla de la aserción, no un
+    error al importar (el rojo, sobre el código de antes, tiene que fallar por aserción)."""
+    from convertersmartgrid.aplicacion import catalog
+
+    funcion = getattr(catalog, 'filas_de_otra_empresa', None)
+    assert funcion is not None, 'falta aplicacion.catalog.filas_de_otra_empresa (080 T13)'
+    return funcion
+
+
+def test_las_filas_de_otra_empresa_se_ven_por_su_origen_y_por_su_codigo(tmp_path):
+    """080:RF-49, 080:RF-50 — una fila añadida al aparecer otra empresa es de otra; con los códigos de la fuente, también
+    la que no es de ellos ni de la semilla; la semilla y las de la propia empresa, nunca.
+
+    Antes: nada lo comprobaba; un fichero copiado de otra carpeta pasaba sin que nadie lo supiera."""
+    from convertersmartgrid.aplicacion.catalog import ampliar_catalogo, asegurar_catalogo_empresa
+
+    filas_de_otra_empresa = _filas_de_otra_empresa()
+    ruta = asegurar_catalogo_empresa(tmp_path / 'EMPC' / 'catalogo.xlsx')
+    assert filas_de_otra_empresa(ruta, 'EMPC') == [], 'la semilla no es de ninguna empresa'
+    assert filas_de_otra_empresa(ruta, 'EMPC', codigos=[]) == [], 'tampoco con los códigos de la fuente'
+    ampliar_catalogo(ruta, ['AA07003G'], origen='EMPC (copia_c.bak)')
+    ampliar_catalogo(ruta, ['N205003G'], origen='empc')
+    assert filas_de_otra_empresa(ruta, 'EMPC') == [], 'lo añadido al aparecer la propia empresa es suyo'
+
+    ampliar_catalogo(ruta, ['AA09503G'], origen='EMPD (copia_d.bak)')
+    assert filas_de_otra_empresa(ruta, 'EMPC') == [{'codigo': 'AA09503G', 'hoja': 'conductores_aereos',
+                                                    'empresa': 'EMPD', 'motivo': 'añadida al aparecer en EMPD'}]
+    por_codigo = filas_de_otra_empresa(ruta, 'EMPC', codigos=['AA07003G'])
+    assert {(f['codigo'], f['empresa']) for f in por_codigo} == {('AA09503G', 'EMPD'), ('N205003G', 'empc')}
+    assert [f['motivo'] for f in por_codigo if f['codigo'] == 'N205003G'] == [
+        'su código no está en la fuente de la empresa ni en la semilla']
+
+
+def test_la_carga_de_la_copia_dice_las_filas_de_otra_empresa_de_su_catalogo(monkeypatch, tmp_path):
+    """080:RF-49 — la carga de una copia comprueba el catálogo de su empresa: si trae filas añadidas al aparecer otra,
+    lo dice en sus avisos y en su procedencia, con los códigos, y no se bloquea; sin ellas, no dice nada.
+
+    Antes: la carga usaba el fichero de la empresa tal como estuviera, sin mirar de quién eran sus filas."""
+    from convertersmartgrid.adaptadores.sources.vnr import VnrSourceAdapter
+    from convertersmartgrid.aplicacion import reglas
+    from convertersmartgrid.aplicacion.catalog import ampliar_catalogo
+    from convertersmartgrid.dominio.sources.snapshot import snapshot_from_paths
+
+    datos, _ = _datos()
+    empresa = {'codigo': 'EMPC'}
+
+    def cargar(path, *, servidor, vecinas):
+        modelo, avisos = sv.modelo_canonico(datos)
+        return modelo, avisos, {'company': empresa['codigo'], 'period': 'VNR'}
+
+    monkeypatch.setattr(sv, 'cargar_copia', cargar)
+    copia = tmp_path / 'copia.bak'
+    copia.write_bytes(b'TAPE' + b'\x00' * 64)
+
+    def cargar_la_copia():
+        snap = snapshot_from_paths('vnr', {'vnr_package': copia}, tmp_path / empresa['codigo'], origin='prueba')
+        return VnrSourceAdapter().load(snap, aliases={})
+
+    limpia = cargar_la_copia()
+    assert 'CATALOGO_CON_FILAS_DE_OTRA_EMPRESA' not in {a['code'] for a in limpia.provenance['vnr_avisos']}
+    assert limpia.provenance.get('catalogo_filas_de_otra_empresa') == [], 'la clave va siempre, vacía si no hay'
+
+    ampliar_catalogo(reglas.catalogo_de_empresa('EMPC'), ['AA09503G'], origen='EMPD (copia_d.bak)')
+    res = cargar_la_copia()
+    avisos = [a for a in res.provenance['vnr_avisos'] if a['code'] == 'CATALOGO_CON_FILAS_DE_OTRA_EMPRESA']
+    assert len(avisos) == 1 and 'AA09503G' in avisos[0]['detalle'] and 'EMPD' in avisos[0]['detalle'], avisos
+    assert '(s)' not in avisos[0]['detalle'], 'sin plurales entre paréntesis'
+    assert [f['codigo'] for f in res.provenance.get('catalogo_filas_de_otra_empresa') or []] == ['AA09503G']
+    assert 'F1' in res.dataset.feeders, 'avisa, no bloquea'
+
+    empresa['codigo'] = 'EMPD'
+    otra = cargar_la_copia()
+    assert otra.provenance.get('catalogo_filas_de_otra_empresa') == [], 'el fichero de EMPD no tiene filas de EMPC'
+
+
+def _salidas_que_cubren_la_red(modelo, cuantas: int = 2) -> list[str]:
+    """Las primeras ``cuantas`` salidas de la copia y, además, la de la primera maniobra, el primer banco y el primer
+    regulador que haya: así la muestra trae equipos de cada clase, sin depender de qué empresa sea."""
+    salida_de = {f.feeder_id: f.source_sid for f in modelo.sources}
+    alimentador_de = {t.section_id: t.feeder_id for t in modelo.sections}
+    elegidas = [f.source_sid for f in modelo.sources[:cuantas]]
+    for equipos, alimentador in ((modelo.switches, lambda e: alimentador_de.get(e.section_id)),
+                                 (modelo.capacitors, lambda e: e.feeder_id),
+                                 (modelo.regulators, lambda e: alimentador_de.get(e.section_id))):
+        for e in equipos:
+            if salida_de.get(alimentador(e)):
+                elegidas.append(salida_de[alimentador(e)])
+                break
+    return list(dict.fromkeys(elegidas))
+
+
+@pytest.mark.skipif(not os.environ.get('CSG_VNR_BAK'), reason='sin CSG_VNR_BAK')
+def test_copia_real_sql_geopackage_capas_da_la_misma_red(tmp_path):
+    """080:RF-55 — con la copia real: SQL → GeoPackage → vía de capas da la misma red en tramos MT y BT, nodos, SED y
+    equipos (``comparar_red`` vacío), en una muestra de salidas que trae equipos de cada clase que tenga la empresa.
+
+    Las sintéticas prueban la regla; esta, que la vía de capas funciona con datos reales (080 T13)."""
+    _exige_capas()
+    from convertersmartgrid.adaptadores.entrada.vnr.exporters import capas
+    from convertersmartgrid.adaptadores.entrada.vnr.pipeline import canonicalize_vnr_package
+
+    bak = Path(os.environ['CSG_VNR_BAK'])
+    base_red = sv.restaurar(bak)
+    param = sv.copia_de_parametros(bak)
+    base_param = sv.restaurar(param) if param else None
+    mt, _avisos = capas.leer_base_restaurada(base_red, base_param, con_bt=False)
+    elegidas = _salidas_que_cubren_la_red(mt)
+    con_equipos = {'maniobras': bool(mt.switches), 'bancos': bool(mt.capacitors), 'reguladores': bool(mt.regulators)}
+    del mt
+
+    destino = tmp_path / 'paquete' / 'red.gpkg'
+    _ruta, origen = capas.exportar_copia_a_capas(base_red, destino, base_parametros=base_param, salidas=elegidas)
+    leido, _alcance = canonicalize_vnr_package(destino.parent)
+
+    assert capas.comparar_red(origen, leido.model) == {}
+    assert origen.sections and origen.sections_bt and origen.nodes and origen.loads, elegidas
+    for clase, lista in (('maniobras', origen.switches), ('bancos', origen.capacitors),
+                         ('reguladores', origen.regulators)):
+        assert bool(lista) == con_equipos[clase], (clase, elegidas)
+
+
+@pytest.mark.skipif(not os.environ.get('CSG_VNR_BAK'), reason='sin CSG_VNR_BAK')
+def test_dos_alimentadores_reales_con_el_catalogo_de_su_empresa(tmp_path):
+    """080:RF-49, 080:RF-50, 080:RF-52, 080:RF-53, 080:RF-58 — la carga real de la copia crea el catálogo de su empresa
+    con la semilla y lo amplía sin filas de otra; dos de sus alimentadores (uno con cables) llegan al DGS con tipos de
+    su fuente o de la semilla, cada cable con su capacitancia (``bline`` > 0) y todo a 60 Hz (080 T13)."""
+    from convertersmartgrid.adaptadores.sources.vnr import VnrSourceAdapter
+    from convertersmartgrid.adaptadores.validate import parse_dgs
+    from convertersmartgrid.aplicacion import reglas
+    from convertersmartgrid.aplicacion.batch import convert_selection
+    from convertersmartgrid.aplicacion.catalog import filas_semilla
+    from convertersmartgrid.dominio.sources.snapshot import snapshot_from_paths
+
+    filas_de_otra_empresa = _filas_de_otra_empresa()
+    snap = snapshot_from_paths('vnr', {'vnr_package': os.environ['CSG_VNR_BAK']}, tmp_path / 'espacio',
+                               origin='prueba')
+    res = VnrSourceAdapter().load(snap, aliases={})
+    empresa = res.provenance['company']
+    catalogo = reglas.catalogo_de_empresa(empresa)
+    assert str(tmp_path) in str(catalogo), 'la prueba no toca el catálogo real'
+    dataset = res.dataset
+    codigos = {fila['ID'] for filas in dataset.equipment_tables.values() for fila in filas if fila.get('ID')}
+    assert filas_de_otra_empresa(catalogo, empresa, codigos) == []
+    assert res.provenance.get('catalogo_filas_de_otra_empresa') == []
+
+    medio = {sid: cfg.get('Overhead') for sid, cfg in dataset.line_configurations.items()}
+    con_cable = [f for f, tramos in sorted(dataset.feeders.items()) if any(medio.get(t) == '0' for t in tramos)]
+    assert con_cable, 'la copia de la suite trae tramos de cable (CODTIPORED «S»)'
+    otro = next((f for f in sorted(dataset.feeders) if f != con_cable[0]), None)
+    assert otro is not None, 'la copia de la suite trae más de un alimentador'
+    manifiesto = convert_selection(dataset, [con_cable[0], otro], tmp_path / 'salida', strict=False,
+                                   include_geography=False, source_crs=res.provenance.get('crs'), workers=1,
+                                   catalogo=catalogo)
+    hechos = [f for f in manifiesto['feeders'] if f.get('status') == 'ok' and f.get('dgs')]
+    assert len(hechos) == 2, [(f.get('feeder'), f.get('status'), f.get('error')) for f in manifiesto['feeders']]
+
+    validos = {c.upper() for c in codigos} | {str(f['codigo']).upper() for filas in filas_semilla().values()
+                                              for f in filas}
+    cables = 0
+    for hecho in hechos:
+        tablas = parse_dgs(hecho['dgs'])
+        for tipo in tablas['TypLne']['rows_dict']:
+            nombre = tipo['loc_name'].upper()
+            assert any(nombre.startswith(c) for c in validos), (hecho['feeder'], tipo['loc_name'])
+            assert float(tipo['frnom']) == 60.0, tipo
+            if tipo['cohl_'] == '0':
+                cables += 1
+                assert float(tipo['bline'] or 0) > 0, ('cable sin capacitancia', hecho['feeder'], tipo['loc_name'])
+        for fila in tablas.get('TypVoltreg', {}).get('rows_dict', []):
+            assert float(fila['frnom']) == 60.0, fila
+    assert cables, 'el alimentador con cables tiene sus tipos de cable en el DGS'
 
 
 def test_fichas_del_catalogo_del_proyecto(tmp_path):

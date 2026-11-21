@@ -53,6 +53,7 @@ from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, Vers
     CancelacionAprendizajeRespuesta, CambiarSalidaPeticion, SalidasRedRespuesta,
     AprendidoRespuesta, AprendidoPreviaRespuesta, PromoverAprendidoPeticion)
 from .api_contract import FormatoPeticion, LibrosNuevosRespuesta, RevisarLibrosRespuesta    # specs 089 y 104
+from .api_contract import CorreccionesMedidorRespuesta                                  # 039:RF-23
 from .services import UserError
 from .workspace import (
     BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, EspacioNoUtilizable, Workspace, WorkspaceStore, safe_filename,
@@ -397,6 +398,15 @@ class ASuMaximaIn(BaseModel):
     """039:RF-13, RF-15: los códigos de los clientes fijos que van a su máxima del mes."""
 
     codigos: list[str] = Field(default_factory=list, max_length=20000)
+
+
+class CorreccionMedidorIn(BaseModel):
+    """039:RF-23: la corrección fechada del factor del medidor de un cliente (004:RF-111: ``factor_propuesto``)."""
+
+    codigo: str = Field(min_length=1, max_length=64)
+    factor: float = Field(gt=0, le=100)
+    desde: str = Field(pattern=r'^\d{4}-(0[1-9]|1[0-2])$')
+    motivo: str = Field(default='', max_length=500)
 
 
 class CompararFijasIn(BaseModel):
@@ -2264,6 +2274,15 @@ def create_app(
     @app.put('/api/workspaces/{wid}/demanda/clientes/a-su-maxima')
     def demanda_a_su_maxima(wid: str, body: ASuMaximaIn) -> dict:
         return services.guardar_a_su_maxima(ws_or_404(wid), body.codigos)
+
+    # 039:RF-23: correcciones fechadas del factor del medidor de un cliente, en el espacio; el libro no se toca.
+    @app.get('/api/workspaces/{wid}/demanda/clientes/correccion-medidor', response_model=CorreccionesMedidorRespuesta)
+    def demanda_correcciones_medidor(wid: str) -> dict:
+        return services.correcciones_medidor(ws_or_404(wid))
+
+    @app.put('/api/workspaces/{wid}/demanda/clientes/correccion-medidor', response_model=CorreccionesMedidorRespuesta)
+    def demanda_correccion_medidor(wid: str, body: CorreccionMedidorIn) -> dict:
+        return services.registrar_correccion_medidor(ws_or_404(wid), body.codigo, body.factor, body.desde, body.motivo)
 
     # 039:RF-5: las fijas con los dos criterios, frente a la cabecera y a la red simulada.
     @app.post('/api/workspaces/{wid}/demanda/clientes/comparar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)

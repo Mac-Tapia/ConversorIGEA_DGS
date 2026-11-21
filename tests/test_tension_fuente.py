@@ -38,14 +38,14 @@ def _libro(path: Path, hojas: dict[str, list[list]]) -> Path:
 
 
 def _serie(semilla: int, n: int, titulos: list[str], tension) -> tuple[list[list], int]:
-    """Hoja con ``n`` registros de 15 min y la máxima en un registro sorteado; ``tension(i)`` da las
-    celdas de tensión de cada registro, en el orden de ``titulos[3:]``."""
+    """Hoja con ``n`` registros horarios (la hora es el registro, 004:RF-112) y la máxima en un registro
+    sorteado; ``tension(i)`` da las celdas de tensión de cada registro, en el orden de ``titulos[3:]``."""
     rng = random.Random(semilla)
     pico = rng.randrange(n)
     filas = [titulos]
     for i in range(n):
         kw = 9537.88 if i == pico else rng.uniform(2000.0, 9000.0)
-        filas.append([T0 + timedelta(minutes=15 * i), kw, rng.uniform(100.0, 2600.0), *tension(i)])
+        filas.append([T0 + timedelta(hours=i), kw, rng.uniform(100.0, 2600.0), *tension(i)])
     return filas, pico
 
 
@@ -69,7 +69,7 @@ def test_vll_avg_mean_del_mismo_registro_en_voltios(tmp_path, semilla):
     valores[pico] = 23536.27
     filas[pico + 1][4] = 23536.27
     r = _maxima(tmp_path, filas)
-    assert r.kw == pytest.approx(9537.88) and r.fecha == (T0 + timedelta(minutes=15 * pico)).isoformat(sep=' ')
+    assert r.kw == pytest.approx(9537.88) and r.fecha == (T0 + timedelta(hours=pico)).isoformat(sep=' ')
     assert r.tension == pytest.approx(23536.27) and r.tension_columna == 'Vll avg mean'
     dm.poner_tension(r, 22.9)
     assert r.tension_kv == pytest.approx(23.53627)
@@ -134,9 +134,9 @@ def test_unidad_por_la_nominal(tmp_path):
 def test_hoja_partida_sigue_siendo_de_una_magnitud(tmp_path):
     """021:RF-71 — la tensión no cuenta como magnitud: la hoja del kW con tensión y la del kVAR se unen
     por fecha como antes (004:RF-25), y la tensión es la del registro del kW máximo."""
-    kw = [['Local Time', 'kW tot', 'Vll avg mean']] + [[T0 + timedelta(minutes=15 * i), 100.0 + i, 22900.0 + i]
+    kw = [['Local Time', 'kW tot', 'Vll avg mean']] + [[T0 + timedelta(hours=i), 100.0 + i, 22900.0 + i]
                                                         for i in range(6)]
-    kvar = [['Local Time', 'kVAR tot']] + [[T0 + timedelta(minutes=15 * i), 10.0 + i] for i in range(6)]
+    kvar = [['Local Time', 'kVAR tot']] + [[T0 + timedelta(hours=i), 10.0 + i] for i in range(6)]
     libro = _libro(tmp_path / 'c.xlsx', {'MED_kW': kw, 'MED_kVAR': kvar})
     [r] = dm.maximas([libro], [('A1', 'MED')])
     assert r.kw == 105.0 and r.kvar == 15.0 and r.tension == 22905.0
@@ -245,7 +245,7 @@ from test_demanda_medida_web import _xlsx  # noqa: E402
 from convertersmartgrid.presentacion.web import services  # noqa: E402
 
 CON_TENSION = {'M1': [['Local Time', 'kVAR tot', 'kW tot', 'Vll avg mean']]
-               + [[datetime(2026, 7, 1) + timedelta(minutes=15 * i), 10.0, 100.0 + i, 23000.0 + 67.0 * i]
+               + [[datetime(2026, 7, 1) + timedelta(hours=i), 10.0, 100.0 + i, 23000.0 + 67.0 * i]
                   for i in range(8)]}
 
 
@@ -286,7 +286,7 @@ def test_el_plan_lleva_la_medida_por_defecto(client, monkeypatch):
     assert r.status_code == 200, r.text
     [ajuste] = r.json()['ajustes']
     assert ajuste['tension_fuente']['origen'] == 'medida'
-    assert ajuste['tension_fuente_origen'].startswith('medida a las 2026-07-01 01:45:00 en M1 (Vll avg mean)')
+    assert ajuste['tension_fuente_origen'].startswith('medida a las 2026-07-01 07:00:00 en M1 (Vll avg mean)')
     plan = _recibido(client, wid, r.json()['token'])
     assert plan['tension_fuente_pu'] == pytest.approx(23.469 / 22.9)
     assert plan['tension_fuente']['kv'] == pytest.approx(23.469)
@@ -404,7 +404,7 @@ def test_front_columnas_de_tension():
     """021:RF-77, 021:RF-78 — «V (kV)» y «V (pu)» en la tabla de la máxima y en la de barras de SET."""
     assert DEMANDA.count('>V (kV)</th>') == 2 and DEMANDA.count('V (pu)</th>') == 2
     assert 'fmtNum(r.tension_kv, 3)' in DEMANDA and 'fmtNum(r.tension_pu, 4)' in DEMANDA
-    assert 'fmtNum(b.tension_kv, 3)' in DEMANDA and 'colSpan={8}' in DEMANDA
+    assert 'fmtNum(b.tension_kv, 3)' in DEMANDA and 'colSpan={columnasDeDatos}' in DEMANDA
 
 
 def test_front_campo_de_la_fuente_relleno_con_la_medida():

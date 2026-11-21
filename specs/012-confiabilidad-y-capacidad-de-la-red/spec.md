@@ -304,7 +304,7 @@ de falla y ningún espectro: ninguna fuente los trae y no se rellenan con valore
   alimentadores marcados, sin número fijo; el tiempo lo acota el límite de RF-5, no un
   tamaño de red.
 - Universalidad (constitución P13): las clases de elemento y el fichero no dependen de
-  una distribuidora; nada de Electro Dunas como valor por defecto.
+  una distribuidora; nada de Empresa A como valor por defecto.
 - Idioma: mensajes, columnas de la plantilla e informe en español.
 - Datos de la distribuidora (P9): el fichero de la empresa no se publica ni se envía a
   un servicio externo.

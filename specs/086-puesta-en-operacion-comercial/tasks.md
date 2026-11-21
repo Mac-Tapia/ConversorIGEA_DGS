@@ -200,7 +200,7 @@
 
 ## F6 Corridas reales sobre el candidato congelado
 
-Cada corrida: `tools/sistema_web.py` y el navegador, en serie, con proyectos de prueba nuevos. `D=D:/BaseDatosElectroDunas/referencia_retirada_20261102`.
+Cada corrida: `tools/sistema_web.py` y el navegador, en serie, con proyectos de prueba nuevos. `D=<DATOS>/<COPIA_ANTERIOR>`.
 
 - T24. Retirada el 2026-11-08 por orden del usuario, sin hacer: R1 con CA101 + PE104 ya se hizo; sus tareas siguen cada una por su cuenta. Era: [DIgSILENT] R1, CA101 + CHN102, TXT (el usuario la cambió de CA101 + PE104 el 2026-11-08), sobre el proyecto `20261105-124711_CSG_TXT_CA101_CHN102`, sin reconvertir: `--red CA101 CHN102 --grupo CA101_CHN102 --demanda-dir $D --periodo 2026-07`, luego en el navegador calibración, cargas, obras, transferencia e informes. (RF-45)
 - [x] T25 [DIgSILENT] R2, SI213 y PN107, MDB, uno por vez, con cargas por el navegador. (RF-45)
@@ -212,7 +212,7 @@ Cada corrida: `tools/sistema_web.py` y el navegador, en serie, con proyectos de 
 - [x] T27 [DIgSILENT] R4, NA203 + NA205, TXT, proyecto nuevo, con los dos criterios de fijas, cargas y obras. (RF-45)
   Cierra: 039 T4, 042 T6, 052 T4, 084 T8, 017 T14, 073 T8, 073 T10. Hecho cuando: NA203 con «máximo del mes» da 7 707,5 kW y 3 725,5 kvar (039); SET en 0,94–1,06 pu y fuera del trazado; oráculo frente a DIgSILENT; valle.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
-- [x] T28 [DIgSILENT] R5, NJA202 y R205, VNR-GIS de Electro Oriente. (RF-45, RF-46)
+- [x] T28 [DIgSILENT] R5, NJA202 y R205, VNR-GIS de Empresa B. (RF-45, RF-46)
   Cierra: 051 T3, 055 T2, 056 T3, 005 T12, 081 T16. Hecho cuando: cabecera dentro del 1 %; sistemas y SET; vocabulario y carpeta de la empresa. R205 frente a 0205 sin suponer alias.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T29 Navegador: 067 T8, 077 T7, 073 T10, y escritorio con pantalla estrecha. (RF-45)

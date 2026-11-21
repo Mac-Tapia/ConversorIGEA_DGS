@@ -1314,7 +1314,8 @@ def test_libro_a_libro_da_lo_mismo_que_alimentador_a_alimentador(tmp_path):
     for i in range(k):
         hojas = {}
         for j in range(3):
-            if rng.random() < .8 or i == 0:
+            # Un libro con alguna hoja: sin ninguna, openpyxl no lo guarda (con CSG_SCALE_SEED=13 el segundo salía vacío).
+            if rng.random() < .8 or i == 0 or (j == 2 and not hojas):
                 hojas[f'M{j}'] = _serie(rng.randint(1, 3), 30.0 + 10 * i + j, inicio=T0 + timedelta(hours=rng.randint(0, 30)),
                                         ruido=rng.randrange(10**6))
         _libro_cabecera(carpeta / f'l{i}.xlsx', hojas)

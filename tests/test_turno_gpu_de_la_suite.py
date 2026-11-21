@@ -397,6 +397,28 @@ def test_un_trabajador_hereda_la_carpeta_de_datos_y_no_crea_otra():
     assert propia == 'False' and Path(carpeta) == conftest._SESION_DE_DATOS
 
 
+def test_cada_trabajador_de_xdist_tiene_su_runtime_y_sus_almacenes():
+    """102:RF-5, 106:RF-17 — un trabajador de xdist no comparte con otro el runtime ni los almacenes del asistente y
+    del gemelo: los suyos van en la carpeta de la sesión, bajo su nombre. Lo que fijó otro (no la ruta de la sesión) se
+    respeta. Ensayo con -n 2 del 2026-11-13: dos trabajadores en el mismo almacén del asistente contaron 17 órdenes
+    donde había 8."""
+    import subprocess
+    import sys
+
+    sesion = conftest._SESION_DE_DATOS
+    fijada = str(sesion / 'otra_del_usuario')
+    entorno = {**os.environ, 'PYTEST_XDIST_WORKER': 'gw7', 'CSG_RUNTIME_HOME': str(sesion / 'runtime'),
+               'CSG_ASISTENTE_DATA': str(sesion / '_asistente'), 'CSG_TWIN_DATA': fijada}
+    codigo = ('import os, sys; sys.path.insert(0, "tests"); import conftest; '
+              'print("|".join(os.environ[v] for v in ("CSG_RUNTIME_HOME", "CSG_ASISTENTE_DATA", "CSG_TWIN_DATA")))')
+    salida = subprocess.run([sys.executable, '-c', codigo], cwd=RAIZ, env=entorno, capture_output=True, text=True,
+                            timeout=120)
+    assert salida.returncode == 0, salida.stderr
+    runtime, asistente, gemelo = salida.stdout.strip().splitlines()[-1].split('|')
+    assert Path(runtime) == sesion / 'gw7' / 'runtime' and Path(asistente) == sesion / 'gw7' / '_asistente'
+    assert gemelo == fijada
+
+
 def test_sin_gpu_la_prueba_de_cuda_se_omite_en_github_y_falla_en_local():
     """102:RF-17 — en GitHub Actions no hay GPU: la prueba que necesita CUDA queda omitida con su motivo, como el resto de
     pruebas de GPU; en local, sin la variable de CI, sigue siendo un fallo. Actions, run 43815847560 (15-11)."""

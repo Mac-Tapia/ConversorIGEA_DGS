@@ -20,7 +20,7 @@ Estado: propuesto el 2026-10-10, pendiente de aprobar. No se ha movido código t
   `_power_conflict`, `_resolve_power`; `oraculo` ← `dgs._tr2_curmg_pct`, `_tr2_losses_kw`,
   `_tr2_strn_mva`; `reglas` ← `model._calc_p_q`; `validate` ← `dgs._line_neighbors`;
   `web.source_scope` ← `vnr_etl.pipeline._geojson_rows`, `_period_key`.
-- **Convenciones de Electro Dunas en el código (RF-31 a RF-34):** `EPSG:32718` como valor
+- **Convenciones de Empresa A en el código (RF-31 a RF-34):** `EPSG:32718` como valor
   por defecto en 6 módulos de `src/` (`batch`, `cli`, `geography`, `web.app`,
   `web.services`, `web.workspace`) y 7 herramientas (`accept_three_sources`,
   `apply_catalog_to_model`, `base_scenario`, `build_system_grid`, `convertir_grupos_mdb`,
@@ -62,7 +62,7 @@ como hoy: son procesos aparte que reciben un plan JSON (P7).
   Se incluye `config/perfiles/electro_dunas.json` como un perfil más (RF-35), sin datos
   de la red, solo convenciones; la spec 009 (RF-14) se ajusta para admitir esa carpeta.
   Sin perfil ni CRS en la entrada, la web y el CLI piden el CRS (RF-32) en vez de suponer
-  `EPSG:32718`; la línea base se regenera con el perfil de Electro Dunas, no con un valor
+  `EPSG:32718`; la línea base se regenera con el perfil de Empresa A, no con un valor
   por defecto.
 - **Entry points en `pyproject.toml`**, grupo `convertersmartgrid.modulos`, también para los
   lectores y el escritor propios (RF-9). El registro se resuelve una vez en el proceso

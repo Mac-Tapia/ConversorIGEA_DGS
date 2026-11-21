@@ -88,7 +88,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       desequilibrado. Evitarlo pide una variación o cambiar `i_sym`, los dos fuera de lo
       decidido. La web muestra el balance físico y el fallo de la validación (RF-49, RF-50).
 - [x] T20. Escaladas por potencia instalada (P base = kVA × FP) con un mismo factor de
-      escala; FP de las escaladas del perfil de empresa (Electro Dunas 0,98) o, sin él, el
+      escala; FP de las escaladas del perfil de empresa (Empresa A 0,98) o, sin él, el
       de la máxima; fijas con su EA/ERI; el informe y la web dicen de dónde sale cada uno.
       (RF-44, RF-45, RF-53 a RF-58)
       Hecho cuando: suite de web, front y calibración en verde y la calibración real de CA101.
@@ -260,3 +260,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       cabecera antes y después en DIgSILENT va en el bloque de 086 T105.
       Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
       hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T30. MEJ10-FIJAS (orden del usuario del 20-11): `plausibilidad_fijas`, `cliente_supera_cabecera`, `horas_del_mes`, `hermanas_de`, `kva_de_grupo` y los grupos de `reparto_inicial` en el dominio; `plausibilidad_del_plan` y `anotar_kva_de_la_fuente` en el guion, y `evidencia_fijas` en el plan de la web. (RF-73, RF-74, RF-75)
+      Hecho cuando: rojo por aserción sobre 2f9de358 y verde con `tests/test_ajuste_cabecera.py -k "rf73 or rf74 or rf75"` y `tests/test_ajuste_cabecera_guion.py -k "rf73 or rf75"`; la corrida en DIgSILENT la decide d8.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ10_FIJAS/rojo.log (rf73 ×5, rf74 ×2, rf75 ×2); verde D:/csg/PM_IMPL/MEJ10_FIJAS/verde_py.log; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).

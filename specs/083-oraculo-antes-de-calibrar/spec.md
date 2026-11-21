@@ -69,7 +69,11 @@ oráculo propone el arranque, nunca da una calibración por buena (024, principi
   cuadrar porque sus fijas más sus pérdidas ya pasan de la medida, con las dos cifras. En Pisco (2026-11-03) PA219 (fija de 4 163 kW, medida 4 289 kW)
   quedaba un 2,2 % arriba con sus escaladas casi en cero, y por él se tiraban los factores de los otros 17, que ya estaban dentro del 1 %.
 - RF-29: CUANDO empieza una calibración, EL SISTEMA dejará activas en «Sin proyecto» y «Con proyecto» las variaciones del conversor del proyecto
-  (`SED_NTP_`, `Fichas_`), y lo dirá si alguna estaba apagada. Una orden que termina con fallo restituye el estado (064:RF-5) y las apaga si las activó ella.
+  (`SED_NTP_`, `Fichas_`), y lo dirá si alguna estaba apagada. Una orden que termina con fallo restituye el estado (064:RF-5) y las apaga si las activó ella,
+  salvo que la calibración haya dejado grabado el reparto (015:RF-69): entonces se quedan activas (064:RF-11), porque las cargas grabadas son las que
+  convergieron con esos transformadores y esas fichas. Choque resuelto el 2026-11-20: la calibración terminó en VIOLACION_FISICA con el reparto grabado
+  (código 2), el servidor apagó `SED_NTP_`, las cargas quedaron sobre los kVA del archivo (hasta el 2 048 %) y ni la verificación ni el gemelo
+  convergían. 015:RF-69 no cambia; sin nada grabado, la restitución sigue como antes.
   Pisco (2026-11-03): cada calibración no válida deshacía los transformadores puestos; la siguiente veía SE30037 con 300 kVA en vez de 6 × 630 kVA, no
   convergía y los proponía de nuevo, iguales.
 - RF-30: SI un alimentador sigue por encima de su medida con las escaladas al mínimo (por debajo del 5 % de su factor inicial) y el exceso no pasa del 10 % de

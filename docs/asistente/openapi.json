@@ -3034,6 +3034,94 @@
         "title": "CopiaExistente",
         "type": "object"
       },
+      "CorreccionMedidorIn": {
+        "description": "039:RF-23: la corrección fechada del factor del medidor de un cliente (004:RF-111: ``factor_propuesto``).",
+        "properties": {
+          "codigo": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Codigo",
+            "type": "string"
+          },
+          "desde": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "title": "Desde",
+            "type": "string"
+          },
+          "factor": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 100.0,
+            "title": "Factor",
+            "type": "number"
+          },
+          "motivo": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Motivo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "codigo",
+          "factor",
+          "desde"
+        ],
+        "title": "CorreccionMedidorIn",
+        "type": "object"
+      },
+      "CorreccionMedidorRespuesta": {
+        "additionalProperties": false,
+        "description": "039:RF-23: una corrección fechada del factor del medidor de un cliente.",
+        "properties": {
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "desde": {
+            "title": "Desde",
+            "type": "string"
+          },
+          "factor": {
+            "title": "Factor",
+            "type": "number"
+          },
+          "motivo": {
+            "default": "",
+            "title": "Motivo",
+            "type": "string"
+          },
+          "registrada": {
+            "title": "Registrada",
+            "type": "string"
+          }
+        },
+        "required": [
+          "codigo",
+          "factor",
+          "desde",
+          "registrada"
+        ],
+        "title": "CorreccionMedidorRespuesta",
+        "type": "object"
+      },
+      "CorreccionesMedidorRespuesta": {
+        "additionalProperties": false,
+        "description": "039:RF-23: las correcciones del factor de medidor registradas en el espacio.",
+        "properties": {
+          "correcciones": {
+            "items": {
+              "$ref": "#/components/schemas/CorreccionMedidorRespuesta"
+            },
+            "title": "Correcciones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "correcciones"
+        ],
+        "title": "CorreccionesMedidorRespuesta",
+        "type": "object"
+      },
       "CorreoAdjuntoRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -17783,6 +17871,92 @@
           }
         },
         "summary": "Demanda Comparar Fijas"
+      }
+    },
+    "/api/workspaces/{wid}/demanda/clientes/correccion-medidor": {
+      "get": {
+        "operationId": "demanda_correcciones_medidor_api_workspaces__wid__demanda_clientes_correccion_medidor_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorreccionesMedidorRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Demanda Correcciones Medidor"
+      },
+      "put": {
+        "operationId": "demanda_correccion_medidor_api_workspaces__wid__demanda_clientes_correccion_medidor_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorreccionMedidorIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorreccionesMedidorRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Demanda Correccion Medidor"
       }
     },
     "/api/workspaces/{wid}/demanda/clientes/cruzar": {

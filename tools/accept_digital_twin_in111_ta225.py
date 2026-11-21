@@ -5,7 +5,7 @@ Lee dos veces el proyecto de DIgSILENT, cada vez en un proceso nuevo, con
 ``tools/digital_twin_snapshot_pf.py`` (solo lectura), comprueba los hechos del caso
 dorado y registra su episodio en el búfer. Los hechos (proyecto, nodos, enlace,
 seccionador, tensiones) van en el JSON ``--esperado``, no en el código: el caso de
-Electro Dunas es IN111–TA225, y otro caso dorado es otro JSON.
+Empresa A es IN111–TA225, y otro caso dorado es otro JSON.
 
     python tools/accept_digital_twin_in111_ta225.py --esperado caso.json --output-json informe.json
 

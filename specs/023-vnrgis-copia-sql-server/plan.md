@@ -2,7 +2,7 @@
 
 ## Lo que mostró la copia real (2026-10-18)
 
-`ELDU_VNR_24_APR.bak` (SQL Server 2022, 819 MB) restaurada en `.\SQLEXPRESS`: 75 tablas del
+`EMPA_VNR_24_APR.bak` (SQL Server 2022, 819 MB) restaurada en `.\SQLEXPRESS`: 75 tablas del
 modelo VNR-GIS del regulador, iguales para toda concesionaria. Las que usa la conversión:
 
 | Concepto | Tabla | Campos |

@@ -64,10 +64,14 @@ def _cargar(guion: str):
     return modulo
 
 
-def _restituir_tras_fallo(app, foto) -> None:
-    """064:RF-5 a RF-7: la orden falló; lo que dejó a medias no lo hereda la siguiente."""
+def _restituir_tras_fallo(app, foto, conservar=()) -> None:
+    """064:RF-5 a RF-7: la orden falló; lo que dejó a medias no lo hereda la siguiente.
+
+    064:RF-11: las variaciones que la orden pidió conservar (lo que dejó grabado depende de
+    ellas) no se desactivan.
+    """
     try:
-        hecho = pf_estado.restituir(app, foto)
+        hecho = pf_estado.restituir(app, foto, conservar=conservar)
     except Exception as exc:  # noqa: BLE001 - la API puede fallar; el servidor sigue
         print(f'AVISO: la orden falló y no se pudo restituir el estado de DIgSILENT: {exc}.', flush=True)
         return
@@ -98,6 +102,7 @@ def atender(orden: dict, cola: Path, app=None) -> int:
                 except pf_estado.FotoFallida as exc:
                     print(f'AVISO: {exc}. La orden se atiende, pero si falla no se podrá '
                           'restituir el estado.', flush=True)
+            pf_estado.olvidar_conservar()          # 064:RF-11: lo de la orden anterior no vale
             try:
                 codigo = _cargar(orden['guion']).main(list(orden.get('argv') or []))
             except SystemExit as exc:
@@ -106,8 +111,9 @@ def atender(orden: dict, cola: Path, app=None) -> int:
                 traceback.print_exc()
                 codigo = 1
             if codigo and foto is not None:
-                _restituir_tras_fallo(app, foto)
+                _restituir_tras_fallo(app, foto, pf_estado.pedidos_de_conservar())
     finally:
+        pf_estado.olvidar_conservar()
         # 064:RF-9: la orden se cierra siempre; su cliente no espera para siempre.
         (cola / f"{orden['id']}.fin.json").write_text(json.dumps({'codigo': codigo or 0}),
                                                       encoding='utf-8')

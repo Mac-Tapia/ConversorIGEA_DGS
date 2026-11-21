@@ -56,4 +56,4 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       RF y sus pruebas (una por RF; todas en el mapa `D:/csg/PM_IMPL/PISTA3/MARCAS-PISTA3/mapa_T_RF_pruebas.tsv`):
       RF-48: `tests/test_libros_nuevos.py::test_el_estado_no_se_da_por_guardado_si_windows_lo_niega_siempre` (línea 229).
       Hecho el 2026-11-15 (MARCAS-PISTA3; arreglo de ccceb4c8): rojo `D:/csg/PM_IMPL/104_REINTENTO/rojo_192946.log`
-      (la F es el PermissionError que la prueba reproduce); verde: suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log:1202` «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.»
+      (la F es el PermissionError que la prueba reproduce); verde: suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log` (línea 1202) «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.»

@@ -20,7 +20,7 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       Hecho cuando: prueba con dos años de presentación distintos, sin ningún año en el código.
 - [x] T2 Contrato de costos y adaptador SICODI, con cruce por código, tensión, estructura y sector típico. (RF-5, RF-7, RF-8, RF-9)
       Hecho cuando: prueba con los TXT públicos y medida de cuántos tramos de una red real cruzan.
-      Medido el 2026-11-02, SICODI de la Res. 184-2026-OS/CD contra los 25 códigos de línea que lista el inventario de una red de ELOR:
+      Medido el 2026-11-02, SICODI de la Res. 184-2026-OS/CD contra los 25 códigos de línea que lista el inventario de una red de EMPB:
       22 con costo y 94,7 % de sus tramos. Los otros 3 terminan en `H`, tensión que el SICODI no trae, y quedan como hueco nombrado.
       Falta declarar la moneda (el TXT no la dice) y el sector típico de cada sistema.
 - [x] T3 Adaptador de módulos estándar de transmisión. (RF-5, RF-6)
@@ -38,7 +38,7 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       Hecho cuando: los metrados de un alimentador real cuadran con sus longitudes.
 - [x] T5 Proyección de mercado y prueba contra lo ocurrido. (RF-10, RF-11)
       Hecho cuando: medida contra la tasa de 029 en una prueba sin mirar el futuro.
-      Medido el 2026-11-02 con el Formato 01 de `PIDE 2026` de Electro Oriente (energía 2015-2025): 53 sistemas son 9 perfiles
+      Medido el 2026-11-02 con el Formato 01 de `PIDE 2026` de Empresa B (energía 2015-2025): 53 sistemas son 9 perfiles
       distintos. Mediana de error a 1, 4 y 8 años: tasa media 3,55/5,92/6,28 %; tendencia 4,58/6,24/6,41 %; tasa de un año
       (referencia) 4,93/7,98/9,40 %; sin crecimiento 4,70/9,30/12,21 %. Corte 2021 → 2025, sobre las 53 series: 12,5 % la tasa
       media y 15,8 % la referencia. Pocos perfiles y una sola empresa: orienta, no generaliza. Faltan variables exógenas (031)
@@ -81,6 +81,10 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       selección revisable de 19 documentos DOCX distintos, con fragmentos y
       procedencia, y plantilla de decisiones sin completar. No se creó ninguna
       revisión humana ni se entrenó; evidencia externa `paralelo_p17_20261108/revision_humana`.
+      Revisión del maestro (2026-11-20, revisor independiente, origen «maestro»): 812 aprobadas, 2 217 a corregir y
+      9 226 rechazadas. Por la orden del usuario del 2026-11-19 (RF-48) cuenta para cerrar, marcada con su origen; sus
+      huecos de código y el ajuste con el prompt de redacción van en T25. Sigue abierta: faltan registrar esas
+      decisiones con `--origen maestro`, sellar y el turno de GPU que lanza d8.
 - [x] T10 Etiqueta de casos de prueba. (RF-20)
       Hecho cuando: consta en la arquitectura y una prueba lo comprueba.
 - [x] T12 El COyM del perfil en la propuesta del PIDE y en F10 a F12. (RF-22)
@@ -129,7 +133,7 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       Corrida: 1 651 módulos de la 152 (sha256 670be02c…60cb), obra de la Alt1 del plan publicado de un área (39
       elementos): 38 valorados, 27,43 M USD frente a 24,15 M publicados; sin costo el módulo propio del libro
       `TP-060MTMT-040COE_R`, y 50 componentes sin módulo nombrados. Evidencia: `D:/csg/INTEGRA_54/cierre_tareas/osinergmin/evidencia_072/T13_valoracion.json`.
-- [ ] T14 Desde la 098 (2026-11-07): en cada año del PIDE, la obra que pida el año, encima de las anteriores y empezando
+- [x] T14 Desde la 098 (2026-11-07): en cada año del PIDE, la obra que pida el año, encima de las anteriores y empezando
       por la de corto plazo del estudio de «Con proyecto» (098:RF-37), con el año en que esta vuelve a fallar
       (098:RF-39, RF-40) como punto de partida. Usuario (2026-11-07): el PIDE se integra como flujo propio, para
       cualquier alimentador y empresa; cubre los años siguientes a los 4 del corto plazo; parte de copias de los casos
@@ -140,11 +144,30 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       Hecho cuando: el modo anual, con proyección aceptada y obras físicas, dé la obra
       de cada año encima de la anterior y su restitución se relea; repetir con datos
       y caso nativo autorizado y conectar el flujo del operador antes de cerrarla.
-      Bloqueada por 089 T7 (proyección anual aceptada) y por el ensayo en DIgSILENT sobre copia autorizada (c2, 17-11).
+      Bloqueada por 089 T7 (proyección anual aceptada) y por el ensayo en DIgSILENT sobre copia autorizada (c2, 17-11);
+      el 2026-11-20 la proyección la da la 031 (ver abajo).
       Avance (f7, 17-11): el flujo del operador está conectado: «Continuación anual desde corto plazo aceptado» en
       GemeloPIDE.tsx (FormularioPideAnual: las tres fuentes a POST /pide/fuentes, el corto plazo identificado y las
       obras por año), POST /pide en modo anual en el carril powerfactory, y VistaPideAnual con el resultado de cada
       año y la restitución. Sin la proyección anual aceptada, el modo anual se bloquea y lo dice (RF-24).
+      Hecho el 2026-11-20 (MEJ18, wt_d8_obras; aclaración de RF-25 y RF-26): `tools/pide_pf.py` en modo anual toma las
+      obras declaradas como candidatas desde su año (lo de un año con la misma `alternativa` es una obra; sin ella, todo lo
+      del año, como antes), en el orden de la escalera; en el año que falla prueba, encima de las acumuladas, una a una
+      las que aún no están puestas, se queda con la primera que cumple y retira la que no (sigue
+      disponible para los años siguientes); si ninguna sola basta, todas juntas, y si tampoco, bloqueado. El informe da
+      por año `obras_probadas` (con su resultado), `obras_aplicadas` y `obras_acumuladas`, y `punto_de_partida`: el año en
+      que el estudio de «Con proyecto» dijo que la de corto plazo vuelve a fallar (su `vuelve_a_fallar`, 098:RF-39,
+      RF-40) frente al primero medido, con un aviso si difieren. La proyección aceptada ya no espera a la 089 T7: la emite
+      y acepta la 031 (`tools/proyeccion_anual.py`), que lee el mismo `leer_proyeccion_anual`. Pruebas en
+      `tests/test_pide_anual.py`: `test_el_anio_prueba_las_candidatas_en_orden_y_se_queda_con_la_primera_que_cumple`,
+      `test_la_candidata_que_no_hace_falta_sigue_para_el_anio_que_la_pida`,
+      `test_ninguna_sola_basta_ni_juntas_bloquea_y_conserva_el_origen`, `test_sin_alternativa_lo_declarado_para_el_anio_va_junto`, `test_el_anio_en_que_vuelve_a_fallar_es_el_punto_de_partida`
+      y `test_proyeccion_emitida_por_la_031_da_la_obra_de_cada_anio_y_restituye` (la proyección emitida por la 031 con
+      series sintéticas, la obra de cada año encima de la anterior y la restitución releída, sobre el doble de
+      DIgSILENT); rojo por aserción con la herramienta de la base y verde, en `D:/csg/PM_IMPL/MEJ18_OBRAS/`. La repetición
+      sobre una copia nativa del proyecto de prueba queda en su guion exacto (`D:/csg/PM_IMPL/MEJ18_OBRAS/T14_guion_nativo.sh`:
+      cargas por el arnés, proyección de la 031 con la medición real, aceptación del corto plazo y POST del PIDE anual por
+      la web de prueba, y relectura); no se corrió el 2026-11-20 por la puerta viva y la suite de main.
 - [x] T15 Contrato anual y continuación en copias con pruebas CPU. (RF-23 a RF-28)
       Hecho cuando: `pytest -q tests/test_pide_anual.py` compruebe acumulación,
       proyección P/Q trazable, negativas y restitución, sin abrir motor.
@@ -271,3 +294,20 @@ otorga aprobación humana ni aceptación nativa, eléctrica o científica.
       Hecho el 2026-11-19 (d8, fila MEJ1): rojo por aserción sobre 908f0fa9 (las 14 pruebas nuevas, 14 F por
       AssertionError, D:/csg/PM_IMPL/MEJ1/rojo.log) y verde en el hueco de MEJ1 (D:/csg/PM_IMPL/MEJ1/estado.txt:
       fase 1, verde_nuevas y seleccion_gpu).
+- [x] T25. Los tres huecos de código que halló la revisión de T9b con origen «maestro» (2026-11-20): el origen de cada
+      decisión en `tools/corpus_redaccion_pide.py --origen` y la aplicación de un `decisiones.json` con su origen, su
+      revisor, su fecha y su huella, entero o nada (RF-48); `corpus_redaccion.sin_cifras` con el catálogo de nombres
+      del espacio y los patrones genéricos de SET, central, sede y razón social (RF-49); y el puente
+      `corpus_redaccion.sellar_corpus_redaccion` (`--sellar`) al corpus sellado de `sellar_particiones`, con
+      `auditar_corpus_redaccion` en el preflight de `tools/asistente_qlora.py` (RF-50), con lo aprobado de origen
+      humano o maestro, cada uno marcado (RF-48); y `asistente_qlora.py entrenar` con el lector y el prompt que elige el
+      tipo del manifiesto, `llm_destilacion.ejemplos_de_entrenamiento` y `codificar_ejemplos` (RF-51).
+      (RF-48, RF-49, RF-50, RF-51)
+      Hecho cuando: rojo por aserción y verde con `tests/test_corpus_redaccion.py` (072:RF-48 a RF-50) y
+      `tests/test_asistente_qlora.py` (072:RF-50, RF-51), con nombres ficticios y sin GPU; y
+      `tests/test_trazabilidad_specs.py`, `tests/test_inventario.py`, `tests/test_capas.py`,
+      `tests/test_matriz_operaciones.py`, `tests/test_asistente_corpus_ampliado.py`, `tests/test_llm_corpus_referencias.py`
+      y `tests/test_reubicacion_corpus_llm.py` sin cambios en verde. No cierra T9b: le faltan registrar las decisiones del
+      maestro, el catálogo de sedes e instalaciones del espacio y el ajuste en GPU.
+      Hecho el 2026-11-20 (d8, fila MEJ567): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ567/rojo_*.log) y verde
+      en el hueco (D:/csg/PM_IMPL/MEJ567/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).

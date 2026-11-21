@@ -231,7 +231,7 @@ Sondas ejecutadas por el usuario en DIgSILENT 2024 (a su petición) sobre una co
 - P12 La spec manda: cada prueba cita `012:RF-n`. RF-32 se cambia en la spec si T1 lo
   exige.
 - P13 Universal: las clases de elemento son genéricas y las tasas, tiempos y costes son
-  de la empresa; nada de Electro Dunas ni de la NTCSE en el código.
+  de la empresa; nada de Empresa A ni de la NTCSE en el código.
 
 ## Estrategia de pruebas
 

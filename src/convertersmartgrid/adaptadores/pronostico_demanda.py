@@ -1289,6 +1289,12 @@ def _resto_normalizado(o: Objetivo, hasta: np.datetime64, exogenas: Exogenas | N
     Sobre el perfil, porque predecir la demanda directa pierde el nivel; como resta y no como cociente, porque la Q cruza el
     cero con los bancos.
     """
+    datos = _resto_y_perfil(o, hasta, exogenas)
+    return None if datos is None else datos[:5]
+
+
+def _resto_y_perfil(o: Objetivo, hasta: np.datetime64, exogenas: Exogenas | None):
+    """Lo de ``_resto_normalizado`` y, además, el perfil anclado en cada punto de la malla (031:RF-28)."""
     t, y = _arreglos(o)
     antes = t <= hasta
     t, y = t[antes], y[antes]
@@ -1301,23 +1307,33 @@ def _resto_normalizado(o: Objetivo, hasta: np.datetime64, exogenas: Exogenas | N
     escala = float(np.median(np.abs(y))) or float(np.abs(y).max()) or 1.0
     resto = np.full(len(malla), np.nan)
     resto[posicion[valido]] = (y[valido] - perfil[posicion[valido]]) / escala
-    return malla, resto, escala, t, y
+    return malla, resto, escala, t, y, perfil
 
 
-def tabla_de_entrenamiento(objetivos: Sequence[Objetivo], hasta: np.datetime64, exogenas: Exogenas | None):
-    """La tabla de las redes: un registro cada 15 minutos por objetivo, sin rellenar lo que falta (089:RF-57, RF-58)."""
+def tabla_de_entrenamiento(objetivos: Sequence[Objetivo], hasta: np.datetime64, exogenas: Exogenas | None, *,
+                            ultimos: int | None = None):
+    """La tabla de las redes: un registro cada 15 minutos por objetivo, sin rellenar lo que falta (089:RF-57, RF-58).
+
+    031:RF-26: en float32, que es como la guarda neuralforecast (su ``TimeSeriesDataset`` la pasa a float32): en float64 la
+    tabla de 325 clientes pesaba el doble y la librería hacía otra copia al convertirla; el número que ve la red es el mismo.
+    Con ``ultimos``, solo los últimos registros de cada objetivo: lo que necesita una predicción, que solo mira su contexto.
+    """
     import pandas as pd
 
     partes = []
-    for o in objetivos:
+    # Ordenada por objetivo y hora, como la quiere neuralforecast: desordenada, la librería la copiaba entera para ordenarla.
+    for o in sorted(objetivos, key=lambda x: x.nombre):
         datos = _resto_normalizado(o, hasta, exogenas)
         if datos is None:
             continue
         malla, resto, _escala, _t, _y = datos
-        d = pd.DataFrame(_covariables(malla, exogenas, hasta), columns=list(COVARIABLES_ML))
+        cov = _covariables(malla, exogenas, hasta)
+        if ultimos is not None:
+            malla, resto, cov = malla[-ultimos:], resto[-ultimos:], cov[-ultimos:]
+        d = pd.DataFrame(cov.astype(np.float32), columns=list(COVARIABLES_ML))
         ok = np.isfinite(resto)
-        d.insert(0, 'available_mask', ok.astype(float))
-        d.insert(0, 'y', np.where(ok, resto, 0.0))
+        d.insert(0, 'available_mask', ok.astype(np.float32))
+        d.insert(0, 'y', np.where(ok, resto, 0.0).astype(np.float32))
         d.insert(0, 'ds', malla)
         d.insert(0, 'unique_id', o.nombre)
         partes.append(d)
@@ -1326,19 +1342,234 @@ def tabla_de_entrenamiento(objetivos: Sequence[Objetivo], hasta: np.datetime64, 
     return pd.concat(partes, ignore_index=True)
 
 
+# --------------------------------------------------------------------------- horizonte largo (031:RF-27 a RF-29)
+#: 031:RF-27: hasta este horizonte las redes trabajan a 15 minutos (el pronóstico operativo de la 089 es de 28 días). Contado
+#: el 2026-11-20 con sus parámetros en el dispositivo «meta»: a 31 días y 28 de contexto, TiDE pide 1,97 GiB entre la red y Adam
+#: y PatchTST 1,91; con el horizonte de un año a 15 minutos, 22,69 y 24,37 GiB, que no caben en una tarjeta de 8 GiB.
+HORIZONTE_CORTO_DIAS = 31
+#: 031:RF-27: contexto de la serie diaria, un año de 52 semanas. A un año de horizonte diario (396 días) TiDE pide 0,26 GiB,
+#: N-HiTS 0,10, PatchTST 0,04, TFT 0,02 y NBEATSx 0,14 (con 182 días de contexto, casi lo mismo). Se acorta a la historia más
+#: larga del origen, nunca por debajo de ``HISTORIA_MINIMA_DIAS``.
+CONTEXTO_DIARIO_DIAS = 364
+#: Una ventana por día también en la serie diaria: las mismas ventanas por día de historia que a 15 minutos (089:RF-91).
+PASO_VENTANAS_DIARIAS = 1
+#: Lo conocido al emitir que tiene sentido por día: la hora del día se pierde al agregar.
+COVARIABLES_DIARIAS = ('dia_sin', 'dia_cos', 'no_laborable', 'temperatura_clima')
+#: Cobertura mínima de un día para que su media y su máxima entren a la red; si no, el día va enmascarado.
+COBERTURA_DIA = .5
+#: Sufijo de la serie de la máxima diaria de cada objetivo en la tabla diaria.
+SUFIJO_MAXIMA = '|maxima_diaria'
+RESOLUCIONES = ('auto', '15min', 'diaria')
+FRECUENCIA = {'15min': '15min', 'diaria': 'D'}
+
+
+def resolucion_de_horizonte(horizonte: int, pedida: str = 'auto') -> str:
+    """La resolución con que una red entrena y predice ``horizonte`` registros de 15 minutos (031:RF-27).
+
+    ``auto``: 15 minutos hasta ``HORIZONTE_CORTO_DIAS`` y la serie diaria por encima; ``15min`` o ``diaria`` la fijan."""
+    if pedida not in RESOLUCIONES:
+        raise ValueError(f'resolución desconocida: {pedida}; se admite {", ".join(RESOLUCIONES)}')
+    if pedida != 'auto':
+        return pedida
+    return '15min' if int(horizonte) <= HORIZONTE_CORTO_DIAS * 96 else 'diaria'
+
+
+def _dias_de(t: np.ndarray) -> np.ndarray:
+    return np.asarray(t, dtype='datetime64[D]')
+
+
+def _por_dia(dias: np.ndarray, valores: np.ndarray, funcion) -> tuple[np.ndarray, np.ndarray]:
+    """Los días distintos de una malla ordenada y ``funcion`` de los valores de cada uno."""
+    unicos, inicio = np.unique(dias, return_index=True)
+    return unicos, funcion.reduceat(valores, inicio) if len(valores) else np.array([])
+
+
+def dias_del_futuro(hasta: np.datetime64, horizonte: int) -> np.ndarray:
+    """Los días que toca el horizonte tras ``hasta``, el primero aunque empiece a mitad de día (031:RF-27)."""
+    return np.unique(_dias_de(_malla(hasta, hasta + np.timedelta64(int(horizonte) * 15, 'm'))))
+
+
+def _covariables_diarias(malla: np.ndarray, exogenas: Exogenas | None, hasta: np.datetime64) -> np.ndarray:
+    """La media de cada día de las covariables de 15 minutos que no son la hora (031:RF-27)."""
+    cov = _covariables(malla, exogenas, hasta)[:, [COVARIABLES_ML.index(c) for c in COVARIABLES_DIARIAS]]
+    _d, suma = _por_dia(_dias_de(malla), cov, np.add)
+    _d, n = _por_dia(_dias_de(malla), np.ones(len(malla)), np.add)
+    return suma / n[:, None]
+
+
+def tabla_diaria(objetivos: Sequence[Objetivo], hasta: np.datetime64, exogenas: Exogenas | None, *, ultimos: int | None = None):
+    """La tabla de las redes para el horizonte largo: dos series diarias por objetivo (031:RF-27, RF-28).
+
+    ``<nombre>`` es la media del resto de cada día sobre el perfil anclado y ``<nombre>|maxima_diaria``, la máxima del día menos
+    la del perfil, en la escala del objetivo: lo que el PIDE lee de cada mes es su energía y su máxima (``_agregar_curva``), y
+    con las dos la red aprende las dos. Un día con menos de la mitad de sus registros va enmascarado, sin rellenar, y el día de
+    ``hasta`` solo entra si está completo: el siguiente ya es futuro. En float32, como la de 15 minutos (031:RF-26).
+    """
+    import pandas as pd
+
+    primero_futuro = _dias_de(hasta + np.timedelta64(15, 'm'))
+    partes = []
+    for o in objetivos:
+        datos = _resto_y_perfil(o, hasta, exogenas)
+        if datos is None:
+            continue
+        malla, resto, escala, _t, _y, perfil = datos
+        dentro = _dias_de(malla) < primero_futuro
+        malla, resto, perfil = malla[dentro], resto[dentro], perfil[dentro]
+        if not len(malla):
+            continue
+        dias_m = _dias_de(malla)
+        ok = np.isfinite(resto)
+        dias, n_ok = _por_dia(dias_m, ok.astype(float), np.add)
+        _d, suma = _por_dia(dias_m, np.where(ok, resto, 0.0), np.add)
+        _d, maximo = _por_dia(dias_m, np.where(ok, resto + perfil / escala, -np.inf), np.maximum)
+        _d, pico_perfil = _por_dia(dias_m, perfil / escala, np.maximum)
+        valido = n_ok >= COBERTURA_DIA * 96
+        media = np.where(valido, suma / np.maximum(n_ok, 1), 0.0)
+        maxima = np.where(valido, maximo - pico_perfil, 0.0)
+        cov = _covariables_diarias(malla, exogenas, hasta)
+        if ultimos is not None:
+            dias, valido, media, maxima, cov = dias[-ultimos:], valido[-ultimos:], media[-ultimos:], maxima[-ultimos:], cov[-ultimos:]
+        for ident, y in ((o.nombre, media), (o.nombre + SUFIJO_MAXIMA, maxima)):
+            d = pd.DataFrame(cov.astype(np.float32), columns=list(COVARIABLES_DIARIAS))
+            d.insert(0, 'available_mask', valido.astype(np.float32))
+            d.insert(0, 'y', y.astype(np.float32))
+            d.insert(0, 'ds', dias.astype('datetime64[ns]'))
+            d.insert(0, 'unique_id', ident)
+            partes.append(d)
+    if not partes:
+        raise ValueError('ningún objetivo con un día completo antes del origen')
+    return pd.concat(partes, ignore_index=True)
+
+
+def reconstruir_15min(perfil: np.ndarray, futuro: np.ndarray, media_dia: np.ndarray, maxima_dia: np.ndarray, escala: float) -> np.ndarray:
+    """La curva de 15 minutos del horizonte con la forma del perfil anclado del propio objetivo (031:RF-28).
+
+    Cada día, el perfil se estira alrededor de su media para que la media y la máxima del día sean las que predijo la red
+    (``media_dia`` y ``maxima_dia``, restos en la escala del objetivo): la energía y la máxima de cada mes salen de la red, y la
+    forma dentro del día, de la historia del objetivo. Si la red da una máxima que no supera a la media, o el perfil es plano, el
+    día solo se desplaza con la media. Con restos nulos devuelve el perfil tal cual.
+    """
+    dias_f = _dias_de(futuro)
+    unicos, inicio = np.unique(dias_f, return_index=True)
+    i = np.searchsorted(unicos, dias_f)
+    n = np.add.reduceat(np.ones(len(futuro)), inicio)
+    media_p = np.add.reduceat(perfil, inicio) / n
+    pico_p = np.maximum.reduceat(perfil, inicio)
+    media = media_p + np.asarray(media_dia, dtype=float)[:len(unicos)] * escala
+    pico = pico_p + np.asarray(maxima_dia, dtype=float)[:len(unicos)] * escala
+    rango_p = pico_p - media_p
+    estirar = (rango_p > 1e-9 * max(1.0, abs(escala))) & (pico > media)
+    factor = np.where(estirar, (pico - media) / np.where(estirar, rango_p, 1.0), 1.0)
+    return media[i] + (perfil - media_p[i]) * factor[i]
+
+
+#: 031:RF-24: parte de lo que queda libre en la GPU, descontada la red, que pueden ocupar las ventanas que neuralforecast
+#: copia al entrenar; la otra mitad, para las activaciones. No es un tope fijo de lote: el lote sale de lo libre al ajustar.
+FRACCION_VRAM_VENTANAS = 0.5
+BYTES_FLOAT32 = 4
+#: 031:RF-24: lo que ocupa cada parámetro al entrenar: el peso, su gradiente y los dos momentos de Adam, en float32. Con el
+#: horizonte del PIDE N-HiTS tiene 293,5 M de parámetros (4,37 GiB al entrenar), TiDE 1 522,8 M (22,7 GiB) y PatchTST
+#: 1 635,5 M (24,4 GiB), contados el 2026-11-20 en el dispositivo «meta», sin reservar memoria.
+BYTES_POR_PARAMETRO_ENTRENANDO = 4 * BYTES_FLOAT32
+#: Redes cuyo constructor no respeta el dispositivo «meta» y reserva sus pesos de verdad al contarlos: NBEATSx, con un
+#: horizonte de un año, reservó unos 24 GiB de RAM (2026-11-20). Su memoria la dice el reintento de RF-25.
+SIN_CUENTA_DE_PARAMETROS = ('nbeatsx',)
+GIB = 1024 ** 3
+
+
+class MemoriaGPUInsuficiente(RuntimeError):
+    """Una red que no cabe en la GPU ni con una serie por lote (031:RF-25), con lo que pidió y lo que había.
+
+    No es ``ValueError``: la competición toma un ``ValueError`` por un origen sin historia y seguiría en silencio."""
+
+    def __init__(self, mensaje: str, detalle: Mapping[str, Any]):
+        super().__init__(mensaje)
+        self.detalle = dict(detalle)
+
+
+def bytes_ventanas_entrenamiento(series_por_lote: int, largo_maximo: int, contexto: int, horizonte: int, canales: int,
+                                 paso: int = PASO_VENTANAS) -> int:
+    """Lo que neuralforecast 3.3 copia en la GPU al entrenar un lote de series (031:RF-24).
+
+    ``_create_windows`` rellena cada serie con el horizonte a la derecha, la corta en ventanas de contexto + horizonte cada
+    ``paso`` registros (``unfold``) y las aplana con ``permute`` + ``flatten``, que copia TODAS las ventanas de las series del
+    lote antes de sortear las ``windows_batch_size`` del paso. Las series del lote van rellenas a la más larga. Con un
+    horizonte de un año a 15 minutos cada ventana tiene unos 40 000 registros: por eso la petición crece con el horizonte y
+    con la historia de cada origen, no con los pasos de entrenamiento. Medido el 2026-11-20 en la corrida del PIDE: 32 series
+    × 245 ventanas × (2688 + 38016) × 8 canales × 4 B = 10 211 819 520 B, que el asignador redondea a 2 MiB y da los
+    10 213 130 240 B («9,51 GiB») del registro; la emisión de las escaladas, 32 × 641 × (2688 + 35040) × 8 × 4, sus «23,06 GiB».
+    """
+    ventanas = max(0, (int(largo_maximo) - int(contexto)) // int(paso) + 1)
+    return int(series_por_lote) * ventanas * (int(contexto) + int(horizonte)) * int(canales) * BYTES_FLOAT32
+
+
+def memoria_gpu_libre() -> int | None:
+    """Bytes libres en la GPU ahora mismo, medidos por CUDA; ``None`` sin CUDA (031:RF-24)."""
+    import torch
+
+    if not torch.cuda.is_available():
+        return None
+    libre, _total = torch.cuda.mem_get_info()
+    return int(libre)
+
+
+def series_por_lote_que_caben(pedidas: int, bytes_por_serie: int, libre: int | None,
+                              fraccion: float = FRACCION_VRAM_VENTANAS) -> int:
+    """Cuántas series por lote caben en la VRAM libre medida, sin pasar de las pedidas (031:RF-24).
+
+    Sin medida, las pedidas. Si ni una serie cabe en todo lo libre, ni se intenta: se dice con la cuenta (031:RF-25)."""
+    pedidas = max(1, int(pedidas))
+    if libre is None:
+        return pedidas
+    if bytes_por_serie > libre:
+        raise MemoriaGPUInsuficiente(
+            f'no cabe en la GPU: las ventanas de una sola serie piden {bytes_por_serie / GIB:.2f} GiB y hay '
+            f'{libre / GIB:.2f} GiB libres', {'bytes_por_serie': int(bytes_por_serie), 'vram_libre': int(libre)})
+    return max(1, min(pedidas, int(fraccion * libre // max(1, bytes_por_serie))))
+
+
+def bytes_red_entrenando(nombre: str, construir: Callable[[], Any]) -> int | None:
+    """Lo que ocupa la red en la GPU al entrenar, con sus gradientes y Adam, contada sin reservar memoria (031:RF-24).
+
+    La red se construye en el dispositivo «meta» de torch, que no guarda ningún peso; ``None`` si la red no se deja contar así.
+    """
+    if nombre in SIN_CUENTA_DE_PARAMETROS:
+        return None
+    import torch
+
+    with torch.device('meta'):
+        red = construir()
+    parametros = getattr(red, 'parameters', None)
+    if parametros is None:
+        return None
+    return int(sum(p.numel() for p in parametros())) * BYTES_POR_PARAMETRO_ENTRENANDO
+
+
+def es_falta_de_memoria_gpu(exc: BaseException) -> bool:
+    """``torch.cuda.OutOfMemoryError`` o el mismo fallo envuelto por Lightning, sin importar torch para saberlo."""
+    return type(exc).__name__ == 'OutOfMemoryError' or 'out of memory' in str(exc).lower()
+
+
 class ModeloRed:
     """Una red de neuralforecast, global para los objetivos de una clase y magnitud, solo en CUDA (089:RF-56, RF-62)."""
 
     requiere_gpu = True
     MULTIVARIANTES = ('itransformer', 'tsmixerx')
 
-    def __init__(self, nombre: str, *, pasos: int = 1500, lote: int = 64, semilla: int = 0, contexto_dias: int = 28, **ajustes):
+    def __init__(self, nombre: str, *, pasos: int = 1500, lote: int = 64, semilla: int = 0, contexto_dias: int = 28,
+                 resolucion: str = 'auto', contexto_diario_dias: int = CONTEXTO_DIARIO_DIAS, **ajustes):
         from .digital_twin.oraculo import dispositivo
 
         dispositivo()                                   # sin CUDA, SinGPU antes de cargar nada (046:RF-15)
+        resolucion_de_horizonte(0, resolucion)          # 031:RF-27: una resolución desconocida se dice al crearla, no al entrenar
         self.nombre, self.pasos, self.lote, self.semilla = nombre, pasos, min(lote, LOTE_MAXIMO.get(nombre, lote)), semilla
         self.contexto_dias, self.ajustes = contexto_dias, ajustes
+        self.resolucion, self.contexto_diario_dias = resolucion, int(contexto_diario_dias)
+        self.resolucion_usada = '15min'
+        self.contexto_pasos = contexto_dias * 96
         self.nf = None
+        self.memoria: dict[str, Any] = {}
 
     def ajustar(self, objetivos, hasta, horizonte, exogenas, semilla):
         from neuralforecast import NeuralForecast, models
@@ -1346,14 +1577,31 @@ class ModeloRed:
 
         from .digital_twin.adaptador_neuralforecast import CLASE, CON_CALENDARIO, argumentos_modelo
 
-        tabla = tabla_de_entrenamiento(objetivos, hasta, exogenas)
-        kw = argumentos_modelo(self.nombre, horizonte=horizonte, contexto_pasos=self.contexto_dias * 96, semilla=semilla, pasos=self.pasos,
-                               lote=self.lote, covariables=COVARIABLES_ML)
-        if self.nombre in self.MULTIVARIANTES:
+        # 031:RF-27: con el horizonte del PIDE las redes no caben a 15 minutos ni con una serie (TiDE 22,7 GiB, PatchTST 24,4,
+        # N-HiTS 4,4 solo la red, 2026-11-20): por encima de HORIZONTE_CORTO_DIAS aprenden la serie diaria del objetivo y la forma
+        # de 15 minutos se reconstruye con su perfil (RF-28). Hasta ahí, todo como en la 089.
+        horizonte_15min = int(horizonte)
+        self.resolucion_usada = resolucion = resolucion_de_horizonte(horizonte_15min, self.resolucion)
+        if resolucion == 'diaria':
+            tabla = tabla_diaria(objetivos, hasta, exogenas)
+            dias_historia = int(tabla.groupby('unique_id', sort=False).size().max())
+            if dias_historia < HISTORIA_MINIMA_DIAS:
+                raise ValueError(f'la historia más larga tiene {dias_historia} días; la serie diaria pide {HISTORIA_MINIMA_DIAS}')
+            horizonte = len(dias_del_futuro(hasta, horizonte_15min))
+            contexto = min(self.contexto_diario_dias, dias_historia)
+            covariables, paso = COVARIABLES_DIARIAS, PASO_VENTANAS_DIARIAS
+        else:
+            tabla = tabla_de_entrenamiento(objetivos, hasta, exogenas)
+            contexto, covariables, paso = self.contexto_dias * 96, COVARIABLES_ML, PASO_VENTANAS
+        unidad = 'días' if resolucion == 'diaria' else 'registros de 15 minutos'
+        kw = argumentos_modelo(self.nombre, horizonte=horizonte, contexto_pasos=contexto, semilla=semilla, pasos=self.pasos,
+                               lote=self.lote, covariables=covariables)
+        multivariante = self.nombre in self.MULTIVARIANTES
+        if multivariante:
             kw['n_series'] = int(tabla['unique_id'].nunique())
         # 089:RF-91: la librería copia en la GPU todas las ventanas de cada serie del lote. Con una por registro, 28 días de
         # contexto y 28 de horizonte, N-HiTS pidió 285 GiB en la cabecera (2026-11-12); con una por día caben en 8 GB.
-        kw['step_size'] = PASO_VENTANAS
+        kw['step_size'] = paso
         if self.nombre in SIN_ESCALADO:
             # 089:RF-93: iTransformer ve las 87 series a la vez y el escalado robusto de las que aún no empiezan, sin datos en la
             # ventana, dio «Loss is NaN» en la cabecera (2026-11-12). El resto ya está dividido por la escala de su objetivo.
@@ -1362,16 +1610,87 @@ class ModeloRed:
         self.con_calendario = self.nombre in CON_CALENDARIO
         if not self.con_calendario:
             tabla = tabla[['unique_id', 'ds', 'y', 'available_mask']]
-        self.nf = NeuralForecast(models=[getattr(models, CLASE[self.nombre])(loss=MAE(), **kw)], freq='15min', local_scaler_type=None)
         self.columna = CLASE[self.nombre]
-        self.nf.fit(df=tabla)
+        self.contexto_pasos = int(kw['input_size'])
+        # 031:RF-24: con el horizonte del PIDE (un año a 15 minutos) cada ventana tiene ~40 000 registros y 32 series por lote
+        # pidieron 9,51 GiB en una tarjeta de 8 (2026-11-20). El lote de series sale de la VRAM libre medida; las ventanas que
+        # ve cada paso de entrenamiento (``windows_batch_size``) y los pasos no cambian.
+        largos = tabla.groupby('unique_id', sort=False).size()
+        canales = len(tabla.columns) - 2
+        por_serie = bytes_ventanas_entrenamiento(1, int(largos.max()), self.contexto_pasos, horizonte, canales, int(kw['step_size']))
+        _liberar_gpu()
+        libre = memoria_gpu_libre()
+        pedidas = len(largos) if multivariante else min(int(kw['batch_size']), len(largos))
+        clase = getattr(models, CLASE[self.nombre])
+        red = bytes_red_entrenando(self.nombre, lambda: clase(loss=MAE(), **kw))
+        base = {'red': self.nombre, 'series': len(largos), 'series_por_lote_pedidas': pedidas, 'bytes_por_serie': por_serie,
+                'bytes_red_entrenando': red, 'vram_libre': libre, 'contexto': self.contexto_pasos, 'horizonte': int(horizonte),
+                'canales': canales, 'ventanas_por_paso': int(kw['windows_batch_size']), 'reintentos': 0,
+                # 031:RF-29: la resolución, el contexto y el horizonte en su unidad y los parámetros de la red, para comparar
+                # las redes en la evaluación.
+                'resolucion': resolucion, 'unidad': unidad, 'horizonte_15min': horizonte_15min,
+                'parametros': None if red is None else red // BYTES_POR_PARAMETRO_ENTRENANDO}
+        try:
+            if libre is not None and red is not None and red >= libre:
+                # 031:RF-25: la red sola, con sus gradientes y Adam, no cabe: ni se intenta, ni se deja que el controlador
+                # la pase a la memoria compartida del sistema (lenta, y la RAM del proceso subía a 7 GiB).
+                raise MemoriaGPUInsuficiente(f'no cabe en la GPU: la red sola pide {red / GIB:.2f} GiB para entrenar '
+                                             f'({red // BYTES_POR_PARAMETRO_ENTRENANDO / 1e6:.1f} M de parámetros con sus '
+                                             f'gradientes y Adam) y hay {libre / GIB:.2f} GiB libres', base)
+            para_ventanas = None if libre is None else libre - (red or 0)
+            if multivariante:
+                # Un multivariante ve todas las series a la vez: su lote no se parte (046:RF-26).
+                lote = pedidas
+                if para_ventanas is not None and por_serie * lote > para_ventanas:
+                    raise MemoriaGPUInsuficiente(f'no cabe en la GPU: las ventanas de las {lote} series juntas piden '
+                                                 f'{por_serie * lote / GIB:.2f} GiB y quedan {para_ventanas / GIB:.2f} GiB '
+                                                 'libres después de la red', base)
+            else:
+                lote = series_por_lote_que_caben(pedidas, por_serie, para_ventanas)
+        except MemoriaGPUInsuficiente as exc:
+            self.memoria = {**base, **exc.detalle, 'series_por_lote': 0}
+            raise MemoriaGPUInsuficiente(f'{self.nombre}: {exc}; contexto {self.contexto_pasos} y horizonte {horizonte} '
+                                         f'{unidad}', self.memoria) from None
+        self.memoria = {**base, 'series_por_lote': lote}
+        while True:
+            if not multivariante:
+                kw['batch_size'] = lote
+            self.nf = NeuralForecast(models=[clase(loss=MAE(), **kw)], freq=FRECUENCIA[resolucion], local_scaler_type=None)
+            fallo = None
+            try:
+                self.nf.fit(df=tabla)
+            except Exception as exc:  # noqa: BLE001 - Lightning envuelve la falta de memoria de CUDA en errores propios
+                if not es_falta_de_memoria_gpu(exc):
+                    raise
+                fallo = f'{type(exc).__name__}: {str(exc)[:160]}'
+            if fallo is None:
+                break
+            # 031:RF-25: fuera del except, para que su traceback no retenga los tensores; se libera y se reintenta con la
+            # mitad de series por lote. Con una sola y sin caber, se dice con la cuenta: nunca un «no disponible» mudo.
+            self.nf = None
+            _liberar_gpu()
+            if multivariante or lote == 1:
+                self.memoria.update(series_por_lote=0, fallo=fallo)
+                cuantas = 'una serie' if lote == 1 else f'las {lote} series'
+                raise MemoriaGPUInsuficiente(
+                    f'{self.nombre}: no cabe en la GPU ni con {cuantas} por lote (las ventanas piden '
+                    f'{por_serie * lote / GIB:.2f} GiB; había {(libre or 0) / GIB:.2f} GiB libres; contexto '
+                    f'{self.contexto_pasos} y horizonte {horizonte} {unidad}): {fallo}', self.memoria)
+            lote = max(1, lote // 2)
+            self.memoria.update(series_por_lote=lote, reintentos=self.memoria['reintentos'] + 1, fallo=fallo)
+        del tabla
+        _liberar_gpu()
 
     def predecir_todos(self, objetivos, hasta, horizonte, exogenas):
+        if self.resolucion_usada == 'diaria':
+            return self._predecir_diaria(objetivos, hasta, horizonte, exogenas)
         import pandas as pd
 
-        tabla = tabla_de_entrenamiento(objetivos, hasta, exogenas)
+        # 031:RF-26: la predicción solo mira el último contexto de cada serie (la ventana de ``input_size`` + horizonte):
+        # rehacer la tabla entera con toda la historia doblaba la memoria del proceso (7,7 GiB en la corrida del 2026-11-20).
+        tabla = tabla_de_entrenamiento(objetivos, hasta, exogenas, ultimos=self.contexto_pasos)
         futuro = _malla(hasta, hasta + np.timedelta64(horizonte * 15, 'm'))
-        cov = _covariables(futuro, exogenas, hasta)
+        cov = _covariables(futuro, exogenas, hasta).astype(np.float32)
         partes = []
         for nombre in tabla['unique_id'].unique():
             d = pd.DataFrame(cov, columns=list(COVARIABLES_ML))
@@ -1379,13 +1698,59 @@ class ModeloRed:
             d.insert(0, 'unique_id', nombre)
             partes.append(d)
         kw = {'futr_df': pd.concat(partes, ignore_index=True)} if self.con_calendario else {}
-        if not self.con_calendario:
-            tabla = tabla[['unique_id', 'ds', 'y', 'available_mask']]
-        salida = self.nf.predict(df=tabla, **kw)
-        if 'unique_id' not in salida.columns:
-            salida = salida.reset_index()
+        del partes
+        salida = self._predecir_red(tabla, kw, horizonte)
         return _deshacer_resto(objetivos, {n: g.sort_values('ds')[self.columna].to_numpy(dtype=float) for n, g in salida.groupby('unique_id')},
                                hasta, futuro, exogenas)
+
+    def _predecir_red(self, tabla, kw, horizonte):
+        if not self.con_calendario:
+            tabla = tabla[['unique_id', 'ds', 'y', 'available_mask']]
+        try:
+            salida = self.nf.predict(df=tabla, **kw)
+        except Exception as exc:  # noqa: BLE001 - igual que al ajustar
+            if not es_falta_de_memoria_gpu(exc):
+                raise
+            raise MemoriaGPUInsuficiente(f'{self.nombre}: no cabe en la GPU al predecir {len(tabla["unique_id"].unique())} series '
+                                         f'con horizonte {horizonte}: {type(exc).__name__}: {str(exc)[:160]}',
+                                         {**self.memoria, 'fase': 'prediccion'}) from None
+        return salida.reset_index() if 'unique_id' not in salida.columns else salida
+
+    def _predecir_diaria(self, objetivos, hasta, horizonte, exogenas):
+        """031:RF-27, RF-28: la red predice la media y la máxima de cada día del horizonte, y la curva de 15 minutos sale del
+        perfil anclado de cada objetivo con esa media y esa máxima en cada día."""
+        import pandas as pd
+
+        tabla = tabla_diaria(objetivos, hasta, exogenas, ultimos=self.contexto_pasos)
+        futuro = _malla(hasta, hasta + np.timedelta64(int(horizonte) * 15, 'm'))
+        dias = dias_del_futuro(hasta, horizonte)
+        cov = _covariables_diarias(futuro, exogenas, hasta).astype(np.float32)
+        partes = []
+        for nombre in tabla['unique_id'].unique():
+            d = pd.DataFrame(cov, columns=list(COVARIABLES_DIARIAS))
+            d.insert(0, 'ds', dias.astype('datetime64[ns]'))
+            d.insert(0, 'unique_id', nombre)
+            partes.append(d)
+        kw = {'futr_df': pd.concat(partes, ignore_index=True)} if self.con_calendario else {}
+        del partes
+        salida = self._predecir_red(tabla, kw, len(dias))
+        restos = {n: g.sort_values('ds')[self.columna].to_numpy(dtype=float) for n, g in salida.groupby('unique_id')}
+        curvas = {}
+        for o in objetivos:
+            if o.nombre not in restos or o.nombre + SUFIJO_MAXIMA not in restos:
+                continue
+            datos = _resto_y_perfil(o, hasta, exogenas)
+            if datos is None:
+                continue
+            _malla_o, _r, escala, t, y, _perfil = datos
+            perfil = _anclado(t, y, futuro, exogenas)
+            curvas[o.nombre] = reconstruir_15min(perfil, futuro, restos[o.nombre], restos[o.nombre + SUFIJO_MAXIMA], escala)
+        return curvas
+
+    def liberar(self) -> None:
+        """031:RF-24: entre un origen y el siguiente, la red y su caché salen de la GPU antes de medir lo libre otra vez."""
+        self.nf = None
+        _liberar_gpu()
 
 
 def _deshacer_resto(objetivos, restos: Mapping[str, np.ndarray], hasta, futuro, exogenas) -> dict[str, np.ndarray]:
@@ -1840,20 +2205,40 @@ def regenerar_dataset(fuentes: Fuentes, carpeta: Path | str) -> dict[str, Any]:
             'libros_apartados': libros_apartados, 'avisos_de_libros': avisos_de_libros}
 
 
+def _curvas_del_parquet(ruta: Path) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """Las curvas guardadas, por objetivo, como ``(t, v)`` en el orden en que se guardaron (031:RF-26).
+
+    El nombre del objetivo se lee como diccionario: leído como texto, cada uno de sus decenas de millones de registros era
+    un objeto de Python, y abrir el dataset de la T12 de la 089 ya ocupaba unos 5 GiB antes de entrenar (2026-11-20). Cada
+    curva es un tramo de dos arreglos comunes, en vez de una copia por grupo.
+    """
+    import pandas as pd
+
+    tabla = pd.read_parquet(ruta, columns=['objetivo', 't', 'v'], read_dictionary=['objetivo'])
+    objetivo = tabla['objetivo'].astype('category')
+    codigos, nombres = objetivo.cat.codes.to_numpy(), list(objetivo.cat.categories)
+    t, v = tabla['t'].to_numpy(dtype='datetime64[ns]'), tabla['v'].to_numpy(dtype=float)
+    del tabla, objetivo
+    if len(codigos) > 1 and not bool(np.all(codigos[1:] >= codigos[:-1])):
+        orden = np.argsort(codigos, kind='stable')     # estable: dentro de cada objetivo, el orden guardado
+        codigos, t, v = codigos[orden], t[orden], v[orden]
+    bordes = np.searchsorted(codigos, np.arange(len(nombres) + 1), side='left')
+    return {str(nombres[k]): (t[bordes[k]:bordes[k + 1]], v[bordes[k]:bordes[k + 1]])
+            for k in range(len(nombres)) if bordes[k + 1] > bordes[k]}
+
+
 def abrir_dataset(carpeta: Path | str, exogenas: Exogenas | None = None) -> Dataset:
     """El dataset guardado, comprobando su huella (089:RF-68)."""
     import json
 
-    import pandas as pd
-
     carpeta = Path(carpeta)
     meta = json.loads((carpeta / 'dataset.json').read_text(encoding='utf-8'))
-    por = {n: g for n, g in pd.read_parquet(carpeta / 'objetivos.parquet').groupby('objetivo')} if (carpeta / 'objetivos.parquet').exists() else {}
+    por = _curvas_del_parquet(carpeta / 'objetivos.parquet') if (carpeta / 'objetivos.parquet').exists() else {}
     objetivos = []
     for x in meta['objetivos']:
         o = Objetivo(x['clase'], x['ident'], x['magnitud'], x['unidad'], [], x['fuente'])
         g = por.get(o.nombre)
-        curva = CurvaCompacta(np.zeros(0, dtype='datetime64[ns]'), np.zeros(0)) if g is None else CurvaCompacta(g['t'].to_numpy(dtype='datetime64[ns]'), g['v'].to_numpy(dtype=float))
+        curva = CurvaCompacta(np.zeros(0, dtype='datetime64[ns]'), np.zeros(0)) if g is None else CurvaCompacta(*g)
         objetivos.append(Objetivo(x['clase'], x['ident'], x['magnitud'], x['unidad'], curva, x['fuente']))
     if huella_de_objetivos(objetivos) != meta['huella']:
         raise ValueError(f'{carpeta}: la huella del dataset no coincide; vuelva a armarlo')

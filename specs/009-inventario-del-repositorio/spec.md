@@ -17,9 +17,9 @@ encontró:
 - Ningún documento de uso explicaba la calibración a la máxima, la verificación de la
   convergencia ni el perfil de empresa.
 - La spec 004 tenía su validación sin marcar, con todos sus RF ya cubiertos.
-- `config/line_type_aliases.json`, con alias de códigos de Electro Dunas, estaba en git.
+- `config/line_type_aliases.json`, con alias de códigos de Empresa A, estaba en git.
 - 17 funciones y clases de `src/` que nada usaba, y dos herramientas con un alimentador o
-  rutas de Electro Dunas fijados.
+  rutas de Empresa A fijados.
 
 Nada impedía que volviera a pasar: un fichero nuevo sin índice ni prueba no rompía nada.
 

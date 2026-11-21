@@ -1,6 +1,6 @@
 # Tareas — Spec 023
 
-- [x] T1. Explorar la copia real: restaurar `ELDU_VNR_24_APR.bak` en `.\SQLEXPRESS` y listar
+- [x] T1. Explorar la copia real: restaurar `EMPA_VNR_24_APR.bak` en `.\SQLEXPRESS` y listar
       su esquema (sin valores). (duda abierta)
       Hecho cuando: el esquema está en el plan. 2026-10-18: 75 tablas, ver plan.
 - [x] T2. `sqlserver_vnr.py` (restauración): huella, cabecera, restauración con `WITH MOVE`, reutilizar, error
@@ -14,10 +14,10 @@
       Hecho cuando: pruebas sintéticas en verde.
 - [x] T4. Fuente VNR con `.bak` en el adaptador, la web y el CLI. (RF-1, RF-9)
       Hecho cuando: pruebas de la API y del CLI en verde; `CODIGO_FUENTE.md` al día.
-- [x] T5. Real: un alimentador de la copia de Electro Dunas convertido, validado e importado
+- [x] T5. Real: un alimentador de la copia de Empresa A convertido, validado e importado
       en DIgSILENT. (todos)
       Hecho cuando: el DGS pasa validación e inventario y el flujo converge.
-      2026-10-18: IN111 desde ELDU_VNR_24_APR.bak importado en «VNR_BAK_IN111»: «Caso base»
+      2026-10-18: IN111 desde EMPA_VNR_24_APR.bak importado en «VNR_BAK_IN111»: «Caso base»
       VERIFICADO (GPS, trazado, conectividad, diagrama, capacidades, flujo), flujo converge;
       699/699 tramos, 694 nodos, 364 cargas, 274 SED, 95 maniobras, 4 bancos y 1 483 puntos
       intermedios iguales en DIgSILENT; GPS en 968/968 barras y 699/699 tramos, curvas del
@@ -28,11 +28,11 @@
       `-rs`: 2450 pasan, ninguna omitida (línea base 001 regenerada con el catálogo de fichas).
       Sistema Ica desde la copia: «Caso base» VERIFICADO tras corregir la aceptación.
       Hecho cuando: RF-1 a RF-10 citados y la suite con las siete variables, sin omitidas, en verde.
-- [x] T7. Segunda concesionaria: la copia VNR-GIS 2025 de Electro Oriente. (RF-1, RF-9)
+- [x] T7. Segunda concesionaria: la copia VNR-GIS 2025 de Empresa B. (RF-1, RF-9)
       Hecho cuando: `pytest -q tests/test_vnr_sqlserver.py` en verde y la copia se lee entera.
-      Hecho el 2026-11-01: `referencia/PIDEELOR/ELOR25_V2/ELOR25_V2` (sin extensión, cabecera
+      Hecho el 2026-11-01: `referencia/<PAQUETE>/<BASE>/<BASE>` (sin extensión, cabecera
       `TAPE`) vino sin su base de parámetros, y su vista `norEquipoMT` nombra `VNRGISGART`, que no
       existe aquí: tumbaba la lectura. Ahora una tabla o vista ilegible se anota
       (`TABLA_ILEGIBLE`) y se sigue. Resultado con el mismo lector, sin código de la empresa:
-      ELOR, 168 salidas, 83 353 tramos, 8 729 cargas, 160 tipos de conductor; anotados
+      EMPB, 168 salidas, 83 353 tramos, 8 729 cargas, 160 tipos de conductor; anotados
       1 233 huecos con su padre, 282 tramos sin padre unidos, 167 islas unidas, 95 SED sin enlace.

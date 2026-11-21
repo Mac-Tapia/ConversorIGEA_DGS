@@ -3,7 +3,7 @@ import test from 'node:test';
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 
-// Electro Oriente NJA202 (T32, 2026-11-12): calibrado a 0,568 p.u. y sin cargas nuevas, la web no ofrecía ninguna obra.
+// Empresa B NJA202 (T32, 2026-11-12): calibrado a 0,568 p.u. y sin cargas nuevas, la web no ofrecía ninguna obra.
 const entry = fileURLToPath(new URL('../src/features/powerfactory/obrasEstadoActual.ts', import.meta.url));
 
 async function cargar() {

@@ -37,7 +37,7 @@ def _modelo(tmp_path, layout='reducido', seed=11):
 
 
 def _relleno(modelo, kw):
-    """La misma demanda en todas las cargas de SED, sin reactiva, como ELOR25_V2."""
+    """La misma demanda en todas las cargas de SED, sin reactiva, como EMPB25_V2."""
     claves = {s.load_key for s in modelo.seds}
     modelo.loads = [dataclasses.replace(c, p_mw=kw / 1000.0, q_mvar=0.0)
                     if (c.section_id, c.device_number) in claves else c for c in modelo.loads]

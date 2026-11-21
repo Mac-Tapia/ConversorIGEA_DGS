@@ -291,6 +291,9 @@ small.alert { display: block; margin: 4px 0 0; }
 .table td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
 .table tbody tr { cursor: default; }
 .table tbody tr:hover { background: var(--surface-2); }
+/* 004:RF-116: la tabla de la máxima, cada dato en su columna y en una sola línea; los avisos, en un icono. */
+.tabla-maxima td.num, .tabla-maxima td.mono { white-space: nowrap; }
+.aviso-icono { cursor: help; color: var(--warn, #b26b00); }
 .table tbody tr.selected { background: var(--primary-soft); }
 .table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .table .check { width: 34px; text-align: center; }
@@ -383,6 +386,11 @@ small.alert { display: block; margin: 4px 0 0; }
   font-family: var(--mono); font-size: 12px; background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 6px; padding: 10px; max-height: 280px; overflow: auto; white-space: pre;
 }
+/* 111 T17 (M2): las notas de la versión, con formato y en la letra del texto. */
+.report.notas-version { font-family: inherit; font-size: 13px; white-space: normal; }
+.notas-version h4, .notas-version h5 { margin: 8px 0 4px; }
+.notas-version ul { margin: 4px 0; padding-left: 20px; }
+.notas-version p { margin: 4px 0; }
 details summary { cursor: pointer; color: var(--primary); margin-top: 8px; }
 .source-banner {
   display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 0 0 12px;

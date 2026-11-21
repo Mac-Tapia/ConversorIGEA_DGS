@@ -13,6 +13,13 @@ la hora de «Sin» (auditoría del 2026-11-02, H1). Ahora cada paso comprueba su
 relee lo activo, la hora solo se escribe en el caso de la foto, y al final se compara la
 foto entera (064:RF-10).
 
+Una orden que falla después de dejar algo grabado puede pedir que se conserven las variaciones de
+las que depende lo grabado (064:RF-11): la calibración que termina en VIOLACION_FISICA deja el
+reparto escrito para los transformadores de ``SED_NTP_`` (015:RF-69), y apagarla al restituir
+dejaba esas cargas sobre los kVA del archivo y el proyecto sin converger (diagnóstico del
+2026-11-20). El guion lo declara con :func:`conservar_tras_fallo` y el servidor lo pasa a
+:func:`restituir`.
+
 Solo se usan objetos de la API de DIgSILENT; las pruebas usan un doble.
 """
 
@@ -82,7 +89,38 @@ def fotografiar(app: Any) -> Foto | None:
         raise FotoFallida(f'no se pudo leer el estado de DIgSILENT: {exc}') from exc
 
 
-def _diferencias(app: Any, foto: Foto) -> list[str]:
+#: 064:RF-11: los nombres de las variaciones que la orden en curso pide conservar si falla.
+_CONSERVAR: list[str] = []
+
+
+def conservar_tras_fallo(nombres) -> None:
+    """064:RF-11: la orden en curso dejó grabado algo que depende de estas variaciones.
+
+    Si la orden termina con un código distinto de 0, el servidor no las desactiva al
+    restituir. Un nombre vale también para la copia que DIgSILENT renombra ``nombre(n)``.
+    """
+    for nombre in nombres or ():
+        nombre = str(nombre or '').strip()
+        if nombre and nombre not in _CONSERVAR:
+            _CONSERVAR.append(nombre)
+
+
+def pedidos_de_conservar() -> list[str]:
+    """Lo que la orden en curso pidió conservar (064:RF-11)."""
+    return list(_CONSERVAR)
+
+
+def olvidar_conservar() -> None:
+    """Cada orden empieza sin nada que conservar: lo de la anterior no vale para esta."""
+    _CONSERVAR.clear()
+
+
+def _conservada(variacion: Any, conservar) -> bool:
+    nombre = _nombre(variacion)
+    return any(nombre == c or nombre.startswith(c + '(') for c in conservar or ())
+
+
+def _diferencias(app: Any, foto: Foto, conservar=()) -> list[str]:
     """Lo que no coincide entre el estado activo y ``foto``, en frases."""
     ahora = fotografiar(app)
     if ahora is None or not _mismo(ahora.proyecto, foto.proyecto):
@@ -94,7 +132,8 @@ def _diferencias(app: Any, foto: Foto) -> list[str]:
         out.append(f'la hora de «{_nombre(foto.caso)}» es {ahora.hora} y no {foto.hora}')
     if not _mismo(ahora.escenario, foto.escenario):
         out.append(f'el escenario activo es «{_nombre(ahora.escenario)}» y no «{_nombre(foto.escenario)}»')
-    sobran = [v for v in ahora.variaciones if not any(_mismo(v, f) for f in foto.variaciones)]
+    sobran = [v for v in ahora.variaciones if not any(_mismo(v, f) for f in foto.variaciones)
+              and not _conservada(v, conservar)]
     faltan = [f for f in foto.variaciones if not any(_mismo(v, f) for v in ahora.variaciones)]
     if sobran:
         out.append('siguen activas: ' + ', '.join(_nombre(v) for v in sobran))
@@ -103,8 +142,11 @@ def _diferencias(app: Any, foto: Foto) -> list[str]:
     return out
 
 
-def restituir(app: Any, foto: Foto | None) -> list[str]:
+def restituir(app: Any, foto: Foto | None, *, conservar=()) -> list[str]:
     """Deja el caso, su hora, el escenario y las variaciones como en ``foto`` (064:RF-5).
+
+    Las variaciones de ``conservar`` (por nombre) que la orden dejó activas se quedan activas:
+    lo que la orden grabó depende de ellas (064:RF-11, 083:RF-29 con 015:RF-69).
 
     Devuelve lo que cambió, en frases para el registro de la orden (RF-6), y solo lo que se
     comprobó hecho. Si el proyecto activo ya no es el de la foto no toca nada: otro proyecto
@@ -143,7 +185,9 @@ def restituir(app: Any, foto: Foto | None) -> list[str]:
                 f'sigue «{_nombre(ahora)}»')
         hecho.append(f'escenario «{_nombre(foto.escenario)}» en lugar de «{_nombre(actual)}»')
     activas = list(app.GetActiveNetworkVariations() or [])
-    sobran = [v for v in activas if not any(_mismo(v, f) for f in foto.variaciones)]
+    nuevas = [v for v in activas if not any(_mismo(v, f) for f in foto.variaciones)]
+    quedan = [v for v in nuevas if _conservada(v, conservar)]
+    sobran = [v for v in nuevas if not _conservada(v, conservar)]
     faltan = [f for f in foto.variaciones if not any(_mismo(v, f) for v in activas)]
     malas = [_nombre(v) for v in sobran if _fallo(v.Deactivate())]
     malas += [_nombre(v) for v in faltan if _fallo(v.Activate())]
@@ -153,8 +197,11 @@ def restituir(app: Any, foto: Foto | None) -> list[str]:
         hecho.append('variaciones desactivadas: ' + ', '.join(_nombre(v) for v in sobran))
     if faltan:
         hecho.append('variaciones activadas de nuevo: ' + ', '.join(_nombre(v) for v in faltan))
+    if quedan:
+        hecho.append('variaciones que se quedan activas porque lo grabado depende de ellas: '
+                     + ', '.join(_nombre(v) for v in quedan))
     # 064:RF-10: la foto entera, releída; lo hecho solo se anuncia si el estado coincide.
-    diferencias = _diferencias(app, foto)
+    diferencias = _diferencias(app, foto, conservar)
     if diferencias:
         raise RestitucionFallida('el estado no quedó como al empezar: ' + '; '.join(diferencias)
                                  + (f' (se hizo: {"; ".join(hecho)})' if hecho else ''))

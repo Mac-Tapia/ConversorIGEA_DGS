@@ -1,6 +1,6 @@
 # Spec 071 — Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU
 
-Estado: aprobada · Fecha: 2026-11-02 · Origen: petición del usuario
+Estado: cumplida · Fecha: 2026-11-02 · Origen: petición del usuario
 
 ## Contexto y objetivo
 

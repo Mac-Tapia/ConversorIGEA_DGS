@@ -36,24 +36,31 @@ def _libro(path: Path, hojas: dict[str, list[list]]) -> Path:
 
 
 def _medicion(rng, n: int, columnas: dict[str, str], pico: int | None = None,
-              vacios: float = 0.0) -> tuple[list[list], dict]:
-    """Hoja de medición con columnas en orden sorteado. Devuelve las filas y el pico."""
+              vacios: float = 0.0, inicio: datetime = INICIO) -> tuple[list[list], dict]:
+    """Hoja de medición con columnas en orden sorteado. Devuelve las filas y la máxima esperada.
+
+    004:RF-112: la máxima es la de una hora seguida, así que el pico es una hora entera de 5 000 kW (los 4 registros
+    que terminan en ``pico``, o los 4 primeros si ``pico`` < 3), con los mismos kVAR, kVA y FP: su media es ese registro.
+    """
     nombres = list(columnas.values())
     rng.shuffle(nombres)
     cab = ['Local Time', 'Timestamp'] + nombres
     filas = [cab]
     pico = rng.randrange(n) if pico is None else pico
+    pico = min(max(pico, 3), n - 1)
+    hora = set(range(pico - 3, pico + 1))
+    kvar_pico = round(5000.0 * rng.uniform(-0.3, 0.5), 1)
     esperado = {}
     for i in range(n):
-        kw = 5000.0 if i == pico else round(rng.uniform(100, 4000), 1)
-        kvar = round(kw * rng.uniform(-0.3, 0.5), 1)
+        kw = 5000.0 if i in hora else round(rng.uniform(100, 4000), 1)
+        kvar = kvar_pico if i in hora else round(kw * rng.uniform(-0.3, 0.5), 1)
         kva = (kw ** 2 + kvar ** 2) ** 0.5
         valores = {'kw': kw, 'kvar': kvar, 'kva': kva, 'fp_pct': 100 * kw / kva}
         fila = {columnas.get('kw'): kw, columnas.get('kvar'): kvar, columnas.get('kva'): kva,
                 columnas.get('fp'): valores['fp_pct']}
-        if i != pico and rng.random() < vacios:
+        if i not in hora and rng.random() < vacios:
             fila[columnas['kw']] = None if rng.random() < 0.5 else 'n/d'
-        t = INICIO + timedelta(minutes=15 * i)
+        t = inicio + timedelta(minutes=15 * i)
         filas.append([t, t] + [fila.get(c) for c in nombres])
         if i == pico:
             esperado = {'fecha': t, **valores}
@@ -151,8 +158,9 @@ def test_la_maxima_a_medianoche_conserva_su_hora(tmp_path):
     en hojas, no casaba con la misma fecha y hora de las otras. Con las semillas 116, 183,
     299 y 309 la prueba sorteada caía justo ahí y fallaba solo a veces."""
     rng = random.Random(SEMILLA)
+    # 004:RF-112: la hora sostenida que termina a medianoche (23:15 a 00:00).
     completo, esperado = _medicion(rng, 40, {'kw': 'kW tot', 'kvar': 'kVAR tot', 'kva': 'kVA tot'},
-                                   pico=0)
+                                   pico=3, inicio=INICIO - timedelta(minutes=45))
     assert esperado['fecha'] == INICIO
     cab = completo[0]
     partes = {}
@@ -278,7 +286,7 @@ def test_kw_maximo_con_su_fecha_y_el_resto_del_mismo_registro(tmp_path):
     filas = [['kVA tot', 'Local Time', 'kW tot', 'PF lag mean', 'kVAR tot']]
     for i in range(30):
         t = INICIO + timedelta(minutes=15 * i)
-        if i == 17:
+        if 14 <= i <= 17:                 # 004:RF-112: una hora seguida, la que termina en el registro 17
             filas.append([1000.0, t, 900.0, 90.0, 436.0])
         else:
             filas.append([5000.0, t, 100.0 + i, 50.0, 4000.0])
@@ -991,13 +999,14 @@ def test_set_con_tres_transformadores_suma_los_tres():
     assert alta.transformadores == {f'B-X6T{i}': f'T{i}' for i in range(1, n + 1)}
     assert any('transformadores medidos en 60 kV' in a for a in avisos) == (n > 1)
     t0 = datetime(2026, 7, 1)
-    curvas = [[(t0 + timedelta(minutes=15 * k), (500.0 if k == i else 100.0), 0.0) for k in range(6)]
+    # Registros horarios: la hora es el registro (004:RF-112); aquí se mira otra cosa.
+    curvas = [[(t0 + timedelta(hours=k), (500.0 if k == i else 100.0), 0.0) for k in range(6)]
               for i in range(1, n + 1)]
     mx = dm.maxima_de_barra(curvas)
     # Cada transformador tiene su punta en otro registro: con varios, la suma empata y
     # vale el primero; con uno, su punta.
     assert mx['kw'] == pytest.approx(500.0 + 100.0 * (n - 1))
-    assert mx['fecha'] == t0 + timedelta(minutes=15)
+    assert mx['fecha'] == t0 + timedelta(hours=1)
 
 
 def test_medidor_ct_es_central_termica(tmp_path):
@@ -1247,9 +1256,11 @@ def test_el_registro_de_un_instante(tmp_path):
     completo, _ = _medicion(rng, 50, {'kw': 'kW tot', 'kvar': 'kVAR tot'})
     _libro(tmp_path / 'c.xlsx', {'M1': completo})
     t = INICIO + timedelta(minutes=15 * 7)
-    fila = next(f for f in completo[1:] if f[0] == t)
+    k = completo[0].index('kW tot')
+    hora = [f[k] for f in completo[1:] if t - timedelta(minutes=45) <= f[0] <= t]
     r = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')], instante=t)[0]
-    assert r.fecha == t.isoformat(sep=' ') and r.kw == fila[completo[0].index('kW tot')]
+    # 004:RF-115: en un instante, la media de la hora que termina en él.
+    assert r.fecha == t.isoformat(sep=' ') and len(hora) == 4 and r.kw == pytest.approx(sum(hora) / 4)
     fuera = dm.maximas([tmp_path / 'c.xlsx'], [('', 'M1')], instante=t + timedelta(days=99))[0]
     assert fuera.error and 'sin registro' in fuera.error
 
@@ -1295,12 +1306,14 @@ def _curvas_coincidentes(rng):
     t0 = datetime(2026, 9, 1)
     n = rng.randint(200, 400)
     fechas = [t0 + timedelta(minutes=15 * i) for i in range(n)]
-    pico, maniobra = rng.sample(range(10, n - 10), 2)
+    pico = rng.randrange(10, n - 10)
+    maniobra = rng.choice([i for i in range(10, n - 10) if abs(i - pico) > 4])
+    hora = range(pico - 3, pico + 1)      # 004:RF-112: el pico real dura una hora y termina en ``pico``
     a, cab, gen, lle, sal = [], [], [], [], []
     for i, t in enumerate(fechas):
-        kw_a = rng.uniform(900, 1000) + (300 if i == pico else 0)
+        kw_a = rng.uniform(900, 1000) + (300 if i in hora else 0)
         g = rng.uniform(4900, 5000)
-        s = rng.uniform(4000, 4100) + (300 if i == pico else 0)
+        s = rng.uniform(4000, 4100) + (300 if i in hora else 0)
         ll = g - s
         arriba = rng.uniform(190, 210)
         c = arriba - ll
@@ -1328,7 +1341,8 @@ def test_instante_coincidente_con_central_descarta_la_maniobra():
 def test_instante_coincidente_no_es_la_maxima_de_cada_uno():
     """028:RF-28 — sin central, la mayor suma aunque ninguno marque ahí su propia máxima."""
     t0 = datetime(2026, 9, 1)
-    fechas = [t0 + timedelta(minutes=15 * i) for i in range(5)]
+    # Registros horarios: la hora es el registro (004:RF-112); aquí se mira otra cosa.
+    fechas = [t0 + timedelta(hours=i) for i in range(5)]
     a = [(t, kw, None) for t, kw in zip(fechas, (10.0, 90.0, 60.0, 10.0, 10.0))]
     b = [(t, kw, None) for t, kw in zip(fechas, (10.0, 10.0, 60.0, 90.0, 10.0))]
     r = dm.instante_coincidente({'A': a, 'B': b}, {})
@@ -1349,7 +1363,8 @@ def test_instante_coincidente_respeta_el_mes_y_avisa_si_la_central_no_cuadra():
 def test_sesenta_kv_la_mayor_suma_coincidente_no_la_de_cada_barra():
     """028:RF-31 — la mayor suma de las barras, con sus transformadores, aunque ninguna marque ahí su máxima."""
     t0 = datetime(2026, 9, 1)
-    f = [t0 + timedelta(minutes=15 * i) for i in range(5)]
+    # Registros horarios: la hora es el registro (004:RF-112); aquí se mira otra cosa.
+    f = [t0 + timedelta(hours=i) for i in range(5)]
     curva = lambda *kw: [(t, k, None) for t, k in zip(f, kw)]
     r = dm.instante_de_barras_de_alta({'SET A': [curva(10, 90, 60, 10, 10)],
                                        'SET B': [curva(5, 5, 30, 45, 5), curva(5, 5, 30, 45, 5)]})
@@ -1456,7 +1471,8 @@ def test_sin_medida_en_el_instante_busca_en_el_mes_y_solo_entonces():
 def test_el_instante_del_sistema_no_cae_en_una_transferencia_de_carga():
     """028:RF-39 — el registro con un alimentador fuera de lo normal no fija el instante; lo plano no dice nada."""
     t0 = datetime(2026, 4, 1)
-    f = [t0 + timedelta(minutes=15 * i) for i in range(40)]
+    # Registros horarios: la hora es el registro (004:RF-112); aquí se mira otra cosa.
+    f = [t0 + timedelta(hours=i) for i in range(40)]
     normal = [(t, 100.0 + i % 5, None) for i, t in enumerate(f)]
     con_transferencia = [(t, 3000.0 if i == 7 else 50.0 + i % 5, None) for i, t in enumerate(f)]
     plano = [(t, 0.0, None) for t in f]
@@ -1473,7 +1489,8 @@ def test_el_instante_del_sistema_no_cae_en_una_transferencia_de_carga():
 def test_sesenta_kv_un_medidor_con_huecos_no_descarta_las_demas_fechas():
     """028:RF-31 — caso de Chincha: una barra casi muerta, con pocos registros, no fija el instante."""
     t0 = datetime(2026, 7, 1)
-    f = [t0 + timedelta(minutes=15 * i) for i in range(5)]
+    # Registros horarios: la hora es el registro (004:RF-112); aquí se mira otra cosa.
+    f = [t0 + timedelta(hours=i) for i in range(5)]
     curva = lambda *kw: [(t, k, None) for t, k in zip(f, kw) if k is not None]
     r = dm.instante_de_barras_de_alta({'SET A': [curva(10, 90, 20, 30, 10)],
                                        'SET CHN': [curva(None, None, None, 8, 8)]})
@@ -1489,3 +1506,62 @@ def test_los_clientes_de_alta_vienen_del_perfil_local():
     e = estructura_de_perfil({'estructura': datos, 'clientes_alta_por_set': {'SET 1': ['Cliente X']}})
     assert e.sets['SET 1'].clientes_alta == ('Cliente X',)
     assert estructura_de_perfil({'estructura': datos}).sets['SET 1'].clientes_alta == ()
+
+
+# --------------------------------------------------------------------------- MEJ10-FIJAS (orden del 20-11)
+def _libro_fm(path: Path, mes: int, dias: tuple[int, ...], clientes: dict[str, tuple[float, str, float]]) -> Path:
+    """Un libro de clientes ficticio de un mes: por cliente (FM, medidor, EA de cada registro, ya con su FM)."""
+    maestro = [['numero_suministro', 'nombre_hoja_exportacion', 'fm', 'numero_identificador']]
+    hojas: dict[str, list[list]] = {}
+    resumen = [['SUMINISTRO', 'EA_TOTAL', 'ERI_TOTAL', 'POT_MAX']]
+    for codigo, (fm, medidor, ea) in clientes.items():
+        maestro.append([codigo, f'c{codigo}', fm, medidor])
+        filas = [['SUMINISTRO', 'FECHA', 'HORA', 'EA', 'ERI', 'POT']]
+        for d in dias:
+            for k in range(4):
+                filas.append([codigo, f'{d:02d}/{mes:02d}/2026', f'{k:02d}:00', ea, ea / 4, ea * 4])
+        hojas[f'c{codigo}'] = filas
+        resumen.append([codigo, ea * 4 * len(dias), ea * len(dias), ea * 4])
+    return _libro(path, {'Resumen': resumen, 'maestro_lib': maestro, **hojas})
+
+
+def test_004_rf111_fm_cambiado_con_el_salto_de_su_energia(tmp_path):
+    """004:RF-111 — el FM de un cliente pasa de 30 a 100 con el cambio de medidor y su energía del primer día salta en
+    esa razón: aviso FM_CAMBIADO con las dos cifras y el factor del FM anterior (0,3). Si el FM cambia y la energía no
+    salta, o el FM no cambia, nada. Hoy no se compara."""
+    fm_cambiados = getattr(dm, 'fm_cambiados', None)
+    assert fm_cambiados is not None, '004:RF-111: no hay comparación del FM entre meses'
+    sep = _libro_fm(tmp_path / 'sep.xlsx', 9, (29, 30), {
+        '900001': (30.0, 'MX-1', 10.0), '900002': (30.0, 'MX-3', 10.0), '900003': (50.0, 'MX-5', 10.0)})
+    octu = _libro_fm(tmp_path / 'oct.xlsx', 10, (1, 2), {
+        '900001': (100.0, 'MX-2', 10.0 * 100 / 30), '900002': (100.0, 'MX-4', 10.0), '900003': (50.0, 'MX-5', 10.0)})
+    (aviso,) = fm_cambiados(octu, sep, '2026-10', '2026-09')
+    assert aviso['codigo'] == '900001' and aviso['aviso'] == 'FM_CAMBIADO'
+    assert (aviso['fm_anterior'], aviso['fm_actual']) == (30.0, 100.0)
+    assert (aviso['medidor_anterior'], aviso['medidor_actual']) == ('MX-1', 'MX-2')
+    assert aviso['factor_propuesto'] == pytest.approx(0.3) and aviso['salto_energia'] == pytest.approx(100 / 30)
+    assert (aviso['dia_anterior'], aviso['dia']) == ('2026-09-30', '2026-10-01')
+    assert 'FM_CAMBIADO' in aviso['texto'] and '900001' in aviso['texto']
+    assert fm_cambiados(octu, sep, '2026-10', '2026-09', ['900003']) == [], 'solo los pedidos'
+    assert dm.factores_de_medidor(octu)['900001'] == {'codigo': '900001', 'fm': 100.0, 'medidor': 'MX-2'}
+
+
+def test_039_rf23_correccion_fechada_del_factor_de_un_medidor():
+    """039:RF-23 — la corrección vale desde su mes (y hasta el suyo, si lo tiene); la última registrada manda; se
+    aplica a EA, ERI, POT y al registro del cliente, sin tocar nada más."""
+    vigente = getattr(dm, 'correccion_vigente', None)
+    aplicar = getattr(dm, 'aplicar_correccion', None)
+    assert vigente is not None and aplicar is not None, '039:RF-23: no hay correcciones del factor del medidor'
+    regs = [{'codigo': '900001', 'factor': 0.5, 'desde': '2026-08'},
+            {'codigo': '900001', 'factor': 0.3, 'desde': '2026-10'},
+            {'codigo': '900002', 'factor': 2.0, 'desde': '2026-01', 'hasta': '2026-03'}]
+    assert vigente(regs, '900001', '2026-09')['factor'] == 0.5
+    assert vigente(regs, ' 900001 ', '2026-11')['factor'] == 0.3
+    assert vigente(regs, '900001', '2026-07') is None and vigente(regs, '900002', '2026-04') is None
+    assert vigente(regs, '900001', None) is None
+    c = dm.ClienteImportante('900001', 1, ea=408566.0, eri=10.0, pot=2492.0, p_registro_kw=1806.5,
+                             q_registro_kvar=965.6)
+    assert aplicar(c, regs[1]) == 0.3
+    assert c.p_registro_kw == pytest.approx(541.95) and c.q_registro_kvar == pytest.approx(289.68)
+    assert c.ea == pytest.approx(122569.8) and c.pot == pytest.approx(747.6) and c.sed == ''
+    assert aplicar(c, None) is None

@@ -44,7 +44,7 @@ def _vnr_zip(tmp_path: Path) -> Path:
             _feature('B1', 'FD101', 'EMPD', 2025, -71.97),
         ],
     }
-    archive = tmp_path / 'VNR_GIS_Electro_Dunas_2025.zip'
+    archive = tmp_path / 'VNR_GIS_Empresa_A_2025.zip'
     with zipfile.ZipFile(archive, 'w') as zf:
         zf.writestr('capas/Tramo_MT.geojson', json.dumps(geojson))
     return archive

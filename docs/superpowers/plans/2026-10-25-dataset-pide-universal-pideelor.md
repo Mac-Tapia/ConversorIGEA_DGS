@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Construir desde `referencia/PIDEELOR` un dataset universal, auditable y apto para RAG/reentrenamiento que cubra los artículos 1–20 sin convertir los resultados particulares de ELOR en reglas de otra empresa.
+**Goal:** Construir desde `referencia/PIDEELOR` un dataset universal, auditable y apto para RAG/reentrenamiento que cubra los artículos 1–20 sin convertir los resultados particulares de EMPB en reglas de otra empresa.
 
 **Architecture:** Un módulo puro inventaría y clasifica cada archivo, extractores acotados publican texto y metadatos estructurados, y un constructor genera corpus `context`, plantillas metodológicas y tarjetas de calidad. Un CLI materializa JSONL/JSON sin modificar fuentes y valida que toda fila conserve custodia empresarial y SHA-256.
 
@@ -14,7 +14,7 @@
 
 - Los originales de `referencia/PIDEELOR` son solo lectura.
 - Cada archivo aparece exactamente una vez en el manifiesto y recibe SHA-256 calculado por flujo.
-- La empresa queda en procedencia; ninguna regla universal depende de `ELOR`.
+- La empresa queda en procedencia; ninguna regla universal depende de `EMPB`.
 - Todo contenido empresarial derivado se publica como `context`; `gold` exige aceptación humana o nativa externa.
 - PDF/DOCX/XLSX/CSV/GIS se extraen con estado explícito; formatos propietarios nunca se marcan como leídos por su mera existencia.
 - Archivos temporales, rotos, duplicados, sin CRS y con vínculos externos conservan advertencias.

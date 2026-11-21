@@ -1,10 +1,10 @@
 # Spec 066 — Cada informe con su libro Excel, según el perfil de la empresa
 
 Estado: cumplida · Fecha: 2026-11-02 · Origen: petición del usuario, 2026-11-02 («si debe ir del libro,
-cada informe debe tener su libro; son datos para la empresa Electro Dunas, solo se usa en informes o estudios
-para Electro Dunas»).
+cada informe debe tener su libro; son datos para la empresa Empresa A, solo se usa en informes o estudios
+para Empresa A»).
 
-El informe modelo de Electro Dunas tiene un libro par (`informeModeloperdidas.xlsx`): su hoja `Informe` arma las
+El informe modelo de Empresa A tiene un libro par (`informeModeloperdidas.xlsx`): su hoja `Informe` arma las
 tablas con las hojas de resultados y da el precio de compra. El informe solo leía de él dos hojas: se usó un precio
 de 0,1443 S/./kWh sin fuente y el libro dice 0,2307. El libro trae además datos escritos a mano de EMAPICA, que no
 deben llegar al libro de otro cliente, como la solicitud de Minera Santa María llegó al informe de INKA (063:RF-48).

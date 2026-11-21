@@ -2,7 +2,7 @@
 
 Plan: `specs/020-sed-sobrecargadas/plan.md`. Una tarea cada vez, pruebas primero.
 
-- [x] T1. Tablas de fichas en el perfil de Electro Dunas y su lectura validada.
+- [x] T1. Tablas de fichas en el perfil de Empresa A y su lectura validada.
       (RF-29, RF-30, RF-31)
       Hecho cuando: `pytest -q tests/test_perfil_empresa.py` en verde.
       Resultado del 2026-10-16: `perfil_empresa.transformadores_sed`; Tablas 6 (13 filas) y
@@ -77,3 +77,7 @@ Plan: `specs/020-sed-sobrecargadas/plan.md`. Una tarea cada vez, pruebas primero
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_ajuste_cabecera_guion.py` y `tests/test_central_termica_front.py`).
 - [x] T12. Las fichas NTP 370.400 son parte del conversor y se usan cuando el perfil no trae las suyas. (RF-63)
       Hecho cuando: `tests/test_instalacion_programa.py` (020:RF-63) en verde y el catálogo entra en la entrega.
+- [x] T13. MEJ10-FIJAS (orden del usuario del 20-11): `proponer_transformadores` y `sed_sobre_el_umbral` con la plausibilidad de las fijas; `fijas_sobre_su_transformador` con los kVA del grupo. (RF-64)
+      Hecho cuando: rojo por aserción sobre 2f9de358 y verde con `tests/test_ajuste_cabecera_guion.py -k rf64`; la corrida en DIgSILENT la decide d8.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ10_FIJAS/rojo.log (test_020_rf64_sin_propuesta_para_una_fija_a_revisar); verde ídem; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).

@@ -394,12 +394,16 @@ def validar_corpus_real(filas: list[dict], meta: dict, *, custodia: CustodiaCorp
         verificar_fuente(f, custodia=custodia)
 
 
-def sellar_particiones(dataset: Path, destino: Path) -> dict:
-    """El entrenador no necesita abrir los textos de prueba para validar su entrada."""
+def sellar_particiones(dataset: Path, destino: Path, *, validar=None, sistema: str | None = None) -> dict:
+    """El entrenador no necesita abrir los textos de prueba para validar su entrada.
+
+    ``validar`` y ``sistema`` sellan con el mismo formato otro corpus, con su validador y su prompt, como el de
+    redacción del PIDE (072:RF-50); por defecto, el corpus de órdenes y el prompt del alumno.
+    """
     import shutil
     filas = json.loads((dataset / 'corpus.json').read_text(encoding='utf-8'))
     meta = json.loads((dataset / 'dataset_manifest.json').read_text(encoding='utf-8'))
-    validar_corpus_real(filas, meta)
+    (validar or validar_corpus_real)(filas, meta)
     if destino.exists():
         raise ValueError('destino existente conservado')
     destino.mkdir(parents=True)
@@ -411,7 +415,7 @@ def sellar_particiones(dataset: Path, destino: Path) -> dict:
         archivos[parte] = {**custodiar(p, localizador=parte), 'registros': len(registros)}
         huellas[parte] = huella(registros)
     meta = {**meta, 'archivos_particion': archivos, 'huellas_particion':huellas,
-            'prompt_hash': huella(sistema_alumno())}
+            'prompt_hash': huella(sistema_alumno() if sistema is None else sistema)}
     for origen, nombre, clave in (('contextos.json', 'contextos_fuente.json', 'contextos_fuente'),
                                  ('humanas_reservadas.json', 'humanas_reservadas.json', 'humanas_reservadas_archivo')):
         if (dataset / origen).is_file():
@@ -600,17 +604,57 @@ def ficha_base() -> dict:
     return next(m for m in catalogo['modelos'] if m['backend']=='huggingface' and 'Instruct-2507-bnb-4bit' in m['id'])
 
 
+def ejemplos_de_entrenamiento(dataset: Path, *, lectores: dict | None = None) -> tuple[list[dict], dict, str]:
+    """El train sellado, su manifiesto y su prompt de sistema, según el tipo de corpus del manifiesto (072:RF-51).
+
+    Sin tipo, el corpus de órdenes con su lector y el prompt del alumno, como hasta ahora. Con tipo, el lector que se
+    pase para ese tipo en ``lectores`` (``{tipo: lector(dataset, parte) -> (registros, meta)}``; el de
+    ``redaccion_pide`` lo pasa ``tools/asistente_qlora.py``, sin que este módulo dependa del corpus de redacción) y el
+    prompt que selló su manifiesto; un tipo sin lector no se entrena.
+    """
+    try:
+        tipo = json.loads((Path(dataset) / 'dataset_manifest.json').read_text(encoding='utf-8')).get('tipo_corpus')
+    except (OSError, ValueError, AttributeError):
+        tipo = None
+    if tipo is None:
+        registros, meta = leer_particion_real(dataset, 'entrenamiento')
+        return registros, meta, sistema_alumno()
+    lector = (lectores or {}).get(tipo)
+    if lector is None:
+        raise ValueError(f'tipo de corpus sin lector de entrenamiento: {tipo}')
+    registros, meta = lector(dataset, 'entrenamiento')
+    sistema = meta.get('sistema')
+    if not isinstance(sistema, str) or not sistema.strip() or meta.get('prompt_hash') != huella(sistema):
+        raise ValueError('prompt distinto del protocolo sellado')
+    return registros, meta, sistema
+
+
+def codificar_ejemplos(tok, sistema: str, registros: list[dict], *, max_tokens: int) -> list[tuple[list[int], list[int]]]:
+    """Cada ejemplo con la plantilla de chat del tokenizador: aprende solo la respuesta, sin truncar nada."""
+    codificados = []
+    for r in registros:
+        prompt = tok.apply_chat_template([{'role':'system','content':sistema},
+            {'role':'user','content':r['texto']}], tokenize=False, add_generation_prompt=True)
+        prefijo = tok.encode(prompt, add_special_tokens=False)
+        respuesta = tok.encode(r['respuesta'] + tok.eos_token, add_special_tokens=False)
+        codificados.append(objetivo_causal(prefijo, respuesta, max_tokens=max_tokens))
+    return codificados
+
+
 def entrenar_epoca(dataset: Path, destino: Path, *, epoca: int = 1, desde: Path | None = None,
                    semilla: int = 11, rango: int = 8, lr: float = 2e-4,
-                   acumulacion: int = 8, max_tokens: int = 2048, log=print) -> dict:
-    """QLoRA real de todo el train sellado; cada checkpoint permite continuar sin prueba."""
+                   acumulacion: int = 8, max_tokens: int = 2048, log=print, lectores: dict | None = None) -> dict:
+    """QLoRA real de todo el train sellado; cada checkpoint permite continuar sin prueba.
+
+    ``lectores`` da el lector de un corpus con tipo, como el de redacción del PIDE (072:RF-51).
+    """
     import math
     import time
     if destino.exists():
         raise ValueError('destino existente conservado')
     if any(type(v) is not int or v < 1 for v in (epoca, rango, acumulacion, max_tokens)) or not 0 < lr < 1:
         raise ValueError('configuracion de entrenamiento invalida')
-    registros, meta = leer_particion_real(dataset, 'entrenamiento')
+    registros, meta, sistema = ejemplos_de_entrenamiento(dataset, lectores=lectores)
     configuracion = {'dataset_hash': meta['dataset_hash'], 'prompt_hash': meta['prompt_hash'],
         'semilla': semilla, 'rango': rango, 'lr': lr, 'acumulacion': acumulacion, 'max_tokens': max_tokens}
     estado_previo = None
@@ -639,13 +683,7 @@ def entrenar_epoca(dataset: Path, destino: Path, *, epoca: int = 1, desde: Path 
         opt.load_state_dict(guardado['optimizer'])
         torch.set_rng_state(guardado['rng_cpu'])
         torch.cuda.set_rng_state_all(guardado['rng_cuda'])
-    codificados = []
-    for r in registros:
-        prompt = tok.apply_chat_template([{'role':'system','content':sistema_alumno()},
-            {'role':'user','content':r['texto']}], tokenize=False, add_generation_prompt=True)
-        prefijo = tok.encode(prompt, add_special_tokens=False)
-        respuesta = tok.encode(r['respuesta'] + tok.eos_token, add_special_tokens=False)
-        codificados.append(objetivo_causal(prefijo, respuesta, max_tokens=max_tokens))
+    codificados = codificar_ejemplos(tok, sistema, registros, max_tokens=max_tokens)
     orden = list(range(len(registros))); random.Random(semilla + epoca).shuffle(orden)
     misma_epoca = estado_previo is not None and estado_previo['epoca'] == epoca
     inicio_indice = estado_previo['siguiente_indice'] if misma_epoca else 0

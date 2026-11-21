@@ -966,6 +966,15 @@ class MaximaCabecera:
     #: Por qué no hay tensión, o no hay pu, o de qué unidad se supuso (RF-73, RF-74, RF-76). Aparte de
     #: ``avisos``: un libro sin columnas de tensión no tiene nada mal en su kW.
     tension_aviso: str | None = None
+    # 004:RF-112 a RF-114: el mayor registro (referencia), la máxima sostenida propia del periodo (con un instante, la
+    # referencia), la hora de lo que se carga, el promedio sin ceros ni vacíos y el factor de carga.
+    pico: dict[str, Any] | None = None
+    sostenida: dict[str, Any] | None = None
+    ventana: dict[str, Any] | None = None
+    promedio_kw: float | None = None
+    registros_promedio: int = 0
+    factor_carga: float | None = None
+    factor_carga_pico: float | None = None
     # Curva entera ``(fecha, kW, kVAR)`` en orden. Fuera de ``to_dict``: el resultado del
     # trabajo viaja al navegador por el WebSocket, y un año de lecturas cada 15 min son
     # unos 35 000 registros por medidor. La web la sirve aparte y reducida (RF-39). La que sale de un
@@ -986,24 +995,109 @@ def _iso(fecha: Any) -> str | None:
     return None if fecha is None else str(fecha)
 
 
+# =========================================================================== máxima sostenida
+#: 004:RF-112: la máxima de diseño es la mayor media de una hora seguida de registros, no el mayor registro suelto.
+VENTANA_SOSTENIDA_MIN = 60
+
+
+def intervalo_de_registro(fechas: Iterable[datetime]) -> timedelta | None:
+    """El intervalo de la medición: el paso más frecuente entre registros seguidos (004:RF-112).
+
+    Los libros de cabecera traen 15 minutos, pero uno puede traer 5, 30 o 60: la ventana de una hora se cuenta
+    en registros de ese libro. ``None`` con menos de dos fechas.
+    """
+    orden = sorted({f for f in fechas if isinstance(f, datetime)})
+    pasos = collections.Counter(b - a for a, b in zip(orden, orden[1:]) if b > a)
+    if not pasos:
+        return None
+    # A igual frecuencia, el paso más corto: determinismo.
+    return min(pasos, key=lambda d: (-pasos[d], d))
+
+
+def registros_por_ventana(intervalo: timedelta | None, minutos: int = VENTANA_SOSTENIDA_MIN) -> int:
+    """Cuántos registros seguidos forman la ventana: 4 de 15 min en una hora; 1 si el libro es horario o más."""
+    if intervalo is None or intervalo <= timedelta(0):
+        return 1
+    return max(1, round(timedelta(minutes=minutos) / intervalo))
+
+
+def ventana_que_termina(serie: Mapping[datetime, Any], fin: datetime, intervalo: timedelta | None,
+                        n: int) -> list[datetime] | None:
+    """Las ``n`` fechas seguidas que terminan en ``fin``, o ``None`` si falta alguna: un hueco no es una hora."""
+    if n <= 1 or intervalo is None:
+        return [fin] if fin in serie else None
+    fechas = [fin - k * intervalo for k in range(n - 1, -1, -1)]
+    return fechas if all(f in serie for f in fechas) else None
+
+
+def medias_sostenidas(serie: Mapping[datetime, float], intervalo: timedelta | None = None,
+                      minutos: int = VENTANA_SOSTENIDA_MIN) -> dict[datetime, float]:
+    """La media de cada hora seguida de registros, por la fecha de su último registro (004:RF-112).
+
+    Es la demanda integrada en la ventana, la que se usa como máxima de diseño: un registro suelto por una
+    maniobra o una transferencia sube su hora solo en una cuarta parte. Sin ninguna ventana completa, vacío.
+    """
+    intervalo = intervalo if intervalo is not None else intervalo_de_registro(serie)
+    n = registros_por_ventana(intervalo, minutos)
+    out: dict[datetime, float] = {}
+    for fin in serie:
+        fechas = ventana_que_termina(serie, fin, intervalo, n)
+        if fechas is not None:
+            out[fin] = sum(serie[f] for f in fechas) / len(fechas)
+    return out
+
+
+def mayor_sostenida(serie: Mapping[datetime, float], periodo: str | None = None,
+                    intervalo: timedelta | None = None,
+                    minutos: int = VENTANA_SOSTENIDA_MIN) -> tuple[datetime, float, bool] | None:
+    """La fecha y el valor de la mayor media de una hora en el periodo, y si lo es (``True``) o, sin ninguna hora
+    completa, el mayor registro (``False``). A igual valor, la primera. ``None`` sin registros en el periodo.
+    """
+    medias = {f: v for f, v in medias_sostenidas(serie, intervalo, minutos).items() if en_periodo(f, periodo)}
+    sostenida = bool(medias)
+    if not medias:
+        medias = {f: v for f, v in serie.items() if en_periodo(f, periodo)}
+    if not medias:
+        return None
+    f = max(medias, key=lambda x: (medias[x], -x.timestamp()))
+    return f, medias[f], sostenida
+
+
+def sostenida_de_curva(curva: Sequence[tuple[datetime, float, float | None]],
+                       periodo: str | None = None) -> dict[str, Any] | None:
+    """La máxima sostenida de una curva ``(fecha, kW, kVAR)``: ``{fecha, kw, sostenida}`` (004:RF-112, 028:RF-32)."""
+    serie = {f: kw for f, kw, _q in curva or [] if isinstance(f, datetime) and kw is not None}
+    hallada = mayor_sostenida(serie, periodo)
+    if hallada is None:
+        return None
+    return {'fecha': hallada[0], 'kw': hallada[1], 'sostenida': hallada[2]}
+
+
+def _media(xs: Sequence[float | None]) -> float | None:
+    return None if not xs or any(x is None for x in xs) else sum(xs) / len(xs)  # type: ignore[arg-type,misc]
+
+
 def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera,
                         periodo: str | None = None,
-                        instante: datetime | None = None) -> MaximaCabecera:
-    """kW máximo con su fecha; kVAR, kVA y FP del **mismo** registro (RF-27, RF-28, RF-30).
+                        instante: datetime | None = None, *, sostenida: bool = True) -> MaximaCabecera:
+    """La máxima sostenida con su fecha; kVAR, kVA, FP y tensión de la **misma** hora (RF-27, RF-28, RF-30, RF-112).
+
+    La máxima de diseño es la mayor media de una hora seguida de registros (4 de 15 min), y su fecha y hora, la de
+    su último registro (004:RF-112): un registro suelto por una maniobra no la fija. El mayor registro va aparte,
+    en ``pico``, como referencia. Sin ninguna hora completa (huecos), el mayor registro, y se dice.
 
     Con ``periodo`` (``AAAA-MM``, o ``AAAA`` para el año entero, 025:RF-7), la máxima de
     ese mes o año (013:RF-11): NA205 da la suya en
     agosto de 2026 y la empresa solo tiene libros de clientes hasta julio; se calibra en el
     mes que tiene libro. La curva sigue siendo la del registro entero (006:RF-32).
 
-    Con ``instante``, no la máxima sino el registro de esa fecha y hora (021:RF-50): con
+    Con ``instante``, no la máxima sino la hora que termina en esa fecha y hora (021:RF-50, 004:RF-112): con
     varios alimentadores se calibra a la vez, en la máxima de uno de ellos (NA203 + NA205
-    y su central, 2026-10-17).
+    y su central, 2026-10-17). La máxima propia del periodo queda en ``sostenida``, solo como referencia.
     """
-    mejor: Registro | None = None
-    # 013:RF-14: la del periodo entero, para ver si el mes elegido es el de la máxima.
-    del_todo: Registro | None = None
     corruptos = 0
+    validos: dict[datetime, Registro] = {}
+    sin_fecha: list[Registro] = []
     for r in registros:
         kw = r.valores.get('kw')
         if kw is None:
@@ -1014,22 +1108,36 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
             # un contador de 16 bits) con −30 818 kVA y ganaba como máxima de LL203.
             corruptos += 1
             continue
-        if instante is not None:
-            if _como_datetime(r.fecha) == instante:
+        f = _como_datetime(r.fecha)
+        if f is None:
+            sin_fecha.append(r)
+        elif f not in validos:
+            validos[f] = r
+    serie = {f: r.valores['kw'] for f, r in validos.items()}
+    intervalo = intervalo_de_registro(serie)
+    # Con ``sostenida=False`` (el valle, 073:RF-16) la ventana es un registro: la máxima y el instante, como antes.
+    n = registros_por_ventana(intervalo) if sostenida else 1
+    todos = [*validos.values(), *sin_fecha]
+
+    def pico_en(per: str | None) -> Registro | None:
+        mejor: Registro | None = None
+        for r in todos:
+            if not en_periodo(r.fecha, per):
+                continue
+            kw = r.valores['kw']
+            if mejor is None or kw > mejor.valores['kw'] or (kw == mejor.valores['kw'] and _antes(r.fecha, mejor.fecha)):
                 mejor = r
-                break
-            continue
-        if (del_todo is None or kw > del_todo.valores['kw']
-                or (kw == del_todo.valores['kw'] and _antes(r.fecha, del_todo.fecha))):
-            del_todo = r
-        if not en_periodo(r.fecha, periodo):
-            continue
-        if (mejor is None or kw > mejor.valores['kw']
-                or (kw == mejor.valores['kw'] and _antes(r.fecha, mejor.fecha))):
-            mejor = r
-    if periodo and len(periodo) == 7 and instante is None and del_todo is not None:
-        resultado.maxima_periodo = {'fecha': _iso(del_todo.fecha), 'kw': del_todo.valores['kw'],
-                                    'mes': periodo_de_fecha(del_todo.fecha)}
+        return mejor
+
+    pico = pico_en(periodo)
+    minutos_ventana = VENTANA_SOSTENIDA_MIN if sostenida else 0
+    propia = mayor_sostenida(serie, periodo, intervalo, minutos_ventana)
+    if periodo and len(periodo) == 7 and instante is None:
+        # 013:RF-14: la del periodo entero, para ver si el mes elegido es el de la máxima; también sostenida.
+        del_todo = mayor_sostenida(serie, None, intervalo, minutos_ventana)
+        if del_todo is not None:
+            resultado.maxima_periodo = {'fecha': _iso(del_todo[0]), 'kw': del_todo[1],
+                                        'mes': periodo_de_fecha(del_todo[0])}
     resultado.registros = len(registros)
     # 004:RF-108: la curva y las tensiones se guardan compactas; la lista y el diccionario de tuplas son de un medidor
     # y se sueltan aquí, así que lo que crece con los medidores es lo compacto.
@@ -1042,14 +1150,45 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
     if corruptos:
         resultado.avisos.append(f'{cuenta(corruptos, "registro con kVA negativo descartado: no es", "registros con kVA negativo descartados: no son")} '
                                 'físicos (desborde del contador del medidor).')
-    if mejor is None:
+    # 004:RF-113: el promedio de los registros del periodo, sin ceros ni vacíos.
+    del_periodo = [r.valores['kw'] for r in todos if en_periodo(r.fecha, periodo) and r.valores['kw'] != 0]
+    resultado.promedio_kw = sum(del_periodo) / len(del_periodo) if del_periodo else None
+    resultado.registros_promedio = len(del_periodo)
+    minutos = int(intervalo.total_seconds() // 60) if intervalo is not None else None
+    if pico is not None:
+        resultado.pico = {'fecha': _iso(pico.fecha), 'kw': pico.valores['kw'], 'minutos': minutos}
+    if propia is not None:
+        resultado.sostenida = {'fecha': _iso(propia[0]), 'kw': propia[1], 'sostenida': propia[2],
+                               'registros': n if propia[2] else 1, 'minutos': minutos}
+    # 004:RF-114: el factor de carga, el promedio entre la máxima sostenida; con el pico, como referencia.
+    if resultado.promedio_kw is not None and propia is not None and propia[1] > 0:
+        resultado.factor_carga = resultado.promedio_kw / propia[1]
+    if resultado.promedio_kw is not None and pico is not None and pico.valores['kw'] > 0:
+        resultado.factor_carga_pico = resultado.promedio_kw / pico.valores['kw']
+    if instante is not None:
+        fin = instante if instante in validos else None
+    else:
+        fin = propia[0] if propia is not None else None
+    if fin is not None:
+        ventana = [validos[f] for f in (ventana_que_termina(serie, fin, intervalo, n) or [fin])]
+    elif instante is None and pico is not None:
+        ventana = [pico]                    # registros sin fecha: no hay horas que contar; el mayor, como antes
+    else:
+        ventana = []
+    if not ventana:
         resultado.error = (f'sin registro con kW numérico el {_iso(instante)}' if instante
                            else f'ningún registro con kW numérico en {periodo}' if periodo
                            else 'ningún registro con kW numérico')
         return resultado
+    mejor = ventana[-1]
     v = mejor.valores
     resultado.fecha = _iso(mejor.fecha)
-    if instante is None:
+    resultado.ventana = {'inicio': _iso(ventana[0].fecha), 'fin': resultado.fecha, 'registros': len(ventana),
+                         'minutos': minutos}
+    if instante is None and n > 1 and propia is not None and not propia[2]:
+        resultado.avisos.append(f'sin una hora seguida de registros en {periodo or "lo medido"}: la máxima es el '
+                                'mayor registro, no la media de una hora.')
+    if instante is None and len(ventana) == 1:
         # 091:RF-26: TM102 da 211 kW el 2026-02-04 y el 2026-08-16; cada fecha llevaría otro libro de clientes.
         iguales = [r for r in registros if r is not mejor and r.valores.get('kw') == v['kw'] and en_periodo(r.fecha, periodo)
                    and (r.valores.get('kva') is None or r.valores['kva'] >= 0)]
@@ -1060,14 +1199,17 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
     resultado.columnas.pop('fp', None)
     if mejor.fuente_fp:
         resultado.columnas['fp'] = mejor.fuente_fp
-    resultado.kw, resultado.kvar = v['kw'], v.get('kvar')
-    resultado.kva, resultado.fp = v.get('kva'), v.get('fp')
-    # 021:RF-71, RF-73: la tensión de ese mismo registro; sin ella, se dice por qué.
-    resultado.tension, resultado.tension_columna = v.get('v'), mejor.fuente_tension
+    # 004:RF-112: lo que se carga es la media de esa hora; con un solo registro, ese registro (RF-28).
+    resultado.kw = _media([r.valores['kw'] for r in ventana])
+    resultado.kvar = _media([r.valores.get('kvar') for r in ventana])
+    resultado.kva = _media([r.valores.get('kva') for r in ventana])
+    resultado.fp = _media([r.valores.get('fp') for r in ventana])
+    # 021:RF-71, RF-73: la tensión de esa misma hora; sin ella, se dice por qué.
+    resultado.tension, resultado.tension_columna = _media([r.valores.get('v') for r in ventana]), mejor.fuente_tension
     if resultado.tension is None:
-        resultado.tension_aviso = ('sin tensión de línea: la hoja no trae «Vll avg» ni «Vll ab», «Vll bc» y «Vll ca» '
-                                   '(021:RF-73)' if not resultado.tensiones else
-                                   'sin tensión de línea en el registro de la máxima: la columna está vacía (021:RF-73)')
+        resultado.tension_aviso = ('sin tensión de línea: la hoja no trae «Vll avg» ni «Vll ab», «Vll bc» y «Vll ca»'
+                                   if not resultado.tensiones else
+                                   'sin tensión de línea en el registro de la máxima: la columna está vacía')
     if resultado.kva is None and resultado.kvar is not None:
         resultado.kva = math.hypot(resultado.kw, resultado.kvar)
         resultado.kva_calculado = True
@@ -1317,6 +1459,8 @@ class Cabecera:
     def __init__(self, rutas: Iterable[Path | str], alias=ALIAS) -> None:
         self.libros = libros_de_cabecera(rutas)
         self.alias = alias
+        #: 004:RF-112: la máxima y el valor en un instante, por la hora seguida; el valle (073) pide el registro.
+        self.sostenida = True
         #: Libros abiertos, del usado hace más tiempo al último.
         self._abiertos: dict[Path, Any] = {}
         self._nombres: dict[Path, list[str]] = {}
@@ -1431,7 +1575,7 @@ class Cabecera:
         """La máxima y la curva, con la Q negativa desde el FP (088:RF-9). Aquí y no en cada consumidor:
         calibración, valle, crecimiento y pronóstico leen por esta clase."""
         calculados, conservados = q_negativa_con_fp(registros)
-        maxima_de_registros(registros, res, periodo, instante)
+        maxima_de_registros(registros, res, periodo, instante, sostenida=self.sostenida)
         if calculados:
             res.columnas['kvar'] = 'calculado con el FP de los registros con kVAR negativo'
         if conservados:
@@ -1539,8 +1683,11 @@ def maximas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, str]], *
             periodo: str | None = None, instante: datetime | None = None,
             cancelado: Callable[[], bool] = lambda: False,
             progreso: Callable[[int, int, str], None] = lambda *_a: None,
-            cabecera: Cabecera | None = None) -> list[MaximaCabecera]:
+            cabecera: Cabecera | None = None, sostenida: bool = True) -> list[MaximaCabecera]:
     """Máxima de cada ``(alimentador, medidor)``, por separado, sin sumar (RF-29, RF-32).
+
+    ``sostenida``: la máxima y el valor en un instante son la media de una hora seguida (004:RF-112); con
+    ``False``, el registro, como pide el valle (073:RF-16), que elige su instante registro a registro.
 
     Se cancela entre medidores: un medidor se lee entero. ``cabecera``: la misma para cada
     instante de la máxima por barra (022:RF-84), con los nombres de las hojas ya leídos: con un
@@ -1549,6 +1696,17 @@ def maximas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, str]], *
     de los que caben en ``LIBROS_ABIERTOS_MAX_BYTES`` (004:RF-108).
     """
     cabecera = cabecera or Cabecera(rutas, alias)
+    antes, cabecera.sostenida = cabecera.sostenida, sostenida
+    try:
+        return _maximas_con(cabecera, medidores, periodo, instante, cancelado, progreso)
+    finally:
+        cabecera.sostenida = antes
+
+
+def _maximas_con(cabecera: 'Cabecera', medidores: Sequence[tuple[str, str]], periodo: str | None,
+                 instante: datetime | None, cancelado: Callable[[], bool],
+                 progreso: Callable[[int, int, str], None]) -> list[MaximaCabecera]:
+    """El cuerpo de :func:`maximas`, con la ``Cabecera`` ya puesta en su modo (004:RF-108, RF-112)."""
     # 004:RF-108: agrupados por libro, empezando por los que siguen abiertos, para que cada .xls se abra una vez y no
     # haya más de uno en memoria; el resultado sale en el orden pedido. Cancelar deja los ya leídos, en ese orden.
     orden = list(range(len(medidores)))
@@ -1712,19 +1870,23 @@ def instante_coincidente(cabeceras: Mapping[str, Curva], centrales: Mapping[str,
             if res is not None:
                 avisos.append(f'{alimentador}: la central no se usa para el instante común ({res.error})')
             demanda[alimentador] = {t: v[0] for t, v in cab.items()}
-    fechas = set.intersection(*(set(d) for d in demanda.values())) if demanda else set()
-    if periodo:
-        # en_periodo y no «== periodo»: con «Todo 2026» ninguna fecha valía y la búsqueda fallaba.
-        fechas = {t for t in fechas if en_periodo(t, periodo)}
+    comunes = set.intersection(*(set(d) for d in demanda.values())) if demanda else set()
+    # en_periodo y no «== periodo»: con «Todo 2026» ninguna fecha valía y la búsqueda fallaba.
+    fechas = {t for t in comunes if en_periodo(t, periodo)}
     base = {'descartados': descartados, 'registros': len(fechas), 'avisos': avisos}
     if not fechas:
         return {**base, 'fecha': None, 'total_kw': None, 'por_alimentador': {},
                 'avisos': [*avisos, 'ningún registro común a todos los alimentadores'
                            + (f' en {periodo}' if periodo else '')]}
-    # A igual demanda, el primero: determinismo.
-    t = max(fechas, key=lambda x: (sum(d[x] for d in demanda.values()), -x.timestamp()))
-    por = {a: d[t] for a, d in demanda.items()}
-    return {**base, 'fecha': t, 'total_kw': sum(por.values()), 'por_alimentador': por}
+    # 004:RF-112: el instante es el final de la mayor hora seguida de la demanda conjunta, no su mayor registro;
+    # sin ninguna hora completa, el mayor registro. A igual demanda, el primero: determinismo.
+    total = {x: sum(d[x] for d in demanda.values()) for x in comunes}
+    intervalo = intervalo_de_registro(total)
+    t, _kw, sostenida = mayor_sostenida(total, periodo, intervalo)  # type: ignore[misc]
+    ventana = ventana_que_termina(total, t, intervalo, registros_por_ventana(intervalo) if sostenida else 1) or [t]
+    por = {a: sum(d[x] for x in ventana) / len(ventana) for a, d in demanda.items()}
+    return {**base, 'fecha': t, 'total_kw': sum(por.values()), 'por_alimentador': por,
+            'ventana_registros': len(ventana)}
 
 
 def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
@@ -1965,6 +2127,113 @@ def _hojas_de_maestro(libro: Any, path: Path | str) -> tuple[list[tuple[str, str
     i_sum, i_hoja = norm.index('numero suministro'), norm.index('nombre hoja exportacion')
     return [(texto_de_celda(f, i_sum), texto_de_celda(f, i_hoja)) for f in filas[cab + 1:]
             if texto_de_celda(f, i_sum) and texto_de_celda(f, i_hoja)], []
+
+
+#: 004:RF-111: los títulos de «maestro_lib» con el factor de multiplicación y el número del medidor, normalizados.
+_TITULOS_FM = ('fm', 'factor multiplicacion', 'factor de multiplicacion')
+_TITULOS_MEDIDOR = ('numero identificador', 'numero identificador medidor', 'numero medidor', 'medidor')
+#: 004:RF-111: el salto de energía del primer día frente al último del mes anterior que se da por igual a la razón de
+#: los FM (± 20 %).
+TOLERANCIA_SALTO_FM = 0.2
+
+
+def factores_de_medidor(path: Path | str) -> dict[str, dict[str, Any]]:
+    """004:RF-111: cliente (``clave_codigo``) → ``{'codigo', 'fm', 'medidor'}`` de «maestro_lib»; vacío sin él."""
+    libro = abrir_libro(path)
+    maestro = next((h for h in libro.sheet_names if normalizar(h) == 'maestro lib'), None)
+    if maestro is None:
+        return {}
+    filas = filas_de_hoja(libro, maestro)
+    cab = next((i for i, f in enumerate(filas[:FILAS_CABECERA]) if 'numero suministro' in {normalizar(c) for c in f}),
+               None)
+    if cab is None:
+        return {}
+    norm = [normalizar(c) for c in filas[cab]]
+    i_sum = norm.index('numero suministro')
+    i_fm = next((i for i, n in enumerate(norm) if n in _TITULOS_FM), None)
+    i_med = next((i for i, n in enumerate(norm) if n in _TITULOS_MEDIDOR), None)
+    if i_fm is None and i_med is None:
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    for f in filas[cab + 1:]:
+        codigo = texto_de_celda(f, i_sum)
+        if codigo:
+            out[clave_codigo(codigo)] = {'codigo': codigo, 'fm': numero(_celda(f, i_fm)) if i_fm is not None else None,
+                                         'medidor': texto_de_celda(f, i_med) if i_med is not None else ''}
+    return out
+
+
+def _energia_de_un_dia(curva: Sequence[tuple[datetime, float, float | None]], ultimo: bool) -> tuple[str, float] | None:
+    """El día (primero o último) de una curva de 15 minutos y su energía en kWh (kW / 4)."""
+    if not curva:
+        return None
+    dia = (max if ultimo else min)(t.date() for t, _p, _q in curva)
+    return dia.isoformat(), sum(p for t, p, _q in curva if t.date() == dia) / 4.0
+
+
+def fm_cambiados(actual: Path | str, anterior: Path | str, mes: str | None, mes_anterior: str | None,
+                 codigos: Iterable[str] | None = None, *, tolerancia: float = TOLERANCIA_SALTO_FM) -> list[dict[str, Any]]:
+    """Los clientes cuyo FM cambia entre el libro del mes anterior y el del mes, con un salto de energía igual (004:RF-111).
+
+    Se compara ``fm`` y el número del medidor de «maestro_lib» de los dos libros. Si el FM cambia y la energía del
+    primer día del mes frente a la del último día del mes anterior salta en la razón de los FM (± ``tolerancia``), el
+    cambio es de unidad, no de carga: se avisa ``FM_CAMBIADO`` con las dos cifras y el factor que devuelve el FM
+    anterior (``factor_propuesto``). No se corrige solo: el operador registra la corrección (039:RF-23). Un cliente
+    real pasó de FM 545,4545 a 1818,1818 con el cambio de medidor y su fija subió ×3,33 sin que su cabecera subiera.
+    """
+    ahora, antes = factores_de_medidor(actual), factores_de_medidor(anterior)
+    pedidos = None if codigos is None else {clave_codigo(c) for c in codigos}
+    cambiados = {k: (antes[k], v) for k, v in ahora.items()
+                 if k in antes and (pedidos is None or k in pedidos) and v.get('fm') and antes[k].get('fm')
+                 and not math.isclose(v['fm'], antes[k]['fm'], rel_tol=1e-6)}
+    if not cambiados:
+        return []
+    nombres = [v['codigo'] for _a, v in cambiados.values()]
+    curvas_ahora = {clave_codigo(c): x for c, x in curvas_de_clientes(actual, nombres, mes=mes)[0].items()}
+    curvas_antes = {clave_codigo(c): x for c, x in curvas_de_clientes(anterior, nombres, mes=mes_anterior)[0].items()}
+    out = []
+    for k, (a, v) in sorted(cambiados.items()):
+        primero = _energia_de_un_dia(curvas_ahora.get(k) or [], ultimo=False)
+        ultimo = _energia_de_un_dia(curvas_antes.get(k) or [], ultimo=True)
+        if primero is None or ultimo is None or ultimo[1] <= 0:
+            continue
+        razon, salto = v['fm'] / a['fm'], primero[1] / ultimo[1]
+        if abs(salto / razon - 1.0) > tolerancia:
+            continue
+        factor = a['fm'] / v['fm']
+        out.append({'codigo': v['codigo'], 'aviso': 'FM_CAMBIADO', 'fm_anterior': a['fm'], 'fm_actual': v['fm'],
+                    'medidor_anterior': a.get('medidor') or '', 'medidor_actual': v.get('medidor') or '',
+                    'razon_fm': razon, 'salto_energia': salto, 'dia_anterior': ultimo[0], 'kwh_anterior': ultimo[1],
+                    'dia': primero[0], 'kwh': primero[1], 'factor_propuesto': factor, 'mes': mes,
+                    'texto': (f"FM_CAMBIADO: {v['codigo']}: FM {a['fm']:g} → {v['fm']:g} (×{razon:.2f}) y su energía "
+                              f"×{salto:.2f} del {ultimo[0]} al {primero[0]}; con el FM anterior, ×{factor:.4f}.")})
+    return out
+
+
+def correccion_vigente(correcciones: Iterable[Mapping[str, Any]], codigo: str, mes: str | None) -> dict[str, Any] | None:
+    """039:RF-23: la corrección fechada del factor del medidor de un cliente que vale para ``mes`` (``AAAA-MM``).
+
+    Vale desde su mes (``desde``) y, si lo tiene, hasta ``hasta``; con varias, la última registrada. Sin mes, ninguna.
+    """
+    if not mes:
+        return None
+    clave = clave_codigo(codigo)
+    validas = [c for c in correcciones or [] if clave_codigo(c.get('codigo')) == clave
+               and str(c.get('desde') or '') <= mes and (not c.get('hasta') or mes <= str(c['hasta']))
+               and numero(c.get('factor')) is not None]
+    return dict(validas[-1]) if validas else None
+
+
+def aplicar_correccion(cliente: ClienteImportante, correccion: Mapping[str, Any] | None) -> float | None:
+    """039:RF-23: EA, ERI, POT y el registro del cliente por el factor de su corrección; el libro no se toca."""
+    factor = numero((correccion or {}).get('factor'))
+    if factor is None:
+        return None
+    for campo in ('ea', 'eri', 'pot', 'q_registro_kvar', 'p_registro_kw'):
+        valor = getattr(cliente, campo)
+        if valor is not None:
+            setattr(cliente, campo, valor * factor)
+    return factor
 
 
 #: Hojas de un libro de clientes que no son de un cliente.
@@ -2999,10 +3268,17 @@ def maxima_de_barra(curvas: Sequence[Sequence[tuple[datetime, float, float | Non
         comunes = {f for f in comunes if en_periodo(f, periodo)}
     if not comunes:
         return None
+    todas = set(por_fecha[0]).intersection(*por_fecha[1:])
     suma = {f: (sum(d[f][0] for d in por_fecha),
-                sum((d[f][1] or 0.0) for d in por_fecha)) for f in comunes}
-    fecha = max(suma, key=lambda f: (suma[f][0], -f.timestamp()))
-    return {'fecha': fecha, 'kw': suma[fecha][0], 'kvar': suma[fecha][1], 'registros': len(comunes)}
+                sum((d[f][1] or 0.0) for d in por_fecha)) for f in todas}
+    # 004:RF-112: la mayor hora seguida de la barra, con su media; sin ninguna completa, el mayor registro.
+    kw_de = {f: v[0] for f, v in suma.items()}
+    intervalo = intervalo_de_registro(kw_de)
+    fecha, kw, sostenida = mayor_sostenida(kw_de, periodo, intervalo)  # type: ignore[misc]
+    ventana = (ventana_que_termina(kw_de, fecha, intervalo, registros_por_ventana(intervalo) if sostenida else 1)
+               or [fecha])
+    return {'fecha': fecha, 'kw': kw, 'kvar': sum(suma[f][1] for f in ventana) / len(ventana),
+            'registros': len(comunes)}
 
 
 #: Por encima de esta tensión un medidor de barra es de alta (60 kV, 220 kV) (022:RF-43).
@@ -3259,6 +3535,15 @@ def valor_de_barra_en(curvas: Sequence[Sequence[tuple[datetime, float, float | N
               for c in curvas]
     if not puntos or any(p is None for p in puntos):
         return None
+    # 004:RF-112: la media de la hora que termina en esa fecha, si todos la tienen entera; si no, el registro.
+    series = [{f: (kw, kvar) for f, kw, kvar in c if f is not None and kw is not None} for c in curvas]
+    comunes = set(series[0]).intersection(*series[1:])
+    intervalo = intervalo_de_registro(comunes)
+    ventana = ventana_que_termina(dict.fromkeys(comunes), fecha, intervalo, registros_por_ventana(intervalo))
+    if ventana and len(ventana) > 1:
+        return {'fecha': fecha, 'kw': sum(s[f][0] for s in series for f in ventana) / len(ventana),
+                'kvar': sum((s[f][1] or 0.0) for s in series for f in ventana) / len(ventana),
+                'registros': len(ventana)}
     return {'fecha': fecha, 'kw': sum(p[0] for p in puntos),
             'kvar': sum((p[1] or 0.0) for p in puntos), 'registros': 1}
 
@@ -3308,8 +3593,9 @@ def instante_de_barras_de_alta(curvas_por_barra: Mapping[str, Sequence[Curva]], 
                 total[f] += kw
     # 028:RF-39: una transferencia de carga no fija el instante; si no quedara ninguno, no se filtra.
     normales = {f: v for f, v in total.items() if f not in maniobras} or total
-    t = max(normales, key=lambda f: (normales[f], -f.timestamp()))
-    return {'fecha': t, 'total_kw': normales[t], 'descartados': len(total) - len(normales)}
+    # 004:RF-112: el final de la mayor hora seguida de la suma; una hora con una maniobra no cuenta entera.
+    t, kw, _sostenida = mayor_sostenida(normales, None, intervalo_de_registro(total))  # type: ignore[misc]
+    return {'fecha': t, 'total_kw': kw, 'descartados': len(total) - len(normales)}
 
 
 def completar_sin_medida(res: Sequence[MaximaCabecera], fecha: datetime, periodo: str | None,
@@ -3527,7 +3813,9 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
     # memoria (2026-10-27). Cada llamada empieza por el libro que siga abierto (004:RF-108).
     res = []
     for inst, ps in grupos.items():
-        res += maximas(libros, ps, alias=alias, periodo=None if inst else periodo,
+        # Con un instante el periodo no elige el registro: da la máxima propia, el pico y el promedio de referencia
+        # (004:RF-112 a RF-115) del mismo periodo analizado.
+        res += maximas(libros, ps, alias=alias, periodo=periodo,
                        instante=inst, cancelado=cancelado, cabecera=cabecera)
     orden = {m: i for i, (_a, m) in enumerate(pares)}
     res.sort(key=lambda r: orden.get(r.medidor, len(orden)))

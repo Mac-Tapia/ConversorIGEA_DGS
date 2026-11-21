@@ -1,5 +1,5 @@
 import {
-  createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
+  createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode,
 } from 'react';
 import { descargarBlob } from '../api/client';
 import { useNubeEntradas } from './nubeEntradas';
@@ -40,6 +40,20 @@ export const useToast = () => useContext(ToastCtx);
 
 // ---------------------------------------------------------------- diálogo modal
 
+/**
+ * 111 T17 (WCAG 2.4.3): abre el diálogo como modal y, al desmontarse, devuelve el foco a quien lo tenía al abrirlo
+ * (`previo`), si sigue en la página. Sin esto, al cerrar con Escape o «Cerrar» el foco caía en el `body`.
+ */
+export function enlazarDialogo(
+  d: Pick<HTMLDialogElement, 'open' | 'showModal'>,
+  previo: (Element & { focus?: () => void }) | null,
+): () => void {
+  if (!d.open) d.showModal();
+  return () => {
+    if (previo?.isConnected && typeof previo.focus === 'function') previo.focus();
+  };
+}
+
 export function Modal({
   title, children, onClose, actions, wide,
 }: {
@@ -50,15 +64,15 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const d = ref.current;
-    if (d && !d.open) d.showModal();
-  }, []);
+  const idTitulo = useId();
+  // Quién tenía el foco se lee en el primer render, antes de showModal: en StrictMode el efecto corre dos veces.
+  const [previo] = useState(() => (typeof document === 'undefined' ? null : document.activeElement));
+  useEffect(() => (ref.current ? enlazarDialogo(ref.current, previo) : undefined), [previo]);
   return (
-    <dialog ref={ref} className={`modal ${wide ? 'modal-wide' : ''}`} onClose={onClose}
+    <dialog ref={ref} className={`modal ${wide ? 'modal-wide' : ''}`} aria-labelledby={idTitulo} onClose={onClose}
       onCancel={(e) => { e.preventDefault(); onClose(); }}>
       <header className="modal-head">
-        <h2>{title}</h2>
+        <h2 id={idTitulo}>{title}</h2>
         <button className="icon-btn" aria-label="Cerrar" onClick={onClose}>×</button>
       </header>
       <div className="modal-body">{children}</div>

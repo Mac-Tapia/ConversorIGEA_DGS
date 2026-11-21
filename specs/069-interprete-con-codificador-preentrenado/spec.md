@@ -128,6 +128,11 @@ integrador ya había visto los mensajes reservados; por eso se declara también 
   coinciden, se compara en la intersección y se dice cuántas quedan. Cada candidato guarda en su registro su
   `humanas_por_orden` (acierto por huella de la orden y las que vio), para que mañana se le compare así; la medida con
   `tr.cargar()` sobre todas se sigue dando, marcada `dentro_de_muestra`, y no decide.
+- RF-41: CUANDO se partan las órdenes humanas para entrenar, elegir y examinar el intérprete, EL SISTEMA las repartirá
+  por empresa y por fecha (la prueba, de una empresa retenida o de fechas posteriores a las del ajuste), y SI dos
+  órdenes son paráfrasis de la misma petición, ENTONCES caerán en la misma partición. (2026-11-20, Plan Maestro PM-18:
+  las 45 humanas de hoy traen la fecha en que se anotaron, pero no la empresa ni su grupo de paráfrasis, que no se
+  deducen del texto; los dan el usuario o sus revisores.)
 
 ## Fuera de alcance
 

@@ -41,6 +41,30 @@ IC = cargar_herramienta('instalar_candidato.py')
 RAIZ = CE.RAIZ
 
 
+@pytest.fixture(scope='module', autouse=True)
+def _busqueda_con_memoria():
+    """MEJ8: cada texto se busca una vez por módulo; las pruebas de abajo vuelven a pasar los mismos ficheros de la rueda.
+
+    ``buscar_en_texto`` es pura en (ruta, texto, términos): ``memoria`` solo guarda la categoría de cada trozo, que sale
+    de los términos. Un texto nuevo o cambiado (lo que mete cada prueba en la rueda) se busca de verdad; uno ya visto
+    devuelve una lista nueva con los mismos hallazgos (inmutables). Se deshace al terminar el módulo.
+    """
+    original = CE.buscar_en_texto
+    vistos: dict[tuple, tuple[object, list]] = {}
+
+    def con_memoria(rel, texto, terminos, memoria=None):
+        clave = (rel, id(terminos), hashlib.sha256(texto.encode('utf-8', 'surrogatepass')).digest(), len(texto))
+        if clave not in vistos:
+            # Los términos quedan referenciados: su id no puede reutilizarse mientras viva la memoria.
+            vistos[clave] = (terminos, original(rel, texto, terminos, memoria))
+        return list(vistos[clave][1])
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(CE, 'buscar_en_texto', con_memoria)
+        yield
+    vistos.clear()
+
+
 @pytest.fixture(scope='module')
 def manifiesto():
     return CE.leer_manifiesto()

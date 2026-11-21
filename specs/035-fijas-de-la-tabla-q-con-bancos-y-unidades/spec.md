@@ -1,6 +1,6 @@
 # Spec 035 — Fijas de la tabla en el instante de la máxima, Q de cabecera con bancos y unidades de DIgSILENT
 
-Estado: cumplida · pedida por el usuario el 2026-10-29 («verifica que la tabla cruzada de los
+Estado: cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario: RF-32) · antes cumplida · pedida por el usuario el 2026-10-29 («verifica que la tabla cruzada de los
 SED coincida en la misma fecha del valor de cabecera seleccionada y los valores de las columnas
 de Pot (kW) y Q (kvar) de la misma tabla se carguen a DIgSILENT con escala 1, fijas, y los SED que
 no están en la tabla se escalan para cuadrar al valor de la cabecera más fijas; además debe
@@ -161,6 +161,9 @@ debe hacer cuadre; esto debe ser dable y robusto»). NA203: con sus escaladas a 
   extremo que lo demostró (FP de las escaladas y Q de cabecera), la Q que quedó y su diferencia.
 - RF-31: CON la medida no coherente, EL SISTEMA recomendará revisar los bancos y la medición
   del alimentador como en RF-20 (motivo `MEDIDA_INCOHERENTE`), para que el evaluador lo valide.
+- RF-32: (orden del usuario del 20-11; aclara RF-2 y RF-4) Con P = 0 en el registro del instante, la fija va con la
+  P y la Q de ese registro y el método `REGISTRO_DEL_INSTANTE`, no `ERI/EA`, y el informe dice «fija sin consumo en el
+  instante» con la EA del mes como evidencia.
 
 ## Fuera de alcance
 

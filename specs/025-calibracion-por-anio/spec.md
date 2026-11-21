@@ -57,7 +57,7 @@ Libros por año
   año, en cualquiera de estas formas: `MMAA`, `AAAAMM`, `AAAA-MM`, `MM-AAAA` o el nombre del
   mes en español o en inglés; si no, seguirá con 013:RF-4 (fecha dentro del libro). Ningún
   nombre fijo de libro de una empresa (usuario, 2026-10-23: «no va a ser necesariamente de
-  la empresa Electro Dunas, puede ser de cualquier empresa; es universal y general»).
+  la empresa Empresa A, puede ser de cualquier empresa; es universal y general»).
 - RF-6b: EL SISTEMA aceptará en el perfil una lista de patrones de nombre de libro de
   clientes, además de uno solo, para la empresa que cambie la forma del nombre de un año a
   otro.
@@ -261,7 +261,7 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   EL SISTEMA dirá cuál falta y no supondrá un valor (P13).
 - RF-58: CUANDO se repite la escalera con la misma red, las mismas cargas y la misma
   semilla, EL SISTEMA sorteará lo mismo y elegirá la misma variante.
-- RF-67: EL SISTEMA costeará la escalera en la moneda de trabajo del perfil (Electro Dunas:
+- RF-67: EL SISTEMA costeará la escalera en la moneda de trabajo del perfil (Empresa A:
   dólares, como su libro CAPEX) y pasará a ella los precios de pérdidas con el tipo de
   cambio que el operador escriba en la web al pedir la escalera, sin tomarlo del perfil
   (usuario, 2026-10-24: «trabaja en dólares»; «la tasa de cambio de dólar debe ingresar
@@ -303,7 +303,7 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   «DIgSILENT no dejó pasar el cubículo del tramo a la barra nueva».)
 - RF-77: EL SISTEMA pasará los costos del libro CAPEX a la moneda de trabajo con la escala
   del perfil (`escalera.escala_capex`); SI el libro trae costos y el perfil no da la escala,
-  ENTONCES lo dirá y no costeará con ellos. (Electro Dunas, 2026-10-24: el libro está en miles
+  ENTONCES lo dirá y no costeará con ellos. (Empresa A, 2026-10-24: el libro está en miles
   de dólares y se tomaba en dólares; la terna salía a 60,9 USD/km y en SI213 ganó terna y
   sección solo por las pérdidas.) Vale para todo lo que costea con el libro, también el PIDE: la escala y la moneda del
   recibo son las del perfil, y cada costo se escala una sola vez (`pide_economia.costos_en_moneda_de_trabajo`).
@@ -415,7 +415,7 @@ habilitados para el ingreso o cargado de nuevos datos o archivos de entrada desd
 
 - Universal (P13): vale para cualquier distribuidora. Ningún año, nombre de carpeta, nombre de
   libro, prefijo de hoja ni código de una empresa en el código ni como valor por defecto.
-  Electro Dunas es solo el caso de prueba: lo que sea suyo va en su perfil, y sin perfil todo
+  Empresa A es solo el caso de prueba: lo que sea suyo va en su perfil, y sin perfil todo
   funciona con las reglas generales (RF-6, RF-12, RF-25b).
 - Escala: cualquier número de años y de alimentadores; los libros de un año se abren una vez
   por búsqueda, como hoy (`Cabecera`).

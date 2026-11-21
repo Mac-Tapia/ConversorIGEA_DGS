@@ -103,6 +103,8 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
       visible y microcopia sin exceso de texto. (RF-13, RF-14)
       Hecho cuando: la nota de la revisión, con capturas, está en la evidencia de la entrega (fuera de git) sin
       hallazgos abiertos.
+      MEJ6-A11Y (2026-11-20): D1, D2, D3, M1, M2 corregidos; falta repetir los guiones del revisor sobre la versión
+      corregida y el plano con entrega cargada.
 - [ ] T18. [DIgSILENT] Recorrido real por la web sobre una copia de un proyecto de prueba: una maniobra y un tramo nuevo
       estudiados en DIgSILENT, resultados sobre el plano con el motor dicho, y el caso base y los casos del operador
       como estaban. (RF-4, RF-10, RF-11, RF-17, RF-18)

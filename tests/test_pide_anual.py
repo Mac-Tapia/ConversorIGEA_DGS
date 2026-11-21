@@ -384,3 +384,154 @@ def test_no_copia_corto_plazo_cuya_activacion_falla(anual, monkeypatch):
     with pytest.raises(PideError,match='origen'):
         tool.casos_del_anio(app,{'sin':source,'con':source},5,lambda f:None,estudio_id='copia_fallida')
     assert app.creados==before
+
+
+# ---------------------------------------------------------------- 072 T14: la obra que pida el año
+def _con_proyeccion(tmp_path, plan, projection, filas):
+    projection['filas'] = filas
+    plan['proyeccion_anual'] = _json(tmp_path / 'proyeccion.json', projection)
+
+
+def _fila(tool, load, year, p, q):
+    return {'anio': year, 'alimentador': 'Red_A', 'carga': tool.clave_pf(load), 'clase': 'escaladas',
+            'objetivo': 'Red_A', 'p_kw': p, 'q_kvar': q}
+
+
+def _tipo(app, nombre):
+    return next(t for t in app.carpetas['equip'].GetContents('*.TypTr2', 1) if t.loc_name == nombre)
+
+
+def test_el_anio_prueba_las_candidatas_en_orden_y_se_queda_con_la_primera_que_cumple(anual, tmp_path):
+    """072:RF-25, 072:RF-26 (T14) — la que no cumple se retira; la elegida queda encima de la de corto plazo."""
+    tool, app, plan, projection, source, load, transformer, works = anual
+    # 400 kW: con el tipo A (0,30 MVA) el transformador queda al 133 % y no cumple; con el B (0,60 MVA), al 67 %.
+    _con_proyeccion(tmp_path, plan, projection, [_fila(tool, load, y, p, q) for y, p, q in
+                                                 [(5, 400, 20), (6, 420, 10), (7, 450, -10)]])
+    a, b = tool.clave_pf(works[1]), tool.clave_pf(works[2])
+    plan['obras_por_anio'] = [{'anio': 5, 'variacion': a, 'alternativa': 1}, {'anio': 5, 'variacion': b, 'alternativa': 2}]
+    before = (load.plini, load.qlini, load.scale0, tool.clave_pf(transformer.typ_id))
+    report, rc = tool.ejecutar(app, plan)
+    assert rc == 0, report
+    primero = report['anios'][0]
+    assert [(o['variaciones'], o['cumple']) for o in primero.get('obras_probadas', [])] == [([a], False), ([b], True)]
+    assert [row['obras_aplicadas'] for row in report['anios']] == [[b], [], []]
+    assert all(a not in row['obras_acumuladas'] and b in row['obras_acumuladas'] for row in report['anios'])
+    assert all(row['despues']['cumple'] for row in report['anios'])
+    assert report['restitucion']['ok'] is True and app.GetActiveStudyCase() is source
+    assert before == (load.plini, load.qlini, load.scale0, tool.clave_pf(transformer.typ_id))
+
+
+def test_la_candidata_que_no_hace_falta_sigue_para_el_anio_que_la_pida(anual):
+    """072:RF-25, 072:RF-26 (T14) — cada año pide solo lo que le falta, encima de lo del año anterior."""
+    tool, app, plan, projection, source, load, transformer, works = anual
+    a, b = tool.clave_pf(works[1]), tool.clave_pf(works[2])
+    plan['obras_por_anio'] = [{'anio': 5, 'variacion': a, 'alternativa': 1}, {'anio': 5, 'variacion': b, 'alternativa': 2}]
+    report, rc = tool.ejecutar(app, plan)
+    assert rc == 0, report
+    assert [row['obras_aplicadas'] for row in report['anios']] == [[a], [b], []]
+    assert [[o['variaciones'] for o in row.get('obras_probadas', [])] for row in report['anios']] == [[[a]], [[b]], []]
+    assert report['anios'][-1]['obras_acumuladas'] == sorted({tool.clave_pf(works[0]), a, b})
+    assert report['restitucion']['ok'] is True
+
+
+def test_ninguna_sola_basta_ni_juntas_bloquea_y_conserva_el_origen(anual, tmp_path):
+    """072:RF-25, 072:RF-28 (T14) — sin una obra que resuelva el año, bloqueado y el origen intacto."""
+    tool, app, plan, projection, source, load, transformer, works = anual
+    _con_proyeccion(tmp_path, plan, projection, [_fila(tool, load, y, 900, 0) for y in (5, 6, 7)])
+    plan['obras_por_anio'] = [{'anio': 5, 'variacion': tool.clave_pf(works[1]), 'alternativa': 1},
+                              {'anio': 5, 'variacion': tool.clave_pf(works[2]), 'alternativa': 2}]
+    before = (load.plini, load.qlini, load.scale0, tool.clave_pf(transformer.typ_id))
+    report, rc = tool.ejecutar(app, plan)
+    assert rc != 0 and 'no resuelven' in report['error'] and report['estado'] != 'completo'
+    assert [o['cumple'] for o in report['anios'][0].get('obras_probadas', [])] == [False, False]
+    assert report['restitucion']['ok'] is True and app.GetActiveStudyCase() is source
+    assert before == (load.plini, load.qlini, load.scale0, tool.clave_pf(transformer.typ_id))
+
+
+@pytest.mark.parametrize('dato, esperado, coincide', [
+    ({'anio': 5, 'barra': 'B1', 'u': 0.94}, 5, True),
+    ({'Red_A': {'anio': 6, 'barra': 'B1'}}, 6, False),
+    (None, None, None)])
+def test_el_anio_en_que_vuelve_a_fallar_es_el_punto_de_partida(anual, tmp_path, dato, esperado, coincide):
+    """072:RF-26 (T14), 098:RF-39, 098:RF-40 — el año del estudio frente al medido; si difieren, se dice."""
+    tool, app, plan, projection, source, load, transformer, works = anual
+    corto = {k: v for k, v in plan['corto_plazo'].items() if k != 'evidencia'}
+    evidencia = {**corto, 'estado': 'aceptado'}
+    if dato is not None:
+        evidencia['vuelve_a_fallar'] = dato
+    plan['corto_plazo']['evidencia'] = _json(tmp_path / 'corto_vuelve.json', evidencia)
+    report, rc = tool.ejecutar(app, plan)
+    assert rc == 0, report
+    assert report.get('punto_de_partida') == {'anio_del_estudio': esperado, 'primer_anio_medido': 5, 'coincide': coincide}
+    avisos = [a for a in report['avisos'] if 'vuelve a fallar' in a]
+    assert bool(avisos) is (coincide is False)
+    if avisos:
+        assert 'año 6' in avisos[0] and 'año 5' in avisos[0]
+
+
+def _curva_anual(base_kw, tasa, semilla):
+    """Tres años cuarto horarios con forma diaria y la tasa dada; semilla fija: el resultado no depende del sorteo."""
+    import numpy as np
+    from convertersmartgrid.adaptadores.pronostico_demanda import CurvaCompacta
+    t = np.arange(np.datetime64('2023-01-01', 'ns'), np.datetime64('2026-01-01', 'ns'), np.timedelta64(15, 'm'))
+    anios = (t - t[0]) / np.timedelta64(365, 'D')
+    bloque = ((t - t[0]) / np.timedelta64(15, 'm')).astype(int) % 96
+    forma = 1 + .3 * np.sin(2 * np.pi * bloque / 96 - 1.2)
+    ruido = 1 + .02 * np.random.default_rng(semilla).standard_normal(len(t))
+    return CurvaCompacta(t, base_kw * (1 + tasa) ** anios * forma * ruido)
+
+
+def test_proyeccion_emitida_por_la_031_da_la_obra_de_cada_anio_y_restituye(anual, tmp_path):
+    """072:RF-23 a 072:RF-28 (T14) — sin filas a mano: la proyección la emite y la acepta la 031, como en la web."""
+    import math
+    from convertersmartgrid.adaptadores import proyeccion_anual as pa
+    from convertersmartgrid.adaptadores.digital_twin.pronostico import Objetivo
+    from convertersmartgrid.adaptadores.pronostico_demanda import Dataset
+    tool, app, plan, projection, source, load, transformer, works = anual
+    objetivos = [Objetivo(clase, 'Red_A', m, m, _curva_anual(base * (.3 if m == 'kVAR' else 1.0), .10, 7 + i), {})
+                 for i, (clase, base, m) in enumerate((('cabecera', 120.0, 'kW'), ('cabecera', 120.0, 'kVAR'),
+                                                       ('escaladas', 90.0, 'kW'), ('escaladas', 90.0, 'kVAR')))]
+    dataset = Dataset(objetivos, [], [], {})
+    competencia = pa.competir(dataset, candidatos=['tasa_de_un_anio', 'sin_crecimiento'], paso_meses=3)
+    emitida, evaluacion = pa.proyectar(dataset, competencia, proyecto='P', anio_base=2030, anio_corto=4, anio_fin=7,
+                                       cargas=[pa.Carga(tool.clave_pf(load), 'Red_A', 100.0)],
+                                       orden={'operador': 'operador de prueba', 'fecha': '2026-11-20'})
+    assert evaluacion['estado'] == 'aceptado'
+    plan['proyeccion_anual'] = pa.escribir_proyeccion(tmp_path / 'emitida', emitida, evaluacion)
+    por_anio = {f['anio']: f for f in emitida['filas']}
+    assert sorted(por_anio) == [5, 6, 7]
+    s = {y: math.hypot(f['p_kw'], f['q_kvar']) / 1000 for y, f in por_anio.items()}
+    # Las capacidades salen de lo emitido: la de corto plazo no llega al año 5 y la primera candidata aguanta hasta el 7.
+    _tipo(app, 'Corto').strn = s[5] / 0.9
+    _tipo(app, 'Anual_A').strn = max(s.values()) / 0.6
+    _tipo(app, 'Anual_B').strn = max(s.values()) / 0.3
+    assert 100 * math.hypot(load.plini, load.qlini) / _tipo(app, 'Corto').strn < 80, 'el corto plazo debe cumplir hoy'
+    a, b = tool.clave_pf(works[1]), tool.clave_pf(works[2])
+    plan['obras_por_anio'] = [{'anio': 5, 'variacion': a}, {'anio': 6, 'variacion': b}]
+    before = (load.plini, load.qlini, load.scale0, tool.clave_pf(transformer.typ_id))
+    report, rc = tool.ejecutar(app, plan)
+    assert rc == 0, report
+    assert report['proyeccion']['modelo'] == emitida['modelo'] and report['primer_anio_incumplimiento'] == 5
+    assert [row['obras_aplicadas'] for row in report['anios']] == [[a], [], []]
+    assert all(row['despues']['cumple'] for row in report['anios'])
+    assert report['restitucion']['ok'] is True and app.GetActiveStudyCase() is source
+    assert before == (load.plini, load.qlini, load.scale0, tool.clave_pf(transformer.typ_id))
+    for year, fila in por_anio.items():
+        caso = next(c for c in app.carpetas['study'].GetContents('*.IntCase', 1)
+                    if f'Año {year:02d}' in tool.clave_pf(c) and c.loc_name == 'Con proyecto')
+        caso.Activate()
+        assert load.plini * load.scale0 == pytest.approx(fila['p_kw'] / 1000)
+        assert load.qlini * load.scale0 == pytest.approx(fila['q_kvar'] / 1000)
+    source.Activate()
+
+
+def test_sin_alternativa_lo_declarado_para_el_anio_va_junto(anual, tmp_path):
+    """072:RF-25 (T14) — sin «alternativa», las obras de un año son una sola (una sección con su maniobra)."""
+    tool, app, plan, projection, source, load, transformer, works = anual
+    a, b = tool.clave_pf(works[1]), tool.clave_pf(works[2])
+    plan['obras_por_anio'] = [{'anio': 5, 'variacion': a}, {'anio': 5, 'variacion': b}]
+    report, rc = tool.ejecutar(app, plan)
+    assert rc == 0, report
+    assert [row['obras_aplicadas'] for row in report['anios']] == [[a, b], [], []]
+    assert report['anios'][0].get('obras_probadas') == [{'variaciones': [a, b], 'cumple': True, 'problemas': 0}]
+    assert report['restitucion']['ok'] is True

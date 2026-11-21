@@ -867,21 +867,69 @@ def _objetos_banco(alims: Alimentadores, feeder: str) -> list:
     return list(candidatos.values())
 
 
-def fijas_sobre_su_transformador(fijas: dict, kva: dict) -> list[dict]:
+def fijas_sobre_su_transformador(fijas: dict, kva: dict, kva_grupo: dict | None = None) -> list[dict]:
     """Fijas cuya demanda supera la potencia instalada de su SED (015:RF-59).
 
     En CA101 (2026-10-15) un cliente pedía 248 kW en SE20859, de 50 kVA (496 %), y otro
     201 kW en SE21082, de 100 kVA: o el cruce los lleva a otra SED o el
     transformador está mal. No se puede saber cuál; se nombra y se sigue calibrando.
+
+    Con ``kva_grupo`` (015:RF-74, 020:RF-64), la de la SED y sus hermanas «<sed>-n»: el cliente es el grupo entero.
     """
     out = []
     for sed, f in sorted(fijas.items()):
-        k = kva.get(sed)
+        k = (kva_grupo or {}).get(sed) or kva.get(sed)
         s = math.hypot(f.kw, f.kvar)
         if k and s > k:
             out.append({'sed': sed, 'clientes': list(f.clientes), 'p_kw': f.kw,
                         'kva_carga': s, 'kva': k, 'carga_pct': 100.0 * s / k})
     return sorted(out, key=lambda x: -x['carga_pct'])
+
+
+def kva_de_la_fuente(nombres, kva_entrada: dict) -> dict:
+    """015:RF-75: los kVA de cada SED en la fuente (DGS o TXT), sin las variaciones de DIgSILENT; ``None`` sin dato."""
+    from convertersmartgrid.aplicacion.demanda_medida import clave_codigo
+
+    entrada = {clave_codigo(k): v for k, v in (kva_entrada or {}).items()}
+    return {s: entrada.get(clave_codigo(s)) for s in nombres}
+
+
+def plausibilidad_del_plan(plan: dict, objetivo, cargas: dict, kva: dict, fijas: dict, fp_cargas) -> dict:
+    """015:RF-73, 006:RF-47: la plausibilidad de las fijas de un alimentador con lo que trae el plan.
+
+    La evidencia de la curva de cada cliente frente a su cabecera la pone la web en ``evidencia_fijas``; los kVA del
+    grupo salen de la fuente (``kva_entrada``, 015:RF-75), y el factor inicial con los kVA de las escaladas de
+    DIgSILENT, como :func:`reparto_inicial`. Las fijas sin cliente (cambios manuales, demandas medidas de la SED) son
+    del operador: no se ponen en duda (014:RF-10).
+    """
+    from convertersmartgrid.dominio.ajuste_cabecera import hermanas_de, horas_del_mes, kva_de_grupo, plausibilidad_fijas
+
+    con_cliente = {s: f for s, f in fijas.items() if f.clientes}
+    fuente = kva_de_la_fuente(cargas, plan.get('kva_entrada') or {})
+    libres = [s for s in cargas if s not in fijas]
+    grupo = {h for s in fijas for h in hermanas_de(s, libres)}
+    fp = fp_cargas or objetivo.fp
+    p_base = sum((kva.get(s) or 0.0) * fp for s in libres if s not in grupo)
+    return plausibilidad_fijas(objetivo, con_cliente, p_base_escaladas=p_base,
+                               kva_grupo={s: kva_de_grupo(s, fuente, cargas) for s in con_cliente},
+                               evidencia=plan.get('evidencia_fijas'), horas_mes=horas_del_mes(objetivo.fecha),
+                               otras_fijas_kw=sum(f.kw for s, f in fijas.items() if s not in con_cliente))
+
+
+def anotar_kva_de_la_fuente(informe: dict, kva_entrada: dict) -> None:
+    """015:RF-75 (amplía RF-68): en cada SED del informe, además de ``kva`` (``kva_de``), ``kva_fuente`` y ``kva_grupo``.
+
+    Con ``SED_NTP_`` encendida el informe decía 3 150 kVA (``kva_de: pf``) y ocultaba los 100 kVA de la fuente.
+    """
+    from convertersmartgrid.dominio.ajuste_cabecera import kva_de_grupo
+
+    filas = [x for x in informe.get('sed') or [] if isinstance(x, dict) and x.get('sed')]
+    if not filas:
+        return
+    fuente = kva_de_la_fuente([x['sed'] for x in filas], kva_entrada)
+    for x in filas:
+        x['kva_fuente'] = fuente[x['sed']]
+        x['kva_grupo'] = kva_de_grupo(x['sed'], fuente, fuente)
 
 
 def transformadores_de(carga) -> list[dict]:
@@ -922,13 +970,15 @@ def fichas_del_plan(plan: dict) -> tuple[dict | None, str | None]:
         return None, str(exc)
 
 
-def sed_sobre_el_umbral(plan: dict, cargas: dict, kva: dict, fijas: dict, apagar: dict) -> dict:
+def sed_sobre_el_umbral(plan: dict, cargas: dict, kva: dict, fijas: dict, apagar: dict,
+                        plausibilidad: dict | None = None) -> dict:
     """Las SED, fijas y escaladas, que tras calibrar pasan del umbral del perfil, con su
     propuesta (032:RF-20, RF-21, RF-25, RF-28).
 
     La demanda es la que consume cada carga en «Sin proyecto» calibrado: la escrita por su
     factor de escala, que en las escaladas solo da el flujo (scale0). Sin tablas en el perfil
-    el umbral es el 100 % y se listan sin propuesta.
+    el umbral es el 100 % y se listan sin propuesta. ``plausibilidad`` (015:RF-73, 020:RF-64): la de las fijas;
+    sin ella, la del plan.
     """
     from convertersmartgrid.aplicacion.trafos_sed import sed_sobre_umbral
 
@@ -941,18 +991,37 @@ def sed_sobre_el_umbral(plan: dict, cargas: dict, kva: dict, fijas: dict, apagar
         f = fijas.get(x['sed'])
         x['tipo'] = 'fija' if f is not None else 'escalada'
         x['clientes'] = list(f.clientes) if f is not None else []
-    proponer_transformadores(lista, cargas, fichas, motivo)
+    proponer_transformadores(lista, cargas, fichas, motivo,
+                             plausibilidad=plausibilidad if plausibilidad is not None else plan.get('plausibilidad_fijas'))
     return {'umbral_carga_pct': umbral, 'sed': lista}
 
 
 def proponer_transformadores(sobre: list[dict], cargas: dict, fichas: dict | None,
-                             motivo_sin_fichas: str | None = None) -> None:
-    """Pone en cada SED sobrecargada sus transformadores y la propuesta (020:RF-6 a RF-12)."""
+                             motivo_sin_fichas: str | None = None, *, plausibilidad: dict | None = None) -> None:
+    """Pone en cada SED sobrecargada sus transformadores y la propuesta (020:RF-6 a RF-12).
+
+    101:RF-15, 020:RF-64: con la ``plausibilidad`` de las fijas (015:RF-73), la propuesta parte de los kVA de la fuente
+    del grupo de la SED: si ya la llevan no se propone nada; una fija a revisar no se dimensiona; y si se propone porque
+    la media del mes del cliente no cabe en esos kVA, se anota «kVA de la fuente incoherente con la medida» con las dos
+    cifras. Una distribuidora real puso 5 × 630 kVA con una fija inflada por el factor de su medidor.
+    """
     from convertersmartgrid.aplicacion.trafos_sed import nombre_tipo, proponer
 
+    filas = {x['sed']: x for x in (plausibilidad or {}).get('fijas') or [] if isinstance(x, dict) and x.get('sed')}
     for x in sobre:
         trs = transformadores_de(cargas[x['sed']]) if x['sed'] in cargas else []
         x['transformadores'] = trs
+        pl = filas.get(x['sed']) or {}
+        kg = pl.get('kva_grupo')
+        umbral = float(fichas['umbral_carga_pct']) if fichas else 100.0
+        if pl.get('a_revisar'):
+            x['propuesta'] = {'kva': None, 'motivo': 'fija a revisar: no se dimensiona con un dato dudoso'}
+            x['aviso'] = f"{x['sed']}: fija a revisar; sin propuesta de transformador."
+            continue
+        if kg and not pl.get('kva_fuente_incoherente') and x['kva_carga'] <= kg * umbral / 100.0 + 1e-9:
+            x['propuesta'] = {'kva': None, 'motivo': f'su grupo tiene {kg:,.0f} kVA en la fuente y la lleva'}
+            x['kva_grupo'] = kg
+            continue
         if fichas is None:
             x['propuesta'] = {'kva': None, 'motivo': motivo_sin_fichas or
                               'el perfil de empresa no trae tablas de fichas de '
@@ -967,6 +1036,14 @@ def proponer_transformadores(sobre: list[dict], cargas: dict, fichas: dict | Non
             if p['kva'] is not None:
                 p['tipo_nuevo'] = nombre_tipo(p['kva'], p['codigo'], trs[0]['kv_at'],
                                               trs[0]['v_bt'], trs[0]['grupo'])
+                inc = pl.get('kva_fuente_incoherente')
+                if inc:
+                    # 101:RF-15: una reconstrucción legítima, pero dicha, con las dos cifras.
+                    p['reconstruccion'] = {
+                        'motivo': 'kVA de la fuente incoherente con la medida', 'p_media_kw': inc.get('p_media_kw'),
+                        'kva_grupo': inc.get('kva_grupo'),
+                        'texto': (f"kVA de la fuente incoherente con la medida: media del mes "
+                                  f"{inc.get('p_media_kw') or 0:,.0f} kW con {inc.get('kva_grupo') or 0:,.0f} kVA")}
             x['propuesta'] = p
 
 
@@ -1859,6 +1936,37 @@ def variaciones_del_conversor_activas(app, proyecto: str, sin, con) -> list[str]
     return encendidas
 
 
+def conservar_lo_grabado(planes: list[dict], resultados: list[tuple[dict, int]]) -> list[str]:
+    """083:RF-29 con 015:RF-69 y 064:RF-11: si la calibración no cuadra pero dejó el reparto grabado, sus variaciones se quedan.
+
+    El reparto grabado es el que convergió con los transformadores de ``SED_NTP_`` y las fichas de ``Fichas_``. El servidor
+    restituía el estado con cualquier código distinto de 0 y las apagaba; las cargas quedaban sobre los kVA del archivo
+    (hasta el 2 048 %) y la verificación y el gemelo no convergían (diagnóstico del 2026-11-20). Si no se grabó nada, o
+    termina bien, no se pide nada y la restitución sigue como siempre. Devuelve los nombres pedidos.
+    """
+    from cargas_pf import nombre_pf
+
+    from convertersmartgrid.adaptadores import pf_estado
+
+    nombres: list[str] = []
+    grabados = []
+    for plan, (informe, codigo) in zip(planes, resultados):
+        if not codigo or informe.get('modo') == 'simular' or not informe.get('escenarios'):
+            continue
+        grabados.append(informe)
+        for prefijo in (PREFIJO_FICHAS, PREFIJO_SED_NTP):
+            nombre = nombre_pf(f"{prefijo}{plan['project']}")
+            if nombre not in nombres:
+                nombres.append(nombre)
+    if nombres:
+        pf_estado.conservar_tras_fallo(nombres)
+        for informe in grabados:
+            informe['variaciones_conservadas'] = list(nombres)
+        print('  el reparto queda grabado: ' + ', '.join(nombres) + ' se quedan activas aunque la '
+              'calibración no cuadre.', flush=True)
+    return nombres
+
+
 def variacion_grabando(app, nombre: str, etiqueta: str):
     """La variación ``nombre`` activa y con su etapa grabando; se crea si no existe (032:RF-8, RF-13).
 
@@ -2591,6 +2699,7 @@ def ejecutar(app, plan: dict, *, simular: bool = False, cancelado=lambda: False)
         informe, rc = _ejecutar(app, plan, simular=simular, cancelado=cancelado, estado=estado)
     finally:
         _devolver_cargas_nuevas(app, estado)
+    anotar_kva_de_la_fuente(informe, plan.get('kva_entrada') or {})         # 015:RF-75
     _huella_despues(app, estado, informe)                               # 086:RF-14
     cambios = cambios_en_la_red(informe)                                # 020:RF-60
     if cambios:
@@ -2607,7 +2716,8 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     proyecto a la vez (:func:`ejecutar_proyecto`, 021:RF-54). Devuelve ``(informe,
     código)`` si el alimentador no se puede calibrar.
     """
-    from convertersmartgrid.dominio.ajuste_cabecera import AjusteError, Fija, Objetivo, fijas_de, reparto_inicial, sed_desconectadas
+    from convertersmartgrid.dominio.ajuste_cabecera import (AjusteError, Fija, Objetivo, fijas_de, kva_de_grupo,
+                                                           reparto_inicial, sed_desconectadas)
     from convertersmartgrid.aplicacion.demanda_medida import clave_codigo
 
     cargas, ambiguas = cargas_sed(alims, feeder)
@@ -2660,7 +2770,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     # Las SED de los clientes se emparejan con las cargas por su código: las fijas toman
     # el nombre de la carga de DIgSILENT.
     # 015:RF-53, RF-54, RF-56: las fijas, con el EA/ERI de la tabla cruzada; las escaladas,
-    # con el factor del perfil si lo hay (Electro Dunas, 0,98) y si no con el del archivo.
+    # con el factor del perfil si lo hay (Empresa A, 0,98) y si no con el del archivo.
     fp_cargas = plan.get('factor_potencia_cargas')
     fp_min_fijas = plan.get('factor_potencia_minimo_fijas')
     informe['factor_potencia_cargas'] = {
@@ -2725,8 +2835,17 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
                  fijas_libro=fijas_libro, manuales=manuales)
     fijas = {s: f for f in fijas_libro.values() for s in cargas
              if clave_codigo(s) == clave_codigo(f.sed)}
-    # 015:RF-59: un cliente que pide más que el transformador de su SED, nombrado.
-    sobre = fijas_sobre_su_transformador(fijas, kva)
+    # 015:RF-73, 006:RF-47: el dato de cada fija, antes de cambiar ningún transformador y de ningún flujo. Con una fija a
+    # revisar no se calibra ni se graba nada (enmienda RF-69): queda la calibración anterior.
+    plaus = plausibilidad_del_plan(plan, objetivo, cargas, kva, fijas, fp_cargas)
+    informe['plausibilidad_fijas'] = plaus
+    comun['plausibilidad'] = plaus
+    if plaus['estado']:
+        return {**informe, 'error': plaus['texto'], 'fijas_a_revisar': plaus, 'ambiguas': ambiguas,
+                'avisos': informe['avisos'] + [plaus['texto']]}, 2
+    # 015:RF-59: un cliente que pide más que el transformador de su SED, nombrado; 015:RF-74: el de su grupo.
+    kva_grupo_pf = {s: kva_de_grupo(s, kva, cargas) for s in fijas}
+    sobre = fijas_sobre_su_transformador(fijas, kva, kva_grupo_pf)
     # 020:RF-6 a RF-12: la propuesta de transformadores nuevos, con las fichas del perfil
     # que manda la web en el plan; se validan aquí con la misma lectura que el perfil.
     fichas, motivo_fichas = fichas_del_plan(plan)
@@ -2736,7 +2855,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
         if fichas else {'falta': motivo_fichas or 'el perfil de empresa no trae tablas de '
                         'fichas de transformadores (calibracion.transformadores_sed)'})
     if sobre:
-        proponer_transformadores(sobre, cargas, fichas, motivo_fichas)
+        proponer_transformadores(sobre, cargas, fichas, motivo_fichas, plausibilidad=plaus)
     if (sobre and plan.get('transformadores_automaticos') and not simular
             and not plan.get('transformadores')):
         # 083:RF-31: los transformadores de la ficha en esta misma pasada, antes de calibrar. PRUEBA_007
@@ -2758,9 +2877,10 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
                     'pasada: ' + ', '.join(h['sed'] for h in hecho['cambios']) + '.')
                 kva, kva_origen = kva_por_sed(cargas, plan.get('kva_entrada') or {})
                 comun.update(kva=kva, kva_origen=kva_origen)
-                sobre = fijas_sobre_su_transformador(fijas, kva)
+                kva_grupo_pf = {s: kva_de_grupo(s, kva, cargas) for s in fijas}
+                sobre = fijas_sobre_su_transformador(fijas, kva, kva_grupo_pf)
                 if sobre:
-                    proponer_transformadores(sobre, cargas, fichas, motivo_fichas)
+                    proponer_transformadores(sobre, cargas, fichas, motivo_fichas, plausibilidad=plaus)
     if sobre:
         informe['fijas_sobre_su_transformador'] = sobre
         informe['avisos'].append(
@@ -2777,7 +2897,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     try:
         reparto = reparto_inicial(objetivo, fijas_libro,
                                   {s: potencia(o) for s, o in cargas.items()}, kva,
-                                  fp=fp_cargas)
+                                  fp=fp_cargas, kwh=plan.get('kwh_entrada'))    # 015:RF-74
     except AjusteError as exc:
         return {**informe, 'error': str(exc), 'ambiguas': ambiguas}, 2
     if (reparto.causa or {}).get('estado') == 'NO_CALIBRABLE':
@@ -3209,7 +3329,8 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             informe['sed'] = _por_sed(res.reparto, cargas, kva_origen, antes, fijas)
             # 032:RF-20: con la demanda que dejó la calibración, fijas y escaladas.
             if res.medida is not None and res.medida.converge:
-                informe['sed_sobre_umbral'] = sed_sobre_el_umbral(plan, cargas, kva, fijas, apagar)
+                informe['sed_sobre_umbral'] = sed_sobre_el_umbral(plan, cargas, kva, fijas, apagar,
+                                                                  informe.get('plausibilidad_fijas'))
             despues_nativo = _foto_cargas_nativas(cargas)
             informe['relectura_cargas_nativas'] = {
                 'status': ('FALLO_VALIDACION_NATIVA' if fallo_validacion_nativa else
@@ -3330,6 +3451,9 @@ def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
                 red.inicial.Activate()
     if red is not None:
         _anotar_la_transferencia(red, planes, resultados)                  # 098:RF-7
+    for i, (inf, _rc) in enumerate(resultados or []):
+        if isinstance(inf, dict) and i < len(planes):
+            anotar_kva_de_la_fuente(inf, planes[i].get('kva_entrada') or {})   # 015:RF-75
     return resultados
 
 
@@ -4518,7 +4642,7 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
         inf['sed'] = _por_sed(rep, p['cargas'], p['kva_origen'], p['antes'], p['fijas'])
         if med is not None:                                                     # 032:RF-20
             inf['sed_sobre_umbral'] = sed_sobre_el_umbral(p['plan'], p['cargas'], p['kva'],
-                                                          p['fijas'], p['apagar'])
+                                                          p['fijas'], p['apagar'], p.get('plausibilidad'))
         despues = _foto_cargas_nativas(p['cargas'])
         inf['relectura_cargas_nativas'] = {
             'status': ('FALLO_VALIDACION_NATIVA' if not valido else
@@ -4645,6 +4769,7 @@ def main(argv=None) -> int:
         # web solo podía decir «vea el Registro». La traza sigue yendo al Registro.
         traceback.print_exc()
         resultados = [(error_inesperado(plan, args.simular, exc), 1) for plan in planes]
+    conservar_lo_grabado(planes, resultados)                             # 083:RF-29, 064:RF-11
     for ruta, (informe, codigo) in zip(salidas, resultados):
         escribir(ruta, informe)
         print(f'Informe: {ruta}')

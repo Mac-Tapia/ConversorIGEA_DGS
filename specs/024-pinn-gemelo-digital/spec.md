@@ -252,7 +252,7 @@ cumple con margen de sobra pierde frente a otra más barata que también cumple.
   SISTEMA admitirá otro modelo con el mismo contrato de tarea, entrada, salida, puertas y registro
   (E), sin cambiar el búfer.
 - RF-54: EL SISTEMA tomará del libro de presupuesto de inversiones de la empresa (CAPEX; en
-  Electro Dunas, «RESUMEN PROP CAPEX») la denominación, el nombre, la categoría, el objetivo, la
+  Empresa A, «RESUMEN PROP CAPEX») la denominación, el nombre, la categoría, el objetivo, la
   unidad y el costo unitario de cada tipo de obra, para nombrar y costear las obras que proponga
   o implemente (usuario, 2026-10-21: «de ahí también salen las obras con sus denominaciones y
   nombres»).
@@ -534,7 +534,7 @@ tiempo real de la red en operación; promover un modelo sin pasar las puertas (R
 - Umbrales del modelo frente a DIgSILENT: se propone que el error de tensión no supere la décima
   parte de la banda de la norma del sistema (±0,005 p.u. con ±5 %); los límites eléctricos no se
   deciden aquí, salen de la norma (RF-31).
-- Tolerancia de tensión de la NTCSER en el perfil de Electro Dunas (hoy solo la de la NTCSE).
+- Tolerancia de tensión de la NTCSER en el perfil de Empresa A (hoy solo la de la NTCSE).
 - Parámetros económicos del Anexo N.º 6 en el perfil (tasa, valor de la ENS, vida útil, costes
   unitarios por alternativa), comprobados contra el texto vigente de R033-2026-OS-CD.
 - Nuevo alimentador y nueva SET: hoy ninguna spec los construye; quedan para una spec propia.

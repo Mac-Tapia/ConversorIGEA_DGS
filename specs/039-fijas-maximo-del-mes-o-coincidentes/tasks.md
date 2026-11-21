@@ -48,3 +48,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: «máximo del mes» da 7 707,5 kW y 3 725,5 kvar de fijas y «coincidente» con
       2026-09 el registro de cada fija en el instante de su máxima de cabecera.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T9. MEJ10-FIJAS (orden del usuario del 20-11): `correccion_vigente` y `aplicar_correccion` en `aplicacion/demanda_medida.py`; `Workspace.correcciones_medidor`, `registrar_correccion_medidor` y la ruta `correccion-medidor` (GET y PUT); la tabla, el plan y la evidencia de 015:RF-73 con la corrección; el botón de la fila en `DemandaMedida.tsx`. (RF-23)
+      Hecho cuando: rojo por aserción sobre 2f9de358 y verde con `tests/test_demanda_medida.py -k rf23` y `tests/test_tabla_en_el_instante.py -k rf23`, `npm test` y `npm run typecheck`; la corrida en DIgSILENT la decide d8.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ10_FIJAS/rojo.log (2 F de rf23); npm y tipos en D:/csg/PM_IMPL/MEJ567/npm_test_20261120_163024.log y
+      D:/csg/PM_IMPL/MEJ567/checklist.txt.tsc; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).

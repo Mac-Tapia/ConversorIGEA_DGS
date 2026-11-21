@@ -27,4 +27,4 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       RF-7: `tests/test_hoja_y_coordenadas.py::test_cabecera_de_conectores_ensanchada_es_valida` (línea 226).
       RF-8: `tests/test_geography_v21.py::test_el_aviso_del_seqnumber_llega_a_la_validacion_de_la_geografia` (línea 107).
       Hecho el 2026-11-15 (MARCAS-PISTA3): `git grep -hoE "010:RF-[0-9]+" e182c823 -- tests` lista RF-1 a RF-8; rojo de RF-8 en
-      `D:/csg/INTEGRA_F9/h14_rojo.log`; verde integrado: suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log:1202` «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.» con CSG_RED (los TXT reales).
+      `D:/csg/INTEGRA_F9/h14_rojo.log`; verde integrado: suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log` (línea 1202) «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.» con CSG_RED (los TXT reales).

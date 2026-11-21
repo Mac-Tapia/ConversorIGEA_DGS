@@ -1,6 +1,6 @@
 # Spec 039 — Fijas del máximo del mes o coincidentes con la cabecera, elegidas y comparadas en la web
 
-Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras auditar a
+Estado: cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario: RF-23) · antes cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras auditar a
 mano NA203 («implementa que exista opción para hacer análisis y estudios desde la web estas dos
 opciones … los valores máximos de fijos del mes y coincidente en la misma fecha»)
 
@@ -76,6 +76,11 @@ cargarlo y recalibrar desde la web («no debería ser interno: debe tener un bot
   (RF-4): va a su máxima.
 - RF-22: EL SISTEMA reconocerá al cliente marcado por su código del libro de clientes, para cualquier fuente y
   distribuidora, sin nombres ni códigos fijos.
+- RF-23: (orden del usuario del 20-11) EL SISTEMA permitirá registrar en el espacio una corrección fechada del factor
+  del medidor de un cliente (código, factor, mes desde el que vale y motivo), sin tocar el libro original. DESDE ese mes,
+  la tabla cruzada, el plan del ajuste y la plausibilidad de las fijas (015:RF-73) llevarán su EA, ERI, POT, registro y
+  curva por ese factor, y su fila dirá la corrección. En la web, el aviso `FM_CAMBIADO` (004:RF-111) lleva el botón que
+  registra el FM anterior, con poco texto.
 
 ## Relación con otras specs
 

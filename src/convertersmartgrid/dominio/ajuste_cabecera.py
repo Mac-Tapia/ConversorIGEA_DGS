@@ -18,7 +18,9 @@ kVAR) de las SED que escalan.
 
 from __future__ import annotations
 
+import calendar
 import math
+import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any
@@ -138,6 +140,8 @@ def derivacion_cliente(c: Mapping[str, Any], tan_objetivo: float, fp_objetivo: f
     p_registro = numero(c.get('p_registro_kw'))
     fecha = str(c.get('fecha_registro') or '').strip() or None
     aviso = None
+    q_directa = None
+    sin_consumo = False
     if p_registro is not None:
         # 004:RF-67: P y Q del cliente en el instante de su alimentador, coincidentes.
         kw = p_registro
@@ -146,6 +150,13 @@ def derivacion_cliente(c: Mapping[str, Any], tan_objetivo: float, fp_objetivo: f
         tan = q_registro / kw
         metodo = ('REGISTRO_DEL_INSTANTE' if p_registro is not None
                   else f"ERI_DEL_REGISTRO {fecha or ''}".strip())
+    elif q_registro is not None and p_registro is not None:
+        # 035:RF-32: P = 0 en el registro del instante es su valor, no la falta de un dato: la Q es la del registro y
+        # no se etiqueta «ERI/EA». Una distribuidora real tenía un suministro con 60 kWh en el mes.
+        tan, q_directa, sin_consumo = 0.0, q_registro, True
+        metodo = 'REGISTRO_DEL_INSTANTE'
+        mes = f'; su EA del mes es {ea:,.1f} kWh' if ea is not None else ''
+        aviso = f'{codigo}: fija sin consumo en el instante ({fecha or "su registro"}){mes}.'
     elif ea is None or eri is None or ea == 0:
         tan = tan_objetivo
         metodo = 'FP_CABECERA_FALLBACK'
@@ -161,7 +172,7 @@ def derivacion_cliente(c: Mapping[str, Any], tan_objetivo: float, fp_objetivo: f
     else:
         tan = eri / ea
         metodo = 'ERI/EA'
-    q_kvar = kw * tan
+    q_kvar = kw * tan if q_directa is None else q_directa
     fp_libro = abs(kw) / math.hypot(kw, q_kvar) if (kw or q_kvar) else 1.0
     compensado = None
     # 004:RF-66: con su registro, su FP es el de su EA y ERI en esa fecha y hora, sin
@@ -185,6 +196,8 @@ def derivacion_cliente(c: Mapping[str, Any], tan_objetivo: float, fp_objetivo: f
     }
     if q_registro is not None and fecha:
         derivacion['fecha'] = fecha                 # 035:RF-2: de qué registro sale
+    if sin_consumo:
+        derivacion['sin_consumo'] = True            # 035:RF-32
     if compensado:
         derivacion['compensado'] = compensado
     if aviso:
@@ -234,6 +247,8 @@ class Reparto:
     avisos: list[str] = field(default_factory=list)
     #: 006:RF-46: por qué no se puede cuadrar antes de ningún flujo (``estado`` CALIBRACION_IMPOSIBLE o NO_CALIBRABLE).
     causa: dict[str, Any] | None = None
+    #: 015:RF-74: la SED del cliente → sus hermanas «<sed>-n», que llevan su parte de la fija y no se escalan.
+    grupos: dict[str, list[str]] = field(default_factory=dict)
 
     def con_factores(self, a: float, b: float | None = None) -> Reparto:
         """El mismo reparto con otros factores; en «solo kW» el kVAR sigue al kW (RF-14)."""
@@ -301,10 +316,39 @@ def _kva_valido(v: Any) -> float | None:
     return x if x is not None and x > 0 else None
 
 
+def hermanas_de(sed: str, nombres: Iterable[str]) -> list[str]:
+    """Las SED «<sed>-n» de ``nombres`` (015:RF-74): la instalación de un cliente con varios transformadores.
+
+    Se comparan los nombres tal cual, en mayúsculas: ``clave_codigo`` quita el guion y confundiría «SE1-2» con «SE12».
+    """
+    patron = re.compile(re.escape(str(sed).strip().upper()) + r'-\d+')
+    return sorted(n for n in nombres if patron.fullmatch(str(n).strip().upper()))
+
+
+def kva_de_grupo(sed: str, kva: Mapping[str, Any], nombres: Iterable[str]) -> float | None:
+    """Los kVA de la SED y de sus hermanas «<sed>-n» (015:RF-75); ``None`` si ninguna tiene."""
+    valores = [v for v in (_kva_valido(kva.get(s)) for s in [sed, *hermanas_de(sed, nombres)]) if v]
+    return sum(valores) if valores else None
+
+
+def _grupos_de_fijas(fijas_pf: Mapping[str, tuple[float, float]], nombres: Iterable[str],
+                     kwh: Mapping[str, Any] | None) -> dict[str, list[str]]:
+    """015:RF-74: las hermanas de cada fija que no son fijas y, si se conoce, sin energía en la fuente."""
+    libres = [n for n in nombres if n not in fijas_pf]
+    grupos: dict[str, list[str]] = {}
+    for sed in fijas_pf:
+        suyas = [h for h in hermanas_de(sed, libres)
+                 if kwh is None or (numero(kwh.get(h)) or 0.0) <= 0.0]
+        if suyas:
+            grupos[sed] = suyas
+    return grupos
+
+
 def reparto_inicial(objetivo: Objetivo, fijas: Mapping[str, Fija],
                     cargas: Mapping[str, tuple[float, float]],
                     kva: Mapping[str, Any] | None = None,
-                    fp: float | None = None) -> Reparto:
+                    fp: float | None = None,
+                    kwh: Mapping[str, Any] | None = None) -> Reparto:
     """El reparto que da el objetivo sin pérdidas, con el factor de escala de DIgSILENT.
 
     ``cargas`` tiene una entrada por cada carga de SED del alimentador en DIgSILENT, con el
@@ -332,6 +376,18 @@ def reparto_inicial(objetivo: Objetivo, fijas: Mapping[str, Fija],
             continue
         fijas_pf[sed] = (f.kw, f.kvar)
         avisos += [f'{sed}: {a}' for a in f.avisos]
+    # 015:RF-74: las hermanas «<sed>-n» de una fija son de su cliente: su P y Q se reparten en el grupo por kVA y salen
+    # de las escaladas. Antes cada hermana se escalaba aparte y el grupo cargaba de más (en una red real, 255,8 kW).
+    grupos = _grupos_de_fijas(fijas_pf, cargas, kwh)
+    for sed, suyas in grupos.items():
+        p, q = fijas_pf[sed]
+        miembros = [sed, *suyas]
+        total = sum(kvas[m] or 0.0 for m in miembros)
+        for m in miembros:
+            parte = (kvas[m] or 0.0) / total if total > 0 else (1.0 if m == sed else 0.0)
+            fijas_pf[m] = (p * parte, q * parte)
+        avisos.append(f"{sed}: su grupo ({', '.join(suyas)}) es de su cliente: la fija se reparte por kVA y no se "
+                      'escala.')
     fp_escaladas = objetivo.fp if fp is None else fp
     tan = math.tan(math.acos(fp_escaladas))
     base = {s: ((kvas[s] or 0.0) * fp_escaladas, (kvas[s] or 0.0) * fp_escaladas * tan)
@@ -348,7 +404,7 @@ def reparto_inicial(objetivo: Objetivo, fijas: Mapping[str, Fija],
     if p_falta > 0 and p_base > 0:
         a = p_falta / p_base
         return Reparto(fijas=fijas_pf, base=base, origen=origen, kva=kvas, a=a, b=a,
-                       solo_kw=True, omitidas=omitidas, avisos=avisos)
+                       solo_kw=True, omitidas=omitidas, avisos=avisos, grupos=grupos)
 
     # 006:RF-46 (cambia RF-13, orden del usuario del 19-11): las fijas van siempre a escala 1, con su P y Q. Si ya
     # llenan la cabecera, las escaladas quedan al mínimo y no se puede cuadrar (086:RF-124); si no hay escaladas con
@@ -374,7 +430,7 @@ def reparto_inicial(objetivo: Objetivo, fijas: Mapping[str, Fija],
         a = 1.0
     avisos.append(texto)
     return Reparto(fijas=fijas_pf, base=base, origen=origen, kva=kvas, a=a, b=a, solo_kw=True,
-                   omitidas=omitidas, avisos=avisos, causa=causa)
+                   omitidas=omitidas, avisos=avisos, causa=causa, grupos=grupos)
 
 
 #: 006:RF-46: estados de un reparto que no se puede cuadrar antes de ningún flujo.
@@ -423,6 +479,111 @@ def escaladas_casi_cero_del_reparto(reparto: Reparto, objetivo: Objetivo) -> dic
     escaladas = {s: d[s].kw for s, (p, _q) in reparto.base.items() if p > 0}
     return escaladas_casi_cero(objetivo.alimentador or objetivo.medidor or 'El alimentador', escaladas, reparto.a,
                                sum(p for p, _q in reparto.fijas.values()), objetivo.kw)
+
+
+# =========================================================================== plausibilidad de las fijas
+#: 015:RF-73 (enmienda RF-69), 006:RF-47: una fija a revisar para la calibración antes del primer flujo.
+FIJA_A_REVISAR = 'FIJA_A_REVISAR'
+#: 015:RF-73 (c): las fijas suman más que esta fracción de la cabecera y dejan a las escaladas con un factor anormal.
+FRACCION_FIJAS_DUDOSA = 0.9
+#: 015:RF-73 (b): una fija que pide más de estas veces los kVA de su grupo en la fuente, cuando la media de su mes sí
+#: cabe en ellos, no es la carga de ese instante: ningún transformador lleva cuatro veces su potencia.
+VECES_KVA_GRUPO_DUDOSA = 4.0
+#: 015:RF-73 (b), 020:RF-64: la media del mes del cliente por encima de los kVA de su grupo: el dudoso es el kVA.
+KVA_FUENTE_INCOHERENTE = 'KVA_FUENTE_INCOHERENTE'
+
+
+def horas_del_mes(fecha: Any) -> float | None:
+    """Las horas del mes de una fecha ``AAAA-MM…`` (015:RF-73: la potencia media del mes), o ``None``."""
+    m = re.match(r'(\d{4})-(\d{2})', str(fecha or ''))
+    if not m or not 1 <= int(m.group(2)) <= 12:
+        return None
+    return 24.0 * calendar.monthrange(int(m.group(1)), int(m.group(2)))[1]
+
+
+def plausibilidad_fijas(objetivo: Objetivo, fijas: Mapping[str, Fija], *, p_base_escaladas: float,
+                        kva_grupo: Mapping[str, float | None] | None = None,
+                        evidencia: Mapping[str, Mapping[str, Any]] | None = None,
+                        horas_mes: float | None = None, otras_fijas_kw: float = 0.0) -> dict[str, Any]:
+    """Si el dato de cada fija es plausible, antes del primer flujo (015:RF-73, 006:RF-47).
+
+    ``fijas``: SED → :class:`Fija`; ``p_base_escaladas``: la P base de las escaladas (kVA × FP), con la que sale el
+    factor inicial; ``kva_grupo``: los kVA de la SED y sus hermanas en la fuente, sin variaciones (015:RF-75);
+    ``evidencia``: cliente → ``{'supera_cabecera': {'registros', 'exceso_max_kw', 'fecha'}}`` de su curva del mes frente
+    a la de su cabecera. Una fija queda a revisar si (a) su cliente mide más que su cabecera en algún registro, (b) pide
+    más de :data:`VECES_KVA_GRUPO_DUDOSA` veces los kVA de su grupo cuando su media del mes sí cabe, o (c) las fijas
+    pasan de :data:`FRACCION_FIJAS_DUDOSA` de la cabecera y dejan el factor inicial bajo :data:`FACTOR_ESCALADAS_ANORMAL`
+    (la que más pesa). Si la media del mes no cabe en los kVA del grupo, el dudoso es el kVA: se anota y no para.
+    ``otras_fijas_kw``: las fijas del operador (cambios manuales, demandas medidas), que cuentan en (c) y no se dudan.
+    """
+    evid = {clave_codigo(k): v for k, v in (evidencia or {}).items()}
+    filas: list[dict[str, Any]] = []
+    for sed, f in sorted(fijas.items()):
+        motivos: list[dict[str, Any]] = []
+        for c in f.clientes:
+            sup = (evid.get(clave_codigo(c)) or {}).get('supera_cabecera') or {}
+            n = int(numero(sup.get('registros')) or 0)
+            if n > 0:
+                exceso = numero(sup.get('exceso_max_kw'))
+                motivos.append({'codigo': 'SUPERA_LA_CABECERA', 'cliente': c, 'registros': n, 'exceso_max_kw': exceso,
+                                'fecha': sup.get('fecha'),
+                                'texto': f'{c} mide más que su cabecera en {n} registro' + ('s' if n > 1 else '')
+                                         + (f', hasta {exceso:,.0f} kW' if exceso is not None else '')})
+        kg = (kva_grupo or {}).get(sed)
+        energias = [e for e in (numero(d.get('ea')) for d in f.derivaciones) if e is not None]
+        pmed = sum(energias) / horas_mes if energias and horas_mes else None
+        s = math.hypot(f.kw, f.kvar)
+        fila: dict[str, Any] = {'sed': sed, 'clientes': list(f.clientes), 'p_kw': f.kw, 'kva_carga': s,
+                                'kva_grupo': kg, 'p_media_kw': pmed}
+        if kg and pmed is not None and pmed > kg:
+            fila['kva_fuente_incoherente'] = {'codigo': KVA_FUENTE_INCOHERENTE, 'p_media_kw': pmed, 'kva_grupo': kg}
+        elif kg and s > VECES_KVA_GRUPO_DUDOSA * kg:
+            motivos.append({'codigo': 'SUPERA_SU_GRUPO', 'kva_carga': s, 'kva_grupo': kg,
+                            'texto': f'pide {s:,.0f} kVA con {kg:,.0f} kVA en su grupo'})
+        fila['motivos'] = motivos
+        filas.append(fila)
+    p_fijas = sum(f.kw for f in fijas.values()) + otras_fijas_kw
+    fraccion = p_fijas / objetivo.kw if objetivo.kw else None
+    factor = (objetivo.kw - p_fijas) / p_base_escaladas if p_base_escaladas > 0 else None
+    if (filas and fraccion is not None and fraccion > FRACCION_FIJAS_DUDOSA and factor is not None
+            and 0 < factor < FACTOR_ESCALADAS_ANORMAL):
+        mayor = max(filas, key=lambda x: (x['p_kw'], x['sed']))
+    else:
+        mayor = None
+    if mayor is not None and mayor['p_kw'] > otras_fijas_kw:
+        mayor['motivos'].append({'codigo': 'FIJAS_DEJAN_SIN_ESCALADAS', 'fraccion_fijas': fraccion, 'factor': factor,
+                                 'texto': f'las fijas son el {fraccion:.0%} de la cabecera y dejan a las escaladas '
+                                          f'con {factor:.3f} de su potencia'})
+    for x in filas:
+        x['a_revisar'] = bool(x['motivos'])
+    revisar = [x for x in filas if x['a_revisar']]
+    clave = objetivo.alimentador or objetivo.medidor or 'El alimentador'
+    texto = None
+    if revisar:
+        texto = (f'{clave}: ' + ('una fija a revisar' if len(revisar) == 1 else f'{len(revisar)} fijas a revisar')
+                 + ': ' + '; '.join(f"{x['sed']} ({', '.join(m['texto'] for m in x['motivos'])})" for x in revisar)
+                 + '. No se calibra ni se graba su reparto; queda la calibración anterior.')
+    return {'estado': FIJA_A_REVISAR if revisar else None, 'clave': clave, 'fijas': filas,
+            'a_revisar': [x['sed'] for x in revisar],
+            'kva_fuente_incoherente': [x['sed'] for x in filas if x.get('kva_fuente_incoherente')],
+            'fijas_kw': p_fijas, 'objetivo_kw': objetivo.kw, 'fraccion_fijas': fraccion, 'factor_inicial': factor,
+            'texto': texto}
+
+
+def cliente_supera_cabecera(cliente: Iterable[tuple[Any, float, Any]],
+                            cabecera: Iterable[tuple[Any, float, Any]]) -> dict[str, Any] | None:
+    """Los registros en que un cliente mide más que la cabecera de su alimentador, con ella > 0 (015:RF-73 a).
+
+    Las curvas son ``(fecha, kW, kVAR)`` de 15 minutos. Es físicamente imposible: el cliente cuelga de ese alimentador.
+    ``None`` si no hay ninguno o no coincide ningún registro.
+    """
+    cab = {t: kw for t, kw, *_resto in cabecera if kw is not None and kw > 0}
+    excesos = [(kw - cab[t], t) for t, kw, *_resto in cliente if t in cab and kw is not None and kw > cab[t]]
+    if not excesos:
+        return None
+    mayor, cuando = max(excesos, key=lambda x: x[0])
+    return {'registros': len(excesos), 'exceso_max_kw': mayor,
+            'fecha': cuando.isoformat(sep=' ') if hasattr(cuando, 'isoformat') else str(cuando)}
 
 
 # =========================================================================== cuadre

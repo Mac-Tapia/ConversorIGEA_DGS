@@ -28,3 +28,11 @@
       de verificar siguen en verde.
       Hecho en la fila FLUJO-ISLAS (f7, 17-11): la verificación de la 080 T13 por la web (copia VNR-GIS, Caso base)
       daba «vm_min 0,0» en la barra de una isla; rojo VALIDO (0,0 frente a 0,97) y verdes en D:/csg/PM_IMPL/FLUJO_ISLAS.
+- [x] T10. La verificación dice lo que informa DIgSILENT y avisa de `Fichas_`/`SED_NTP_` apagadas, sin encenderlas;
+      el gemelo avisa igual; la tarjeta de convergencia lo enseña. (RF-30, RF-31)
+      Hecho cuando: `pytest -q tests/test_verificar_pf.py tests/test_digital_twin_snapshot_pf.py
+      tests/test_cargas_tres_pasos_front.py -k "rf30 or rf31"` falla por aserción sobre `a0ebd973` y pasa después, con
+      `npm test` y `npm run typecheck` en `frontend/` correctos.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ9_NOCONV/rojo_a0ebd973.txt (15 F sobre a0ebd973, rf30 y rf31); verde D:/csg/PM_IMPL/MEJ9_NOCONV/verde_nuevas.txt
+      (16 passed), verde_vecinos.txt (615 passed), frontend_test.txt (319 pass, 0 fail) y frontend_typecheck.txt; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).

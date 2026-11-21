@@ -34,7 +34,7 @@ comprueba; uno que no se pueda comprobar no es un principio.
    *Cambio del 2026-10-08:* antes no había módulos externos; se permite para que un
    estudio o un formato nuevo se distribuya sin tocar este repositorio.
 9. **Datos de la distribuidora.** Los TXT de prueba y las bases, en
-   `D:\BaseDatosElectroDunas` desde el 2026-11-02, nunca se publican, ni se suben, ni se envían a un servicio
+   `<DATOS>` desde el 2026-11-02, nunca se publican, ni se suben, ni se envían a un servicio
    externo, tampoco a un modelo de IA de terceros. Un módulo externo solo se carga si
    figura en la lista de módulos permitidos, porque se ejecuta con acceso a esos datos.
    *Se comprueba:* prueba de que un módulo instalado y no permitido no se carga.
@@ -55,7 +55,7 @@ comprueba; uno que no se pueda comprobar no es un principio.
 12. **La spec manda.** Un comportamiento nuevo entra primero en la spec activa y luego en
     el código; cada requisito `RF-n` tiene al menos una prueba que lo cita.
 13. **Universal.** El conversor carga TXT, MDB y paquetes VNR-GIS de cualquier
-    distribuidora. Los datos de Electro Dunas son un caso de prueba, no el diseño. Toda
+    distribuidora. Los datos de Empresa A son un caso de prueba, no el diseño. Toda
     convención propia de una empresa (CRS de origen, prefijo de las SED de medición, forma
     de los nombres de alimentador, escala del diagrama) va en un perfil de empresa, nunca
     en el código ni como valor por defecto. *Se comprueba:* las pruebas sintéticas

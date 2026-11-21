@@ -1,6 +1,6 @@
 # Spec 008 — Pestaña «Cargas en DIgSILENT» en tres pasos
 
-Estado: cumplida (2026-11-08: T7 confirmada por el usuario en DIgSILENT con PRUEBA_007; revisión 033 del 2026-10-29) · aprobada (2026-10-10) · Fecha: 2026-10-10 · Origen: uso real con SI213, 2026-10-10
+Estado: cumplida (reabierta el 2026-11-20 por el diagnóstico de «no converge» tras una calibración no válida: RF-30 y RF-31, T10) · cumplida (2026-11-08: T7 confirmada por el usuario en DIgSILENT con PRUEBA_007; revisión 033 del 2026-10-29) · aprobada (2026-10-10) · Fecha: 2026-10-10 · Origen: uso real con SI213, 2026-10-10
 
 ## Contexto y objetivo
 
@@ -127,6 +127,18 @@ debe haber para el nombre de la carga nueva»):
   sin fuente, como la de un tramo fuera de servicio abierto por sus dos extremos, 080:RF-55): una barra a 0 p.u.
   no es la tensión mínima del alimentador.
 
+Ampliación del 2026-11-20 (diagnóstico `PM_IMPL/DIAG_NOCONV`): tras una calibración no válida la
+verificación decía «no converge» con solo `return_code 1`; DIgSILENT decía que el Newton agotaba
+las iteraciones, y la causa era `SED_NTP_` apagada (083:RF-29, 064:RF-11).
+
+- RF-30: (amplía RF-19, con 025:RF-66) CUANDO el flujo de la verificación no converge, EL SISTEMA
+  dirá en el informe y en la tarjeta de convergencia de la web lo que informa DIgSILENT de ese flujo
+  (sus errores y advertencias), plegado si son más de dos líneas.
+- RF-31: (amplía RF-19, sin cambiar RF-18) SI existen `Fichas_<proyecto>` o `SED_NTP_<proyecto>` y
+  no están activas, ENTONCES la verificación y la lectura del gemelo lo avisarán sin activarlas:
+  cuántos transformadores tiene su etapa y, leído sin activar, cuántos quedan por encima del 100 %
+  con lo activo; la web lo enseña en la tarjeta de convergencia.
+
 ## Casos límite
 
 - Proyecto con un solo alimentador: el paso 2 funciona igual, con uno.
@@ -144,7 +156,7 @@ debe haber para el nombre de la carga nueva»):
 
 ## Criterios de finalización
 
-- `grep -rnoE "008:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-28.
+- `grep -rnoE "008:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-31.
 - Suite completa en verde, también las pruebas de las specs 004, 006 y 007.
 - `npx tsc --noEmit -p .` y `npm run build` en `frontend/` correctos.
 - Prueba real en DIgSILENT con un proyecto de dos alimentadores, a cargo del usuario.

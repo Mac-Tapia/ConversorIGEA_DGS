@@ -498,8 +498,8 @@ hacer esos estudios en cualquier proyecto físico existente en DIgSILENT, con cu
   y por caso, y cancelable (P7).
 - Escala (P2): cualquier número de alimentadores marcados, cargas nuevas, barras y
   contingencias, sin tope fijo ni tamaños fijos en las pruebas.
-- Universal (P13): límites y tolerancias del perfil de empresa; ningún código de Electro
-  Dunas como valor por defecto.
+- Universal (P13): límites y tolerancias del perfil de empresa; ningún código de Empresa A
+  como valor por defecto.
 - Determinismo: los ficheros de resultados ordenan casos, alimentadores, elementos y
   contingencias por nombre, y son iguales en dos ejecuciones sobre el mismo proyecto.
 - Datos de la distribuidora (P9): las pruebas usan proyectos y resultados sintéticos; la

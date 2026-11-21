@@ -18,3 +18,7 @@
 - [x] T4. Los transformadores de la primera pasada quedan en el informe que vale. (RF-14)
       Hecho cuando: `pytest -q tests/test_transformadores_automaticos.py` en verde y el informe de la T3 los lista con su
       aviso (083:RF-31).
+- [x] T5. MEJ10-FIJAS (orden del usuario del 20-11): la propuesta de la ficha parte de los kVA de la fuente del grupo y anota la reconstrucción. (RF-15)
+      Hecho cuando: rojo por aserción sobre 2f9de358 y verde con `tests/test_ajuste_cabecera_guion.py -k rf15`; la corrida en DIgSILENT la decide d8.
+      Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ10_FIJAS/rojo.log (test_101_rf15_la_propuesta_parte_de_los_kva_del_grupo_de_la_fuente); verde ídem; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
+      npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).
