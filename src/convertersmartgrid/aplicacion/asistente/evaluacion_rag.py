@@ -561,16 +561,91 @@ def conserva_con_intervalo(filas: Sequence[Mapping[str, Any]], *, remuestreos: i
 MARGEN_LATENCIA = 0.20
 REGLA_ELECCION = ('Compite el modelo con calibración en el 047 y en el 077. Queda fuera el que otro supera en un corpus '
                   'con el IC95 % pareado de la diferencia de «conserva» (híbrido, abstención 0,95) por encima de cero '
-                  'sin quedar por debajo en el otro. Entre los que quedan, el de menor p95 de latencia de la consulta '
-                  'si la diferencia pasa del 20 %; si no, el de menor memoria de GPU medida (097:RF-11).')
+                  'sin quedar por debajo en el otro, y el que en el conjunto sellado del 047 baja el Recall@10 del '
+                  'reranker frente al modelo en uso medido con los mismos denominadores, o no tiene esa medición '
+                  '(097:RF-24). Entre los que quedan, el de menor p95 de latencia de la consulta si la diferencia pasa '
+                  'del 20 %; si no, el de menor memoria de GPU medida (097:RF-11).')
+
+
+def _denominador(medicion: Mapping[str, Any], nombre: str) -> str:
+    """«bge-m3: 39 con respuesta de 79»: lo que dice cada motivo para que no se comparen cifras de dos conjuntos."""
+    return f"{nombre}: {medicion.get('con_respuesta')} con respuesta de {medicion.get('preguntas')}"
+
+
+def no_comparables(nueva: Mapping[str, Any], en_uso: Mapping[str, Any], nombre: str, nombre_en_uso: str) -> list[str]:
+    """Por qué dos mediciones selladas no se pueden comparar, o nada si se puede (097:RF-25).
+
+    Caso real (T5, 2026-11-21): la puerta comparaba el sellado de bge-m3 (79 preguntas, 39 con respuesta: una perdió su
+    ancla al medir, 097:RF-8) con el documento del 2026-11-02 (80 y 40), del mismo conjunto por su huella. Con una pregunta
+    con respuesta de más en el denominador, 0,950 frente a 0,949 no decía qué modelo recupera mejor: sobre las mismas 79,
+    nomic da 0,974. Solo se compara con la misma huella, el mismo corpus y los mismos denominadores."""
+    motivos = []
+    huella, huella_uso = nueva.get('conjunto_sha256'), en_uso.get('conjunto_sha256')
+    if not huella or huella != huella_uso:
+        motivos.append(f'las dos mediciones no son del mismo conjunto sellado ({nombre}: {str(huella)[:8]}; '
+                       f'{nombre_en_uso}: {str(huella_uso)[:8]})')
+    elif str(nueva.get('corpus') or modulo_indice.CORPUS_047) != str(en_uso.get('corpus') or modulo_indice.CORPUS_047):
+        motivos.append(f"las dos mediciones son de corpus distintos ({nombre}: {nueva.get('corpus')}; "
+                       f"{nombre_en_uso}: {en_uso.get('corpus')})")
+    elif (nueva.get('preguntas'), nueva.get('con_respuesta')) != (en_uso.get('preguntas'), en_uso.get('con_respuesta')) \
+            or nueva.get('preguntas') is None or nueva.get('con_respuesta') is None:
+        motivos.append(f'el mismo conjunto con denominadores distintos ({_denominador(nueva, nombre)}; '
+                       f'{_denominador(en_uso, nombre_en_uso)}): se compara con la medición del modelo en uso sobre las '
+                       f'mismas preguntas')
+    return motivos
+
+
+def fuera_por_recall_sellado(sellados: Mapping[str, Mapping[str, Any]], en_uso: str, candidatos: Sequence[str], *,
+                             metodo: str = 'reranker') -> tuple[dict[str, str], dict[str, Any]]:
+    """Los candidatos que bajan el Recall@10 sellado del 047 frente al modelo en uso, con su motivo (097:RF-24).
+
+    La elección por «conserva» y latencia se hace con la calibración; la puesta en uso exige después no bajar el Recall@10
+    sellado (RF-5). Caso real (T5, 2026-11-21): RF-11 eligió bge-m3 por latencia y su sellado bajó de 0,974 a 0,949 frente
+    a nomic sobre las mismas 79 preguntas, así que la elección señalaba un modelo que nunca se podría poner en uso. Sin la
+    medición sellada de un candidato, o del en uso, no se sabe si baja: queda fuera y se dice."""
+    def de(m: str) -> tuple[str, Mapping[str, Any]] | None:
+        return next(((k, v) for k, v in sellados.items() if modulo_indice.mismo_modelo(k, m)), None)
+
+    uso = de(en_uso)
+    fuera: dict[str, str] = {}
+    detalle: dict[str, Any] = {}
+    for nombre, medicion in sellados.items():
+        bloque = (medicion.get('metodos') or {}).get(metodo) or {}
+        detalle[nombre] = {'recall@10': bloque.get('recall@10'), 'preguntas': medicion.get('preguntas'),
+                           'con_respuesta': medicion.get('con_respuesta'),
+                           'conjunto_sha256': medicion.get('conjunto_sha256')}
+    for m in candidatos:
+        if modulo_indice.mismo_modelo(m, en_uso):
+            continue
+        propio = de(m)
+        if uso is None:
+            fuera[m] = f'falta la medición sellada del 047 del modelo en uso ({en_uso}): no se sabe si baja el Recall@10'
+            continue
+        if propio is None:
+            fuera[m] = 'sin medición sellada del 047: no se sabe si baja el Recall@10 frente al modelo en uso'
+            continue
+        motivos = no_comparables(propio[1], uso[1], m, en_uso)
+        if motivos:
+            fuera[m] = '; '.join(motivos)
+            continue
+        nuevo = ((propio[1].get('metodos') or {}).get(metodo) or {}).get('recall@10')
+        actual = ((uso[1].get('metodos') or {}).get(metodo) or {}).get('recall@10')
+        if nuevo is None or actual is None:
+            fuera[m] = f'falta el Recall@10 del {metodo} en alguna de las dos mediciones selladas'
+        elif float(nuevo) < float(actual) - 1e-12:
+            fuera[m] = (f'Recall@10 sellado del {metodo} baja de {float(actual):.3f} a {float(nuevo):.3f} '
+                        f'({_denominador(uso[1], en_uso)}; {_denominador(propio[1], m)})')
+    return fuera, detalle
 
 
 def elegir_con_intervalo(por_corpus: Mapping[str, Mapping[str, Sequence[Mapping[str, Any]]]],
                          recursos: Mapping[str, Mapping[str, float]], *, remuestreos: int = 2000, semilla: int = 0,
-                         objetivo: float = OBJETIVO_CALIBRACION) -> dict[str, Any]:
+                         objetivo: float = OBJETIVO_CALIBRACION, sellados: Mapping[str, Mapping[str, Any]] | None = None,
+                         en_uso: str | None = None) -> dict[str, Any]:
     """La regla declarada de 097:RF-11 sobre las señales de calibración de cada modelo en cada corpus.
 
-    Las diferencias son pareadas: los mismos remuestreos de preguntas para todos los modelos de un corpus."""
+    Las diferencias son pareadas: los mismos remuestreos de preguntas para todos los modelos de un corpus. ``sellados``
+    son las mediciones selladas del 047 por modelo (097:RF-24): sin ellas, ningún candidato distinto del en uso pasa."""
     corpus = sorted(por_corpus)
     compiten = sorted(set.intersection(*(set(por_corpus[c]) for c in corpus))) if corpus else []
     detalle: dict[str, Any] = {}
@@ -597,8 +672,14 @@ def elegir_con_intervalo(por_corpus: Mapping[str, Mapping[str, Sequence[Mapping[
             if gana and not pierde:
                 fuera[m] = f'{o} lo supera en {", ".join(gana)} con el IC95 % pareado sobre cero'
                 break
+    en_uso = en_uso or modulo_indice.modelo_vectores()
+    por_recall, recall_sellado = fuera_por_recall_sellado(sellados or {}, en_uso, compiten)       # 097:RF-24
+    for m, motivo in por_recall.items():
+        fuera[m] = f'{fuera[m]}; {motivo}' if m in fuera else motivo
     quedan = [m for m in compiten if m not in fuera]
     elegido, motivo = None, 'ningún modelo compite: falta la calibración de algún corpus'
+    if compiten and not quedan:
+        motivo = f'ninguno pasa la regla: sigue el modelo en uso ({en_uso})'
     if quedan:
         lat = {m: float(recursos.get(m, {}).get('latencia_p95_ms', float('inf'))) for m in quedan}
         mejor = min(lat.values())
@@ -608,6 +689,7 @@ def elegir_con_intervalo(por_corpus: Mapping[str, Mapping[str, Sequence[Mapping[
                   else 'memoria de GPU, con la latencia a menos del 20 %')
     return {'regla': REGLA_ELECCION, 'compiten': compiten, 'fuera': fuera, 'quedan': quedan, 'elegido': elegido,
             'decide': motivo, 'por_corpus': detalle, 'recursos': {m: dict(recursos.get(m, {})) for m in compiten},
+            'en_uso': en_uso, 'recall_sellado_047': recall_sellado,
             'remuestreos': remuestreos, 'semilla': semilla, 'objetivo': objetivo}
 
 
@@ -687,12 +769,20 @@ def poner_en_uso(modelo: str, medicion: Mapping[str, Any], medicion_en_uso: Mapp
         motivos.append(f"la medición sellada es del modelo {medicion.get('modelo_vectores')}, no de {modelo}")
     if modulo_indice.CORPUS_047 not in calibraciones:
         motivos.append('falta la calibración del 047 con este modelo (097:RF-13)')
+    en_uso = modulo_indice.modelo_vectores()
+    # 097:RF-25: la referencia es el modelo en uso medido sobre las mismas preguntas, no un documento de otro denominador.
+    if not modulo_indice.mismo_modelo(medicion_en_uso.get('modelo_vectores'), en_uso):
+        motivos.append(f"la medición de referencia es del modelo {medicion_en_uso.get('modelo_vectores')}, no del en uso "
+                       f"({en_uso})")
+    comparar = no_comparables(medicion, medicion_en_uso, modelo, en_uso)
+    motivos += comparar
     nuevo = (medicion.get('metodos') or {}).get(metodo) or {}
     actual = (medicion_en_uso.get('metodos') or {}).get(metodo) or {}
     if not nuevo or not actual:
         motivos.append(f'falta el método {metodo} en alguna de las dos mediciones')
-    else:
-        motivos += _puerta(nuevo, actual)['motivos']
+    elif not comparar:
+        cuentas = f'{_denominador(medicion_en_uso, en_uso)}; {_denominador(medicion, modelo)}'
+        motivos += [f'{m} ({cuentas})' for m in _puerta(nuevo, actual)['motivos']]
     puesto = escribir and not motivos
     if puesto:
         # 001:RF-5 (H14): la publicación atómica única; antes, un temporal con «write_text» dentro de una lambda.

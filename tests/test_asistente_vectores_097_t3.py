@@ -1,11 +1,13 @@
 """Spec 097 T3 (2026-11-13): elección del modelo de vectores con intervalo, puntero en uso y conjunto del operador."""
 from __future__ import annotations
 
+import inspect
 import json
 import random
 from pathlib import Path
 
 import pytest
+from apoyo import cargar_herramienta
 
 from convertersmartgrid.aplicacion.asistente import evaluacion_rag, indice, reranker
 
@@ -67,12 +69,15 @@ def test_eleccion_declarada_fuera_el_superado_y_luego_latencia_o_memoria():
     por_corpus = {c: {'a': buenas, 'b': [dict(f) for f in buenas], 'malo': flojas} for c in ('047', '077')}
     recursos = {'a': {'latencia_p95_ms': 30.0, 'memoria_gpu_mib': 1500}, 'b': {'latencia_p95_ms': 32.0, 'memoria_gpu_mib': 900},
                 'malo': {'latencia_p95_ms': 5.0, 'memoria_gpu_mib': 100}}
-    d = evaluacion_rag.elegir_con_intervalo(por_corpus, recursos, remuestreos=300)
+    # 097:RF-24: los tres con el mismo Recall@10 sellado que el en uso («b»), para que decida la regla de RF-11.
+    sellados = {m: _medicion(m, random.Random(11)) for m in ('a', 'b', 'malo')}
+    elegir = {'sellados': sellados, 'en_uso': 'b'}
+    d = evaluacion_rag.elegir_con_intervalo(por_corpus, recursos, remuestreos=300, **elegir)
     assert 'malo' in d['fuera'] and d['elegido'] == 'b'                 # latencia a menos del 20 %: decide la memoria
     recursos['a']['latencia_p95_ms'] = 10.0
-    assert evaluacion_rag.elegir_con_intervalo(por_corpus, recursos, remuestreos=300)['elegido'] == 'a'
+    assert evaluacion_rag.elegir_con_intervalo(por_corpus, recursos, remuestreos=300, **elegir)['elegido'] == 'a'
     sin_077 = {'047': por_corpus['047'], '077': {'a': buenas}}
-    assert set(evaluacion_rag.elegir_con_intervalo(sin_077, recursos, remuestreos=50)['compiten']) == {'a'}
+    assert set(evaluacion_rag.elegir_con_intervalo(sin_077, recursos, remuestreos=50, **elegir)['compiten']) == {'a'}
 
 
 class _Ollama:
@@ -135,7 +140,9 @@ def _medicion(modelo, rnd, recall=0.95, abst=0.95, n=40):
               'recall@10': 1.0 if i < recall * n else 0.0} for i in range(n)]
     metodo = {'recall@10': recall, 'mrr@10': sum(f['reciprocal_rank@10'] for f in filas) / n,
               'abstention_accuracy': abst, 'per_query': filas}
-    return {'modelo_vectores': modelo, 'corpus': '047', 'metodos': {'reranker': metodo}}
+    # 097:RF-25: la misma huella y los mismos denominadores, o la puerta no compara.
+    return {'modelo_vectores': modelo, 'corpus': '047', 'conjunto_sha256': 'c' * 64, 'preguntas': n, 'con_respuesta': n,
+            'metodos': {'reranker': metodo}}
 
 
 def test_poner_en_uso_solo_si_pasa_la_puerta_frente_al_en_uso(tmp_path, monkeypatch):
@@ -240,3 +247,141 @@ def test_097_rf19_la_herramienta_comprueba_la_muestra_antes_de_ocupar_la_gpu():
     fuente = (RAIZ / 'tools' / 'asistente_evaluar_rag.py').read_text(encoding='utf-8')
     assert -1 < fuente.index('evaluacion_rag.muestra_suficiente(conjunto)') < fuente.index("with turno_gpu('rag')")
 
+
+# --- T6 (2026-11-21): la elección y la puerta comparan el Recall@10 sellado sobre las mismas preguntas --------------------
+
+HUELLA = '2faeb8c3' + '0' * 56
+EN_USO = 'nomic-embed-text'
+BGE = 'bge-m3'
+E5 = 'jeffh/intfloat-multilingual-e5-large:f16'
+
+
+def _sellada(modelo, recall, *, con=39, preguntas=79, huella=HUELLA, corpus='047'):
+    """Una medición sellada del 047 con sus denominadores, como las de la T5: 79 preguntas, 39 con respuesta."""
+    aciertos = round(recall * con)
+    filas = [{'group_id': f'q{i}', 'answerable': True, 'reciprocal_rank@10': 1.0 if i < aciertos else 0.0,
+              'recall@10': 1.0 if i < aciertos else 0.0} for i in range(con)]
+    metodo = {'recall@10': aciertos / con, 'mrr@10': aciertos / con, 'abstention_accuracy': 0.95, 'per_query': filas}
+    return {'modelo_vectores': modelo, 'corpus': corpus, 'conjunto_sha256': huella, 'preguntas': preguntas,
+            'con_respuesta': con, 'metodos': {'reranker': metodo}}
+
+
+def _calibraciones_sin_separar(semilla):
+    """Las tres con las mismas señales: ninguno queda fuera por «conserva» y decide la latencia, como en la T5."""
+    filas = _filas_calibracion(random.Random(semilla))
+    return {c: {m: [dict(f) for f in filas] for m in (BGE, E5, EN_USO)} for c in ('047', '077')}
+
+
+RECURSOS_T5 = {BGE: {'latencia_p95_ms': 69.1, 'memoria_gpu_mib': 657.3},
+               E5: {'latencia_p95_ms': 87.0, 'memoria_gpu_mib': 595.7},
+               EN_USO: {'latencia_p95_ms': 86.1, 'memoria_gpu_mib': 320.2}}
+
+
+def _cli(argv, capsys):
+    """La herramienta con ``argv``: su código de salida (también el de argparse) y lo que escribió."""
+    guion = cargar_herramienta('asistente_evaluar_rag.py', 'asistente_evaluar_rag_t6')
+    try:
+        rc = guion.main(argv)
+    except SystemExit as exc:
+        rc = exc.code
+    salida = capsys.readouterr()
+    return rc, salida.out, salida.err
+
+
+def _escribir(ruta, datos):
+    ruta.write_text(json.dumps(datos), encoding='utf-8')
+    return ruta
+
+
+def _calibracion_fichero(tmp_path, modelo, corpus, filas):
+    nombre = modelo.replace('/', '_').replace(':', '_')
+    return _escribir(tmp_path / f'calibra_{corpus}_{nombre}.json',
+                     {'modelo_vectores': modelo, 'corpus': corpus, 'por_pregunta': filas,
+                      'recursos': {'latencia_consulta_p95_ms': RECURSOS_T5[modelo]['latencia_p95_ms'],
+                                   'memoria_gpu_mib': RECURSOS_T5[modelo]['memoria_gpu_mib']}})
+
+
+def test_097_rf24_la_eleccion_deja_fuera_al_que_baja_el_recall_sellado_frente_al_en_uso(tmp_path, capsys, monkeypatch):
+    """097:RF-24 — el caso de la T5: bge-m3 gana por latencia, pero su sellado baja de 0,974 a 0,949 frente a nomic
+    sobre las mismas 79 preguntas, y e5 no tiene sellado: se queda nomic-embed-text."""
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
+    monkeypatch.delenv(indice.VARIABLE_MODELO, raising=False)
+    semilla = random.randint(0, 10**6)
+    por_corpus = _calibraciones_sin_separar(semilla)
+    calibraciones = [_calibracion_fichero(tmp_path, m, c, por_corpus[c][m]) for c in por_corpus for m in por_corpus[c]]
+    sellados = [_escribir(tmp_path / 'sel_nomic.json', _sellada(EN_USO, 38 / 39)),
+                _escribir(tmp_path / 'sel_bge.json', _sellada(BGE, 37 / 39))]
+    salida = tmp_path / 'eleccion.json'
+    rc, _, err = _cli(['--elegir', *map(str, calibraciones), '--sellados', *map(str, sellados), '--remuestreos', '200',
+                       '--salida', str(salida)], capsys)
+    assert rc == 0, (semilla, err)
+    d = json.loads(salida.read_text(encoding='utf-8'))
+    assert d['elegido'] == EN_USO and d['en_uso'] == EN_USO, semilla
+    assert 'Recall@10 sellado del reranker baja de 0.974 a 0.949' in d['fuera'][BGE], d['fuera']
+    assert '39 con respuesta de 79' in d['fuera'][BGE] and 'sin medición sellada' in d['fuera'][E5]
+    assert '097:RF-24' in d['regla']
+
+
+def test_097_rf24_sin_bajar_el_recall_sellado_decide_la_latencia_como_antes():
+    """097:RF-24, 097:RF-11 — si el sellado de bge-m3 no baja, la regla de siempre lo elige por latencia; sin el
+    sellado del en uso, ninguno distinto de él pasa."""
+    assert 'sellados' in inspect.signature(evaluacion_rag.elegir_con_intervalo).parameters, 'la elección no lee sellados'
+    semilla = random.randint(0, 10**6)
+    por_corpus = _calibraciones_sin_separar(semilla)
+    iguales = {EN_USO: _sellada(EN_USO, 38 / 39), BGE: _sellada(BGE, 38 / 39), E5: _sellada(E5, 39 / 39)}
+    d = evaluacion_rag.elegir_con_intervalo(por_corpus, RECURSOS_T5, remuestreos=100, semilla=semilla, sellados=iguales,
+                                            en_uso=EN_USO)
+    assert d['fuera'] == {} and d['elegido'] == BGE and d['decide'] == 'latencia p95 de la consulta', semilla
+    sin_uso = {BGE: iguales[BGE], E5: iguales[E5]}
+    d = evaluacion_rag.elegir_con_intervalo(por_corpus, RECURSOS_T5, remuestreos=50, semilla=semilla, sellados=sin_uso,
+                                            en_uso=EN_USO)
+    assert set(d['fuera']) == {BGE, E5} and d['elegido'] == EN_USO, semilla
+    assert all('modelo en uso' in m for m in d['fuera'].values())
+
+
+def test_097_rf24_un_sellado_de_otros_denominadores_no_cuenta_para_elegir():
+    """097:RF-24, 097:RF-25 — con 80 y 40 frente a 79 y 39, el Recall@10 no se compara y el candidato queda fuera."""
+    assert 'sellados' in inspect.signature(evaluacion_rag.elegir_con_intervalo).parameters, 'la elección no lee sellados'
+    semilla = random.randint(0, 10**6)
+    por_corpus = _calibraciones_sin_separar(semilla)
+    sellados = {EN_USO: _sellada(EN_USO, 0.95, con=40, preguntas=80), BGE: _sellada(BGE, 38 / 39),
+                E5: _sellada(E5, 38 / 39, huella='otra' + '0' * 60)}
+    d = evaluacion_rag.elegir_con_intervalo(por_corpus, RECURSOS_T5, remuestreos=50, semilla=semilla, sellados=sellados,
+                                            en_uso=EN_USO)
+    assert d['elegido'] == EN_USO, semilla
+    assert 'denominadores distintos' in d['fuera'][BGE] and '40 con respuesta de 80' in d['fuera'][BGE]
+    assert 'mismo conjunto sellado' in d['fuera'][E5]
+
+
+def test_097_rf25_la_puerta_compara_con_el_en_uso_sobre_las_mismas_preguntas_y_dice_los_denominadores(tmp_path,
+                                                                                                    monkeypatch):
+    """097:RF-25, 097:RF-14 — el caso de la T5: frente al documento de 80 y 40 la puerta no compara (lo dice con los dos
+    denominadores); frente a nomic con las mismas 79 y 39, rechaza porque baja de 0,974 a 0,949."""
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
+    monkeypatch.delenv(indice.VARIABLE_MODELO, raising=False)
+    bge = _sellada(BGE, 37 / 39)
+    documento = _sellada(None, 0.95, con=40, preguntas=80)
+    r = evaluacion_rag.poner_en_uso(BGE, bge, documento, calibraciones={'047': 'c.json'}, escribir=True)
+    assert r['puesto'] is False
+    assert not any(m.startswith('Recall@10 baja de 0.950') for m in r['motivos']), r['motivos']
+    assert any('39 con respuesta de 79' in m and '40 con respuesta de 80' in m for m in r['motivos']), r['motivos']
+    mismas = _sellada(EN_USO, 38 / 39)
+    r = evaluacion_rag.poner_en_uso(BGE, bge, mismas, calibraciones={'047': 'c.json'}, escribir=True)
+    assert r['puesto'] is False and not (tmp_path / indice.PUNTERO_VECTORES).exists()
+    esperado = ('Recall@10 baja de 0.974 a 0.949 (nomic-embed-text: 39 con respuesta de 79; '
+                'bge-m3: 39 con respuesta de 79)')
+    assert r['motivos'] == [esperado], r['motivos']
+    otra = evaluacion_rag.poner_en_uso(BGE, bge, _sellada(E5, 38 / 39), calibraciones={'047': 'c.json'}, escribir=True)
+    assert any('no del en uso' in m for m in otra['motivos']) and otra['puesto'] is False
+
+
+def test_097_rf25_la_herramienta_pide_la_medicion_del_en_uso_y_no_toma_el_documento_por_defecto(tmp_path, capsys,
+                                                                                               monkeypatch):
+    """097:RF-25 — ``--poner-en-uso`` sin ``--sellado-en-uso`` no se compara con docs/EVALUACION_ABSTENCION_047.json."""
+    monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
+    monkeypatch.setenv(indice.VARIABLE_MODELO, EN_USO)                  # la herramienta lo cambia: se restaura al salir
+    sel = _escribir(tmp_path / 'sel_bge.json', _sellada(BGE, 37 / 39))
+    rc, _, err = _cli(['--poner-en-uso', BGE, '--sellado-047', str(sel)], capsys)
+    assert rc == 2 and '--sellado-en-uso' in err, err
+    rc, _, err = _cli(['--elegir', str(sel)], capsys)
+    assert rc == 2 and '--sellados' in err, err

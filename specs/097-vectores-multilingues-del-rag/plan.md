@@ -38,6 +38,19 @@ con métricas sintéticas; sin pasar la puerta sigue el modelo en uso.
   MRR del híbrido apenas separa de BM25). Decisión: seguir los ficheros movidos al resolver, no un conjunto v2 (descartado:
   un conjunto nuevo cambia el sello que cita la política en uso, `docs/EVALUACION_RAG_047.json`).
 - Pruebas: `tests/test_asistente_vectores_097_t3.py`, sintéticas sorteadas.
+- T6 (2026-11-21, RF-24, RF-25): `fuera_por_recall_sellado` deja fuera de `elegir_con_intervalo` al candidato que baja el
+  Recall@10 sellado del 047 frente al en uso, o que no tiene sellado; `no_comparables` exige la misma huella, el mismo
+  corpus y los mismos denominadores, y `poner_en_uso` la usa antes de `_puerta` y añade a cada motivo los dos
+  denominadores. La herramienta pide `--sellados` con `--elegir` y `--sellado-en-uso` con `--poner-en-uso`: ya no toma
+  `docs/EVALUACION_ABSTENCION_047.json` por defecto. Decisión: comparar solo con los mismos denominadores, sin recalcular la
+  referencia sobre las preguntas comunes (descartado: el documento del 2026-11-02 se midió con otra calibración de la
+  abstención, y recortarlo no lo hace la medición del modelo en uso sobre ese conjunto).
+- Por qué el 047 sellado pasó de 80 y 40 a 79 y 39: una pregunta con respuesta de tipo «modulo» ancla en la ruta de un
+  fichero de `src/vnr_etl`, que 002 movió a `src/convertersmartgrid/adaptadores/entrada/vnr` el 2026-11-08 (d70b8828).
+  RF-18 sigue el fichero por su nombre, pero el ancla es la propia ruta vieja y cada trozo del índice empieza por la ruta
+  nueva, y `docs/architecture/rutas_antes_002.json` solo traduce rutas bajo `src/convertersmartgrid/`: la fila pierde el ancla
+  y RF-8 mide sin ella. No falta ningún dato: el conjunto y su huella no cambiaron, y las mediciones del 2026-11-13 y del
+  2026-11-21 ya tienen 79 y 39.
 
 Fuentes, con lo que se toma de cada una:
 - [BGE-M3, Chen et al. 2024, arXiv 2402.03216](https://arxiv.org/abs/2402.03216) y su

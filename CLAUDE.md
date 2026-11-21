@@ -53,7 +53,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 023 VNR-GIS desde la copia de SQL Server de cualquier concesionaria | cumplida |  |
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |
   | 025 Calibración por año de medición | implementada | falta T27 |
-  | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | aprobada | falta T16 (e2e F04 con modelo) |
+  | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | cumplida | T16 cerrada (21-11, e2e F04 ampliada de MEJ19b); todas sus tareas cerradas |
   | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | T11, T26 |
   | 028 Escaneo del alimentador antes de recalibrar | cumplida | — |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
@@ -101,7 +101,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | cumplida |  |
   | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | cumplida |  |
-  | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T5, T7, T8 |
+  | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | T7, T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida |  |
   | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | cumplida |  |
   | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | cumplida | |
@@ -124,7 +124,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 094 Perfil de tensión en la calibración y bancos ubicados según el perfil | cumplida |  |
   | 095 Escaladas proporcionales a su potencia instalada | cumplida |  |
   | 096 Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | cumplida |  |
-  | 097 Vectores multilingües para la búsqueda del asistente | aprobada | falta T5 |
+  | 097 Vectores multilingües para la búsqueda del asistente | cumplida | T5 cerrada (21-11): se queda nomic-embed-text; todas sus tareas cerradas |
   | 098 La transferencia de carga del operador, en la calibración y en las obras | cumplida |  |
   | 099 Cargas del libro duplicadas por el nombre del cliente | cumplida |  |
   | 100 Aceptación automática por versión, sin tareas pendientes por proyecto | implementada | falta T4 (DIgSILENT) |

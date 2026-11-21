@@ -144,5 +144,8 @@ def test_revision_local_con_informe_real_custodiado_sin_ejecutar(api, tmp_path, 
     assert len(peticiones) == 4
     assert len(fin['result']['dictamenes']) == 4
     assert fin['result']['aprobada'] and not fin['result']['autoriza_ejecucion']
-    assert all('tools' not in p and p['options']['num_predict'] == 512 for p in peticiones)
+    # 047:RF-47: el tope por omisión de la revisión (1024 desde MEJ24), el mismo que usa la web.
+    from convertersmartgrid.aplicacion.asistente.revision_roles import TOKENS
+    assert TOKENS == 1024
+    assert all('tools' not in p and p['options']['num_predict'] == TOKENS for p in peticiones)
     assert not almacen.leer('equipo_acciones')

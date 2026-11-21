@@ -81,7 +81,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       elección con un grupo fuera solo en entrenamiento y carga según la arquitectura en uso. (RF-36 a RF-41)
       Hecho cuando: `tests/test_asistente_clasificador_vectores.py` (026:RF-36 a RF-41) en verde y el ensayo corto con los
       informes reales (entrenar, guardar y reabrir en un proceso nuevo) da las mismas predicciones.
-- [ ] T16. Órdenes de las entradas: asignar un fichero (de la máquina o de la nube) a cada casilla del espacio y subir los
+- [x] T16. Órdenes de las entradas: asignar un fichero (de la máquina o de la nube) a cada casilla del espacio y subir los
       libros de las fuentes de la empresa a su carpeta y año, por las rutas de la web, con confirmación. (RF-42)
       Hecho cuando: la orden no existe con el código de antes (rojo por aserción) y existe después, con su prueba del
       ejecutor contra la API de prueba y la e2e F04 ampliada; `test_asistente_*` y la sellada 107-112 en verde.
@@ -94,8 +94,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       54a19b36009d381b), en el currículo y en las propuestas. Prueba: `tests/test_asistente_026_entradas.py`
       (026:RF-42). Rojo VALIDO: `D:/csg/PM_IMPL/ASISTENTE_B/b_T16/r2/rojo.log` (5 failed por aserción); verde:
       `D:/csg/PM_IMPL/ASISTENTE_B/b_T16/r2/verde.log` (390 passed, 0 omitidas, rc=0).
-      Bloqueada por la e2e F04 ampliada (asignar una casilla desde el asistente), que corre en el FIN2 de esta fila.
-      Siguiente acción: ampliar `frontend/test/e2e/f04_asistente.e2e.mjs` y correrla con los dos arneses.
+      Hecho el 2026-11-21 (d8, MEJ19b): la e2e F04 ampliada asigna y sube cada casilla desde el asistente, acepta
+      antes el diálogo de error del trabajo fallido (081:RF-24) y lo comprueba en la API: dos veces seguidas sobre el
+      índice final, «3 passed», rc=0 (D:/csg/PM_IMPL/MEJ19_ENTRADAS/e2e_mej19b_f04_1_20261121_082946.log,
+      e2e_mej19b_f04_2_20261121_083026.log), y el arnés e2e entero, «19 passed»
+      (e2e_mej19b_arnes_20261121_082707.log); rojo y verde de la estructural nueva en
+      rojo_verde_mej19b_20261121_082604.log (sin el arreglo FALLA, con él PASA). `test_asistente_*` y la sellada
+      107-112, en el verde del hueco FIN (D:/csg/PM_IMPL/FIN/estado.txt), que también repite la e2e sobre la punta que
+      se integra.
 - [x] T17. Control de los trabajos: carril, avance y resultado de cada uno, cancelar y repetir el último que falló con sus
       mismos datos. (RF-43)
       Hecho cuando: rojo por aserción (las órdenes de estado y de repetir no existen) y verde con la prueba del ejecutor.

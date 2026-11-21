@@ -24,7 +24,7 @@
       tests/test_asistente_reranker.py tests/test_asistente_corpus_ampliado.py tests/test_auditoria_raiz.py
       tests/test_ordenes_maestro.py tests/test_asistente_embeddings.py tests/test_preguntas_entregables.py` en verde, con
       `CSG_ASISTENTE_REAL` y sin ella (la de RF-21 se omite nombrándola, RF-22).
-- [ ] T5. Poner en uso el elegido con `--poner-en-uso … --aplicar` y recalcular los vectores de la web, cuando lo decida el
+- [x] T5. Poner en uso el elegido con `--poner-en-uso … --aplicar` y recalcular los vectores de la web, cuando lo decida el
       usuario. (RF-5, RF-7, RF-14, RF-19)
       Hecho cuando: antes, con la calibración del 077 rehecha sin las preguntas que el corpus ya lleva (RF-19), se
       recalibra la abstención y se sella una vez por modelo de vectores en la GPU, y se repite la elección de RF-11; las
@@ -33,5 +33,18 @@
       (nomic-embed-text, bge-m3, jeffh/intfloat-multilingual-e5-large:f16), con `S=D:/csg/rag_097_limpio`:
       `python tools/asistente_evaluar_rag.py --corpus 077 --calibrar --modelo-vectores <m> --datos $S/m_<m> --salida $S/calibra_077_<m>.json`
       y `python tools/asistente_evaluar_rag.py --corpus 077 --sellado --modelo-vectores <m> --calibracion $S/calibra_077_<m>.json --datos $S/m_<m> --salida $S/sellado_077_<m>.json`;
-      después `python tools/asistente_evaluar_rag.py --elegir D:/csg/rag_097_20261113/calibra_047_*.json $S/calibra_077_*.json --salida $S/eleccion_097.json`.
-      Y luego `vectores_en_uso.json` existe en la carpeta del asistente y la web responde con el modelo elegido.
+      después `python tools/asistente_evaluar_rag.py --elegir D:/csg/rag_097_20261113/calibra_047_*.json $S/calibra_077_*.json --sellados <sellado del 047 de cada modelo> --salida $S/eleccion_097.json`
+      (desde la T6, con el sellado del 047 de cada modelo, el en uso incluido: RF-24).
+      Y luego `vectores_en_uso.json` existe en la carpeta del asistente y la web responde con el modelo elegido; o, si la
+      elección deja el modelo en uso, la decisión anotada aquí (RF-6).
+      Hecho el 2026-11-21 (d8, bloque GPU; `docs/EVALUACION_VECTORES_097.json`, clave `eleccion_t5`; salidas en
+      `D:/csg/PM_IMPL/GPU_BLOQUE/097_T5c`): con la regla de RF-11 y RF-24, bge-m3 queda fuera porque su Recall@10
+      sellado del 047 baja de 0,974 a 0,949 frente a nomic con los mismos denominadores (79 preguntas, 39 con
+      respuesta; una perdió su ancla al medir, RF-8) y e5-large queda fuera por su sellado (Recall@10 del reranker
+      0,949 frente a 0,974, mismos denominadores;
+      `D:/csg/PM_IMPL/GPU_BLOQUE/097_T5c/sellado_047_jeffh_intfloat-multilingual-e5-large_f16.json`); **se queda
+      nomic-embed-text** (RF-6): no se escribe `vectores_en_uso.json` y la web no cambia. El 077 sigue sin servirse
+      (RF-7).
+- [x] T6. La elección exige no bajar el Recall@10 sellado del 047 frente al modelo en uso, y la puerta de puesta en uso
+      compara solo con su medición del mismo conjunto y dice los dos denominadores. (RF-24, RF-25)
+      Hecho cuando: `pytest -q tests/test_asistente_vectores_097_t3.py` en verde.

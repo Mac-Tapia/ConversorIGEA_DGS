@@ -6,7 +6,17 @@
   "required": ["evidencia_ids", "contradicciones", "incertidumbres", "decision"],
   "properties": {
     "evidencia_ids": {"type": "array", "items": {"type": "string"}, "maxItems": 32},
-    "contradicciones": {"type": "array", "items": {"type": "string"}, "maxItems": 32},
+    "contradicciones": {"type": "array", "maxItems": 32, "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campo", "valor_propuesta", "valor_evidencia", "fuente"],
+      "properties": {
+        "campo": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "valor_propuesta": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "valor_evidencia": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "fuente": {"type": "string", "minLength": 1, "maxLength": 2000}
+      }
+    }},
     "incertidumbres": {"type": "array", "items": {"type": "string"}, "maxItems": 32},
     "decision": {"enum": ["favorable", "bloqueada", "revisar"]}
   }

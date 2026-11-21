@@ -1,6 +1,6 @@
 # Spec 097 — Vectores multilingües para la búsqueda del asistente
 
-Estado: aprobada · Fecha: 2026-11-07 · Origen: usuario, 2026-11-07: «¿el RAG y el LLM están correctamente
+Estado: cumplida (2026-11-21: T5 cerrada con la elección repetida en la GPU, se queda nomic-embed-text; todas sus tareas cerradas) · antes aprobada · Fecha: 2026-11-07 · Origen: usuario, 2026-11-07: «¿el RAG y el LLM están correctamente
 sincronizados?» y «si existen fallos o vacíos, buscar soluciones en la web y GitHub; que funcione cada modelo a su máximo
 potencial».
 
@@ -98,6 +98,24 @@ el documento. Descartada la opción B (sacarlo por su contenido): anulaba esa de
   que lo indica.
 - RF-23: EL SISTEMA dará en cada medición de recuperación, además de Recall@10, la fracción de preguntas con respuesta que
   tienen algún trozo correcto entre los 10 primeros (hit@10), sin que decida ninguna puerta ni la elección del modelo.
+
+### El Recall@10 sellado decide sobre las mismas preguntas (T5, 2026-11-21)
+
+Origen: medida de la T5 del bloque de GPU, 2026-11-21. RF-11 eligió bge-m3 por la latencia (p95 de 69 ms frente a 86 y 87),
+sin que ninguno cayera por el intervalo; su sellado del 047 dio Recall@10 0,949 y la puerta de puesta en uso lo rechazó
+(«baja de 0,950 a 0,949»). La referencia era `docs/EVALUACION_ABSTENCION_047.json`, del 2026-11-02, con 80 preguntas y 40
+con respuesta; el sellado de hoy tiene 79 y 39 del mismo conjunto por su huella, porque una pregunta perdió su ancla al medir
+(RF-8). Sobre esas mismas 79, nomic-embed-text (en uso, sellado del 2026-11-13) da 0,974: bge-m3 baja 0,025 y la negativa
+era correcta, pero por una comparación de denominadores distintos, y la elección señalaba un modelo que no se podía poner en
+uso.
+
+- RF-24: EL SISTEMA dejará fuera de la elección de RF-11 al modelo de vectores cuyo Recall@10 del reranker en el conjunto
+  sellado del 047 sea menor que el del modelo en uso medido con la misma huella y los mismos denominadores, y al que no
+  tenga esa medición, además de las condiciones de «conserva» y de latencia; SI ninguno pasa, ENTONCES seguirá el modelo en
+  uso (RF-6).
+- RF-25: CUANDO compruebe la puesta en uso de RF-14, EL SISTEMA comparará solo con la medición sellada del modelo en uso del
+  mismo conjunto (misma huella, corpus y número de preguntas con y sin respuesta); SI no lo es, ENTONCES no lo pondrá en uso
+  y dirá por qué; y en cada motivo dirá los dos denominadores.
 
 ## Requisitos no funcionales
 

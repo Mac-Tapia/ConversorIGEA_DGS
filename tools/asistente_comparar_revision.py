@@ -29,13 +29,20 @@ HUELLA = '102bdfbf1c049c893aa5906594a1cc20503a1b5344a20dc62c905bb84a21ca6d'
 #: 047 T8: los 12 casos de 2026-11-03 orientaron el diagnóstico, así que la medida que cierra la T8 es con otro conjunto,
 #: declarado el 2026-11-19 antes de medir (su huella, también en la spec y en el fichero).
 HUELLA_047B = '54f2a035bc7c173d87830a5faaf2e5fdca79851df448abb854efff60e2f4e910'
+#: 047 T8, MEJ24: la medida del 047b (2026-11-21) orientó la corrección del encargo, así que la siguiente es con otro
+#: conjunto, declarado el 2026-11-21 antes de medir.
+HUELLA_047C = '04f19184a45fed27966a880bd0f89a23d819db6836da22f13e3ab79ecd618d88'
+#: 047 T8, MEJ24b: la medida del 047c (2026-11-21) orientó las contradicciones estructuradas (047:RF-48 a RF-50), así
+#: que la siguiente es con otro conjunto, declarado el 2026-11-21 antes de medir.
+HUELLA_047D = '2da22130778488aa9e2a71583e6799c30fb41ce403796a5d6261fbb1a50887cc'
 #: Conjuntos declarados, por nombre de fichero; el de siempre usa ``HUELLA``.
-DECLARADOS = {'REVISION_ROLES_CASOS_047b.json': HUELLA_047B}
+DECLARADOS = {'REVISION_ROLES_CASOS_047b.json': HUELLA_047B, 'REVISION_ROLES_CASOS_047c.json': HUELLA_047C,
+              'REVISION_ROLES_CASOS_047d.json': HUELLA_047D}
 #: La clave del fichero que declara su huella; no entra en la huella.
 DECLARACION = 'declaracion'
 DEFECTOS = {None, 'fuentes', 'fisica', 'coste', 'riesgo'}
-#: El de ``revision_roles.TOKENS``, sin cargar el paquete para ``--help``.
-TOKENS = 512
+#: El de ``revision_roles.TOKENS``, sin cargar el paquete para ``--help`` (una prueba comprueba que son iguales).
+TOKENS = 1024
 
 
 def _contenido(ruta: Path) -> dict:
@@ -133,14 +140,16 @@ def main(argv=None) -> int:
         return 2
     with tempfile.TemporaryDirectory(prefix='csg-revision-') as carpeta, turno_gpu('revision-comparacion'):
         informe = comparar_revision(materializar(casos, Path(carpeta)),
-                                    lambda medir: revisor_ollama(cliente, num_predict=args.tokens, medir=medir))
+                                    lambda medir: revisor_ollama(cliente, num_predict=args.tokens, medir=medir),
+                                    tope=args.tokens)
     args.salida.parent.mkdir(parents=True, exist_ok=True)
     args.salida.write_text(json.dumps({**resumen, 'modelo': args.modelo, 'tokens': args.tokens, **informe},
                                       ensure_ascii=False, indent=2),
                            encoding='utf-8')
     print(json.dumps({k: {c: informe[k][c] for c in ('detectados', 'perdidos', 'falsas_alarmas', 'sin_respuesta',
                                                      'motivos_sin_respuesta', 'tokens_entrada', 'tokens_salida',
-                                                     'segundos')}
+                                                     'max_tokens_salida', 'en_tope', 'contradicciones_descartadas',
+                                                     'decisiones_recalculadas', 'segundos')}
                       for k in ('rol_unico', 'equipo')}, ensure_ascii=True))
     return 0
 

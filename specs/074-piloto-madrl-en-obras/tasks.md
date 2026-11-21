@@ -17,12 +17,17 @@
       Medido el 2026-11-02 en los grafos guardados, solo leyendo: Nasca da 18 alimentadores y Chincha 30, los de sus proyectos.
       Con hasta 3 bancos por alimentador, NSGA-II deja 15 de 18 y 21 de 30 en norma, en 15 y 33 s; la escalera, lo mismo con menos
       obras. Ninguno de los dos pasa la fidelidad por la peor rama (133 y 3 727 puntos), que apunta otra vez a `ntnum` (T5).
-- [ ] T5 Volver a capturar y a medir. (RF-5, RF-7)
+- [x] T5 Volver a capturar y a medir. (RF-5, RF-7)
       Hecho cuando: en DIgSILENT se confirma `ntnum` y al menos una red con problemas pasa la fidelidad. Requiere turno de DIgSILENT
       sobre proyectos de prueba. Los episodios ya guardados conservan el grafo antiguo.
       Avance del 2026-11-19 (59): captura nueva en DIgSILENT del proyecto de prueba importado el 2026-11-19 con
       digital_twin_snapshot_pf.py (2 órdenes, 0 % fallidas) en la corrida «Con proyecto» (D:/csg/INTEGRA_54/cierre_tareas/digsilent/, corrida C2c). Falta confirmar
       `ntnum` en esa captura y pasar la fidelidad en una red con problemas: sigue abierta.
+      Hecho el 2026-11-21 (d8, bloque GPU, sobre la captura en DIgSILENT C2c del 2026-11-19): `ntnum` confirmado en el
+      grafo v3 de la captura (D:/csg/PM_IMPL/GPU_BLOQUE/074_T5/ntnum_confirmado.txt: sin proyecto 387 transformadores
+      de 1 unidad y 2 de 2; con proyecto, además 1 de 3) y la red con problemas (SM218 sin proyecto, fuera de norma,
+      mínima 0,9634 p.u.) reproduce lo medido: tensión media 0,0031 y máx. 0,0064 p.u., carga media 0,5 % y máx. 18,6
+      % (D:/csg/PM_IMPL/GPU_BLOQUE/074_T5/fidelidad_sin_proyecto.log, fidelidad_resumen.txt, grafo_sm218.json).
 - [x] T6 Dependencias del aprendizaje en un entorno aparte. (RF-9)
       Hecho cuando: TorchRL y `sb3_contrib` corren con la versión de PyTorch del proyecto sin cambiar el `.venv` compartido.
       Verificado el 2026-11-02 con `requirements-madrl.txt` en `~/.convertersmartgrid/madrl_deps`: importan con torch 2.14.1 y GATv2

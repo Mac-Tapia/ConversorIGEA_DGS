@@ -4088,7 +4088,184 @@
   "El 077 no se puede servir con ningún candidato: con abstención 0,95 la calibración conserva 0,042 con el reranker y de 0,047 a 0,064 con el híbrido, y el sellado no pasa la puerta (Recall@10 0,526 → 0,039). RF-7 no se cumple.",
   "La puerta en uso del 047 (reranker) pasa con nomic en el sellado: Recall@10 0,974 con y sin umbrales.",
   "Anclas: el 047 pierde 1 de 80 (sellado) y 2 de 76 (recuperación), el 077 1 de 128, tras seguir los ficheros movidos de carpeta (097:RF-18); sin ello el 077 perdía 34 de 308 y no se medía.",
-  "Las preguntas del operador se miden aparte y no se suman (097:RF-17): solo 2 reales y ninguna pide una cita."
+  "Las preguntas del operador se miden aparte y no se suman (097:RF-17): solo 2 reales y ninguna pide una cita.",
+  "Denominadores del 047 sellado (T5, 2026-11-21): docs/EVALUACION_ABSTENCION_047.json, del 2026-11-02, tiene 80 preguntas y 40 con respuesta; las mediciones del 2026-11-13 (nomic) y del 2026-11-21 (bge-m3), del mismo conjunto por su huella (2faeb8c3), tienen 79 y 39. La que falta es una pregunta con respuesta de tipo «modulo» que ancla en la ruta de un fichero de src/vnr_etl, movido por 002 a src/convertersmartgrid/adaptadores/entrada/vnr el 2026-11-08 (d70b8828): RF-18 sigue el fichero por su nombre, pero el ancla es la ruta vieja y cada trozo empieza por la nueva, y rutas_antes_002.json solo traduce rutas bajo src/convertersmartgrid/; RF-8 mide sin ella. No falta ningún dato. Sobre las mismas 79, el Recall@10 del reranker es 0,974 con nomic y 0,949 con bge-m3: bge-m3 baja 0,025, y desde la T6 la elección lo deja fuera (RF-24) y la puerta compara solo con los mismos denominadores (RF-25)."
  ],
- "salidas": "D:/csg/rag_097_20261113 (espejo en G:/Mi unidad/ConverterSmartGrid/entrenamientos/097_rag/20261113_T3)"
+ "salidas": "D:/csg/rag_097_20261113 (espejo en G:/Mi unidad/ConverterSmartGrid/entrenamientos/097_rag/20261113_T3)",
+  "eleccion_t5": {
+    "regla": "Compite el modelo con calibración en el 047 y en el 077. Queda fuera el que otro supera en un corpus con el IC95 % pareado de la diferencia de «conserva» (híbrido, abstención 0,95) por encima de cero sin quedar por debajo en el otro, y el que en el conjunto sellado del 047 baja el Recall@10 del reranker frente al modelo en uso medido con los mismos denominadores, o no tiene esa medición (097:RF-24). Entre los que quedan, el de menor p95 de latencia de la consulta si la diferencia pasa del 20 %; si no, el de menor memoria de GPU medida (097:RF-11).",
+    "compiten": [
+      "bge-m3",
+      "jeffh/intfloat-multilingual-e5-large:f16",
+      "nomic-embed-text"
+    ],
+    "fuera": {
+      "bge-m3": "Recall@10 sellado del reranker baja de 0.974 a 0.949 (nomic-embed-text: 39 con respuesta de 79; bge-m3: 39 con respuesta de 79)",
+      "jeffh/intfloat-multilingual-e5-large:f16": "Recall@10 sellado del reranker baja de 0.974 a 0.949 (nomic-embed-text: 39 con respuesta de 79; jeffh/intfloat-multilingual-e5-large:f16: 39 con respuesta de 79)"
+    },
+    "quedan": [
+      "nomic-embed-text"
+    ],
+    "elegido": "nomic-embed-text",
+    "decide": "único que queda",
+    "por_corpus": {
+      "047": {
+        "modelos": {
+          "bge-m3": {
+            "conserva": 1.0,
+            "ic95": [
+              0.9459459459459459,
+              1.0
+            ]
+          },
+          "jeffh/intfloat-multilingual-e5-large:f16": {
+            "conserva": 0.972972972972973,
+            "ic95": [
+              0.918918918918919,
+              1.0
+            ]
+          },
+          "nomic-embed-text": {
+            "conserva": 0.8108108108108109,
+            "ic95": [
+              0.6756756756756757,
+              1.0
+            ]
+          }
+        },
+        "diferencias": {
+          "bge-m3 - jeffh/intfloat-multilingual-e5-large:f16": [
+            -0.027027027027026973,
+            0.08108108108108103
+          ],
+          "bge-m3 - nomic-embed-text": [
+            0.0,
+            0.29729729729729726
+          ],
+          "jeffh/intfloat-multilingual-e5-large:f16 - bge-m3": [
+            -0.08108108108108103,
+            0.027027027027026973
+          ],
+          "jeffh/intfloat-multilingual-e5-large:f16 - nomic-embed-text": [
+            0.0,
+            0.29729729729729726
+          ],
+          "nomic-embed-text - bge-m3": [
+            -0.29729729729729726,
+            0.0
+          ],
+          "nomic-embed-text - jeffh/intfloat-multilingual-e5-large:f16": [
+            -0.29729729729729726,
+            0.0
+          ]
+        },
+        "n_con": 37,
+        "n_sin": 40
+      },
+      "077": {
+        "modelos": {
+          "bge-m3": {
+            "conserva": 0.5925925925925926,
+            "ic95": [
+              0.3888888888888889,
+              0.7777777777777778
+            ]
+          },
+          "jeffh/intfloat-multilingual-e5-large:f16": {
+            "conserva": 0.4074074074074074,
+            "ic95": [
+              0.2777777777777778,
+              0.6296296296296297
+            ]
+          },
+          "nomic-embed-text": {
+            "conserva": 0.4444444444444444,
+            "ic95": [
+              0.3148148148148148,
+              0.6666666666666666
+            ]
+          }
+        },
+        "diferencias": {
+          "bge-m3 - jeffh/intfloat-multilingual-e5-large:f16": [
+            -0.018518518518518545,
+            0.33333333333333337
+          ],
+          "bge-m3 - nomic-embed-text": [
+            -0.07407407407407407,
+            0.29629629629629634
+          ],
+          "jeffh/intfloat-multilingual-e5-large:f16 - bge-m3": [
+            -0.33333333333333337,
+            0.018518518518518545
+          ],
+          "jeffh/intfloat-multilingual-e5-large:f16 - nomic-embed-text": [
+            -0.20370370370370372,
+            0.12962962962962965
+          ],
+          "nomic-embed-text - bge-m3": [
+            -0.29629629629629634,
+            0.07407407407407407
+          ],
+          "nomic-embed-text - jeffh/intfloat-multilingual-e5-large:f16": [
+            -0.12962962962962965,
+            0.20370370370370372
+          ]
+        },
+        "n_con": 54,
+        "n_sin": 115
+      }
+    },
+    "recursos": {
+      "bge-m3": {
+        "latencia_p95_ms": 69.10090000019409,
+        "memoria_gpu_mib": 657.3
+      },
+      "jeffh/intfloat-multilingual-e5-large:f16": {
+        "latencia_p95_ms": 87.04710000165505,
+        "memoria_gpu_mib": 595.7
+      },
+      "nomic-embed-text": {
+        "latencia_p95_ms": 86.11979999841424,
+        "memoria_gpu_mib": 320.2
+      }
+    },
+    "en_uso": "nomic-embed-text",
+    "recall_sellado_047": {
+      "nomic-embed-text": {
+        "recall@10": 0.9743589743589743,
+        "preguntas": 79,
+        "con_respuesta": 39,
+        "conjunto_sha256": "2faeb8c3973f308bab55b74116ec1651581178151da6c02e8f90f35953a45231"
+      },
+      "bge-m3": {
+        "recall@10": 0.9487179487179487,
+        "preguntas": 79,
+        "con_respuesta": 39,
+        "conjunto_sha256": "2faeb8c3973f308bab55b74116ec1651581178151da6c02e8f90f35953a45231"
+      },
+      "jeffh/intfloat-multilingual-e5-large:f16": {
+        "recall@10": 0.9487179487179487,
+        "preguntas": 79,
+        "con_respuesta": 39,
+        "conjunto_sha256": "2faeb8c3973f308bab55b74116ec1651581178151da6c02e8f90f35953a45231"
+      }
+    },
+    "remuestreos": 2000,
+    "semilla": 0,
+    "objetivo": 0.95,
+    "fuentes_selladas": [
+      "D:\\csg\\rag_097_20261113\\sellado_047_nomic-embed-text.json",
+      "D:\\csg\\PM_IMPL\\GPU_BLOQUE\\097_T5b\\sellado_047_bge-m3.json",
+      "D:\\csg\\PM_IMPL\\GPU_BLOQUE\\097_T5c\\sellado_047_jeffh_intfloat-multilingual-e5-large_f16.json"
+    ],
+    "fuentes": [
+      "D:\\csg\\rag_097_20261113\\calibra_047_bge-m3.json",
+      "D:\\csg\\rag_097_20261113\\calibra_047_jeffh_intfloat-multilingual-e5-large_f16.json",
+      "D:\\csg\\rag_097_20261113\\calibra_047_nomic-embed-text.json",
+      "D:\\csg\\rag_097_limpio\\calibra_077_bge-m3.json",
+      "D:\\csg\\rag_097_limpio\\calibra_077_jeffh_intfloat-multilingual-e5-large_f16.json",
+      "D:\\csg\\rag_097_limpio\\calibra_077_nomic-embed-text.json"
+    ]
+  }
 }

@@ -13,7 +13,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 132 |
 | Interfaz | `frontend/src/` | 121 |
 | Pruebas de la interfaz | `frontend/test/` | 65 |
-| Pruebas | `tests/` | 644 |
+| Pruebas | `tests/` | 647 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -23,12 +23,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 86 |
-| aprobada | 20 |
+| cumplida | 88 |
+| aprobada | 18 |
 | implementada | 5 |
 | retirada | 1 |
 
-112 specs con 3986 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3996 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -123,9 +123,9 @@ El intérprete acepta al modelo de órdenes con confianza 0.85, salvo que traiga
 | Rol | Ejecuta | Lee el proyecto | Encargo |
 | --- | --- | --- | --- |
 | `operador` | sí | sí | Confirma cada escritura y es el único que ejecuta. |
-| `fuentes` | no | sí | Revisa si cada afirmación de la propuesta está en la evidencia citada, con el mismo valor. |
+| `fuentes` | no | sí | Revisa si cada afirmación de la propuesta está en la evidencia citada, con el mismo valor y del mismo elemento (alimentador, SET, tramo, poste, nodo o equipo): una evidencia de otro elemento no confirma ningún dato de la propuesta. |
 | `fisica` | no | sí | Revisa la consistencia física: tensiones, cargas y límites de la propuesta frente a los de la evidencia. |
-| `coste` | no | sí | Revisa los costes y cantidades de la propuesta frente a los precios y cantidades de la evidencia. |
+| `coste` | no | sí | Revisa los costes y cantidades de la propuesta frente a los precios y cantidades de la evidencia: el coste de la propuesta es el total de lo que, según la evidencia, necesita toda la acción. |
 | `riesgo` | no | sí | Revisa el riesgo de operación: si, según la evidencia, la propuesta deja cargas sin respaldo o sin servicio. |
 | `cliente_mcp` | no | sí | Un cliente MCP de esta máquina: solo las lecturas del proyecto. |
 

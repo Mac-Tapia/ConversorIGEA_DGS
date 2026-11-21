@@ -7,13 +7,15 @@ Datos sintéticos, de ninguna empresa (P13).
 """
 from __future__ import annotations
 
+import re
 import time
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from convertersmartgrid.aplicacion.asistente import ejecutor, tareas
-from convertersmartgrid.aplicacion.asistente.interprete import _por_frase_literal
+from convertersmartgrid.aplicacion.asistente.interprete import _por_frase_literal, interpretar
 from convertersmartgrid.presentacion.web import services
 
 ORDENES = ('asignar_entrada', 'subir_fuente_empresa')
@@ -148,3 +150,60 @@ def test_026_rf42_sube_un_libro_de_la_empresa_a_su_carpeta_y_su_anio(web, tmp_pa
     (fuente,) = cliente.get(f'/api/workspaces/{wid}/fuentes', params={'clase': 'sicodi'}).json()['fuentes']
     assert (fuente['periodo'], fuente['vigente'], fuente['nombre']) == ('2025', True, libro.name), fuente
     assert 'el SICODI del 2025' in fin['result']['texto'], fin['result']
+
+
+_F04 = Path(__file__).resolve().parents[1] / 'frontend' / 'test' / 'e2e' / 'f04_asistente.e2e.mjs'
+
+
+def _recorridos_f04() -> dict[str, str]:
+    """Cada ``test('…', …)`` de la e2e F04 con su cuerpo, hasta el siguiente."""
+    texto = _F04.read_text(encoding='utf-8')
+    trozos = re.split(r"^test\('", texto, flags=re.MULTILINE)
+    return {t.split("'", 1)[0]: t for t in trozos[1:]}
+
+
+def test_026_rf42_la_e2e_f04_asigna_y_sube_cada_casilla_sin_depender_del_modelo():
+    """026:RF-42 (T16) — la e2e F04 llega de verdad a las entradas: un recorrido propio, sin el ramal de «sin modelo» que
+    corta el de la consulta, confirma la orden («Confirmar y ejecutar»), comprueba en la API que cada fichero quedó en su
+    casilla, que la base Access en la red no entra y que el libro de la empresa está en sus fuentes con su año. Sus
+    órdenes las entiende el intérprete sin ningún modelo (la frase del catálogo), así que corren con o sin Ollama."""
+    texto = _F04.read_text(encoding='utf-8')
+    confirmar = re.search(r'async function confirmarOrden\(.*?\n\}\n', texto, re.DOTALL)
+    assert confirmar is not None, 'la e2e F04 no tiene un paso que confirme la orden de las entradas'
+    assert re.search(r"confirmar\.click\(\)", confirmar.group(0)) and 'Confirmar y ejecutar' in confirmar.group(0)
+    entradas = [cuerpo for cuerpo in _recorridos_f04().values() if 'await confirmarOrden(' in cuerpo]
+    assert len(entradas) == 1, 'la e2e F04 no tiene su recorrido de las entradas que confirme y suba'
+    (cuerpo,) = entradas
+    assert 'SIN_MODELO' not in cuerpo and 'return;' not in cuerpo, 'el recorrido de las entradas se corta sin modelo'
+    for pieza in ('/api/workspaces/${espacio}', '.inputs', 'red_f04.txt', 'carga_f04.txt', 'equipos_f04.txt',
+                  r"toMatch(/red_f04\.txt$/)", "'base Access'", 'fuentes?clase=sicodi', "'2025', true",
+                  "'su ruta entre comillas'", "'selector'"):
+        assert pieza in cuerpo, f'el recorrido de las entradas no comprueba «{pieza}»'
+    ordenes = re.findall(r'`((?:asigna|pon|sube) [^`]*)`', cuerpo)
+    assert len(ordenes) == 5, ordenes
+    for orden in ordenes:
+        orden = re.sub(r'\$\{[^}]*\}', 'C:/e2e/entradas/fichero_f04.txt', orden)
+        i = interpretar(orden)                                     # sin Transformer ni Ollama
+        assert i.tarea in ORDENES and i.modelo == 'catalogo', (orden, i.tarea, i.modelo)
+        assert i.datos.get('ruta'), (orden, i.datos)
+
+
+def test_026_rf42_la_e2e_f04_acepta_el_dialogo_del_trabajo_fallido_antes_de_la_orden_siguiente():
+    """026:RF-42 (T16) — el trabajo que la casilla rechaza abre su diálogo de error (081:RF-24), modal: deja inerte la
+    página y la orden siguiente no llegaba a la caja (MEJ19b: la del libro nunca salía como tarjeta). El recorrido de
+    las entradas comprueba ese diálogo con su motivo y lo acepta ANTES de la orden siguiente, y ``ordenar`` comprueba que
+    la caja «Orden» recibió el texto antes de enviarlo, para que un diálogo olvidado falle allí con su porqué."""
+    texto = _F04.read_text(encoding='utf-8')
+    ordenar = re.search(r'async function ordenar\(.*?\n\}\n', texto, re.DOTALL)
+    assert ordenar is not None
+    cuerpo_ordenar = ordenar.group(0)
+    assert 'toHaveValue(texto)' in cuerpo_ordenar, 'ordenar() no comprueba que la caja «Orden» recibió la orden'
+    assert cuerpo_ordenar.index('toHaveValue(texto)') < cuerpo_ordenar.index("press('Control+Enter')")
+    (cuerpo,) = [c for c in _recorridos_f04().values() if 'await confirmarOrden(' in c]
+    dialogo = cuerpo.find("getByRole('dialog', { name: 'Asistente · asignar_entrada — error' })")
+    assert dialogo > cuerpo.index("toContainText('base Access'"), 'el recorrido no espera el diálogo del trabajo fallido'
+    aceptar = cuerpo.find("getByRole('button', { name: 'Aceptar', exact: true }).click()", dialogo)
+    cerrado = cuerpo.find('await expect(dialogo).toHaveCount(0)', aceptar)
+    siguiente = cuerpo.index('sube el sicodi')
+    assert dialogo < aceptar < cerrado < siguiente, 'el diálogo de error no se acepta antes de la orden del libro'
+    assert "expect(dialogo).toContainText('base Access')" in cuerpo[dialogo:aceptar], 'el diálogo no enseña su motivo'

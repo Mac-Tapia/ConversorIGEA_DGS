@@ -62,6 +62,33 @@ Dependencias y relación: 043 y 044; conservar intérprete, resolución, herrami
 - RF-43: CUANDO se mida la revisión con un conjunto de casos, EL SISTEMA comprobará antes de medir que su huella es la
   declarada, la escribirá en el informe, y no medirá un conjunto sin huella declarada o con otra. T8, 2026-11-19: los 12
   casos del 2026-11-03 ya orientaron el diagnóstico, así que la medida que cierra la T8 usa otro conjunto declarado antes.
+- RF-44: CUANDO se pida un dictamen al LLM, EL SISTEMA le dirá que, con alguna contradicción o incertidumbre pendiente,
+  la decisión nunca es «favorable», sino «revisar» (requiere revisión) o «bloqueada». MEJ24, 2026-11-21: con el 047b,
+  todas las «sin respuesta» de qwen3:8b eran dictámenes favorables con listas pendientes, que RF-40 anula.
+- RF-45: CUANDO se pida un dictamen al LLM, EL SISTEMA no le enviará las restricciones deterministas, que comprueba el
+  código, y en la segunda ronda le dirá que los dictámenes anteriores no son evidencia ni se copian: solo cuenta lo de su
+  encargo que compruebe en la evidencia.
+- RF-46: CUANDO se pida un dictamen al LLM, EL SISTEMA le dirá que una evidencia de otro elemento (alimentador, SET,
+  tramo, poste, nodo o equipo) no confirma un dato, que el mismo valor con otro formato no es una contradicción, que lo
+  confirmado no va en las listas y que el coste de la propuesta es el total de lo que la evidencia dice que pide la acción.
+- RF-47: CUANDO se mida la revisión, EL SISTEMA guardará en el informe el tope de tokens por intervención, la
+  intervención más larga, cuántas llegaron al tope y, de cada dictamen no válido, la decisión y las listas que devolvió
+  el LLM; el tope por omisión es 1024 y se elige con `--tokens`.
+- RF-48: CUANDO se pida un dictamen al LLM, EL SISTEMA le pedirá cada contradicción con su campo, el valor de la
+  propuesta, el valor de la evidencia y la fuente (el ID de la evidencia), y tratará como dictamen no válido el que
+  traiga una contradicción con otra forma; una contradicción en texto libre, del formato anterior, se sigue admitiendo.
+  MEJ24b, 2026-11-21: con el 047c, qwen3:8b escribía en «contradicciones» las comprobaciones que coinciden
+  («coste_usd: 11200 vs 11200», «38 kW vs 38 kW (no contradicción)»), sin que el código pudiera distinguirlas.
+- RF-49: CUANDO un dictamen traiga contradicciones, EL SISTEMA decidirá si cada una lo es comparando sus dos valores
+  con la unidad normalizada (%, kW, MW, kvar, kVA, A, kV, p.u., USD, km, mm², h, ohm…) y una tolerancia relativa del
+  0,5 % de la mayor; descartará, con su motivo en el dictamen, las que coinciden, que no cuentan. De una en texto libre
+  interpretará «campo: X vs Y» (o «frente a»); si no puede leerla, o la cifra es ambigua («1.250»), o las magnitudes
+  son distintas, la mantendrá como contradicción.
+- RF-50: SI el código descartó alguna contradicción de un dictamen, ENTONCES EL SISTEMA aplicará la regla de RF-40 a
+  las listas que quedan, guardará la decisión que devolvió el LLM y dirá en el informe de la medida, por modo, cuántas
+  contradicciones descartó y cuántas decisiones recalculó. Sin nada descartado, la decisión es la del LLM.
+- RF-51: CUANDO se pida un dictamen al LLM, EL SISTEMA le dirá que anote solo los valores distintos: si los dos
+  valores son iguales, no es una contradicción y no se escribe.
 
 ## Requisitos no funcionales
 

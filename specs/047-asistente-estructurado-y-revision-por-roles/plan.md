@@ -227,7 +227,7 @@ No se dispone de logits internos del maestro; el método es destilación de resp
 
 ### T8: La revisión distingue lo sano de lo defectuoso
 
-**Cubre:** RF-38, RF-39, RF-40, RF-41 (y RF-5, RF-6).
+**Cubre:** RF-38, RF-39, RF-40, RF-41, RF-43, RF-44, RF-45, RF-46, RF-47 (y RF-5, RF-6).
 
 **Files:** `asistente/revision_roles.py` (regla de decisión común `_REGLA`, encargo de riesgo sin fallo imaginado,
 dictamen no favorable sin hallazgo como no válido, al LLM solo propuesta y fragmentos, dictámenes en el informe),
@@ -241,6 +241,23 @@ convirtiendo falsas alarmas en silencio, porque la tarea exige también 0 sin re
 huella no cambian: la corrección no se hizo mirando sus contenidos.
 
 **Puerta (sin cambiar tras medir):** con `qwen3:8b`, en los dos modos, 0 falsas alarmas, 0 perdidos y 0 sin respuesta.
+
+**MEJ24, 2026-11-21 (RF-44 a RF-47).** La medida del 047b no pasó. Se corrige el encargo y no la regla: el código sigue
+anulando un «favorable» con listas pendientes (RF-40), y el encargo lo dice ahora explícitamente. Se descarta convertir
+ese dictamen en «revisar» en el código: sería contar como hallazgo lo que el modelo no dijo, y en un caso sano subiría
+las falsas alarmas sin que se viera. Se descarta también filtrar en el código las contradicciones que dicen «coincide»:
+es texto libre del modelo y el filtro podría esconder una real. Las restricciones deterministas salen del mensaje al LLM
+(las aplica `revisar_propuesta`). El tope de tokens es un parámetro (`--tokens`, `revision_tokens`), por omisión 1024, y
+el informe dice cuántas intervenciones llegaron a él. La medida siguiente es con el conjunto 047c, declarado antes.
+
+**MEJ24b, 2026-11-21 (RF-48 a RF-51, T10).** La medida del 047c no pasó: el modelo escribía en «contradicciones» las
+comprobaciones cuyos valores coinciden, y eso anulaba favorables correctos o bloqueaba sanos. La decisión de MEJ24 de no
+filtrar texto libre se mantiene en lo que la motivaba (no esconder una real): la contradicción pasa a ser estructurada
+(campo, los dos valores y la fuente) y el código compara los dos valores, con la unidad normalizada y un 0,5 % de
+tolerancia relativa; lo que no sabe leer lo mantiene. Una contradicción descartada queda en el dictamen con su motivo.
+Solo cuando el código descarta algo, la decisión sale de la regla de RF-40 sobre las listas que quedan (la devuelta se
+guarda): el modelo la escribió a partir de unas listas que el código corrigió. Sin descartes, decide el modelo, como
+antes. La medida siguiente es con el conjunto 047d, declarado antes; el 047c ya orientó el diagnóstico.
 
 ### T4: Evaluación real y ajuste condicionado
 

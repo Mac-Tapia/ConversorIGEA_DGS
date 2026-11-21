@@ -168,7 +168,8 @@ def test_presupuesto_de_revision_en_la_configuracion(tmp_path, monkeypatch):
     from convertersmartgrid.aplicacion.asistente import almacen
     from convertersmartgrid.aplicacion.asistente.revision_roles import config_revision, revisor_ollama
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'datos'))
-    assert config_revision() == {'presupuesto_s': 60.0, 'num_predict': 512}
+    # 047:RF-47: 1024 desde MEJ24; el tope de 512 podía cortar la respuesta del equipo.
+    assert config_revision() == {'presupuesto_s': 60.0, 'num_predict': 1024}
     almacen.guardar_json('ollama', {'revision_presupuesto_s': 30, 'revision_tokens': 128})
     assert config_revision() == {'presupuesto_s': 30.0, 'num_predict': 128}
     almacen.guardar_json('ollama', {'revision_tokens': 0})
@@ -394,3 +395,109 @@ def test_el_informe_guarda_cada_dictamen(tmp_path):
     assert fila['dictamenes'][0] == {'rol': 'fuentes', 'ronda': 1, 'decision': 'bloqueada',
                                      'evidencia_ids': sorted(casos[0]['evidencia']), 'incertidumbres': [],
                                      'contradicciones': ['fuentes: valor distinto']}
+
+
+def _sistemas_por_ronda(tmp_path, propuesta, dictamen):
+    """Lo que recibe cada rol en cada ronda, con un Ollama falso que siempre dice ``dictamen``."""
+    import json
+    from convertersmartgrid.aplicacion.asistente.revision_roles import revisor_ollama
+    contexto, evidencia = paquete(tmp_path)
+    peticiones = []
+    r = revisar_propuesta(propuesta, evidencia, contexto=contexto,
+                          revisor=revisor_ollama(_cliente(_dictamen_llm(dictamen), peticiones)))
+    filas = [(json.loads(c['messages'][1]['content']), c['messages'][0]['content']) for _u, c in peticiones]
+    return r, filas
+
+
+REVISAR = {'decision': 'revisar', 'evidencia_ids': ['e1'], 'incertidumbres': ['coste_usd: ninguna evidencia lo da'],
+           'contradicciones': []}
+
+
+def test_con_algo_pendiente_la_decision_no_es_favorable(tmp_path):
+    """047:RF-44 — MEJ24: con qwen3:8b, todas las «sin respuesta» del 047b eran dictámenes favorables con listas
+    pendientes (1 en rol único y 7 en equipo), que RF-40 anula. El encargo de cada rol lo dice ahora explícitamente."""
+    _r, filas = _sistemas_por_ronda(tmp_path, {'restricciones_deterministas': {'fisica': True}}, REVISAR)
+    assert {u['ronda'] for u, _s in filas} == {1, 2}
+    for _u, sistema in filas:
+        assert 'favorable si las dos están vacías' in sistema
+        assert 'nunca es favorable' in sistema and 'revisar (requiere revisión)' in sistema
+
+
+def test_al_llm_no_van_las_restricciones_deterministas(tmp_path):
+    """047:RF-45 — el LLM las tomaba por datos sin evidencia («contexto_vigente no está en ninguna evidencia») y daba
+    falsas alarmas; las comprueba el código, que sigue bloqueando con ellas."""
+    for valor, aprobada in ((True, True), (False, False)):
+        r, filas = _sistemas_por_ronda(tmp_path, {'accion': 'a', 'coste_usd': 1,
+                                                  'restricciones_deterministas': {'plan_completo': valor}}, FAVORABLE)
+        assert r['aprobada'] is aprobada and filas
+        for usuario, _s in filas:
+            assert usuario['propuesta'] == {'accion': 'a', 'coste_usd': 1}
+        assert r['propuesta_final']['restricciones_deterministas'] == {'plan_completo': valor}
+
+
+def test_la_segunda_ronda_no_copia_los_dictamenes_de_otros(tmp_path):
+    """047:RF-45 — en el equipo del 047b, los cuatro roles repetían en la segunda ronda las mismas incertidumbres,
+    también las de fuera de su encargo; la segunda ronda dice que lo anterior no es evidencia ni se copia."""
+    _r, filas = _sistemas_por_ronda(tmp_path, {'restricciones_deterministas': {'fisica': True}}, REVISAR)
+    for usuario, sistema in filas:
+        if usuario['ronda'] == 1:
+            assert 'dictamenes_ronda_anterior' not in usuario['propuesta'] and 'se copian' not in sistema
+        else:
+            assert usuario['propuesta']['dictamenes_ronda_anterior']
+            assert 'no son evidencia ni se copian' in sistema and 'tu encargo' in sistema
+
+
+def test_encargo_mismo_elemento_mismo_valor_y_coste_total():
+    """047:RF-46 — clases de error del 047b, sin sus casos: una evidencia de otro elemento daba por buena la propuesta,
+    «9 500» frente a 9500 se tomaba por contradicción y «coincide» entraba en las listas."""
+    from convertersmartgrid.aplicacion.asistente import revision_roles
+    assert 'mismo elemento' in revision_roles._ENCARGO['fuentes']
+    assert 'mismo elemento' in revision_roles._ENCARGO['unico']
+    assert 'total' in revision_roles._ENCARGO['coste'] and 'total' in revision_roles._ENCARGO['unico']
+    regla = revision_roles._REGLA
+    assert 'otro formato' in regla and 'separador de miles' in regla
+    assert '«coincide»' in regla and 'no es un dato' in regla
+
+
+def test_dictamen_no_valido_guarda_lo_que_devolvio(tmp_path):
+    """047:RF-47 — el informe del 047b solo decía «favorable con incertidumbres pendientes»: sin las listas que
+    devolvió el modelo no se veía qué quedaba pendiente."""
+    from convertersmartgrid.aplicacion.asistente.revision_roles import comparar_revision
+    contexto, evidencia = paquete(tmp_path)
+    pendiente = {**FAVORABLE, 'incertidumbres': ['coste_usd: sin evidencia']}
+    r = revisar_propuesta({'restricciones_deterministas': {'fisica': True}}, evidencia, contexto=contexto,
+                          max_rondas=1, revisor=lambda *_a: dict(pendiente))
+    assert not r['aprobada']
+    for d in r['dictamenes']:
+        assert d['fallo_revisor'] and d.get('devuelto') == {'decision': 'favorable', 'incertidumbres':
+                                                       ['coste_usd: sin evidencia'], 'contradicciones': []}
+    herramienta = _herramienta_comparar()
+    casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)[:1]
+    fila = comparar_revision(casos, lambda medir: (lambda rol, p, ev, ctx, ronda: {**pendiente,
+                             'evidencia_ids': sorted(ev)}), rondas=1)['equipo']['por_caso'][0]
+    assert fila['sin_respuesta'] and all((d.get('devuelto') or {}).get('incertidumbres') == ['coste_usd: sin evidencia']
+                                         for d in fila['dictamenes'])
+    # Un revisor que no devolvió ningún dictamen no tiene nada que guardar.
+    r = revisar_propuesta({}, evidencia, contexto=contexto, max_rondas=1, revisor=lambda *_a: None)
+    assert all('devuelto' not in d for d in r['dictamenes'])
+
+
+def test_tokens_de_cada_intervencion_y_las_que_llegan_al_tope(tmp_path):
+    """047:RF-47 — el tope de 512 podía cortar al equipo: el informe dice el tope, la intervención más larga y cuántas
+    llegaron al tope, para subirlo midiendo y no a ciegas."""
+    from convertersmartgrid.aplicacion.asistente.revision_roles import comparar_revision
+    herramienta = _herramienta_comparar()
+    casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)[:2]
+    def fabrica(medir):
+        largos = iter([100, 300, 1024, 50] * 4)
+        def revisar(rol, p, ev, ctx, ronda):
+            medir(10, next(largos))
+            return {**FAVORABLE, 'evidencia_ids': sorted(ev)}
+        return revisar
+    import inspect
+    assert 'tope' in inspect.signature(comparar_revision).parameters, 'la comparación no recibe el tope'
+    r = comparar_revision(casos, fabrica, rondas=1, tope=1024)
+    assert r['equipo']['tokens_tope'] == 1024 and r['equipo']['max_tokens_salida'] == 1024
+    assert r['equipo']['en_tope'] == 2 and r['equipo']['intervenciones'] == 8
+    sin_tope = comparar_revision(casos, fabrica, rondas=1)
+    assert sin_tope['equipo']['tokens_tope'] is None and sin_tope['equipo']['en_tope'] is None

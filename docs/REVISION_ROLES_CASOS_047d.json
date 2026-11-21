@@ -1,0 +1,174 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T8 de la spec 047: el conjunto con que se mide la revisión después de las contradicciones estructuradas del 2026-11-21 (MEJ24b). El 047c orientó ese diagnóstico, así que este se escribió aparte, sin copiar sus propuestas ni su reparto de errores, y se declara antes de medir. Varios casos traen en la evidencia el mismo valor con otro formato o con su unidad, y uno trae el suyo en otra unidad. Ni son órdenes reales ni datos de una distribuidora. El error de cada caso que lo tiene solo se ve leyendo la evidencia: las restricciones deterministas de cada caso se cumplen.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-21",
+    "sha256": "2da22130778488aa9e2a71583e6799c30fb41ce403796a5d6261fbb1a50887cc",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "d01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un reconectador en el poste P412 del alimentador A52 para seccionar el ramal alto",
+        "usuarios_aguas_abajo": 860,
+        "coste_usd": 14500
+      },
+      "evidencia": {
+        "e1": "Catastro del alimentador A52: aguas abajo del poste P412, en el ramal alto, hay 860 usuarios.",
+        "e2": "Reconectador trifásico de 15 kV con su control, instalado en poste: 14 500 USD.",
+        "e3": "El poste P412 es de concreto de 13 m y admite el reconectador con su control."
+      }
+    },
+    {
+      "id": "d02",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "reemplazar 9 crucetas de madera del tramo T64 por crucetas de concreto",
+        "crucetas": 9,
+        "coste_usd": 1260
+      },
+      "evidencia": {
+        "e1": "Inspección del tramo T64: 9 crucetas de madera con pudrición, a reemplazar.",
+        "e2": "Cruceta de concreto de 2,4 m, suministrada e instalada: 210 USD por unidad.",
+        "e3": "El tramo T64 se puede trabajar con línea energizada; no hace falta corte."
+      }
+    },
+    {
+      "id": "d03",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "reconducir el tramo T71 de 0,9 km a 95 mm² de aluminio",
+        "caida_tension_final_pct": 4.2,
+        "coste_usd": 10350
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con el tramo T71 reconducido a 95 mm²: caída de tensión al final del tramo 6,1 %; límite 5 %.",
+        "e2": "Reconducción a 95 mm² de aluminio: 11 500 USD por kilómetro, con el desmontaje del conductor existente."
+      }
+    },
+    {
+      "id": "d04",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reconfigurar el alimentador A58 cerrando el seccionador S31 y abriendo el S34",
+        "cargabilidad_a58_pct": 67,
+        "perdidas_final_kw": 42,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con S31 cerrado y S34 abierto: cargabilidad máxima del alimentador A58 67 %; límite 100 %.",
+        "e2": "Pérdidas del alimentador A58 en máxima: 54 kW antes de la maniobra y 42 kW después.",
+        "e3": "S31 y S34 son seccionadores bajo carga telemandados: la maniobra no tiene coste de obra."
+      }
+    },
+    {
+      "id": "d05",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "abrir el seccionador S40 durante 3 h para cambiar los aisladores del tramo T80",
+        "horas": 3,
+        "coste_usd": 640
+      },
+      "evidencia": {
+        "e1": "Cambio de aisladores del tramo T80 con el tramo desenergizado: 3 h de trabajo, 640 USD.",
+        "e2": "Topología del alimentador A63: aguas abajo de S40 quedan 1 350 usuarios, sin enlace con otro alimentador ni generación propia."
+      }
+    },
+    {
+      "id": "d06",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar pararrayos de óxido metálico en el lado de media tensión de la SED S-702",
+        "pararrayos": 3,
+        "coste_usd": 285
+      },
+      "evidencia": {
+        "e1": "La SED S-702 no tiene pararrayos en el lado de media tensión: requiere 3 unidades, una por fase.",
+        "e2": "Pararrayos de óxido metálico de 21 kV, suministrado e instalado: 95 USD por unidad.",
+        "e3": "Resistencia de puesta a tierra medida en la SED S-702: 8 ohm; máximo admitido 10 ohm."
+      }
+    },
+    {
+      "id": "d07",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "ampliar la celda de salida C5 de la SET S11, la del alimentador A66",
+        "demanda_max_kw": 1450,
+        "coste_usd": 8800
+      },
+      "evidencia": {
+        "e1": "Registro de la celda C5 de la SET S11 (alimentador A66): demanda máxima del año 1,25 MW.",
+        "e2": "Ampliación de la celda C5 con transformadores de corriente nuevos: 8 800 USD."
+      }
+    },
+    {
+      "id": "d08",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un banco de condensadores automático de 600 kvar en la barra B21 de 22,9 kV",
+        "factor_potencia_final": 0.98,
+        "coste_usd": 12400
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con el banco automático de 600 kvar en B21: factor de potencia en cabecera 0,98.",
+        "e2": "Banco automático de 600 kvar en 22,9 kV, con su controlador: 12 400 USD.",
+        "e3": "Flujo en valle con el banco en su escalón mínimo: tensión máxima de B21 1,03 p.u.; límite 1,05 p.u."
+      }
+    },
+    {
+      "id": "d09",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar la carga nueva L9 de 850 kW al tramo T90 de 35 mm²",
+        "corriente_final_a": 118,
+        "coste_usd": 2300
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con la carga L9 conectada: corriente en el tramo T90 141 A; capacidad del conductor de 35 mm² 125 A.",
+        "e2": "Derivación y equipo de medición para la carga L9: 2 300 USD."
+      }
+    },
+    {
+      "id": "d10",
+      "defecto": null,
+      "propuesta": {
+        "accion": "añadir 2 varillas a la puesta a tierra de la SED S-745",
+        "resistencia_final_ohm": 6,
+        "coste_usd": 340
+      },
+      "evidencia": {
+        "e1": "Cálculo de la malla de la SED S-745 con 2 varillas más: resistencia de puesta a tierra 6 ohm; máximo admitido 10 ohm.",
+        "e2": "Varilla de cobre de 2,4 m con su conector y relleno, instalada: 170 USD por unidad."
+      }
+    },
+    {
+      "id": "d11",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "reconducir 2,5 km del tramo T95 a 70 mm²",
+        "cargabilidad_final_pct": 58,
+        "coste_usd": 21000
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con el tramo T95 en 70 mm²: cargabilidad máxima 58 %; límite 100 %.",
+        "e2": "Reconducción a 70 mm² de aluminio: 12 600 USD por kilómetro, con el desmontaje del conductor existente."
+      }
+    },
+    {
+      "id": "d12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un seccionador bajo carga de enlace entre los alimentadores A70 y A71 en el poste P640",
+        "cargabilidad_a71_pct": 74,
+        "coste_usd": 6300
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con el ramal bajo de A70 transferido a A71 por el enlace del poste P640: cargabilidad máxima de A71 74 %; límite 100 %.",
+        "e2": "Seccionador bajo carga de 24 kV para poste, instalado: 6 300 USD.",
+        "e3": "El poste P640 está en el cruce de los alimentadores A70 y A71; los dos pasan a menos de 40 m."
+      }
+    }
+  ]
+}

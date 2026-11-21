@@ -509,7 +509,8 @@ def test_medicion_que_no_pasa_no_abre(tmp_path, cambio):
 
 
 def test_medicion_aprobada_abre_el_corpus(tmp_path):
-    """077:RF-48 — con la medición aprobada se sirve el ampliado con sus propios umbrales y el reranker medido."""
+    """077:RF-48, 097:RF-7 — con la medición aprobada (del modelo de vectores en uso) se sirve el ampliado en lugar del
+    047, con sus propios umbrales y el reranker medido."""
     medicion, conjunto = _medicion(tmp_path)
     calibracion, cal_conjunto = _calibracion(tmp_path)
     servir = reranker.servicio(medicion, conjunto, calibracion, cal_conjunto)

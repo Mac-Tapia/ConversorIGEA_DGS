@@ -25,7 +25,7 @@
   "023": "cumplida",
   "024": "cumplida",
   "025": "implementada",
-  "026": "aprobada",
+  "026": "cumplida",
   "027": "aprobada",
   "028": "cumplida",
   "029": "cumplida",
@@ -96,7 +96,7 @@
   "094": "cumplida",
   "095": "cumplida",
   "096": "cumplida",
-  "097": "aprobada",
+  "097": "cumplida",
   "098": "cumplida",
   "099": "cumplida",
   "100": "implementada",
@@ -113,6 +113,6 @@
   "111": "implementada",
   "112": "aprobada"
  },
- "huella_readme": "4bdda068faea15a9cb4fedeeffcc90e297d557f2e268233ac07fa1b33f1dbdd1",
+ "huella_readme": "d86a206a21c9b5c867c514ca67450fe0f675ff7cc06dc67aecf484a6fa856487",
  "version": 1
 }

@@ -30,7 +30,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 - [x] T6. Auditar, materializar y evaluar 200 propuestas únicas, sin fuga y con puertas por alcance. (RF-13, RF-16, RF-17, RF-18)
       Hecho cuando: pruebas de `tests/test_aceptacion_agente.py` y regresiones de órdenes fijas/intérprete pasan; se ejecutan selección local de configuración y evaluación sellada de las 200 propuestas, con informe de métricas/errores/bloqueos y sin escrituras nativas.
 
-- [ ] T8. Que la revisión distinga una propuesta sana de una con defecto antes de autorizar nada. (RF-5, RF-6, RF-38, RF-39, RF-40, RF-41, RF-43)
+- [ ] T8. Que la revisión distinga una propuesta sana de una con defecto antes de autorizar nada. (RF-5, RF-6, RF-38, RF-39, RF-40, RF-41, RF-43, RF-44, RF-45, RF-46, RF-47)
       Hecho cuando: `tools/asistente_comparar_revision.py` sobre sus 12 casos da 0 falsas alarmas sin perder defectos, con el
       informe en `docs/asistente/`, sin ajustar nada mirando esos casos (si hace falta, con un conjunto nuevo declarado antes de medir).
       Código, 2026-11-03 (rama `feat/027-047t8`): causa hallada en el código y en el encargo, sin leer el contenido de los
@@ -56,6 +56,39 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Bloqueada por la medida en su turno de GPU con el conjunto 047b (huella `54f2a035…f2e4e910`). Siguiente acción:
       `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047b.json --salida docs/asistente/COMPARACION_REVISION_047_T8b.json`
       (pide la GPU). Se cierra con 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos.
+      Medida del 047b, 2026-11-21 (bloque de GPU, `qwen3:8b`, tope 512, huella `54f2a035…f2e4e910`): **no pasa**. Rol
+      único 5 de 6 defectos, 1 perdido, 2 falsas alarmas, 1 sin respuesta; equipo 4 de 6, 1 perdido, 2 falsas alarmas,
+      4 sin respuesta (7 intervenciones). Diagnóstico por clases de error, leyendo los dictámenes del informe (MEJ24):
+      (1) todas las «sin respuesta» son «favorable» con listas pendientes, que RF-40 anula: el encargo no decía que con
+      algo pendiente la decisión no puede ser favorable; (2) las restricciones deterministas viajaban en la propuesta y
+      el modelo las tomaba por datos sin evidencia; (3) el modelo apuntaba como contradicción lo que coincide («9 500»
+      frente a 9500, «no hay contradicción») y como incertidumbre la acción o un campo suelto; (4) en la segunda ronda
+      del equipo los cuatro roles copiaban las dudas de los otros; (5) el perdido, en los dos modos, era de fuentes con
+      la evidencia de otro alimentador: el encargo pedía «el mismo valor», no «el mismo elemento»; (6) la media de
+      salida (unos 90 a 160 tokens) no llega al tope, pero el informe no decía cuántas intervenciones llegaron a él.
+      Corrección, en el encargo y no en la puerta (RF-44 a RF-47): regla explícita de «nunca favorable con algo
+      pendiente», restricciones deterministas fuera del mensaje al LLM (el código las sigue aplicando), regla de mismo
+      valor con otro formato y de lo confirmado fuera de las listas, segunda ronda sin copiar, fuentes del mismo
+      elemento y coste total; tope por omisión 1024, con el tope, la intervención más larga, las que llegan al tope y lo
+      que devolvió el modelo en cada dictamen no válido en el informe. RF-40 y la puerta no cambian. Pruebas, con dobles
+      y sin LLM: `tests/test_asistente_revision_roles.py` y `tests/test_revision_conjunto_047c.py`.
+      Conjunto nuevo, 2026-11-21: el 047b ya orientó este diagnóstico, así que la medida se hace con
+      `docs/REVISION_ROLES_CASOS_047c.json`, 12 casos sintéticos del maestro (6 sanos y 6 con un error cada uno: física
+      por sobretensión en valle y por sobrecarga tras una transferencia, coste por precio unitario por cantidad, riesgo
+      por pérdida de coordinación de un fusible, fuentes por la evidencia de otro transformador y por un número de
+      usuarios distinto), sin repetir propuestas ni evidencias del 047 ni del 047b, nombres opacos, con las mismas reglas
+      de declaración que el 047b y declarado antes de medir con huella sha256
+      `04f19184a45fed27966a880bd0f89a23d819db6836da22f13e3ab79ecd618d88` (2026-11-21), la misma en el fichero y en la
+      herramienta. Lo escribió quien corrigió el encargo: es una limitación declarada; por eso reparte los errores de
+      otra forma y trae clases que el encargo no nombra (sobretensión, coordinación de protecciones).
+      Siguiente acción (cola de GPU de d8, con Ollama y `qwen3:8b`):
+      `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047c.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8c.json`.
+      Se cierra con 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos; si no, se diagnostica de nuevo y
+      la medida siguiente usa otro conjunto declarado antes.
+      Medida del 047c, 2026-11-21 (bloque de GPU, `qwen3:8b`, tope 1024, huella `04f19184…ecd618d88`): **no pasa**.
+      Rol único 6 de 6, 0 perdidos, 5 falsas alarmas, 0 sin respuesta; equipo 5 de 6, 0 perdidos, 2 falsas alarmas,
+      5 sin respuesta. Ninguna intervención llegó al tope (243 tokens la más larga). Causa, en los dictámenes: el
+      modelo apunta como contradicción comprobaciones cuyos dos valores coinciden. Sigue en la T10 (RF-48 a RF-51).
 
 ## Evidencia de ejecución
 
@@ -128,3 +161,23 @@ T3, 2026-11-03, segunda medición, `qwen3:8b` sin razonamiento (corrección 3984
 T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`qwen3:8b`, 12 casos, huella `102bdfbf…`): **no pasa su puerta**. Rol único: 5 de 6 defectos, 1 perdido (el de riesgo), 3 falsas alarmas de 6 sanos, 0 sin respuesta, 123 s. Equipo: 5 de 6, 1 perdido, 5 falsas alarmas, 1 sin respuesta, 448 s. Informe en `docs/asistente/COMPARACION_REVISION_047_T8.json`. Mejora frente a la medición anterior, que marcaba defecto en todo, pero la T8 sigue abierta y estos 12 casos ya orientaron el diagnóstico: la próxima medida necesita un conjunto nuevo declarado antes de medir.
 - [x] T9. Las puertas dicen el valor medido y los ejemplos, o que falta la métrica. (RF-42)
       Hecho cuando: `tests/test_entrenamiento_dataset_puertas.py` en verde.
+- [ ] T10. Contradicciones estructuradas, decididas por el código, y medida con un conjunto nuevo. (RF-48, RF-49, RF-50, RF-51)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047d.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8d.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierra también la T8.
+      Código, 2026-11-21 (MEJ24b): el esquema pide cada contradicción como `{campo, valor_propuesta,
+      valor_evidencia, fuente}` (RF-48); `revision_roles.filtrar_contradicciones` descarta, con su motivo, las que
+      tienen los dos valores iguales con la unidad normalizada y una tolerancia relativa del 0,5 %, e interpreta las
+      de texto libre «X vs Y» (RF-49); con algo descartado, la decisión sale de las listas que quedan y se guarda la
+      devuelta, y el informe cuenta las descartadas y las recalculadas (RF-50); el encargo dice «anota solo los
+      valores distintos» (RF-51). Pruebas, con dobles y sin LLM: `tests/test_revision_contradicciones.py` y
+      `tests/test_revision_conjunto_047d.py`.
+      Conjunto nuevo, 2026-11-21: el 047c orientó este diagnóstico y no vale para la aceptación, así que la medida es
+      con `docs/REVISION_ROLES_CASOS_047d.json`, 12 casos sintéticos del maestro (6 sanos y 6 con un error cada uno:
+      física por caída de tensión sobre el límite y por corriente sobre la capacidad del conductor, coste por precio
+      unitario por cantidad y por precio por kilómetro, riesgo por usuarios sin enlace durante el corte, fuentes por
+      una demanda que la evidencia da en otra unidad y con otro valor), sin repetir propuestas ni evidencias del 047,
+      del 047b ni del 047c, nombres opacos, con las mismas reglas de declaración, declarado antes de medir con huella
+      sha256 `2da22130778488aa9e2a71583e6799c30fb41ce403796a5d6261fbb1a50887cc` (2026-11-21), la misma en el fichero,
+      en la herramienta y en la prueba. Lo escribió quien escribió la corrección: limitación declarada.
+      Bloqueada por la medida en su turno de GPU (cola de d8, Ollama con `qwen3:8b`), con la orden de arriba.

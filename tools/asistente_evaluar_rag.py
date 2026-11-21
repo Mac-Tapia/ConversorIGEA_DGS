@@ -16,12 +16,14 @@ Corpus ampliado de la spec 077, con sus conjuntos nuevos, en este orden (los dos
 
 Modelo de vectores (spec 097), cada candidato en su carpeta de --datos y con su calibración:
      ... --corpus 047 --datos <c> --modelo-vectores bge-m3 --calibrar --salida <cal_047.json>
-     ... --elegir <cal_047_m1.json> <cal_077_m1.json> <cal_047_m2.json> ... --salida <eleccion.json>
+     ... --elegir <cal_047_m1.json> <cal_077_m1.json> <cal_047_m2.json> ... --sellados <sel_047_m1.json> ...
+         --salida <eleccion.json>     (los sellados del 047 de cada modelo, el en uso incluido: 097:RF-24)
      ... --corpus 047 --datos <c> --modelo-vectores bge-m3 --sellado --calibracion <cal_047.json> --salida <sel.json>
      ... --corpus 077 --datos <c> --modelo-vectores bge-m3 --operador docs/RAG_PREGUNTAS_OPERADOR_097.json
          --calibracion <cal_077.json> --salida <op.json>     (preguntas reales, aparte de las sintéticas: 097:RF-17)
-     ... --poner-en-uso bge-m3 --sellado-047 <sel.json> --calibracion <cal_047.json> [--calibracion-077 ...]
-         [--sellado-077 ...] [--aplicar]     (sin --aplicar solo comprueba la puerta: 097:RF-14)
+     ... --poner-en-uso bge-m3 --sellado-047 <sel.json> --sellado-en-uso <sel_047_en_uso.json>
+         --calibracion <cal_047.json> [--calibracion-077 ...] [--sellado-077 ...] [--aplicar]
+         (sin --aplicar solo comprueba la puerta: 097:RF-14; la referencia, del mismo conjunto y denominadores: RF-25)
 """
 from __future__ import annotations
 
@@ -214,13 +216,22 @@ def _elegir(args) -> int:
     # De las dos calibraciones, la peor medida de cada recurso: el modelo tiene que servir en los dos corpus.
     resumen = {m: {k: max((x for x in v if x is not None), default=float('inf')) for k, v in r.items()}
                for m, r in recursos.items()}
-    decision = evaluacion_rag.elegir_con_intervalo(por_corpus, resumen, remuestreos=args.remuestreos)
+    sellados = {}                                                      # 097:RF-24: el Recall@10 sellado de cada uno
+    for ruta in args.sellados or ():
+        inf = json.loads(ruta.read_text(encoding='utf-8'))
+        if str(inf.get('corpus') or '047') != '047' or 'metodos' not in inf:
+            print(f'{ruta}: no es una medición sellada del 047.', file=sys.stderr)
+            return 2
+        sellados[str(inf.get('modelo_vectores') or 'nomic-embed-text')] = inf
+    decision = evaluacion_rag.elegir_con_intervalo(por_corpus, resumen, remuestreos=args.remuestreos, sellados=sellados)
+    decision['fuentes_selladas'] = [str(r) for r in args.sellados or ()]
     decision['fuentes'] = [str(r) for r in args.elegir]
     if args.salida:
         from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe
 
         escribir_informe(args.salida, decision)
-    print(json.dumps({k: decision[k] for k in ('compiten', 'fuera', 'quedan', 'elegido', 'decide', 'recursos')} | {
+    print(json.dumps({k: decision[k] for k in ('compiten', 'fuera', 'quedan', 'elegido', 'decide', 'en_uso', 'recursos',
+                                               'recall_sellado_047')} | {
         'conserva': {c: {m: d['conserva'] for m, d in v['modelos'].items()} for c, v in decision['por_corpus'].items()}},
         ensure_ascii=False, indent=1))
     return 0
@@ -231,7 +242,9 @@ def _poner_en_uso(args) -> int:
     from convertersmartgrid.aplicacion.asistente import evaluacion_rag, indice, reranker
 
     medicion = json.loads(args.sellado_047.read_text(encoding='utf-8'))
-    en_uso = json.loads((args.sellado_en_uso or REPO / 'docs' / 'EVALUACION_ABSTENCION_047.json').read_text(encoding='utf-8'))
+    # 097:RF-25: la referencia es la medición sellada del modelo en uso, con las mismas preguntas; antes se tomaba por
+    # defecto docs/EVALUACION_ABSTENCION_047.json, de 80 y 40, frente a sellados de 79 y 39 (T5, 2026-11-21).
+    en_uso = json.loads(args.sellado_en_uso.read_text(encoding='utf-8'))
     calibraciones = {'047': str(args.calibracion)} if args.calibracion else {}
     if args.calibracion_077:
         calibraciones['077'] = str(args.calibracion_077)
@@ -265,17 +278,22 @@ def main(argv=None) -> int:
     p.add_argument('--calibracion', type=Path, help='Calibración de este modelo de vectores para sellar (097:RF-13).')
     p.add_argument('--calibracion-077', type=Path, help='Con --poner-en-uso: la calibración del 077 del mismo modelo.')
     p.add_argument('--elegir', nargs='+', type=Path, help='Calibraciones 047 y 077 de cada modelo: regla de 097:RF-11.')
+    p.add_argument('--sellados', nargs='+', type=Path,
+                   help='Con --elegir: la medición sellada del 047 de cada modelo, el en uso incluido (097:RF-24).')
     p.add_argument('--remuestreos', type=int, default=2000, help='Remuestreos bootstrap de --elegir (097:RF-10).')
     p.add_argument('--operador', type=Path, help='Conjunto de preguntas reales del operador, medido aparte (097:RF-17).')
     p.add_argument('--poner-en-uso', help='Modelo de vectores a poner en uso tras su sellado (097:RF-14).')
     p.add_argument('--sellado-047', type=Path, help='Con --poner-en-uso: la medición sellada del 047 del modelo.')
     p.add_argument('--sellado-077', type=Path, help='Con --poner-en-uso: la medición sellada del 077 del modelo.')
-    p.add_argument('--sellado-en-uso', type=Path, help='Medición sellada del modelo en uso (docs/EVALUACION_ABSTENCION_047.json).')
+    p.add_argument('--sellado-en-uso', type=Path,
+                   help='Con --poner-en-uso: la medición sellada del 047 del modelo en uso, del mismo conjunto (097:RF-25).')
     p.add_argument('--aplicar', action='store_true', help='Con --poner-en-uso: escribe el puntero si pasa la puerta.')
     args = p.parse_args(argv)
     import os
 
     if args.elegir:
+        if not args.sellados:
+            p.error('--elegir pide --sellados: el Recall@10 sellado del 047 de cada modelo, el en uso incluido')
         return _elegir(args)
 
     if args.comparar:
@@ -312,8 +330,8 @@ def main(argv=None) -> int:
     from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe, turno_gpu
 
     if args.poner_en_uso:
-        if not args.sellado_047:
-            p.error('--poner-en-uso pide --sellado-047')
+        if not args.sellado_047 or not args.sellado_en_uso:
+            p.error('--poner-en-uso pide --sellado-047 y --sellado-en-uso (la del modelo en uso, mismo conjunto)')
         return _poner_en_uso(args)
     if args.calibrar or args.sellado or args.operador:
         return _abstencion(args, evaluacion_rag, indice, reranker, escribir_informe, turno_gpu, ClienteOllama)
