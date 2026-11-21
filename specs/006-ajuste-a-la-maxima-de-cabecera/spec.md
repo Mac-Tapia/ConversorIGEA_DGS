@@ -134,7 +134,8 @@ Cuadre con las pérdidas
   instalada conocida, ENTONCES EL SISTEMA lo dará por no calibrable con su causa («no se puede repartir»), sin ejecutar
   flujos ni escribir cargas. Antes, con 5 000 kW de cabecera, 10 000 kVA de escaladas y 5 010 kW de fijas, las fijas
   quedaban en 1 691 kW, cuando con 4 990 kW de fijas quedaban en 4 990 kW.
-- RF-47: (orden del usuario del 20-11; amplía RF-46) SI una fija está a revisar (015:RF-73), ENTONCES EL SISTEMA no
+- RF-47: (orden del usuario del 20-11; amplía RF-46; enmendado por 039:RF-25 el 21-11: la fija imposible se libera y el
+  alimentador se calibra con el resto) SI una fija está a revisar (015:RF-73), ENTONCES EL SISTEMA no
   calibrará ese alimentador ni escribirá sus cargas, y lo dirá con su causa; nunca escala ni rebaja la fija para cuadrar.
 
 Convergencia

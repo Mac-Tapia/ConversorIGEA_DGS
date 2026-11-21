@@ -3724,11 +3724,18 @@ def guardar_a_su_maxima(ws: Workspace, codigos: list[str]) -> dict:
     return {'a_su_maxima': limpios}
 
 
-def registrar_correccion_medidor(ws: Workspace, codigo: str, factor: float, desde: str, motivo: str = '') -> dict:
+#: 039:RF-24: el origen de una corrección del medidor deducida por la calibración; la del operador lleva «operador».
+ORIGEN_AUTOMATICO = 'automatico'
+ORIGEN_OPERADOR = 'operador'
+
+
+def registrar_correccion_medidor(ws: Workspace, codigo: str, factor: float, desde: str, motivo: str = '', *,
+                                 origen: str = ORIGEN_OPERADOR, evidencia: dict | None = None) -> dict:
     """039:RF-23: una corrección fechada del factor del medidor de un cliente, en el espacio; el libro no se toca.
 
     Vale desde el mes ``desde`` (``AAAA-MM``) y multiplica EA, ERI, POT y su registro (004:RF-111: con el FM anterior,
-    ``factor_propuesto``). Con factor 1 se anula. Se guarda con su fecha; la última registrada manda.
+    ``factor_propuesto``). Con factor 1 se anula. Se guarda con su fecha; la última registrada manda. 039:RF-24: con su
+    ``origen`` (la del operador, o la deducida por la calibración) y, si la hay, la ``evidencia`` que la justifica.
     """
     codigo = str(codigo or '').strip()
     if not codigo:
@@ -3738,7 +3745,8 @@ def registrar_correccion_medidor(ws: Workspace, codigo: str, factor: float, desd
     if not (isinstance(factor, (int, float)) and math.isfinite(factor) and 0 < factor <= 100):
         raise UserError('El factor de la corrección debe ser un número positivo.')
     fila = {'codigo': codigo, 'factor': float(factor), 'desde': str(desde).strip(), 'motivo': str(motivo or '').strip(),
-            'registrada': datetime.now().isoformat(timespec='seconds')}
+            'registrada': datetime.now().isoformat(timespec='seconds'), 'origen': origen or ORIGEN_OPERADOR}
+    fila['evidencia'] = dict(evidencia) if evidencia else None
     with ws.lock:
         ws.correcciones_medidor = [*ws.correcciones_medidor, fila]
         ws.save()
@@ -3853,7 +3861,15 @@ def _evidencia_fijas(ws: Workspace, job_id: str | None, periodo: str | None, cli
     except (DemandaError, UserError, OSError, ValueError):
         return {}
     from ...aplicacion.demanda_medida import correccion_vigente
+    from ...dominio.ajuste_cabecera import diagnostico_fija_imposible
 
+    # 039:RF-24 (c): las cabeceras de los otros alimentadores del mismo trabajo (la misma SET o el mismo sistema). Solo
+    # las de un alimentador: la de una barra de SET suma a todos y el cliente siempre cabría en ella.
+    propio = clave_codigo((curvas_cab.get(nombre) or {}).get('alimentador') or '')
+    vecinas = {str(v['alimentador']): v['curva'] for m, v in curvas_cab.items()
+               if m != nombre and isinstance(v, dict) and v.get('curva') and v.get('alimentador')
+               and clave_codigo(v['alimentador']) != propio}
+    filas = {clave_codigo(c.get('codigo')): c for c in clientes if c.get('codigo')}
     out: dict[str, dict] = {}
     for codigo, curva in curvas.items():
         with ws.lock:
@@ -3861,10 +3877,91 @@ def _evidencia_fijas(ws: Workspace, job_id: str | None, periodo: str | None, cli
         if correccion:
             f = float(correccion['factor'])
             curva = [(t, kw * f, None if q is None else q * f) for t, kw, q in curva]
-        sup = cliente_supera_cabecera(curva, cabecera)
-        if sup is not None:
-            out[codigo] = {'supera_cabecera': sup}
+        fila = filas.get(clave_codigo(codigo)) or {}
+        # 039:RF-24: antes de dar la fija por imposible, su causa; la corrección registrada manda (039:RF-23): con
+        # una, aunque sea la anulación con factor 1, no se deduce otra.
+        diag = diagnostico_fija_imposible(codigo, curva, cabecera, vecinas=vecinas,
+                                          cambio_fm=None if correccion else fila.get('fm_cambiado'))
+        if diag is None:
+            continue
+        if diag['accion'] == 'corregir_factor':
+            registro = _corregir_fila_automaticamente(ws, fila, codigo, periodo, diag)
+            out[codigo] = {'diagnostico': {**diag, 'correccion': registro}}
+            continue
+        if diag['accion'] == 'excluir_registros':
+            _reparar_registro_excluido(fila, diag)
+            out[codigo] = {'diagnostico': diag}
+            continue
+        if diag['accion'] == 'proponer_reasignacion':
+            fila['reasignacion_propuesta'] = {'alimentador': diag['alimentador'], 'texto': diag['texto']}
+        out[codigo] = {'supera_cabecera': cliente_supera_cabecera(curva, cabecera), 'diagnostico': diag}
     return out
+
+
+def _corregir_fila_automaticamente(ws: Workspace, fila: dict, codigo: str, periodo: str | None, diag: dict) -> dict:
+    """039:RF-24 (a): registra la corrección deducida del FM (origen «automático») y la aplica a la fila del cliente.
+
+    Se registra como la del operador (039:RF-23), con su motivo y su evidencia: se ve en la web y se revierte con otra
+    corrección (factor 1), que manda por ser la última.
+    """
+    cambio = diag.get('cambio_fm') or {}
+    cab = diag.get('cabecera') or {}
+    evidencia = {k: cambio.get(k) for k in ('fm_anterior', 'fm_actual', 'medidor_anterior', 'medidor_actual',
+                                            'dia_anterior', 'kwh_anterior', 'dia', 'kwh', 'salto_energia', 'razon_fm')}
+    evidencia.update(cabecera_kwh_anterior=cab.get('kwh_anterior'), cabecera_kwh=cab.get('kwh'),
+                     cabecera_razon=cab.get('razon'), cabecera_estable=cab.get('estable'),
+                     registros_sobre_la_cabecera=diag.get('registros'), exceso_max_kw=diag.get('exceso_max_kw'))
+    hecho = registrar_correccion_medidor(ws, codigo, float(diag['factor']), str(periodo), diag['texto'],
+                                         origen=ORIGEN_AUTOMATICO, evidencia=evidencia)
+    fila_corr = hecho['correcciones'][-1]
+    _escalar_fila(fila, float(diag['factor']))
+    fila['correccion_medidor'] = fila_corr
+    return fila_corr
+
+
+def _escalar_fila(fila: dict, factor: float) -> None:
+    """039:RF-24 (a): la fila del cliente de la tabla cruzada por el factor de su medidor, como ``aplicar_correccion``."""
+    for campo in ('ea', 'eri', 'pot', 'q_registro_kvar', 'p_registro_kw', 'p_kw', 'q_kvar', 'diferencia_kw'):
+        if isinstance(fila.get(campo), (int, float)):
+            fila[campo] = fila[campo] * factor
+    for valor in (fila.get('valores') or {}).values():
+        if isinstance(valor, dict):
+            for campo in ('p_kw', 'q_kvar'):
+                if isinstance(valor.get(campo), (int, float)):
+                    valor[campo] = valor[campo] * factor
+
+
+def _misma_fecha(a: Any, b: Any) -> bool:
+    """Dos fechas de registro (``dd/mm/AAAA HH:MM`` del libro o ISO de la curva) en el mismo minuto."""
+    def leer(x):
+        texto = str(x or '').strip()
+        for formato in ('%d/%m/%Y %H:%M:%S', '%d/%m/%Y %H:%M'):
+            try:
+                return datetime.strptime(texto, formato)
+            except ValueError:
+                pass
+        try:
+            return datetime.fromisoformat(texto)
+        except ValueError:
+            return None
+    da, db = leer(a), leer(b)
+    return da is not None and db is not None and da.replace(second=0) == db.replace(second=0)
+
+
+def _reparar_registro_excluido(fila: dict, diag: dict) -> None:
+    """039:RF-24 (b): si la fija sale de un registro excluido del cliente, va con la mediana local que lo reemplaza."""
+    for x in diag.get('excluidos') or []:
+        if x.get('de') != 'cliente' or not _misma_fecha(fila.get('fecha_registro'), x.get('fecha')) or not x['kw']:
+            continue
+        factor = float(x['reemplazo_kw']) / float(x['kw'])
+        campo = 'p_registro_kw' if isinstance(fila.get('p_registro_kw'), (int, float)) else 'pot'
+        antes = fila.get(campo)
+        for c in (campo, 'q_registro_kvar', 'p_kw', 'q_kvar'):
+            if isinstance(fila.get(c), (int, float)):
+                fila[c] = fila[c] * factor
+        fila['registro_excluido'] = {'fecha': x['fecha'], 'campo': campo, 'kw': antes, 'reemplazo_kw': fila.get(campo),
+                                     'texto': diag['texto']}
+        return
 
 
 def _sin_coincidente(codigo: str, instante: datetime | None) -> str:
@@ -4783,6 +4880,14 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 raise UserError(motivo)
             avisos.append(motivo + ' No se calibra.')
             continue
+        # 015:RF-73 (a): los registros del mes en que un cliente mide más que su cabecera. 039:RF-24: antes de las fijas,
+        # porque el diagnóstico corrige la fila del cliente (FM deducido o registro excluido) y lo dice.
+        evidencia_fijas = (_evidencia_fijas(ws, job_id, client_period.period, clientes, objetivo.medidor)
+                           if clientes and not central else {})
+        for ev in evidencia_fijas.values():
+            texto = (ev.get('diagnostico') or {}).get('texto')
+            if texto and pre + texto not in avisos:
+                avisos.append(pre + texto)
         fixed = fijas_de(clientes, objetivo, fp_min_fijas)
         # 039:RF-18, RF-19: los clientes a su máxima, con lo que se escribe en su SED como fija; las
         # escaladas llenan lo que falta hasta la cabecera, como con cualquier fija.
@@ -4834,9 +4939,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'objetivo': {'kw': objetivo.kw, 'kvar': objetivo.kvar, 'medidor': objetivo.medidor,
                          'alimentador': alimentador, 'fecha': objetivo.fecha},
             'clientes': clientes, 'desconectados': apagados, 'kva_entrada': kva_entrada,
-            # 015:RF-73 (a): los registros del mes en que un cliente mide más que su cabecera; el guion para con ellos.
-            'evidencia_fijas': (_evidencia_fijas(ws, job_id, client_period.period, clientes, objetivo.medidor)
-                                if clientes and not central else {}),
+            # 015:RF-73 (a), 039:RF-24: lo que queda sin explicar, con su diagnóstico; el guion libera esas fijas.
+            'evidencia_fijas': evidencia_fijas,
             'tolerancia': tolerancia,
             # 022:RF-41b, RF-44: la barra de SET con medidor del alimentador, si la tiene.
             'barra_set': next((b for b in barras or []

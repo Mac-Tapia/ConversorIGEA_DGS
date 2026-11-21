@@ -66,7 +66,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 036 Auditoría de raíz y correcciones del arranque | cumplida |  |
   | 037 Caso «Cargas nuevas» en los estudios de la web | cumplida |  |
   | 038 Pertenencia de las SED y notas en la web | cumplida | — |
-  | 039 Fijas del máximo del mes o coincidentes con la cabecera | cumplida | — |
+  | 039 Fijas del máximo del mes o coincidentes con la cabecera | cumplida | T11 cerrada (21-11, corrida real de MEJ27-FIJAS en DIgSILENT); todas sus tareas cerradas |
   | 040 Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida |  |
   | 041 Reparto probabilístico de las SED escaladas | cumplida |  |
   | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | cumplida |  |
@@ -133,7 +133,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
   | 104 Los libros nuevos de demanda se reconocen solos | cumplida |  |
   | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |
-  | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | aprobada | falta T2 |
+  | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | T2 y T7 cerradas (21-11, bloque GPU y MEJ28); todas sus tareas cerradas |
   | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | falta T14 (DIgSILENT) |
   | 108 Estudio de costos del VAD con la empresa modelo eficiente | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
   | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | cumplida | — |

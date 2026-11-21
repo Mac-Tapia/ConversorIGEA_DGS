@@ -35,9 +35,12 @@ HUELLA_047C = '04f19184a45fed27966a880bd0f89a23d819db6836da22f13e3ab79ecd618d88'
 #: 047 T8, MEJ24b: la medida del 047c (2026-11-21) orientó las contradicciones estructuradas (047:RF-48 a RF-50), así
 #: que la siguiente es con otro conjunto, declarado el 2026-11-21 antes de medir.
 HUELLA_047D = '2da22130778488aa9e2a71583e6799c30fb41ce403796a5d6261fbb1a50887cc'
+#: 047 T11, MEJ24c: la medida del 047d (2026-11-21) orientó las contradicciones fundadas y por base (047:RF-52 a
+#: RF-56), así que la siguiente es con otro conjunto, declarado el 2026-11-21 antes de medir.
+HUELLA_047E = '649863d4f383978a1e1e62984a4aa7b95140a76c556078a057b667adae0ae5da'
 #: Conjuntos declarados, por nombre de fichero; el de siempre usa ``HUELLA``.
 DECLARADOS = {'REVISION_ROLES_CASOS_047b.json': HUELLA_047B, 'REVISION_ROLES_CASOS_047c.json': HUELLA_047C,
-              'REVISION_ROLES_CASOS_047d.json': HUELLA_047D}
+              'REVISION_ROLES_CASOS_047d.json': HUELLA_047D, 'REVISION_ROLES_CASOS_047e.json': HUELLA_047E}
 #: La clave del fichero que declara su huella; no entra en la huella.
 DECLARACION = 'declaracion'
 DEFECTOS = {None, 'fuentes', 'fisica', 'coste', 'riesgo'}

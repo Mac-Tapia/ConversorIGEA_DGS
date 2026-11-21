@@ -1,6 +1,6 @@
 # Spec 039 — Fijas del máximo del mes o coincidentes con la cabecera, elegidas y comparadas en la web
 
-Estado: cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario: RF-23) · antes cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras auditar a
+Estado: cumplida (2026-11-21: T11 cerrada con la corrida real en DIgSILENT de MEJ27-FIJAS; todas sus tareas cerradas) · antes implementada (reabierta el 2026-11-21 con MEJ27-FIJAS por orden del usuario: RF-24, RF-25) · antes cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS: RF-23) · antes cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras auditar a
 mano NA203 («implementa que exista opción para hacer análisis y estudios desde la web estas dos
 opciones … los valores máximos de fijos del mes y coincidente en la misma fecha»)
 
@@ -81,6 +81,26 @@ cargarlo y recalibrar desde la web («no debería ser interno: debe tener un bot
   la tabla cruzada, el plan del ajuste y la plausibilidad de las fijas (015:RF-73) llevarán su EA, ERI, POT, registro y
   curva por ese factor, y su fila dirá la corrección. En la web, el aviso `FM_CAMBIADO` (004:RF-111) lleva el botón que
   registra el FM anterior, con poco texto.
+- RF-24: (orden del usuario del 21-11, MEJ27-FIJAS) CUANDO el cliente de una fija mida más que la cabecera de su
+  alimentador (015:RF-73 a), ANTES de dar la fija por imposible EL SISTEMA buscará su causa, en este orden:
+  (a) su FM cambió entre el libro del mes y el anterior con un salto de energía igual a la razón de los FM entre días
+  completos de cada mes (004:RF-111), la cabecera no saltó en esos días (± 20 % y menos de la mitad del salto) o no los
+  tiene, y con el FM anterior el cliente cabe en su cabecera: registrará la corrección de RF-23 con origen
+  `automatico`, su motivo y su evidencia (meses y días, FM y medidores antes y después, energía del cliente y de la
+  cabecera, registros que pasaban), la aplicará a su fila y seguirá; (b) los registros que pasan son a lo sumo 4 o el
+  1 % del mes y todos atípicos en el cliente o en la cabecera por el filtro de Hampel (mediana de 4 registros a cada lado,
+  3,5 × 1,4826 × MAD): los excluirá como datos malos y, si la fija sale de uno de ellos, irá con la mediana local, dicho;
+  (c) el cliente cabe siempre en la cabecera de otro alimentador del mismo trabajo (la misma SET o el mismo sistema):
+  propondrá la reasignación con el margen mínimo, sin aplicarla; (d) si nada lo explica, dirá la hipótesis más probable
+  con sus números (registros, exceso máximo, fracción de la energía de la cabecera y el factor con el que cabría). Una
+  corrección ya registrada, también la anulación con factor 1, manda: con ella no se deduce otra. Lo deducido se ve en la
+  web y se revierte con otra corrección.
+- RF-25: (orden del usuario del 21-11; enmienda 015:RF-73 y 006:RF-47) UNA fija que siga siendo físicamente imposible
+  tras RF-24 (mide más que su cabecera, o pide más de 4 veces los kVA de su grupo con la media del mes que sí cabe) NO
+  parará su alimentador: EL SISTEMA la liberará (su SED se reparte con las escaladas por su potencia instalada), calibrará
+  el alimentador con el resto y el informe dirá `fijas_liberadas` con sus motivos y su diagnóstico. La calibración de una
+  SET o de un sistema nunca se detiene por un alimentador; nunca queda «no puede cuadrar» a secas. Una fija solo dudosa
+  por el reparto (`FIJAS_DEJAN_SIN_ESCALADAS`) queda con su medida y se avisa.
 
 ## Relación con otras specs
 
@@ -98,7 +118,9 @@ cargarlo y recalibrar desde la web («no debería ser interno: debe tener un bot
 
 ## Criterios de finalización
 
-- `grep -rnoE "039:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-22.
+- `grep -rnoE "039:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-25.
+- RF-24 y RF-25 en DIgSILENT (T11): la corrida A del bloque del 20-11 repetida sin la corrección manual da los cuatro
+  alimentadores válidos con la corrección automática del FM.
 - CA101_CHN102 recalibrado desde la web con un cliente a su máxima: su P y su Q de máxima en el informe y la cabecera
   cuadrada.
 - NA203 desde la web: «máximo del mes» da 7 707,5 kW y 3 725,5 kvar; «coincidente» con el periodo

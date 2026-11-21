@@ -1,6 +1,7 @@
 """Destila al LLM local con fuentes reales y conserva el protocolo (spec 047 T7).
 
     python tools/llm_destilar.py preparar --help
+    python tools/llm_destilar.py sellar --custodia CORPUS_REUBICADO/dataset_manifest.json --destino NUEVO
 
 No envia datos a servicios externos ni ejecuta maniobras o estudios electricos.
 """
@@ -28,7 +29,8 @@ def main(argv=None):
     a.add_argument('--destino',type=Path,required=True)
     a.add_argument('--modelo',required=True)
     a=sub.add_parser('sellar')
-    a.add_argument('--dataset',type=Path,required=True)
+    a.add_argument('--dataset',type=Path)
+    a.add_argument('--custodia',type=Path)
     a.add_argument('--destino',type=Path,required=True)
     a=sub.add_parser('auditar')
     a.add_argument('--dataset',type=Path,required=True)
@@ -94,7 +96,16 @@ def main(argv=None):
             print(json.dumps(resultado,ensure_ascii=True));return 0
         if args.accion=='sellar':
             from convertersmartgrid.aplicacion.asistente.llm_destilacion import sellar_particiones
+            if (args.custodia is None)==(args.dataset is None):
+                raise ValueError('sellar pide --dataset o --custodia, uno de los dos')
             creado=True
+            if args.custodia is not None:
+                from convertersmartgrid.aplicacion.asistente.llm_destilacion import resellar_con_custodia
+                resultado=resellar_con_custodia(args.custodia,args.destino)
+                print(json.dumps({'ok':True,'dataset_hash':resultado['dataset_hash'],
+                                  'prompt_hash':resultado.get('prompt_hash'),'por_particion':resultado.get('por_particion'),
+                                  'dataset_hash_anterior':(resultado.get('resellado') or {}).get('dataset_hash_anterior')},
+                                 ensure_ascii=True));return 0
             resultado=sellar_particiones(args.dataset,args.destino)
             print(json.dumps({'ok':True,'dataset_hash':resultado['dataset_hash'],
                               'por_particion':resultado['por_particion']},ensure_ascii=True));return 0

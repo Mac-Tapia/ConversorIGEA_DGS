@@ -1,0 +1,168 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T8 de la spec 047: el conjunto con que se mide la revisión después de las contradicciones fundadas y por base del 2026-11-21 (MEJ24c). El 047d orientó ese diagnóstico, así que este se escribió aparte, sin copiar sus propuestas, y se declara antes de medir. Las cifras vienen escritas de formas distintas (miles con punto, coma o espacio, coma decimal, prefijo de moneda, otra unidad) y hay precios por unidad, por kilómetro y totales, en casos sanos y con error. Ni son órdenes reales ni datos de una distribuidora. El error de cada caso que lo tiene solo se ve leyendo la evidencia: las restricciones deterministas de cada caso se cumplen.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-21",
+    "sha256": "649863d4f383978a1e1e62984a4aa7b95140a76c556078a057b667adae0ae5da",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "e01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reemplazar 6 postes de concreto de 12 m en el tramo T112",
+        "postes": 6,
+        "coste_usd": 5580
+      },
+      "evidencia": {
+        "e1": "Inspección del tramo T112: 6 postes de concreto fisurados, a reemplazar.",
+        "e2": "Poste de concreto de 12 m, suministrado e izado: 930 USD c/u."
+      }
+    },
+    {
+      "id": "e02",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "instalar 14 amortiguadores de vibración en el vano largo V7",
+        "amortiguadores": 14,
+        "coste_usd": 616
+      },
+      "evidencia": {
+        "e1": "El vano largo V7 necesita 14 amortiguadores de vibración, 7 por cada lado.",
+        "e2": "Amortiguador de vibración, instalado: US$ 52 por unidad."
+      }
+    },
+    {
+      "id": "e03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "ampliar la SED S-812 de 250 a 400 kVA",
+        "carga_final_pct": 61,
+        "coste_usd": 14250
+      },
+      "evidencia": {
+        "e1": "Con el transformador de 400 kVA, la carga máxima de la SED S-812 queda en 61 % de su potencia.",
+        "e2": "Transformador de 400 kVA, 22,9/0,40 kV, instalado: USD 14.250."
+      }
+    },
+    {
+      "id": "e04",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar la carga nueva L21 de 2,2 MW en la barra B33 de 10 kV",
+        "tension_final_pu": 0.96,
+        "coste_usd": 3100
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con L21 conectada: tensión mínima de B33 0,92 p.u.; límite 0,95 p.u.",
+        "e2": "Celda de llegada y medición para L21: 3 100 USD."
+      }
+    },
+    {
+      "id": "e05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "tender 1,6 km de cable subterráneo de 240 mm² entre la SET S14 y la barra B40",
+        "cargabilidad_final_pct": 48,
+        "coste_usd": 76800
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con el cable de 240 mm²: cargabilidad máxima 48 %; límite 100 %.",
+        "e2": "Cable subterráneo de 240 mm² con su zanja: 48 000 USD por kilómetro."
+      }
+    },
+    {
+      "id": "e06",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "transferir la carga del alimentador A81 al A82 por el enlace E5 durante el mantenimiento de la celda C9",
+        "cargabilidad_a82_pct": 88,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con A81 transferido a A82: cargabilidad máxima de A82 88 %; límite 100 %.",
+        "e2": "Durante la transferencia, A82 queda sin enlace de respaldo: una falla en su troncal deja sin servicio a los 6 200 usuarios de A81 y A82.",
+        "e3": "El enlace E5 es telemandado; la maniobra no tiene coste de obra."
+      }
+    },
+    {
+      "id": "e07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un banco de condensadores de 1,2 Mvar en la barra B44 de 60 kV",
+        "factor_potencia_final": 0.97,
+        "coste_usd": 23600
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con 1 200 kvar en B44: factor de potencia 0,97; en valle, tensión máxima 1,02 p.u. con límite 1,05 p.u.",
+        "e2": "Banco de condensadores de 1,2 Mvar en 60 kV, montado y probado: 23 600 USD."
+      }
+    },
+    {
+      "id": "e08",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "reforzar el tramo T130 del alimentador A90 a 120 mm²",
+        "corriente_final_a": 212,
+        "coste_usd": 18400
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima del alimentador A91 tras reforzar su tramo T131: corriente máxima 212 A.",
+        "e2": "Refuerzo a 120 mm² del tramo T130: 18 400 USD en total."
+      }
+    },
+    {
+      "id": "e09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "sustituir 25 medidores electromecánicos de la SED S-905 por medidores inteligentes",
+        "medidores": 25,
+        "coste_usd": 4750
+      },
+      "evidencia": {
+        "e1": "Padrón de la SED S-905: 25 suministros con medidor electromecánico.",
+        "e2": "Medidor inteligente monofásico con su instalación: 190 USD por unidad; para 25 unidades, 4 750 USD en total."
+      }
+    },
+    {
+      "id": "e10",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "trasladar 180 kW de la SED S-921 a la SED S-922 por la red de baja tensión",
+        "carga_s922_pct": 79,
+        "coste_usd": 1200
+      },
+      "evidencia": {
+        "e1": "Con los 180 kW trasladados, la SED S-922 de 160 kVA carga al 124 %; límite 100 %.",
+        "e2": "Cambio de acometidas y puentes en baja tensión: 1 200 USD."
+      }
+    },
+    {
+      "id": "e11",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "construir 3,5 km de línea de 22,9 kV hasta el centro poblado Z4",
+        "usuarios_beneficiados": 640,
+        "coste_usd": 59500
+      },
+      "evidencia": {
+        "e1": "Padrón del centro poblado Z4: 640 viviendas sin servicio.",
+        "e2": "Línea primaria de 22,9 kV en postes de concreto: 21 000 USD/km."
+      }
+    },
+    {
+      "id": "e12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "cambiar el seccionador fusible de la derivación D40 por un reconectador monofásico",
+        "usuarios_aguas_abajo": 2310,
+        "coste_usd": 6950
+      },
+      "evidencia": {
+        "e1": "Catastro de la derivación D40: 2.310 usuarios aguas abajo.",
+        "e2": "Reconectador monofásico de 25 kV con su control: $6,950 instalado."
+      }
+    }
+  ]
+}

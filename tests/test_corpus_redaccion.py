@@ -342,3 +342,22 @@ def test_herramienta_sella_con_catalogo(tmp_path):
     assert meta['tipo_corpus'] == 'redaccion_pide' and meta['por_particion']['entrenamiento'] == 5
     assert meta['por_origen'] == {'humano': 4, 'maestro': 1}
     assert 'Villa Quimera' not in (destino / 'entrenamiento.jsonl').read_text(encoding='utf-8')
+
+
+def test_reparto_por_tamano_no_deja_el_documento_mayor_fuera_del_entrenamiento():
+    """072:RF-52 — cada documento entero en una partición, por su tamaño: el mayor entrena y las apartadas no pasan
+    de su décima parte (caso real: diez documentos, uno de 444 de 704, que el reparto por huella dejó en selección)."""
+    repartir = getattr(cr, 'repartir_documentos', None)
+    assert callable(repartir), 'el reparto del sellado sigue por la huella del documento'
+    tamanos = {f'g{i}': n for i, n in enumerate((444, 217, 19, 10, 9, 2, 1, 1, 1, 0))}
+    tamanos = {g: n for g, n in tamanos.items() if n}
+    parte = repartir(tamanos)
+    assert set(parte) == set(tamanos)
+    por = {}
+    for g, p in parte.items():
+        por[p] = por.get(p, 0) + tamanos[g]
+    assert parte['g0'] == 'entrenamiento' and parte['g1'] == 'entrenamiento'
+    assert por['entrenamiento'] >= 0.9 * sum(tamanos.values())
+    assert all(por.get(p, 0) > 0 for p in ('seleccion', 'calibracion', 'prueba'))
+    assert repartir(dict(reversed(list(tamanos.items())))) == parte, 'el reparto depende del orden de llegada'
+    assert set(repartir({'a': 3, 'b': 2, 'c': 1}).values()) == {'entrenamiento'}

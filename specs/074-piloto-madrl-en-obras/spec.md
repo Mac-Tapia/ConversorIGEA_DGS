@@ -48,6 +48,16 @@ puerta que decida si el aprendizaje sigue.
   de GPU y sin dependencias nuevas en el `.venv` que comparten las demás sesiones hasta verificarlas.
 - RF-10: EL SISTEMA no aplicará por su cuenta ninguna obra aprendida: se confirma en DIgSILENT por la ruta de la spec 011.
 
+### Puerta en alimentadores no vistos
+
+- RF-13: ANTES de aplicar la puerta, EL SISTEMA declarará la separación entre las redes con que se entrenó el modelo y las no
+  vistas, y la sellará con su huella; SI una red no vista es una de entrenamiento o comparte con ellas, o con otra no vista, un
+  alimentador, o la separación sellada cambia después, ENTONCES EL SISTEMA no aplicará la puerta (bloque de GPU, 2026-11-21: nada
+  aplicaba la puerta en redes no vistas).
+- RF-14: CUANDO aplica la puerta, EL SISTEMA escribirá la medida de cada red no vista, la de NSGA-II y la del aprendizaje, con los
+  límites y costos del entrenamiento, y la decisión: «pasa», con la orden de confirmación en DIgSILENT preparada solo para un
+  proyecto de prueba, o «archivar», con su medida y sin integrarlo en el flujo.
+
 ## Fuera de alcance
 
 Todo el flujo del conversor: solo las obras de «Con proyecto». Sincronizar los modelos entre sí, que es de la spec 050.

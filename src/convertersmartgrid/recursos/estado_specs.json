@@ -105,7 +105,7 @@
   "103": "cumplida",
   "104": "cumplida",
   "105": "cumplida",
-  "106": "aprobada",
+  "106": "cumplida",
   "107": "implementada",
   "108": "aprobada",
   "109": "cumplida",
@@ -113,6 +113,6 @@
   "111": "implementada",
   "112": "aprobada"
  },
- "huella_readme": "d86a206a21c9b5c867c514ca67450fe0f675ff7cc06dc67aecf484a6fa856487",
+ "huella_readme": "a4bd6858df5c232601b13e4f2bbf840e2d87a349be2daa51fb28f3b1d21fa936",
  "version": 1
 }

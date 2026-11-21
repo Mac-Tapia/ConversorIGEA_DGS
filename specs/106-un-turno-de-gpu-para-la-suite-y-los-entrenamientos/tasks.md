@@ -28,11 +28,24 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (106:RF-14) en verde.
 - [x] T4. El resultado de la suite guarda las más lentas y avisa de las que pasan del umbral del volcado. (RF-15)
       Hecho cuando: `tests/test_puerta_calidad.py` (106:RF-15) en verde.
-- [ ] T2. Suite completa con un entrenamiento esperando su turno: las 62 de 10a80812 en verde, sin omitidas. (RF-1, RF-4)
+- [x] T2. Suite completa con un entrenamiento esperando su turno: las 62 de 10a80812 en verde, sin omitidas. (RF-1, RF-4, RF-21)
       Hecho cuando: la suite completa corrida sola da 0 fallidas, 0 omitidas y 0 errores, y el entrenamiento esperó.
+      Hecho el 2026-11-21 (d8, bloque GPU): la suite de la puerta CIE (D:/csg/PM_IMPL/CIE/gCIE_c2_091010.log) da «Puerta
+      de calidad: 7316 pruebas, 0 fallidas, 0 omitidas.» y un entrenamiento corto (tools/madrl_entrenar.py, gatv2, 2
+      iteraciones, CSG_GPU_ESPERA_S, RF-21) pidió el turno mientras esa suite lo tenía, esperó (36 avisos con su dueño) y
+      terminó rc=0; evidencia en D:/csg/PM_IMPL/GPU_BLOQUE/106_T2c/ (espera.log, lock_suite.json, entrenamiento.log,
+      entrenamiento.json) y en D:/csg/PM_IMPL/GPU_BLOQUE/estado.txt.
 - [x] T6. La espera de trabajos de las pruebas (`tests/apoyo.esperar_trabajo`) va por estado y avance: `timeout` es la
       ventana sin avance, el tope total es de 900 s, e «interrumpido» también termina. Las 189 llamadas no cambian.
       (RF-20)
       Hecho cuando: `tests/test_espera_por_avance.py` (106:RF-20) en verde, con rojo previo sobre la espera de tope fijo,
       y `tests/test_web_api.py` en verde.
       Hecho en ecad83ea (LOTE-4, FIX-ESPERA-PARALELO); pruebas: tests/test_espera_por_avance.py.
+- [x] T7. La suite toma el turno de GPU solo durante sus pruebas de GPU, que corren al final; mientras, un entrenamiento
+      puede usarla; y queda registrado cuándo lo pidió, lo obtuvo y lo soltó. (RF-22, RF-23, RF-24; MEJ28)
+      Hecho cuando: `tests/test_turno_gpu_de_la_suite.py` (106:RF-22 a RF-24) en verde, con su rojo por aserción sobre
+      el `tests/conftest.py` anterior.
+      Hecho el 2026-11-21 (d8, MEJ28): rojo por aserción sobre el `tests/conftest.py` de e98f3f89, 3 failed
+      (D:/csg/PM_IMPL/MEJ28_TURNO/rojo.log); verde, 117 passed y 495 passed, 0 omitidas
+      (D:/csg/PM_IMPL/MEJ28_TURNO/verde.log); repetidos sobre la punta que se integra en el hueco N2
+      (D:/csg/PM_IMPL/N2/estado.txt). La suite completa con un entrenamiento esperando es la T2, también cerrada.

@@ -5,6 +5,8 @@ No escribe en DIgSILENT ni promueve nada: deja un JSON para la puerta. Sus depen
 ``.venv`` compartido (``requirements-madrl.txt``). La GPU va por su turno; ``cpu`` existe solo para comprobar
 el montaje con pocos pasos, porque un resultado así no es una medida del piloto.
 
+Con ``--politica gatv2 --modelo-salida <carpeta>`` deja los pesos y su manifiesto para ``tools/madrl_puerta.py``.
+
 Uso:
     python tools/madrl_entrenar.py --grafo <json> --tension-min 0.95 --tension-max 1.05 --carga-max 100 \
         --banco-mvar 0.3 --costo-banco 1 --pasos 20000 --dispositivo cuda --salida <json>
@@ -44,6 +46,26 @@ def _entorno_gym(plano):
     return Adaptador()
 
 
+def guardar_modelo(carpeta: Path, politica, parametros, redes, **extra) -> dict:
+    """Los pesos de la política y con qué redes, límites y costos se entrenó: lo que la puerta necesita (074:RF-13)."""
+    import torch
+
+    from convertersmartgrid.adaptadores.madrl_puerta import (
+        huella_fichero,
+        manifiesto_modelo,
+        red_declarada,
+    )
+
+    carpeta.mkdir(parents=True, exist_ok=True)
+    pesos = carpeta / 'politica.pt'
+    torch.save({k: v.detach().cpu() for k, v in politica.state_dict().items()}, pesos)
+    manifiesto = manifiesto_modelo(politica='gatv2', ocultas=politica.g1.out_channels, cabezas=politica.g1.heads,
+                                   parametros=parametros, entrenamiento=[red_declarada(n, g) for n, g in redes],
+                                   huella_pesos=huella_fichero(pesos), **extra)
+    (carpeta / 'modelo.json').write_text(json.dumps(manifiesto, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    return manifiesto
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Entrena MaskablePPO en el entorno del piloto MADRL y lo compara (spec 074).')
     p.add_argument('--grafo', type=Path, required=True, help='JSON con el grafo del oráculo')
@@ -64,7 +86,13 @@ def main(argv=None) -> int:
     p.add_argument('--deps', type=Path, default=Path(os.environ.get('CSG_MADRL_DEPS') or Path.home() / '.convertersmartgrid' / 'madrl_deps'),
                    help='Carpeta de las dependencias del piloto')
     p.add_argument('--salida', type=Path, help='JSON con el resultado')
+    p.add_argument('--modelo-salida', type=Path,
+                   help='Con gatv2, carpeta donde quedan los pesos y su manifiesto para tools/madrl_puerta.py')
     args = p.parse_args(argv)
+    if args.modelo_salida and args.politica != 'gatv2':
+        # 074:RF-13: MaskablePPO aprende un espacio de acciones fijo, el de su red: en otra no vale.
+        print('ERROR: solo la política gatv2 se guarda para aplicarla en alimentadores no vistos')
+        return 2
 
     from convertersmartgrid.adaptadores.madrl_obras import (
         EntornoObras,
@@ -125,6 +153,10 @@ def main(argv=None) -> int:
     for clave in ('escalera', 'nsga2', args.politica):
         c = salida[clave]
         print(f"{clave}: en norma {c['en_norma']}, costo {c['costo']:.1f}, mínima {c['vm_min']:.4f} p.u., {cuenta(len(c['obras']), 'obra', 'obras')}")
+    if args.modelo_salida:
+        guardar_modelo(args.modelo_salida, modelo, parametros, [(args.grafo.name, grafo)], semilla=args.semilla,
+                       iteraciones=args.iteraciones, dispositivo=args.dispositivo)
+        print(f'Modelo para la puerta: {args.modelo_salida}')
     if args.salida:
         args.salida.write_text(json.dumps(salida, ensure_ascii=False, indent=2, default=float), encoding='utf-8')
     return 0

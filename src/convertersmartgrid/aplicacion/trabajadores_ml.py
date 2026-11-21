@@ -103,9 +103,24 @@ def turno_gpu(nombre: str):
                 or not proceso_vivo(padre, creado=estado.get('creado'))):
             raise RuntimeError('guardia GPU heredada no corresponde al padre vivo')
         yield
+    elif _espera_gpu_s() > 0:
+        # 106:RF-21: con CSG_GPU_ESPERA_S, el entrenamiento espera su turno como la suite (RF-2, RF-3), en lugar de
+        # caer al instante con «GPU ocupada» (074 T7 y 097 T5 lo sufrieron con la suite o Ollama en la GPU).
+        import sys
+        with turno_gpu_con_plazo(nombre, ruta=ruta, limite_s=_espera_gpu_s(),
+                                 avisar=lambda m: print(m, file=sys.stderr, flush=True)):
+            yield
     else:
         with BloqueoGPU(ruta,nombre):
             yield
+
+
+def _espera_gpu_s() -> float:
+    """Los segundos que un entrenamiento espera su turno (``CSG_GPU_ESPERA_S``); 0 o sin la variable, no espera."""
+    try:
+        return max(0.0, float(os.environ.get('CSG_GPU_ESPERA_S') or 0))
+    except ValueError:
+        return 0.0
 
 
 #: Código de salida de pytest sin el turno de GPU en su plazo (106:RF-4). Los de pytest van del 0 al 5.

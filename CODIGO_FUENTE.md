@@ -215,6 +215,7 @@ constitución y 001:RF-14 (DGS idéntico byte a byte); su diseño histórico est
 | `src/convertersmartgrid/dominio/planeamiento_etapas.py` | Cuándo construir cada obra: árbol de decisión y proceso de decisión de Markov. | 087 |
 | `src/convertersmartgrid/adaptadores/madrl_obras.py` | Entorno multiagente de obras, sus controles, su fidelidad contra DIgSILENT y la puerta del aprendizaje. | 074 |
 | `src/convertersmartgrid/adaptadores/madrl_politica.py` | Política GATv2 compartida entre agentes, con crítico central y PPO, del piloto MADRL. | 074 |
+| `src/convertersmartgrid/adaptadores/madrl_puerta.py` | Puerta del aprendizaje en alimentadores no vistos: separación sellada con huella, decisión «pasa» o «archivar» y la orden de confirmación en un proyecto de prueba. | 074 |
 | `src/convertersmartgrid/aplicacion/metrados.py` | Metrados por código desde el modelo de la red, y su valoración con costos oficiales. | 072 |
 | `src/convertersmartgrid/aplicacion/proyeccion_mercado.py` | Proyección anual por sistema desde el Formato 01: métodos comparados contra lo ocurrido, sin mirar el futuro. | 072 |
 | `src/convertersmartgrid/adaptadores/proyeccion_anual.py` | Proyección de todos los años del PIDE: competición por clase y magnitud con la regla declarada antes de medir, Formato 01 desde la cabecera con sus meses, emisión de P y Q por carga con banda medida, evaluación con lo validado aparte, y la tasa de alcance de las obras, y el año base desde el ganador de pronóstico que publica el ciclo común, anotado en la evaluación. | 031 |
@@ -520,6 +521,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/madrl_entrenar.py` | Entrena el control MaskablePPO del piloto y lo compara con sus referencias. | 074 |
 | `tools/medir_mejora.py` | Registra una corrida de «Con proyecto» y compara dos métodos o versiones con sus medidas y su contraste; y la regla de dominio de la PINN con y sin 071:RF-2, red a red. | 087, 071 |
 | `tools/madrl_obras.py` | Mide la escalera y NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios. | 074 |
+| `tools/madrl_puerta.py` | Aplica la puerta del aprendizaje en redes no vistas con la separación sellada, escribe la medida y la decisión, y confirma lo que pasa por la web en un proyecto de prueba. | 074 |
 | `tools/proyeccion_mercado.py` | Compara métodos de proyección anual contra lo ocurrido con el Formato 01. | 072 |
 | `tools/proyeccion_anual.py` | Pronostica todos los años de un estudio del PIDE con el mejor modelo por métricas: construye el Formato 01 si falta, compite los candidatos y escribe proyección y evaluación; acepta solo con `--aceptar` o con todo el horizonte validado. | 031 |
 | `tools/lanzar_pronostico_pide_gpu.py` | El pronóstico del PIDE en la GPU en un paso: comprueba CUDA y memoria y pasa a `proyeccion_anual.py` las redes como candidatos y el quinquenio y largo plazo (5 y 30 años); no fija ganador ni inventa series. | 031 |
@@ -821,6 +823,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/aplicacion/asistente/evidencias_web.py` | Custodia como evidencia del espacio el resultado de los informes y estudios que terminan bien, con su proyecto y su fuente verdaderos, para la revisión por roles. | 067 (RF-1 a RF-7) |
 | `src/convertersmartgrid/aplicacion/asistente/planes_guardados.py` | Planes que escriben guardados por espacio con escritura atómica: sobreviven a un reinicio, sin confirmación y sin reanudarse. | 067 (RF-12 a RF-19) |
 | `src/convertersmartgrid/aplicacion/asistente/modelos_en_uso.py` | Pone en uso lo que el registro aprobó con un único puntero atómico, conserva el anterior y vuelve a él con el registro de acuerdo; y el uso provisional por decisión del usuario, sin aprobar nada. | 067 (RF-20 a RF-24), 085 (RF-26 a RF-30) |
+| `src/convertersmartgrid/aplicacion/asistente/contradicciones.py` | Qué contradicción de un dictamen de revisión cuenta: cifras normalizadas, valores en la propuesta y en la fuente, misma base. | 047 (RF-48 a RF-56) |
 | `src/convertersmartgrid/aplicacion/asistente/revision_roles.py` | Revisión local por roles sin autorización de escrituras nativas, y su comparación contra un revisor único. | 065 (RF-23), 047 (RF-5 a RF-7) |
 | `src/convertersmartgrid/aplicacion/preflight_contract.py` | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. | 065 (RF-5, RF-6, RF-7) |
 | `src/convertersmartgrid/dominio/runtime_paths.py` | Raíces externas, identidad estable de la instalación, staging por volumen o junto al destino, custodia y reconciliación de temporales. | 065 (RF-10 a RF-13), 086 (RF-7, RF-8) |

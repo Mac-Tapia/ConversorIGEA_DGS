@@ -129,7 +129,9 @@ def registro(cfg: Destilacion, maestro: Maestro | None, resultado: dict[str, Any
     return {**asdict(cfg), 'maestro': getattr(maestro, 'modelo', None),
             'etiquetadas': len((resultado or {}).get('blandos') or []),
             'descartadas': len((resultado or {}).get('descartados') or []),
-            'respondio': bool((resultado or {}).get('respondio'))}
+            'respondio': bool((resultado or {}).get('respondio')),
+            # 027:RF-78: por qué no respondió (código y cola del error del CLI), no solo que no respondió.
+            'fallos_maestro': list(getattr(maestro, 'fallos', None) or [])[:20]}
 
 
 # ------------------------------------------------------------------ maestros (RF-56, RF-63, RF-64)
@@ -187,6 +189,9 @@ class MaestroCodex:
         self._modelo_cli = modelo
         self._por_cli = ejecutar is None
         self._ejecutar = ejecutar or self._codex
+        #: Cada llamada al CLI que no dejó respuesta, con su causa (027:RF-78). El 2026-10-28 la cuenta rechazó el
+        #: modelo configurado y la corrida terminó «sin destilar» con rc=0, sin decir por qué.
+        self.fallos: list[dict[str, Any]] = []
 
     def _codex(self, prompt: str) -> str | None:
         import shutil
@@ -195,6 +200,7 @@ class MaestroCodex:
 
         exe = shutil.which('codex')
         if exe is None:
+            self.fallos.append({'causa': 'sin el CLI de codex en el PATH'})
             return None
         with tempfile.TemporaryDirectory() as d:
             salida = Path(d) / 'respuesta.txt'
@@ -202,11 +208,16 @@ class MaestroCodex:
             if self._modelo_cli:
                 cmd += ['-m', self._modelo_cli]
             try:
-                subprocess.run(cmd + ['-'], input=prompt, text=True, encoding='utf-8', cwd=d,
-                               capture_output=True, timeout=self.tiempo_max_s, check=False)
-            except (OSError, subprocess.SubprocessError):
+                r = subprocess.run(cmd + ['-'], input=prompt, text=True, encoding='utf-8', cwd=d,
+                                   capture_output=True, timeout=self.tiempo_max_s, check=False)
+            except (OSError, subprocess.SubprocessError) as e:
+                self.fallos.append({'causa': type(e).__name__, 'detalle': str(e)[-300:]})
                 return None
-            return salida.read_text(encoding='utf-8') if salida.is_file() else None
+            if salida.is_file():
+                return salida.read_text(encoding='utf-8')
+            cola = (r.stderr or r.stdout or '').strip().splitlines()[-5:]
+            self.fallos.append({'causa': f'codex exec rc={r.returncode} sin respuesta', 'detalle': '\n'.join(cola)[-600:]})
+            return None
 
     def interpretar(self, texto: str, *, temperatura: float = 0.0, semilla: int = 0, **_kw) -> dict | None:
         from .tareas import descripcion_para_modelo

@@ -39,6 +39,10 @@
       norma; la puerta la rechaza (67 %). Falta entrenarla en GPU sobre redes reales que pasen T5.
       Hecho cuando: GATv2 con crítico central y MaskablePPO entrenan con turno de GPU sobre redes que pasen T5. Antes de los modelos
       sanos de la auditoría no se entrena.
-- [ ] T8 Puerta y confirmación. (RF-6, RF-10)
+- [ ] T8 Puerta y confirmación. (RF-6, RF-10, RF-13, RF-14)
       Hecho cuando: la puerta se aplica en alimentadores no vistos y lo elegido se confirma en DIgSILENT. Si no pasa, el piloto se
       archiva con su medida, sin integrarlo en el flujo.
+      Avance del 2026-11-21: `tools/madrl_puerta.py aplicar` sella la separación antes de medir, mide NSGA-II y la política
+      GATv2 que guarda `madrl_entrenar.py --modelo-salida` en cada red no vista y decide «pasa» o «archivar»; `confirmar` lleva
+      lo que pasa por la web (obras, simular y aplicar) a un proyecto «PRUEBA…». Probado en CPU con redes sintéticas. Falta la
+      aplicación real en GPU sobre redes que pasen T5 y T7, y la confirmación en DIgSILENT: sigue abierta.

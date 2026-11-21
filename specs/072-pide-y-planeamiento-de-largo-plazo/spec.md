@@ -247,6 +247,11 @@ los dos entregables.
   lector y el prompt de sistema por el tipo que declara su manifiesto: sin tipo, el corpus de órdenes con el prompt del
   alumno, como hasta ahora; `redaccion_pide`, el corpus de redacción con el prompt que selló; otro tipo, rechazado. El
   ajuste sigue en CUDA, sin promover el candidato (047:RF-8).
+- RF-52: (d8, 2026-11-20, ensayo de T9b) AL sellar el corpus de redacción (RF-50), EL SISTEMA repartirá los documentos
+  por su número de ejemplos y no por su huella: cada documento entero en una partición, del mayor al menor; uno va a
+  selección, calibración o prueba si cabe en la décima parte del total (o en el doble, si esa partición está vacía), a la
+  que más le falte, y lo demás a entrenamiento; con menos de cuatro documentos todo entrena. El reparto no depende del
+  orden de llegada.
 
 ### Casos de prueba
 

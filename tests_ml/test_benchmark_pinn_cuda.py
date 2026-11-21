@@ -9,13 +9,13 @@ from __future__ import annotations
 import copy
 import random
 
-from convertersmartgrid.digital_twin import benchmark_fisico as bf
-from convertersmartgrid.digital_twin import oraculo as orc
-from convertersmartgrid.digital_twin.buffer import BuferEpisodios
-from convertersmartgrid.digital_twin.contratos_fisicos import CONTROLES_LDF, REPRESENTACION, VERSION_GRAFO
-from convertersmartgrid.digital_twin.episode import ESQUEMA, leer_episodio
-from convertersmartgrid.experimentos import ContextoExperimento, ExperimentoSpec
-from convertersmartgrid.trabajadores_ml import turno_gpu
+from convertersmartgrid.adaptadores.digital_twin import benchmark_fisico as bf
+from convertersmartgrid.adaptadores.digital_twin import oraculo as orc
+from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios
+from convertersmartgrid.adaptadores.digital_twin.contratos_fisicos import CONTROLES_LDF, REPRESENTACION, VERSION_GRAFO
+from convertersmartgrid.dominio.digital_twin.episode import ESQUEMA, leer_episodio
+from convertersmartgrid.aplicacion.experimentos import ContextoExperimento, ExperimentoSpec
+from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
 
 H = 'a' * 64
 

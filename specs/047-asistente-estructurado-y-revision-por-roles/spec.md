@@ -89,6 +89,38 @@ Dependencias y relación: 043 y 044; conservar intérprete, resolución, herrami
   contradicciones descartó y cuántas decisiones recalculó. Sin nada descartado, la decisión es la del LLM.
 - RF-51: CUANDO se pida un dictamen al LLM, EL SISTEMA le dirá que anote solo los valores distintos: si los dos
   valores son iguales, no es una contradicción y no se escribe.
+- RF-52: CUANDO compare los dos valores de una contradicción, EL SISTEMA leerá la cifra aunque venga con separador
+  de miles «.», «,», espacio o espacio fino, coma decimal, prefijos «$», «US$», «>», «≈» o «k», marcas como «_3_» o
+  «/^3$/i», o dentro de una frase con una sola cifra («Cargabilidad máxima de A71 74 %» es 74 %), sin tomar por cifra
+  un elemento de la red («A71», «S-702»); una cifra ambigua («12.400») coincide si una de sus lecturas es la del otro
+  valor, y una sin unidad, si es la del otro en la unidad base de su magnitud («1250» y «1,25 MW»). Una frase con
+  varias cifras no coincide. MEJ24c, 2026-11-21: con el 047d, «>$14500», «_3_» o una frase con «74 %» bloqueaban sanos.
+- RF-53: CUANDO un dictamen traiga una contradicción, EL SISTEMA solo la contará si su valor de la propuesta está,
+  normalizado, en el texto de la propuesta y su valor de la evidencia en el fragmento de la fuente citada (de una
+  cuenta, cada operando, en la fuente o en la propuesta); si no, o si la fuente no es una evidencia del paquete, la
+  descartará como no fundada, con su motivo. Sin el texto de la fuente la mantendrá. Con el 047d, «user», «github»,
+  «kOhm» o «Shekels» contaban como valores de la propuesta.
+- RF-54: SI el campo de una contradicción es un dato de la propuesta, ENTONCES EL SISTEMA comparará el valor que da la
+  propuesta, no el que copió el LLM, y guardará el copiado.
+- RF-55: CUANDO se pida un dictamen al LLM, EL SISTEMA le pedirá en cada contradicción la base (total o unidad) y que
+  compare el mismo concepto, con la cuenta del total («cantidad × precio») si la evidencia da un precio por unidad;
+  el código calcula la cuenta. SI la fuente da la cifra por unidad («por unidad», «por km», «c/u», «/km») o el
+  dictamen declara otra base que la del campo de la propuesta, ENTONCES no será una contradicción y se descartará.
+- RF-56: SI una contradicción enfrenta el texto de la acción con el de una evidencia, ENTONCES EL SISTEMA la
+  descartará (la acción es lo que se revisa, RF-46); una cifra de la acción distinta de la de la evidencia cuenta.
+- RF-57: CUANDO se vuelva a sellar con el prompt vigente un corpus reubicado, EL SISTEMA resolverá cada fuente por su
+  manifiesto de custodia, comprobando su sha256 y sus bytes con lo custodiado, escribirá cada fuente con su ruta
+  resuelta, recalculará de forma determinista `record_id` y `dataset_hash`, y dejará en el manifiesto nuevo el rastro
+  del sellado anterior: su manifiesto custodiado, sus huellas de dataset y de prompt, la huella de la reubicación, las
+  fuentes resueltas y el par de `record_id` anterior y nuevo de cada registro. MEJ29, 2026-11-21: el sellado v6 de la
+  T7 se paraba con «fuente ausente o invalida» porque leía las fuentes en su ruta anterior a la reubicación del 065.
+- RF-58: SI una fuente del corpus no tiene resolución en la custodia, o su copia custodiada no casa por sha256 o por
+  bytes, o el manifiesto de reubicación falta o tiene otra huella, ENTONCES EL SISTEMA no sellará nada y dirá qué
+  fuente se rechaza y por qué.
+- RF-59: (d8, 2026-11-20, T4) CUANDO `tools/asistente_qlora.py entrenar` reciba el corpus de órdenes, EL SISTEMA exigirá
+  la decisión de `decidir_ajuste` (`--decision`, con `necesaria`) o un experimento autorizado por su id
+  (`--experimento-autorizado`, el de T7 del plan); sin ninguno de los dos se niega antes de pedir la GPU, y el manifiesto
+  guarda la decisión y el experimento. El corpus de redacción del PIDE (072:RF-51) no lo pide.
 
 ## Requisitos no funcionales
 

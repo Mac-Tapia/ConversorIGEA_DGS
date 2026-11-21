@@ -2284,24 +2284,27 @@ def _escrituras_elmlod(app):
     return [e for e in app.escrituras if getattr(e[0], '_clase', '') == 'ElmLod']
 
 
-def test_015_rf73_fija_a_revisar_para_antes_de_escribir(guion):
-    """015:RF-73 (enmienda 015:RF-69), 006:RF-47 — con una fija cuyo cliente mide más que su cabecera, la calibración
-    para con FIJA_A_REVISAR y su evidencia, sin ejecutar flujos ni escribir ninguna carga: queda lo anterior. Hoy se
-    reparte, se cuadra y se graba."""
+def test_039_rf25_fija_imposible_se_libera_y_el_alimentador_se_calibra(guion):
+    """039:RF-25 (enmienda 015:RF-73 y 006:RF-47) — con una fija cuyo cliente mide más que su cabecera, la calibración ya
+    no para: la fija se libera (su SED va con las escaladas), el alimentador se cuadra con el resto y el informe dice
+    ``fijas_liberadas`` con su motivo y su diagnóstico. Antes paraba con rc=2 y dejaba la calibración anterior."""
     app = _app()
     plan = _plan(clientes=[{'codigo': '11', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.25}])
     plan['evidencia_fijas'] = _evidencia()
-    antes = {o.loc_name: (o.plini, o.scale0) for o in app.proyecto.GetContents('*.ElmLod', 1)}
+    plan['evidencia_fijas']['11']['diagnostico'] = {'accion': 'liberar_fija', 'causa': 'HIPOTESIS',
+                                                    'hipotesis': 'el factor del medidor no es el del libro'}
 
     informe, rc = guion.ejecutar(app, plan)
 
-    assert rc == 2, informe
+    assert rc == 0 and informe['cuadrado'], informe
     revisar = informe.get('fijas_a_revisar') or {}
-    assert revisar.get('estado') == 'FIJA_A_REVISAR' and revisar['a_revisar'] == ['F1_S2'], informe
-    assert 'F1_S2' in informe['error'] and 'calibración anterior' in informe['error']
-    assert not _escrituras_elmlod(app), 'ni una carga escrita'
-    assert {o.loc_name: (o.plini, o.scale0) for o in app.proyecto.GetContents('*.ElmLod', 1)} == antes
-    assert not informe.get('flujos') and 'transformadores_implementados' not in informe
+    assert revisar.get('estado') == 'FIJA_A_REVISAR' and revisar['liberadas'] == ['F1_S2'], informe
+    (lib,) = informe['fijas_liberadas']
+    assert lib['sed'] == 'F1_S2' and lib['motivos'] == ['SUPERA_LA_CABECERA'] and lib['diagnostico'], lib
+    assert any('se reparte con las escaladas' in a and 'factor del medidor' in a for a in informe['avisos'])
+    assert 'error' not in informe
+    assert _sed(informe, 'F1_S2').get('origen') != 'cliente', 'la SED liberada va con las escaladas'
+    assert _escrituras_elmlod(app), 'el alimentador se calibra'
 
 
 def test_015_rf73_sin_evidencia_ni_fija_dudosa_se_calibra_como_siempre(guion):
@@ -2313,9 +2316,9 @@ def test_015_rf73_sin_evidencia_ni_fija_dudosa_se_calibra_como_siempre(guion):
     assert (informe.get('plausibilidad_fijas') or {}).get('estado', 'falta') is None
 
 
-def test_006_rf47_en_el_proyecto_el_alimentador_a_revisar_no_frena_a_los_demas(guion):
-    """006:RF-47, 015:RF-73 — en la calibración del proyecto, el alimentador con una fija a revisar sale con su causa
-    sin escribir sus cargas, y el otro se calibra."""
+def test_039_rf25_en_el_proyecto_ningun_alimentador_se_detiene_por_una_fija(guion):
+    """039:RF-25 (enmienda 006:RF-47) — en la calibración del proyecto (SET o sistema), el alimentador con una fija
+    imposible se calibra con el resto y el otro también: ninguno sale con rc=2."""
     import copy as _copy
 
     from apoyo import contexto_nativo
@@ -2328,10 +2331,10 @@ def test_006_rf47_en_el_proyecto_el_alimentador_a_revisar_no_frena_a_los_demas(g
     f2['objetivo'].update(kw=220.0, medidor='M_F2', alimentador='F2')
     f2['native_action_context'] = contexto_nativo('P', ['F2'], 'ajuste')
     (i1, rc1), (i2, rc2) = guion.ejecutar_proyecto(app, [f1, f2])
-    assert rc1 == 2 and (i1.get('fijas_a_revisar') or {}).get('estado') == 'FIJA_A_REVISAR', i1
+    assert rc1 == 0 and i1['cuadrado'] and (i1.get('fijas_a_revisar') or {}).get('liberadas') == ['F1_S2'], i1
     assert rc2 == 0 and i2['cuadrado'], i2
     escritas = {e[0].loc_name for e in _escrituras_elmlod(app)}
-    assert escritas and not any(n.startswith('F1_') for n in escritas), escritas
+    assert any(n.startswith('F1_') for n in escritas) and any(n.startswith('F2_') for n in escritas), escritas
 
 
 def test_020_rf64_sin_propuesta_para_una_fija_a_revisar(guion):

@@ -8,39 +8,39 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 469 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 471 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
-| Herramientas y guiones | `tools/` | 132 |
+| Herramientas y guiones | `tools/` | 133 |
 | Interfaz | `frontend/src/` | 121 |
 | Pruebas de la interfaz | `frontend/test/` | 65 |
-| Pruebas | `tests/` | 647 |
+| Pruebas | `tests/` | 653 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 14657 líneas y 469 funciones, pendiente de partir (002).
+`web/services.py` tiene 14761 líneas y 473 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 88 |
-| aprobada | 18 |
+| cumplida | 89 |
+| aprobada | 17 |
 | implementada | 5 |
 | retirada | 1 |
 
-112 specs con 3996 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 4014 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 196 |
-| aplicacion | Apl | 132 |
+| adaptadores | Ada | 197 |
+| aplicacion | Apl | 133 |
 | dominio | Dom | 73 |
 | presentacion | Pre | 51 |
 | puertos | Pue | 5 |
 
-457 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+459 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -404,6 +404,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `aplicacion/vias.py` | Apl | 016 | Trazado de una línea nueva por la vía pública con un enrutador OSRM (OpenStreetMap): ruta con sus curvas, largo con los accesos, metros fuera de vía… |
 | `adaptadores/madrl_obras.py` | Ada | 074 | Entorno multiagente de obras, sus controles, su fidelidad contra DIgSILENT y la puerta del aprendizaje. |
 | `adaptadores/madrl_politica.py` | Ada | 074 | Política GATv2 compartida entre agentes, con crítico central y PPO, del piloto MADRL. |
+| `adaptadores/madrl_puerta.py` | Ada | 074 | Puerta del aprendizaje en alimentadores no vistos: separación sellada con huella, decisión «pasa» o «archivar» y la orden de confirmación en un… |
 | `dominio/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
 | `dominio/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
 | `aplicacion/obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |
@@ -652,6 +653,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `orquestador.py` | Apl | 027, 061 | El proyecto entero desde el espacio, etapa por etapa por las rutas de la web (fuente, sistema, «Caso base», cargas nuevas, obras, estudios, PIDE,… |
 | `equipo.py` | Apl | 065 | Gobierno de herramientas y permisos sellados por plan, rol y fuente. |
 | `revision_roles.py` | Apl | 065, 047 | Revisión local por roles sin autorización de escrituras nativas, y su comparación contra un revisor único. |
+| `contradicciones.py` | Apl | 047 | Qué contradicción de un dictamen de revisión cuenta: cifras normalizadas, valores en la propuesta y en la fuente, misma base. |
 | `evidencias_web.py` | Apl | 067 | Custodia como evidencia del espacio el resultado de los informes y estudios que terminan bien, con su proyecto y su fuente verdaderos, para la… |
 | `observacion.py` | Apl | 061, 026 | Diario SQLite por espacio, contexto inmutable, informes custodiados y control de identidad de reanudación, sin promoción. |
 | `vigilancia.py` | Apl | 026, 050 | Vigilancia de trabajos (fallos, tiempos, colas, reintento del 4002), modelos, calidad de resultados y suite nocturna con el RF de cada fallo. |
@@ -957,6 +959,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `preparar_upstream_ia.py` | — | 043 | Prepara o verifica clones fijados sin instalar ni ejecutar sus programas. |
 | `madrl_entrenar.py` | — | 074 | Entrena el control MaskablePPO del piloto y lo compara con sus referencias. |
 | `madrl_obras.py` | — | 074 | Mide la escalera y NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios. |
+| `madrl_puerta.py` | — | 074 | Aplica la puerta del aprendizaje en redes no vistas con la separación sellada, escribe la medida y la decisión, y confirma lo que pasa por la web en… |
 | `mcp_conversor.py` | — | 077 | Servidor MCP local, solo stdio y solo lectura, con las lecturas del asistente. |
 | `evaluacion_final.py` | — | 044 | Consolida la evaluación final de la 1.0 en `docs/EVALUACION_FINAL_1.0.json` y, con `--comprobar`, la relee. |
 | `asistente_informes_reales.py` | — | 026 | Anota informes reales etiquetados (Word, PDF con OCR o texto del maestro) para el clasificador, por grupo y sin repetir. |

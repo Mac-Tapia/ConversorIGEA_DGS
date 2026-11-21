@@ -1,6 +1,6 @@
 # Spec 106 — Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene
 
-Estado: aprobada · Fecha: 2026-11-12 · Origen: auditoría de la suite de 10a80812 y orden del usuario del
+Estado: cumplida (2026-11-21: T2 cerrada con la suite de la puerta CIE y un entrenamiento que esperó su turno, y T7 con MEJ28; todas sus tareas cerradas) · antes aprobada · Fecha: 2026-11-12 · Origen: auditoría de la suite de 10a80812 y orden del usuario del
 2026-11-12: «las correcciones deben ser sólidas, estables y robustas», «corregir todos los fallos, de fondo».
 
 ## Contexto y objetivo
@@ -18,7 +18,8 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
 ## Requisitos funcionales (EARS)
 - RF-1: CUANDO termina la recogida de pytest y alguna prueba elegida usa la GPU en un equipo con CUDA, EL SISTEMA
   tomará el turno de GPU de la máquina una vez para toda la sesión, y dentro de ella cada prueba y cada fixture usará una
-  guardia de la propia sesión; una sesión lanzada por una prueba no lo pedirá.
+  guardia de la propia sesión; una sesión lanzada por una prueba no lo pedirá. (Desde RF-22, el turno se toma al
+  llegar a la primera de GPU y no al terminar la recogida.)
 - RF-2: MIENTRAS otro proceso tiene el turno, EL SISTEMA esperará y lo tomará en cuanto quede libre.
   `BloqueoGPU` creará el lock con su contenido ya entero (`util.crear_exclusivo`: temporal sincronizado y
   `os.link`; sin enlaces duros, `O_EXCL`). SI el lock existente no tiene propietario válido, ENTONCES EL SISTEMA lo
@@ -96,7 +97,25 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
 - RF-20: EL SISTEMA esperará en las pruebas el trabajo real por su estado y por su avance, no con un tope fijo corto: una
   prueba fallará solo si el trabajo falla, deja de avanzar en una ventana (120 s por defecto) o pasa un tope generoso
   (900 s), y dirá en qué estado y con qué progreso se quedó.
-
+- RF-21: (d8, 2026-11-20, para T2) DONDE `CSG_GPU_ESPERA_S` valga más de 0, EL SISTEMA hará que un entrenamiento que
+  pide el turno con `turno_gpu` espere a que lo suelte otro (la suite, otro entrenamiento) hasta ese plazo, diciendo cada
+  minuto quién lo tiene (RF-2, RF-3), y al vencer fallará con ese dueño; sin la variable, o con 0, falla al momento
+  como hasta ahora.
+- RF-22: (MEJ28, 2026-11-21) EL SISTEMA pondrá al final del recorrido de la sesión las pruebas con la marca `gpu`, con
+  un orden estable y el mismo en cada recogida (sin cambiar el orden dentro de cada grupo, y después de cualquier otro
+  reordenamiento), y tomará el turno de RF-1 solo al llegar a la primera de ellas y lo soltará al terminar la última
+  del tramo, con sus fixtures ya cerrados. (Medido el 2026-11-21: la suite tomaba el turno al empezar y lo guardaba
+  45-50 min con la GPU al 0 %, porque casi todo lo que corría no la usaba, y los entrenamientos de la cola de GPU
+  esperaban horas.)
+- RF-23: MIENTRAS la suite corre pruebas sin la marca `gpu`, EL SISTEMA dejará la GPU de la máquina libre para que un
+  entrenamiento tome el turno; CUANDO la suite llega a sus pruebas de GPU con el turno en manos de otro, lo esperará con
+  el plazo y los avisos de RF-3 y RF-4 (con el código de salida de RF-4 si vence). Y al revés, un entrenamiento que
+  pide el turno con plazo (`CSG_GPU_ESPERA_S`) espera a que la suite lo suelte.
+- RF-24: EL SISTEMA registrará cuándo pidió la suite el turno de GPU, cuándo lo obtuvo (con los segundos que esperó),
+  cuándo lo soltó (con los segundos que lo tuvo) y, si vence el plazo, ese suceso con el dueño: con su hora y su PID, en
+  el error estándar, en un apartado del resumen final de pytest y, una línea JSON por suceso, en
+  `CSG_GPU_REGISTRO_SUITE` o, sin ella, en `<guardia de la máquina>.suite.jsonl`; si ese fichero no se puede escribir,
+  la suite sigue y lo dice.
 
 ## Requisitos no funcionales
 - Sin GPU (GitHub Actions, 102:RF-17) la sesión no pide turno y nada cambia.
@@ -104,8 +123,11 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
 
 ## Casos límite
 - Dos sesiones de pytest a la vez (la puerta de un commit y la suite completa): la segunda espera a la primera.
-- Un entrenamiento que toma el turno a mitad de la suite: no puede, porque lo tiene la suite; espera o falla diciendo
-  «GPU ocupada por PID … (suite-pytest)».
+- Un entrenamiento que toma el turno a mitad de la suite: mientras corren las pruebas sin GPU puede (RF-23); en el
+  tramo de GPU no, porque lo tiene la suite: espera con `CSG_GPU_ESPERA_S` o falla diciendo «GPU ocupada por PID …
+  (suite-pytest)».
+- La suite repartida (102:RF-5): la sesión «serie» lleva las `gpu` y las `serie`; dentro de ella las `gpu` van al final
+  (RF-22) y la sesión «reparto» no lleva ninguna, así que nunca pide el turno.
 - El dueño del turno muere: `BloqueoGPU` reconoce el proceso muerto y lo libera (043:RF-6).
 
 ## Fuera de alcance

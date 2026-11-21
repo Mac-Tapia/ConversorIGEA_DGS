@@ -491,6 +491,8 @@ FRACCION_FIJAS_DUDOSA = 0.9
 VECES_KVA_GRUPO_DUDOSA = 4.0
 #: 015:RF-73 (b), 020:RF-64: la media del mes del cliente por encima de los kVA de su grupo: el dudoso es el kVA.
 KVA_FUENTE_INCOHERENTE = 'KVA_FUENTE_INCOHERENTE'
+#: 039:RF-25: los motivos de una fija físicamente imposible, que se libera en vez de parar el alimentador.
+MOTIVOS_QUE_LIBERAN = frozenset({'SUPERA_LA_CABECERA', 'SUPERA_SU_GRUPO'})
 
 
 def horas_del_mes(fecha: Any) -> float | None:
@@ -525,10 +527,14 @@ def plausibilidad_fijas(objetivo: Objetivo, fijas: Mapping[str, Fija], *, p_base
             n = int(numero(sup.get('registros')) or 0)
             if n > 0:
                 exceso = numero(sup.get('exceso_max_kw'))
+                diag = (evid.get(clave_codigo(c)) or {}).get('diagnostico') or {}
                 motivos.append({'codigo': 'SUPERA_LA_CABECERA', 'cliente': c, 'registros': n, 'exceso_max_kw': exceso,
-                                'fecha': sup.get('fecha'),
+                                'fecha': sup.get('fecha'), 'diagnostico': diag or None,
                                 'texto': f'{c} mide más que su cabecera en {n} registro' + ('s' if n > 1 else '')
-                                         + (f', hasta {exceso:,.0f} kW' if exceso is not None else '')})
+                                         + (f', hasta {exceso:,.0f} kW' if exceso is not None else '')
+                                         + (f" (hipótesis: {diag['hipotesis']})" if diag.get('hipotesis') else
+                                            f" (se propone reasignarlo a {diag['alimentador']})"
+                                            if diag.get('alimentador') else '')})
         kg = (kva_grupo or {}).get(sed)
         energias = [e for e in (numero(d.get('ea')) for d in f.derivaciones) if e is not None]
         pmed = sum(energias) / horas_mes if energias and horas_mes else None
@@ -556,15 +562,22 @@ def plausibilidad_fijas(objetivo: Objetivo, fijas: Mapping[str, Fija], *, p_base
                                           f'con {factor:.3f} de su potencia'})
     for x in filas:
         x['a_revisar'] = bool(x['motivos'])
+        # 039:RF-25 (enmienda 015:RF-73): una fija físicamente imposible (mide más que su cabecera, o pide más de cuatro
+        # veces su grupo con la media del mes que sí cabe) se libera: su SED va con las escaladas y el alimentador se
+        # calibra con el resto. Solo dudosa por el reparto (FIJAS_DEJAN_SIN_ESCALADAS), queda con su medida y se avisa.
+        x['liberar'] = any(m['codigo'] in MOTIVOS_QUE_LIBERAN for m in x['motivos'])
     revisar = [x for x in filas if x['a_revisar']]
+    liberadas = [x['sed'] for x in revisar if x['liberar']]
     clave = objetivo.alimentador or objetivo.medidor or 'El alimentador'
     texto = None
     if revisar:
         texto = (f'{clave}: ' + ('una fija a revisar' if len(revisar) == 1 else f'{len(revisar)} fijas a revisar')
                  + ': ' + '; '.join(f"{x['sed']} ({', '.join(m['texto'] for m in x['motivos'])})" for x in revisar)
-                 + '. No se calibra ni se graba su reparto; queda la calibración anterior.')
+                 + '. ' + (f"{', '.join(liberadas)} se {'reparte' if len(liberadas) == 1 else 'reparten'} con las "
+                           'escaladas por su potencia instalada' if liberadas else 'Queda con su medida')
+                 + ' y el alimentador se calibra con el resto.')
     return {'estado': FIJA_A_REVISAR if revisar else None, 'clave': clave, 'fijas': filas,
-            'a_revisar': [x['sed'] for x in revisar],
+            'a_revisar': [x['sed'] for x in revisar], 'liberadas': liberadas,
             'kva_fuente_incoherente': [x['sed'] for x in filas if x.get('kva_fuente_incoherente')],
             'fijas_kw': p_fijas, 'objetivo_kw': objetivo.kw, 'fraccion_fijas': fraccion, 'factor_inicial': factor,
             'texto': texto}
@@ -584,6 +597,172 @@ def cliente_supera_cabecera(cliente: Iterable[tuple[Any, float, Any]],
     mayor, cuando = max(excesos, key=lambda x: x[0])
     return {'registros': len(excesos), 'exceso_max_kw': mayor,
             'fecha': cuando.isoformat(sep=' ') if hasattr(cuando, 'isoformat') else str(cuando)}
+
+
+# =========================================================================== diagnóstico de una fija imposible
+#: 039:RF-24: las causas que se buscan, en este orden, antes de dar una fija por imposible.
+CAUSA_FM = 'FM_CAMBIADO'
+CAUSA_REGISTROS = 'REGISTROS_AISLADOS'
+CAUSA_OTRO_ALIMENTADOR = 'OTRO_ALIMENTADOR'
+CAUSA_HIPOTESIS = 'HIPOTESIS'
+#: 039:RF-24 (b): el filtro de Hampel (Hampel, 1974; Pearson, 2002): mediana de ``HAMPEL_VENTANA`` registros a cada lado
+#: y atípico si se aparta más de ``HAMPEL_UMBRAL`` veces 1,4826 × la desviación absoluta mediana. Es la versión local del
+#: residuo normalizado mayor de la estimación de estado: un registro aislado, no una tendencia.
+HAMPEL_VENTANA = 4
+HAMPEL_UMBRAL = 3.5
+#: 039:RF-24 (b): como mucho esta fracción de los registros del mes, o este número, para que sean datos malos.
+FRACCION_REGISTROS_AISLADOS = 0.01
+REGISTROS_AISLADOS_MIN = 4
+#: 039:RF-24 (a): la cabecera es estable si su energía del mismo par de días cambia menos que esto (± 20 %).
+TOLERANCIA_CABECERA_ESTABLE = 0.2
+
+
+def _mediana(valores: list[float]) -> float:
+    v = sorted(valores)
+    n = len(v)
+    return v[n // 2] if n % 2 else 0.5 * (v[n // 2 - 1] + v[n // 2])
+
+
+def registros_atipicos(curva: Iterable[tuple[Any, float, Any]], *, ventana: int = HAMPEL_VENTANA,
+                       umbral: float = HAMPEL_UMBRAL) -> dict[Any, float]:
+    """039:RF-24 (b): fecha → la mediana local que reemplaza a cada registro atípico de una curva de 15 minutos.
+
+    Filtro de Hampel: ventana de ``2·ventana + 1`` registros; la escala es 1,4826 × MAD, con un suelo del 2 % de la
+    mediana para que una curva plana no dé por atípico cualquier decimal.
+    """
+    serie = sorted((t, kw) for t, kw, *_resto in curva if kw is not None)
+    valores = [kw for _t, kw in serie]
+    out: dict[Any, float] = {}
+    for i, (t, kw) in enumerate(serie):
+        trozo = valores[max(0, i - ventana):i + ventana + 1]
+        if len(trozo) < 3:
+            continue
+        med = _mediana(trozo)
+        escala = max(1.4826 * _mediana([abs(v - med) for v in trozo]), 0.02 * abs(med), 1e-9)
+        if abs(kw - med) > umbral * escala:
+            out[t] = med
+    return out
+
+
+def _dia_de(t: Any) -> str:
+    return (t.date().isoformat() if hasattr(t, 'date') else str(t))[:10]
+
+
+def _energia_del_dia(curva: Iterable[tuple[Any, float, Any]], dia: str) -> float | None:
+    """La energía (kWh) de un día ``AAAA-MM-DD`` completo de una curva de 15 minutos (con al menos el 90 % de los
+    registros de su día más lleno), o ``None``."""
+    por_dia: dict[str, list[float]] = {}
+    for t, kw, *_r in curva:
+        if kw is not None:
+            por_dia.setdefault(_dia_de(t), []).append(kw)
+    lleno = max((len(v) for v in por_dia.values()), default=0)
+    kws = por_dia.get(dia) or []
+    return sum(kws) / 4.0 if kws and len(kws) >= 0.9 * lleno else None
+
+
+def cabecera_estable(cabecera: Iterable[tuple[Any, float, Any]], cambio_fm: Mapping[str, Any], *,
+                     tolerancia: float = TOLERANCIA_CABECERA_ESTABLE) -> dict[str, Any]:
+    """039:RF-24 (a): si la cabecera no salta con el cambio de FM del cliente, en los mismos dos días.
+
+    ``estable``: ``True`` si su energía cambia menos de ``tolerancia`` y menos de la mitad del salto del FM (en
+    logaritmos); ``False`` si salta; ``None`` si la curva de cabecera no tiene los dos días completos.
+    """
+    curva = list(cabecera)
+    antes = _energia_del_dia(curva, str(cambio_fm.get('dia_anterior') or ''))
+    ahora = _energia_del_dia(curva, str(cambio_fm.get('dia') or ''))
+    if not antes or ahora is None or antes <= 0 or ahora <= 0:
+        return {'estable': None, 'kwh_anterior': antes, 'kwh': ahora}
+    razon = ahora / antes
+    razon_fm = numero(cambio_fm.get('razon_fm')) or 1.0
+    estable = (abs(math.log(razon)) <= math.log1p(tolerancia)
+               and abs(math.log(razon)) < 0.5 * abs(math.log(razon_fm)))
+    return {'estable': estable, 'kwh_anterior': antes, 'kwh': ahora, 'razon': razon}
+
+
+def _fecha_texto(t: Any) -> str:
+    return t.isoformat(sep=' ') if hasattr(t, 'isoformat') else str(t)
+
+
+def diagnostico_fija_imposible(codigo: str, cliente: Iterable[tuple[Any, float, Any]],
+                               cabecera: Iterable[tuple[Any, float, Any]], *,
+                               cambio_fm: Mapping[str, Any] | None = None,
+                               vecinas: Mapping[str, Iterable[tuple[Any, float, Any]]] | None = None) -> dict | None:
+    """039:RF-24: por qué un cliente mide más que su cabecera y qué se hace, antes de parar; ``None`` si cabe.
+
+    Orden: (a) el FM cambió entre libros con un salto de energía igual a su razón (004:RF-111), la cabecera no saltó y
+    con el FM anterior el cliente cabe → ``corregir_factor``; (b) los registros que pasan son pocos y atípicos en el
+    cliente o en la cabecera (Hampel) → ``excluir_registros``; (c) cabe en la cabecera de otro alimentador del mismo
+    trabajo (la misma SET o sistema) → ``proponer_reasignacion``; (d) nada lo explica → ``liberar_fija`` con la
+    hipótesis más probable y sus cifras. Nunca «no puede cuadrar» a secas: usuario, 21-11-2026; un cliente real pasó de
+    FM 545,4545 a 1818,1818 sin cambio en la cabecera y su alimentador paraba antes del primer flujo.
+    """
+    cliente, cabecera = list(cliente), list(cabecera)
+    exceso = cliente_supera_cabecera(cliente, cabecera)
+    if exceso is None:
+        return None
+    cab = {t: kw for t, kw, *_r in cabecera if kw is not None and kw > 0}
+    pasan = sorted((t, kw, cab[t]) for t, kw, *_r in cliente if t in cab and kw is not None and kw > cab[t])
+    n, hasta = exceso['registros'], exceso['exceso_max_kw']
+    base = {'cliente': codigo, 'registros': n, 'exceso_max_kw': hasta, 'fecha': exceso['fecha']}
+    regs = f"{n} registro{'s' if n > 1 else ''} (hasta {hasta:,.0f} kW)"
+    # (a) cambio del factor del medidor (FM)
+    factor = numero((cambio_fm or {}).get('factor_propuesto'))
+    if cambio_fm and factor and factor > 0:
+        estable = cabecera_estable(cabecera, cambio_fm)
+        corregida = [(t, kw * factor, None if not r or r[0] is None else r[0] * factor) for t, kw, *r in cliente
+                     if kw is not None]
+        if estable['estable'] is not False and cliente_supera_cabecera(corregida, cabecera) is None:
+            salto = numero(cambio_fm.get('salto_energia')) or 0.0
+            return {**base, 'causa': CAUSA_FM, 'accion': 'corregir_factor', 'factor': factor,
+                    'cabecera': estable, 'cambio_fm': dict(cambio_fm),
+                    'texto': (f"{codigo}: mide más que su cabecera en {regs} porque su FM pasó de "
+                              f"{numero(cambio_fm.get('fm_anterior')) or 0:g} a {numero(cambio_fm.get('fm_actual')) or 0:g}"
+                              f" con su energía ×{salto:.2f}"
+                              + (f" y la cabecera ×{estable['razon']:.2f}" if estable.get('razon') else '')
+                              + f"; con el FM anterior (×{factor:.4f}) cabe: corrección automática.")}
+    # (b) registros aislados: datos malos del cliente o de la cabecera
+    at_cli, at_cab = registros_atipicos(cliente), registros_atipicos(cabecera)
+    limite = max(REGISTROS_AISLADOS_MIN, int(FRACCION_REGISTROS_AISLADOS * len(cliente)))
+    if len(pasan) <= limite and all(t in at_cli or t in at_cab for t, _kw, _c in pasan):
+        excluidos = [{'fecha': _fecha_texto(t), 'kw': kw, 'cabecera_kw': c,
+                      'de': 'cliente' if t in at_cli else 'cabecera',
+                      'reemplazo_kw': at_cli[t] if t in at_cli else at_cab[t]} for t, kw, c in pasan]
+        return {**base, 'causa': CAUSA_REGISTROS, 'accion': 'excluir_registros', 'excluidos': excluidos,
+                'texto': (f"{codigo}: mide más que su cabecera en {regs} aislados (filtro de Hampel): son datos "
+                          'malos y se excluyen; el resto de su curva cabe.')}
+    # (c) otro alimentador de la misma SET o del mismo sistema
+    mejor = None
+    for nombre, curva in sorted((vecinas or {}).items()):
+        otra = {t: kw for t, kw, *_r in curva if kw is not None and kw > 0}
+        comunes = [(kw, otra[t]) for t, kw, *_r in cliente if t in otra and kw is not None]
+        if not comunes or len(comunes) < 0.5 * len(cliente) or any(kw > c for kw, c in comunes):
+            continue
+        margen = min(c - kw for kw, c in comunes)
+        if mejor is None or margen > mejor[1]:
+            mejor = (nombre, margen)
+    if mejor is not None:
+        return {**base, 'causa': CAUSA_OTRO_ALIMENTADOR, 'accion': 'proponer_reasignacion', 'alimentador': mejor[0],
+                'margen_min_kw': mejor[1],
+                'texto': (f"{codigo}: mide más que su cabecera en {regs} y cabe siempre en la de {mejor[0]} (margen "
+                          f"mínimo {mejor[1]:,.0f} kW): se propone reasignarlo a {mejor[0]}; mientras, su SED se "
+                          'reparte con las escaladas.')}
+    # (d) la hipótesis más probable, con sus números
+    cabria = min(c / kw for _t, kw, c in pasan)
+    e_cli = sum(kw for t, kw, *_r in cliente if t in cab and kw is not None)
+    e_cab = sum(cab[t] for t, kw, *_r in cliente if t in cab and kw is not None)
+    fraccion = e_cli / e_cab if e_cab else None
+    if len(pasan) > limite:
+        hipotesis = (f'el factor del medidor del cliente o la relación de su TC no es la del libro: con ×{cabria:.3f} '
+                     'cabría siempre')
+    else:
+        hipotesis = ('la cabecera no midió toda la carga en esos registros (transferencia o corte de su medidor) o el '
+                     f'cliente tuvo un pico real: con ×{cabria:.3f} cabría')
+    return {**base, 'causa': CAUSA_HIPOTESIS, 'accion': 'liberar_fija', 'factor_que_cabria': cabria,
+            'fraccion_energia': fraccion, 'hipotesis': hipotesis,
+            'texto': (f"{codigo}: mide más que su cabecera en {regs}"
+                      + (f"; su energía es el {fraccion:.0%} de la de su cabecera" if fraccion is not None else '')
+                      + f"; hipótesis más probable: {hipotesis}. Su SED se reparte con las escaladas y el resto del "
+                        'alimentador se calibra.')}
 
 
 # =========================================================================== cuadre

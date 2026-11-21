@@ -3100,6 +3100,20 @@
             "title": "Desde",
             "type": "string"
           },
+          "evidencia": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidencia"
+          },
           "factor": {
             "title": "Factor",
             "type": "number"
@@ -3107,6 +3121,11 @@
           "motivo": {
             "default": "",
             "title": "Motivo",
+            "type": "string"
+          },
+          "origen": {
+            "default": "operador",
+            "title": "Origen",
             "type": "string"
           },
           "registrada": {

@@ -101,6 +101,8 @@ def _maquina(tmp_path, monkeypatch, nombre='maquina.lock'):
     monkeypatch.delenv('PYTEST_CURRENT_TEST', raising=False)
     # El turno de esta misma sesión (este módulo usa la GPU) no se toca: cada prueba con su lista.
     monkeypatch.setattr(conftest, '_turno_de_la_sesion', [])
+    monkeypatch.setattr(conftest, '_registro_turno', [], raising=False)
+    monkeypatch.delenv('CSG_GPU_REGISTRO_SUITE', raising=False)
     return lock
 
 
@@ -444,3 +446,157 @@ def test_sin_gpu_la_prueba_de_cuda_se_omite_en_github_y_falla_en_local():
         f'en GitHub sin GPU tiene que quedar omitida con su motivo:\n{en_github[-1500:]}'
     en_local = correr(con_ci=False)
     assert '1 failed' in en_local, f'en local sin GPU tiene que fallar, nunca omitirse:\n{en_local[-1500:]}'
+
+
+# 106:RF-22 a RF-24 (MEJ28, 2026-11-21) — la suite tomaba el turno al empezar y lo guardaba 45-50 min con la GPU al 0 %:
+# casi todo lo que corría no la usaba, y los entrenamientos de la cola de GPU esperaban horas.
+_ENTRENAMIENTO = '''import sys, time
+sys.path.insert(0, sys.argv[3])
+from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
+b = BloqueoGPU(sys.argv[1], 'entrenamiento-de-la-cola')
+b.__enter__()
+print('LOCKED', flush=True)
+time.sleep(float(sys.argv[2]))
+b.__exit__(None, None, None)
+'''
+#: Se recoge primero y usa la GPU: la suite tiene que dejarla para el final.
+_PRUEBA_DE_GPU = '''import json, os
+from pathlib import Path
+
+
+def test_a_con_la_gpu():
+    dueno = json.loads(Path(os.environ['MEJ28_MAQUINA']).read_text(encoding='utf-8'))
+    assert dueno['model'] == 'suite-pytest' and dueno['pid'] == os.getpid(), dueno
+'''
+#: No nombra nada de la GPU (106:RF-6): corre sin el turno, y en su tiempo un entrenamiento toma la máquina.
+_PRUEBA_DEL_RESTO = '''import os, subprocess, sys
+from pathlib import Path
+
+
+def test_b_el_resto():
+    maquina = Path(os.environ['MEJ28_MAQUINA'])
+    assert not maquina.exists(), 'la suite tiene el turno mientras corre una prueba que no lo usa'
+    hijo = subprocess.Popen([sys.executable, os.environ['MEJ28_ENTRENAMIENTO'], str(maquina), '3',
+                             os.environ['MEJ28_SRC']], stdout=subprocess.PIPE, text=True)
+    assert hijo.stdout.readline().strip() == 'LOCKED', 'el entrenamiento no pudo tomar la máquina'
+'''
+#: Este equipo puede no tener CUDA (o tenerla oculta): la sesión hija hace como si la tuviera.
+_CUDA_SIMULADA = '''import conftest
+
+conftest._hay_cuda = lambda: True
+'''
+
+
+def _sesion_hija(tmp_path, *ficheros, espera_s='120'):
+    """Una sesión de pytest con el conftest de la suite (como complemento) sobre ficheros de ``tmp_path``."""
+    import subprocess
+    import sys
+
+    maquina = tmp_path / 'maquina.lock'
+    (tmp_path / 'entrenamiento.py').write_text(_ENTRENAMIENTO, encoding='utf-8')
+    (tmp_path / 'cuda_simulada.py').write_text(_CUDA_SIMULADA, encoding='utf-8')
+    (tmp_path / 'test_a_gpu.py').write_text(_PRUEBA_DE_GPU, encoding='utf-8')
+    (tmp_path / 'test_b_resto.py').write_text(_PRUEBA_DEL_RESTO, encoding='utf-8')
+    entorno = {k: v for k, v in os.environ.items()
+               if k not in ('PYTEST_CURRENT_TEST', 'PYTEST_XDIST_WORKER', 'CSG_GPU_REGISTRO_SUITE')}
+    entorno.update({'CSG_ML_GPU_LOCK': str(maquina), 'MEJ28_MAQUINA': str(maquina),
+                    'MEJ28_ENTRENAMIENTO': str(tmp_path / 'entrenamiento.py'), 'MEJ28_SRC': str(RAIZ / 'src'),
+                    conftest.VARIABLE_ESPERA_GPU_SUITE: espera_s,
+                    'PYTHONPATH': os.pathsep.join([str(RAIZ / 'src'), str(RAIZ / 'tests'), str(tmp_path)])})
+    r = subprocess.run([sys.executable, '-m', 'pytest', '-p', 'no:cacheprovider', '-p', 'no:randomly', '-p',
+                        'conftest', '-p', 'cuda_simulada', '-v', '-rfs', '--rootdir', str(tmp_path),
+                        *[str(tmp_path / f) for f in ficheros]],
+                       cwd=tmp_path, env=entorno, capture_output=True, text=True, encoding='utf-8', check=False,
+                       errors='replace', timeout=600)
+    return r, maquina
+
+
+def test_la_suite_toma_el_turno_solo_para_sus_pruebas_de_gpu_y_un_entrenamiento_lo_usa_antes(tmp_path):
+    """106:RF-22, 106:RF-23, 106:RF-24 — con la de GPU recogida primero, la sesión corre antes el resto sin el turno; en
+    ese tiempo un entrenamiento toma la máquina; la suite lo espera al llegar a la suya, lo toma, lo suelta al acabar y
+    deja dicho cuándo pidió, obtuvo y soltó."""
+    import json
+
+    r, maquina = _sesion_hija(tmp_path, 'test_a_gpu.py', 'test_b_resto.py')
+    salida = r.stdout + r.stderr
+    assert r.returncode == 0, salida[-3000:]
+    orden = [m for m in re.findall(r'(test_[ab]_\w+) PASSED', salida)]
+    assert orden == ['test_b_el_resto', 'test_a_con_la_gpu'], salida[-3000:]
+    registro = maquina.with_name(maquina.name + '.suite.jsonl')
+    filas = [json.loads(linea) for linea in registro.read_text(encoding='utf-8').splitlines()]
+    assert [f['suceso'] for f in filas] == ['pidió', 'obtuvo', 'soltó'], filas
+    assert filas[1]['espera_s'] > 0, f'la suite no esperó al entrenamiento: {filas}'
+    assert all(f['hora'] and f['pid'] for f in filas)
+    assert 'turno de GPU de la suite' in salida and not maquina.exists()
+
+
+def test_las_pruebas_de_gpu_se_recogen_al_final_y_siempre_en_el_mismo_orden():
+    """106:RF-22 — el orden de la recogida deja la GPU al final, sin desordenar cada grupo, y es el mismo cada vez
+    (los trabajadores de xdist del reparto de 102:RF-5 tienen que recoger lo mismo)."""
+    import subprocess
+    import sys
+
+    ficheros = ['tests/test_turno_gpu_de_la_suite.py', 'tests/test_textos_sin_requisitos.py']
+    assert conftest.usa_gpu(RAIZ / ficheros[0]) and not conftest.usa_gpu(RAIZ / ficheros[1])
+
+    def recoger() -> list[str]:
+        # Con PYTEST_CURRENT_TEST heredado la sesión hija no pide la GPU de la máquina (RF-1): solo recoge.
+        r = subprocess.run([sys.executable, '-m', 'pytest', '-p', 'no:cacheprovider', '-p', 'no:randomly',
+                            '--collect-only', '-q', *ficheros], cwd=RAIZ, capture_output=True, check=False,
+                           text=True, encoding='utf-8', errors='replace', timeout=600)
+        assert r.returncode == 0, (r.stdout + r.stderr)[-2000:]
+        return [linea for linea in r.stdout.splitlines() if '::' in linea]
+
+    ids = recoger()
+    de_gpu = [i for i in ids if i.startswith(ficheros[0])]
+    resto = [i for i in ids if i.startswith(ficheros[1])]
+    assert de_gpu and resto and ids == resto + de_gpu, ids[:5]
+    assert recoger() == ids
+
+
+def test_el_registro_dice_cuando_pidio_obtuvo_y_solto_o_vencio_su_plazo(tmp_path, monkeypatch):
+    """106:RF-24 — cada suceso del turno de la suite queda en su registro, con su hora y su PID; también el plazo
+    vencido, con el dueño de la GPU."""
+    import json
+
+    lock = _maquina(tmp_path, monkeypatch)
+    registro = lock.with_name(lock.name + '.suite.jsonl')
+    conftest.tomar_turno_si_hace_falta([_Item(gpu=True)])
+    conftest.pytest_sessionfinish(None, 0)
+    assert registro.exists(), 'la suite no dejó registro de su turno'
+    filas = [json.loads(linea) for linea in registro.read_text(encoding='utf-8').splitlines()]
+    assert [f['suceso'] for f in filas] == ['pidió', 'obtuvo', 'soltó']
+    assert all(f['pid'] == os.getpid() for f in filas) and 'con_turno_s' in filas[2]
+
+    monkeypatch.setenv(conftest.VARIABLE_ESPERA_GPU_SUITE, '0')
+    otra = _guardia_en_otro_proceso(lock)
+    pid = _dueno(lock)
+    try:
+        with pytest.raises(pytest.exit.Exception):
+            conftest.tomar_turno_si_hace_falta([_Item(gpu=True)])
+    finally:
+        otra.communicate('', timeout=30)
+    filas = [json.loads(linea) for linea in registro.read_text(encoding='utf-8').splitlines()]
+    assert [f['suceso'] for f in filas[-2:]] == ['pidió', 'sin turno'] and pid in filas[-1]['motivo']
+
+
+def test_un_entrenamiento_con_plazo_espera_su_turno(tmp_path, monkeypatch):
+    """106:RF-21 — con `CSG_GPU_ESPERA_S`, `turno_gpu` espera a que el otro suelte la GPU y la toma; sin ella, cae."""
+    import json
+
+    from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
+
+    lock = tmp_path / 'gpu.lock'
+    monkeypatch.setenv('CSG_ML_GPU_LOCK', str(lock))
+    monkeypatch.delenv('CSG_GPU_PARENT_TOKEN', raising=False)
+    monkeypatch.delenv('CSG_GPU_ESPERA_S', raising=False)
+    otra = _guardia_en_otro_proceso(lock, segundos=3.0)
+    with pytest.raises(RuntimeError, match='GPU ocupada'):
+        with turno_gpu('entrenamiento-sin-plazo'):
+            pass
+    monkeypatch.setenv('CSG_GPU_ESPERA_S', '60')
+    with turno_gpu('entrenamiento-con-plazo'):
+        dueno = json.loads(lock.read_text(encoding='utf-8'))
+        assert dueno['pid'] == os.getpid() and dueno['model'] == 'entrenamiento-con-plazo'
+    otra.wait(30)
+    assert not lock.exists()

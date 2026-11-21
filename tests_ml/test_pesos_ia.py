@@ -22,10 +22,10 @@ def _ficha(identidad):
 
 @pytest.fixture(autouse=True)
 def gpu_exclusiva(monkeypatch, request):
-    from convertersmartgrid.training_coordinator import exigir_memoria_ml
+    from convertersmartgrid.aplicacion.training_coordinator import exigir_memoria_ml
     minimo_gb = 6 if 'qwen' in request.node.name else 4 if 'bge' in request.node.name else 3
     exigir_memoria_ml(minimo_gb, minimo_commit_gib=8. if 'qwen' in request.node.name else 6.)
-    from convertersmartgrid.training_coordinator import BloqueoGPU
+    from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU
     monkeypatch.setenv('HF_HUB_OFFLINE', '1')
     ruta = Path(os.environ.get('CSG_ML_GPU_LOCK') or str(Path(tempfile.gettempdir()) / 'convertersmartgrid-gpu.lock'))
     with BloqueoGPU(ruta, 'ensayo-pesos-preentrenados'):
@@ -97,7 +97,7 @@ def _entrenar_nf4(tmp_path):
 
 
 def _reabrir_nf4(tmp_path):
-    from convertersmartgrid.training_coordinator import exigir_memoria_ml
+    from convertersmartgrid.aplicacion.training_coordinator import exigir_memoria_ml
     exigir_memoria_ml(4., minimo_commit_gib=8.)
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer

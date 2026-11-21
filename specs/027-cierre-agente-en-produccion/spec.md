@@ -338,6 +338,10 @@ Aceptación
 - RF-28: EL SISTEMA dará por cerrada esta spec cuando, desde la web y con el asistente, se
   calibren en DIgSILENT todos los sistemas eléctricos de la estructura, el gemelo promovido
   pase sus puertas con al menos dos familias de prueba y el asistente pase RF-18.
+- RF-78: (d8, 2026-11-20, para T26) CUANDO el CLI de Codex no deje respuesta (sin el CLI, código de salida, tiempo
+  agotado o un modelo que la cuenta rechaza), EL SISTEMA anotará en el maestro la causa de cada llamada, con el código y
+  la cola de su error, y el registro de la destilación (RF-62) la llevará en `fallos_maestro`: «el maestro no respondió»
+  dice por qué.
 
 ## Fuera de alcance
 

@@ -24,6 +24,10 @@ def main(argv=None):
     a.add_argument('--revision')
     a.add_argument('--epocas',type=int,default=1)
     a.add_argument('--semilla',type=int,default=11)
+    # 047:RF-59: el corpus de órdenes solo se ajusta con la decisión de decidir_ajuste («necesaria») o con un
+    # experimento autorizado por su id (plan de la 047, T7); la decisión real del 2026-11-03 es «bloqueada».
+    a.add_argument('--decision',type=Path,help='JSON de decidir_ajuste/decidir_aceptacion (047:RF-59)')
+    a.add_argument('--experimento-autorizado',help='Id del experimento autorizado en el plan (p. ej. 047-T7)')
     a=sub.add_parser('preflight')
     a.add_argument('--dataset',type=Path,required=True)
     a.add_argument('--salida',type=Path,required=True)
@@ -53,6 +57,14 @@ def main(argv=None):
             if (args.modelo is not None and args.modelo!=base['id']) or (args.revision is not None and args.revision!=base['revision']):
                 raise ValueError('modelo o revision distintos de la base NF4 fijada')
             if args.epocas not in (1,2) or args.semilla<0:raise ValueError('presupuesto de una o dos epocas y semilla no negativa')
+            decision_ajuste=None
+            if tipo_corpus(args.dataset)!=TIPO_CORPUS:
+                if args.decision is not None:
+                    decision_ajuste=json.loads(args.decision.read_text(encoding='utf-8'))
+                d=(decision_ajuste or {}).get('decision')
+                if d!='necesaria' and not args.experimento_autorizado:
+                    raise ValueError('decidir_ajuste no dice «necesaria» (%s): el ajuste de órdenes pide esa decisión '
+                                     'o --experimento-autorizado'%(d or 'sin decisión'))
             checkpoints=[];desde=None
             with turno_gpu('qlora-generativo'):
                 for epoca in range(1,args.epocas+1):
@@ -62,6 +74,7 @@ def main(argv=None):
             resultado={'status':'RECHAZADO','candidate_status':'CANDIDATO','entrenado':True,
                 'training_completed':True,'promovido':False,'base':base,'auditoria':auditoria,
                 'checkpoints':checkpoints,'gates':{'approved':False},
+                'decision_ajuste':decision_ajuste,'experimento_autorizado':args.experimento_autorizado,
                 'reason':'pesos conservados; faltan seleccion, recarga/exportacion y aceptacion independiente'}
         codigo=0
     except Exception as exc:

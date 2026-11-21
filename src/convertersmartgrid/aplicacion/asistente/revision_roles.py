@@ -9,12 +9,13 @@ from collections import Counter
 from copy import deepcopy
 import hashlib
 import json
-import math
 from pathlib import Path
-import re
 import time
 
 from .equipo import ROLES_REVISION
+# 047:RF-48 a RF-55: qué contradicción cuenta lo decide ``contradicciones``; los nombres se reexportan.
+from .contradicciones import (  # noqa: F401
+    CAMPOS_CONTRADICCION, TOLERANCIA_RELATIVA, filtrar_contradicciones, valores_coinciden)
 
 PRESUPUESTO_S = 60.0
 #: 047:RF-47: con 512, una intervención del equipo que enumera varias contradicciones podía cortarse en el tope y salir
@@ -42,9 +43,12 @@ _ENCARGO = {
 #: («ante evidencia insuficiente usa bloqueada») y prohibía aprobar la física («no apruebes física por consenso
 #: textual»), que solo se revisa por texto: qwen3:8b bloqueó las 6 propuestas sanas y las 6 con defecto (047 T8).
 _REGLA = ('Escribe primero en contradicciones cada dato de la propuesta, de lo que revisas, que la evidencia da con '
-          'otro valor: cada una con campo (el dato de la propuesta), valor_propuesta, valor_evidencia y fuente (el ID '
-          'de la evidencia). Anota solo los valores distintos: si los dos valores son iguales, no es una '
-          'contradicción y no se escribe. Después, en incertidumbres, cada dato de la propuesta, de lo que '
+          'otro valor: cada una con campo (el nombre del dato en la propuesta), valor_propuesta (copiado de la '
+          'propuesta), valor_evidencia (copiado de la fuente), fuente (el ID de la evidencia) y base (total o '
+          'unidad). Anota solo los valores distintos: si los dos valores son iguales, no es una contradicción y no '
+          'se escribe. Compara el mismo concepto: un precio por unidad o por kilómetro no se compara con un total; '
+          'si la evidencia da un precio por unidad, escribe en valor_evidencia la cuenta del total (cantidad × '
+          'precio) con base total. Después, en incertidumbres, cada dato de la propuesta, de lo que '
           'revisas, que no está en ninguna evidencia. Lo que la evidencia confirma no va en ninguna lista: no '
           'escribas «coincide» ni «no hay contradicción». El mismo valor con otro formato (separador de miles, coma o '
           'punto decimal, unidad) es el mismo valor, no una contradicción. La acción es lo que se revisa, no es un '
@@ -63,146 +67,6 @@ _RONDA_SIGUIENTE = ('En dictamenes_ronda_anterior van los dictámenes de la rond
 #: 047:RF-45: las comprueba el código (``revisar_propuesta``); enviadas al LLM, las tomaba por datos de la propuesta
 #: sin evidencia («contexto_vigente no está en ninguna evidencia») y daba falsas alarmas en propuestas sanas.
 _SOLO_DEL_CODIGO = ('restricciones_deterministas',)
-
-#: 047:RF-48: los campos de cada contradicción, en el orden en que el esquema los pide.
-CAMPOS_CONTRADICCION = ('campo', 'valor_propuesta', 'valor_evidencia', 'fuente')
-#: 047:RF-49: dos cifras de la misma magnitud son el mismo valor si difieren menos del 0,5 % de la mayor. Absorbe el
-#: redondeo de una cifra impresa con tres significativas (62 frente a 62,3 % es un 0,48 %) y no esconde un error de
-#: ingeniería: el menor de los defectos sembrados en los conjuntos de la T8 cambia la cifra en más de un 2 %.
-TOLERANCIA_RELATIVA = 0.005
-#: Unidad normalizada (minúsculas, sin punto final, ² como 2) → (magnitud, factor a la unidad base de la magnitud).
-#: Una unidad que no está aquí solo coincide con la misma unidad escrita igual.
-_UNIDADES = {
-    '%': ('porcentaje', 1.0), 'pct': ('porcentaje', 1.0), 'por ciento': ('porcentaje', 1.0),
-    'w': ('potencia activa', 1e-3), 'kw': ('potencia activa', 1.0), 'mw': ('potencia activa', 1e3),
-    'var': ('potencia reactiva', 1e-3), 'kvar': ('potencia reactiva', 1.0), 'mvar': ('potencia reactiva', 1e3),
-    'va': ('potencia aparente', 1e-3), 'kva': ('potencia aparente', 1.0), 'mva': ('potencia aparente', 1e3),
-    'wh': ('energía', 1e-3), 'kwh': ('energía', 1.0), 'mwh': ('energía', 1e3), 'gwh': ('energía', 1e6),
-    'a': ('corriente', 1.0), 'ka': ('corriente', 1e3),
-    'v': ('tensión', 1e-3), 'kv': ('tensión', 1.0),
-    'p.u': ('por unidad', 1.0), 'pu': ('por unidad', 1.0),
-    'usd': ('usd', 1.0), 'us$': ('usd', 1.0), '$': ('usd', 1.0), 'dólares': ('usd', 1.0), 'dolares': ('usd', 1.0),
-    's/': ('pen', 1.0), 'soles': ('pen', 1.0),
-    'm': ('longitud', 1.0), 'km': ('longitud', 1e3),
-    'mm2': ('sección', 1.0),
-    'h': ('tiempo', 60.0), 'min': ('tiempo', 1.0),
-    'ohm': ('impedancia', 1.0), 'ω': ('impedancia', 1.0),
-}
-_NUMERO = re.compile(r"^(?P<pre>us\$|usd|s/|\$)?\s*(?P<num>[-+]?\d[\d\s'’.,]*)\s*(?P<uni>\D.*)?$")
-_VERSUS = re.compile(r'\s+(?:vs\.?|versus|frente a)\s+', re.IGNORECASE)
-
-
-def _texto_valor(valor) -> str:
-    return ' '.join(str(valor).replace(' ', ' ').replace(' ', ' ').split()).casefold()
-
-
-def _cifra(texto: str) -> float | None:
-    """El número escrito con separador de miles o coma decimal; ``None`` si la escritura es ambigua.
-
-    «1.250» o «1,250» pueden ser mil doscientos cincuenta o uno coma veinticinco: se deja como distinto.
-    """
-    texto = re.sub(r"[\s'’]", '', texto).rstrip('.,')
-    signo = '-' if texto.startswith('-') else ''
-    texto = texto.lstrip('+-')
-    puntos, comas = texto.count('.'), texto.count(',')
-    if puntos and comas:
-        decimal = '.' if texto.rfind('.') > texto.rfind(',') else ','
-        miles = ',' if decimal == '.' else '.'
-        entero, _, fraccion = texto.rpartition(decimal)
-        if texto.count(decimal) > 1 or not re.fullmatch(rf'\d{{1,3}}(?:\{miles}\d{{3}})*', entero):
-            return None
-        texto = entero.replace(miles, '') + '.' + fraccion
-    elif puntos + comas > 1:
-        sep = '.' if puntos else ','
-        if not re.fullmatch(rf'\d{{1,3}}(?:\{sep}\d{{3}})+', texto):
-            return None
-        texto = texto.replace(sep, '')
-    elif puntos + comas == 1:
-        entero, _, fraccion = texto.replace(',', '.').partition('.')
-        if len(fraccion) == 3 and 1 <= len(entero) <= 3 and entero != '0':
-            return None
-        texto = f'{entero}.{fraccion}'
-    try:
-        return float(signo + texto)
-    except ValueError:
-        return None
-
-
-def _magnitud(valor) -> tuple[float, str | None] | None:
-    """(cifra, unidad normalizada o ``None``) de un valor como «11 200 USD», «62 %» o «0,97 p.u.»."""
-    if isinstance(valor, (int, float)) and not isinstance(valor, bool):
-        return float(valor), None
-    m = _NUMERO.match(_texto_valor(valor))
-    if not m:
-        return None
-    cifra = _cifra(m['num'])
-    unidad = (m['uni'] or '').strip().rstrip('.').replace('²', '2').strip() or None
-    if m['pre'] and unidad:
-        return None
-    return (None if cifra is None else (cifra, m['pre'] or unidad))
-
-
-def valores_coinciden(propuesta, evidencia) -> bool:
-    """047:RF-49 — si dos valores son el mismo, con la unidad normalizada y ``TOLERANCIA_RELATIVA``.
-
-    Conservador: lo que no se sabe leer (texto distinto, cifra ambigua, magnitudes distintas o una unidad desconocida
-    distinta) no coincide, y la contradicción se mantiene. Un valor sin unidad toma la del otro: es un formato.
-    """
-    if _texto_valor(propuesta) == _texto_valor(evidencia):
-        return True
-    a, b = _magnitud(propuesta), _magnitud(evidencia)
-    if a is None or b is None:
-        return False
-    (va, ua), (vb, ub) = a, b
-    if ua and ub and ua != ub:
-        if ua not in _UNIDADES or ub not in _UNIDADES or _UNIDADES[ua][0] != _UNIDADES[ub][0]:
-            return False
-        va, vb = va * _UNIDADES[ua][1], vb * _UNIDADES[ub][1]
-    return math.isclose(va, vb, rel_tol=TOLERANCIA_RELATIVA, abs_tol=1e-9)
-
-
-def _de_texto(texto: str) -> tuple[str, str, str] | None:
-    """(campo, valor de la propuesta, valor de la evidencia) de una contradicción en texto libre «campo: X vs Y».
-
-    Los paréntesis («(propuesta)», «(e2)») se quitan; sin un único «vs» o «frente a» no se interpreta.
-    """
-    partes = _VERSUS.split(re.sub(r'\([^()]*\)', ' ', texto))
-    if len(partes) != 2:
-        return None
-    izquierda, derecha = partes
-    campo, _, izquierda = izquierda.rpartition(':')
-    if not izquierda.strip() or not derecha.strip():
-        return None
-    return campo.strip(), izquierda.strip(), derecha.strip()
-
-
-def filtrar_contradicciones(entradas) -> tuple[list, list[dict]]:
-    """047:RF-48/RF-49 — las contradicciones que cuentan y las descartadas, con su motivo.
-
-    Cada entrada es ``{campo, valor_propuesta, valor_evidencia, fuente}``; una en texto libre (formato anterior) se
-    interpreta como «X vs Y» y, si no se puede, se mantiene. Una entrada con otra forma hace el dictamen no válido.
-    """
-    quedan, descartadas = [], []
-    for entrada in entradas:
-        if isinstance(entrada, str):
-            if not entrada or len(entrada) > 2000:
-                raise ValueError('contradicción vacía o demasiado larga')
-            leida = _de_texto(entrada)
-            if leida and valores_coinciden(leida[1], leida[2]):
-                descartadas.append({'entrada': entrada, 'motivo': f'valores iguales: «{leida[1]}» y «{leida[2]}»'})
-            else:
-                quedan.append(entrada)
-            continue
-        if not isinstance(entrada, dict) or set(entrada) != set(CAMPOS_CONTRADICCION) or any(
-                isinstance(v, bool) or not isinstance(v, (str, int, float)) or not str(v).strip() or len(str(v)) > 2000
-                for v in entrada.values()):
-            raise ValueError('contradicción sin campo, valor_propuesta, valor_evidencia y fuente')
-        if valores_coinciden(entrada['valor_propuesta'], entrada['valor_evidencia']):
-            descartadas.append({'entrada': deepcopy(entrada), 'motivo':
-                                f"valores iguales: «{entrada['valor_propuesta']}» y «{entrada['valor_evidencia']}»"})
-        else:
-            quedan.append(deepcopy(entrada))
-    return quedan, descartadas
 
 
 def _decision_de_listas(incertidumbres, contradicciones) -> str:
@@ -285,7 +149,7 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
                     raise ValueError('dictamen sin evidencia verificable del contexto')
                 # 047:RF-48/RF-49: la medida del 047c (2026-11-21) traía como contradicciones comprobaciones que
                 # coinciden («coste_usd: 11200 vs 11200»); las decide el código comparando los dos valores.
-                contradicciones, descartadas = filtrar_contradicciones(raw['contradicciones'])
+                contradicciones, descartadas = filtrar_contradicciones(raw['contradicciones'], propuesta, evidencia)
                 decision = raw['decision']
                 if descartadas:
                     # 047:RF-50: la decisión del modelo salía de unas listas que el código corrigió; la regla de RF-40

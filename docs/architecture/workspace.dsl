@@ -1,4 +1,4 @@
-workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 457 módulos de Python en 37 subsistemas." {
+workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 459 módulos de Python en 37 subsistemas." {
 
     // Las relaciones de componentes no se suben solas a los contenedores: cada vista muestra solo lo declarado.
     !impliedRelationships false
@@ -283,7 +283,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             optimizer = container "Obras y optimización" "Escalera de bancos, sección y terna, Optuna y NSGA-II; DIgSILENT confirma cada obra." "Python + NumPy + Optuna" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/escalera_optima.py"
                 tags "AI"
-                cmpObras = component "Obras y optimización" "Escalera, troncal, perfil de tensión, reguladores, obras integrales y optimización (16 ficheros)." "Python" {
+                cmpObras = component "Obras y optimización" "Escalera, troncal, perfil de tensión, reguladores, obras integrales y optimización (17 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/obras_pf.py"
                     tags "AI"
                     properties {
@@ -408,7 +408,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             assistant = container "Asistente y su equipo" "67 tareas; interpreta órdenes, muestra el plan y ejecuta solo tras confirmación; revisan fuentes, física, coste y riesgo." "Reglas + codificador de órdenes + LLM local" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/asistente"
                 tags "AI"
-                cmpAsisNucleo = component "Núcleo y operación" "Tareas, intérprete, plan, planes guardados, ejecutor y orquestador (17 ficheros)." "Python" {
+                cmpAsisNucleo = component "Núcleo y operación" "Tareas, intérprete, plan, planes guardados, ejecutor y orquestador (18 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/asistente/tareas.py"
                     tags "AI"
                     properties {
@@ -465,7 +465,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Herramientas: operación, datos y aceptación"
                     }
                 }
-                cmpHerrModelos = component "Modelos, asistente y MADRL" "Entrenamientos y auditorías del gemelo, del asistente, del pronóstico y del piloto MADRL (38 ficheros)." "Python" {
+                cmpHerrModelos = component "Modelos, asistente y MADRL" "Entrenamientos y auditorías del gemelo, del asistente, del pronóstico y del piloto MADRL (39 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/tools/digital_twin_entrenar.py"
                     tags "AI"
                     properties {

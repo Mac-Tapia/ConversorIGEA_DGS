@@ -222,6 +222,34 @@ INSTRUCCIONES = {'redaccion': 'Redacta un párrafo de un informe PIDE, claro y f
                  'formato': 'Escribe el título, la leyenda o la línea de un informe PIDE con su formato.'}
 #: Reparto por documento, ordenado por su huella: siete de cada diez van a entrenamiento.
 _REPARTO = ('entrenamiento',) * 7 + ('seleccion', 'calibracion', 'prueba')
+_APARTADAS = ('seleccion', 'calibracion', 'prueba')
+
+
+def repartir_documentos(tamanos: Mapping[str, int]) -> dict[str, str]:
+    """La partición de cada documento por su número de ejemplos, no por su huella (072:RF-52).
+
+    Con el reparto por huella, en el corpus real de la empresa de referencia (diez documentos, 704 ejemplos) el documento
+    de 444 cayó entero en «selección» y el entrenamiento se quedó con 259. Cada documento sigue entero en una partición:
+    del más grande al más pequeño (empate por su huella), uno va a una apartada si cabe en su décima parte del total, o si
+    esa apartada está vacía y cabe en el doble; a la que más le falte. Lo que no cabe va a entrenamiento. Con menos de
+    cuatro documentos no hay con qué apartar y todo entrena.
+    """
+    if len(tamanos) < 4:
+        return {g: 'entrenamiento' for g in tamanos}
+    objetivo = sum(tamanos.values()) / len(_REPARTO)
+    actual = dict.fromkeys(_APARTADAS, 0)
+    parte: dict[str, str] = {}
+    for g in sorted(tamanos, key=lambda g: (-tamanos[g], g)):
+        n = tamanos[g]
+        caben = [p for p in _APARTADAS
+                 if actual[p] + n <= objetivo or (actual[p] == 0 and n <= 2 * objetivo)]
+        if caben:
+            elegida = max(caben, key=lambda p: (objetivo - actual[p], -_APARTADAS.index(p)))
+            actual[elegida] += n
+            parte[g] = elegida
+        else:
+            parte[g] = 'entrenamiento'
+    return parte
 
 
 def tipo_corpus(dataset: Path | str) -> str | None:
@@ -314,8 +342,8 @@ def sellar_corpus_redaccion(dataset: Path | str, destino: Path | str, *, registr
         if texto_canonico(texto) not in vistos:
             vistos.add(texto_canonico(texto))
             unicos.append((e, texto))
-    grupos = sorted({huella(['redaccion_pide', e['fuente']]) for e, _ in unicos})
-    parte_de = {g: _REPARTO[i % len(_REPARTO)] for i, g in enumerate(grupos)}
+    tamanos = Counter(huella(['redaccion_pide', e['fuente']]) for e, _ in unicos)
+    parte_de = repartir_documentos(tamanos)
     filas = []
     for e, texto in unicos:
         grupo = huella(['redaccion_pide', e['fuente']])

@@ -177,12 +177,32 @@ def marcar_en_serie(items) -> None:
                 item.add_marker(pytest.mark.a_solas)
 
 
+@pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(config, items):
-    """106:RF-6: la marca ``gpu`` se pone sola; ninguna prueba depende de que alguien se acuerde de marcarla."""
+    """106:RF-6: la marca ``gpu`` se pone sola; ninguna prueba depende de que alguien se acuerde de marcarla.
+
+    106:RF-22: y las de GPU van al final del recorrido. Va el último (``trylast``): después del orden por fixtures de
+    pytest y de cualquier complemento que baraje, para que el turno de la máquina se tome una sola vez y tarde.
+    """
     for item in items:
         if usa_gpu(item.path):
             item.add_marker(pytest.mark.gpu)
     marcar_en_serie(items)
+    items[:] = gpu_al_final(items)
+
+
+def _es_de_gpu(item) -> bool:
+    return item is not None and item.get_closest_marker('gpu') is not None
+
+
+def gpu_al_final(items) -> list:
+    """106:RF-22: las pruebas de GPU al final, sin cambiar el orden dentro de cada grupo.
+
+    Es una partición estable: el mismo recorrido da siempre el mismo orden, así que los trabajadores de xdist recogen
+    lo mismo (102:RF-5), y la marca va por módulo (RF-6), así que sus fixtures de módulo no se parten. El 2026-11-21
+    la suite tomaba el turno al empezar y lo guardaba 45-50 min con la GPU al 0 %: casi todo lo que corría no la usaba.
+    """
+    return [i for i in items if not _es_de_gpu(i)] + [i for i in items if _es_de_gpu(i)]
 
 
 def tomar_turno_si_hace_falta(items) -> None:
@@ -194,24 +214,99 @@ def tomar_turno_si_hace_falta(items) -> None:
     nada. Una sesión de pytest lanzada por una prueba no lo pide: es de su padre.
     """
     import sys
+    import time
 
-    if (os.environ.get('PYTEST_CURRENT_TEST') or not any(i.get_closest_marker('gpu') for i in items)
-            or not _hay_cuda()):
+    if (_turno_de_la_sesion or os.environ.get('PYTEST_CURRENT_TEST')
+            or not any(i.get_closest_marker('gpu') for i in items) or not _hay_cuda()):
         return
     from convertersmartgrid.aplicacion.trabajadores_ml import SALIDA_SIN_TURNO_GPU, turno_gpu_con_plazo
 
     limite = float(os.environ.get(VARIABLE_ESPERA_GPU_SUITE, ESPERA_GPU_SUITE_S))
     turno = turno_gpu_con_plazo('suite-pytest', ruta=GUARDIA_GPU_DE_LA_MAQUINA, limite_s=limite,
                                 avisar=lambda t: print(t, file=sys.__stderr__, flush=True))
+    registrar_turno('pidió', plazo_s=limite)
+    inicio = time.monotonic()
     try:
         turno.__enter__()
     except RuntimeError as exc:
+        registrar_turno('sin turno', espera_s=round(time.monotonic() - inicio, 1), motivo=str(exc))
         pytest.exit(f'La suite no puede juzgar: {exc}', returncode=SALIDA_SIN_TURNO_GPU)
-    _turno_de_la_sesion.append(turno)
+    registrar_turno('obtuvo', espera_s=round(time.monotonic() - inicio, 1))
+    _turno_de_la_sesion.append((turno, time.monotonic()))
 
 
-def pytest_collection_finish(session):
-    tomar_turno_si_hace_falta(session.items)
+def soltar_turno() -> None:
+    """106:RF-22, RF-24: suelta el turno de la máquina, si lo tiene, y deja dicho cuánto lo tuvo."""
+    import time
+
+    while _turno_de_la_sesion:
+        turno, desde = _turno_de_la_sesion.pop()
+        turno.__exit__(None, None, None)
+        registrar_turno('soltó', con_turno_s=round(time.monotonic() - desde, 1))
+
+
+#: 106:RF-24: lo que la sesión hizo con el turno de la máquina, en orden (lo resume el informe del final).
+_registro_turno: list[dict] = []
+#: Dónde queda el registro del turno de la suite (una línea JSON por suceso); sin la variable, junto a la guardia.
+VARIABLE_REGISTRO_TURNO = 'CSG_GPU_REGISTRO_SUITE'
+
+
+def ruta_registro_turno() -> Path:
+    """106:RF-24: el fichero del registro: ``CSG_GPU_REGISTRO_SUITE`` o, sin ella, al lado de la guardia de la máquina."""
+    fijada = os.environ.get(VARIABLE_REGISTRO_TURNO)
+    guardia = Path(GUARDIA_GPU_DE_LA_MAQUINA)
+    return Path(fijada) if fijada else guardia.with_name(guardia.name + '.suite.jsonl')
+
+
+def registrar_turno(suceso: str, **datos) -> dict:
+    """106:RF-24: cuándo pidió, obtuvo y soltó la suite el turno de GPU (o vio vencer su plazo), con su hora y su PID.
+
+    Va al error estándar del proceso, al informe del final de la sesión y, una línea JSON por suceso, al fichero de
+    :func:`ruta_registro_turno`, que puede leer quien espera la GPU. Si ese fichero no se puede escribir, la suite sigue.
+    """
+    import datetime as dt
+    import json
+    import sys
+
+    fila = {'suceso': suceso, 'hora': dt.datetime.now().astimezone().isoformat(timespec='seconds'), 'pid': os.getpid(), **datos}
+    _registro_turno.append(fila)
+    extra = ', '.join(f'{k}={v}' for k, v in datos.items())
+    print(f'[turno de GPU de la suite] {fila["hora"]} {suceso}' + (f' ({extra})' if extra else ''),
+          file=sys.__stderr__, flush=True)
+    try:
+        with ruta_registro_turno().open('a', encoding='utf-8') as f:
+            f.write(json.dumps(fila, ensure_ascii=False) + '\n')
+    except OSError as exc:  # justificado: el registro es un aviso; sin el fichero la suite juzga igual y lo dice
+        print(f'[turno de GPU de la suite] no se pudo escribir el registro: {exc}', file=sys.__stderr__, flush=True)
+    return fila
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_protocol(item, nextitem):
+    """106:RF-22, RF-23: el turno de la máquina solo mientras corren pruebas de GPU.
+
+    Se pide justo antes de la primera de GPU (con su plazo y sus avisos, RF-3, RF-4) y se suelta al terminar la última
+    del tramo, con sus fixtures ya cerrados (``nextitem`` sin la marca, o el fin de la sesión). Mientras corre el resto,
+    un entrenamiento puede tomar la GPU; la suite lo espera cuando llega a las suyas.
+    """
+    if _es_de_gpu(item):
+        tomar_turno_si_hace_falta([item])
+    try:
+        return (yield)
+    finally:
+        if not _es_de_gpu(nextitem):
+            soltar_turno()
+
+
+def pytest_terminal_summary(terminalreporter):
+    """106:RF-24: el resumen del turno de GPU de la sesión, en la salida que guarda la puerta."""
+    if not _registro_turno:
+        return
+    terminalreporter.section('turno de GPU de la suite')
+    for fila in _registro_turno:
+        extra = ', '.join(f'{k}={v}' for k, v in fila.items() if k not in ('suceso', 'hora', 'pid'))
+        terminalreporter.write_line(f'{fila["hora"]} PID {fila["pid"]} {fila["suceso"]}'
+                                    + (f' ({extra})' if extra else ''))
 
 
 def _cuda_iniciada() -> bool:
@@ -250,8 +345,7 @@ def pytest_runtest_call(item):
 def pytest_sessionfinish(session, exitstatus):
     import sys
 
-    while _turno_de_la_sesion:
-        _turno_de_la_sesion.pop().__exit__(None, None, None)
+    soltar_turno()
     # 106:RF-16: si una prueba escribió en un registro real de la web, la sesión falla y dice dónde. Lo mira el
     # proceso principal; la web del usuario escribe a la vez en el suyo, por eso solo cuentan las líneas de pytest.
     if os.environ.get('PYTEST_XDIST_WORKER'):

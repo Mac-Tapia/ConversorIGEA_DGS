@@ -874,7 +874,8 @@ def test_015_rf73_cliente_por_encima_de_su_cabecera_queda_a_revisar():
               evidencia={'900001': {'supera_cabecera': evid}}, horas_mes=744.0)
     assert r['estado'] == 'FIJA_A_REVISAR' and r['a_revisar'] == ['S1']
     assert r['fijas'][0]['motivos'][0]['codigo'] == 'SUPERA_LA_CABECERA'
-    assert 'S1' in r['texto'] and 'queda la calibración anterior' in r['texto']
+    # 039:RF-25: ya no para; la fija imposible se libera y el alimentador se calibra con el resto.
+    assert 'S1' in r['texto'] and 'se reparte con las escaladas' in r['texto'] and r['liberadas'] == ['S1']
 
 
 def test_015_rf73_fijas_que_dejan_casi_nada_a_las_escaladas_quedan_a_revisar():

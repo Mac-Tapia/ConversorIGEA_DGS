@@ -194,3 +194,18 @@ def test_adaptador_reabre(tmp_path):
     reabierto = _proceso(_REABRIR, tmp_path)
     assert reabierto['vocabulario'] == guardado['vocabulario'] == 32
     assert reabierto['logits'] == pytest.approx(guardado['logits'], abs=1e-6)
+
+
+def test_ajuste_de_ordenes_sin_decision_necesaria_no_pide_la_gpu(tmp_path, sin_gpu, monkeypatch):
+    """047:RF-59 — el corpus de órdenes no se ajusta sin `decidir_ajuste` «necesaria» o un experimento autorizado."""
+    from convertersmartgrid.aplicacion import trabajadores_ml
+    monkeypatch.setattr(trabajadores_ml, 'turno_gpu', lambda _n: pytest.fail('no debe pedir la GPU'))
+    dataset = tmp_path / 'corpus'
+    dataset.mkdir()
+    decision = tmp_path / 'decision.json'
+    decision.write_text(json.dumps({'decision': 'bloqueada', 'motivos': ['3 de 200']}), encoding='utf-8')
+    for extra in ([], ['--decision', str(decision)]):
+        salida = tmp_path / ('salida' + str(len(extra)))
+        assert _herramienta().main(['entrenar', '--dataset', str(dataset), '--salida', str(salida), *extra]) == 2
+        informe = json.loads((salida / 'training_manifest.json').read_text(encoding='utf-8'))
+        assert 'decidir_ajuste' in json.dumps(informe, ensure_ascii=False)

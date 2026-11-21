@@ -279,7 +279,8 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
 - RF-72: (regla del usuario del 2026-10-15 y orden del 19-11; amplía RF-66) CUANDO calibra un alimentador con central en
   su tramo, solo o en el proyecto, EL SISTEMA pondrá también sus bancos existentes a su máxima capacidad antes de medir,
   fuera de la etapa de la central, y dirá en el informe los que cambió.
-- RF-73: (orden del usuario del 20-11; enmienda RF-69 y amplía RF-71) ANTES del primer flujo y de cambiar ningún
+- RF-73: (orden del usuario del 20-11; enmienda RF-69 y amplía RF-71; la parada la enmienda 039:RF-25 el 21-11: la fija
+  imposible se diagnostica, 039:RF-24, y se libera sin parar el alimentador) ANTES del primer flujo y de cambiar ningún
   transformador, EL SISTEMA comprobará la plausibilidad de cada fija con cliente: (a) su cliente mide más que la
   cabecera de su alimentador en algún registro del mes con la cabecera > 0; (b) pide más de 4 veces los kVA de su grupo
   en la fuente (RF-75) cuando la media de su mes sí cabe en ellos; (c) las fijas pasan del 90 % de la cabecera y dejan a

@@ -14,8 +14,10 @@ from convertersmartgrid.aplicacion.asistente import revision_roles
 from convertersmartgrid.aplicacion.asistente.revision_roles import comparar_revision, revisar_propuesta
 from test_asistente_revision_roles import _cliente, _dictamen_llm, _herramienta_comparar, paquete
 
-CAMPOS = ['campo', 'valor_propuesta', 'valor_evidencia', 'fuente']
-SANA = {'restricciones_deterministas': {'plan_completo': True}}
+CAMPOS = ['campo', 'valor_propuesta', 'valor_evidencia', 'fuente', 'base']
+#: 047:RF-53 (MEJ24c): una contradicción solo cuenta si su valor está en la propuesta; esta los tiene.
+SANA = {'restricciones_deterministas': {'plan_completo': True}, 'coste_usd': 4300, 'carga_pct': 71,
+        'tension_pu': 0.98, 'corriente_a': 118, 'p_kw': 2100, 'x_pct': 3}
 
 
 def _contradiccion(campo, propuesta, evidencia, fuente='e1'):
@@ -49,6 +51,7 @@ def test_el_esquema_pide_cada_contradiccion_con_sus_dos_valores_y_su_fuente():
     {**_contradiccion('coste_usd', '100', '120'), 'nota': 'otra clave'},
     _contradiccion('coste_usd', '', '120'),
     _contradiccion('coste_usd', True, '120'),
+    {**_contradiccion('coste_usd', '100', '120'), 'base': 'parcial'},
     7,
 ])
 def test_una_contradiccion_con_otra_forma_hace_el_dictamen_no_valido(tmp_path, mala):
@@ -63,6 +66,8 @@ def test_una_contradiccion_con_otra_forma_hace_el_dictamen_no_valido(tmp_path, m
     ('11200', '11200'), ('11200', '11 200 USD'), ('62', '62 %'), ('62%', '62 %'), ('38 kW', '38 kW'),
     ('0,97 p.u.', '0.97'), ('1,8 MW', '1800 kW'), ('US$ 3 900', '3900 USD'), ('250 kvar', '0,25 Mvar'),
     ('100', '100,4'), ('A21', 'a21'), (125, '125 A'), ('2,5 km', '2500 m'),
+    # 047:RF-52 (MEJ24c): una cifra ambigua coincide si una de sus lecturas es la del otro valor.
+    ('11.200', '11200'), ('1,250', '1.25'),
 ])
 def test_los_mismos_valores_con_otro_formato_o_unidad_coinciden(a, b):
     """047:RF-49 — separador de miles, coma decimal, unidad escrita o no y su múltiplo: el mismo valor."""
@@ -71,11 +76,11 @@ def test_los_mismos_valores_con_otro_formato_o_unidad_coinciden(a, b):
 
 @pytest.mark.parametrize('a, b', [
     ('62', '65'), ('100', '101'), ('1,25 MW', '1450 kW'), ('5 A', '5 kA'), ('38 kW', '38 kvar'),
-    ('11.200', '11200'), ('1,250', '1.25'), ('A21', 'A22'), ('1.07 p.u.', '1,04 p.u.'), ('0', '0,5'),
+    ('A21', 'A22'), ('1.07 p.u.', '1,04 p.u.'), ('0', '0,5'),
     ('62 %', '62 kW'), ('sin respaldo', 'con respaldo'),
 ])
 def test_los_valores_distintos_o_que_no_se_saben_leer_no_coinciden(a, b):
-    """047:RF-49 — conservador: otra cifra fuera del 0,5 %, otra magnitud, una escritura ambigua o un texto distinto."""
+    """047:RF-49 — conservador: otra cifra fuera del 0,5 %, otra magnitud o un texto distinto."""
     assert not _coinciden(a, b) and not _coinciden(b, a)
 
 
@@ -87,7 +92,7 @@ def test_la_tolerancia_es_relativa_y_esta_documentada():
 
 def test_las_que_coinciden_se_descartan_con_registro_y_no_cuentan(tmp_path):
     """047:RF-49 / RF-50 — un favorable con comprobaciones que coinciden era anulado por RF-40 («sin respuesta»)."""
-    iguales = [_contradiccion('coste_usd', '4300', '4 300 USD', 'e2'), _contradiccion('carga_pct', '71', '71 %')]
+    iguales = [_contradiccion('coste_usd', '4300', '4 300 USD'), _contradiccion('carga_pct', '71', '71 %')]
     r = _revisar(tmp_path, {'decision': 'favorable', 'evidencia_ids': ['e1'], 'incertidumbres': [],
                             'contradicciones': iguales})
     assert r['aprobada'], 'unas contradicciones cuyos valores coinciden siguen anulando el dictamen favorable'
@@ -130,8 +135,9 @@ def test_sin_nada_descartado_decide_el_modelo(tmp_path):
 
 def test_el_texto_libre_se_interpreta_o_se_mantiene(tmp_path):
     """047:RF-49 — formato anterior: «campo: X vs Y» se lee; lo que no se lee sigue siendo contradicción."""
-    iguales = ['coste_usd: 500 (propuesta) vs 500 (e2)', 'e1: carga_pct: 64 vs 64%', 'p_kw: 2,1 MW frente a 2100 kW']
-    quedan = ['x_pct: 3 vs 4', 'e1 da 0,95 p.u. y la propuesta 1,01', 'a vs b vs c', 'coste_usd: 1.250 vs 1250']
+    iguales = ['coste_usd: 4300 (propuesta) vs 4 300 (e2)', 'e1: carga_pct: 71 vs 71%', 'p_kw: 2,1 MW frente a 2100 kW',
+               'coste_usd: 4.300 vs 4300']
+    quedan = ['x_pct: 3 vs 4', 'e1 da 0,95 p.u. y la propuesta 1,01', 'a vs b vs c']
     r = _revisar(tmp_path, {'decision': 'bloqueada', 'evidencia_ids': ['e1'], 'incertidumbres': [],
                             'contradicciones': iguales + quedan})
     for d in r['dictamenes']:
@@ -155,7 +161,7 @@ def test_el_informe_cuenta_las_descartadas_y_las_recalculadas(tmp_path):
         assert informe['falsas_alarmas'] == 0 and informe['sin_respuesta'] == 0
         d = informe['por_caso'][0]['dictamenes'][0]
         assert d['decision'] == 'favorable' and d['decision_devuelta'] == 'bloqueada'
-        assert d['contradicciones_descartadas'][0]['entrada'] == _contradiccion('coste_usd', '10', '10 USD')
+        assert d['contradicciones_descartadas'][0]['entrada']['campo'] == 'coste_usd'
 
 
 def test_el_encargo_pide_anotar_solo_los_valores_distintos(tmp_path):

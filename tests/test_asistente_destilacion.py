@@ -168,3 +168,21 @@ def test_maestro_codex_enmascarado(tmp_path, monkeypatch):
     assert 'IN111' not in enviados[0] and 'TA225' not in enviados[0]
     assert almacen.leer('internet')[-1]['destino'] == 'codex' and 'IN111' not in almacen.leer('internet')[-1]['consulta']
     assert dst.MaestroCodex(vocab, ejecutar=lambda _p: 'sin json').interpretar('x') is None
+
+
+def test_codex_sin_respuesta_deja_su_causa_en_el_registro(monkeypatch):
+    """027:RF-78 — un rechazo del CLI de Codex (modelo que la cuenta no admite) queda con su código y su error, y el
+    registro de la destilación lo lleva en `fallos_maestro`, en lugar de un «no respondió» mudo."""
+    import shutil
+    import subprocess
+
+    class _Hecho:
+        returncode, stdout, stderr = 1, '', 'error: el modelo pedido no está disponible para esta cuenta'
+
+    monkeypatch.setattr(shutil, 'which', lambda _n: 'codex-falso')
+    monkeypatch.setattr(subprocess, 'run', lambda *a, **k: _Hecho())
+    m = dst.MaestroCodex({'alimentadores': ['AL9']}, modelo='modelo-x')
+    assert m._codex('orden enmascarada') is None
+    assert m.fallos and 'rc=1' in m.fallos[0]['causa'] and 'no está disponible' in m.fallos[0]['detalle']
+    reg = dst.registro(dst.Destilacion(), m, {'blandos': [], 'descartados': [], 'respondio': False})
+    assert reg['fallos_maestro'] == m.fallos and reg['respondio'] is False

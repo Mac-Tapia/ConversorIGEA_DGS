@@ -259,6 +259,15 @@ Solo cuando el código descarta algo, la decisión sale de la regla de RF-40 sob
 guarda): el modelo la escribió a partir de unas listas que el código corrigió. Sin descartes, decide el modelo, como
 antes. La medida siguiente es con el conjunto 047d, declarado antes; el 047c ya orientó el diagnóstico.
 
+**MEJ24c, 2026-11-21 (RF-52 a RF-56, T11).** La medida del 047d no pasó (5 falsas alarmas de 6 en los dos modos) y
+sus «0 perdidos» se debían a valores inventados por el modelo. El código decide más, siempre sobre lo que puede
+comprobar: lee la cifra pese a marcas y frases, exige que cada valor esté en la propuesta y en la fuente citada,
+usa el valor de la propuesta cuando el campo es suyo y no compara un total con un precio por unidad. Conservador donde
+no puede comprobar: sin fragmento de la fuente, o con varias cifras en un valor, la contradicción se mantiene. Se
+acepta que el diagnóstico sin LLM pierda defectos: los que se perdían solo los «hallaba» un valor inventado, y la
+puerta exige hallarlos de verdad. Nuevo módulo `asistente/contradicciones.py`, sin E/S, que usa `revision_roles`.
+La medida siguiente es con el conjunto 047e, declarado antes.
+
 ### T4: Evaluación real y ajuste condicionado
 
 **Cubre:** RF-8, RF-9.

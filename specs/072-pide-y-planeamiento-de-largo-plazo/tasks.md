@@ -71,7 +71,7 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       huella del texto); el maestro no cuenta como revisión humana, «verdad eléctrica» no es un uso, y lo aprobado se exporta con
       las cifras y los códigos de elementos ocultos. Evidencia: `pytest -q tests/test_asistente_planeamiento.py
       tests/test_corpus_redaccion.py`, 11 aprobadas.
-- [ ] T9b Revisión humana del corpus PIDE de la empresa de referencia y entrenamiento del asistente con lo aprobado. (RF-19)
+- [ ] T9b Revisión humana del corpus PIDE de la empresa de referencia y entrenamiento del asistente con lo aprobado. (RF-19, RF-52)
       Hecho cuando: el registro `revision_redaccion.jsonl` del corpus real tiene revisiones de una persona, su resumen consta aquí,
       y un modelo entrenado con lo exportado pasa sus puertas (070, 071) sin bajar la prueba sellada.
       Falta: la revisión, que es de una persona (`tools/corpus_redaccion_pide.py --dataset <corpus> --pendientes 20`, luego

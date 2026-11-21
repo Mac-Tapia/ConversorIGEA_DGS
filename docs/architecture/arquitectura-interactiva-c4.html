@@ -173,7 +173,7 @@
 
   <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
   <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo.</p>
-  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107, 108, 111, 112). 457 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
+  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107, 108, 111, 112). 459 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
 
   <div class="c4-toolbar">
     <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
@@ -349,7 +349,7 @@
         cEnlace: { label: 'Enlace con DIgSILENT', tech: '9 ficheros', path: 'src/convertersmartgrid/adaptadores/pf_arnes.py', kind: 'native', detail: 'Arnés de turno exclusivo, entorno, metadatos y vínculo fuente-proyecto.' },
         cGuiones: { label: 'Guiones de DIgSILENT', tech: '39 ficheros', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importan, verifican, calibran, insertan cargas, aplican obras y corren estudios.' },
         cDemanda: { label: 'Demanda y calibración', tech: '19 ficheros', path: 'src/convertersmartgrid/aplicacion/demanda_medida.py', kind: 'engine', detail: 'Libros por año y libros nuevos, cabecera, cargas y reparto.' },
-        cObras: { label: 'Obras y optimización', tech: '16 ficheros', path: 'src/convertersmartgrid/aplicacion/obras_pf.py', kind: 'ai', detail: 'Escalera, troncal, perfil de tensión, reguladores, obras integrales y optimización.' },
+        cObras: { label: 'Obras y optimización', tech: '17 ficheros', path: 'src/convertersmartgrid/aplicacion/obras_pf.py', kind: 'ai', detail: 'Escalera, troncal, perfil de tensión, reguladores, obras integrales y optimización.' },
         cEstudios: { label: 'Estudios', tech: '13 ficheros', path: 'src/convertersmartgrid/aplicacion/estudios_pf.py', kind: 'engine', detail: 'Estudios de red, protecciones y transferencia.' },
         cInformes: { label: 'Informes', tech: '15 ficheros', path: 'src/convertersmartgrid/adaptadores/informes.py', kind: 'engine', detail: 'Word, libros, mapas del informe y mapa de cargas.' },
         cNormativa: { label: 'Biblioteca normativa y fuentes de la empresa', tech: '5 ficheros', path: 'src/convertersmartgrid/aplicacion/biblioteca_normativa.py', kind: 'engine', detail: 'Registro normativo con esquema, huellas de términos, fuentes de la empresa y vínculos del .pfd.' },
@@ -358,13 +358,13 @@
         cVadVnr: { label: 'VAD y VNR', tech: '25 ficheros', path: 'src/convertersmartgrid/aplicacion/vad', kind: 'engine', detail: 'Caracterización, dimensionamiento, costos, COyM, modelos urbano y rural, VNR de la Guía, formatos y entregables.' },
         cGemelo: { label: 'Gemelo digital', tech: '30 ficheros', path: 'src/convertersmartgrid/adaptadores/digital_twin', kind: 'ai', detail: 'Episodios, búfer, captura, oráculos, temporal, pronóstico y evolutivos.' },
         cBench: { label: 'Benchmarks anonimizados', tech: '18 ficheros', path: 'src/convertersmartgrid/adaptadores/benchmarks', kind: 'ai', detail: 'Seudónimos, geometría pública, cohortes, series, control de reidentificación y reproducción.' },
-        cAsisNucleo: { label: 'Núcleo y operación', tech: '17 ficheros', path: 'src/convertersmartgrid/aplicacion/asistente/tareas.py', kind: 'ai', detail: 'Tareas, intérprete, plan, planes guardados, ejecutor y orquestador.' },
+        cAsisNucleo: { label: 'Núcleo y operación', tech: '18 ficheros', path: 'src/convertersmartgrid/aplicacion/asistente/tareas.py', kind: 'ai', detail: 'Tareas, intérprete, plan, planes guardados, ejecutor y orquestador.' },
         cAsisModelos: { label: 'Modelos de órdenes y documentos', tech: '9 ficheros', path: 'src/convertersmartgrid/aplicacion/asistente/codificador_ordenes.py', kind: 'ai', detail: 'Transformer, codificador y clasificador de informes.' },
         cAsisDatos: { label: 'Datos y entrenamiento', tech: '24 ficheros', path: 'src/convertersmartgrid/aplicacion/asistente/ordenes_maestro.py', kind: 'ai', detail: 'Órdenes sintéticas, fijas y del maestro; currículos y destilación.' },
         cAsisRag: { label: 'Conocimiento y RAG', tech: '12 ficheros', path: 'src/convertersmartgrid/aplicacion/asistente/indice.py', kind: 'ai', detail: 'Índice con el corpus normativo, vectores, reordenación y evaluación de la recuperación.' },
         cGobierno: { label: 'Gobierno de modelos', tech: '26 ficheros', path: 'src/convertersmartgrid/aplicacion/model_registry.py', kind: 'ai', detail: 'Registro, coordinador de entrenamiento, GPU, contratos de aprendizaje y arnés de evaluación.' },
         cHerrOper: { label: 'Operación, datos y aceptación', tech: '35 ficheros', path: 'tools/sistema_web.py', kind: 'engine', detail: 'Flujo completo por la web, informes de casos guardados y aceptación nativa.' },
-        cHerrModelos: { label: 'Modelos, asistente y MADRL', tech: '38 ficheros', path: 'tools/digital_twin_entrenar.py', kind: 'ai', detail: 'Entrenamientos y auditorías del gemelo, del asistente, del pronóstico y del piloto MADRL.' },
+        cHerrModelos: { label: 'Modelos, asistente y MADRL', tech: '39 ficheros', path: 'tools/digital_twin_entrenar.py', kind: 'ai', detail: 'Entrenamientos y auditorías del gemelo, del asistente, del pronóstico y del piloto MADRL.' },
         cHerrCalidad: { label: 'Calidad y entrega', tech: '20 ficheros', path: 'tools/arquitectura.py', kind: 'engine', detail: 'Capas, arquitectura generada, contrato de la API, estado de specs, suite por tandas y candidato.' },
         // Despliegue
         browser: { label: 'Navegador', tech: '127.0.0.1:8765', path: 'http://127.0.0.1:8765/', kind: 'web', detail: 'Acceso local a la interfaz y a la API.' },

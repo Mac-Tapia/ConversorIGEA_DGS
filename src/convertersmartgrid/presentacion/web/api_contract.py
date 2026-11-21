@@ -649,6 +649,9 @@ class CorreccionMedidorRespuesta(Respuesta):
     desde: str
     motivo: str = ''
     registrada: str
+    # 039:RF-24: «operador» o «automatico» (deducida por la calibración), con la evidencia que la justifica.
+    origen: str = 'operador'
+    evidencia: dict[str, JsonValue] | None = None
 
 
 class CorreccionesMedidorRespuesta(Respuesta):

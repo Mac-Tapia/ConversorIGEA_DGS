@@ -2163,12 +2163,28 @@ def factores_de_medidor(path: Path | str) -> dict[str, dict[str, Any]]:
     return out
 
 
-def _energia_de_un_dia(curva: Sequence[tuple[datetime, float, float | None]], ultimo: bool) -> tuple[str, float] | None:
-    """El día (primero o último) de una curva de 15 minutos y su energía en kWh (kW / 4)."""
-    if not curva:
+#: 039:RF-24: un día está completo con al menos esta fracción de los registros del día más lleno de la curva.
+FRACCION_DIA_COMPLETO = 0.9
+
+
+def _energia_de_un_dia(curva: Sequence[tuple[datetime, float, float | None]], ultimo: bool,
+                       mes: str | None = None) -> tuple[str, float] | None:
+    """El día completo (primero o último) de una curva de 15 minutos, de su ``mes`` si se da, y su energía en kWh.
+
+    039:RF-24: solo días completos del mes. El libro de un mes real trae el registro de las 00:00 del día siguiente (el
+    fin del último intervalo): con él, el «último día» de septiembre era el 1 de octubre con un solo registro (48 kWh) y
+    el salto de FM ×3,33 de un cliente real salía ×297 y no se detectaba.
+    """
+    por_dia: dict[Any, list[float]] = {}
+    for t, p, _q in curva:
+        if p is not None and (mes is None or t.strftime('%Y-%m') == mes):
+            por_dia.setdefault(t.date(), []).append(p)
+    lleno = max((len(v) for v in por_dia.values()), default=0)
+    completos = [d for d, v in por_dia.items() if len(v) >= FRACCION_DIA_COMPLETO * lleno]
+    if not completos:
         return None
-    dia = (max if ultimo else min)(t.date() for t, _p, _q in curva)
-    return dia.isoformat(), sum(p for t, p, _q in curva if t.date() == dia) / 4.0
+    dia = (max if ultimo else min)(completos)
+    return dia.isoformat(), sum(por_dia[dia]) / 4.0
 
 
 def fm_cambiados(actual: Path | str, anterior: Path | str, mes: str | None, mes_anterior: str | None,
@@ -2178,7 +2194,8 @@ def fm_cambiados(actual: Path | str, anterior: Path | str, mes: str | None, mes_
     Se compara ``fm`` y el número del medidor de «maestro_lib» de los dos libros. Si el FM cambia y la energía del
     primer día del mes frente a la del último día del mes anterior salta en la razón de los FM (± ``tolerancia``), el
     cambio es de unidad, no de carga: se avisa ``FM_CAMBIADO`` con las dos cifras y el factor que devuelve el FM
-    anterior (``factor_propuesto``). No se corrige solo: el operador registra la corrección (039:RF-23). Un cliente
+    anterior (``factor_propuesto``). Aquí solo se avisa; la calibración la registra sola, con origen «automático», si
+    el cliente mide más que su cabecera y con ese factor cabe (039:RF-24), y la del operador manda (039:RF-23). Un cliente
     real pasó de FM 545,4545 a 1818,1818 con el cambio de medidor y su fija subió ×3,33 sin que su cabecera subiera.
     """
     ahora, antes = factores_de_medidor(actual), factores_de_medidor(anterior)
@@ -2193,8 +2210,8 @@ def fm_cambiados(actual: Path | str, anterior: Path | str, mes: str | None, mes_
     curvas_antes = {clave_codigo(c): x for c, x in curvas_de_clientes(anterior, nombres, mes=mes_anterior)[0].items()}
     out = []
     for k, (a, v) in sorted(cambiados.items()):
-        primero = _energia_de_un_dia(curvas_ahora.get(k) or [], ultimo=False)
-        ultimo = _energia_de_un_dia(curvas_antes.get(k) or [], ultimo=True)
+        primero = _energia_de_un_dia(curvas_ahora.get(k) or [], ultimo=False, mes=mes)
+        ultimo = _energia_de_un_dia(curvas_antes.get(k) or [], ultimo=True, mes=mes_anterior)
         if primero is None or ultimo is None or ultimo[1] <= 0:
             continue
         razon, salto = v['fm'] / a['fm'], primero[1] / ultimo[1]

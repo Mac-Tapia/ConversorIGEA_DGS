@@ -41,6 +41,7 @@ RESPONSABLES: dict[str, str] = {
     '047:T4': 'sin asignar: evaluación real (GPU)', '047:T7': 'sin asignar: destilación del LLM (GPU)',
     '047:T8': 'sin asignar: revisión que distingue defectos',
     '047:T10': 'd8: medida en GPU de la revisión con contradicciones estructuradas',
+    '047:T11': 'd8: medida en GPU de la revisión con contradicciones fundadas y por base (047e)',
     '070:T11': 'usuario: candidato en DIgSILENT',
     '070:T22': 'ce: reentreno en GPU (turno 6 de TURNOS_GPU_ce_2026-11-19)',
 }

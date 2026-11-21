@@ -236,7 +236,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       destilación aún no aporta: hará falta con las 200 órdenes reales de RF-17.
 - [ ] T26. Claude y Codex como maestros de la destilación: etiquetas de Claude en
       `etiquetas_maestro`, Codex por su CLI con los nombres de la red enmascarados y anotado, y
-      `tools/asistente_entrenar.py --destilar --maestro claude|codex|ollama`. (RF-56, RF-63, RF-64)
+      `tools/asistente_entrenar.py --destilar --maestro claude|codex|ollama`. (RF-56, RF-63, RF-64, RF-78)
       Hecho cuando: pruebas en verde (enmascarado y restitución, etiquetas de archivo) y una
       corrida real con las etiquetas de Claude y otra con Codex.
       Avance del 2026-10-28: `MaestroArchivo`, `MaestroCodex` (con `enmascarar` y `reponer`) y

@@ -2963,14 +2963,26 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
                  fijas_libro=fijas_libro, manuales=manuales)
     fijas = {s: f for f in fijas_libro.values() for s in cargas
              if clave_codigo(s) == clave_codigo(f.sed)}
-    # 015:RF-73, 006:RF-47: el dato de cada fija, antes de cambiar ningún transformador y de ningún flujo. Con una fija a
-    # revisar no se calibra ni se graba nada (enmienda RF-69): queda la calibración anterior.
+    # 015:RF-73, 006:RF-47: el dato de cada fija, antes de cambiar ningún transformador y de ningún flujo.
+    # 039:RF-25 (enmienda de 015:RF-73 y 006:RF-47, usuario, 21-11-2026): una fija imposible ya no para el alimentador.
+    # La web ya buscó la causa (039:RF-24) y corrigió lo que tenía explicación; la que queda se libera (su SED va con
+    # las escaladas por su potencia instalada) y el alimentador se calibra con el resto, con la hipótesis en el informe.
     plaus = plausibilidad_del_plan(plan, objetivo, cargas, kva, fijas, fp_cargas)
     informe['plausibilidad_fijas'] = plaus
     comun['plausibilidad'] = plaus
     if plaus['estado']:
-        return {**informe, 'error': plaus['texto'], 'fijas_a_revisar': plaus, 'ambiguas': ambiguas,
-                'avisos': informe['avisos'] + [plaus['texto']]}, 2
+        informe['fijas_a_revisar'] = plaus
+        informe['avisos'].append(plaus['texto'])
+        liberadas = {clave_codigo(s) for s in plaus.get('liberadas') or []}
+        if liberadas:
+            informe['fijas_liberadas'] = [
+                {'sed': x['sed'], 'clientes': x['clientes'], 'p_kw': x['p_kw'],
+                 'motivos': [m['codigo'] for m in x['motivos']],
+                 'diagnostico': [m['diagnostico'] for m in x['motivos'] if m.get('diagnostico')]}
+                for x in plaus['fijas'] if clave_codigo(x['sed']) in liberadas]
+            for k in [k for k, f in fijas_libro.items() if clave_codigo(f.sed) in liberadas]:
+                del fijas_libro[k]
+            fijas = {s: f for s, f in fijas.items() if clave_codigo(s) not in liberadas}
     # 015:RF-59: un cliente que pide más que el transformador de su SED, nombrado; 015:RF-74: el de su grupo.
     kva_grupo_pf = {s: kva_de_grupo(s, kva, cargas) for s in fijas}
     sobre = fijas_sobre_su_transformador(fijas, kva, kva_grupo_pf)

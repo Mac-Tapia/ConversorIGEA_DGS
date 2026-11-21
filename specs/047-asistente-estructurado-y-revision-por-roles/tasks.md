@@ -19,7 +19,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       y están guardadas las evidencias adicionales descritas en T3 del plan.
       Falta: la comparación rol único frente a equipo con un LLM real (`tools/asistente_comparar_revision.py --modelo <modelo> --salida <informe.json>`). Pide Ollama y su GPU.
 
-- [ ] T4. Evaluación real y ajuste condicionado. (RF-8, RF-9)
+- [ ] T4. Evaluación real y ajuste condicionado. (RF-8, RF-9, RF-59)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_ajuste_condicionado.py tests/test_asistente_qlora.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan.
       Falta: carga cuantizada y un paso en CUDA con la revisión fijada, con su VRAM y la reapertura del adaptador real; exigir `decidir_ajuste` en `tools/asistente_qlora.py`, junto con T7; y la evaluación final con 200 órdenes reales.
@@ -94,6 +94,16 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 
 - [ ] T7. Destilar el LLM generativo con fuentes reales y verificar su ejecución local. (RF-8, RF-9, RF-11, RF-14, RF-15, RF-19, RF-20)
       Hecho cuando: las pruebas de `tests/test_llm_destilacion.py` pasan, el corpus conserva fuentes reales y particiones sin fuga, se completa ajuste QLoRA CUDA con pérdida solo de respuesta, se comparan base/checkpoints por selección, se reabre/exporta la versión exacta y se evalúan las 200 propuestas nuevas más casos humanos separados; la integración conserva confirmaciones y solo activa una versión aprobada.
+
+- [x] T7a. Volver a sellar el corpus reubicado con el prompt vigente, a través de su custodia. (RF-57, RF-58)
+      Hecho cuando: `tests/test_resellado_custodia_llm.py` pasa y `tools/llm_destilar.py sellar --custodia <manifiesto>
+      --destino <nuevo>` resella o dice qué fuente rechaza y por qué.
+      Evidencia, 2026-11-21 (MEJ29): `resellar_con_custodia` en `asistente/llm_destilacion.py` lee la custodia con
+      `leer_custodia`, resuelve cada fuente por su resolución con su sha256 y sus bytes, escribe la ruta resuelta, rehace
+      `record_id` y `dataset_hash` y sella con `sellar_particiones`; el rastro va en `resellado` y los pares de
+      `record_id`, custodiados, en `resellado_record_ids.json`. Las seis pruebas nuevas fallaban por aserción con el
+      manifiesto reutilizado tal cual. Ensayo de solo lectura sobre el corpus reubicado del 065: 11 de 11 fuentes casan
+      por sha256. El sellado v6 real lo corre la cola de GPU (paso `sellar_v6`); no cierra la T7.
 
 T6: 200 propuestas únicas, 27 tareas, 54 familias; auditoría sin solapamiento de
 texto/grupo con entrenamiento. Evaluación local Llama3.1:8b: 157/200 tareas,
@@ -179,5 +189,32 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       una demanda que la evidencia da en otra unidad y con otro valor), sin repetir propuestas ni evidencias del 047,
       del 047b ni del 047c, nombres opacos, con las mismas reglas de declaración, declarado antes de medir con huella
       sha256 `2da22130778488aa9e2a71583e6799c30fb41ce403796a5d6261fbb1a50887cc` (2026-11-21), la misma en el fichero,
+      en la herramienta y en la prueba. Lo escribió quien escribió la corrección: limitación declarada.
+      Bloqueada por la medida en su turno de GPU (cola de d8, Ollama con `qwen3:8b`), con la orden de arriba.
+      Medida del 047d, 2026-11-21 (bloque de GPU, `qwen3:8b`, huella `2da22130…1a50887cc`): **no pasa**. Rol único y
+      equipo: 6 de 6 defectos, 0 perdidos, 5 falsas alarmas de 6 sanos; el equipo, 1 sin respuesta. Causa, en los
+      dictámenes: cifras con marcas o dentro de una frase («>$14500», «_3_», «Cargabilidad máxima de A71 74 %»),
+      valores inventados («user», «kOhm») y un total frente a un precio por unidad. Los defectos se «hallaban» con esos
+      mismos valores inventados: el 0 perdidos no lo acredita. Sigue en la T11 (RF-52 a RF-56).
+- [ ] T11. Contradicciones fundadas y por base, y medida con un conjunto nuevo. (RF-52, RF-53, RF-54, RF-55, RF-56)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047e.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8e.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T10 y la T8.
+      Código, 2026-11-21 (MEJ24c): `asistente/contradicciones.py` lee las cifras con sus marcas, prefijos y dentro de
+      una frase, resuelve la cifra ambigua con el otro valor (RF-52), descarta como no fundada la contradicción cuyos
+      valores no están en la propuesta o en la fuente citada (RF-53), toma el valor de la propuesta cuando el campo es
+      suyo (RF-54), pide y comprueba la base y calcula la cuenta del total (RF-55) y no compara el texto de la acción
+      (RF-56). Pruebas, con dobles y sin LLM: `tests/test_revision_contradicciones_fundadas.py` y
+      `tests/test_revision_conjunto_047e.py`. Diagnóstico sin LLM, que no vale como medida: volver a filtrar con este
+      código las contradicciones que el LLM devolvió en la medida del 047d deja 1 falsa alarma de 6 en cada modo y
+      2 (rol único) y 3 (equipo) perdidos: los defectos que solo se «hallaban» con valores inventados.
+      Conjunto nuevo, 2026-11-21: el 047d orientó este diagnóstico y no vale para la aceptación, así que la medida es
+      con `docs/REVISION_ROLES_CASOS_047e.json`, 12 casos sintéticos del maestro (6 sanos y 6 con un error cada uno:
+      física por tensión bajo el límite y por sobrecarga de una SED, coste por precio unitario por cantidad y por precio
+      por kilómetro, riesgo por quedar sin respaldo durante una transferencia, fuentes por la evidencia de otro
+      alimentador), con cifras escritas de formas distintas (miles con punto, coma o espacio, coma decimal, moneda
+      delante, otra unidad) y precios por unidad, por kilómetro y totales en sanos y con error, sin repetir propuestas
+      ni evidencias del 047 al 047d, nombres opacos, con las mismas reglas de declaración, declarado antes de medir con
+      huella sha256 `649863d4f383978a1e1e62984a4aa7b95140a76c556078a057b667adae0ae5da` (2026-11-21), la misma en el fichero,
       en la herramienta y en la prueba. Lo escribió quien escribió la corrección: limitación declarada.
       Bloqueada por la medida en su turno de GPU (cola de d8, Ollama con `qwen3:8b`), con la orden de arriba.

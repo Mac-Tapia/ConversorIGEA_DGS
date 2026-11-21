@@ -867,3 +867,105 @@ def exportar_fusionado(destino: Path, adaptador: Path | None = None, *, log=prin
         'requiere_evaluacion_runtime': True, 'activado': False}
     publicar_duradero(destino / 'exportacion.json', json.dumps(resultado, indent=2))   # 001:RF-5
     return resultado
+
+
+#: Claves del sellado anterior que el resellado rehace; el resto del manifiesto se conserva tal cual (047:RF-57).
+CLAVES_DEL_SELLADO = ('archivos_particion', 'huellas_particion', 'prompt_hash', 'contextos_fuente',
+                      'humanas_reservadas_archivo', 'reubicacion_fuentes', 'resellado')
+
+
+def _resolver_por_custodia(filas: list[dict], custodia: CustodiaCorpus) -> dict[tuple, str]:
+    """047:RF-57 / 047:RF-58: cada fuente distinta, a su ruta en la custodia; lo que no casa, con su causa."""
+    resueltas, rechazos = {}, {}
+    for r in filas:
+        for f in r['fuentes']:
+            clave = (f['ruta'], f['sha256'], f['bytes'])
+            if clave in resueltas or clave in rechazos:
+                continue
+            try:
+                ruta = custodia.ruta(f)
+            except ValueError as exc:  # justificado: la causa se informa por fuente y nada se sella (RF-58)
+                rechazos[clave] = ('sin resolución en la custodia' if 'sin mapeo' in str(exc) else
+                                   'su resolución declara otro sha256 u otros bytes' if 'huella' in str(exc) else
+                                   str(exc))
+                continue
+            try:
+                actual = custodiar(ruta, localizador=f['localizador'])
+            except OSError:  # justificado: la copia custodiada falta; se informa como rechazo (RF-58)
+                rechazos[clave] = 'copia custodiada ausente: ' + str(ruta)
+                continue
+            if actual['sha256'] != f['sha256']:
+                rechazos[clave] = 'sha256 de la copia custodiada distinto del sellado: ' + str(ruta)
+            elif actual['bytes'] != f['bytes']:
+                rechazos[clave] = 'bytes de la copia custodiada distintos del sellado: ' + str(ruta)
+            else:
+                resueltas[clave] = actual['ruta']
+    if rechazos:
+        raise ValueError(f'la custodia rechaza {len(rechazos)} de {len(rechazos) + len(resueltas)} fuentes: ' +
+                         '; '.join(f'{ruta}: {causa}' for (ruta, _, _), causa in sorted(rechazos.items())))
+    return resueltas
+
+
+def resellar_con_custodia(manifiesto: Path, destino: Path, *, sistema: str | None = None) -> dict:
+    """047:RF-57: vuelve a sellar con el prompt vigente un corpus reubicado, leyendo sus fuentes por su custodia.
+
+    ``manifiesto`` es el ``dataset_manifest.json`` del corpus reubicado, con su ``reubicacion_fuentes``. Cada fuente se
+    escribe con su ruta resuelta en la custodia, tras comprobar su sha256 y sus bytes; ``record_id`` y ``dataset_hash``
+    se recalculan, y el manifiesto nuevo guarda en ``resellado`` el rastro del sellado anterior. Lo que no casa no se
+    sella (047:RF-58). La custodia sigue siendo la que guarda las fuentes: el corpus nuevo apunta a sus copias.
+    """
+    import shutil
+    import tempfile
+    manifiesto, destino = Path(manifiesto), Path(destino)
+    if manifiesto.name != 'dataset_manifest.json' or not manifiesto.is_file():
+        raise ValueError('la custodia es el dataset_manifest.json del corpus reubicado')
+    if destino.exists():
+        raise ValueError('destino existente conservado')
+    origen = manifiesto.parent
+    meta = json.loads(manifiesto.read_text(encoding='utf-8'))
+    custodia = leer_custodia(origen, meta)
+    if custodia is None:
+        raise ValueError('el corpus no trae manifiesto de reubicación custodiado (reubicacion_fuentes)')
+    filas = json.loads((origen / 'corpus_auditoria.json').read_text(encoding='utf-8'))
+    resueltas = _resolver_por_custodia(filas, custodia)
+    validar_corpus_real(filas, meta, custodia=custodia)
+    anexos = {}
+    for clave, nombre in (('contextos_fuente', 'contextos.json'), ('humanas_reservadas_archivo', 'humanas_reservadas.json')):
+        if meta.get(clave):
+            verificar_fuente(meta[clave], custodia=custodia)
+            anexos[nombre] = ruta_fuente(meta[clave], custodia)
+    nuevas, pares = [], []
+    for r in filas:
+        nueva = {k: v for k, v in r.items() if k != 'record_id'}
+        nueva['fuentes'] = [{**f, 'ruta': resueltas[(f['ruta'], f['sha256'], f['bytes'])]} for f in r['fuentes']]
+        nueva['record_id'] = huella(nueva)
+        nuevas.append(nueva)
+        pares.append([r['record_id'], nueva['record_id']])
+    traslado = meta['reubicacion_fuentes']
+    rastro = {'schema_version': 1, 'metodo': 'fuentes_resueltas_por_custodia_sha256',
+              'manifiesto_custodia': custodiar(manifiesto, localizador='manifiesto de reubicación custodiado'),
+              'huella_reubicacion': traslado['huella'],
+              'dataset_hash_preservado': traslado['dataset_hash_preservado'],
+              'dataset_hash_anterior': meta['dataset_hash'], 'prompt_hash_anterior': meta.get('prompt_hash'),
+              'fuentes_resueltas': [{'origen': o, 'resuelta': d, 'sha256': s, 'bytes': b}
+                                    for (o, s, b), d in sorted(resueltas.items())]}
+    if meta.get('resellado'):
+        rastro['resellado_anterior'] = meta['resellado']
+    nuevo = {k: v for k, v in meta.items() if k not in CLAVES_DEL_SELLADO}
+    nuevo['dataset_hash'] = huella(nuevas)
+    nuevo['resellado'] = rastro
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    fuente = Path(tempfile.mkdtemp(prefix='.resellado_', dir=destino.parent))
+    try:
+        publicar_duradero(fuente / 'corpus.json', json.dumps(nuevas, ensure_ascii=False))
+        publicar_duradero(fuente / 'dataset_manifest.json', json.dumps(nuevo, ensure_ascii=False))
+        for nombre, ruta in anexos.items():
+            shutil.copyfile(ruta, fuente / nombre)
+        sellado = sellar_particiones(fuente, destino, sistema=sistema)
+    finally:
+        shutil.rmtree(fuente, ignore_errors=True)
+    archivo = destino / 'resellado_record_ids.json'
+    publicar_duradero(archivo, json.dumps(pares, ensure_ascii=False))
+    sellado['resellado'] = {**rastro, 'record_ids': custodiar(archivo, localizador='record_id anterior y nuevo')}
+    publicar_duradero(destino / 'dataset_manifest.json', json.dumps(sellado, ensure_ascii=False, indent=2))   # 001:RF-5
+    return sellado
