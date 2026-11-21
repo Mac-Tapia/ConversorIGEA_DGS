@@ -1,6 +1,6 @@
 # Spec 012 — Confiabilidad y capacidad de la red calibrada
 
-Estado: implementada (2026-11-17: código cerrado; queda T17 en DIgSILENT); antes aprobada (2026-11-14: RF-87 a RF-92, confiabilidad parte 2, T14 a T18 abiertas; antes cumplida 2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (2026-10-29; aprobada el 2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11, tras
+Estado: cumplida (2026-11-17: código cerrado; queda T17 en DIgSILENT); antes aprobada (2026-11-14: RF-87 a RF-92, confiabilidad parte 2, T14 a T18 abiertas; antes cumplida 2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (2026-10-29; aprobada el 2026-10-11) · Fecha: 2026-10-11 · Origen: petición del usuario, 2026-10-11, tras
 revisar el menú «Calculation» de PowerFactory 2024 con el manual de usuario (cap. 40, 41,
 45 y 46)
 
@@ -464,6 +464,28 @@ reconoce solo por su título, que cambia de una distribuidora a otra (P13).
 - RF-92: SI ninguna columna cumple RF-90, o dos la cumplen con las mismas filas y cifras distintas,
   ENTONCES EL SISTEMA no dará ninguna tasa ni escribirá nada en el proyecto y dirá en una frase los
   títulos encontrados y que se renombre la columna del alimentador.
+- RF-93: SI una clase o un tipo del libro no tiene ninguna falla en el histórico (tasa 0 y tiempo de reparación 0),
+  ENTONCES EL SISTEMA no creará su modelo de falla en DIgSILENT, que no admite un tiempo de reparación de 0, seguirá
+  con las demás clases y dirá en el informe cuáles quedaron sin modelo (corrida del 2026-11-20: una barra sin fallas
+  tumbaba la aplicación del libro entero).
+- RF-94: SI el libro da un tiempo de maniobra de 0 (la maniobra manual cuando el histórico no separa localización y
+  maniobra), ENTONCES EL SISTEMA escribirá en cada equipo de maniobra el mínimo que admite DIgSILENT (0,001 min; un
+  `ElmCoup` no admite 0), sin cambiar el tiempo de la interrupción del histórico, y dirá en el informe cuántos
+  equipos lo llevan (corrida del 2026-11-20: «setting attribute 'Tswitch' … failed» tumbaba la aplicación del libro).
+- RF-95: CUANDO la web lance la aplicación del libro con su fichero de cancelación, EL SISTEMA lo admitirá como los
+  demás guiones de DIgSILENT y dejará su informe (2026-11-20: el guion no lo admitía, salía con el código 2 sin
+  informe y la web solo decía «terminó con el código 2 sin dejar informe»).
+- RF-96: CUANDO calcule la confiabilidad, EL SISTEMA mirará si un alimentador tiene tensión antes de la falla con un
+  flujo válido del caso tal como se estudia (2026-11-20: en un caso del operador la variación del estudio invalidaba
+  el flujo base y todos salían «sin tensión», con los índices nulos, aunque ComRel3 terminara bien).
+- RF-97: SI DIgSILENT termina ComRel3 con un código distinto de 0, ENTONCES EL SISTEMA dirá la causa con los
+  mensajes de error de DIgSILENT (2026-11-20: «Violated constraints in base case found … Active power of the
+  following elements is outside the limit», una central por encima de su potencia en «Sin proyecto»).
+- RF-98: CUANDO termine de aplicar el libro, EL SISTEMA dejará de grabar en la etapa de «Datos de confiabilidad» en
+  «Sin proyecto»: devolverá la grabación a la etapa que grababa antes, con la misma hora del estudio, o la dejará sin
+  etapa que grabe si no grababa ninguna; y SI DIgSILENT la sigue grabando, ENTONCES lo dirá con lo que hay que hacer
+  antes de un cambio a mano (2026-11-20: «Etapa_confiabilidad» quedó grabando, y un cambio a mano habría ido a la
+  variación que se reemplaza al aplicar otro libro, RF-23).
 - Aclaración de RF-90 (2026-11-14, auditor 3e): «la columna en la que más de la mitad de las filas
   tienen un alimentador» se sustituye por la columna llena y de pocos valores distintos que contiene
   más de la mitad de los alimentadores de la red o del proyecto, para que un proyecto con pocos

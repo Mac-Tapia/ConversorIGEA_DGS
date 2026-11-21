@@ -68,7 +68,7 @@ def test_digsilent_ningun_mensaje_pide_abrirlo():
     assert 'Ábralo y reintente' not in SERVICES
     assert 'no está abierto' not in SERVICES
     assert services.sin_conexion_digsilent.__doc__
-    assert SERVICES.count('raise sin_conexion_digsilent()') == 7  # 091 T1 añadió el de la verificación del «Caso base»
+    assert SERVICES.count('raise sin_conexion_digsilent()') == 8  # 091 T1: el del «Caso base»; 004:RF-118: el del .pfd
     assert 'Ábralo' not in APP and 'no está abierto' not in APP
     assert 'preferiblemente' not in PANEL and 'cerrado' in PANEL
     manual = (RAIZ / 'docs' / 'MANUAL_COMANDOS.md').read_text(encoding='utf-8')

@@ -1589,6 +1589,25 @@
         "title": "Body_perfil_guardar_api_perfil_post",
         "type": "object"
       },
+      "Body_pfd_importar_api_workspaces__wid__pf_pfd_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "reimportar": {
+            "default": false,
+            "title": "Reimportar",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_pfd_importar_api_workspaces__wid__pf_pfd_post",
+        "type": "object"
+      },
       "Body_pide_fuentes_api_workspaces__wid__pide_fuentes_post": {
         "properties": {
           "corto_plazo": {
@@ -23145,6 +23164,56 @@
           }
         },
         "summary": "Obras Simular"
+      }
+    },
+    "/api/workspaces/{wid}/pf/pfd": {
+      "post": {
+        "description": "004:RF-118: el ``.pfd`` subido se guarda en el espacio y se importa y diagnostica en la carpeta de su empresa,\ncomo trabajo del carril de DIgSILENT (``tools/pfd_diagnostico.py``).",
+        "operationId": "pfd_importar_api_workspaces__wid__pf_pfd_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_pfd_importar_api_workspaces__wid__pf_pfd_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pfd Importar"
       }
     },
     "/api/workspaces/{wid}/pf/protecciones": {

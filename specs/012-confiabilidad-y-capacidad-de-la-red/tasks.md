@@ -171,10 +171,54 @@ Exposición leída de DIgSILENT (2026-11-14, «convertido o no»)
       de RF-91 y RF-92; `-k` con `elige_por_forma or forma_de_alimentador_es_un_error or 70_por_ciento`), y los cuatro ficheros de la confiabilidad y `tests/test_trazabilidad_specs.py`
       en verde.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_confiabilidad_pf_guion.py tests/test_historico_interrupciones.py.
-- [ ] T17. [DIgSILENT] Prueba nativa en la sesión 2 de DIgSILENT, a cargo del usuario: un proyecto sin
+- [x] T19. Clase sin fallas sin modelo (RF-93): `con_modelo` y `sin_modelo` en `tools/confiabilidad_pf.py`; el doble de
+      DIgSILENT rechaza un tiempo de reparación de 0 como el real (sonda del 2026-11-20). (RF-93)
+      Hecho cuando: `pytest -q tests/test_confiabilidad_pf_guion.py -k sin_fallas` falla por aserción sin el cambio y
+      pasa con él, y la corrida nativa de la T17 aplica el libro sin el error de `RepMu`.
+      Hecho el 2026-11-21 (d8, MEJ20): rojo por aserción sobre dac543a5 (D:/csg/PM_IMPL/MEJ20_CONFIAB/rojo_002349.log,
+      5 failed con -k de las 5 pruebas nuevas) y verde (D:/csg/PM_IMPL/MEJ20_CONFIAB/verde_d8_20261121_032249.log: 532
+      passed, 0 failed; la omitida es la del histórico real, que corre la puerta con sus variables).
+- [x] T20. MEJ20 Maniobra de 0 al mínimo (RF-94): `TSWITCH_MINIMO_MIN` y `tiempo_de_maniobra` en
+      `tools/confiabilidad_pf.py`, el aviso con `tswitch_al_minimo`; el doble rechaza `Tswitch` = 0 en un `ElmCoup`,
+      como el real (sonda del 2026-11-20). (RF-94)
+      Hecho cuando: `pytest -q tests/test_confiabilidad_pf_guion.py -k maniobra_manual_cero` falla por aserción sin
+      el cambio y pasa con él, y la corrida nativa de la T17 aplica el libro sin el error de `Tswitch`.
+      Hecho el 2026-11-21 (d8, MEJ20; sonda en DIgSILENT: un ElmCoup rechaza Tswitch = 0): rojo por aserción sobre
+      dac543a5 (D:/csg/PM_IMPL/MEJ20_CONFIAB/rojo_002349.log, 5 failed con -k de las 5 pruebas nuevas) y verde
+      (D:/csg/PM_IMPL/MEJ20_CONFIAB/verde_d8_20261121_032249.log: 532 passed, 0 failed; la omitida es la del histórico
+      real, que corre la puerta con sus variables).
+- [x] T21. MEJ20 El guion admite el fichero de cancelación de la web (RF-95): `--cancel-file` en `main` de
+      `tools/confiabilidad_pf.py`. (RF-95)
+      Hecho cuando: `pytest -q tests/test_confiabilidad_pf_guion.py -k cancel_file` falla por aserción sin el cambio
+      (argparse sale con 2 y no hay informe) y pasa con él, y «Aplicar el libro» desde la web deja su informe.
+      Hecho el 2026-11-21 (d8, MEJ20; causa en cola_pf/ordenes.jsonl: «unrecognized arguments: --cancel-file»): rojo
+      por aserción sobre dac543a5 (D:/csg/PM_IMPL/MEJ20_CONFIAB/rojo_002349.log, 5 failed con -k de las 5 pruebas
+      nuevas) y verde (D:/csg/PM_IMPL/MEJ20_CONFIAB/verde_d8_20261121_032249.log: 532 passed, 0 failed; la omitida es
+      la del histórico real, que corre la puerta con sus variables).
+- [x] T22. MEJ20 Tensión antes de la falla con flujo válido y causa de ComRel3 (RF-96, RF-97): `fiabilidad` corre el
+      `ComLdf` del caso antes de `sin_tension`; `causa_de_la_salida` y `causa_orden`, citada en el error de
+      `estudios_pf.ejecutar`. (RF-96, RF-97)
+      Hecho cuando: `pytest -q tests/test_confiabilidad_pf_guion.py -k "flujo_invalidado or causa_de_digsilent"` falla
+      por aserción sin el cambio y pasa con él, y en DIgSILENT «Con proyecto» da SAIFI y SAIDI y «Sin proyecto» dice
+      su causa.
+      Hecho el 2026-11-21 (d8, MEJ20): rojo por aserción sobre dac543a5 (D:/csg/PM_IMPL/MEJ20_CONFIAB/rojo_002349.log,
+      5 failed con -k de las 5 pruebas nuevas) y verde (D:/csg/PM_IMPL/MEJ20_CONFIAB/verde_d8_20261121_032249.log: 532
+      passed, 0 failed; la omitida es la del histórico real, que corre la puerta con sus variables).
+- [x] T17. [DIgSILENT] Prueba nativa en la sesión 2 de DIgSILENT, a cargo del usuario: un proyecto sin
       conversión, el histórico real (`CSG_INTERRUPCIONES`) subido a un espacio sin red, «Aplicar el
       libro» desde la web: la exposición leída por alimentador coincide con la longitud y los elementos
       que muestra DIgSILENT, las tasas de línea y transformador son mayores que cero, los modelos
       `CSG012_*` llevan esas tasas, la confiabilidad corre y el «Caso base» no cambia; el aviso dice qué columna
       es la del alimentador y por qué. (RF-87 a RF-92)
       Hecho cuando: el usuario confirma los resultados con el informe del guion.
+      Hecho el 2026-11-20 (bloque DIgSILENT de d8, origen maestro: el maestro hace de humano; código wt_d8_conf =
+      dac543a5 + Informe: D:/csg/PM_IMPL/DIG_BLOQUE/INFORME.md, sección «012 T17»; código de MEJ20, integrado en la
+      misma puerta.
+- [x] T23. MEJ23 La etapa de confiabilidad deja de grabar (RF-98): `etapa_que_graba_fuera_de` y `soltar_la_grabacion`
+      en `tools/confiabilidad_pf.py`, con `grabando` en el informe. (RF-98)
+      Hecho cuando: `pytest -q tests/test_confiabilidad_pf_guion.py -k "no_queda_grabando or etapa_del_operador"` falla
+      por aserción sin el cambio y pasa con él, y en DIgSILENT «Sin proyecto» no queda con «Etapa_confiabilidad»
+      grabando tras aplicar el libro.
+      Hecho el 2026-11-21 (MEJ23, código): rojo por aserción D:/csg/PM_IMPL/MEJ23_PFD/rojo.log y verde D:/csg/PM_IMPL/MEJ23_PFD/verde_nucleo.log,
+      verde_vecinas.log, tsc.log, npm_test.log y build.log (ESTADO.txt: 0 F, 0 omitidas);
+      la comprobación en DIgSILENT va con la T17.

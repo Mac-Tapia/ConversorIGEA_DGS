@@ -156,6 +156,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
 - [ ] T30. [DIgSILENT] Prueba real con el usuario: importar desde la web dos `.pfd` reales de prueba y revisar el
       diagnóstico de sus casos, escenarios, cargas, proyectos nuevos y vínculos. (RF-81 a RF-107)
       Hecho cuando: el usuario lo acepta en DIgSILENT.
+      Nota del 2026-11-20 (bloque DIgSILENT de d8): los dos `.pfd` de prueba se diagnosticaron con el guion (rc=0;
+      evidencia en `D:/csg/PM_IMPL/DIG_BLOQUE/50_pfd_004T30/`); la web no tenía la ruta (la pone T36) y los avisos se
+      repetían (T35). Falta repetirlo desde la web con T35 y T36 integradas.
 - [x] T31. El proyecto de la versión anterior de un `.pfd` se renombra con «_anterior_<sha10>_<AAAAMMDD-HHMMSS>» y se
       conserva; el nuevo toma el nombre base; si el anterior está activo se desactiva antes y se dice; el informe nombra
       los dos; con el doble `tests/fake_pf.py`. (RF-101, RF-103, RF-104, RF-105, RF-106, RF-107)
@@ -180,3 +183,17 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ11_MAXIMA/rojo_py.log (14 F) y rojo_front.log (5 F) sobre d6582a8e; verde
       D:/csg/PM_IMPL/MEJ11_MAXIMA/verde_npm_test.log (334 pass, 0 fail); verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
       npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).
+- [x] T35. MEJ23 Avisos del `.pfd` agrupados (orden del 20-11): `agrupar_avisos`, `etiqueta_de_caso` y el empate de
+      etapas por la ruta del caso en `_completar` de `tools/pfd_diagnostico.py`; `avisos_agrupados` y
+      `etapas_empatadas` en el JSON y «(×n)» en el informe de texto. (RF-117)
+      Hecho cuando: rojo por aserción sobre dac543a5 + MEJ20 y verde con `pytest -q tests/test_pfd_diagnostico.py`.
+      Hecho el 2026-11-21 (MEJ23, código): rojo por aserción D:/csg/PM_IMPL/MEJ23_PFD/rojo.log y verde D:/csg/PM_IMPL/MEJ23_PFD/verde_nucleo.log,
+      verde_vecinas.log, tsc.log, npm_test.log y build.log (ESTADO.txt: 0 F, 0 omitidas).
+- [x] T36. MEJ23 Importar el `.pfd` desde la web (orden del 20-11; la ruta que T29 daba por hecha):
+      `POST /api/workspaces/{wid}/pf/pfd`, `services.nombre_del_pfd`, `pfd_importar` y `pfd_resumen`, y
+      `frontend/src/features/powerfactory/ImportarPfd.tsx` en el paso 1 de «Cargas en DIgSILENT». (RF-118)
+      Hecho cuando: rojo por aserción y verde con `pytest -q tests/test_pfd_web.py tests/test_web_api.py`, `npm test`,
+      `npx tsc --noEmit -p .` y `npm run build`; la prueba con dos `.pfd` desde la web es la T30.
+      Hecho el 2026-11-21 (MEJ23, código): rojo por aserción D:/csg/PM_IMPL/MEJ23_PFD/rojo.log y verde D:/csg/PM_IMPL/MEJ23_PFD/verde_nucleo.log,
+      verde_vecinas.log, tsc.log, npm_test.log y build.log (ESTADO.txt: 0 F, 0 omitidas);
+      la prueba con los dos `.pfd` desde la web es la T30 [DIgSILENT].

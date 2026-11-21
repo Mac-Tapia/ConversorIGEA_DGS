@@ -327,6 +327,9 @@ small.alert { display: block; margin: 4px 0 0; }
 .curva { align-self: stretch; display: flex; flex-direction: column; gap: 6px; }
 .curva-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .curva-check { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; }
+/* 111 T17 (revisión del 20-11): axe target-size (2.5.8) daba la casilla de «Evolución de clientes fijos» en 13×13 px;
+   24 px como las casillas de capas del plano (adaptadores/preview.py). */
+.curva-check input[type="checkbox"] { width: 24px; height: 24px; margin: 0; }
 .curva-svg {
   width: 100%; height: auto; display: block; background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px; cursor: crosshair; touch-action: none; user-select: none;

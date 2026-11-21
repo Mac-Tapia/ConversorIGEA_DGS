@@ -626,3 +626,15 @@ def test_columna_con_el_70_por_ciento_de_forma_no_gana(tmp_path):
                 de.con_exposicion(sin, exp, origen=PROYECTO_P)
             assert '«Instalación»' in str(e.value)
             assert de.leer_libro(ruta, red=exp).tasas == {}
+
+
+@pytest.mark.parametrize('origen, esperado', [
+    ('el proyecto de DIgSILENT «P1»', 'Exposición leída del proyecto de DIgSILENT «P1»'),
+    ('la red convertida', 'Exposición leída de la red convertida'),
+])
+def test_la_frase_de_la_exposicion_contrae_de_el(origen, esperado):
+    """086:RF-134 — la frase de la exposición dice «del proyecto», nunca «de el proyecto» (bloque DIgSILENT del 20-11,
+    «Aplicar el libro»: «Exposición leída de el proyecto de DIgSILENT …»)."""
+    frase = hi.frase_exposicion(hi.resumen_exposicion({'F1': {'linea': 1.0}}, origen))
+    assert frase.startswith(esperado), frase
+    assert ' de el ' not in frase

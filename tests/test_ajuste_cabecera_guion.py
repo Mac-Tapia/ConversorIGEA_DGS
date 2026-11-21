@@ -2392,3 +2392,63 @@ def test_015_rf75_el_informe_dice_el_kva_de_la_fuente_y_del_grupo(guion):
     assert fila['kva'] == pytest.approx(50.0) and fila['kva_de'] == 'pf'
     assert fila.get('kva_fuente') == pytest.approx(40.0) and fila.get('kva_grupo') == pytest.approx(40.0), fila
     assert _sed(informe, 'F1_S2').get('kva_fuente', 'falta') is None
+
+
+class _Corte(BaseException):
+    """El servidor muerto a media orden (086 T33): lo que queda en sus ``finally`` ya no corre."""
+
+
+@pytest.mark.parametrize('modo', ['alimentador', 'proyecto'])
+def test_083_rf35_las_cargas_de_una_orden_cortada_no_son_cambios_a_mano(guion, monkeypatch, modo):
+    """083:RF-35, 083:RF-27, 014:RF-10, 014:RF-11 — 086 T33: con el kill a media calibración la orden dejó escritas las
+    cargas de un alimentador y no llegó a guardar lo escrito; la calibración siguiente las tomó por cambios del operador
+    («47 cargas con la demanda cambiada a mano… quedan fijas») y el alimentador quedó sin calibrar. Ahora la orden deja
+    su diario antes de escribir: la siguiente las recalibra y lo dice, y el cambio a mano de verdad sigue siendo del
+    operador, fijo y sin sobrescribir. Al terminar, el diario se cierra."""
+    app = _con_escenario_que_manda()
+    sys_casos = __import__('sys').modules['casos_pf']
+    monkeypatch.setattr(sys_casos, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
+    cliente = {'codigo': '11', 'sed': 'F1_S2', 'pot': 40.0, 'ea': 1.0, 'eri': 0.25}
+
+    def calibrar(pot, **extra):
+        f1 = {**_plan(clientes=[{**cliente, 'pot': pot}]), **extra}
+        if modo == 'alimentador':
+            return guion.ejecutar(app, f1)
+        f2 = copy.deepcopy(_plan())
+        f2['feeder'] = 'F2'
+        f2['objetivo'].update(kw=220.0, medidor='M_F2', alimentador='F2')
+        f2['native_action_context'] = contexto_nativo('P', ['F2'], 'ajuste')
+        return guion.ejecutar_proyecto(app, [f1, {**f2, **extra}])[0]
+
+    primero, rc = calibrar(40.0)
+    assert rc == 0, primero
+    ultima = _ultima(primero)
+    _caso(app, 'Sin proyecto').Activate()
+    escala = _carga(app, 'F1_S3').scale0
+    _carga(app, 'F1_S3').plini = 0.077 / escala                      # el operador, a mano: 77 kW efectivos
+    _caso(app, 'Caso base').Activate()
+
+    def corte(*_a, **_k):
+        raise _Corte()
+
+    with monkeypatch.context() as m:
+        m.setattr(guion, 'guardar_lo_escrito', corte)
+        with pytest.raises(_Corte):
+            calibrar(60.0, ultima_calibracion=ultima)                # escribe F1_S2 con 60 kW y muere
+    _caso(app, 'Sin proyecto').Activate()
+    assert _carga(app, 'F1_S2').plini == pytest.approx(0.060), 'la orden cortada dejó escrita su carga'
+    _caso(app, 'Caso base').Activate()
+
+    tercero, rc = calibrar(40.0, ultima_calibracion=ultima)
+
+    assert rc == 0, tercero
+    assert [x['sed'] for x in tercero.get('cargas_manuales') or []] == ['F1_S3'], tercero.get('cargas_manuales')
+    cortadas = {x['sed']: x for x in tercero.get('cargas_de_una_orden_cortada') or []}
+    assert 'F1_S2' in cortadas and cortadas['F1_S2']['ahora']['kw'] == pytest.approx(60.0), cortadas
+    assert cortadas['F1_S2']['antes']['kw'] == pytest.approx(40.0)
+    assert any('a medias' in a and 'se recalibra' in a for a in tercero['avisos']), tercero['avisos']
+    assert not any('cambiada a mano' in a and 'F1_S2' in a for a in tercero['avisos'])
+    _caso(app, 'Sin proyecto').Activate()
+    assert _carga(app, 'F1_S2').plini == pytest.approx(0.040), 'recalibrada con su cliente'
+    assert _carga(app, 'F1_S3').plini == pytest.approx(0.077 / escala), 'el cambio a mano no se sobrescribe'
+    assert guion.leer_diario('P') == {}, 'la orden que terminó cierra el diario'

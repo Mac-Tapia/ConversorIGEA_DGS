@@ -11,24 +11,24 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 469 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 132 |
-| Interfaz | `frontend/src/` | 120 |
+| Interfaz | `frontend/src/` | 121 |
 | Pruebas de la interfaz | `frontend/test/` | 65 |
-| Pruebas | `tests/` | 643 |
+| Pruebas | `tests/` | 644 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 14550 líneas y 464 funciones, pendiente de partir (002).
+`web/services.py` tiene 14657 líneas y 469 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 85 |
-| aprobada | 21 |
+| cumplida | 86 |
+| aprobada | 20 |
 | implementada | 5 |
 | retirada | 1 |
 
-112 specs con 3973 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 3986 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -48,12 +48,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-170 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+171 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
 | `demanda` | espacio | 32 |
-| `pf` | espacio | 24 |
+| `pf` | espacio | 25 |
 | `informes` | espacio | 11 |
 | `asistente` | general | 11 |
 | `asistente` | espacio | 10 |
@@ -474,7 +474,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `dominio/pit/__init__.py` | Dom | 107 | Paquete del PIT, aparte del PIDE, y su error común. |
 | `dominio/pit/ambito.py` | Dom | 107 | Áreas de demanda del perfil y los elementos de cada una, sin mezclar áreas. |
 | `aplicacion/pit/red_area.py` | Apl | 107 | Contrato neutro RedArea y lector del libro de la red del perfil. |
-| `adaptadores/pit/red_pandapower.py` | Ada | 107 | De RedArea a pandapower (dos y tres devanados, compensación) y flujo del motor abierto con potencia sin servir y P y Q de cada línea y transformador. |
+| `adaptadores/pit/red_pandapower.py` | Ada | 107 | De RedArea a pandapower (dos y tres devanados, compensación, acoplamientos de barras y redes externas PQ o PV con su consigna) y flujo del motor… |
 | `adaptadores/pit/motores.py` | Ada | 107 | Matriz estudio × motor (abierto por defecto, DIgSILENT con licencia). |
 | `adaptadores/pit/diagnostico.py` | Ada | 107 | Diagnóstico por año: demanda por barra de SET, caso base y N-1 contra los límites del registro o del perfil. |
 | `dominio/pit/programa.py` | Dom | 107 | Programa por año, titular y área, con bajas y reemplazos. |
@@ -856,7 +856,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `protecciones_pf.py` | — | 049 | Guion de DIgSILENT de las protecciones: con `--capacidades`, el inventario de la versión conectada (órdenes `ComShc`, `ComShctrace` y… |
 | `transferencia_pf.py` | — | 011, 104, 129, 016 | Guion de DIgSILENT: transferencia de carga entre dos alimentadores por su enlace, paso a paso en los dos sentidos, con la capacidad y el margen del… |
 | `transformador_set_pf.py` | — | 017 | Guion de DIgSILENT: cargabilidad del devanado de la SET en el proyecto de transmisión, sin proyecto (el caso tal cual) y con proyecto (la carga de la… |
-| `pit_pf.py` | — | 107 | Guion de DIgSILENT del PIT: exporta la red de transmisión al contrato RedArea y corre ComLdf, ComSimoutage y ComRel3 por año sin dejar nada cambiado. |
+| `pit_pf.py` | — | 107 | Guion de DIgSILENT del PIT: exporta la red de transmisión al contrato RedArea, con un id único por elemento (su ruta desde la red), los acoplamientos… |
 | `variacion_plano_pf.py` | — | 111 | Guion de DIgSILENT del plano de la red: la variación en una variación temporal del conversor dentro de una copia del caso (y del escenario de… |
 | `set_nueva_operacion_pf.py` | — | 063 | Diagnóstico físico de conexiones y tipos de una SET existente. |
 | `pide_pf.py` | — | 024, 029, 030 | Guion de DIgSILENT: cada año del horizonte del PIDE con la demanda escalada por el `ComLdf`, diagnóstico de la norma con el alimentador y la tensión… |
@@ -881,7 +881,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `restitucion_pf.py` | — | 064 | Órdenes de aceptación de la restitución del servidor: copiar, alterar y fallar, leer y borrar una copia `PRUEBA064_*`. |
 | `aceptar_restitucion_pf.py` | — | 064 | Aceptación nativa de la restitución por el camino de la web y el servidor, con evidencia en JSON. |
 | `estadistica_ordenes.py` | — | 081 | Resumen de las órdenes de DIgSILENT por guion y día, contraste de hipótesis entre dos versiones y fallos repetidos. |
-| `pfd_diagnostico.py` | — | 004, 102 | Importa un `.pfd` con `ComPfdimport` en un proyecto nuevo de la carpeta del conversor, identificado por su huella (reutilizar, versión nueva,… |
+| `pfd_diagnostico.py` | — | 004, 102, 117 | Importa un `.pfd` con `ComPfdimport` en un proyecto nuevo de la carpeta del conversor, identificado por su huella (reutilizar, versión nueva,… |
 
 ### Herramientas: operación, datos y aceptación
 
@@ -1141,6 +1141,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/powerfactory/EstudiosPF.tsx` | — | 011, 012, 037, 049, 091 | Paso 4.2: estudios sobre la red calibrada, límites y resultados. |
 | `src/features/powerfactory/GemeloPIDE.tsx` | — | 024, 072 | Paso 5 de «Cargas en DIgSILENT»: planificar con el PIDE (CAPEX opcional, aplicar solas las obras que funcionan), tabla de obras con prioridad, estado… |
 | `src/features/powerfactory/GuionesPF.tsx` | — | 011 | Paso 4.2: guiones DPL y Python del operador, sus parámetros y su salida por caso. |
+| `src/features/powerfactory/ImportarPfd.tsx` | — | 004, 117, 118 | Paso 1: subir un `.pfd`, importarlo en la carpeta de la empresa como trabajo de DIgSILENT y su resumen con los avisos agrupados. |
 | `src/features/powerfactory/InformesPF.tsx` | — | 017, 100, 102, 104, 125, 110 | Paso 4.4: informe de estudio eléctrico y de factibilidad y punto de diseño con lo ya guardado por la web (flujos de 4.2, obras, cargas nuevas… |
 | `src/features/powerfactory/ObrasPF.tsx` | — | 011, 016 | Paso 4.1: formulario de obras de mejora (también enlace, migración desde un nodo y sección de toda la troncal), bibliotecas de tipos, obras… |
 | `src/features/powerfactory/OperacionSet.tsx` | — | 063 | Panel para diagnosticar, evaluar o reforzar una SET existente, sin recrearla. |

@@ -166,6 +166,9 @@ adaptador VNR (integrador f9).
        con la tolerancia de la 112 (0,005 p.u. en tensión, 1 % en corriente). (RF-2, RF-3, RF-5)
        Hecho cuando: la evidencia de la corrida (informe y registro) queda fuera de git con su huella y las diferencias
        entre motores están dentro de la tolerancia o explicadas elemento por elemento.
+       Primera corrida del 2026-11-20 (d8, bloque DIgSILENT): DIgSILENT da ComLdf con código 0 y el motor abierto no
+       converge por un defecto del guion (ids por nombre, acoplamientos sin exportar, referencia en una máquina),
+       corregido en T44 (RF-25). Falta repetir la corrida con el código de T44.
 - [x] T15. Aceptación con datos reales autorizados por la empresa: reproducir, fila por fila, un cuadro de un PIT
        publicado para el área del primer caso, con sus diferencias explicadas. (RF-6, RF-9)
        Hecho cuando: el expediente trae el cuadro reproducido, su cuadro publicado de referencia con su huella, y cada
@@ -471,3 +474,12 @@ adaptador VNR (integrador f9).
       `tests/test_pit_web.py`.
       Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
       hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T44. Ids únicos, acoplamientos y máquina de referencia en la red de transmisión (corrida de T14 del 20-11):
+      `tools/pit_pf.py` da a cada elemento su ruta desde la red como id (`_id`) y las mismas claves en `_ejecutar` y
+      `estado`; exporta los `ElmCoup` como `union` con su estado y la máquina de referencia (`ip_ctrl`) como red externa
+      SL; `red_area` acepta la `union`, y `red_pandapower` une sus barras y mete la red externa PQ o PV con su consigna
+      (`inyecciones_externas`). (RF-25)
+      Hecho cuando: rojo por aserción y verde con sus pruebas: `tests/test_pit_pf_guion.py` (107:RF-25), con dos
+      subestaciones sintéticas de barras con el mismo nombre, acoplamientos y la referencia en una máquina, el flujo
+      abierto converge y empareja por id con el ComLdf del doble.
+      Hecho el 2026-11-20 (d8, fila MEJ22): rojo sobre la base y verde en D:/csg/PM_IMPL/MEJ22_PIT/.

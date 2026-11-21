@@ -101,6 +101,21 @@ oráculo propone el arranque, nunca da una calibración por buena (024, principi
 - RF-34: (misma orden; enmienda RF-30) EL SISTEMA medirá el tope del 10 % de RF-30 contra las fijas con que entró el
   cuadre, sumando lo ya corregido: varias correcciones seguidas no bajan las fijas más del 10 % en total, y lo que pase
   de ahí deja el alimentador imposible con su causa (086:RF-124).
+- RF-35: (086 T33, corte a media calibración) ANTES de escribir ninguna carga, EL SISTEMA dejará junto a lo escrito
+  (RF-27) un diario «escribiendo cargas» con el token de la orden, su hora y lo que tenía cada carga que va a escribir;
+  las cambiadas a mano no entran (014:RF-11). La orden lo cierra al terminar, bien, con fallo o cancelada. SI al empezar
+  otra orden queda un diario abierto, ENTONCES sus cargas no serán cambios a mano (014:RF-10): se recalibran, y el
+  informe y el escaneo dicen cuáles dejó a medias, con lo que tenían antes y lo que tienen. Lo de otro alimentador sigue
+  en el diario hasta que una orden lo escriba. Los cambios a mano reales siguen siendo del operador: aviso, nunca se
+  sobrescriben ni se borran. En la prueba de corte del 2026-11-20 la orden cortada dejó escritas 47 cargas de un
+  alimentador, la siguiente las tomó por manuales («quedan fijas con su valor») y el alimentador quedó sin calibrar.
+  Variante elegida (decisión del implementador, 2026-11-20): recalibrar y no reponer desde la calibración anterior.
+  Reponer sería otra escritura que también se puede cortar, y la calibración que sigue las escribe de todos modos.
+- RF-36: (086 T33) CUANDO empieza el escaneo (028:RF-15, RF-16) o una calibración, EL SISTEMA encenderá en «Sin» y
+  «Con proyecto» las variaciones del conversor (`Fichas_`, `SED_NTP_`) antes de leer los generadores y los bancos, y lo
+  dirá, como RF-29. Mientras escribe, la calibración las apaga (015:RF-37) y un kill impide volver a encenderlas. En la
+  prueba de corte del 2026-11-20, con ellas apagadas, el escaneo no vio la central ni los 8 bancos y el plan siguiente
+  calibró sin ellos. Las variaciones del operador no se tocan.
 
 ## Fuera de alcance
 

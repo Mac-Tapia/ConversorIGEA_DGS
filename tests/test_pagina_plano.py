@@ -205,3 +205,23 @@ def test_111_rf22_el_espacio_de_ingenieria_es_una_pantalla_con_tres_vistas_redim
     assert '.plano-espacio {' in estilos and '@media (max-width: 900px)' in estilos
     recorrido = (raiz / 'e2e' / 'plano_espacio.spec.ts').read_text(encoding='utf-8')
     assert '[1366, 900]' in recorrido and '[1920, 1080]' in recorrido and "name: 'Ancho del plano'" in recorrido
+
+
+def test_111_rf14_los_controles_del_plano_hablan_en_espanol_y_sin_enlace_a_internet(tmp_path):
+    """111:RF-14 (T17, revisión del 20-11) — en el lector de pantalla, los controles se llamaban «Zoom in», «Zoom out» y
+    «Layers», y el prefijo de la atribución enlazaba a leafletjs.com; la página es en español y trabaja sin red."""
+    vistas, _seed = _vistas(tmp_path)
+    html = _pagina().pagina(vistas)
+    assert "zoomInTitle: 'Acercar'" in html and "zoomOutTitle: 'Alejar'" in html
+    assert 'zoomControl: false' in html and 'setPrefix(false)' in html
+    assert "setAttribute('aria-label', 'Capas')" in html
+
+
+def test_111_rf13_el_aviso_sin_mapa_base_no_tapa_la_red(tmp_path, monkeypatch):
+    """111:RF-13 (T17, revisión del 20-11) — el aviso de arriba heredaba el «bottom» de .panel y, con «top», ocupaba toda
+    la altura del mapa: la red quedaba debajo de un panel casi opaco. Medido en el navegador: 358×618 px de 564×646."""
+    vistas, _seed = _vistas(tmp_path)
+    html = _pagina().pagina(vistas)
+    regla = re.search(r'#aviso \{([^}]*)\}', html)
+    assert regla, 'falta la regla del aviso'
+    assert 'top: 10px' in regla.group(1) and 'bottom: auto' in regla.group(1)

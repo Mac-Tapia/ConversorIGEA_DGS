@@ -22,7 +22,8 @@ Escaneo
 
 - RF-1: CUANDO el operador pida escanear alimentadores de un proyecto de DIgSILENT, EL SISTEMA
   leerá cada uno en el caso «Sin proyecto» (el de su año, si lo hay) sin escribir nada en el
-  proyecto.
+  proyecto. Única salvedad (083:RF-36): antes de leer enciende las variaciones del conversor que
+  una orden cortada dejó apagadas, y lo dice.
 - RF-2: EL SISTEMA listará los generadores de cada alimentador (`ElmGenstat`, `ElmSym`,
   `ElmPvsys`, `ElmAsm`) con su barra, su tensión, su P y Q y si está en servicio.
 - RF-3: EL SISTEMA dirá de cada generador si lo creó el conversor (en su variación de central)
@@ -32,7 +33,8 @@ Escaneo
 - RF-5: EL SISTEMA listará las variaciones de red del proyecto que no creó el conversor, con
   si están activas y cuántos objetos cambian.
 - RF-6: DONDE haya una calibración anterior del alimentador, EL SISTEMA listará las cargas cuya
-  demanda difiere de la que dejó (014:RF-10).
+  demanda difiere de la que dejó (014:RF-10). Las que dejó a medias una orden interrumpida salen
+  aparte y no como cambiadas (083:RF-35).
 - RF-7: EL SISTEMA reconocerá lo que creó el conversor solo por sus propios prefijos (variación
   de central, banco de calibración, obras, cargas nuevas), nunca por nombres de una empresa.
 - RF-8: SI DIgSILENT no está disponible o el alimentador no está en el proyecto, ENTONCES EL

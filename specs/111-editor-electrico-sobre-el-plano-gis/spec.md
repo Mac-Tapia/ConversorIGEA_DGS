@@ -1,6 +1,6 @@
 # Spec 111 — Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo
 
-Estado: aprobada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-32, BP-10 y BP-11, y orden del usuario del
+Estado: implementada · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-32, BP-10 y BP-11, y orden del usuario del
 2026-11-14: «haz nuevos spec». G0: `D:/csg/G0_PLAN_MAESTRO/G0_UX_RUTAS_Y_WIREFRAMES.md` y `B/B_FILAS_BP.md`.
 
 ## Contexto y objetivo

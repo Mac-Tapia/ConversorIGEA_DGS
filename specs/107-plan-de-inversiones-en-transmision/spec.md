@@ -216,6 +216,19 @@ común.
 - RF-24: (revisión de motores del 19-11, hallazgo 8; amplía 081:RF-17) SI el caso base de un año no converge, con el
   motor abierto o con DIgSILENT, ENTONCES EL SISTEMA terminará el diagnóstico con el estado «no converge» y su motivo;
   SI el diagnóstico queda incompleto, con el estado «parcial» y su motivo; un diagnóstico entero termina «hecho».
+- RF-25: (corrida de 107 T14 del 20-11; amplía RF-2, RF-3 y su aclaración de la referencia) CUANDO `tools/pit_pf.py`
+  exporte la red de un proyecto de transmisión, EL SISTEMA:
+  - dará a cada elemento un id único, su ruta desde la red (`<red>.ElmNet/<subestación>.ElmSubstat/<barra>.ElmTerm`),
+    con su nombre aparte, porque en transmisión las barras de cada subestación se llaman igual («1», «2», «3»…); las
+    tensiones, las cargabilidades y el estado del estudio usarán las mismas claves, y los resultados de DIgSILENT y
+    del motor abierto se emparejarán por id. SI dos elementos quedan con el mismo id, ENTONCES la exportación lo dirá
+    en vez de unirlos;
+  - exportará cada acoplamiento de barras (`ElmCoup`) como una unión con su estado, y el motor abierto unirá las dos
+    barras de una unión cerrada; sin el estado, la unión queda en faltantes (RF-4);
+  - exportará la máquina que DIgSILENT declara de referencia (`ip_ctrl`) como barra de suministro SL, con su consigna
+    de tensión, y cada red externa con su consigna de potencia: una red externa PQ o PV que no es la referencia entra
+    como inyección con su consigna. SI le falta la consigna, o la red no tiene ninguna referencia SL (red externa o
+    máquina), ENTONCES el flujo no se calcula y el error las nombra.
 
 ## Requisitos no funcionales
 - Universal: cualquier área de demanda y titular. Las pruebas usan al menos dos perfiles sintéticos.

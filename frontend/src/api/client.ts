@@ -411,6 +411,13 @@ export const api = {
     fd.append('file', file, file.name);
     return request<{ libro: DatosEmpresa }>(`${ws(id)}/pf/datos-empresa`, { method: 'POST', body: fd });
   },
+  // 004:RF-118: el .pfd se sube al espacio y se importa y diagnostica en DIgSILENT, como trabajo.
+  pfdImportar: (id: string, file: File, reimportar: boolean) => {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    fd.append('reimportar', reimportar ? 'true' : 'false');
+    return request<Job>(`${ws(id)}/pf/pfd`, { method: 'POST', body: fd });
+  },
   datosEmpresaPlantillaUrl: (id: string) => `${ws(id)}/pf/datos-empresa/plantilla`,
   datosEmpresaAplicar: (id: string, body: { project: string; feeders: string[] }) =>
     request<Job>(`${ws(id)}/pf/datos-empresa/aplicar`, json('POST', body)),

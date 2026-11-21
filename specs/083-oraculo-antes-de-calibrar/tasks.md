@@ -50,3 +50,16 @@
       Hecho cuando: rojo por aserción sobre faf67626 y verde con `tests/test_calibracion_imposible.py -k rf34`.
       Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
       hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T20 MEJ21-CORTE (086 T33, corte a media calibración): diario «escribiendo cargas» con su token antes de escribir;
+      las cargas de una orden cortada no son cambios a mano y se recalibran; el escaneo las dice aparte. (RF-35)
+      Hecho cuando: rojo por aserción sobre dac543a5 y verde con
+      `tests/test_ajuste_cabecera_guion.py -k rf35` y `tests/test_escaneo.py -k rf35`.
+      Hecho el 2026-11-21 (d8, MEJ21): rojo por aserción sobre dac543a5 (D:/csg/PM_IMPL/MEJ21_CORTE/rojo_235146.log, 4
+      failed) y verde (D:/csg/PM_IMPL/MEJ21_CORTE/verde_d8_20261121_065543.log: 1123 passed; sus 2 fallos eran estas
+      dos casillas abiertas en una spec cumplida). La repetición nativa en DIgSILENT va en la 086 T33.
+- [x] T21 MEJ21-CORTE: el escaneo y la calibración encienden `Fichas_` y `SED_NTP_` antes de leer generadores y
+      bancos. (RF-36)
+      Hecho cuando: rojo por aserción sobre dac543a5 y verde con `tests/test_escaneo.py -k rf36`.
+      Hecho el 2026-11-21 (d8, MEJ21): rojo por aserción sobre dac543a5 (D:/csg/PM_IMPL/MEJ21_CORTE/rojo_235146.log, 4
+      failed) y verde (D:/csg/PM_IMPL/MEJ21_CORTE/verde_d8_20261121_065543.log: 1123 passed; sus 2 fallos eran estas
+      dos casillas abiertas en una spec cumplida). La repetición nativa en DIgSILENT va en la 086 T33.

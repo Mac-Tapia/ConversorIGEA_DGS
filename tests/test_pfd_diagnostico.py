@@ -720,3 +720,55 @@ def test_etapas_empatadas_se_avisan(guion):
             'variaciones': [{'variacion': f'V{i}', 'ruta': f'v{i}', 'etapas': [etapa(f's{i}')]} for i in (1, 2, 3)]}
     guion._completar(diag)
     assert any('3 etapas vigentes' in a for a in diag['avisos'])
+
+
+def test_etapas_empatadas_de_casos_con_el_mismo_nombre_salen_una_vez_con_su_carpeta(guion):
+    """004:RF-117 — dos casos que se llaman igual en carpetas distintas, con el mismo empate de etapas, dan UN aviso que
+    nombra la carpeta de cada uno; el detalle de cada caso sigue en ``etapas_empatadas`` (no se pierde ninguno). Un caso
+    sin la variación no hereda el empate de otro con su mismo nombre."""
+    rnd = random.Random(SEMILLA)
+    nombre, carpetas = _nombre(rnd), sorted({_nombre(rnd) for _ in range(3)})
+    etapa = lambda n: {'etapa': n, 'instante': 10, 'excluida': False}  # noqa: E731
+    variaciones = [{'variacion': f'V{i}', 'ruta': f'v{i}', 'etapas': [etapa(f's{i}')]} for i in (1, 2, 3)]
+    # La ruta como la da DIgSILENT (GetFullName), con la barra invertida.
+    casos = [{'caso': nombre, 'ruta': '\\'.join(['', 'U.IntUser', 'P.IntPrj', 'Study Cases.IntPrjfolder',
+                                                 f'{c}.IntFolder', f'{nombre}.IntCase']),
+              'escenario': None, 'escenario_ruta': None, 'hora_estudio': 20, 'cargas': [],
+              'variaciones_rutas': ['v1', 'v2', 'v3'] if i < len(carpetas) - 1 else []}
+             for i, c in enumerate(carpetas)]
+    diag = {'casos': casos, 'escenarios': [], 'avisos': [], 'caso_activo': nombre, 'variaciones': variaciones}
+    guion._completar(diag)
+    empates = [a for a in diag['avisos'] if 'etapas vigentes' in a]
+    con_empate = carpetas[:-1]
+    assert len(empates) == 1, (SEMILLA, diag['avisos'])
+    assert all(f'«{c}»' in empates[0] for c in con_empate) and f'«{carpetas[-1]}»' not in empates[0], SEMILLA
+    assert [e['ruta'] for e in diag['etapas_empatadas']] == [c['ruta'] for c in casos[:-1]], SEMILLA
+
+
+def test_avisos_iguales_se_agrupan_con_su_cuenta_sin_perder_ninguno(guion):
+    """004:RF-117 — los avisos iguales salen una vez con sus veces, en el orden de la primera; la suma de las veces es el
+    total, la lista original sigue entera en el JSON y el informe de texto dice «(×n)»."""
+    rnd = random.Random(SEMILLA)
+    distintos = [f'Aviso {_nombre(rnd)} {i}.' for i in range(rnd.randint(2, 5))]
+    avisos = [a for a in distintos for _ in range(rnd.randint(1, 4))]
+    rnd.shuffle(avisos)
+    texto = guion.informe_texto({'fichero': 'x.pfd', 'sha256': '0' * 64, 'avisos': avisos, 'proyectos': []})
+    for a in distintos:
+        veces = avisos.count(a)
+        marca = f'AVISO: {a}' + (f' (×{veces})' if veces > 1 else '')
+        assert texto.count(f'AVISO: {a}') == 1 and marca in texto, (SEMILLA, a)
+    grupos = guion.agrupar_avisos(avisos)
+    assert [g['aviso'] for g in grupos] == list(dict.fromkeys(avisos)), SEMILLA
+    assert sum(g['veces'] for g in grupos) == len(avisos), SEMILLA
+
+
+def test_el_json_lleva_los_avisos_agrupados(guion, monkeypatch, tmp_path):
+    """004:RF-117 — el JSON de una corrida real lleva ``avisos_agrupados`` del fichero y de cada proyecto, con la misma
+    cuenta que su lista de avisos."""
+    rnd = random.Random(SEMILLA)
+    app, _p, _c, pfd, _s = _preparar(rnd, tmp_path)
+    rc, diag = _correr(guion, monkeypatch, app, pfd, tmp_path)
+    assert rc == 0, SEMILLA
+    for d in (diag, *diag['proyectos']):
+        assert 'avisos_agrupados' in d, SEMILLA
+        assert sum(g['veces'] for g in d['avisos_agrupados']) == len(d['avisos']), SEMILLA

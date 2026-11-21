@@ -54,7 +54,7 @@ export const PASO_DE_TRABAJO: Record<string, PasoId | null> = {
   plano_estudiar: 'plano',
   system: 'sistema',
   // Cargas en DIgSILENT.
-  pf_projects: 'pf-proyecto', pf_adoptar_fuente: 'pf-proyecto', pf_verificar_base: 'pf-proyecto',
+  pf_projects: 'pf-proyecto', pfd_diagnostico: 'pf-proyecto', pf_adoptar_fuente: 'pf-proyecto', pf_verificar_base: 'pf-proyecto',
   recalibrar: 'pf-calibracion', pf_escaneo: 'pf-calibracion', demanda_cabecera: 'pf-calibracion',
   demanda_comparar_fijas: 'pf-calibracion', demanda_clientes_index: 'pf-calibracion',
   demanda_cabecera_index: 'pf-calibracion', ajuste_simular: 'pf-calibracion', ajuste_aplicar: 'pf-calibracion',

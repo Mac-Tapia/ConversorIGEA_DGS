@@ -50,6 +50,11 @@ elif herramienta == 'estudios_pf.py' and a.guion:
     else:
         informe.update(codigo_guion=0, salida=[f"{plan['caso']}: {json.dumps(plan['parametros'], sort_keys=True)}"])
 elif herramienta == 'confiabilidad_pf.py':
+    if proyecto == 'CODIGO_2':
+        # 086:RF-133: como el guion de verdad cuando DIgSILENT rechaza un atributo (bloque del 20-11).
+        Path(a.output_json).write_text(json.dumps({'recibido': plan, 'error': "setting attribute 'Tswitch' failed"}),
+                                       encoding='utf-8')
+        sys.exit(2)
     if proyecto == 'SIN_CLASES':
         informe['error'] = 'el libro no trae estas clases que tiene la red: Barra (3 elementos)'
     else:

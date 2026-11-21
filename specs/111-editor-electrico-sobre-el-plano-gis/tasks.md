@@ -99,12 +99,19 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
       una maniobra, abrir una variación, cambiar su estado y estudiar con el motor abierto (resultados sobre el plano con
       el motor dicho), un segundo caso estudiado y la comparación del A con el B; axe sin infracciones graves y las huellas
       de los vértices de la fuente iguales antes y después. Sustituye al F02 vacío de 086 T79 (086:RF-107).
-- [ ] T17. Revisión a mano en navegador real: solo teclado, lector de pantalla, contraste en claro y oscuro, foco
+- [x] T17. Revisión a mano en navegador real: solo teclado, lector de pantalla, contraste en claro y oscuro, foco
       visible y microcopia sin exceso de texto. (RF-13, RF-14)
       Hecho cuando: la nota de la revisión, con capturas, está en la evidencia de la entrega (fuera de git) sin
       hallazgos abiertos.
       MEJ6-A11Y (2026-11-20): D1, D2, D3, M1, M2 corregidos; falta repetir los guiones del revisor sobre la versión
       corregida y el plano con entrega cargada.
+      Hecho el 2026-11-20 (d8, revisor origen maestro): revisión en navegador real sobre c4326366 +
+      NAV_propuesta.patch con la entrega cargada (14 pestañas, claro y oscuro): axe 0 (también en el diálogo y en el
+      marco del plano), 180 Tab sin trampa con foco visible, separadores del plano con flechas, foco visible dentro
+      del marco, reflujo a 320 px y microcopia sin citas; D1–D3 y M1–M2 confirmados, y NAV-2 (aviso que tapaba la
+      red), NAV-3 (controles del mapa en inglés) y NAV-4 (casilla de 13 px) corregidos con rojo previo. Evidencia:
+      D:/csg/PM_IMPL/NAV_BLOQUE/t17_final/ (capturas, aria/, resultado_*.json) e INFORME.md. Informe:
+      D:/csg/PM_IMPL/NAV_BLOQUE/INFORME.md, sección «111 T17: revisión a mano en navegador real».
 - [ ] T18. [DIgSILENT] Recorrido real por la web sobre una copia de un proyecto de prueba: una maniobra y un tramo nuevo
       estudiados en DIgSILENT, resultados sobre el plano con el motor dicho, y el caso base y los casos del operador
       como estaban. (RF-4, RF-10, RF-11, RF-17, RF-18)

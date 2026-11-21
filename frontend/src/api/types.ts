@@ -1824,6 +1824,29 @@ export interface FallaProteccion {
   fase?: 'a' | 'b' | 'c' | null; r_ohm: number; x_ohm: number; protegen?: string[];
 }
 
+/** 004:RF-118: lo que la web enseña del diagnóstico de un `.pfd` importado; los avisos, agrupados (RF-117). */
+export interface PfdResumen {
+  fichero: string | null;
+  sha256: string | null;
+  carpeta: string | null;
+  modo: string | null;
+  codigo: number | null;
+  proyectos: {
+    proyecto: string | null; caso_activo: string | null; casos: number; escenarios: number; variaciones: number;
+    redes: number; alimentadores: number; exportacion_reducida: boolean; version_anterior: string | null;
+  }[];
+  avisos: { aviso: string; veces: number }[];
+  total_avisos: number;
+  errores: string[];
+}
+
+export interface PfdResultado {
+  returncode: number;
+  report: string;
+  informe_texto: string | null;
+  resumen: PfdResumen;
+}
+
 /** Spec 012: el libro de la empresa guardado con el proyecto (RF-6, RF-20). */
 export interface DatosEmpresa {
   nombre: string;

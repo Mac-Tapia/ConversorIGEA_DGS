@@ -491,3 +491,86 @@ def test_las_variaciones_del_catalogo_son_del_conversor():
     for nombre in ('Fichas_CA101', 'SED_NTP_Chincha'):
         assert esc.origen_de('', nombre)['origen'] == 'conversor'
         assert nombre.startswith(esc.PREFIJOS_CATALOGO)
+
+
+def _sin_proyecto(app, feeders=('F1',)):
+    """«Caso base» y «Sin proyecto» como los deja la primera calibración (015:RF-16)."""
+    import casos_pf
+
+    informe, rc = casos_pf.preparar_sin(app, {'project': 'P', 'feeders': list(feeders), 'caso_base_sin_verificar': {}})
+    assert rc == 0, informe
+    sin = next((c for c in app.carpetas['study'].GetContents('*.IntCase') if c.loc_name == 'Sin proyecto'), None)
+    assert sin is not None, f'sin «Sin proyecto» (semilla {SEMILLA})'
+    return sin
+
+
+def _activas_en(app, caso) -> list[str]:
+    previo = app.GetActiveStudyCase()
+    caso.Activate()
+    out = [v.loc_name for v in app.GetActiveNetworkVariations()]
+    previo.Activate()
+    return out
+
+
+def test_083_rf36_el_escaneo_enciende_las_variaciones_que_dejo_apagadas_un_corte(guion):
+    """083:RF-36, 083:RF-29, 028:RF-15 — 086 T33: matar el servidor a media calibración dejó «Sin proyecto» con
+    ``Fichas_`` y ``SED_NTP_`` apagadas (el ``finally`` que las enciende no corre). El escaneo de la orden siguiente no
+    veía la central ni los bancos y el plan salía sin ellos. Ahora las enciende antes de leer y lo dice; las ajenas no
+    las toca."""
+    rnd = random.Random(SEMILLA)
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=rnd.randint(3, 6), bt=True, flujo=True)
+    sin = _sin_proyecto(app)
+    del_operador = app.carpetas['scheme'].CreateObject('IntScheme', f'Obra_{_nombre(rnd)}')
+    del_operador.NewStage('Etapa', 1_760_000_000, 0)
+    for nombre in ('Fichas_P', 'SED_NTP_P'):
+        app.carpetas['scheme'].CreateObject('IntScheme', nombre).NewStage('Etapa', 1_760_000_000, 0)
+    assert _activas_en(app, sin) == [], 'como tras el corte: apagadas en «Sin proyecto»'
+
+    informe, rc = guion.ejecutar(app, {'project': 'P', 'feeders': ['F1']})
+
+    assert rc == 0, informe
+    activas = _activas_en(app, sin)
+    assert {'Fichas_P', 'SED_NTP_P'} <= set(activas), activas
+    assert del_operador.loc_name not in activas, 'lo apagado por el operador sigue apagado'
+    assert len(informe.get('variaciones_encendidas') or []) == 2, informe
+    assert any('apagadas' in a and 'Fichas_P' in a for a in informe['avisos'])
+    assert {v['variacion']: v['activa'] for v in informe['variaciones']}['SED_NTP_P'], 'se lee con ellas activas'
+    informe, rc = guion.ejecutar(app, {'project': 'P', 'feeders': ['F1']})
+    assert rc == 0 and 'variaciones_encendidas' not in informe
+
+
+def test_083_rf35_el_escaneo_no_toma_por_manuales_las_cargas_de_una_orden_cortada(guion):
+    """083:RF-35, 014:RF-10, 028:RF-6 — 086 T33: la orden cortada dejó escritas cargas de un alimentador y el escaneo
+    siguiente las contaba como «cargas cambiadas» a mano. Las de su diario salen aparte, con lo que tenían antes; un
+    cambio del operador que no está en el diario sigue siendo un cambio a mano."""
+    import json
+    import os
+    from pathlib import Path
+
+    rnd = random.Random(SEMILLA)
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=4, bt=True, flujo=True)
+    cargas = {o.loc_name: o for o in app.proyecto.GetContents('*.ElmLod', 1) if o.loc_name.startswith('F1_S')}
+    cortada, operador = rnd.sample(sorted(cargas), 2)
+
+    def efectiva(o):
+        k = float(getattr(o, 'scale0', 1.0) or 1.0)
+        return [1000.0 * o.plini * k, 1000.0 * o.qlini * k]
+
+    ultima = {'nombre': 'la calibración anterior', 'sed': {s: efectiva(o) for s, o in cargas.items()}}
+    antes = [1000.0 * cargas[cortada].plini, 1000.0 * cargas[cortada].qlini]
+    diario = Path(os.environ['CSG_PF_TURNO']).parent / 'escrito' / 'P.diario.json'
+    diario.parent.mkdir(parents=True, exist_ok=True)
+    diario.write_text(json.dumps({
+        'estado': 'escribiendo cargas', 'proyecto': 'P',
+        'ordenes': [{'token': 'tok1', 'orden': 'calibración', 'inicio': '2026-11-20 21:26:33'}],
+        'cargas': {'F1': {cortada: {'antes': antes, 'token': 'tok1'}}}}), encoding='utf-8')
+    cargas[cortada].plini *= rnd.uniform(1.3, 2.0)              # la orden cortada la escribió
+    cargas[operador].plini *= rnd.uniform(0.3, 0.7)             # y el operador cambió otra a mano
+
+    informe, rc = guion.ejecutar(app, {'project': 'P', 'feeders': ['F1'], 'ultima_calibracion': {'F1': ultima}})
+
+    assert rc == 0, informe
+    f1 = informe['alimentadores']['F1']
+    assert [c['sed'] for c in f1['cargas_cambiadas']] == [operador], f1['cargas_cambiadas']
+    [fila] = f1.get('cargas_de_una_orden_cortada') or [None]
+    assert fila is not None and fila['sed'] == cortada and fila['antes']['kw'] == pytest.approx(antes[0])

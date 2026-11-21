@@ -83,6 +83,14 @@ class Obj:
 
     def __setattr__(self, name, value):
         app = self._app
+        if name == 'RepMu' and self._clase.startswith('Sto') and not (isinstance(value, (int, float)) and value > 0):
+            # 012:RF-93: DIgSILENT (sonda del 2026-11-20 en StoTyplne, StoTyptrf y StoTypbar) rechaza un tiempo de
+            # reparación de 0 o negativo con este mismo mensaje; acepta cualquier valor positivo.
+            raise AttributeError("setting attribute 'RepMu' of 'DataObject' object failed")
+        if name == 'Tswitch' and self._clase == 'ElmCoup' and not (isinstance(value, (int, float)) and value > 0):
+            # 012:RF-94: DIgSILENT (sonda del 2026-11-20 en el proyecto de prueba) rechaza Tswitch = 0 en un ElmCoup
+            # con este mensaje y acepta 0,001; un StaSwitch sí admite 0.
+            raise AttributeError("setting attribute 'Tswitch' of 'DataObject' object failed")
         if (app is not None and name in _DATOS_DE_SERVICIO and getattr(app, 'servicio_en_escenario', False)
                 and app.escenario is not None and _es_de_red(self)):
             # 081:RF-80: abrir y poner fuera de servicio es dato de operación; con el escenario activo va a él, no a la
@@ -100,7 +108,10 @@ class Obj:
             # Spec 012: en DIgSILENT un atributo escrito mientras graba una etapa es de esa
             # variación, y desactivarla lo devuelve a su valor. Opcional: las pruebas de
             # las specs anteriores dan por hecho que el valor se queda.
-            if app.atributos_en_variacion and etapa is not None and self.etapa_creacion is not etapa:
+            # El caso de estudio (su hora) no es dato de red: DIgSILENT no lo graba en la etapa (012:RF-98; sin esto, el
+            # doble devolvía «Sin proyecto» a la fecha de la etapa al cambiar de caso).
+            if (app.atributos_en_variacion and etapa is not None and self.etapa_creacion is not etapa
+                    and self._clase != 'IntCase'):
                 cambios = etapa._padre.__dict__.setdefault('_cambios', [])
                 cambios.append((self, name, getattr(self, name, None), value))
             _registrar_en_etapa(etapa, self, name, value)

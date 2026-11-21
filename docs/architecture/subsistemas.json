@@ -938,6 +938,7 @@
     "src/features/powerfactory/EstudiosPF.tsx",
     "src/features/powerfactory/GemeloPIDE.tsx",
     "src/features/powerfactory/GuionesPF.tsx",
+    "src/features/powerfactory/ImportarPfd.tsx",
     "src/features/powerfactory/InformesPF.tsx",
     "src/features/powerfactory/ObrasPF.tsx",
     "src/features/powerfactory/OperacionSet.tsx",

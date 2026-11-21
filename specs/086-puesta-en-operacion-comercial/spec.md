@@ -574,6 +574,12 @@ mientras los demás casos pasaban a 1,0278.
   DIgSILENT de ese espacio, y dejará entrar los pasos de la propia recalibración, que se identifican con su trabajo; un
   paso que encuentra su carril ocupado esperará a que termine el trabajo que lo ocupa y repetirá, sin abortar la
   recalibración.
+- RF-133: (bloque DIgSILENT del 20-11, MEJ23) SI el guion de DIgSILENT de un trabajo que escribe en el proyecto
+  («Aplicar el libro» de la 012, importar un `.pfd` de la 004) sale con un código distinto de 0 o con un error en su
+  informe, ENTONCES EL SISTEMA terminará el trabajo como fallido con la causa del guion, nunca como terminado; los
+  trabajos que ya distinguen el código lo siguen haciendo a su manera.
+- RF-134: (bloque DIgSILENT del 20-11, MEJ23) EL SISTEMA escribirá «del» y no «de el» cuando un mensaje junte «de» con
+  un nombre que empieza por «el» (la exposición leída «del proyecto de DIgSILENT»).
 
 ## Fuera de alcance
 

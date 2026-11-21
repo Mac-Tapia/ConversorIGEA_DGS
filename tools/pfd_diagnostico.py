@@ -42,9 +42,11 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 import traceback
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -136,6 +138,25 @@ def _fecha(segundos):
     except (OverflowError, OSError, ValueError):
         return None, None
     return dt.strftime('%Y-%m-%d %H:%M:%S'), dt.year
+
+
+def etiqueta_de_caso(caso: dict, repetido: bool) -> str:
+    """El nombre del caso entre comillas y, si otro caso se llama igual, la carpeta que lo contiene (RF-117)."""
+    nombre = repr(caso['caso'])
+    if not repetido:
+        return nombre
+    partes = [x for x in re.split(r'[\\/]', str(caso.get('ruta') or '')) if x]
+    carpeta = partes[-2].rsplit('.', 1)[0] if len(partes) >= 2 else ''
+    return f'{nombre} en «{carpeta}»' if carpeta else nombre
+
+
+def agrupar_avisos(avisos) -> list[dict]:
+    """Los avisos iguales una vez, con cuántas veces salieron, en el orden de su primera vez (RF-117).
+
+    La lista original sigue entera en ``avisos``: agrupar es para leerla, no para quitar ninguno.
+    """
+    veces = Counter(avisos)
+    return [{'aviso': a, 'veces': veces[a]} for a in dict.fromkeys(avisos)]
 
 
 def _carpetas(prj, tipo: str) -> list:
@@ -440,16 +461,32 @@ def _completar(diag: dict) -> None:
                 {'caso': c['caso'], 'escenario': c['escenario']} for c in casos
                 if v['ruta'] in c['variaciones_rutas'] and not e['excluida']
                 and (e['instante'] is None or c['hora_estudio'] is None or e['instante'] <= c['hora_estudio'])]
+    # RF-117: cada empate queda con su caso y su ruta en ``etapas_empatadas`` (no se pierde ninguno), y el aviso sale
+    # una vez por empate con todos los casos que lo tienen. AD08 (bloque DIgSILENT del 20-11) tenía casos con el mismo
+    # nombre en carpetas distintas: 819 de sus 1 188 avisos eran el mismo texto repetido y no decían de qué carpeta.
+    # Las etapas de cada caso se buscan por su ruta, no por su nombre, que puede repetirse.
+    repetidos = Counter(c['caso'] for c in casos)
+    diag['etapas_empatadas'] = []
+    empates: dict[tuple, list[str]] = {}
     for c in casos:
         fechas = {}
         for v in diag['variaciones']:
+            if v['ruta'] not in c['variaciones_rutas']:
+                continue
             for e in v['etapas']:
-                if any(x['caso'] == c['caso'] for x in e.get('estudiada_en', [])):
+                if not e['excluida'] and (e['instante'] is None or c['hora_estudio'] is None
+                                          or e['instante'] <= c['hora_estudio']):
                     fechas.setdefault(e['instante'], []).append(f"{v['variacion']}/{e['etapa']}")
         for t, nombres in sorted(fechas.items(), key=lambda kv: kv[0] or 0):
             if len(nombres) >= ETAPAS_EMPATADAS:
-                avisos.append(f"Caso {c['caso']!r}: {len(nombres)} etapas vigentes con la misma fecha "
-                              f"({_fecha(t)[0]}): DIgSILENT no aplica ninguna ({', '.join(sorted(nombres))}).")
+                diag['etapas_empatadas'].append({'caso': c['caso'], 'ruta': c.get('ruta'), 'instante': t,
+                                                 'fecha': _fecha(t)[0], 'etapas': sorted(nombres)})
+                empates.setdefault((t, tuple(sorted(nombres))), []).append(
+                    etiqueta_de_caso(c, repetidos[c['caso']] > 1))
+    for (t, nombres), etiquetas in empates.items():
+        quien = f"Caso {etiquetas[0]}" if len(etiquetas) == 1 else f"Casos {', '.join(etiquetas)}"
+        avisos.append(f"{quien}: {len(nombres)} etapas vigentes con la misma fecha ({_fecha(t)[0]}): DIgSILENT no "
+                      f"aplica ninguna ({', '.join(nombres)}).")
     if casos:                                                                               # RF-95
         ref = next((c for c in casos if c['caso'] == diag['caso_activo']), casos[0])
         diag['caso_referencia'] = ref['caso']
@@ -664,20 +701,26 @@ def ejecutar(app, pfd: Path, carpeta: str, reimportar: bool, informe: dict, guar
 
 
 # --------------------------------------------------------------------------- informe
+def _agrupados(datos: dict) -> list[str]:
+    """Los avisos de ``datos`` para leerlos: cada uno una vez y, si se repite, con sus veces (RF-117)."""
+    return [g['aviso'] + (f" (×{g['veces']})" if g['veces'] > 1 else '')
+            for g in datos.get('avisos_agrupados') or agrupar_avisos(datos.get('avisos', []))]
+
+
 def informe_texto(informe: dict) -> str:
     """RF-98: el informe legible, sacado solo del JSON de la corrida."""
     lineas = [f"Diagnóstico de {informe.get('fichero')} (sha256 {str(informe.get('sha256'))[:16]}…)",
               f"Carpeta: {informe.get('carpeta')} · modo: {informe.get('modo')} · código {informe.get('codigo')}"]
     for e in informe.get('errores', []):
         lineas.append(f'ERROR: {e}')
-    for a in informe.get('avisos', []):
+    for a in _agrupados(informe):                                                           # RF-117
         lineas.append(f'AVISO: {a}')
     for x in informe.get('renombrados', []):
         lineas.append(f"Versión anterior renombrada: {x['antes']} -> {x['ahora']}"
                       + (' (estaba activa; se desactivó antes)' if x.get('estaba_activo') else ''))
     for d in informe.get('proyectos', []):
         lineas += ['', f"== Proyecto {d.get('proyecto')} (caso activo al empezar: {d.get('caso_activo')})"]
-        for a in d.get('avisos', []):
+        for a in _agrupados(d):
             lineas.append(f'  AVISO: {a}')
         red = d.get('red') or {}
         for r in red.get('redes', []):
@@ -726,7 +769,7 @@ def _escribir(ruta: Path, texto: str) -> None:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Importa un .pfd en DIgSILENT y diagnostica en solo lectura sus redes, '
-                                            'casos, escenarios, variaciones y cargas (spec 004, RF-81 a RF-107).')
+                                            'casos, escenarios, variaciones y cargas (spec 004, RF-81 a RF-107 y RF-117).')
     p.add_argument('--pfd', required=True, help='Fichero .pfd que se importa.')
     p.add_argument('--output-json', required=True, help='JSON del diagnóstico (se escribe aunque algo falle).')
     p.add_argument('--informe', help='Informe de texto; por defecto, el JSON con extensión .txt.')
@@ -741,6 +784,9 @@ def main(argv=None) -> int:
                'proyectos': [], 'renombrados': [], 'avisos': [], 'errores': [], 'codigo': None}
 
     def guardar() -> None:
+        informe['avisos_agrupados'] = agrupar_avisos(informe['avisos'])                      # RF-117
+        for d in informe['proyectos']:
+            d['avisos_agrupados'] = agrupar_avisos(d.get('avisos', []))
         _escribir(salida, json.dumps(informe, indent=2, ensure_ascii=False, default=str) + '\n')
         _escribir(texto, informe_texto(informe))
 
@@ -788,7 +834,7 @@ def main(argv=None) -> int:
         guardar()
         for e in informe['errores']:
             print(f'ERROR: {e}', flush=True)
-        for a in informe['avisos']:
+        for a in _agrupados(informe):
             print(f'AVISO: {a}', flush=True)
         print(f"Diagnóstico de {pfd.name}: {cuenta(len(informe['proyectos']), 'proyecto', 'proyectos')}, código {codigo}.", flush=True)
 

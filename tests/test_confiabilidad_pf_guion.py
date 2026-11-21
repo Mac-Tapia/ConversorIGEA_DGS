@@ -140,6 +140,152 @@ def test_datos_por_tipo_y_por_km():
     assert ln1.pStoch.DnFr == libro.tasas['linea'].permanente
 
 
+def test_datos_clase_sin_fallas_va_sin_modelo_y_se_dice():
+    """012:RF-93 — una clase que el histórico deja sin fallas (λ = 0, reparación 0) no lleva modelo: DIgSILENT rechaza
+    un tiempo de reparación de 0 y antes se caía todo el libro («setting attribute 'RepMu' … failed», 2026-11-20)."""
+    import dataclasses
+
+    rng = random.Random(77)
+    app, alims, clases = _red(rng)
+    libro = _libro(rng)
+    libro.tasas['barra'] = dataclasses.replace(libro.tasas['barra'], permanente=0.0, reparacion_h=0.0)
+    try:
+        informe, rc = conf.aplicar_datos(app, _plan(alims, libro, clases))
+    except AttributeError as exc:            # el rechazo de DIgSILENT: la prueba falla por su aserción, con el motivo
+        informe, rc = {'error': str(exc)}, 1
+    assert rc == 0, informe
+    modelos = {o.loc_name for o in conf._carpeta_modelos(app).GetContents('*')}
+    assert f'{conf.PREFIJO_MODELO}barra' not in modelos
+    assert {f'{conf.PREFIJO_MODELO}linea', f'{conf.PREFIJO_MODELO}transformador'} <= modelos
+    assert informe['sin_modelo'] == ['barra']
+    assert any('Sin modelo de falla' in a and 'barra' in a for a in informe['avisos'])
+    for f in alims:
+        assert informe['alimentadores'][f]['asignados']['barra'] == 0
+
+
+def test_datos_maniobra_manual_cero_va_al_minimo_y_se_dice():
+    """012:RF-94 — el histórico deja la maniobra manual en 0 cuando no separa localización y maniobra; DIgSILENT
+    rechaza Tswitch = 0 en un ElmCoup («setting attribute 'Tswitch' … failed», 2026-11-20): va al mínimo, con su
+    aviso."""
+    import dataclasses
+
+    rng = random.Random(78)
+    app, alims, clases = _red(rng)
+    libro = _libro(rng)
+    libro = dataclasses.replace(libro, tiempos_min={**libro.tiempos_min, 'manual': 0.0})
+    try:
+        informe, rc = conf.aplicar_datos(app, _plan(alims, libro, clases))
+    except AttributeError as exc:            # el rechazo de DIgSILENT: la prueba falla por su aserción, con el motivo
+        informe, rc = {'error': str(exc)}, 1
+    assert rc == 0, informe
+    _activas(app, 'sin')                      # lo escrito está en «Datos de confiabilidad», activa en «Sin proyecto»
+    for f in alims:
+        coup = next(o for o in _alim(app, f).GetObjs('ElmCoup'))
+        assert coup.Tswitch == conf.TSWITCH_MINIMO_MIN
+        assert informe['alimentadores'][f]['tswitch_al_minimo'] >= 1
+    assert informe['tswitch_al_minimo'] >= len(alims)
+    assert any('Tiempo de maniobra 0' in a for a in informe['avisos'])
+    assert conf.tiempo_de_maniobra(12.5) == (12.5, False)
+
+
+@pytest.mark.parametrize('semilla', SEMILLAS)
+def test_datos_la_etapa_de_confiabilidad_no_queda_grabando(semilla):
+    """012:RF-98 — al terminar de aplicar el libro, «Etapa_confiabilidad» no queda grabando en «Sin proyecto»: un cambio
+    a mano del operador iría a «Datos de confiabilidad», que se borra al aplicar otro libro (bloque DIgSILENT del 20-11,
+    sonda_caso_base.json). Sin ninguna etapa grabando antes, ninguna queda grabando; los modelos siguen en su sitio."""
+    rng = random.Random(semilla)
+    app, alims, clases = _red(rng)
+    casos_pf.casos_del_proyecto(app)['sin'].Activate()
+    app.grabando = None
+    informe, rc = conf.aplicar_datos(app, _plan(alims, _libro(rng), clases))
+    assert rc == 0, informe
+    _activas(app, 'sin')
+    graba = app.GetRecordingStage()
+    assert graba is None or graba.GetParent().loc_name != conf.VARIACION, (semilla, graba.loc_name)
+    assert informe['grabando'] is None, informe.get('grabando')
+    assert conf.VARIACION in _activas(app, 'sin')
+    assert all(getattr(ln, 'pStoch', None) is not None for f in alims for ln in _alim(app, f).GetObjs('ElmLne'))
+
+
+def test_datos_la_grabacion_vuelve_a_la_etapa_del_operador():
+    """012:RF-98 — si en «Sin proyecto» grababa una etapa del operador antes de aplicar el libro, la grabación vuelve a
+    ella al terminar (como 032:RF-12 en las fichas), y la hora del estudio no cambia."""
+    rng = random.Random(7)
+    app, alims, clases = _red(rng)
+    sin = casos_pf.casos_del_proyecto(app)['sin']
+    sin.Activate()
+    hora = int(sin.iStudyTime)
+    propia = app.carpetas['scheme'].CreateObject('IntScheme', 'Cambios_del_operador')
+    propia.NewStage('Etapa_operador', hora - 7 * 24 * 3600, 1)
+    sin.iStudyTime = hora
+    etapa = next(s for s in propia.GetContents('*.IntSstage'))
+    assert app.GetRecordingStage() is etapa
+    informe, rc = conf.aplicar_datos(app, _plan(alims, _libro(rng), clases))
+    assert rc == 0, informe
+    sin.Activate()
+    assert app.GetRecordingStage() is etapa, app.GetRecordingStage()
+    assert int(sin.iStudyTime) == hora
+    assert informe['grabando'] == 'Etapa_operador'
+
+
+def test_main_admite_el_cancel_file_de_la_web(tmp_path):
+    """012:RF-95 — la web pasa ``--cancel-file`` a todo guion cancelable; antes argparse salía con 2 sin informe
+    («unrecognized arguments: --cancel-file», 2026-11-20) y la web decía «sin dejar informe»."""
+    plan = tmp_path / 'plan.json'
+    plan.write_text('{"project": "P", "feeders": ["F1"]}', encoding='utf-8')
+    informe = tmp_path / 'informe.json'
+    try:
+        rc = conf.main(['--plan', str(plan), '--output-json', str(informe), '--aplicar-datos',
+                        '--cancel-file', str(tmp_path / 'cancelar.flag')])
+    except SystemExit as exc:                # argparse: la prueba falla por su aserción, con el código
+        rc = exc.code
+    assert informe.is_file(), rc            # llegó a escribir su informe: argparse no lo cortó
+
+
+def test_confiabilidad_flujo_invalidado_no_pasa_por_sin_tension(monkeypatch):
+    """012:RF-96 — en un caso del operador el estudio activa su variación y DIgSILENT invalida el flujo base; antes
+    se miraba la tensión sin flujo y todo alimentador salía «sin tensión» con los índices nulos (2026-11-20)."""
+    from apoyo import TOOLS
+
+    monkeypatch.syspath_prepend(str(TOOLS))  # como la otra prueba de estudios: el guion se importa desde tools/
+    import confiabilidad_pf as cp            # el que importa estudios_pf
+
+    rng = random.Random(23)
+    app, alims, _ = _aplicado(rng)
+    original = cp.con_datos
+
+    def invalida(app_):                      # como DIgSILENT al activar una variación: sin resultados de flujo
+        for o in app_.proyecto.GetContents('*.ElmTerm', 1):
+            if hasattr(o, 'm_u'):
+                object.__delattr__(o, 'm_u')
+        return original(app_)
+
+    monkeypatch.setattr(cp, 'con_datos', invalida)
+    informe, rc = estudios.ejecutar(app, _plan_estudio(alims, 'fiabilidad'))
+    assert rc == 0, informe
+    for f in alims:
+        assert (informe['red'][f]['saifi'] or 0) > 0, informe['red'][f]
+
+
+def test_confiabilidad_orden_fallida_dice_la_causa_de_digsilent(monkeypatch):
+    """012:RF-97 — ComRel3 con código 1 dice los errores de DIgSILENT («Active power of the following elements is
+    outside the limit. CT_X», 2026-11-20), no solo el código."""
+    rng = random.Random(24)
+    app, alims, _ = _aplicado(rng)
+
+    def falla(self):
+        fake_pf._dice(self._app, 'info - Reliability calculation started',
+                      'err  - Violated constraints in base case found.',
+                      'err  - Active power of the following elements is outside the limit.',
+                      'err  -     CT_X', 'err  - Calculation failed.')
+        return 1
+
+    monkeypatch.setattr(fake_pf.Fiabilidad, 'Execute', falla)
+    informe, rc = estudios.ejecutar(app, _plan_estudio(alims, 'fiabilidad'))
+    assert rc == 2 and 'Violated constraints in base case found' in informe['error']
+    assert 'CT_X' in informe['error'] and informe['causa_orden'].count('Calculation failed') == 1
+
+
 def test_datos_un_libro_nuevo_reemplaza_sin_otra_variacion():
     """012:RF-23 — aplicar otro libro reescribe los modelos, borra los que ya no tienen fila y
     deja una sola «Datos de confiabilidad»."""
@@ -407,6 +553,10 @@ def test_datos_historico_sin_red_lee_la_exposicion_del_proyecto(semilla, tmp_pat
     # PowerFactory 2024, build 22038; StoTyplne y StoTyptrf sí llevan DnFr). Es lo que escribe la herramienta.
     for clase in ('linea', 'transformador', 'barra'):
         atributo = 'DnFr1' if clase == 'barra' else 'DnFr'
+        if not conf.con_modelo(directo.tasas[clase]):
+            # 012:RF-93: sin ninguna falla en el histórico sorteado, la clase va sin modelo y el informe lo dice.
+            assert f'{conf.PREFIJO_MODELO}{clase}' not in modelos and clase in informe['sin_modelo']
+            continue
         assert getattr(modelos[f'{conf.PREFIJO_MODELO}{clase}'], atributo) == pytest.approx(directo.tasas[clase].permanente)
     assert any('DIgSILENT' in a and 'km' in a for a in informe['avisos'])
 

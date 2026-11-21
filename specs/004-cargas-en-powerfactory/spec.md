@@ -450,6 +450,18 @@ esa misma hora, no de un registro.
   aviso de tensión irá en un icono con su texto al pasar el puntero, sin ocupar las columnas de tensión. No se quita
   ningún dato de los que ya mostraba (línea base de la web).
 
+Hallazgos de la prueba de dos `.pfd` en DIgSILENT (004 T30, bloque del 2026-11-20, MEJ23): la web no tenía la ruta
+para importarlos (T29 se dio por hecha sin ella) y los avisos se repetían (819 de 1 188 en uno de ellos, por casos con
+el mismo nombre en carpetas distintas).
+
+- RF-117: EL SISTEMA dará los avisos del diagnóstico de un `.pfd` agrupados: cada aviso igual una vez con cuántas veces
+  salió, y el empate de etapas (RF-92) una vez con todos los casos que lo tienen, nombrando la carpeta de cada caso
+  cuyo nombre se repite; la lista entera de avisos y el empate de cada caso seguirán en el JSON de la corrida.
+- RF-118: CUANDO el operador suba un `.pfd` en la web, EL SISTEMA lo guardará en el espacio, lo importará y
+  diagnosticará (RF-81 a RF-107) en la carpeta de DIgSILENT de la empresa del espacio como trabajo del carril de
+  DIgSILENT, con la opción de importarlo en un proyecto nuevo (RF-84), y mostrará el resumen de cada proyecto, los
+  avisos agrupados (RF-117) y el informe para descargar; un fichero que no es `.pfd` se rechaza al subirlo.
+
 ## Requisitos no funcionales
 
 - Universal (P13): ninguna tensión, frecuencia ni CRS de una empresa como valor fijo.

@@ -303,18 +303,23 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       RF-105)
       Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-103 a RF-105) en verde, con rojo previo, y las pruebas de
       RF-97 a RF-102 siguen en verde. Evidencia: `D:/csg/F2/rojo_*.log` y `D:/csg/F2/verde_*.log`.
-- [ ] T78 Accesibilidad WCAG 2.2 AA de la web: pestañas con el patrón de WAI-ARIA, flechas en los grupos de opciones,
+- [x] T78 Accesibilidad WCAG 2.2 AA de la web: pestañas con el patrón de WAI-ARIA, flechas en los grupos de opciones,
       separador del Registro con teclado y pulsación, salto al contenido, estados con texto o icono, tokens con contraste AA
       en los dos temas y objetivos de 24 px. (RF-106)
       Hecho cuando: `tests/test_accesibilidad_web.py` (086:RF-106) en rojo sobre el árbol 9d483349 y en verde con el cambio, más
       `frontend/test/e2e/teclado.e2e.mjs` en verde con sus capturas revisadas a mano. Evidencia: `D:/csg/PM_IMPL/HEREDADAS_E6/T0c/`.
+      Hecho el 2026-11-20 (d8, revisor origen maestro): teclado.e2e.mjs 5/5 en las tres corridas de e2e:todo sobre
+      c4326366 (+ NAV_propuesta.patch en la final), capturas revisadas a mano, y revisión WCAG 2.2 AA en navegador
+      real con axe 0 en las 14 pestañas y los dos temas tras corregir NAV-4 (target-size de .curva-check). Evidencia:
+      D:/csg/PM_IMPL/NAV_BLOQUE/e2e_final/ y t17_final/. test_accesibilidad_web.py: rojo de origen en HEREDADAS_E6/T0c
+      y verde en la suite de la puerta. Informe: D:/csg/PM_IMPL/NAV_BLOQUE/INFORME.md, sección «086 T78: WCAG 2.2 AA».
 - [ ] T79 Recorridos E2E F01–F04 con Playwright y axe-core (devDependencies fijadas), sobre una web aislada y sin red, con
       capturas y resultado por SHA. (RF-107)
       Aclaración (59, 19-11): F02 ya existe, es `frontend/e2e/plano.spec.ts` (111 T16 cerrada), y los navegadores de
       Playwright están instalados; Playwright y axe-core van en `package.json` y `package-lock.json` (T0c v3).
       Hecho cuando: `npm run e2e:todo` (los dos arneses: F01, F03 y F04 en `test/e2e`, F02 en `frontend/e2e`) da verde
       sin omitidas sobre el SHA candidato, con `output/e2e/<sha>/` sellado (SHA256SUMS).
-- [ ] T80 COPIA-PREVIA: previa de la copia en la web (`GET /api/copia-datos/previa` sobre `planificar_copia`, ventana
+- [x] T80 COPIA-PREVIA: previa de la copia en la web (`GET /api/copia-datos/previa` sobre `planificar_copia`, ventana
       `PreviaCopia` con «Copiar» y «Cancelar», la API exige `confirmada`), listado de las copias del destino desde su
       manifiesto (`listar_copias`), el aviso que mira la carpeta recordada (`estado_copia(destino=…)`) y los seis textos.
       (RF-82, RF-83, RF-108, RF-109, RF-110)
@@ -323,6 +328,13 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       recorrido real repetido en el navegador con las carpetas sincronizadas del usuario (`D:/csg/PM_IMPL/COPIA-PREVIA/recorrido/`):
       lectura de la previa y del listado sobre la carpeta de copias, «Cancelar» sin escribir, y una copia pequeña escrita solo
       en `pruebas_1_0` tras «Copiar», con el diff de los listados vacío fuera de esa carpeta.
+      Hecho el 2026-11-20 (d8): recorrido real en navegador sobre c4326366 con las carpetas sincronizadas: previa y
+      listado de copias_de_datos (la copia del 12-11 como buena), «Cancelar» sin escribir, y una copia de 4,2 MB solo
+      en pruebas_1_0 tras «Copiar», verificada huella a huella, con el diff de las siete raíces vacío fuera de
+      pruebas_1_0 (16 pasos OK). test_copia_datos y test_fuente_por_lo_que_se_carga en verde (237 passed con el resto)
+      y copiaPrevia.test.mjs en npm test 334/334; rojos de la pieza en COPIA-PREVIA/rojo.log. Evidencia:
+      D:/csg/PM_IMPL/NAV_BLOQUE/t80/. Informe: D:/csg/PM_IMPL/NAV_BLOQUE/INFORME.md, sección «086 T80: previa de la
+      copia (COPIA-PREVIA)».
 - [x] T81 Las sales de las huellas se calculan al cambiar la lista, no en cada ventana de palabras. (RF-111)
       Hecho cuando: `tests/test_entrega_universal.py` (086:RF-111) en verde, con rojo previo, y la rueda real sigue pasando la
       comprobación (`tests/test_instalacion_programa.py`). Evidencia: `D:/csg/PM_IMPL/INST-RUEDA/`.
@@ -333,6 +345,9 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
   Hecho cuando: sin tocar el código, solo su perfil, sale un informe que un ingeniero da por bueno.
 - [ ] T33 [DIgSILENT] Ensayo de corte a media calibración y a media importación, matando los procesos con las demás sesiones paradas. (RF-46)
   Hecho cuando: ningún espacio se pierde, el trabajo se ve interrumpido y se retoma sin trabajo repetido ni datos mezclados.
+  Corrida del 2026-11-20 (parte de la calibración): reprodujo dos fallos, las variaciones del conversor apagadas tras el
+  corte y las cargas a medias tomadas por manuales. Su código: 083:RF-35 y 083:RF-36 (083 T20, T21). Falta repetir la
+  corrida con ese código y hacer la parte de la importación sobre una red de prueba sin proyecto (005:RF-22).
 - [ ] T34 Repositorio de producto, licencia y etiqueta `v1.0.0` con sus notas; la asesoría legal no se considera (D7, 2026-11-07): cada usuario con sus licencias. (D3, D7)
   Hecho cuando: el usuario da la orden de publicar.
 
@@ -438,7 +453,7 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       Hecho cuando: rojo por aserción (sin etiquetas ni su reparto) y verde con su prueba sorteada, y, ya integrada, la
       gráfica de curvas de cabecera vista en navegador real en la web del operador con una etiqueta por máxima.
       Evidencia: `D:/csg/PM_IMPL/CENTRALES_SET/` y `D:/csg/PM_IMPL/GWEB2/`.
-- [ ] T98 CALIB-IMPOSIBLE (orden del usuario del 19-11; amplía 083:RF-30): en una corrida real de cuatro alimentadores,
+- [x] T98 CALIB-IMPOSIBLE (orden del usuario del 19-11; amplía 083:RF-30): en una corrida real de cuatro alimentadores,
       tres cumplían y el cuarto tenía fijas que con sus pérdidas pasaban de su cabecera; el oráculo dejó su factor casi en
       cero, «escaladas al mínimo» se medía contra ese factor y el bucle gastó los 30 flujos sin causa, marcando a los cuatro
       como violación. `cuadrar_conjunto(factores_iniciales=…)` mide el mínimo contra el factor de antes del oráculo; el
@@ -450,6 +465,9 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       Hecho cuando: rojo por aserción sobre la base (gasta los 30 flujos sin causa) y verde con sus pruebas, las selladas de
       la 083 en su orden, capas e inventario; la prueba real en DIgSILENT, en el turno que dé el integrador. Evidencia:
       `D:/csg/PM_IMPL/CALIB_IMPOSIBLE/`.
+      Hecho el 2026-11-20 (bloque DIgSILENT de d8, wt_d8_mej567 = c4326366, web propia): prueba real sobre el proyecto
+      de cuatro Informe: D:/csg/PM_IMPL/DIG_BLOQUE/INFORME.md, sección «086 T98: CALIB-IMPOSIBLE en una corrida real
+      de cuatro alimentadores».
 - [x] T99 GEMELO-NO-CONVERGE (orden del usuario del 19-11): `tools/digital_twin_snapshot_pf.py` lee el grafo aunque
   el flujo no converja, marca `flujo_converge` y dice la causa en `resumen_salida`; `adaptadores/digital_twin/capture.py`
   clasifica `rejected` con su causa una lectura válida que no converge, e `integration.py` avisa el rechazo en el
@@ -543,3 +561,9 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       y `tests/test_sistema_web.py`.
       Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
       hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T110 MEJ23-TRABAJO-FALLIDO-Y-DEL: `services.causa_del_guion` y `exigir_guion` en «Aplicar el libro»
+      (`datos_empresa_aplicar`) y en `pfd_importar`; `historico_interrupciones.con_de` en `frase_exposicion`. (RF-133, RF-134)
+      Hecho cuando: rojo por aserción y verde con `tests/test_estudios_red_web.py -k fallido_queda_fallido`,
+      `tests/test_pfd_web.py -k fallido` y `tests/test_historico_interrupciones.py -k contrae` (086:RF-133, 086:RF-134).
+      Hecho el 2026-11-21 (MEJ23, código): rojo por aserción D:/csg/PM_IMPL/MEJ23_PFD/rojo.log y verde D:/csg/PM_IMPL/MEJ23_PFD/verde_nucleo.log,
+      verde_vecinas.log, tsc.log, npm_test.log y build.log (ESTADO.txt: 0 F, 0 omitidas).

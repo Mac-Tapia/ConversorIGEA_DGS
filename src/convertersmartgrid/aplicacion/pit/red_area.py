@@ -36,9 +36,12 @@ REQUERIDOS: dict[str, tuple[str, ...]] = {
                'vkr_lv_percent', 'pfe_kw', 'i0_percent'),
     'compensacion': ('barra', 'q_mvar'),
     'celda': (),
+    # 107:RF-25: el acoplamiento de barras de una subestación (``ElmCoup`` de DIgSILENT) con su estado; cerrado, sus
+    # dos barras son una en el flujo. Sin estado no se supone cerrado ni abierto: queda en faltantes.
+    'union': ('desde', 'hasta', 'cerrado'),
 }
 _BARRAS = {'red_externa': ('barra',), 'linea': ('desde', 'hasta'), 'trafo2': ('hv', 'lv'),
-           'trafo3': ('hv', 'mv', 'lv'), 'compensacion': ('barra',)}
+           'trafo3': ('hv', 'mv', 'lv'), 'compensacion': ('barra',), 'union': ('desde', 'hasta')}
 _TEXTO = {'id', 'tipo', 'set', 'rol', 'titular', 'desde', 'hasta', 'hv', 'mv', 'lv', 'barra', 'funcion', 'areas'}
 #: Las claves del contrato: el encabezado de cada columna cuando el perfil no declara ``columnas``.
 _CONTRATO = _TEXTO | {k for claves in REQUERIDOS.values() for k in claves}
@@ -48,7 +51,10 @@ _CONTRATO = _TEXTO | {k for claves in REQUERIDOS.values() for k in claves}
 #: ``tipo_barra`` (SL, PV o PQ, el ``bustp`` de DIgSILENT) dice qué red externa es la referencia del flujo cuando la
 #: red trae más de una (``red_pandapower.referencias``, 107:RF-3).
 OPCIONALES_TEXTO = frozenset({'entrega', 'tipo_red', 'tap_side', 'tipo_barra'})
-OPCIONALES = OPCIONALES_TEXTO | {'tap_min', 'tap_max', 'tap_neutral', 'tap_step_percent', 'tension_operacion_kv'}
+#: ``p_mw`` (con ``q_mvar``) es la consigna de una red externa PQ o PV que no es la referencia: entra como inyección
+#: (107:RF-25).
+OPCIONALES = OPCIONALES_TEXTO | {'tap_min', 'tap_max', 'tap_neutral', 'tap_step_percent', 'tension_operacion_kv',
+                                 'p_mw'}
 #: Filas en las que se busca la cabecera de cada hoja, como ``costos_fuentes._FILAS_CABECERA``.
 _FILAS_CABECERA = 30
 

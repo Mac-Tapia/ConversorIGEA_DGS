@@ -20,6 +20,7 @@ import { EstudiosPF } from './EstudiosPF';
 import { MapaCargas } from './MapaCargas';
 import { ObrasPF } from './ObrasPF';
 import { PfWarning } from '../../shared/PfWarning';
+import { ImportarPfd } from './ImportarPfd';
 import { InformesPF } from './InformesPF';
 import { OperacionSet } from './OperacionSet';
 import { TransferenciaPF } from './TransferenciaPF';
@@ -476,6 +477,8 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
         </div>
         {/* 086:RF-70: cada paso con los avisos de los trabajos que lanza. */}
         <AvisosTrabajo paso="pf-proyecto" />
+        {/* 004:RF-118: un .pfd se importa en la carpeta de la empresa; después se vuelve a leer la lista. */}
+        <ImportarPfd onImportado={() => void startJob(() => api.pfProjects(ws.id))} />
         {projects.length > 0 ? (
           <div className="row">
             <label className="field">

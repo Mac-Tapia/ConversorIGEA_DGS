@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Escanea alimentadores de un proyecto de DIgSILENT antes de recalibrar (spec 028).
 
-Lee, sin escribir nada, lo que tiene cada alimentador en «Sin proyecto» (el de su año, si el
+Lee, sin escribir nada en la red, lo que tiene cada alimentador en «Sin proyecto» (el de su año, si el
 plan lo trae): generadores con su barra, bancos, variaciones que no son del conversor y cargas
 cuya demanda difiere de la última calibración. En Nasca (2026-10-28) el usuario pone a mano la
 central y los bancos de NA205; con esto la web los ve y la calibración usa su barra.
@@ -12,6 +12,10 @@ El plan: ``project``, ``folder``, ``feeders``, ``anio_casos`` (opcional),
 ``ultima_calibracion`` por alimentador (opcional, 014:RF-10), ``tramos_dgs``, los tramos del
 DGS aceptado, para decir cuáles son nuevos (RF-17), y ``abiertos_dgs``, lo que ese DGS deja
 abierto, para reconocer las transferencias del operador (098:RF-9, RF-14).
+
+Antes de leer deja activas en «Sin» y «Con proyecto» las variaciones propias del conversor (``Fichas_``, ``SED_NTP_``)
+que una orden cortada dejara apagadas, y lo dice (083:RF-36); es lo mismo que haría la calibración al empezar
+(083:RF-29). Las cargas que dejó a medias una orden interrumpida salen aparte y no como cambiadas a mano (083:RF-35).
 
 Códigos de salida: 0 bien, 1 error inesperado, 2 proyecto que no existe, 3 API de
 PowerFactory no disponible.
@@ -144,7 +148,8 @@ def _tramos_cambiados(alims, feeder: str, de_dgs: set[str], de_objeto: dict) -> 
 
 def ejecutar(app, plan: dict) -> tuple[dict, int]:
     """El escaneo de los alimentadores del plan. Devuelve (informe, código)."""
-    from ajuste_cabecera_pf import bancos_instalados, cambios_manuales, cargas_sed
+    from ajuste_cabecera_pf import (bancos_instalados, cambios_manuales, cargas_dejadas_a_medias, cargas_sed,
+                                    variaciones_del_conversor_activas)
     from cargas_pf import Alimentadores, activar_proyecto
     from casos_pf import anio_del_plan
     from casos_pf import caso as caso_del_sistema
@@ -156,7 +161,15 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     if proyecto is None:
         return {**informe, 'error': f"no existe el proyecto {plan['project']!r}"}, 2
     anio = anio_del_plan(plan)
-    caso = caso_del_sistema(app, 'sin', anio) or caso_del_sistema(app, 'base')
+    # 083:RF-36: lo que una orden cortada dejó apagado (``Fichas_``, ``SED_NTP_``) se enciende antes de leer, como al
+    # empezar la calibración (083:RF-29): con ellas apagadas no se ven la central ni los bancos y el plan sale sin ellos.
+    sin = caso_del_sistema(app, 'sin', anio)
+    encendidas = variaciones_del_conversor_activas(app, plan['project'], sin, caso_del_sistema(app, 'con', anio))
+    if encendidas:
+        informe['variaciones_encendidas'] = encendidas
+        informe['avisos'].append('Variaciones del conversor que estaban apagadas, activas de nuevo antes de leer: '
+                                 + ', '.join(encendidas) + '.')
+    caso = sin or caso_del_sistema(app, 'base')
     if caso is None:
         informe['avisos'].append('el proyecto no tiene «Sin proyecto» ni «Caso base»: se lee el caso activo')
     else:
@@ -179,7 +192,9 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             bancos = [{**b, **origen_de(b['banco'], de_objeto.get(('ElmShnt', b['banco'])))}
                       for b in bancos_instalados(alims, f)]
             cargas, _sin = cargas_sed(alims, f)
-            cambiadas, _nombre = cambios_manuales(cargas, ultimas.get(f))
+            # 083:RF-35: las que dejó a medias una orden interrumpida no son cambios del operador.
+            a_medias, cortadas = cargas_dejadas_a_medias(plan['project'], f, cargas)
+            cambiadas, _nombre = cambios_manuales(cargas, ultimas.get(f), a_medias=cortadas)
             en_barra = _en_barra_de_cabecera(alims, f, de_objeto)
             informe['alimentadores'][f] = {'generadores': _generadores(alims, f, de_objeto),
                                            'generadores_en_barra': en_barra[0], 'bancos_en_barra': en_barra[1],
@@ -188,6 +203,8 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
                                            if de_dgs else [],
                                            'tramos_cambiados': _tramos_cambiados(alims, f, de_dgs,
                                                                                  de_objeto)}
+            if a_medias:
+                informe['alimentadores'][f]['cargas_de_una_orden_cortada'] = a_medias
         except Exception as exc:  # noqa: BLE001 - un alimentador no tumba el escaneo (RF-8)
             informe['alimentadores'][f] = {'error': f'{type(exc).__name__}: {exc}'}
     _transferencias(app, alims, plan, informe)

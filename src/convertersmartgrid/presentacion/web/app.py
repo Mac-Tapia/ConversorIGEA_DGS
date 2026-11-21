@@ -2928,6 +2928,18 @@ def create_app(
         return submit(ws, 'protecciones_fallas', f"Protecciones · {plan['caso']} · {plan['project']}",
                       lambda ctx: services.protecciones_ejecutar(ws, ctx, plan), lane='powerfactory')
 
+    @app.post('/api/workspaces/{wid}/pf/pfd', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
+    def pfd_importar(wid: str, file: UploadFile = File(...), reimportar: bool = Form(False)) -> dict:
+        """004:RF-118: el ``.pfd`` subido se guarda en el espacio y se importa y diagnostica en la carpeta de su empresa,
+        como trabajo del carril de DIgSILENT (``tools/pfd_diagnostico.py``)."""
+        ws = ws_or_404(wid)
+        nombre = services.nombre_del_pfd(file.filename or '')
+        destino = ws.root / services.CARPETA_PFD / nombre
+        _save_upload(destino, file)
+        return submit(ws, 'pfd_diagnostico', f'Importar {nombre} en DIgSILENT',
+                      lambda ctx: services.pfd_importar(ws, ctx, destino, reimportar=reimportar),
+                      lane='powerfactory')
+
     @app.get('/api/workspaces/{wid}/pf/datos-empresa')
     def datos_empresa_estado(wid: str, project: str = '') -> dict:
         return {'libro': services.datos_empresa_estado(ws_or_404(wid), project)}

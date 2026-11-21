@@ -7018,6 +7018,112 @@ def guion_pf(ws: Workspace, ctx: JobContext, script: str, plan: dict, *, nombre:
     return rc, informe, report
 
 
+def causa_del_guion(rc: int, informe: Mapping[str, Any]) -> str | None:
+    """086:RF-133: por qué no terminó bien un guion de DIgSILENT, o None si salió con 0 y sin error.
+
+    El error del informe es la causa; si no lo trae, el código con que salió.
+    """
+    error = str(informe.get('error') or '').strip()
+    if rc == 0 and not error:
+        return None
+    return error or f'el guion terminó con el código {rc}: vea el Registro'
+
+
+def exigir_guion(rc: int, informe: Mapping[str, Any], que: str) -> None:
+    """086:RF-133: un trabajo que escribe en DIgSILENT termina «fallido» con su causa si el guion no salió bien.
+
+    «Aplicar el libro» quedaba «done» aunque el guion saliera con 2 (bloque DIgSILENT del 20-11, 012 T17): el operador
+    veía el trabajo terminado y el libro sin aplicar. Los trabajos que ya distinguen el código lo siguen haciendo a su
+    manera; esto es para los que solo escriben.
+    """
+    causa = causa_del_guion(rc, informe)
+    if causa is not None:
+        raise UserError(f"{que}: {causa.rstrip('.')}.")
+
+
+#: 004:RF-118: la carpeta del espacio donde se guardan los ``.pfd`` subidos; el guion los reconoce por su huella.
+CARPETA_PFD = 'pfd'
+#: Nombres que Windows reserva para dispositivos: un ``CON.pfd`` no se puede guardar.
+_RESERVADOS_WINDOWS = frozenset({'CON', 'PRN', 'AUX', 'NUL', *(f'COM{i}' for i in range(1, 10)),
+                                 *(f'LPT{i}' for i in range(1, 10))})
+
+
+def nombre_del_pfd(nombre: str) -> str:
+    """004:RF-118: el nombre con que se guarda en el espacio un ``.pfd`` subido, o ``UserError`` si no es un ``.pfd``.
+
+    Se conserva el nombre del fichero (el guion reconoce con él la versión anterior, RF-101), sin carpetas ni
+    caracteres que Windows o DIgSILENT no admiten.
+    """
+    ruta = Path(str(nombre or '').replace('\\', '/').split('/')[-1])
+    if ruta.suffix.lower() != '.pfd':
+        raise UserError(f'«{ruta.name or nombre}» no es un fichero .pfd de DIgSILENT.')
+    base = nombre_seguro(ruta.stem, defecto='proyecto')
+    if base.upper() in _RESERVADOS_WINDOWS:
+        base = f'pfd_{base}'
+    return f'{base}.pfd'
+
+
+def pfd_resumen(informe: Mapping[str, Any]) -> dict:
+    """004:RF-118: lo que la web enseña del diagnóstico de un ``.pfd``, sacado del JSON de la corrida.
+
+    Los avisos van agrupados con sus veces (RF-117), los del fichero y los de cada proyecto; el detalle entero sigue
+    en el JSON y en el informe de texto, que se descargan.
+    """
+    from collections import Counter
+
+    proyectos = []
+    todos: list[str] = list(informe.get('avisos') or [])
+    for d in informe.get('proyectos') or []:
+        red = d.get('red') or {}
+        proyectos.append({
+            'proyecto': d.get('proyecto'), 'caso_activo': d.get('caso_activo'),
+            'casos': len(d.get('casos') or []), 'escenarios': len(d.get('escenarios') or []),
+            'variaciones': len(d.get('variaciones') or []), 'redes': len(red.get('redes') or []),
+            'alimentadores': sum(len(r.get('alimentadores') or []) for r in red.get('redes') or []),
+            'exportacion_reducida': bool(d.get('exportacion_reducida')),
+            'version_anterior': (d.get('version_anterior') or {}).get('proyecto')})
+        todos += list(d.get('avisos') or [])
+    veces = Counter(todos)
+    return {'fichero': informe.get('fichero'), 'sha256': informe.get('sha256'), 'carpeta': informe.get('carpeta'),
+            'modo': informe.get('modo'), 'codigo': informe.get('codigo'), 'proyectos': proyectos,
+            'avisos': [{'aviso': a, 'veces': veces[a]} for a in dict.fromkeys(todos)], 'total_avisos': len(todos),
+            'errores': list(informe.get('errores') or [])}
+
+
+def pfd_importar(ws: Workspace, ctx: JobContext, ruta: Path, *, reimportar: bool = False) -> dict:
+    """004:RF-118: importa un ``.pfd`` subido al espacio en la carpeta de DIgSILENT de su empresa y lo diagnostica.
+
+    Es ``tools/pfd_diagnostico.py`` (RF-81 a RF-107), el mismo guion de la prueba del 20-11 (004 T30), lanzado desde
+    la web en el carril de DIgSILENT. Un código distinto de 0 deja el trabajo fallido con su causa (086:RF-133).
+    """
+    pf_dir, interpreter = _require_pf()
+    decision = destino_carpeta(ws)                                    # la carpeta de la empresa del espacio
+    carpeta = decision.carpeta
+    if decision.aviso:
+        ctx.log(decision.aviso)
+    token = uuid.uuid4().hex[:12]
+    report = ws.out_dir / f'pfd_diagnostico_{token}.json'
+    report.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [str(interpreter), str(_script('pfd_diagnostico.py')), '--pfd', str(ruta), '--output-json', str(report)]
+    if carpeta:
+        cmd += ['--carpeta', carpeta]
+    if reimportar:
+        cmd.append('--reimportar')
+    ctx.log(f'{ruta.name} → carpeta «{carpeta}» de DIgSILENT' + (' (proyecto nuevo)' if reimportar else ''))
+    rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()))
+    if rc == 3:
+        raise sin_conexion_digsilent()
+    try:
+        informe = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
+    except (OSError, ValueError):
+        informe = {}
+    exigir_guion(rc, {'error': '; '.join(informe.get('errores') or [])} if informe else {},
+                 f'No se diagnosticó {ruta.name}')
+    texto = report.with_suffix('.txt')
+    return {'returncode': rc, 'report': report.name, 'informe_texto': texto.name if texto.is_file() else None,
+            'resumen': pfd_resumen(informe)}
+
+
 #: 002:RF-5 (spec 111): ``guion_pf`` es el nombre público para los demás módulos. El privado se queda como alias: lo
 #: llaman las funciones de este módulo y lo sustituyen las pruebas.
 _guion_pf = guion_pf
@@ -10744,6 +10850,7 @@ def datos_empresa_aplicar(ws: Workspace, ctx: JobContext, project: str, feeders:
     ctx.log(f"Libro {ws.datos_empresa[project.strip()]['nombre']} → {project.strip()}")
     rc, informe, report = _guion_pf(ws, ctx, 'confiabilidad_pf.py', plan, nombre='datos_confiabilidad',
                                     args=('--aplicar-datos',))
+    exigir_guion(rc, informe, 'El libro no se aplicó')                                  # 086:RF-133
     if rc == 0 and not informe.get('error'):
         with ws.lock:
             meta = ws.datos_empresa[project.strip()]

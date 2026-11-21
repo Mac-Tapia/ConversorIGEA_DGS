@@ -969,8 +969,10 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     if rc_orden not in (None, 0):
         # 011:RF-137: una orden que termina con un código distinto de 0 no es un resultado. Antes ``codigo_orden`` se
         # guardaba y nadie lo leía, y las medidas del flujo base pasaban por las del estudio.
+        causa = f" DIgSILENT dice: {informe['causa_orden']}." if informe.get('causa_orden') else ''    # 012:RF-97
         return {**informe, 'error': f'DIgSILENT terminó {ORDENES[estudio]} con el código {rc_orden}: el estudio no '
-                                    'tiene resultado, y las medidas son las del flujo base, no las del estudio'}, 2
+                                    'tiene resultado, y las medidas son las del flujo base, no las del estudio.'
+                                    + causa}, 2
     return informe, 0
 
 

@@ -114,7 +114,9 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
       background: var(--plano-panel); color: var(--plano-texto); padding: 6px 10px; border-radius: 4px;
       font: 13px/1.4 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.3); }}
     .panel[hidden] {{ display: none; }}
-    #aviso {{ position: absolute; z-index: 1000; top: 10px; left: 50px; }}
+    /* Sin «bottom: auto», el «bottom» de .panel estiraba el aviso de arriba abajo
+       (358×618 px en un mapa de 564×646) y tapaba el dibujo de la red con su fondo casi opaco. */
+    #aviso {{ position: absolute; z-index: 1000; top: 10px; left: 50px; bottom: auto; }}
     .icono-incumple {{ width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 50%;
       background: var(--plano-alerta); color: #fff; font: 700 12px system-ui, sans-serif;
       border: 1px solid var(--plano-borde); }}
@@ -147,7 +149,11 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
     const css = getComputedStyle(document.documentElement);
     const token = (n) => css.getPropertyValue('--plano-' + n).trim();
     const texto = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({{'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}})[c]);
-    const map = L.map('mapa', {{ preferCanvas: true, keyboard: true, zoomControl: true }});
+    // Los controles de Leaflet salían en inglés («Zoom in», «Layers») dentro de una página
+    // en español, y el prefijo de la atribución era un enlace a internet en una web que trabaja sin red.
+    const map = L.map('mapa', {{ preferCanvas: true, keyboard: true, zoomControl: false }});
+    L.control.zoom({{ zoomInTitle: 'Acercar', zoomOutTitle: 'Alejar' }}).addTo(map);
+    map.attributionControl.setPrefix(false);
     {teselas}
     const grupos = {{}};
     CAPAS.forEach(function (c) {{ grupos[c.clave] = L.layerGroup(); if (c.visible) grupos[c.clave].addTo(map); }});
@@ -265,7 +271,9 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
     if (varios) datos.vistas.forEach(function (v) {{
       capasControl['<span style="color:' + colorDe[v.alimentador] + '">■</span> ' + texto(v.alimentador)] = porAlimentador[v.alimentador];
     }});
-    L.control.layers(null, capasControl, {{ position: 'topright', collapsed: true }}).addTo(map);
+    const controlCapas = L.control.layers(null, capasControl, {{ position: 'topright', collapsed: true }}).addTo(map);
+    const botonCapas = controlCapas.getContainer().querySelector('.leaflet-control-layers-toggle');
+    if (botonCapas) {{ botonCapas.title = 'Capas'; botonCapas.setAttribute('aria-label', 'Capas'); }}
     // Nivel de detalle solo gráfico: el lienzo simplifica el dibujo al alejarse; los vértices no cambian.
     function detalle() {{
       const z = map.getZoom();

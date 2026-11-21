@@ -748,10 +748,19 @@ def resumen_exposicion(exposicion: Mapping[str, Mapping[str, float]], origen: st
     return {'origen': origen, 'alimentadores': por_alim, 'totales': dict(totales)}
 
 
+def con_de(texto: Any) -> str:
+    """«de» delante de ``texto``, contraído en «del» si empieza por «el » (086:RF-134).
+
+    El origen de la exposición es «el proyecto de DIgSILENT «…»», y la frase decía «leída de el proyecto».
+    """
+    texto = str(texto or '')
+    return f'del {texto[3:]}' if texto.startswith('el ') else f'de {texto}'
+
+
 def frase_exposicion(resumen: Mapping[str, Any]) -> str:
     """La exposición en una frase, para los avisos del libro (012:RF-88)."""
     t = resumen.get('totales') or {}
-    return (f"Exposición leída de {resumen.get('origen')}: {len(resumen.get('alimentadores') or {})} "
+    return (f"Exposición leída {con_de(resumen.get('origen'))}: {len(resumen.get('alimentadores') or {})} "
             f"alimentadores, {t.get('linea', 0.0):.3f} km de línea aérea, {t.get('cable', 0.0):.3f} km de "
             f"cable, {t.get('transformador', 0.0):.0f} transformadores y {t.get('barra', 0.0):.0f} barras.")
 

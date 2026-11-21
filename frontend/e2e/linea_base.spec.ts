@@ -45,7 +45,9 @@ test('111:RF-16 — todas las pestañas de la web siguen y conservan sus accione
 
   const vistas: Record<string, string[]> = {};
   for (const p of pestanas()) {
-    const boton = lista.getByRole('tab', { name: p.etiqueta, exact: true });
+    // 100:RF-12: la pestaña de un estudio lleva su marca de validación («Sin validar» o «No disponible») en el nombre
+    // accesible, como en F03 (test/e2e/f03_planificacion.e2e.mjs); con «exact» la pestaña no se encontraba.
+    const boton = lista.getByRole('tab', { name: new RegExp(`^${p.etiqueta}( Sin validar| No disponible)?$`) });
     if (p.beta && (await boton.count()) === 0) {
       info.annotations.push({ type: 'beta apagada', description: p.id });
       continue;

@@ -39,7 +39,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 009 Inventario del repositorio: cada fichero con su módulo y su spec | cumplida |  |
   | 010 Trazado GPS de las líneas | cumplida |  |
   | 011 Estudios y obras de mejora sobre la red calibrada | cumplida | |
-  | 012 Confiabilidad y capacidad de la red calibrada | implementada | queda T17 (DIgSILENT) |
+  | 012 Confiabilidad y capacidad de la red calibrada | cumplida | — |
   | 013 Mes de análisis y transferencia entre dos alimentadores | cumplida |  |
   | 014 Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto» | cumplida |  |
   | 015 «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida | — |
@@ -113,7 +113,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 083 El oráculo antes de calibrar y recalibrar | cumplida | |
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | cumplida |  |
   | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida |  |
-  | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | ver sus tareas |
+  | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | T9, T36, T40, T41, T79, T32, T33, T34, T96, T97, T100, T105 |
   | 087 Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | cumplida |  |
   | 088 Q negativa desde el factor de potencia | cumplida |  |
   | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T7 |
@@ -138,7 +138,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 108 Estudio de costos del VAD con la empresa modelo eficiente | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
   | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | cumplida | — |
   | 110 Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | |
-  | 111 Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | aprobada | falta T1, T2, T13, T16, T17, T18 (DIgSILENT), T19, T28, T29 |
+  | 111 Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | implementada | T18 |
   | 112 Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | falta T16 (corrida con los paquetes públicos), T18, T19 |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,

@@ -46,7 +46,7 @@ import json
 import traceback
 from pathlib import Path
 
-from cargas_pf import Alimentadores, _num, activar_proyecto, crear_variacion, error_inesperado, nombre_libre
+from cargas_pf import Alimentadores, _misma, _num, activar_proyecto, crear_variacion, error_inesperado, nombre_libre
 from casos_pf import NOMBRES, casos_del_proyecto
 
 from convertersmartgrid.aplicacion import datos_empresa as de
@@ -78,6 +78,10 @@ CLASE_EXPORT = {'BREAKER': 'interruptor', 'RECLOSER': 'reconectador', 'FUSE': 'f
 #: ``aUsage`` del DGS que ya dice la clase (011:RF-128): seccionador y seccionalizador.
 CLASE_POR_USO = {'dct': 'seccionador', 'swt': 'seccionador'}
 INTERRUPTORES = ('StaSwitch', 'ElmCoup')
+#: 012:RF-94: el tiempo de maniobra más corto que se escribe, en minutos. DIgSILENT no admite ``Tswitch`` = 0 en un
+#: ``ElmCoup`` (sonda del 2026-11-20 en el proyecto de prueba: 0 se rechaza; 0,001 se admite) y el histórico deja la
+#: maniobra manual en 0 cuando el registro no separa localización y maniobra (todo el tiempo va a localización).
+TSWITCH_MINIMO_MIN = 0.001
 #: ``ComRel3``: análisis por flujo de carga y red de distribución (RF-28), orden del diálogo.
 OPCIONES_REL3 = {'iopt_type': 1, 'iopt_net': 1}
 #: ``ComOpri.objective`` (plan: 0 ENS, 1 SAIDI); ``locations`` 1 = con protección.
@@ -145,16 +149,30 @@ def _carpeta_modelos(app):
     return carpeta or equip.CreateObject('IntFolder', CARPETA_MODELOS)
 
 
+def con_modelo(tasa: de.Tasa) -> bool:
+    """012:RF-93: lleva modelo de falla lo que tiene un tiempo de reparación positivo."""
+    return tasa.reparacion_h is not None and tasa.reparacion_h > 0
+
+
+def sin_modelo(libro: de.Libro) -> list[str]:
+    """012:RF-93: las clases y los tipos del libro que se quedan sin modelo de falla, para el informe."""
+    return ([c for c, t in sorted(libro.tasas.items()) if c in MODELO and not con_modelo(t)]
+            + [f'tipo {k}' for k, t in sorted(libro.tasas_por_tipo.items()) if not con_modelo(t)])
+
+
 def escribir_modelos(app, libro: de.Libro) -> dict[str, object]:
     """Un ``Sto*`` por clase y por tipo con fila (RF-11); los de un libro anterior que ya no
     tienen fila se borran y los que siguen se reescriben, sin acumularse (RF-23)."""
     carpeta = _carpeta_modelos(app)
     queridos: dict[str, tuple[str, de.Tasa]] = {}
+    # 012:RF-93: una clase o un tipo sin ninguna falla en el histórico (λ = 0 y tiempo de reparación 0) no lleva modelo:
+    # DIgSILENT no admite un tiempo de reparación de 0 y, sin fallas, el modelo no cambia nada. Lo dice el informe.
     for clase, tasa in libro.tasas.items():
-        if clase in MODELO:
+        if clase in MODELO and con_modelo(tasa):
             queridos[f'{PREFIJO_MODELO}{clase}'] = (MODELO[clase], tasa)
     for tipo, tasa in libro.tasas_por_tipo.items():
-        queridos[f'{PREFIJO_MODELO}tipo_{tipo}'] = (MODELO[tasa.clase], tasa)
+        if con_modelo(tasa):
+            queridos[f'{PREFIJO_MODELO}tipo_{tipo}'] = (MODELO[tasa.clase], tasa)
     existentes = {o.loc_name: o for o in carpeta.GetContents('*')
                   if o.loc_name.startswith(PREFIJOS_MODELO)}
     for nombre, o in existentes.items():
@@ -213,10 +231,17 @@ def _bloqueos(libro, elms, feeders, clases_entrada) -> tuple[list[str], dict[str
     return de.clases_que_faltan(libro, conteo), sin_clase
 
 
+def tiempo_de_maniobra(minutos) -> tuple[float, bool]:
+    """012:RF-94: el ``Tswitch`` que se escribe y si se subió al mínimo: uno de 0 (o sin dato) va como
+    :data:`TSWITCH_MINIMO_MIN`, que DIgSILENT admite y no cambia el tiempo total de la interrupción."""
+    v = float(minutos or 0.0)
+    return (TSWITCH_MINIMO_MIN, True) if v < TSWITCH_MINIMO_MIN else (v, False)
+
+
 def _escribir_alimentador(elm, libro, modelos, clases_entrada) -> dict:
     """Modelos, tiempos y equipos de un alimentador, en la etapa que graba (RF-22, RF-27, RF-69)."""
     t, tele = libro.tiempos_min, set(libro.telemandados)
-    fila = {'asignados': {}, 'interruptor_cabecera': False}
+    fila = {'asignados': {}, 'interruptor_cabecera': False, 'tswitch_al_minimo': 0}
     for clase, objs in elementos_por_clase(elm).items():
         n = 0
         for o in objs:
@@ -234,12 +259,15 @@ def _escribir_alimentador(elm, libro, modelos, clases_entrada) -> dict:
         sw.rel_hasRecl = 1 if clase == 'reconectador' else 0
         if clase == 'seccionador':
             sw.iRestore = 1
-        sw.Tswitch = t.get('telemandada', 0.0) if sw.loc_name in tele else t.get('manual', 0.0)
+        sw.Tswitch, subido = tiempo_de_maniobra(t.get('telemandada', 0.0) if sw.loc_name in tele
+                                                else t.get('manual', 0.0))
+        fila['tswitch_al_minimo'] += subido                                  # RF-94
     cub = getattr(elm, 'obj_id', None)
     if cub is not None and not _cabecera_protegida(elm):                     # RF-69
         cab = cub.CreateObject('StaSwitch', nombre_libre(cub, 'StaSwitch', NOMBRE_CABECERA))
         cab.aUsage, cab.on_off, cab.rel_hasProt, cab.rel_hasRecl = 'cbk', 1, 1, 0
-        cab.Tswitch = t.get('manual', 0.0)
+        cab.Tswitch, subido = tiempo_de_maniobra(t.get('manual', 0.0))
+        fila['tswitch_al_minimo'] += subido                                  # RF-94
         fila['interruptor_cabecera'] = True
     cargas = elm.GetObjs('ElmLod')                                           # RF-24, RF-25
     fila['cargas_sin_clientes'] = sum(1 for c in cargas if not (getattr(c, 'NrCust', 0) or 0))
@@ -285,6 +313,44 @@ def _libro_con_exposicion(libro: de.Libro, elms, proyecto: str, informe: dict) -
     return derivado, ''
 
 
+def etapa_que_graba_fuera_de(app, variacion):
+    """La etapa que graba en el caso activo, salvo que sea de ``variacion`` (la de confiabilidad que se reemplaza)."""
+    graba = app.GetRecordingStage()
+    if graba is None or (variacion is not None and _misma(graba.GetParent(), variacion)):
+        return None
+    return graba
+
+
+def soltar_la_grabacion(app, variacion, previa) -> str | None:
+    """RF-98: al terminar, la etapa de ``variacion`` deja de grabar en el caso activo («Sin proyecto»).
+
+    Tras aplicar el libro, «Etapa_confiabilidad» seguía grabando (bloque DIgSILENT del 20-11, sonda del «Caso base»):
+    un cambio a mano del operador iría a «Datos de confiabilidad», que se borra al aplicar otro libro (RF-23). Si antes
+    grababa otra etapa (``previa``), vuelve a ella, como las fichas devuelven la del operador (032:RF-12), y la hora del
+    estudio se repone (activar una etapa lleva el caso a su fecha, 081:RF-78). Si no grababa ninguna, la variación se
+    desactiva y se vuelve a activar sin etapa que grabe. Se comprueba al final; si DIgSILENT la sigue grabando, se
+    devuelve el aviso con lo que hay que hacer.
+    """
+    graba = app.GetRecordingStage()
+    if graba is None or not _misma(graba.GetParent(), variacion):
+        return None
+    caso = app.GetActiveStudyCase()
+    hora = int(getattr(caso, 'iStudyTime', 0) or 0) if caso is not None else None
+    if previa is not None:
+        previa.Activate(1)
+    else:
+        variacion.Deactivate()
+        variacion.Activate()
+    if caso is not None and int(getattr(caso, 'iStudyTime', 0) or 0) != hora:
+        caso.iStudyTime = hora
+    graba = app.GetRecordingStage()
+    if graba is not None and _misma(graba.GetParent(), variacion):
+        return (f'«{graba.loc_name}» sigue grabando en «{NOMBRES["sin"]}»: un cambio a mano iría a «{VARIACION}», que '
+                'se reemplaza al aplicar otro libro. Antes de cambiar nada a mano, active en DIgSILENT la etapa donde '
+                'quiere grabarlo.')
+    return None
+
+
 def aplicar_datos(app, plan: dict) -> tuple[dict, int]:
     """El libro en el proyecto (RF-20 a RF-27, RF-69); bloquea sin escribir nada si falta una
     clase de la red (RF-17) o el proyecto no distingue la clase de sus equipos (RF-26)."""
@@ -303,6 +369,7 @@ def aplicar_datos(app, plan: dict) -> tuple[dict, int]:
     try:
         casos['sin'].Activate()
         anterior = _variacion_existente(app)
+        previa = etapa_que_graba_fuera_de(app, anterior)                 # RF-98
         if anterior is not None:            # RF-23: se lee la red sin la que se va a reemplazar
             anterior.Deactivate()
         elms = Alimentadores(app, proyecto, feeders).elm                # 063:RF-39
@@ -335,6 +402,11 @@ def aplicar_datos(app, plan: dict) -> tuple[dict, int]:
             casos['sin'].Activate()
             anterior.Delete()
         modelos = escribir_modelos(app, libro)
+        vacias = sin_modelo(libro)
+        if vacias:                                                           # RF-93
+            informe['sin_modelo'] = vacias
+            informe['avisos'].append('Sin modelo de falla (ninguna falla en el histórico, tiempo de reparación 0): '
+                                     + ', '.join(vacias) + '. Sus equipos no fallan en el cálculo de confiabilidad.')
         variacion, _etapa = crear_variacion(app, VARIACION, 'confiabilidad')
         for f in feeders:
             fila = informe['alimentadores'][f] = _escribir_alimentador(elms[f], libro, modelos, clases_entrada)
@@ -344,6 +416,12 @@ def aplicar_datos(app, plan: dict) -> tuple[dict, int]:
             if fila['cargas_sin_clientes']:                                  # RF-25
                 informe['avisos'].append(f"{f}: {fila['cargas_sin_clientes']} cargas sin número de "
                                          'clientes; no pesan en SAIFI ni en SAIDI.')
+        al_minimo = sum(int(informe['alimentadores'][f].get('tswitch_al_minimo') or 0) for f in feeders)
+        if al_minimo:                                                        # RF-94
+            informe['tswitch_al_minimo'] = al_minimo
+            informe['avisos'].append(
+                f'Tiempo de maniobra 0 en el libro: {al_minimo} equipos de maniobra llevan {TSWITCH_MINIMO_MIN} min, '
+                'el mínimo que admite DIgSILENT; el tiempo de la interrupción sigue siendo el del histórico.')
         sin_sitio = [de.CLASES[c] for c in de.CLASES if c in libro.tasas and c not in MODELO]
         if sin_sitio:
             informe['avisos'].append('Las tasas de ' + ', '.join(sin_sitio) + ' no tienen dónde ir en '
@@ -356,8 +434,14 @@ def aplicar_datos(app, plan: dict) -> tuple[dict, int]:
                 variacion.Activate()
             else:
                 variacion.Deactivate()
+        casos['sin'].Activate()
+        aviso = soltar_la_grabacion(app, variacion, previa)             # RF-98
+        if aviso:
+            informe['avisos'].append(aviso)
+        graba = app.GetRecordingStage()
         informe.update(variacion=variacion.loc_name, modelos=sorted(modelos),
-                       casos=[NOMBRES[r] for r in ('sin', 'con') if r in casos])
+                       casos=[NOMBRES[r] for r in ('sin', 'con') if r in casos],
+                       grabando=graba.loc_name if graba is not None else None)
     finally:
         if inicial is not None and app.GetActiveStudyCase() is not inicial:
             inicial.Activate()
@@ -395,6 +479,13 @@ def leer_confiabilidad(elm) -> dict:
             'cargas': cargas, 'aportes': aportes}
 
 
+def causa_de_la_salida(lineas) -> str:
+    """012:RF-97: los mensajes de error de DIgSILENT de una orden fallida, en una frase («err  - …»)."""
+    errores = [str(x).split('-', 1)[1].strip() for x in lineas or [] if str(x).lstrip().startswith('err')]
+    vistos = list(dict.fromkeys(e for e in errores if e))
+    return '; '.join(vistos[:12])
+
+
 def orden_propia(app, clase: str, nombre: str):
     """Orden creada en el caso, para no tocar las que el operador tenga configuradas."""
     orden = app.GetActiveStudyCase().CreateObject(clase, nombre)
@@ -414,6 +505,12 @@ def fiabilidad(app, plan: dict, alims, feeders: list[str], informe: dict) -> str
 
     if not con_datos(app):
         return f'«{VARIACION}» no está activa en el caso: aplique primero el libro de la empresa'
+    # 012:RF-96: «sin tensión antes de la falla» se mira con un flujo válido del caso tal como está. En un caso del
+    # operador el estudio activa antes su variación (011:RF-136) y DIgSILENT invalida el flujo base: sin este flujo,
+    # todas las barras salían sin tensión y los índices nulos aunque ComRel3 terminara bien (2026-11-20, proyecto de prueba de dos alimentadores).
+    ldf = app.GetFromStudyCase('ComLdf')
+    if ldf is not None:
+        ldf.Execute()
     previos = {f: sin_tension(alims.elm[f]) for f in feeders if f in alims.elm}
     orden = orden_propia(app, 'ComRel3', NOMBRE_REL3)
     try:
@@ -424,6 +521,10 @@ def fiabilidad(app, plan: dict, alims, feeders: list[str], informe: dict) -> str
         if rc and sin_licencia(_salida(app)):
             informe['sin_licencia'] = 'ComRel3'
             return 'la licencia de DIgSILENT no incluye el módulo ComRel3'
+        if rc:                                                               # RF-97
+            causa = causa_de_la_salida(_salida(app))
+            if causa:
+                informe['causa_orden'] = causa
         informe['red'] = {}
         for f in feeders:
             elm = alims.elm.get(f)
@@ -534,6 +635,9 @@ def main(argv=None) -> int:
     p.add_argument('--output-json', required=True, help='Dónde dejar el informe')
     p.add_argument('--aplicar-datos', action='store_true',
                    help='Escribir el libro de la empresa en la variación «Datos de confiabilidad»')
+    # 012:RF-95: la web lo pasa a todo guion cancelable (``services.guion_pf``); aplicar el libro es corto y no se
+    # corta a medias, pero sin aceptarlo argparse salía con 2 sin informe y la web no decía por qué.
+    p.add_argument('--cancel-file', help='Fichero de cancelación de la web; aplicar el libro no se corta a medias')
     args = p.parse_args(argv)
     if not args.aplicar_datos:
         p.error('use --aplicar-datos; los estudios los ejecuta tools/estudios_pf.py')

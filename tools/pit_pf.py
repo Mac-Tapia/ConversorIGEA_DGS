@@ -9,6 +9,15 @@ transmisión: nunca sobre el del operador.
   (un tipo sin asignar, un atributo vacío) no se rellena: el elemento sale sin ese dato y el PIT lo lista en
   ``faltantes`` (107:RF-4). La red externa y la compensación salen con la tensión nominal de su barra, y la red
   externa con su tipo de barra (``bustp``), que dice cuál es la referencia del flujo (107:RF-3).
+* Cada elemento lleva un ``id`` único, su ruta desde la red (``<red>.ElmNet/<subestación>.ElmSubstat/<barra>.ElmTerm``),
+  y su ``nombre`` aparte: en un proyecto de transmisión las barras de cada subestación se llaman «1», «2», «3»… y el
+  nombre solo uniría barras distintas. Las tensiones, las cargabilidades y el estado del estudio usan las mismas claves,
+  y así los resultados de DIgSILENT y del motor abierto se emparejan por ``id`` (107:RF-25).
+* Los acoplamientos (``ElmCoup``) salen como uniones de barras con su estado (``cerrado``): una barra partida por un
+  acoplamiento cerrado es una sola en el flujo (107:RF-25).
+* La máquina que DIgSILENT declara de referencia (``ip_ctrl``) sale como red externa de referencia (SL) con su
+  consigna de tensión, y la red externa con su consigna de potencia (``pgini``, ``qgini``): un proyecto cuya
+  referencia es una máquina y cuyas redes externas son PQ se puede calcular con el motor abierto (107:RF-25).
 * Sin esa opción, por cada año del plan (``anios``: año → caso de estudio): ``ComLdf``, ``ComSimoutage`` y ``ComRel3``,
   los que pida el plan en ``estudios``. Antes y después se lee el estado del caso (demanda de las cargas, variaciones,
   hora de estudio y etapa que graba) y ``estudios_red_pf.cambios_de_estado`` comprueba que no quedó nada cambiado.
@@ -53,9 +62,26 @@ def _terminal(obj, lado: str):
     return cub.GetParent() if cub is not None else None
 
 
+def _id(obj) -> str | None:
+    """107:RF-25: el id único de un elemento, su ruta desde la red a la que pertenece (``GetFullName`` desde el
+    ``ElmNet``, con ``/``): ``<red>.ElmNet/<subestación>.ElmSubstat/1.ElmTerm``. El ``loc_name`` no basta: en un
+    proyecto de transmisión cada subestación tiene sus barras «1», «2», «3»… Un objeto que no cuelga de una red (solo en
+    un doble de pruebas) se identifica por su nombre."""
+    if obj is None:
+        return None
+    try:
+        completo = str(obj.GetFullName() or '')
+    except Exception:  # noqa: BLE001 - justificado: la API de PowerFactory da errores propios; queda el nombre
+        completo = ''
+    partes = [p for p in completo.split('\\') if p]
+    for i, parte in enumerate(partes):
+        if parte.endswith('.ElmNet'):
+            return '/'.join(partes[i:])
+    return str(obj.loc_name)
+
+
 def _barra(obj, lado: str) -> str | None:
-    padre = _terminal(obj, lado)
-    return padre.loc_name if padre is not None else None
+    return _id(_terminal(obj, lado))
 
 
 def _kv_barra(obj, lado: str) -> float | None:
@@ -85,8 +111,17 @@ def _pct_cobre(pcu_kw: float | None, sn_mva: float | None) -> float | None:
     return 100.0 * pcu_kw / (1000.0 * sn_mva) if pcu_kw is not None and sn_mva else None
 
 
+def _objetos(app, patron: str) -> list:
+    return list(app.GetCalcRelevantObjects(patron) or [])
+
+
+def _fuera_de_servicio(obj) -> bool:
+    return _num(obj, 'outserv') == 1
+
+
 def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
-    """Los elementos del proyecto activo en el contrato ``RedArea`` (claves de ``REQUERIDOS``)."""
+    """Los elementos del proyecto activo en el contrato ``RedArea`` (claves de ``REQUERIDOS``), cada uno con su id
+    único (``_id``) y su nombre (107:RF-25)."""
     area, titular = str(plan['area']), str(plan['titular'])
     proyecto = str(plan.get('project') or '')
     comun = {'areas': [area], 'titular': titular}
@@ -94,37 +129,60 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
     def fuente(o):
         return {'proyecto': proyecto, 'objeto': o.GetFullName()}
 
+    def ident(o):
+        return {'id': _id(o), 'nombre': str(o.loc_name)}
+
     out: list[dict[str, Any]] = []
-    for b in app.GetCalcRelevantObjects('*.ElmTerm'):
-        out.append(_sin_vacios({'id': b.loc_name, 'tipo': 'barra', 'kv': _num(b, 'uknom'), **comun,
-                                'fuente': fuente(b)}))
-    for g in app.GetCalcRelevantObjects('*.ElmXnet'):
-        # El tipo de barra (``bustp``: SL, PV o PQ) dice cuál es la referencia cuando hay varias (107:RF-3).
-        out.append(_sin_vacios({'id': g.loc_name, 'tipo': 'red_externa', 'barra': _barra(g, 'bus1'),
+    for b in _objetos(app, '*.ElmTerm'):
+        out.append(_sin_vacios({**ident(b), 'tipo': 'barra', 'kv': _num(b, 'uknom'), **comun, 'fuente': fuente(b)}))
+    for g in _objetos(app, '*.ElmXnet'):
+        # El tipo de barra (``bustp``: SL, PV o PQ) dice cuál es la referencia cuando hay varias (107:RF-3); la
+        # consigna de potencia, con qué entra una red externa PQ o PV que no es la referencia (107:RF-25).
+        out.append(_sin_vacios({**ident(g), 'tipo': 'red_externa', 'barra': _barra(g, 'bus1'),
                                 'kv': _kv_barra(g, 'bus1'), 'vm_pu': _num(g, 'usetp'),
-                                'tipo_barra': _texto(g, 'bustp'), **comun, 'fuente': fuente(g)}))
-    for ln in app.GetCalcRelevantObjects('*.ElmLne'):
+                                'tipo_barra': _texto(g, 'bustp'), 'p_mw': _num(g, 'pgini'),
+                                'q_mvar': _num(g, 'qgini'), **comun, 'fuente': fuente(g)}))
+    for patron in ('*.ElmSym', '*.ElmGenstat'):
+        # 107:RF-25: la máquina de referencia del flujo (``ip_ctrl``) es la barra de suministro cuando la referencia
+        # del proyecto no es una red externa. Las demás máquinas no se exportan: su generación es inyección del caso.
+        for m in _objetos(app, patron):
+            if _fuera_de_servicio(m) or _num(m, 'ip_ctrl') != 1:
+                continue
+            out.append(_sin_vacios({**ident(m), 'tipo': 'red_externa', 'barra': _barra(m, 'bus1'),
+                                    'kv': _kv_barra(m, 'bus1'), 'vm_pu': _num(m, 'usetp'), 'tipo_barra': 'SL',
+                                    'maquina_referencia': True, **comun, 'fuente': fuente(m)}))
+    for c in _objetos(app, '*.ElmCoup'):
+        # 107:RF-25: el acoplamiento une dos barras de la subestación; abierto, se exporta igual con su estado. Sin
+        # estado legible no se supone: queda sin ``cerrado`` y el PIT lo lista en faltantes (107:RF-4).
+        if _fuera_de_servicio(c):
+            continue
+        estado_c = _num(c, 'on_off')
+        out.append(_sin_vacios({**ident(c), 'tipo': 'union', 'desde': _barra(c, 'bus1'), 'hasta': _barra(c, 'bus2'),
+                                'kv': _kv_barra(c, 'bus1'),
+                                'cerrado': None if estado_c is None else estado_c == 1, **comun,
+                                'fuente': fuente(c)}))
+    for ln in _objetos(app, '*.ElmLne'):
         t = getattr(ln, 'typ_id', None)
         c_uf = _num(t, 'cline')
         out.append(_sin_vacios({
-            'id': ln.loc_name, 'tipo': 'linea', 'desde': _barra(ln, 'bus1'), 'hasta': _barra(ln, 'bus2'),
+            **ident(ln), 'tipo': 'linea', 'desde': _barra(ln, 'bus1'), 'hasta': _barra(ln, 'bus2'),
             'kv': _num(t, 'uline'), 'longitud_km': _num(ln, 'dline'), 'r_ohm_per_km': _num(t, 'rline'),
             'x_ohm_per_km': _num(t, 'xline'), 'c_nf_per_km': c_uf * 1000.0 if c_uf is not None else None,
             'max_i_ka': _num(t, 'sline'), **comun, 'fuente': fuente(ln)}))
-    for tr in app.GetCalcRelevantObjects('*.ElmTr2'):
+    for tr in _objetos(app, '*.ElmTr2'):
         t = getattr(tr, 'typ_id', None)
         sn = _num(t, 'strn')
         out.append(_sin_vacios({
-            'id': tr.loc_name, 'tipo': 'trafo2', 'hv': _barra(tr, 'bushv'), 'lv': _barra(tr, 'buslv'),
+            **ident(tr), 'tipo': 'trafo2', 'hv': _barra(tr, 'bushv'), 'lv': _barra(tr, 'buslv'),
             'kv': _num(t, 'utrn_h'), 'sn_mva': sn, 'vn_hv_kv': _num(t, 'utrn_h'), 'vn_lv_kv': _num(t, 'utrn_l'),
             'vk_percent': _num(t, 'uktr'), 'vkr_percent': _pct_cobre(_num(t, 'pcutr'), sn),
             'pfe_kw': _num(t, 'pfe'), 'i0_percent': _num(t, 'curmg'), **comun, 'fuente': fuente(tr)}))
-    for tr in app.GetCalcRelevantObjects('*.ElmTr3'):
+    for tr in _objetos(app, '*.ElmTr3'):
         t = getattr(tr, 'typ_id', None)
         sn = {x: _num(t, f'strn3_{x}') for x in 'hml'}
         # DIgSILENT da la tensión de cortocircuito por par de devanados (AT-MT, MT-BT, BT-AT), como pandapower.
         out.append(_sin_vacios({
-            'id': tr.loc_name, 'tipo': 'trafo3', 'hv': _barra(tr, 'bushv'), 'mv': _barra(tr, 'busmv'),
+            **ident(tr), 'tipo': 'trafo3', 'hv': _barra(tr, 'bushv'), 'mv': _barra(tr, 'busmv'),
             'lv': _barra(tr, 'buslv'), 'kv': _num(t, 'utrn3_h'),
             'sn_hv_mva': sn['h'], 'sn_mv_mva': sn['m'], 'sn_lv_mva': sn['l'],
             'vn_hv_kv': _num(t, 'utrn3_h'), 'vn_mv_kv': _num(t, 'utrn3_m'), 'vn_lv_kv': _num(t, 'utrn3_l'),
@@ -134,10 +192,18 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
             'vkr_mv_percent': _pct_cobre(_num(t, 'pcut3_m'), sn['m']),
             'vkr_lv_percent': _pct_cobre(_num(t, 'pcut3_l'), sn['l']),
             'pfe_kw': _num(t, 'pfe'), 'i0_percent': _num(t, 'curm3'), **comun, 'fuente': fuente(tr)}))
-    for q in app.GetCalcRelevantObjects('*.ElmShnt'):
-        out.append(_sin_vacios({'id': q.loc_name, 'tipo': 'compensacion', 'barra': _barra(q, 'bus1'),
+    for q in _objetos(app, '*.ElmShnt'):
+        out.append(_sin_vacios({**ident(q), 'tipo': 'compensacion', 'barra': _barra(q, 'bus1'),
                                 'kv': _kv_barra(q, 'bus1'), 'q_mvar': _num(q, 'qcapn'), **comun,
                                 'fuente': fuente(q)}))
+    vistos: dict[str, int] = {}
+    for e in out:
+        vistos[e['id']] = vistos.get(e['id'], 0) + 1
+    repetidos = sorted(i for i, n in vistos.items() if n > 1)
+    if repetidos:
+        # Dos elementos con el mismo id unirían en el motor abierto lo que en DIgSILENT está separado (107:RF-25).
+        raise ValueError(f'la red exportada repite el id de {len(repetidos)} elementos ({", ".join(repetidos[:10])}): '
+                         'el motor abierto uniría elementos distintos')
     return out
 
 
@@ -146,7 +212,7 @@ def estado(app) -> dict[str, Any]:
     caso = app.GetActiveStudyCase()
     etapa = app.GetRecordingStage() if hasattr(app, 'GetRecordingStage') else None
     variaciones = app.GetProjectFolder('scheme')
-    return {'demandas': {c.loc_name: (float(c.plini), float(c.qlini)) for c in app.GetCalcRelevantObjects('*.ElmLod')},
+    return {'demandas': {_id(c): (float(c.plini), float(c.qlini)) for c in _objetos(app, '*.ElmLod')},
             'variaciones': sorted(v.loc_name for v in (variaciones.GetContents('*.IntScheme') if variaciones else [])),
             'hora': getattr(caso, 'iStudyTime', None), 'etapa': getattr(etapa, 'loc_name', None)}
 
@@ -156,9 +222,10 @@ def _ejecutar(app, clase: str) -> dict[str, Any]:
     ret = orden.Execute()
     out: dict[str, Any] = {'orden': clase, 'return_code': ret, 'hecho': ret == 0}
     if clase == 'ComLdf' and ret == 0:
-        out['tensiones_pu'] = {b.loc_name: _num(b, 'm:u') for b in app.GetCalcRelevantObjects('*.ElmTerm')}
-        out['cargabilidad_pct'] = {o.loc_name: _num(o, 'c:loading') for patron in ('*.ElmLne', '*.ElmTr2', '*.ElmTr3')
-                                   for o in app.GetCalcRelevantObjects(patron)}
+        # 107:RF-25: las mismas claves que ``exportar_red``, para emparejar con el motor abierto por id.
+        out['tensiones_pu'] = {_id(b): _num(b, 'm:u') for b in _objetos(app, '*.ElmTerm')}
+        out['cargabilidad_pct'] = {_id(o): _num(o, 'c:loading') for patron in ('*.ElmLne', '*.ElmTr2', '*.ElmTr3')
+                                   for o in _objetos(app, patron)}
     if clase == 'ComRel3' and ret == 0:
         out['indices'] = {k: _num(orden, k) for k in ('c:SAIFI', 'c:SAIDI', 'c:ENS')}
     return out

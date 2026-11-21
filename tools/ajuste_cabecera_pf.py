@@ -328,6 +328,121 @@ def lo_escrito(proyecto: str) -> dict:
         return {}
 
 
+#: 083:RF-35: el estado del diario mientras una orden escribe cargas.
+DIARIO_ESCRIBIENDO = 'escribiendo cargas'
+
+
+def _ruta_del_diario(proyecto: str) -> Path:
+    """El diario de la orden que escribe cargas en un proyecto, junto a lo escrito (083:RF-35)."""
+    ruta = _ruta_de_lo_escrito(proyecto)
+    return ruta.with_name(f'{ruta.stem}.diario.json')
+
+
+def leer_diario(proyecto: str) -> dict:
+    """El diario abierto del proyecto, o vacío si no hay ninguna orden a medias (083:RF-35)."""
+    try:
+        ruta = _ruta_del_diario(proyecto)
+        datos = json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else {}
+    except Exception:  # noqa: BLE001 - un diario ilegible no tumba la orden; se dice al abrir el siguiente
+        return {}
+    return datos if isinstance(datos, dict) else {}
+
+
+def abrir_diario(proyecto: str, cargas_por_alimentador: dict, *, orden: str = 'calibración') -> str | None:
+    """083:RF-35: antes de escribir ninguna carga, el diario «escribiendo cargas» con su token y lo que tenía cada una.
+
+    Solo van las cargas que la orden va a escribir (las cambiadas a mano quedan fuera, 014:RF-11). Si ya hay un diario de
+    una orden cortada, se suma a él y cada carga conserva lo que tenía antes de la primera: es lo que dejó la última
+    calibración que terminó. Una carga cortada a medias (086 T33: 47 cargas de un alimentador tras matar el servidor)
+    salía después como cambio a mano. Devuelve el token, o ``None`` si no se pudo escribir (se dice y la orden sigue).
+    """
+    import uuid
+
+    from convertersmartgrid.dominio.util import write_json_atomic
+
+    token = uuid.uuid4().hex[:10]
+    try:
+        datos = leer_diario(proyecto)
+        datos['estado'] = DIARIO_ESCRIBIENDO
+        datos['proyecto'] = proyecto
+        datos.setdefault('ordenes', []).append({'token': token, 'orden': orden, 'pid': os.getpid(),
+                                                'inicio': time.strftime('%Y-%m-%d %H:%M:%S')})
+        por_alimentador = datos.setdefault('cargas', {})
+        for feeder, cargas in cargas_por_alimentador.items():
+            fila = por_alimentador.setdefault(str(feeder), {})
+            for sed, obj in cargas.items():
+                if sed in fila:
+                    continue
+                try:
+                    fila[sed] = {'antes': list(potencia(obj)), 'token': token}
+                except Exception:  # noqa: BLE001  # justificado: una carga que no se lee no tumba el diario
+                    continue
+        write_json_atomic(_ruta_del_diario(proyecto), datos)
+    except Exception as exc:  # noqa: BLE001 - es un registro de ayuda, como lo escrito (083:RF-27)
+        print(f'  el diario de la orden no se abrió ({type(exc).__name__}: {exc}); si se corta, '
+              'sus cargas saldrán como cambiadas a mano.', flush=True)
+        return None
+    return token
+
+
+def cerrar_diario(proyecto: str, alimentadores) -> None:
+    """083:RF-35: la orden terminó de escribir (bien, con fallo o cancelada): sus alimentadores salen del diario.
+
+    Lo que quede de otro alimentador de una orden cortada sigue abierto hasta que otra orden lo escriba.
+    """
+    from convertersmartgrid.dominio.util import write_json_atomic
+
+    ruta = _ruta_del_diario(proyecto)
+    try:
+        datos = leer_diario(proyecto)
+        cargas = {f: c for f, c in (datos.get('cargas') or {}).items()
+                  if f not in {str(a) for a in alimentadores} and c}
+        if not cargas:
+            ruta.unlink(missing_ok=True)
+            return
+        vivos = {d.get('token') for c in cargas.values() for d in c.values()}
+        datos['cargas'] = cargas
+        datos['ordenes'] = [o for o in datos.get('ordenes') or [] if o.get('token') in vivos]
+        write_json_atomic(ruta, datos)
+    except Exception as exc:  # noqa: BLE001 - es un registro de ayuda; la orden ya terminó
+        print(f'  el diario de la orden no se cerró ({type(exc).__name__}: {exc}).', flush=True)
+
+
+def cargas_a_medias(proyecto: str, feeder: str) -> dict:
+    """083:RF-35: las cargas de ``feeder`` que dejó escritas una orden interrumpida, con lo que tenían antes."""
+    return dict((leer_diario(proyecto).get('cargas') or {}).get(str(feeder)) or {})
+
+
+def orden_cortada(proyecto: str, cortadas: dict) -> str:
+    """El nombre de la orden interrumpida que dejó ``cortadas``, para el aviso: su token y su hora."""
+    tokens = {d.get('token') for d in cortadas.values()}
+    ordenes = [o for o in leer_diario(proyecto).get('ordenes') or [] if o.get('token') in tokens]
+    if not ordenes:
+        return 'una orden interrumpida'
+    o = ordenes[0]
+    return f"la {o.get('orden') or 'orden'} {o.get('token')} del {o.get('inicio')}, interrumpida"
+
+
+def cargas_dejadas_a_medias(proyecto: str, feeder: str, cargas: dict) -> tuple[list[dict], dict]:
+    """083:RF-35: las cargas de una orden cortada que ya no tienen lo que tenían antes de ella, y todas las del diario.
+
+    Las primeras son las que dejó a medias; ninguna del diario cuenta como cambio a mano: la orden cortada ya había
+    apartado las del operador antes de escribir.
+    """
+    cortadas = cargas_a_medias(proyecto, feeder)
+    filas = []
+    for sed, d in sorted(cortadas.items()):
+        obj = cargas.get(sed)
+        antes = d.get('antes') or []
+        if obj is None or len(antes) != 2:
+            continue
+        ahora = potencia(obj)
+        if not all(_cerca(a, b, rel=1e-3, abs_=0.01) for a, b in zip(ahora, antes)):
+            filas.append({'sed': sed, 'antes': {'kw': antes[0], 'kvar': antes[1]},
+                          'ahora': {'kw': ahora[0], 'kvar': ahora[1]}})
+    return filas, cortadas
+
+
 def ajustes_heredados_a_cero(app) -> dict:
     """Los ajustes del flujo que cambian el consumo, a 0 al empezar (083:RF-26); devuelve los que estaban activos."""
     activos = {k: v for k, v in ajustes_del_flujo(app).items() if v}
@@ -355,13 +470,15 @@ def heredados_en_los_casos(app, sin, con) -> dict:
     return heredados
 
 
-def cambios_manuales(cargas: dict, ultima: dict | None, escrito: dict | None = None) -> tuple[list[dict], str | None]:
+def cambios_manuales(cargas: dict, ultima: dict | None, escrito: dict | None = None,
+                     a_medias=None) -> tuple[list[dict], str | None]:
     """Cargas cuya demanda difiere de la que dejó la última calibración (014:RF-10 a RF-13).
 
     La demanda de ahora se lee con el escenario de «Sin proyecto» activo, que es la que
     manda. La de la calibración la guarda la web de su informe (015, T8): desde la spec
     015 la calibración no deja variación en la que leerla. Sin calibración anterior no hay
-    con qué comparar (RF-13).
+    con qué comparar (RF-13). ``a_medias``: las cargas que dejó escritas una orden interrumpida (083:RF-35), que no
+    son del operador.
     """
     ultima = ultima or {}
     grabadas = ultima.get('sed') or {}
@@ -376,7 +493,7 @@ def cambios_manuales(cargas: dict, ultima: dict | None, escrito: dict | None = N
     out = []
     escrito = escrito or {}
     for sed, obj in cargas.items():
-        if sed not in grabadas:
+        if sed not in grabadas or sed in (a_medias or ()):
             continue
         # 083:RF-27: si sigue con lo que la aplicación escribió la última vez, no la tocó el operador.
         if sed in escrito and all(_cerca(a, b, rel=1e-3, abs_=0.01) for a, b in zip(potencia(obj), escrito[sed])):
@@ -2423,6 +2540,7 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
     fallos: list[dict] = []
     con_manual = {m['sed'] for m in manuales}
     informe['escenario'] = escenario.loc_name
+    abrir_diario(plan['project'], {feeder: {s: o for s, o in cargas.items() if s not in con_manual}})  # 083:RF-35
     try:
         # La marca fija o escalable es dato de red (015:RF-37): se escribe con la variación
         # de la central apagada, para que no caiga en su etapa, que sigue grabando.
@@ -2538,6 +2656,7 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
                 sin.Activate()
     finally:
         guardar_lo_escrito(plan['project'], {feeder: {s: o for s, o in cargas.items() if s not in con_manual}})  # 083:RF-27
+        cerrar_diario(plan['project'], [feeder])                                                             # 083:RF-35
         if sin is not None and remedios.originales and informe.get('cuadrado'):
             informe['ajustes_del_flujo_conservados'] = remedios.aplicados()
         else:
@@ -2811,7 +2930,16 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
                                  'bloque» quedan fijas a escala 1.')
     # 014:RF-10 a RF-12: una demanda cambiada a mano entra fija con su valor y no se
     # sobrescribe; gana sobre el cliente importante de la misma SED.
-    manuales, ultimo = cambios_manuales(cargas, plan.get('ultima_calibracion'), lo_escrito(plan.get('project') or ''))
+    # 083:RF-35: lo que dejó escrito una orden interrumpida no es del operador: se recalibra.
+    a_medias, cortadas = cargas_dejadas_a_medias(plan.get('project') or '', feeder, cargas)
+    manuales, ultimo = cambios_manuales(cargas, plan.get('ultima_calibracion'), lo_escrito(plan.get('project') or ''),
+                                        a_medias=cortadas)
+    if a_medias:
+        informe['cargas_de_una_orden_cortada'] = a_medias
+        informe['avisos'].append(
+            f'{cuenta(len(a_medias), "carga", "cargas")} de {feeder} '
+            + plural(len(a_medias), 'la dejó', 'las dejó') + f' a medias {orden_cortada(plan.get("project") or "", cortadas)}: '
+            + plural(len(a_medias), 'no es un cambio a mano y se recalibra.', 'no son cambios a mano y se recalibran.'))
     if 'manuales_de_la_primera' in plan:
         # 021:RF-64: en la segunda pasada, solo los que ya eran a mano en la primera; los
         # demás difieren porque la primera escribió su reparto.
@@ -2967,6 +3095,11 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     informe['unidades'] = unidades_del_proyecto(app)                    # 035:RF-14, RF-16
     if error_de_unidades(informe['unidades']) and not simular:
         return {**informe, 'error': error_de_unidades(informe['unidades'])}, 2
+    con = caso_del_sistema(app, 'con', anio)
+    # 083:RF-29, RF-36: antes de leer los generadores y los bancos; con ellas apagadas por una orden cortada no se ven.
+    encendidas = variaciones_del_conversor_activas(app, plan['project'], sin, con)
+    if encendidas:
+        informe['variaciones_encendidas'] = encendidas
     if not plan.get('central'):
         # 028:RF-18: un generador del operador sin central declarada se calibra tal como está.
         from convertersmartgrid.aplicacion.escaneo import CLASES_GENERADOR, origen_de
@@ -2979,10 +3112,6 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             informe['avisos'].append(
                 f"{feeder}: se calibra con {', '.join(g.loc_name for g in propios)} tal como está en la red; "
                 'la cabecera medida es la demanda menos su generación.')
-    con = caso_del_sistema(app, 'con', anio)
-    encendidas = variaciones_del_conversor_activas(app, plan['project'], sin, con)   # 083:RF-29
-    if encendidas:
-        informe['variaciones_encendidas'] = encendidas
     escenario = app.GetActiveScenario()
     if escenario is None and not simular:
         # Sin escenario, lo escrito iría a la red que comparten los casos y cambiaría el
@@ -3153,6 +3282,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     fallo_validacion_nativa = False
     con_manual = {m['sed'] for m in manuales}
     informe['escenario'] = escenario.loc_name
+    abrir_diario(plan['project'], {feeder: {s: o for s, o in cargas.items() if s not in con_manual}})  # 083:RF-35
     try:
         # RF-18, RF-19 de la 011 y 015:RF-37: fija o escalable. DIgSILENT guarda la marca en
         # la red que comparten los casos, no en el escenario (sonda T1 de la 015); el
@@ -3385,6 +3515,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                 sin.Activate()
     finally:
         guardar_lo_escrito(plan['project'], {feeder: {s: o for s, o in cargas.items() if s not in con_manual}})  # 083:RF-27
+        cerrar_diario(plan['project'], [feeder])                                                             # 083:RF-35
         # 015:RF-46: en «Sin proyecto», caso del sistema, los ajustes del flujo que hicieron
         # falta se quedan para que el caso siga convergiendo (CA101 desde cero, 2026-10-14:
         # cuadró con «adaptación automática del modelo» y, restituida, no convergía). Si no
@@ -4236,6 +4367,9 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
     invalidos: list[str] = []
     res = None
     guardado = False          # el escenario con la calibración válida, guardado
+    # 083:RF-35: también las de los alimentadores con central, que se escriben por zonas.
+    abrir_diario(nombre, {f: {s: o for s, o in p['cargas'].items() if s not in p['con_manual']}
+                          for f, p in preps.items()}, orden='calibración del proyecto')
     try:
         # La marca fija o escalable es dato de red (015:RF-37): se escribe con todas las
         # variaciones de las centrales apagadas, para que la de NA203 no caiga en la etapa
@@ -4437,6 +4571,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
         # 083:RF-27: solo lo que escribió la aplicación; lo cambiado a mano no se escribe y sigue siendo del operador.
         guardar_lo_escrito(nombre, {f: {s: o for s, o in p['cargas'].items() if s not in p['con_manual']}
                                     for f, p in preps.items() if not p['central']})
+        cerrar_diario(nombre, list(preps))                                            # 083:RF-35
         # 015:RF-46: un solo ComLdf para el proyecto; sus ajustes se quedan si cuadró.
         if remedios.originales and guardado:
             aplicados = remedios.aplicados()

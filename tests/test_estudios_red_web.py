@@ -13,7 +13,7 @@ import pytest
 pytest.importorskip('fastapi')
 pytest.importorskip('httpx2')
 
-from apoyo import esperar_trabajo  # noqa: E402
+from apoyo import esperar_trabajo, vincular_proyecto  # noqa: E402
 from apoyo_pf_web import guion_falso  # noqa: E402,F401
 from test_datos_empresa import _datos, _escribir  # noqa: E402
 from test_estudios_pf_web import _ajuste, _ejecutar, _espacio, _plan, client  # noqa: E402,F401
@@ -224,3 +224,19 @@ def test_historico_sin_conversion_aplicado_guarda_la_exposicion_de_digsilent(cli
     guardado = client.get(f'/api/workspaces/{wid}/pf/datos-empresa', params={'project': 'P'}).json()['libro']
     assert 'DIgSILENT' in guardado['historico']['exposicion']['origen']
     assert guardado['aplicado']
+
+
+@pytest.mark.parametrize('proyecto, causa', [('CODIGO_2', "setting attribute 'Tswitch' failed"),
+                                             ('SIN_CLASES', 'el libro no trae estas clases')])
+def test_aplicar_el_libro_con_el_guion_fallido_queda_fallido_con_su_causa(client, tmp_path, proyecto, causa):
+    """086:RF-133, 012:RF-21 — si el guion sale con un código distinto de 0 o con un error, el trabajo «Datos de
+    confiabilidad» termina fallido con la causa del guion, y el libro no queda como aplicado (bloque DIgSILENT del
+    20-11: quedaba «done» con el código 2)."""
+    wid = _espacio(client)
+    vincular_proyecto(client, wid, proyecto, ['A1'])
+    assert _subir(client, wid, _libro(tmp_path), project=proyecto).status_code == 200
+    r = client.post(f'/api/workspaces/{wid}/pf/datos-empresa/aplicar', json={'project': proyecto, 'feeders': ['A1']})
+    estado = esperar_trabajo(client, r.json())
+    assert estado['status'] == 'failed', estado
+    assert causa in estado['error'] and 'no se aplicó' in estado['error'], estado['error']
+    assert not client.app.state.store.get(wid).datos_empresa[proyecto]['aplicado']
