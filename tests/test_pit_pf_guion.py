@@ -759,3 +759,193 @@ def test_rf31_dos_maquinas_en_la_misma_barra_con_consignas_distintas_calculan_co
     assert not isinstance(r, Exception) and r.converge, r
     assert r.tensiones_pu[guion._id(barra)] == pytest.approx(1.0, abs=1e-6)
     assert 'misma barra' in r.mensaje and 'G2' in r.mensaje, r.mensaje
+
+
+# --- 107:RF-32: los controladores de estación (corrida de 107 T14, 22-11) ----------------------------------------------
+# En la copia de transmisión 61 controladores de estación (ElmStactrl) regulaban un nudo (rembar) con su consigna y
+# repartían la Q entre sus máquinas (cvqq); la consigna propia de cada máquina no contaba: dos en paralelo con 1,000 y
+# 1,002 dejaban su barra a 1,02, la del controlador.
+
+def _app_estacion(barras):
+    app = _AppTransmision()
+    remoto = app.b[('SY', '2')]
+    ctrl = Obj(None, 'ElmStactrl', 'CE', remoto.GetParent(), outserv=0, i_ctrl=0, usetp=1.03, rembar=remoto,
+               cvqq=[50.0, 50.0])
+    for k, clave in enumerate(barras):
+        barra = app.b[clave]
+        app.objetos['*.ElmSym'].append(Obj(None, 'ElmSym', f'GE{k}', barra.GetParent(), ip_ctrl=0, av_mode='constv',
+                                           usetp=1.0 + 0.002 * k, pgini=5.0, ngnum=1, c_pstac=ctrl,
+                                           **{'c:Qmin': -50.0, 'c:Qmax': 50.0}, bus1=_Cub(barra)))
+    return app, remoto
+
+
+def test_rf32_las_maquinas_de_un_controlador_de_estacion_regulan_su_nudo_con_su_consigna():
+    """107:RF-32 — dos máquinas en la misma barra con un controlador de estación (c_pstac) salen con el nudo del
+    controlador (rembar) como barra_control y su consigna (usetp del controlador), y el motor abierto deja ese nudo en
+    1,03, no en la consigna propia de las máquinas."""
+    app, remoto = _app_estacion([('SY', '3'), ('SY', '3')])
+    red = _red_t(app)
+    ge = [e for e in red.de_tipo('red_externa') if e['nombre'].startswith('GE')]
+    assert [(e.get('barra_control'), e['vm_pu']) for e in ge] == [(guion._id(remoto), 1.03)] * 2, ge
+    r = _flujo_t(red, app)
+    assert not isinstance(r, Exception) and r.converge, r
+    assert r.tensiones_pu[guion._id(remoto)] == pytest.approx(1.03, abs=1e-4)
+
+
+def test_rf32_un_controlador_con_maquinas_en_dos_barras_reparte_el_ajuste():
+    """107:RF-32 — un controlador con una máquina en cada subestación y el nudo en una de ellas: el motor abierto deja el
+    nudo en su consigna sin oscilar (el ajuste de la consigna se reparte entre las máquinas del mismo nudo)."""
+    app, remoto = _app_estacion([('SY', '3'), ('SX', '3')])
+    r = _flujo_t(_red_t(app), app)
+    assert not isinstance(r, Exception) and r.converge, r
+    assert r.tensiones_pu[guion._id(remoto)] == pytest.approx(1.03, abs=1e-4)
+
+
+# --- 107:RF-33: la solución de tensión alta (corrida de 107 T14, 22-11) -------------------------------------------------
+# En la copia de transmisión una radial larga de 60 kV tenía dos soluciones: desde arranque plano el NR caía en la de
+# tensión baja (0,50 p.u. donde DIgSILENT da 1,00); con la carga llevada de 0,5 a 1 desde la solución anterior, en la alta.
+
+def _radial_rf33(p_mw):
+    area = AreaPit('AREA-R', ('TIT',), (), {}, 0.0, {})
+    comun = {'areas': ['AREA-R'], 'titular': 'TIT'}
+    el = [{'id': 'B0', 'tipo': 'barra', 'kv': 60.0, **comun},
+          {'id': 'EXT', 'tipo': 'red_externa', 'barra': 'B0', 'kv': 60.0, 'vm_pu': 1.04, 'tipo_barra': 'SL', **comun}]
+    for i in range(1, 4):
+        el += [{'id': f'B{i}', 'tipo': 'barra', 'kv': 60.0, **comun},
+               {'id': f'L{i}', 'tipo': 'linea', 'desde': f'B{i - 1}', 'hasta': f'B{i}', 'kv': 60.0, 'longitud_km': 30.0,
+                'r_ohm_per_km': 0.28, 'x_ohm_per_km': 0.47, 'c_nf_per_km': 9.7, 'max_i_ka': 0.4, **comun}]
+    return desde_ambito(reunir(area, el)), {'B3': (p_mw, 0.2 * p_mw)}
+
+
+def _primero_en_la_baja(monkeypatch):
+    """El primer flujo de ``calcular`` cae en la solución de tensión baja (como desde arranque plano en la red real):
+    se arranca desde 0,5 p.u.; los siguientes son los de siempre."""
+    import pandapower
+
+    original, llamadas = pandapower.runpp, []
+
+    def runpp(net, **kw):
+        if llamadas:
+            return original(net, **kw)
+        llamadas.append(kw)
+        original(net, **{**kw, 'init': 'dc'})
+        net.res_bus['vm_pu'] = [1.04 if b in set(net.ext_grid.bus) else 0.5 for b in net.res_bus.index]
+        net.res_bus['va_degree'] = 0.0
+        return original(net, **{**kw, 'init': 'results', 'max_iteration': 40})
+
+    monkeypatch.setattr(pandapower, 'runpp', runpp)
+    return llamadas
+
+
+def test_rf33_si_cae_en_la_solucion_baja_reintenta_por_continuacion_y_se_queda_con_la_alta(monkeypatch):
+    """107:RF-33 — una radial con dos soluciones: el primer flujo da 0,34 p.u. al final; con barras por debajo de 0,8 el
+    motor abierto reintenta llevando la carga de 0,5 a 1 desde la solución anterior, se queda con la de tensión alta
+    (0,79) y lo dice en el mensaje. Sin DIgSILENT."""
+    red, cargas = _radial_rf33(19.0)
+    llamadas = _primero_en_la_baja(monkeypatch)
+    r = calcular(red, cargas)
+    assert llamadas, 'el doble no intervino'
+    assert r.converge, r.mensaje
+    assert r.tensiones_pu['B3'] == pytest.approx(0.789, abs=0.01), r.tensiones_pu
+    assert 'continuación' in r.mensaje, r.mensaje
+
+
+def test_rf33_sin_barras_bajas_no_reintenta():
+    """107:RF-33 — con todas las barras por encima de 0,8 p.u. no hay segundo intento ni aviso."""
+    red, cargas = _radial_rf33(12.0)
+    r = calcular(red, cargas)
+    assert r.converge and r.tensiones_pu['B3'] == pytest.approx(0.913, abs=0.01)
+    assert 'continuación' not in r.mensaje
+
+
+# --- 107:RF-34: el estatismo de los SVC (corrida de 107 T14, 22-11) ------------------------------------------------------
+# En la copia de transmisión dos SVC con estatismo del 2 % dejaban su nudo de alta en 0,9947 con consigna 1,000; ninguna
+# fórmula con sus atributos reproducía los siete casos medidos, y el motor los fijaba en 1,000: todo el Sur quedaba +0,005.
+
+def test_rf34_el_svc_con_estatismo_toma_la_tension_resuelta_de_su_nudo_y_lo_avisa():
+    """107:RF-34 — un SVC con estatismo (``ddroop`` > 0, ``i_droop`` 1) y nudo remoto sale con la tensión resuelta de ese
+    nudo en el caso exportado (m:u) como consigna, y el motor abierto deja el nudo en ella y avisa de que el estatismo es
+    aproximado."""
+    app = _AppTransmision()
+    barra, remoto = app.b[('SY', '3')], app.b[('SY', '2')]
+    object.__setattr__(remoto, 'm_u', 0.995)
+    app.objetos['*.ElmSvs'] = [Obj(None, 'ElmSvs', 'SVD', barra.GetParent(), usetp=1.0, i_ctrl=1, p_rem=remoto,
+                                   ddroop=2.0, i_droop=1, qmax=200.0, qmin=200.0, bus1=_Cub(barra))]
+    red = _red_t(app)
+    s = next(e for e in red.de_tipo('red_externa') if e['nombre'] == 'SVD')
+    assert s['vm_pu'] == pytest.approx(0.995), s
+    r = _flujo_t(red, app)
+    assert not isinstance(r, Exception) and r.converge, r
+    assert r.tensiones_pu[guion._id(remoto)] == pytest.approx(0.995, abs=1e-4)
+    assert 'estatismo aproximado' in r.mensaje, r.mensaje
+
+
+def test_rf34_sin_estatismo_la_consigna_es_la_del_svc():
+    """107:RF-34 — sin estatismo, la consigna es la usetp del SVC aunque el nudo tenga otra tensión resuelta."""
+    app = _AppTransmision()
+    barra, remoto = app.b[('SY', '3')], app.b[('SY', '2')]
+    object.__setattr__(remoto, 'm_u', 0.995)
+    app.objetos['*.ElmSvs'] = [Obj(None, 'ElmSvs', 'SVN', barra.GetParent(), usetp=1.0, i_ctrl=1, p_rem=remoto,
+                                   ddroop=0.0, i_droop=0, qmax=200.0, qmin=200.0, bus1=_Cub(barra))]
+    s = next(e for e in _red_t(app).de_tipo('red_externa') if e['nombre'] == 'SVN')
+    assert s['vm_pu'] == pytest.approx(1.0)
+
+
+# --- 107:RF-35: la conductancia de las líneas (corrida de 107 T14, 22-11) ------------------------------------------------
+# En la copia de transmisión 67 tipos de línea traían conductancia (gline, en µS/km); sin ella el motor abierto perdía
+# unos 100 MW de pérdidas (DIgSILENT 337 MW en líneas, el modelo 294 con las mismas tensiones) y la máquina de referencia
+# generaba 110 MW menos.
+
+def test_rf35_la_conductancia_de_la_linea_se_exporta_y_suma_sus_perdidas():
+    """107:RF-35 — el gline del tipo sale como g_us_per_km y el motor abierto lo usa: con 0,5 µS/km en 80 km de 220 kV la
+    línea disipa unos 40 µS × (220 kV)² ≈ 1,9 MW más."""
+    sin = _AppTransmision()
+    r0 = _flujo_t(_red_t(sin), sin)
+    app = _AppTransmision()
+    tipo = app.objetos['*.ElmLne'][0].typ_id
+    object.__setattr__(tipo, 'gline', 0.5)
+    red = _red_t(app)
+    assert red.de_tipo('linea')[0].get('g_us_per_km') == pytest.approx(0.5)
+    r1 = _flujo_t(red, app)
+    assert not isinstance(r1, Exception) and r1.converge, r1
+    assert r1.perdidas_mw - r0.perdidas_mw == pytest.approx(1.9, abs=0.3), (r0.perdidas_mw, r1.perdidas_mw)
+
+
+# --- 107:RF-36: la corriente nominal de la línea con su factor de reducción (corrida de 107 T14, 22-11) -----------------
+# En la copia de transmisión DIgSILENT carga cada línea sobre Inom_a = sline · fline · nlnum; 27 líneas tenían fline
+# distinto de 1 (0,19 a 1,4) y el motor abierto, con la sline del tipo, daba cargas de hasta 47 puntos menos.
+
+def test_rf36_la_corriente_nominal_de_la_linea_lleva_su_factor_de_reduccion():
+    """107:RF-36 — con fline = 0,5 la línea sale con la mitad de la corriente nominal del tipo y su cargabilidad en el
+    motor abierto es el doble que con fline = 1."""
+    base = _AppTransmision()
+    r0 = _flujo_t(_red_t(base), base)
+    app = _AppTransmision()
+    object.__setattr__(app.objetos['*.ElmLne'][0], 'fline', 0.5)
+    red = _red_t(app)
+    assert red.de_tipo('linea')[0]['max_i_ka'] == pytest.approx(0.5)
+    r1 = _flujo_t(red, app)
+    lid = red.de_tipo('linea')[0]['id']
+    assert r1.cargabilidad_pct[lid] == pytest.approx(2 * r0.cargabilidad_pct[lid], rel=1e-6)
+
+
+# --- 107:RF-37: la potencia de referencia de la cargabilidad del trafo3 (corrida de 107 T14, 22-11) ---------------------
+# En la copia de transmisión 20 trafos de tres devanados tenían en el elemento una potencia nominal (Snom_h/m/l) distinta
+# de la del tipo (132 MVA frente a 80 del tipo): DIgSILENT carga sobre ella y el motor abierto daba 70,5 % donde
+# DIgSILENT da 42,7 %, con el mismo flujo.
+
+def test_rf37_la_cargabilidad_del_trafo3_usa_la_potencia_del_elemento():
+    """107:RF-37 — con Snom del elemento 1,5 veces la del tipo, el trafo3 sale con esa potencia de referencia y su
+    cargabilidad en el motor abierto es 1/1,5 la de antes, con el mismo flujo."""
+    base = _app_tr3(0, 0)
+    r0 = _flujo_t(_red_t(base), base)
+    app = _app_tr3(0, 0)
+    tr3 = app.objetos['*.ElmTr3'][0]
+    for x, s in (('h', 360.0), ('m', 360.0), ('l', 120.0)):
+        object.__setattr__(tr3, f'Snom_{x}', s)
+    red = _red_t(app)
+    t = red.de_tipo('trafo3')[0]
+    assert (t.get('sn_carga_hv_mva'), t.get('sn_carga_mv_mva'), t.get('sn_carga_lv_mva')) == (360.0, 360.0, 120.0), t
+    r1 = _flujo_t(red, app)
+    assert r1.flujos[t['id']] == pytest.approx(r0.flujos[t['id']], rel=1e-9)
+    assert r1.cargabilidad_pct[t['id']] == pytest.approx(r0.cargabilidad_pct[t['id']] / 1.5, rel=0.01)

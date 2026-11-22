@@ -101,6 +101,98 @@ def _sha256_copy(source: Path, target: Path) -> tuple[int, str]:
     return size, digest.hexdigest()
 
 
+def _originales_custodiados(runs_root: Path) -> dict[tuple[str, int], list[Path]]:
+    """034:RF-42: índice (huella, tamaño) → originales ya custodiados, leído de los manifiestos.
+
+    Solo se leen los ``source_manifest.json``: buscar duplicados recorriendo los datos
+    costaría leer cada copia de varios GB. Lo que no se pueda leer se ignora: el índice
+    solo propone candidatos, y cada uno se verifica por sus bytes antes de enlazarlo.
+    """
+    indice: dict[tuple[str, int], list[Path]] = {}
+    if not runs_root.is_dir():
+        return indice
+    base = runs_root.resolve()
+    # Las ejecuciones más recientes primero: su original es el que menos riesgo tiene de
+    # haberse retirado ya por la retención diaria (062).
+    for manifest in sorted(runs_root.glob('*/source_manifest.json'), reverse=True):
+        run_root = manifest.parent
+        if not valid_run_id(run_root.name):
+            continue
+        try:
+            payload = json.loads(manifest.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        rows = payload.get('files') if isinstance(payload, dict) else None
+        for raw in rows if isinstance(rows, list) else ():
+            if not isinstance(raw, dict):
+                continue
+            sha, size, rel = raw.get('sha256'), raw.get('size'), raw.get('path')
+            if (not isinstance(sha, str) or not re.fullmatch(r'[0-9a-f]{64}', sha)
+                    or type(size) is not int or not isinstance(rel, str) or not rel):
+                continue
+            relative = Path(rel)
+            if relative.anchor or '..' in relative.parts:
+                continue
+            path = (run_root / relative).resolve()
+            if base not in path.parents:
+                continue
+            indice.setdefault((sha, size), []).append(path)
+    return indice
+
+
+def _sha256_link(candidate: Path, target: Path, size: int, digest: str) -> bool:
+    """034:RF-42: custodia ``target`` como enlace duro de ``candidate`` si da la misma huella.
+
+    El enlace se crea en el staging del volumen destino y se publica con ``replace``, igual
+    que la copia. Si el sistema no admite el enlace (otro volumen, FAT, límite de enlaces de
+    NTFS, original retenido por otro lector) o el destino no da la huella esperada, se
+    descarta y devuelve ``False`` para que se copie como hasta ahora.
+    """
+    from ...adaptadores.fuentes_estables import abrir_fuente_estable
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with staging_publicacion(target) as temporary:
+        try:
+            try:
+                if not candidate.is_file() or candidate.stat().st_size != size:
+                    return False
+                os.link(candidate, temporary)
+            except OSError:
+                return False
+            try:
+                with abrir_fuente_estable(temporary) as held:
+                    same = held.size == size and held.sha256 == digest
+            except OSError:
+                same = False
+            if not same:
+                return False
+            temporary.replace(target)
+            return True
+        finally:
+            temporary.unlink(missing_ok=True)
+
+
+def _custodiar(source: Path, target: Path, indice: dict[tuple[str, int], list[Path]]) -> tuple[int, str]:
+    """034:RF-20, RF-42: custodia ``source`` en ``target`` sin duplicar un original ya custodiado.
+
+    Caso real: una copia VNR-GIS de 0,8 GB recargada varias veces dejó 15 copias idénticas
+    (10,7 GB) en un espacio, y lo mismo los libros de cabecera y de clientes. Con un original
+    de la misma huella y tamaño, la ejecución nueva lo enlaza; si no, se copia. La huella
+    previa solo se calcula si hay un original custodiado de ese mismo tamaño: la primera
+    carga de una base de varios GB no paga una lectura de más.
+    """
+    from ...adaptadores.fuentes_estables import abrir_fuente_estable
+    if any(size == source.stat().st_size for _sha, size in indice):
+        with abrir_fuente_estable(source) as held:
+            size, digest = held.size, held.sha256
+        for candidate in indice.get((digest, size), ()):
+            if _sha256_link(candidate, target, size, digest):
+                return size, digest
+    copied = _sha256_copy(source, target)
+    # Dos casillas con el mismo fichero en una ejecución tampoco se duplican.
+    indice.setdefault(copied, []).insert(0, target)
+    return copied
+
+
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     publicar_duradero(path, json.dumps(payload, indent=2, ensure_ascii=False))
 
@@ -122,6 +214,8 @@ def create_source_run(ws: EspacioDeFuentes) -> SourceSnapshot:
     run_root = ws.root / 'runs' / run_id
     custody_root = run_root / 'originales'
     copied: list[SourceFile] = []
+    # 034:RF-42: los originales ya custodiados en el espacio, para enlazar en vez de copiar.
+    custodiados = _originales_custodiados(ws.root / 'runs')
     try:
         for slot in (*MODE_SLOTS[mode], *COMMON_SLOTS):
             meta = inputs.get(slot)
@@ -131,7 +225,7 @@ def create_source_run(ws: EspacioDeFuentes) -> SourceSnapshot:
             if not source.is_file():
                 raise FileNotFoundError(f'No se encuentra la entrada {slot}: {source}')
             target = custody_root / ('comun' if slot in COMMON_SLOTS else mode) / slot / source.name
-            size, digest = _sha256_copy(source, target)
+            size, digest = _custodiar(source, target, custodiados)
             copied.append(SourceFile(
                 slot=slot,
                 name=source.name,

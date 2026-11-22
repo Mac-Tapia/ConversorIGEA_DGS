@@ -112,11 +112,15 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
       red), NAV-3 (controles del mapa en inglés) y NAV-4 (casilla de 13 px) corregidos con rojo previo. Evidencia:
       D:/csg/PM_IMPL/NAV_BLOQUE/t17_final/ (capturas, aria/, resultado_*.json) e INFORME.md. Informe:
       D:/csg/PM_IMPL/NAV_BLOQUE/INFORME.md, sección «111 T17: revisión a mano en navegador real».
-- [ ] T18. [DIgSILENT] Recorrido real por la web sobre una copia de un proyecto de prueba: una maniobra y un tramo nuevo
+- [x] T18. [DIgSILENT] Recorrido real por la web sobre una copia de un proyecto de prueba: una maniobra y un tramo nuevo
       estudiados en DIgSILENT, resultados sobre el plano con el motor dicho, y el caso base y los casos del operador
       como estaban. (RF-4, RF-10, RF-11, RF-17, RF-18)
       Hecho cuando: la evidencia de la corrida (informe del guion, foto de `pf_estado` antes y después y capturas del
       plano) está fuera de git y la relectura no da ninguna diferencia en los casos del operador.
+      Hecho el 2026-11-22 sobre el código integrado (98dbffc9), en la copia de un proyecto de prueba VNR-GIS: maniobra y
+      tramo nuevo desde la geografía real de la red (sin dibujo a mano), estudiados en DIgSILENT (Newton-Raphson
+      converge en 3 iteraciones), resultados en el plano con el motor DIgSILENT, capturas del plano y relectura
+      sin diferencias en los casos del operador; evidencia fuera de git.
 - [x] T19. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "111:RF-[0-9]+" tests frontend/test frontend/e2e | sort -u` lista de RF-1 a RF-19.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: las del criterio.

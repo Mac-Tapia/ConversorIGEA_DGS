@@ -2239,8 +2239,8 @@ export interface MonitorAgenteEstado {
     retencion_dias: number; intervalo_horas: number; proxima_revision: number | null;
     error: string | null; alcance: string;
     ultima_revision: { estado: string; terminada: number; eliminados: string[];
-      conservados: { ruta: string; motivo: string }[]; errores: string[];
-      bytes_logicos_retirados: number } | null;
+      conservados: { ruta: string; motivo: string; ficheros?: string[] }[]; errores: string[];
+      bytes_logicos_retirados: number; bytes_liberados_en_disco?: number } | null;
   };
   schema_version: number;
   workspace_id: string;

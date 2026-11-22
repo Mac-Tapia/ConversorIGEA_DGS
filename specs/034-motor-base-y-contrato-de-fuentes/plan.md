@@ -41,6 +41,7 @@ de su módulo (033:RF-18) y `CODIGO_FUENTE.md` cambia «base» por «034» (033:
 | RF-31 | arquitectura C4 | `test_interactive_architecture.py` |
 | RF-32 | `sed_potencia.py` | `test_puentes.py` |
 | RF-33 | `tools/apply_catalog_to_model.py`, `tools/build_input_catalog.py`, `tools/compare_schema.py`, `tools/suggest_line_type_aliases.py`, `tools/build_system_grid.py`, `tools/prueba_representacion.py`, `tools/run_powerfactory_gate.bat` | `test_herramientas_base.py` |
+| RF-42 | `presentacion/web/source_runs.py` (`_originales_custodiados`, `_custodiar`, `_sha256_link`) | `test_source_runs.py` (`enlace`, `alterado`) |
 | RF-34, RF-35 | `docs/architecture/workspace_to_be.dsl` (extiende `workspace.dsl`) | `test_interactive_architecture.py` (`to_be`) |
 | RF-36 a RF-39, RF-41 | `docs/architecture/adr/ADR-*.md` y `adr/README.md` | `test_interactive_architecture.py` (`adr`) |
 | RF-40 | `docs/architecture/adr/deuda_excepciones_mudas.json` | `test_interactive_architecture.py` (`silent`) |

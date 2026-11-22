@@ -1,6 +1,6 @@
 # Spec 034 — Motor base de conversión y contrato universal de fuentes
 
-Estado: cumplida (2026-11-15: T4 a T6 con su rojo y su verde) · aprobada (2026-11-14: RF-34 a RF-41, C4 TO-BE y ADR; RF-1 a RF-33 cumplidos desde el 2026-10-29) · Fecha: 2026-10-29 · Origen: `docs/REVISION_SPECS_2026-10-29.md`; ampliación del 2026-11-14: F-20 del Plan Maestro V1 (§30.7), aceptada por el auditor ca
+Estado: cumplida (2026-11-22: T7, RF-42, con su rojo y su verde; 2026-11-15: T4 a T6 con su rojo y su verde) · aprobada (2026-11-14: RF-34 a RF-41, C4 TO-BE y ADR; RF-1 a RF-33 cumplidos desde el 2026-10-29) · Fecha: 2026-10-29 · Origen: `docs/REVISION_SPECS_2026-10-29.md`; ampliación del 2026-11-14: F-20 del Plan Maestro V1 (§30.7), aceptada por el auditor ca
 
 ## Contexto y objetivo
 
@@ -146,6 +146,16 @@ Arquitectura TO-BE y decisiones (2026-11-14, F-20)
   ENTONCES la prueba de arquitectura fallará con el fichero y sus líneas.
 - RF-41: SI a un ADR le falta un campo o una sección obligatorios, o cita un RF, una spec, una tarea o un fichero que
   no existen, ENTONCES la prueba de arquitectura fallará nombrando el ADR y lo que falta.
+
+Custodia sin duplicar (2026-11-22, tarjeta CUSTODIA-ENLACE)
+
+- RF-42: CUANDO un fichero de entrada tenga la misma huella SHA-256 y el mismo tamaño que un original ya custodiado
+  en el mismo espacio, EL SISTEMA lo custodiará en la ejecución nueva con un enlace duro a ese original, en lugar de
+  copiarlo, sin cambiar el manifiesto ni la huella de la fuente.
+- Aclaración de RF-42: SI el enlace no es posible (otro volumen, un sistema sin enlaces o un original que no da la
+  huella de su manifiesto), ENTONCES EL SISTEMA copiará el fichero como hasta ahora. La custodia inmutable por
+  ejecución de RF-20 se mantiene: cada ejecución conserva su ruta propia y la preparación sigue verificando sus bytes.
+  Caso real: una copia VNR-GIS de 0,8 GB recargada varias veces dejó 15 copias idénticas (10,7 GB) en un espacio.
 
 ## Requisitos no funcionales
 

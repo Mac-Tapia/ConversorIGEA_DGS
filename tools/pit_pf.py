@@ -103,6 +103,20 @@ def _objeto(obj, attr):
     return v if hasattr(v, 'GetClassName') else None
 
 
+def _estacion(maquina) -> dict:
+    """107:RF-32: la máquina de un controlador de estación (``c_pstac``) en servicio y con control de tensión
+    (``i_ctrl`` 0) regula el nudo del controlador (``rembar``) con su consigna (``usetp``); la consigna propia de la
+    máquina no cuenta. En la copia de transmisión había 61: dos máquinas en paralelo con 1,000 y 1,002 dejaban su barra
+    a 1,02, la del controlador. Sin controlador, o con otro modo, nada."""
+    ctrl = _objeto(maquina, 'c_pstac')
+    if ctrl is None or _fuera_de_servicio(ctrl) or _num(ctrl, 'i_ctrl') != 0:
+        return {}
+    nudo, consigna = _objeto(ctrl, 'rembar'), _num(ctrl, 'usetp')
+    if nudo is None or consigna is None:
+        return {}
+    return {'barra_control': _id(nudo), 'vm_pu': consigna, 'controlador': _id(ctrl)}
+
+
 def _limites_q(obj, unidades: float, *, solo_resueltos: bool = False) -> dict[str, float]:
     """107:RF-31: los límites de Q en Mvar (convenio de generación): los que resuelve DIgSILENT con su curva de
     capacidad (c:Qmin, c:Qmax) o, si no los da, los nominales por unidad (cQ_min, cQ_max) por el número de unidades."""
@@ -145,6 +159,49 @@ def _fuera_de_servicio(obj) -> bool:
 
 #: 107:RF-27: nanofaradios por kilómetro de cada unidad que DIgSILENT puede declarar para ``cline`` (la del proyecto).
 _A_NF_POR_KM = {'pf/km': 1e-3, 'nf/km': 1.0, 'uf/km': 1e3, 'µf/km': 1e3, 'μf/km': 1e3, 'mf/km': 1e6, 'f/km': 1e9}
+
+
+def _potencia_de_carga_tr3(trafo, sn: dict) -> dict[str, float]:
+    """107:RF-37: la potencia de referencia de la cargabilidad de cada devanado, la del elemento (Snom_h/m/l) cuando no
+    es la del tipo: DIgSILENT carga sobre ella. En la copia de transmisión 20 trafos de tres devanados la tenían distinta
+    (132 MVA frente a 80 del tipo) y el motor abierto daba 70,5 % donde DIgSILENT da 42,7 %, con el mismo flujo. La
+    impedancia sigue en la base del tipo."""
+    out = {}
+    for x, clave in (('h', 'sn_carga_hv_mva'), ('m', 'sn_carga_mv_mva'), ('l', 'sn_carga_lv_mva')):
+        s_elm = _num(trafo, f'Snom_{x}')
+        if s_elm and sn.get(x) and abs(s_elm - sn[x]) > 1e-6:
+            out[clave] = s_elm
+    return out
+
+
+def _corriente_nominal_ka(linea, tipo) -> float | None:
+    """107:RF-36: la corriente nominal de un circuito de la línea, la del tipo (sline) por el factor de reducción del
+    elemento (fline), como la usa DIgSILENT en su cargabilidad (Inom_a = sline · fline · nlnum). En la copia de
+    transmisión 27 líneas tenían fline entre 0,19 y 1,4, y con la sline sola el motor abierto daba hasta 47 puntos menos
+    de carga. Sin fline legible, 1."""
+    sline = _num(tipo, 'sline')
+    if sline is None:
+        return None
+    fline = _num(linea, 'fline')
+    return sline * (fline if fline and fline > 0 else 1.0)
+
+
+#: 107:RF-35: µS/km por unidad de la conductancia del tipo de línea (``gline``).
+_A_US_POR_KM = {'us/km': 1.0, 'µs/km': 1.0, 'ms/km': 1e3, 'ns/km': 1e-3, 's/km': 1e6}
+
+
+def _conductancia_us_km(tipo) -> float | None:
+    """107:RF-35: la conductancia del tipo de línea en µS/km, desde la unidad que declara el proyecto; sin unidad legible,
+    la de fábrica de DIgSILENT (µS/km). En la copia de transmisión 67 tipos la traían y, sin ella, el motor abierto
+    perdía unos 100 MW de pérdidas: la máquina de referencia generaba 110 MW menos que en DIgSILENT."""
+    g = _num(tipo, 'gline')
+    if not g:
+        return None
+    try:
+        unidad = str(tipo.GetAttributeUnit('gline') or '').strip().lower()
+    except Exception:  # noqa: BLE001  # justificado: un doble o una versión sin la función; queda la unidad de fábrica
+        unidad = ''
+    return g * _A_US_POR_KM.get(unidad, 1.0)
 
 
 def _capacitancia_nf_km(tipo) -> float | None:
@@ -302,7 +359,7 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
                 out.append(_sin_vacios({**ident(m), 'tipo': 'red_externa', 'barra': _barra(m, 'bus1'),
                                         'kv': _kv_barra(m, 'bus1'), 'vm_pu': _num(m, 'usetp'), 'tipo_barra': 'PV',
                                         'p_mw': None if p is None else p * unidades, **_limites_q(m, unidades),
-                                        'maquina': True, **comun, 'fuente': fuente(m)}))
+                                        'maquina': True, **_estacion(m), **comun, 'fuente': fuente(m)}))
     for s in _objetos(app, '*.ElmSvs'):
         # 107:RF-28: el SVC regula la tensión de su barra: nudo PV sin potencia activa, con su consigna (usetp) y sus
         # límites de Q (qmax capacitiva; qmin, la inductiva, en negativo). En la copia de transmisión había 13, de hasta
@@ -321,9 +378,15 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
         # sus límites son los que resuelve DIgSILENT con la tensión (c:Qmin, c:Qmax), si los da; el estatismo se
         # exporta para que se vea, y el motor abierto lo avisa.
         remoto = _objeto(s, 'p_rem')
+        estatismo = _num(s, 'ddroop') or None
+        if estatismo and _num(s, 'i_droop') == 1 and remoto is not None and _num(remoto, 'm:u'):
+            # 107:RF-34: con estatismo el SVC no deja su nudo en la consigna (en la copia de transmisión, 0,9947 con
+            # 1,000) y ninguna fórmula con sus atributos reproducía lo medido: se exporta el punto de operación que
+            # resolvió DIgSILENT en esa misma red, la tensión del nudo, y el motor abierto lo avisa.
+            base = {**base, 'vm_pu': _num(remoto, 'm:u'), 'estatismo_aproximado': True}
         out.append(_sin_vacios({**base, 'tipo_barra': 'PV', **(_limites_q(s, 1.0, solo_resueltos=True) or limites),
                                 'barra_control': _id(remoto) if remoto is not None else None,
-                                'estatismo_pct': _num(s, 'ddroop') or None}))
+                                'estatismo_pct': estatismo}))
     for c in _objetos(app, '*.ElmCoup'):
         # 107:RF-25: el acoplamiento une dos barras de la subestación; abierto, se exporta igual con su estado. Sin
         # estado legible no se supone: queda sin ``cerrado`` y el PIT lo lista en faltantes (107:RF-4).
@@ -355,7 +418,8 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
             **ident(ln), 'tipo': 'linea', 'desde': _barra(ln, 'bus1'), 'hasta': _barra(ln, 'bus2'),
             'kv': _num(t, 'uline'), 'longitud_km': _num(ln, 'dline'), 'r_ohm_per_km': _num(t, 'rline'),
             'x_ohm_per_km': _num(t, 'xline'), 'c_nf_per_km': _capacitancia_nf_km(t), 'f_hz': _num(t, 'frnom'),
-            'max_i_ka': _num(t, 'sline'), 'paralelo': _paralelo(ln, 'nlnum'),
+            'g_us_per_km': _conductancia_us_km(t),
+            'max_i_ka': _corriente_nominal_ka(ln, t), 'paralelo': _paralelo(ln, 'nlnum'),
             'abierto_en': _abiertos(ln, (('bus1', 'desde'), ('bus2', 'hasta'))), **comun, 'fuente': fuente(ln)}))
     for tr in _objetos(app, '*.ElmTr2'):
         if _fuera_de_servicio(tr):
@@ -386,6 +450,7 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
             'vn_hv_kv': _num(t, 'utrn3_h'), 'vn_mv_kv': _num(t, 'utrn3_m'), 'vn_lv_kv': _num(t, 'utrn3_l'),
             **_vk_tr3(t, tr, sn),
             'pfe_kw': _num(t, 'pfe'), 'i0_percent': _num(t, 'curm3'), 'paralelo': _paralelo(tr, 'nt3nm'),
+            **_potencia_de_carga_tr3(tr, sn),
             'abierto_en': _abiertos(tr, (('bushv', 'hv'), ('busmv', 'mv'), ('buslv', 'lv'))), **toma3,
             **_desfases_tr3(t), **comun,
             'fuente': fuente(tr)}))

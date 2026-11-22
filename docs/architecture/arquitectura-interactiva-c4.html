@@ -173,7 +173,7 @@
 
   <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
   <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo.</p>
-  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107, 108, 111, 112). 460 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
+  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107, 108, 112). 460 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
 
   <div class="c4-toolbar">
     <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
@@ -323,7 +323,7 @@
         mcp: { label: 'MCP local', tech: 'stdio, solo lectura', path: 'tools/mcp_conversor.py', kind: 'ai', detail: 'Las lecturas del asistente para un cliente de esta máquina, entre ellas consultar_norma con su cita.' },
         journal: { label: 'Diario de operaciones', tech: 'SQLite + JSON + SHA-256', path: 'src/convertersmartgrid/aplicacion/asistente/observacion.py', kind: 'store', detail: 'Estados por espacio, contexto inicial y evidencias custodiadas; no promueve modelos.' },
         tooling: { label: 'Herramientas de órdenes', tech: 'Operación, calidad y modelos', path: 'tools/arquitectura.py', kind: 'engine', detail: 'Operación, aceptación, entrenamientos y calidad desde la línea de órdenes.' },
-        gisEditor: { label: 'Editor sobre el plano', tech: 'en implementación · 111', path: 'specs/111-editor-electrico-sobre-el-plano-gis/spec.md', kind: 'web', status: PLAN, detail: 'Ver la red, elegir un equipo, proponer maniobras u obras y ver resultados en el mismo trazo, sin tocar el Caso base.' },
+        gisEditor: { label: 'Editor sobre el plano', tech: 'spec 111 cumplida', path: 'specs/111-editor-electrico-sobre-el-plano-gis/spec.md', kind: 'web', detail: 'Ver la red, elegir un equipo, proponer maniobras u obras y ver resultados en el mismo trazo, sin tocar el Caso base.' },
         cloudConn: { label: 'Conector de nube', tech: 'spec 109 cumplida', path: 'specs/109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md', kind: 'engine', detail: 'Elige fuentes en la nube, avisa de cambios y sube expedientes; cada estudio usa una copia fija con huella.' },
         mailer: { label: 'Envío de informes', tech: 'spec 110 cumplida', path: 'specs/110-envio-de-informes-por-correo-desde-la-web/spec.md', kind: 'engine', detail: 'Envía el informe cerrado o un enlace privado a su expediente; queda un recibo.' },
         normativa: { label: 'Biblioteca normativa', tech: 'Vigencia y cita de cada regla', path: 'src/convertersmartgrid/aplicacion/biblioteca_normativa.py', kind: 'engine', detail: 'Normas nacionales e internacionales con su vigencia, sus modificaciones y la cita de cada regla; vale para toda empresa, estudio y módulo, y para el asistente.' },

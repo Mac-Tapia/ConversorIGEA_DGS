@@ -519,3 +519,38 @@ adaptador VNR (integrador f9).
       Hecho cuando: rojo por aserción sobre N7 + T3MT y verde con `tests/test_pit_pf_guion.py` y
       `tests/test_interactive_architecture.py` (107:RF-31).
       Hecho en DIG2-SVCCTRL (22-11): rojo por aserción (rojo_133510 y rojo_b_133818) y verde (verde_codigo_134230).
+- [x] T51. Controladores de estación en el motor abierto (corrida de T14 del 22-11): `tools/pit_pf._estacion`
+      da a la máquina PV el nudo y la consigna de su ElmStactrl (c_pstac, i_ctrl 0, rembar, usetp);
+      `red_pandapower` fija la consigna si el nudo es la barra de la máquina y reparte el ajuste del control
+      remoto entre las máquinas del mismo nudo. (RF-32)
+      Hecho cuando: rojo por aserción sobre N7 + T3MT + SVCCTRL y verde con `tests/test_pit_pf_guion.py` y
+      `tests/test_interactive_architecture.py` (107:RF-32).
+      Hecho en DIG2-STACTRL (22-11): rojo por aserción (rojo_135028) y verde (verde_codigo_135556).
+- [x] T52. La solución de tensión alta en el motor abierto (corrida de T14 del 22-11): `red_pandapower._solucion_alta`
+      repite el flujo por continuación de la carga (0,5; 0,75; 1) si quedan barras por debajo de 0,8 p.u. y se
+      queda con la de mayor tensión mínima, con aviso. (RF-33)
+      Hecho cuando: rojo por aserción sobre N7 + T3MT + SVCCTRL + STACTRL y verde con `tests/test_pit_pf_guion.py`
+      y `tests/test_interactive_architecture.py` (107:RF-33).
+      Hecho en DIG2-INICIO (22-11): rojo por aserción (rojo_141141) y verde (verde_codigo_142148).
+- [x] T53. Estatismo de los SVC por el punto de operación resuelto (corrida de T14 del 22-11): `tools/pit_pf.py`
+      exporta como consigna del SVC con estatismo la tensión resuelta de su nudo (m:u) con `estatismo_aproximado`,
+      y `red_pandapower` lo avisa. (RF-34)
+      Hecho cuando: rojo por aserción sobre N7 + T3MT + SVCCTRL + STACTRL + INICIO y verde con
+      `tests/test_pit_pf_guion.py` y `tests/test_interactive_architecture.py` (107:RF-34).
+      Hecho en DIG2-DROOP (22-11): rojo por aserción (rojo_143133) y verde (verde_codigo_143340).
+- [x] T54. Conductancia de las líneas (corrida de T14 del 22-11): `tools/pit_pf._conductancia_us_km` exporta el
+      gline del tipo como `g_us_per_km` y `red_pandapower` lo pasa a la línea de pandapower. (RF-35)
+      Hecho cuando: rojo por aserción sobre N7 + T3MT + SVCCTRL + STACTRL + INICIO + DROOP y verde con
+      `tests/test_pit_pf_guion.py` y `tests/test_interactive_architecture.py` (107:RF-35).
+      Hecho en DIG2-GLINE (22-11): rojo por aserción (rojo_150015) y verde (verde_codigo_150222).
+- [x] T55. Corriente nominal de la línea con su fline (corrida de T14 del 22-11): `tools/pit_pf._corriente_nominal_ka`
+      exporta sline · fline como `max_i_ka`. (RF-36)
+      Hecho cuando: rojo por aserción sobre la base de GLINE y verde con `tests/test_pit_pf_guion.py` y
+      `tests/test_interactive_architecture.py` (107:RF-36).
+      Hecho en DIG2-FLINE (22-11): rojo por aserción (rojo_152556) y verde (verde_codigo_152724).
+- [x] T56. Potencia de referencia de la cargabilidad del trafo3 (corrida de T14 del 22-11):
+      `tools/pit_pf._potencia_de_carga_tr3` exporta `sn_carga_*_mva` y `red_pandapower._cargabilidad_tr3` carga
+      sobre ella. (RF-37)
+      Hecho cuando: rojo por aserción sobre la base de FLINE y verde con `tests/test_pit_pf_guion.py` y
+      `tests/test_interactive_architecture.py` (107:RF-37).
+      Hecho en DIG2-RATFAC (22-11): rojo por aserción (rojo_154320) y verde (verde_codigo_154909).

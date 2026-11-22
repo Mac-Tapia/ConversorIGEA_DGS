@@ -16,6 +16,7 @@ import shutil
 import stat
 import threading
 import time
+from collections import Counter
 from collections.abc import Callable
 from pathlib import Path
 
@@ -157,10 +158,80 @@ class RetencionDiaria:
                 pending.extend(current.iterdir())
         return items
 
+    @staticmethod
+    def _inodo(path: Path) -> tuple[int, int]:
+        st = path.stat()
+        return st.st_dev, st.st_ino
+
+    def _inodos_de(self, runs: Path, referidos: set[str]) -> set[tuple[int, int]]:
+        """Ficheros de las ejecuciones vigentes; solo se calcula cuando un enlace queda retenido."""
+        inodos: set[tuple[int, int]] = set()
+        for name in referidos:
+            folder = runs / name / 'originales'
+            if valid_run_id(name) and folder.is_dir() and self._sin_redireccion(folder):
+                for p in folder.rglob('*'):
+                    try:
+                        if p.is_file():
+                            inodos.add(self._inodo(p))
+                    except OSError:
+                        continue  # justificado: el índice solo nombra el motivo; nada se borra con él.
+        return inodos
+
+    def _retirar_ejecucion(self, run: Path, items: list[Path]) -> tuple[int, int, list[Path]]:
+        """062:RF-9, RF-10: retira la ejecución y cuenta aparte los bytes lógicos y los liberados.
+
+        Desde 034:RF-42 una recarga custodia sus originales con un enlace duro a los de una
+        ejecución anterior. En NTFS, quitar un enlace cuyo nombre retiene otro lector (un lector
+        de esa ejecución, el antivirus) falla con «está siendo utilizado»: antes, ``rmtree`` lo
+        convertía en un error y dejaba la ejecución a medio borrar. Ahora un enlace compartido
+        retenido se queda, junto con el manifiesto que hace reconocible la ejecución, y la
+        revisión siguiente lo termina. Un fichero sin otro enlace que no se pueda quitar sigue
+        siendo un error, como hasta ahora.
+        """
+        files = [p for p in items if p.is_file()]
+        dirs = [p for p in items if p.is_dir()]
+        stats = {p: p.stat() for p in files}
+        fechas = {d: d.stat() for d in dirs}
+        en_run = Counter((s.st_dev, s.st_ino) for s in stats.values())
+        manifest = run / 'source_manifest.json'
+        logicos = liberados = 0
+        retenidos: list[Path] = []
+        liberado: set[tuple[int, int]] = set()
+        # El manifiesto, al final: si algo queda, la ejecución sigue siendo reconocible.
+        for p in sorted(files, key=lambda q: q == manifest):
+            st = stats[p]
+            clave = (st.st_dev, st.st_ino)
+            compartido = st.st_nlink > en_run[clave]
+            if p == manifest and retenidos:
+                continue
+            try:
+                p.unlink()
+            except OSError:
+                if not compartido:
+                    raise
+                retenidos.append(p)
+                continue
+            logicos += st.st_size
+            if not compartido and clave not in liberado:
+                liberado.add(clave)
+                liberados += st.st_size
+        if not retenidos:
+            shutil.rmtree(run)
+            return logicos, liberados, retenidos
+        for d in sorted(dirs, key=lambda q: len(q.parts), reverse=True):
+            try:
+                d.rmdir()
+            except OSError:
+                # Quitar entradas cambia la fecha de la carpeta; sin restituirla, la revisión siguiente
+                # vería «actividad en los últimos siete días» y el resto esperaría otra semana.
+                os.utime(d, ns=(fechas[d].st_atime_ns, fechas[d].st_mtime_ns))
+        return logicos, liberados, retenidos
+
     def _revisar(self) -> dict:
         ahora = self.ahora()
         report = {'estado': 'completada', 'iniciada': ahora, 'terminada': ahora,
-                  'eliminados': [], 'conservados': [], 'errores': [], 'bytes_logicos_retirados': 0}
+                  'eliminados': [], 'conservados': [], 'errores': [], 'bytes_logicos_retirados': 0,
+                  'bytes_liberados_en_disco': 0}
         try:
             if self.path.parent.exists() and (not self.path.parent.is_dir() or not self._sin_redireccion(self.path.parent)):
                 raise ValueError('No se puede custodiar el resumen de limpieza en esa carpeta')
@@ -188,11 +259,20 @@ class RetencionDiaria:
                                 if any(p.stat().st_mtime >= ahora - 7 * 86400 for p in items):
                                     report['conservados'].append({'ruta': str(run), 'motivo': 'actividad en los últimos siete días'})
                                     continue
-                                size = sum(p.stat().st_size for p in items if p.is_file())
                                 # El árbol completo y su ruta absoluta se validaron antes del borrado.
-                                shutil.rmtree(run)
-                                report['eliminados'].append(str(run))
-                                report['bytes_logicos_retirados'] += size
+                                logicos, liberados, retenidos = self._retirar_ejecucion(run, items)
+                                report['bytes_logicos_retirados'] += logicos
+                                report['bytes_liberados_en_disco'] += liberados
+                                if retenidos:
+                                    activa = self._inodos_de(runs, referidos)
+                                    motivo = ('compartido con la ejecución activa'
+                                              if any(self._inodo(p) in activa for p in retenidos)
+                                              else 'compartido con otra ejecución')
+                                    report['conservados'].append({
+                                        'ruta': str(run), 'motivo': motivo,
+                                        'ficheros': [str(p.relative_to(run)) for p in retenidos]})
+                                else:
+                                    report['eliminados'].append(str(run))
                             except (OSError, ValueError, TypeError, AttributeError) as exc:
                                 report['errores'].append(str(exc))
                     for folder in (ws.root / 'tmp', ws.inputs_dir / '_auto'):
@@ -207,10 +287,12 @@ class RetencionDiaria:
                             if not p.is_file() or os.path.normcase(os.path.abspath(p)) in rutas or es_valioso(p):
                                 continue
                             if p.stat().st_mtime < ahora - 7 * 86400:
-                                size = p.stat().st_size
+                                st = p.stat()
                                 p.unlink()
                                 report['eliminados'].append(str(p))
-                                report['bytes_logicos_retirados'] += size
+                                report['bytes_logicos_retirados'] += st.st_size
+                                # 062:RF-10: con otro enlace, el disco no se libera.
+                                report['bytes_liberados_en_disco'] += st.st_size if st.st_nlink <= 1 else 0
         except (OSError, ValueError, TypeError, AttributeError) as exc:
             report['errores'].append(str(exc))
         report['terminada'] = self.ahora()

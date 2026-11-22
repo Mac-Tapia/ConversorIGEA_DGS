@@ -8,6 +8,11 @@
       Hecho cuando: API/monitor, regresiones, compilación, inventario y trazabilidad pasan, con prueba de revisión real documentada.
 - [x] T4. Activar en el servidor principal abierto. (RF-1, RF-8)
       Hecho cuando: el servidor principal expone la política y registra su primera revisión tras cargar la nueva versión, sin interrumpir trabajos.
+- [x] T5. Retirada de ejecuciones con custodias enlazadas: el enlace retenido se anota y se termina en la revisión
+      siguiente, y el resumen y el monitor dan los bytes lógicos y los liberados en disco. (RF-9, RF-10)
+      Hecho cuando: `pytest -q tests/test_retencion_diaria.py -k "enlace_retenido or liberados"` en verde, y en rojo
+      sobre 98dbffc9 con solo la prueba. Hecha el 2026-11-22 (CUSTODIA-ENLACE): rojo
+      `D:/csg/PM_IMPL/CUSTODIA_ENLACE/rojo2.log`, verde `D:/csg/PM_IMPL/CUSTODIA_ENLACE/verde2.log`.
 
 Evidencia: `docs/RETENCION_AUTOMATICA_2026-11-01.md`,
 `output/retencion_20261101/regresion.xml` y `politica_final.xml`.

@@ -116,9 +116,8 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
 
             gisEditor = container "Editor sobre el plano" "Ver la red, elegir un equipo, proponer maniobras u obras y ver los resultados en el mismo trazo, sin tocar el Caso base." "React + Leaflet" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/specs/111-editor-electrico-sobre-el-plano-gis/spec.md"
-                tags "Web,en implementación"
+                tags "Web"
                 properties {
-                    "Estado" "en implementación"
                     "Spec" "111"
                 }
             }

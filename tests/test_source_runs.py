@@ -281,3 +281,93 @@ def test_catalogo_baseline_ausente_tras_reabrir_no_se_convierte_en_catalogo_vaci
     services.clear_catalog(restored)
     assert restored.catalog_corrections() is None
     assert 'catalog_file' not in restored.no_disponibles
+
+
+def _manifest_sin_identidad(snapshot) -> dict:
+    """El manifiesto sin lo que cambia por ejecución (identificador y fecha)."""
+    payload = json.loads((snapshot.root / 'source_manifest.json').read_text(encoding='utf-8'))
+    for key in ('run_id', 'created_at'):
+        payload.pop(key)
+    return payload
+
+
+def test_recarga_de_la_misma_entrada_custodia_con_enlace_sin_duplicar(tmp_path):
+    """034:RF-42 — una recarga con la misma huella enlaza el original ya custodiado, no lo copia.
+
+    Caso real: un espacio con una copia VNR-GIS de 0,8 GB acumuló 15 copias idénticas en
+    ``runs/*/originales`` tras varias recargas «Cargar y listar alimentadores».
+    """
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run
+
+    ws, _originals = _txt_workspace(tmp_path)
+    primera = create_source_run(ws)
+    segunda = create_source_run(ws)
+
+    assert primera.run_id != segunda.run_id
+    assert primera.fingerprint == segunda.fingerprint
+    for slot, custodia in segunda.files.items():
+        anterior = primera.files[slot]
+        assert custodia.path != anterior.path
+        assert os.path.samefile(custodia.path, anterior.path), slot
+        assert (custodia.size, custodia.sha256) == (anterior.size, anterior.sha256)
+    assert _manifest_sin_identidad(primera) == _manifest_sin_identidad(segunda)
+
+
+def test_sin_enlace_posible_la_custodia_copia_como_hasta_ahora(tmp_path, monkeypatch):
+    """034:RF-42 — si el volumen no admite el enlace, se copia y el manifiesto no cambia."""
+    from convertersmartgrid.presentacion.web import source_runs
+
+    ws, originals = _txt_workspace(tmp_path)
+    primera = source_runs.create_source_run(ws)
+
+    def sin_enlace(*_args, **_kwargs):
+        raise OSError('enlace no admitido en este volumen')
+
+    monkeypatch.setattr(source_runs.os, 'link', sin_enlace)
+    segunda = source_runs.create_source_run(ws)
+
+    for slot, custodia in segunda.files.items():
+        assert not os.path.samefile(custodia.path, primera.files[slot].path), slot
+        assert custodia.path.read_bytes() == originals[slot].read_bytes()
+    assert _manifest_sin_identidad(primera) == _manifest_sin_identidad(segunda)
+    assert source_runs.load_source_run(ws, segunda.run_id, verify_files=True).fingerprint == segunda.fingerprint
+
+
+def test_original_custodiado_alterado_no_se_enlaza(tmp_path):
+    """034:RF-42; 034:RF-20 — el enlace solo vale si el destino da la huella; si no, se copia."""
+    from convertersmartgrid.presentacion.web.source_runs import create_source_run, load_source_run
+
+    ws, originals = _txt_workspace(tmp_path)
+    primera = create_source_run(ws)
+    alterado = primera.files['red'].path
+    alterado.write_bytes(b'X' * alterado.stat().st_size)
+
+    segunda = create_source_run(ws)
+
+    assert not os.path.samefile(segunda.files['red'].path, alterado)
+    assert segunda.files['red'].path.read_bytes() == originals['red'].read_bytes()
+    assert os.path.samefile(segunda.files['loads'].path, primera.files['loads'].path)
+    assert load_source_run(ws, segunda.run_id, verify_files=True).fingerprint == segunda.fingerprint
+
+
+def test_custodia_enlazada_retenida_o_alterada_no_pasa_por_buena(tmp_path):
+    """034:RF-42; 034:RF-20 — el enlace comparte bytes: la guarda impide reescribirlos y,
+    sin guarda, una alteración la detecta la verificación de cada ejecución que lo enlaza."""
+    from convertersmartgrid.presentacion.web.source_runs import (
+        SourceIntegrityError, create_source_run, guarded_source_run, load_source_run)
+
+    ws, _originals = _txt_workspace(tmp_path)
+    primera = create_source_run(ws)
+    segunda = create_source_run(ws)
+    enlazado = segunda.files['loads'].path
+    assert os.path.samefile(enlazado, primera.files['loads'].path)
+
+    with guarded_source_run(primera):
+        with pytest.raises(OSError):
+            enlazado.write_bytes(b'X' * enlazado.stat().st_size)
+
+    enlazado.write_bytes(b'X' * enlazado.stat().st_size)
+    for snapshot in (primera, segunda):
+        with pytest.raises(SourceIntegrityError, match='huella'):
+            load_source_run(ws, snapshot.run_id, verify_files=True)
+

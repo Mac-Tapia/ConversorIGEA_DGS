@@ -138,7 +138,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 108 Estudio de costos del VAD con la empresa modelo eficiente | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
   | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | cumplida | — |
   | 110 Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | |
-  | 111 Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | implementada | T18 |
+  | 111 Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | cumplida |  |
   | 112 Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | falta T16 (corrida con los paquetes públicos); T18 y T19 cerradas (21-11, MEJ32) |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,

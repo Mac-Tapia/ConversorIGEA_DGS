@@ -1,6 +1,6 @@
 # Spec 062 — Retención diaria de ejecuciones y temporales
 
-Estado: cumplida · Fecha: 2026-11-01
+Estado: cumplida (2026-11-22: T5, RF-9 y RF-10, con su rojo y su verde) · Fecha: 2026-11-01
 
 El usuario eligió revisar cada día y eliminar ejecuciones y temporales de más de
 siete días. Amplía034/036/061: conserva originales, modelos e informes vinculados,
@@ -14,6 +14,11 @@ y sustituye la retención indefinida de ejecuciones obsoletas por esta política
 - RF-6: CUANDO retire temporales de las carpetas gestionadas, EL SISTEMA exigirá más de siete días de antigüedad y ausencia de referencias vigentes.
 - RF-7: CUANDO termine o falle una revisión, EL SISTEMA conservará un resumen acotado con eliminados, conservados y errores, sin anunciar éxito ante errores de E/S.
 - RF-8: CUANDO se consulte el monitor, EL SISTEMA mostrará la política, la última revisión y su próxima fecha, sin añadir sondeo periódico.
+
+Custodias enlazadas (2026-11-22, tarjeta CUSTODIA-ENLACE; desde 034:RF-42 una recarga enlaza el original ya custodiado):
+
+- RF-9: SI al retirar una ejecución no se puede quitar un fichero que comparte su contenido con otro enlace, ENTONCES EL SISTEMA dejará ese fichero y el manifiesto de la ejecución, la anotará entre las conservadas como «compartido con la ejecución activa» (o «con otra ejecución» si el enlace no es de una vigente), sin registrarlo como error, y la revisión siguiente terminará de retirarla.
+- RF-10: EL SISTEMA informará por separado los bytes lógicos retirados y los liberados en disco, y un fichero con otro enlace fuera de lo retirado no sumará a los liberados.
 
 Fuera de alcance: limpieza de otros proyectos, edición de planos de la herramienta de origen, borrado de
 modelos o evidencia nativa, y tareas del sistema operativo cuando la web está apagada.

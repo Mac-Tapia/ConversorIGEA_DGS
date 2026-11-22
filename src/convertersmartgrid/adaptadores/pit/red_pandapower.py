@@ -173,7 +173,10 @@ def _red(pp, red: RedArea, cargas: Mapping[str, tuple[float, float]], fuera: set
             i = pp.create_gen(net, bus[g['barra']], p_mw=float(g['p_mw']), vm_pu=en_comun(g['barra'], g['vm_pu']),
                               name=g['id'], in_service=g['id'] not in fuera, **limites)
             remoto = g.get('barra_control')
-            if remoto and remoto != g['barra'] and remoto in bus:
+            if remoto and remoto in bus and remoto == g['barra']:
+                # 107:RF-32: el controlador de estación regula la propia barra de la máquina: su consigna, sin vueltas.
+                net.gen.at[i, 'vm_pu'] = en_comun(remoto, g['vm_pu'])
+            elif remoto and remoto in bus:
                 # 107:RF-31: un SVC que regula un nudo remoto (la barra de alta): la consigna es la de ese nudo, y
                 # ``calcular`` corrige la tensión del PV hasta cumplirla.
                 net['control_remoto'].append((i, bus[remoto], en_comun(remoto, g['vm_pu'])))
@@ -197,6 +200,8 @@ def _red(pp, red: RedArea, cargas: Mapping[str, tuple[float, float]], fuera: set
             net, bus[e['desde']], bus[e['hasta']], length_km=float(e['longitud_km']),
             r_ohm_per_km=float(e['r_ohm_per_km']), x_ohm_per_km=float(e['x_ohm_per_km']),
             c_nf_per_km=float(e['c_nf_per_km']), max_i_ka=float(e['max_i_ka']), name=e['id'],
+            # 107:RF-35: la conductancia de la línea, si el tipo la trae.
+            g_us_per_km=float(e.get('g_us_per_km') or 0.0),
             parallel=int(e.get('paralelo') or 1), in_service=e['id'] not in fuera)
         for lado in _lados_abiertos(e) & {'desde', 'hasta'}:
             pp.create_switch(net, bus[e[lado]], lineas[e['id']], et='l', closed=False)
@@ -251,6 +256,62 @@ def _una_consigna_por_barra(net) -> None:
             net['avisos_consigna'].append(f'{nombres}: otra consigna de tensión en la misma barra; se toma {manda:.4f}')
 
 
+#: 107:RF-33: por debajo de esta tensión (en la nominal propia) la solución puede ser la de tensión baja; los pasos de la
+#: carga del segundo intento, cada uno desde la solución del anterior.
+_V_BAJA_PU = 0.8
+_PASOS_CARGA = (0.5, 0.75, 1.0)
+
+
+def _cargabilidad_tr3(net, i, potencias: dict) -> float:
+    """107:RF-37: la cargabilidad del trafo3 como la da DIgSILENT: la corriente del devanado más cargado sobre su
+    corriente nominal, Snom / (raíz de 3 · tensión nominal del devanado), con la potencia de referencia del elemento
+    cuando la trae (si no, la del tipo): Inom_h de un trafo de 132 MVA y 220 kV es 0,3464 kA, la que da DIgSILENT."""
+    fila, t3 = net.res_trafo3w.loc[i], net.trafo3w.loc[i]
+    cargas = []
+    for lado in ('hv', 'mv', 'lv'):
+        sn = potencias.get(lado) or float(t3[f'sn_{lado}_mva'])
+        corriente = float(fila[f'i_{lado}_ka'])
+        if sn and not math.isnan(corriente):
+            nominal = sn / (math.sqrt(3) * float(t3[f'vn_{lado}_kv']))
+            cargas.append(100.0 * corriente / nominal)
+    return max(cargas) if cargas else float('nan')
+
+
+def _tension_propia(net):
+    return net.res_bus.vm_pu * net.bus.vn_kv / net.bus.kv_propio
+
+
+def _solucion_alta(pp, net, opciones: dict):
+    """107:RF-33: si el flujo deja barras por debajo de 0,8 p.u., puede haber caído en la solución de tensión baja de una
+    radial larga (en la copia de transmisión, 0,50 p.u. donde DIgSILENT da 1,00). Se repite con la carga, la generación
+    y las inyecciones llevadas de la mitad al total, cada paso desde la solución anterior; si converge y su tensión mínima
+    es mayor, se queda esa y se avisa. No usa las tensiones de DIgSILENT: el motor abierto vale sin él."""
+    v = _tension_propia(net)
+    bajas = int((v < _V_BAJA_PU).sum())
+    if not bajas:
+        return net, None
+    import copy
+
+    otra = copy.deepcopy(net)
+    tablas = [(t, c) for t, c in (('load', 'p_mw'), ('load', 'q_mvar'), ('sgen', 'p_mw'), ('sgen', 'q_mvar'),
+                                  ('gen', 'p_mw')) if len(otra[t])]
+    base = {(t, c): otra[t][c].copy() for t, c in tablas}
+    try:
+        for k, paso in enumerate(_PASOS_CARGA):
+            for (t, c), serie in base.items():
+                otra[t][c] = serie * paso
+            pp.runpp(otra, init='auto' if k == 0 else 'results', **opciones)
+        _control_remoto(pp, otra, opciones)
+    except pp.LoadflowNotConverged:
+        return net, (f'{bajas} barras por debajo de {_V_BAJA_PU} p.u.; el segundo intento por continuación de la carga no '
+                     'converge: queda la primera solución')
+    if float(_tension_propia(otra).min()) > float(v.min()) + 1e-3:
+        return otra, (f'{bajas} barras por debajo de {_V_BAJA_PU} p.u. en el primer flujo (solución de tensión baja); se '
+                      f'toma la del segundo intento por continuación de la carga, con mínima '
+                      f'{float(_tension_propia(otra).min()):.3f} p.u.')
+    return net, None
+
+
 #: 107:RF-31: la tolerancia y las vueltas del control remoto de tensión (en por unidad de la nominal común).
 _TOL_REMOTO_PU = 1e-4
 _VUELTAS_REMOTO = 20
@@ -273,8 +334,14 @@ def _control_remoto(pp, net, opciones: dict) -> None:
                 mover.append((g, falta))
         if not mover:
             return
+        # 107:RF-32: las máquinas de un controlador de estación regulan el mismo nudo: lo que le falta se reparte entre
+        # las que se mueven, para no pasarse (todas a la vez, cada una con todo, oscilaba).
+        nudo_de = {g: b for g, b, _v in pares}
+        por_nudo: dict[int, int] = {}
+        for g, _falta in mover:
+            por_nudo[nudo_de[g]] = por_nudo.get(nudo_de[g], 0) + 1
         for g, falta in mover:
-            net.gen.at[g, 'vm_pu'] = float(net.gen.vm_pu.at[g]) + falta
+            net.gen.at[g, 'vm_pu'] = float(net.gen.vm_pu.at[g]) + falta / por_nudo[nudo_de[g]]
         pp.runpp(net, init='results', **opciones)
 
 
@@ -308,12 +375,22 @@ def calcular(red: RedArea, cargas: Mapping[str, tuple[float, float]], *, fuera: 
                         enforce_q_lims=limites_q)
         pp.runpp(net, init='auto', **opciones)
         _control_remoto(pp, net, opciones)
+        net, aviso_alta = _solucion_alta(pp, net, opciones)
     except pp.LoadflowNotConverged as exc:
         res.mensaje = f'el flujo no converge con pandapower: {exc}'
         return res
     res.converge = True
-    if net.get('avisos_consigna'):
-        res.mensaje = '; '.join(net['avisos_consigna'])
+    # 107:RF-37: los trafo3 con potencia de referencia propia del elemento.
+    carga_tr3 = {e['id']: {lado: e.get(f'sn_carga_{lado}_mva') for lado in ('hv', 'mv', 'lv')}
+                 for e in red.de_tipo('trafo3') if any(e.get(f'sn_carga_{lado}_mva') for lado in ('hv', 'mv', 'lv'))}
+    avisos = list(net.get('avisos_consigna') or []) + ([aviso_alta] if aviso_alta else [])
+    aproximados = sorted(g['id'] for g in red.de_tipo('red_externa') if g.get('estatismo_aproximado'))
+    if aproximados:
+        # 107:RF-34: la limitación, dicha: con otra carga el SVC no reparte por estatismo.
+        avisos.append(f"{', '.join(aproximados)}: estatismo aproximado por la tensión resuelta en el caso exportado; con "
+                      'otra carga el SVC no reparte por estatismo')
+    if avisos:
+        res.mensaje = '; '.join(avisos)
     vm = net.res_bus.vm_pu
     for nombre, i in bus.items():
         # 107:RF-29: en la nominal propia de la barra, la que da DIgSILENT.
@@ -327,6 +404,8 @@ def calcular(red: RedArea, cargas: Mapping[str, tuple[float, float]], *, fuera: 
                              (net.res_trafo3w, trafos3, 'p_hv_mw', 'q_hv_mvar')):
         for nombre, i in ids.items():
             c = float(tabla.loading_percent.at[i])
+            if tabla is net.res_trafo3w and nombre in carga_tr3:
+                c = _cargabilidad_tr3(net, i, carga_tr3[nombre])
             if not math.isnan(c):
                 res.cargabilidad_pct[nombre] = c
             pq = (float(tabla[p].at[i]), float(tabla[q].at[i]))

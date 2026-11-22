@@ -20,7 +20,8 @@ const ETIQUETAS: Record<string, string> = {
   progress: 'Avance', index: 'Paso', total: 'Total', label: 'Etapa', result: 'Resultado', resultado: 'Resultado',
   workspace_id: 'Espacio', seguimiento: 'Seguimiento', contexto: 'Contexto', aceptacion_nativa: 'Aceptación nativa',
   eliminados: 'Eliminados', conservados: 'Conservados', ruta: 'Fichero', motivo: 'Motivo',
-  bytes_logicos_retirados: 'Espacio liberado', message: 'Mensaje', summary: 'Resumen', warnings: 'Avisos',
+  bytes_logicos_retirados: 'Tamaño retirado', bytes_liberados_en_disco: 'Espacio liberado en disco',
+  ficheros: 'Ficheros', message: 'Mensaje', summary: 'Resumen', warnings: 'Avisos',
   path: 'Fichero', file: 'Fichero', files: 'Ficheros', output: 'Salida', outputs: 'Salidas', reason: 'Motivo',
   name: 'Nombre', version: 'Versión',
 };
@@ -45,7 +46,7 @@ function legible(clave: string, v: unknown, nivel: number): string | null {
   if (typeof v === 'boolean') return v ? 'Sí' : 'No';
   if (typeof v === 'number') {
     if (ES_FECHA.test(clave) && v > 1e9) return new Date(v * 1000).toLocaleString();
-    if (clave === 'bytes_logicos_retirados') return fmtBytes(v);
+    if (clave === 'bytes_logicos_retirados' || clave === 'bytes_liberados_en_disco') return fmtBytes(v);
     return v.toLocaleString('es-PE');
   }
   if (typeof v === 'string') {

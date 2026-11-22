@@ -276,6 +276,34 @@ común.
   la del nudo remoto mientras no esté en su límite, y con dos consignas distintas en la misma barra tomará una y lo
   dirá. (Con las 255 máquinas como inyección fija el motor abierto no convergía desde arranque plano en la copia de
   transmisión; con ellas como PV, sí. Los SVC regulaban la barra de alta y siete estaban en su límite.)
+- RF-32: (corrida de 107 T14 del 22-11; amplía RF-31) CUANDO una máquina con control de tensión dependa de un
+  controlador de estación en servicio que regula tensión, EL SISTEMA exportará como su nudo de control y su consigna
+  los del controlador (rembar, usetp), no los de la máquina, y el motor abierto repartirá entre las máquinas del
+  mismo nudo el ajuste de su consigna. (En la copia de transmisión había 61 controladores; dos máquinas en paralelo
+  con 1,000 y 1,002 dejaban su barra a 1,02, la del controlador.)
+- RF-33: (corrida de 107 T14 del 22-11) CUANDO el flujo del motor abierto deje barras por debajo de 0,8 p.u., EL
+  SISTEMA repetirá el flujo llevando la carga, la generación y las inyecciones de la mitad al total, cada paso desde
+  la solución anterior, se quedará con esa solución si converge y su tensión mínima es mayor, y lo dirá en el
+  mensaje; sin usar las tensiones de DIgSILENT. (En la copia de transmisión una radial larga de 60 kV tenía dos
+  soluciones y desde arranque plano el flujo daba 0,50 p.u. donde DIgSILENT da 1,00.)
+- RF-34: (corrida de 107 T14 del 22-11; decisión de d8) CUANDO un SVC regule su nudo con estatismo (i_droop 1 y
+  ddroop > 0), EL SISTEMA exportará como consigna la tensión resuelta de ese nudo en el caso exportado y el motor
+  abierto avisará de que el estatismo es aproximado: con otra carga el SVC no reparte por estatismo. (Dos SVC con
+  estatismo del 2 % dejaban su nudo en 0,9947 con consigna 1,000; ninguna fórmula con sus atributos reproducía los
+  siete casos medidos, y con la consigna el Sur quedaba +0,005 p.u.)
+- RF-35: (corrida de 107 T14 del 22-11; amplía RF-27) CUANDO el tipo de una línea traiga conductancia (gline), EL
+  SISTEMA la exportará en µS/km, desde la unidad que declare el proyecto, y el motor abierto la sumará a la línea.
+  (En la copia de transmisión 67 tipos la traían; sin ella, con las mismas tensiones, las líneas disipaban 294 MW
+  frente a 337 MW en DIgSILENT y la máquina de referencia generaba 110 MW menos.)
+- RF-36: (corrida de 107 T14 del 22-11; amplía RF-27) EL SISTEMA exportará como corriente nominal de un circuito de
+  la línea la del tipo por el factor de reducción del elemento (fline), como la usa DIgSILENT en su cargabilidad.
+  (En la copia de transmisión 27 líneas tenían fline entre 0,19 y 1,4 y el motor abierto daba hasta 47 puntos menos
+  de carga.)
+- RF-37: (corrida de 107 T14 del 22-11) CUANDO un trafo de tres devanados tenga en el elemento una potencia nominal
+  distinta de la del tipo (Snom_h/m/l), EL SISTEMA la exportará como potencia de referencia de su cargabilidad, y el
+  motor abierto dará la corriente del devanado más cargado sobre la nominal de ese devanado con esa potencia; la
+  impedancia sigue en la base del tipo. (En la copia de transmisión 20 trafos de tres devanados la tenían distinta,
+  132 MVA frente a 80, y el motor abierto daba 70,5 % donde DIgSILENT da 42,7 %, con el mismo flujo.)
 ## Requisitos no funcionales
 - Universal: cualquier área de demanda y titular. Las pruebas usan al menos dos perfiles sintéticos.
 - Determinismo: el mismo caso, con la misma norma y los mismos costos, da el mismo expediente.

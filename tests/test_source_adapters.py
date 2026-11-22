@@ -417,6 +417,10 @@ def test_cambio_de_run_al_adquirir_guarda_no_convierte_otro_dataset(tmp_path, mo
     from contextlib import contextmanager
     from convertersmartgrid.presentacion.web import services, source_runs
 
+    # El escenario reescribe en su sitio la custodia de la carga nueva. Con 034:RF-42 esa custodia
+    # sería un enlace al mismo fichero que la ejecución anterior, retenido por su guarda; aquí se
+    # prueba la captura única con dos copias independientes, como antes del enlace.
+    monkeypatch.setattr(source_runs.os, 'link', lambda *_a, **_k: (_ for _ in ()).throw(OSError('sin enlace')))
     ws, _ = _txt_workspace(tmp_path, feeders=1)
     services.load_dataset(ws, _ctx())
     old = ws.active_run()

@@ -239,3 +239,64 @@ def test_no_escribe_resumen_mediante_redireccion(tmp_path):
     result = manager.revisar_si_vence()
     assert result['estado'] == 'incompleta'
     assert not list(exterior.iterdir())
+
+
+def _enlazar_custodia(antigua, activa):
+    """La custodia de la ejecución antigua enlaza el original de la activa (034:RF-42)."""
+    compartido = activa / 'originales/entrada.txt'
+    enlace = antigua / 'originales/compartido.txt'
+    os.link(compartido, enlace)
+    for q in (enlace, compartido):
+        os.utime(q, (AHORA - 8 * DIA, AHORA - 8 * DIA))
+    return compartido, enlace
+
+
+def test_enlace_retenido_por_la_ejecucion_activa_no_es_error_ni_borrado_a_medias(tmp_path):
+    """062:RF-9 — un enlace retenido se anota como compartido y la siguiente revisión lo termina.
+
+    En NTFS, retener el nombre de la activa no impide quitar el otro enlace; lo impide que alguien
+    retenga el nombre de la ejecución antigua (un lector, el antivirus), que es lo que se simula.
+    """
+    from convertersmartgrid.adaptadores.fuentes_estables import abrir_fuente_estable
+
+    store, jobs, manager = gestor(tmp_path)
+    ws = store.create()
+    antigua, activa = crear_run(ws, 1), crear_run(ws, 2)
+    compartido, enlace = _enlazar_custodia(antigua, activa)
+    ws.active_run_id = activa.name
+    ws.save()
+
+    with abrir_fuente_estable(enlace):
+        result = manager.revisar_si_vence()
+
+    assert result['estado'] == 'completada', result['errores']
+    assert result['errores'] == []
+    assert enlace.exists() and (antigua / 'source_manifest.json').exists()
+    assert not (antigua / 'originales/entrada.txt').exists()
+    anotado = [c for c in result['conservados'] if c['ruta'] == str(antigua)]
+    assert anotado and anotado[0]['motivo'] == 'compartido con la ejecución activa'
+    assert compartido.read_text(encoding='utf-8') == 'dato real de contrato'
+
+    siguiente = RetencionDiaria(store, jobs, ahora=lambda: AHORA + 2 * DIA).revisar_si_vence()
+    assert siguiente['estado'] == 'completada', siguiente['errores']
+    assert not antigua.exists() and compartido.exists()
+
+
+def test_bytes_logicos_y_liberados_en_disco_por_separado(tmp_path):
+    """062:RF-10 — un fichero con más enlaces no libera disco hasta su último enlace."""
+    store, _, manager = gestor(tmp_path)
+    ws = store.create()
+    antigua, activa = crear_run(ws, 1), crear_run(ws, 2)
+    compartido, enlace = _enlazar_custodia(antigua, activa)
+    ws.active_run_id = activa.name
+    ws.save()
+    propio = (antigua / 'originales/entrada.txt').stat().st_size
+    manifiesto = (antigua / 'source_manifest.json').stat().st_size
+    tamano_enlace = enlace.stat().st_size
+
+    result = manager.revisar_si_vence()
+
+    assert not antigua.exists() and compartido.exists()
+    assert result['bytes_logicos_retirados'] == propio + manifiesto + tamano_enlace
+    assert result['bytes_liberados_en_disco'] == propio + manifiesto
+

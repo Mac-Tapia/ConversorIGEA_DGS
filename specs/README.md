@@ -40,7 +40,7 @@ retirada.
 | [031](031-proyeccion-econometrica-de-la-demanda/spec.md) | Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | aprobada | 29 | 29 | T5 |
 | [032](032-caso-base-original-fichas-en-sin-proyecto/spec.md) | «Caso base» con los datos originales; fichas y potencias en «Sin proyecto» | cumplida | 29 | 29 | — |
 | [033](033-trazabilidad-y-estado-de-las-specs/spec.md) | Trazabilidad y estado de las specs | cumplida | 22 | 22 | — |
-| [034](034-motor-base-y-contrato-de-fuentes/spec.md) | Motor base de conversión y contrato universal de fuentes | cumplida | 41 | 41 | — |
+| [034](034-motor-base-y-contrato-de-fuentes/spec.md) | Motor base de conversión y contrato universal de fuentes | cumplida | 42 | 42 | — |
 | [035](035-fijas-de-la-tabla-q-con-bancos-y-unidades/spec.md) | Fijas de la tabla en el instante de la máxima, Q de cabecera con bancos y unidades de DIgSILENT | cumplida | 32 | 32 | — |
 | [036](036-auditoria-raiz-y-arranque-fiable/spec.md) | Auditoría de raíz y correcciones del arranque | cumplida | 3 | 3 | — |
 | [037](037-cargas-nuevas-en-estudios-web/spec.md) | Caso «Cargas nuevas» en los estudios de la web | cumplida | 8 | 8 | — |
@@ -68,7 +68,7 @@ retirada.
 | [059](059-fuente-por-lo-que-se-carga/spec.md) | La fuente es la del fichero que se carga, sin valor por defecto | cumplida | 8 | 8 | — |
 | [060](060-correcciones-del-aprendizaje/spec.md) | Correcciones verificables del aprendizaje | cumplida | 8 | 8 | — |
 | [061](061-observacion-y-operacion-del-agente/spec.md) | Observación y operación integrada del agente | cumplida | 10 | 10 | — |
-| [062](062-retencion-diaria-de-ejecuciones/spec.md) | Retención diaria de ejecuciones y temporales | cumplida | 8 | 8 | — |
+| [062](062-retencion-diaria-de-ejecuciones/spec.md) | Retención diaria de ejecuciones y temporales | cumplida | 10 | 10 | — |
 | [063](063-informe-de-factibilidad-en-un-paso/spec.md) | Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | cumplida | 57 | 57 | — |
 | [064](064-arnes-sin-atajos/spec.md) | Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida | 11 | 11 | — |
 | [065](065-cierre-de-auditoria-integral/spec.md) | Cierre verificable de la auditoría integral | cumplida | 26 | 26 | — |
@@ -113,9 +113,9 @@ retirada.
 | [104](104-libros-nuevos-se-reconocen-solos/spec.md) | Los libros nuevos de demanda se reconocen solos | cumplida | 48 | 48 | — |
 | [105](105-evolucion-de-clientes-fijos-por-alimentador/spec.md) | Evolución de los clientes fijos de cualquier alimentador | cumplida | 40 | 40 | — |
 | [106](106-un-turno-de-gpu-para-la-suite-y-los-entrenamientos/spec.md) | Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | 24 | 24 | — |
-| [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | 31 | 31 | T14 (DIgSILENT) |
+| [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | 37 | 37 | T14 (DIgSILENT) |
 | [108](108-estudio-de-costos-del-vad/spec.md) | Estudio de costos del VAD con la empresa modelo eficiente | aprobada | 26 | 26 | T13 |
 | [109](109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md) | Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | cumplida | 26 | 26 | — |
 | [110](110-envio-de-informes-por-correo-desde-la-web/spec.md) | Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | 14 | 14 | — |
-| [111](111-editor-electrico-sobre-el-plano-gis/spec.md) | Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | implementada | 32 | 32 | T18 (DIgSILENT) |
+| [111](111-editor-electrico-sobre-el-plano-gis/spec.md) | Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | cumplida | 32 | 32 | — |
 | [112](112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md) | Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | 23 | 23 | T16 |
