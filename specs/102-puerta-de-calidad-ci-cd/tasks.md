@@ -65,6 +65,9 @@
       fijado con el pico medido; es la T20 la que sube PROCESOS_MAXIMOS (hoy 1, FIX-XDIST-UNO) al N medido. (RF-5)
       Hecho cuando: el guion de comparación (`tools/comparar_suite_repartida.py`, MEJ15), lanzado por los carriles en
       un hueco sin puerta, deja su informe con «iguales» y los picos, y la constante queda con su medida.
+      Avance (2026-11-21, MEJ32 de d8): `--fijar` lleva la medida a la puerta solo con «iguales» (`MEDIDA_T20`, y la
+      prueba que impide un tope sin medida); falta la corrida de la suite entera con N = 1, 2 y 3 (~5-6 h, con
+      ≥ 8 GiB libres para N = 2 y ≥ 11 para N = 3), con `D:/csg/PM_IMPL/MEJ32_102_112/t20_lanzar.sh <punta>`.
 - [x] T21. El tope de la suite sintética en Actions con margen: `timeout-minutes` 180 en `ci.yml`. (RF-30)
       Hecho cuando: `pytest tests/test_puerta_calidad.py -k rf30` en verde. Hecho en esta entrega (FIX-CI-TOPE, 4d).
 - [x] T22. Los dos arneses de navegador en un punto de entrada y en GitHub Actions (auditoría del 18-11, C5: H06).

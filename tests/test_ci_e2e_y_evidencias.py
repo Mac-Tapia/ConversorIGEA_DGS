@@ -50,8 +50,10 @@ def test_102_rf31_un_solo_punto_de_entrada_corre_los_dos_arneses():
     assert 'test/e2e/playwright.config.mjs' in texto and 'e2e/playwright.config.ts' in texto
 
 
-def _correr_todos(tmp_path, codigos: dict[str, int]) -> tuple[int, str, list[str]]:
-    """``todos.mjs`` con un Playwright falso que sale con el código pedido por configuración y anota cada llamada."""
+def _correr_todos(tmp_path, codigos: dict[str, int], plano: Path | None = None) -> tuple[int, str, list[str]]:
+    """``todos.mjs`` con un Playwright falso que sale con el código pedido por configuración y anota cada llamada.
+
+    La evidencia va a ``tmp_path/evidencia`` (CSG_E2E_EVIDENCIA), nunca al ``output/e2e`` del checkout."""
     anotadas = tmp_path / 'llamadas.txt'
     falso = tmp_path / 'playwright_falso.mjs'
     falso.write_text(
@@ -60,7 +62,8 @@ def _correr_todos(tmp_path, codigos: dict[str, int]) -> tuple[int, str, list[str
         f"appendFileSync({json.dumps(str(anotadas))}, c + '\\n');\n"
         f"const codigos = {json.dumps(codigos)};\n"
         "process.exit(codigos[c] ?? 0);\n", encoding='utf-8')
-    env = {**os.environ, 'CSG_E2E_PLAYWRIGHT': str(falso)}
+    env = {**os.environ, 'CSG_E2E_PLAYWRIGHT': str(falso), 'CSG_E2E_EVIDENCIA': str(tmp_path / 'evidencia'),
+           'CSG_E2E_RESULTADOS_PLANO': str(plano or tmp_path / 'sin_plano')}
     r = subprocess.run(['node', str(TODOS)], cwd=FRONT, env=env, capture_output=True, text=True, timeout=60,
                        encoding='utf-8', errors='replace')
     llamadas = anotadas.read_text(encoding='utf-8').split() if anotadas.exists() else []
@@ -77,6 +80,39 @@ def test_102_rf31_falla_si_falla_cualquiera_y_corre_los_dos_igual(tmp_path):
     assert rc != 0, f'el segundo arnés en rojo no dejó la corrida en rojo:\n{salida}'
     rc, salida, llamadas = _correr_todos(tmp_path, {})
     assert rc == 0 and len(llamadas) == 6, salida  # las tres corridas anotan en el mismo fichero: 3 × 2 arneses
+
+
+def _sello(carpeta: Path) -> dict[str, str]:
+    lineas = (carpeta / 'SHA256SUMS').read_text(encoding='utf-8').splitlines()
+    return {ruta: huella for huella, ruta in (linea.split('  ', 1) for linea in lineas)}
+
+
+def test_086_rf107_e2e_todo_sella_su_evidencia_por_revision_solo_en_verde(tmp_path):
+    """086:RF-107 (086 T79) — «npm run e2e:todo» deja la evidencia de los dos arneses en output/e2e/<sha>/, la del
+    plano en plano/, y solo una corrida en verde la sella con SHA256SUMS; una que cae no hereda el sello anterior."""
+    import hashlib
+    plano = tmp_path / 'resultados_plano'
+    (plano / 'artefactos').mkdir(parents=True)
+    (plano / 'informe.json').write_text('{"suites": []}', encoding='utf-8')
+    (plano / 'artefactos' / 'captura.png').write_bytes(b'png falso')
+    rc, salida, _ = _correr_todos(tmp_path, {}, plano)
+    assert rc == 0, salida
+    assert (tmp_path / 'evidencia').is_dir(), f'e2e:todo no dejó su evidencia en CSG_E2E_EVIDENCIA: {salida}'
+    revisiones = [d for d in (tmp_path / 'evidencia').iterdir() if d.is_dir()]
+    assert len(revisiones) == 1, f'una carpeta por revisión: {revisiones}'
+    carpeta = revisiones[0]
+    assert (carpeta / 'SHA256SUMS').is_file(), f'la corrida en verde no selló su evidencia: {salida}'
+    sello = _sello(carpeta)
+    assert {'resumen_e2e.json', 'plano/informe.json', 'plano/artefactos/captura.png'} <= set(sello), sello
+    for ruta, h in sello.items():
+        assert hashlib.sha256((carpeta / ruta).read_bytes()).hexdigest() == h, ruta
+    resumen = json.loads((carpeta / 'resumen_e2e.json').read_text(encoding='utf-8'))
+    assert resumen['verde'] is True and [a['codigo'] for a in resumen['arneses']] == [0, 0]
+    assert resumen['revision'] == carpeta.name
+    rc, salida, _ = _correr_todos(tmp_path, {'e2e/playwright.config.ts': 1}, plano)
+    assert rc != 0
+    assert not (carpeta / 'SHA256SUMS').exists(), 'una corrida que cae heredó el sello de la anterior'
+    assert json.loads((carpeta / 'resumen_e2e.json').read_text(encoding='utf-8'))['verde'] is False
 
 
 def test_102_rf31_la_ci_corre_las_e2e_sin_modelo_ni_teselas():

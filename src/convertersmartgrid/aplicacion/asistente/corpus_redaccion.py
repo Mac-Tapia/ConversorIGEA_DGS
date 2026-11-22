@@ -21,9 +21,11 @@ formatos se aprenden por sus columnas en ``ejemplos_pide`` (027:RF-48), no por s
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import re
+import unicodedata
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from datetime import date
@@ -40,6 +42,14 @@ _CODIGO = re.compile(r'\b(?=[A-Za-zÁÉÍÓÚÑáéíóúñ]*\d)(?=\d*[A-Za-zÁ�
                      r'[A-Za-zÁÉÍÓÚÑáéíóúñ0-9_]*\b')
 _NUMERO = re.compile(r'\d{1,3}(?:[  ]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*')
 
+#: 072:RF-63: un código con guion o subrayado («TA-201», «CMC_1», «TD_SM») se oculta entero. Con ``_CODIGO`` solo, «TA-201»
+#: quedaba «TA-‹n›»: el prefijo es la sigla de la sede (la ratificación del 2026-11-22 rechazó 88 decisiones por eso).
+_LETRA = r'A-Za-zÁÉÍÓÚÑÜáéíóúñü'
+_CODIGO_COMPUESTO = re.compile(rf'(?<![\w‹\-])(?=[\w\-]*[{_LETRA}])(?=[\w\-]*[\d_])[{_LETRA}0-9]+'
+                               rf'(?:[\-_][{_LETRA}0-9]+)+(?![\w\-])')
+#: Lo que quedó de un código oculto a medias: su prefijo pegado a un marcador («YUS_‹n›», «TA-‹código›»).
+_PREFIJO_A_LA_VISTA = re.compile(rf'(?<![\w‹])[{_LETRA}]{{1,8}}[\-_]‹(?:n|código)›')
+
 
 class CorpusRedaccionError(ValueError):
     """Una revisión que no cumple lo que autoriza 072:RF-19."""
@@ -47,7 +57,9 @@ class CorpusRedaccionError(ValueError):
 
 #: Etiqueta de cada clase del catálogo de nombres (072:RF-49); una lista sin clases usa ``‹nombre›``.
 _ETIQUETAS = {'empresa': '‹empresa›', 'sede': '‹sede›', 'instalacion': '‹instalación›', 'instalación': '‹instalación›'}
-_VARIANTES = {'a': 'aáàä', 'e': 'eéèë', 'i': 'iíìï', 'o': 'oóòö', 'u': 'uúùü', 'n': 'nñ'}
+#: 072:RF-64: cada vocal y la «n» admiten sus tildes, el carácter de reemplazo y la doble letra de un UTF-8 leído como
+#: Latin-1 («Ã±»); la «n», también «Ð» («MARAÐON» en un informe real mal codificado).
+_VARIANTES = {'a': 'aáàäâ', 'e': 'eéèëê', 'i': 'iíìïî', 'o': 'oóòöô', 'u': 'uúùüû', 'n': 'nñð'}
 _SIN_TILDE = str.maketrans('áàäéèëíìïóòöúùüñ', 'aaaeeeiiiooouuun')
 _PALABRA = r"[A-ZÁÉÍÓÚÑÜ][\w'’\-]*"
 _NOMBRE = rf'{_PALABRA}(?:\s+(?:(?:de|del|la|las|los|el)\s+){{0,2}}{_PALABRA})*'
@@ -57,21 +69,47 @@ _INSTALACION = re.compile(r'(?<!\w)((?:SET|S\.E\.T\.|S\.E\.|Subestaci[oó]n|SUBE
                           r'Solar|SOLAR|E[oó]lica|E[OÓ]LICA))\s+(?:de\s+)?)' + f'({_NOMBRE})')
 _SEDE = re.compile(r'(?<!\w)((?i:sede(?:\s+regional)?|unidad\s+de\s+negocios?|zonal)\s+(?i:de\s+)?)' + f'({_NOMBRE})')
 _EMPRESA = re.compile(rf'(?<!\w){_NOMBRE},?\s+(?:S\.A\.A\.|S\.A\.C\.|S\.A\.|S\.R\.L\.|E\.I\.R\.L\.|SAA|SAC)(?!\w)')
+#: 072:RF-64: el nombre que sigue a un río, una provincia, un distrito, un departamento, una región, una localidad, un
+#: centro poblado o un caserío; ninguno va en el catálogo de la empresa y todos señalan su red.
+_LUGAR = re.compile(r'(?<!\w)((?i:r[ií]o|provincia|distrito|departamento|regi[oó]n|localidad|centro\s+poblado|'
+                    r'caser[ií]o|ciudad|cuenca|valle)\s+(?i:de\s+|del\s+)?)' + f'({_NOMBRE})')
 
 
 def _patron_nombre(nombre: str) -> str:
-    """El nombre sin distinguir mayúsculas ni tildes, con cualquier espacio entre palabras."""
+    """El nombre sin distinguir mayúsculas ni tildes, con cualquier espacio entre palabras (072:RF-64).
+
+    Admite además la codificación rota de sus vocales y su «n» (ver ``_VARIANTES``) y, si su última palabra tiene cinco
+    letras o más, cualquier final de hasta tres letras en lugar de la última: el plural y la errata del final.
+    """
+    nombre = nombre.strip()
+    final = len(nombre)
+    ultima = nombre.split()[-1] if nombre.split() else ''
+    if len(ultima) >= 5 and ultima[-1].isalpha():
+        final -= 1
     partes: list[str] = []
-    for c in nombre.strip():
+    for c in nombre[:final]:
         base = c.lower().translate(_SIN_TILDE)
         if c.isspace():
             if partes[-1:] != [r'\s+']:
                 partes.append(r'\s+')
         elif base in _VARIANTES:
-            partes.append('[' + _VARIANTES[base] + ']')
+            partes.append('(?:[' + _VARIANTES[base] + '\ufffd]|Ã.)')
         else:
             partes.append(re.escape(c))
-    return r'(?<!\w)' + ''.join(partes) + r'(?!\w)'
+    cola = r'\w{0,3}' if final < len(nombre) else ''
+    return r'(?<!\w)' + ''.join(partes) + cola + r'(?!\w)'
+
+
+def _normal(texto: str) -> str:
+    """Minúsculas y sin tildes: la criba rápida antes de aplicar el patrón de cada nombre."""
+    # «ð» es la «ñ» de un informe mal codificado: la criba la lee como «n», igual que el patrón (_VARIANTES).
+    return unicodedata.normalize('NFKD', texto.casefold().replace('ð', 'n')).encode('ascii', 'ignore').decode('ascii')
+
+
+@functools.lru_cache(maxsize=32)
+def _patrones(pares: tuple[tuple[str, str], ...]) -> tuple[tuple[str, re.Pattern, str], ...]:
+    """(criba, patrón compilado, etiqueta) de cada nombre: un catálogo de cientos de nombres sobre miles de textos."""
+    return tuple((_normal(n)[:2], re.compile(_patron_nombre(n), re.IGNORECASE), e) for n, e in pares)
 
 
 def _nombres(catalogo) -> list[tuple[str, str]]:
@@ -98,20 +136,38 @@ def sin_nombres(texto: str, catalogo=None) -> str:
     subestación, central o sede, y la razón social que termina en «S.A.A.», «S.A.» o semejantes. Ocultar de más es
     seguro; ocultar de menos filtra la red de referencia.
     """
-    for nombre, etiqueta in _nombres(catalogo):
-        texto = re.sub(_patron_nombre(nombre), etiqueta, texto, flags=re.IGNORECASE)
+    normal = _normal(texto)
+    for criba, patron, etiqueta in _patrones(tuple(_nombres(catalogo))):
+        # La criba solo descarta lo que no puede casar; con la codificación rota se aplica el patrón igual.
+        if criba in normal or 'Ã' in texto or '\ufffd' in texto or not criba.isalpha():
+            texto = patron.sub(etiqueta, texto)
     texto = _INSTALACION.sub(lambda m: m.group(1) + '‹instalación›', texto)
     texto = _SEDE.sub(lambda m: m.group(1) + '‹sede›', texto)
+    texto = _LUGAR.sub(lambda m: m.group(1) + '‹nombre›', texto)
     return _EMPRESA.sub('‹empresa›', texto)
 
 
 def sin_cifras(texto: str, catalogo=None) -> str:
-    """El texto con los nombres, los códigos de elementos y las cifras ocultos: la forma queda, los valores no."""
-    return _NUMERO.sub('‹n›', _CODIGO.sub('‹código›', sin_nombres(texto, catalogo)))
+    """El texto con los nombres, los códigos de elementos y las cifras ocultos: la forma queda, los valores no.
+
+    Los códigos con guion o subrayado se ocultan enteros, y un prefijo que quedara pegado a un marcador también (RF-63).
+    """
+    texto = _CODIGO.sub('‹código›', _CODIGO_COMPUESTO.sub('‹código›', sin_nombres(texto, catalogo)))
+    return _PREFIJO_A_LA_VISTA.sub('‹código›', _NUMERO.sub('‹n›', texto))
+
+
+_ENLACES = ('de', 'del', 'la', 'las', 'los', 'el', 'y')
 
 
 def catalogo_del_corpus(fragmentos: Iterable[Mapping[str, Any]], catalogo=None) -> dict[str, list[str]]:
-    """El catálogo dado más la empresa que declara cada fragmento: su propio nombre nunca sale (072:RF-49)."""
+    """El catálogo dado, la empresa que declara cada fragmento y los nombres que el propio corpus señala (072:RF-49,
+    RF-64).
+
+    Un nombre que en un fragmento sigue a «SET», a una sede o a un río, provincia o localidad se oculta también donde
+    sale solo («la línea a ‹instalación›» y luego «…llega a Puerto Imaginario»): se recoge de todos los fragmentos y entra
+    en el catálogo con su clase. Nada de esto va en el repositorio: sale de los datos del espacio en cada sellado.
+    """
+    fragmentos = list(fragmentos)
     clases = {v: k for k, v in _ETIQUETAS.items() if k != 'instalación'}
     out: dict[str, list[str]] = {}
     for nombre, etiqueta in _nombres(catalogo):
@@ -121,6 +177,21 @@ def catalogo_del_corpus(fragmentos: Iterable[Mapping[str, Any]], catalogo=None) 
         for variante in (empresa, empresa.replace('_', ' ')):
             if variante and variante not in out.setdefault('empresa', []):
                 out['empresa'].append(variante)
+    vistos = {n for v in out.values() for n in v}
+    textos = [str(f.get('text') or '') for f in fragmentos]
+    comunes = {w for t in textos for w in re.findall(r'(?<![\w‹])[a-záéíóúñü]{3,}', t)}
+    for texto in textos:
+        for patron, clase in ((_INSTALACION, 'instalacion'), (_SEDE, 'sede'), (_LUGAR, 'nombre')):
+            for m in patron.finditer(texto):
+                # Una línea y sin las palabras comunes del final («Puerto Imaginario Asimismo»): una palabra que el
+                # corpus también escribe en minúscula no es parte del nombre («zonal de Distribución» no es uno).
+                palabras = m.group(2).splitlines()[0].split()
+                while palabras and (palabras[-1].lower() in comunes or palabras[-1].lower() in _ENLACES):
+                    palabras.pop()
+                nombre = ' '.join(palabras).strip(" '’-")
+                if len(nombre) >= 4 and palabras and palabras[0].lower() not in comunes and nombre not in vistos:
+                    vistos.add(nombre)
+                    out.setdefault(clase, []).append(nombre)
     return out
 
 
@@ -214,10 +285,25 @@ def resumen(registro: Path | str, fragmentos: Iterable[Mapping[str, Any]]) -> di
 
 TIPO_CORPUS = 'redaccion_pide'
 CALIDAD = 'redaccion_revisada'
-#: El prompt de sistema del ajuste de redacción; su huella queda sellada como la del alumno de órdenes.
-SISTEMA_REDACCION = ('Redactas y das formato a secciones de informes PIDE en español formal y claro. Las cifras, los '
-                     'códigos y los nombres de otra red van ocultos (‹n›, ‹código›, ‹empresa›, ‹sede›, '
-                     '‹instalación›): aprendes la forma, nunca la verdad eléctrica.')
+#: El primer prompt de sistema del ajuste de redacción (sellado el 2026-11-20). Describía los marcadores pero no exigía
+#: escribirlos: el candidato del 2026-11-21 puso cifras y repitió una frase en la prueba (072:RF-58).
+SISTEMA_REDACCION_V1 = ('Redactas y das formato a secciones de informes PIDE en español formal y claro. Las cifras, los '
+                        'códigos y los nombres de otra red van ocultos (‹n›, ‹código›, ‹empresa›, ‹sede›, '
+                        '‹instalación›): aprendes la forma, nunca la verdad eléctrica.')
+#: 072:RF-58: el prompt vigente exige los marcadores en lugar de cada cifra, código o nombre y prohíbe repetir frases; su
+#: huella queda sellada como la del alumno de órdenes.
+SISTEMA_REDACCION = ('Redactas y das formato a secciones de informes PIDE en español formal y claro. Nunca escribes '
+                     'dígitos, códigos de elementos ni nombres de empresa, sede, instalación o lugar: en su lugar '
+                     'escribes ‹n› por cada cifra, ‹código› por cada código, y ‹empresa›, ‹sede›, ‹instalación› o '
+                     '‹nombre› por cada nombre. No repites frases. Aprendes la forma, nunca la verdad eléctrica.')
+#: Los prompts con los que se puede leer un corpus sellado: el vigente sella; el anterior se sigue leyendo para examinar
+#: lo que ya se entrenó con él.
+SISTEMAS_REDACCION = (SISTEMA_REDACCION, SISTEMA_REDACCION_V1)
+#: 072:RF-59: la decodificación del modelo de redacción, la misma al examinarlo y al publicarlo en Ollama: muestreo con
+#: penalización de repeticiones (el candidato del 2026-11-21 repitió «…por antigüedad del conductor…» hasta el tope).
+DECODIFICACION = {'temperature': 0.7, 'top_p': 0.9, 'repeat_penalty': 1.15, 'repeat_last_n': 256}
+#: En transformers no hay ``repeat_last_n``: se prohíbe repetir cualquier secuencia de ocho tokens.
+NO_REPETIR_NGRAMA = 8
 INSTRUCCIONES = {'redaccion': 'Redacta un párrafo de un informe PIDE, claro y formal.',
                  'formato': 'Escribe el título, la leyenda o la línea de un informe PIDE con su formato.'}
 #: Reparto por documento, ordenado por su huella: siete de cada diez van a entrenamiento.
@@ -225,7 +311,7 @@ _REPARTO = ('entrenamiento',) * 7 + ('seleccion', 'calibracion', 'prueba')
 _APARTADAS = ('seleccion', 'calibracion', 'prueba')
 
 
-def repartir_documentos(tamanos: Mapping[str, int]) -> dict[str, str]:
+def repartir_documentos(tamanos: Mapping[str, int], fijos: Mapping[str, str] | None = None) -> dict[str, str]:
     """La partición de cada documento por su número de ejemplos, no por su huella (072:RF-52).
 
     Con el reparto por huella, en el corpus real de la empresa de referencia (diez documentos, 704 ejemplos) el documento
@@ -233,13 +319,21 @@ def repartir_documentos(tamanos: Mapping[str, int]) -> dict[str, str]:
     del más grande al más pequeño (empate por su huella), uno va a una apartada si cabe en su décima parte del total, o si
     esa apartada está vacía y cabe en el doble; a la que más le falte. Lo que no cabe va a entrenamiento. Con menos de
     cuatro documentos no hay con qué apartar y todo entrena.
+
+    ``fijos`` (072:RF-62) son las particiones de un sellado anterior: cada documento que ya tenía la suya la conserva, y
+    cuenta en su apartada; solo los documentos nuevos se reparten. Así un sellado que crece no pasa a entrenamiento lo que
+    antes examinaba, ni a examen lo que antes entrenaba.
     """
-    if len(tamanos) < 4:
+    fijos = {g: p for g, p in (fijos or {}).items() if g in tamanos}
+    if len(tamanos) < 4 and not fijos:
         return {g: 'entrenamiento' for g in tamanos}
     objetivo = sum(tamanos.values()) / len(_REPARTO)
     actual = dict.fromkeys(_APARTADAS, 0)
-    parte: dict[str, str] = {}
-    for g in sorted(tamanos, key=lambda g: (-tamanos[g], g)):
+    parte: dict[str, str] = dict(fijos)
+    for g, p in fijos.items():
+        if p in actual:
+            actual[p] += tamanos[g]
+    for g in sorted((g for g in tamanos if g not in fijos), key=lambda g: (-tamanos[g], g)):
         n = tamanos[g]
         caben = [p for p in _APARTADAS
                  if actual[p] + n <= objetivo or (actual[p] == 0 and n <= 2 * objetivo)]
@@ -250,6 +344,34 @@ def repartir_documentos(tamanos: Mapping[str, int]) -> dict[str, str]:
         else:
             parte[g] = 'entrenamiento'
     return parte
+
+
+def tramos_de_documentos(documentos: list[str]) -> list[str]:
+    """El grupo de cada ejemplo, en su orden: su documento o, si este es mayor que la décima parte del total, su tramo
+    (072:RF-68).
+
+    En el sellado del 2026-11-22 dos informes traían 1 227 de los 1 295 ejemplos: enteros, a selección y prueba solo les
+    quedaban 23 y 22, pocos para decidir. Un documento así se parte en tramos seguidos de la centésima parte del total
+    (redondeada hacia arriba; trece párrafos en ese sellado), en el orden de sus fragmentos, y cada tramo va entero a una
+    partición: lo que se examina es un trozo seguido de una sección, no frases sueltas. Con tramos de la centésima parte
+    cada apartada se llena casi hasta su décima parte sin pasarse (RF-52). Con menos de cuatro documentos no se parte
+    nada (RF-52: todo entrena).
+    """
+    from ..evaluacion_modelos import huella
+    tamanos = Counter(documentos)
+    total = len(documentos)
+    if len(tamanos) < 4:
+        return [huella(['redaccion_pide', d]) for d in documentos]
+    tramo = max(1, -(-total // (10 * len(_REPARTO))))
+    vistos: Counter = Counter()
+    grupos = []
+    for d in documentos:
+        if tamanos[d] * len(_REPARTO) > total:
+            grupos.append(huella(['redaccion_pide', d, 'tramo', vistos[d] // tramo]))
+        else:
+            grupos.append(huella(['redaccion_pide', d]))
+        vistos[d] += 1
+    return grupos
 
 
 def tipo_corpus(dataset: Path | str) -> str | None:
@@ -303,6 +425,10 @@ def validar_corpus_redaccion(filas: list[dict], meta: dict) -> None:
                 raise ValueError('fuga entre particiones')
         for f in r['fuentes']:
             fuentes.setdefault((f['ruta'], f['sha256'], f['localizador']), f)
+    if meta.get('sin_repetidas') and any(frase_repetida(r['respuesta']) for r in filas):
+        raise ValueError('ejemplo con una frase repetida en un corpus sellado sin repetidas')
+    if meta.get('sin_encabezado') and any(sin_encabezado(r['respuesta']) != r['respuesta'] for r in filas):
+        raise ValueError('ejemplo con el encabezado de la página en un corpus sellado sin encabezados')
     if not any(r['particion'] == 'entrenamiento' for r in filas):
         raise ValueError('el corpus de redacción no trae ejemplos de entrenamiento')
     if meta.get('por_origen') != dict(Counter(r['revision']['origen'] for r in filas)):
@@ -312,13 +438,15 @@ def validar_corpus_redaccion(filas: list[dict], meta: dict) -> None:
 
 
 def sellar_corpus_redaccion(dataset: Path | str, destino: Path | str, *, registro: Path | str | None = None,
-                            catalogo=None) -> dict:
+                            catalogo=None, anterior: Path | str | None = None) -> dict:
     """Sella lo aprobado, anónimo y con su origen, con el formato de ``sellar_particiones`` (072:RF-50).
 
     Solo entra lo que exporta :func:`ejemplos_para_entrenar` (origen ``humano`` o ``maestro``, aprobado, texto sin
     cambios); cada ejemplo lleva su origen y el manifiesto, el recuento ``por_origen``. Entra con
     las cifras y los nombres ocultos. Los textos que quedan iguales tras ocultarlos entran una vez. Cada documento va
-    entero a una partición; la respuesta es el texto, y la orden, la instrucción fija de su uso.
+    entero a una partición; la respuesta es el texto, y la orden, la instrucción fija de su uso. Con ``anterior``, el
+    corpus sellado al que este sustituye (072:RF-62): sus documentos conservan su partición y el manifiesto lo declara,
+    con sus huellas y lo que crece, antes de entrenar con el nuevo.
     """
     import tempfile
     from ..evaluacion_modelos import huella, texto_canonico
@@ -337,16 +465,36 @@ def sellar_corpus_redaccion(dataset: Path | str, destino: Path | str, *, registr
                                    'no se sella nada')
     fuente = custodiar(ruta_fragmentos, localizador='fragments.jsonl')
     unicos, vistos = [], set()
+    repetidas = vacias = 0
     for e in ejemplos:
-        texto = _anonimo(e['texto'], catalogo)
+        texto = sin_encabezado(_anonimo(e['texto'], catalogo))
+        if not texto:
+            vacias += 1     # 072:RF-65: solo traía el encabezado de la página
+            continue
+        if frase_repetida(texto):
+            # 072:RF-61: al ocultar los códigos, filas distintas de una tabla quedan iguales y seguidas; enseñan al
+            # modelo a encadenar la misma frase, como hizo el candidato del 2026-11-21. No entran.
+            repetidas += 1
+            continue
         if texto_canonico(texto) not in vistos:
             vistos.add(texto_canonico(texto))
             unicos.append((e, texto))
-    tamanos = Counter(huella(['redaccion_pide', e['fuente']]) for e, _ in unicos)
-    parte_de = repartir_documentos(tamanos)
+    # 072:RF-68: los documentos muy grandes se reparten por tramos; con un sellado anterior, enteros (RF-62).
+    grupos = ([huella(['redaccion_pide', e['fuente']]) for e, _ in unicos] if anterior is not None
+              else tramos_de_documentos([e['fuente'] for e, _ in unicos]))
+    tamanos = Counter(grupos)
+    declarado = None
+    fijos = None
+    if anterior is not None:
+        meta_ant, filas_ant = _sellado_anterior(Path(anterior))
+        fijos = {r['group_id']: r['particion'] for r in filas_ant}
+        declarado = {'dataset_hash_anterior': meta_ant['dataset_hash'], 'prompt_hash_anterior': meta_ant['prompt_hash'],
+                     'por_particion_anterior': meta_ant['por_particion'],
+                     'documentos_conservados': sum(g in tamanos for g in fijos),
+                     'documentos_nuevos': sum(g not in fijos for g in tamanos)}
+    parte_de = repartir_documentos(tamanos, fijos)
     filas = []
-    for e, texto in unicos:
-        grupo = huella(['redaccion_pide', e['fuente']])
+    for (e, texto), grupo in zip(unicos, grupos):
         r = {'texto': INSTRUCCIONES[e['uso']], 'respuesta': texto, 'uso': e['uso'], 'particion': parte_de[grupo],
              'group_id': grupo, 'fragmento': e['record_id'], 'quality': CALIDAD,
              'revision': {'origen': e['origen'], 'revisor': e['revisor'], 'fecha': e['fecha'],
@@ -366,13 +514,31 @@ def sellar_corpus_redaccion(dataset: Path | str, destino: Path | str, *, registr
                                   'aprobadas_por_origen': dict(Counter(e['origen'] for e in ejemplos))},
             'catalogo': {'huella': huella({k: sorted(v) for k, v in catalogo.items()}),
                          'nombres': sum(len(v) for v in catalogo.values())},
-            'duplicados_omitidos': len(ejemplos) - len(unicos)}
+            'duplicados_omitidos': len(ejemplos) - len(unicos) - repetidas - vacias, 'repetidas_omitidas': repetidas,
+            'sin_repetidas': True, 'sin_encabezado': True, 'solo_encabezado_omitidos': vacias,
+            'documentos': len({e['fuente'] for e, _ in unicos}), 'grupos': len(tamanos),
+            'sustituye_a': declarado}
     validar_corpus_redaccion(filas, meta)
     with tempfile.TemporaryDirectory() as tmp:
         # 001:RF-5: la escritura atómica única, también en el temporal que lee el sellado.
         write_json_atomic(Path(tmp) / 'corpus.json', filas)
         write_json_atomic(Path(tmp) / 'dataset_manifest.json', meta)
         return sellar_particiones(Path(tmp), destino, validar=validar_corpus_redaccion, sistema=SISTEMA_REDACCION)
+
+
+def _sellado_anterior(dataset: Path) -> tuple[dict, list[dict]]:
+    """El sellado al que sustituye uno nuevo, comprobado por sus huellas (072:RF-62).
+
+    No se vuelve a validar su anonimato con las reglas de hoy: se sustituye justo porque las de entonces dejaban cosas a
+    la vista (el prefijo de «YUS_‹n›», 072:RF-63). Solo hacen falta sus particiones y que sean las que se sellaron.
+    """
+    from ..evaluacion_modelos import huella
+    meta = json.loads((dataset / 'dataset_manifest.json').read_text(encoding='utf-8'))
+    filas = json.loads((dataset / 'corpus_auditoria.json').read_text(encoding='utf-8'))
+    if (meta.get('tipo_corpus') != TIPO_CORPUS or huella(filas) != meta.get('dataset_hash')
+            or meta.get('prompt_hash') != huella(meta.get('sistema') or '')):
+        raise ValueError('el sellado anterior no es un corpus de redacción íntegro')
+    return meta, filas
 
 
 def _sellado(dataset: Path) -> tuple[dict, list[dict]]:
@@ -383,7 +549,7 @@ def _sellado(dataset: Path) -> tuple[dict, list[dict]]:
         raise ValueError('no es un corpus de redacción sellado')
     filas = json.loads((dataset / 'corpus_auditoria.json').read_text(encoding='utf-8'))
     validar_corpus_redaccion(filas, meta)
-    if meta.get('sistema') != SISTEMA_REDACCION or meta.get('prompt_hash') != huella(SISTEMA_REDACCION):
+    if meta.get('sistema') not in SISTEMAS_REDACCION or meta.get('prompt_hash') != huella(meta['sistema']):
         raise ValueError('prompt distinto del protocolo sellado')
     return meta, filas
 
@@ -428,3 +594,183 @@ def auditar_corpus_redaccion(dataset: Path | str) -> dict:
             'por_particion': meta['por_particion'], 'por_uso': meta['por_uso'], 'ejemplos': len(filas),
             'por_origen': meta['por_origen'], 'verdad_electrica': False, 'resultados_electricos': 0,
             'escrituras_nativas': 0}
+
+
+# --- 072:RF-53 a RF-57: las puertas de un modelo de redacción entrenado con este corpus ----------------------------
+
+#: Las particiones selladas que examinan al modelo de redacción: selección y prueba (calibración queda para ajustar).
+PARTES_EVALUACION = ('seleccion', 'prueba')
+#: 072:RF-53: el candidato no puede tener más pérdida por token que la base NF4 en la misma partición. Sin holgura: con
+#: 12 a 19 ejemplos apartados por partición, cualquier subida es la única señal de que el ajuste estropeó la forma.
+TOLERANCIA_PERDIDA = 0.0
+
+
+def catalogo_sellado(dataset: Path | str, catalogo=None) -> dict[str, list[str]]:
+    """El catálogo de nombres con el que se selló el corpus, comprobado por su huella (072:RF-54).
+
+    El manifiesto guarda solo la huella del catálogo, no los nombres, que son de la empresa y llegan en tiempo de
+    ejecución. Se rehace como al sellar, con la empresa de cada fragmento custodiado, y tiene que dar la misma huella:
+    revisar las salidas con otro catálogo dejaría pasar los nombres que el sellado sí ocultó.
+    """
+    from ..evaluacion_modelos import huella
+    from .llm_destilacion import verificar_fuente
+    meta, _filas = _sellado(Path(dataset))
+    fuente = meta.get('fuente_fragmentos') or {}
+    verificar_fuente(fuente)
+    completo = catalogo_del_corpus(_leer(Path(fuente['ruta'])), catalogo)
+    if huella({k: sorted(v) for k, v in completo.items()}) != (meta.get('catalogo') or {}).get('huella'):
+        raise ValueError('catálogo de nombres distinto del que se usó al sellar el corpus')
+    return completo
+
+
+_MESES = r'(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|se(?:p)?tiembre|octubre|noviembre|diciembre)'
+#: 072:RF-65: el encabezado y el pie de cada página de un PDF, ya anonimizados: «Informe … – Diciembre ‹n›» y
+#: «Página ‹n› de ‹n›». Se repiten en todas las páginas y el modelo los aprendería como si fueran redacción.
+_ENCABEZADO = re.compile(r'(?im)^[ \t]*(?:p[áa]gina[ \t]+‹n›(?:[ \t]+(?:de|/)[ \t]+‹n›)?'
+                         rf'|[^\n|]{{3,200}}[ \t][–—-][ \t]*{_MESES}[ \t]+(?:de[ \t]+)?‹n›)[ \t]*$')
+
+
+def sin_encabezado(texto: str) -> str:
+    """El texto anonimizado sin el encabezado ni el pie de página del PDF, y sin las líneas en blanco que dejan."""
+    texto = _ENCABEZADO.sub('', texto)
+    return re.sub(r'\n(?:[ \t]*\n)+', '\n\n', texto).strip()
+
+
+_PALABRA_O_MARCA = re.compile(r'‹[^›]*›|\w+')
+#: 072:RF-60: un trozo de al menos ocho palabras (cinco que no sean marcadores) seguido de sí mismo es una frase
+#: repetida: el candidato del 2026-11-21 encadenó la misma frase hasta agotar su tope de tokens. Solo cuenta la
+#: repetición seguida: en las tablas del corpus aprobado una fila se parece a otra, pero no se repite entera a
+#: continuación (las 704 respuestas selladas del 2026-11-20 no tienen ninguna).
+LARGO_REPETICION = 8
+
+
+def frase_repetida(texto: str) -> bool:
+    """Si el texto repite seguido un trozo de :data:`LARGO_REPETICION` palabras o más, con contenido (072:RF-60)."""
+    fichas = [t.casefold() for t in _PALABRA_O_MARCA.findall(texto)]
+    for largo in range(LARGO_REPETICION, len(fichas) // 2 + 1):
+        for i in range(len(fichas) - 2 * largo + 1):
+            trozo = fichas[i:i + largo]
+            if trozo == fichas[i + largo:i + 2 * largo] and sum(not t.startswith('‹') for t in trozo) >= 5:
+                return True
+    return False
+
+
+def revisar_salida(entrada: str, salida: str, catalogo=None) -> list[str]:
+    """Por qué una salida generada no vale (072:RF-54); vacío si vale.
+
+    ``nombre``: deja un nombre de empresa, sede o instalación que el anonimizador oculta (:func:`sin_nombres`);
+    ``código``: trae un código de elemento que no está en la entrada; ``cifra``: trae una cifra que no está en la entrada
+    (``contradicciones.cifras_sin_respaldo``); ``repetida``: repite una frase (:func:`frase_repetida`, 072:RF-60);
+    ``vacía``: no redacta nada.
+    """
+    from .contradicciones import cifras_sin_respaldo
+    if not isinstance(salida, str) or not salida.strip():
+        return ['vacía']
+    motivos = []
+    if sin_nombres(salida, catalogo) != salida:
+        motivos.append('nombre')
+    if (any(c not in entrada for c in _CODIGO.findall(salida) + _CODIGO_COMPUESTO.findall(salida))
+            or _PREFIJO_A_LA_VISTA.search(salida)):
+        # 072:RF-66: también el prefijo de una sede pegado a un marcador («TA-‹n›»).
+        motivos.append('código')
+    if cifras_sin_respaldo(salida, entrada):
+        motivos.append('cifra')
+    if frase_repetida(salida) and not frase_repetida(entrada):
+        motivos.append('repetida')
+    return motivos
+
+
+def _perdida_valida(p) -> bool:
+    import math
+    return (isinstance(p, Mapping) and type(p.get('tokens')) is int and p['tokens'] > 0
+            and isinstance(p.get('por_token'), (int, float)) and math.isfinite(p['por_token']))
+
+
+def puerta_interprete(candidato: Mapping | None, en_uso: Mapping | None) -> dict:
+    """072:RF-56: si el modelo de redacción no baja la prueba sellada del intérprete de órdenes.
+
+    No se repite la medida: son los ``resultado.json`` de ``llm_destilar.py evaluar --parte prueba`` (la de 070 T22),
+    del candidato y del modelo en uso, sobre el mismo corpus de órdenes y el mismo prompt. Sin ellos, no aplica: el
+    modelo de redacción no sustituye al intérprete y no se puede activar como tal.
+    """
+    if candidato is None and en_uso is None:
+        return {'estado': 'no_aplica', 'activable_como_interprete': False,
+                'motivo': 'el modelo de redacción no sustituye al intérprete de órdenes; para usarlo como tal hacen '
+                          'falta su prueba sellada de órdenes y la del modelo en uso'}
+    motivos = []
+    if candidato is None or en_uso is None:
+        motivos.append('falta la prueba sellada del candidato o la del modelo en uso')
+    else:
+        if candidato.get('particion') != 'prueba' or en_uso.get('particion') != 'prueba':
+            motivos.append('un informe no es de la partición de prueba')
+        if (candidato.get('dataset_hash'), candidato.get('prompt_hash')) != (en_uso.get('dataset_hash'),
+                                                                             en_uso.get('prompt_hash')):
+            motivos.append('los dos informes no son del mismo corpus sellado y el mismo prompt')
+    if not motivos:
+        for clave in ('acierto_tarea', 'f1_datos'):
+            c, u = ((r.get('metricas') or {}).get(clave) for r in (candidato, en_uso))
+            if not isinstance(c, (int, float)) or not isinstance(u, (int, float)):
+                motivos.append(f'{clave} sin medir')
+            elif c < u:
+                motivos.append(f'{clave} baja de {u:.4f} a {c:.4f}')
+    return {'estado': 'rechazada' if motivos else 'aprobada', 'activable_como_interprete': not motivos,
+            'motivo': '; '.join(motivos) or 'no baja la prueba sellada del intérprete',
+            'modelo': (candidato or {}).get('modelo'), 'modelo_en_uso': (en_uso or {}).get('modelo')}
+
+
+def decidir_redaccion(dataset: Path | str, perdidas: Mapping, salidas: Mapping, *, catalogo=None,
+                      interprete: Mapping | None = None) -> dict:
+    """Aprobado o rechazado, con su informe, para un modelo de redacción del PIDE (072:RF-53 a RF-57).
+
+    ``perdidas``: ``{parte: {'base': {'tokens', 'por_token'}, 'candidato': {...}}}`` medidas con la misma partición;
+    ``salidas``: ``{parte: [texto generado por ejemplo, en su orden]}``. Aprueba solo si en selección y en prueba la
+    pérdida por token del candidato no supera la de la base y ninguna salida deja un nombre, un código o una cifra que
+    no estén en su entrada. Nunca promueve ni activa nada (047:RF-8); el informe no copia las salidas sin anonimizar.
+    """
+    import math
+    dataset = Path(dataset)
+    meta, filas = _sellado(dataset)
+    motivos: list[str] = []
+    partes = {}
+    for parte in PARTES_EVALUACION:
+        registros = _particion(dataset, meta, filas, parte)
+        if not registros:
+            motivos.append(f'{parte}: partición vacía, nada con qué medir')
+            partes[parte] = {'ejemplos': 0}
+            continue
+        p = (perdidas or {}).get(parte) or {}
+        base, cand = p.get('base'), p.get('candidato')
+        info: dict[str, Any] = {'ejemplos': len(registros)}
+        if not (_perdida_valida(base) and _perdida_valida(cand)):
+            motivos.append(f'{parte}: pérdida sin medir frente a la base NF4')
+        else:
+            if base['tokens'] != cand['tokens']:
+                motivos.append(f'{parte}: la base y el candidato no se midieron con los mismos tokens')
+            info['perdida'] = {'base': dict(base, perplejidad=math.exp(base['por_token'])),
+                               'candidato': dict(cand, perplejidad=math.exp(cand['por_token'])),
+                               'diferencia': cand['por_token'] - base['por_token']}
+            if cand['por_token'] > base['por_token'] + TOLERANCIA_PERDIDA:
+                motivos.append(f"{parte}: la pérdida por token sube de {base['por_token']:.4f} a "
+                               f"{cand['por_token']:.4f}")
+        textos = list((salidas or {}).get(parte) or [])
+        if len(textos) != len(registros):
+            motivos.append(f'{parte}: {len(textos)} salidas para {len(registros)} ejemplos')
+        fallos = []
+        for i, (r, salida) in enumerate(zip(registros, textos)):
+            m = revisar_salida(r['texto'], salida, catalogo)
+            if m:
+                fallos.append({'indice': i, 'record_id': r['record_id'], 'motivos': m,
+                               'huella_salida': huella_texto(str(salida)),
+                               'muestra': _anonimo(str(salida), catalogo)[:400]})
+        if fallos:
+            motivos.append(f'{parte}: {len(fallos)} salidas con nombres, códigos o cifras que no están en la entrada, '
+                           'o con frases repetidas')
+        info.update(salidas=len(textos), salidas_con_fallo=fallos,
+                    por_motivo=dict(Counter(m for f in fallos for m in f['motivos'])))
+        partes[parte] = info
+    interprete = dict(interprete) if interprete is not None else puerta_interprete(None, None)
+    aprobado = not motivos
+    return {'tipo_corpus': TIPO_CORPUS, 'dataset_hash': meta['dataset_hash'], 'prompt_hash': meta['prompt_hash'],
+            'status': 'APROBADO' if aprobado else 'RECHAZADO', 'aprobado': aprobado, 'motivos': motivos,
+            'particiones': partes, 'tolerancia_perdida': TOLERANCIA_PERDIDA, 'interprete': interprete,
+            'uso': 'redaccion_pide', 'promovido': False, 'activado': False, 'verdad_electrica': False}

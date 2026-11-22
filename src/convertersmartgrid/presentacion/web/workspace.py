@@ -842,6 +842,9 @@ class Workspace:
                         for tipo, meta in self.demanda.items()},
             # 039:RF-15: la selección «a su máxima», para marcarla de nuevo al reabrir la web.
             'fijas_a_su_maxima': self.fijas_a_su_maxima,
+            # 086:RF-135: las máximas cuyas curvas tiene el servidor en memoria. Solo se guardan las de la última
+            # búsqueda y no sobreviven a un reinicio: la web pedía las de una máxima anterior al abrir y recibía 404.
+            'curvas_cabecera': list(self.curvas_cabecera),
             'last_seq': self.events.last_seq,
         }
 

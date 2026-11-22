@@ -22,7 +22,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 - [ ] T4. Evaluación real y ajuste condicionado. (RF-8, RF-9, RF-59)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_asistente_ajuste_condicionado.py tests/test_asistente_qlora.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan.
-      Falta: carga cuantizada y un paso en CUDA con la revisión fijada, con su VRAM y la reapertura del adaptador real; exigir `decidir_ajuste` en `tools/asistente_qlora.py`, junto con T7; y la evaluación final con 200 órdenes reales.
+      Falta: carga cuantizada y un paso en CUDA con la revisión fijada, con su VRAM y la reapertura del adaptador real; exigir `decidir_ajuste` en `tools/asistente_qlora.py`, junto con T7; y la evaluación final con 200 órdenes reales (desde la T12, mientras falten humanas, con las 200 revisadas por el maestro de RF-64: `aceptar_agente.py preparar --revisadas-maestro` y `evaluar` en GPU).
 
 - [x] T5. Destilación reproducible del maestro de sesión y ensayo del alumno. (RF-11, RF-12, RF-13, RF-14, RF-15)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_destilacion_integral.py tests/test_evaluacion_modelos.py` pasa, se ejecuta entrenamiento CUDA real con comparación supervisado/destilado, reapertura en proceso nuevo y ensayo del intérprete/plan; se informa por separado cualquier bloqueo de promoción por datos humanos.
@@ -104,6 +104,15 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       `record_id`, custodiados, en `resellado_record_ids.json`. Las seis pruebas nuevas fallaban por aserción con el
       manifiesto reutilizado tal cual. Ensayo de solo lectura sobre el corpus reubicado del 065: 11 de 11 fuentes casan
       por sha256. El sellado v6 real lo corre la cola de GPU (paso `sellar_v6`); no cierra la T7.
+
+- [x] T7b. Elegir y abrir la prueba con las tareas del sellado, y decir las que el sellado no cubre. (RF-60, RF-61)
+      Hecho cuando: `tests/test_elegir_tareas_selladas_llm.py` pasa y `tools/llm_destilar.py elegir --informe … --dataset
+      <corpus sellado> --destino …` elige con las tareas del manifiesto.
+      Evidencia, 2026-11-21 (MEJ29b): `tareas_selladas` y `no_cubiertas_por_el_sellado` en `asistente/llm_destilacion.py`;
+      `elegir_version_llm` pide el manifiesto (`--dataset` en la orden) y `evaluar_version_llm` comprueba las tareas de la
+      elección antes de abrir la prueba. Las seis pruebas nuevas fallaban por aserción con el esbozo. Ensayo sobre el
+      informe real de selección del v6, escrito fuera del repo: elige `csg-alumno:t7-v6` con 27 tareas selladas y declara
+      40 tareas no cubiertas. La elección y la prueba reales las corre la cola de GPU; no cierra la T7.
 
 T6: 200 propuestas únicas, 27 tareas, 54 familias; auditoría sin solapamiento de
 texto/grupo con entrenamiento. Evaluación local Llama3.1:8b: 157/200 tareas,
@@ -218,3 +227,18 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       huella sha256 `649863d4f383978a1e1e62984a4aa7b95140a76c556078a057b667adae0ae5da` (2026-11-21), la misma en el fichero,
       en la herramienta y en la prueba. Lo escribió quien escribió la corrección: limitación declarada.
       Bloqueada por la medida en su turno de GPU (cola de d8, Ollama con `qwen3:8b`), con la orden de arriba.
+
+- [x] T12. Órdenes revisadas por el maestro: registro sellado y decisión de ajuste mientras falten humanas. (RF-62, RF-63, RF-64, RF-65, RF-66, RF-67, RF-68)
+      Hecho cuando: `tests/test_asistente_revisadas_maestro.py`, `tests/test_asistente_ajuste_condicionado.py`,
+      `tests/test_aceptacion_agente.py` y `tests/test_asistente_qlora.py` pasan, y el conjunto de 200 queda sellado en
+      `<almacén>/maestro_real/revisadas_047/` con `tools/asistente_ordenes_reales.py revisar-maestro`.
+      Evidencia, 2026-11-21 (MEJ35, d8): `D:/csg/PM_IMPL/MEJ35_ORDENES/HANDOFF.md` (rojo por aserción sobre `7ed2c05d`,
+      verde, órdenes con su huella y la cuenta de `decidir_ajuste` antes y después). 200 órdenes de las 67 tareas de
+      `TAREAS` (3 por tarea y 2 en `conectar_nube`), redactadas por el maestro con los alias del repositorio y revisadas
+      una a una por un revisor independiente de origen `maestro` (Claude en un contexto aparte): 196 aceptadas y 4
+      rechazadas en la primera revisión; esas 4 y otras 7 observadas, corregidas por el autor y aceptadas en la segunda.
+      Ninguna coincide en texto ni familia con las 45 humanas, las 899 del maestro de la 085 ni el entrenamiento de los
+      corpus `asistente_integral_20261107c_integral` y `corpus_maestro_085_20261103`. Antes: «bloqueada», 3 órdenes reales
+      de 200. Después, sin medir aún: «bloqueada» solo por «métricas ausentes», con base `maestro_revisadas`, 200
+      revisadas, 3 humanas y 197 que faltan. **No cierra la T4:** su evaluación final en GPU es `aceptar_agente.py
+      evaluar` con este conjunto, y la decisión que dé (`decision_ajuste.json`) es la que abre o no el QLoRA de la 043 T9.

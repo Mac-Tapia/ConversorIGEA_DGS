@@ -4,11 +4,14 @@
     python tools/asistente_ordenes_reales.py extraer --almacen <almacén>
     python tools/asistente_ordenes_reales.py exportar --almacen <almacén>
     python tools/asistente_ordenes_reales.py importar --almacen <almacén>
+    python tools/asistente_ordenes_reales.py revisar-maestro --almacen <almacén> --entrada <revisadas.jsonl>
 
 `extraer` lee las sesiones de Claude Code y de Codex del proyecto y el registro de órdenes, y escribe
 `<almacén>/maestro_real/textos.jsonl`. `exportar` crea `revision.xlsx` con lo que el maestro etiquetó en
 `etiquetas.jsonl`. `importar` anota en `ejemplos.jsonl` solo las filas que el operador marcó: quien nunca marca
-es el código. Estos ficheros llevan texto privado y datos de la distribuidora: nunca a git (P9). En pantalla
+es el código. `revisar-maestro` (047:RF-62, RF-63) sella en `<almacén>/maestro_real/revisadas_047/` las órdenes
+revisadas una a una por un revisor marcado `origen: maestro`, con su motivo: son prueba, nunca entrenan ni son
+humanas. Estos ficheros llevan texto privado y datos de la distribuidora: nunca a git (P9). En pantalla
 solo salen recuentos.
 """
 from __future__ import annotations
@@ -327,10 +330,45 @@ def importar(args) -> dict:
             'ya_estaban': cuenta['ya_estaban'], 'contradicen': cuenta['contradicen']}
 
 
+def revisar_maestro(args) -> dict:
+    """047:RF-62, RF-63: sella las órdenes revisadas por el maestro como prueba aparte; nunca entrenan ni son humanas."""
+    from convertersmartgrid.aplicacion.asistente import ordenes_maestro
+    entradas, errores = [], []
+    for n, linea in enumerate(Path(args.entrada).read_text(encoding='utf-8').splitlines(), start=1):
+        if linea.strip():
+            try:
+                entradas.append(json.loads(linea))
+            except ValueError:
+                errores.append(f'línea {n}: no es JSON')
+    if errores:
+        return {'ok': False, 'errores': errores}
+    humanas = []
+    ruta = args.almacen / 'ejemplos.jsonl'
+    if ruta.is_file():
+        for fila in _lineas_json(ruta, pista='texto'):
+            if fila.get('origen') in {'confirmado', 'corregido'} and fila.get('texto'):
+                humanas.append(fila)
+    que_entrenan = ordenes_maestro.leer(args.almacen)[0]
+    fecha = datetime.now().astimezone().isoformat(timespec='seconds')
+    filas, cuenta, errores = ordenes_maestro.revisar(entradas, humanas=humanas, que_entrenan=que_entrenan, fecha=fecha)
+    resultado = {'leidas': len(entradas), 'cuenta': dict(sorted(cuenta.items())), 'selladas': len(filas),
+                 'tareas': len({r['tarea'] for r in filas}), 'humanas_vistas': len(humanas),
+                 'del_maestro_que_entrenan': len(que_entrenan)}
+    if errores:
+        return {'ok': False, 'errores': errores, **resultado}
+    try:
+        manifiesto = ordenes_maestro.sellar_revisadas(args.almacen / ordenes_maestro.SUBCARPETA_REVISADAS, filas, cuenta,
+                                                     fecha=fecha)
+    except ValueError as exc:
+        return {'ok': False, 'errores': [str(exc)], **resultado}
+    return {'ok': True, **resultado, 'dataset_hash': manifiesto['dataset_hash'],
+            'carpeta': str(args.almacen / ordenes_maestro.SUBCARPETA_REVISADAS)}
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest='accion', required=True)
-    for nombre in ('extraer', 'exportar', 'importar'):
+    for nombre in ('extraer', 'exportar', 'importar', 'revisar-maestro'):
         s = sub.add_parser(nombre)
         s.add_argument('--almacen', type=Path, help='Almacén del asistente; por defecto, el de la web')
         if nombre == 'extraer':
@@ -339,11 +377,15 @@ def main(argv=None) -> int:
             s.add_argument('--raiz-proyecto', help='Ruta del proyecto, para reconocer sus sesiones')
         if nombre == 'importar':
             s.add_argument('--excel', type=Path, help='Libro marcado; por defecto, revision.xlsx del almacén')
+        if nombre == 'revisar-maestro':
+            s.add_argument('--entrada', type=Path, required=True,
+                           help='JSONL de órdenes revisadas: texto, tarea, datos, origen maestro, autor, revisor, veredicto y motivo')
     args = p.parse_args(argv)
     if args.almacen is None:
         from convertersmartgrid.aplicacion.asistente import almacen
         args.almacen = almacen.raiz()
-    resultado = {'extraer': extraer, 'exportar': exportar, 'importar': importar}[args.accion](args)
+    resultado = {'extraer': extraer, 'exportar': exportar, 'importar': importar,
+                 'revisar-maestro': revisar_maestro}[args.accion](args)
     print(json.dumps(resultado, ensure_ascii=True))
     return 0 if resultado.get('ok') else 2
 

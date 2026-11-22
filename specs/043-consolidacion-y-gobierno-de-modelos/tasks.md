@@ -23,7 +23,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 - [x] T5. Preparar repositorios GitHub con URL, commit y licencia fijados, sin sobrescribir copias modificadas ni imponer dependencias al núcleo. (RF-9, RF-10, RF-11)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_upstream_ia.py` pasa y `tools/preparar_upstream_ia.py --verificar` valida las copias reales del catálogo.
 
-- [ ] T9. Reapertura correcta en CUDA de cada familia y campaña integral con el coordinador. (RF-5, RF-7)
+- [ ] T9. Reapertura correcta en CUDA de cada familia y campaña integral con el coordinador. (RF-5, RF-7, RF-17)
       Hecho cuando: con la GPU libre, `tests/test_digital_twin_oraculo.py` pasa con la reapertura de la PINN en otro proceso; un candidato real de transformer, clasificador, pronóstico, PINN y QLoRA se reabre en otro proceso con `reabrir_en_subproceso` y su resultado consta en el registro; `tools/reentrenar_modelos.py run` recorre las siete familias y `verify --report RUTA --fail-on-incomplete` da su veredicto real sobre ese informe. T3 cierra el código; esto, que pide GPU y datos, queda aquí.
 
 ## Evidencia de ejecución

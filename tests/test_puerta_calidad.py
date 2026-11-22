@@ -686,7 +686,7 @@ def _arbol_para_la_puerta(tmp_path: Path, monkeypatch) -> Path:
 #: AttributeError (rojo VALIDO, lección B1 del 2026-11-16).
 LO_NUEVO_DE_LA_PUERTA = ('veredicto_de_arbol', 'puerta_arbol', 'arbol_del_indice', 'ruta_veredicto_de_arbol',
                          'indice_igual_al_disco', 'procesos_de_la_suite', 'PROCESOS_MAXIMOS', 'VARIABLE_PROCESOS',
-                         'GIB_POR_PROCESO', 'RESERVA_GIB', 'SELECCION_A_SOLAS', 'RAMAS_CON_VEREDICTO_DE_ARBOL',
+                         'GIB_POR_PROCESO', 'MEDIDA_T20', 'RESERVA_GIB', 'SELECCION_A_SOLAS', 'RAMAS_CON_VEREDICTO_DE_ARBOL',
                          'HORAS_VEREDICTO_ARBOL')
 
 
@@ -999,15 +999,28 @@ def test_102_rf5_la_memoria_libre_decide_cuantos_procesos(monkeypatch, sobra, xd
 
 def test_102_rf5_sin_la_variable_la_suite_va_en_una_sola_sesion(monkeypatch):
     """102:RF-5 (FIX-XDIST-UNO) — hasta que la T20 mida, sin CSG_PUERTA_PROCESOS la puerta usa UN proceso aunque sobren
-    memoria, CPU y xdist; con la variable, se puede ensayar el reparto."""
+    memoria, CPU y xdist (con la medida de la T20, el N medido); con la variable, se puede ensayar el reparto."""
     _exige_lo_nuevo()
     _memoria(monkeypatch, PC.RESERVA_GIB + 5 * PC.GIB_POR_PROCESO + 0.1, xdist=True, cpus=8)
     monkeypatch.delenv(PC.VARIABLE_PROCESOS, raising=False)
-    assert PC.PROCESOS_MAXIMOS == 1
+    esperado = 1 if PC.MEDIDA_T20 is None else min(PC.MEDIDA_T20['procesos'], 5, 8)
     n, motivo = PC.procesos_de_la_suite()
-    assert n == 1 and 'N=1' in motivo, motivo
+    assert n == esperado and f'N={esperado}' in motivo, motivo
     monkeypatch.setenv(PC.VARIABLE_PROCESOS, '3')
     assert PC.procesos_de_la_suite()[0] == 3
+
+
+def test_102_t20_el_tope_de_procesos_es_el_de_su_medida():
+    """102:RF-5 (T20, lección A7) — ningún tope de procesos sin su medida: sin MEDIDA_T20, PROCESOS_MAXIMOS es 1; con
+    ella, el tope y la memoria por proceso son los medidos, sobre «iguales» con N = 1 y otra N, y con la libre mínima."""
+    _exige_lo_nuevo()
+    if PC.MEDIDA_T20 is None:
+        assert PC.PROCESOS_MAXIMOS == 1, 'PROCESOS_MAXIMOS > 1 sin la medida de la T20 (comparar_suite_repartida --fijar)'
+        return
+    m = PC.MEDIDA_T20
+    assert m['procesos'] == PC.PROCESOS_MAXIMOS and m['gib_por_proceso'] == PC.GIB_POR_PROCESO, m
+    assert 1 in m['ns'] and m['procesos'] in m['ns'] and len(m['ns']) >= 2, m
+    assert m['libre_min_gib'] >= 1.5 and re.fullmatch(r'[0-9a-f]{40}', m['arbol']), m
 
 
 def test_102_rf5_lo_que_no_admite_paralelo_va_en_serie():
@@ -1168,6 +1181,97 @@ def test_102_t20_cada_proceso_con_su_sesion_y_cada_fichero_con_su_memoria(tmp_pa
     deltas = {f['fichero']: (f['delta_privada_mib'], f['delta_hilos']) for f in CS.memoria_por_fichero(tmp_path)}
     assert deltas == {'tests/test_a.py': (0, 0), 'tests/test_b.py': (600, 6)}
     compile(CS.COMPLEMENTO, CS.NOMBRE_COMPLEMENTO, 'exec')
+
+
+def _comparacion_t20(iguales: bool = True, ns=(1, 2, 3)) -> dict:
+    resumen = {str(n): {'n': n, 'corrida': True, 'total': 11447, 'fallidas': 0, 'omitidas': 0, 'segundos': 600,
+                        'segundos_por_sesion': {}, 'pico_arbol_gib': 4.0 + n, 'pico_por_sesion_gib': {},
+                        'libre_min_gib': 3.0 - 0.5 * n} for n in ns}
+    return {'arbol': 'a' * 40, 'ns': list(ns), 'iguales': iguales, 'problemas': [] if iguales else ['N=2: 1 fallidas'],
+            'gib_por_proceso_propuesto': 2.75, 'resumen': resumen}
+
+
+def _puerta_de_copia(tmp_path: Path) -> Path:
+    destino = tmp_path / 'wt' / 'tools' / 'puerta_calidad.py'
+    destino.parent.mkdir(parents=True)
+    destino.write_bytes((RAIZ / 'tools' / 'puerta_calidad.py').read_bytes())
+    return destino
+
+
+def _constantes(ruta: Path) -> dict:
+    import ast
+
+    salida = {}
+    for nodo in ast.parse(ruta.read_bytes().decode('utf-8')).body:
+        if isinstance(nodo, ast.Assign) and isinstance(nodo.targets[0], ast.Name) and nodo.targets[0].id in (
+                'PROCESOS_MAXIMOS', 'GIB_POR_PROCESO', 'MEDIDA_T20'):
+            salida[nodo.targets[0].id] = ast.literal_eval(nodo.value)
+    return salida
+
+
+def test_102_t20_fijar_escribe_el_tope_medido_y_su_medida_solo_con_iguales(tmp_path):
+    """102:RF-5 (T20) — «--fijar» lleva a la puerta el N mayor de una comparación «iguales», su GIB_POR_PROCESO y la
+    medida (árbol, N, picos, libre mínima, informe); solo cambia esas tres asignaciones, conserva los finales de línea
+    y se puede repetir. Sin «iguales», sin N = 1 o con una asignación repetida, no toca nada."""
+    CS = _comparador()
+    assert hasattr(CS, 'medida_de') and hasattr(CS, 'fijar_constantes'), 'falta --fijar en comparar_suite_repartida'
+    puerta = _puerta_de_copia(tmp_path)
+    antes = puerta.read_bytes()
+    with pytest.raises(CS.SinMedida, match='iguales'):
+        CS.medida_de(_comparacion_t20(iguales=False), tmp_path / 'comparacion.json')
+    with pytest.raises(CS.SinMedida, match='N = 1'):
+        CS.medida_de(_comparacion_t20(ns=(2, 3)), tmp_path / 'comparacion.json')
+    medida = CS.medida_de(_comparacion_t20(), tmp_path / 'comparacion.json')
+    assert medida['procesos'] == 3 and medida['ns'] == [1, 2, 3] and medida['libre_min_gib'] == 1.5, medida
+    assert medida['pico_arbol_gib'] == {1: 5.0, 2: 6.0, 3: 7.0} and medida['pruebas'] == 11447, medida
+    CS.fijar_constantes(puerta, medida)
+    assert _constantes(puerta) == {'GIB_POR_PROCESO': 2.75, 'PROCESOS_MAXIMOS': 3, 'MEDIDA_T20': medida}
+    despues = puerta.read_bytes()
+    assert (b'\r\n' in antes) == (b'\r\n' in despues) and despues.count(b'\n') > antes.count(b'\n')
+    viejas, nuevas = antes.decode('utf-8').splitlines(), despues.decode('utf-8').splitlines()
+    assert [x for x in viejas if x not in nuevas] == ['GIB_POR_PROCESO = 3.0', 'PROCESOS_MAXIMOS = 1',
+                                                     'MEDIDA_T20 = None'], 'solo cambian las tres asignaciones'
+    otra = dict(medida, procesos=2)
+    CS.fijar_constantes(puerta, otra)
+    assert _constantes(puerta)['PROCESOS_MAXIMOS'] == 2 and _constantes(puerta)['MEDIDA_T20'] == otra
+    doble = puerta.read_bytes() + b'PROCESOS_MAXIMOS = 9\r\n'
+    puerta.write_bytes(doble)
+    with pytest.raises(CS.SinMedida, match='PROCESOS_MAXIMOS aparece 2 veces'):
+        CS.fijar_constantes(puerta, medida)
+    assert puerta.read_bytes() == doble, 'una puerta que no se reconoce no se cambia'
+
+
+def test_102_t20_fijar_por_la_orden_y_nada_si_son_distintas(tmp_path, capsys):
+    """102:RF-5 (T20) — «--solo-comparar --fijar» sobre una salida «iguales» fija la puerta del worktree y sale con 0;
+    sobre una «DISTINTAS» la deja como estaba y sale con 1."""
+    import json
+
+    CS = _comparador()
+    assert hasattr(CS, 'fijar_desde'), 'falta --fijar en comparar_suite_repartida'
+    puerta = _puerta_de_copia(tmp_path)
+    antes = puerta.read_bytes()
+    salida = tmp_path / 'salida'
+    salida.mkdir()
+    datos = _comparacion_t20(ns=(1, 2))
+    (salida / 'comparacion.json').write_text(json.dumps(datos), encoding='utf-8')
+    veredictos = {'tests.test_a::a': 'passed'}
+    for n in (1, 2):
+        (salida / f'n{n}.json').write_text(json.dumps({**datos['resumen'][str(n)], 'veredictos': veredictos,
+                                                        'arbol_cambiado': False, 'disco_cambiado': [],
+                                                        'pico_por_sesion_gib': {'serie': 2.3}}), encoding='utf-8')
+    argumentos = ['--salida', str(salida), '--worktree', str(tmp_path / 'wt'), '--solo-comparar', '--fijar']
+    assert CS.main(argumentos) == 0
+    assert 'FIJADO' in capsys.readouterr().out
+    fijadas = _constantes(puerta)
+    assert fijadas['PROCESOS_MAXIMOS'] == 2 and fijadas['GIB_POR_PROCESO'] == 2.75, fijadas
+    assert fijadas['MEDIDA_T20']['informe'].endswith('salida/comparacion.json'), fijadas
+    puerta.write_bytes(antes)
+    malos = dict(veredictos, **{'tests.test_a::b': 'failed'})
+    (salida / 'n2.json').write_text(json.dumps({**datos['resumen']['2'], 'veredictos': malos, 'arbol_cambiado': False,
+                                                'disco_cambiado': [], 'pico_por_sesion_gib': {'serie': 2.3}}),
+                                    encoding='utf-8')
+    assert CS.main(argumentos) == 1
+    assert 'DISTINTAS' in capsys.readouterr().out and puerta.read_bytes() == antes
 
 
 def test_102_t20_lo_que_una_prueba_deja_en_el_disco_se_ve(tmp_path):

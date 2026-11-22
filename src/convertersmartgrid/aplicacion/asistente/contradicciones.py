@@ -217,6 +217,21 @@ def _aparece(valor, texto) -> bool:
     return esta(lectura.lecturas, lectura.unidad)
 
 
+def cifras_sin_respaldo(texto, fuente) -> list[str]:
+    """072:RF-54: las cifras de ``texto`` que no están en ``fuente``, leídas como en :func:`_aparece`.
+
+    En una salida generada, una cifra que no trae su entrada es un valor inventado: el modelo de redacción aprendió con
+    las cifras ocultas y no debe ponerlas. Una cifra ilegible tampoco tiene respaldo.
+    """
+    numeros = _numeros_de(fuente)
+    fuera = []
+    for m in _NUM.finditer(_limpio(texto)):
+        lecturas = _candidatos(m[0])
+        if not any(_cerca(v, n, 1e-9) for v in lecturas for n in numeros):
+            fuera.append(m[0])
+    return fuera
+
+
 def _base_de_evidencia(valor, texto) -> str | None:
     """047:RF-55: «unidad» si la cifra va seguida de «por unidad», «por km», «c/u»…; «total» si es una cuenta
     («4 × 130»); ``None`` si el texto no lo dice, y entonces vale la base que declara el dictamen."""

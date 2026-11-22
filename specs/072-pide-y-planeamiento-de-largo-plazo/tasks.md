@@ -85,6 +85,12 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
       9 226 rechazadas. Por la orden del usuario del 2026-11-19 (RF-48) cuenta para cerrar, marcada con su origen; sus
       huecos de código y el ajuste con el prompt de redacción van en T25. Sigue abierta: faltan registrar esas
       decisiones con `--origen maestro`, sellar y el turno de GPU que lanza d8.
+      Ajuste en GPU (2026-11-21, cola de d8): 661 ejemplos de entrenamiento, una época, pérdida media 1,825, candidato sin
+      promover en `GPU_BLOQUE/072_T9b/qlora_e1`. Falta examinarlo con las puertas de T26 (la orden de la cola está en el
+      HANDOFF de MEJ31): cierra cuando `tools/asistente_qlora.py evaluar` lo apruebe. La prueba sellada del intérprete no
+      baja porque el modelo de redacción no lo sustituye ni se activa (RF-56).
+      Examen real (2026-11-21, `GPU_BLOQUE/072_T9b_eval`): rechazado; la pérdida mejora mucho, pero un caso de prueba pone
+      cifras y repite una frase. Las correcciones son T27; queda el segundo ajuste con el sellado nuevo y su examen.
 - [x] T10 Etiqueta de casos de prueba. (RF-20)
       Hecho cuando: consta en la arquitectura y una prueba lo comprueba.
 - [x] T12 El COyM del perfil en la propuesta del PIDE y en F10 a F12. (RF-22)
@@ -311,3 +317,50 @@ otorga aprobación humana ni aceptación nativa, eléctrica o científica.
       maestro, el catálogo de sedes e instalaciones del espacio y el ajuste en GPU.
       Hecho el 2026-11-20 (d8, fila MEJ567): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ567/rojo_*.log) y verde
       en el hueco (D:/csg/PM_IMPL/MEJ567/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T26. Las puertas del modelo de redacción del PIDE (T9b, 2026-11-21): `tools/asistente_qlora.py evaluar` examina el
+      candidato en las particiones selladas de selección y prueba de su corpus; la pérdida por token frente a la base NF4
+      con los mismos tokens (`llm_destilacion.medir_redaccion`, RF-53), las salidas sin nombres del catálogo del sellado
+      ni códigos o cifras que no trae la entrada (`corpus_redaccion.revisar_salida`, `catalogo_sellado`,
+      `contradicciones.cifras_sin_respaldo`, RF-54), con el adaptador o con el modelo de Ollama (`ClienteOllama.redactar`,
+      RF-55), la prueba sellada del intérprete enlazada y no repetida (`puerta_interprete`, RF-56) y la decisión con su
+      informe, sin promover (`decidir_redaccion`, RF-57). (RF-53, RF-54, RF-55, RF-56, RF-57)
+      Hecho cuando: rojo por aserción y verde con `tests/test_evaluacion_redaccion.py` (072:RF-53 a RF-57), sin GPU y con
+      nombres ficticios, y `tests/test_asistente_qlora.py`, `tests/test_corpus_redaccion.py`,
+      `tests/test_asistente_ollama.py`, `tests/test_revision_contradicciones.py` y
+      `tests/test_revision_contradicciones_fundadas.py` sin cambios en verde. No cierra T9b: le
+      falta la corrida en la cola de GPU contra el candidato real.
+      Hecho el 2026-11-21 (d8, fila MEJ31): rojo y verde en D:/csg/PM_IMPL/MEJ31_REDACCION (rojo.log, verde.log).
+- [x] T27. Lo que corrige el rechazo del primer modelo de redacción (2026-11-22, MEJ31b): el examen real del 2026-11-21
+      (`GPU_BLOQUE/072_T9b_eval`) rechazó `csg-alumno:t9b-redaccion-v1`: la pérdida por token bajó de 4,10 a 2,43 en prueba
+      y de 4,04 a 1,76 en selección, pero un caso de prueba puso cifras y encadenó la misma frase. El prompt sellado
+      exige los marcadores (`SISTEMA_REDACCION`, con el anterior aún legible, RF-58); la decodificación penaliza repetir
+      en `ClienteOllama.redactar`, en `medir_redaccion` y en el Modelfile (`llm_runtime.texto_modelfile`,
+      `llm_destilar.py publicar --redaccion`, RF-59); `revisar_salida` rechaza la frase encadenada (`frase_repetida`,
+      RF-60); el sellado deja fuera los textos que, anonimizados, encadenan la misma frase (RF-61), y un sellado que
+      crece conserva las particiones del anterior y lo declara (`--anterior`, RF-62). (RF-58, RF-59, RF-60, RF-61, RF-62)
+      Hecho cuando: rojo por aserción y verde con `tests/test_redaccion_sin_repeticiones.py` (072:RF-58 a RF-62), sin
+      GPU y con nombres ficticios, y `tests/test_evaluacion_redaccion.py`, `tests/test_corpus_redaccion.py`,
+      `tests/test_asistente_qlora.py`, `tests/test_asistente_ollama.py` y `tests/test_llm_runtime.py` sin cambios en verde.
+      Medida (CPU, sin tocar el registro real): de las 1 901 decisiones «corregir C4» del maestro (nombres sin ocultar),
+      1 255 pasan sus demás reglas una vez ocultos los nombres (RF-49); con ellas el sellado nuevo tiene 1 513 ejemplos
+      (1 279 de entrenamiento frente a 661, y 84, 75 y 75 apartados), 51 textos encadenados fuera y 9 documentos con su
+      partición anterior. No cierra T9b: faltan la nueva revisión del maestro registrada, el sellado nuevo, el ajuste, la
+      publicación y el examen en la cola de GPU (órdenes en el HANDOFF de MEJ31b).
+      Hecho el 2026-11-22 (d8, fila MEJ31b): rojo y verde en D:/csg/PM_IMPL/MEJ31b_REDACCION (rojo.log, verde.log).
+- [x] T28. Lo que halló la ratificación independiente de la revisión C4 (2026-11-22, MEJ31c): el revisor ratificó 922 de las
+      1 255 decisiones y rechazó 333 (88 con un código oculto a medias, 34 con un nombre que el catálogo no cubre, 34
+      repetidas…). Los códigos con guion o subrayado se ocultan enteros (RF-63), el catálogo cubre plural, errata,
+      codificación rota y lugares y recoge los nombres que el corpus señala (RF-64), el sellado quita el encabezado de la
+      página (`sin_encabezado`, RF-65), `revisar_salida` rechaza el prefijo de sede y el nombre residual (RF-66) y el
+      sellado anterior se comprueba por sus huellas (RF-67); y, por decisión del coordinador, el sellado nuevo va sin
+      `--anterior` y parte en tramos seguidos los documentos que pasan de la décima parte (`tramos_de_documentos`,
+      RF-68). (RF-63, RF-64, RF-65, RF-66, RF-67, RF-68)
+      Hecho cuando: rojo por aserción y verde con `tests/test_anonimizado_redaccion.py` (072:RF-63 a RF-68), sin GPU y con
+      nombres inventados, y `tests/test_corpus_redaccion.py`,
+      `tests/test_evaluacion_redaccion.py` y `tests/test_redaccion_sin_repeticiones.py` sin cambios en verde.
+      Medida (CPU, sobre una copia del corpus y de su registro): 18 de las 704 respuestas ya selladas dejaban el prefijo
+      a la vista; con solo las 922 ratificadas el sellado nuevo tiene 1 295 ejemplos de 20 documentos; con las
+      particiones del anterior quedaban 1 227 de entrenamiento y 23, 23 y 22 apartados (dos informes traen 1 227), y por
+      tramos (114 grupos) quedan 908 de entrenamiento y 129 en selección, calibración y prueba. No cierra T9b: faltan registrar las 922, el sellado nuevo,
+      el ajuste, la publicación y el examen en la cola de GPU (órdenes en el HANDOFF de MEJ31c).
+      Hecho el 2026-11-22 (d8, fila MEJ31c): rojo y verde en D:/csg/PM_IMPL/MEJ31c_REDACCION (rojo.log, verde.log).

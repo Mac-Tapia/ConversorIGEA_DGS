@@ -152,15 +152,27 @@ se lee su salida, con una excepción acotada, la de la T5 (aclaración de RF-11)
       Evidencia (2026-11-20, MEJ12 de d8, sobre c4326366 + MEJ13): rojo sin la herramienta, 5 F por aserción
       (`D:/csg/PM_IMPL/MEJ12_ESCALA/rojo_d23600bf.log`); verde de las nuevas con sus vecinas y las estructurales, 461
       passed, 0 omitidas (`D:/csg/PM_IMPL/MEJ12_ESCALA/verde_enfocado.log`).
-- [ ] T18. Corrida de escala con 10, 50 y 200 alimentadores y 30 repeticiones, aparte de la suite, con la máquina sin otra
+- [x] T18. Corrida de escala con 10, 50 y 200 alimentadores y 30 repeticiones, aparte de la suite, con la máquina sin otra
       corrida pesada: `.venv/Scripts/python.exe tools/benchmark_escala_web.py --salida <carpeta de evidencias>/escala.json`.
       (RF-20)
       Hecho cuando: el JSON tiene los tres tamaños con su commit y `cambios_sin_registrar` falso, y su registro queda
       junto a él.
-- [ ] T19. Dibujo de la pantalla con las mismas redes sintéticas, en navegador real (Playwright con Edge, web propia en un
+      Avance (2026-11-21, MEJ32 de d8): la red de la medición sale de `spec_de_escala`, la misma del dibujo (T19).
+      Hecho el 2026-11-21 (MEJ32 de d8): `D:/csg/PM_IMPL/MEJ32_102_112/escala/escala.json` (commit 7ed2c05d, worktree
+      limpio, `cambios_sin_registrar` falso, 30 repeticiones; registro `t18_escala.log` junto a él, con el candado de
+      pytest tomado): 10, 50 y 200 alimentadores (556, 2 780 y 11 120 tramos), carga de la red 0,68, 0,52 y 0,73 s,
+      `feeders` p95 3,9, 4,2 y 4,3 ms, memoria pico 276, 279 y 304 MiB; cada tamaño enlaza con su dibujo (T19).
+- [x] T19. Dibujo de la pantalla con las mismas redes sintéticas, en navegador real (Playwright con Edge, web propia en un
       puerto libre, nunca 8765 ni 8766). Guion: (1) generar el trío con `ExportSpec(feeders=N, seed=112, size_cycle=10)`
       para N = 10, 50 y 200; (2) arrancar la web con su lanzador en una carpeta de datos temporal y sin perfil de empresa;
       (3) crear el espacio, subir las tres casillas y cargar la red; (4) medir con `performance.mark` y
       `PerformanceObserver` el tiempo desde la respuesta de `feeders` hasta que la tabla muestra su última fila, y el
       del plano; (5) 10 repeticiones por tamaño, p50 y p95, con el commit; (6) guardar el JSON junto al de la T18. (RF-21)
       Hecho cuando: hay un JSON por tamaño con p50 y p95 del dibujo y su commit, y el resultado de la T18 enlaza a él.
+      Avance (2026-11-21, MEJ32 de d8): el guion `frontend/e2e/escala_dibujo.mjs` y el enlace
+      `tools/benchmark_escala_web.py --dibujo` (`tests/test_benchmark_escala_web.py`, 112:RF-21).
+      Hecho el 2026-11-21 (MEJ32 de d8): `dibujo_10.json`, `dibujo_50.json` y `dibujo_200.json` junto al de la T18, en
+      Edge 158, 10 repeticiones, commit 7ed2c05d con esta entrega encima (en `src/` solo `spec_de_escala`; registro
+      `t19_dibujo.log`), y `escala.json` enlazado con `--solo-enlazar`. Tabla de alimentadores p50/p95: 126/143,
+      153/189 y 296/339 ms; plano de la red unida: 2,96/5,48, 12,3/15,2 y 49,7/52,9 s. El plano con 200 alimentadores
+      supera el presupuesto de 12 s de la 111 (T2): es una medida para decidir, no un fallo de esta tarea.

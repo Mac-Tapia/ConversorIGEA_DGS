@@ -121,6 +121,47 @@ Dependencias y relación: 043 y 044; conservar intérprete, resolución, herrami
   la decisión de `decidir_ajuste` (`--decision`, con `necesaria`) o un experimento autorizado por su id
   (`--experimento-autorizado`, el de T7 del plan); sin ninguno de los dos se niega antes de pedir la GPU, y el manifiesto
   guarda la decisión y el experimento. El corpus de redacción del PIDE (072:RF-51) no lo pide.
+- RF-60: CUANDO se elija la versión del alumno con selección, EL SISTEMA comparará las familias de cada informe con las
+  tareas que declara para selección el manifiesto sellado del corpus (`por_tarea`), y no con el catálogo vigente. Exigirá
+  que ese manifiesto sea el del mismo `dataset_hash` y `prompt_hash` que los informes. Rechazará un informe al que le
+  falte o le sobre una tarea sellada y dirá cuáles. La elección dirá sus tareas selladas y, como «no cubiertas por este
+  sellado», las tareas del catálogo vigente que el corpus no tiene, sin darlas por medidas. MEJ29b, 2026-11-21: el
+  corpus v6 se selló con 27 tareas, el catálogo creció después, y `elegir` daba «metricas de seleccion incompletas» con
+  un informe completo para su corpus.
+- RF-61: CUANDO se abra la prueba sellada, EL SISTEMA exigirá que la elección se haya hecho con las tareas que declara
+  el manifiesto del corpus. Su informe dirá las tareas selladas de la partición y las no cubiertas por ese sellado.
+
+### Órdenes revisadas por el maestro (T12, MEJ35, 2026-11-21)
+
+El usuario, el 2026-11-19: la revisión de las órdenes la puede hacer una persona o un revisor independiente marcado
+`origen: maestro` (como en 085:RF-19 para el intérprete). El 2026-11-21, en la GPU, `decidir_ajuste` seguía en
+«bloqueada» con 3 de 200 órdenes humanas, y eso paraba la evaluación final de la T4 y el QLoRA de la campaña 043 T9:
+RF-8 y RF-9 solo contaban `gold_human` y la 085 dejó fuera de su alcance `ajuste_condicionado.py`. Esto amplía RF-8 y
+RF-9 mientras haya menos de 200 humanas; las del maestro nunca son humanas ni se suman a ellas.
+
+- RF-62: EL SISTEMA registrará las órdenes revisadas por el maestro con `tools/asistente_ordenes_reales.py
+  revisar-maestro`, cada una con su texto, su tarea del contrato vigente `TAREAS`, sus datos con sus tramos, su autor,
+  su revisor, su veredicto, su motivo y el origen `maestro`, en un conjunto de prueba sellado con su huella
+  (`<almacén>/maestro_real/revisadas_047/`), con la calidad `gold_maestro_revisada`, que nunca entrena.
+- RF-63: SI una orden revisada no tiene el origen `maestro`, revisor o motivo, nombra una tarea que no existe, un dato
+  sale de su texto o no es de su tarea, le falta uno obligatorio, repite el texto de otra, o coincide en texto o
+  familia (075:RF-2) con una orden humana o del maestro que entrena (085:RF-1), ENTONCES EL SISTEMA no la sellará y la
+  contará por su motivo; las que el revisor rechazó se cuentan y no se sellan. SI el conjunto no cubre todas las
+  tareas de `TAREAS`, ENTONCES no sellará nada; y no sustituirá un conjunto ya sellado por otro distinto.
+- RF-64: MIENTRAS haya menos de 200 órdenes humanas distintas y haya un conjunto sellado de 200 o más órdenes revisadas
+  por el maestro, medido sin fuga con el entrenamiento, EL SISTEMA aplicará las puertas de RF-9 (027:RF-18) y la
+  decisión de RF-8 a ese conjunto, con la base `maestro_revisadas`.
+- RF-65: CUANDO decida con la base `maestro_revisadas`, EL SISTEMA dirá en la decisión que son órdenes revisadas por el
+  maestro, no humanas, con su denominador, su huella y cuántas humanas faltan, y seguirá dando aparte la medida humana,
+  sin que decida.
+- RF-66: SI el conjunto que decide mezcla calidades, o con la base `maestro_revisadas` hay 200 humanas o más, o el
+  conjunto no está sellado o no es de origen `maestro`, ENTONCES EL SISTEMA dará «bloqueada» y dirá por qué; con 200
+  humanas o más deciden las humanas, como hasta ahora.
+- RF-67: EL SISTEMA no contará las órdenes revisadas por el maestro como humanas en ningún informe, ni para la
+  confirmación obligatoria de 027:RF-19 ni para la ejecución autónoma.
+- RF-68: CUANDO `tools/aceptar_agente.py evaluar` mida el conjunto sellado, EL SISTEMA comprobará su sello, guardará la
+  decisión de ajuste en `decision_ajuste.json`, que lee `tools/asistente_qlora.py --decision`, y
+  `tools/reentrenar_modelos.py run --qlora-decision` la pasará a la etapa QLoRA.
 
 ## Requisitos no funcionales
 

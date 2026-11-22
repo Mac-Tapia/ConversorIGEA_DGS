@@ -228,11 +228,9 @@ def _etapas(args, run_dir: Path):
     def qlora():
         if not args.llm_dataset:raise ValueError('indique --llm-dataset con el corpus generativo sellado; no se sustituye por dataset v2')
         destino, reporte = run_dir / 'qlora', run_dir / 'qlora' / 'training_manifest.json'
-        cmd = [py, str(REPO / 'tools' / 'asistente_qlora.py'), 'entrenar', '--dataset', str(args.llm_dataset),
-               '--salida', str(destino)]
-        if args.qlora_model:cmd+=['--modelo',args.qlora_model]
-        if args.qlora_revision:cmd+=['--revision',args.qlora_revision]
-        return _subproceso(cmd, reporte, 'qlora')
+        # 043:RF-17 y 047:RF-68: la decisión de decidir_ajuste (p. ej. la de aceptar_agente evaluar) o el experimento
+        # autorizado llegan a la etapa (047:RF-59); la orden se arma en un solo sitio, orden_qlora.
+        return _subproceso(orden_qlora(args, py, destino), reporte, 'qlora')
 
     return [
         TrainingStage('transformer', asistente('transformer', 'ordenes')),
@@ -304,6 +302,17 @@ def verificar(reporte: Path, *, fail_on_incomplete: bool) -> int:
     return 0 if ok else 2
 
 
+
+def orden_qlora(args, py, destino) -> list:
+    """La orden del QLoRA de la campaña, con la decisión o el experimento autorizado si se dan (043:RF-17)."""
+    cmd = [py, str(REPO / 'tools' / 'asistente_qlora.py'), 'entrenar', '--dataset', str(args.llm_dataset),
+           '--salida', str(destino)]
+    if args.qlora_model:cmd+=['--modelo',args.qlora_model]
+    if args.qlora_revision:cmd+=['--revision',args.qlora_revision]
+    if getattr(args, 'qlora_decision', None):cmd+=['--decision',str(args.qlora_decision)]
+    if getattr(args, 'qlora_experimento_autorizado', None):cmd+=['--experimento-autorizado',args.qlora_experimento_autorizado]
+    return cmd
+
 def main(argv=None) -> int:
     from convertersmartgrid.aplicacion.asistente import almacen
     from convertersmartgrid.adaptadores.digital_twin.buffer import raiz_buffer
@@ -336,6 +345,9 @@ def main(argv=None) -> int:
     run.add_argument('--embedding-model', default='intfloat/multilingual-e5-base')
     run.add_argument('--qlora-model',help='Base del catalogo; por defecto NF4 fijada de 047 T7')
     run.add_argument('--qlora-revision',help='Revision exacta del catalogo; no admite referencias mutables')
+    # 043:RF-17 y 047:RF-68: la decisión de decidir_ajuste o el experimento autorizado llegan al QLoRA de la campaña (047:RF-59).
+    run.add_argument('--qlora-decision',type=Path,help='decision_ajuste.json de decidir_ajuste (p. ej. de aceptar_agente evaluar) para el QLoRA de órdenes (043:RF-17; 047:RF-59, RF-68)')
+    run.add_argument('--qlora-experimento-autorizado',help='Id del experimento autorizado (p. ej. 047-T7)')
     verify = sub.add_parser('verify')
     verify.add_argument('--report', type=Path, required=True)
     verify.add_argument('--fail-on-incomplete', action='store_true')
@@ -393,7 +405,7 @@ def main(argv=None) -> int:
                              ensure_ascii=False))
             return 2
     entradas = {}
-    for nombre in ('dataset', 'vocabulario', 'twin', 'cabeceras','llm_dataset'):
+    for nombre in ('dataset', 'vocabulario', 'twin', 'cabeceras','llm_dataset','qlora_decision'):
         ruta = getattr(args, nombre)
         if ruta is not None:
             fuente = Path(ruta)

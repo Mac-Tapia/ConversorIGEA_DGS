@@ -16,7 +16,7 @@ Uso:
 
     python tools/comparar_suite_repartida.py --salida CARPETA [--n 1 2 3] [--pruebas "tests/a.py tests/b.py"]
         [--candado CARPETA --quien TEXTO] [--no-lanzar-si-existe RUTA ...] [--objetos] [--sin-memoria-por-fichero]
-    python tools/comparar_suite_repartida.py --salida CARPETA --solo-comparar
+    python tools/comparar_suite_repartida.py --salida CARPETA --solo-comparar [--fijar]
 
 ``--pruebas`` corre solo esas (los ensayos cortos); sin ella, la suite entera. ``--candado`` crea la carpeta (falla si
 ya existe), escribe en ella ``quien`` y la retira al terminar. ``--no-lanzar-si-existe`` no empieza, ni empieza la N
@@ -28,6 +28,11 @@ omitidas, la libre mínima ≥ 1,5 GiB, el mismo árbol y el disco del worktree 
 prueba que escribe en el árbol estorba a las sesiones que corren a la vez). Propone ``GIB_POR_PROCESO``: la mayor
 memoria privada de un proceso de pytest con N ≥ 2 (o con N = 1 si es la única), con un 15 % de margen, redondeada a
 0,25 GiB por arriba. Sale con 0 si son iguales, 1 si no y 2 si no pudo empezar.
+
+``--fijar`` (102 T20): solo con «iguales», escribe en ``tools/puerta_calidad.py`` del worktree medido el tope
+``PROCESOS_MAXIMOS`` (la mayor N corrida), el ``GIB_POR_PROCESO`` propuesto y ``MEDIDA_T20`` (árbol, N, picos, libre
+mínima e informe); si la comparación no vale, no toca nada y sale con 1. El cambio se comete como cualquier otro, con
+su puerta.
 """
 from __future__ import annotations
 
@@ -37,6 +42,7 @@ import importlib.util
 import json
 import math
 import os
+import re
 import sys
 import threading
 import time
@@ -338,6 +344,90 @@ def informe(arbol: str, corridas: dict[int, dict], salida: Path) -> int:
     return 0 if not problemas else 1
 
 
+class SinMedida(ValueError):
+    """La comparación no sirve para fijar las constantes de la puerta: no dio «iguales» o le falta algo."""
+
+
+def medida_de(datos: dict, informe_json: Path) -> dict:
+    """La medida que fija ``PROCESOS_MAXIMOS`` y ``GIB_POR_PROCESO``, sacada de ``comparacion.json``.
+
+    Solo con «iguales», con al menos dos N corridas, N = 1 entre ellas, y con el ``GIB_POR_PROCESO`` propuesto. El tope
+    es la mayor N corrida: todas dieron las mismas pruebas con el mismo veredicto, 0 F y 0 S, y su pico dejó al menos
+    :data:`LIBRE_MINIMA_GIB` libres."""
+    if not datos.get('iguales'):
+        raise SinMedida('la comparación no dio «iguales»: ' + '; '.join(datos.get('problemas') or ['sin problemas']))
+    corridas = {int(n): r for n, r in (datos.get('resumen') or {}).items() if r.get('corrida')}
+    if len(corridas) < 2 or 1 not in corridas:
+        raise SinMedida(f'hacen falta N = 1 y al menos otra N corridas; hay {sorted(corridas)}')
+    propuesta = datos.get('gib_por_proceso_propuesto')
+    if not propuesta:
+        raise SinMedida('la comparación no propone GIB_POR_PROCESO')
+    if not datos.get('arbol') or datos['arbol'] == '?':
+        raise SinMedida('la comparación no dice sobre qué árbol se midió')
+    return {
+        'arbol': datos['arbol'], 'ns': sorted(corridas), 'procesos': max(corridas),
+        'gib_por_proceso': float(propuesta),
+        'pico_arbol_gib': {n: corridas[n].get('pico_arbol_gib') for n in sorted(corridas)},
+        'libre_min_gib': min(float(c.get('libre_min_gib', 0.0)) for c in corridas.values()),
+        'pruebas': corridas[1].get('total'), 'informe': informe_json.as_posix(),
+    }
+
+
+def _literal(medida: dict) -> str:
+    """``MEDIDA_T20 = {…}``, una clave por línea."""
+    lineas = ['MEDIDA_T20 = {']
+    lineas += [f'    {clave!r}: {valor!r},' for clave, valor in medida.items()]
+    return '\n'.join(lineas + ['}'])
+
+
+#: Las tres asignaciones que reescribe :func:`fijar_constantes`, cada una una sola vez en la puerta.
+_ASIGNACIONES = {
+    'GIB_POR_PROCESO': re.compile(r'^GIB_POR_PROCESO = [0-9.]+$', re.MULTILINE),
+    'PROCESOS_MAXIMOS': re.compile(r'^PROCESOS_MAXIMOS = [0-9]+$', re.MULTILINE),
+    'MEDIDA_T20': re.compile(r'^MEDIDA_T20 = (?:None|\{\n.*?^\})$', re.MULTILINE | re.DOTALL),
+}
+
+
+def fijar_constantes(puerta_py: Path, medida: dict) -> str:
+    """102 T20: escribe en ``tools/puerta_calidad.py`` el tope de procesos, la memoria por proceso y su medida.
+
+    El fichero se reescribe entero o no se toca: si una de las tres asignaciones no está exactamente una vez, no se
+    escribe nada. Conserva los finales de línea del fichero. Devuelve el texto nuevo."""
+    original = puerta_py.read_bytes().decode('utf-8')
+    crlf = '\r\n' in original
+    texto = original.replace('\r\n', '\n')
+    nuevos = {'GIB_POR_PROCESO': f"GIB_POR_PROCESO = {float(medida['gib_por_proceso'])!r}",
+              'PROCESOS_MAXIMOS': f"PROCESOS_MAXIMOS = {int(medida['procesos'])}",
+              'MEDIDA_T20': _literal(medida)}
+    for nombre, patron in _ASIGNACIONES.items():
+        veces = len(patron.findall(texto))
+        if veces != 1:
+            raise SinMedida(f'{nombre} aparece {veces} veces en {puerta_py.name}: no se cambia nada')
+        texto = patron.sub(lambda _m, n=nombre: nuevos[n], texto)
+    if crlf:
+        texto = texto.replace('\n', '\r\n')
+    from convertersmartgrid.dominio.util import publicar_duradero
+
+    # Bytes, no texto: write_text traduciría los finales de línea en Windows.
+    publicar_duradero(puerta_py, texto.encode('utf-8'))
+    return texto
+
+
+def fijar_desde(salida: Path, raiz: Path) -> int:
+    """``--fijar``: lee ``comparacion.json`` de la salida y, si vale, fija las constantes de la puerta de ``raiz``."""
+    informe_json = salida / 'comparacion.json'
+    try:
+        datos = json.loads(informe_json.read_text(encoding='utf-8'))
+        medida = medida_de(datos, informe_json)
+        fijar_constantes(raiz / 'tools' / 'puerta_calidad.py', medida)
+    except (OSError, ValueError) as exc:  # justificado: SinMedida es ValueError; se dice y la puerta queda como estaba
+        print(f'NO SE FIJA: {exc}', flush=True)
+        return 1
+    print(f"FIJADO en {raiz / 'tools' / 'puerta_calidad.py'}: PROCESOS_MAXIMOS = {medida['procesos']}, "
+          f"GIB_POR_PROCESO = {medida['gib_por_proceso']:g} (árbol {medida['arbol']}, N = {medida['ns']})", flush=True)
+    return 0
+
+
 def correr_una(PC, n: int, raiz: Path, entorno: dict[str, str], salida: Path, argumentos: list[str], *,
                intervalo: float, por_fichero: bool, objetos: bool) -> dict:
     """Una corrida con N procesos; su resumen y el veredicto de cada prueba."""
@@ -398,6 +488,8 @@ def _argumentos() -> argparse.ArgumentParser:
     p.add_argument('--objetos', action='store_true', help='cuenta también los objetos de Python por fichero')
     p.add_argument('--sin-memoria-por-fichero', action='store_true', help='sin el complemento de pytest')
     p.add_argument('--solo-comparar', action='store_true', help='compara lo que ya está en la salida, sin correr')
+    p.add_argument('--fijar', action='store_true', help='con «iguales», fija en la puerta del worktree el tope de '
+                   'procesos y la memoria por proceso medidos')
     return p
 
 
@@ -418,7 +510,8 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         arbol = json.loads((salida / 'comparacion.json').read_text(encoding='utf-8'))['arbol'] \
             if (salida / 'comparacion.json').is_file() else '?'
-        return informe(arbol, corridas, salida)
+        rc = informe(arbol, corridas, salida)
+        return fijar_desde(salida, a.worktree.resolve()) if a.fijar and rc == 0 else rc
     bloqueos = [r for r in a.no_lanzar_si_existe if r.exists()]
     if bloqueos:
         print(f'NO SE LANZA: existe {bloqueos[0]}')
@@ -432,7 +525,8 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         (a.candado / 'quien').write_text(a.quien + '\n', encoding='utf-8')
     try:
-        return _comparar_n(a, raiz, salida)
+        rc = _comparar_n(a, raiz, salida)
+        return fijar_desde(salida, raiz) if a.fijar and rc == 0 else rc
     finally:
         if a.candado is not None:
             (a.candado / 'quien').unlink(missing_ok=True)

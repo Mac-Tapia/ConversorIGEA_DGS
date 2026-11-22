@@ -117,13 +117,18 @@ def _herramienta(nombre):
 
 
 def test_turno_ocupado_no_entrena_y_lo_dice(tmp_path, monkeypatch):
-    """071:RF-7: con otro dueño de la GPU, informe con el motivo y código 1, sin entrenar."""
+    """071:RF-7: con otro dueño de la GPU, informe con el motivo y código 1, sin entrenar.
+
+    106:RF-21: la prueba mira el turno, no la tarjeta: la GPU se da por disponible para que llegue al turno también en
+    los verdes sin CUDA (``CUDA_VISIBLE_DEVICES=-1``), donde salía con el 3 de «sin GPU» antes de pedirlo.
+    """
     from convertersmartgrid.aplicacion.asistente import ollama
 
     lock = tmp_path / 'gpu.lock'
     monkeypatch.setenv('CSG_ML_GPU_LOCK', str(lock))
     monkeypatch.delenv('CSG_GPU_PARENT_TOKEN', raising=False)
     monkeypatch.setattr(ollama, 'liberar_gpu_para_entrenar', lambda: None)
+    monkeypatch.setattr(o, 'dispositivo', lambda *_a: 'cuda')
     llamadas = []
     monkeypatch.setattr(o, 'entrenar', lambda *a, **k: llamadas.append(1))
     monkeypatch.setattr(o, 'entrenar_si_toca', lambda *a, **k: llamadas.append(1))

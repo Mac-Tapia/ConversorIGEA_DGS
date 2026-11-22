@@ -182,6 +182,113 @@ def ampliar(filas: list[dict], maestro: Sequence[dict], vedados_texto: Iterable[
             'examen_hash': huella(sorted(clave_texto(r['texto']) for r in examen)), 'no_son_humanas': True}
 
 
+# --- 047:RF-62, RF-63, RF-68: órdenes revisadas por el maestro, en un conjunto de prueba sellado que nunca entrena ----------
+
+#: Dentro de ``<almacén>/maestro_real``: no es ``ordenes_maestro.jsonl``, que entrena (085:RF-11), ni ``ejemplos.jsonl``, humano.
+SUBCARPETA_REVISADAS = 'maestro_real/revisadas_047'
+CONJUNTO_REVISADAS = 'prueba_maestro_047'
+VEREDICTOS = ('aceptada', 'rechazada')
+
+
+def _firma_revisada(texto: str, datos) -> str:
+    """La familia de 085:RF-13 sin enmascarar el dato ``texto``: en una pregunta es la frase misma (047:RF-63).
+
+    Con el dato enmascarado, toda pregunta cuyo dato es el mensaje entero (069:RF-36) sería «datotexto» y caería en la
+    familia de cualquier otra pregunta.
+    """
+    return firma_familia(texto, [tuple(d) for d in datos if tuple(d)[2:3] != ('texto',)])
+
+
+def revisar(entradas: Sequence[Mapping], *, humanas: Sequence[Mapping] = (), que_entrenan: Sequence[Mapping] = (),
+            fecha: str = '') -> tuple[list[dict[str, Any]], Counter, list[str]]:
+    """Las órdenes revisadas que se pueden sellar, la cuenta de las demás por su motivo y los errores del conjunto (RF-63)."""
+    from .ajuste_condicionado import CALIDAD_MAESTRO_REVISADA
+    vedados = {clave_texto(r['texto']) for r in [*humanas, *que_entrenan]}
+    firmas = {_firma_revisada(r['texto'], r.get('datos') or ()) for r in [*humanas, *que_entrenan]}
+    filas, cuenta, vistos = [], Counter(), set()
+    for f in entradas:
+        try:
+            texto, tarea = str(f['texto']), f['tarea']
+            datos = [tuple(d) for d in f.get('datos') or ()]
+        except (KeyError, TypeError):
+            cuenta['ilegibles'] += 1
+            continue
+        if f.get('veredicto') not in VEREDICTOS:
+            cuenta['rechazadas_sin_veredicto'] += 1
+            continue
+        if not str(f.get('revisor') or '').strip() or not str(f.get('motivo') or '').strip():
+            cuenta['rechazadas_sin_motivo'] += 1
+            continue
+        if f['veredicto'] == 'rechazada':
+            cuenta['rechazadas_por_el_revisor'] += 1
+            continue
+        motivo = 'rechazadas_tarea' if tarea == NINGUNA else _motivo_de_rechazo(f, texto, tarea, datos)
+        if motivo:
+            cuenta[motivo] += 1
+            continue
+        clave = texto_canonico(texto)
+        if clave in vistos:
+            cuenta['rechazadas_repetidas'] += 1
+            continue
+        if clave_texto(texto) in vedados or _firma_revisada(texto, datos) in firmas:
+            cuenta['rechazadas_familia_que_entrena'] += 1
+            continue
+        vistos.add(clave)
+        r = {'texto': texto, 'tarea': tarea, 'datos': [list(d) for d in sorted(datos)], 'origen': ORIGEN,
+             'quality': CALIDAD_MAESTRO_REVISADA, 'del_maestro': True, 'particion': 'prueba', 'conjunto': CONJUNTO_REVISADAS,
+             'autor': str(f.get('autor') or ''), 'revisor': str(f['revisor']), 'veredicto': 'aceptada',
+             'motivo': str(f['motivo']), 'fecha': str(f.get('fecha') or fecha),
+             'group_id': huella({CONJUNTO_REVISADAS: _firma_revisada(texto, datos)})}
+        r['record_id'] = huella(r)
+        filas.append(r)
+        cuenta['selladas'] += 1
+    filas.sort(key=lambda r: (r['tarea'], texto_canonico(r['texto'])))
+    errores = []
+    faltan = sorted(set(TAREAS) - {r['tarea'] for r in filas})
+    if faltan:
+        errores.append(f"faltan tareas de TAREAS en el conjunto: {', '.join(faltan)}")
+    return filas, cuenta, errores
+
+
+def sellar_revisadas(carpeta: Path | str, filas: Sequence[dict], cuenta: Mapping, *, fecha: str) -> dict:
+    """Escribe el conjunto y su manifiesto, todo o nada; un sello existente con otro contenido no se pisa (RF-62, RF-63)."""
+    from .ajuste_condicionado import CALIDAD_MAESTRO_REVISADA
+    carpeta = Path(carpeta)
+    hash_ = huella(list(filas))
+    if (carpeta / 'manifest.json').is_file():
+        previo = json.loads((carpeta / 'manifest.json').read_text(encoding='utf-8'))
+        if previo.get('dataset_hash') != hash_:
+            raise ValueError(f"ya hay un conjunto sellado distinto ({previo.get('dataset_hash')}): no se sustituye")
+        return previo
+    manifiesto = {'schema_version': 1, 'conjunto': CONJUNTO_REVISADAS, 'calidad': CALIDAD_MAESTRO_REVISADA,
+                  'origen': ORIGEN, 'particion': 'prueba', 'ordenes': len(filas),
+                  'unicas': len({texto_canonico(r['texto']) for r in filas}), 'tareas': len({r['tarea'] for r in filas}),
+                  'por_tarea': dict(sorted(Counter(r['tarea'] for r in filas).items())),
+                  'revisores': sorted({r['revisor'] for r in filas}), 'autores': sorted({r['autor'] for r in filas}),
+                  'cuenta': dict(sorted(cuenta.items())), 'dataset_hash': hash_, 'sellado': fecha,
+                  'no_son_humanas': True, 'entrena': False}
+    carpeta.mkdir(parents=True, exist_ok=True)
+    for nombre, contenido in (('ordenes.jsonl', ''.join(json.dumps(r, ensure_ascii=False, sort_keys=True) + '\n' for r in filas)),
+                              ('manifest.json', json.dumps(manifiesto, ensure_ascii=False, sort_keys=True, indent=2))):
+        temporal = carpeta / f'.{nombre}.tmp'
+        temporal.write_text(contenido, encoding='utf-8')
+        temporal.replace(carpeta / nombre)
+    return manifiesto
+
+
+def leer_revisadas(carpeta: Path | str) -> tuple[list[dict[str, Any]], dict]:
+    """El conjunto sellado y su manifiesto; si su contenido ya no es el sellado, no se lee (RF-68)."""
+    carpeta = Path(carpeta)
+    manifiesto = json.loads((carpeta / 'manifest.json').read_text(encoding='utf-8'))
+    filas = [json.loads(x) for x in (carpeta / 'ordenes.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
+    if huella(filas) != manifiesto.get('dataset_hash') or any(r.get('record_id') != huella(
+            {k: v for k, v in r.items() if k != 'record_id'}) for r in filas):
+        raise ValueError('el conjunto revisado por el maestro no casa con su sello')
+    if manifiesto.get('no_son_humanas') is not True or manifiesto.get('entrena') is not False:
+        raise ValueError('el sello del conjunto revisado no lo declara prueba del maestro')
+    return filas, manifiesto
+
+
 def puerta_de_ordenes(humanas: Mapping, humanas_distintas: int, maestro: Mapping | None) -> dict:
     """Qué conjunto decide la puerta de órdenes de 0,98 y 0,95 (085:RF-19 a RF-22)."""
     n_maestro = (maestro or {}).get('ejemplos') or 0

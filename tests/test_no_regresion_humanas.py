@@ -243,3 +243,71 @@ def test_069_rf39_la_cota_sin_parear_es_conservadora():
         assert pareadas and 'p_valor' in cota and all('p_valor' in p for p in pareadas), 'la puerta da su valor p'
         assert all(cota['p_valor'] <= p['p_valor'] + 1e-12 for p in pareadas)
         assert cota['bloquea'] >= max(p['bloquea'] for p in pareadas)
+
+
+# --- 069:RF-41: partición de las humanas por empresa, por fecha y por grupo de paráfrasis --------------------------------
+
+def _humanas_etiquetadas(semilla: int):
+    """Humanas sintéticas con su empresa, su fecha y su grupo; algunos grupos cruzan el corte y dos comparten texto."""
+    import random
+    from datetime import datetime, timedelta
+    r = random.Random(semilla)
+    inicio, filas = datetime(2026, 9, 1), []
+    for e in ('E1', 'E2', 'E3'):
+        for g in range(r.randint(8, 14)):
+            grupo = f'{e}-g{g}'
+            # Cada grupo tiene paráfrasis a los dos lados del corte (día 50): la partición por fecha debe separarlas
+            # sin partir el grupo, y así ninguna parte se queda sin grupos por el sorteo.
+            for k in range(r.randint(2, 4)):
+                dia = r.randint(0, 40) if k % 2 == 0 else r.randint(60, 100)
+                filas.append({'record_id': f'{grupo}-{k}', 'texto': f'orden {e} {g} variante {k}', 'tarea': 'estado',
+                              'empresa': e, 'grupo': grupo, 'fecha': (inicio + timedelta(days=dia)).isoformat()})
+    # Otro grupo con el mismo texto que la primera: es la misma petición y no se separa de ella.
+    filas.append({**filas[0], 'record_id': 'repetida', 'grupo': 'E1-otro'})
+    return filas, inicio + timedelta(days=50)
+
+
+@pytest.mark.parametrize('semilla', range(200))
+def test_069_rf41_las_humanas_se_parten_por_empresa_fecha_y_grupo_sin_cruzarse(semilla):
+    """069:RF-41 — ninguna empresa retenida, fecha de prueba ni grupo de paráfrasis cae en dos particiones."""
+    from datetime import datetime, timedelta
+    from convertersmartgrid.aplicacion.asistente import validacion_cruzada as vc
+    assert hasattr(vc, 'particionar_humanas'), 'falta validacion_cruzada.particionar_humanas'
+    filas, corte = _humanas_etiquetadas(semilla)
+    horizonte = timedelta(days=7)
+    plan = vc.particionar_humanas(filas, corte=corte, horizonte=horizonte)
+    por_id = {f['record_id']: f for f in filas}
+    tipos = sorted(c.tipo for c in plan.cohortes)
+    assert tipos == ['empresa', 'empresa', 'empresa', 'tiempo'], f'semilla {semilla}: {tipos}'
+    for c in plan.cohortes:
+        parte_de = {rid: p for p in ('entrenamiento', 'seleccion', 'calibracion', 'prueba')
+                    for rid in getattr(c.particiones, p)}
+        grupos: dict[str, set] = {}
+        textos: dict[str, set] = {}
+        for rid, p in parte_de.items():
+            grupos.setdefault(por_id[rid]['grupo'], set()).add(p)
+            textos.setdefault(por_id[rid]['texto'], set()).add(p)
+        assert all(len(v) == 1 for v in grupos.values()), f'semilla {semilla}, {c.nombre}: un grupo en dos partes'
+        assert all(len(v) == 1 for v in textos.values()), f'semilla {semilla}, {c.nombre}: un texto en dos partes'
+        prueba = [por_id[rid] for rid, p in parte_de.items() if p == 'prueba']
+        ajuste = [por_id[rid] for rid, p in parte_de.items() if p != 'prueba']
+        assert prueba and ajuste, f'semilla {semilla}, {c.nombre}: sin prueba o sin ajuste'
+        if c.tipo == 'empresa':
+            assert {f['empresa'] for f in prueba} == {c.retenida}, f'semilla {semilla}, {c.nombre}'
+            assert c.retenida not in {f['empresa'] for f in ajuste}, f'semilla {semilla}, {c.nombre}'
+            assert len(prueba) == sum(f['empresa'] == c.retenida for f in filas), f'semilla {semilla}, {c.nombre}'
+        else:
+            assert min(datetime.fromisoformat(f['fecha']) for f in prueba) >= corte + horizonte, f'semilla {semilla}'
+            assert max(datetime.fromisoformat(f['fecha']) for f in ajuste) < corte, f'semilla {semilla}'
+
+
+def test_069_rf41_sin_empresa_fecha_o_grupo_no_se_parte_con_etiquetas_inventadas():
+    """069:RF-41 — las humanas sin su empresa, su fecha o su grupo no se parten: se dice y no se deducen del texto."""
+    from convertersmartgrid.aplicacion.asistente import validacion_cruzada as vc
+    assert hasattr(vc, 'particionar_humanas'), 'falta validacion_cruzada.particionar_humanas'
+    filas, corte = _humanas_etiquetadas(1)
+    for campo in vc.CAMPOS_PARTICION:
+        incompletas = [dict(f) for f in filas]
+        incompletas[3].pop(campo)
+        with pytest.raises(ValueError, match='1 orden humana llega sin su empresa, su fecha o su grupo'):
+            vc.particionar_humanas(incompletas, corte=corte)

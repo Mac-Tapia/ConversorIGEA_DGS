@@ -139,18 +139,24 @@ FORMATO_VEREDICTO_ARBOL = 1
 RAMAS_CON_VEREDICTO_DE_ARBOL = ('trabajo/puerta-por-ramas', 'trabajo/integra-capas-suite')
 
 #: 102:RF-5 (aclaración del 2026-11-15, PUERTA-XDIST): la suite entera de la puerta, repartida en N procesos de CPU.
-#: Memoria de un proceso de pytest de la suite. PROVISIONAL: en los ensayos de la 106:RF-16 del 2026-11-14 con -n 2 y
-#: sin datos reales, el mayor pico de un trabajador fue 2,74 GiB (y 5,97 GiB el árbol entero); b3 medirá el de la suite
-#: con los datos reales (pico del árbol de procesos con psutil) y lo fijará aquí. Se cambia con VARIABLE_GIB_POR_PROCESO.
+#: Memoria de un proceso de pytest de la suite. PROVISIONAL mientras :data:`MEDIDA_T20` sea ``None``: en los ensayos de
+#: la 106:RF-16 del 2026-11-14 con -n 2 y sin datos reales, el mayor pico de un trabajador fue 2,74 GiB (y 5,97 GiB el
+#: árbol entero). La T20 lo fija con el pico medido de la suite entera (``tools/comparar_suite_repartida.py --fijar``).
+#: Se cambia con VARIABLE_GIB_POR_PROCESO.
 GIB_POR_PROCESO = 3.0
 VARIABLE_GIB_POR_PROCESO = 'CSG_PUERTA_GIB_POR_PROCESO'
 #: Lo que se deja libre al equipo: las reglas de recursos piden ≥ 2 GiB libres al lanzar (y 0d, ≥ 1,5 GiB en el pico).
 RESERVA_GIB = 2.0
-#: Tope de procesos. UNO hasta que la T20 de la spec 102 compare la suite entera con -n 1, 2 y 3 y mida el pico con los
-#: datos reales (auditoría de c2, 2026-11-16: GIB_POR_PROCESO aún no está medido y hay pruebas que caían con -n 2): hasta
-#: entonces todas las puertas corren la suite en una sola sesión, como antes. La T20 lo sube con su medida. Para ensayar
-#: 2 o 3 procesos, VARIABLE_PROCESOS; la memoria y las CPU lo siguen limitando.
+#: Tope de procesos. UNO mientras :data:`MEDIDA_T20` sea ``None`` (auditoría de c2, 2026-11-16: sin medida, hay pruebas
+#: que caían con -n 2): todas las puertas corren la suite en una sola sesión, como antes. La T20 de la spec 102 compara
+#: la suite entera con -n 1, 2 y 3 sobre el mismo árbol y, solo si da «iguales», ``comparar_suite_repartida.py --fijar``
+#: escribe aquí el N medido, su GIB_POR_PROCESO y su medida. Para ensayar 2 o 3 procesos, VARIABLE_PROCESOS; la memoria
+#: y las CPU lo siguen limitando.
 PROCESOS_MAXIMOS = 1
+#: 102 T20: la medida con la que se fijaron PROCESOS_MAXIMOS y GIB_POR_PROCESO (el árbol, las N comparadas, los picos y
+#: el informe), o ``None`` si aún no se midió. Lo escribe ``tools/comparar_suite_repartida.py --fijar``; una prueba
+#: comprueba que el tope y la memoria por proceso son los de esta medida (lección A7: ningún cambio sin su medida).
+MEDIDA_T20 = None
 VARIABLE_PROCESOS = 'CSG_PUERTA_PROCESOS'
 #: Las tres partes de la suite repartida (marcas de tests/conftest.py, ``EN_SERIE``, y la ``gpu`` de 106:RF-6): «serie»,
 #: una sesión sola con lo que no admite paralelo, a la vez que «reparto», con xdist; después, «a_solas», sin nada más.

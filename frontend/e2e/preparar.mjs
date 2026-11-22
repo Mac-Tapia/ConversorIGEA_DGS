@@ -20,7 +20,7 @@ const FRONT = resolve(AQUI, '..');
 const RAIZ = resolve(FRONT, '..');
 const ESPERA_MS = 240_000;
 
-function puertoLibre() {
+export function puertoLibre() {
   return new Promise((ok, mal) => {
     const s = createServer();
     s.once('error', mal);
@@ -33,7 +33,7 @@ function puertoLibre() {
 
 /** El python del servidor: el del checkout o, en un worktree sin .venv, el del checkout primario (como en
  * `test/e2e/playwright.config.mjs`); nunca el `python` del sistema si hay un .venv del proyecto. */
-function python() {
+export function python() {
   if (process.env.CSG_E2E_PYTHON) return process.env.CSG_E2E_PYTHON;
   const raices = [RAIZ];
   const marca = join(RAIZ, '.git');

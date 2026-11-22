@@ -10,6 +10,7 @@ import type {
 import { CurvaCabecera } from './CurvaCabecera';
 import { notaDeLaMedida, puEscrito, tensionesTocadas, tensionInicial, tensionValida } from './tensionFuente';
 import { PerfilTension } from './PerfilTension';
+import { curvasEnMemoria } from './tablaMaxima';
 
 const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '+' : ''}${fmtNum(x * 100, 2)} %`);
 
@@ -78,8 +79,10 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
   // curvas que ya leyó la máxima (memoria del servidor, sin volver a abrir los libros).
   const [conCentral, setConCentral] = useState<Record<string, MaximaConCentral | string>>({});
   const firmaCentrales = JSON.stringify(centrales);
+  // 086:RF-135: solo se piden las curvas que el servidor tiene; si no, se vuelve a buscar la máxima.
+  const conCurvas = curvasEnMemoria(ws.curvas_cabecera, maxima?.id);
   useEffect(() => {
-    if (!maxima) { setConCentral({}); return; }
+    if (!maxima || !conCurvas) { setConCentral({}); return; }
     let vivo = true;
     const pedidas = grupos.map((g, i) => ({ g, medidor: medidores[i] || g.filas[0].medidor }))
       .filter(({ g }) => centrales[g.alimentador])
@@ -89,7 +92,7 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
     Promise.all(pedidas).then((xs) => { if (vivo) setConCentral(Object.fromEntries(xs)); });
     return () => { vivo = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ws.id, maxima?.id, firmaCentrales, medidores.join('|')]);
+  }, [ws.id, maxima?.id, conCurvas, firmaCentrales, medidores.join('|')]);
   const tol = Number(tolerancia.replace(',', '.')) / 100;
   const tolValida = Number.isFinite(tol) && tol >= 0.001 && tol <= 0.1;
   // 021:RF-79: la medida de la fila del medidor elegido como cabecera de cada alimentador.
@@ -160,7 +163,10 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
           ))}
         </div>
       )}
-      {maxima && grupos.length > 0 && (
+      {maxima && grupos.length > 0 && !conCurvas && (
+        <p className="muted small">Para ver las curvas de esta máxima, vuelva a buscarla.</p>
+      )}
+      {maxima && grupos.length > 0 && conCurvas && (
         // RF-38: por defecto, la del medidor que da el objetivo del primer alimentador.
         <CurvaCabecera wsId={ws.id} jobId={maxima.id} inicial={medidores[0] || grupos[0].filas[0].medidor}
           opciones={grupos.flatMap((g) => g.filas.map((r) => ({

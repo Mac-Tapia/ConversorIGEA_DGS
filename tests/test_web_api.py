@@ -841,3 +841,17 @@ def test_028_rf21_un_proyecto_que_no_se_puede_recalibrar_no_es_un_error_de_la_we
     assert datos.get('disponible') is False and datos.get('causa') == 'no_recalibrable' and datos.get('motivo'), datos
     assert client.post(f'/api/workspaces/{wid}/demanda/recalibrar',
                        json={'project': 'Prueba/P2', 'periodo': '2026-07'}).status_code == 400
+
+
+def test_086_rf135_el_espacio_dice_que_curvas_de_maxima_tiene_en_memoria(client):
+    """086:RF-135 — el servidor solo guarda en memoria las curvas de la última máxima buscada y las pierde al
+    reiniciarse; el espacio dice de qué máximas las tiene, para que la web no pida las de otra y reciba 404."""
+    wid = _workspace(client)
+    datos = client.get(f'/api/workspaces/{wid}').json()
+    assert datos.get('curvas_cabecera') == [], f'el espacio no dice qué curvas tiene: {sorted(datos)}'
+    ws = client.app.state.store.get(wid)
+    with ws.lock:
+        ws.curvas_cabecera = {'job_ultimo': {'M1': {'curva': [], 'fuera': [], 'alimentador': 'A1'}}}
+    assert client.get(f'/api/workspaces/{wid}').json()['curvas_cabecera'] == ['job_ultimo']
+    r = client.get(f'/api/workspaces/{wid}/demanda/cabecera/job_anterior/curva', params={'medidor': 'M1'})
+    assert r.status_code == 404, 'una máxima que no está en memoria se sigue diciendo con 404, no con datos viejos'

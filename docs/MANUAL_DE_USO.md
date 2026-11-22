@@ -3,6 +3,9 @@
 **De la red exportada por CYMDIST, Access o VNR-GIS a un proyecto calibrado y estudiado en
 DIgSILENT PowerFactory**
 
+> Este libro es para quien desarrolla o estudia el conversor. Si usa el programa instalado, lea `MANUAL_OPERADOR.md` y
+> `MANUAL_ORDENES.md`, en la carpeta `documentos` del programa.
+
 Edición del 31 de octubre de 2026. Este libro explica qué hace el conversor, cómo está hecho y
 cómo se trabaja con él, paso a paso. Las órdenes exactas, sus opciones y los códigos de salida de
 cada herramienta están en el anexo [Manual de comandos](MANUAL_COMANDOS.md); los requisitos de

@@ -1474,6 +1474,19 @@ def test_086_rf90_el_menu_inicio_abre_el_manual_de_instalacion():
     assert 'Filename: "{win}\\notepad.exe"' in acceso, 'un Windows limpio no tiene programa asociado a «.md»'
 
 
+def test_086_rf90_un_candidato_sin_el_acceso_al_manual_no_se_arma():
+    """086:RF-90 — el setup de la rc6 salió de un .iss anterior al acceso y el menú Inicio no abría el manual: armar el
+    candidato comprueba el .iss que copia, y el de la rc6 (sin el acceso) no pasa."""
+    assert hasattr(CC, 'comprobar_accesos_del_menu'), 'armar el candidato no comprueba el menú Inicio (086:RF-90)'
+    actual = (RAIZ / 'instalador/ConverterSmartGrid.iss').read_text(encoding='utf-8')
+    CC.comprobar_accesos_del_menu(actual)
+    sin_manual = '\n'.join(l for l in actual.splitlines() if 'MANUAL_INSTALACION.md' not in l)
+    with pytest.raises(CC.CE.EntregaError, match='acceso al manual de instalación'):
+        CC.comprobar_accesos_del_menu(sin_manual)
+    fuente = (RAIZ / 'tools/construir_candidato.py').read_text(encoding='utf-8')
+    assert "comprobar_accesos_del_menu((instalador / 'ConverterSmartGrid.iss')" in fuente, 'armar no lo comprueba'
+
+
 def _raiz_de_mentira(tmp_path: Path, version: str, *, faltan: tuple[str, ...] = ()) -> Path:
     """Un árbol con solo lo que el candidato copia a «documentos/», y ficheros de mentira."""
     raiz = tmp_path / 'raiz'

@@ -287,6 +287,24 @@ La medida siguiente es con el conjunto 047e, declarado antes.
 - [ ] Revisar el diff propio, actualizar `CODIGO_FUENTE.md` si se crea código y
   registrar un commit de alcance propio que cite `spec 047 T4`.
 
+### T12: Órdenes revisadas por el maestro (MEJ35, 2026-11-21)
+
+**Cubre:** RF-62 a RF-68. Amplía RF-8 y RF-9 de la T4 sin cambiar sus puertas (0,98 y 0,95, mínimo 200).
+
+**Files:** `asistente/ajuste_condicionado.py` (base `maestro_revisadas`, `manifiesto_de_revisadas`),
+`asistente/aceptacion.py` (`medida_revisadas`, `decidir_aceptacion(..., maestro_revisadas)`), `asistente/ordenes_maestro.py`
+(`revisar`, `sellar_revisadas`, `leer_revisadas`), `tools/asistente_ordenes_reales.py revisar-maestro`,
+`tools/aceptar_agente.py` (`preparar --revisadas-maestro`, `decision_ajuste.json`), `tools/reentrenar_modelos.py run
+--qlora-decision`; prueba `tests/test_asistente_revisadas_maestro.py`.
+
+**Decisiones:** el conjunto del maestro es una sola calidad (`gold_maestro_revisada`) y una sola partición (prueba): decide
+entero o no decide, como 085:RF-19 para el intérprete; las humanas se miden y se dan aparte y nunca se suman. La familia
+del choque con lo que entrena es la de 085:RF-13 sin enmascarar el dato `texto`, que en `pregunta` y `clasificar_informe`
+es el mensaje entero (069:RF-36). El sello es la huella del conjunto y la de cada registro; `evaluar` vuelve a comprobar
+la fuga con el corpus de entrenamiento que mide. **Limitación declarada:** el autor y el revisor son modelos (Claude) en
+la misma sesión, el revisor en un contexto aparte y sin ver los conjuntos sellados ni los errores de los modelos; estima
+el estilo del maestro, no el del operador.
+
 ## Cierre y evidencia
 
 Al ejecutar, actualizar [tasks.md](tasks.md) con comandos, resultado, hashes y rutas

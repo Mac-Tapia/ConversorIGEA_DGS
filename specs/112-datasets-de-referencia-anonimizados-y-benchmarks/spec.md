@@ -1,6 +1,6 @@
 # Spec 112 — Datasets de referencia anonimizados y benchmarks reproducibles
 
-Estado: aprobada (2026-11-20: RF-15 a RF-19, dejar una empresa fuera cada vez; queda T16, la corrida con los paquetes públicos; y RF-20 y RF-21, la medición de escala de la web, con la corrida de 200 alimentadores y el dibujo en navegador pendientes); cumplida el 2026-11-17 · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-22 y BP-21, y orden del usuario del 2026-11-14:
+Estado: aprobada (2026-11-20: RF-15 a RF-19, dejar una empresa fuera cada vez; queda T16, la corrida con los paquetes públicos; y RF-20 y RF-21, la medición de escala de la web, con la corrida de 200 alimentadores y el dibujo en navegador hechos el 2026-11-21, T18 y T19); cumplida el 2026-11-17 · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-22 y BP-21, y orden del usuario del 2026-11-14:
 «haz nuevos spec». G0: `D:/csg/G0_PLAN_MAESTRO/C/C_FILAS_BP.md` (BP-22: solo existe la anonimización del paquete de
 soporte).
 

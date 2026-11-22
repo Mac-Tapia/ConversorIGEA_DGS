@@ -55,10 +55,16 @@ cada usuario necesita las suyas, la de DIgSILENT y el permiso de la distribuidor
 Si el programa ya estaba abierto, no se abre otro: se muestra el que había. Si en ese puerto hay un ConverterSmartGrid de otra
 sesión, el nuevo se abre en el puerto libre siguiente y la ventana negra lo dice.
 
+**Siguiente paso.** Para convertir su primera red, siga `MANUAL_OPERADOR.md`, apartado «El recorrido», en la carpeta
+`documentos` del programa. Para convertir por órdenes, `MANUAL_ORDENES.md`, apartado «Convertir sin la web». Necesita la
+exportación de su red: el programa no trae datos de ninguna empresa.
+
 ### Comprobar la instalación
 
 Pulse la versión, que sale bajo el título de la web tras «DIgSILENT PowerFactory ·», o abra **ConverterSmartGrid - diagnostico**
-en el menú de inicio. Lo mismo por órdenes:
+en el menú de inicio. Lo mismo por órdenes, en una ventana de órdenes
+(tecla Windows, escriba `cmd` e Intro). Las órdenes `csg.cmd` de este manual se escriben así, con su ruta completa, o tras
+entrar en la carpeta del programa con `cd /d "%LOCALAPPDATA%\Programs\ConverterSmartGrid"`:
 
 ```bat
 "%LOCALAPPDATA%\Programs\ConverterSmartGrid\csg.cmd" doctor
@@ -72,7 +78,8 @@ por comprobación:
 - `[FALTA]`: falta algo imprescindible. Vuelva a ejecutar el instalador, que repone lo que falte sin tocar sus datos.
 
 En un puesto sin perfil de empresa y sin complemento de IA es normal ver avisos en «Calibración del perfil» y en «Complemento de
-IA». En la línea «DIgSILENT PowerFactory» debe ver «API en …» con la carpeta de su PowerFactory. La orden sale con código 0 si no
+IA», y en «Fuentes normativas» si no va a preparar el plan de inversiones en transmisión. En la línea «DIgSILENT
+PowerFactory» debe ver «API en …» con la carpeta de su PowerFactory. La orden sale con código 0 si no
 falta nada imprescindible.
 
 ### Elegir la versión de DIgSILENT

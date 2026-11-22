@@ -55,6 +55,10 @@ def _repo(tmp_path):
     (origen / 'config' / 'suite.json').write_text(json.dumps({'red': str(origen / 'datos' / 'red.txt')}), encoding='utf-8')
     (origen / 'config' / 'otra.json').write_text('{"nada": 1}', encoding='utf-8')
     (origen / M.FICHERO_INSTALACION).write_text(json.dumps({'id': 'a' * 16}), encoding='utf-8')
+    for e in ('e1', 'e2'):
+        (origen / 'output' / 'web' / e).mkdir(parents=True)
+        for nombre in ('workspace.json', 'conversiones.json'):
+            (origen / 'output' / 'web' / e / nombre).write_text(json.dumps({'id': e}), encoding='utf-8')
     (origen / '.venv' / 'Scripts').mkdir(parents=True)
     (origen / '.venv' / 'Scripts' / 'activate.bat').write_text(f'set "VIRTUAL_ENV={origen}\\.venv"\n', encoding='utf-8')
     _git('-c', 'user.email=x@y', '-c', 'user.name=x', 'add', '-A', cwd=origen)
@@ -130,3 +134,40 @@ def test_058_rf6_mudar_de_punta_a_punta(tmp_path):
     assert m.escritos == [(acceso.with_name(M.ACCESO_NUEVO), str(destino / 'run_gui.bat'), str(destino))]
     assert not acceso.exists()
     assert M.identidad(destino) == 'a' * 16
+
+
+def test_058_rf6_la_foto_de_los_espacios_y_su_respaldo_fuera(tmp_path):
+    """058:RF-6 (086 T9, pasos 2, 3 y 10) — el plan hace la foto de los espacios de trabajo, y el respaldo de sus
+    workspace.json y conversiones.json no puede ir dentro de la carpeta que se muda."""
+    M = _m()
+    assert hasattr(M, 'espacios_de'), 'falta la foto de los espacios (058:RF-6)'
+    origen, _ = _repo(tmp_path)
+    plan = M.planear(origen, tmp_path / M.NOMBRE_NUEVO, _Maquina(), respaldo=origen / 'respaldo')
+    assert plan.espacios == ['e1', 'e2']
+    assert any('va fuera de la carpeta que se muda' in i for i in plan.impedimentos), plan.impedimentos
+    assert M.respaldar_espacios(origen, plan.espacios, tmp_path / 'fuera') == 4
+    assert json.loads((tmp_path / 'fuera' / 'e2' / 'conversiones.json').read_text(encoding='utf-8')) == {'id': 'e2'}
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='las uniones de directorio son de Windows')
+def test_058_rf6_la_mudanza_no_se_da_por_buena_si_falta_un_espacio_de_la_foto(tmp_path):
+    """058:RF-6 (086 T9, «la web abre con los mismos espacios que la foto») — se respaldan antes de renombrar, y si
+    después falta uno, la verificación falla y lo nombra."""
+    M = _m()
+    assert hasattr(M, 'espacios_de'), 'falta la foto de los espacios (058:RF-6)'
+    origen, _ = _repo(tmp_path)
+    destino = tmp_path / M.NOMBRE_NUEVO
+    m = _Maquina()
+    perdido = []
+
+    def importar(d):
+        import shutil
+        shutil.rmtree(d / 'output' / 'web' / 'e1')
+        perdido.append('e1')
+        return str(d / 'src' / 'convertersmartgrid' / '__init__.py')
+    m.importar = importar
+    plan = M.planear(origen, destino, m, respaldo=tmp_path / 'respaldo')
+    assert plan.impedimentos == []
+    pasos = {p['paso']: p for p in M.aplicar(plan, m)}
+    assert pasos['respaldo']['ok'] and (tmp_path / 'respaldo' / 'e1' / 'workspace.json').is_file()
+    assert perdido and not pasos['verificar']['ok'] and "faltan ['e1']" in pasos['verificar']['detalle']

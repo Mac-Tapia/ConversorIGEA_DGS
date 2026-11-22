@@ -7,7 +7,8 @@ import re
 import time
 
 from ..evaluacion_modelos import huella, texto_canonico
-from .ajuste_condicionado import decidir_ajuste, evaluar_puertas_reales, manifiesto_de_humanas
+from .ajuste_condicionado import (MIN_ORDENES_REALES, decidir_ajuste, evaluar_puertas_reales, manifiesto_de_humanas,
+                                  manifiesto_de_revisadas)
 from .tareas import TAREAS
 from .sinteticos import normalizar
 
@@ -48,7 +49,19 @@ def auditar_propuestas(filas: list[dict], entrenamiento=()) -> dict:
             'dataset_hash': huella(filas)}
 
 
-def decidir_aceptacion(propuestas: dict, humanas: dict) -> dict:
+def medida_revisadas(metricas: dict, filas: list[dict], manifiesto: dict, textos_entrenamiento) -> dict:
+    """047:RF-68: la medida del conjunto sellado del maestro con lo que acredita: sello, origen, huella y fuga."""
+    entrenamiento = {texto_canonico(t) for t in textos_entrenamiento}
+    textos = [texto_canonico(r['texto']) for r in filas]
+    sellado = (huella(filas) == manifiesto.get('dataset_hash') and manifiesto.get('no_son_humanas') is True
+               and manifiesto.get('entrena') is False)
+    return {**metricas, 'unicos': len(set(textos)), 'dataset_hash': manifiesto.get('dataset_hash'),
+            'sin_fuga': not (set(textos) & entrenamiento), 'sellado': sellado,
+            'origen': 'maestro' if filas and all(r.get('origen') == 'maestro' for r in filas) else 'mezclado',
+            'conjunto': manifiesto.get('conjunto'), 'calidad': manifiesto.get('calidad')}
+
+
+def decidir_aceptacion(propuestas: dict, humanas: dict, maestro_revisadas: dict | None = None) -> dict:
     fallos = []
     if not _casos_coherentes(propuestas):
         fallos.append('evidencia individual incompleta o contradictoria con las métricas')
@@ -79,9 +92,18 @@ def decidir_aceptacion(propuestas: dict, humanas: dict) -> dict:
     n = humanas.get('ejemplos', 0)
     # 047:RF-8, RF-9: las puertas de 027:RF-18 se dicen sobre lo humano: las 200 propuestas no se prestan.
     manifiesto = manifiesto_de_humanas(humanas)
-    return {'puertas_reales': evaluar_puertas_reales(humanas, manifiesto), 'ajuste': decidir_ajuste(humanas, manifiesto),
+    puertas_humanas = evaluar_puertas_reales(humanas, manifiesto)
+    puertas, ajuste = puertas_humanas, decidir_ajuste(humanas, manifiesto)
+    humanas_distintas = manifiesto['ordenes_reales_distintas']
+    humanas_distintas = humanas_distintas if type(humanas_distintas) is int else 0
+    if maestro_revisadas and humanas_distintas < MIN_ORDENES_REALES:
+        # 047:RF-64, RF-65: mientras falten humanas decide el conjunto sellado del maestro; las humanas, aparte.
+        del_maestro = manifiesto_de_revisadas(maestro_revisadas, humanas_distintas)
+        puertas = evaluar_puertas_reales(maestro_revisadas, del_maestro)
+        ajuste = decidir_ajuste(maestro_revisadas, del_maestro)
+    return {'puertas_reales': puertas, 'ajuste': ajuste, 'puertas_humanas': puertas_humanas,
             'asistida': {'aprobada': not fallos, 'confirmacion_obligatoria': True, 'fallos': fallos},
-            'humanas': dict(humanas),
+            'humanas': dict(humanas), 'maestro_revisadas': dict(maestro_revisadas or {}),
             'autonoma': {'aprobada': False, 'motivo': f'{n} órdenes humanas; no se habilita ejecución autónoma'},
             'electrica': {'aprobada': False, 'motivo': 'sin ejecución ni relectura nativa de estos casos'},
             'integral': False, 'propuestas_no_son_humanas': True}
@@ -220,7 +242,7 @@ def estado_aceptacion() -> dict:
                 raise ValueError('casos de evaluación distintos del corpus')
             out['evaluacion'] = {'modelo': r['metricas']['modelo_llm'], 'ejemplos': r['metricas']['ejemplos'],
                 'acierto_tarea': r['metricas']['acierto_tarea'], 'f1_datos': r['metricas']['f1_datos'],
-                'aceptacion': decidir_aceptacion(r['metricas'], r.get('humanas') or {})}
+                'aceptacion': decidir_aceptacion(r['metricas'], r.get('humanas') or {}, r.get('maestro_revisadas'))}
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         out['bloqueos'].append(str(exc))
     return out

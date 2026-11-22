@@ -9,6 +9,8 @@ La lanza ``preparar.mjs``; no forma parte del producto ni de la suite de Python.
 - Todo el arranque va dentro de ``main()``: la conversión abre procesos con «spawn» en Windows y cada hijo vuelve a
   importar este fichero; si el arranque estuviera a nivel de módulo, el hijo crearía otra sesión (la del padre deja de
   valer: 401) y otra web, y la conversión fallaría al arrancar el hijo.
+- Con ``CSG_E2E_ESCALA=1`` (112 T19), la red de la medición de escala (``spec_de_escala``), la misma que mide la API
+  ``tools/benchmark_escala_web.py``, con ``CSG_E2E_TRAMOS`` y ``CSG_E2E_CARGAS`` si la medición usó otras.
 Uso: python -I web_de_prueba.py <raíz del repositorio> <carpeta temporal> <puerto> <semilla> <alimentadores>
   → una línea «LISTA {json}» con la base, la url de entrada (con la sesión), el espacio y los alimentadores.
 """
@@ -42,6 +44,22 @@ def _entorno(raiz: Path, tmp: Path, puerto: int) -> None:
     os.chdir(raiz)
 
 
+def spec_de_la_red(n_alim: int, semilla: int, entorno=None):
+    """El export sintético del espacio y su disposición: sorteada con la semilla o, con ``CSG_E2E_ESCALA=1``, la red de
+    la medición de escala de la web (112:RF-21), en la disposición por omisión, como la de la API."""
+    entorno = os.environ if entorno is None else entorno
+    if entorno.get("CSG_E2E_ESCALA") == "1":
+        from convertersmartgrid.dominio.benchmarks.sintetico import CARGAS_DE_ESCALA, TRAMOS_DE_ESCALA, spec_de_escala
+
+        spec = spec_de_escala(n_alim, semilla=semilla, tramos=int(entorno.get("CSG_E2E_TRAMOS") or TRAMOS_DE_ESCALA),
+                              cargas=int(entorno.get("CSG_E2E_CARGAS") or CARGAS_DE_ESCALA))
+        return spec, spec.layout
+    from synthetic_export import ExportSpec
+
+    disposicion = random.Random(semilla).choice(("reducido", "completo"))
+    return ExportSpec(feeders=n_alim, seed=semilla, layout=disposicion), disposicion
+
+
 def main() -> None:
     raiz, tmp = Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve()
     puerto, semilla, n_alim = int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
@@ -49,7 +67,7 @@ def main() -> None:
 
     import uvicorn
 
-    from synthetic_export import CRS_SINTETICO, ExportSpec, write_export
+    from synthetic_export import CRS_SINTETICO, write_export
     from convertersmartgrid.dominio import sesion_web
     from convertersmartgrid.presentacion.web.app import create_app
 
@@ -89,9 +107,9 @@ def main() -> None:
             time.sleep(0.25)
         raise TimeoutError(job)
 
-    disposicion = random.Random(semilla).choice(("reducido", "completo"))
+    spec, disposicion = spec_de_la_red(n_alim, semilla)
     wid = pedir("POST", "/api/workspaces")["id"]
-    red, cargas, equipo = write_export(ExportSpec(feeders=n_alim, seed=semilla, layout=disposicion), tmp / "export")
+    red, cargas, equipo = write_export(spec, tmp / "export")
     for slot, ruta in (("red", red), ("loads", cargas), ("equipment", equipo)):
         subir(wid, slot, ruta)
     pedir("PUT", f"/api/workspaces/{wid}/options", datos={"include_geography": True, "source_crs": CRS_SINTETICO, "write_preview": True})

@@ -465,23 +465,53 @@ def leer_particion_real(dataset: Path, parte: str, *, custodia: CustodiaCorpus |
     return registros, meta
 
 
-def elegir_version_llm(informes: list[dict]) -> dict:
+def tareas_selladas(meta: dict, parte: str) -> list[str]:
+    """047:RF-60: las tareas que el manifiesto sellado declara para una partición, no las del catálogo vigente."""
+    declaradas = (meta.get('por_tarea') or {}).get(parte) or {}
+    tareas = sorted(t for t in declaradas if t not in (None, 'null', 'None'))
+    if not tareas:
+        raise ValueError(f'el manifiesto sellado no declara las tareas de {parte}')
+    return tareas
+
+
+def no_cubiertas_por_el_sellado(tareas: list[str]) -> dict:
+    """047:RF-60 / 047:RF-61: las tareas del catálogo vigente que el sellado no tiene, dichas y no cerradas."""
+    from .tareas import TAREAS as CATALOGO_VIGENTE
+    faltan = sorted(set(CATALOGO_VIGENTE) - set(tareas))
+    return {'cuantas': len(faltan), 'tareas': faltan,
+            'motivo': 'tareas del catálogo vigente que este sellado no tiene: no se midieron ni se dan por cubiertas'}
+
+
+def elegir_version_llm(informes: list[dict], *, manifiesto: dict | None = None) -> dict:
+    """047:RF-19 / 047:RF-60: elige con selección, contra las tareas que declara el manifiesto sellado del corpus."""
     import math
     if not informes or any(r.get('particion') != 'seleccion' for r in informes):
         raise ValueError('solo se permite elegir con seleccion')
     if len({r.get('dataset_hash') for r in informes}) != 1 or len({r.get('prompt_hash') for r in informes}) != 1:
         raise ValueError('informes de seleccion incompatibles')
+    if not isinstance(manifiesto, dict):
+        raise ValueError('falta el manifiesto sellado del corpus con el que se midio la seleccion')
+    if (informes[0].get('dataset_hash'), informes[0].get('prompt_hash')) != (manifiesto.get('dataset_hash'),
+                                                                             manifiesto.get('prompt_hash')):
+        raise ValueError('informes de seleccion de otro sellado que el del manifiesto')
+    tareas = tareas_selladas(manifiesto, 'seleccion')
     for r in informes:
         m = r['metricas']
-        if (m['ejemplos'] <= 0 or set(m['familias']) != set(TAREAS) or
+        familias = set(m.get('familias') or {})
+        if familias != set(tareas):
+            raise ValueError('metricas de seleccion incompletas para las tareas del sellado; faltan: ' +
+                             (', '.join(sorted(set(tareas) - familias)) or 'ninguna') + '; sobran: ' +
+                             (', '.join(sorted(familias - set(tareas))) or 'ninguna'))
+        if (m['ejemplos'] <= 0 or
             any(type(m[k]) not in (float, int) or not math.isfinite(m[k]) or not 0 <= m[k] <= 1
                 for k in ('acierto_tarea', 'f1_datos'))):
             raise ValueError('metricas de seleccion incompletas')
-    ganador = max(informes, key=lambda r: (sum(f['acierto_tarea'] for f in r['metricas']['familias'].values())/len(TAREAS),
+    ganador = max(informes, key=lambda r: (sum(f['acierto_tarea'] for f in r['metricas']['familias'].values())/len(tareas),
                                           r['metricas']['f1_datos']))
     return {'modelo':ganador['modelo'],'modelo_digest':ganador['modelo_digest'],
             'dataset_hash':ganador['dataset_hash'],'prompt_hash':ganador['prompt_hash'],
             'perfil_prompt':'llm_destilado_v1','criterio':'seleccion',
+            'tareas_selladas':tareas,'no_cubiertas_por_este_sellado':no_cubiertas_por_el_sellado(tareas),
             'metricas_seleccion':ganador['metricas']}
 
 
@@ -563,6 +593,8 @@ def evaluar_version_llm(dataset: Path, modelo: str, *, parte: str = 'seleccion',
             ganador.get('modelo_digest') != instalado['digest'] or ganador.get('dataset_hash') != meta['dataset_hash'] or
             ganador.get('prompt_hash') != meta['prompt_hash']):
             raise ValueError('version distinta de la seleccion fijada')
+        if ganador.get('tareas_selladas') != tareas_selladas(meta, 'seleccion'):
+            raise ValueError('seleccion hecha sin las tareas del sellado del corpus')   # 047:RF-61
     registros, meta = leer_particion_real(dataset, parte)
     custodia = leer_custodia(dataset, meta)
     evidencia = meta['contextos_fuente']; verificar_fuente(evidencia, custodia=custodia)
@@ -577,7 +609,9 @@ def evaluar_version_llm(dataset: Path, modelo: str, *, parte: str = 'seleccion',
         cliente.liberar_gpu(solo_actual=True)
     return {'particion':parte,'modelo':modelo,'modelo_digest':instalado['digest'],
         'dataset_hash':meta['dataset_hash'],'prompt_hash':meta['prompt_hash'],
-        'perfil_prompt':'llm_destilado_v1','metricas':metricas,'escrituras_nativas':0}
+        'perfil_prompt':'llm_destilado_v1','tareas_selladas':tareas_selladas(meta, parte),
+        'no_cubiertas_por_este_sellado':no_cubiertas_por_el_sellado(tareas_selladas(meta, parte)),
+        'metricas':metricas,'escrituras_nativas':0}
 
 
 def config_exportacion(original: dict) -> dict:
@@ -604,25 +638,27 @@ def ficha_base() -> dict:
     return next(m for m in catalogo['modelos'] if m['backend']=='huggingface' and 'Instruct-2507-bnb-4bit' in m['id'])
 
 
-def ejemplos_de_entrenamiento(dataset: Path, *, lectores: dict | None = None) -> tuple[list[dict], dict, str]:
+def ejemplos_de_entrenamiento(dataset: Path, *, lectores: dict | None = None,
+                              parte: str = 'entrenamiento') -> tuple[list[dict], dict, str]:
     """El train sellado, su manifiesto y su prompt de sistema, según el tipo de corpus del manifiesto (072:RF-51).
 
     Sin tipo, el corpus de órdenes con su lector y el prompt del alumno, como hasta ahora. Con tipo, el lector que se
     pase para ese tipo en ``lectores`` (``{tipo: lector(dataset, parte) -> (registros, meta)}``; el de
     ``redaccion_pide`` lo pasa ``tools/asistente_qlora.py``, sin que este módulo dependa del corpus de redacción) y el
-    prompt que selló su manifiesto; un tipo sin lector no se entrena.
+    prompt que selló su manifiesto; un tipo sin lector no se entrena. ``parte`` da otra partición sellada con el mismo
+    lector y el mismo prompt: la que examina al candidato (072:RF-53).
     """
     try:
         tipo = json.loads((Path(dataset) / 'dataset_manifest.json').read_text(encoding='utf-8')).get('tipo_corpus')
     except (OSError, ValueError, AttributeError):
         tipo = None
     if tipo is None:
-        registros, meta = leer_particion_real(dataset, 'entrenamiento')
+        registros, meta = leer_particion_real(dataset, parte)
         return registros, meta, sistema_alumno()
     lector = (lectores or {}).get(tipo)
     if lector is None:
         raise ValueError(f'tipo de corpus sin lector de entrenamiento: {tipo}')
-    registros, meta = lector(dataset, 'entrenamiento')
+    registros, meta = lector(dataset, parte)
     sistema = meta.get('sistema')
     if not isinstance(sistema, str) or not sistema.strip() or meta.get('prompt_hash') != huella(sistema):
         raise ValueError('prompt distinto del protocolo sellado')
@@ -639,6 +675,83 @@ def codificar_ejemplos(tok, sistema: str, registros: list[dict], *, max_tokens: 
         respuesta = tok.encode(r['respuesta'] + tok.eos_token, add_special_tokens=False)
         codificados.append(objetivo_causal(prefijo, respuesta, max_tokens=max_tokens))
     return codificados
+
+
+def perdida_de_respuestas(modelo, codificados: list[tuple[list[int], list[int]]]) -> dict:
+    """La pérdida de las respuestas, sumada por token como en :func:`entrenar_epoca`, sin gradientes (072:RF-53)."""
+    import torch
+    suma, tokens = 0., 0
+    modelo.eval()
+    with torch.no_grad():
+        for ids, labels in codificados:
+            x = torch.tensor([ids], device='cuda', dtype=torch.long)
+            indices = [j-1 for j, v in enumerate(labels) if j > 0 and v != -100]
+            objetivo = torch.tensor([labels[j+1] for j in indices], device='cuda', dtype=torch.long)
+            with torch.autocast('cuda', dtype=torch.bfloat16):
+                logits = modelo(input_ids=x, attention_mask=torch.ones_like(x), use_cache=False,
+                                logits_to_keep=torch.tensor(indices, device='cuda')).logits
+            perdida = torch.nn.functional.cross_entropy(logits[0].float(), objetivo, reduction='sum')
+            if not torch.isfinite(perdida):
+                raise RuntimeError('pérdida no finita al medir')
+            suma += perdida.item(); tokens += len(indices)
+            del x, objetivo, logits, perdida
+    return {'tokens': tokens, 'suma': suma, 'por_token': suma / max(tokens, 1), 'ejemplos': len(codificados)}
+
+
+def medir_redaccion(dataset: Path, adaptador: Path, *, lectores: dict, partes=('seleccion', 'prueba'),
+                    generar: bool = True, semilla: int = 11, max_tokens: int = 2048, max_nuevos: int = 256,
+                    muestreo: dict | None = None, log=print) -> dict:
+    """La base NF4 y el candidato con su adaptador sobre las mismas particiones selladas, en CUDA (072:RF-53, RF-55).
+
+    Comprueba que el adaptador es un checkpoint completo, de la misma base y entrenado con este corpus y este prompt
+    (otro corpus no se examina con este), mide la pérdida por token de cada respuesta con la base y con el adaptador y,
+    con ``generar``, redacta una salida por ejemplo con el candidato, con muestreo y la semilla de su índice. Ni
+    promueve ni exporta nada. ``muestreo`` son los argumentos de ``generate`` (072:RF-59: con la penalización de
+    repeticiones que usa el modelo publicado); sin él, temperatura 0,7 y top-p 0,9.
+    """
+    from .llm_checkpoint import verificar_checkpoint, validar_base_checkpoint
+    adaptador = Path(adaptador)
+    muestreo = dict(muestreo or {'temperature': .7, 'top_p': .9})
+    base = ficha_base()
+    estado = verificar_checkpoint(adaptador.parent)
+    validar_base_checkpoint(estado, base)
+    conjuntos = {}
+    for parte in partes:
+        registros, meta, sistema = ejemplos_de_entrenamiento(dataset, lectores=lectores, parte=parte)
+        conjuntos[parte] = (registros, sistema)
+    if (estado['configuracion'].get('dataset_hash'), estado['configuracion'].get('prompt_hash')) != (
+            meta['dataset_hash'], meta['prompt_hash']):
+        raise ValueError('el adaptador no se entrenó con este corpus sellado y este prompt')
+    modelo, tok, _ficha = _base_local(base)
+    import torch
+    from peft import PeftModel
+    codificados = {p: codificar_ejemplos(tok, s, r, max_tokens=max_tokens) for p, (r, s) in conjuntos.items()}
+    perdidas = {p: {'base': perdida_de_respuestas(modelo, c)} for p, c in codificados.items()}
+    log(json.dumps({'medido': 'base', 'perdidas': {p: v['base']['por_token'] for p, v in perdidas.items()}}))
+    modelo = PeftModel.from_pretrained(modelo, adaptador, local_files_only=True)
+    for p, c in codificados.items():
+        perdidas[p]['candidato'] = perdida_de_respuestas(modelo, c)
+    log(json.dumps({'medido': 'candidato', 'perdidas': {p: v['candidato']['por_token'] for p, v in perdidas.items()}}))
+    salidas = {}
+    if generar:
+        for p, (registros, sistema) in conjuntos.items():
+            textos = []
+            for i, r in enumerate(registros):
+                prompt = tok.apply_chat_template([{'role': 'system', 'content': sistema},
+                    {'role': 'user', 'content': r['texto']}], tokenize=False, add_generation_prompt=True)
+                ids = torch.tensor([tok.encode(prompt, add_special_tokens=False)], device='cuda')
+                torch.manual_seed(semilla + i)
+                with torch.no_grad():
+                    nuevo = modelo.generate(input_ids=ids, attention_mask=torch.ones_like(ids), do_sample=True,
+                                            max_new_tokens=max_nuevos, **muestreo)
+                textos.append(tok.decode(nuevo[0][ids.shape[1]:], skip_special_tokens=True).strip())
+            salidas[p] = textos
+    del modelo
+    torch.cuda.empty_cache()
+    return {'perdidas': perdidas, 'salidas': salidas, 'adaptador': str(adaptador.resolve()),
+            'checkpoint': {'epoca': estado.get('epoca'), 'loss_media': estado.get('loss_media'),
+                           'artefactos': estado.get('artefactos')},
+            'base': {'id': base['id'], 'revision': base['revision']}, 'device': 'cuda', 'muestreo': muestreo}
 
 
 def entrenar_epoca(dataset: Path, destino: Path, *, epoca: int = 1, desde: Path | None = None,

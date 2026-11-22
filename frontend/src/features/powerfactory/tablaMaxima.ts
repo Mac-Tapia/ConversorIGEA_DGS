@@ -10,6 +10,14 @@ import { fmtNum } from '../../shared/formato';
  */
 export type TipoAnalisis = 'alimentadores' | 'set' | 'sistema';
 
+/**
+ * 086:RF-135: si el servidor tiene en memoria las curvas de esta máxima. Solo guarda las de la última búsqueda y las
+ * pierde al reiniciarse; pedir las de otra daba 404 y errores en la consola al abrir la web.
+ */
+export function curvasEnMemoria(enMemoria: readonly string[] | null | undefined, jobId: string | null | undefined): boolean {
+  return Boolean(jobId) && (enMemoria ?? []).includes(jobId as string);
+}
+
 export interface ResultadoMaxima {
   resultados?: MaximaCabecera[];
   ambito?: AmbitoMaxima;

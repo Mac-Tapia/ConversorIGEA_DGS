@@ -525,6 +525,8 @@ class EspacioRespuesta(Respuesta):
     demanda: dict[str, DemandaRespuesta]
     # 039:RF-15: los clientes fijos que el operador subió «a su máxima» en la tabla cruzada.
     fijas_a_su_maxima: list[str] = Field(default_factory=list)
+    # 086:RF-135: las máximas buscadas cuyas curvas sigue teniendo el servidor en memoria.
+    curvas_cabecera: list[str] = Field(default_factory=list)
     last_seq: int
     jobs: list[JobRespuesta] | None = None
     warning: str | None = None

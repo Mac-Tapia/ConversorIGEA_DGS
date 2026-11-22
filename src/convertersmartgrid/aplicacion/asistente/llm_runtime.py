@@ -20,8 +20,22 @@ def sha256_en_commit(repo: Path, ruta: str) -> str:
     return hashlib.sha256(contenido).hexdigest()
 
 
-def publicar(checkpoint: Path,destino: Path,modelo: str,*,log=print) -> dict:
-    """Cada proceso termina y se verifica antes de iniciar el siguiente."""
+def texto_modelfile(parametros: dict | None = None) -> str:
+    """El Modelfile del alumno: el GGUF, su contexto y los parámetros de decodificación que se pidan (072:RF-59)."""
+    lineas = ['FROM ./alumno.Q4_K_M.gguf', 'PARAMETER num_ctx 4096']
+    for clave, valor in (parametros or {}).items():
+        if not re.fullmatch(r'[a-z_]+', str(clave)) or isinstance(valor, bool) or not isinstance(valor, (int, float)):
+            raise ValueError(f'parámetro del Modelfile no admitido: {clave}')
+        lineas.append(f'PARAMETER {clave} {valor}')
+    return '\n'.join(lineas) + '\n'
+
+
+def publicar(checkpoint: Path,destino: Path,modelo: str,*,log=print,parametros: dict | None = None) -> dict:
+    """Cada proceso termina y se verifica antes de iniciar el siguiente.
+
+    ``parametros`` van al Modelfile (072:RF-59: el modelo de redacción se publica con su penalización de repeticiones).
+    """
+    modelfile=texto_modelfile(parametros)
     from .ollama import ClienteOllama
     checkpoint=checkpoint.resolve(); destino=destino.resolve()
     estado=verificar_checkpoint(checkpoint)
@@ -72,7 +86,7 @@ def publicar(checkpoint: Path,destino: Path,modelo: str,*,log=print) -> dict:
         huella=sha256(temporal)
         gguf=destino/'alumno.Q4_K_M.gguf';temporal.replace(gguf)
         mf=destino/'Modelfile'
-        mf.write_text('FROM ./alumno.Q4_K_M.gguf\nPARAMETER num_ctx 4096\n',encoding='utf-8')
+        mf.write_text(modelfile,encoding='utf-8')
         tags_finales=cliente._pedir('/api/tags')
         if tags_finales is None or any(m.get('name')==modelo for m in tags_finales.get('models',[])):
             raise ValueError('tag existente o inventario no disponible antes de importar')
@@ -82,7 +96,7 @@ def publicar(checkpoint: Path,destino: Path,modelo: str,*,log=print) -> dict:
             raise ValueError('falta readback del modelo o el GGUF cambio')
         resultado={'publicado':True,'activado':False,'modelo':modelo,'modelo_digest':instalado['digest'],
             'sha256_gguf':huella,'checkpoint':str(checkpoint),'checkpoint_estado_sha256':sha256(checkpoint/'estado.json'),
-            'configuracion':estado['configuracion'],'exportacion':export,'etapas':etapas}
+            'configuracion':estado['configuracion'],'exportacion':export,'etapas':etapas,'modelfile':modelfile}
         publicar_duradero(destino/'runtime.json', json.dumps(resultado,indent=2))
         return resultado
     except Exception as exc:

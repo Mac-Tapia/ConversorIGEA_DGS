@@ -28,6 +28,8 @@ def main(argv=None):
     a.add_argument('--checkpoint',type=Path,required=True)
     a.add_argument('--destino',type=Path,required=True)
     a.add_argument('--modelo',required=True)
+    a.add_argument('--redaccion',action='store_true',
+                   help='publica el modelo de redacción del PIDE con su decodificación: penaliza repetir frases')
     a=sub.add_parser('sellar')
     a.add_argument('--dataset',type=Path)
     a.add_argument('--custodia',type=Path)
@@ -53,6 +55,7 @@ def main(argv=None):
     a.add_argument('--seleccion',type=Path)
     a=sub.add_parser('elegir')
     a.add_argument('--informe',type=Path,action='append',required=True)
+    a.add_argument('--dataset',type=Path)
     a.add_argument('--destino',type=Path,required=True)
     args=p.parse_args(argv)
     creado=False
@@ -67,15 +70,24 @@ def main(argv=None):
             print(json.dumps(resultado,ensure_ascii=True));return 0
         if args.accion=='publicar':
             from convertersmartgrid.aplicacion.asistente.llm_runtime import publicar
-            resultado=publicar(args.checkpoint,args.destino,args.modelo)
+            parametros=None
+            if args.redaccion:
+                from convertersmartgrid.aplicacion.asistente.corpus_redaccion import DECODIFICACION
+                parametros=dict(DECODIFICACION)  # 072:RF-59
+            resultado=publicar(args.checkpoint,args.destino,args.modelo,parametros=parametros)
             print(json.dumps({k:resultado[k] for k in ('publicado','activado','modelo','modelo_digest','sha256_gguf')}))
             return 0
         if args.accion=='elegir':
             from convertersmartgrid.aplicacion.asistente.llm_destilacion import elegir_version_llm
-            resultado=elegir_version_llm([json.loads(p.read_text(encoding='utf-8')) for p in args.informe])
+            if args.dataset is None:
+                raise ValueError('elegir pide --dataset: el corpus sellado con el que se midio la seleccion')
+            resultado=elegir_version_llm([json.loads(p.read_text(encoding='utf-8')) for p in args.informe],
+                manifiesto=json.loads((args.dataset/'dataset_manifest.json').read_text(encoding='utf-8')))
             args.destino.mkdir(parents=True);creado=True
             (args.destino/'seleccion.json').write_text(json.dumps(resultado,indent=2,ensure_ascii=False),encoding='utf-8')
-            print(json.dumps({'ok':True,'modelo':resultado['modelo'],'criterio':'seleccion'}));return 0
+            print(json.dumps({'ok':True,'modelo':resultado['modelo'],'criterio':'seleccion',
+                              'tareas_selladas':len(resultado['tareas_selladas']),
+                              'no_cubiertas':resultado['no_cubiertas_por_este_sellado']['cuantas']}));return 0
         if args.accion=='evaluar':
             from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu  # 071:RF-8
             from convertersmartgrid.aplicacion.asistente.llm_destilacion import evaluar_version_llm

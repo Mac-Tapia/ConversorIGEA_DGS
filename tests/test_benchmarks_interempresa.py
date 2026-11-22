@@ -278,12 +278,14 @@ def test_112_rf16_rf19_la_herramienta_sale_con_3_y_escribe_el_informe_con_dos_em
     assert herramienta.main(['vnr', '--empresas', str(tmp_path / 'no_existe'), '--salida', str(salida)]) == 1
 
 
-def test_069_rf41_la_particion_de_las_humanas_sigue_bloqueada_por_datos_con_su_causa():
-    """069:RF-41 — sin la empresa ni el grupo de paráfrasis de las humanas no hay código que lo cumpla: la tarea sigue
-    abierta y dice qué falta y quién lo da, en vez de cerrarse con una partición inventada."""
+def test_069_rf41_la_particion_de_las_humanas_no_inventa_sus_etiquetas():
+    """069:RF-41 — la T13 se cerró con el código que parte las humanas etiquetadas, sin inventar la empresa ni el grupo
+    de paráfrasis de las que no los traen: su cierre dice que las guardadas aún esperan esas etiquetas y quién las da."""
+    from convertersmartgrid.aplicacion.asistente import validacion_cruzada as vc
+    assert getattr(vc, 'CAMPOS_PARTICION', None) == ('empresa', 'fecha', 'grupo'), 'falta la partición de las humanas'
     tareas = next((RAIZ / 'specs').glob('069-*/tasks.md')).read_text(encoding='utf-8')
     bloque = re.search(r'^- \[( |x)\] T13 .*?(?=^- \[|\Z)', tareas, re.S | re.M)
     assert bloque, 'falta la T13 de la 069'
-    assert bloque.group(1) == ' ', 'la T13 no se cierra sin las humanas etiquetadas'
-    assert 'RF-41' in bloque.group(0) and 'Bloqueada por datos' in bloque.group(0)
-    assert 'Siguiente acción' in bloque.group(0)
+    assert 'RF-41' in bloque.group(0) and 'Siguiente acción' in bloque.group(0)
+    if bloque.group(1) == 'x':
+        assert 'particionar_humanas' in bloque.group(0) and 'etiqu' in bloque.group(0)

@@ -16,9 +16,12 @@ Cada tamaño corre en un proceso propio, así la memoria pico de 200 no arrastra
 de una empresa. El resultado lleva la revisión del código con que se midió, para repetirlo sobre el mismo commit.
 
 El dibujo del frontend necesita un navegador real: aquí queda «no medido», con su motivo, nunca como cero. Se mide
-aparte con su guion de navegador.
+aparte con su guion de navegador (``frontend/e2e/escala_dibujo.mjs``, 112 T19), que deja un ``dibujo_<N>.json`` por
+tamaño; con ``--dibujo CARPETA`` el resultado enlaza cada tamaño con el suyo, solo si se midió con el mismo commit y la
+misma red sintética.
 
-Uso: ``python tools/benchmark_escala_web.py --tamanos 10 50 200 --salida escala.json``
+Uso: ``python tools/benchmark_escala_web.py --tamanos 10 50 200 --salida escala.json [--dibujo CARPETA]``
+     ``python tools/benchmark_escala_web.py --salida escala.json --dibujo CARPETA --solo-enlazar``
 """
 from __future__ import annotations
 
@@ -36,6 +39,16 @@ from pathlib import Path
 from typing import Self
 
 RAIZ = Path(__file__).resolve().parents[1]
+if str(RAIZ / 'src') not in sys.path:
+    sys.path.insert(0, str(RAIZ / 'src'))
+# La red de la medición, la misma que dibuja el guion de navegador (112 T19).
+from convertersmartgrid.dominio.benchmarks.sintetico import (  # noqa: E402
+    CARGAS_DE_ESCALA,
+    SEMILLA_DE_ESCALA,
+    TRAMOS_DE_ESCALA,
+    spec_de_escala,
+)
+
 TAMANOS_POR_DEFECTO = (10, 50, 200)
 FORMATO = 1
 #: El dibujo del frontend no se puede medir sin un navegador real (lo que pinta y cuándo lo pinta lo decide él).
@@ -44,6 +57,10 @@ RENDER_NO_MEDIDO = ('no medido: el dibujo de la pantalla necesita un navegador r
 #: Solo nombra el fichero de la sesión temporal (ningún socket se abre).
 PUERTO_DE_LA_SESION = 8791
 TERMINALES = ('done', 'parcial', 'no_converge', 'failed', 'cancelled', 'interrumpido')
+#: El JSON que deja el guion de navegador de la T19 para cada tamaño, en la carpeta de ``--dibujo``.
+NOMBRE_DIBUJO = 'dibujo_{n}.json'
+#: Las magnitudes del dibujo que se copian al resultado: cada una con su p50 y su p95, en milisegundos.
+MAGNITUDES_DEL_DIBUJO = ('tabla', 'plano')
 
 
 def percentil(valores: list[float], p: float) -> float:
@@ -161,7 +178,7 @@ def _cronometrar(cliente, ruta: str, repeticiones: int) -> dict:
 def medir_tamano(alimentadores: int, *, repeticiones: int, semilla: int, tramos: int, cargas: int,
                  tope_s: float) -> dict:
     """Mide un tamaño en este proceso: genera la red, levanta la app y llama a la API como la pantalla."""
-    from convertersmartgrid.dominio.benchmarks.sintetico import ExportSpec, write_export
+    from convertersmartgrid.dominio.benchmarks.sintetico import write_export
 
     with tempfile.TemporaryDirectory(prefix='csg_escala_', ignore_cleanup_errors=True) as tmp:
         carpeta = Path(tmp)
@@ -174,8 +191,7 @@ def medir_tamano(alimentadores: int, *, repeticiones: int, semilla: int, tramos:
 
         # Se mide la web y su API, no la carga de los modelos del asistente, que es aparte y depende de la máquina.
         services._asistente_modelos = lambda: (None, None)
-        spec = ExportSpec(feeders=alimentadores, sections_per_feeder=tramos, loads_per_feeder=cargas, seed=semilla,
-                          size_cycle=min(10, alimentadores))
+        spec = spec_de_escala(alimentadores, semilla=semilla, tramos=tramos, cargas=cargas)
         red, carga, equipo = write_export(spec, carpeta / 'export')
         app = create_app(carpeta / 'web')
         # El cliente se presenta desde esta máquina, como el navegador del operador.
@@ -210,6 +226,54 @@ def medir_tamano(alimentadores: int, *, repeticiones: int, semilla: int, tramos:
             'ram_pico_mib': round(memoria.pico / mib, 1),
             'render': {'medido': False, 'motivo': RENDER_NO_MEDIDO},
         }
+
+
+def _no_medido(motivo: str) -> dict:
+    return {'medido': False, 'motivo': f'no medido: {motivo}'}
+
+
+def _dibujo_del_tamano(medida: dict, red: dict, commit: str | None, carpeta: Path) -> dict:
+    """El ``render`` de un tamaño: el dibujo medido por el guion de navegador, o «no medido» con su motivo."""
+    n = medida['alimentadores']
+    ruta = carpeta / NOMBRE_DIBUJO.format(n=n)
+    if not ruta.is_file():
+        return _no_medido(f'falta {ruta.name} en {carpeta.as_posix()} (guion frontend/e2e/escala_dibujo.mjs)')
+    try:
+        dibujo = json.loads(ruta.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:  # justificado: un JSON roto no es un dibujo medido; se dice cuál y por qué
+        return _no_medido(f'{ruta.name} no se puede leer: {exc}')
+    otro = (dibujo.get('revision') or {}).get('commit')
+    if not commit or otro != commit:
+        return _no_medido(f'{ruta.name} se midió con el commit {otro}, no con el de la API ({commit})')
+    if dibujo.get('alimentadores') != n:
+        return _no_medido(f'{ruta.name} es de {dibujo.get("alimentadores")} alimentadores, no de {n}')
+    suya = dibujo.get('red_sintetica') or {}
+    claves = ('semilla', 'tramos_tipicos', 'cargas_tipicas')
+    if any(suya.get(c) != red.get(c) for c in claves):
+        return _no_medido(f'{ruta.name} se midió con otra red sintética ({ {c: suya.get(c) for c in claves} })')
+    render = {'medido': True, 'json': ruta.as_posix(), 'commit': otro, 'navegador': dibujo.get('navegador'),
+              'repeticiones': dibujo.get('repeticiones')}
+    for magnitud in MAGNITUDES_DEL_DIBUJO:
+        valores = dibujo.get(magnitud) or {}
+        p50, p95 = valores.get('p50_ms'), valores.get('p95_ms')
+        if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 for v in (p50, p95)):
+            return _no_medido(f'{ruta.name} no trae p50 y p95 positivos de «{magnitud}»')
+        render[f'{magnitud}_p50_ms'], render[f'{magnitud}_p95_ms'] = float(p50), float(p95)
+    return render
+
+
+def enlazar_dibujo(resultado: dict, carpeta: Path) -> dict:
+    """112:RF-21 (T19): enlaza cada tamaño del resultado con el dibujo medido en el navegador real para ese tamaño.
+
+    Solo se toma un ``dibujo_<N>.json`` medido con el mismo commit, el mismo número de alimentadores y la misma red
+    sintética, con p50 y p95 positivos de la tabla y del plano; si no, el tamaño sigue «no medido», con el motivo, y
+    nunca con un cero."""
+    commit = (resultado.get('revision') or {}).get('commit')
+    red = resultado.get('red_sintetica') or {}
+    for medida in resultado.get('tamanos') or []:
+        medida['render'] = _dibujo_del_tamano(medida, red, commit, carpeta)
+    resultado['dibujo'] = carpeta.as_posix()
+    return resultado
 
 
 def _git(*args: str) -> str | None:
@@ -257,15 +321,23 @@ def _argumentos(argv: list[str] | None) -> argparse.Namespace:
                    help='números de alimentadores a medir (por defecto 10 50 200)')
     p.add_argument('--repeticiones', type=int, default=30,
                    help='llamadas por petición para el p50 y el p95, tras la primera, que se da aparte (30)')
-    p.add_argument('--semilla', type=int, default=112, help='semilla de las redes sintéticas, la misma en cada tamaño')
-    p.add_argument('--tramos', type=int, default=200, help='tramos típicos por alimentador (200)')
-    p.add_argument('--cargas', type=int, default=60, help='cargas típicas por alimentador (60)')
+    p.add_argument('--semilla', type=int, default=SEMILLA_DE_ESCALA,
+                   help=f'semilla de las redes sintéticas, la misma en cada tamaño ({SEMILLA_DE_ESCALA})')
+    p.add_argument('--tramos', type=int, default=TRAMOS_DE_ESCALA,
+                   help=f'tramos típicos por alimentador ({TRAMOS_DE_ESCALA})')
+    p.add_argument('--cargas', type=int, default=CARGAS_DE_ESCALA,
+                   help=f'cargas típicas por alimentador ({CARGAS_DE_ESCALA})')
     p.add_argument('--tope', type=float, default=1800.0, help='segundos máximos de la carga de la red por tamaño')
     p.add_argument('--salida', type=Path, help='JSON del resultado; sin ella, se escribe en la salida estándar')
+    p.add_argument('--dibujo', type=Path, help='carpeta con los dibujo_<N>.json del guion de navegador, que se enlazan')
+    p.add_argument('--solo-enlazar', action='store_true',
+                   help='no mide: enlaza el dibujo con el resultado que ya está en --salida')
     p.add_argument('--un-tamano', type=_tamano, help=argparse.SUPPRESS)
     args = p.parse_args(argv)
     if args.repeticiones < 2:
         p.error('hacen falta al menos 2 repeticiones para un percentil')
+    if args.solo_enlazar and not (args.salida and args.dibujo):
+        p.error('--solo-enlazar necesita --salida (el resultado que ya existe) y --dibujo')
     return args
 
 
@@ -277,6 +349,19 @@ def main(argv: list[str] | None = None) -> int:
         resultado = medir_tamano(args.un_tamano, repeticiones=args.repeticiones, semilla=args.semilla,
                                  tramos=args.tramos, cargas=args.cargas, tope_s=args.tope)
         print(json.dumps(resultado, ensure_ascii=False))
+        return 0
+    from convertersmartgrid.dominio.util import write_json_atomic
+
+    if args.solo_enlazar:
+        try:
+            resultado = json.loads(args.salida.read_text(encoding='utf-8'))
+        except (OSError, ValueError) as exc:  # justificado: sin resultado que enlazar no se escribe nada; se dice por qué
+            print(f'Error: no se puede leer {args.salida}: {exc}', file=sys.stderr)
+            return 1
+        write_json_atomic(args.salida, enlazar_dibujo(resultado, args.dibujo))
+        for medida in resultado['tamanos']:
+            print(f"{medida['alimentadores']} alimentadores: dibujo "
+                  f"{'medido' if medida['render']['medido'] else medida['render']['motivo']}", file=sys.stderr)
         return 0
     import psutil
 
@@ -302,9 +387,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{n} alimentadores: carga {medida['carga_red_s']} s, alimentadores p95 "
               f"{medida['api']['alimentadores']['p95_ms']} ms, memoria pico {medida['ram_pico_mib']} MiB",
               file=sys.stderr)
+    if args.dibujo:
+        enlazar_dibujo(resultado, args.dibujo)
     if args.salida:
-        from convertersmartgrid.dominio.util import write_json_atomic
-
         args.salida.parent.mkdir(parents=True, exist_ok=True)
         write_json_atomic(args.salida, resultado)
     else:

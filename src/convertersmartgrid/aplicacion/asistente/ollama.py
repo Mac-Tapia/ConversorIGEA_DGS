@@ -180,6 +180,22 @@ class ClienteOllama:
         return {'tarea': tarea, 'confianza': confianza, 'datos': datos, 'modelo': f'ollama:{self.modelo}',
                 'razon': str(respuesta.get('razon') or ''), 'segundos': segundos}
 
+    def redactar(self, sistema: str, instruccion: str, *, semilla: int = 0, temperatura: float = 0.7,
+                 max_nuevos: int = 256, top_p: float = 0.9, repeat_penalty: float = 1.15,
+                 repeat_last_n: int = 256) -> str | None:
+        """Lo que redacta el modelo con el prompt de sistema sellado y una instrucción (072:RF-55); ``None`` si calla.
+
+        Es la misma conversación con la que se ajustó el modelo de redacción: su prompt de sistema y la instrucción,
+        sin nada más, para que lo examinado sea lo aprendido. Penaliza repetir lo ya escrito (072:RF-59): sin ello, el
+        candidato del 2026-11-21 encadenó la misma frase hasta el tope.
+        """
+        r = self._pedir('/api/chat', {
+            'model': self.modelo, 'stream': False, 'keep_alive': RETENER, 'think': False,
+            'options': {'temperature': temperatura, 'top_p': top_p, 'seed': semilla, 'num_predict': max_nuevos,
+                        'repeat_penalty': repeat_penalty, 'repeat_last_n': repeat_last_n},
+            'messages': [{'role': 'system', 'content': sistema}, {'role': 'user', 'content': instruccion}]})
+        return None if r is None else ((r.get('message') or {}).get('content') or '').strip()
+
     def responder(self, pregunta: str, contexto: Sequence[str]) -> str | None:
         """Una respuesta redactada solo con los trozos dados, citándolos por su número (RF-18)."""
         trozos = '\n'.join(f'[{i + 1}] {t}' for i, t in enumerate(contexto))

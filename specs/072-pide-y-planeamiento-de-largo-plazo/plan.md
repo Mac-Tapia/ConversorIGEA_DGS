@@ -18,6 +18,77 @@ Se reutilizan `pide.py`, `pide_economia.py`, `tools/pide_pf.py`, `crecimiento.py
 | COyM del perfil en la propuesta | RF-22 | `propuesta_pide(coym_pct_anual=)`, `formatos_pide._por_grupo`; lo pasa `web/services.py` |
 | Tipo de análisis en la web (T17) | RF-29 a RF-38 | `estudio_planeamiento.tipos_de_analisis`, `GET /api/planeamiento/tipos`, `PideIn.plazo`, `TipoDeAnalisis.tsx` |
 | SICODI en libro de cálculo (T18) | RF-39 a RF-41 | `costos_fuentes.leer_sicodi`, `_leer_libro_sicodi`, `HojaSicodi`, `TablaCostos.ambiguos` y `resolver`, `SUBFAMILIA_POR_TIPO`; `demanda_medida.iterar_filas_de_hoja`; `metrados.valorar_metrados` |
+| Ratificación de la revisión C4 (T28) | RF-63 a RF-68 | `corpus_redaccion.tramos_de_documentos`, `_CODIGO_COMPUESTO`, `_PREFIJO_A_LA_VISTA`, `_patron_nombre`, `_LUGAR`, `catalogo_del_corpus`, `sin_encabezado`, `revisar_salida`, `_sellado_anterior` |
+| Correcciones del rechazo del primer candidato (T27) | RF-58 a RF-62 | `corpus_redaccion.SISTEMA_REDACCION`, `SISTEMAS_REDACCION`, `DECODIFICACION`, `frase_repetida`, `repartir_documentos(fijos=)`, `sellar_corpus_redaccion(anterior=)`; `llm_runtime.texto_modelfile`; `llm_destilar.py publicar --redaccion`; `corpus_redaccion_pide.py --anterior` |
+| Puertas del modelo de redacción (T26) | RF-53 a RF-57 | `corpus_redaccion.decidir_redaccion`, `revisar_salida`, `catalogo_sellado`, `puerta_interprete`; `llm_destilacion.medir_redaccion`; `ClienteOllama.redactar`; `tools/asistente_qlora.py evaluar` |
+
+## Lo que halló la ratificación de la revisión C4 (T28, 2026-11-22)
+
+El revisor independiente ratificó 922 de las 1 255 decisiones que propuso la revisión C4 repetida. Solo esas se
+registran, con su revisor. Decisiones (las recomendadas):
+
+- Códigos: se oculta entero un código con guion o subrayado que lleve una cifra o un subrayado. Las palabras compuestas
+  («teórico-práctico») y los periodos («‹n›-‹n›») no son códigos. Lo que ya quedó a medias («YUS_‹n›») también se
+  oculta, para que un segundo paso del anonimizado no deje la sigla a la vista.
+- Nombres: en lugar de poner variantes en un catálogo (que tendría nombres reales), el patrón de cada nombre admite
+  tildes, codificación rota y un final distinto. Además, los nombres que el propio corpus señala (tras «SET», una sede o
+  un lugar) entran en el catálogo en cada sellado. Una palabra que el corpus escribe en minúscula no se recoge: así no se
+  oculta «Distribución» por salir tras «zonal de». Ocultar de más es seguro; ocultar de menos filtra la red.
+- Encabezado: se quitan las líneas «… – Mes ‹n›» y «Página ‹n› de ‹n›» del texto anonimizado. Un fragmento que solo
+  traía eso no entra.
+- Las reglas del maestro sobre el texto con las cifras ocultas (`MEJ31c_REDACCION/revisar_c4_maestro.py`) no sirven para
+  decidir: su regla de «menos de 12 palabras» cuenta las cifras como palabras y rechaza las tablas al ocultarlas. Quedan
+  como medida; lo registrado es lo ratificado.
+- Con las particiones fijas del sellado anterior, selección y prueba se quedaban en 23 y 22 ejemplos: dos informes
+  traen 1 227 de los 1 295. Decisión del coordinador: el sellado nuevo va sin `--anterior` (el candidato v1 ya está
+  rechazado y no hace falta compararlo en las mismas particiones), y un documento mayor que la décima parte se parte en
+  tramos seguidos de la centésima parte (RF-68). Cada tramo es un trozo seguido de una sección y va entero a su
+  partición; los repetidos ya se quitaron en todo el corpus, así que un tramo de examen no repite un texto que entrena.
+  Quedan 129 ejemplos en cada apartada.
+
+## Correcciones del rechazo del primer candidato de redacción (T27, 2026-11-22)
+
+El examen real rechazó el primer candidato por un caso de prueba: cifras y la misma frase encadenada. Decisiones (las
+recomendadas):
+
+- La causa del bucle está en el corpus: al ocultar los códigos, filas distintas de una tabla («Remodelación de troncal
+  y ramales por antigüedad del alimentador A101», «… A102») quedan iguales y seguidas; 15 de las 704 respuestas selladas
+  eran así, y es la frase que repitió el candidato. Se dejan fuera al sellar (RF-61) y se rechazan en las salidas
+  (RF-60). Solo cuenta la repetición seguida: las filas parecidas de una tabla no se repiten enteras a continuación.
+- Las respuestas selladas ya no traen dígitos (las 704 usan los marcadores; 526 llevan ‹n›), pero el prompt solo
+  describía los marcadores: el nuevo los exige (RF-58). Cambia su huella, así que el corpus se sella de nuevo; el
+  prompt anterior sigue leyéndose para examinar el candidato que ya se entrenó con él.
+- Decodificación: `repeat_penalty` 1,15 sobre las últimas 256 fichas en Ollama (petición y Modelfile) y, con
+  transformers, `repetition_penalty` 1,15 y `no_repeat_ngram_size` 8 (RF-59). Prohibir los dígitos al decodificar no es
+  posible en Ollama y escondería el fallo del modelo, así que no se hace: la puerta de RF-54 sigue siendo la que decide.
+- Más ejemplos: 1 901 decisiones del maestro eran «corregir C4» solo porque los nombres no se ocultaban. RF-49 ya los
+  oculta; la revisión del maestro, repetida sobre el texto con los nombres ocultos y con sus mismas reglas
+  (`MEJ31b_REDACCION/revisar_c4_maestro.py`), aprueba 1 255 (origen «maestro», fecha 2026-11-22). Se registran como
+  decisiones nuevas del maestro, no como cambio del código, y entran en un sellado nuevo que conserva las particiones del
+  anterior (RF-62): lo que examinaba sigue examinando.
+
+## Puertas del modelo de redacción (T26, 2026-11-21)
+
+Decisión (la recomendada, de ingeniería): de las puertas de 070 y 071 aplican a un modelo de redacción las que miden lo
+que ese modelo hace, con su corpus y sobre la misma partición:
+
+- 071:RF-4 (no empeorar al modelo en uso en la misma prueba) se traduce en la pérdida por token de la respuesta frente a
+  la base NF4, que es lo que hoy redacta: en selección y en prueba, sin holgura (RF-53). Se mide con el adaptador porque
+  Ollama no devuelve la verosimilitud de un texto dado; con el modelo de Ollama solo se examinan sus salidas.
+- 071:RF-7 y RF-8 (turno de GPU común) aplican tal cual: la medida y la redacción van dentro de `turno_gpu`.
+- 047:RF-8 (sin promover): el informe nunca promueve ni activa; publicar en Ollama no es activar.
+- 071:RF-1 a RF-3, RF-5 y RF-6 son de la PINN y del reentreno automático: no aplican.
+- 070 T22 (la prueba sellada del intérprete, 085) mide al modelo de órdenes. El modelo de redacción no lo sustituye: el
+  puntero del intérprete no cambia y su prueba sellada no puede bajar por este ajuste. No se repite: si alguna vez se
+  quisiera usar el candidato también como intérprete, se comparan los informes de `llm_destilar.py evaluar --parte
+  prueba` del candidato y del modelo en uso (RF-56); sin ellos, no es activable como intérprete.
+- Lo propio de la redacción (RF-54): ninguna salida deja nombres de empresa, sede o instalación (el anonimizador de RF-49
+  con el catálogo del sellado, comprobado por su huella) ni códigos o cifras que no estén en la entrada
+  (`contradicciones.cifras_sin_respaldo`, la lectura de cifras de 047:RF-52 y RF-53). Como las entradas son la
+  instrucción fija de su uso, cualquier cifra de la salida es inventada.
+
+Las salidas se generan con muestreo (temperatura 0,7, top-p 0,9) y la semilla de cada ejemplo: con instrucciones fijas,
+la decodificación voraz daría una sola salida por uso y no examinaría nada.
 
 ## SICODI en libro de cálculo (T18, 2026-11-14)
 

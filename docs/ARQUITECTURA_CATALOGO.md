@@ -13,7 +13,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 133 |
 | Interfaz | `frontend/src/` | 121 |
 | Pruebas de la interfaz | `frontend/test/` | 65 |
-| Pruebas | `tests/` | 653 |
+| Pruebas | `tests/` | 658 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 5 |
 | retirada | 1 |
 
-112 specs con 4014 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 4041 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -682,7 +682,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | --- | --- | --- | --- |
 | `sinteticos.py` | Apl | 026 | Órdenes sintéticas por plantilla con los nombres reales del espacio y erratas solo en las palabras de la plantilla. |
 | `ordenes_fijas.py` | Apl | 027 | Las 200 órdenes fijas del asistente escritas por el maestro (Claude), de todas las tareas y distintas de las plantillas, con su huella y su reparto… |
-| `ordenes_maestro.py` | Apl | 085 | Órdenes que redacta el maestro en el estilo del operador: las valida, aparta por tarea un 25 % de sus familias para examen y dice qué conjunto decide… |
+| `ordenes_maestro.py` | Apl | 085, 047 | Órdenes que redacta el maestro en el estilo del operador: las valida, aparta por tarea un 25 % de sus familias para examen y dice qué conjunto decide… |
 | `maestro_real.py` | Apl | 068 | Lee y valida las etiquetas de plata del maestro sobre textos reales, dice cuándo dos textos son la misma frase o familia y añade las erratas… |
 | `curriculo_maestro.py` | Apl | 047, 068 | Familias sintéticas de órdenes escritas por el maestro de sesión, separadas antes del entrenamiento, y frases de estilo real solo de entrenamiento. |
 | `curriculo_llm_real.py` | Apl | 047 | Solicitudes nuevas de prueba redactadas por el maestro. |
@@ -699,7 +699,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `ajuste_condicionado.py` | Apl | 047 | Puertas de 027:RF-18 sobre órdenes reales independientes y decisión de ajustar el LLM, sin entrenar ni activar. |
 | `llm_destilacion.py` | Apl | 047, 060 | Custodia de referencia, corpus del LLM con entidades reales y objetivos causales de respuesta. |
 | `llm_checkpoint.py` | Apl | 002 | Comprobaciones de un checkpoint, comunes a entrenar y publicar. |
-| `llm_runtime.py` | Apl | 047 | Verifica checkpoints y publica exportación, GGUF e importación local secuencial con hashes y readback. |
+| `llm_runtime.py` | Apl | 047, 072 | Verifica checkpoints y publica exportación, GGUF e importación local secuencial con hashes y readback, con los parámetros de decodificación en su… |
 | `custodia_corpus.py` | Apl | 047, 065 | Resolución explícita y verificable de fuentes custodiadas tras su traslado, sin alterar ejemplos ni particiones. |
 | `reubicacion_corpus.py` | Apl | 047, 065 | Nueva custodia externa del corpus LLM con cuotas, hashes, preflight y conservación del original. |
 | `corpus_redaccion.py` | Apl | 072 | Corpus de redacción del PIDE: solo lo que una persona revisó y aprobó para redactar o dar formato, sin cifras ni códigos de otra red, en un registro… |
@@ -939,16 +939,16 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `asistente_embeddings.py` | — | 043, 047 | Ajuste solo con train y evaluación sobre consultas reservadas del recuperador local. |
 | `asistente_indice_ampliado.py` | — | 077, 097 | Sin GPU: tamaño de los dos corpus, BM25 con el reparto `corpus` de la 076 y formación de los conjuntos nuevos, sin las preguntas que el corpus ya… |
 | `asistente_evaluar_rag.py` | — | 047 | Medición real de la recuperación en la GPU, comprobación del conjunto sin ella con `--solo-conjunto`, calibración de la abstención y su medición… |
-| `asistente_qlora.py` | — | 043, 047 | Adaptador del coordinador al ajuste generativo NF4 existente y su corpus sellado. |
+| `asistente_qlora.py` | — | 043, 047, 072 | Adaptador del coordinador al ajuste generativo NF4 existente y su corpus sellado. |
 | `asistente_destilar.py` | — | 047 | Prepara el currículo, entrena con exclusión GPU y verifica el alumno en proceso nuevo. |
 | `asistente_observar.py` | — | 061 | Incorpora y verifica informes locales del aprendizaje sin activar modelos. |
-| `asistente_ordenes_reales.py` | — | 068 | Reúne las órdenes reales de las sesiones y del almacén, crea el libro de revisión e importa solo lo que el operador marque. |
+| `asistente_ordenes_reales.py` | — | 068, 047 | Reúne las órdenes reales de las sesiones y del almacén, crea el libro de revisión e importa solo lo que el operador marque. |
 | `asistente_comparar_revision.py` | — | 047 | Rol único frente a cuatro roles con los mismos casos declarados: errores, coste y latencia. |
 | `preguntas_entregables.py` | — | 076 | Preguntas de metodología y criterios por entregable: verifica fuentes, cifras y nombres, reparte en corpus y sellado, exporta e importa la hoja de… |
 | `llm_destilar.py` | — | 047, 060 | Prepara el corpus del alumno LLM a partir de fuentes verificadas de este proyecto. |
 | `aceptar_agente.py` | — | 047 | Materializa propuestas, selecciona configuración local y evalúa las 200 sin ejecutar acciones nativas. |
 | `construir_dataset_entrenamiento.py` | — | 043, 026 | Construye el dataset de entrenamiento en una carpeta nueva, con las operaciones acabadas de los diarios de los espacios medidas y sin promover, y… |
-| `reentrenar_modelos.py` | — | 043, 060 | CLI de coordinación, validación de configuración y rechazo de resultados incompletos. |
+| `reentrenar_modelos.py` | — | 043, 060, 047 | CLI de coordinación, validación de configuración y rechazo de resultados incompletos. |
 | `aprendizaje_continuo.py` | — | 050 | Congela la instantánea, ejecuta el ciclo único con las etapas de `reentrenar_modelos` sobre las copias, muestra sus fases, lo cancela y vuelve al… |
 | `preparar_ciclo_aprendizaje.py` | — | 050, 086, 120 | Prepara y valida el plan del ciclo desde el almacén con su matriz por familia (`--solo-preparar`, sin congelar ni entrenar) y genera en una carpeta… |
 | `rellenar_identidad_043.py` | — | 086, 120 | Deduce el periodo y el criterio de fijas (de la calibración anterior del proyecto) y la huella del perfil vigente de los episodios del gemelo… |

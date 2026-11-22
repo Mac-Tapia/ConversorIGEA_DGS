@@ -580,6 +580,11 @@ mientras los demás casos pasaban a 1,0278.
   trabajos que ya distinguen el código lo siguen haciendo a su manera.
 - RF-134: (bloque DIgSILENT del 20-11, MEJ23) EL SISTEMA escribirá «del» y no «de el» cuando un mensaje junte «de» con
   un nombre que empieza por «el» (la exposición leída «del proyecto de DIgSILENT»).
+- RF-135: (MEJ33b, recorrido en navegador real del 21-11; amplía 006:RF-31 y RF-39, cumplidas) EL SISTEMA dirá en el
+  espacio de qué máximas buscadas tiene en memoria las curvas de cabecera, y la web solo pedirá las curvas (y la máxima
+  con central) de una máxima que esté entre ellas; si no lo está, dirá en una frase que hay que volver a buscarla. Al
+  abrir la web tras otra búsqueda o un reinicio del servidor, pedía las de la máxima anterior y recibía 404: ocho
+  errores en la consola por cada carga.
 
 ## Fuera de alcance
 

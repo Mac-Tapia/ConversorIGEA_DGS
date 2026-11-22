@@ -185,6 +185,19 @@ def comprobar_notas(texto: str, version: str) -> None:
                               f'«## {version}»: «Acerca de» enseñaría las de otra versión.')
 
 
+def comprobar_accesos_del_menu(texto_iss: str) -> None:
+    """086:RF-90: el menú Inicio del .iss del candidato abre el manual de instalación instalado, con el Bloc de notas.
+
+    El setup de la rc6 se construyó el 12-11 con un .iss anterior al acceso (añadido el 13-11) y el producto instalado no
+    lo tenía: el revisor ajeno de la 086 T41 no encontró el manual en el menú. Un candidato con un .iss así no se arma.
+    """
+    bloque = re.search(r'^\[Icons\]\n(.*?)(?=^\[|\Z)', texto_iss, flags=re.M | re.S)
+    lineas = [l for l in (bloque.group(1).splitlines() if bloque else ()) if l.strip() and not l.lstrip().startswith(';')]
+    if not any('{app}\\documentos\\MANUAL_INSTALACION.md' in l and '{win}\\notepad.exe' in l for l in lineas):
+        raise CE.EntregaError('El instalador no deja en el menú Inicio el acceso al manual de instalación '
+                              '(documentos\\MANUAL_INSTALACION.md con el Bloc de notas).')
+
+
 # --------------------------------------------------------------------------- rueda propia
 CONJUNTO_PREGUNTA = Path('config', 'pregunta_entregada', 'CONJUNTO_ABSTENCION_ENTREGA.json')
 
@@ -910,6 +923,7 @@ def construir_candidato(raiz: Path, salida: Path, zip_python: Path, *, cache: Pa
     instalador.mkdir()
     shutil.copyfile(raiz / 'tools' / 'instalar_candidato.py', instalador / 'instalar_candidato.py')
     shutil.copyfile(raiz / 'instalador' / 'ConverterSmartGrid.iss', instalador / 'ConverterSmartGrid.iss')
+    comprobar_accesos_del_menu((instalador / 'ConverterSmartGrid.iss').read_text(encoding='utf-8'))        # 086:RF-90
     documentos = salida / 'documentos'
     copiar_documentos(raiz, documentos, version_final, manifiesto)                             # 086:RF-89, U1, L6
     auditar_dependencias(raiz, raiz / LOCK.name, documentos / 'auditoria_dependencias.json',

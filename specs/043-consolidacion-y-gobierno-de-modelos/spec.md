@@ -39,6 +39,9 @@ Dependencias y relación: 024, 026 y 027; integración selectiva del worktree de
   se detuvieron), no permite la promoción ni cambia el modelo activo. Un valor que no es un número positivo deja el de
   por defecto.
 
+- RF-17: (d8, 2026-11-21, T9) CUANDO `tools/reentrenar_modelos.py run` lance el QLoRA de la campaña, EL SISTEMA le pasará
+  la decisión de `decidir_ajuste` (`--qlora-decision`) o el experimento autorizado (`--qlora-experimento-autorizado`)
+  que exige 047:RF-59; sin ninguno de los dos, la etapa queda bloqueada con ese motivo, como hasta ahora.
 - RF-12: CUANDO se preparen dependencias y pesos locales, EL SISTEMA conservará versiones, revisiones, licencias, tamaños y hashes de los modelos seleccionados; verificará archivos completos y disponibilidad local sin activar candidatos ni declarar aceptación por descargarlos. Los fallos se guardarán con salida no exitosa y sin eliminar descargas parciales; con el archivo publicado y verificado, sus fragmentos se eliminarán. La instalación de paquetes conservará las versiones existentes del núcleo y acreditará imports y operaciones reales.
 
 Python 3.12; datos locales; entrenamiento CUDA exclusivo sin fallback silencioso a

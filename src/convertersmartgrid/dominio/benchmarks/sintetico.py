@@ -206,6 +206,21 @@ class ExportSpec:
         return sum(min(size.loads, size.sections) for size in self._sizes())
 
 
+#: 112:RF-20 y RF-21: la red de la medición de escala de la web. La misma para la API (``tools/benchmark_escala_web.py``)
+#: y para el dibujo en el navegador (``frontend/e2e/escala_dibujo.mjs``): semilla, tramos y cargas típicos.
+SEMILLA_DE_ESCALA = 112
+TRAMOS_DE_ESCALA = 200
+CARGAS_DE_ESCALA = 60
+
+
+def spec_de_escala(alimentadores: int, *, semilla: int = SEMILLA_DE_ESCALA, tramos: int = TRAMOS_DE_ESCALA,
+                   cargas: int = CARGAS_DE_ESCALA) -> ExportSpec:
+    """La red sintética de ``alimentadores`` de la medición de escala: tamaños sorteados con la semilla para 10
+    alimentadores y repetidos en ciclo, así 10, 50 y 200 tienen los mismos tramos por alimentador."""
+    return ExportSpec(feeders=alimentadores, sections_per_feeder=tramos, loads_per_feeder=cargas, seed=semilla,
+                      size_cycle=min(10, alimentadores))
+
+
 def _cuantil(cuantiles: tuple[float, ...], u: float) -> float:
     """Interpolación lineal entre cuantiles equiespaciados: u en [0, 1] da un valor entre el primero y el último."""
     if len(cuantiles) == 1:

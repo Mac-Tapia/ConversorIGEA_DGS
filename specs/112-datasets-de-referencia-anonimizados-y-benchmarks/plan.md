@@ -146,6 +146,15 @@ limpia pasa.
   mismo SHA. El dibujo del frontend va como «no medido» con su motivo (RF-21).
 - La prueba rápida mide 10 alimentadores con 3 repeticiones y comprueba la forma, no los tiempos; la corrida de 10, 50 y
   200 con 30 repeticiones es aparte (T18), y el dibujo con navegador, otra (T19).
+- La red es una sola: `spec_de_escala` (`dominio/benchmarks/sintetico.py`, semilla 112, 200 tramos y 60 cargas
+  típicos, tamaños de 10 alimentadores en ciclo) la usan la API y la web de prueba del navegador
+  (`frontend/e2e/web_de_prueba.py` con `CSG_E2E_ESCALA=1`).
+- El dibujo (T19): `frontend/e2e/escala_dibujo.mjs` arranca esa web en un puerto libre (nunca 8765 ni 8766), en una
+  carpeta temporal y sin perfil, la abre en Edge sin salida a la red y, en cada repetición, mide con
+  `PerformanceObserver` y `performance.mark` desde el final de la respuesta de `feeders` hasta la última fila pintada
+  de la tabla, y el plano de la red unida hasta su «listo»; deja `dibujo_<N>.json` con p50, p95 y el commit.
+  `benchmark_escala_web.py --dibujo CARPETA` (o `--solo-enlazar` sobre un resultado ya escrito) enlaza cada tamaño
+  con el suyo solo si es del mismo commit, del mismo tamaño y de la misma red; si no, «no medido» con su motivo.
 
 ## Decisiones
 

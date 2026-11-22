@@ -27,3 +27,19 @@ def test_verify_no_declara_entrenado_un_bloqueo(tmp_path):
 
     assert verificar(reporte, fail_on_incomplete=False) == 0
     assert verificar(reporte, fail_on_incomplete=True) == 2
+
+
+def test_la_campana_pasa_el_experimento_autorizado_al_qlora(tmp_path):
+    """043:RF-17 — el QLoRA de la campaña recibe la decisión o el experimento autorizado que pide 047:RF-59."""
+    from types import SimpleNamespace
+
+    from tools.reentrenar_modelos import orden_qlora
+
+    base = dict(llm_dataset=tmp_path / 'corpus', qlora_model=None, qlora_revision=None, qlora_decision=None,
+                qlora_experimento_autorizado=None)
+    sin = orden_qlora(SimpleNamespace(**base), 'py', tmp_path / 'q')
+    assert '--decision' not in sin and '--experimento-autorizado' not in sin
+    con = orden_qlora(SimpleNamespace(**{**base, 'qlora_experimento_autorizado': '047-T7',
+                                         'qlora_decision': tmp_path / 'd.json'}), 'py', tmp_path / 'q')
+    assert con[con.index('--experimento-autorizado') + 1] == '047-T7'
+    assert con[con.index('--decision') + 1] == str(tmp_path / 'd.json')

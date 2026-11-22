@@ -1,13 +1,14 @@
 """Muda la carpeta principal del entorno de desarrollo a ``ConverterSmartGrid`` sin perder nada (spec 058, RF-6, T6).
 
 Uso:
-  python tools/mudar_carpeta_principal.py [--destino CARPETA] [--aplicar] [--informe FICHERO]
+  python tools/mudar_carpeta_principal.py [--destino CARPETA] [--aplicar] [--respaldo CARPETA] [--informe FICHERO]
 
 Sin ``--aplicar`` solo dice lo que haría (el plan, en JSON) y por qué no podría. Con ``--aplicar``:
 
 1. comprueba que se puede: el destino no existe y está en el mismo disco, la carpeta lleva su fichero de identidad (sin
    él, los espacios de trabajo quedarían en otra carpeta de datos) y ningún programa corre desde ella;
-2. renombra la carpeta;
+2. hace la foto de los espacios de trabajo (``output/web/<id>/workspace.json``) y, con ``--respaldo``, copia fuera su
+   ``workspace.json`` y su ``conversiones.json`` (086 T9, paso 3); después renombra la carpeta;
 3. repara los worktrees de git (``git worktree repair``), en los dos sentidos;
 4. vuelve a apuntar las uniones (``node_modules``, ``.venv``…) de los worktrees que apuntaban a la carpeta vieja;
 5. reinstala el paquete en el ``.venv`` en modo editable, sin red (``pip install -e . --no-deps``), y pone la ruta nueva
@@ -15,7 +16,7 @@ Sin ``--aplicar`` solo dice lo que haría (el plan, en JSON) y por qué no podr�
 6. cambia la ruta en los ficheros de ``config/`` que la llevan escrita, en las variables de entorno del usuario y en los
    accesos directos del escritorio y del menú Inicio, que pasan a llamarse «ConverterSmartGrid (desarrollo)»;
 7. verifica: el ``.venv`` importa el paquete desde la carpeta nueva, cada worktree responde a git y la identidad (y
-   con ella la carpeta de los espacios de trabajo) es la misma de antes.
+   con ella la carpeta de los espacios de trabajo) es la misma de antes, y los espacios son los de la foto.
 
 Solo usa la biblioteca estándar. Código de salida: 0 bien, 1 no se pudo (el informe dice en qué paso y por qué).
 """
@@ -24,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -33,6 +35,9 @@ from typing import Callable, Iterable
 FICHERO_INSTALACION = '.convertersmartgrid-instalacion.json'
 NOMBRE_NUEVO = 'ConverterSmartGrid'
 ACCESO_NUEVO = 'ConverterSmartGrid (desarrollo).lnk'
+#: 086 T9, pasos 2, 3 y 10: los espacios que la web debe abrir después, y lo que se respalda de cada uno antes de renombrar.
+ESPACIOS = Path('output') / 'web'
+FICHEROS_DEL_ESPACIO = ('workspace.json', 'conversiones.json')
 GUIONES_VENV = ('Scripts/activate', 'Scripts/activate.bat', 'Scripts/Activate.ps1', 'Scripts/activate.fish',
                 'pyvenv.cfg')
 
@@ -72,11 +77,14 @@ class Plan:
     entorno: dict[str, str] = field(default_factory=dict)
     accesos: list[dict] = field(default_factory=list)
     identidad: str | None = None
+    espacios: list[str] = field(default_factory=list)
+    respaldo: Path | None = None
 
     def como_dict(self) -> dict:
         return {'origen': str(self.origen), 'destino': str(self.destino), 'impedimentos': self.impedimentos,
                 'worktrees': self.worktrees, 'uniones': self.uniones, 'ficheros': self.ficheros,
-                'entorno': sorted(self.entorno), 'accesos': self.accesos, 'identidad': self.identidad}
+                'entorno': sorted(self.entorno), 'accesos': self.accesos, 'identidad': self.identidad,
+                'espacios': self.espacios, 'respaldo': str(self.respaldo) if self.respaldo else None}
 
 
 # --- lo que se mira en la máquina (inyectable en las pruebas) ---------------------------------------------------------
@@ -188,6 +196,25 @@ def escribir_acceso(ruta: Path, objetivo: str, carpeta: str) -> None:
                    capture_output=True)
 
 
+def espacios_de(raiz: Path) -> list[str]:
+    """Los espacios de trabajo de la carpeta: los que tienen su ``workspace.json``, por su identificador."""
+    carpeta = Path(raiz) / ESPACIOS
+    return sorted(d.name for d in carpeta.iterdir() if (d / 'workspace.json').is_file()) if carpeta.is_dir() else []
+
+
+def respaldar_espacios(raiz: Path, espacios: Iterable[str], respaldo: Path) -> int:
+    """Copia fuera ``workspace.json`` y ``conversiones.json`` de cada espacio; devuelve cuántos ficheros copió."""
+    n = 0
+    for e in espacios:
+        for nombre in FICHEROS_DEL_ESPACIO:
+            f = Path(raiz) / ESPACIOS / e / nombre
+            if f.is_file():
+                (respaldo / e).mkdir(parents=True, exist_ok=True)
+                shutil.copy2(f, respaldo / e / nombre)
+                n += 1
+    return n
+
+
 def identidad(raiz: Path) -> str | None:
     try:
         return str(json.loads((raiz / FICHERO_INSTALACION).read_text(encoding='utf-8')).get('id') or '') or None
@@ -214,9 +241,12 @@ class Maquina:
 
 # --- el plan y su aplicación ------------------------------------------------------------------------------------------
 
-def planear(origen: Path, destino: Path, maquina: Maquina | None = None) -> Plan:
+def planear(origen: Path, destino: Path, maquina: Maquina | None = None, respaldo: Path | None = None) -> Plan:
     m = maquina or Maquina()
-    p = Plan(Path(origen), Path(destino), identidad=identidad(Path(origen)))
+    p = Plan(Path(origen), Path(destino), identidad=identidad(Path(origen)), espacios=espacios_de(Path(origen)),
+             respaldo=Path(respaldo) if respaldo else None)
+    if p.respaldo is not None and _dentro(p.respaldo, p.origen):
+        p.impedimentos.append(f'{p.respaldo}: el respaldo de los espacios va fuera de la carpeta que se muda')
     if not (p.origen / '.git').is_dir():
         p.impedimentos.append(f'{p.origen}: no es la carpeta principal de un repositorio git')
     if p.identidad is None:
@@ -251,6 +281,9 @@ def aplicar(p: Plan, maquina: Maquina | None = None) -> list[dict]:
         paso('comprobar', False, '; '.join(p.impedimentos))
         return pasos
     paso('comprobar', True)
+    if p.respaldo is not None:
+        paso('respaldo', True, f'{respaldar_espacios(p.origen, p.espacios, p.respaldo)} ficheros de '
+                               f'{len(p.espacios)} espacios en {p.respaldo}')
     os.rename(p.origen, p.destino)
     paso('renombrar', p.destino.is_dir() and not p.origen.exists(), f'{p.origen} → {p.destino}')
     # Los worktrees que vivían dentro de la carpeta se mudaron con ella: se reparan en su ruta nueva.
@@ -294,8 +327,12 @@ def aplicar(p: Plan, maquina: Maquina | None = None) -> list[dict]:
     paso('accesos', True, f'{len(p.accesos)} accesos directos')
     importado = m.importar(p.destino)
     errores = [w for w in worktrees if git('status', '--short', cwd=Path(w)).returncode]
-    paso('verificar', _dentro(importado, p.destino) and not errores and identidad(p.destino) == p.identidad,
-         f'paquete en {importado}; worktrees sin git: {errores}; identidad {identidad(p.destino)}')
+    despues = espacios_de(p.destino)
+    faltan, sobran = sorted(set(p.espacios) - set(despues)), sorted(set(despues) - set(p.espacios))
+    paso('verificar', _dentro(importado, p.destino) and not errores and identidad(p.destino) == p.identidad
+         and not faltan and not sobran,
+         f'paquete en {importado}; worktrees sin git: {errores}; identidad {identidad(p.destino)}; '
+         f'{len(despues)} espacios de {len(p.espacios)} de la foto (faltan {faltan}, sobran {sobran})')
     return pasos
 
 
@@ -304,11 +341,12 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument('--origen', type=Path, default=Path(__file__).resolve().parents[1])
     a.add_argument('--destino', type=Path)
     a.add_argument('--aplicar', action='store_true')
+    a.add_argument('--respaldo', type=Path, help='carpeta, fuera de la que se muda, para la copia de los espacios')
     a.add_argument('--informe', type=Path)
     args = a.parse_args(argv)
     origen = args.origen.resolve()
     destino = args.destino or origen.with_name(NOMBRE_NUEVO)
-    plan = planear(origen, destino)
+    plan = planear(origen, destino, respaldo=args.respaldo)
     informe = {'plan': plan.como_dict()}
     if args.aplicar:
         informe['pasos'] = aplicar(plan)

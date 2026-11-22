@@ -78,6 +78,11 @@ Revisadas y en paralelo, con su motivo:
   13-11, dos trabajadores en el mismo almacén del asistente contaron 17 órdenes donde había 8). La comparación de T20
   (`tools/comparar_suite_repartida.py`) dirá si algo más depende del orden o del disco común: compara el veredicto de
   cada prueba, mide la memoria privada de cada proceso y por fichero, y mira que el disco del worktree no cambie.
+- La constante con su medida (T20, MEJ32): `PROCESOS_MAXIMOS` sigue en 1 mientras `MEDIDA_T20` sea `None`. Con
+  `--fijar`, y solo si la comparación da «iguales» con N = 1 y al menos otra N, la herramienta escribe en la puerta
+  del worktree medido la mayor N, el `GIB_POR_PROCESO` propuesto y `MEDIDA_T20` (árbol, N, picos, libre mínima y
+  ruta del informe); si una de las tres asignaciones no está exactamente una vez, no toca nada.
+  `test_102_t20_el_tope_de_procesos_es_el_de_su_medida` impide un tope mayor que 1 sin su medida (lección A7).
 
 ## Pruebas
 

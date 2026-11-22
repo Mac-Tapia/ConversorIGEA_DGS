@@ -1,10 +1,13 @@
 # Perfil de empresa
 
-Guía para quien configura ConverterSmartGrid en una distribuidora nueva (spec 086, RF-30). El programa es universal: lo propio de cada
+Guía para quien configura ConverterSmartGrid en una distribuidora nueva. El programa es universal: lo propio de cada
 empresa va en un perfil, nunca en el código. **Sin perfil se puede trabajar**: una clave ausente no bloquea nada, y cada función dice
 qué hace sin ella.
 
 ## Cómo empezar
+
+En el programa instalado, el perfil es `%LOCALAPPDATA%\ConverterSmartGrid\datos\config\perfil_empresa.json` y las órdenes
+de abajo se escriben `csg.cmd validar-perfil …`, desde la carpeta del programa (vea el manual de instalación).
 
 1. Copie `config/perfiles/plantilla.json` como `config/perfil_empresa.json`. Ese fichero es local y no se comparte.
 2. Rellene lo que conozca. `config/perfiles/ficticia.json` muestra uno completo, de una empresa inventada.

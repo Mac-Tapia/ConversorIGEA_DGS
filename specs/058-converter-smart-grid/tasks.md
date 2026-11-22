@@ -18,6 +18,10 @@
       carpeta real halló 34 worktrees (3 dentro), 34 uniones de `node_modules` y los 2 accesos directos, y se negó a
       mudar con 9 programas corriendo desde ella. Falta la mudanza real, con todo cerrado, y abrir la web desde el
       acceso directo nuevo.
+      Avance (2026-11-21, MEJ33 de d8): la herramienta hace también la foto de los espacios, su respaldo fuera
+      (`--respaldo`) y comprueba que tras mudar están los mismos; es la misma acción que 086 T9 y se cierran juntas.
+      Orden, con todo parado: `python tools/mudar_carpeta_principal.py --respaldo D:/csg/respaldo_mudanza --informe
+      D:/csg/mudanza_plan.json` (en seco) y, con 0 impedimentos, lo mismo con `--aplicar`.
 - [x] T7. [DIgSILENT] Un alimentador importado por la web con el nombre nuevo. (RF-4, RF-5)
       Hecho cuando: se cumple su criterio de finalización.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

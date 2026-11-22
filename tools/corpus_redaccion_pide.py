@@ -102,6 +102,8 @@ def main(argv=None) -> int:
     p.add_argument('--catalogo', type=Path, help='Nombres de empresa, sede e instalación que se ocultan (072:RF-49)')
     p.add_argument('--exportar', type=Path, help='JSONL con los ejemplos aprobados, sin cifras ni nombres')
     p.add_argument('--sellar', type=Path, help='Carpeta nueva con el corpus sellado para asistente_qlora (072:RF-50)')
+    p.add_argument('--anterior', type=Path,
+                   help='Corpus sellado al que sustituye: sus documentos conservan su partición y queda declarado')
     args = p.parse_args(argv)
 
     from convertersmartgrid.aplicacion.asistente.corpus_redaccion import (
@@ -145,7 +147,8 @@ def main(argv=None) -> int:
         print(f'Exportados: {len(ejemplos)} ejemplos a {args.exportar}')
     if args.sellar:
         try:
-            meta = sellar_corpus_redaccion(args.dataset, args.sellar, registro=registro, catalogo=catalogo)
+            meta = sellar_corpus_redaccion(args.dataset, args.sellar, registro=registro, catalogo=catalogo,
+                                           anterior=args.anterior)
         except ValueError as exc:
             print(f'ERROR: {exc}')
             return 2

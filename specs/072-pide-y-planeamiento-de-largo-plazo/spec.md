@@ -252,6 +252,64 @@ los dos entregables.
   selección, calibración o prueba si cabe en la décima parte del total (o en el doble, si esa partición está vacía), a la
   que más le falte, y lo demás a entrenamiento; con menos de cuatro documentos todo entrena. El reparto no depende del
   orden de llegada.
+- RF-53: (d8, 2026-11-21, T9b, puertas del modelo de redacción) CUANDO se examine un modelo entrenado con el corpus de
+  redacción sellado (RF-50), EL SISTEMA medirá en CUDA, en las particiones selladas de selección y de prueba, la pérdida
+  por token de cada respuesta con la base NF4 fijada y con el adaptador del candidato, sobre los mismos tokens, con su
+  perplejidad; SI en alguna de las dos el candidato tiene más pérdida que la base, o no se pudo medir, ENTONCES no lo
+  aprobará y lo dirá.
+- RF-54: EL SISTEMA redactará una salida por ejemplo de esas dos particiones y SI una deja un nombre de empresa, sede o
+  instalación que el anonimizador de RF-49 oculta, con el mismo catálogo con el que se selló el corpus (comprobado por su
+  huella), o trae un código de elemento o una cifra que su entrada no trae, ENTONCES no aprobará el modelo; el informe
+  dice qué salidas fallan y por qué, sin copiar los nombres ni las cifras. Sin el catálogo del sellado no se examina.
+- RF-55: EL SISTEMA examinará el adaptador exportado (pérdida y, sin otro, las salidas) o el modelo publicado en Ollama
+  (las salidas, con el prompt de sistema sellado y la instrucción de cada ejemplo, con su semilla); un adaptador
+  entrenado con otro corpus o con otro prompt no se examina con este, y sin adaptador la pérdida queda sin medir.
+- RF-56: EL SISTEMA no repetirá la prueba sellada del intérprete de órdenes: el modelo de redacción no sustituye al
+  intérprete y, sin más, no es activable como tal. Para usarlo también como intérprete, comparará los informes de
+  prueba de las órdenes (los de 070 T22, `llm_destilar.py evaluar --parte prueba`) del candidato y del modelo en uso,
+  del mismo corpus y el mismo prompt, y solo lo dará por activable si no baja ni el acierto de tarea ni el F1 de datos.
+- RF-57: EL SISTEMA dejará la decisión, aprobado o rechazado, con sus motivos, sus medidas por partición y la puerta del
+  intérprete, en un informe del candidato, sin promover ni activar nada (047:RF-8), y terminará con 0 si aprueba, 1 si
+  rechaza y 2 si no pudo examinar; un corpus de órdenes se remite a su propia evaluación.
+- RF-58: (d8, 2026-11-22, rechazo del primer candidato de redacción: en un caso de prueba puso cifras y encadenó la
+  misma frase) EL SISTEMA sellará el corpus de redacción con un prompt de sistema que exige escribir ‹n› por cada cifra,
+  ‹código› por cada código y ‹empresa›, ‹sede› o ‹instalación› por cada nombre, sin dígitos, y que prohíbe repetir
+  frases; un corpus sellado con el prompt anterior se seguirá leyendo para examinar lo ya entrenado, y uno con otro
+  prompt no.
+- RF-59: EL SISTEMA redactará con el modelo de redacción con penalización de repeticiones, la misma al examinarlo (con el
+  adaptador y con Ollama) y al publicarlo en Ollama, donde va en su Modelfile; el Modelfile solo admite parámetros
+  numéricos con nombre de parámetro.
+- RF-60: SI una salida del modelo de redacción repite seguido un trozo de ocho palabras o más (cinco que no sean
+  marcadores) que su entrada no repite, ENTONCES EL SISTEMA la dará por mala (`repetida`) y no aprobará el modelo (RF-54).
+- RF-61: AL sellar el corpus de redacción, EL SISTEMA dejará fuera, y los contará, los textos aprobados que una vez
+  anonimizados repiten seguida una frase (filas de tabla que quedan iguales al ocultar sus códigos): enseñan a
+  encadenar la misma frase. Un corpus sellado así lo declara y su validación rechaza cualquier ejemplo repetido.
+- RF-62: CUANDO se selle de nuevo el corpus de redacción indicando el sellado al que sustituye, EL SISTEMA conservará la
+  partición de cada documento que ya estaba sellado, repartirá solo los nuevos y declarará en el manifiesto, antes de
+  entrenar, las huellas del sellado anterior, sus particiones y cuántos documentos se conservan y cuántos entran.
+- RF-63: (d8, 2026-11-22, ratificación independiente de la revisión C4: 922 de 1 255) EL SISTEMA ocultará entero, como
+  ‹código›, un código con guion o subrayado que lleve una cifra o un subrayado («TA-201», «CMC_1», «TD_SM»), y también el
+  prefijo que quede pegado a un marcador («YUS_‹n›»); un guion entre palabras o entre cifras sigue como está.
+- RF-64: EL SISTEMA ocultará un nombre del catálogo también en plural o con otra letra final (si su última palabra tiene
+  cinco letras o más), sin tildes y con su codificación rota (la «ñ» leída como «Ð» o «Ã‘», el carácter de reemplazo), y
+  el nombre que sigue a un río, una provincia, un distrito, un departamento, una región, una localidad, un centro
+  poblado o un caserío (‹nombre›). Al sellar, añadirá al catálogo los nombres que el propio corpus señala tras una SET,
+  una sede o un lugar, en una línea y sin las palabras que el corpus también escribe en minúscula, para ocultarlos donde
+  salgan solos. Ningún nombre real va en el repositorio: el catálogo sale de los datos del espacio en cada sellado.
+- RF-65: AL sellar el corpus de redacción, EL SISTEMA quitará el encabezado y el pie de página del PDF («Informe … – Mes
+  ‹n›», «Página ‹n› de ‹n›»), dejará fuera y contará el texto que solo traía eso, y un corpus sellado así rechazará en su
+  validación un ejemplo que aún los lleve.
+- RF-66: SI una salida del modelo de redacción deja un código con guion o subrayado, o el prefijo de una sede pegado a
+  un marcador («TA-‹n›»), ENTONCES EL SISTEMA la dará por mala (`código`); un nombre del catálogo en cualquiera de sus
+  variantes de RF-64 la da por mala (`nombre`).
+- RF-67: CUANDO un sellado nuevo sustituya a otro (RF-62), EL SISTEMA comprobará el anterior por sus huellas (corpus y
+  prompt) y no por las reglas de anonimato de hoy, que son justo lo que cambia.
+- RF-68: (enmienda RF-52; coordinador d8, 2026-11-22: «22–23 ejemplos no bastan para decidir») AL sellar el corpus de
+  redacción sin un sellado anterior, SI un documento tiene más de la décima parte de los ejemplos, ENTONCES EL SISTEMA
+  lo partirá en tramos seguidos de la centésima parte del total (redondeada hacia arriba), en el orden de sus
+  fragmentos, y repartirá cada tramo entero como un documento más, para que selección, calibración y prueba lleguen
+  cerca de su décima parte. Con menos de cuatro documentos no parte nada; con un sellado anterior (RF-62), los
+  documentos siguen enteros.
 
 ### Casos de prueba
 

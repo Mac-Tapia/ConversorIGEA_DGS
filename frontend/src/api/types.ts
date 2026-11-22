@@ -197,6 +197,8 @@ export interface WorkspaceState {
   calibraciones?: Record<string, Record<string, { recalibracion: number; nombre?: string; caso?: string | null }>>;
   /** 039:RF-15: los clientes fijos marcados «a su máxima», guardados en el espacio. */
   fijas_a_su_maxima?: string[];
+  /** 086:RF-135: las máximas cuyas curvas tiene el servidor en memoria; las demás no se piden. */
+  curvas_cabecera?: string[];
   created_at: number;
   options: Options;
   inputs: Record<string, InputMeta>;

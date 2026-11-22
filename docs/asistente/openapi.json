@@ -4924,6 +4924,13 @@
             "title": "Created At",
             "type": "number"
           },
+          "curvas_cabecera": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Curvas Cabecera",
+            "type": "array"
+          },
           "demanda": {
             "additionalProperties": {
               "$ref": "#/components/schemas/DemandaRespuesta"

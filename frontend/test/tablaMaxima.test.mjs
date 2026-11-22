@@ -94,3 +94,17 @@ test('004:RF-116 cada dato en su columna: sin «Periodo:» en la fecha ni el avi
   assert.match(FUENTE, /Instante común: /);
   assert.doesNotMatch(FUENTE, /registro\(s\)|alimentador\(es\)/);
 });
+
+test('086:RF-135 las curvas de una máxima solo se piden si el servidor las tiene en memoria', async () => {
+  const m = await cargar();
+  assert.equal(typeof m.curvasEnMemoria, 'function', 'falta curvasEnMemoria en tablaMaxima.ts');
+  assert.equal(m.curvasEnMemoria(['j2'], 'j2'), true);
+  assert.equal(m.curvasEnMemoria(['j2'], 'j1'), false, 'la de una máxima anterior ya no está');
+  assert.equal(m.curvasEnMemoria(undefined, 'j1'), false, 'tras reiniciar el servidor no hay ninguna');
+  assert.equal(m.curvasEnMemoria(['j2'], undefined), false);
+  const ajuste = readFileSync(join(PF, 'AjusteCabecera.tsx'), 'utf8');
+  assert.match(ajuste, /const conCurvas = curvasEnMemoria\(ws\.curvas_cabecera, maxima\?\.id\);/);
+  assert.match(ajuste, /if \(!maxima \|\| !conCurvas\) \{ setConCentral\(\{\}\); return; \}/, 'pide la central sin curvas');
+  assert.match(ajuste, /\{maxima && grupos\.length > 0 && conCurvas && \(/, 'pinta las curvas sin tenerlas');
+  assert.match(ajuste, /Para ver las curvas de esta máxima, vuelva a buscarla\./);
+});

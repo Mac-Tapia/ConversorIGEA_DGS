@@ -53,6 +53,12 @@
 - [ ] T9 [DIgSILENT] Renombrar la carpeta a `ConverterSmartGrid`, con todo parado y con ensayo previo sobre una copia. (058 T6)
   Pasos, cada uno con su comprobación y vuelta atrás: (1) comprobar que no hay procesos en esa ruta; (2) foto: `pip freeze`, `git worktree list --porcelain`, estado de cada worktree y el `.lnk`; (3) copiar `workspace.json` y `conversiones.json` fuera, y fijar la identidad con `tools/copia_datos.py identidad --fijar`, porque sin ella renombrar cambia la raíz de datos; (4) `Rename-Item`, sin forzar; (5) comprobar que los espacios migran con la T7, sin reescribir evidencia histórica; con la identidad fijada, runtime y caché no se renombran; (6) recrear las junctions; (7) `git worktree repair` con todas las rutas a la vez; (8) **reparar `.venv` en sitio**: `-m venv .venv` y `pip install -e . --no-deps`, sin rehacerlo, porque torch no está en `requirements`; (9) crear `ConverterSmartGrid.lnk`, y retirar el viejo solo cuando funcione; (10) comprobar los espacios antes de que guarden nada, y un vínculo de DIgSILENT; (11) copiar la memoria de Claude y actualizar `ACTIVE.md` y `CLAUDE.md`; (12) suite completa. Vuelta atrás general: parar, restaurar las copias, deshacer los pasos 7 y 4. GitHub y limpieza de identidades antiguas, aparte y con orden del usuario.
   Hecho cuando: la web abre con los mismos espacios que la foto, `torch.cuda.is_available()` es verdadero y la suite pasa sin omitidas.
+  Es la misma mudanza que 058 T6, con la misma herramienta: `tools/mudar_carpeta_principal.py` hace los pasos 1, 4, 6, 7,
+  8 y 9, y desde el 2026-11-21 (MEJ33 de d8) también la foto de los espacios (paso 2), su respaldo fuera con `--respaldo`
+  (paso 3) y la comprobación de que tras mudar están los mismos (paso 10); `tests/test_mudar_carpeta_principal.py`
+  (058:RF-6). El acceso nuevo se llama «ConverterSmartGrid (desarrollo)» y no `ConverterSmartGrid.lnk`: el producto
+  instalado ya tiene en el menú de inicio un «ConverterSmartGrid», y con el mismo nombre se confundirían. Falta la mudanza
+  real, con todo parado (también Antigravity, que no se cierra sin la orden del usuario), en la ventana que el usuario elija.
 
 ## F3 Veracidad, seguridad y producto
 
@@ -197,6 +203,14 @@
   la escritura atómica única de 001:RF-5 (`tests/test_json_atomico.py`), y no con `write_text`.
 - [ ] T41 Una persona ajena al proyecto instala y convierte siguiendo el manual. (RF-44)
   Hecho cuando: lo consigue sin ayuda, o lo que no entendió queda corregido en el manual.
+  Avance (2026-11-21, MEJ33 de d8; revisor ajeno con origen maestro, sin leer el código): sobre el producto instalado
+  comprobó sin ayuda el diagnóstico, los accesos y dónde queda cada cosa; no pudo convertir. Corregido en el manual: el
+  paso siguiente a la instalación, cómo se escriben las órdenes `csg.cmd`, el aviso de «Fuentes normativas» y, en el
+  manual de uso, a quién va dirigido; en la guía del perfil, dónde está y cómo se valida en el programa instalado.
+  Falta: instalar desde un `setup.exe` del candidato en una QA aislada (no sobre el producto instalado del usuario), la
+  red de ejemplo inventada que pide para convertir sin datos de una empresa, la sección del operador para instalar el
+  complemento de IA y la plantilla del perfil entre los documentos. Hallazgos y evidencia:
+  `D:/csg/PM_IMPL/MEJ33_WEB/t41/` y `D:/csg/PM_IMPL/MEJ33_WEB/HANDOFF.md`.
 
 ## F6 Corridas reales sobre el candidato congelado
 
@@ -287,6 +301,11 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       y si falla deja los anteriores. (RF-89, RF-90, RF-91, RF-97)
       Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-89 a RF-91, RF-97) en verde y el `.iss` compila con ISCC sobre
       un candidato de prueba. Verlo instalado es de la T40, con el rc6.
+      Aclaración (2026-11-21, MEJ33b de d8): el setup de la rc6 se armó el 12-11 con un `.iss` anterior al acceso, y el
+      producto instalado no abre el manual desde el menú Inicio (lo vio el revisor ajeno de la T41). El código está bien;
+      desde hoy armar un candidato comprueba el `.iss` que copia (`construir_candidato.comprobar_accesos_del_menu`,
+      `tests/test_instalacion_programa.py`, 086:RF-90), y el de la rc6 no pasa. Verlo instalado sigue en la T40, con el
+      próximo setup: en el menú Inicio, «ConverterSmartGrid - manual de instalacion».
 - [x] T71 La versión solo en `__version__`: pyproject la lee, el candidato la pone en su rueda y el `.iss` la saca de su
       nombre, sin `/DVersion`; «Acerca de» enseña el apartado de esa versión. (RF-92, RF-93)
       Hecho cuando: `tests/test_instalacion_programa.py` (086:RF-92, RF-93) en verde, y ISCC da la versión de la rueda y
@@ -319,6 +338,10 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       Playwright están instalados; Playwright y axe-core van en `package.json` y `package-lock.json` (T0c v3).
       Hecho cuando: `npm run e2e:todo` (los dos arneses: F01, F03 y F04 en `test/e2e`, F02 en `frontend/e2e`) da verde
       sin omitidas sobre el SHA candidato, con `output/e2e/<sha>/` sellado (SHA256SUMS).
+      Avance (2026-11-21, MEJ33 de d8): `frontend/test/e2e/todos.mjs` deja en `output/e2e/<sha>/` la evidencia de los dos
+      arneses (la del plano en `plano/`) con `resumen_e2e.json`, y solo una corrida en verde la sella con SHA256SUMS
+      (`tests/test_ci_e2e_y_evidencias.py`, 086:RF-107). Falta correrlo sobre el SHA candidato, ya en commit:
+      `cd frontend && npm run build && npm run e2e:todo`.
 - [x] T80 COPIA-PREVIA: previa de la copia en la web (`GET /api/copia-datos/previa` sobre `planificar_copia`, ventana
       `PreviaCopia` con «Copiar» y «Cancelar», la API exige `confirmada`), listado de las copias del destino desde su
       manifiesto (`listar_copias`), el aviso que mira la carpeta recordada (`estado_copia(destino=…)`) y los seis textos.
@@ -436,7 +459,7 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
   rojo previo por aserción, las pruebas del búfer, del gemelo y del ciclo sin regresión, y el preflight sobre una copia
   del búfer real con `proyectos_043` ≥ 1 y `contexto_hash` no nulo. Aplicar el relleno al búfer real lo decide el
   integrador. Evidencia: `D:/csg/PM_IMPL/TWIN_ID/`.
-- [ ] T96 CENTRALES-SET (orden del usuario del 19-11; amplía 022:RF-88): `demanda_centrales_de_barra` da todas las SET de
+- [x] T96 CENTRALES-SET (orden del usuario del 19-11; amplía 022:RF-88): `demanda_centrales_de_barra` da todas las SET de
       la estructura con sus alimentadores; la tabla de centrales de la máxima por barra (DemandaMedida.tsx, con
       `centralesDeSet.ts`) elige la SET de cada una con dos grupos (las de los analizados y las otras), ofrece el tramo de
       un alimentador de esa SET y dice «no entra» si su SET no tiene ninguno de los analizados; `centrales_set` llega al
@@ -446,13 +469,27 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       recorrido en navegador real por la web del operador (solo lectura, con sus libros y su estructura): la tabla de
       centrales con el selector de SET, las de los analizados primero y el «no entra» de las que no lo son. Evidencia:
       `D:/csg/PM_IMPL/CENTRALES_SET/` y `D:/csg/PM_IMPL/GWEB2/`.
-- [ ] T97 ETIQUETAS-MAXIMA (orden del usuario del 19-11): `CurvaCabecera.tsx` con varias curvas pinta la etiqueta de
+      Hecho el 2026-11-21 (MEJ33 de d8): recorrido en navegador real (Chromium, claro y oscuro, axe 0) sobre una web
+      propia en el 8791 con el árbol de 7ed2c05d (ya en main), no la del operador del 8766, por la regla de coordinación;
+      con sus libros de medidores y de cabecera por su ruta, en solo lectura, y la estructura de una copia de su perfil;
+      la lista de proyectos de DIgSILENT dada hecha, como en F03. Tres alimentadores de una misma SET, año 2026.
+      En «Por SET» y en «Sistema eléctrico», la tabla de centrales da las tres del libro con su selector, el grupo «SET de
+      los alimentadores analizados» primero, y las dos de otras SET apagadas con «… no tiene ninguno de los alimentadores
+      analizados: no entra.». Evidencia: `D:/csg/PM_IMPL/MEJ33_WEB/recorrido/` (resultado_light.json, resultado_dark.json
+      y capturas *_centrales.png).
+- [x] T97 ETIQUETAS-MAXIMA (orden del usuario del 19-11): `CurvaCabecera.tsx` con varias curvas pinta la etiqueta de
       cada máxima (alimentador · kW · fecha y hora), con su muestra de color, halo y guía al punto si se movió;
       `graficos.separarEtiquetas` las reparte sin taparse y dentro del gráfico. Prueba:
       frontend/test/etiquetasMaxima.test.mjs (200 casos sorteados con la semilla en el registro; rojo por aserción). (RF-123)
       Hecho cuando: rojo por aserción (sin etiquetas ni su reparto) y verde con su prueba sorteada, y, ya integrada, la
       gráfica de curvas de cabecera vista en navegador real en la web del operador con una etiqueta por máxima.
       Evidencia: `D:/csg/PM_IMPL/CENTRALES_SET/` y `D:/csg/PM_IMPL/GWEB2/`.
+      Hecho el 2026-11-21 (MEJ33 de d8): recorrido en navegador real (Chromium, claro y oscuro, axe 0) sobre una web
+      propia en el 8791 con el árbol de 7ed2c05d (ya en main), no la del operador del 8766, por la regla de coordinación;
+      con sus libros de medidores y de cabecera por su ruta, en solo lectura, y la estructura de una copia de su perfil;
+      la lista de proyectos de DIgSILENT dada hecha, como en F03. Tres alimentadores de una misma SET, año 2026.
+      En los tres análisis, la gráfica de curvas de cabecera da una etiqueta por máxima (7 etiquetas para 7 curvas:
+      alimentador · medidor · kW · fecha y hora). Evidencia: `D:/csg/PM_IMPL/MEJ33_WEB/recorrido/` (capturas *_curvas.png).
 - [x] T98 CALIB-IMPOSIBLE (orden del usuario del 19-11; amplía 083:RF-30): en una corrida real de cuatro alimentadores,
       tres cumplían y el cuarto tenía fijas que con sus pérdidas pasaban de su cabecera; el oráculo dejó su factor casi en
       cero, «escaladas al mínimo» se medía contra ese factor y el bucle gastó los 30 flujos sin causa, marcando a los cuatro
@@ -475,7 +512,7 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
   Hecho cuando: `tests/test_digital_twin_snapshot_pf.py`, `tests/test_digital_twin_capture.py` y
   `tests/test_digital_twin_integration.py` (086:RF-125) en verde, con rojo previo por aserción (4 F), y las pruebas del
   gemelo sin regresión. Evidencia: `D:/csg/INTEGRA_54/cierre_tareas/gemelo/` (rojo2, 4 F) y `cierre_tareas/calib/verde2.log` (701 passed).
-- [ ] T100 MAXIMA-NO-COINCIDENTE (orden del usuario del 19-11; amplía 028:RF-27, RF-28): DemandaMedida.tsx ofrece «Máxima
+- [x] T100 MAXIMA-NO-COINCIDENTE (orden del usuario del 19-11; amplía 028:RF-27, RF-28): DemandaMedida.tsx ofrece «Máxima
       de cada alimentador (no coincidente)» en el selector del instante, que sale también en el análisis de una SET o de un sistema; la pide
       sin barra, sin sistema y sin coincidente (las máximas propias que ya da el servidor) y avisa con la fecha de cada
       uno; tools/ajuste_cabecera_pf.py `aviso_de_instantes` lo dice en el informe sin bloquear. (RF-126)
@@ -483,6 +520,13 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       frontend/test/maximaNoCoincidente.test.mjs y tests/test_centrales_de_set.py, y, ya integrada, un recorrido en
       navegador real por la web del operador (solo lectura) con el selector en los tres análisis, el por defecto sin
       cambiar y el aviso con la fecha de cada alimentador. Evidencia: `D:/csg/PM_IMPL/GWEB2/`.
+      Hecho el 2026-11-21 (MEJ33 de d8): recorrido en navegador real (Chromium, claro y oscuro, axe 0) sobre una web
+      propia en el 8791 con el árbol de 7ed2c05d (ya en main), no la del operador del 8766, por la regla de coordinación;
+      con sus libros de medidores y de cabecera por su ruta, en solo lectura, y la estructura de una copia de su perfil;
+      la lista de proyectos de DIgSILENT dada hecha, como en F03. Tres alimentadores de una misma SET, año 2026.
+      En «Alimentadores», «Por SET» y «Sistema eléctrico», tras buscar, el selector queda en su opción por defecto y
+      ofrece «Máxima de cada alimentador (no coincidente)»; al elegirla, el aviso da la fecha de cada uno de los tres.
+      17 pasos en cada tema, 0 fallos. Evidencia: `D:/csg/PM_IMPL/MEJ33_WEB/recorrido/`.
 - [x] T101 REFERENCIA-SOPORTE (Plan Maestro PM-14 y PM-25): `dominio/traza.py` (referencia en curso, validación y
       `CSG_TRAZA`); `seguridad.TrazaPeticion`, por fuera de todo en `app.py`, la fija por petición y la devuelve en
       `X-CSG-Traza`; `jobs.Job.traza` la hereda, sale en `public()` y en el diario, y el trabajo corre con ella en su
@@ -567,3 +611,13 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       `tests/test_pfd_web.py -k fallido` y `tests/test_historico_interrupciones.py -k contrae` (086:RF-133, 086:RF-134).
       Hecho el 2026-11-21 (MEJ23, código): rojo por aserción D:/csg/PM_IMPL/MEJ23_PFD/rojo.log y verde D:/csg/PM_IMPL/MEJ23_PFD/verde_nucleo.log,
       verde_vecinas.log, tsc.log, npm_test.log y build.log (ESTADO.txt: 0 F, 0 omitidas).
+- [x] T111 CURVAS-EN-MEMORIA (MEJ33b; hallazgo del recorrido de T96, T97 y T100): `Workspace.public()` da
+      `curvas_cabecera` (las máximas cuyas curvas tiene el servidor en memoria) y `EspacioRespuesta` lo declara;
+      `tablaMaxima.curvasEnMemoria` decide en `AjusteCabecera.tsx` si se piden las curvas y la máxima con central o se
+      dice «Para ver las curvas de esta máxima, vuelva a buscarla.». (RF-135)
+      Hecho cuando: rojo por aserción y verde con tests/test_web_api.py y frontend/test/tablaMaxima.test.mjs (086:RF-135),
+      npm test y tsc, y el contrato regenerado (`tools/generar_contrato_api.py --check`).
+      Hecho el 2026-11-21 (MEJ33b de d8): rojo por aserción sobre el árbol de MEJ33 y verde (293 y 9 pruebas, 0 F, 0
+      omitidas), npm test 335/335, tsc, build y contrato sin deriva; en navegador real, dos recorridos seguidos en la misma
+      web dan 0 errores HTTP y 0 de consola (antes, 8 por carga) y siguen pintando las curvas. Evidencia:
+      `D:/csg/PM_IMPL/MEJ33_WEB/` (rojo_b.log, verde_b.log, npm_test_b.log, tsc_b.log, recorrido/t111/).

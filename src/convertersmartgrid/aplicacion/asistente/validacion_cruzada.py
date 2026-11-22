@@ -10,12 +10,15 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 import hashlib
 import random
 from typing import Any
 
+from ..benchmarks import cohortes
 from ..evaluacion_modelos import huella
+from ...dominio.util import cuenta
 from . import codificador_ordenes as co
 from .maestro_real import clave_texto, con_erratas
 from .sinteticos import CORTESIAS, Ejemplo
@@ -152,6 +155,36 @@ def repartir_en_vueltas(familias: Sequence[Sequence[dict]], k: int = VUELTAS, se
         por_tarea[i].update(tareas)
         total[i] += len(familia)
     return vueltas
+
+
+#: 069:RF-41: lo que trae cada orden humana para partirla. La empresa y el grupo de paráfrasis no salen del texto: los
+#: anotan el usuario o sus revisores; sin ellos no se parte, porque una partición con etiquetas inventadas mide de más.
+CAMPOS_PARTICION = ('empresa', 'fecha', 'grupo')
+
+
+def _instante(valor: Any) -> datetime:
+    t = valor if isinstance(valor, datetime) else datetime.fromisoformat(str(valor))
+    return t.astimezone(timezone.utc).replace(tzinfo=None) if t.tzinfo else t
+
+
+def particionar_humanas(humanas: Sequence[dict], *, corte: datetime,
+                        horizonte: timedelta = timedelta(0)) -> cohortes.Plan:
+    """Las humanas repartidas por empresa y por fecha para entrenar, elegir y examinar el intérprete (069:RF-41).
+
+    Cada grupo de paráfrasis es la unidad de reparto, como el componente de alimentadores de la 112: dos órdenes del mismo
+    grupo, o con el mismo texto, caen siempre en la misma partición. Por empresa, la prueba es la empresa retenida entera;
+    por fecha, lo posterior a ``corte + horizonte`` de grupos que no ajustan, y lo que cruzaría el corte se descarta.
+    """
+    sin_etiqueta = [r for r in humanas if any(not r.get(c) for c in CAMPOS_PARTICION)]
+    if sin_etiqueta:
+        raise ValueError(f'{cuenta(len(sin_etiqueta), "orden humana llega", "órdenes humanas llegan")} sin su empresa, '
+                         'su fecha o su grupo de paráfrasis: hay que anotarlos antes de partir las órdenes')
+    registros = [cohortes.Registro(id=str(r.get('record_id') or huella([i, r.get('texto', '')])),
+                                   empresa=str(r['empresa']), alimentador=f'G:{r["grupo"]}',
+                                   clientes=(f'T:{clave_texto(r.get("texto", ""))}',) if r.get('texto') else (),
+                                   t=_instante(r['fecha']))
+                 for i, r in enumerate(humanas)]
+    return cohortes.planificar(registros, corte=corte, horizonte=horizonte)
 
 
 def filas_entrenables(humanas: Sequence[dict], vedadas: Claves) -> tuple[list[dict], list[dict]]:
