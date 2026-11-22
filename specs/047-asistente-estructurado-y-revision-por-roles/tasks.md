@@ -114,6 +114,25 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       informe real de selección del v6, escrito fuera del repo: elige `csg-alumno:t7-v6` con 27 tareas selladas y declara
       40 tareas no cubiertas. La elección y la prueba reales las corre la cola de GPU; no cierra la T7.
 
+- [x] T7d. Corpus v7 de órdenes con las 67 tareas del contrato vigente, sellado antes de entrenar. (RF-69, RF-70, RF-71, RF-72, RF-73, RF-74)
+      Hecho cuando: `tests/test_corpus_contrato_llm.py` pasa y `tools/llm_destilar.py preparar-contrato --base <v6>
+      --destino <fuente_v7>` seguido de `sellar --dataset <fuente_v7> --destino <corpus_v7>` deja un corpus que cubre las
+      67 tareas en las cuatro particiones, sin nombres reales y con el prompt `llm_destilado_v2`.
+      Evidencia, 2026-11-21 (MEJ34): `asistente/corpus_contrato_llm.py` parte de los contextos del v6 (sin abrir sus
+      particiones), seudonimiza los valores, copia las 11 fuentes a su custodia por sha256 y redacta con las columnas del
+      maestro (`CURRICULO_CONTRATO` para las 38 tareas posteriores a la 069). Corpus real sellado fuera del repositorio,
+      en la carpeta de la tarjeta MEJ34: 3.280/201/134/402 (48, 3, 2 y 6 por tarea), 67 tareas en cada
+      partición, 344 filas con ruta sintética declarada, 43 órdenes humanas reservadas, 0 nombres con el detector de la
+      entrega, prompt `0cd40aa4…`, `dataset_hash` `b5490ab6…`; preparación en 27 s de CPU, sin GPU ni llamadas a modelos.
+      Rojo: las doce pruebas nuevas fallan por aserción (ocho `AssertionError`, cuatro `DID NOT RAISE`) con el esbozo
+      del v6 con `TAREAS_HASTA_069`, sin seudónimos, sin custodia propia, sin orígenes ni apartadas; verde con sus vecinas.
+
+- [ ] T7c. Reentrenar en GPU el alumno con el corpus v7 y medirlo en su selección y su prueba sellada. (RF-8, RF-9, RF-19, RF-20, RF-59, RF-69)
+      Hecho cuando: `tools/asistente_qlora.py entrenar` termina sobre el corpus v7 sellado con `--experimento-autorizado
+      047-T7`, se exporta y publica la versión, `llm_destilar.py evaluar --parte seleccion`, `elegir --dataset <corpus v7>` (RF-60) y `evaluar --parte
+      prueba` dan sus informes con el perfil `llm_destilado_v2` y las 67 familias, y la decisión de uso sale de esas
+      cifras (no del plan). Las órdenes exactas están en el traspaso de la tarjeta MEJ34.
+
 T6: 200 propuestas únicas, 27 tareas, 54 familias; auditoría sin solapamiento de
 texto/grupo con entrenamiento. Evaluación local Llama3.1:8b: 157/200 tareas,
 F1 0,864646; humanas 2/3 por separado. Uso asistido **rechazado por calidad**,

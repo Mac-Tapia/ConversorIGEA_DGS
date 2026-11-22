@@ -186,6 +186,14 @@ en la misma tarea que lo crea (`tests/test_inventario.py`, spec 009 y 090); el g
   alimentadores.
 - Decisión: basta Leaflet con lienzo; deck.gl no entra. El coste está en el servidor (unos 0,15 a 0,2 s por
   alimentador), no en el dibujo: si una entrega mayor lo pide, se parte la geometría por alimentador visible.
+- 2026-11-22 (MEJ36, RF-30): con la red de escala de la 112 (`spec_de_escala`, 200 alimentadores) el plano tardaba
+  49,7 s de mediana. El perfil lo confirma: el servidor corría el flujo del oráculo (pandapower) en cada alimentador
+  para enseñarlo, 0,5 s cada uno, y el navegador gastaba unos 0,1 s con 10. Ver el plano ya no lo corre (solo cambia la
+  demanda, que la vista no lee) y la página lleva solo lo que dibuja (de 12,8 a 3,4 MB): 5,8 s de mediana y 6,6 s de p95 con 200. Sigue
+  bastando Leaflet con lienzo; deck.gl (WebGL) se justifica con cientos de miles de objetos en pantalla, según su guía
+  de rendimiento (https://deck.gl/docs/developer-guide/performance), y aquí el coste no estaba en el dibujo. Con
+  200 alimentadores queda una parte que crece más que lineal (`dataset.resolve_feeder` recorre todos los alimentadores
+  para cada uno, 1,6 de 3,2 s perfilados en el servidor); es el siguiente paso si la entrega crece.
 - La medición encontró dos defectos, corregidos con su prueba: la ruta de la página no estaba entre las
   enmarcables (el marco salía en blanco; `seguridad.RUTAS_ENMARCABLES`) y el botón del control de capas plegado
   quedaba invisible (la política no deja cargar `images/layers.png`; icono `data:` en la página).

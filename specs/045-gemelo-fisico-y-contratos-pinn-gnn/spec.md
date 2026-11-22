@@ -1,6 +1,6 @@
 # Spec 045 — Gemelo físico y contratos PINN/GNN
 
-Estado: cumplida (2026-11-21: T3 cerrada con la ablación real en CUDA; todas sus tareas cerradas) · antes aprobada · Fecha: 2026-10-31
+Estado: aprobada (2026-11-22: T3 cerrada con la ablación real en CUDA; RF-15 a RF-18 nuevos de MEJ30 con la T6 [GPU] abierta) · cumplida el 2026-11-21 · Fecha: 2026-10-31
 
 ## Contexto y objetivo
 
@@ -29,6 +29,24 @@ Dependencias y relación: 043 y 044; preservar reglas y casos de 025, 032 y 037�
 - RF-14: SI el flujo mallado de la física base no converge, ENTONCES EL SISTEMA intentará Newton-Raphson y, si tampoco,
   usará el barrido radial y lo dirá; nunca dará 0 p.u. como física base. Ciclo del 2026-11-08: la red 9f53b98… del búfer (dos
   fuentes, 0,54 p.u. en DIgSILENT) no convergía, la base salía a 0 p.u. y la PINN, que aprendía de ceros, quedó a 0,354 p.u.
+- RF-15: CUANDO se entrene un miembro del híbrido, EL SISTEMA empezará con la corrección nula (la física exacta), la
+  contará como la época que hay que mejorar en validación y solo elegirá una época con menor error de tensión cuyo residuo
+  físico medio no pase del tope de la puerta de 044; si ninguna lo hace, el miembro quedará en la física. Ablación del
+  2026-11-21 en GPU (`045_T3/ablaciones.json`): la física pasaba las puertas en global y en las 5 familias y el híbrido no
+  (5,25·10⁻⁴ p.u. frente a 2,07·10⁻⁴, residuo 0,073 sobre 0,05 en 4 familias), con la mejor época de validación en la 0.
+- RF-16: CUANDO el híbrido prediga, EL SISTEMA aplicará la mayor fracción de la corrección (1, ½, ¼, ⅛, 1/16 o 0) cuyo
+  residuo físico medio no pase del tope o, si la física ya lo pasa, del de la física, y dirá la fracción usada; fuera de
+  su dominio devolverá la física (y la marca), y la incertidumbre del aprendizaje activo seguirá creciendo con lo que la
+  guarda recorta y con la fracción de nodos fuera de lo aprendido. T6 del 2026-11-21: la red de prueba, de 30 nodos,
+  estaba fuera del dominio de los cinco candidatos (169–5 147 nodos aprendidos) y se medía una corrección que nadie
+  usaría; y al multiplicar la dispersión por la fracción usada, f(30) = 1,0 quedaba por debajo de f(1) = 1,00000002.
+- RF-17: SI un candidato no se promueve y el modelo en uso, en las redes de prueba de su dominio, no mejora al flujo
+  físico o deja el residuo sobre el tope, ENTONCES EL SISTEMA, en el ciclo continuo, lo retirará con su motivo en el
+  historial y decidirá la física; y la ablación dirá qué brazo quedaría en uso con la misma regla.
+- RF-18: DONDE el contrato de una ablación declare `politica.redes_de_prueba` (prefijos de la huella de red), EL SISTEMA
+  dejará esas redes enteras en la prueba y fuera del ajuste, la validación y la calibración, sin tocar el perfil de la
+  empresa, y rechazará con su motivo una declaración que no sea de ninguna red, sea de varias o deje todas a prueba. T6 del
+  2026-11-21: la red de prueba del perfil (30 nodos) estaba fuera del dominio de todos los candidatos (169–5 147 nodos).
 
 ## Requisitos no funcionales
 
@@ -62,6 +80,15 @@ No declarar promoción, entrenamiento ni aceptación eléctrica a partir del pla
 El fundamento general incluye la [tesis de maestría de Zhang (UCR, 2024)](https://escholarship.org/uc/item/4g839337), la [tesis doctoral de Stiasny (DTU, 2023)](https://orbit.dtu.dk/en/publications/physics-informed-neural-networks-for-power-system-dynamics/) y los artículos de revistas indexadas citados en la [investigación](../../docs/INVESTIGACION_IA_GEMELO_CONVERSOR_2026-10-31.md#8-fundamento-académico-consultado). Justifican evaluar modelos físicos/híbridos y su trazabilidad; no sustituyen evidencia local ni fijan límites normativos.
 
 [PowerFlowNet, IJEPES (2024)](https://doi.org/10.1016/j.ijepes.2024.110112) fundamenta el candidato GNN. Raissi et al., JCP (2019), DOI 10.1016/j.jcp.2018.10.045, fundamenta incorporar restricciones; aplicar aquí balance algebraico, sin inventar una PDE.
+
+RF-15 a RF-17 (MEJ30, 2026-11-21): la corrección parte de cero como la rama residual de ReZero (Bachlechner et al., UAI
+2021, PMLR 161, [arXiv:2003.04887](https://arxiv.org/abs/2003.04887)) y aprende solo lo que la física no explica, como el
+aprendizaje residual guiado por la física del flujo probabilístico ([arXiv:2301.12062](https://arxiv.org/abs/2301.12062));
+la búsqueda lineal sobre el desbalance al inferir es la de PIGNN-Attn-LS (Kim et al., 2025,
+[arXiv:2509.22458](https://arxiv.org/abs/2509.22458)), que observa que el término físico blando no obliga en la predicción;
+Donon et al. (EPSR 2020, [HAL 02372741](https://hal.archives-ouvertes.fr/hal-02372741)) entrenan el resolvedor con la
+violación de Kirchhoff; y Wang, Teng y Perdikaris ([arXiv:2001.04536](https://arxiv.org/abs/2001.04536)) explican por qué
+un peso fijo de 10⁻⁴ deja el término físico sin gradiente frente al de datos. El peso no se cambia sin medirlo en GPU (T6).
 
 ## Clarificaciones de diseño
 

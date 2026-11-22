@@ -66,7 +66,9 @@ def main(argv=None):
             # 072:RF-50: el corpus de redacción del PIDE tiene su auditoría; entrenar_epoca usa su prompt sellado.
             auditoria=auditar_corpus_redaccion(args.dataset)
         else:
-            auditoria=auditar_fuentes_corpus(args.dataset)
+            # 047:RF-69: el corpus v7 de órdenes se audita con su validador.
+            from convertersmartgrid.aplicacion.asistente.corpus_contrato_llm import auditar_v7,es_v7
+            auditoria=auditar_v7(args.dataset) if es_v7(args.dataset) else auditar_fuentes_corpus(args.dataset)
         base=ficha_base()
         if args.accion=='evaluar':
             reporte=args.salida/'evaluacion_redaccion.json'

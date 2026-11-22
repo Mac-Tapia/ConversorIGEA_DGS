@@ -22,7 +22,7 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 from urllib.parse import urlparse
 
-from .tareas import TAREAS, descripcion_para_modelo, sistema_alumno
+from .tareas import PERFILES_ALUMNO, TAREAS, descripcion_para_modelo, sistema_alumno  # noqa: F401 (se reexporta)
 from .contratos_salida import esquema_orden, validar_orden
 
 URL_LOCAL = 'http://127.0.0.1:11434'
@@ -62,7 +62,8 @@ class ClienteOllama:
         host = urlparse(url).hostname or ''
         if host not in LOCALES:
             raise OllamaNoLocal(f'Ollama tiene que estar en esta máquina, no en {host!r} (P9).')
-        if perfil_prompt not in ('estandar', 'llm_destilado_v1') or (perfil_prompt == 'llm_destilado_v1' and dos_etapas):
+        # 047:RF-69: un perfil de alumno destilado por cada contrato sellado (v1: hasta la 069; v2: el vigente).
+        if perfil_prompt not in ('estandar', *PERFILES_ALUMNO) or (perfil_prompt in PERFILES_ALUMNO and dos_etapas):
             raise ValueError('Perfil de prompt incompatible con el protocolo entrenado.')
         self.url, self.modelo, self.tiempo_max_s, self._abrir = url.rstrip('/'), modelo, tiempo_max_s, abrir
         self.revisar_transformer = revisar_transformer
@@ -106,8 +107,8 @@ class ClienteOllama:
         sistema = _INSTRUCCIONES + '\nTareas: ' + json.dumps([
             {**t, 'ejemplo_entrenamiento': TAREAS[t['tarea']].plantillas[0]}
             for t in descripcion_para_modelo()], ensure_ascii=False)
-        if self.perfil_prompt == 'llm_destilado_v1':
-            sistema = sistema_alumno()
+        if self.perfil_prompt in PERFILES_ALUMNO:
+            sistema = PERFILES_ALUMNO[self.perfil_prompt][0]()
         elegida = None
         if self.dos_etapas:
             esquema_intencion = {'type': 'object', 'additionalProperties': False,

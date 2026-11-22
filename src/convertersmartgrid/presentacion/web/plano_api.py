@@ -56,6 +56,16 @@ class FuenteWeb:
 
         return services.build_model(ws, alimentador, geography=True)
 
+    def modelo_del_plano(self, ws, alimentador: str):
+        """111:RF-30: el modelo que basta para ver el plano: el de :meth:`modelo` sin la corrección del oráculo.
+
+        El oráculo corre un flujo de potencia por alimentador (0,5 s cada uno con la red de escala) y solo cambia la
+        demanda de las cargas, que la vista del plano no lee; editar y estudiar siguen con el modelo completo.
+        """
+        from . import services
+
+        return services.build_model(ws, alimentador, geography=True, oraculo=False)
+
     def ruta_geografia(self, ws, alimentador: str) -> Path | None:
         ruta = Path(ws.out_dir) / f'{alimentador}_geography.json'
         return ruta if ruta.is_file() else None
@@ -76,7 +86,12 @@ class FuenteWeb:
 
         binding = services.vinculo_del_proyecto(ws, project, alimentadores)
         run = str(getattr(binding, 'source_run_id', '') or '')
-        return binding, bool(run) and run == str(getattr(ws, 'active_run_id', '') or '')
+        misma_ejecucion = bool(run) and run == str(getattr(ws, 'active_run_id', '') or '')
+        # 111:RF-31: cada «Cargar y listar alimentadores» crea una ejecución nueva aunque los ficheros sean los mismos; el
+        # proyecto importado desde la anterior sigue vinculado si la huella de su fuente es la de la red cargada.
+        huella = str(getattr(binding, 'source_fingerprint', '') or '')
+        misma_fuente = bool(huella) and huella == str(getattr(ws, 'loaded_source_fingerprint', '') or '')
+        return binding, misma_ejecucion or misma_fuente
 
     def limites(self):
         from ...aplicacion.estudios_pf import limites_de_perfil
@@ -115,9 +130,14 @@ class FuenteWeb:
             raise UserError(f'El guion de DIgSILENT terminó con el código {rc} sin dejar su informe.') from exc
 
 
-def _vista_y_revision(fuente, ws, alimentador: str) -> tuple[Any, dict, str]:
-    """El modelo, la vista del plano y la revisión de la red de un alimentador."""
-    modelo = fuente.modelo(ws, alimentador)
+def _vista_y_revision(fuente, ws, alimentador: str, *, para_ver: bool = False) -> tuple[Any, dict, str]:
+    """El modelo, la vista del plano y la revisión de la red de un alimentador.
+
+    ``para_ver`` (111:RF-30): solo para enseñar el plano; usa ``fuente.modelo_del_plano`` si la fuente lo da. La
+    vista y la revisión son las mismas que con el modelo completo, que es el que validan las ediciones.
+    """
+    construir = getattr(fuente, 'modelo_del_plano', None) if para_ver else None
+    modelo = (construir or fuente.modelo)(ws, alimentador)
     ruta = fuente.ruta_geografia(ws, alimentador)
     geo = json.loads(ruta.read_text(encoding='utf-8')) if ruta is not None else None
     vista = plano_red.vista(modelo, geo)
@@ -239,7 +259,7 @@ def registrar_rutas_plano(app: FastAPI, *, ws_or_404, submit, fuente: Any = None
         """111:RF-1 a RF-3, RF-11, RF-17: la vista de cada alimentador pedido (o de todos los convertidos)."""
         ws = ws_or_404(wid)
         elegidos = list(dict.fromkeys(alimentador)) or fuente.alimentadores(ws)
-        vistas = [_vista_y_revision(fuente, ws, a)[1] for a in elegidos]
+        vistas = [_vista_y_revision(fuente, ws, a, para_ver=True)[1] for a in elegidos]
         motor, _binding = _motor(fuente, ws, project, elegidos[0] if elegidos else '')
         return {**plano_red.resumen_plano(vistas), 'vistas': vistas, 'motor': motor, 'fondo': _fondo()}
 
@@ -262,7 +282,7 @@ def registrar_rutas_plano(app: FastAPI, *, ws_or_404, submit, fuente: Any = None
 
         ws = ws_or_404(wid)
         elegidos = list(dict.fromkeys(alimentador)) or fuente.alimentadores(ws)
-        vistas = [_vista_y_revision(fuente, ws, a)[1] for a in elegidos]
+        vistas = [_vista_y_revision(fuente, ws, a, para_ver=True)[1] for a in elegidos]
         capas = None
         if variacion:
             r = _leer_resultado(ws, variacion)

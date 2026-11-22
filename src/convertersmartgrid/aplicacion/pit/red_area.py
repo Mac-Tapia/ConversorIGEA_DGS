@@ -39,9 +39,13 @@ REQUERIDOS: dict[str, tuple[str, ...]] = {
     # 107:RF-25: el acoplamiento de barras de una subestación (``ElmCoup`` de DIgSILENT) con su estado; cerrado, sus
     # dos barras son una en el flujo. Sin estado no se supone cerrado ni abierto: queda en faltantes.
     'union': ('desde', 'hasta', 'cerrado'),
+    # 107:RF-26: una rama serie entre dos barras (condensador serie ``ElmScap`` o reactancia serie ``ElmSind`` de
+    # DIgSILENT), con su resistencia y su reactancia en ohmios; la de un condensador, negativa.
+    'serie': ('desde', 'hasta', 'r_ohm', 'x_ohm'),
 }
 _BARRAS = {'red_externa': ('barra',), 'linea': ('desde', 'hasta'), 'trafo2': ('hv', 'lv'),
-           'trafo3': ('hv', 'mv', 'lv'), 'compensacion': ('barra',), 'union': ('desde', 'hasta')}
+           'trafo3': ('hv', 'mv', 'lv'), 'compensacion': ('barra',), 'union': ('desde', 'hasta'),
+           'serie': ('desde', 'hasta')}
 _TEXTO = {'id', 'tipo', 'set', 'rol', 'titular', 'desde', 'hasta', 'hv', 'mv', 'lv', 'barra', 'funcion', 'areas'}
 #: Las claves del contrato: el encabezado de cada columna cuando el perfil no declara ``columnas``.
 _CONTRATO = _TEXTO | {k for claves in REQUERIDOS.values() for k in claves}

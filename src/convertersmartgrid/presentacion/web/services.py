@@ -1699,12 +1699,16 @@ def reglas_de(ws: Workspace):
     return reglas_de_perfil(perfil_de(ws), replace(REGLAS_PROYECTO, hoja=ws.options.get('hoja')))
 
 
-def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
+def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None, oraculo: bool = True):
     """El modelo del alimentador **con las reglas del proyecto**, igual que en el DGS.
 
     Las plantillas y los planes de cargas se construyen sobre él: si la plantilla
     listara trafomix o SED que el DGS ya no tiene, el plan buscaría en PowerFactory
     cargas que no existen.
+
+    ``oraculo=False`` (111:RF-30) deja fuera solo la corrección del oráculo, que corre un flujo
+    por alimentador y solo cambia la demanda de las cargas: para ver el plano basta, porque su
+    vista no la lee.
     """
     require_loaded(ws)
     from ...dominio.model import build_feeder_model
@@ -1724,7 +1728,12 @@ def build_model(ws: Workspace, feeder: str, *, geography: bool | None = None):
         from ...aplicacion.catalog import leer_catalogo
 
         correcciones = leer_catalogo(catalogo)
-    aplicar_reglas(modelo, reglas_de(ws), correcciones=correcciones)
+    reglas = reglas_de(ws)
+    if not oraculo:
+        from dataclasses import replace
+
+        reglas = replace(reglas, corregir_con_oraculo=False)
+    aplicar_reglas(modelo, reglas, correcciones=correcciones)
     return modelo
 
 

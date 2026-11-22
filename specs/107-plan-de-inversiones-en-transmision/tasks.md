@@ -483,3 +483,8 @@ adaptador VNR (integrador f9).
       subestaciones sintéticas de barras con el mismo nombre, acoplamientos y la referencia en una máquina, el flujo
       abierto converge y empareja por id con el ComLdf del doble.
       Hecho el 2026-11-20 (d8, fila MEJ22): rojo sobre la base y verde en D:/csg/PM_IMPL/MEJ22_PIT/.
+- [x] T45. Ramas serie en la red de transmisión (corrida de T14 del 21-11): `tools/pit_pf.py` exporta los `ElmScap` y
+      los `ElmSind` en servicio como `serie` con `r_ohm` y `x_ohm` (la del condensador, negativa); `red_area` acepta la
+      `serie` y la deja en faltantes sin su reactancia, y `red_pandapower` la monta como impedancia. (RF-26)
+      Hecho cuando: rojo por aserción sobre 7ed2c05d y verde con `tests/test_pit_pf_guion.py` (107:RF-26): una
+      subestación que solo llega por un condensador serie tiene tensión, y una reactancia serie sale con su R y su X.

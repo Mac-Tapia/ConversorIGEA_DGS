@@ -76,3 +76,24 @@ Limitaciones de lo cerrado:
 
 - [x] T5. La física base de la PINN nunca da 0 p.u.: Newton-Raphson y, si no, barrido radial. (RF-14)
       Hecho cuando: `tests/test_digital_twin_flujo.py` (045:RF-14) en verde y la red 9f53b98… del búfer a 0,005 p.u. de DIgSILENT.
+
+- [ ] T6 [GPU]. El híbrido no empeora a la física: corrección nula al empezar, época elegida con el tope de residuo,
+      corrección acotada al predecir, retirada del modelo en uso peor que la física y redes de prueba declaradas en el
+      contrato de la ablación. (RF-15, RF-16, RF-17, RF-18)
+      Hecho cuando: el código y `tests/test_gemelo_hibrido_acotado.py` (sin GPU) en verde, `tests/test_digital_twin_oraculo.py`
+      y `tests_ml/test_benchmark_pinn_cuda.py` en CUDA en verde, y la ablación repetida en la GPU con el mismo contrato
+      (`D:/csg/PM_IMPL/GPU_BLOQUE/045_T3/contrato_ablacion.json`) da el híbrido con `veredicto.approved` en global y en las
+      5 familias, o `eleccion.brazo` = `fisica_pura` con el híbrido sin empeorarla (mae_v ≤ 2,07·10⁻⁴ p.u., residuo ≤ 0,05
+      por familia). Orden: `PYTHONPATH=src .venv/Scripts/python.exe tools/digital_twin_entrenar.py --ablaciones CONTRATO --raiz COPIA_DEL_BUFER
+      --output-json INFORME`, sobre una copia nueva de `045_T3/twin_copia`, con el turno de GPU de la cola de d8 (HANDOFF de MEJ30). Abierta: el código y las pruebas sin GPU están hechos; falta la
+      medida en GPU.
+      Primera medida, 2026-11-21 (`D:/csg/PM_IMPL/GPU_BLOQUE/045_T6_MEJ30/`): no pasa. El híbrido da 5,07·10⁻⁴ p.u. frente a
+      2,07·10⁻⁴ (1 de 5 familias) porque la prueba, una red de 30 nodos, estaba fuera del dominio de todos los candidatos
+      (169–5 147 nodos) y se medía la predicción cruda; la física en validación (3,04·10⁻³ p.u.) es peor que en esa prueba
+      (≤ 2,8·10⁻⁴), así que mejorar la validación no dice nada de ella. Además, `test_incertidumbre_para_el_aprendizaje_activo`
+      falló en CUDA (f(30) = 1,0 < f(1)). Corregido en la segunda vuelta de MEJ30 (RF-16); se repite la medida.
+      Segunda medida (T6b): contrato `D:/csg/PM_IMPL/GPU_BLOQUE/045_T6b_MEJ30/contrato_ablacion.json` (huella del
+      experimento `b9792fa9…`), con `politica.redes_de_prueba` = la red `9f53b983…` (829 nodos, 14 ejemplos, 6 familias),
+      dentro del dominio (30–5 147 nodos) y con la física a 4,0·10⁻³ p.u. Acepta si el híbrido pasa las puertas de 044 en
+      global y en las 6 familias con `ejemplos_fuera_de_dominio` = 0; si no, queda la física (`eleccion.brazo`) con el motivo
+      medido.

@@ -1,4 +1,4 @@
-workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 459 módulos de Python en 37 subsistemas." {
+workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión ecad83ea, 17-11-2026: 460 módulos de Python en 37 subsistemas." {
 
     // Las relaciones de componentes no se suben solas a los contenedores: cada vista muestra solo lo declarado.
     !impliedRelationships false
@@ -422,7 +422,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Asistente: modelos de órdenes y documentos"
                     }
                 }
-                cmpAsisDatos = component "Datos y entrenamiento" "Órdenes sintéticas, fijas y del maestro; currículos y destilación (24 ficheros)." "Python" {
+                cmpAsisDatos = component "Datos y entrenamiento" "Órdenes sintéticas, fijas y del maestro; currículos y destilación (25 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/aplicacion/asistente/ordenes_maestro.py"
                     tags "AI"
                     properties {

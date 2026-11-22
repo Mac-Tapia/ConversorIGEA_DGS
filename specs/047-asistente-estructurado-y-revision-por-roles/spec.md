@@ -163,6 +163,34 @@ RF-9 mientras haya menos de 200 humanas; las del maestro nunca son humanas ni se
   decisión de ajuste en `decision_ajuste.json`, que lee `tools/asistente_qlora.py --decision`, y
   `tools/reentrenar_modelos.py run --qlora-decision` la pasará a la etapa QLoRA.
 
+### Corpus v7 de órdenes con el contrato vigente (T7d, MEJ34, 2026-11-21)
+
+- RF-69: (MEJ34, 2026-11-21, T7d) CUANDO se prepare el corpus de órdenes del alumno destilado, EL SISTEMA cubrirá en sus
+  cuatro particiones las 67 tareas del contrato vigente `TAREAS` y lo sellará con el prompt del perfil
+  `llm_destilado_v2` (`sistema_alumno_contrato`), que nombra cada una; el perfil `llm_destilado_v1` (29 tareas hasta la
+  069) conserva su huella para los corpus v5 y v6. El entrenamiento, la evaluación, la elección y el cliente de Ollama
+  usarán el prompt y las tareas del perfil que selló el corpus; la elección compara con las tareas
+  que declara su manifiesto sellado (RF-60), y el del v7 declara las 67. Caso real: el v6 cubría 27 de las 67 tareas y su alumno
+  no conocía calibrar, escanear, la escalera de obras, el PIT, la nube ni la biblioteca normativa.
+- RF-70: EL SISTEMA declarará en cada fila del corpus v7 su origen (maestro o sintético controlado; las órdenes humanas
+  confirmadas se reservan aparte, con origen humano, y nunca entran en una partición redactada) y no escribirá ningún
+  nombre real: los valores de la fuente (alimentador, SED, SET, sistema, proyecto y rutas) se seudonimizan, el mapa
+  guarda solo la huella de cada original, y SI el detector de nombres de la entrega (086:RF-33) encuentra uno en el
+  corpus, sus contextos o su manifiesto, ENTONCES no se escribirá nada.
+- RF-71: las frases de las tareas posteriores a la 069 serán del maestro, una columna por partición (entrenamiento,
+  selección, calibración y prueba) que no se cruzan, con los datos obligatorios de cada tarea; las de entrenamiento suman
+  las plantillas del catálogo y `ESTILO_REAL`, y ninguna fila repite un texto de las pruebas selladas del intérprete ni
+  una orden humana reservada.
+- RF-72: CUANDO ninguna fuente aporte el valor que pide una tarea (la carpeta del caso del VAD, el .json de una norma, la
+  carta del solicitante, el libro del PIT, el informe o la salida que se envía o publica), EL SISTEMA usará un valor
+  sintético controlado, uno por partición, declarado en la fila (`valores_sinteticos`) y en el manifiesto; la auditoría
+  rechaza uno no declarado.
+- RF-73: EL SISTEMA copiará cada fuente del corpus v7 a su propia custodia (`fuentes/<sha256>.bin`), comprobando su
+  sha256 y sus bytes con los del v6; SI una no casa, ENTONCES no preparará nada y dirá cuál.
+- RF-74: la prueba, la selección y la calibración se fijarán con su huella al preparar el corpus, antes de sellar y de
+  entrenar; SI al sellar o al leer una partición apartada su huella no es la fijada, ENTONCES EL SISTEMA no la sellará ni
+  la leerá. La preparación deja medidos su tiempo y su coste (sin GPU ni llamadas a modelos).
+
 ## Requisitos no funcionales
 
 Python 3.12; datos locales; entrenamiento CUDA exclusivo sin fallback silencioso a

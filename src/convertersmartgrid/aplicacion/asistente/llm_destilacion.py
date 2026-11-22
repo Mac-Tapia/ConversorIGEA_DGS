@@ -22,6 +22,32 @@ from ...dominio.util import publicar_duradero
 PARTICIONES = ('entrenamiento', 'seleccion', 'calibracion', 'prueba')
 
 
+def perfil_de(meta: dict) -> str:
+    """047:RF-69: el perfil de prompt que selló un corpus de órdenes; sin declararlo, el v1 de los corpus v5 y v6."""
+    from .tareas import PERFILES_ALUMNO
+    perfil = meta.get('perfil_prompt') or 'llm_destilado_v1'
+    if perfil not in PERFILES_ALUMNO:
+        raise ValueError(f'perfil de prompt desconocido: {perfil}')
+    return perfil
+
+
+def prompt_de_perfil(meta: dict) -> str:
+    from .tareas import PERFILES_ALUMNO
+    perfil = perfil_de(meta)
+    # El v1 por el nombre de este módulo, como hasta ahora: es el que sella ``sellar_particiones`` por defecto.
+    return sistema_alumno() if perfil == 'llm_destilado_v1' else PERFILES_ALUMNO[perfil][0]()
+
+
+#: 047:RF-69: tokens de cada ejemplo (prompt de sistema, orden y respuesta) por perfil. El prompt v2 del contrato vigente
+#: ocupa unos 2.200 con el tokenizador de la base; el v1, unos 1.100.
+MAX_TOKENS_PERFIL = {'llm_destilado_v1': 2048, 'llm_destilado_v2': 3072}
+
+
+def tareas_de_perfil(perfil: str) -> dict:
+    from .tareas import PERFILES_ALUMNO
+    return PERFILES_ALUMNO[perfil][1]
+
+
 def muestras_aprendizaje(instantanea: dict, referencias: dict) -> list:
     """050:RF-2/3: lee las partes selladas del alumno; maestro conserva su procedencia."""
     from ...dominio.contratos_aprendizaje import muestra_de_registro, ruta_de
@@ -122,6 +148,11 @@ def respuesta_maestro(registro: dict) -> str:
         raise ValueError('se requiere una fuente real con custodia')
     for fuente in registro['fuentes']:
         verificar_fuente(fuente)
+    return _respuesta_de_spans(registro)
+
+
+def respuesta_de_etiquetas(registro: dict) -> str:
+    """La respuesta que dan las etiquetas verificadas de un registro (la usa también el corpus v7, 047:RF-69)."""
     return _respuesta_de_spans(registro)
 
 
@@ -403,7 +434,13 @@ def sellar_particiones(dataset: Path, destino: Path, *, validar=None, sistema: s
     import shutil
     filas = json.loads((dataset / 'corpus.json').read_text(encoding='utf-8'))
     meta = json.loads((dataset / 'dataset_manifest.json').read_text(encoding='utf-8'))
+    if meta.get('schema_version') == 3 and (validar is None or sistema is None):
+        # 047:RF-69: el v7 lleva su validador y el prompt de su perfil (``corpus_contrato_llm.sellar_v7``).
+        raise ValueError('el corpus v7 se sella con su validador y el prompt de su perfil (sellar_v7)')
     (validar or validar_corpus_real)(filas, meta)
+    if meta.get('schema_version') == 3 and any(huella([r for r in filas if r['particion'] == p]) != h
+                                               for p, h in (meta.get('apartadas_preparadas') or {'x': 0}).items()):
+        raise ValueError('las particiones apartadas no son las que se fijaron al preparar el corpus')
     if destino.exists():
         raise ValueError('destino existente conservado')
     destino.mkdir(parents=True)
@@ -454,8 +491,14 @@ def leer_particion_real(dataset: Path, parte: str, *, custodia: CustodiaCorpus |
             fuentes.setdefault((f['ruta'], f['sha256']), f)
     for f in fuentes.values():
         verificar_fuente(f, custodia=custodia)
-    if meta.get('prompt_hash') != huella(sistema_alumno()):
+    if meta.get('prompt_hash') != huella(prompt_de_perfil(meta)):
         raise ValueError('prompt distinto del protocolo sellado')
+    if meta.get('schema_version') == 3:
+        # 047:RF-70, RF-74: el v7 declara el origen de cada fila, y lo apartado es lo que se fijó antes de sellar.
+        if any(r.get('origen_declarado') not in ('maestro', 'sintetico_controlado') for r in registros):
+            raise ValueError('fila sin origen declarado en el corpus v7')
+        if parte != 'entrenamiento' and (meta.get('apartadas_preparadas') or {}).get(parte) != huella(registros):
+            raise ValueError('particion apartada distinta de la fijada antes de sellar')
     if meta.get('humanas_reservadas_archivo'):
         evidencia=meta['humanas_reservadas_archivo'];verificar_fuente(evidencia, custodia=custodia)
         humanas=json.loads(ruta_fuente(evidencia, custodia).read_text(encoding='utf-8'))
@@ -494,6 +537,13 @@ def elegir_version_llm(informes: list[dict], *, manifiesto: dict | None = None) 
     if (informes[0].get('dataset_hash'), informes[0].get('prompt_hash')) != (manifiesto.get('dataset_hash'),
                                                                              manifiesto.get('prompt_hash')):
         raise ValueError('informes de seleccion de otro sellado que el del manifiesto')
+    perfiles = {r.get('perfil_prompt') or 'llm_destilado_v1' for r in informes}
+    if len(perfiles) != 1:
+        raise ValueError('informes de seleccion de perfiles distintos')
+    perfil = perfiles.pop()
+    if perfil != perfil_de(manifiesto):   # 047:RF-69: el perfil de los informes es el que selló el corpus
+        raise ValueError('informes de seleccion de otro perfil que el del manifiesto sellado')
+    # 047:RF-60: las tareas que declara el manifiesto sellado; el del v7 (perfil v2, 047:RF-69) declara las 67.
     tareas = tareas_selladas(manifiesto, 'seleccion')
     for r in informes:
         m = r['metricas']
@@ -510,17 +560,23 @@ def elegir_version_llm(informes: list[dict], *, manifiesto: dict | None = None) 
                                           r['metricas']['f1_datos']))
     return {'modelo':ganador['modelo'],'modelo_digest':ganador['modelo_digest'],
             'dataset_hash':ganador['dataset_hash'],'prompt_hash':ganador['prompt_hash'],
-            'perfil_prompt':'llm_destilado_v1','criterio':'seleccion',
+            'perfil_prompt':perfil,'criterio':'seleccion',
             'tareas_selladas':tareas,'no_cubiertas_por_este_sellado':no_cubiertas_por_el_sellado(tareas),
             'metricas_seleccion':ganador['metricas']}
 
 
-def auditar_fuentes_corpus(dataset: Path, *, custodia: CustodiaCorpus | None = None) -> dict:
-    """Comprueba entidades contra registros extraidos; no infiere ni ejecuta estudios."""
+def auditar_fuentes_corpus(dataset: Path, *, custodia: CustodiaCorpus | None = None, validar=None) -> dict:
+    """Comprueba entidades contra registros extraidos; no infiere ni ejecuta estudios.
+
+    ``validar``: el validador del corpus v7 (047:RF-69), que pasa ``corpus_contrato_llm.auditar_v7``.
+    """
     meta=json.loads((dataset/'dataset_manifest.json').read_text(encoding='utf-8'))
     custodia = leer_custodia(dataset, meta) or custodia
     filas=json.loads((dataset/'corpus_auditoria.json').read_text(encoding='utf-8'))
-    validar_corpus_real(filas,meta,custodia=custodia)
+    v7 = meta.get('schema_version') == 3
+    if v7 and validar is None:
+        raise ValueError('el corpus v7 se audita con su validador (auditar_v7)')
+    (validar or validar_corpus_real)(filas, meta, custodia=custodia)
     evidencia=meta['contextos_fuente'];verificar_fuente(evidencia,custodia=custodia)
     contextos=json.loads(ruta_fuente(evidencia,custodia).read_text(encoding='utf-8'))
     custodia_h=meta['humanas_reservadas_archivo'];verificar_fuente(custodia_h,custodia=custodia)
@@ -546,8 +602,17 @@ def auditar_fuentes_corpus(dataset: Path, *, custodia: CustodiaCorpus | None = N
             permitidos={'proyecto':{p['valor'] for p in c['proyectos']},
                 'sistema':{c['sistema']['valor']} if c.get('sistema') else set(),
                 'sed':{s['valor'] for s in c['seds']},'ruta':{c['ruta']},'periodo':set(c['periodos'])}
+            if v7:
+                # 047:RF-72: el v7 nombra también la SET y las rutas de sus fuentes; lo sintético va declarado.
+                permitidos['set'] = {c['set']['valor']} if c.get('set') else set()
+                permitidos['ruta'] |= set((c.get('rutas') or {}).values())
             for a,b,tipo in r['datos']:
                 valor=r['texto'][a:b]
+                if v7 and tipo in r.get('valores_sinteticos', ()):
+                    if valor not in (meta.get('valores_sinteticos') or {}).get(tipo, ()):
+                        raise ValueError('valor sintetico no declarado en el manifiesto: '+tipo)
+                    parametros['sintetico_'+tipo]+=1
+                    continue
                 if tipo=='alimentadores':
                     nombres=valor.split(' y ')
                     if c['alimentador'] not in nombres:
@@ -579,8 +644,9 @@ def evaluar_version_llm(dataset: Path, modelo: str, *, parte: str = 'seleccion',
     from .ollama import ClienteOllama
     from .aceptacion import evaluar_ordenes
     meta = json.loads((dataset / 'dataset_manifest.json').read_text(encoding='utf-8'))
+    perfil = perfil_de(meta)   # 047:RF-69
     cliente = ClienteOllama(modelo=modelo, tiempo_max_s=180, pensar=False,
-        revisar_transformer=True, perfil_prompt='llm_destilado_v1')
+        revisar_transformer=True, perfil_prompt=perfil)
     tags = (cliente._pedir('/api/tags') or {}).get('models') or []
     instalado = next((m for m in tags if m['name'] == modelo), None)
     if not instalado:
@@ -602,14 +668,15 @@ def evaluar_version_llm(dataset: Path, modelo: str, *, parte: str = 'seleccion',
     vocabulario = {'alimentadores': sorted({c['alimentador'] for c in contextos}),
         'proyecto': sorted({p['valor'] for c in contextos for p in c['proyectos']}),
         'sistema': sorted({c['sistema']['valor'] for c in contextos if c.get('sistema')}),
-        'sed': sorted({s['valor'] for c in contextos for s in c['seds']})}
+        'sed': sorted({s['valor'] for c in contextos for s in c['seds']}),
+        'set': sorted({c['set']['valor'] for c in contextos if c.get('set')})}
     try:
         metricas = evaluar_ordenes(registros, cliente=cliente, vocabulario=vocabulario, log=log)
     finally:
         cliente.liberar_gpu(solo_actual=True)
     return {'particion':parte,'modelo':modelo,'modelo_digest':instalado['digest'],
         'dataset_hash':meta['dataset_hash'],'prompt_hash':meta['prompt_hash'],
-        'perfil_prompt':'llm_destilado_v1','tareas_selladas':tareas_selladas(meta, parte),
+        'perfil_prompt':perfil,'tareas_selladas':tareas_selladas(meta, parte),
         'no_cubiertas_por_este_sellado':no_cubiertas_por_el_sellado(tareas_selladas(meta, parte)),
         'metricas':metricas,'escrituras_nativas':0}
 
@@ -654,7 +721,7 @@ def ejemplos_de_entrenamiento(dataset: Path, *, lectores: dict | None = None,
         tipo = None
     if tipo is None:
         registros, meta = leer_particion_real(dataset, parte)
-        return registros, meta, sistema_alumno()
+        return registros, meta, prompt_de_perfil(meta)   # 047:RF-69: v1 para v5/v6, v2 para el v7
     lector = (lectores or {}).get(tipo)
     if lector is None:
         raise ValueError(f'tipo de corpus sin lector de entrenamiento: {tipo}')
@@ -756,18 +823,21 @@ def medir_redaccion(dataset: Path, adaptador: Path, *, lectores: dict, partes=('
 
 def entrenar_epoca(dataset: Path, destino: Path, *, epoca: int = 1, desde: Path | None = None,
                    semilla: int = 11, rango: int = 8, lr: float = 2e-4,
-                   acumulacion: int = 8, max_tokens: int = 2048, log=print, lectores: dict | None = None) -> dict:
+                   acumulacion: int = 8, max_tokens: int | None = None, log=print, lectores: dict | None = None) -> dict:
     """QLoRA real de todo el train sellado; cada checkpoint permite continuar sin prueba.
 
-    ``lectores`` da el lector de un corpus con tipo, como el de redacción del PIDE (072:RF-51).
+    ``lectores`` da el lector de un corpus con tipo, como el de redacción del PIDE (072:RF-51). Sin ``max_tokens``, el
+    del perfil que selló el corpus (047:RF-69): el prompt del contrato vigente no cabe en los 2048 del v1.
     """
     import math
     import time
     if destino.exists():
         raise ValueError('destino existente conservado')
+    registros, meta, sistema = ejemplos_de_entrenamiento(dataset, lectores=lectores)
+    if max_tokens is None:
+        max_tokens = MAX_TOKENS_PERFIL.get(meta.get('perfil_prompt') or 'llm_destilado_v1', 2048)
     if any(type(v) is not int or v < 1 for v in (epoca, rango, acumulacion, max_tokens)) or not 0 < lr < 1:
         raise ValueError('configuracion de entrenamiento invalida')
-    registros, meta, sistema = ejemplos_de_entrenamiento(dataset, lectores=lectores)
     configuracion = {'dataset_hash': meta['dataset_hash'], 'prompt_hash': meta['prompt_hash'],
         'semilla': semilla, 'rango': rango, 'lr': lr, 'acumulacion': acumulacion, 'max_tokens': max_tokens}
     estado_previo = None

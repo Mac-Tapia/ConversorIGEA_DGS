@@ -17,7 +17,8 @@ episodios nuevos y fuera de dominio y si conviene reentrenar (spec 027, RF-22 y 
 aprendizaje (spec 027, RF-53). Con ``--buscar`` busca antes los hiperparámetros
 (TPE y poda, solo en validación, con ``--ensayos`` y ``--limite-s``), guarda los ensayos y entrena
 con los elegidos (spec 027, RF-7). Con ``--ablaciones CONTRATO`` compara física pura, red sin término
-físico, híbrido y PowerFlowNet sobre las mismas particiones y no promueve nada (spec 045, RF-8).
+físico, híbrido y PowerFlowNet sobre las mismas particiones y no promueve nada (spec 045, RF-8); si el contrato
+declara ``politica.redes_de_prueba`` (prefijos de huella de red), esas redes son la prueba (045:RF-18).
 
 Códigos de salida: 0 hecho (entrenado o no hacía falta), 2 sin PyTorch, 3 sin GPU CUDA (el informe lo dice con
 ``sin_gpu`` y su motivo: el gemelo nunca entrena en la CPU), 1 error.
@@ -99,7 +100,8 @@ def main(argv=None) -> int:
     p.add_argument('--reproducir', metavar='VERSION',
                    help='Reentrenar un modelo con su manifiesto y comparar su error (027:RF-9)')
     p.add_argument('--ablaciones', type=Path, metavar='CONTRATO',
-                   help='No promover: comparar las físicas con un contrato ExperimentoSpec (045:RF-8)')
+                   help='No promover: comparar las físicas con un contrato ExperimentoSpec (045:RF-8); su '
+                        'politica.redes_de_prueba declara las redes de prueba (045:RF-18)')
     p.add_argument('--reabrir-candidato', type=Path, metavar='CARPETA',
                    help='No entrenar: reabrir este candidato y comprobar que predice lo mismo (043:RF-5)')
     args = p.parse_args(argv)
@@ -162,11 +164,15 @@ def main(argv=None) -> int:
                 salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
                 return 0
             if args.ablaciones:
-                from convertersmartgrid.adaptadores.digital_twin.benchmark_fisico import comparar_fisicas
+                from convertersmartgrid.adaptadores.digital_twin.benchmark_fisico import (
+                    comparar_fisicas,
+                    particiones_del_contrato,
+                )
                 from convertersmartgrid.aplicacion.experimentos import cargar_experimento
 
                 experimento = cargar_experimento(args.ablaciones)
-                r = comparar_fisicas(experimento, oraculo.particiones_del_bufer(bufer), bufer=bufer, log=_log)
+                # 045:RF-18: el contrato puede declarar sus redes de prueba (``politica.redes_de_prueba``).
+                r = comparar_fisicas(experimento, particiones_del_contrato(experimento, bufer), bufer=bufer, log=_log)
                 salida.write_text(json.dumps(r, ensure_ascii=False, default=str), encoding='utf-8')
                 return 0 if r['completo'] else 2
             if args.reproducir:

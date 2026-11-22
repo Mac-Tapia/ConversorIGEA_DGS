@@ -15,6 +15,8 @@ transmisión: nunca sobre el del operador.
   y así los resultados de DIgSILENT y del motor abierto se emparejan por ``id`` (107:RF-25).
 * Los acoplamientos (``ElmCoup``) salen como uniones de barras con su estado (``cerrado``): una barra partida por un
   acoplamiento cerrado es una sola en el flujo (107:RF-25).
+* Los condensadores y las reactancias serie (``ElmScap``, ``ElmSind``) salen como ramas ``serie`` con su R y su X en
+  ohmios; sin ellos una red de transmisión con compensación serie queda partida (107:RF-26).
 * La máquina que DIgSILENT declara de referencia (``ip_ctrl``) sale como red externa de referencia (SL) con su
   consigna de tensión, y la red externa con su consigna de potencia (``pgini``, ``qgini``): un proyecto cuya
   referencia es una máquina y cuyas redes externas son PQ se puede calcular con el motor abierto (107:RF-25).
@@ -161,6 +163,19 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
                                 'kv': _kv_barra(c, 'bus1'),
                                 'cerrado': None if estado_c is None else estado_c == 1, **comun,
                                 'fuente': fuente(c)}))
+    for patron, attr_r, attr_x, signo in (('*.ElmScap', 'rcap', 'xcap', -1.0), ('*.ElmSind', 'rrea', 'xrea', 1.0)):
+        # 107:RF-26: los condensadores y las reactancias serie son ramas: en la copia de transmisión del 21-11 el Sur
+        # solo llegaba a la referencia por las líneas de 500 kV con condensadores serie, y sin ellos quedaban sin
+        # suministro 1 499 barras con tensión en DIgSILENT. La reactancia de un condensador (``xcap``, en ohmios) es
+        # capacitiva: X negativa. Sin resistencia declarada (el ``ElmScap`` no la trae), 0. Sin reactancia no se
+        # supone: queda en faltantes (RF-4).
+        for s in _objetos(app, patron):
+            if _fuera_de_servicio(s):
+                continue
+            x = _num(s, attr_x)
+            out.append(_sin_vacios({**ident(s), 'tipo': 'serie', 'desde': _barra(s, 'bus1'), 'hasta': _barra(s, 'bus2'),
+                                    'kv': _kv_barra(s, 'bus1'), 'r_ohm': _num(s, attr_r) or 0.0,
+                                    'x_ohm': None if x is None else signo * x, **comun, 'fuente': fuente(s)}))
     for ln in _objetos(app, '*.ElmLne'):
         t = getattr(ln, 'typ_id', None)
         c_uf = _num(t, 'cline')

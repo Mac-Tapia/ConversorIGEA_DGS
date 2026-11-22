@@ -15,7 +15,8 @@ sin su consigna, es un ``PitError`` que lo nombra (107:RF-3, RF-4).
 En un proyecto de transmisión la referencia puede ser una máquina (``ip_ctrl`` de DIgSILENT) y las redes externas,
 PQ: ``tools/pit_pf.py`` exporta esa máquina como red externa SL, y cada red externa PQ o PV entra con su consigna
 (``p_mw``, ``q_mvar``; la PV, con su tensión) como generación estática o generador de pandapower. Los acoplamientos
-(``union``) son interruptores barra-barra: cerrados, pandapower une sus dos barras (107:RF-25).
+(``union``) son interruptores barra-barra: cerrados, pandapower une sus dos barras (107:RF-25). Las ramas serie
+(``serie``: condensadores y reactancias serie) son impedancias de pandapower (107:RF-26).
 
 La compensación capacitiva entra con ``q_mvar`` negativo, que es el convenio de pandapower para un banco que entrega
 reactiva. ``fuera`` saca de servicio elementos para el N-1. La potencia sin servir es la de las cargas que quedan en
@@ -54,6 +55,8 @@ class ResultadoFlujo:
 _REFERENCIA = 'SL'
 #: Los tipos de barra de una red externa que no es la referencia y entra con su consigna (107:RF-25).
 _CON_CONSIGNA = ('PQ', 'PV')
+#: 107:RF-26: la base de potencia de las ramas serie (``create_impedance`` las pide en por unidad).
+_SN_SERIE_MVA = 100.0
 
 
 def _tipo_barra(g: Mapping) -> str:
@@ -120,6 +123,12 @@ def _red(pp, red: RedArea, cargas: Mapping[str, tuple[float, float]], fuera: set
         # 107:RF-25: un acoplamiento cerrado une sus dos barras (interruptor barra-barra de pandapower).
         pp.create_switch(net, bus[e['desde']], bus[e['hasta']], et='b',
                          closed=bool(e['cerrado']) and e['id'] not in fuera, name=e['id'])
+    for e in red.de_tipo('serie'):
+        # 107:RF-26: la rama serie como impedancia de pandapower, en por unidad de la tensión de su barra de origen.
+        zb = float(net.bus.vn_kv.at[bus[e['desde']]]) ** 2 / _SN_SERIE_MVA
+        pp.create_impedance(net, bus[e['desde']], bus[e['hasta']], rft_pu=float(e['r_ohm']) / zb,
+                            xft_pu=float(e['x_ohm']) / zb, sn_mva=_SN_SERIE_MVA, name=e['id'],
+                            in_service=e['id'] not in fuera)
     lineas, trafos, trafos3 = {}, {}, {}
     for e in red.de_tipo('linea'):
         lineas[e['id']] = pp.create_line_from_parameters(

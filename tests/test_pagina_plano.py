@@ -225,3 +225,37 @@ def test_111_rf13_el_aviso_sin_mapa_base_no_tapa_la_red(tmp_path, monkeypatch):
     regla = re.search(r'#aviso \{([^}]*)\}', html)
     assert regla, 'falta la regla del aviso'
     assert 'top: 10px' in regla.group(1) and 'bottom: auto' in regla.group(1)
+
+
+def test_111_rf30_la_pagina_lleva_solo_lo_que_dibuja_y_todo_lo_que_dibuja(tmp_path):
+    """111:RF-30 — la página del plano lleva de cada vista solo los campos que su guion dibuja (el resto lo tienen la
+    tabla y el inspector por la API): cada elemento sigue, con su código, sus vértices enteros, su posición, su potencia
+    y su estado, y el guion no lee ningún campo que la página ya no lleva."""
+    p = _pagina()
+    assert hasattr(p, 'CAMPOS_DIBUJO'), 'pagina_plano no declara CAMPOS_DIBUJO'
+    vistas, seed = _vistas(tmp_path)
+    html = p.pagina(vistas)
+    datos = _datos(html)
+    guion = html.split('id="datos-plano">', 1)[1]
+    letra = {'tramos': 't', 'barras': 'b', 'sed': 's', 'maniobras': 'm'}
+
+    def lee(variable: str, campo: str) -> bool:
+        # «s.tramo» no es «grupos.tramos»: la variable sola y el campo entero.
+        return re.search(rf'(?<![\w.]){variable}\.{campo}\b', guion) is not None
+    assert set(p.CAMPOS_DIBUJO) == set(letra)
+    for original, enviada in zip(vistas, datos['vistas'], strict=True):
+        assert set(enviada) == {'alimentador', *letra}, seed
+        assert enviada['alimentador'] == original['alimentador']
+        for coleccion, campos in p.CAMPOS_DIBUJO.items():
+            assert enviada[coleccion] == [{c: e[c] for c in campos} for e in original[coleccion]], (seed, coleccion)
+            for c in campos:
+                assert lee(letra[coleccion], c), (coleccion, c)
+            fuera = {k for e in original[coleccion] for k in e} - set(campos)
+            assert fuera, (seed, coleccion)
+            for c in fuera:
+                assert not lee(letra[coleccion], c), (seed, coleccion, c)
+    # los puntos de transferencia salen de las vistas enteras, como antes
+    from convertersmartgrid.adaptadores.plano_red import transferencias
+
+    assert datos['transferencias'] == json.loads(json.dumps(transferencias(vistas))), seed
+    assert len(json.dumps(datos['vistas'])) < len(json.dumps(vistas)) / 2, seed

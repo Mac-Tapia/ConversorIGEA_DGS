@@ -611,12 +611,40 @@ def descripcion_para_modelo() -> list[dict]:
 
 
 def sistema_alumno() -> str:
-    """El mismo contrato compacto se usa para ajuste y para atender ordenes."""
-    catalogo = '\n'.join(f'{t.nombre}: {t.descripcion} Campos: '
-        + ','.join(d.tipo for d in t.datos) for t in TAREAS_HASTA_069.values())
+    """El mismo contrato compacto se usa para ajuste y para atender ordenes (perfil ``llm_destilado_v1``).
+
+    Es el de las tareas hasta la 069: su huella es la de los corpus sellados v5 y v6 y no se mueve con el catálogo.
+    """
+    return _sistema_de(TAREAS_HASTA_069.values())
+
+
+def sistema_alumno_contrato() -> str:
+    """047:RF-69: el mismo texto con el contrato vigente entero, ``TAREAS`` (perfil ``llm_destilado_v2``, corpus v7).
+
+    Cada tarea con la primera frase de su descripción, sin citas: con las descripciones enteras el prompt pasaba de
+    los 2.900 tokens y cada ejemplo del ajuste triplicaba el coste del v1.
+    """
+    return _sistema_de(TAREAS.values(), _primera_frase)
+
+
+def _primera_frase(descripcion: str) -> str:
+    texto = sin_citas(descripcion).strip()
+    m = re.match(r'(.+?[.:;])(\s|$)', texto)
+    return (m[1] if m else texto).rstrip('.:;') + '.'
+
+
+def _sistema_de(tareas, descripcion=lambda d: d) -> str:
+    catalogo = '\n'.join(f'{t.nombre}: {descripcion(t.descripcion)} Campos: '
+        + ','.join(d.tipo for d in t.datos) for t in tareas)
     return ('Interpreta una solicitud del operador del conversor de redes electricas. '
         'Devuelve solo JSON con tarea, datos y confianza. Elige exactamente una tarea del catalogo. '
         'datos es un objeto de listas de textos literales copiados de la solicitud. '
         'No inventes entidades ni declares haber ejecutado acciones. No agregues campos de otras tareas. '
         'Si no corresponde a ninguna tarea devuelve tarea null, datos {} y confianza 0. '
         'La respuesta propone una solicitud; la web verifica fuentes, permisos y confirmacion.\n' + catalogo)
+
+
+#: 047:RF-69: el prompt de cada perfil del alumno destilado y las tareas que cubre su corpus sellado. El v1 es el de los
+#: corpus v5 y v6 (29 tareas); el v2, el del corpus v7, con el contrato vigente entero.
+PERFILES_ALUMNO = {'llm_destilado_v1': (sistema_alumno, TAREAS_HASTA_069),
+                   'llm_destilado_v2': (sistema_alumno_contrato, TAREAS)}

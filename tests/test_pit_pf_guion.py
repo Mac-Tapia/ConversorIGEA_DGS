@@ -393,3 +393,57 @@ def test_los_resultados_de_digsilent_y_del_motor_abierto_se_emparejan_por_id():
 def test_el_estado_del_estudio_distingue_cargas_con_el_mismo_nombre():
     """107:RF-25 — las dos cargas «C» son dos en el estado que se compara antes y después del estudio."""
     assert len(guion.estado(_AppTransmision())['demandas']) == 2
+
+
+# --- 107:RF-26: las ramas serie de un proyecto de transmisión (corrida de 107 T14 del 21-11) --------------------------
+# En la copia de transmisión, el Sur solo llega a la referencia por las líneas de 500 kV con condensadores serie
+# (``ElmScap``): sin exportarlos quedaban sin suministro 1 499 barras con tensión en DIgSILENT y el flujo abierto no
+# convergía. Aquí la línea L1 llega a una barra intermedia «M» y el condensador serie «BCS» la une con SY.
+
+def _app_con_serie(*, con_reactancia=False):
+    app = _AppTransmision()
+    linea = app.objetos['*.ElmLne'][0]
+    m = Obj(None, 'ElmTerm', 'M', linea.GetParent(), uknom=220.0)
+    app.objetos['*.ElmTerm'].append(m)
+    object.__setattr__(linea, 'bus2', _Cub(m))
+    app.objetos['*.ElmScap'] = [Obj(None, 'ElmScap', 'BCS', m.GetParent(), xcap=30.0, ucn=220.0, Curn=1.5,
+                                    bus1=_Cub(m), bus2=_Cub(app.b[('SY', '1')]))]
+    if con_reactancia:
+        app.objetos['*.ElmSind'] = [Obj(None, 'ElmSind', 'RS', m.GetParent(), rrea=0.2, xrea=4.0, ucn=220.0,
+                                        bus1=_Cub(m), bus2=_Cub(app.b[('SY', '1')]))]
+    return app
+
+
+def test_el_condensador_serie_se_exporta_y_une_las_dos_subestaciones():
+    """107:RF-26 — el ElmScap sale como rama serie con su reactancia capacitiva (X negativa, en ohmios); el motor
+    abierto lo monta y la subestación que solo llega por él tiene tensión."""
+    app = _app_con_serie()
+    red = _red_t(app)
+    serie = red.de_tipo('serie')
+    assert [(s['nombre'], s['x_ohm'], s['r_ohm']) for s in serie] == [('BCS', -30.0, 0.0)], serie
+    assert serie[0]['desde'] == guion._id(app.objetos['*.ElmTerm'][-1])
+    assert serie[0]['hasta'] == guion._id(app.b[('SY', '1')])
+    assert not red.faltantes, red.faltantes
+    r = _flujo_t(red, app)
+    assert not isinstance(r, Exception) and r.converge, r
+    assert not r.sin_tension, r.sin_tension
+    assert len(r.tensiones_pu) == 7
+
+
+def test_la_reactancia_serie_se_exporta_con_su_resistencia_y_su_reactancia():
+    """107:RF-26 — el ElmSind sale como rama serie con su R y su X (ohmios), y una rama serie fuera de servicio no se
+    exporta."""
+    app = _app_con_serie(con_reactancia=True)
+    object.__setattr__(app.objetos['*.ElmScap'][0], 'outserv', 1)
+    red = _red_t(app)
+    assert [(s['nombre'], s['r_ohm'], s['x_ohm']) for s in red.de_tipo('serie')] == [('RS', 0.2, 4.0)]
+    r = _flujo_t(red, app)
+    assert not isinstance(r, Exception) and r.converge and not r.sin_tension, r
+
+
+def test_una_rama_serie_sin_reactancia_queda_en_faltantes():
+    """107:RF-26, 107:RF-4 — sin su reactancia no se supone: la rama serie queda en faltantes, nombrada."""
+    app = _app_con_serie()
+    object.__setattr__(app.objetos['*.ElmScap'][0], 'xcap', None)
+    red = _red_t(app)
+    assert [(f['tipo'], f['falta']) for f in red.faltantes if f['tipo'] == 'serie'] == [('serie', ['x_ohm'])], red.faltantes

@@ -44,11 +44,19 @@ class Fuente:
     def __init__(self, ds, modelos, *, licencia=False, vinculado=False):
         self.ds, self.modelos, self.lic, self.vinc = ds, modelos, licencia, vinculado
         self.planes: list[dict] = []
+        #: 111:RF-30: qué modelo pidió cada ruta: el completo (con el oráculo) o el que basta para ver el plano.
+        self.completos: list[str] = []
+        self.para_ver: list[str] = []
 
     def alimentadores(self, ws):
         return sorted(self.modelos)
 
     def modelo(self, ws, alimentador):
+        self.completos.append(alimentador)
+        return self.modelos[alimentador]
+
+    def modelo_del_plano(self, ws, alimentador):
+        self.para_ver.append(alimentador)
         return self.modelos[alimentador]
 
     def ruta_geografia(self, ws, alimentador):
@@ -320,3 +328,93 @@ def test_111_rf4_las_variaciones_del_alimentador_salen_del_servidor(tmp_path):
     assert datos['estudiadas'] == [a['id']]
     otro = cliente.get(f'{BASE}/variaciones', params={'alimentador': 'NO-ES-DE-ESTE-ESPACIO'}).json()
     assert otro == {'variaciones': [], 'estudiadas': []}
+
+
+def test_111_rf30_ver_el_plano_no_construye_el_modelo_completo_y_editar_si(tmp_path):
+    """111:RF-30 — ver el plano (la vista y su página) pide el modelo que basta para dibujarlo, sin el flujo del
+    oráculo; abrir una variación, que valida contra la red, pide el completo, y la revisión que vio el navegador vale."""
+    cliente, _ws, fuente, _t, alimentador, seed = _montar(tmp_path)
+    todos = sorted(fuente.modelos)
+    assert cliente.get(BASE, params={'alimentador': todos}).status_code == 200
+    r = cliente.get(f'{BASE}/pagina', params={'alimentador': todos})
+    assert r.status_code == 200, (seed, r.text)
+    assert fuente.completos == [], (seed, 'ver el plano construyó el modelo completo', fuente.completos)
+    assert sorted(fuente.para_ver) == sorted(todos * 2), (seed, fuente.para_ver)
+    _vista, v = _abrir(cliente, alimentador)
+    assert fuente.completos == [alimentador], (seed, fuente.completos)
+    assert v['alimentador'] == alimentador
+
+
+def test_111_rf30_el_modelo_del_plano_es_el_de_siempre_sin_el_oraculo(monkeypatch):
+    """111:RF-30 — ``FuenteWeb.modelo_del_plano`` es ``build_model`` con las mismas reglas del proyecto salvo la
+    corrección del oráculo; sin pedirlo, ``build_model`` la sigue aplicando."""
+    import dataclasses
+    import inspect
+
+    from convertersmartgrid.aplicacion import reglas as modulo_reglas
+    from convertersmartgrid.dominio import model as modulo_modelo
+    from convertersmartgrid.presentacion.web import services
+
+    api = _api()
+    assert hasattr(api.FuenteWeb, 'modelo_del_plano'), 'FuenteWeb no da modelo_del_plano'
+    assert 'oraculo' in inspect.signature(services.build_model).parameters, 'build_model no acepta oraculo'
+    pedidos: list[dict] = []
+    original = services.build_model
+    monkeypatch.setattr(services, 'build_model', lambda ws, a, **k: pedidos.append(k) or ('modelo', a))
+    assert api.FuenteWeb().modelo_del_plano('ws', 'A1') == ('modelo', 'A1')
+    assert pedidos == [{'geography': True, 'oraculo': False}]
+    monkeypatch.setattr(services, 'build_model', original)
+
+    usadas: list = []
+    base = dataclasses.replace(modulo_reglas.REGLAS_PROYECTO, hoja='H')
+    monkeypatch.setattr(services, 'require_loaded', lambda ws: None)
+    monkeypatch.setattr(services, '_dataset_for_feeder', lambda ws, a: 'datos')
+    monkeypatch.setattr(services, 'reglas_de', lambda ws: base)
+    monkeypatch.setattr(modulo_modelo, 'build_feeder_model', lambda *a, **k: SimpleNamespace())
+    monkeypatch.setattr(modulo_reglas, 'aplicar_reglas', lambda m, r, **k: usadas.append(r))
+    monkeypatch.setattr(modulo_reglas, 'catalogo_de_fuente', lambda p: None)
+    ws = SimpleNamespace(options={'include_geography': True}, catalog_corrections=lambda: {}, inventory=None)
+    services.build_model(ws, 'A1', geography=True)
+    services.build_model(ws, 'A1', geography=True, oraculo=False)
+    assert usadas[0] == base and usadas[0].corregir_con_oraculo
+    assert usadas[1] == dataclasses.replace(base, corregir_con_oraculo=False)
+
+
+def test_111_rf30_la_vista_del_plano_no_depende_de_la_demanda(tmp_path):
+    """111:RF-30 — lo único que cambia el oráculo es la demanda de las cargas, y la vista del plano no la lee: con
+    otra demanda la vista es la misma, así que el plano sin el oráculo es el plano de siempre."""
+    import dataclasses
+
+    from convertersmartgrid.adaptadores import plano_red
+
+    assert hasattr(_api().FuenteWeb, 'modelo_del_plano'), 'FuenteWeb no da modelo_del_plano'
+    _c, ws, fuente, _t, _a, seed = _montar(tmp_path)
+    for nombre, modelo in fuente.modelos.items():
+        geo = json.loads((ws.out_dir / f'{nombre}_geography.json').read_text(encoding='utf-8'))
+        antes = plano_red.vista(modelo, geo)
+        cargas = list(modelo.loads)
+        assert cargas, (seed, nombre)
+        modelo.loads = [dataclasses.replace(c, p_mw=c.p_mw * 0.37, q_mvar=c.q_mvar * 0.37) for c in cargas]
+        try:
+            assert plano_red.vista(modelo, geo) == antes, (seed, nombre)
+        finally:
+            modelo.loads = cargas
+
+
+def test_111_rf31_el_vinculo_sigue_valiendo_al_recargar_la_misma_fuente(monkeypatch):
+    """111:RF-31 — cada «Cargar y listar alimentadores» crea una ejecución nueva de la fuente aunque los ficheros sean
+    los mismos; el proyecto importado desde la anterior sigue vinculado si su huella de la fuente es la de la red
+    cargada (111 T18 del 22-11: tras recargar, el plano decía «no vinculado» y el estudio en DIgSILENT daba 422). Con otra
+    huella, no."""
+    api = _api()
+    from convertersmartgrid.presentacion.web import services
+
+    binding = SimpleNamespace(source_run_id='R1', source_fingerprint='H1')
+    monkeypatch.setattr(services, 'vinculo_del_proyecto', lambda ws, project, alimentadores: binding)
+    fuente = api.FuenteWeb()
+    assert fuente.vinculo(SimpleNamespace(active_run_id='R2', loaded_source_fingerprint='H1'), 'P', ['A'])[1] is True
+    assert fuente.vinculo(SimpleNamespace(active_run_id='R2', loaded_source_fingerprint='H2'), 'P', ['A'])[1] is False
+    assert fuente.vinculo(SimpleNamespace(active_run_id='R1', loaded_source_fingerprint=None), 'P', ['A'])[1] is True
+    sin_huella = SimpleNamespace(source_run_id='R1', source_fingerprint='')
+    monkeypatch.setattr(services, 'vinculo_del_proyecto', lambda ws, project, alimentadores: sin_huella)
+    assert fuente.vinculo(SimpleNamespace(active_run_id='R2', loaded_source_fingerprint=''), 'P', ['A'])[1] is False

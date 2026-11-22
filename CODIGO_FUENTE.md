@@ -794,6 +794,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | Fichero | Qué hace | Spec |
 | --- | --- | --- |
 | `src/convertersmartgrid/aplicacion/asistente/custodia_corpus.py` | Resolución explícita y verificable de fuentes custodiadas tras su traslado, sin alterar ejemplos ni particiones. | 047, 065 |
+| `src/convertersmartgrid/aplicacion/asistente/corpus_contrato_llm.py` | Corpus v7 de órdenes del alumno destilado con las 67 tareas del contrato vigente: frases del maestro por partición, valores seudonimizados, orígenes declarados, fuentes custodiadas por sha256 y apartadas fijadas antes de sellar. | 047 (RF-69 a RF-74) |
 | `src/convertersmartgrid/aplicacion/asistente/corpus_redaccion.py` | Corpus de redacción del PIDE: solo lo que una persona revisó y aprobó para redactar o dar formato, sin cifras ni códigos de otra red, en un registro de solo añadir. | 072 (RF-19) |
 | `src/convertersmartgrid/aplicacion/asistente/reubicacion_corpus.py` | Nueva custodia externa del corpus LLM con cuotas, hashes, preflight y conservación del original. | 047, 065 |
 | `tools/reubicar_corpus_llm.py` | Valida o publica una nueva versión custodiada del corpus tras un traslado exacto de datos. | 047, 065 |

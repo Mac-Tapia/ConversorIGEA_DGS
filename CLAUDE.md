@@ -72,7 +72,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | cumplida |  |
   | 043 Consolidación y gobierno de modelos | aprobada | falta T9 |
   | 044 Evaluación causal y verificación completa | cumplida |  |
-  | 045 Gemelo físico y contratos PINN/GNN | cumplida | T3 cerrada (21-11, ablación real en CUDA); todas sus tareas cerradas |
+  | 045 Gemelo físico y contratos PINN/GNN | aprobada | T3 cerrada (21-11, ablación real en CUDA); falta T6 (GPU, MEJ30, contrato T6b) |
   | 046 Pronóstico causal multihorizonte | cumplida |  |
   | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
   | 048 Optimización mixta evolutiva y PNL | cumplida |  |
@@ -113,7 +113,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 083 El oráculo antes de calibrar y recalibrar | cumplida | |
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | cumplida |  |
   | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida |  |
-  | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | T9, T36, T40, T41, T79, T32, T33, T34, T105 |
+  | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | T9, T36, T40, T41, T79, T32, T34, T105 |
   | 087 Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | cumplida |  |
   | 088 Q negativa desde el factor de potencia | cumplida |  |
   | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T7 |

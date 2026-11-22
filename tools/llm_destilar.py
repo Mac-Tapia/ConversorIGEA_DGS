@@ -2,6 +2,8 @@
 
     python tools/llm_destilar.py preparar --help
     python tools/llm_destilar.py sellar --custodia CORPUS_REUBICADO/dataset_manifest.json --destino NUEVO
+    python tools/llm_destilar.py preparar-contrato --base CORPUS_V6 --destino FUENTE_V7
+    python tools/llm_destilar.py sellar --dataset FUENTE_V7 --destino CORPUS_V7
 
 No envia datos a servicios externos ni ejecuta maniobras o estudios electricos.
 """
@@ -9,7 +11,45 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import re
 import shutil
+import time
+
+
+def detector_de_nombres(carpeta: Path | None = None):
+    """047:RF-70: busca nombres reales con la lista de la entrega (huellas en git, perfiles excluidos y lista local).
+
+    Mira el texto tal cual y partido por mayúsculas («ConversorEmpresa» → «Conversor Empresa»), como el barrido del
+    repositorio (086:RF-33). Devuelve la función y de dónde salieron los términos, sin escribir ninguno.
+
+    086:RF-36: ``comprobar_entrega.py`` es de desarrollo y no va en el paquete; esta herramienta sí. ``preparar-contrato``
+    (lo corre el maestro en el repositorio) la carga por su ruta y, si no está, lo dice en vez de caer con
+    ``ModuleNotFoundError`` en casa del cliente.
+    """
+    import importlib.util
+    ruta = Path(carpeta or Path(__file__).resolve().parent) / 'comprobar_entrega.py'
+    if not ruta.is_file():
+        raise ValueError('preparar-contrato se ejecuta en el repositorio: el programa instalado no lleva '
+                         'tools/comprobar_entrega.py, la lista de nombres de la entrega')
+    especificacion = importlib.util.spec_from_file_location('comprobar_entrega', ruta)
+    CE = importlib.util.module_from_spec(especificacion)
+    especificacion.loader.exec_module(CE)
+    terminos = CE.cargar_terminos()
+    memoria: dict = {}
+
+    def nombres(texto: str) -> list[str]:
+        partido = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', texto)
+        return [h.categoria for t in (texto, partido) for h in CE.buscar_en_texto('corpus_v7.txt', t, terminos, memoria)]
+    return nombres, list(terminos.origenes)
+
+
+def vedados_sellados() -> list[str]:
+    """Los textos de las pruebas selladas del intérprete: no entran en el corpus v7 (047:RF-71), sin redactar con ellos."""
+    from convertersmartgrid.aplicacion.asistente import (prueba_sellada, prueba_sellada_026, prueba_sellada_079,
+                                                         prueba_sellada_107_112)
+    filas = [*prueba_sellada.filas(), *prueba_sellada_079.filas(), *prueba_sellada_107_112.filas(),
+             *prueba_sellada_026.filas(), *prueba_sellada_026.filas_control()]
+    return [r['texto'] for r in filas]
 
 
 def main(argv=None):
@@ -34,6 +74,10 @@ def main(argv=None):
     a.add_argument('--dataset',type=Path)
     a.add_argument('--custodia',type=Path)
     a.add_argument('--destino',type=Path,required=True)
+    a=sub.add_parser('preparar-contrato')
+    a.add_argument('--base',type=Path,required=True,help='corpus sellado v6 (su dataset_manifest.json y sus contextos)')
+    a.add_argument('--destino',type=Path,required=True)
+    a.add_argument('--sin-almacen',action='store_true',help='no reservar las órdenes humanas del almacén del asistente')
     a=sub.add_parser('auditar')
     a.add_argument('--dataset',type=Path,required=True)
     a.add_argument('--destino',type=Path,required=True)
@@ -46,7 +90,7 @@ def main(argv=None):
     a.add_argument('--rango',type=int,default=8)
     a.add_argument('--lr',type=float,default=2e-4)
     a.add_argument('--acumulacion',type=int,default=8)
-    a.add_argument('--max-tokens',type=int,default=2048)
+    a.add_argument('--max-tokens',type=int,default=None,help='sin él, el del perfil que selló el corpus')
     a=sub.add_parser('evaluar')
     a.add_argument('--dataset',type=Path,required=True)
     a.add_argument('--destino',type=Path,required=True)
@@ -62,9 +106,30 @@ def main(argv=None):
     try:
         if args.destino.exists():
             raise ValueError('destino existente conservado; use una ruta nueva')
+        if args.accion=='preparar-contrato':
+            # 047:RF-69 a RF-74: el maestro es esta sesión (plantillas por tarea); se mide lo que cuesta generarlo.
+            from convertersmartgrid.aplicacion.asistente.corpus_contrato_llm import preparar_v7
+            inicio,cpu=time.perf_counter(),time.process_time()
+            nombres,origenes=detector_de_nombres()
+            humanas=[]
+            if not args.sin_almacen:
+                from convertersmartgrid.aplicacion.asistente import almacen
+                humanas=almacen.leer('ejemplos') or []
+            meta=preparar_v7(args.base,args.destino,nombres=nombres,humanas_extra=humanas,vedados=vedados_sellados())
+            medicion={'segundos':round(time.perf_counter()-inicio,3),'cpu_s':round(time.process_time()-cpu,3),
+                      'gpu_s':0,'llamadas_a_modelos':0,'coste_externo':0,'terminos_de':origenes,
+                      'maestro':'sesion Claude: redaccion de plantillas; generacion determinista local'}
+            from convertersmartgrid.dominio.util import publicar_duradero
+            meta['medicion_construccion']=medicion
+            publicar_duradero(args.destino/'dataset_manifest.json',json.dumps(meta,ensure_ascii=False,indent=2))
+            print(json.dumps({'ok':True,'dataset_hash':meta['dataset_hash'],'por_particion':meta['por_particion'],
+                              'tareas':len(meta['contrato_tareas']),'por_origen':meta['por_origen'],
+                              'medicion':{k:medicion[k] for k in ('segundos','cpu_s','gpu_s')}},ensure_ascii=True))
+            return 0
         if args.accion=='auditar':
             from convertersmartgrid.aplicacion.asistente.llm_destilacion import auditar_fuentes_corpus
-            resultado=auditar_fuentes_corpus(args.dataset)
+            from convertersmartgrid.aplicacion.asistente.corpus_contrato_llm import auditar_v7,es_v7
+            resultado=auditar_v7(args.dataset) if es_v7(args.dataset) else auditar_fuentes_corpus(args.dataset)
             args.destino.mkdir(parents=True);creado=True
             (args.destino/'auditoria.json').write_text(json.dumps(resultado,indent=2,ensure_ascii=False),encoding='utf-8')
             print(json.dumps(resultado,ensure_ascii=True));return 0
@@ -118,9 +183,12 @@ def main(argv=None):
                                   'prompt_hash':resultado.get('prompt_hash'),'por_particion':resultado.get('por_particion'),
                                   'dataset_hash_anterior':(resultado.get('resellado') or {}).get('dataset_hash_anterior')},
                                  ensure_ascii=True));return 0
-            resultado=sellar_particiones(args.dataset,args.destino)
+            from convertersmartgrid.aplicacion.asistente.corpus_contrato_llm import es_v7,sellar_v7
+            # 047:RF-69: el v7 se sella con su validador y el prompt del contrato vigente.
+            resultado=sellar_v7(args.dataset,args.destino) if es_v7(args.dataset) else sellar_particiones(args.dataset,args.destino)
             print(json.dumps({'ok':True,'dataset_hash':resultado['dataset_hash'],
-                              'por_particion':resultado['por_particion']},ensure_ascii=True));return 0
+                              'por_particion':resultado['por_particion'],'prompt_hash':resultado.get('prompt_hash'),
+                              'perfil_prompt':resultado.get('perfil_prompt','llm_destilado_v1')},ensure_ascii=True));return 0
         if args.accion=='exportar':
             from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu  # 071:RF-8
             from convertersmartgrid.aplicacion.asistente.llm_destilacion import exportar_fusionado

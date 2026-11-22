@@ -187,3 +187,17 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
       `tests/test_plano_api.py` y `tests/test_resultados_plano.py`, con el contrato de la API regenerado.
       Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
       hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T30. Ver el plano no corre el oráculo: `FuenteWeb.modelo_del_plano` (`services.build_model(..., oraculo=False)`)
+      en `GET …/plano` y `GET …/plano/pagina`; abrir, editar y estudiar siguen con el modelo completo. La página lleva
+      de cada vista solo `pagina_plano.CAMPOS_DIBUJO`. (RF-30)
+      Hecho cuando: rojo por aserción y verde con sus pruebas (`tests/test_plano_api.py` y `tests/test_pagina_plano.py`,
+      111:RF-30) y la medida en navegador real con `frontend/e2e/escala_dibujo.mjs` da p95 ≤ 12 s con 200
+      alimentadores sin empeorar 10 ni 50.
+      Hecho el 2026-11-22 (d8, MEJ36, base 5ad2a512): perfil del servidor con 10 alimentadores, 5,2 de 5,26 s en
+      `_corregir_con_oraculo` (pandapower); el navegador, unos 0,1 s. Plano p50/p95 antes → después: 10 alimentadores
+      2,96/5,48 → 0,08/0,17 s; 50, 12,3/15,2 → 0,47/0,56 s; 200, 49,7/52,9 → 5,77/6,60 s (10 repeticiones, Edge 158).
+      La página de 200 pasa de 12,8 a 3,4 MB; el servidor la sirve en 1,9 s. Evidencia: `D:/csg/PM_IMPL/MEJ36_PLANO/` (antes/,
+      despues/, rojo.log, verde.log).
+- [x] T31. El vínculo del plano por la huella de la fuente: `FuenteWeb.vinculo` acepta el vínculo de la ejecución activa
+      o el de la misma `source_fingerprint` que `ws.loaded_source_fingerprint`. (RF-31)
+      Hecho cuando: rojo por aserción y verde con `tests/test_plano_api.py` (111:RF-31) y sus vecinas del plano.

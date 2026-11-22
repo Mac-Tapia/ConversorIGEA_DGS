@@ -94,6 +94,20 @@ Todo esto sin tocar nunca el caso base ni la geometría de la fuente.
   cuando no se puede usar será un error con su motivo antes de encolar, nunca un cambio de motor callado. «DIgSILENT
   disponible» es una instalación con su API y el Python que pide, no solo un intérprete, y el motivo no lo llama
   licencia.
+- RF-30: (MEJ36, medición de escala de la 112 del 21-11: el plano de la red unida con 200 alimentadores tardaba 49,7 s
+  de mediana y 52,9 s de p95, muy por encima del presupuesto de 12 s; casi todo era el servidor, que corría el flujo del
+  oráculo en cada alimentador cada vez que alguien miraba el plano) CUANDO el operador mire el plano (su vista o su
+  página), EL SISTEMA construirá cada alimentador con las reglas del proyecto salvo la corrección del oráculo, que solo
+  cambia la demanda de las cargas y que la vista del plano no lee: la vista y su revisión serán las mismas que con el
+  modelo completo, que sigue siendo el que validan las ediciones y los estudios. La página llevará de cada vista solo lo
+  que su guion dibuja; la tabla, el inspector y el unifilar siguen leyendo la vista entera de la API. Nada de lo que se
+  ve en el plano se quita. Con la red de escala (`spec_de_escala`), el plano de 200 alimentadores se dibuja en
+  navegador real en ≤ 12 s de p95, sin empeorar el de 10 ni el de 50.
+- RF-31: (111 T18 del 22-11: tras recargar la fuente, el plano decía «el proyecto de DIgSILENT no está vinculado a la
+  red cargada» y estudiar en DIgSILENT respondía 422, con el proyecto recién importado de esos mismos ficheros) CUANDO el
+  plano decida si el proyecto está vinculado a la red que se ve (RF-17), EL SISTEMA lo dará por vinculado si su vínculo
+  es de la ejecución de la fuente activa o si su huella de la fuente es la de la red cargada: cada «Cargar y listar
+  alimentadores» crea una ejecución nueva aunque los ficheros no cambien. Con otra huella, o sin huella, no.
 
 ## Requisitos no funcionales
 - Escala: un plano con todos los alimentadores de la entrega, sin bloquear la página mientras calcula, con capas por

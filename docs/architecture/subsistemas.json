@@ -484,6 +484,7 @@
     "llm_checkpoint.py",
     "llm_runtime.py",
     "custodia_corpus.py",
+    "corpus_contrato_llm.py",
     "reubicacion_corpus.py",
     "corpus_redaccion.py",
     "prueba_sellada_107_112.py"

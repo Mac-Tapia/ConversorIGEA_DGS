@@ -39,6 +39,7 @@ SPECS_DEL_ASISTENTE = ('026', '047', '070')
 #: aquí, y una abierta sin fila hace fallar ``--comprobar``.
 RESPONSABLES: dict[str, str] = {
     '047:T4': 'sin asignar: evaluación real (GPU)', '047:T7': 'sin asignar: destilación del LLM (GPU)',
+    '047:T7c': 'd8: reentrenamiento en GPU del alumno con el corpus v7 (cola pesada)',
     '047:T8': 'sin asignar: revisión que distingue defectos',
     '047:T10': 'd8: medida en GPU de la revisión con contradicciones estructuradas',
     '047:T11': 'd8: medida en GPU de la revisión con contradicciones fundadas y por base (047e)',

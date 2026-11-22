@@ -40,6 +40,7 @@ from ...dominio.runtime_paths import raiz_programa
 # La GPU del gemelo y del asistente es una sola regla, en el coordinador de entrenamientos: el
 # asistente (aplicación) la pedía importando este adaptador (002:RF-2). Aquí siguen sus nombres.
 from ...aplicacion.training_coordinator import SinGPU, dispositivo
+from ...dominio.contratos_aprendizaje import CicloBloqueado
 
 #: Potencia base del sistema por unidad (MVA).
 S_BASE = 10.0
@@ -443,6 +444,12 @@ def _red(ocultas: int = 64, pasos: int = 8, arquitectura: str = 'csg'):
                                                        nn.Linear(ocultas, ocultas)) for _ in range(pasos))
             self.actualiza = nn.ModuleList(nn.GRUCell(ocultas, ocultas) for _ in range(pasos))
             self.salida = nn.Sequential(nn.Linear(ocultas, ocultas), nn.SiLU(), nn.Linear(ocultas, 2))
+            # 045:RF-15: la corrección empieza en cero y el híbrido, en la física. Con la capa final al azar,
+            # la primera época ya se apartaba hasta 0,05 p.u. (pérdida 1,4·10⁻² frente a 3,8·10⁻⁵ de los datos) y la
+            # ablación del 2026-11-21 dejó el híbrido en 5,25·10⁻⁴ p.u. frente a 2,07·10⁻⁴ de la física sola.
+            # Es la inicialización a cero de la rama residual (Bachlechner et al., 2021, ReZero).
+            nn.init.zeros_(self.salida[-1].weight)
+            nn.init.zeros_(self.salida[-1].bias)
 
         def forward(self, x, aristas, e):
             h = self.entrada(x)
@@ -511,6 +518,21 @@ def _fisica(m: Muestra, disp, exponente: float = 0.0, dtype=None) -> dict:
 
 def _residuo_torch(f: dict, v, theta):
     """El balance de cada barra eléctrica (``barras_electricas``), al cuadrado."""
+    pb, qb = _balance_torch(f, v, theta)
+    return (pb ** 2 + qb ** 2)[f['exigir']]
+
+
+def _residuo_medio_torch(f: dict, v, theta) -> float:
+    """La media por nodo de ``residuo`` (p.u.), la que miran las puertas de 044, sin gradiente (045:RF-15)."""
+    torch = _torch()
+    with torch.no_grad():
+        pb, qb = _balance_torch(f, v, theta)
+        por_barra = torch.sqrt(pb ** 2 + qb ** 2) * f['exigir'].to(pb.dtype)
+        return float(por_barra[f['grupo']].mean()) if f['grupo'].numel() else 0.0
+
+
+def _balance_torch(f: dict, v, theta):
+    """Desbalance activo y reactivo de cada barra eléctrica, con gradiente."""
     torch = _torch()
     a, b, zr, zi = f['a'], f['b'], f['zr'], f['zi']
     vr, vi = v * torch.cos(theta), v * torch.sin(theta)
@@ -525,7 +547,7 @@ def _residuo_torch(f: dict, v, theta):
     q = vi * i_r - vr * i_i + f['sq'] * e + f['bq'] * v * v
     pb = torch.zeros(f['n'], dtype=v.dtype, device=v.device).index_add_(0, f['grupo'], p)
     qb = torch.zeros(f['n'], dtype=v.dtype, device=v.device).index_add_(0, f['grupo'], q)
-    return (pb ** 2 + qb ** 2)[f['exigir']]
+    return pb, qb
 
 
 def _fronteras_torch(f: dict, v, theta):
@@ -581,6 +603,9 @@ class Entrenamiento:
     peso_fronteras: float = 0.0
     """Peso del error de fronteras (045:RF-6). Se mide siempre y por defecto no se optimiza: la red ya
     impone la fuente, y un peso nuevo cambiaría el objetivo sin una medida que lo justifique."""
+    residuo_tope: float = 0.05
+    """Residuo físico medio (p.u.) que no puede superar una época elegida en validación ni una predicción
+    (045:RF-15, RF-16): el de ``Puertas.residuo_max``, que el entrenamiento copia de sus puertas."""
 
     def __post_init__(self):
         # Los modelos entrenados antes de la spec 058 guardan el nombre anterior.
@@ -628,9 +653,36 @@ def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict 
               torch.tensor(m.mascara, device=disp)) for m in muestras]
     val = [(*_tensores(m, disp, cfg.exponente_carga, cfg.fisica),
             torch.tensor(m.v, dtype=torch.float32, device=disp),
-            torch.tensor(m.mascara, device=disp)) for m in validacion]
+            torch.tensor(m.mascara, device=disp), _fisica(m, disp, cfg.exponente_carga)) for m in validacion]
     historial = historial if historial is not None else []
-    mejor, mejor_estado, mejor_epoca = math.inf, None, -1
+
+    def medir_validacion() -> tuple[float, float]:
+        """Error medio de tensión y el peor residuo físico medio de las redes de validación."""
+        red.eval()
+        with torch.no_grad():
+            errores, residuos = [], []
+            for x, ar, e, v, mask, f in val:
+                vp, th = red(x, ar, e)
+                errores.append(float((vp - v)[mask].abs().mean()))
+                residuos.append(_residuo_medio_torch(f, vp, th))
+        red.train()
+        return float(np.mean(errores)), float(max(residuos))
+
+    mejor, mejor_estado, mejor_epoca, tope = math.inf, None, -1, cfg.residuo_tope
+    respaldo: tuple[float, dict] | None = None     # la de menor error, por si ninguna cabe en el tope
+    nula = _estado_sin_correccion(red) if val else None
+    if nula is not None:
+        # 045:RF-15: la física (corrección nula) es la época de partida que hay que mejorar en validación. En la
+        # ablación del 2026-11-21 la mejor época de un miembro fue la 0 (2,79·10⁻³ p.u.): ninguna mejoraba, y aun así
+        # el miembro se quedaba con pesos que en la prueba empeoraban la física. Si nadie la mejora, queda la física.
+        propio = {k: w.detach().clone() for k, w in red.state_dict().items()}
+        red.load_state_dict(nula)
+        mejor, residuo_fisica = medir_validacion()
+        red.load_state_dict(propio)
+        mejor_estado = nula
+        historial.append((-1, mejor))
+        # Una física que no converge ya pasa del tope: la corrección no puede empeorarla, pero tampoco se le exige más.
+        tope = max(tope, residuo_fisica)
     for epoca in range(cfg.epocas):
         random.shuffle(datos)
         total = 0.0
@@ -652,21 +704,74 @@ def _entrenar_en(muestras: Sequence[Muestra], cfg: Entrenamiento, inicial: dict 
         if epoca % 100 == 0:
             log(f'  época {epoca}: pérdida {total / max(len(datos), 1):.3e}')
         if val and (epoca % cfg.cada == 0 or epoca == cfg.epocas - 1):
-            red.eval()
-            with torch.no_grad():
-                err = float(np.mean([float((red(x, ar, e)[0] - v)[mask].abs().mean()) for x, ar, e, v, mask in val]))
-            red.train()
+            err, residuo_val = medir_validacion()
             historial.append((epoca, err))
             if al_validar is not None:
                 al_validar(epoca, err)
-            if err < mejor - 1e-9:
+            if nula is None and (respaldo is None or err < respaldo[0] - 1e-9):
+                respaldo = (err, {k: v.detach().clone() for k, v in red.state_dict().items()})
+            if mejora_admisible(err, residuo_val, mejor, tope):
                 mejor, mejor_epoca = err, epoca
                 mejor_estado = {k: v.detach().clone() for k, v in red.state_dict().items()}
             elif epoca - mejor_epoca >= cfg.paciencia:
                 log(f'  parada temprana en la época {epoca}: la mejor fue la {mejor_epoca} ({mejor:.3e} p.u.)')
                 break
+    if nula is not None and mejor_epoca < 0:
+        log(f'  ninguna época mejoró a la física en validación ({mejor:.3e} p.u.): el miembro queda en la física')
+    if mejor_estado is None and respaldo is not None:
+        # Sin la física como partida (otra arquitectura) y sin época en el tope: la de menor error, y la guarda de la
+        # predicción (RF-16) acota su residuo. PowerFlowNet devolvía la última («la mejor fue la −1 (inf p.u.)», T6).
+        log(f'  ninguna época cabe en el tope de residuo: queda la de menor error ({respaldo[0]:.3e} p.u.)')
+        mejor_estado = elegir_respaldo(None, None, respaldo)[1]
     final = mejor_estado if mejor_estado is not None else red.state_dict()
     return {k: v.detach().cpu() for k, v in final.items()}
+
+
+def mejora_admisible(error: float, residuo_val: float, mejor: float, tope: float) -> bool:
+    """Si una época sustituye a la elegida (045:RF-15): menor error de tensión en validación sin que su residuo
+    físico pase del tope de las puertas de 044. Elegir solo por el error dejaba pasar épocas con residuo 0,073 p.u.
+    en la prueba (tope 0,05), en cuatro de las cinco familias de la ablación del 2026-11-21."""
+    return error < mejor - 1e-9 and residuo_val <= tope
+
+
+def elegir_respaldo(admisible: tuple[float, Any] | None, nula: tuple[float, Any] | None,
+                    menor_error: tuple[float, Any] | None) -> tuple[float, Any] | None:
+    """El estado con que se queda un miembro (045:RF-15): la época admisible; si no, la física (corrección nula); si
+    tampoco la hay, la de menor error de validación. Nunca la última época por ser la última."""
+    return admisible or nula or menor_error
+
+
+def _estado_sin_correccion(red) -> dict | None:
+    """Los pesos de ``red`` con la última capa a cero: el híbrido que da exactamente la física (045:RF-15).
+
+    Solo en la arquitectura propia, que corrige con ``salida``; de otra no se sabe qué capa anula la corrección.
+    """
+    salida = getattr(red, 'salida', None)
+    if salida is None:
+        return None
+    torch = _torch()
+    ultima = {id(p) for p in salida[-1].parameters()}
+    estado = {k: w.detach().clone() for k, w in red.state_dict().items()}
+    for nombre, parametro in red.named_parameters():
+        if id(parametro) in ultima:
+            estado[nombre] = torch.zeros_like(parametro.detach())
+    return estado
+
+
+def _nodos_fuera_de_rango(m: Muestra, dominio: Mapping[str, Any]) -> np.ndarray:
+    """Qué nodos traen algún dato fuera del rango aprendido, con un margen del 10 % del rango."""
+    lo, hi = np.array(dominio['x_min']), np.array(dominio['x_max'])
+    margen = 0.1 * np.maximum(hi - lo, 1e-6)
+    return ((m.x < lo - margen) | (m.x > hi + margen)).any(axis=1)
+
+
+def fraccion_fuera_de_rango(m: Muestra, dominio: Mapping[str, Any]) -> float:
+    """Cuánto se sale una red de lo aprendido, de 0 a 1: la fracción de sus nodos fuera de rango (045:RF-9, RF-16).
+
+    Saber solo si está fuera dejaba igual una red con la carga del día y otra con treinta veces más, y el aprendizaje
+    activo no las distinguía (T6 del 2026-11-21).
+    """
+    return float(np.mean(_nodos_fuera_de_rango(m, dominio))) if len(m.ids) else 0.0
 
 
 def motivos_de_dominio(m: Muestra, dominio: Mapping[str, Any]) -> list[str]:
@@ -676,11 +781,9 @@ def motivos_de_dominio(m: Muestra, dominio: Mapping[str, Any]) -> list[str]:
     if dominio.get('version_grafo') != m.version:
         motivos.append(f"modelo entrenado con el grafo versión {dominio.get('version_grafo')}, esta red es "
                        f'versión {m.version}')
-    lo, hi = np.array(dominio['x_min']), np.array(dominio['x_max'])
-    margen = 0.1 * np.maximum(hi - lo, 1e-6)
-    fuera = (m.x < lo - margen) | (m.x > hi + margen)
+    fuera = _nodos_fuera_de_rango(m, dominio)
     if fuera.any():
-        motivos.append(f'{_cuenta(int(fuera.any(axis=1).sum()), "nodo", "nodos")} con datos fuera de lo aprendido')
+        motivos.append(f'{_cuenta(int(fuera.sum()), "nodo", "nodos")} con datos fuera de lo aprendido')
     n_min, n_max = dominio['nodos']
     if not 0.5 * n_min <= len(m.ids) <= 2 * n_max:
         motivos.append(f'{len(m.ids)} nodos frente a {n_min}–{n_max} aprendidos')
@@ -722,7 +825,9 @@ class OraculoPINN:
         """Motivos por los que esta red está fuera de lo aprendido (RF-19)."""
         return motivos_de_dominio(m, self.dominio)
 
-    def predecir(self, grafo: Mapping[str, Any]) -> dict[str, Any]:
+    def predecir(self, grafo: Mapping[str, Any], respaldo_fisico: bool = True) -> dict[str, Any]:
+        """Tensión, ángulo, incertidumbre y residuo de la red. Fuera de su dominio devuelve la física (045:RF-9,
+        RF-16) y lo marca; ``respaldo_fisico=False`` da la predicción cruda, para medir lo que la red habría dicho."""
         torch = _torch()
         m = muestra(grafo)
         redes, disp = self._redes()
@@ -732,16 +837,54 @@ class OraculoPINN:
         vs = np.stack([s[0].cpu().numpy() for s in salidas])
         ths = np.stack([s[1].cpu().numpy() for s in salidas])
         v, th = imponer_fronteras(m, vs.mean(axis=0), ths.mean(axis=0))     # 045:RF-5
+        # 045:RF-16: la corrección nunca deja el residuo físico sobre el tope; ``_tensores`` ya calculó la base.
+        v, th, escala, r = acotar_correccion(m, v, th, m.base, self.cfg.residuo_tope, self.cfg.exponente_carga)
         motivos = self.fuera_de_dominio(m)
+        respaldo = bool(motivos) and respaldo_fisico and m.base is not None
+        if respaldo:
+            # Lo mismo que hacen los consumidores con la marca: en la T6 (2026-11-21) la red de prueba, de 30 nodos, estaba
+            # fuera del dominio de los cinco candidatos (169–5 147 aprendidos) y se medía una corrección que nadie usaría.
+            v, th = imponer_fronteras(m, m.base[:, 0], m.base[:, 1])
+            r, escala = residuo(m, v, th, self.cfg.exponente_carga), 0.0
+        # La dispersión es la de los miembros antes de la guarda: recortar la corrección no quita el desacuerdo. Al
+        # multiplicarla por la fracción usada, el aprendizaje activo de la T6 (2026-11-21) daba f(30) = 1,0 < f(1).
         sigma = vs.std(axis=0)
         # 027:RF-12: semiancho del intervalo con la cobertura pedida.
         semiancho = None if self.cuantil is None else self.cuantil * (sigma + EPS_CONFORME)
         return {'ids': m.ids, 'v': v, 'theta': th, 'incertidumbre': sigma,
                 'intervalo_pu': semiancho,
                 'cobertura': self.cfg.cobertura if semiancho is not None and self.cobertura_justificada else None,
-                'residuo': residuo(m, v, th, self.cfg.exponente_carga), 'fuera_de_dominio': bool(motivos),
+                'residuo': r, 'fuera_de_dominio': bool(motivos), 'escala_correccion': escala,
+                'respaldo_fisico': respaldo, 'fraccion_fuera_de_dominio': fraccion_fuera_de_rango(m, self.dominio),
                 'motivos': motivos,
                 'modelo': self.nombre, 'version': self.version}
+
+
+#: Fracciones de la corrección que se prueban, de mayor a menor; la última es la física sola.
+ESCALAS_DE_CORRECCION = (1.0, 0.5, 0.25, 0.125, 0.0625, 0.0)
+
+
+def acotar_correccion(m: Muestra, v: np.ndarray, theta: np.ndarray, base: np.ndarray | None, tope: float,
+                      exponente: float = 0.0) -> tuple[np.ndarray, np.ndarray, float, np.ndarray]:
+    """La predicción con la mayor fracción de la corrección cuyo residuo físico medio no pasa del tope (045:RF-16).
+
+    Es una búsqueda lineal hacia atrás sobre el desbalance de potencia, la que usa PIGNN-Attn-LS (Kim et al., 2025,
+    arXiv:2509.22458) para que la física siga mandando al inferir: el término físico de la pérdida no obliga nada en la
+    predicción. Si la física ya pasa del tope (no converge), el listón es el suyo: la corrección nunca la empeora.
+    Devuelve tensión, ángulo, la fracción usada y el residuo por nodo.
+    """
+    r = residuo(m, v, theta, exponente)
+    if base is None or float(np.mean(r)) <= tope:
+        return v, theta, 1.0, r
+    v_base, th_base = imponer_fronteras(m, base[:, 0], base[:, 1])
+    r_base = residuo(m, v_base, th_base, exponente)
+    limite = max(tope, float(np.mean(r_base)))
+    for escala in ESCALAS_DE_CORRECCION[1:-1]:
+        va, tha = imponer_fronteras(m, v_base + escala * (v - v_base), th_base + escala * (theta - th_base))
+        ra = residuo(m, va, tha, exponente)
+        if float(np.mean(ra)) <= limite:
+            return va, tha, escala, ra
+    return v_base, th_base, 0.0, r_base
 
 
 #: Suelo de la dispersión en el cociente conforme: con los tres miembros casi iguales en una
@@ -1004,6 +1147,66 @@ def promover(bufer: BuferEpisodios, version: str, motivo: str) -> None:
         f.write(json.dumps(fila, ensure_ascii=False) + '\n')
 
 
+def en_uso_peor_que_fisica(error_en_uso: float | None, error_fisica: float | None, residuo_en_uso: float | None,
+                           puertas: Puertas) -> list[str]:
+    """Por qué el modelo en uso ya no debe opinar frente al flujo físico (045:RF-17); vacío si sigue valiendo.
+
+    Lo mismo que se exige para promover (071:RF-3 y la puerta de residuo): si el modelo en uso no mejora a la física
+    en las redes de prueba de su dominio, o deja el residuo sobre el tope, decide la física.
+    """
+    motivos = []
+    if error_en_uso is not None and error_fisica is not None and error_en_uso >= error_fisica:
+        motivos.append(f'el modelo en uso no mejora al flujo físico: {error_en_uso:.4g} frente a {error_fisica:.4g} p.u.')
+    if residuo_en_uso is not None and residuo_en_uso > puertas.residuo_max:
+        motivos.append(f'el modelo en uso deja un residuo físico de {residuo_en_uso:.3g} sobre {puertas.residuo_max}')
+    return motivos
+
+
+def retirar_si_peor_que_fisica(bufer: BuferEpisodios, actual: OraculoPINN, prueba: Sequence[Muestra], fisica: Modelo,
+                               puertas: Puertas, log: Callable[[str], None] = lambda _m: None) -> dict[str, Any] | None:
+    """Tras un candidato no promovido, retira el modelo en uso si en la misma prueba es peor que la física (045:RF-17).
+
+    Sin esto, un modelo promovido antes seguía decidiendo aunque la última medida lo dejara por debajo del flujo
+    físico: la elección caía a la física solo cuando no había ninguno. Solo cuentan las redes de su dominio, las
+    únicas en que opina (045:RF-9). Con un conjunto activo, la retirada se decide sobre el conjunto (050:RF-7).
+    """
+    dentro = [m for m in prueba if not actual.fuera_de_dominio(m)]
+    if not dentro:
+        return None
+    residuo_en_uso = float(np.mean([float(np.mean(actual.predecir(_grafo_de_muestra(m))['residuo'])) for m in dentro]))
+    motivos = en_uso_peor_que_fisica(mae(actual, dentro), mae(fisica, dentro), residuo_en_uso, puertas)
+    if not motivos:
+        return None
+    motivo = '; '.join(motivos)
+    try:
+        retirar_a_fisica(bufer, motivo)
+    except CicloBloqueado as exc:
+        log(f'Gemelo: {motivo}; no se retira aquí: {exc}')
+        return {'retirado': False, 'motivos': motivos, 'pendiente': str(exc)}
+    log(f'Gemelo: {motivo}: se retira {actual.version} y decide el flujo físico')
+    return {'retirado': True, 'version': actual.version, 'motivos': motivos}
+
+
+def retirar_a_fisica(bufer: BuferEpisodios, motivo: str) -> str | None:
+    """Quita el puntero del modelo en uso: sin modelo, el oráculo es el flujo físico (045:RF-17, RF-42).
+
+    El historial guarda la retirada con el anterior, para volver a él con ``promover`` si se quiere.
+    """
+    from ...aplicacion.conjuntos_aprendizaje import exigir_sin_conjunto
+    exigir_sin_conjunto()
+    raiz = _raiz_modelos(bufer)
+    puntero = raiz / 'promovido.json'
+    if not puntero.is_file():
+        return None
+    anterior = json.loads(puntero.read_text(encoding='utf-8'))['version']
+    fila = {'version': None, 'anterior': anterior, 'motivo': f'retirado: {motivo}',
+            'fecha': time.strftime('%Y-%m-%dT%H:%M:%S')}
+    with open(raiz / 'historial.jsonl', 'a', encoding='utf-8') as f:
+        f.write(json.dumps(fila, ensure_ascii=False) + '\n')
+    puntero.unlink()
+    return anterior
+
+
 def volver_al_anterior(bufer: BuferEpisodios) -> str | None:
     """Vuelve al modelo promovido antes del actual (RF-42)."""
     raiz = _raiz_modelos(bufer)
@@ -1077,7 +1280,27 @@ def proyectos_de_prueba() -> set[str]:
     return {str(p) for p in (datos_perfil().get('gemelo') or {}).get('proyectos_de_prueba') or ()}
 
 
-def particionar(muestras: Sequence[Muestra], declarados: set[str] | None = None) -> dict[str, list[Muestra]]:
+def redes_declaradas(redes: Sequence[str], prefijos: Sequence[str]) -> set[str]:
+    """Las redes que declara un contrato como prueba, por el prefijo de su huella (045:RF-18).
+
+    Una declaración que no se puede cumplir no cae en silencio al reparto por huella: un prefijo de ninguna red o de
+    varias, o todas las redes a prueba, se rechazan con su motivo.
+    """
+    elegidas: set[str] = set()
+    for prefijo in prefijos:
+        coinciden = [r for r in redes if r.startswith(str(prefijo))]
+        if not coinciden:
+            raise ValueError(f'la red de prueba declarada {str(prefijo)[:16]}… no es de ninguna red del búfer')
+        if len(coinciden) > 1:
+            raise ValueError(f'la red de prueba declarada «{str(prefijo)[:16]}» coincide con varias redes: alárguese el prefijo')
+        elegidas.add(coinciden[0])
+    if elegidas == set(redes):
+        raise ValueError('las redes de prueba declaradas son todas las redes: no queda ninguna para ajustar')
+    return elegidas
+
+
+def particionar(muestras: Sequence[Muestra], declarados: set[str] | None = None,
+                redes_de_prueba: Sequence[str] | None = None) -> dict[str, list[Muestra]]:
     """«Un sistema fuera» (027:RF-2): cada red entera a prueba o a entrenamiento; con dos o
     más redes, al menos una a prueba (la de huella menor si el reparto fijo no da ninguna) y
     nunca todas. La validación sale de los escenarios de las redes de entrenamiento.
@@ -1087,14 +1310,19 @@ def particionar(muestras: Sequence[Muestra], declarados: set[str] | None = None)
     muestras se ignora, porque una declaración de otra empresa no debe vaciar la prueba.
     """
     redes = sorted({red_de(m) for m in muestras})
-    declarados = proyectos_de_prueba() if declarados is None else declarados
-    de_prueba = {red_de(m) for m in muestras if m.proyecto in declarados} if declarados else set()
-    if not de_prueba or de_prueba == set(redes):
-        de_prueba = {r for r in redes if particion(r) == 'prueba'}
-    if len(redes) >= 2 and (not de_prueba or de_prueba == set(redes)):
-        de_prueba = {redes[0]}
-    if len(redes) < 2:
-        de_prueba = set()
+    if redes_de_prueba is not None:
+        # 045:RF-18: el contrato de una ablación declara su prueba sin tocar el perfil de la empresa. En la T6 del
+        # 2026-11-21 la red de prueba del perfil (30 nodos) estaba fuera del dominio de todos los candidatos.
+        de_prueba = redes_declaradas(redes, redes_de_prueba)
+    else:
+        declarados = proyectos_de_prueba() if declarados is None else declarados
+        de_prueba = {red_de(m) for m in muestras if m.proyecto in declarados} if declarados else set()
+        if not de_prueba or de_prueba == set(redes):
+            de_prueba = {r for r in redes if particion(r) == 'prueba'}
+        if len(redes) >= 2 and (not de_prueba or de_prueba == set(redes)):
+            de_prueba = {redes[0]}
+        if len(redes) < 2:
+            de_prueba = set()
     grupos: dict[str, list[Muestra]] = {'entrenamiento': [], 'validacion': [], 'prueba': []}
     for m in muestras:
         if red_de(m) in de_prueba:
@@ -1106,11 +1334,14 @@ def particionar(muestras: Sequence[Muestra], declarados: set[str] | None = None)
     return grupos
 
 
-def _grupos(muestras: Sequence[Muestra], ids: Sequence[str], sistema: str | None) -> dict[str, list[Muestra]]:
+def _grupos(muestras: Sequence[Muestra], ids: Sequence[str], sistema: str | None,
+            redes_de_prueba: Sequence[str] | None = None) -> dict[str, list[Muestra]]:
     """«Un sistema fuera» (RF-2) o, con ``sistema``, su propio reparto por la huella de cada
     episodio (RF-68, el de ``curva.reparto_del_sistema``)."""
+    if sistema and redes_de_prueba is not None:
+        raise ValueError('con un sistema solo, la prueba sale de sus propios episodios: no se declaran redes de prueba')
     if not sistema:
-        return particionar(muestras)
+        return particionar(muestras, redes_de_prueba=redes_de_prueba)
     return {k: [muestras[i] for i in v]
             for k, v in reparto_del_sistema(ids, [m.familia for m in muestras]).items()}
 
@@ -1239,12 +1470,14 @@ def denominadores(grupos: Mapping[str, Sequence[Muestra]]) -> dict[str, dict[str
 
 
 def particiones_del_bufer(bufer: BuferEpisodios, consulta: Consulta | None = None, *,
-                          sistema: str | None = None, puertas: Puertas | None = None):
-    """Las particiones de custodia de los episodios vigentes, las mismas que usa ``entrenar`` (045:RF-8)."""
+                          sistema: str | None = None, puertas: Puertas | None = None,
+                          redes_de_prueba: Sequence[str] | None = None):
+    """Las particiones de custodia de los episodios vigentes, las mismas que usa ``entrenar`` (045:RF-8); con
+    ``redes_de_prueba``, las que declara el contrato de una ablación (045:RF-18)."""
     muestras, ids = _muestras(bufer, consulta or Consulta())
     if not muestras:
         raise ValueError('BLOQUEADO_POR_DATOS: no hay episodios vigentes con que comparar')
-    grupos = separar_calibracion(_grupos(muestras, ids, sistema))
+    grupos = separar_calibracion(_grupos(muestras, ids, sistema, redes_de_prueba))
     identidades = {id(m): i for m, i in zip(muestras, ids, strict=True)}
     nombres = {'entrenamiento': 'entrenamiento', 'validacion': 'seleccion', 'calibracion': 'calibracion', 'prueba': 'prueba'}
     registros = [{'record_id': identidades[id(m)], 'group_id': f'{red_de(m)}:{m.familia}', 'particion': nombres[parte],
@@ -1358,7 +1591,7 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
              puertas: Puertas | None = None, dorados: Sequence[str] = (),
              log: Callable[[str], None] = lambda _m: None, sistema: str | None = None,
              reabrir: Callable[[Path], dict[str, Any]] | None = None, registro=None,
-             publicar_individual: bool = True) -> dict[str, Any]:
+             publicar_individual: bool = True, retirar_peor_que_fisica: bool = False) -> dict[str, Any]:
     """Entrena un candidato con una consulta fija del búfer, lo evalúa por particiones de
     familia y lo promueve si supera las puertas sin empeorar los dorados (RF-12, RF-13,
     RF-16, RF-17, RF-42). Si ya hay modelo, parte de sus pesos y repite el histórico entero
@@ -1418,7 +1651,8 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     # Sin configuración, la del modelo en uso; sus pesos solo valen con la misma arquitectura.
     cfg = cfg or (actual.cfg if actual else Entrenamiento())
     # Un modelo en uso sobre el barrido radial no fija la física del candidato: la mallada lo sustituye.
-    cfg = Entrenamiento(**{**cfg.__dict__, 'fisica': 'mallado'})
+    # 045:RF-15, RF-16: la selección por validación y la predicción respetan el mismo tope de residuo que la puerta.
+    cfg = Entrenamiento(**{**cfg.__dict__, 'fisica': 'mallado', 'residuo_tope': puertas.residuo_max})
     cfg = Entrenamiento(**{**cfg.__dict__,
                            'exponente_carga': elegir_exponente(grupos['entrenamiento'], fisica=cfg.fisica)})
     log(f'Gemelo: física {cfg.fisica}, modelo de carga S0·|V|^{cfg.exponente_carga:g}')
@@ -1521,7 +1755,12 @@ def entrenar(bufer: BuferEpisodios, *, consulta: Consulta | None = None, cfg: En
     estado = ('promovido' if decidido['promovido'] else 'aprobado; publicación conjunta pendiente'
               if decidido['publicacion_pendiente'] else 'no promovido: ' + '; '.join(fallos))
     log(f'Gemelo: candidato {candidato.version}: {estado}')
-    return {'entrenado': True, 'version': candidato.version, 'carpeta': str(carpeta), **decidido,
+    retiro = None
+    # 045:RF-17: el ciclo continuo (``entrenar_si_toca``) lo pide; una prueba o un ajuste manual no tocan el puntero.
+    if retirar_peor_que_fisica and actual is not None and not decidido['promovido']             and not decidido['publicacion_pendiente']:
+        retiro = retirar_si_peor_que_fisica(bufer, actual, evaluacion, ModeloMallado(exponente=actual.cfg.exponente_carga),
+                                            puertas, log=log)
+    return {'entrenado': True, 'version': candidato.version, 'carpeta': str(carpeta), **decidido, 'retiro_en_uso': retiro,
             'modelo_registro': 'pinn', 'fallos': fallos, 'mae_fisica': error_fisica, 'mae_en_uso': error_actual,
             'evaluacion': meta['evaluacion'], 'conforme': meta['conforme'],
             **{k: meta[k] for k in ('mae_v', 'residuo_medio', 'particiones')}}
@@ -1624,7 +1863,8 @@ def entrenar_si_toca(bufer: BuferEpisodios, *, minimo: int = 10,
         return {'entrenado': False, 'motivo': 'sin episodios nuevos'}
     if len(nuevos) < minimo and not deriva(bufer, nuevos):
         return {'entrenado': False, 'motivo': f'{_cuenta(len(nuevos), "episodio nuevo", "episodios nuevos")}, se espera a {minimo}'}
-    return entrenar(bufer, log=log, registro=registro, publicar_individual=publicar_individual)
+    return entrenar(bufer, log=log, registro=registro, publicar_individual=publicar_individual,
+                    retirar_peor_que_fisica=publicar_individual)
 
 
 # ------------------------------------------------------------------ uso del oráculo
@@ -1648,7 +1888,12 @@ def incertidumbre_de_escenarios(grafo: Mapping[str, Any], bufer: BuferEpisodios 
 
     def incertidumbre(e: Escenario) -> float:
         p = oraculo.predecir(perturbar(grafo, e))
-        return float(np.mean(p['incertidumbre'])) + (1.0 if p['fuera_de_dominio'] else 0.0)
+        # 045:RF-16: fuera de dominio, cuánto se sale; dentro, lo que la guarda tuvo que recortar: las dos son no saber.
+        if p['fuera_de_dominio']:
+            extra = 1.0 + float(p.get('fraccion_fuera_de_dominio') or 0.0)
+        else:
+            extra = 1.0 - float(p.get('escala_correccion', 1.0))
+        return float(np.mean(p['incertidumbre'])) + extra
 
     return incertidumbre
 

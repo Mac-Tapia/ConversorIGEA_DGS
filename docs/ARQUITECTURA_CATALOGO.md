@@ -8,39 +8,39 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 471 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 472 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 133 |
 | Interfaz | `frontend/src/` | 121 |
 | Pruebas de la interfaz | `frontend/test/` | 65 |
-| Pruebas | `tests/` | 658 |
+| Pruebas | `tests/` | 661 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 14761 líneas y 473 funciones, pendiente de partir (002).
+`web/services.py` tiene 14770 líneas y 473 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 90 |
-| aprobada | 16 |
+| cumplida | 89 |
+| aprobada | 17 |
 | implementada | 5 |
 | retirada | 1 |
 
-112 specs con 4041 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 4054 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 197 |
-| aplicacion | Apl | 133 |
+| aplicacion | Apl | 134 |
 | dominio | Dom | 73 |
 | presentacion | Pre | 51 |
 | puertos | Pue | 5 |
 
-459 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+460 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -701,6 +701,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `llm_checkpoint.py` | Apl | 002 | Comprobaciones de un checkpoint, comunes a entrenar y publicar. |
 | `llm_runtime.py` | Apl | 047, 072 | Verifica checkpoints y publica exportación, GGUF e importación local secuencial con hashes y readback, con los parámetros de decodificación en su… |
 | `custodia_corpus.py` | Apl | 047, 065 | Resolución explícita y verificable de fuentes custodiadas tras su traslado, sin alterar ejemplos ni particiones. |
+| `corpus_contrato_llm.py` | Apl | 047 | Corpus v7 de órdenes del alumno destilado con las 67 tareas del contrato vigente: frases del maestro por partición, valores seudonimizados, orígenes… |
 | `reubicacion_corpus.py` | Apl | 047, 065 | Nueva custodia externa del corpus LLM con cuotas, hashes, preflight y conservación del original. |
 | `corpus_redaccion.py` | Apl | 072 | Corpus de redacción del PIDE: solo lo que una persona revisó y aprobó para redactar o dar formato, sin cifras ni códigos de otra red, en un registro… |
 | `prueba_sellada_107_112.py` | Apl | 070 | La prueba sellada de las once tareas de las specs 107 a 112 (la nube, el correo, el PIT, el VAD, el plano y el benchmark): seis frases por tarea de… |

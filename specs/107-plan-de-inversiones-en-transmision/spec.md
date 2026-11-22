@@ -229,6 +229,12 @@ común.
     de tensión, y cada red externa con su consigna de potencia: una red externa PQ o PV que no es la referencia entra
     como inyección con su consigna. SI le falta la consigna, o la red no tiene ninguna referencia SL (red externa o
     máquina), ENTONCES el flujo no se calcula y el error las nombra.
+- RF-26: (corrida de 107 T14 del 21-11; amplía RF-25) CUANDO `tools/pit_pf.py` exporte la red de un proyecto de
+  transmisión, EL SISTEMA exportará cada condensador serie (`ElmScap`) y cada reactancia serie (`ElmSind`) en servicio
+  como una rama serie entre sus dos barras, con su resistencia y su reactancia en ohmios (la del condensador, negativa),
+  y el motor abierto la calculará como una impedancia. SI le falta la reactancia, ENTONCES la rama queda en faltantes
+  (RF-4). (En la copia de transmisión, sin los condensadores serie de 500 kV el Sur quedaba sin suministro, con 1 499
+  barras con tensión en DIgSILENT, y el flujo abierto no convergía.)
 
 ## Requisitos no funcionales
 - Universal: cualquier área de demanda y titular. Las pruebas usan al menos dos perfiles sintéticos.

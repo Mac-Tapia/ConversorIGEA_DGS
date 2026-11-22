@@ -46,12 +46,24 @@ COLORES_ALIMENTADOR = (('#1d4ed8', '#60a5fa'), ('#c2410c', '#fb923c'), ('#7e22ce
 #: Nivel de detalle solo gráfico: desde ese zoom hacia abajo, ese ``smoothFactor`` de Leaflet. Acercarse lo devuelve
 #: a 0 (todos los vértices dibujados); los datos no cambian nunca.
 DETALLE_POR_ZOOM = ((17, 0.0), (15, 1.0), (13, 2.0), (0, 4.0))
+#: 111:RF-30: de cada vista, la página lleva solo lo que su guion dibuja; la tabla, el inspector y el unifilar leen la
+#: vista entera por la API (``GET …/plano``). Con 200 alimentadores de la red de escala la página pasaba de 12,8 MB.
+CAMPOS_DIBUJO = {'tramos': ('codigo', 'vertices', 'seccion_mm2'), 'barras': ('codigo', 'lat', 'lon'),
+                 'sed': ('codigo', 'barra', 'kva'), 'maniobras': ('codigo', 'barra', 'estado')}
 
 
 def _json(valor: Any) -> str:
     """JSON que no puede cerrar el bloque que lo contiene: ``<`` y ``>`` van escapados."""
     return (json.dumps(valor, ensure_ascii=False, default=str)
             .replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'))
+
+
+def _para_dibujar(v: Mapping[str, Any]) -> dict[str, Any]:
+    """111:RF-30: la vista con los campos de :data:`CAMPOS_DIBUJO`, todos sus elementos y en su orden."""
+    salida: dict[str, Any] = {'alimentador': v['alimentador']}
+    for coleccion, campos in CAMPOS_DIBUJO.items():
+        salida[coleccion] = [{c: e.get(c) for c in campos} for e in v.get(coleccion) or ()]
+    return salida
 
 
 def _fondo() -> tuple[str, str]:
@@ -74,7 +86,8 @@ def pagina(vistas: Sequence[Mapping[str, Any]], *, capas: Mapping[str, Any] | No
     from .plano_red import transferencias
 
     vistas = list(vistas)
-    datos = {'vistas': vistas, 'capas': dict(capas) if capas and capas.get('pintable') else None,
+    datos = {'vistas': [_para_dibujar(v) for v in vistas],
+             'capas': dict(capas) if capas and capas.get('pintable') else None,
              'transferencias': transferencias(vistas)}
     teselas, aviso = _fondo()
     nombre = html_std.escape(titulo)

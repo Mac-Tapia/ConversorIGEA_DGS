@@ -28,8 +28,10 @@ from .oraculo import (
     elegir_exponente,
     entrenar_miembro,
     guardar_y_reabrir,
+    mae,
     metricas_de_prueba,
     motivos_de_dominio,
+    particiones_del_bufer,
     muestra,
     muestra_de_episodio,
     politica_pinn,
@@ -96,6 +98,18 @@ def _vaciar_vram() -> None:
         pass
 
 
+def particiones_del_contrato(experimento: ExperimentoSpec, bufer: BuferEpisodios) -> Particiones:
+    """Las particiones de la ablación: las de siempre o, si el contrato declara ``politica.redes_de_prueba`` (prefijos
+    de la huella de red), esas redes enteras a prueba (045:RF-18). Va en el contrato, que entra en su huella, y no en el
+    perfil de la empresa: es una decisión del experimento."""
+    redes = (experimento.politica or {}).get('redes_de_prueba')
+    if redes is None:
+        return particiones_del_bufer(bufer)
+    if isinstance(redes, str) or not all(isinstance(r, str) and r for r in redes):
+        raise ValueError('politica.redes_de_prueba debe ser una lista de prefijos de huella de red')
+    return particiones_del_bufer(bufer, redes_de_prueba=list(redes))
+
+
 def comparar_fisicas(experimento: ExperimentoSpec, particiones: Particiones, *, bufer: BuferEpisodios | None = None,
                      cfg: Entrenamiento | None = None, puertas: Puertas | None = None, ajustar: Callable | None = None,
                      log: Callable[[str], None] = lambda _m: None) -> dict[str, Any]:
@@ -127,7 +141,8 @@ def comparar_fisicas(experimento: ExperimentoSpec, particiones: Particiones, *, 
     base = cfg or Entrenamiento()
     prueba = grupos['prueba']
     exponente = elegir_exponente(grupos['entrenamiento'], fisica=base.fisica)
-    base = Entrenamiento(**{**base.__dict__, 'exponente_carga': exponente})
+    # 045:RF-15, RF-16: el mismo tope de residuo que la puerta, en la selección por validación y en la predicción.
+    base = Entrenamiento(**{**base.__dict__, 'exponente_carga': exponente, 'residuo_tope': puertas.residuo_max})
     x_all = np.concatenate([m.x for m in grupos['entrenamiento']])
     dominio = {'x_min': x_all.min(axis=0).tolist(), 'x_max': x_all.max(axis=0).tolist(),
                'nodos': [min(len(m.ids) for m in grupos['entrenamiento']), max(len(m.ids) for m in grupos['entrenamiento'])],
@@ -140,7 +155,15 @@ def comparar_fisicas(experimento: ExperimentoSpec, particiones: Particiones, *, 
 
     def medir(modelo, nombre: str, terminos: list, inicio: float) -> dict[str, Any]:
         metricas, latencia = metricas_de_prueba(modelo, prueba, fisica)
+        # 045:RF-9: el brazo se mide como se usa (fuera de dominio, la física); se dice cuántos ejemplos quedaron fuera y
+        # lo que la red habría dicho en ellos, para que el respaldo no esconda nada (T6 del 2026-11-21).
+        dominio_del_modelo = getattr(modelo, 'dominio', None)
+        fuera = [m for m in prueba if isinstance(dominio_del_modelo, Mapping) and motivos_de_dominio(m, dominio_del_modelo)]
+        # Solo el oráculo con su ``predecir`` sabe dar la predicción cruda; un doble o una física dan la que miden.
+        con_respaldo = isinstance(modelo, OraculoPINN) and type(modelo).predecir is OraculoPINN.predecir
+        crudo = mae(_Crudo(modelo), prueba) if con_respaldo else metricas['global']['mae_v']
         return {'estado': 'evaluado', 'brazo': nombre, 'mae_v': metricas['global']['mae_v'],
+                'ejemplos_fuera_de_dominio': len(fuera), 'mae_v_sin_respaldo': crudo,
                 'residuo': metricas['global']['residuo'],
                 'por_familia': metricas['familias'], 'veredicto': evaluar_candidato(metricas, politica),
                 'latencia_s_por_red': latencia, 'tiempo_s': time.perf_counter() - inicio, 'vram_mb': _vram_mb(),
@@ -177,7 +200,37 @@ def comparar_fisicas(experimento: ExperimentoSpec, particiones: Particiones, *, 
             'version_grafo': VERSION_GRAFO, 'particiones_ids': ids_por_parte,
             'huella_particiones': huella(ids_por_parte), 'unidades': {'mae_v': 'p.u.', 'residuo': 'p.u.',
                                                                        'latencia_s_por_red': 's', 'vram_mb': 'MB'},
-            'denominadores': denominadores(grupos), 'brazos': brazos}
+            'denominadores': denominadores(grupos), 'brazos': brazos, 'eleccion': eleccion_en_uso(brazos),
+            'redes_de_prueba_declaradas': list((experimento.politica or {}).get('redes_de_prueba') or [])}
+
+
+def eleccion_en_uso(brazos: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """Qué brazo quedaría en uso con este informe (045:RF-17): el de menor error entre los que pasan las puertas de
+    044, y la física si ninguno con red las pasa. Lo que decide en uso es la promoción; esto lo dice con la misma regla.
+
+    En la ablación del 2026-11-21 solo la física pasaba: el híbrido quedaba a 5,25·10⁻⁴ p.u. frente a 2,07·10⁻⁴.
+    """
+    aprobados = [(float(b['mae_v']), k != 'fisica_pura', k) for k, b in brazos.items()
+                 if b.get('estado') == 'evaluado' and (b.get('veredicto') or {}).get('approved') is True
+                 and b.get('mae_v') is not None]
+    if not aprobados:
+        return {'brazo': 'fisica_pura', 'motivo': 'ningún brazo pasa las puertas de 044: decide el flujo físico'}
+    _error, _con_red, elegido = min(aprobados)
+    rechazados = sorted(k for k, b in brazos.items() if b.get('estado') == 'evaluado'
+                        and (b.get('veredicto') or {}).get('approved') is not True)
+    motivo = ('solo la física pasa las puertas de 044' if elegido == 'fisica_pura' and not any(c for _e, c, _k in aprobados)
+              else 'menor error de tensión entre los que pasan las puertas de 044')
+    return {'brazo': elegido, 'motivo': motivo, 'rechazados': rechazados}
+
+
+class _Crudo:
+    """El oráculo sin el respaldo físico fuera de dominio: lo que la red habría dicho (045:RF-9)."""
+
+    def __init__(self, modelo: OraculoPINN):
+        self.modelo = modelo
+
+    def predecir(self, grafo: Mapping[str, Any]) -> dict[str, Any]:
+        return self.modelo.predecir(grafo, respaldo_fisico=False)
 
 
 def alcance_general(grupos: Mapping[str, Sequence[Muestra]]) -> bool:

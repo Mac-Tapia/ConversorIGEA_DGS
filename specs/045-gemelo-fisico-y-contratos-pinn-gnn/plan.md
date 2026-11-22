@@ -114,6 +114,26 @@ no se sustituye PyG con un doble ni se exige su instalación al conversor básic
 - [ ] Revisar el diff propio, actualizar `CODIGO_FUENTE.md` si se crea código y
   registrar un commit de alcance propio que cite `spec 045 T4`.
 
+### T6 [GPU]: El híbrido no empeora a la física
+
+**Cubre:** RF-15, RF-16, RF-17.
+
+**Files:** `digital_twin/oraculo.py` (capa final a cero en `_red`, `_estado_sin_correccion`, `mejora_admisible` y la
+selección de `_entrenar_en`, `acotar_correccion` en `OraculoPINN.predecir`, `en_uso_peor_que_fisica`,
+`retirar_si_peor_que_fisica` y `retirar_a_fisica` desde `entrenar_si_toca`), `digital_twin/benchmark_fisico.py`
+(`residuo_tope` de las puertas y `eleccion_en_uso`) y `tests/test_gemelo_hibrido_acotado.py`.
+
+**Diagnóstico (ablación del 2026-11-21, `045_T3/ablaciones.json`):** con el término de datos casi plano (3,8·10⁻⁵ →
+3,2·10⁻⁵ p.u.², 5,7·10⁻³ p.u. eficaces) y la mejor época de validación en la 0 o cerca (2,73–2,79·10⁻³ p.u.), la red no
+aprendía lo que falta a la física y, con la capa final al azar, añadía ruido: 5,25·10⁻⁴ p.u. frente a 2,07·10⁻⁴ en la
+prueba y residuo 0,073 en las familias de 60 y 30 barras, porque en tramos cortos un error de 10⁻⁴ p.u. en tensión es un
+desbalance grande (ΔS ≈ ΔV/z). El peso físico 10⁻⁴ por un término de ~2·10⁻³ p.u.² pesa ~10⁻⁷, el 1 % de los datos.
+No hay fuga: prueba de 5 redes enteras fuera (`alcance.generaliza_a_otros_sistemas`).
+
+- [x] Pruebas primero, con rojo por aserción sobre la base y verde con el cambio (sin GPU).
+- [ ] Medida en GPU con la orden de la T6 de `tasks.md`; si el híbrido sigue sin pasar, la física queda en uso y se mide
+  el peso físico (Wang, Teng y Perdikaris, 2021) como siguiente vuelta, sin bajar las puertas.
+
 ## Cierre y evidencia
 
 Al ejecutar, actualizar [tasks.md](tasks.md) con comandos, resultado, hashes y rutas
