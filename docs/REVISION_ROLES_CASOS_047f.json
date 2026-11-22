@@ -1,0 +1,166 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T8 de la spec 047: el conjunto con que se mide la revisión después de las cuentas evaluadas por el código, los precios por unidad pasados a total y la comprobación del coste sin el LLM del 2026-11-21 (MEJ24d). El 047e orientó ese diagnóstico, así que este se escribió aparte, sin copiar sus propuestas, y se declara antes de medir. Hay costes por partidas, por unidad («c/u», «cada uno», «por unidad»), por kilómetro y totales, con cifras escritas de formas distintas, en casos sanos y con error. Ni son órdenes reales ni datos de una distribuidora. El error de cada caso que lo tiene solo se ve leyendo la evidencia: las restricciones deterministas de cada caso se cumplen.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-21",
+    "sha256": "05c423913e4e49d4ebb370fd8d760f89e4cfb3319ce9001395dde08da33afea6",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "f01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "renovar la acometida de la SED S-1004 con 3 vanos de conductor autoportante",
+        "vanos": 3,
+        "coste_usd": 1950
+      },
+      "evidencia": {
+        "e1": "Partidas de la obra: conductor autoportante 1 350 USD; ferretería y mano de obra 600 USD.",
+        "e2": "La SED S-1004 alimenta 96 suministros; la acometida tiene 3 vanos."
+      }
+    },
+    {
+      "id": "f02",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "reubicar el transformador de la SED S-1017 a un poste nuevo",
+        "coste_usd": 2400
+      },
+      "evidencia": {
+        "e1": "Partidas: poste de concreto de 13 m 1 100 USD; traslado y montaje del transformador 1 300 USD; puesta a tierra nueva 450 USD.",
+        "e2": "El poste actual de la SED S-1017 está inclinado y fuera de la vereda."
+      }
+    },
+    {
+      "id": "f03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar 5 seccionalizadores electrónicos en las derivaciones del alimentador A115",
+        "seccionalizadores": 5,
+        "coste_usd": 9250
+      },
+      "evidencia": {
+        "e1": "Estudio de coordinación del alimentador A115: los 5 seccionalizadores coordinan con el reconectador de cabecera.",
+        "e2": "Seccionalizador electrónico de 25 kV, montado: 1.850 USD cada uno."
+      }
+    },
+    {
+      "id": "f04",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "transferir el ramal R22 del alimentador A120 al A121 abriendo el seccionador S77 y cerrando el S78",
+        "cargabilidad_a121_pct": 83,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con el ramal R22 en A121: cargabilidad máxima de A121 107 %; límite 100 %.",
+        "e2": "S77 y S78 son seccionadores bajo carga telemandados: la maniobra no requiere obra."
+      }
+    },
+    {
+      "id": "f05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "tender 0,6 km de red subterránea de 10 kV y construir 2 buzones en la calle C40",
+        "buzones": 2,
+        "coste_usd": 34200
+      },
+      "evidencia": {
+        "e1": "Red subterránea de 10 kV en zanja: 45 000 USD/km.",
+        "e2": "Buzón de concreto para empalmes: 3 600 USD c/u."
+      }
+    },
+    {
+      "id": "f06",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "trabajar en caliente en el tramo T210 para cambiar 2 aisladores dañados",
+        "aisladores": 2,
+        "coste_usd": 420
+      },
+      "evidencia": {
+        "e1": "Tramo T210: aisladores de 22,9 kV con contaminación salina; el procedimiento de seguridad prohíbe el trabajo en caliente en tramos con contaminación salina.",
+        "e2": "Cambio de aislador con línea energizada: 210 USD por unidad."
+      }
+    },
+    {
+      "id": "f07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un reconectador trifásico en el poste P1205 con su control remoto",
+        "usuarios_aguas_abajo": 3140,
+        "coste_usd": 18900
+      },
+      "evidencia": {
+        "e1": "Catastro: aguas abajo del poste P1205 hay 3 140 usuarios.",
+        "e2": "Reconectador trifásico de 27 kV: US$ 16.400; control remoto y radio: US$ 2.500."
+      }
+    },
+    {
+      "id": "f08",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "ampliar el transformador TP5 de la SET S30 de 20 a 25 MVA",
+        "demanda_max_kw": 18500,
+        "coste_usd": 365000
+      },
+      "evidencia": {
+        "e1": "Registro del transformador TP5 de la SET S30: demanda máxima del año 16,2 MW.",
+        "e2": "Transformador de 25 MVA con su montaje y pruebas: 365 000 USD."
+      }
+    },
+    {
+      "id": "f09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "colocar 40 placas de señalización de riesgo eléctrico en la SET S33",
+        "placas": 40,
+        "coste_usd": 520
+      },
+      "evidencia": {
+        "e1": "Placa de señalización de riesgo eléctrico: 13 USD por unidad; 40 placas, 520 USD en total.",
+        "e2": "La SET S33 tiene 40 puntos sin señalizar según la inspección del año."
+      }
+    },
+    {
+      "id": "f10",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "reconductorar 4,2 km de la troncal T300 a 150 mm²",
+        "cargabilidad_final_pct": 55,
+        "coste_usd": 39900
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con la troncal T300 en 150 mm²: cargabilidad máxima 55 %; límite 100 %.",
+        "e2": "Reconductorado a 150 mm² con el desmontaje del conductor existente: 13 500 USD por km."
+      }
+    },
+    {
+      "id": "f11",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar una celda nueva con interruptor de 16 kA en la barra B60",
+        "cortocircuito_barra_ka": 14.5,
+        "coste_usd": 21000
+      },
+      "evidencia": {
+        "e1": "Cortocircuito trifásico en la barra B60 con la red reforzada: 18,3 kA; capacidad del interruptor 16 kA.",
+        "e2": "Celda con interruptor de 16 kA, montada: 21 000 USD."
+      }
+    },
+    {
+      "id": "f12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un banco de baterías nuevo en la SET S35",
+        "autonomia_h": 8,
+        "coste_usd": 7300
+      },
+      "evidencia": {
+        "e1": "Banco de baterías de 110 V: autonomía de 8 h con la carga de servicios auxiliares de la SET S35.",
+        "e2": "Banco de baterías y cargador, instalados: USD 7,300."
+      }
+    }
+  ]
+}

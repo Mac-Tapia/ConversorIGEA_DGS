@@ -10,6 +10,7 @@ from copy import deepcopy
 import itertools
 import math
 import re
+import unicodedata
 
 #: 047:RF-48: los campos de cada contradicción, en el orden en que el esquema los pide; ``base`` (RF-55) es opcional
 #: para el código, para seguir leyendo los dictámenes guardados antes.
@@ -42,9 +43,8 @@ _UNIDAD_TRAS = re.compile(r'\s*(p\.\s*u\b\.?|%|[a-zμω²$]+(?:/[a-z]+)?)')
 #: Un elemento de la red («A71», «S-702», «P412», «e2») no es una cifra del valor.
 _IDENTIFICADOR = re.compile(r'(?<![\w])[a-záéíóúñ]+-?\d+\w*')
 _VERSUS = re.compile(r'\s+(?:vs\.?|versus|frente a)\s+', re.IGNORECASE)
-_PRODUCTO = re.compile(r'\s*(?:[×*·]|(?<=\s)x(?=\s))\s*')
 #: 047:RF-55: lo que sigue a una cifra que es por unidad y no un total.
-_POR_UNIDAD = re.compile(r'^\s*(?:[a-z$/.]+\s+){0,2}?(?:por\s+(?:unidad|kil[oó]metro|km|metro|poste|cada)\b|c/u\b|'
+_POR_UNIDAD = re.compile(r'^\s*(?:[a-z$.]+\s*){0,2}?(?:por\s+(?:unidad|kil[oó]metro|km|metro|poste|cada)\b|c/u\b|'
                          r'cada\s+un[oa]\b|unitari[oa]|/\s*(?:km|u|m|unidad)\b)')
 
 
@@ -56,7 +56,7 @@ def _normal(texto) -> str:
 
 
 def _moneda(texto: str) -> str | None:
-    if re.search(r'us\$|\busd\b|\$|d[oó]lares', texto):
+    if re.search(r'us\$|\busd\b|\$(?!\{)|d[oó]lares', texto):
         return 'usd'
     if re.search(r'(?<![a-z])s/|\bsoles\b', texto):
         return 'pen'
@@ -66,7 +66,8 @@ def _moneda(texto: str) -> str | None:
 def _limpio(texto) -> str:
     """El texto con las marcas del modelo quitadas: «/^3$/i», «_3_», «>», «≈», «k340», y sin identificadores."""
     t = _normal(texto)
-    t = re.sub(r'/\^?([^/]*?)\$?/[a-z]*', r' \1 ', t)
+    t = re.sub(r'/\^([^/]*?)\$?/[a-z]*', r' \1 ', t)
+    t = re.sub(r'\$\{([^}]*)\}', r' \1 ', t)            # «${61}», una plantilla
     t = re.sub(r'(?<![a-záéíóúñ])k(?=\d)', ' ', t)
     t = _IDENTIFICADOR.sub(' ', t)
     t = re.sub(r'\bus\b', ' ', re.sub(r'[_^<>≈~≥≤|\\]|\$', ' ', t))
@@ -121,6 +122,103 @@ def _cifras(texto: str) -> list[tuple[set[float], str | None, int]]:
     return salida
 
 
+#: 047:RF-75: una cuenta admite + − × · x / y paréntesis; las palabras y las unidades («USD/km») no cuentan.
+_OPERADORES = '+-×·*/()'
+_PALABRA = re.compile(r'[a-záéíóúñ%$²μω.]*[a-záéíóúñ%$²μω](?:/[a-záéíóúñ]+)?')
+#: Tope de lecturas de una cuenta con cifras ambiguas (cada «12.400» tiene dos).
+_MAX_LECTURAS = 64
+
+
+def _fichas(texto: str):
+    """Las fichas de una cuenta: cifras (con sus lecturas) y operadores; ``None`` si queda algo que no lo es."""
+    t = texto.split('=', 1)[0]
+    if re.search(r'\d/\d', t):      # «22,9/0,40 kV» es una relación, no una división
+        return None
+    t = re.sub(r'(?<=[\d)\s])x(?=[\s\d(])', '×', t).replace('−', '-').replace('–', '-')
+    t = re.sub(r'[;:]|(?<!\d)[.,]|[.,](?!\d)', ' ', _PALABRA.sub(' ', t))
+    fichas, i = [], 0
+    while i < len(t):
+        if t[i].isspace():
+            i += 1
+        elif t[i] in _OPERADORES:
+            fichas.append(t[i] if t[i] not in '×·' else '*')
+            i += 1
+        else:
+            m = _NUM.match(t, i)
+            lecturas = _candidatos(m[0].lstrip('+-')) if m and m[0][:1] not in '+-' else None
+            if not lecturas:
+                return None
+            fichas.append(lecturas)
+            i = m.end()
+    return fichas
+
+
+def evaluar_cuenta(texto: str):
+    """047:RF-75 — (lecturas del resultado, lecturas de cada operando) de una cuenta como «14 × (52 + 3) / 2».
+
+    Analizador propio por descenso recursivo (nunca ``eval``): ``None`` si no es una cuenta con al menos un operador
+    entre dos cifras, si queda algo que no se entiende o si divide por cero.
+    """
+    fichas = _fichas(_limpio(texto))
+    if not fichas or not any(isinstance(f, str) and f not in '()' for f in fichas) or \
+            sum(isinstance(f, set) for f in fichas) < 2:
+        return None
+    operandos, pos = [], [0]
+
+    def ver():
+        return fichas[pos[0]] if pos[0] < len(fichas) else None
+
+    def combinar(a, b, op):
+        salida = set()
+        for x, y in itertools.islice(itertools.product(a, b), _MAX_LECTURAS):
+            if op == '/' and y == 0:
+                raise ZeroDivisionError
+            salida.add(x + y if op == '+' else x - y if op == '-' else x * y if op == '*' else x / y)
+        return salida
+
+    def factor():
+        f = ver()
+        if f == '-':
+            pos[0] += 1
+            return {-v for v in factor()}
+        if f == '(':
+            pos[0] += 1
+            v = suma()
+            if ver() != ')':
+                raise ValueError
+            pos[0] += 1
+            return v
+        if isinstance(f, set):
+            pos[0] += 1
+            operandos.append(f)
+            return f
+        raise ValueError
+
+    def producto():
+        v = factor()
+        while ver() in ('*', '/'):
+            op = ver()
+            pos[0] += 1
+            v = combinar(v, factor(), op)
+        return v
+
+    def suma():
+        v = producto()
+        while ver() in ('+', '-'):
+            op = ver()
+            pos[0] += 1
+            v = combinar(v, producto(), op)
+        return v
+
+    try:
+        resultado = suma()
+    except (ValueError, ZeroDivisionError):
+        return None
+    if pos[0] != len(fichas):
+        return None
+    return resultado, operandos
+
+
 class _Lectura:
     """Las lecturas de un valor, su unidad, si es una cuenta (``9 × 210``) y sus operandos."""
     __slots__ = ('lecturas', 'unidad', 'cuenta', 'operandos', 'texto')
@@ -138,15 +236,10 @@ def _leer(valor) -> _Lectura | None:
         return _Lectura({float(valor)}, None)
     bruto = _normal(valor)
     t = _limpio(valor)
-    izquierda = t.split('=', 1)[0]
-    for partes, operar in ((_PRODUCTO.split(izquierda), math.prod), (izquierda.split('+'), sum)):
-        if len(partes) < 2:
-            continue
-        operandos = [_cifras(p) for p in partes]
-        if all(len(o) == 1 for o in operandos):
-            conjuntos = [o[0][0] for o in operandos]
-            lecturas = {operar(c) for c in itertools.islice(itertools.product(*conjuntos), 64)}
-            return _Lectura(lecturas, None, True, conjuntos, t)
+    cuenta = evaluar_cuenta(t)
+    if cuenta is not None:
+        lecturas, operandos = cuenta
+        return _Lectura(lecturas, None, True, operandos, t)
     cifras = _cifras(t)
     if not cifras:
         return None
@@ -232,25 +325,77 @@ def cifras_sin_respaldo(texto, fuente) -> list[str]:
     return fuera
 
 
-def _base_de_evidencia(valor, texto) -> str | None:
-    """047:RF-55: «unidad» si la cifra va seguida de «por unidad», «por km», «c/u»…; «total» si es una cuenta
-    («4 × 130»); ``None`` si el texto no lo dice, y entonces vale la base que declara el dictamen."""
+#: 047:RF-76: lo que sigue a una cifra que es un precio por kilómetro, y el total explícito de una obra.
+_POR_KM = re.compile(r'^\s*(?:[a-z$.]+\s*){0,2}?(?:por\s+(?:kil[oó]metro|km)\b|/\s*km\b)')
+_EN_TOTAL = re.compile(r'^\s*(?:[a-z$.]+\s*){0,2}?en\s+total\b')
+#: Un campo de la propuesta que es una magnitud, no una cantidad de piezas.
+_MAGNITUD_DE_CAMPO = re.compile(r'(?:_(?:pct|pu|a|kw|kva|kvar|mw|mva|usd|ohm|km|h|kv|v|m)$)|^(?:coste|costo)|_final|carga')
+
+
+def _tipo_de_cifra(texto: str, fin: int) -> str:
+    resto = texto[fin:fin + 60]
+    return 'km' if _POR_KM.match(resto) else 'unidad' if _POR_UNIDAD.match(resto) else 'total'
+
+
+def _tipo_por_unidad(valor, texto) -> str | None:
+    """047:RF-76: «km» o «unidad» si la cifra del valor va seguida, en él o en la fuente, de su marca («por unidad»,
+    «c/u», «/km», «por kilómetro»); ``None`` si nada lo dice. La base que declara el dictamen solo se guarda."""
     lectura = _leer(valor)
-    if lectura is None:
+    if lectura is None or lectura.cuenta:
         return None
-    if lectura.cuenta:
-        return 'total'
     propio = _limpio(valor)
-    for lecturas, _u, fin in _cifras(propio):
-        if _POR_UNIDAD.match(propio[fin:]):
-            return 'unidad'
+    for _l, _u, fin in _cifras(propio):
+        if _tipo_de_cifra(propio, fin) != 'total':
+            return _tipo_de_cifra(propio, fin)
     if texto is None:
         return None
     t = _limpio(texto)
-    bases = {('unidad' if _POR_UNIDAD.match(t[fin:fin + 60]) else 'total')
-             for lecturas, _u, fin in _cifras(t)
+    tipos = {_tipo_de_cifra(t, fin) for lecturas, _u, fin in _cifras(t)
              if any(_cerca(x, y, 1e-9) for x in lecturas for y in lectura.lecturas)}
-    return 'unidad' if bases == {'unidad'} else None
+    return tipos.pop() if len(tipos) == 1 and tipos != {'total'} else None
+
+
+def _raiz(palabra: str) -> str:
+    sin_tildes = ''.join(c for c in unicodedata.normalize('NFKD', palabra.casefold()) if not unicodedata.combining(c))
+    return sin_tildes[:5]
+
+
+def _raices(texto: str) -> set[str]:
+    return {_raiz(p) for p in re.findall(r'[a-záéíóúñ]{4,}', _IDENTIFICADOR.sub(' ', _normal(texto)))}
+
+
+def cantidad_anclada(propuesta, texto) -> float | None:
+    """047:RF-76: las piezas de la propuesta de las que habla ``texto`` («Poste de concreto… c/u» y ``postes: 6``, o
+    «reemplazar 6 postes»); ``None`` si no hay ninguna o hay varias distintas."""
+    if not isinstance(propuesta, dict) or texto is None:
+        return None
+    contexto = _raices(texto)
+    valores = set()
+    for clave, valor in propuesta.items():
+        if (isinstance(valor, int) and not isinstance(valor, bool) and valor > 0
+                and not _MAGNITUD_DE_CAMPO.search(clave) and {_raiz(p) for p in clave.split('_') if len(p) >= 4} & contexto):
+            valores.add(float(valor))
+    accion = propuesta.get(ACCION)
+    if isinstance(accion, str):
+        for m in re.finditer(r'(?<![\w.,])(\d+)\s+([a-záéíóúñ]{4,})', _normal(accion)):
+            if _raiz(m[2]) in contexto:
+                valores.add(float(m[1]))
+    return valores.pop() if len(valores) == 1 else None
+
+
+def longitud_anclada(propuesta) -> float | None:
+    """047:RF-76: los kilómetros de la propuesta (un campo ``*_km`` o «2,5 km» en la acción), si son unos solos."""
+    if not isinstance(propuesta, dict):
+        return None
+    valores = {float(v) for k, v in propuesta.items()
+               if k.endswith('_km') and isinstance(v, (int, float)) and not isinstance(v, bool)}
+    accion = propuesta.get(ACCION)
+    if isinstance(accion, str):
+        for m in re.finditer(r'(?<![\d.,])(\d+(?:[.,]\d+)?)\s*km\b', _normal(accion)):
+            lecturas = _candidatos(m[1])
+            if len(lecturas) == 1:
+                valores |= lecturas
+    return valores.pop() if len(valores) == 1 else None
 
 
 def _base_de_campo(campo: str) -> str:
@@ -288,6 +433,14 @@ def _valida(entrada) -> bool:
                    or len(str(v)) > 2000 for v in entrada.values())
 
 
+#: 047:RF-56: la acción es lo que se revisa (RF-46); su texto frente al de una evidencia no es una contradicción.
+ACCION = 'accion'
+
+
+def _clave(campo) -> str:
+    return str(campo).rpartition(':')[2].strip()
+
+
 def _del_campo(campo, propuesta):
     """047:RF-54: el valor que la propuesta da a ese campo, si lo nombra («e1: carga_pct» nombra «carga_pct»)."""
     if not isinstance(propuesta, dict):
@@ -299,49 +452,64 @@ def _del_campo(campo, propuesta):
     return valor if isinstance(valor, (str, int, float)) and not isinstance(valor, bool) else None
 
 
-#: 047:RF-56: la acción es lo que se revisa (RF-46); su texto frente al de una evidencia no es una contradicción.
-ACCION = 'accion'
+def _texto_de_fuentes(fuente, evidencia):
+    """047:RF-78: el fragmento de la fuente citada, o de las varias («e1 e2», «e1, e2»); (texto o None, error o None)."""
+    if fuente is None:
+        fragmentos = [r.get('fragmento') for r in evidencia.values()
+                      if isinstance(r, dict) and isinstance(r.get('fragmento'), str)]
+        return (' ; '.join(fragmentos) if fragmentos else None), None
+    ids = [fuente] if fuente in evidencia else re.findall(r'[A-Za-z]+\d+', fuente)
+    if not ids or any(not isinstance(evidencia.get(i), dict) for i in ids):
+        return None, f'no fundada: {fuente!r} no es una evidencia del paquete'
+    fragmentos = [evidencia[i].get('fragmento') for i in ids]
+    if any(not isinstance(f, str) for f in fragmentos):
+        return None, None
+    return ' ; '.join(fragmentos), None
 
 
-def _clave(campo) -> str:
-    return str(campo).rpartition(':')[2].strip()
-
-
-def _motivo(campo, valor_p, valor_e, fuente, base, propuesta, evidencia):
-    """Por qué no cuenta, o ``None`` si cuenta (RF-49, RF-53, RF-55, RF-56)."""
+def _motivo(campo, valor_p, valor_e, fuente, propuesta, evidencia) -> tuple[str | None, dict]:
+    """Por qué no cuenta (o ``None`` si cuenta) y lo que el código calculó (RF-49, RF-53, RF-55, RF-56, RF-75, RF-76)."""
     if _clave(campo) == ACCION and (_leer(valor_p) is None or _leer(valor_e) is None):
-        return 'la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia'
+        return 'la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia', {}
     if propuesta is not None and _del_campo(campo, propuesta) is None and not _aparece(valor_p, texto_de(propuesta)):
-        return f'no fundada: «{valor_p}» no está en la propuesta'
+        return f'no fundada: «{valor_p}» no está en la propuesta', {}
     texto = None
     if evidencia is not None:
-        if fuente is not None:
-            registro = evidencia.get(fuente)
-            if not isinstance(registro, dict):
-                return f'no fundada: {fuente!r} no es una evidencia del paquete'
-            texto = registro.get('fragmento') if isinstance(registro.get('fragmento'), str) else None
-        else:
-            fragmentos = [r.get('fragmento') for r in evidencia.values()
-                          if isinstance(r, dict) and isinstance(r.get('fragmento'), str)]
-            texto = ' ; '.join(fragmentos) if fragmentos else None
+        texto, error = _texto_de_fuentes(fuente, evidencia)
+        if error:
+            return error, {}
         # Sin el texto de la fuente no se puede comprobar: la contradicción se mantiene (conservador).
-        # Una cuenta («9 × 210») puede tomar la cantidad de la propuesta y el precio de la fuente.
+        # Una cuenta («14 × 52») puede tomar la cantidad de la propuesta y el precio de la fuente (RF-75).
         lectura = _leer(valor_e)
         donde = texto if texto is None or lectura is None or not lectura.cuenta or propuesta is None else (
             f'{texto} ; {texto_de(propuesta)}')
         if donde is not None and not _aparece(valor_e, donde):
-            return f'no fundada: «{valor_e}» no está en {fuente or "la evidencia"}'
-    base_e = _base_de_evidencia(valor_e, texto) or base or 'total'
+            return f'no fundada: «{valor_e}» no está en {fuente or "la evidencia"}', {}
     base_p = _base_de_campo(campo)
-    if base_e != base_p:
-        return f'bases distintas: propuesta {base_p}, evidencia {base_e}'
+    tipo = _tipo_por_unidad(valor_e, texto)
+    if tipo and base_p == 'total':
+        # 047:RF-76: un precio por unidad o por km se pasa a total con la cantidad anclada, en vez de descartarse.
+        factor = longitud_anclada(propuesta) if tipo == 'km' else cantidad_anclada(propuesta, texto)
+        if factor is None:
+            return f'bases distintas: propuesta total, evidencia por {tipo}, sin cantidad anclada', {}
+        lectura = _leer(valor_e)
+        totales = {v * factor for v in lectura.lecturas}
+        referencia = _leer(valor_p)
+        cerca_de = next(iter(referencia.lecturas)) if referencia else 0.0
+        calculo = {'valor_evidencia_total': min(totales, key=lambda v: abs(v - cerca_de)),
+                   'calculo': f'{factor:g} × {valor_e}'}
+        if any(valores_coinciden(valor_p, v) for v in totales):
+            return f'valores iguales tras convertir: {calculo["calculo"]}', calculo
+        return None, calculo
+    if base_p == 'unidad' and tipo is None and _leer(valor_e) is not None and not _leer(valor_e).cuenta:
+        return 'bases distintas: propuesta por unidad, evidencia total', {}
     if valores_coinciden(valor_p, valor_e):
-        return f'valores iguales: «{valor_p}» y «{valor_e}»'
-    return None
+        return f'valores iguales: «{valor_p}» y «{valor_e}»', {}
+    return None, {}
 
 
 def filtrar_contradicciones(entradas, propuesta=None, evidencia=None) -> tuple[list, list[dict]]:
-    """047:RF-48 a RF-55 — las contradicciones que cuentan y las descartadas, con su motivo.
+    """047:RF-48 a RF-78 — las contradicciones que cuentan y las descartadas, con su motivo.
 
     Con ``propuesta`` y ``evidencia`` comprueba además que cada valor esté donde dice; si el campo es de la propuesta,
     su valor es el de la propuesta. Una entrada en texto libre (formato anterior) se interpreta como «X vs Y» y, si no
@@ -358,7 +526,7 @@ def filtrar_contradicciones(entradas, propuesta=None, evidencia=None) -> tuple[l
                 continue
             campo, valor_p, valor_e = leida
             valor_p = _del_campo(campo, propuesta) if _del_campo(campo, propuesta) is not None else valor_p
-            motivo = _motivo(campo, valor_p, valor_e, None, None, propuesta, evidencia)
+            motivo, _calculo = _motivo(campo, valor_p, valor_e, None, propuesta, evidencia)
             (descartadas.append({'entrada': entrada, 'motivo': motivo}) if motivo else quedan.append(entrada))
             continue
         if not _valida(entrada):
@@ -368,7 +536,80 @@ def filtrar_contradicciones(entradas, propuesta=None, evidencia=None) -> tuple[l
         if propio is not None and not valores_coinciden(propio, entrada['valor_propuesta']):
             entrada['valor_propuesta_devuelto'] = entrada['valor_propuesta']
             entrada['valor_propuesta'] = propio
-        motivo = _motivo(entrada['campo'], entrada['valor_propuesta'], entrada['valor_evidencia'],
-                         str(entrada['fuente']), entrada.get('base'), propuesta, evidencia)
+        motivo, calculo = _motivo(entrada['campo'], entrada['valor_propuesta'], entrada['valor_evidencia'],
+                                  str(entrada['fuente']), propuesta, evidencia)
+        entrada.update(calculo)
         (descartadas.append({'entrada': entrada, 'motivo': motivo}) if motivo else quedan.append(entrada))
     return quedan, descartadas
+
+
+#: 047:RF-77: un importe en dólares de un fragmento: «14 500 USD», «US$ 52», «$6,950», «USD 14.250».
+_IMPORTE = re.compile(r'(?:(?P<pre>us\$|usd|\$)\s*)?(?<![\d.,])(?P<num>\d{1,3}(?: \d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*)'
+                      r'(?!\d)(?(pre)|\s*(?:usd|us\$|d[oó]lares)\b)')
+CAMPOS_DE_COSTE = ('coste_usd', 'costo_usd')
+
+
+def _partidas_de(importes: list[tuple[set, str]]) -> list[tuple[set, str]]:
+    """Las partidas de un fragmento: si un importe es la suma de los demás («12 × 900 USD c/u: 10 800 USD»), es su
+    total y cuenta solo él; si no, cuentan todos."""
+    if len(importes) < 2:
+        return importes
+    for i, (lecturas, texto) in enumerate(importes):
+        resto = [p[0] for j, p in enumerate(importes) if j != i]
+        sumas = {sum(c) for c in itertools.islice(itertools.product(*resto), _MAX_LECTURAS)}
+        if any(_cerca(x, y, TOLERANCIA_RELATIVA) for x in lecturas for y in sumas):
+            return [(lecturas, f'{texto}, total de sus partidas')]
+    return importes
+
+
+def comprobar_coste(propuesta, evidencia) -> list[dict]:
+    """047:RF-77 — el coste de la propuesta frente al que sale de la evidencia, calculado sin el LLM.
+
+    Con un único total explícito («… en total»), ese; si no, la suma de las partidas: cada importe total, cada precio
+    por unidad por la cantidad anclada y cada precio por km por la longitud anclada. Si falta una cantidad, hay varios
+    totales explícitos o la propuesta no tiene ``coste_usd`` numérico, no comprueba nada (lista vacía).
+    """
+    if not isinstance(propuesta, dict) or not isinstance(evidencia, dict):
+        return []
+    campo = next((c for c in CAMPOS_DE_COSTE if c in propuesta), None)
+    coste = propuesta.get(campo) if campo else None
+    if not isinstance(coste, (int, float)) or isinstance(coste, bool):
+        return []
+    importes = []
+    for fuente, registro in evidencia.items():
+        fragmento = registro.get('fragmento') if isinstance(registro, dict) else None
+        if not isinstance(fragmento, str):
+            continue
+        t = _IDENTIFICADOR.sub(lambda m: ' ' * len(m[0]), _normal(fragmento))
+        for m in _IMPORTE.finditer(t):
+            lecturas = _candidatos(m['num'])
+            if not lecturas:
+                continue
+            tipo = 'en_total' if _EN_TOTAL.match(t[m.end():m.end() + 40]) else _tipo_de_cifra(t, m.end())
+            importes.append((fuente, m['num'], lecturas, tipo, fragmento))
+    if not importes:
+        return []
+    totales = [i for i in importes if i[3] == 'en_total']
+    if len(totales) > 1:
+        return []
+    if totales:
+        fuente, cifra, lecturas, _t, _f = totales[0]
+        partes = [(lecturas, f'{cifra} ({fuente}, en total)')]
+    else:
+        partes = []
+        for fuente in dict.fromkeys(i[0] for i in importes):
+            del_fragmento = []
+            for _f, cifra, lecturas, tipo, fragmento in (i for i in importes if i[0] == fuente):
+                if tipo == 'total':
+                    del_fragmento.append((lecturas, f'{cifra} ({fuente})'))
+                    continue
+                factor = longitud_anclada(propuesta) if tipo == 'km' else cantidad_anclada(propuesta, fragmento)
+                if factor is None:
+                    return []
+                del_fragmento.append(({v * factor for v in lecturas}, f'{factor:g} × {cifra} ({fuente}, por {tipo})'))
+            partes.extend(_partidas_de(del_fragmento))
+    esperados = {sum(c) for c in itertools.islice(itertools.product(*(p[0] for p in partes)), _MAX_LECTURAS)}
+    cercano = min(esperados, key=lambda v: abs(v - coste))
+    return [{'campo': campo, 'valor_propuesta': coste, 'valor_calculado': round(cercano, 6),
+             'calculo': ' + '.join(p[1] for p in partes), 'fuentes': sorted({i[0] for i in importes}),
+             'coincide': any(_cerca(float(coste), v, TOLERANCIA_RELATIVA) for v in esperados), 'origen': 'codigo'}]

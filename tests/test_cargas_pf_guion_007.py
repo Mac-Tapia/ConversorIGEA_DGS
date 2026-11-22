@@ -662,3 +662,18 @@ def test_008_rf21_todo_reutilizado_lo_dice_y_nombra_sus_alimentadores(guion):
     assert any('en el proyecto y se reutiliza' in a for a in segundo['avisos']), segundo['avisos']
     assert not any('ninguna fila coincide' in a for a in segundo['avisos'])
     assert [f['feeder'] for f in segundo['feeders']] == ['F1']
+
+
+def test_rf86_sin_cargas_creadas_el_aviso_dice_cada_fila_con_su_motivo(guion):
+    """025:RF-86 — la única fila del libro se llama como una carga que ya está en el alimentador: no se crea
+    (004:RF-15, 014:RF-25) y el aviso final dice esa fila y su motivo, no que ninguna fila coincide en el proyecto.
+    (T27 del 22-11: la carga unitaria del formulario se llamaba como una carga de «Con proyecto».)"""
+    app = _app()
+    existente = _carga(app, 'F1_S1').loc_name
+    informe, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva(existente, barra='F1_B2')]), simular=False)
+    assert rc == 0, informe
+    assert informe['cargas'] == [] and [x['sed'] for x in informe['no_creadas']] == [existente]
+    final = [a for a in informe['avisos'] if a.startswith('Nada')]
+    assert final and not any('ninguna fila coincide' in a for a in final), informe['avisos']
+    motivo = informe['no_creadas'][0]['motivo']
+    assert any(existente in a and motivo in a for a in final), final

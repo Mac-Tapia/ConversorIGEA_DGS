@@ -52,7 +52,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 022 Red unida por zonal y SET | cumplida |  |
   | 023 VNR-GIS desde la copia de SQL Server de cualquier concesionaria | cumplida |  |
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |
-  | 025 Calibración por año de medición | implementada | falta T27 |
+  | 025 Calibración por año de medición | cumplida | T27 cerrada (22-11, en DIgSILENT) y T30; todas sus tareas cerradas |
   | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | cumplida | T16 cerrada (21-11, e2e F04 ampliada de MEJ19b); todas sus tareas cerradas |
   | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | T11, T26 |
   | 028 Escaneo del alimentador antes de recalibrar | cumplida | — |

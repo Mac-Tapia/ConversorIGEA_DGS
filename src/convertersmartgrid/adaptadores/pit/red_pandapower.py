@@ -118,27 +118,69 @@ def _tomas(e) -> dict:
     return {**t, 'tap_changer_type': 'Ratio'} if 'tap_step_percent' in t and 'tap_side' in t else {}
 
 
+def nominales_comunes(red: RedArea) -> dict[str, float]:
+    """107:RF-29: la tensión nominal con que el motor abierto calcula cada barra: la común de su zona galvánica (las
+    barras unidas por líneas, acoplamientos y ramas serie, sin transformadores), la más frecuente de la zona (y, si
+    empatan, la mayor). En DIgSILENT dos barras de nominal distinta (220 y 221 kV, 60 y 62,4 kV) pueden estar unidas
+    por una línea; pandapower trabaja en por unidad de cada barra y esa línea hacía de transformador ideal 220/221 (275
+    líneas en la copia de transmisión del 22-11: miles de Mvar y el flujo no convergía)."""
+    from collections import Counter
+
+    import networkx as nx
+
+    kv = {b['id']: float(b['kv']) for b in red.de_tipo('barra')}
+    grafo = nx.Graph()
+    grafo.add_nodes_from(kv)
+    for tipo in ('linea', 'union', 'serie'):
+        for e in red.de_tipo(tipo):
+            if e.get('desde') in kv and e.get('hasta') in kv:
+                grafo.add_edge(e['desde'], e['hasta'])
+    comun: dict[str, float] = {}
+    for zona in nx.connected_components(grafo):
+        cuenta = Counter(round(kv[b], 6) for b in zona)
+        vn = max(cuenta.items(), key=lambda par: (par[1], par[0]))[0]
+        for b in zona:
+            comun[b] = vn
+    return comun
+
+
 def _red(pp, red: RedArea, cargas: Mapping[str, tuple[float, float]], fuera: set[str]):
     # 107:RF-27: la frecuencia de las líneas (``f_hz``, la nominal del tipo en DIgSILENT): con la de fábrica de
     # pandapower (50 Hz) la susceptancia de una red de 60 Hz salía un 17 % baja.
     frecuencias = [float(e['f_hz']) for e in red.de_tipo('linea') if e.get('f_hz')]
     net = pp.create_empty_network(f_hz=frecuencias[0] if frecuencias else 50.0)
     bus = {}
+    comun = nominales_comunes(red)                     # 107:RF-29
+    propia = {b['id']: float(b['kv']) for b in red.de_tipo('barra')}
     for b in red.de_tipo('barra'):
-        bus[b['id']] = pp.create_bus(net, vn_kv=float(b['kv']), name=b['id'])
+        bus[b['id']] = pp.create_bus(net, vn_kv=comun[b['id']], name=b['id'])
+    net.bus['kv_propio'] = [propia[str(n)] for n in net.bus.name]
+
+    def en_comun(barra, vm):
+        """107:RF-29: una consigna dada en la nominal propia de la barra, en la común con que se calcula."""
+        return float(vm) * propia[barra] / comun[barra]
+
     for g in referencias(red):
-        pp.create_ext_grid(net, bus[g['barra']], vm_pu=float(g['vm_pu']), name=g['id'], in_service=g['id'] not in fuera)
+        pp.create_ext_grid(net, bus[g['barra']], vm_pu=en_comun(g['barra'], g['vm_pu']), name=g['id'],
+                           in_service=g['id'] not in fuera)
+    net['control_remoto'] = []
     for g in inyecciones_externas(red):
         # 107:RF-25: con el convenio de generación de pandapower, la consigna de DIgSILENT (pgini, qgini) tal cual.
         if _tipo_barra(g) == 'PV':
             # 107:RF-28: con sus límites de Q si los trae (un SVC); el flujo los aplica solo si se le pide.
             limites = {k: float(g[c]) for k, c in (('min_q_mvar', 'q_min_mvar'), ('max_q_mvar', 'q_max_mvar'))
                        if g.get(c) is not None}
-            pp.create_gen(net, bus[g['barra']], p_mw=float(g['p_mw']), vm_pu=float(g['vm_pu']), name=g['id'],
-                          in_service=g['id'] not in fuera, **limites)
+            i = pp.create_gen(net, bus[g['barra']], p_mw=float(g['p_mw']), vm_pu=en_comun(g['barra'], g['vm_pu']),
+                              name=g['id'], in_service=g['id'] not in fuera, **limites)
+            remoto = g.get('barra_control')
+            if remoto and remoto != g['barra'] and remoto in bus:
+                # 107:RF-31: un SVC que regula un nudo remoto (la barra de alta): la consigna es la de ese nudo, y
+                # ``calcular`` corrige la tensión del PV hasta cumplirla.
+                net['control_remoto'].append((i, bus[remoto], en_comun(remoto, g['vm_pu'])))
         else:
             pp.create_sgen(net, bus[g['barra']], p_mw=float(g['p_mw']), q_mvar=float(g.get('q_mvar') or 0.0),
                            name=g['id'], in_service=g['id'] not in fuera)
+    _una_consigna_por_barra(net)
     for e in red.de_tipo('union'):
         # 107:RF-25: un acoplamiento cerrado une sus dos barras (interruptor barra-barra de pandapower).
         pp.create_switch(net, bus[e['desde']], bus[e['hasta']], et='b',
@@ -182,13 +224,58 @@ def _red(pp, red: RedArea, cargas: Mapping[str, tuple[float, float]], fuera: set
         for lado in _lados_abiertos(e) & {'hv', 'mv', 'lv'}:
             pp.create_switch(net, bus[e[lado]], trafos3[e['id']], et='t3', closed=False)
     for e in red.de_tipo('compensacion'):
+        # 107:RF-29: su Q es la de la nominal propia de su barra.
         pp.create_shunt(net, bus[e['barra']], q_mvar=-float(e['q_mvar']), p_mw=0.0, name=e['id'],
-                        in_service=e['id'] not in fuera)
+                        vn_kv=propia[e['barra']], in_service=e['id'] not in fuera)
     for barra, (p, q) in cargas.items():
         if barra not in bus:
             raise PitError(f'la demanda va a la barra {barra}, que no está en la red del área {red.area}')
         pp.create_load(net, bus[barra], p_mw=float(p), q_mvar=float(q), name=barra)
     return net, bus, lineas, trafos, trafos3
+
+
+def _una_consigna_por_barra(net) -> None:
+    """107:RF-31: pandapower no admite dos consignas de tensión distintas en la misma barra. En la copia de transmisión
+    había máquinas en paralelo con 1,000 y 1,002: manda la de la red externa de la barra si la hay y, si no, la de la
+    primera máquina; las demás se igualan a ella y se avisa."""
+    net['avisos_consigna'] = []
+    if not len(net.gen):
+        return
+    externas = {int(b): float(v) for b, v in zip(net.ext_grid.bus, net.ext_grid.vm_pu)}
+    for b, grupo in net.gen[net.gen.in_service].groupby('bus'):
+        manda = externas.get(int(b), float(grupo.vm_pu.iloc[0]))
+        distintas = grupo[(grupo.vm_pu - manda).abs() > 1e-9]
+        if len(distintas):
+            net.gen.loc[distintas.index, 'vm_pu'] = manda
+            nombres = ', '.join(str(n) for n in distintas.name)
+            net['avisos_consigna'].append(f'{nombres}: otra consigna de tensión en la misma barra; se toma {manda:.4f}')
+
+
+#: 107:RF-31: la tolerancia y las vueltas del control remoto de tensión (en por unidad de la nominal común).
+_TOL_REMOTO_PU = 1e-4
+_VUELTAS_REMOTO = 20
+
+
+def _control_remoto(pp, net, opciones: dict) -> None:
+    """107:RF-31: los PV que regulan un nudo remoto (un SVC y su barra de alta). pandapower solo regula la barra del PV:
+    tras cada flujo se mueve la consigna del PV lo que le falta al nudo controlado, salvo si está en su límite de Q
+    (entonces no sostiene nada), hasta cumplirla o agotar las vueltas."""
+    pares = [(g, b, v) for g, b, v in net.get('control_remoto', []) if bool(net.gen.in_service.at[g])]
+    for _vuelta in range(_VUELTAS_REMOTO):
+        mover = []
+        for g, b, objetivo in pares:
+            q = float(net.res_gen.q_mvar.at[g])
+            qmin = net.gen.min_q_mvar.at[g] if 'min_q_mvar' in net.gen else float('nan')
+            qmax = net.gen.max_q_mvar.at[g] if 'max_q_mvar' in net.gen else float('nan')
+            en_limite = (not math.isnan(qmin) and q <= qmin + 1e-6) or (not math.isnan(qmax) and q >= qmax - 1e-6)
+            falta = objetivo - float(net.res_bus.vm_pu.at[b])
+            if not en_limite and abs(falta) > _TOL_REMOTO_PU:
+                mover.append((g, falta))
+        if not mover:
+            return
+        for g, falta in mover:
+            net.gen.at[g, 'vm_pu'] = float(net.gen.vm_pu.at[g]) + falta
+        pp.runpp(net, init='results', **opciones)
 
 
 def calcular(red: RedArea, cargas: Mapping[str, tuple[float, float]], *, fuera: Iterable[str] = ()) -> ResultadoFlujo:
@@ -213,14 +300,24 @@ def calcular(red: RedArea, cargas: Mapping[str, tuple[float, float]], *, fuera: 
         angulos = any(float(net[t][c].abs().sum()) > 0 for t, c in (('trafo', 'shift_degree'),
                                                                      ('trafo3w', 'shift_mv_degree'),
                                                                      ('trafo3w', 'shift_lv_degree')) if len(net[t]))
-        pp.runpp(net, algorithm='nr', init='auto', max_iteration=30, calculate_voltage_angles=angulos, numba=False)
+        # 107:RF-31: con PV que traen límites de Q (máquinas y SVC), el flujo los aplica: un PV en su límite pasa a PQ
+        # y deja de sostener su consigna, como en DIgSILENT.
+        limites_q = bool(len(net.gen)) and bool(net.gen[['min_q_mvar', 'max_q_mvar']].notna().any().any()) \
+            if {'min_q_mvar', 'max_q_mvar'} <= set(net.gen.columns) else False
+        opciones = dict(algorithm='nr', max_iteration=30, calculate_voltage_angles=angulos, numba=False,
+                        enforce_q_lims=limites_q)
+        pp.runpp(net, init='auto', **opciones)
+        _control_remoto(pp, net, opciones)
     except pp.LoadflowNotConverged as exc:
         res.mensaje = f'el flujo no converge con pandapower: {exc}'
         return res
     res.converge = True
+    if net.get('avisos_consigna'):
+        res.mensaje = '; '.join(net['avisos_consigna'])
     vm = net.res_bus.vm_pu
     for nombre, i in bus.items():
-        v = float(vm.at[i])
+        # 107:RF-29: en la nominal propia de la barra, la que da DIgSILENT.
+        v = float(vm.at[i]) * float(net.bus.vn_kv.at[i]) / float(net.bus.kv_propio.at[i])
         if math.isnan(v):
             res.sin_tension.append(nombre)
         else:

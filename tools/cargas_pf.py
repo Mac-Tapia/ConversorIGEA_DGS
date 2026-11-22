@@ -2868,10 +2868,22 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
 
     if not any(asignadas.values()) and not any(resueltas.values()):
         # 008:RF-21: con todas las filas ya en el proyecto, coinciden; no es que no coincida ninguna.
-        informe['avisos'].append(
-            'Nada nuevo que aplicar: ' + plural(len(reutilizadas), 'la carga del libro ya está en el proyecto y se reutiliza.',
-                                               f'las {len(reutilizadas)} cargas del libro ya están en el proyecto y se '
-                                               'reutilizan.') if reutilizadas else 'Nada que aplicar: ninguna fila coincide en el proyecto.')
+        # 025:RF-86: y si las filas quedaron sin crear, se dice cada una con su motivo. En la T27 del 22-11 la carga
+        # unitaria del formulario se llamaba como una carga de «Con proyecto» (014:RF-25) y el aviso decía que ninguna
+        # fila coincidía en el proyecto.
+        sin_crear = [x for x in no_creadas if not x.get('reutilizada')]
+        if reutilizadas:
+            informe['avisos'].append(
+                'Nada nuevo que aplicar: ' + plural(len(reutilizadas), 'la carga del libro ya está en el proyecto y se '
+                                                    'reutiliza.', f'las {len(reutilizadas)} cargas del libro ya están en '
+                                                    'el proyecto y se reutilizan.'))
+        elif sin_crear:
+            informe['avisos'].append(
+                'Nada que aplicar: ' + plural(len(sin_crear), 'la fila no se crea', f'las {len(sin_crear)} filas no se '
+                                              'crean') + ': ' + '; '.join(f"{x['sed']}: {x['motivo']}"
+                                                                          for x in sin_crear) + '.')
+        else:
+            informe['avisos'].append('Nada que aplicar: ninguna fila coincide en el proyecto.')
         # 008:RF-21: los alimentadores del proyecto, aunque no se cree nada; la web los nombra en la escalera
         # de obras y decía «cambio de sección en , varias variantes» (PRUEBA_007, 2026-11-06).
         informe['feeders'] = [{'feeder': f, 'actualizadas': [], 'creadas': [], 'fallos': []} for f in alims.elegidos]

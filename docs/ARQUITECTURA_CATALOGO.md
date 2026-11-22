@@ -13,7 +13,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 133 |
 | Interfaz | `frontend/src/` | 121 |
 | Pruebas de la interfaz | `frontend/test/` | 65 |
-| Pruebas | `tests/` | 661 |
+| Pruebas | `tests/` | 663 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -23,12 +23,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 91 |
+| cumplida | 92 |
 | aprobada | 16 |
-| implementada | 4 |
+| implementada | 3 |
 | retirada | 1 |
 
-112 specs con 4059 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 4067 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -653,7 +653,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `orquestador.py` | Apl | 027, 061 | El proyecto entero desde el espacio, etapa por etapa por las rutas de la web (fuente, sistema, «Caso base», cargas nuevas, obras, estudios, PIDE,… |
 | `equipo.py` | Apl | 065 | Gobierno de herramientas y permisos sellados por plan, rol y fuente. |
 | `revision_roles.py` | Apl | 065, 047 | Revisión local por roles sin autorización de escrituras nativas, y su comparación contra un revisor único. |
-| `contradicciones.py` | Apl | 047 | Qué contradicción de un dictamen de revisión cuenta: cifras normalizadas, valores en la propuesta y en la fuente, misma base. |
+| `contradicciones.py` | Apl | 047 | Qué contradicción de un dictamen de revisión cuenta: cifras normalizadas, cuentas evaluadas, valores en la propuesta y en la fuente, misma base. |
 | `evidencias_web.py` | Apl | 067 | Custodia como evidencia del espacio el resultado de los informes y estudios que terminan bien, con su proyecto y su fuente verdaderos, para la… |
 | `observacion.py` | Apl | 061, 026 | Diario SQLite por espacio, contexto inmutable, informes custodiados y control de identidad de reanudación, sin promoción. |
 | `vigilancia.py` | Apl | 026, 050 | Vigilancia de trabajos (fallos, tiempos, colas, reintento del 4002), modelos, calidad de resultados y suite nocturna con el RF de cada fallo. |

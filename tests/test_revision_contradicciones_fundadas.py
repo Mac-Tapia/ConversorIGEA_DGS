@@ -103,9 +103,10 @@ def test_el_valor_de_un_campo_de_la_propuesta_lo_pone_el_codigo(tmp_path):
 
 
 def test_un_total_no_se_compara_con_un_precio_por_unidad(tmp_path):
-    """047:RF-55 — «520» frente a «130 USD por unidad» no es contradicción; la cuenta del total sí se compara."""
+    """047:RF-55 / RF-76 — «520» frente a «130 USD por unidad» no se compara tal cual: con los 4 aisladores anclados en
+    la propuesta es 520 (MEJ24d convierte en vez de descartar); la cuenta del total también se compara."""
     r, d = _dictamen(tmp_path, [_c('coste_usd', '520', '130', 'e2')])
-    assert r['aprobada'] and _motivos(d)[0].startswith('bases distintas')
+    assert r['aprobada'] and _motivos(d)[0].startswith('valores iguales tras convertir')
     r, d = _dictamen(tmp_path, [_c('coste_usd', '520', '4 × 130', 'e2', 'total')])
     assert r['aprobada'] and _motivos(d)[0].startswith('valores iguales')
     r, d = _dictamen(tmp_path, [_c('coste_usd', '520', '5 × 130', 'e2', 'total')])
@@ -114,15 +115,16 @@ def test_un_total_no_se_compara_con_un_precio_por_unidad(tmp_path):
     assert not r['aprobada'] and d['contradicciones'][0]['valor_evidencia'] == '4 × 130'
 
 
-def test_la_base_declarada_cuenta_cuando_la_fuente_no_la_dice(tmp_path):
-    """047:RF-55 — el esquema pide la base; si el texto no la aclara, vale la que declara el modelo."""
+def test_la_base_la_dice_la_fuente_no_el_modelo(tmp_path):
+    """047:RF-55 / RF-76 — el esquema pide la base, pero solo se guarda: en la T8e el modelo declaraba «unidad» en
+    «0,92 p.u.» o «124 %» y eso descartaba defectos reales. Cuenta la marca del texto («por unidad», «c/u», «/km»)."""
     items = revision_roles.esquema_dictamen()['properties']['contradicciones']['items']
     assert items['properties'].get('base') == {'enum': ['total', 'unidad']} and 'base' in items['required']
-    fragmentos = {**FRAGMENTOS, 'e2': 'Aislador polimérico de 25 kV: 130 USD.'}
-    r, d = _dictamen(tmp_path, [_c('coste_usd', '520', '130', 'e2', 'unidad')], fragmentos=fragmentos)
-    assert r['aprobada'] and _motivos(d)[0].startswith('bases distintas')
-    r, d = _dictamen(tmp_path, [_c('coste_usd', '520', '130', 'e2', 'total')], fragmentos=fragmentos)
-    assert not r['aprobada']
+    r, d = _dictamen(tmp_path, [_c('tension_pu', '0,97', '0,97 p.u.', 'e1', 'unidad')])
+    assert r['aprobada'] and _motivos(d)[0].startswith('valores iguales')
+    fragmentos = {**FRAGMENTOS, 'e1': 'Medición del vano V18: demanda máxima 1,25 MW; tensión mínima 0,91 p.u.'}
+    r, d = _dictamen(tmp_path, [_c('tension_pu', '0,97', '0,91', 'e1', 'unidad')], fragmentos=fragmentos)
+    assert not r['aprobada'] and d['contradicciones'], 'la base que declara el modelo descarta un defecto real'
 
 
 def test_el_texto_de_la_accion_no_es_una_contradiccion(tmp_path):

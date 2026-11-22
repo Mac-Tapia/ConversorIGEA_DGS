@@ -190,6 +190,24 @@ RF-9 mientras haya menos de 200 humanas; las del maestro nunca son humanas ni se
 - RF-74: la prueba, la selección y la calibración se fijarán con su huella al preparar el corpus, antes de sellar y de
   entrenar; SI al sellar o al leer una partición apartada su huella no es la fijada, ENTONCES EL SISTEMA no la sellará ni
   la leerá. La preparación deja medidos su tiempo y su coste (sin GPU ni llamadas a modelos).
+- RF-75: CUANDO el valor de la evidencia de una contradicción sea una cuenta con + − × · x / y paréntesis, EL
+  SISTEMA la evaluará con un analizador propio (nunca `eval`) y comparará el resultado con la tolerancia; solo la
+  contará si cada operando está, normalizado, en el fragmento de las fuentes citadas o, la cantidad, en la
+  propuesta. Una relación como «22,9/0,40 kV» no es una división. MEJ24d, 2026-11-21: con el 047e, «14 × 52 = 728»
+  citando solo la fuente de la cantidad se descartaba como no fundada y el defecto se perdía.
+- RF-76: SI la fuente da la cifra por unidad o por kilómetro y el campo de la propuesta es un total, ENTONCES EL
+  SISTEMA la multiplicará por la cantidad anclada (un único campo de piezas de la propuesta, o las piezas que nombra
+  la acción, de las que habla la fuente; los kilómetros de la acción o de un campo `*_km`) y comparará el total, y
+  solo sin cantidad la descartará. La base la dice el texto («por unidad», «c/u», «cada uno», «/km», «por km»); la
+  que declara el dictamen se guarda y no descarta nada. Con el 047e el modelo declaraba «unidad» en «0,92 p.u.».
+- RF-77: CUANDO se revise una propuesta con `coste_usd` y la evidencia dé sus importes, EL SISTEMA calculará el
+  coste sin el LLM (un total explícito «en total»; si no, la suma de las partidas, con cada precio por unidad o por
+  km multiplicado por su cantidad anclada, y un importe que es la suma de los demás de su fragmento como su total),
+  lo guardará con la cuenta en `comprobaciones_del_codigo` y, si no cuadra con la tolerancia, no aprobará la
+  revisión. Sin cantidad anclada, con varios totales explícitos o sin importes no comprobará nada. La medida cuenta
+  por modo las que no cuadran.
+- RF-78: CUANDO una contradicción cite varias fuentes («e1 e2», «e1, e2»), EL SISTEMA buscará sus valores en todas;
+  una que no esté en el paquete la hace no fundada. El encargo lo dice para las cuentas.
 
 ## Requisitos no funcionales
 

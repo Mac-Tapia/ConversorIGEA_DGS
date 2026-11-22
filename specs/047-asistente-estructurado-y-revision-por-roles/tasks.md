@@ -246,6 +246,10 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       huella sha256 `649863d4f383978a1e1e62984a4aa7b95140a76c556078a057b667adae0ae5da` (2026-11-21), la misma en el fichero,
       en la herramienta y en la prueba. Lo escribió quien escribió la corrección: limitación declarada.
       Bloqueada por la medida en su turno de GPU (cola de d8, Ollama con `qwen3:8b`), con la orden de arriba.
+      Medida del 047e, 2026-11-21 (bloque de GPU, `qwen3:8b`, huella `649863d4…adae0ae5da`): **no pasa**. 0 falsas
+      alarmas en los dos modos, pero perdidos 3 de 6 (rol único) y 2 de 6 (equipo), 0 sin respuesta. Lo que el modelo
+      sí vio acabó descartado por las reglas de la T11: una cuenta que citaba solo la fuente de la cantidad, un precio
+      por km frente al total, y la base «unidad» que el modelo declaraba en «0,92 p.u.» o «124 %». Sigue en la T13.
 
 - [x] T12. Órdenes revisadas por el maestro: registro sellado y decisión de ajuste mientras falten humanas. (RF-62, RF-63, RF-64, RF-65, RF-66, RF-67, RF-68)
       Hecho cuando: `tests/test_asistente_revisadas_maestro.py`, `tests/test_asistente_ajuste_condicionado.py`,
@@ -261,3 +265,26 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       de 200. Después, sin medir aún: «bloqueada» solo por «métricas ausentes», con base `maestro_revisadas`, 200
       revisadas, 3 humanas y 197 que faltan. **No cierra la T4:** su evaluación final en GPU es `aceptar_agente.py
       evaluar` con este conjunto, y la decisión que dé (`decision_ajuste.json`) es la que abre o no el QLoRA de la 043 T9.
+
+- [ ] T13. Cuentas evaluadas por el código, precios por unidad pasados a total y coste comprobado sin el LLM, y medida con un conjunto nuevo. (RF-75, RF-76, RF-77, RF-78)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047f.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8f.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T11, la T10 y la T8.
+      Código, 2026-11-21 (MEJ24d): `contradicciones.evaluar_cuenta` evalúa cuentas por descenso recursivo y cada
+      operando debe estar en las fuentes citadas (RF-75, RF-78); un precio por unidad o por km se multiplica por la
+      cantidad anclada y la base la decide el texto (RF-76); `contradicciones.comprobar_coste` calcula el coste de la
+      evidencia sin el LLM y una revisión que no cuadra no se aprueba (RF-77). Pruebas, con dobles y sin LLM:
+      `tests/test_revision_cuentas_y_coste.py` y `tests/test_revision_conjunto_047f.py`. Diagnóstico sin LLM, que no
+      vale como medida: con este código, la comprobación del coste halla los 9 defectos de coste del 047 al 047e sin
+      ninguna falsa alarma, y volver a filtrar lo que devolvió el LLM en la T8e deja 0 falsas alarmas y 2 perdidos en
+      cada modo, de riesgo y de fuentes (otro alimentador), que el modelo no vio.
+      Conjunto nuevo, 2026-11-21: el 047e orientó este diagnóstico y no vale para la aceptación, así que la medida es
+      con `docs/REVISION_ROLES_CASOS_047f.json`, 12 casos sintéticos del maestro (6 sanos y 6 con un error cada uno:
+      coste por una partida que falta en la suma y por precio por km, física por sobrecarga tras una transferencia y
+      por cortocircuito sobre la capacidad del interruptor, riesgo por trabajo en caliente prohibido, fuentes por una
+      demanda distinta en otra unidad), con costes por partidas, por unidad, por km y totales en sanos y con error y
+      cifras escritas de formas distintas, sin repetir propuestas ni evidencias del 047 al 047e, nombres opacos, con las
+      mismas reglas de declaración, declarado antes de medir con huella sha256 `05c423913e4e49d4ebb370fd8d760f89e4cfb3319ce9001395dde08da33afea6`
+      (2026-11-21), la misma en el fichero, en la herramienta y en la prueba. Lo escribió quien escribió la
+      corrección: limitación declarada.
+      Bloqueada por la medida en su turno de GPU (cola de d8, Ollama con `qwen3:8b`), con la orden de arriba.

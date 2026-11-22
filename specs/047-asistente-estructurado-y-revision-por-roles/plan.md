@@ -268,6 +268,15 @@ acepta que el diagnóstico sin LLM pierda defectos: los que se perdían solo los
 puerta exige hallarlos de verdad. Nuevo módulo `asistente/contradicciones.py`, sin E/S, que usa `revision_roles`.
 La medida siguiente es con el conjunto 047e, declarado antes.
 
+**MEJ24d, 2026-11-21 (RF-75 a RF-78, T13).** La medida del 047e dio 0 falsas alarmas pero perdió defectos que el
+modelo sí había visto: las reglas de la T11 los descartaban. Se corrige sin aflojar lo comprobable: una cuenta se
+evalúa (analizador propio, sin `eval`) y cada operando debe estar en las fuentes citadas, que pueden ser varias; un
+precio por unidad o por km se multiplica por la cantidad anclada en vez de descartarse; la base la dice el texto y no
+el modelo. Y lo que el código puede calcular solo, el coste a partir de partidas, precios unitarios y cantidades,
+lo calcula: una revisión cuyo coste no cuadra no se aprueba, igual que con una restricción determinista, así que un
+defecto de coste no depende de que el LLM lo vea. Sin datos estructurados no se comprueba nada (conservador). La
+medida siguiente es con el conjunto 047f, declarado antes.
+
 ### T4: Evaluación real y ajuste condicionado
 
 **Cubre:** RF-8, RF-9.

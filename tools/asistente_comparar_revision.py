@@ -38,9 +38,13 @@ HUELLA_047D = '2da22130778488aa9e2a71583e6799c30fb41ce403796a5d6261fbb1a50887cc'
 #: 047 T11, MEJ24c: la medida del 047d (2026-11-21) orientó las contradicciones fundadas y por base (047:RF-52 a
 #: RF-56), así que la siguiente es con otro conjunto, declarado el 2026-11-21 antes de medir.
 HUELLA_047E = '649863d4f383978a1e1e62984a4aa7b95140a76c556078a057b667adae0ae5da'
+#: 047 T13, MEJ24d: la medida del 047e (2026-11-21) orientó las cuentas, la conversión a total y la comprobación del
+#: coste (047:RF-75 a RF-78), así que la siguiente es con otro conjunto, declarado el 2026-11-21 antes de medir.
+HUELLA_047F = '05c423913e4e49d4ebb370fd8d760f89e4cfb3319ce9001395dde08da33afea6'
 #: Conjuntos declarados, por nombre de fichero; el de siempre usa ``HUELLA``.
 DECLARADOS = {'REVISION_ROLES_CASOS_047b.json': HUELLA_047B, 'REVISION_ROLES_CASOS_047c.json': HUELLA_047C,
-              'REVISION_ROLES_CASOS_047d.json': HUELLA_047D, 'REVISION_ROLES_CASOS_047e.json': HUELLA_047E}
+              'REVISION_ROLES_CASOS_047d.json': HUELLA_047D, 'REVISION_ROLES_CASOS_047e.json': HUELLA_047E,
+              'REVISION_ROLES_CASOS_047f.json': HUELLA_047F}
 #: La clave del fichero que declara su huella; no entra en la huella.
 DECLARACION = 'declaracion'
 DEFECTOS = {None, 'fuentes', 'fisica', 'coste', 'riesgo'}
@@ -152,7 +156,8 @@ def main(argv=None) -> int:
     print(json.dumps({k: {c: informe[k][c] for c in ('detectados', 'perdidos', 'falsas_alarmas', 'sin_respuesta',
                                                      'motivos_sin_respuesta', 'tokens_entrada', 'tokens_salida',
                                                      'max_tokens_salida', 'en_tope', 'contradicciones_descartadas',
-                                                     'decisiones_recalculadas', 'segundos')}
+                                                     'decisiones_recalculadas', 'comprobaciones_fallidas',
+                                                     'segundos')}
                       for k in ('rol_unico', 'equipo')}, ensure_ascii=True))
     return 0
 

@@ -253,6 +253,29 @@ común.
   de alta); y el motor abierto calculará con ángulos cuando haya desfases. (En la copia de transmisión había 13 SVC, de
   hasta 315 Mvar, sin exportar, y grupos de 1, 5, 7 y 11 h.)
 
+- RF-29: (corrida de 107 T14 del 22-11; amplía RF-25 a RF-28) CUANDO el motor abierto calcule una red en la que una
+  línea, un acoplamiento o una rama serie une barras de tensión nominal distinta (220 y 221 kV, 60 y 62,4 kV), EL SISTEMA
+  calculará cada zona galvánica con una nominal común (la más frecuente de la zona) y dará la tensión de cada barra en su
+  nominal propia, como DIgSILENT; las consignas de las redes externas y de los nudos PV y la Q de las compensaciones se
+  leerán en la nominal propia de su barra. (En la copia de transmisión había 275 líneas así: pandapower, en por unidad de
+  cada barra, las calculaba como transformadores ideales 220/221 que no existen, con miles de Mvar, y no convergía.)
+- RF-30: (corrida de 107 T14 del 22-11; amplía RF-27) CUANDO el tipo de un transformador de tres devanados tenga la
+  impedancia dependiente de la toma, EL SISTEMA exportará las tensiones de cortocircuito de cada par (y su parte
+  resistiva) en la toma en que está el trafo: las de la toma mínima o máxima del tipo en los extremos y, entre el
+  neutro y cada extremo, la interpolación lineal; sin esa dependencia, las nominales. (Un trafo de tres devanados
+  de prueba en la toma máxima de alta tenía vk de media-baja de 10,2 % en vez de 1,7 %: con las nominales el motor
+  abierto ponía el punto estrella junto a media y no junto a alta, con ~460 MW de desajuste.) La parte resistiva
+  de cada par saldrá de sus pérdidas en el cobre sobre la potencia del par (AT-MT en min(AT, MT), MT-BT en
+  min(MT, BT), BT-AT en min(BT, AT)), como en DIgSILENT; con la de un solo devanado, la de MT-BT de un trafo de
+  240/240/80 MVA salía tres veces menor.
+- RF-31: (corrida de 107 T14 del 22-11; amplía RF-25 y RF-28) CUANDO el proyecto tenga máquinas con control de
+  tensión o SVC, EL SISTEMA exportará cada máquina síncrona o estática con control de tensión como nudo PV con su
+  consigna, su potencia (por el número de unidades) y sus límites de Q, y la de Q constante seguirá como inyección;
+  cada SVC, como nudo PV que regula su nudo de control remoto con los límites de Q que resuelve DIgSILENT, o PQ con
+  su Q si va con control de Q; y el motor abierto aplicará los límites de Q, moverá la consigna del PV hasta cumplir
+  la del nudo remoto mientras no esté en su límite, y con dos consignas distintas en la misma barra tomará una y lo
+  dirá. (Con las 255 máquinas como inyección fija el motor abierto no convergía desde arranque plano en la copia de
+  transmisión; con ellas como PV, sí. Los SVC regulaban la barra de alta y siete estaban en su límite.)
 ## Requisitos no funcionales
 - Universal: cualquier área de demanda y titular. Las pruebas usan al menos dos perfiles sintéticos.
 - Determinismo: el mismo caso, con la misma norma y los mismos costos, da el mismo expediente.

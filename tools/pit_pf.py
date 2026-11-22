@@ -93,6 +93,28 @@ def _kv_barra(obj, lado: str) -> float | None:
     return _num(_terminal(obj, lado), 'uknom')
 
 
+def _objeto(obj, attr):
+    """107:RF-31: el objeto al que apunta un atributo (un nudo de control), o ``None``."""
+    try:
+        v = obj.GetAttribute(attr)
+    except Exception:  # noqa: BLE001  # justificado: la API de PowerFactory da errores propios por un atributo que no
+        # existe en esta versión; se intenta leerlo como atributo de Python.
+        v = getattr(obj, attr, None)
+    return v if hasattr(v, 'GetClassName') else None
+
+
+def _limites_q(obj, unidades: float, *, solo_resueltos: bool = False) -> dict[str, float]:
+    """107:RF-31: los límites de Q en Mvar (convenio de generación): los que resuelve DIgSILENT con su curva de
+    capacidad (c:Qmin, c:Qmax) o, si no los da, los nominales por unidad (cQ_min, cQ_max) por el número de unidades."""
+    lo, hi = _num(obj, 'c:Qmin'), _num(obj, 'c:Qmax')
+    if lo is not None and hi is not None:
+        return {'q_min_mvar': lo, 'q_max_mvar': hi}
+    if solo_resueltos:
+        return {}
+    lo, hi = _num(obj, 'cQ_min'), _num(obj, 'cQ_max')
+    return {k: v * unidades for k, v in (('q_min_mvar', lo), ('q_max_mvar', hi)) if v is not None}
+
+
 def _texto(obj, attr) -> str | None:
     """El valor de texto de un atributo, sin espacios, o ``None`` si DIgSILENT no lo da."""
     try:
@@ -177,6 +199,54 @@ def _desfase(grupo) -> float | None:
     return None if grupo is None else (30.0 * grupo) % 360.0
 
 
+_PARES_TR3 = (('h', 'vk_hv_percent', 'vkr_hv_percent'), ('m', 'vk_mv_percent', 'vkr_mv_percent'),
+              ('l', 'vk_lv_percent', 'vkr_lv_percent'))
+
+
+def _vk_tr3(tipo, elemento, sn: dict) -> dict[str, float | None]:
+    """107:RF-30: las tensiones de cortocircuito de los tres pares (AT-MT, MT-BT, BT-AT) en la toma en que está el
+    trafo. Con la impedancia dependiente de la toma (``itapzdep`` = 1), DIgSILENT no usa las nominales (``uktr3_*``,
+    ``uktrr3_*``) sino las de la toma: las de la mínima (``uktr3mn_*``) y la máxima (``uktr3mx_*``) en los extremos y,
+    entre el neutro y cada extremo, la interpolación lineal. En la copia de transmisión, un trafo de tres devanados de
+    prueba estaba en la toma máxima de alta con vk de MT-BT de 10,2 % en vez de 1,7 %: con las nominales el punto
+    estrella caía junto a media y no junto a alta, y el motor abierto metía ~460 MW entre media y baja."""
+    out: dict[str, float | None] = {}
+    for x, vk, vkr in _PARES_TR3:
+        out[vk] = _num(tipo, f'uktr3_{x}')
+        # La parte resistiva de cada par sobre la potencia del par, como DIgSILENT (``uktrr3_*`` = ``pcut3_*`` /
+        # (10 · potencia del par)): con la de un solo devanado, la de MT-BT de un trafo de 240/240/80 MVA salía con
+        # 0,052 % en vez de 0,156 % (sonda del 22-11).
+        out[vkr] = _pct_cobre(_num(tipo, f'pcut3_{x}'), _potencia_del_par(sn, x))
+    if _num(tipo, 'itapzdep') != 1:
+        return out
+    lado = next((x for x in 'hml' if _num(tipo, f'du3tp_{x}')), None)
+    pos = _num(elemento, f'n3tap_{lado}') if lado else None
+    if pos is None:
+        return out
+    neutro = _num(tipo, f'n3tp0_{lado}') or 0.0
+    minimo, maximo = _num(tipo, f'n3tmn_{lado}'), _num(tipo, f'n3tmx_{lado}')
+    if pos > neutro and maximo is not None and maximo > neutro:
+        extremo, fraccion = 'mx', min(1.0, (pos - neutro) / (maximo - neutro))
+    elif pos < neutro and minimo is not None and minimo < neutro:
+        extremo, fraccion = 'mn', min(1.0, (neutro - pos) / (neutro - minimo))
+    else:
+        return out
+    for x, vk, vkr in _PARES_TR3:
+        for clave, del_extremo in ((vk, _num(tipo, f'uktr3{extremo}_{x}')), (vkr, _num(tipo, f'uktrr3{extremo}_{x}'))):
+            nominal = out[clave]
+            if nominal is not None and del_extremo is not None:
+                out[clave] = nominal + (del_extremo - nominal) * fraccion
+    return out
+
+
+def _potencia_del_par(sn: dict, x: str) -> float | None:
+    """107:RF-30: la potencia de referencia del par que DIgSILENT nombra por su primer devanado: AT-MT («h») en
+    min(AT, MT), MT-BT («m») en min(MT, BT) y BT-AT («l») en min(BT, AT)."""
+    otro = {'h': 'm', 'm': 'l', 'l': 'h'}[x]
+    vals = [v for v in (sn.get(x), sn.get(otro)) if v]
+    return min(vals) if vals else None
+
+
 def _desfases_tr3(tipo) -> dict[str, float]:
     """107:RF-28: el desfase de media y de baja de un trafo de tres devanados, relativo al de alta, como lo pide
     pandapower (``shift_mv_degree``, ``shift_lv_degree``)."""
@@ -216,22 +286,44 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
         # 107:RF-25: la máquina de referencia del flujo (``ip_ctrl``) es la barra de suministro cuando la referencia
         # del proyecto no es una red externa. Las demás máquinas no se exportan: su generación es inyección del caso.
         for m in _objetos(app, patron):
-            if _fuera_de_servicio(m) or _num(m, 'ip_ctrl') != 1:
+            if _fuera_de_servicio(m):
                 continue
-            out.append(_sin_vacios({**ident(m), 'tipo': 'red_externa', 'barra': _barra(m, 'bus1'),
-                                    'kv': _kv_barra(m, 'bus1'), 'vm_pu': _num(m, 'usetp'), 'tipo_barra': 'SL',
-                                    'maquina_referencia': True, **comun, 'fuente': fuente(m)}))
+            if _num(m, 'ip_ctrl') == 1:
+                out.append(_sin_vacios({**ident(m), 'tipo': 'red_externa', 'barra': _barra(m, 'bus1'),
+                                        'kv': _kv_barra(m, 'bus1'), 'vm_pu': _num(m, 'usetp'), 'tipo_barra': 'SL',
+                                        'maquina_referencia': True, **comun, 'fuente': fuente(m)}))
+            elif _texto(m, 'av_mode') == 'constv':
+                # 107:RF-31: la máquina con control de tensión es un nudo PV con su consigna, su potencia y sus límites
+                # de Q; como inyección fija con la Q que dio DIgSILENT, el motor abierto no convergía desde arranque
+                # plano en la copia de transmisión (255 máquinas), y como PV sí. La de Q constante sigue siendo
+                # inyección del caso.
+                unidades = _num(m, 'ngnum') or 1.0
+                p = _num(m, 'pgini')
+                out.append(_sin_vacios({**ident(m), 'tipo': 'red_externa', 'barra': _barra(m, 'bus1'),
+                                        'kv': _kv_barra(m, 'bus1'), 'vm_pu': _num(m, 'usetp'), 'tipo_barra': 'PV',
+                                        'p_mw': None if p is None else p * unidades, **_limites_q(m, unidades),
+                                        'maquina': True, **comun, 'fuente': fuente(m)}))
     for s in _objetos(app, '*.ElmSvs'):
         # 107:RF-28: el SVC regula la tensión de su barra: nudo PV sin potencia activa, con su consigna (usetp) y sus
         # límites de Q (qmax capacitiva; qmin, la inductiva, en negativo). En la copia de transmisión había 13, de hasta
         # 315 Mvar en 500 kV, y no se exportaban.
         if _fuera_de_servicio(s) or _abiertos(s, (('bus1', 'barra'),)):
             continue
+        base = {**ident(s), 'tipo': 'red_externa', 'barra': _barra(s, 'bus1'), 'kv': _kv_barra(s, 'bus1'),
+                'vm_pu': _num(s, 'usetp'), 'p_mw': 0.0, **comun, 'fuente': fuente(s)}
+        if _num(s, 'i_ctrl') == 2:
+            # 107:RF-31: con control de Q, el SVC da su Q (qsetp, convenio de generación) y no regula tensión.
+            out.append(_sin_vacios({**base, 'tipo_barra': 'PQ', 'q_mvar': _num(s, 'qsetp') or 0.0}))
+            continue
         qmin = _num(s, 'qmin')
-        out.append(_sin_vacios({**ident(s), 'tipo': 'red_externa', 'barra': _barra(s, 'bus1'),
-                                'kv': _kv_barra(s, 'bus1'), 'vm_pu': _num(s, 'usetp'), 'tipo_barra': 'PV',
-                                'p_mw': 0.0, 'q_max_mvar': _num(s, 'qmax'),
-                                'q_min_mvar': None if qmin is None else -abs(qmin), **comun, 'fuente': fuente(s)}))
+        limites = {'q_max_mvar': _num(s, 'qmax'), 'q_min_mvar': None if qmin is None else -abs(qmin)}
+        # 107:RF-31: el SVC regula un nudo remoto (``p_rem``, la barra de alta en los 13 de la copia de transmisión) y
+        # sus límites son los que resuelve DIgSILENT con la tensión (c:Qmin, c:Qmax), si los da; el estatismo se
+        # exporta para que se vea, y el motor abierto lo avisa.
+        remoto = _objeto(s, 'p_rem')
+        out.append(_sin_vacios({**base, 'tipo_barra': 'PV', **(_limites_q(s, 1.0, solo_resueltos=True) or limites),
+                                'barra_control': _id(remoto) if remoto is not None else None,
+                                'estatismo_pct': _num(s, 'ddroop') or None}))
     for c in _objetos(app, '*.ElmCoup'):
         # 107:RF-25: el acoplamiento une dos barras de la subestación; abierto, se exporta igual con su estado. Sin
         # estado legible no se supone: queda sin ``cerrado`` y el PIT lo lista en faltantes (107:RF-4).
@@ -292,11 +384,7 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
             'lv': _barra(tr, 'buslv'), 'kv': _num(t, 'utrn3_h'),
             'sn_hv_mva': sn['h'], 'sn_mv_mva': sn['m'], 'sn_lv_mva': sn['l'],
             'vn_hv_kv': _num(t, 'utrn3_h'), 'vn_mv_kv': _num(t, 'utrn3_m'), 'vn_lv_kv': _num(t, 'utrn3_l'),
-            'vk_hv_percent': _num(t, 'uktr3_h'), 'vk_mv_percent': _num(t, 'uktr3_m'),
-            'vk_lv_percent': _num(t, 'uktr3_l'),
-            'vkr_hv_percent': _pct_cobre(_num(t, 'pcut3_h'), sn['h']),
-            'vkr_mv_percent': _pct_cobre(_num(t, 'pcut3_m'), sn['m']),
-            'vkr_lv_percent': _pct_cobre(_num(t, 'pcut3_l'), sn['l']),
+            **_vk_tr3(t, tr, sn),
             'pfe_kw': _num(t, 'pfe'), 'i0_percent': _num(t, 'curm3'), 'paralelo': _paralelo(tr, 'nt3nm'),
             'abierto_en': _abiertos(tr, (('bushv', 'hv'), ('busmv', 'mv'), ('buslv', 'lv'))), **toma3,
             **_desfases_tr3(t), **comun,

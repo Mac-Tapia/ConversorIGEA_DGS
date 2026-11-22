@@ -15,7 +15,8 @@ import time
 from .equipo import ROLES_REVISION
 # 047:RF-48 a RF-55: qué contradicción cuenta lo decide ``contradicciones``; los nombres se reexportan.
 from .contradicciones import (  # noqa: F401
-    CAMPOS_CONTRADICCION, TOLERANCIA_RELATIVA, filtrar_contradicciones, valores_coinciden)
+    CAMPOS_CONTRADICCION, TOLERANCIA_RELATIVA, comprobar_coste, evaluar_cuenta, filtrar_contradicciones,
+    valores_coinciden)
 
 PRESUPUESTO_S = 60.0
 #: 047:RF-47: con 512, una intervención del equipo que enumera varias contradicciones podía cortarse en el tope y salir
@@ -44,9 +45,9 @@ _ENCARGO = {
 #: textual»), que solo se revisa por texto: qwen3:8b bloqueó las 6 propuestas sanas y las 6 con defecto (047 T8).
 _REGLA = ('Escribe primero en contradicciones cada dato de la propuesta, de lo que revisas, que la evidencia da con '
           'otro valor: cada una con campo (el nombre del dato en la propuesta), valor_propuesta (copiado de la '
-          'propuesta), valor_evidencia (copiado de la fuente), fuente (el ID de la evidencia) y base (total o '
-          'unidad). Anota solo los valores distintos: si los dos valores son iguales, no es una contradicción y no '
-          'se escribe. Compara el mismo concepto: un precio por unidad o por kilómetro no se compara con un total; '
+          'propuesta), valor_evidencia (copiado de la fuente), fuente (el ID de la evidencia; en una cuenta, los '
+          'IDs de las fuentes de sus cifras) y base (total o unidad). Anota solo los valores distintos: si los dos '
+          'valores son iguales, no es una contradicción y no se escribe. Compara el mismo concepto: un precio por unidad o por kilómetro no se compara con un total; '
           'si la evidencia da un precio por unidad, escribe en valor_evidencia la cuenta del total (cantidad × '
           'precio) con base total. Después, en incertidumbres, cada dato de la propuesta, de lo que '
           'revisas, que no está en ninguna evidencia. Lo que la evidencia confirma no va en ninguna lista: no '
@@ -191,12 +192,17 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
     favorable = (len(final) == len(roles) and
                  all(d['decision'] == 'favorable' for d in final.values()))
     agotado = agotado or time.monotonic() - inicio > presupuesto_s
-    aprobada = favorable and determinista and verificadas and not cancelada and not agotado
+    # 047:RF-77: lo que el código calcula solo (cantidad × precio, partidas) no depende de que el LLM lo vea.
+    comprobaciones = comprobar_coste(propuesta, evidencia)
+    cuadra = all(c['coincide'] for c in comprobaciones)
+    aprobada = favorable and determinista and verificadas and cuadra and not cancelada and not agotado
     return {'aprobada': aprobada, 'autoriza_ejecucion': False, 'dictamenes': dictamenes,
             'rondas': ronda, 'cancelada': cancelada, 'presupuesto_agotado': agotado,
             'entrada_sha256': entrada, 'contexto': identidad, 'propuesta_final': propuesta,
+            'comprobaciones_del_codigo': comprobaciones,
             'motivo': 'dictámenes favorables; requiere confirmación del operador' if aprobada else
-                'revisión bloqueada por dictámenes, evidencia o restricciones deterministas',
+                'revisión bloqueada por dictámenes, evidencia o restricciones deterministas' if cuadra else
+                'revisión bloqueada: el coste de la propuesta no cuadra con el que calcula el código de la evidencia',
             'aceptacion_cientifica': False, 'aceptacion_nativa': None}
 
 
@@ -301,6 +307,8 @@ def _revision_por_modo(casos, fabrica, modo, roles, rondas, tope=None):
                                       **{k: d[k] for k in ('devuelto', 'contradicciones_descartadas',
                                                            'decision_devuelta') if k in d}}
                                      for d in r['dictamenes']],
+                      # 047:RF-77: lo que calculó el código sin el LLM, y si cuadra.
+                      'comprobaciones_del_codigo': r.get('comprobaciones_del_codigo', []),
                       'segundos': round(time.monotonic() - inicio, 3)})
     respondidos = [f for f in filas if not f['sin_respuesta']]
     tiempos = sorted(f['segundos'] for f in filas)
@@ -316,6 +324,7 @@ def _revision_por_modo(casos, fabrica, modo, roles, rondas, tope=None):
             'contradicciones_descartadas': sum(len(d.get('contradicciones_descartadas', ()))
                                                for f in filas for d in f['dictamenes']),
             'decisiones_recalculadas': sum('decision_devuelta' in d for f in filas for d in f['dictamenes']),
+            'comprobaciones_fallidas': sum(not c['coincide'] for f in filas for c in f['comprobaciones_del_codigo']),
             'tokens_entrada': tokens[0], 'tokens_salida': tokens[1],
             # 047:RF-47: el tope se sube midiendo; una intervención que llega al tope puede haberse cortado.
             'tokens_tope': tope, 'max_tokens_salida': max(salidas, default=0),

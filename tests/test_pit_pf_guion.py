@@ -595,3 +595,167 @@ def test_el_desfase_del_grupo_de_conexion_se_exporta_y_lo_usa_el_motor_abierto()
     tr3 = Obj(None, 'ElmTr3', 'T3', typ_id=tipo3)
     assert guion._desfases_tr3(tipo3) == {'shift_mv_degree': 0.0, 'shift_lv_degree': 330.0}
     assert tr3.typ_id is tipo3
+
+
+# --- 107:RF-29: una nominal común por zona galvánica (corrida de 107 T14, 22-11) ---------------------------------------
+# En la copia de transmisión, 275 líneas unen barras de nominal distinta (220 y 221 kV, 60 y 62,4 kV…); pandapower trabaja
+# en por unidad de cada barra y esa línea hacía de transformador ideal 220/221: miles de Mvar y el flujo no convergía.
+
+def _red_vn(kv_b, *, carga_mw=10.0):
+    area = AreaPit('AREA-VN', ('TIT',), (), {}, 0.0, {})
+    comun = {'areas': ['AREA-VN'], 'titular': 'TIT'}
+    elementos = [{'id': 'A', 'tipo': 'barra', 'kv': 220.0, **comun},
+                 {'id': 'B', 'tipo': 'barra', 'kv': kv_b, **comun},
+                 {'id': 'EXT', 'tipo': 'red_externa', 'barra': 'A', 'kv': 220.0, 'vm_pu': 1.0, 'tipo_barra': 'SL', **comun},
+                 {'id': 'L', 'tipo': 'linea', 'desde': 'A', 'hasta': 'B', 'kv': 220.0, 'longitud_km': 0.1,
+                  'r_ohm_per_km': 0.026, 'x_ohm_per_km': 0.21, 'c_nf_per_km': 0.0, 'max_i_ka': 1.0, **comun}]
+    return desde_ambito(reunir(area, elementos)), {'B': (carga_mw, 0.0)}
+
+
+def test_dos_barras_de_nominal_distinta_unidas_por_una_linea_estan_a_la_misma_tension_en_kv():
+    """107:RF-29 — una línea corta entre una barra de 220 kV y otra de 221 kV: la de 221 queda a la misma tensión en kV
+    que la de 220 (salvo la caída de la línea), es decir a 220/221 en su propia nominal, y la cargabilidad es la de la
+    corriente de la carga."""
+    red, cargas = _red_vn(221.0)
+    r = calcular(red, cargas)
+    assert r.converge, r.mensaje
+    assert r.tensiones_pu['A'] == pytest.approx(1.0, abs=1e-9)
+    assert r.tensiones_pu['B'] == pytest.approx(220.0 / 221.0, abs=2e-4), r.tensiones_pu
+    # 10 MW a 220 kV: unos 26 A de 1 kA.
+    assert r.cargabilidad_pct['L'] == pytest.approx(2.62, abs=0.1), r.cargabilidad_pct
+
+
+def test_con_la_misma_nominal_la_red_no_cambia():
+    """107:RF-29 — con las dos barras a 220 kV el resultado es el de siempre: la barra B a 1 p.u. menos la caída."""
+    red, cargas = _red_vn(220.0)
+    r = calcular(red, cargas)
+    assert r.converge and r.tensiones_pu['B'] == pytest.approx(1.0, abs=2e-4)
+
+
+# --- 107:RF-30: la impedancia dependiente de la toma del trafo de tres devanados (corrida de 107 T14, 22-11) -----------
+# En la copia de transmisión, un trafo de tres devanados de prueba tenía en su tipo ``itapzdep`` = 1 y estaba en la toma
+# máxima del lado de alta: DIgSILENT usaba las vk de esa toma (``uktr3mx_*``) y no las nominales (``uktr3_*``), y el motor
+# abierto, con las nominales, ponía el punto estrella junto a media en vez de junto a alta: ~460 MW de desajuste.
+
+def _app_tr3(itapzdep, n3tap):
+    app = _AppTransmision()
+    tipo = Obj(None, 'TypTr3', 't3', strn3_h=240.0, strn3_m=240.0, strn3_l=80.0, utrn3_h=200.0, utrn3_m=62.46,
+               utrn3_l=10.0, uktr3_h=12.6, uktr3_m=1.7, uktr3_l=6.8, uktrr3_h=0.28, uktrr3_m=0.16, uktrr3_l=0.17,
+               uktr3mn_h=11.1, uktr3mn_m=10.1, uktr3mn_l=5.9, uktr3mx_h=11.9, uktr3mx_m=10.2, uktr3mx_l=4.6,
+               uktrr3mn_h=0.8, uktrr3mn_m=0.5, uktrr3mn_l=0.9, uktrr3mx_h=0.8, uktrr3mx_m=0.5, uktrr3mx_l=0.9,
+               pcut3_h=670.0, pcut3_m=125.0, pcut3_l=135.0, pfe=130.0, curm3=0.17, du3tp_h=5.0, n3tp0_h=0,
+               n3tmn_h=-2, n3tmx_h=2, nt3ag_h=0.0, nt3ag_m=0.0, nt3ag_l=11.0, itapzdep=itapzdep)
+    sub = app.b[('SY', '1')]._padre
+    # La barra de baja a 66 kV: el ámbito del área de prueba empieza en 60 kV y una de 10 kV quedaría fuera con el trafo.
+    bt = Obj(None, 'ElmTerm', '4', sub, uknom=66.0)
+    app.objetos['*.ElmTerm'].append(bt)
+    app.objetos['*.ElmTr3'] = [Obj(None, 'ElmTr3', 'T3', sub, typ_id=tipo, n3tap_h=n3tap,
+                                   bushv=_Cub(app.b[('SY', '2')]), busmv=_Cub(app.b[('SY', '3')]), buslv=_Cub(bt))]
+    return app
+
+
+def _vk3(app):
+    t = _red_t(app).de_tipo('trafo3')[0]
+    return tuple(round(float(t.get(k)), 4) for k in ('vk_hv_percent', 'vk_mv_percent', 'vk_lv_percent',
+                                                    'vkr_hv_percent', 'vkr_mv_percent', 'vkr_lv_percent'))
+
+
+def test_con_impedancia_dependiente_de_la_toma_el_trafo3_sale_con_las_vk_de_su_toma():
+    """107:RF-30 — con ``itapzdep`` = 1, en la toma máxima salen las vk y vkr de la toma máxima; en la mínima, las de
+    la mínima; a medio camino entre el neutro y la máxima, el punto medio; en el neutro, las nominales."""
+    assert _vk3(_app_tr3(1, 2)) == (11.9, 10.2, 4.6, 0.8, 0.5, 0.9)
+    assert _vk3(_app_tr3(1, -2)) == (11.1, 10.1, 5.9, 0.8, 0.5, 0.9)
+    assert _vk3(_app_tr3(1, 1))[:3] == (round((12.6 + 11.9) / 2, 4), round((1.7 + 10.2) / 2, 4),
+                                         round((6.8 + 4.6) / 2, 4))
+    assert _vk3(_app_tr3(1, 0))[:3] == (12.6, 1.7, 6.8)
+
+
+def test_sin_impedancia_dependiente_de_la_toma_el_trafo3_sale_con_las_vk_nominales():
+    """107:RF-30 — con ``itapzdep`` = 0 la toma no cambia las vk: salen las nominales, como antes."""
+    assert _vk3(_app_tr3(0, 2))[:3] == (12.6, 1.7, 6.8)
+
+
+def test_sin_impedancia_dependiente_la_vkr_de_cada_par_va_en_la_base_del_par():
+    """107:RF-30 — la parte resistiva de cada par sale de sus pérdidas en el cobre sobre la potencia del par, como en
+    DIgSILENT (``uktrr3_*`` = ``pcut3_*`` / (10 · potencia del par), con AT-MT en min(AT, MT), MT-BT en min(MT, BT) y
+    BT-AT en min(BT, AT)): la sonda del 22-11 leyó en un trafo de 240/240/80 MVA ``uktrr3_m`` = 0,1558 % y el
+    exportador daba 0,0519 %, las pérdidas de MT-BT sobre los 240 MVA de media en vez de los 80 del par."""
+    app = _app_tr3(0, 0)
+    tipo = app.objetos['*.ElmTr3'][0].typ_id
+    for k, v in (('strn3_h', 240.0), ('strn3_m', 180.0), ('strn3_l', 60.0)):
+        object.__setattr__(tipo, k, v)
+    assert _vk3(app)[3:] == (round(670.0 / (10 * 180.0), 4), round(125.0 / (10 * 60.0), 4),
+                             round(135.0 / (10 * 60.0), 4))
+
+
+# --- 107:RF-31: el control de tensión de las máquinas y de los SVC (corrida de 107 T14, 22-11) --------------------------
+# En la copia de transmisión las máquinas síncronas salían como inyección fija con la Q que dio DIgSILENT, y los SVC como
+# nudos PV con su consigna en su propia barra: el motor abierto no convergía desde arranque plano; con las máquinas como
+# nudos PV sí. Los SVC regulan un nudo remoto (la barra de alta) y la mitad estaba en su límite de Q.
+
+def test_rf31_la_maquina_con_control_de_tension_sale_como_pv_y_la_de_q_constante_no():
+    """107:RF-31 — una ElmSym con ``av_mode`` «constv» sale como red externa PV con su consigna (usetp), su potencia
+    (pgini por el número de unidades) y sus límites de Q (los de DIgSILENT, c:Qmin y c:Qmax); una con «constq» no se
+    exporta: su generación sigue siendo inyección del caso."""
+    app = _AppTransmision()
+    barra = app.b[('SY', '3')]
+    sub = barra.GetParent()
+    app.objetos['*.ElmSym'] += [
+        Obj(None, 'ElmSym', 'GV', sub, ip_ctrl=0, av_mode='constv', usetp=1.02, pgini=10.0, ngnum=2,
+            **{'c:Qmin': -8.0, 'c:Qmax': 12.0}, bus1=_Cub(barra)),
+        Obj(None, 'ElmSym', 'GQ', sub, ip_ctrl=0, av_mode='constq', usetp=1.0, pgini=5.0, ngnum=1, bus1=_Cub(barra))]
+    red = _red_t(app)
+    por_nombre = {e['nombre']: e for e in red.de_tipo('red_externa')}
+    assert 'GQ' not in por_nombre and 'GV' in por_nombre, sorted(por_nombre)
+    g = por_nombre['GV']
+    assert (g['tipo_barra'], g['vm_pu'], g['p_mw'], g['q_min_mvar'], g['q_max_mvar']) == ('PV', 1.02, 20.0, -8.0, 12.0)
+    r = _flujo_t(red, app)
+    assert not isinstance(r, Exception) and r.converge, r
+    assert r.tensiones_pu[guion._id(barra)] == pytest.approx(1.02, abs=1e-6)
+
+
+def test_rf31_el_svc_regula_su_nudo_remoto_y_el_de_q_constante_sale_pq():
+    """107:RF-31 — el ElmSvs con control de tensión (``i_ctrl`` 1) y nudo remoto (``p_rem``) sale con ese nudo como
+    ``barra_control``, y el motor abierto deja ese nudo, no la barra del SVC, en la consigna; con control de Q
+    (``i_ctrl`` 2) sale PQ con su Q (qsetp)."""
+    app = _AppTransmision()
+    barra, remoto = app.b[('SY', '3')], app.b[('SY', '2')]
+    sub = barra.GetParent()
+    app.objetos['*.ElmSvs'] = [
+        Obj(None, 'ElmSvs', 'SVR', sub, usetp=1.0, i_ctrl=1, p_rem=remoto, qmax=200.0, qmin=200.0, bus1=_Cub(barra)),
+        Obj(None, 'ElmSvs', 'SVQ', sub, usetp=1.0, i_ctrl=2, qsetp=3.0, qmax=10.0, qmin=10.0, bus1=_Cub(barra))]
+    red = _red_t(app)
+    por_nombre = {e['nombre']: e for e in red.de_tipo('red_externa')}
+    assert por_nombre['SVR'].get('barra_control') == guion._id(remoto), por_nombre['SVR']
+    assert (por_nombre['SVQ']['tipo_barra'], por_nombre['SVQ'].get('q_mvar')) == ('PQ', 3.0)
+    r = _flujo_t(red, app)
+    assert not isinstance(r, Exception) and r.converge, r
+    assert r.tensiones_pu[guion._id(remoto)] == pytest.approx(1.0, abs=1e-4)
+    assert abs(r.tensiones_pu[guion._id(barra)] - 1.0) > 1e-3
+
+
+def test_rf31_el_pv_en_su_limite_de_q_deja_de_sostener_la_tension():
+    """107:RF-31 — el motor abierto aplica los límites de Q: un SVC con 0,5 Mvar como mucho no sostiene una consigna que
+    pide más, y su barra queda por debajo de ella."""
+    app = _AppTransmision()
+    barra = app.b[('SY', '3')]
+    app.objetos['*.ElmSvs'] = [Obj(None, 'ElmSvs', 'SVC', barra.GetParent(), usetp=1.10, qmax=0.5, qmin=0.5,
+                                   bus1=_Cub(barra))]
+    r = _flujo_t(_red_t(app), app)
+    assert not isinstance(r, Exception) and r.converge, r
+    assert r.tensiones_pu[guion._id(barra)] < 1.10 - 1e-3
+
+
+def test_rf31_dos_maquinas_en_la_misma_barra_con_consignas_distintas_calculan_con_una_y_se_avisa():
+    """107:RF-31 — dos máquinas en paralelo en la misma barra con consignas 1,000 y 1,002: pandapower no admite dos
+    consignas en una barra; el motor abierto toma la primera, calcula y lo dice en el mensaje."""
+    app = _AppTransmision()
+    barra = app.b[('SY', '3')]
+    sub = barra.GetParent()
+    app.objetos['*.ElmSym'] += [
+        Obj(None, 'ElmSym', 'G1', sub, ip_ctrl=0, av_mode='constv', usetp=1.0, pgini=5.0, ngnum=1, bus1=_Cub(barra)),
+        Obj(None, 'ElmSym', 'G2', sub, ip_ctrl=0, av_mode='constv', usetp=1.002, pgini=5.0, ngnum=1, bus1=_Cub(barra))]
+    r = _flujo_t(_red_t(app), app)
+    assert not isinstance(r, Exception) and r.converge, r
+    assert r.tensiones_pu[guion._id(barra)] == pytest.approx(1.0, abs=1e-6)
+    assert 'misma barra' in r.mensaje and 'G2' in r.mensaje, r.mensaje

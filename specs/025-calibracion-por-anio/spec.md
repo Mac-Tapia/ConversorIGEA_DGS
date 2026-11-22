@@ -1,6 +1,6 @@
 # Spec 025 — Calibración por año de medición
 
-Estado: implementada (2026-11-12: RF-79 a RF-83 por PA217, falta la prueba en DIgSILENT T27; T22 con la suite completa sin omitidas; RF-26 a RF-35 añadidos el 2026-10-23) · Fecha: 2026-10-23
+Estado: cumplida (2026-11-22: T27 en DIgSILENT y T30; todas sus tareas cerradas) · antes implementada (2026-11-12: RF-79 a RF-83 por PA217, falta la prueba en DIgSILENT T27; T22 con la suite completa sin omitidas; RF-26 a RF-35 añadidos el 2026-10-23) · Fecha: 2026-10-23
 
 ## Contexto y objetivo
 
@@ -380,6 +380,12 @@ no se aplica aunque su variación esté activa, y DIgSILENT no avisa, 081:RF-78)
   con sus subcarpetas «AAAA», EL SISTEMA guardará cada libro en el año que dice su ruta, sustituirá solo los años
   que llegan y conservará los demás; la ruta de cada libro se sanea parte a parte y nunca sale de su carpeta.
   (Orden del usuario del 17-11: «los libros de cabecera y clientes importantes se cargan por carpetas por años».)
+- RF-86: CUANDO una inserción de cargas nuevas no cree ni actualice ninguna carga porque todas sus filas quedan
+  sin crear (ya existe en el alimentador, ya está en la red de «Con proyecto» fuera de una variación de carga nueva,
+  fuera de la zona, sin barra…), EL SISTEMA dirá en el aviso final cada una con su motivo, y solo dirá que ninguna fila
+  coincide en el proyecto cuando no haya ninguna fila sin crear que explicar. (Corrida de la 025 T27 del 22-11: la
+  carga unitaria del formulario se llamaba como una carga que ya estaba en «Con proyecto»; no se creó, como manda
+  014:RF-25, pero el aviso decía «Nada que aplicar: ninguna fila coincide en el proyecto».)
 
 Cargas nuevas incompletas (usuario, 2026-10-23: «las cargas nuevas que no tienen datos
 completos necesarios se rechazan y se deja un mensaje en la web»; obligatorios: barra o

@@ -499,3 +499,23 @@ adaptador VNR (integrador f9).
       calcula con ángulos si hay desfase. (RF-28)
       Hecho cuando: rojo por aserción sobre el acumulado DIG2-SERIE + DIG2-UNIDADES y verde con
       `tests/test_pit_pf_guion.py` (107:RF-28).
+- [x] T48. Nominal común por zona galvánica en el motor abierto (corrida de T14 del 22-11): `red_pandapower.nominales_comunes`
+      da a cada barra la nominal de su zona (líneas, acoplamientos y ramas serie); `_red` crea las barras con ella, pasa
+      las consignas de las redes externas y de los PV y la Q de las compensaciones desde la nominal propia, y `calcular`
+      devuelve la tensión en la nominal propia. (RF-29)
+      Hecho cuando: rojo por aserción sobre N5 + UNIDADES + SVC y verde con `tests/test_pit_pf_guion.py` (107:RF-29).
+- [x] T49. Impedancia dependiente de la toma del trafo de tres devanados (corrida de T14 del 22-11):
+      `tools/pit_pf._vk_tr3` exporta las vk y vkr de cada par en la toma del trafo cuando `itapzdep` = 1
+      (`uktr3mn_*`/`uktr3mx_*`, `uktrr3mn_*`/`uktrr3mx_*`, interpolación lineal desde el neutro), y la vkr de
+      cada par sobre la potencia del par (`_potencia_del_par`). (RF-30)
+      Hecho cuando: rojo por aserción sobre N5 + UNIDADES + SVC + VN y verde con `tests/test_pit_pf_guion.py`
+      (107:RF-30).
+      Hecho en DIG2-T3MT (22-11): rojo por aserción (rojo_130305) y verde (verde_codigo_130310).
+- [x] T50. Control de tensión de máquinas y SVC en el motor abierto (corrida de T14 del 22-11): `tools/pit_pf.py`
+      exporta las ElmSym/ElmGenstat con `av_mode` «constv» como PV (usetp, pgini por ngnum, c:Qmin/c:Qmax) y los
+      SVC con su `barra_control` (p_rem), sus límites resueltos o como PQ (i_ctrl 2); `red_pandapower` aplica
+      `enforce_q_lims`, el control remoto (`_control_remoto`) y una consigna por barra (`_una_consigna_por_barra`).
+      (RF-31)
+      Hecho cuando: rojo por aserción sobre N7 + T3MT y verde con `tests/test_pit_pf_guion.py` y
+      `tests/test_interactive_architecture.py` (107:RF-31).
+      Hecho en DIG2-SVCCTRL (22-11): rojo por aserción (rojo_133510 y rojo_b_133818) y verde (verde_codigo_134230).

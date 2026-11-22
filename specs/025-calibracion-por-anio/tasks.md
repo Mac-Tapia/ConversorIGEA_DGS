@@ -206,11 +206,18 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `diferencias_de_red` y, con `con`, `con_frente_a_sin`; `_a_cargas_nuevas` y `preparar` le pasan los
       alimentadores marcados y «Con proyecto». Pruebas con `fake_pf`, en rojo con el código anterior. Dos flujos
       más por inserción (el de «Sin proyecto» y el de «Con proyecto»); el de la copia es el de partida.
-- [ ] T27. [DIgSILENT] En una copia del proyecto PA217 con los bancos y los tramos de dos conductores
+- [x] T27. [DIgSILENT] En una copia del proyecto PA217 con los bancos y los tramos de dos conductores
       de 120 mm² que el operador puso en «Sin proyecto», insertar una carga unitaria (3.2) y un bloque
       (3.1) desde la web y comprobar en DIgSILENT que «Cargas nuevas» los tiene, con la hora de «Sin
       proyecto» y la comparación sin diferencias. (RF-79 a RF-83)
       Hecho cuando: el informe de la inserción dice `igualdad.iguales` y la sonda de solo lectura lo confirma.
+      Hecho el 2026-11-22 en DIgSILENT, sobre una copia del proyecto de prueba en una copia de su espacio (bloque
+      D:/csg/PM_IMPL/DIG_BLOQUE2/T27_025/): el bloque (3.1) desde la web crea su carga en «Cargas nuevas» con su variación
+      y el informe da `igualdad` {frente_a: «Sin proyecto», iguales: true, diferencias: []} (12:25); la unitaria (3.2), con
+      una carga de prueba en el mismo punto y con la misma potencia (la del formulario original ya existe en la red y, por
+      014:RF-25 y 040:RF-3, no se crea: lo dice ahora el aviso de 025:RF-86), entra en «Cargas nuevas» (182 → 184 cargas con
+      el bloque) con `iguales: true` (13:07). La sonda de solo lectura confirma las cargas y la hora de «Cargas nuevas»,
+      la misma que «Sin proyecto» (`sonda_tras_unitaria.json`, `sonda_tras_bloque.json`).
 - [x] T28. La subida por año en la web: campo «Año» en cabecera y clientes, `demanda_subir(anio)` y
       `_reemplazar_carpeta(subcarpeta)`; sin año con años ya separados, 422 sin tocar nada. (RF-84)
       Hecho cuando: `pytest tests/test_demanda_medida_web.py -k rf84` en verde y `npm test` entero. Hecho en esta
@@ -219,3 +226,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       de cada libro (`webkitRelativePath`), `ruta_por_anio` y `_reemplazar_carpeta(por_rutas)`. (RF-85)
       Hecho cuando: `pytest tests/test_demanda_medida_web.py -k rf85` en verde y `npm test` entero. Hecho en esta
       entrega (LIBROS-CARPETA, 4d).
+- [x] T30. El aviso final de una inserción sin cargas creadas dice cada fila sin crear con su motivo, y «ninguna fila
+      coincide» solo sin filas sin crear (corrida de la T27 del 22-11). (RF-86)
+      Hecho cuando: `pytest tests/test_cargas_pf_guion_007.py -k rf86` en rojo sobre N5 y en verde con el arreglo.
+      Hecho en DIG2-T27U (22-11): rojo por aserción (rojo_125606, 1 failed) y verde con el arreglo (cargas, trazabilidad,
+      capas e inventario).

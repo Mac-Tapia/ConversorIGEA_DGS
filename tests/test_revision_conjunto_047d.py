@@ -79,4 +79,7 @@ def test_medida_047d_cuenta_lo_descartado(tmp_path, ollama_falso):
     for modo in ('rol_unico', 'equipo'):
         assert informe[modo].get('contradicciones_descartadas') == 0
         assert informe[modo].get('decisiones_recalculadas') == 0
-        assert informe[modo]['falsas_alarmas'] == 0 and informe[modo]['perdidos'] == 6
+        # 047:RF-77 (MEJ24d): los defectos de coste los halla el código solo, sin el LLM.
+        fallidas = informe[modo].get('comprobaciones_fallidas')
+        assert informe[modo]['falsas_alarmas'] == 0 and fallidas == 2, 'el código no comprueba el coste'
+        assert informe[modo]['perdidos'] == 6 - fallidas
