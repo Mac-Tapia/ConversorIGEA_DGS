@@ -33,12 +33,17 @@
       Verificado el 2026-11-02 con `requirements-madrl.txt` en `~/.convertersmartgrid/madrl_deps`: importan con torch 2.14.1 y GATv2
       responde. MaskablePPO, en CPU, 8 192 pasos y 3 semillas, llega a los 5 bancos de NSGA-II en una red sintética. Es la misma red
       de entrenamiento y solo prueba el montaje. Antes aprendió a no hacer nada, porque rendirse salía más barato: de ahí RF-4.
-- [ ] T7 Entrenar, con su control. (RF-4, RF-9)
+- [x] T7 Entrenar, con su control. (RF-4, RF-9)
       Escrita la política GATv2 con crítico central (`madrl_politica.py`), probada en CPU el 2026-11-02 con redes sintéticas: aprende
       (retorno de -9,3 a -4,9) pero, en 3 redes que no vio, paga un banco más que NSGA-II en dos y en la tercera nadie llega a
       norma; la puerta la rechaza (67 %). Falta entrenarla en GPU sobre redes reales que pasen T5.
       Hecho cuando: GATv2 con crítico central y MaskablePPO entrenan con turno de GPU sobre redes que pasen T5. Antes de los modelos
       sanos de la auditoría no se entrena.
+      Hecho el 2026-11-21 (d8, bloque GPU): GATv2 con crítico central (40 iteraciones) y MaskablePPO (20 000 pasos), 3
+      semillas cada una, entrenan en CUDA con turno de GPU (rc=0 todas) sobre la red con problemas que pasa la
+      fidelidad de la T5, ya cerrada; evidencia en D:/csg/PM_IMPL/GPU_BLOQUE/074_T7/. Ninguna de las dos propone obras
+      en esa red y ningún método llega a norma (la mínima ya está en 0,963 p.u.): la puerta de la T8 necesita una red
+      cuyo incumplimiento esté dentro del espacio de acciones.
 - [ ] T8 Puerta y confirmación. (RF-6, RF-10, RF-13, RF-14)
       Hecho cuando: la puerta se aplica en alimentadores no vistos y lo elegido se confirma en DIgSILENT. Si no pasa, el piloto se
       archiva con su medida, sin integrarlo en el flujo.

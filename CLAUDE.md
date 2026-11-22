@@ -72,7 +72,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | cumplida |  |
   | 043 Consolidación y gobierno de modelos | aprobada | falta T9 |
   | 044 Evaluación causal y verificación completa | cumplida |  |
-  | 045 Gemelo físico y contratos PINN/GNN | aprobada | falta T3 |
+  | 045 Gemelo físico y contratos PINN/GNN | cumplida | T3 cerrada (21-11, ablación real en CUDA); todas sus tareas cerradas |
   | 046 Pronóstico causal multihorizonte | cumplida |  |
   | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
   | 048 Optimización mixta evolutiva y PNL | cumplida |  |
@@ -101,7 +101,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | cumplida |  |
   | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | cumplida |  |
-  | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | T7, T8 |
+  | 074 Piloto MADRL en obras: medir antes de aprender | aprobada | falta T8 |
   | 075 Validación cruzada con las órdenes confirmadas, y Ollama no adivina cuando el modelo ve charla | cumplida |  |
   | 076 Preguntas de metodología y criterios por entregable, del flujo, de la arquitectura y de la web | cumplida |  |
   | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | cumplida | |

@@ -44,7 +44,7 @@
   "042": "cumplida",
   "043": "aprobada",
   "044": "cumplida",
-  "045": "aprobada",
+  "045": "cumplida",
   "046": "cumplida",
   "047": "aprobada",
   "048": "cumplida",
@@ -113,6 +113,6 @@
   "111": "implementada",
   "112": "aprobada"
  },
- "huella_readme": "a4bd6858df5c232601b13e4f2bbf840e2d87a349be2daa51fb28f3b1d21fa936",
+ "huella_readme": "ea77a6ef311539f6742617e6eaac37025b9cf042c1c817d54fd987e9aec7d7b9",
  "version": 1
 }

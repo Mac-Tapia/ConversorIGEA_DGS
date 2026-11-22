@@ -12,9 +12,15 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_pinn_fisica_y_fronteras.py tests/test_digital_twin_flujo.py tests/test_digital_twin_in111_ta225.py` pasa
       y están guardadas las evidencias adicionales descritas en T2 del plan.
 
-- [ ] T3. Ablaciones, dominio y candidato opcional PyG. (RF-8, RF-9, RF-12, RF-13)
+- [x] T3. Ablaciones, dominio y candidato opcional PyG. (RF-8, RF-9, RF-12, RF-13)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_benchmark_pinn.py tests/test_digital_twin_oraculo.py` pasa
       y están guardadas las evidencias adicionales descritas en T3 del plan.
+      Hecho el 2026-11-21 (d8, bloque GPU): `pytest -q tests/test_benchmark_pinn.py
+      tests/test_digital_twin_oraculo.py` 40 passed con la GPU; ablación real en CUDA sobre una copia del búfer con
+      identidad 043 (física pura, red sin física e híbrido vigente evaluados y reabiertos, cada uno con su veredicto
+      044:RF-5 en `brazos.<variante>.veredicto`; aprueba la física pura y no las dos redes; PowerFlowNet no
+      disponible, opcional, RF-13) en D:/csg/PM_IMPL/GPU_BLOQUE/045_T3/ablaciones.json (completo, experimento
+      572c6df1…); tests_ml/test_benchmark_pinn_cuda.py 1 passed. El híbrido peor que la física se trata en la T6.
 
 - [x] T4 [DIgSILENT]. Contraste del gemelo con la red nativa. (RF-11)
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_gemelo_fisico_nativo.py` pasa

@@ -1,6 +1,6 @@
 # Spec 045 — Gemelo físico y contratos PINN/GNN
 
-Estado: aprobada · Fecha: 2026-10-31
+Estado: cumplida (2026-11-21: T3 cerrada con la ablación real en CUDA; todas sus tareas cerradas) · antes aprobada · Fecha: 2026-10-31
 
 ## Contexto y objetivo
 
