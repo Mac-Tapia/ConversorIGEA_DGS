@@ -153,12 +153,18 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       con la tarea (texto acordado en `plan.md`).
       Hecho cuando: `pytest -q tests/test_web_api.py`, `npx tsc --noEmit -p .` y `npm run build` en verde.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_web_api.py.
-- [ ] T30. [DIgSILENT] Prueba real con el usuario: importar desde la web dos `.pfd` reales de prueba y revisar el
+- [x] T30. [DIgSILENT] Prueba real con el usuario: importar desde la web dos `.pfd` reales de prueba y revisar el
       diagnóstico de sus casos, escenarios, cargas, proyectos nuevos y vínculos. (RF-81 a RF-107)
       Hecho cuando: el usuario lo acepta en DIgSILENT.
       Nota del 2026-11-20 (bloque DIgSILENT de d8): los dos `.pfd` de prueba se diagnosticaron con el guion (rc=0;
       evidencia en `D:/csg/PM_IMPL/DIG_BLOQUE/50_pfd_004T30/`); la web no tenía la ruta (la pone T36) y los avisos se
       repetían (T35). Falta repetirlo desde la web con T35 y T36 integradas.
+      Hecho el 2026-11-22: repetido desde la web en navegador real (Chromium, `T30_pfd/pfd_web.mjs` del bloque
+      D:/csg/PM_IMPL/DIG_BLOQUE2/) en un espacio de prueba nuevo con la carpeta de pruebas: los dos `.pfd` de prueba de
+      transmisión, reconocidos por su sha256 y reutilizados (RF-101), dan 142 casos, 184 escenarios, 556 variaciones, 9
+      redes y 0 alimentadores con 13 avisos, y 54 casos, 96 escenarios, 405 variaciones y 0 alimentadores con 12 avisos,
+      cada uno con su informe descargable (`pantalla_1.txt`, `pantalla_2.txt`, `trabajos.json` y capturas). El usuario
+      lo aceptó el mismo día.
 - [x] T31. El proyecto de la versión anterior de un `.pfd` se renombra con «_anterior_<sha10>_<AAAAMMDD-HHMMSS>» y se
       conserva; el nuevo toma el nombre base; si el anterior está activo se desactiva antes y se dice; el informe nombra
       los dos; con el doble `tests/fake_pf.py`. (RF-101, RF-103, RF-104, RF-105, RF-106, RF-107)

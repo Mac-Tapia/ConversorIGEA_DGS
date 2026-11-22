@@ -121,6 +121,74 @@ def _fuera_de_servicio(obj) -> bool:
     return _num(obj, 'outserv') == 1
 
 
+#: 107:RF-27: nanofaradios por kilómetro de cada unidad que DIgSILENT puede declarar para ``cline`` (la del proyecto).
+_A_NF_POR_KM = {'pf/km': 1e-3, 'nf/km': 1.0, 'uf/km': 1e3, 'µf/km': 1e3, 'μf/km': 1e3, 'mf/km': 1e6, 'f/km': 1e9}
+
+
+def _capacitancia_nf_km(tipo) -> float | None:
+    """107:RF-27: la capacitancia del tipo de línea en nF/km, desde la unidad que declara el proyecto
+    (``GetAttributeUnit``). En la copia de transmisión del 22-11 venía en nF/km y se tomaba como µF/km: 1 000 veces la
+    capacidad. Sin unidad legible, la de fábrica de DIgSILENT (µF/km)."""
+    c = _num(tipo, 'cline')
+    if c is None:
+        return None
+    try:
+        unidad = str(tipo.GetAttributeUnit('cline') or '').strip().lower()
+    except Exception:  # noqa: BLE001 - justificado: un doble o una versión sin la función; queda la unidad de fábrica
+        unidad = ''
+    return c * _A_NF_POR_KM.get(unidad, 1e3)
+
+
+def _abiertos(obj, lados: tuple[tuple[str, str], ...]) -> list[str] | None:
+    """107:RF-27: los lados (con el nombre del contrato) cuyo cubículo tiene un interruptor (``StaSwitch``) abierto:
+    DIgSILENT deja la rama desconectada de ese lado aunque esté en servicio."""
+    out = []
+    for attr, clave in lados:
+        cub = getattr(obj, attr, None)
+        contenido = getattr(cub, 'GetContents', None)
+        if contenido is None:
+            continue
+        try:
+            interruptores = contenido('*.StaSwitch') or []
+        except Exception:  # noqa: BLE001  # justificado: un cubículo sin contenido legible no se supone abierto
+            continue
+        if any(_num(s, 'on_off') == 0 for s in interruptores):
+            out.append(clave)
+    return out or None
+
+
+def _paralelo(obj, attr: str) -> int | None:
+    """107:RF-27: las unidades en paralelo (``nlnum``, ``ntnum``, ``nt3nm``) cuando son más de una."""
+    n = _num(obj, attr)
+    return int(n) if n is not None and n > 1 else None
+
+
+def _toma(tipo, elemento, lado: str, du: str, neutro: str, pos: str, minimo: str, maximo: str) -> dict[str, Any]:
+    """107:RF-27: la toma de un devanado: posición del elemento, escalón, neutro y límites del tipo."""
+    paso = _num(tipo, du)
+    if not paso:
+        return {}
+    return {'tap_side': lado, 'tap_step_percent': paso, 'tap_neutral': _num(tipo, neutro), 'tap_pos': _num(elemento, pos),
+            'tap_min': _num(tipo, minimo), 'tap_max': _num(tipo, maximo)}
+
+
+def _desfase(grupo) -> float | None:
+    """107:RF-28: el desfase en grados de un grupo horario de DIgSILENT (``nt2ag``, ``nt3ag_*``): 30° por hora."""
+    return None if grupo is None else (30.0 * grupo) % 360.0
+
+
+def _desfases_tr3(tipo) -> dict[str, float]:
+    """107:RF-28: el desfase de media y de baja de un trafo de tres devanados, relativo al de alta, como lo pide
+    pandapower (``shift_mv_degree``, ``shift_lv_degree``)."""
+    h = _num(tipo, 'nt3ag_h') or 0.0
+    out = {}
+    for lado, clave in (('m', 'shift_mv_degree'), ('l', 'shift_lv_degree')):
+        g = _num(tipo, f'nt3ag_{lado}')
+        if g is not None:
+            out[clave] = _desfase(g - h)
+    return out
+
+
 def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
     """Los elementos del proyecto activo en el contrato ``RedArea`` (claves de ``REQUERIDOS``), cada uno con su id
     único (``_id``) y su nombre (107:RF-25)."""
@@ -153,6 +221,17 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
             out.append(_sin_vacios({**ident(m), 'tipo': 'red_externa', 'barra': _barra(m, 'bus1'),
                                     'kv': _kv_barra(m, 'bus1'), 'vm_pu': _num(m, 'usetp'), 'tipo_barra': 'SL',
                                     'maquina_referencia': True, **comun, 'fuente': fuente(m)}))
+    for s in _objetos(app, '*.ElmSvs'):
+        # 107:RF-28: el SVC regula la tensión de su barra: nudo PV sin potencia activa, con su consigna (usetp) y sus
+        # límites de Q (qmax capacitiva; qmin, la inductiva, en negativo). En la copia de transmisión había 13, de hasta
+        # 315 Mvar en 500 kV, y no se exportaban.
+        if _fuera_de_servicio(s) or _abiertos(s, (('bus1', 'barra'),)):
+            continue
+        qmin = _num(s, 'qmin')
+        out.append(_sin_vacios({**ident(s), 'tipo': 'red_externa', 'barra': _barra(s, 'bus1'),
+                                'kv': _kv_barra(s, 'bus1'), 'vm_pu': _num(s, 'usetp'), 'tipo_barra': 'PV',
+                                'p_mw': 0.0, 'q_max_mvar': _num(s, 'qmax'),
+                                'q_min_mvar': None if qmin is None else -abs(qmin), **comun, 'fuente': fuente(s)}))
     for c in _objetos(app, '*.ElmCoup'):
         # 107:RF-25: el acoplamiento une dos barras de la subestación; abierto, se exporta igual con su estado. Sin
         # estado legible no se supone: queda sin ``cerrado`` y el PIT lo lista en faltantes (107:RF-4).
@@ -177,24 +256,36 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
                                     'kv': _kv_barra(s, 'bus1'), 'r_ohm': _num(s, attr_r) or 0.0,
                                     'x_ohm': None if x is None else signo * x, **comun, 'fuente': fuente(s)}))
     for ln in _objetos(app, '*.ElmLne'):
+        if _fuera_de_servicio(ln):                     # 107:RF-27: lo que DIgSILENT tiene fuera no se modela
+            continue
         t = getattr(ln, 'typ_id', None)
-        c_uf = _num(t, 'cline')
         out.append(_sin_vacios({
             **ident(ln), 'tipo': 'linea', 'desde': _barra(ln, 'bus1'), 'hasta': _barra(ln, 'bus2'),
             'kv': _num(t, 'uline'), 'longitud_km': _num(ln, 'dline'), 'r_ohm_per_km': _num(t, 'rline'),
-            'x_ohm_per_km': _num(t, 'xline'), 'c_nf_per_km': c_uf * 1000.0 if c_uf is not None else None,
-            'max_i_ka': _num(t, 'sline'), **comun, 'fuente': fuente(ln)}))
+            'x_ohm_per_km': _num(t, 'xline'), 'c_nf_per_km': _capacitancia_nf_km(t), 'f_hz': _num(t, 'frnom'),
+            'max_i_ka': _num(t, 'sline'), 'paralelo': _paralelo(ln, 'nlnum'),
+            'abierto_en': _abiertos(ln, (('bus1', 'desde'), ('bus2', 'hasta'))), **comun, 'fuente': fuente(ln)}))
     for tr in _objetos(app, '*.ElmTr2'):
+        if _fuera_de_servicio(tr):
+            continue
         t = getattr(tr, 'typ_id', None)
         sn = _num(t, 'strn')
+        lado = 'lv' if _num(t, 'tap_side') == 1 else 'hv'
         out.append(_sin_vacios({
+            'paralelo': _paralelo(tr, 'ntnum'), 'abierto_en': _abiertos(tr, (('bushv', 'hv'), ('buslv', 'lv'))),
+            'shift_degree': _desfase(_num(t, 'nt2ag')),
+            **_toma(t, tr, lado, 'dutap', 'nntap0', 'nntap', 'ntpmn', 'ntpmx'),
             **ident(tr), 'tipo': 'trafo2', 'hv': _barra(tr, 'bushv'), 'lv': _barra(tr, 'buslv'),
             'kv': _num(t, 'utrn_h'), 'sn_mva': sn, 'vn_hv_kv': _num(t, 'utrn_h'), 'vn_lv_kv': _num(t, 'utrn_l'),
             'vk_percent': _num(t, 'uktr'), 'vkr_percent': _pct_cobre(_num(t, 'pcutr'), sn),
             'pfe_kw': _num(t, 'pfe'), 'i0_percent': _num(t, 'curmg'), **comun, 'fuente': fuente(tr)}))
     for tr in _objetos(app, '*.ElmTr3'):
+        if _fuera_de_servicio(tr):
+            continue
         t = getattr(tr, 'typ_id', None)
         sn = {x: _num(t, f'strn3_{x}') for x in 'hml'}
+        toma3 = next((d for d in (_toma(t, tr, nombre, f'du3tp_{x}', f'n3tp0_{x}', f'n3tap_{x}', f'n3tmn_{x}', f'n3tmx_{x}')
+                                  for x, nombre in (('h', 'hv'), ('m', 'mv'), ('l', 'lv'))) if d), {})
         # DIgSILENT da la tensión de cortocircuito por par de devanados (AT-MT, MT-BT, BT-AT), como pandapower.
         out.append(_sin_vacios({
             **ident(tr), 'tipo': 'trafo3', 'hv': _barra(tr, 'bushv'), 'mv': _barra(tr, 'busmv'),
@@ -206,10 +297,22 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
             'vkr_hv_percent': _pct_cobre(_num(t, 'pcut3_h'), sn['h']),
             'vkr_mv_percent': _pct_cobre(_num(t, 'pcut3_m'), sn['m']),
             'vkr_lv_percent': _pct_cobre(_num(t, 'pcut3_l'), sn['l']),
-            'pfe_kw': _num(t, 'pfe'), 'i0_percent': _num(t, 'curm3'), **comun, 'fuente': fuente(tr)}))
+            'pfe_kw': _num(t, 'pfe'), 'i0_percent': _num(t, 'curm3'), 'paralelo': _paralelo(tr, 'nt3nm'),
+            'abierto_en': _abiertos(tr, (('bushv', 'hv'), ('busmv', 'mv'), ('buslv', 'lv'))), **toma3,
+            **_desfases_tr3(t), **comun,
+            'fuente': fuente(tr)}))
     for q in _objetos(app, '*.ElmShnt'):
+        if _fuera_de_servicio(q) or _abiertos(q, (('bus1', 'barra'),)):
+            continue
+        # 107:RF-27: la Q real con sus escalones en servicio (``Qact``); la de una reactancia (shtype 1), inductiva. Con
+        # ``qcapn`` las 87 reactancias de la copia de transmisión (hasta 120 Mvar en 500 kV) salían con 0.
+        q_real = _num(q, 'Qact')
+        if q_real is None:
+            q_real = _num(q, 'qcapn')
+        if q_real is not None and _num(q, 'shtype') == 1:
+            q_real = -abs(q_real)
         out.append(_sin_vacios({**ident(q), 'tipo': 'compensacion', 'barra': _barra(q, 'bus1'),
-                                'kv': _kv_barra(q, 'bus1'), 'q_mvar': _num(q, 'qcapn'), **comun,
+                                'kv': _kv_barra(q, 'bus1'), 'q_mvar': q_real, **comun,
                                 'fuente': fuente(q)}))
     vistos: dict[str, int] = {}
     for e in out:

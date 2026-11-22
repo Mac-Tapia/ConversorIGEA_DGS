@@ -236,6 +236,23 @@ común.
   (RF-4). (En la copia de transmisión, sin los condensadores serie de 500 kV el Sur quedaba sin suministro, con 1 499
   barras con tensión en DIgSILENT, y el flujo abierto no convergía.)
 
+- RF-27: (corrida de 107 T14 del 22-11; amplía RF-25 y RF-26) CUANDO `tools/pit_pf.py` exporte la red, EL SISTEMA:
+  - leerá la capacitancia de cada tipo de línea en la unidad que declara el proyecto (`GetAttributeUnit`) y llevará la
+    frecuencia del tipo (`frnom`), con la que calcula el motor abierto;
+  - exportará las unidades en paralelo de líneas y transformadores (`nlnum`, `ntnum`, `nt3nm`) y la toma de cada
+    transformador (posición, escalón, neutro, límites y lado), y el motor abierto las aplicará;
+  - exportará como abierto el lado de una rama cuyo interruptor de cubículo (`StaSwitch`) está abierto, y no exportará
+    lo que DIgSILENT tiene fuera de servicio ni una compensación desconectada;
+  - dará a cada compensación su Q real con sus escalones (`Qact`), inductiva si es una reactancia.
+  (En la copia de transmisión la capacitancia venía en nF/km y salía 1 000 veces mayor; había trafos de hasta 67
+  unidades en paralelo exportados como uno, 68 lados con el interruptor abierto exportados como conectados y 87
+  reactancias, de hasta 120 Mvar, con Q 0.)
+- RF-28: (corrida de 107 T14 del 22-11; amplía RF-25 y RF-27) CUANDO `tools/pit_pf.py` exporte la red, EL SISTEMA
+  exportará cada SVC (`ElmSvs`) en servicio como un nudo PV sin potencia activa, con su consigna de tensión y sus límites
+  de Q, y el desfase de cada transformador según su grupo de conexión (30° por hora, el de media y el de baja relativos al
+  de alta); y el motor abierto calculará con ángulos cuando haya desfases. (En la copia de transmisión había 13 SVC, de
+  hasta 315 Mvar, sin exportar, y grupos de 1, 5, 7 y 11 h.)
+
 ## Requisitos no funcionales
 - Universal: cualquier área de demanda y titular. Las pruebas usan al menos dos perfiles sintéticos.
 - Determinismo: el mismo caso, con la misma norma y los mismos costos, da el mismo expediente.

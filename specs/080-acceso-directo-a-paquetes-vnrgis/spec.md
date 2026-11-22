@@ -1,6 +1,6 @@
 # Spec 080 — Acceso directo a los paquetes VNR-GIS de cada distribuidora
 
-Estado: aprobada · Fecha: 2026-11-02
+Estado: cumplida (2026-11-22: T19 cerrada en DIgSILENT; todas sus tareas cerradas) · antes aprobada · Fecha: 2026-11-02
 
 ## Contexto y objetivo
 

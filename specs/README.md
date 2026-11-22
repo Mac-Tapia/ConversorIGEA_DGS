@@ -10,7 +10,7 @@ retirada.
 | [001](001-reorganizacion/spec.md) | Reorganización: una responsabilidad, un sitio | cumplida | 35 | 35 | — |
 | [002](002-arquitectura-por-capas/spec.md) | Arquitectura por capas y módulos enchufables | cumplida | 39 | 39 | — |
 | [003](003-integracion-web-retiro-gui/spec.md) | Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | retirada | 0 | 0 | — |
-| [004](004-cargas-en-powerfactory/spec.md) | Cargas en un proyecto existente de DIgSILENT | implementada | 118 | 118 | T30 (DIgSILENT) |
+| [004](004-cargas-en-powerfactory/spec.md) | Cargas en un proyecto existente de DIgSILENT | cumplida | 118 | 118 | — |
 | [005](005-carpeta-de-proyectos-pf/spec.md) | Carpeta de proyectos importados en DIgSILENT | cumplida | 24 | 24 | — |
 | [006](006-ajuste-a-la-maxima-de-cabecera/spec.md) | Ajuste de las demandas a la máxima de cabecera | cumplida | 47 | 47 | — |
 | [007](007-cargas-nuevas-sobre-el-ajuste/spec.md) | Cargas nuevas sobre el alimentador ajustado, una variación por carga | cumplida | 41 | 41 | — |
@@ -86,7 +86,7 @@ retirada.
 | [077](077-asistente-lee-el-proyecto/spec.md) | El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | cumplida | 80 | 80 | — |
 | [078](078-senales-de-convergencia/spec.md) | Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | cumplida | 35 | 35 | — |
 | [079](079-afinado-del-interprete-de-ordenes/spec.md) | Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida | 64 | 64 | — |
-| [080](080-acceso-directo-a-paquetes-vnrgis/spec.md) | Acceso directo a los paquetes VNR-GIS de cada distribuidora | aprobada | 61 | 61 | T19 |
+| [080](080-acceso-directo-a-paquetes-vnrgis/spec.md) | Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida | 61 | 61 | — |
 | [081](081-regresiones-permanentes/spec.md) | Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | cumplida | 86 | 86 | — |
 | [082](082-oraculo-completo-y-por-fases/spec.md) | El oráculo calcula todo lo del modelo, y por fases | cumplida | 15 | 15 | — |
 | [083](083-oraculo-antes-de-calibrar/spec.md) | El oráculo antes de calibrar y recalibrar | cumplida | 36 | 36 | — |
@@ -113,9 +113,9 @@ retirada.
 | [104](104-libros-nuevos-se-reconocen-solos/spec.md) | Los libros nuevos de demanda se reconocen solos | cumplida | 48 | 48 | — |
 | [105](105-evolucion-de-clientes-fijos-por-alimentador/spec.md) | Evolución de los clientes fijos de cualquier alimentador | cumplida | 40 | 40 | — |
 | [106](106-un-turno-de-gpu-para-la-suite-y-los-entrenamientos/spec.md) | Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | 24 | 24 | — |
-| [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | 26 | 26 | T14 (DIgSILENT) |
+| [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | 28 | 28 | T14 (DIgSILENT) |
 | [108](108-estudio-de-costos-del-vad/spec.md) | Estudio de costos del VAD con la empresa modelo eficiente | aprobada | 26 | 26 | T13 |
 | [109](109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md) | Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | cumplida | 26 | 26 | — |
 | [110](110-envio-de-informes-por-correo-desde-la-web/spec.md) | Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | 14 | 14 | — |
-| [111](111-editor-electrico-sobre-el-plano-gis/spec.md) | Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | implementada | 31 | 31 | T18 (DIgSILENT) |
-| [112](112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md) | Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | 21 | 21 | T16 |
+| [111](111-editor-electrico-sobre-el-plano-gis/spec.md) | Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | implementada | 32 | 32 | T18 (DIgSILENT) |
+| [112](112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md) | Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | 23 | 23 | T16 |

@@ -242,11 +242,19 @@ limpia pasa.
   todas. Ahí van también el catálogo de fichas y su medida, que usan la misma regla del modelo para el conductor sin ficha
   (`suggest_catalog_code`), así que lo medido es lo que la conversión haría.
 - **Adaptador.** `adaptadores/benchmarks/interempresa.py`: una subcarpeta por empresa, renombrada `E1…En` por la huella
-  de su nombre (`seudonimos_de_empresa` de las cohortes). VNR: el trío TXT que saca `vnr-etl` del paquete público, leído
-  con `redes.leer_fichero`. Pronóstico: el benchmark de series de la T5, leído con `series.leer`, y medido con `predecir`
+  de su nombre (`seudonimos_de_empresa` de las cohortes). VNR (RF-22): `red_vnr.json` con los tramos y las fichas que
+  `red_de_modelo` saca del modelo canónico de `cargar_copia` (la copia .bak del paquete público, restaurada en SQL
+  Server), escrito por `interempresa_loco.py preparar-vnr`; también un trío TXT, leído con `redes.leer_fichero`. Una
+  empresa sin tramos es un error, no un pliegue que no pasa. RF-23: `red_de_modelo(modelo, resolver=…)` guarda primero
+  las fichas de la copia (propias) y luego deja que el resolutor de la conversión (`fichas_del_catalogo` de
+  `adaptadores/sources/vnr.py`, por código, código sin su último carácter o familia de cinco caracteres) complete las
+  demás («catálogo 053»); nunca `ampliar_con_lo_que_falta`, que escribe en el catálogo. `red_vnr.json` (v2) guarda el
+  origen y la cobertura; `evaluar_vnr` mide con las del catálogo si alguna empresa las tiene, con `que_mide`,
+  `ficha_propia` aparte y `cobertura_catalogo` por empresa. Pronóstico: el benchmark de series de la T5, leído con `series.leer`, y medido con `predecir`
   y `medir` del 089 (la base «semanal» y su WAPE): no se copia ninguna métrica (P5). El informe, con `write_json_atomic`.
 - **Herramienta.** `tools/interempresa_loco.py vnr|pronostico --empresas CARPETA --salida INFORME.json`; sale con 0 si
-  «DEMOSTRADA» y con 3 si no, con el informe escrito. Es de desarrollo y no se entrega (`config/entrega.json`).
+  «DEMOSTRADA» y con 3 si no, con el informe escrito. `preparar-vnr --copia COPIA.bak --destino CARPETA` deja la red de
+  una empresa desde su copia (RF-22). Es de desarrollo y no se entrega (`config/entrega.json`).
 - **Por qué esas medidas.** En la conversión VNR lo único que se aprende de otras empresas es el catálogo de conductores
   (053): una empresa nueva se convierte bien si las fichas de las demás le dan la impedancia de los suyos. En el
   pronóstico, los métodos de base del 089 son de cada serie; lo transferible es la forma semanal, y se compara con la base

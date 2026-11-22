@@ -488,3 +488,14 @@ adaptador VNR (integrador f9).
       `serie` y la deja en faltantes sin su reactancia, y `red_pandapower` la monta como impedancia. (RF-26)
       Hecho cuando: rojo por aserción sobre 7ed2c05d y verde con `tests/test_pit_pf_guion.py` (107:RF-26): una
       subestación que solo llega por un condensador serie tiene tensión, y una reactancia serie sale con su R y su X.
+- [x] T46. Unidades, paralelos, cubículos, tomas y compensaciones en la red de transmisión (corrida de T14 del 22-11):
+      `tools/pit_pf.py` convierte `cline` por su unidad, lleva `f_hz`, `paralelo`, las tomas y `abierto_en`, omite lo
+      fuera de servicio y da a la compensación su `Qact` (inductiva si `shtype` 1); `red_pandapower` usa la frecuencia,
+      los paralelos (los trafo3, por su potencia), las tomas y abre los lados de `abierto_en`. (RF-27)
+      Hecho cuando: rojo por aserción sobre 7ed2c05d + DIG2-SERIE y verde con `tests/test_pit_pf_guion.py` (107:RF-27).
+- [x] T47. SVC y desfases de grupo en la red de transmisión (corrida de T14 del 22-11): `tools/pit_pf.py` exporta los
+      `ElmSvs` como `red_externa` PV (`p_mw` 0, `vm_pu` = `usetp`, `q_min_mvar`/`q_max_mvar`) y `shift_degree`,
+      `shift_mv_degree` y `shift_lv_degree` (`_desfase`, `_desfases_tr3`); `red_pandapower` los lleva a pandapower y
+      calcula con ángulos si hay desfase. (RF-28)
+      Hecho cuando: rojo por aserción sobre el acumulado DIG2-SERIE + DIG2-UNIDADES y verde con
+      `tests/test_pit_pf_guion.py` (107:RF-28).

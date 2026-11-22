@@ -58,7 +58,11 @@ OPCIONALES_TEXTO = frozenset({'entrega', 'tipo_red', 'tap_side', 'tipo_barra'})
 #: ``p_mw`` (con ``q_mvar``) es la consigna de una red externa PQ o PV que no es la referencia: entra como inyección
 #: (107:RF-25).
 OPCIONALES = OPCIONALES_TEXTO | {'tap_min', 'tap_max', 'tap_neutral', 'tap_step_percent', 'tension_operacion_kv',
-                                 'p_mw'}
+                                 'p_mw', 'tap_pos', 'paralelo', 'f_hz', 'shift_degree', 'shift_mv_degree',
+                                 'shift_lv_degree', 'q_min_mvar', 'q_max_mvar'}
+#: 107:RF-27: los lados de una rama cuyo interruptor de cubículo está abierto («desde», «hasta», «hv», «mv», «lv» o
+#: «barra»); DIgSILENT la deja desconectada de ese lado.
+ABIERTO_EN = 'abierto_en'
 #: Filas en las que se busca la cabecera de cada hoja, como ``costos_fuentes._FILAS_CABECERA``.
 _FILAS_CABECERA = 30
 

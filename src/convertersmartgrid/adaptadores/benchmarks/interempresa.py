@@ -3,8 +3,11 @@
 Cada empresa es una subcarpeta de la carpeta que se da. Su nombre no sale nunca en el informe: las empresas se
 renombran ``E1…En`` por el orden de su huella (``seudonimos_de_empresa`` de las cohortes), y el informe dice cuántas hay.
 
-- Conversión VNR: la subcarpeta tiene el trío TXT de CYMDIST que sacó ``vnr-etl convert --format cymdist`` del paquete
-  público de esa empresa. Del RED se toman los tramos (código de conductor y longitud) y del BD_Equipo sus fichas.
+- Conversión VNR: la subcarpeta tiene ``red_vnr.json``, los tramos (código de conductor y longitud) y las fichas que
+  ``red_de_modelo`` saca del modelo canónico de la copia de SQL Server del paquete público de esa empresa
+  (``cargar_copia``, spec 023; ``tools/interempresa_loco.py preparar-vnr``), sin pasar por un export CYMDIST (112:RF-22).
+  También vale un trío TXT de CYMDIST: del RED se toman los tramos y del BD_Equipo sus fichas. Una carpeta sin tramos es
+  un error, nunca un pliegue que no pasa.
 - Pronóstico: la subcarpeta es un benchmark de series de la 112 (``series.csv`` y ``series_objetivos.csv``). Lo que se
   ajusta con las demás es la forma semanal normalizada (cada serie por su media, mediana por día y cuarto de hora), y en la
   retenida se pronostica su nivel de los últimos 28 días por esa forma; se compara con su propia base «semanal» del 089
@@ -16,7 +19,10 @@ El informe se escribe con ``write_json_atomic`` (001:RF-5) y lleva el veredicto,
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Mapping, Sequence
+import json
+import math
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +43,23 @@ MARGEN_PRONOSTICO = 0.10
 #: Días de la semana por cuartos de hora: la celda de la forma semanal.
 CELDAS = 7 * 96
 _SECCIONES_TRAMO = ('LINE CONFIGURATION', 'OVERHEADLINE SETTING', 'UNDERGROUNDLINE SETTING')
+#: 112:RF-22: lo que la conversión de una empresa necesita, sacado de su modelo canónico, en su subcarpeta.
+RED_VNR = 'red_vnr.json'
+ESQUEMA_RED = 'csg-red-vnr-v2'
+#: El formato de la RF-22, sin el origen de las fichas: todas cuentan como propias.
+ESQUEMA_RED_V1 = 'csg-red-vnr-v1'
+#: 112:RF-23: de dónde sale la ficha de un conductor.
+ORIGEN_PROPIA = 'propia'
+ORIGEN_CATALOGO = 'catálogo 053'
+#: 112:RF-23: lo que mide cada evaluación, escrito en el informe.
+QUE_MIDE = {
+    ORIGEN_CATALOGO: ('acierto, por longitud, del modelo (el código igual o el más parecido) al dar a los conductores de '
+                      'la retenida las fichas de las demás, frente a la ficha que el catálogo universal (053) da a los de '
+                      'la retenida; el catálogo es el mismo para todas las empresas, así que mide si los códigos de cada '
+                      'una llevan a la misma ficha, no unas fichas independientes'),
+    ORIGEN_PROPIA: ('acierto, por longitud, del modelo al dar a los conductores de la retenida las fichas de las demás, '
+                    'frente a la ficha propia que trae la fuente de la retenida'),
+}
 
 
 class SinEmpresas(ValueError):
@@ -66,8 +89,128 @@ def _numero(valor: str) -> float:
         return float('nan')
 
 
+def _positivo(valor: Any) -> float:
+    try:
+        v = float(valor)
+    except (TypeError, ValueError):
+        return 0.0
+    return v if math.isfinite(v) and v > 0 else 0.0
+
+
+def _medida(valor: Any) -> float:
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        return float('nan')
+
+
+def _ficha_con_datos(r1: Any, x1: Any, amps: Any) -> Ficha | None:
+    """Una ficha solo si trae R1, X1 y corriente admisible: lo que el criterio compara (RF-17). Las normas de una copia de
+    VNR-GIS traen la descripción del conductor, no su impedancia; una ficha vacía no es una ficha propia que medir."""
+    ficha = Ficha(_medida(r1), _medida(x1), _medida(amps))
+    return ficha if all(math.isfinite(v) for v in (ficha.r1, ficha.x1, ficha.amps)) else None
+
+
+@dataclass
+class RedVnr:
+    """Los tramos de una empresa y sus fichas por origen (112:RF-23): las que trae su fuente y las que da el catálogo."""
+
+    tramos: list[tuple[str, float]] = field(default_factory=list)
+    propias: dict[str, Ficha] = field(default_factory=dict)
+    catalogo: dict[str, Ficha] = field(default_factory=dict)
+
+    @property
+    def fichas(self) -> dict[str, Ficha]:
+        return {**self.catalogo, **self.propias}
+
+    def red(self, origen: str) -> RedEmpresa:
+        """La red con las fichas de un solo origen: un tramo con ficha del otro cuenta como «sin ficha propia»."""
+        return RedEmpresa(list(self.tramos), dict(self.propias if origen == ORIGEN_PROPIA else self.catalogo))
+
+    def cobertura(self) -> dict[str, Any]:
+        """Por tramos y por longitud: con ficha propia, resueltos por el catálogo y sin resolver."""
+        cuenta = {ORIGEN_PROPIA: [0, 0.0], ORIGEN_CATALOGO: [0, 0.0], None: [0, 0.0]}
+        for codigo, longitud in self.tramos:
+            origen = ORIGEN_PROPIA if codigo in self.propias else ORIGEN_CATALOGO if codigo in self.catalogo else None
+            cuenta[origen][0] += 1
+            cuenta[origen][1] += longitud
+        total = sum(v[1] for v in cuenta.values())
+        return {'tramos': len(self.tramos), 'con_ficha_propia': cuenta[ORIGEN_PROPIA][0],
+                'resueltos_catalogo': cuenta[ORIGEN_CATALOGO][0], 'no_resueltos': cuenta[None][0],
+                'longitud_resuelta_catalogo': cuenta[ORIGEN_CATALOGO][1] / total if total else None,
+                'origen_catalogo': ORIGEN_CATALOGO}
+
+
+def red_de_modelo(modelo: Any, *, resolver: Callable[[Any], Any] | None = None) -> RedVnr:
+    """112:RF-22 y RF-23: los tramos MT (código de conductor y longitud) del modelo canónico de una copia de VNR-GIS (el
+    que devuelve ``cargar_copia``) y sus fichas (R1, X1 y corriente admisible), cada una con su origen.
+
+    Primero las que trae la copia (propias). Después ``resolver`` (en la conversión, ``fichas_del_catalogo`` de
+    ``adaptadores/sources/vnr.py`` con el catálogo universal, 053) completa en el modelo las que faltan, y esas son del
+    catálogo. Solo cuenta una ficha con R1, X1 y corriente; un conductor sin ninguna queda sin resolver. El resolutor no
+    amplía el catálogo: la evaluación solo lo lee."""
+    red = RedVnr()
+    for tramo in modelo.sections:
+        if tramo.conductor_code:
+            red.tramos.append((str(tramo.conductor_code), _positivo(tramo.length_m)))
+
+    def fichas() -> dict[str, Ficha]:
+        salida: dict[str, Ficha] = {}
+        for c in modelo.conductor_types:
+            ficha = _ficha_con_datos(c.r1_ohm_km, c.x1_ohm_km, c.ampacity_a) if c.conductor_code else None
+            if ficha is not None:
+                salida.setdefault(str(c.conductor_code), ficha)
+        return salida
+
+    red.propias = fichas()
+    if resolver is not None:
+        resolver(modelo)
+        red.catalogo = {c: f for c, f in fichas().items() if c not in red.propias}
+    return red
+
+
+def guardar_red(red: RedVnr, carpeta: Path | str) -> Path:
+    """``red_vnr.json`` en la carpeta de la empresa, con escritura atómica: solo códigos de conductor, longitudes y
+    fichas con su origen, ningún nombre ni coordenada."""
+    ruta = Path(carpeta) / RED_VNR
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    fichas = {c: {'r1': f.r1, 'x1': f.x1, 'amps': f.amps, 'origen': origen}
+              for origen, grupo in ((ORIGEN_CATALOGO, red.catalogo), (ORIGEN_PROPIA, red.propias))
+              for c, f in sorted(grupo.items())}
+    write_json_atomic(ruta, {'esquema': ESQUEMA_RED, 'tramos': [list(t) for t in red.tramos],
+                             'fichas': dict(sorted(fichas.items())), 'cobertura': red.cobertura()})
+    return ruta
+
+
+def _leer_red_vnr(ruta: Path) -> RedVnr:
+    datos = json.loads(ruta.read_text(encoding='utf-8'))
+    esquema = datos.get('esquema')
+    if esquema not in (ESQUEMA_RED, ESQUEMA_RED_V1):
+        raise ValueError(f'{ruta.name}: esquema {esquema!r}, se esperaba {ESQUEMA_RED!r}')
+    red = RedVnr([(str(c), _positivo(longitud)) for c, longitud in datos.get('tramos') or []])
+    for codigo, valores in (datos.get('fichas') or {}).items():
+        if esquema == ESQUEMA_RED_V1:
+            ficha, origen = _ficha_con_datos(*valores), ORIGEN_PROPIA
+        else:
+            ficha, origen = _ficha_con_datos(valores.get('r1'), valores.get('x1'), valores.get('amps')), valores.get('origen')
+        if ficha is not None:
+            (red.catalogo if origen == ORIGEN_CATALOGO else red.propias)[str(codigo)] = ficha
+    return red
+
+
+def leer_red_vnr(carpeta: Path | str) -> RedVnr:
+    """112:RF-23: los tramos y las fichas por origen de una carpeta; las del trío TXT cuentan como propias."""
+    if (Path(carpeta) / RED_VNR).is_file():
+        return _leer_red_vnr(Path(carpeta) / RED_VNR)
+    red = leer_red_empresa(carpeta)
+    return RedVnr(red.tramos, dict(red.fichas))
+
+
 def leer_red_empresa(carpeta: Path | str) -> RedEmpresa:
-    """Tramos y fichas del trío TXT de una carpeta; el RED y el BD_Equipo se reconocen por sus secciones."""
+    """Tramos y fichas de una carpeta: su ``red_vnr.json`` (112:RF-22) o, si no lo tiene, su trío TXT, donde el RED y
+    el BD_Equipo se reconocen por sus secciones."""
+    if (Path(carpeta) / RED_VNR).is_file():
+        return _leer_red_vnr(Path(carpeta) / RED_VNR).red(ORIGEN_PROPIA)
     red = RedEmpresa()
     for ruta in sorted(Path(carpeta).rglob('*.txt'), key=lambda p: p.as_posix().lower()):
         f = leer_fichero(ruta, ruta.name)
@@ -85,11 +228,32 @@ def leer_red_empresa(carpeta: Path | str) -> RedEmpresa:
 
 
 def evaluar_vnr(raiz: Path | str, *, umbral: float = UMBRAL_ACIERTO, tolerancia: float = TOLERANCIA_FICHA) -> dict[str, Any]:
-    datos = {e: leer_red_empresa(c) for e, c in empresas_de(raiz).items()}
-    resultado = dejar_una_fuera(datos, ajustar_catalogo, lambda cat, red: medir_catalogo(cat, red, tolerancia=tolerancia),
-                                criterio_catalogo(umbral))
-    return {'esquema': ESQUEMA, 'tarea': 'conversion_vnr', **resultado.como_dict(),
-            'criterio': {'metrica': 'acierto', 'umbral': umbral, 'tolerancia_ficha': tolerancia}}
+    """112:RF-17, RF-22 y RF-23. Si alguna empresa trae fichas resueltas por el catálogo universal, el veredicto mide
+    sobre ellas y el informe separa aparte la evaluación con fichas propias; si no, mide sobre las propias, como antes.
+    El informe dice qué mide y la cobertura del catálogo de cada empresa."""
+    redes = {e: leer_red_vnr(c) for e, c in empresas_de(raiz).items()}
+    # 112:RF-22: una empresa sin tramos es una conversión que no se hizo: el veredicto saldría de carpetas vacías.
+    vacias = sorted(e for e, red in redes.items() if not red.tramos)
+    if vacias:
+        raise SinEmpresas(f'{", ".join(vacias)} sin tramos: ni {RED_VNR} ni un trío TXT con tramos')
+
+    def evaluar(origen: str) -> dict[str, Any]:
+        datos = {e: r.red(origen) for e, r in redes.items()}
+        resultado = dejar_una_fuera(datos, ajustar_catalogo,
+                                    lambda cat, red: medir_catalogo(cat, red, tolerancia=tolerancia),
+                                    criterio_catalogo(umbral))
+        return {**resultado.como_dict(), 'fichas': origen, 'que_mide': QUE_MIDE[origen]}
+
+    con_catalogo = any(r.catalogo for r in redes.values())
+    informe = {'esquema': ESQUEMA, 'tarea': 'conversion_vnr',
+               **evaluar(ORIGEN_CATALOGO if con_catalogo else ORIGEN_PROPIA),
+               'criterio': {'metrica': 'acierto', 'umbral': umbral, 'tolerancia_ficha': tolerancia}}
+    if con_catalogo:
+        informe['ficha_propia'] = (evaluar(ORIGEN_PROPIA) if any(r.propias for r in redes.values()) else
+                                   {'evaluada': False, 'fichas': ORIGEN_PROPIA,
+                                    'motivo': 'ninguna fuente trae la impedancia de sus conductores'})
+        informe['cobertura_catalogo'] = {e: redes[e].cobertura() for e in sorted(redes)}
+    return informe
 
 
 # ------------------------------------------------------------------ pronóstico

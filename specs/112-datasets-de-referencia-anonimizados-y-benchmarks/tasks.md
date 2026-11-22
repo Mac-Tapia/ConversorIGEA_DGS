@@ -137,11 +137,28 @@ se lee su salida, con una excepción acotada, la de la T5 (aclaración de RF-11)
       estructurales (`verde_*.log` de la misma carpeta, con su `.pruebas`). La prueba del pronóstico fija un margen
       del 25 %: con 20 semillas, la misma forma da como mucho 1,12 veces el WAPE de la base y la invertida, 14,9.
 - [ ] T16. Corrida real con los paquetes públicos de Osinergmin: el operador baja el paquete VNR-GIS vigente de al menos
-      tres empresas con `tools/vnr_publico_empresa.py` a una carpeta fuera del programa, saca su trío con
-      `vnr-etl convert --format cymdist` y corre `tools/interempresa_loco.py vnr`; el pronóstico, con los benchmarks de
-      series de al menos tres empresas. Es una corrida aparte, fuera de la suite. (RF-15, RF-16, RF-17, RF-18, RF-19)
+      tres empresas con `tools/vnr_publico_empresa.py` a una carpeta fuera del programa, saca la red de cada una de su
+      copia de SQL Server con `tools/interempresa_loco.py preparar-vnr --copia <.bak> --destino <empresas>/<empresa>`
+      (RF-22; el export CYMDIST de VNR-GIS está bloqueado sin contrato y no hace falta) y corre
+      `tools/interempresa_loco.py vnr`; el pronóstico, con los benchmarks de series de al menos tres empresas (con menos,
+      «NO DEMOSTRADA», que se publica igual). Es una corrida aparte, fuera de la suite. (RF-15 a RF-19, RF-22)
       Hecho cuando: el informe de cada tarea queda fuera del repositorio con su veredicto, y su ruta y su veredicto
       (también «NO DEMOSTRADA», que se publica igual, RF-8) se anotan aquí.
+      Avance (2026-11-22, MEJ32b de d8): conversión VNR con tres paquetes públicos (fijaciones de 2022 y 2025; 116 773
+      tramos MT en total), `D:/csg/PM_IMPL/MEJ32b_112T16/t16/informe_vnr.json`: «NO DEMOSTRADA», porque ninguna de las
+      tres copias trae la impedancia de sus conductores (sus normas dan la descripción, no R1, X1 ni corriente), así que
+      ningún tramo tiene ficha propia con la que medir el catálogo de las demás. Falta el pronóstico (benchmark de series
+      con ≥ 8 GiB libres: `D:/csg/PM_IMPL/MEJ32_102_112/t16_series_reintento.sh`).
+- [x] T21. Las fichas que la copia no trae salen del catálogo universal (053) con el resolutor de la conversión, con
+      su origen y la cobertura por empresa; el informe dice qué mide y separa las fichas propias. (RF-23)
+      Hecho cuando: `pytest -q tests/test_benchmarks_interempresa.py -k "rf22 or rf23"` en verde, con rojo previo por
+      aserción.
+      Hecho el 2026-11-22 (MEJ32c de d8): rojo y verde en `D:/csg/PM_IMPL/MEJ32c_112T16/`.
+- [x] T20. La conversión VNR entre empresas lee el modelo canónico de la copia: `red_de_modelo` y `guardar_red` en
+      `adaptadores/benchmarks/interempresa.py`, `red_vnr.json` en la carpeta de cada empresa, «preparar-vnr» en
+      `tools/interempresa_loco.py`, y una empresa sin tramos es un error, no un veredicto. (RF-22, RF-17)
+      Hecho cuando: `pytest -q tests/test_benchmarks_interempresa.py -k rf22` en verde, con rojo previo por aserción.
+      Hecho el 2026-11-22 (MEJ32b de d8): rojo y verde en `D:/csg/PM_IMPL/MEJ32b_112T16/`.
 - [x] T17. Medición de escala de la web: `tools/benchmark_escala_web.py` con `--help` sin DIgSILENT, redes sintéticas de
       10, 50 y 200 alimentadores con la misma semilla, cada tamaño en un proceso propio, carga de la red, p50 y p95 de las
       peticiones de la pantalla con la primera aparte, tamaño de cada respuesta, memoria pico con psutil y la revisión del

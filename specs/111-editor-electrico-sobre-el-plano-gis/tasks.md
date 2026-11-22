@@ -201,3 +201,7 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
 - [x] T31. El vínculo del plano por la huella de la fuente: `FuenteWeb.vinculo` acepta el vínculo de la ejecución activa
       o el de la misma `source_fingerprint` que `ws.loaded_source_fingerprint`. (RF-31)
       Hecho cuando: rojo por aserción y verde con `tests/test_plano_api.py` (111:RF-31) y sus vecinas del plano.
+- [x] T32. La geografía del plano de una conversión anterior o de la red unida: `FuenteWeb.ruta_geografia` busca, tras la
+      salida activa, la de `ws.conversions[alimentador]` y la de `<grupo>_geography.json` de la red unida que lo contiene,
+      con la misma huella de la fuente que `ws.loaded_source_fingerprint`; `FuenteWeb.alimentadores` los lista. (RF-32)
+      Hecho cuando: rojo por aserción y verde con `tests/test_plano_api.py` (111:RF-32) y sus vecinas del plano.

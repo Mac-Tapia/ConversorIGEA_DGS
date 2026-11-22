@@ -104,8 +104,25 @@ def inyecciones_externas(red: RedArea) -> list[dict]:
     return [g for g in red.de_tipo('red_externa') if _tipo_barra(g) in _CON_CONSIGNA]
 
 
+def _lados_abiertos(e) -> set[str]:
+    """107:RF-27: los lados con el interruptor de cubículo abierto (lista o texto separado por comas)."""
+    v = e.get('abierto_en') or ()
+    return {x.strip() for x in (v.split(',') if isinstance(v, str) else v) if str(x).strip()}
+
+
+def _tomas(e) -> dict:
+    """107:RF-27: los parámetros de toma de pandapower que trae el elemento."""
+    claves = ('tap_side', 'tap_step_percent', 'tap_neutral', 'tap_pos', 'tap_min', 'tap_max')
+    t = {k: e[k] for k in claves if e.get(k) is not None}
+    # pandapower 3 solo aplica la toma si dice su tipo: la de DIgSILENT es de relación (en fase).
+    return {**t, 'tap_changer_type': 'Ratio'} if 'tap_step_percent' in t and 'tap_side' in t else {}
+
+
 def _red(pp, red: RedArea, cargas: Mapping[str, tuple[float, float]], fuera: set[str]):
-    net = pp.create_empty_network()
+    # 107:RF-27: la frecuencia de las líneas (``f_hz``, la nominal del tipo en DIgSILENT): con la de fábrica de
+    # pandapower (50 Hz) la susceptancia de una red de 60 Hz salía un 17 % baja.
+    frecuencias = [float(e['f_hz']) for e in red.de_tipo('linea') if e.get('f_hz')]
+    net = pp.create_empty_network(f_hz=frecuencias[0] if frecuencias else 50.0)
     bus = {}
     for b in red.de_tipo('barra'):
         bus[b['id']] = pp.create_bus(net, vn_kv=float(b['kv']), name=b['id'])
@@ -114,8 +131,11 @@ def _red(pp, red: RedArea, cargas: Mapping[str, tuple[float, float]], fuera: set
     for g in inyecciones_externas(red):
         # 107:RF-25: con el convenio de generación de pandapower, la consigna de DIgSILENT (pgini, qgini) tal cual.
         if _tipo_barra(g) == 'PV':
+            # 107:RF-28: con sus límites de Q si los trae (un SVC); el flujo los aplica solo si se le pide.
+            limites = {k: float(g[c]) for k, c in (('min_q_mvar', 'q_min_mvar'), ('max_q_mvar', 'q_max_mvar'))
+                       if g.get(c) is not None}
             pp.create_gen(net, bus[g['barra']], p_mw=float(g['p_mw']), vm_pu=float(g['vm_pu']), name=g['id'],
-                          in_service=g['id'] not in fuera)
+                          in_service=g['id'] not in fuera, **limites)
         else:
             pp.create_sgen(net, bus[g['barra']], p_mw=float(g['p_mw']), q_mvar=float(g.get('q_mvar') or 0.0),
                            name=g['id'], in_service=g['id'] not in fuera)
@@ -135,23 +155,32 @@ def _red(pp, red: RedArea, cargas: Mapping[str, tuple[float, float]], fuera: set
             net, bus[e['desde']], bus[e['hasta']], length_km=float(e['longitud_km']),
             r_ohm_per_km=float(e['r_ohm_per_km']), x_ohm_per_km=float(e['x_ohm_per_km']),
             c_nf_per_km=float(e['c_nf_per_km']), max_i_ka=float(e['max_i_ka']), name=e['id'],
-            in_service=e['id'] not in fuera)
+            parallel=int(e.get('paralelo') or 1), in_service=e['id'] not in fuera)
+        for lado in _lados_abiertos(e) & {'desde', 'hasta'}:
+            pp.create_switch(net, bus[e[lado]], lineas[e['id']], et='l', closed=False)
     for e in red.de_tipo('trafo2'):
         trafos[e['id']] = pp.create_transformer_from_parameters(
             net, bus[e['hv']], bus[e['lv']], sn_mva=float(e['sn_mva']), vn_hv_kv=float(e['vn_hv_kv']),
             vn_lv_kv=float(e['vn_lv_kv']), vkr_percent=float(e['vkr_percent']), vk_percent=float(e['vk_percent']),
             pfe_kw=float(e['pfe_kw']), i0_percent=float(e['i0_percent']), name=e['id'],
-            in_service=e['id'] not in fuera)
+            parallel=int(e.get('paralelo') or 1), in_service=e['id'] not in fuera,
+            shift_degree=float(e.get('shift_degree') or 0.0), **_tomas(e))
+        for lado in _lados_abiertos(e) & {'hv', 'lv'}:
+            pp.create_switch(net, bus[e[lado]], trafos[e['id']], et='t', closed=False)
     for e in red.de_tipo('trafo3'):
+        n = int(e.get('paralelo') or 1)                   # 107:RF-27: n unidades iguales: n veces la potencia
         trafos3[e['id']] = pp.create_transformer3w_from_parameters(
             net, bus[e['hv']], bus[e['mv']], bus[e['lv']], vn_hv_kv=float(e['vn_hv_kv']),
-            vn_mv_kv=float(e['vn_mv_kv']), vn_lv_kv=float(e['vn_lv_kv']), sn_hv_mva=float(e['sn_hv_mva']),
-            sn_mv_mva=float(e['sn_mv_mva']), sn_lv_mva=float(e['sn_lv_mva']),
+            vn_mv_kv=float(e['vn_mv_kv']), vn_lv_kv=float(e['vn_lv_kv']), sn_hv_mva=n * float(e['sn_hv_mva']),
+            sn_mv_mva=n * float(e['sn_mv_mva']), sn_lv_mva=n * float(e['sn_lv_mva']),
             vk_hv_percent=float(e['vk_hv_percent']), vk_mv_percent=float(e['vk_mv_percent']),
             vk_lv_percent=float(e['vk_lv_percent']), vkr_hv_percent=float(e['vkr_hv_percent']),
             vkr_mv_percent=float(e['vkr_mv_percent']), vkr_lv_percent=float(e['vkr_lv_percent']),
-            pfe_kw=float(e['pfe_kw']), i0_percent=float(e['i0_percent']), name=e['id'],
-            in_service=e['id'] not in fuera)
+            pfe_kw=n * float(e['pfe_kw']), i0_percent=float(e['i0_percent']), name=e['id'],
+            in_service=e['id'] not in fuera, shift_mv_degree=float(e.get('shift_mv_degree') or 0.0),
+            shift_lv_degree=float(e.get('shift_lv_degree') or 0.0), **_tomas(e))
+        for lado in _lados_abiertos(e) & {'hv', 'mv', 'lv'}:
+            pp.create_switch(net, bus[e[lado]], trafos3[e['id']], et='t3', closed=False)
     for e in red.de_tipo('compensacion'):
         pp.create_shunt(net, bus[e['barra']], q_mvar=-float(e['q_mvar']), p_mw=0.0, name=e['id'],
                         in_service=e['id'] not in fuera)
@@ -179,7 +208,12 @@ def calcular(red: RedArea, cargas: Mapping[str, tuple[float, float]], *, fuera: 
                        'sin barra de suministro')
         return res
     try:
-        pp.runpp(net, algorithm='nr', init='auto', max_iteration=30, calculate_voltage_angles=False, numba=False)
+        # 107:RF-28: con desfases de grupo de conexión, el flujo calcula con ángulos (si no, pandapower los ignora y una
+        # malla por trafos de grupos distintos queda mal).
+        angulos = any(float(net[t][c].abs().sum()) > 0 for t, c in (('trafo', 'shift_degree'),
+                                                                     ('trafo3w', 'shift_mv_degree'),
+                                                                     ('trafo3w', 'shift_lv_degree')) if len(net[t]))
+        pp.runpp(net, algorithm='nr', init='auto', max_iteration=30, calculate_voltage_angles=angulos, numba=False)
     except pp.LoadflowNotConverged as exc:
         res.mensaje = f'el flujo no converge con pandapower: {exc}'
         return res

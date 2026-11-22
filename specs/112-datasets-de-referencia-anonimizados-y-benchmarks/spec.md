@@ -111,6 +111,23 @@ Así los resultados se pueden reproducir sin revelar nada de la empresa.
 - RF-21: SI una magnitud de la escala no se puede medir sin un navegador real (el dibujo de la pantalla), ENTONCES EL
   SISTEMA la dejará en el resultado como «no medido» con su motivo, nunca como un cero, y se medirá aparte con su guion
   de navegador sobre las mismas redes sintéticas.
+- RF-22: CUANDO se evalúe la conversión VNR entre empresas con sus paquetes públicos, EL SISTEMA tomará los tramos
+  (código de conductor y longitud) y las fichas (R1, X1 y corriente admisible) del modelo canónico que da la carga de la
+  copia de SQL Server de cada empresa (spec 023), sin exportarlo a CYMDIST, y los guardará en la carpeta de esa empresa
+  sin ningún nombre; SI una empresa no tiene ningún tramo, ENTONCES EL SISTEMA no dará veredicto y dirá cuál, por su
+  seudónimo.
+- Aclaración de RF-17 (2026-11-22, MEJ32b, decisión de d8): el export CYMDIST de VNR-GIS está bloqueado sin un contrato
+  verificado y escribe otro formato que el trío del conversor; la evaluación entre empresas no lo necesita, porque lo que
+  mide (el catálogo de conductores) ya está en el modelo canónico de la carga.
+- RF-23: CUANDO la copia de una empresa no traiga la impedancia de un conductor, EL SISTEMA tomará su R1, X1 y
+  corriente admisible del catálogo universal de fichas (053), con el mismo resolutor que la conversión y sin ampliar el
+  catálogo, y anotará el origen de cada ficha («propia» o «catálogo 053») y, por empresa, los tramos con ficha propia,
+  los resueltos por el catálogo y los que quedan sin resolver; el informe dirá qué mide (el acierto del modelo sobre las
+  fichas resueltas por el catálogo, que es el mismo para todas las empresas) y dará aparte la evaluación con fichas
+  propias, o que ninguna fuente las trae.
+- Aclaración de RF-17 y RF-22 (2026-11-22, MEJ32c, decisión del usuario): la impedancia sí existe para las redes
+  públicas: está en las fichas técnicas universales del catálogo (053). La copia de VNR-GIS da la norma del conductor
+  y el catálogo, su ficha.
 
 ## Requisitos no funcionales
 - Reproducible: con la misma semilla y el mismo origen sale el mismo benchmark, byte a byte.

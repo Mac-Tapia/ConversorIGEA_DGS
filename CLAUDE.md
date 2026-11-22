@@ -31,7 +31,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 001 Reorganización: una responsabilidad, un sitio | cumplida |  |
   | 002 Arquitectura por capas y módulos enchufables | cumplida |  |
   | 003 Integración web y retiro de la GUI (rama `feat/integracion-web-retiro-gui`) | retirada |  |
-  | 004 Cargas en un proyecto existente de DIgSILENT | implementada | T30 |
+  | 004 Cargas en un proyecto existente de DIgSILENT | cumplida | T30 aceptada por el usuario (22-11, desde la web); todas sus tareas cerradas |
   | 005 Carpeta de proyectos importados en DIgSILENT | cumplida |  |
   | 006 Ajuste de las demandas a la máxima de cabecera | cumplida | — |
   | 007 Cargas nuevas sobre el alimentador ajustado, una variación por carga | cumplida |  |
@@ -107,7 +107,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 077 El asistente lee skills, documentos, código y API del proyecto, y un MCP local de solo lectura | cumplida | |
   | 078 Las señales de convergencia dicen lo que devolvió DIgSILENT, y el asistente importa un grupo ya convertido | cumplida |  |
   | 079 Afinado real del intérprete de órdenes: las últimas capas del codificador junto con sus cabezas | cumplida |  |
-  | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | aprobada | falta T19 (DIgSILENT) |
+  | 080 Acceso directo a los paquetes VNR-GIS de cada distribuidora | cumplida | T19 cerrada (22-11, en DIgSILENT); todas sus tareas cerradas |
   | 081 Los fallos reales no se repiten: comprobaciones permanentes, solución con los oráculos y mejora continua | cumplida |  |
   | 082 El oráculo calcula todo lo del modelo, y por fases | cumplida |  |
   | 083 El oráculo antes de calibrar y recalibrar | cumplida | |

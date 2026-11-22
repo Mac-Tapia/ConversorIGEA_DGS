@@ -23,12 +23,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 89 |
-| aprobada | 17 |
-| implementada | 5 |
+| cumplida | 91 |
+| aprobada | 16 |
+| implementada | 4 |
 | retirada | 1 |
 
-112 specs con 4054 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 4059 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -921,7 +921,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `vad_estudio.py` | — | 108 | Guion del estudio VAD sin DIgSILENT ni web: comprueba el estudio con el registro y arma la empresa modelo de un caso (`--caso` o `CSG_VAD_CASO`, con… |
 | `vnr_publico_empresa.py` | — | 112, 080 | Baja bajo demanda el paquete VNR-GIS vigente de una empresa de lo publicado por Osinergmin (`--plan` sin bajar nada), a una carpeta fuera del… |
 | `benchmark_anonimo.py` | — | 112 | Genera en local el benchmark anonimizado de una red (y de las series del 089) con su manifiesto. |
-| `interempresa_loco.py` | — | 112 | Deja una empresa fuera cada vez (`vnr` con el trío de los paquetes públicos, `pronostico` con los benchmarks de series) y escribe el informe con su… |
+| `interempresa_loco.py` | — | 112 | Deja una empresa fuera cada vez (`preparar-vnr` saca la red de la copia de SQL Server de un paquete público sin exportar a CYMDIST, con las fichas… |
 | `benchmark_escala_web.py` | — | 112 | Mide la escala de la web y su API con redes sintéticas de 10, 50 y 200 alimentadores (carga de la red, p50 y p95 de las peticiones de la pantalla,… |
 | `normativa/biblioteca.py` | — | 107 | La biblioteca normativa general desde la consola: listar, añadir una norma a la capa del usuario y exportar el dataset de normas y reglas. |
 | `normativa/generar_guia_vnr_232.py` | — | — | 108 T23 (RF-20): la «Guía de Elaboración del Valor Nuevo de Reemplazo de las Instalaciones de Distribución Eléctrica» |

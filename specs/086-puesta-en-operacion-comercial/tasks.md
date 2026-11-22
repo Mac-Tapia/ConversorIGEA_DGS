@@ -372,11 +372,11 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
   corte y las cargas a medias tomadas por manuales. Su código: 083:RF-35 y 083:RF-36 (083 T20, T21). Falta repetir la
   corrida con ese código y hacer la parte de la importación sobre una red de prueba sin proyecto (005:RF-22).
   Hecho el 2026-11-21 (bloque DIgSILENT 2 de d8, wt_d8_dig2 = 7ed2c05d, web propia 8794 sobre la copia del espacio de
-  prueba). Corte a media calibración (NA203 + NA205, kill a los 45 s de `ajuste_aplicar`): el espacio queda intacto,
+  prueba). Corte a media calibración (los dos alimentadores de prueba, kill a los 45 s de `ajuste_aplicar`): el espacio queda intacto,
   el trabajo `interrumpido` y el diario de 083:RF-35 abierto con su token. Al retomar, sin reconvertir ni reimportar,
   las variaciones del conversor se encienden antes de leer (083:RF-36) y la central y los bancos se ven; las 47 cargas
   que dejó la orden cortada salen como «de una orden cortada» y no como cambios a mano (0 cambiadas). Los dos
-  alimentadores quedan VALIDO y el diario se cierra. Corte a media importación (NA203 sola, red de prueba sin proyecto
+  alimentadores quedan VALIDO y el diario se cierra. Corte a media importación (uno de ellos solo, red de prueba sin proyecto
   previo, kill a los 10 s): ningún proyecto a medias ni borrado. La vuelta usa el proyecto verificado, sin repetir
   trabajo, y queda un solo proyecto de la red, calibrado VALIDO. Las demás sesiones no se pudieron parar desde aquí;
   se mataron solo los procesos propios. Evidencia: `D:/csg/PM_IMPL/DIG_BLOQUE2/T33_corte/`.

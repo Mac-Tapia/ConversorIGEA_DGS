@@ -43,12 +43,44 @@ ACCION = 'plano'
 CARPETA_RESULTADOS = 'resultados'
 
 
+def _feeders(grupo) -> list:
+    """Los alimentadores de una red unida del espacio (lista o su texto guardado)."""
+    valor = grupo.get('feeders') if isinstance(grupo, dict) else None
+    if isinstance(valor, str):
+        import ast
+
+        try:
+            valor = ast.literal_eval(valor)
+        except (ValueError, SyntaxError):
+            return []
+    return list(valor or [])
+
+
+def _ruta_del_espacio(ws, ruta) -> Path:
+    """Una ruta guardada en el espacio, también la relativa («espacio:…»)."""
+    texto = str(ruta)
+    return Path(ws.root) / texto[len('espacio:'):] if texto.startswith('espacio:') else Path(texto)
+
+
+def _huella_de_la_ejecucion(dgs: Path) -> str:
+    """111:RF-32: la huella de la fuente de la ejecución cuya salida tiene ese DGS (su manifiesto)."""
+    try:
+        return str(json.loads((dgs.parent.parent / 'source_manifest.json').read_text(encoding='utf-8')).get('fingerprint') or '')
+    except (OSError, ValueError):
+        return ''
+
+
 class FuenteWeb:
     """La fuente de la web: el espacio de trabajo, el perfil y DIgSILENT, solo por funciones públicas."""
 
     def alimentadores(self, ws) -> list[str]:
-        """Los alimentadores con geografía de la conversión en la salida del espacio."""
-        return sorted(p.name[:-len('_geography.json')] for p in Path(ws.out_dir).glob('*_geography.json'))
+        """Los alimentadores con geografía de la conversión: los de la salida del espacio y, 111:RF-32, los de las
+        conversiones y redes unidas anteriores de la misma fuente."""
+        propios = {p.name[:-len('_geography.json')] for p in Path(ws.out_dir).glob('*_geography.json')}
+        candidatos = set((getattr(ws, 'conversions', None) or {}))
+        for grupo in (getattr(ws, 'groups', None) or {}).values():
+            candidatos |= {str(f) for f in _feeders(grupo)}
+        return sorted(propios | {f for f in candidatos - propios if self.ruta_geografia(ws, f) is not None})
 
     def modelo(self, ws, alimentador: str):
         """El modelo con las reglas del proyecto, igual que en el DGS (P5)."""
@@ -67,8 +99,30 @@ class FuenteWeb:
         return services.build_model(ws, alimentador, geography=True, oraculo=False)
 
     def ruta_geografia(self, ws, alimentador: str) -> Path | None:
+        """La geografía de la conversión del alimentador: la de la salida activa o, 111:RF-32, la de su conversión
+        anterior o la de la red unida que lo contiene, si son de la misma huella de la fuente que la red cargada.
+
+        Cada «Cargar y listar alimentadores» crea una ejecución nueva con su salida vacía (111 T18 del 22-11: un alimentador de prueba, con
+        su geografía en la ejecución de su conversión, salía «Convierta el alimentador para verlo sobre su trazo»); y una
+        conversión conjunta solo deja la geografía de la red unida, como ya lee 004:RF-72.
+        """
         ruta = Path(ws.out_dir) / f'{alimentador}_geography.json'
-        return ruta if ruta.is_file() else None
+        if ruta.is_file():
+            return ruta
+        huella = str(getattr(ws, 'loaded_source_fingerprint', '') or '')
+        if not huella:
+            return None
+        candidatas = []
+        conversion = (getattr(ws, 'conversions', None) or {}).get(alimentador) or {}
+        if conversion.get('dgs'):
+            dgs = _ruta_del_espacio(ws, conversion['dgs'])
+            candidatas.append((dgs.with_name(f'{alimentador}_geography.json'), _huella_de_la_ejecucion(dgs)))
+        for grupo in (getattr(ws, 'groups', None) or {}).values():
+            if alimentador in {str(f) for f in _feeders(grupo)} and grupo.get('dgs'):
+                dgs = _ruta_del_espacio(ws, grupo['dgs'])
+                huella_grupo = str(grupo.get('source_fingerprint') or '') or _huella_de_la_ejecucion(dgs)
+                candidatas.append((dgs.with_name(f'{dgs.stem}_geography.json'), huella_grupo))
+        return next((r for r, h in candidatas if h == huella and r.is_file()), None)
 
     def disponible(self) -> bool:
         """111:RF-29: DIgSILENT se puede usar en este equipo: una instalación con su API y el Python que pide.

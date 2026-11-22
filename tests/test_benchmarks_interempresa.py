@@ -1,4 +1,4 @@
-"""Spec 112: dejar una empresa fuera cada vez en la conversión VNR y en el pronóstico (112:RF-15 a RF-19).
+"""Spec 112: dejar una empresa fuera cada vez en la conversión VNR y en el pronóstico (112:RF-15 a RF-19, RF-22, RF-23).
 
 La cohorte por empresa (RF-6) repartía los registros, pero nada medía con ella si lo aprendido de unas empresas vale para
 otra. Aquí, con empresas sintéticas («Empresa A», «Empresa B», «Empresa C» y una cuarta que no se parece), se comprueba
@@ -289,3 +289,218 @@ def test_069_rf41_la_particion_de_las_humanas_no_inventa_sus_etiquetas():
     assert 'RF-41' in bloque.group(0) and 'Siguiente acción' in bloque.group(0)
     if bloque.group(1) == 'x':
         assert 'particionar_humanas' in bloque.group(0) and 'etiqu' in bloque.group(0)
+
+
+# ------------------------------------------------------------------ 112:RF-22, el modelo canónico de la copia
+
+
+def _modelo(semilla: int, fichas: dict, *, n: int = 30, empresa: str = 'Empresa A'):
+    """Un modelo canónico sintético, como el que devuelve ``cargar_copia``: tramos con conductor y longitud, y su
+    catálogo de conductores (algún tramo sin conductor y una ficha sin corriente, como en una copia real)."""
+    from convertersmartgrid.adaptadores.entrada.vnr.models.canonical import CanonicalModel, ConductorType, Section
+
+    rnd = random.Random(semilla)
+    codigos = list(fichas)
+    tramos = [Section(f'T{k}', f'N{k}', f'N{k + 1}', conductor_code=rnd.choice(codigos),
+                      length_m=round(rnd.uniform(10, 600), 1)) for k in range(n)]
+    tramos.append(Section('T_SIN', 'N0', 'N9', conductor_code='', length_m=50.0))
+    catalogo = [ConductorType(c, r1_ohm_km=r, x1_ohm_km=x, ampacity_a=a) for c, (r, x, a) in fichas.items()]
+    return CanonicalModel(metadata={'company': empresa}, sections=tramos, conductor_types=catalogo)
+
+
+def test_112_rf22_tramos_y_fichas_del_modelo_canonico_sin_pasar_por_cymdist(tmp_path):
+    """112:RF-22 — de la copia de VNR-GIS se toma su modelo canónico: los tramos con conductor (longitud en metros) y
+    las fichas de su catálogo; ``red_vnr.json`` lo guarda sin ningún nombre y se lee igual. Con tres empresas que usan
+    los mismos conductores, «DEMOSTRADA»; ninguna pasa por un export CYMDIST."""
+    a = _adaptador()
+    assert hasattr(a, 'red_de_modelo') and hasattr(a, 'guardar_red'), 'falta red_de_modelo en interempresa (112:RF-22)'
+    red = a.red_de_modelo(_modelo(SEMILLA, FICHAS_COMUNES))
+    assert len(red.tramos) == 30 and all(c in FICHAS_COMUNES and lon > 0 for c, lon in red.tramos), red.tramos[:3]
+    assert set(red.fichas) == set(FICHAS_COMUNES) and red.fichas['AL050A'].r1 == 0.64
+    raiz = tmp_path / 'empresas'
+    for i, nombre in enumerate(EMPRESAS):
+        ruta = a.guardar_red(a.red_de_modelo(_modelo(SEMILLA + i, FICHAS_COMUNES, empresa=nombre)), raiz / nombre)
+        assert ruta.name == 'red_vnr.json' and nombre not in ruta.read_text(encoding='utf-8')
+    leida = a.leer_red_empresa(raiz / EMPRESAS[0])
+    assert leida.tramos == a.red_de_modelo(_modelo(SEMILLA, FICHAS_COMUNES)).tramos
+    informe = a.evaluar_vnr(raiz)
+    assert informe['veredicto'] == 'DEMOSTRADA' and informe['empresas'] == 3, (SEMILLA, informe['motivo'])
+    assert not re.search(r'Empresa [A-C]', json.dumps(informe, ensure_ascii=False))
+    # Una copia cuyas normas no traen impedancia (como los paquetes públicos): ninguna ficha propia, nada que medir, y
+    # el veredicto lo dice en vez de dar un 0 % de acierto con fichas vacías.
+    sin_datos = a.red_de_modelo(_modelo(SEMILLA, {'AL050A': (0.64, 0.42, None), 'AL070A': (None, None, None)}))
+    assert sin_datos.fichas == {} and len(sin_datos.tramos) == 30, 'una ficha sin dato no se inventa ni se compara'
+    vacias = tmp_path / 'sin_impedancias'
+    for i, nombre in enumerate(EMPRESAS):
+        a.guardar_red(a.red_de_modelo(_modelo(SEMILLA + i, {c: (None, None, None) for c in FICHAS_COMUNES})),
+                      vacias / nombre)
+    informe = a.evaluar_vnr(vacias)
+    assert informe['veredicto'] == 'NO DEMOSTRADA' and 'sin tramos con ficha propia' in informe['motivo'], informe
+    assert all(p['metricas'].get('acierto') is None or p['metricas']['tramos'] == 0 for p in informe['pliegues']),         'sin fichas propias no hay un acierto del 0 %'
+
+
+def test_112_rf22_una_empresa_sin_tramos_es_un_error_y_no_un_veredicto(tmp_path, capsys):
+    """112:RF-22 — una carpeta de empresa vacía (su conversión no se hizo) no da «NO DEMOSTRADA»: es un error que la
+    nombra por su seudónimo, la herramienta sale con 1 y no escribe informe."""
+    a = _adaptador()
+    assert hasattr(a, 'red_de_modelo'), 'falta red_de_modelo en interempresa (112:RF-22)'
+    raiz = tmp_path / 'empresas'
+    for i, nombre in enumerate(EMPRESAS[:2]):
+        a.guardar_red(a.red_de_modelo(_modelo(SEMILLA + i, FICHAS_COMUNES)), raiz / nombre)
+    (raiz / EMPRESAS[2]).mkdir()
+    with pytest.raises(a.SinEmpresas, match='sin tramos'):
+        a.evaluar_vnr(raiz)
+    herramienta = cargar_herramienta('interempresa_loco.py')
+    salida = tmp_path / 'informe.json'
+    assert herramienta.main(['vnr', '--empresas', str(raiz), '--salida', str(salida)]) == 1
+    assert not salida.exists() and 'sin tramos' in capsys.readouterr().err
+
+
+def test_112_rf22_preparar_vnr_deja_la_red_de_la_copia_restaurada(tmp_path, monkeypatch, capsys):
+    """112:RF-22 — «preparar-vnr» carga la copia con ``cargar_copia`` (aquí un doble, sin SQL Server) y deja
+    ``red_vnr.json`` en la carpeta de la empresa; sin la copia, o si no da tramos, sale con 1."""
+    from convertersmartgrid.adaptadores.entrada.vnr.connectors import sqlserver_vnr
+
+    herramienta = cargar_herramienta('interempresa_loco.py')
+    assert hasattr(herramienta, 'preparar_vnr'), 'falta «preparar-vnr» en tools/interempresa_loco.py (112:RF-22)'
+    copia = tmp_path / 'paquete' / 'RED_X.bak'
+    copia.parent.mkdir()
+    copia.write_bytes(b'copia')
+    vistas = []
+
+    def doble(bak, **opciones):
+        vistas.append((Path(bak), opciones))
+        return _modelo(SEMILLA, FICHAS_COMUNES), [{'code': 'AVISO'}], {'company': 'X'}
+
+    monkeypatch.setattr(sqlserver_vnr, 'cargar_copia', doble)
+    from convertersmartgrid.adaptadores.sources import vnr as fuente_vnr
+
+    catalogo = tmp_path / 'catalogo.xlsx'
+    catalogo.write_bytes(b'catalogo')
+    resueltos = []
+    monkeypatch.setattr(fuente_vnr, 'fichas_del_catalogo', lambda modelo, ruta: resueltos.append(ruta) or {})
+    destino = tmp_path / 'empresas' / 'Empresa A'
+    assert herramienta.main(['preparar-vnr', '--copia', str(copia), '--destino', str(destino),
+                             '--catalogo', str(catalogo)]) == 0
+    assert resueltos == [catalogo], 'las fichas que faltan se resuelven con el catálogo dado (112:RF-23)'
+    assert vistas == [(copia, {'vecinas': [copia.parent]})]
+    assert json.loads((destino / 'red_vnr.json').read_text(encoding='utf-8'))['esquema'] == 'csg-red-vnr-v2'
+    assert '30 tramos' in capsys.readouterr().out
+    assert herramienta.main(['preparar-vnr', '--copia', str(tmp_path / 'no.bak'), '--destino', str(destino),
+                             '--catalogo', str(catalogo)]) == 1
+    monkeypatch.setattr(sqlserver_vnr, 'cargar_copia', lambda bak, **o: (_modelo(SEMILLA, {}, n=0), [], {}))
+    assert herramienta.main(['preparar-vnr', '--copia', str(copia), '--destino', str(tmp_path / 'otra'),
+                             '--catalogo', str(catalogo)]) == 1
+    assert herramienta.main(['preparar-vnr', '--copia', str(copia), '--destino', str(tmp_path / 'otra'),
+                             '--catalogo', str(tmp_path / 'no_hay.xlsx')]) == 1
+    assert not (tmp_path / 'otra' / 'red_vnr.json').exists()
+
+
+# ------------------------------------------------------------------ 112:RF-23, las fichas del catálogo universal
+
+
+FICHAS_CATALOGO = {'AA050': (0.64, 0.42, 190.0), 'AA070': (0.46, 0.41, 235.0), 'CU035': (0.52, 0.12, 170.0)}
+
+
+def _resolutor(fichas: dict):
+    """Un doble del resolutor de la conversión: completa en el modelo R1, X1 y corriente por los cinco primeros
+    caracteres del código (material y sección), como ``fichas_del_catalogo``."""
+    def resolver(modelo):
+        for c in modelo.conductor_types:
+            v = fichas.get(c.conductor_code[:5])
+            if v is not None and c.r1_ohm_km is None:
+                c.r1_ohm_km, c.x1_ohm_km, c.ampacity_a = v
+    return resolver
+
+
+def _modelo_publico(semilla: int, codigos: list[str], *, propias: dict | None = None):
+    """Un modelo como el de una copia pública: los conductores llegan sin impedancia, salvo ``propias``."""
+    base = {c: (None, None, None) for c in codigos}
+    base.update(propias or {})
+    return _modelo(semilla, base)
+
+
+def test_112_rf23_las_fichas_que_la_copia_no_trae_las_da_el_catalogo_con_su_origen(tmp_path):
+    """112:RF-23 — cada tramo MT toma R1, X1 y corriente del catálogo universal si la copia no las trae, con el origen
+    «catálogo 053»; las que trae la copia siguen siendo propias; la cuenta de resueltos y sin resolver va por empresa, y
+    ``red_vnr.json`` conserva el origen (el formato anterior se lee como propias)."""
+    a = _adaptador()
+    assert hasattr(a, 'RedVnr') and hasattr(a, 'ORIGEN_CATALOGO'), 'falta el origen de las fichas (112:RF-23)'
+    codigos = ['AA05003D', 'AA07003D', 'XZ99901D']
+    red = a.red_de_modelo(_modelo_publico(SEMILLA, codigos, propias={'AA07003D': (0.46, 0.41, 235.0)}),
+                          resolver=_resolutor(FICHAS_CATALOGO))
+    assert set(red.catalogo) == {'AA05003D'} and set(red.propias) == {'AA07003D'}, (red.catalogo, red.propias)
+    c = red.cobertura()
+    n = {k: sum(1 for cod, _ in red.tramos if cod == k) for k in codigos}
+    assert c['tramos'] == 30 and c['con_ficha_propia'] == n['AA07003D'] and c['resueltos_catalogo'] == n['AA05003D']
+    assert c['no_resueltos'] == n['XZ99901D'] and c['origen_catalogo'] == 'catálogo 053', c
+    ruta = a.guardar_red(red, tmp_path / 'Empresa A')
+    datos = json.loads(ruta.read_text(encoding='utf-8'))
+    assert datos['fichas']['AA05003D']['origen'] == 'catálogo 053' and datos['fichas']['AA07003D']['origen'] == 'propia'
+    leida = a.leer_red_vnr(tmp_path / 'Empresa A')
+    assert leida.catalogo == red.catalogo and leida.propias == red.propias and leida.tramos == red.tramos
+    (tmp_path / 'v1').mkdir()
+    (tmp_path / 'v1' / 'red_vnr.json').write_text(json.dumps({'esquema': 'csg-red-vnr-v1', 'tramos': [['AA05003D', 10]],
+                                                              'fichas': {'AA05003D': [0.64, 0.42, 190.0]}}),
+                                                  encoding='utf-8')
+    assert set(a.leer_red_vnr(tmp_path / 'v1').propias) == {'AA05003D'}
+    sin = a.red_de_modelo(_modelo_publico(SEMILLA, codigos))
+    assert sin.catalogo == {} and sin.propias == {}, 'sin resolutor no se inventa ninguna ficha'
+
+
+def test_112_rf23_el_informe_dice_que_mide_y_separa_las_fichas_propias_de_las_del_catalogo(tmp_path):
+    """112:RF-23 — con fichas del catálogo, el veredicto mide el acierto del modelo sobre ellas y lo dice («catálogo
+    universal», y que es el mismo para todas); la evaluación con fichas propias va aparte (o dice que ninguna fuente las
+    trae) y la cobertura del catálogo va por empresa, con seudónimos."""
+    a = _adaptador()
+    assert hasattr(a, 'RedVnr'), 'falta el origen de las fichas (112:RF-23)'
+    raiz = tmp_path / 'empresas'
+    # Cada empresa nombra sus conductores con otra variante del código: el modelo los lleva a la misma ficha.
+    variantes = (['AA05003D', 'AA07003D', 'CU03503S'], ['AA05001D', 'AA07001G', 'CU03501S'],
+                 ['AA05003G', 'AA07003G', 'CU03503G'])
+    for i, (nombre, codigos) in enumerate(zip(EMPRESAS, variantes)):
+        a.guardar_red(a.red_de_modelo(_modelo_publico(SEMILLA + i, codigos), resolver=_resolutor(FICHAS_CATALOGO)),
+                      raiz / nombre)
+    informe = a.evaluar_vnr(raiz)
+    assert informe['fichas'] == 'catálogo 053' and 'catálogo universal' in informe['que_mide'], informe['que_mide']
+    assert 'mismo para todas' in informe['que_mide']
+    assert informe['veredicto'] == 'DEMOSTRADA', (SEMILLA, informe['motivo'])
+    assert informe['ficha_propia'] == {'evaluada': False, 'fichas': 'propia',
+                                       'motivo': 'ninguna fuente trae la impedancia de sus conductores'}
+    assert sorted(informe['cobertura_catalogo']) == ['E1', 'E2', 'E3']
+    assert all(c['resueltos_catalogo'] == 30 and c['no_resueltos'] == 0 for c in informe['cobertura_catalogo'].values())
+    assert not re.search(r'Empresa [A-C]', json.dumps(informe, ensure_ascii=False))
+    # Una empresa trae la impedancia de uno de sus conductores: esa evaluación va aparte y sus tramos no entran en la
+    # del catálogo.
+    a.guardar_red(a.red_de_modelo(_modelo_publico(SEMILLA, variantes[0], propias={'AA07003D': (0.46, 0.41, 235.0)}),
+                                  resolver=_resolutor(FICHAS_CATALOGO)), raiz / EMPRESAS[0])
+    informe = a.evaluar_vnr(raiz)
+    assert informe['ficha_propia']['fichas'] == 'propia' and 'veredicto' in informe['ficha_propia']
+    assert 'ficha propia' in informe['ficha_propia']['que_mide']
+    assert any(p['metricas']['tramos_sin_ficha_propia'] > 0 for p in informe['pliegues'])
+    assert sum(c['con_ficha_propia'] for c in informe['cobertura_catalogo'].values()) > 0
+
+
+def test_112_rf23_el_resolutor_es_el_de_la_conversion_y_no_toca_el_catalogo(tmp_path):
+    """112:RF-23 — con el resolutor de la conversión (``fichas_del_catalogo``) y un catálogo de fichas en disco, el
+    conductor de la copia toma la ficha de su familia (material y sección) y el catálogo queda igual, byte a byte."""
+    from openpyxl import Workbook
+
+    from convertersmartgrid.adaptadores.sources.vnr import fichas_del_catalogo
+
+    a = _adaptador()
+    assert hasattr(a, 'RedVnr'), 'falta el origen de las fichas (112:RF-23)'
+    libro = Workbook()
+    hoja = libro.active
+    hoja.title = 'conductores_aereos'
+    columnas = ['codigo', 'estado', 'R1_modelo_ohm_km', 'X1_modelo_ohm_km', 'R0_modelo_ohm_km', 'X0_modelo_ohm_km',
+                'ampacidad_modelo_A']
+    hoja.append(columnas)
+    hoja.append(['AA05003D', 'modelo', 0.64, 0.42, 0.8, 1.6, 190.0])
+    ruta = tmp_path / 'catalogo_parametros.xlsx'
+    libro.save(ruta)
+    antes = ruta.read_bytes()
+    red = a.red_de_modelo(_modelo_publico(SEMILLA, ['AA05001G', 'XZ99901D']),
+                          resolver=lambda m: fichas_del_catalogo(m, ruta))
+    assert set(red.catalogo) == {'AA05001G'} and red.catalogo['AA05001G'].r1 == 0.64, red.catalogo
+    assert red.cobertura()['no_resueltos'] > 0 and ruta.read_bytes() == antes

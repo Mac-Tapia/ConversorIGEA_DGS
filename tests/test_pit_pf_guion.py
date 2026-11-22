@@ -447,3 +447,151 @@ def test_una_rama_serie_sin_reactancia_queda_en_faltantes():
     object.__setattr__(app.objetos['*.ElmScap'][0], 'xcap', None)
     red = _red_t(app)
     assert [(f['tipo'], f['falta']) for f in red.faltantes if f['tipo'] == 'serie'] == [('serie', ['x_ohm'])], red.faltantes
+
+
+# --- 107:RF-27: unidades, paralelos, cubículos, tomas, compensaciones y fuera de servicio (corrida de 107 T14, 22-11) -
+# En la copia de transmisión: «cline» en nF/km por las unidades del proyecto (se tomaba como µF/km: 1 000 veces la
+# capacidad), trafos con hasta 67 unidades en paralelo exportados como una, 68 lados con su interruptor de cubículo abierto
+# exportados como conectados, las reactancias en derivación con Q 0 (se leía «qcapn») y las tomas sin exportar.
+
+class _TipoConUnidad(Obj):
+    """Un TypLne que dice la unidad de su capacitancia, como ``GetAttributeUnit`` de DIgSILENT."""
+
+    def GetAttributeUnit(self, attr):
+        return self._unidades.get(attr, '')
+
+
+class _CubConInterruptor(_Cub):
+    def __init__(self, barra, *, abierto):
+        super().__init__(barra)
+        self._sw = [Obj(None, 'StaSwitch', 'SW', on_off=0 if abierto else 1)]
+
+    def GetContents(self, patron='*'):
+        return list(self._sw) if 'StaSwitch' in patron else []
+
+
+def _linea_l1(app):
+    return app.objetos['*.ElmLne'][0]
+
+
+def test_la_capacitancia_se_convierte_desde_la_unidad_que_declara_el_proyecto():
+    """107:RF-27 — «cline» en nF/km sale tal cual y en µF/km por 1 000; con la frecuencia del tipo (frnom)."""
+    for unidad, cline, esperado in (('nF/km', 9.0, 9.0), ('uF/km', 0.009, 9.0)):
+        app = _AppTransmision()
+        t = _TipoConUnidad(None, 'TypLne', 't', uline=220.0, rline=0.05, xline=0.4, cline=cline, sline=1.0, frnom=60.0)
+        object.__setattr__(t, '_unidades', {'cline': unidad})
+        object.__setattr__(_linea_l1(app), 'typ_id', t)
+        ln = next(e for e in guion.exportar_red(app, _PLAN_T) if e['tipo'] == 'linea')
+        assert ln['c_nf_per_km'] == pytest.approx(esperado), (unidad, ln)
+        assert ln['f_hz'] == 60.0
+
+
+def test_las_unidades_en_paralelo_se_exportan_y_el_motor_abierto_las_cuenta():
+    """107:RF-27 — ntnum del trafo y nlnum de la línea salen como «paralelo»; con dos trafos en paralelo la
+    cargabilidad de cada uno es la mitad."""
+    base = _AppTransmision()
+    r1 = _flujo_t(_red_t(base), base)
+    app = _AppTransmision()
+    for tr in app.objetos['*.ElmTr2']:
+        object.__setattr__(tr, 'ntnum', 2)
+    object.__setattr__(_linea_l1(app), 'nlnum', 2)
+    red = _red_t(app)
+    assert {e.get('paralelo') for e in red.de_tipo('trafo2')} == {2}
+    assert [e.get('paralelo') for e in red.de_tipo('linea')] == [2]
+    r2 = _flujo_t(red, app)
+    assert r2.converge and r1.converge
+    for e in red.de_tipo('trafo2'):
+        assert r2.cargabilidad_pct[e['id']] == pytest.approx(r1.cargabilidad_pct[e['id']] / 2, rel=0.05)
+
+
+def test_un_interruptor_de_cubiculo_abierto_deja_la_rama_desconectada_de_ese_lado():
+    """107:RF-27 — el StaSwitch abierto del cubículo de un lado sale como «abierto_en» y la rama no lleva flujo."""
+    app = _AppTransmision()
+    ln = _linea_l1(app)
+    object.__setattr__(ln, 'bus2', _CubConInterruptor(app.b[('SY', '1')], abierto=True))
+    red = _red_t(app)
+    assert [e.get('abierto_en') for e in red.de_tipo('linea')] == [['hasta']]
+    r = _flujo_t(red, app)
+    assert not isinstance(r, Exception) and r.converge, r
+    # Abierta en un extremo solo lleva su corriente de carga: sin potencia activa.
+    assert abs(r.flujos.get(guion._id(ln), (0.0, 0.0))[0]) < 0.05, r.flujos.get(guion._id(ln))
+
+
+def test_la_toma_del_trafo_se_exporta_y_cambia_la_tension_de_su_lado():
+    """107:RF-27 — nntap, dutap, nntap0 y el lado de la toma salen al contrato y el motor abierto los aplica."""
+    base = _AppTransmision()
+    r1 = _flujo_t(_red_t(base), base)
+    app = _AppTransmision()
+    tipo = Obj(None, 'TypTr2', 't', strn=100.0, utrn_h=220.0, utrn_l=60.0, uktr=12.0, pcutr=300.0, pfe=50.0, curmg=0.1,
+               dutap=2.5, nntap0=0, ntpmn=-5, ntpmx=5, tap_side=0)
+    for tr in app.objetos['*.ElmTr2']:
+        object.__setattr__(tr, 'typ_id', tipo)
+        object.__setattr__(tr, 'nntap', 2)
+    red = _red_t(app)
+    t = red.de_tipo('trafo2')[0]
+    assert (t.get('tap_pos'), t.get('tap_neutral'), t.get('tap_step_percent'), t.get('tap_side')) == (2, 0, 2.5, 'hv')
+    r2 = _flujo_t(red, app)
+    b3 = guion._id(app.b[('SY', '3')])
+    assert abs(r2.tensiones_pu[b3] - r1.tensiones_pu[b3]) > 0.01
+
+
+def test_la_reactancia_en_derivacion_absorbe_su_q_real_y_lo_fuera_de_servicio_no_se_exporta():
+    """107:RF-27 — la compensación sale con su Q real (Qact, con sus escalones); la reactancia (shtype 1) inductiva.
+    Una línea fuera de servicio no se exporta."""
+    app = _AppTransmision()
+    app.objetos['*.ElmShnt'] = [
+        Obj(None, 'ElmShnt', 'R', app.b[('SY', '1')].GetParent(), shtype=1, qcapn=0.0, qrean=10.0, Qact=20.0, ncapa=2,
+            bus1=_Cub(app.b[('SY', '1')])),
+        Obj(None, 'ElmShnt', 'C', app.b[('SX', '3')].GetParent(), shtype=2, qcapn=5.0, Qact=5.0, ncapa=1,
+            bus1=_Cub(app.b[('SX', '3')]))]
+    otra = Obj(None, 'ElmLne', 'L2', _linea_l1(app).GetParent(), typ_id=_linea_l1(app).typ_id, dline=10.0, outserv=1,
+               bus1=_Cub(app.b[('SX', '1')]), bus2=_Cub(app.b[('SY', '1')]))
+    app.objetos['*.ElmLne'].append(otra)
+    exportada = guion.exportar_red(app, _PLAN_T)
+    q = {e['nombre']: e['q_mvar'] for e in exportada if e['tipo'] == 'compensacion'}
+    assert q == {'R': -20.0, 'C': 5.0}, q
+    assert [e['nombre'] for e in exportada if e['tipo'] == 'linea'] == ['L1']
+
+
+# --- 107:RF-28: los SVC como nudos PV y el desfase de los grupos de conexión (corrida de 107 T14, 22-11) --------------
+# En la copia de transmisión hay 13 SVC (hasta 315 Mvar en 500 kV) que regulan la tensión de su barra y no se exportaban;
+# y los trafos tienen grupos de 1, 5, 7 y 11 h: DIgSILENT da en baja el ángulo de alta menos 30° × grupo horario
+# (verificado con «tr2 cal_671», grupo 5: −46,6° en alta y 163,4° en baja).
+
+
+def test_el_svc_se_exporta_como_nudo_pv_con_su_consigna_y_sus_limites():
+    """107:RF-28 — el ElmSvs en servicio sale como red externa PV sin potencia activa, con la consigna de tensión
+    (usetp) y sus límites de Q; el motor abierto mantiene la tensión de su barra en la consigna."""
+    app = _AppTransmision()
+    barra = app.b[('SY', '3')]
+    app.objetos['*.ElmSvs'] = [Obj(None, 'ElmSvs', 'SVC', barra.GetParent(), usetp=1.01, qmax=40.0, qmin=30.0,
+                                   bus1=_Cub(barra))]
+    red = _red_t(app)
+    svc = [e for e in red.de_tipo('red_externa') if e['nombre'] == 'SVC']
+    assert len(svc) == 1, red.de_tipo('red_externa')
+    s = svc[0]
+    assert (s['tipo_barra'], s['p_mw'], s['vm_pu'], s['q_max_mvar'], s['q_min_mvar']) == ('PV', 0.0, 1.01, 40.0, -30.0)
+    r = _flujo_t(red, app)
+    assert not isinstance(r, Exception) and r.converge, r
+    assert r.tensiones_pu[guion._id(barra)] == pytest.approx(1.01, abs=1e-6)
+
+
+def test_el_desfase_del_grupo_de_conexion_se_exporta_y_lo_usa_el_motor_abierto():
+    """107:RF-28 — nt2ag del trafo de dos devanados y nt3ag de cada devanado del de tres salen como desfase en grados
+    (30° × grupo horario, relativo a alta), y el motor abierto los lleva a la red de pandapower."""
+    from convertersmartgrid.adaptadores.pit import red_pandapower as rp
+    import pandapower as pp
+
+    app = _AppTransmision()
+    for tr in app.objetos['*.ElmTr2']:
+        object.__setattr__(tr.typ_id, 'nt2ag', 5.0)
+    red = _red_t(app)
+    assert {e.get('shift_degree') for e in red.de_tipo('trafo2')} == {150.0}
+    net, _bus, _l, trafos, _t3 = rp._red(pp, red, _cargas_t(app), set())
+    assert set(net.trafo.shift_degree.round(6)) == {150.0}
+    r = _flujo_t(red, app)
+    assert not isinstance(r, Exception) and r.converge, r
+    tipo3 = Obj(None, 'TypTr3', 't3', nt3ag_h=0.0, nt3ag_m=0.0, nt3ag_l=11.0)
+    tr3 = Obj(None, 'ElmTr3', 'T3', typ_id=tipo3)
+    assert guion._desfases_tr3(tipo3) == {'shift_mv_degree': 0.0, 'shift_lv_degree': 330.0}
+    assert tr3.typ_id is tipo3

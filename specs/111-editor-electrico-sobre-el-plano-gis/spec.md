@@ -109,6 +109,11 @@ Todo esto sin tocar nunca el caso base ni la geometría de la fuente.
   es de la ejecución de la fuente activa o si su huella de la fuente es la de la red cargada: cada «Cargar y listar
   alimentadores» crea una ejecución nueva aunque los ficheros no cambien. Con otra huella, o sin huella, no.
 
+- RF-32: (111 T18 del 22-11: un alimentador de prueba, convertido desde VNR-GIS con su geografía, salía «Convierta el alimentador para
+  verlo sobre su trazo» tras recargar la fuente; y un alimentador convertido en una red unida nunca salía con su trazo)
+  CUANDO el plano busque la geografía de un alimentador (RF-1), EL SISTEMA usará la de la salida activa o, si no está,
+  la de su conversión anterior o la de la red unida que lo contiene, siempre que sean de la misma huella de la fuente que
+  la red cargada; y listará esos alimentadores. Con otra huella, no.
 ## Requisitos no funcionales
 - Escala: un plano con todos los alimentadores de la entrega, sin bloquear la página mientras calcula, con capas por
   vista y tablas virtualizadas. El presupuesto de latencia se mide primero sobre la línea base.

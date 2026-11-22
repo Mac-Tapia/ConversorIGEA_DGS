@@ -418,3 +418,33 @@ def test_111_rf31_el_vinculo_sigue_valiendo_al_recargar_la_misma_fuente(monkeypa
     sin_huella = SimpleNamespace(source_run_id='R1', source_fingerprint='')
     monkeypatch.setattr(services, 'vinculo_del_proyecto', lambda ws, project, alimentadores: sin_huella)
     assert fuente.vinculo(SimpleNamespace(active_run_id='R2', loaded_source_fingerprint=''), 'P', ['A'])[1] is False
+
+
+def _espacio_geo(tmp_path, huella_cargada='H1'):
+    """Un espacio como el de la 111 T18 del 22-11: la conversión de A en la ejecución R1 y la red unida G (B y C) en R0,
+    las dos de la fuente de huella H1; tras «Cargar y listar alimentadores» la ejecución activa es R2, con la salida vacía."""
+    root = tmp_path / 'espacio'
+    for run in ('R0', 'R1', 'R2'):
+        (root / 'runs' / run / 'salida').mkdir(parents=True)
+        (root / 'runs' / run / 'source_manifest.json').write_text(json.dumps({'fingerprint': 'H1'}), encoding='utf-8')
+    s0, s1 = root / 'runs' / 'R0' / 'salida', root / 'runs' / 'R1' / 'salida'
+    (s1 / 'A_geography.json').write_text('{}', encoding='utf-8')
+    (s0 / 'G_geography.json').write_text('{}', encoding='utf-8')
+    return SimpleNamespace(
+        root=root, out_dir=root / 'runs' / 'R2' / 'salida', active_run_id='R2', loaded_source_fingerprint=huella_cargada,
+        conversions={'A': {'feeder': 'A', 'dgs': str(s1 / 'A.dgs')}},
+        groups={'G': {'feeders': ['B', 'C'], 'dgs': 'espacio:runs/R0/salida/G.dgs', 'source_fingerprint': 'H1'}}), s0, s1
+
+
+def test_111_rf32_la_geografia_de_una_conversion_anterior_de_la_misma_fuente_sigue_en_el_plano(tmp_path):
+    """111:RF-32 — tras recargar la misma fuente (ejecución nueva con la salida vacía), el plano encuentra el trazo de la
+    conversión del alimentador y, de un alimentador convertido en una red unida, el de la red unida; y los lista. Con otra
+    huella de la fuente, no."""
+    api = _api()
+    ws, s0, s1 = _espacio_geo(tmp_path)
+    fuente = api.FuenteWeb()
+    assert fuente.ruta_geografia(ws, 'A') == s1 / 'A_geography.json'
+    assert fuente.ruta_geografia(ws, 'B') == s0 / 'G_geography.json'
+    assert set(fuente.alimentadores(ws)) >= {'A', 'B', 'C'}
+    otra, _s0, _s1 = _espacio_geo(tmp_path / 'otra', huella_cargada='H2')
+    assert fuente.ruta_geografia(otra, 'A') is None and fuente.ruta_geografia(otra, 'B') is None
